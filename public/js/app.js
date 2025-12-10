@@ -610,8 +610,8 @@ function renderMetrics() {
           ${metric.description ? `<div class="metric-stats" style="margin-bottom: 0.25rem; font-style: italic;">${metric.description}</div>` : ''}
           <div class="metric-stats">Base: ${metric.value.toFixed(2)} | Total: ${metric.total.toFixed(2)} | Decay: ${metric.decay ? 'ON' : 'OFF'}</div>
           ${hasFormula ? `<details style="margin-top: 0.5rem;">
-            <summary style="cursor: pointer; font-size: 0.75rem; color: #4a4a4a;">Formula (+${formulaResult.toFixed(2)})</summary>
-            <div style="margin-top: 0.25rem; padding: 0.5rem; background: #f5f5f5; border-radius: 4px; font-family: monospace; font-size: 0.75rem;">${metric.formula}</div>
+            <summary>Formula (+${formulaResult.toFixed(2)})</summary>
+            <div>${metric.formula}</div>
           </details>` : ''}
         </div>
         <div class="metric-actions">
