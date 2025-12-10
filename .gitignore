@@ -1,0 +1,26 @@
+# Firebase
+.firebaserc
+firebase-debug.log
+firestore-debug.log
+
+# Node
+node_modules/
+npm-debug.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local development
+*.local
+
+# Exclude personal-webpage (contains real Firebase credentials)
+personal-webpage/
+
