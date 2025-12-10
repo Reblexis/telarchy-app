@@ -1,4 +1,5 @@
 import { initializeFirebaseApp, clearFirebaseConfig } from '/js/firebase-config.js';
+import { toggleDarkMode, isDarkMode } from '/js/dark-mode.js';
 import { getAuth, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 import { getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, orderBy, where, Timestamp, getDoc, setDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
@@ -35,6 +36,7 @@ const loading = document.getElementById('loading');
 const metricsContent = document.getElementById('metricsContent');
 const logoutBtn = document.getElementById('logoutBtn');
 const reconfigureBtn = document.getElementById('reconfigureBtn');
+const darkModeToggle = document.getElementById('darkModeToggle');
 const xpValue = document.getElementById('xpValue');
 const rankValue = document.getElementById('rankValue');
 const metricsGrid = document.getElementById('metricsGrid');
@@ -51,6 +53,12 @@ const graphModal = document.getElementById('graphModal');
 const graphModalClose = document.getElementById('graphModalClose');
 const graphModalTitle = document.getElementById('graphModalTitle');
 const graphModalContainer = document.getElementById('graphModalContainer');
+
+function updateDarkModeIcon() {
+  darkModeToggle.textContent = isDarkMode() ? '☀️' : '🌙';
+}
+
+updateDarkModeIcon();
 
 function calculateXP(metrics) {
   const utilityMetric = metrics.find(m => m.name === 'Utility');
@@ -860,6 +868,11 @@ reconfigureBtn.addEventListener('click', async () => {
     await signOut(auth);
     window.location.href = '/setup.html';
   }
+});
+
+darkModeToggle.addEventListener('click', () => {
+  toggleDarkMode();
+  updateDarkModeIcon();
 });
 
 onAuthStateChanged(auth, async (user) => {
