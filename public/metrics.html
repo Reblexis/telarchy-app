@@ -14,6 +14,15 @@
   <div class="header">
     <h1>Metrics Tracker</h1>
     <div class="header-actions">
+      <select id="graphSensitivity" title="Graph sampling interval">
+        <option value="second">1 Second</option>
+        <option value="minute">1 Minute</option>
+        <option value="hour">1 Hour</option>
+        <option value="day" selected>1 Day</option>
+        <option value="week">1 Week</option>
+        <option value="month">1 Month</option>
+        <option value="year">1 Year</option>
+      </select>
       <button class="dark-mode-toggle" id="darkModeToggle" title="Toggle dark mode">🌙</button>
       <button class="reconfigure-btn" id="reconfigureBtn">⚙️ Reconfigure Firebase</button>
       <button class="logout-btn" id="logoutBtn">Logout</button>

@@ -37,6 +37,7 @@ const metricsContent = document.getElementById('metricsContent');
 const logoutBtn = document.getElementById('logoutBtn');
 const reconfigureBtn = document.getElementById('reconfigureBtn');
 const darkModeToggle = document.getElementById('darkModeToggle');
+const graphSensitivity = document.getElementById('graphSensitivity');
 const xpValue = document.getElementById('xpValue');
 const rankValue = document.getElementById('rankValue');
 const metricsGrid = document.getElementById('metricsGrid');
@@ -56,7 +57,22 @@ function updateDarkModeIcon() {
   darkModeToggle.textContent = isDarkMode() ? '☀️' : '🌙';
 }
 
+function getGraphSensitivity() {
+  return getCookie('graphSensitivity') || 'day';
+}
+
+function setGraphSensitivity(sensitivity) {
+  setCookie('graphSensitivity', sensitivity);
+}
+
 updateDarkModeIcon();
+
+const savedSensitivity = getGraphSensitivity();
+graphSensitivity.value = savedSensitivity;
+
+graphSensitivity.addEventListener('change', () => {
+  setGraphSensitivity(graphSensitivity.value);
+});
 
 function calculateXP(metrics) {
   const utilityMetric = metrics.find(m => m.name === 'Utility');
@@ -71,6 +87,90 @@ function calculateRank(xp) {
   if (xp >= 500) return 'D';
   if (xp >= 400) return 'E';
   return '-';
+}
+
+function alignTimestamp(date, sensitivity) {
+  const aligned = new Date(date);
+  
+  aligned.setMilliseconds(0);
+  
+  if (sensitivity === 'second') {
+    return aligned;
+  }
+  
+  aligned.setSeconds(0);
+  
+  if (sensitivity === 'minute') {
+    return aligned;
+  }
+  
+  aligned.setMinutes(0);
+  
+  if (sensitivity === 'hour') {
+    return aligned;
+  }
+  
+  aligned.setHours(0);
+  
+  if (sensitivity === 'day') {
+    return aligned;
+  }
+  
+  if (sensitivity === 'week') {
+    const day = aligned.getDay();
+    const diff = (day === 0 ? -6 : 1) - day;
+    aligned.setDate(aligned.getDate() + diff);
+    return aligned;
+  }
+  
+  aligned.setDate(1);
+  
+  if (sensitivity === 'month') {
+    return aligned;
+  }
+  
+  aligned.setMonth(0);
+  return aligned;
+}
+
+function generateSamplePoints(startDate, endDate, sensitivity) {
+  const samples = [];
+  const current = alignTimestamp(startDate, sensitivity);
+  const end = endDate.getTime();
+  
+  while (current.getTime() <= end) {
+    samples.push(new Date(current));
+    
+    if (sensitivity === 'second') {
+      current.setSeconds(current.getSeconds() + 1);
+    } else if (sensitivity === 'minute') {
+      current.setMinutes(current.getMinutes() + 1);
+    } else if (sensitivity === 'hour') {
+      current.setHours(current.getHours() + 1);
+    } else if (sensitivity === 'day') {
+      current.setDate(current.getDate() + 1);
+    } else if (sensitivity === 'week') {
+      current.setDate(current.getDate() + 7);
+    } else if (sensitivity === 'month') {
+      current.setMonth(current.getMonth() + 1);
+    } else if (sensitivity === 'year') {
+      current.setFullYear(current.getFullYear() + 1);
+    }
+  }
+  
+  return samples;
+}
+
+function getValueAtTime(logs, sampleTime) {
+  const sampleMs = sampleTime.getTime();
+  
+  for (let i = logs.length - 1; i >= 0; i--) {
+    if (logs[i].timestamp.getTime() <= sampleMs) {
+      return logs[i].value;
+    }
+  }
+  
+  return null;
 }
 
 async function logMetricValue(metricId, metricName, value) {
@@ -114,6 +214,25 @@ window.openGraphModal = async function(metricId, metricName) {
     return;
   }
   
+  const sensitivity = getGraphSensitivity();
+  const samplePoints = generateSamplePoints(logs[0].timestamp, logs[logs.length - 1].timestamp, sensitivity);
+  
+  const sampledData = [];
+  for (const sampleTime of samplePoints) {
+    const value = getValueAtTime(logs, sampleTime);
+    if (value !== null) {
+      sampledData.push({
+        x: sampleTime.getTime(),
+        y: value
+      });
+    }
+  }
+  
+  if (sampledData.length === 0) {
+    graphModalContainer.innerHTML = '<div class="graph-no-data">No data available for the selected time range.</div>';
+    return;
+  }
+  
   graphModalContainer.innerHTML = '<canvas id="graphModalCanvas"></canvas>';
   const canvas = document.getElementById('graphModalCanvas');
   
@@ -134,10 +253,7 @@ window.openGraphModal = async function(metricId, metricName) {
     data: {
       datasets: [{
         label: 'Value',
-        data: logs.map(log => ({
-          x: log.timestamp.getTime(),
-          y: log.value
-        })),
+        data: sampledData,
         borderColor: lineColor,
         backgroundColor: fillColor,
         tension: 0.3,
