@@ -132,10 +132,12 @@ window.openGraphModal = async function(metricId, metricName) {
   currentGraphChart = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: logs.map(log => log.timestamp.toLocaleDateString() + ' ' + log.timestamp.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})),
       datasets: [{
         label: 'Value',
-        data: logs.map(log => log.value),
+        data: logs.map(log => ({
+          x: log.timestamp.getTime(),
+          y: log.value
+        })),
         borderColor: lineColor,
         backgroundColor: fillColor,
         tension: 0.3,
@@ -163,11 +165,18 @@ window.openGraphModal = async function(metricId, metricName) {
           titleColor: darkMode ? '#e0e0e0' : '#1a1a1a',
           bodyColor: darkMode ? '#b0b0b0' : '#4a4a4a',
           borderColor: darkMode ? '#3a3a3a' : '#e0e0e0',
-          borderWidth: 1
+          borderWidth: 1,
+          callbacks: {
+            title: function(context) {
+              const date = new Date(context[0].parsed.x);
+              return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+            }
+          }
         }
       },
       scales: {
         x: {
+          type: 'linear',
           grid: {
             color: gridColor
           },
@@ -177,7 +186,11 @@ window.openGraphModal = async function(metricId, metricName) {
             font: {
               size: 11
             },
-            color: textColor
+            color: textColor,
+            callback: function(value) {
+              const date = new Date(value);
+              return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            }
           }
         },
         y: {
