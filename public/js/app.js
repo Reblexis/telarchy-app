@@ -42,10 +42,6 @@ const rankValue = document.getElementById('rankValue');
 const metricsGrid = document.getElementById('metricsGrid');
 const timeline = document.getElementById('timeline');
 const addMetricForm = document.getElementById('addMetricForm');
-const updateForm = document.getElementById('updateForm');
-const updateMetricSelect = document.getElementById('updateMetric');
-const oldValueInput = document.getElementById('oldValue');
-const updateMessage = document.getElementById('updateMessage');
 const editModal = document.getElementById('editModal');
 const editForm = document.getElementById('editForm');
 const modalClose = document.getElementById('modalClose');
@@ -53,6 +49,8 @@ const graphModal = document.getElementById('graphModal');
 const graphModalClose = document.getElementById('graphModalClose');
 const graphModalTitle = document.getElementById('graphModalTitle');
 const graphModalContainer = document.getElementById('graphModalContainer');
+
+let currentEditOldValue = null;
 
 function updateDarkModeIcon() {
   darkModeToggle.textContent = isDarkMode() ? '☀️' : '🌙';
@@ -524,7 +522,7 @@ async function applyDecay() {
         timestamp: Timestamp.now()
       });
       
-      showMessage(`Applied -${daysPassed} decay to ${decayedMetricIds.length} metric${decayedMetricIds.length > 1 ? 's' : ''}`, 'success');
+      console.log(`Applied -${daysPassed} decay to ${decayedMetricIds.length} metric${decayedMetricIds.length > 1 ? 's' : ''}`);
       
       await setDoc(lastDecayRef, {
         lastDecayDate: today,
@@ -582,7 +580,6 @@ async function loadMetrics() {
   }
   
   renderMetrics();
-  populateMetricSelect();
 }
 
 async function logSpecificMetrics(metricIds) {
@@ -665,21 +662,18 @@ function renderMetrics() {
   metricsGrid.innerHTML = focusBanner + metricsContent;
 }
 
-function populateMetricSelect() {
-  updateMetricSelect.innerHTML = '<option value="">Choose a metric...</option>' +
-    currentMetrics.map(m => `<option value="${m.id}">${m.name} (${m.total.toFixed(2)})</option>`).join('');
-}
-
 window.editMetric = function(id) {
   const metric = currentMetrics.find(m => m.id === id);
   if (!metric) return;
   
   currentEditId = id;
+  currentEditOldValue = metric.value;
   document.getElementById('editName').value = metric.name;
   document.getElementById('editDescription').value = metric.description || '';
   document.getElementById('editValue').value = metric.value;
   document.getElementById('editFormula').value = metric.formula || '0';
   document.getElementById('editDecay').checked = metric.decay || false;
+  document.getElementById('editUpdateNote').value = '';
   editModal.classList.add('show');
 };
 
@@ -718,20 +712,6 @@ async function addMetric(name, value, formula = '0', description = '', decay = f
   return docRef.id;
 }
 
-async function postUpdate(metricId, metricName, oldValue, newValue, description) {
-  await addDoc(collection(db, 'updates'), {
-    metricName,
-    oldValue: Number(oldValue),
-    newValue: Number(newValue),
-    description,
-    timestamp: Timestamp.now()
-  });
-  
-  await updateDoc(doc(db, 'metrics', metricId), {
-    value: Number(newValue)
-  });
-}
-
 async function loadUpdateHistory() {
   const q = query(collection(db, 'updates'), orderBy('timestamp', 'desc'));
   const querySnapshot = await getDocs(q);
@@ -764,14 +744,6 @@ async function loadUpdateHistory() {
       }).join('');
 }
 
-function showMessage(message, type = 'success') {
-  updateMessage.textContent = message;
-  updateMessage.className = `message show ${type}`;
-  setTimeout(() => {
-    updateMessage.classList.remove('show');
-  }, 3000);
-}
-
 addMetricForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   
@@ -795,37 +767,6 @@ addMetricForm.addEventListener('submit', async (e) => {
   document.getElementById('metricFormula').value = '0';
 });
 
-updateForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  
-  const metricId = updateMetricSelect.value;
-  const metric = currentMetrics.find(m => m.id === metricId);
-  const oldValue = metric.value;
-  const newValue = document.getElementById('newValue').value;
-  const description = document.getElementById('updateDescription').value || '';
-  
-  await postUpdate(metricId, metric.name, oldValue, newValue, description);
-  await loadMetrics();
-  const affectedMetrics = getAffectedMetrics([metricId]);
-  await logSpecificMetrics(affectedMetrics);
-  await loadUpdateHistory();
-  
-  updateForm.reset();
-  showMessage('Update posted successfully!');
-});
-
-updateMetricSelect.addEventListener('change', (e) => {
-  const metricId = e.target.value;
-  if (!metricId) {
-    oldValueInput.value = '';
-    return;
-  }
-  
-  const metric = currentMetrics.find(m => m.id === metricId);
-  oldValueInput.value = metric.value;
-  document.getElementById('newValue').value = '';
-});
-
 editForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   
@@ -834,6 +775,7 @@ editForm.addEventListener('submit', async (e) => {
   const value = document.getElementById('editValue').value;
   const formula = document.getElementById('editFormula').value || '0';
   const decay = document.getElementById('editDecay').checked;
+  const updateNote = document.getElementById('editUpdateNote').value;
   
   if (detectCircularDependency(currentEditId, formula, currentMetrics)) {
     alert('Error: This formula would create a circular dependency!');
@@ -841,20 +783,34 @@ editForm.addEventListener('submit', async (e) => {
   }
   
   const editedMetricId = currentEditId;
+  const newValue = Number(value);
+  const valueChanged = currentEditOldValue !== newValue;
   
   await updateDoc(doc(db, 'metrics', currentEditId), {
     name,
     description,
-    value: Number(value),
+    value: newValue,
     formula,
     decay
   });
   
+  if (valueChanged) {
+    await addDoc(collection(db, 'updates'), {
+      metricName: name,
+      oldValue: Number(currentEditOldValue),
+      newValue: newValue,
+      description: updateNote || 'Value updated',
+      timestamp: Timestamp.now()
+    });
+  }
+  
   await loadMetrics();
   const affectedMetrics = getAffectedMetrics([editedMetricId]);
   await logSpecificMetrics(affectedMetrics);
+  await loadUpdateHistory();
   editModal.classList.remove('show');
   currentEditId = null;
+  currentEditOldValue = null;
 });
 
 modalClose.addEventListener('click', () => {
