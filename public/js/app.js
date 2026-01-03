@@ -124,6 +124,13 @@ window.openGraphModal = async function(metricId, metricName) {
   }
   
   const ctx = canvas.getContext('2d');
+  
+  const darkMode = isDarkMode();
+  const lineColor = darkMode ? '#60a5fa' : '#1a73e8';
+  const fillColor = darkMode ? 'rgba(96, 165, 250, 0.2)' : 'rgba(26, 115, 232, 0.1)';
+  const gridColor = darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+  const textColor = darkMode ? '#b0b0b0' : '#666';
+  
   currentGraphChart = new Chart(ctx, {
     type: 'line',
     data: {
@@ -131,10 +138,16 @@ window.openGraphModal = async function(metricId, metricName) {
       datasets: [{
         label: 'Value',
         data: logs.map(log => log.value),
-        borderColor: '#1a1a1a',
-        backgroundColor: 'rgba(26, 26, 26, 0.1)',
-        tension: 0.1,
-        fill: true
+        borderColor: lineColor,
+        backgroundColor: fillColor,
+        tension: 0.3,
+        fill: true,
+        borderWidth: 2,
+        pointRadius: 3,
+        pointBackgroundColor: lineColor,
+        pointBorderColor: darkMode ? '#1a1a1a' : '#ffffff',
+        pointBorderWidth: 2,
+        pointHoverRadius: 5
       }]
     },
     options: {
@@ -147,21 +160,36 @@ window.openGraphModal = async function(metricId, metricName) {
         },
         tooltip: {
           mode: 'index',
-          intersect: false
+          intersect: false,
+          backgroundColor: darkMode ? '#2a2a2a' : '#ffffff',
+          titleColor: darkMode ? '#e0e0e0' : '#1a1a1a',
+          bodyColor: darkMode ? '#b0b0b0' : '#4a4a4a',
+          borderColor: darkMode ? '#3a3a3a' : '#e0e0e0',
+          borderWidth: 1
         }
       },
       scales: {
         x: {
+          grid: {
+            color: gridColor
+          },
           ticks: {
             maxRotation: 45,
             minRotation: 45,
             font: {
               size: 11
-            }
+            },
+            color: textColor
           }
         },
         y: {
-          beginAtZero: false
+          beginAtZero: false,
+          grid: {
+            color: gridColor
+          },
+          ticks: {
+            color: textColor
+          }
         }
       }
     }
