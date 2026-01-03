@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "your-project-id"
+  },
+  "targets": {
+    "your-project-id": {
+      "hosting": {
+        "production": [
+          "your-site-id"
+        ]
+      }
+    }
+  }
+}
+
