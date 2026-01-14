@@ -175,6 +175,14 @@ h1 {
   margin-top: 0.5rem;
 }
 
+.rank-display {
+  text-align: center;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-top: 0.5rem;
+}
+
 .section {
   margin-bottom: 2rem;
   padding: 1.5rem;
