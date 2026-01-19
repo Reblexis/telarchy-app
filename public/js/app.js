@@ -140,36 +140,16 @@ function getIntervalValue(logs, intervalStart, intervalEnd) {
   return lastValueInInterval;
 }
 
-function interpolateValue(logs, timestamp) {
-  const time = timestamp.getTime();
-  let before = null;
-  let after = null;
-  
-  for (let i = 0; i < logs.length; i++) {
-    const logTime = logs[i].timestamp.getTime();
-    
-    if (logTime <= time) {
-      before = logs[i];
-    }
-    
-    if (logTime > time && !after) {
-      after = logs[i];
+function getLastKnownValue(logs, beforeTime) {
+  let lastValue = null;
+  for (const log of logs) {
+    if (log.timestamp.getTime() <= beforeTime) {
+      lastValue = log.value;
+    } else {
       break;
     }
   }
-  
-  if (before && after) {
-    const beforeTime = before.timestamp.getTime();
-    const afterTime = after.timestamp.getTime();
-    const ratio = (time - beforeTime) / (afterTime - beforeTime);
-    return before.value + (after.value - before.value) * ratio;
-  }
-  
-  if (before) {
-    return before.value;
-  }
-  
-  return null;
+  return lastValue;
 }
 
 function calculateXP(metrics) {
@@ -232,7 +212,7 @@ window.openGraphModal = async function(metricId, metricName) {
   const now = new Date();
   const intervals = generateIntervals(logs[0].timestamp, now, interval);
   
-  const barData = [];
+  const rawValues = [];
   const labels = [];
   
   for (let i = 0; i < intervals.length; i++) {
@@ -240,27 +220,62 @@ window.openGraphModal = async function(metricId, metricName) {
     const intervalEnd = i < intervals.length - 1 ? intervals[i + 1].getTime() : now.getTime();
     
     const valueInInterval = getIntervalValue(logs, intervalStart, intervalEnd);
+    rawValues.push(valueInInterval);
     
-    let finalValue;
-    if (valueInInterval !== null) {
-      finalValue = valueInInterval;
+    if (interval === 'day') {
+      labels.push(intervals[i].toLocaleDateString());
+    } else if (interval === 'week') {
+      labels.push('Week ' + intervals[i].toLocaleDateString());
+    } else if (interval === 'month') {
+      labels.push(intervals[i].toLocaleDateString('default', { month: 'short', year: 'numeric' }));
+    } else if (interval === 'year') {
+      labels.push(intervals[i].getFullYear().toString());
+    }
+  }
+  
+  const barData = [];
+  const isInterpolated = [];
+  for (let i = 0; i < rawValues.length; i++) {
+    if (rawValues[i] !== null) {
+      barData.push(rawValues[i]);
+      isInterpolated.push(false);
     } else {
-      finalValue = interpolateValue(logs, intervals[i]);
-    }
-    
-    if (finalValue !== null) {
-      barData.push(finalValue);
+      let prevIdx = -1;
+      let nextIdx = -1;
       
-      if (interval === 'day') {
-        labels.push(intervals[i].toLocaleDateString());
-      } else if (interval === 'week') {
-        labels.push('Week ' + intervals[i].toLocaleDateString());
-      } else if (interval === 'month') {
-        labels.push(intervals[i].toLocaleDateString('default', { month: 'short', year: 'numeric' }));
-      } else if (interval === 'year') {
-        labels.push(intervals[i].getFullYear().toString());
+      for (let j = i - 1; j >= 0; j--) {
+        if (rawValues[j] !== null) {
+          prevIdx = j;
+          break;
+        }
       }
+      
+      for (let j = i + 1; j < rawValues.length; j++) {
+        if (rawValues[j] !== null) {
+          nextIdx = j;
+          break;
+        }
+      }
+      
+      if (prevIdx !== -1 && nextIdx !== -1) {
+        const prevVal = rawValues[prevIdx];
+        const nextVal = rawValues[nextIdx];
+        const ratio = (i - prevIdx) / (nextIdx - prevIdx);
+        barData.push(prevVal + (nextVal - prevVal) * ratio);
+      } else if (prevIdx !== -1) {
+        barData.push(rawValues[prevIdx]);
+      } else if (nextIdx !== -1) {
+        barData.push(rawValues[nextIdx]);
+      } else {
+        barData.push(getLastKnownValue(logs, intervals[i].getTime()) || 0);
+      }
+      isInterpolated.push(true);
     }
+  }
+  
+  if (barData.length === 0) {
+    graphModalContainer.innerHTML = '<div class="graph-no-data">No data available for the selected time interval.</div>';
+    return;
   }
   
   graphModalContainer.innerHTML = '<canvas id="graphModalCanvas"></canvas>';
@@ -273,9 +288,22 @@ window.openGraphModal = async function(metricId, metricName) {
   const ctx = canvas.getContext('2d');
   
   const darkMode = isDarkMode();
-  const barColor = darkMode ? '#60a5fa' : '#1a73e8';
+  const actualColor = darkMode ? '#60a5fa' : '#1a73e8';
+  const interpolatedColor = darkMode ? 'rgba(96, 165, 250, 0.4)' : 'rgba(26, 115, 232, 0.4)';
+  const actualBorderColor = darkMode ? '#3b82f6' : '#1557b0';
+  const interpolatedBorderColor = darkMode ? 'rgba(59, 130, 246, 0.5)' : 'rgba(21, 87, 176, 0.5)';
   const gridColor = darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
   const textColor = darkMode ? '#b0b0b0' : '#666';
+  
+  const backgroundColors = isInterpolated.map(interp => interp ? interpolatedColor : actualColor);
+  const borderColors = isInterpolated.map(interp => interp ? interpolatedBorderColor : actualBorderColor);
+  
+  const minValue = Math.min(...barData);
+  const maxValue = Math.max(...barData);
+  const yAxisMin = Math.max(minValue - (maxValue - minValue) * 0.2, 0);
+  
+  console.log('Bar data:', barData);
+  console.log('Labels:', labels);
   
   currentGraphChart = new Chart(ctx, {
     type: 'bar',
@@ -284,10 +312,9 @@ window.openGraphModal = async function(metricId, metricName) {
       datasets: [{
         label: 'Value',
         data: barData,
-        backgroundColor: barColor,
-        borderWidth: 0,
-        barPercentage: 0.9,
-        categoryPercentage: 1.0
+        backgroundColor: backgroundColors,
+        borderColor: borderColors,
+        borderWidth: 1
       }]
     },
     options: {
@@ -305,18 +332,11 @@ window.openGraphModal = async function(metricId, metricName) {
           titleColor: darkMode ? '#e0e0e0' : '#1a1a1a',
           bodyColor: darkMode ? '#b0b0b0' : '#4a4a4a',
           borderColor: darkMode ? '#3a3a3a' : '#e0e0e0',
-          borderWidth: 1,
-          callbacks: {
-            title: function(context) {
-              const date = new Date(context[0].parsed.x);
-              return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
-            }
-          }
+          borderWidth: 1
         }
       },
       scales: {
         x: {
-          type: 'linear',
           grid: {
             color: gridColor
           },
@@ -326,15 +346,11 @@ window.openGraphModal = async function(metricId, metricName) {
             font: {
               size: 11
             },
-            color: textColor,
-            callback: function(value) {
-              const date = new Date(value);
-              return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            }
+            color: textColor
           }
         },
         y: {
-          beginAtZero: false,
+          min: yAxisMin,
           grid: {
             color: gridColor
           },
