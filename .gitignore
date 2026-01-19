@@ -1,6 +1,5 @@
 # Firebase
 .firebaserc
-.firebase/
 firebase-debug.log
 firestore-debug.log
 
