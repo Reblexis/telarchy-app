@@ -305,6 +305,10 @@ window.openGraphModal = async function(metricId, metricName) {
   console.log('Bar data:', barData);
   console.log('Labels:', labels);
   
+  const isMobile = window.innerWidth <= 768;
+  const tickFontSize = isMobile ? 9 : 11;
+  const maxTicksLimit = isMobile ? 8 : 20;
+  
   currentGraphChart = new Chart(ctx, {
     type: 'bar',
     data: {
@@ -319,8 +323,8 @@ window.openGraphModal = async function(metricId, metricName) {
     },
     options: {
       responsive: true,
-      maintainAspectRatio: true,
-      aspectRatio: 2.5,
+      maintainAspectRatio: isMobile ? false : true,
+      aspectRatio: isMobile ? undefined : 2.5,
       plugins: {
         legend: {
           display: false
@@ -341,12 +345,13 @@ window.openGraphModal = async function(metricId, metricName) {
             color: gridColor
           },
           ticks: {
-            maxRotation: 45,
-            minRotation: 45,
+            maxRotation: isMobile ? 90 : 45,
+            minRotation: isMobile ? 45 : 45,
             font: {
-              size: 11
+              size: tickFontSize
             },
-            color: textColor
+            color: textColor,
+            maxTicksLimit: maxTicksLimit
           }
         },
         y: {
@@ -355,7 +360,10 @@ window.openGraphModal = async function(metricId, metricName) {
             color: gridColor
           },
           ticks: {
-            color: textColor
+            color: textColor,
+            font: {
+              size: tickFontSize
+            }
           }
         }
       }
