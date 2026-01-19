@@ -7,6 +7,22 @@ export function getFirebaseConfig() {
   return JSON.parse(configStr);
 }
 
+export function getConfigFromURL() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const configParam = urlParams.get('config');
+  
+  if (!configParam) return null;
+  
+  try {
+    const configJson = atob(configParam);
+    const config = JSON.parse(configJson);
+    return config;
+  } catch (error) {
+    console.error('Failed to parse config from URL:', error);
+    return null;
+  }
+}
+
 export function saveFirebaseConfig(config) {
   const requiredFields = ['apiKey', 'authDomain', 'projectId'];
   

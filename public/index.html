@@ -46,11 +46,29 @@ body {
 <div class="loading">Loading...</div>
 
 <script type="module">
-import { getFirebaseConfig } from '/js/firebase-config.js';
+import { getFirebaseConfig, getConfigFromURL, saveFirebaseConfig } from '/js/firebase-config.js';
 import '/js/dark-mode.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 import { initializeFirebaseApp } from '/js/firebase-config.js';
 
+// Check if config is provided via URL parameter
+const urlConfig = getConfigFromURL();
+
+if (urlConfig) {
+  try {
+    // Save the config from URL to localStorage
+    saveFirebaseConfig(urlConfig);
+    
+    // Remove config parameter from URL and reload
+    const url = new URL(window.location.href);
+    url.searchParams.delete('config');
+    window.history.replaceState({}, document.title, url.toString());
+  } catch (error) {
+    console.error('Failed to save config from URL:', error);
+  }
+}
+
+// Check for existing config
 const config = getFirebaseConfig();
 
 if (!config) {
