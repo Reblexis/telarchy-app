@@ -101,6 +101,22 @@ h1 {
   background: var(--bg-tertiary);
 }
 
+#graphInterval {
+  padding: 0.5rem 0.75rem;
+  background: var(--button-secondary-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+#graphInterval:hover {
+  background: var(--bg-tertiary);
+}
+
 .reconfigure-btn {
   padding: 0.5rem 1rem;
   background: var(--button-secondary-bg);

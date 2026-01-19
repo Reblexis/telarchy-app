@@ -50,6 +50,7 @@ const graphModal = document.getElementById('graphModal');
 const graphModalClose = document.getElementById('graphModalClose');
 const graphModalTitle = document.getElementById('graphModalTitle');
 const graphModalContainer = document.getElementById('graphModalContainer');
+const graphIntervalSelect = document.getElementById('graphInterval');
 
 let currentEditOldValue = null;
 
@@ -58,6 +59,118 @@ function updateDarkModeIcon() {
 }
 
 updateDarkModeIcon();
+
+const savedInterval = getGraphInterval();
+graphIntervalSelect.value = savedInterval;
+
+graphIntervalSelect.addEventListener('change', () => {
+  setGraphInterval(graphIntervalSelect.value);
+});
+
+function getGraphInterval() {
+  return getCookie('graphInterval') || 'day';
+}
+
+function setGraphInterval(interval) {
+  setCookie('graphInterval', interval);
+}
+
+function alignTimestamp(date, interval) {
+  const aligned = new Date(date);
+  aligned.setMilliseconds(0);
+  aligned.setSeconds(0);
+  aligned.setMinutes(0);
+  aligned.setHours(0);
+  
+  if (interval === 'day') {
+    return aligned;
+  }
+  
+  if (interval === 'week') {
+    const day = aligned.getDay();
+    const diff = (day === 0 ? -6 : 1) - day;
+    aligned.setDate(aligned.getDate() + diff);
+    return aligned;
+  }
+  
+  aligned.setDate(1);
+  
+  if (interval === 'month') {
+    return aligned;
+  }
+  
+  aligned.setMonth(0);
+  return aligned;
+}
+
+function generateIntervals(startDate, endDate, interval) {
+  const intervals = [];
+  const current = alignTimestamp(startDate, interval);
+  const end = endDate.getTime();
+  
+  while (current.getTime() <= end) {
+    intervals.push(new Date(current));
+    
+    if (interval === 'day') {
+      current.setDate(current.getDate() + 1);
+    } else if (interval === 'week') {
+      current.setDate(current.getDate() + 7);
+    } else if (interval === 'month') {
+      current.setMonth(current.getMonth() + 1);
+    } else if (interval === 'year') {
+      current.setFullYear(current.getFullYear() + 1);
+    }
+  }
+  
+  return intervals;
+}
+
+function getIntervalValue(logs, intervalStart, intervalEnd) {
+  let lastValueInInterval = null;
+  
+  for (const log of logs) {
+    const logTime = log.timestamp.getTime();
+    if (logTime >= intervalStart && logTime < intervalEnd) {
+      lastValueInInterval = log.value;
+    } else if (logTime >= intervalEnd) {
+      break;
+    }
+  }
+  
+  return lastValueInInterval;
+}
+
+function interpolateValue(logs, timestamp) {
+  const time = timestamp.getTime();
+  let before = null;
+  let after = null;
+  
+  for (let i = 0; i < logs.length; i++) {
+    const logTime = logs[i].timestamp.getTime();
+    
+    if (logTime <= time) {
+      before = logs[i];
+    }
+    
+    if (logTime > time && !after) {
+      after = logs[i];
+      break;
+    }
+  }
+  
+  if (before && after) {
+    const beforeTime = before.timestamp.getTime();
+    const afterTime = after.timestamp.getTime();
+    const ratio = (time - beforeTime) / (afterTime - beforeTime);
+    return before.value + (after.value - before.value) * ratio;
+  }
+  
+  if (before) {
+    return before.value;
+  }
+  
+  return null;
+}
 
 function calculateXP(metrics) {
   const utilityMetric = metrics.find(m => m.name === 'Utility');
@@ -115,6 +228,41 @@ window.openGraphModal = async function(metricId, metricName) {
     return;
   }
   
+  const interval = getGraphInterval();
+  const now = new Date();
+  const intervals = generateIntervals(logs[0].timestamp, now, interval);
+  
+  const barData = [];
+  const labels = [];
+  
+  for (let i = 0; i < intervals.length; i++) {
+    const intervalStart = intervals[i].getTime();
+    const intervalEnd = i < intervals.length - 1 ? intervals[i + 1].getTime() : now.getTime();
+    
+    const valueInInterval = getIntervalValue(logs, intervalStart, intervalEnd);
+    
+    let finalValue;
+    if (valueInInterval !== null) {
+      finalValue = valueInInterval;
+    } else {
+      finalValue = interpolateValue(logs, intervals[i]);
+    }
+    
+    if (finalValue !== null) {
+      barData.push(finalValue);
+      
+      if (interval === 'day') {
+        labels.push(intervals[i].toLocaleDateString());
+      } else if (interval === 'week') {
+        labels.push('Week ' + intervals[i].toLocaleDateString());
+      } else if (interval === 'month') {
+        labels.push(intervals[i].toLocaleDateString('default', { month: 'short', year: 'numeric' }));
+      } else if (interval === 'year') {
+        labels.push(intervals[i].getFullYear().toString());
+      }
+    }
+  }
+  
   graphModalContainer.innerHTML = '<canvas id="graphModalCanvas"></canvas>';
   const canvas = document.getElementById('graphModalCanvas');
   
@@ -125,28 +273,21 @@ window.openGraphModal = async function(metricId, metricName) {
   const ctx = canvas.getContext('2d');
   
   const darkMode = isDarkMode();
-  const lineColor = darkMode ? '#60a5fa' : '#1a73e8';
-  const fillColor = darkMode ? 'rgba(96, 165, 250, 0.2)' : 'rgba(26, 115, 232, 0.1)';
+  const barColor = darkMode ? '#60a5fa' : '#1a73e8';
   const gridColor = darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
   const textColor = darkMode ? '#b0b0b0' : '#666';
   
   currentGraphChart = new Chart(ctx, {
-    type: 'line',
+    type: 'bar',
     data: {
-      labels: logs.map(log => log.timestamp.toLocaleDateString() + ' ' + log.timestamp.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})),
+      labels: labels,
       datasets: [{
         label: 'Value',
-        data: logs.map(log => log.value),
-        borderColor: lineColor,
-        backgroundColor: fillColor,
-        tension: 0.3,
-        fill: true,
-        borderWidth: 2,
-        pointRadius: pointRadius,
-        pointBackgroundColor: lineColor,
-        pointBorderColor: darkMode ? '#1a1a1a' : '#ffffff',
-        pointBorderWidth: 2,
-        pointHoverRadius: 5
+        data: barData,
+        backgroundColor: barColor,
+        borderWidth: 0,
+        barPercentage: 0.9,
+        categoryPercentage: 1.0
       }]
     },
     options: {
