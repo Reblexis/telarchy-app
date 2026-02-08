@@ -6,7 +6,7 @@ import { MetricsPage } from './pages/MetricsPage';
 
 export function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/metrics-tracker">
       <Routes>
         <Route path="/" element={<RootRedirect />} />
         <Route path="/setup" element={<SetupPage />} />
