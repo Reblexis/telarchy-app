@@ -224,7 +224,7 @@ export function useMetrics(isAuthenticated: boolean) {
     }
   };
 
-  const loadMetricLogs = async (metricId: string): Promise<MetricLog[]> => {
+  const loadMetricLogs = useCallback(async (metricId: string): Promise<MetricLog[]> => {
     const db = getDb();
     const q = query(
       collection(db, 'metricLogs'),
@@ -243,7 +243,7 @@ export function useMetrics(isAuthenticated: boolean) {
       });
     });
     return logs;
-  };
+  }, []);
 
   return {
     metrics, updates, xp, rank, loading,
