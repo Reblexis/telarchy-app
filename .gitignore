@@ -7,6 +7,9 @@ firestore-debug.log
 node_modules/
 npm-debug.log
 
+# Build output
+dist/
+
 # IDE
 .vscode/
 .idea/
