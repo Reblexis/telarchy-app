@@ -2,11 +2,17 @@ import { useState, useEffect } from 'react';
 import { getAuth, onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { initializeFirebaseApp } from '../lib/firebase';
 
-export function useAuth() {
+interface UseAuthOptions {
+  skip?: boolean;
+}
+
+export function useAuth(options: UseAuthOptions = {}) {
+  const { skip = false } = options;
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!skip);
 
   useEffect(() => {
+    if (skip) return;
     const app = initializeFirebaseApp();
     const auth = getAuth(app);
     const unsubscribe = onAuthStateChanged(auth, (u) => {
@@ -14,7 +20,7 @@ export function useAuth() {
       setLoading(false);
     });
     return unsubscribe;
-  }, []);
+  }, [skip]);
 
   const logout = async () => {
     const app = initializeFirebaseApp();
