@@ -30,15 +30,22 @@ export function GraphModal({ metric, interval, isDark, loadLogs, onClose }: Grap
     setChartData(null);
 
     (async () => {
+      console.time(`[Graph] loadLogs ${metric.name}`);
       const logs = await loadLogs(metric.id);
+      console.timeEnd(`[Graph] loadLogs ${metric.name}`);
+      console.log(`[Graph] ${metric.name}: ${logs.length} logs fetched`);
       if (cancelled) return;
 
+      console.time(`[Graph] buildChartData ${metric.name}`);
       const data = buildChartData(logs, interval);
+      console.timeEnd(`[Graph] buildChartData ${metric.name}`);
       if (!data) {
+        console.log(`[Graph] ${metric.name}: no chart data produced`);
         setStatus('no-data');
         return;
       }
 
+      console.log(`[Graph] ${metric.name}: ${data.barData.length} bars, setting ready`);
       setChartData(data);
       setStatus('ready');
     })();
@@ -50,7 +57,11 @@ export function GraphModal({ metric, interval, isDark, loadLogs, onClose }: Grap
 
   // Create chart after canvas is mounted
   useEffect(() => {
-    if (status !== 'ready' || !chartData || !canvasRef.current) return;
+    if (status !== 'ready' || !chartData || !canvasRef.current) {
+      console.log(`[Graph] chart effect skipped: status=${status}, hasData=${!!chartData}, hasCanvas=${!!canvasRef.current}`);
+      return;
+    }
+    console.log(`[Graph] creating chart with ${chartData.barData.length} bars`);
 
     if (chartRef.current) {
       chartRef.current.destroy();
