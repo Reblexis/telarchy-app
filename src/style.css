@@ -528,10 +528,17 @@ details > div {
 }
 
 .graph-modal-container {
+  position: relative;
   padding: 1rem;
   background: var(--graph-bg);
   border-radius: 4px;
   min-height: 400px;
+  width: 100%;
+}
+
+.graph-modal-container canvas {
+  display: block;
+  width: 100% !important;
 }
 
 .graph-loading {
