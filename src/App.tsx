@@ -6,7 +6,7 @@ import { MetricsPage } from './pages/MetricsPage';
 
 export function App() {
   return (
-    <BrowserRouter basename="/metrics-tracker">
+    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || '/'}>
       <Routes>
         <Route path="/" element={<RootRedirect />} />
         <Route path="/setup" element={<SetupPage />} />
