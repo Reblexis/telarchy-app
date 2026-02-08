@@ -5,6 +5,8 @@ import { buildChartData } from '../lib/graph-utils';
 
 Chart.register(...registerables);
 
+let effectRunId = 0;
+
 interface GraphModalProps {
   metric: Metric | null;
   interval: GraphInterval;
@@ -18,8 +20,11 @@ export function GraphModal({ metric, interval, isDark, loadLogs, onClose }: Grap
   const chartRef = useRef<Chart | null>(null);
   const [status, setStatus] = useState<'loading' | 'no-data' | 'ready'>('loading');
 
+  console.log(`[Graph RENDER] status=${status}, metric=${metric?.name ?? 'null'}, isDark=${isDark}, interval=${interval}`);
+
   const destroyChart = useCallback(() => {
     if (chartRef.current) {
+      console.log('[Graph] destroying chart');
       chartRef.current.destroy();
       chartRef.current = null;
     }
@@ -28,23 +33,42 @@ export function GraphModal({ metric, interval, isDark, loadLogs, onClose }: Grap
   useEffect(() => {
     if (!metric) return;
 
+    const runId = ++effectRunId;
     let cancelled = false;
+    console.log(`[Graph EFFECT #${runId}] starting for ${metric.name}, isDark=${isDark}, interval=${interval}`);
     setStatus('loading');
     destroyChart();
 
     (async () => {
+      console.time(`[Graph #${runId}] loadLogs`);
       const logs = await loadLogs(metric.id);
-      if (cancelled) return;
+      console.timeEnd(`[Graph #${runId}] loadLogs`);
 
+      if (cancelled) {
+        console.log(`[Graph #${runId}] CANCELLED after loadLogs`);
+        return;
+      }
+
+      console.log(`[Graph #${runId}] ${logs.length} logs, building chart data`);
       const data = buildChartData(logs, interval);
       if (!data) {
+        console.log(`[Graph #${runId}] no data`);
         setStatus('no-data');
         return;
       }
 
-      // Canvas is always in the DOM, so ref is guaranteed to exist
       const canvas = canvasRef.current;
-      if (!canvas || cancelled) return;
+      if (!canvas) {
+        console.log(`[Graph #${runId}] canvas ref is null!`);
+        return;
+      }
+      if (cancelled) {
+        console.log(`[Graph #${runId}] CANCELLED before chart creation`);
+        return;
+      }
+
+      const rect = canvas.getBoundingClientRect();
+      console.log(`[Graph #${runId}] canvas dimensions: ${rect.width}x${rect.height}`);
 
       destroyChart();
 
@@ -66,6 +90,8 @@ export function GraphModal({ metric, interval, isDark, loadLogs, onClose }: Grap
       const isMobile = window.innerWidth <= 768;
       const tickFontSize = isMobile ? 9 : 11;
       const maxTicksLimit = isMobile ? 8 : 20;
+
+      console.log(`[Graph #${runId}] creating Chart.js with ${data.barData.length} bars`);
 
       chartRef.current = new Chart(ctx, {
         type: 'bar',
@@ -115,10 +141,16 @@ export function GraphModal({ metric, interval, isDark, loadLogs, onClose }: Grap
         },
       });
 
+      console.log(`[Graph #${runId}] Chart.js created, setting status=ready`);
       setStatus('ready');
+
+      if (cancelled) {
+        console.log(`[Graph #${runId}] CANCELLED right after setStatus(ready)!`);
+      }
     })();
 
     return () => {
+      console.log(`[Graph CLEANUP #${runId}] cancelled`);
       cancelled = true;
       destroyChart();
     };
