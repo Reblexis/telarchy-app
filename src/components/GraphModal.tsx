@@ -55,86 +55,99 @@ export function GraphModal({ metric, interval, isDark, loadLogs, onClose }: Grap
     };
   }, [metric, interval, loadLogs]);
 
-  // Create chart after canvas is mounted
+  // Create chart after canvas is mounted (deferred to ensure layout)
   useEffect(() => {
     if (status !== 'ready' || !chartData || !canvasRef.current) {
-      console.log(`[Graph] chart effect skipped: status=${status}, hasData=${!!chartData}, hasCanvas=${!!canvasRef.current}`);
       return;
     }
-    console.log(`[Graph] creating chart with ${chartData.barData.length} bars`);
 
-    if (chartRef.current) {
-      chartRef.current.destroy();
-    }
+    const canvas = canvasRef.current;
+    let rafId: number;
+    let destroyed = false;
 
-    const ctx = canvasRef.current.getContext('2d')!;
-    const actualColor = isDark ? '#60a5fa' : '#1a73e8';
-    const interpolatedColor = isDark ? 'rgba(96, 165, 250, 0.4)' : 'rgba(26, 115, 232, 0.4)';
-    const actualBorderColor = isDark ? '#3b82f6' : '#1557b0';
-    const interpolatedBorderColor = isDark ? 'rgba(59, 130, 246, 0.5)' : 'rgba(21, 87, 176, 0.5)';
-    const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
-    const textColor = isDark ? '#b0b0b0' : '#666';
+    const createChart = () => {
+      if (destroyed || !canvas) return;
 
-    const backgroundColors = chartData.isInterpolated.map(interp => interp ? interpolatedColor : actualColor);
-    const borderColors = chartData.isInterpolated.map(interp => interp ? interpolatedBorderColor : actualBorderColor);
+      if (chartRef.current) {
+        chartRef.current.destroy();
+      }
 
-    const minValue = Math.min(...chartData.barData);
-    const maxValue = Math.max(...chartData.barData);
-    const yAxisMin = Math.max(minValue - (maxValue - minValue) * 0.2, 0);
+      const ctx = canvas.getContext('2d')!;
+      const actualColor = isDark ? '#60a5fa' : '#1a73e8';
+      const interpolatedColor = isDark ? 'rgba(96, 165, 250, 0.4)' : 'rgba(26, 115, 232, 0.4)';
+      const actualBorderColor = isDark ? '#3b82f6' : '#1557b0';
+      const interpolatedBorderColor = isDark ? 'rgba(59, 130, 246, 0.5)' : 'rgba(21, 87, 176, 0.5)';
+      const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+      const textColor = isDark ? '#b0b0b0' : '#666';
 
-    const isMobile = window.innerWidth <= 768;
-    const tickFontSize = isMobile ? 9 : 11;
-    const maxTicksLimit = isMobile ? 8 : 20;
+      const backgroundColors = chartData.isInterpolated.map(interp => interp ? interpolatedColor : actualColor);
+      const borderColors = chartData.isInterpolated.map(interp => interp ? interpolatedBorderColor : actualBorderColor);
 
-    chartRef.current = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels: chartData.labels,
-        datasets: [{
-          label: 'Value',
-          data: chartData.barData,
-          backgroundColor: backgroundColors,
-          borderColor: borderColors,
-          borderWidth: 1,
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: !isMobile,
-        aspectRatio: isMobile ? undefined : 2.5,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            mode: 'index',
-            intersect: false,
-            backgroundColor: isDark ? '#2a2a2a' : '#ffffff',
-            titleColor: isDark ? '#e0e0e0' : '#1a1a1a',
-            bodyColor: isDark ? '#b0b0b0' : '#4a4a4a',
-            borderColor: isDark ? '#3a3a3a' : '#e0e0e0',
+      const minValue = Math.min(...chartData.barData);
+      const maxValue = Math.max(...chartData.barData);
+      const yAxisMin = Math.max(minValue - (maxValue - minValue) * 0.2, 0);
+
+      const isMobile = window.innerWidth <= 768;
+      const tickFontSize = isMobile ? 9 : 11;
+      const maxTicksLimit = isMobile ? 8 : 20;
+
+      chartRef.current = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: chartData.labels,
+          datasets: [{
+            label: 'Value',
+            data: chartData.barData,
+            backgroundColor: backgroundColors,
+            borderColor: borderColors,
             borderWidth: 1,
-          },
+          }],
         },
-        scales: {
-          x: {
-            grid: { color: gridColor },
-            ticks: {
-              maxRotation: isMobile ? 90 : 45,
-              minRotation: 45,
-              font: { size: tickFontSize },
-              color: textColor,
-              maxTicksLimit,
+        options: {
+          responsive: true,
+          maintainAspectRatio: !isMobile,
+          aspectRatio: isMobile ? undefined : 2.5,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              mode: 'index',
+              intersect: false,
+              backgroundColor: isDark ? '#2a2a2a' : '#ffffff',
+              titleColor: isDark ? '#e0e0e0' : '#1a1a1a',
+              bodyColor: isDark ? '#b0b0b0' : '#4a4a4a',
+              borderColor: isDark ? '#3a3a3a' : '#e0e0e0',
+              borderWidth: 1,
             },
           },
-          y: {
-            min: yAxisMin,
-            grid: { color: gridColor },
-            ticks: { color: textColor, font: { size: tickFontSize } },
+          scales: {
+            x: {
+              grid: { color: gridColor },
+              ticks: {
+                maxRotation: isMobile ? 90 : 45,
+                minRotation: 45,
+                font: { size: tickFontSize },
+                color: textColor,
+                maxTicksLimit,
+              },
+            },
+            y: {
+              min: yAxisMin,
+              grid: { color: gridColor },
+              ticks: { color: textColor, font: { size: tickFontSize } },
+            },
           },
         },
-      },
+      });
+    };
+
+    // Double rAF ensures the browser has painted the canvas before Chart.js reads dimensions
+    rafId = requestAnimationFrame(() => {
+      rafId = requestAnimationFrame(createChart);
     });
 
     return () => {
+      destroyed = true;
+      cancelAnimationFrame(rafId);
       if (chartRef.current) {
         chartRef.current.destroy();
         chartRef.current = null;
