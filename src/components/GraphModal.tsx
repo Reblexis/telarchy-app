@@ -160,7 +160,11 @@ export function GraphModal({ metric, interval, isDark, loadLogs, onClose }: Grap
         <div className="graph-modal-container">
           {status === 'loading' && <div className="graph-loading">Loading graph...</div>}
           {status === 'no-data' && <div className="graph-no-data">No data yet. Values will be logged as they change.</div>}
-          {status === 'ready' && <canvas ref={canvasRef} />}
+          {status === 'ready' && (
+            <div style={{ position: 'relative', width: '100%', height: '350px' }}>
+              <canvas ref={canvasRef} />
+            </div>
+          )}
         </div>
       </div>
     </div>
