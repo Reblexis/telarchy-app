@@ -5,8 +5,6 @@ import { buildChartData } from '../lib/graph-utils';
 
 Chart.register(...registerables);
 
-let effectRunId = 0;
-
 interface GraphModalProps {
   metric: Metric | null;
   interval: GraphInterval;
@@ -20,11 +18,8 @@ export function GraphModal({ metric, interval, isDark, loadLogs, onClose }: Grap
   const chartRef = useRef<Chart | null>(null);
   const [status, setStatus] = useState<'loading' | 'no-data' | 'ready'>('loading');
 
-  console.log(`[Graph RENDER] status=${status}, metric=${metric?.name ?? 'null'}, isDark=${isDark}, interval=${interval}`);
-
   const destroyChart = useCallback(() => {
     if (chartRef.current) {
-      console.log('[Graph] destroying chart');
       chartRef.current.destroy();
       chartRef.current = null;
     }
@@ -33,42 +28,22 @@ export function GraphModal({ metric, interval, isDark, loadLogs, onClose }: Grap
   useEffect(() => {
     if (!metric) return;
 
-    const runId = ++effectRunId;
     let cancelled = false;
-    console.log(`[Graph EFFECT #${runId}] starting for ${metric.name}, isDark=${isDark}, interval=${interval}`);
     setStatus('loading');
     destroyChart();
 
     (async () => {
-      console.time(`[Graph #${runId}] loadLogs`);
       const logs = await loadLogs(metric.id);
-      console.timeEnd(`[Graph #${runId}] loadLogs`);
+      if (cancelled) return;
 
-      if (cancelled) {
-        console.log(`[Graph #${runId}] CANCELLED after loadLogs`);
-        return;
-      }
-
-      console.log(`[Graph #${runId}] ${logs.length} logs, building chart data`);
       const data = buildChartData(logs, interval);
       if (!data) {
-        console.log(`[Graph #${runId}] no data`);
         setStatus('no-data');
         return;
       }
 
       const canvas = canvasRef.current;
-      if (!canvas) {
-        console.log(`[Graph #${runId}] canvas ref is null!`);
-        return;
-      }
-      if (cancelled) {
-        console.log(`[Graph #${runId}] CANCELLED before chart creation`);
-        return;
-      }
-
-      const rect = canvas.getBoundingClientRect();
-      console.log(`[Graph #${runId}] canvas dimensions: ${rect.width}x${rect.height}`);
+      if (!canvas || cancelled) return;
 
       destroyChart();
 
@@ -90,8 +65,6 @@ export function GraphModal({ metric, interval, isDark, loadLogs, onClose }: Grap
       const isMobile = window.innerWidth <= 768;
       const tickFontSize = isMobile ? 9 : 11;
       const maxTicksLimit = isMobile ? 8 : 20;
-
-      console.log(`[Graph #${runId}] creating Chart.js with ${data.barData.length} bars`);
 
       chartRef.current = new Chart(ctx, {
         type: 'bar',
@@ -141,16 +114,10 @@ export function GraphModal({ metric, interval, isDark, loadLogs, onClose }: Grap
         },
       });
 
-      console.log(`[Graph #${runId}] Chart.js created, setting status=ready`);
       setStatus('ready');
-
-      if (cancelled) {
-        console.log(`[Graph #${runId}] CANCELLED right after setStatus(ready)!`);
-      }
     })();
 
     return () => {
-      console.log(`[Graph CLEANUP #${runId}] cancelled`);
       cancelled = true;
       destroyChart();
     };
@@ -170,12 +137,17 @@ export function GraphModal({ metric, interval, isDark, loadLogs, onClose }: Grap
           <button className="modal-close" onClick={onClose}>&times;</button>
         </div>
         <div className="graph-modal-container" style={{ position: 'relative' }}>
-          {status === 'loading' && <div className="graph-loading">Loading graph...</div>}
-          {status === 'no-data' && <div className="graph-no-data">No data yet. Values will be logged as they change.</div>}
-          <div style={{
-            position: 'relative', width: '100%', height: '350px',
-            visibility: status === 'ready' ? 'visible' : 'hidden',
-          }}>
+          {status !== 'ready' && (
+            <div style={{
+              position: 'absolute', inset: 0, display: 'flex',
+              alignItems: 'center', justifyContent: 'center', zIndex: 1,
+              background: 'var(--graph-bg)',
+            }}>
+              {status === 'loading' && <div className="graph-loading">Loading graph...</div>}
+              {status === 'no-data' && <div className="graph-no-data">No data yet. Values will be logged as they change.</div>}
+            </div>
+          )}
+          <div style={{ position: 'relative', width: '100%', height: '350px' }}>
             <canvas ref={canvasRef} />
           </div>
         </div>
