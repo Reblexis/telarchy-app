@@ -1,11 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Chart, registerables } from 'chart.js';
 import type { Metric, MetricLog, GraphInterval } from '../types';
 import { buildChartData } from '../lib/graph-utils';
 
 Chart.register(...registerables);
-
-type ChartData = { labels: string[]; barData: number[]; isInterpolated: boolean[] };
 
 interface GraphModalProps {
   metric: Metric | null;
@@ -19,58 +17,36 @@ export function GraphModal({ metric, interval, isDark, loadLogs, onClose }: Grap
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const chartRef = useRef<Chart | null>(null);
   const [status, setStatus] = useState<'loading' | 'no-data' | 'ready'>('loading');
-  const [chartData, setChartData] = useState<ChartData | null>(null);
 
-  // Load data
+  const destroyChart = useCallback(() => {
+    if (chartRef.current) {
+      chartRef.current.destroy();
+      chartRef.current = null;
+    }
+  }, []);
+
   useEffect(() => {
     if (!metric) return;
 
     let cancelled = false;
     setStatus('loading');
-    setChartData(null);
+    destroyChart();
 
     (async () => {
-      console.time(`[Graph] loadLogs ${metric.name}`);
       const logs = await loadLogs(metric.id);
-      console.timeEnd(`[Graph] loadLogs ${metric.name}`);
-      console.log(`[Graph] ${metric.name}: ${logs.length} logs fetched`);
       if (cancelled) return;
 
-      console.time(`[Graph] buildChartData ${metric.name}`);
       const data = buildChartData(logs, interval);
-      console.timeEnd(`[Graph] buildChartData ${metric.name}`);
       if (!data) {
-        console.log(`[Graph] ${metric.name}: no chart data produced`);
         setStatus('no-data');
         return;
       }
 
-      console.log(`[Graph] ${metric.name}: ${data.barData.length} bars, setting ready`);
-      setChartData(data);
-      setStatus('ready');
-    })();
+      // Canvas is always in the DOM, so ref is guaranteed to exist
+      const canvas = canvasRef.current;
+      if (!canvas || cancelled) return;
 
-    return () => {
-      cancelled = true;
-    };
-  }, [metric, interval, loadLogs]);
-
-  // Create chart after canvas is mounted (deferred to ensure layout)
-  useEffect(() => {
-    if (status !== 'ready' || !chartData || !canvasRef.current) {
-      return;
-    }
-
-    const canvas = canvasRef.current;
-    let rafId: number;
-    let destroyed = false;
-
-    const createChart = () => {
-      if (destroyed || !canvas) return;
-
-      if (chartRef.current) {
-        chartRef.current.destroy();
-      }
+      destroyChart();
 
       const ctx = canvas.getContext('2d')!;
       const actualColor = isDark ? '#60a5fa' : '#1a73e8';
@@ -80,11 +56,11 @@ export function GraphModal({ metric, interval, isDark, loadLogs, onClose }: Grap
       const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
       const textColor = isDark ? '#b0b0b0' : '#666';
 
-      const backgroundColors = chartData.isInterpolated.map(interp => interp ? interpolatedColor : actualColor);
-      const borderColors = chartData.isInterpolated.map(interp => interp ? interpolatedBorderColor : actualBorderColor);
+      const backgroundColors = data.isInterpolated.map(interp => interp ? interpolatedColor : actualColor);
+      const borderColors = data.isInterpolated.map(interp => interp ? interpolatedBorderColor : actualBorderColor);
 
-      const minValue = Math.min(...chartData.barData);
-      const maxValue = Math.max(...chartData.barData);
+      const minValue = Math.min(...data.barData);
+      const maxValue = Math.max(...data.barData);
       const yAxisMin = Math.max(minValue - (maxValue - minValue) * 0.2, 0);
 
       const isMobile = window.innerWidth <= 768;
@@ -94,10 +70,10 @@ export function GraphModal({ metric, interval, isDark, loadLogs, onClose }: Grap
       chartRef.current = new Chart(ctx, {
         type: 'bar',
         data: {
-          labels: chartData.labels,
+          labels: data.labels,
           datasets: [{
             label: 'Value',
-            data: chartData.barData,
+            data: data.barData,
             backgroundColor: backgroundColors,
             borderColor: borderColors,
             borderWidth: 1,
@@ -138,29 +114,20 @@ export function GraphModal({ metric, interval, isDark, loadLogs, onClose }: Grap
           },
         },
       });
-    };
 
-    // Double rAF ensures the browser has painted the canvas before Chart.js reads dimensions
-    rafId = requestAnimationFrame(() => {
-      rafId = requestAnimationFrame(createChart);
-    });
+      setStatus('ready');
+    })();
 
     return () => {
-      destroyed = true;
-      cancelAnimationFrame(rafId);
-      if (chartRef.current) {
-        chartRef.current.destroy();
-        chartRef.current = null;
-      }
+      cancelled = true;
+      destroyChart();
     };
-  }, [status, chartData, isDark]);
+  }, [metric, interval, isDark, loadLogs, destroyChart]);
 
   if (!metric) return null;
 
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
+    if (e.target === e.currentTarget) onClose();
   };
 
   return (
@@ -170,14 +137,15 @@ export function GraphModal({ metric, interval, isDark, loadLogs, onClose }: Grap
           <h3>{metric.name} - Progress Graph</h3>
           <button className="modal-close" onClick={onClose}>&times;</button>
         </div>
-        <div className="graph-modal-container">
+        <div className="graph-modal-container" style={{ position: 'relative' }}>
           {status === 'loading' && <div className="graph-loading">Loading graph...</div>}
           {status === 'no-data' && <div className="graph-no-data">No data yet. Values will be logged as they change.</div>}
-          {status === 'ready' && (
-            <div style={{ position: 'relative', width: '100%', height: '350px' }}>
-              <canvas ref={canvasRef} />
-            </div>
-          )}
+          <div style={{
+            position: 'relative', width: '100%', height: '350px',
+            visibility: status === 'ready' ? 'visible' : 'hidden',
+          }}>
+            <canvas ref={canvasRef} />
+          </div>
         </div>
       </div>
     </div>
