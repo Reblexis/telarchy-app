@@ -1,9 +1,20 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { User } from 'firebase/auth';
 import { getCookie, setCookie, deleteCookie } from '../lib/cookies';
 import { api } from '../lib/api';
-import { calculateXP, calculateRank } from '../lib/metrics-engine';
+import {
+  calculateXP, calculateRank, recalculateMetrics,
+  calculateMetricDepths, detectCircularDependency,
+} from '../lib/metrics-engine';
 import type { Metric, MetricLog, UpdateEntry } from '../types';
+
+function enrichMetrics(metrics: Metric[]): Metric[] {
+  recalculateMetrics(metrics);
+  const depths = calculateMetricDepths(metrics);
+  metrics.forEach(m => { m.depth = depths[m.id] || 0; });
+  metrics.sort((a, b) => a.depth !== b.depth ? a.depth - b.depth : (a.order || 999) - (b.order || 999));
+  return metrics;
+}
 
 export function useMetrics(user: User | null) {
   const [metrics, setMetrics] = useState<Metric[]>([]);
@@ -45,9 +56,13 @@ export function useMetrics(user: User | null) {
 
   const addMetric = async (name: string, description: string, value: number, formula: string, decay: boolean) => {
     if (!user) return;
-    const loaded = await api.createMetric(user, { name, description, value, formula, decay });
-    setMetrics(loaded);
-    await loadUpdates();
+    if (detectCircularDependency(null, formula, metrics)) {
+      throw new Error('This formula would create a circular dependency');
+    }
+    const { id } = await api.createMetric(user, { name, description, value, formula, decay });
+    const updated = [...metrics.map(m => ({ ...m })), { id, name, description, value, total: value, formula, decay, order: 999, depth: 0 }];
+    setMetrics(enrichMetrics(updated));
+    loadUpdates();
   };
 
   const editMetric = async (
@@ -55,9 +70,16 @@ export function useMetrics(user: User | null) {
     formula: string, decay: boolean, oldValue: number, updateNote: string
   ) => {
     if (!user) return;
-    const loaded = await api.updateMetric(user, id, { name, description, value, formula, decay, oldValue, updateNote });
-    setMetrics(loaded);
-    await loadUpdates();
+    if (detectCircularDependency(id, formula, metrics)) {
+      throw new Error('This formula would create a circular dependency');
+    }
+    // Optimistic: update UI instantly, write in background
+    const prev = metrics;
+    const updated = metrics.map(m => m.id === id ? { ...m, name, description, value, formula, decay } : { ...m });
+    setMetrics(enrichMetrics(updated));
+    api.updateMetric(user, id, { name, description, value, formula, decay, oldValue, updateNote })
+      .then(() => { delete logsCache.current[id]; loadUpdates(); })
+      .catch(() => setMetrics(prev));
   };
 
   const removeMetric = async (id: string) => {
@@ -80,10 +102,15 @@ export function useMetrics(user: User | null) {
     }
   };
 
+  const logsCache = useRef<Record<string, MetricLog[]>>({});
+
   const loadMetricLogs = useCallback(async (metricId: string): Promise<MetricLog[]> => {
     if (!user) return [];
+    if (logsCache.current[metricId]) return logsCache.current[metricId];
     const logs = await api.getMetricLogs(user, metricId);
-    return logs.map((l: MetricLog) => ({ ...l, timestamp: new Date(l.timestamp) }));
+    const parsed = logs.map((l: MetricLog) => ({ ...l, timestamp: new Date(l.timestamp) }));
+    logsCache.current[metricId] = parsed;
+    return parsed;
   }, [user]);
 
   return {

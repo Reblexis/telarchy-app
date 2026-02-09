@@ -13,6 +13,10 @@ async function request(path: string, user: User, options: RequestInit = {}) {
     },
   });
   if (res.status === 204) return null;
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    throw new Error(`API unavailable (${res.status}). Ensure Cloud Functions are deployed.`);
+  }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'API error');
   return data;

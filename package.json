@@ -6,6 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:functions": "npm --prefix functions run build",
+    "deploy": "npm run build && npm run build:functions && firebase deploy --only hosting && sleep 10 && firebase deploy --only functions",
+    "deploy:hosting": "npm run build && firebase deploy --only hosting",
+    "deploy:functions": "npm run build:functions && firebase deploy --only functions",
     "preview": "vite preview"
   },
   "dependencies": {
