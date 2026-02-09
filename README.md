@@ -1,388 +1,150 @@
 # Metrics Tracker
 
-A self-hostable personal metrics tracking application with formulas, dependencies, daily decay, and progress visualization. Built with vanilla JavaScript and Firebase.
+A self-hostable personal metrics tracking system with formulas, dependency graphs, daily decay, and an API for AI-agent automation. Built with React, TypeScript, and Firebase.
 
 ## Features
 
-- **XP/Rank System** - Track your overall progress with a unified XP score and rank
-- **Formula Support** - Create derived metrics using mathematical formulas that reference other metrics
-- **Dependency Tracking** - Automatically update dependent metrics when base values change
-- **Daily Decay** - Optional automatic decay for metrics you want to maintain consistently
-- **Focus Mode** - Zoom in on specific metrics and their dependency chain
-- **Progress Graphs** - Visualize metric changes over time with Chart.js
-- **Update History** - Timeline of all metric updates with descriptions
-- **Depth-Based Organization** - Metrics automatically organized by dependency depth
+- **Formula-Based Metrics** - Create derived metrics using expressions like `{Deep Work} * 2 + {Exercise}`
+- **Dependency Tracking** - Metrics recalculate automatically in topological order when values change
+- **Daily Decay** - Optional automatic -1/day for consistency-based metrics
+- **XP/Rank System** - Unified score from a "Utility" metric (ranks S through E)
+- **REST API** - Full CRUD over HTTP; authenticate with an API key (AI agents) or Firebase token (browser)
+- **Progress Graphs** - Visualize metric history over day/week/month/year intervals
+- **Focus Mode** - Filter the dashboard to a single metric and its dependency chain
+
+## Tech Stack
+
+- **Frontend**: React 19, TypeScript, Vite, Chart.js
+- **Backend**: Firebase Cloud Functions (v2) with Express
+- **Database**: Firestore (accessed via Admin SDK)
+- **Auth**: Firebase Authentication (email/password)
 
 ## Quick Start
 
-Total setup time: **~5-7 minutes**
+### 1. Firebase Project Setup
 
-### 1. Create a Firebase Project (2 minutes)
+1. Create a project at [Firebase Console](https://console.firebase.google.com)
+2. Enable **Authentication** → **Email/Password**
+3. Create a **Firestore Database** in production mode
+4. Register a **Web app** and copy the config JSON
+5. Upgrade to **Blaze plan** (required for Cloud Functions; free tier still applies)
 
-1. Go to [Firebase Console](https://console.firebase.google.com)
-2. Click "Add project"
-3. Enter a project name (e.g., "my-metrics-tracker")
-4. Disable Google Analytics (optional, not needed)
-5. Click "Create project"
-
-### 2. Enable Authentication (30 seconds)
-
-1. In your Firebase project, go to **Build** → **Authentication**
-2. Click "Get started"
-3. Click on **Email/Password** in the Sign-in providers
-4. Toggle "Enable" to ON
-5. Click "Save"
-
-### 3. Create Firestore Database (30 seconds)
-
-1. Go to **Build** → **Firestore Database**
-2. Click "Create database"
-3. Select "Start in **production mode**" (we'll add rules next)
-4. Choose a location close to you
-5. Click "Enable"
-
-### 4. Deploy Firestore Rules (1 minute)
-
-**Option A: Via Console (Easiest)**
-
-1. In Firestore Database, click on the **Rules** tab
-2. Replace the entire content with the rules from `firestore.rules` in this repository
-3. Click "Publish"
-
-**Option B: Via Firebase CLI**
+### 2. Install and Configure
 
 ```bash
-# Install Firebase CLI (if not already installed)
-npm install -g firebase-tools
+# Install dependencies
+npm install
+cd functions && npm install && cd ..
 
-# Login to Firebase
+# Set your API key for the AI agent
+cp functions/.env.example functions/.env
+# Edit functions/.env and set API_KEY=<your-secret>
+```
+
+### 3. Deploy
+
+```bash
 firebase login
-
-# Initialize Firebase in this directory
-firebase init firestore
-# Select your project
-# Use existing firestore.rules file
-
-# Deploy rules
-firebase deploy --only firestore:rules
+firebase use <your-project-id>
+firebase deploy
 ```
 
-### 5. Get Your Firebase Config (30 seconds)
+Your app will be at `https://<project-id>.web.app`. The API is served from the same origin via hosting rewrites.
 
-1. In Firebase Console, go to **Project Settings** (gear icon)
-2. Scroll down to "Your apps" section
-3. Click on **Web** icon (`</>`)
-4. Register your app with a nickname (e.g., "Metrics Tracker Web")
-5. Copy the `firebaseConfig` object (it looks like this):
+### 4. First Run
 
-```javascript
-{
-  apiKey: "AIzaSy...",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abc123"
-}
-```
+1. Open the app → paste your Firebase config JSON on the setup page
+2. Sign up with email/password
+3. Start creating metrics
 
-### 6. Launch the App (30 seconds)
+## API Reference
 
-**Option A: Local Development**
+All endpoints live under `/api`. Hit `GET /api/help` (no auth required) for a machine-readable description of every endpoint, the app's purpose, and its core concepts.
+
+### Authentication
+
+| Method | Header | Use Case |
+|--------|--------|----------|
+| API Key | `X-API-Key: <secret>` | AI agents, scripts, CLI tools |
+| Firebase Token | `Authorization: Bearer <id-token>` | Browser frontend |
+
+### Endpoints
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/help` | No | API documentation and app description |
+| `GET` | `/api/status` | Yes | XP, rank, and compact summary of all metrics |
+| `GET` | `/api/metrics` | Yes | List all metrics (computed totals and depths) |
+| `GET` | `/api/metrics/:id` | Yes | Single metric by ID |
+| `POST` | `/api/metrics` | Yes | Create a metric |
+| `PUT` | `/api/metrics/:id` | Yes | Update a metric |
+| `DELETE` | `/api/metrics/:id` | Yes | Delete a metric |
+| `GET` | `/api/metrics/:id/logs` | Yes | Historical value logs for graphing |
+| `GET` | `/api/updates` | Yes | Update history (`?limit=N`) |
+| `POST` | `/api/decay` | Yes | Manually trigger daily decay |
+
+### Example: AI Agent Usage
 
 ```bash
-# Serve the public directory
-cd public
-python3 -m http.server 8000
-# Or use any other static server
+# Get a summary of everything
+curl -H "X-API-Key: YOUR_KEY" https://your-project.web.app/api/status
+
+# Create a metric
+curl -X POST -H "X-API-Key: YOUR_KEY" -H "Content-Type: application/json" \
+  -d '{"name":"Deep Work","value":5,"decay":true}' \
+  https://your-project.web.app/api/metrics
+
+# Update a metric's value
+curl -X PUT -H "X-API-Key: YOUR_KEY" -H "Content-Type: application/json" \
+  -d '{"name":"Deep Work","description":"","value":8,"formula":"0","decay":true,"oldValue":5,"updateNote":"Good focus day"}' \
+  https://your-project.web.app/api/metrics/METRIC_ID
 ```
 
-**Option B: Deploy to Firebase Hosting**
+## Formulas
 
-```bash
-firebase init hosting
-# Select your project
-# Public directory: public
-# Single page app: No
-# Automatic builds: No
-
-firebase deploy --only hosting
-```
-
-**Option C: Deploy to any static host**
-
-Upload the `public/` directory to:
-- Netlify
-- Vercel  
-- GitHub Pages
-- Any web server
-
-### 7. Configure the App (30 seconds)
-
-1. Open the app in your browser
-2. You'll be redirected to the setup page
-3. Paste your Firebase config JSON
-4. Click "Save Configuration"
-5. You'll be redirected to the login page
-
-### 8. Create Your Account (30 seconds)
-
-1. Click "Don't have an account? Sign up"
-2. Enter your email and password
-3. Click "Sign Up"
-4. You're in! Start tracking metrics.
-
-## Usage Guide
-
-### Creating Your First Metric
-
-1. Scroll to "Add New Metric" section
-2. Fill in:
-   - **Metric Name**: e.g., "Deep Work Hours"
-   - **Description**: Optional, what this metric represents
-   - **Base Value**: Starting value (e.g., 0)
-   - **Formula**: Leave as "0" for base metrics
-   - **Enable daily decay**: Check if you want -1 per day when not updated
-3. Click "Add Metric"
-
-### Creating Derived Metrics
-
-Derived metrics use formulas to calculate values from other metrics:
-
-**Example 1: Simple Addition**
-```
-Name: Total Hours
-Formula: {Deep Work} + {Exercise}
-```
-
-**Example 2: Weighted Sum**
-```
-Name: Productivity Score
-Formula: {Deep Work} * 2 + {Reading} * 1.5
-```
-
-**Example 3: Complex Formula**
-```
-Name: Utility
-Formula: ({Deep Work} + {Exercise}) * sqrt({Consistency})
-```
-
-**Available Functions:**
-- `sqrt(x)` - Square root
-- `abs(x)` - Absolute value
-- `min(a, b)` - Minimum
-- `max(a, b)` - Maximum
-- `pow(x, y)` - Power (x^y)
-- Standard operators: `+`, `-`, `*`, `/`, `()`, `^`
-
-### Updating Metrics
-
-1. Go to "Post Update" section
-2. Select the metric
-3. Enter the new base value
-4. Add a description of what changed
-5. Click "Post Update"
-
-All dependent metrics will automatically recalculate!
-
-### Focus Mode (Zoom)
-
-Click "Zoom" on any metric to enter Focus Mode:
-- Shows only that metric and its dependency chain
-- Hides unrelated metrics
-- Great for working on specific goals
-- Click "Exit Focus Mode" to return
-
-### Progress Graphs
-
-Click "Graph" on any metric to see its value over time. Historical values are automatically logged when metrics change.
-
-### Daily Decay
-
-When enabled, metrics automatically lose 1 point per day since your last visit. Perfect for metrics like:
-- Streak counters
-- Consistency trackers
-- Habits you want to maintain
-
-### XP and Ranks
-
-The XP system is based on a metric named "Utility". Create a metric called "Utility" with a formula that represents your overall productivity/progress:
+Reference other metrics by name in curly braces:
 
 ```
-Name: Utility
-Formula: {Deep Work} * 10 + {Exercise} * 5 + {Reading} * 3
+{Deep Work} * 2 + {Exercise} * 1.5
+sqrt({Consistency}) * ({Reading} + {Writing})
 ```
 
-Ranks:
-- **S Rank**: 900+ XP
-- **A Rank**: 800-899 XP
-- **B Rank**: 700-799 XP
-- **C Rank**: 600-699 XP
-- **D Rank**: 500-599 XP
-- **E Rank**: 400-499 XP
+**Functions**: `sqrt()`, `abs()`, `min()`, `max()`, `pow()`
+**Operators**: `+`, `-`, `*`, `/`, `()`
 
-## File Structure
+Circular dependencies are detected and rejected.
+
+## Data Model
+
+| Collection | Purpose |
+|------------|---------|
+| `metrics` | Name, base value, formula, decay flag, display order |
+| `metricLogs` | Historical total values (for graphs) |
+| `updates` | Change history with timestamps and notes |
+| `system` | Internal state (last decay date) |
+
+All Firestore access goes through the API (Admin SDK). Direct client access is denied by security rules.
+
+## Project Structure
 
 ```
 metrics-tracker/
-├── public/
-│   ├── index.html           # Entry point / router
-│   ├── setup.html           # Firebase configuration page
-│   ├── login.html           # Login and signup page
-│   ├── metrics.html         # Main application
-│   ├── css/
-│   │   └── style.css        # All styles
-│   └── js/
-│       ├── firebase-config.js  # Config management
-│       └── app.js              # Main application logic
-├── firestore.rules          # Database security rules
-├── firebase.json            # Firebase hosting config (optional)
-└── README.md                # This file
+├── src/                    # React frontend
+│   ├── components/         # UI components
+│   ├── hooks/              # useAuth, useMetrics, useDarkMode
+│   ├── lib/                # api client, metrics engine, firebase config
+│   └── pages/              # Login, Setup, Metrics pages
+├── functions/              # Firebase Cloud Functions (API)
+│   └── src/
+│       ├── index.ts        # Express app entry point
+│       ├── middleware/      # Auth (API key + Firebase token)
+│       ├── routes/          # metrics, updates, system endpoints
+│       ├── services/        # Firestore operations, decay logic
+│       └── lib/             # Formula engine, async handler
+├── firebase.json           # Hosting + Functions config
+└── firestore.rules         # Deny-all (Admin SDK bypasses)
 ```
-
-## Reconfiguring Firebase
-
-If you need to switch to a different Firebase project:
-
-1. In the app header, click "⚙️ Reconfigure Firebase"
-2. Confirm the action
-3. You'll be logged out and redirected to the setup page
-4. Paste your new Firebase config
-
-Your data remains in the original Firebase project and is not deleted.
-
-## Data Storage
-
-All data is stored in **your** Firebase Firestore database:
-
-- `metrics` - Your metrics (name, value, formula, decay setting)
-- `updates` - Update history with timestamps and descriptions
-- `metricLogs` - Historical values for graphing
-- `system` - System data (last decay date)
-
-**Privacy**: Your data never leaves your Firebase project. It's completely under your control.
-
-## Hosting Options
-
-### Firebase Hosting (Recommended)
-
-```bash
-firebase init hosting
-firebase deploy --only hosting
-```
-
-Your app will be available at: `https://your-project-id.web.app`
-
-### Other Static Hosts
-
-The app is a pure static site. Upload the `public/` directory to:
-
-- **Netlify**: Drag & drop the public folder
-- **Vercel**: `vercel public/`
-- **GitHub Pages**: Push public/ to gh-pages branch
-- **Any web server**: Copy public/ to your web root
-
-### Local Development
-
-```bash
-cd public
-python3 -m http.server 8000
-# Then open http://localhost:8000
-```
-
-## Troubleshooting
-
-### "Firebase config not found"
-
-**Solution**: You need to complete the setup process. Visit `/setup.html` and paste your Firebase config.
-
-### "Invalid email or password" on signup
-
-**Possible causes**:
-- Email/Password authentication not enabled in Firebase Console
-- Password is less than 6 characters
-- Email format is invalid
-
-**Solution**: Check Firebase Console → Authentication → Sign-in method → Email/Password is enabled.
-
-### Metrics not saving
-
-**Possible causes**:
-- Firestore rules not deployed
-- Database not created
-
-**Solution**: 
-1. Go to Firebase Console → Firestore Database
-2. Verify database exists
-3. Check Rules tab - should match `firestore.rules` in this repo
-
-### Charts not displaying
-
-**Possible cause**: No historical data yet.
-
-**Solution**: Metrics log values when they change. Update a metric a few times, then check the graph.
-
-### Decay not working
-
-**Possible causes**:
-- Metric doesn't have "decay" enabled
-- You've visited today already (decay applies once per day)
-
-**Solution**: Enable decay when creating/editing metrics. Decay applies on your first visit each day.
-
-### "Circular dependency" error
-
-**Cause**: Formula creates a loop (e.g., A depends on B, B depends on A).
-
-**Solution**: Restructure your formulas to avoid circular references.
-
-## Security Notes
-
-- **Authentication Required**: All Firestore operations require authentication
-- **User Isolation**: If you want multi-user support, modify `firestore.rules` to add user-specific rules
-- **API Key Public**: The Firebase API key in your config is safe to expose publicly (it's just an identifier, not a secret)
-- **Production Mode**: Database starts in production mode with rules - this is correct and secure
-
-## Advanced: Multi-User Setup
-
-To allow multiple users with data isolation, update your `firestore.rules`:
-
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-  }
-}
-```
-
-Then modify the app to store data under `/users/{userId}/metrics`, etc.
-
-## Contributing
-
-This is an open-source project. Feel free to:
-- Fork and customize for your needs
-- Submit issues or pull requests
-- Share your customizations
 
 ## License
 
-MIT License - Use freely for personal or commercial projects.
-
-## Support
-
-For issues or questions:
-1. Check the Troubleshooting section above
-2. Review Firebase Console for configuration issues
-3. Open an issue on GitHub
-
----
-
-**Built with**: Vanilla JavaScript, Firebase, Chart.js
-
-**Hosting**: Works anywhere - Firebase, Netlify, Vercel, GitHub Pages, or your own server
-
-**Cost**: Free (Firebase free tier is generous: 50k reads/day, 20k writes/day)
-
+MIT
