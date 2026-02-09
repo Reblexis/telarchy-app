@@ -36,14 +36,21 @@ metricsRouter.post('/', wrap(async (req, res) => {
 
 metricsRouter.put('/:id', wrap(async (req, res) => {
   const id = req.params.id as string;
-  const { name, description, value, formula, decay, oldValue, updateNote = '' } = req.body;
+  const { oldValue, updateNote = '', ...fields } = req.body;
 
-  const writes: Promise<unknown>[] = [
-    db().collection('metrics').doc(id).update({ name, description, value, formula, decay }),
-  ];
-  if (oldValue !== value) {
+  const allowed = ['name', 'description', 'value', 'formula', 'decay'] as const;
+  const update: Record<string, unknown> = {};
+  for (const key of allowed) {
+    if (fields[key] !== undefined) update[key] = fields[key];
+  }
+  if (Object.keys(update).length === 0) { res.status(400).json({ error: 'No fields to update' }); return; }
+
+  const docRef = db().collection('metrics').doc(id);
+  const writes: Promise<unknown>[] = [docRef.update(update)];
+  if (oldValue !== undefined && update.value !== undefined && oldValue !== update.value) {
+    const metricName = (update.name as string) || (await docRef.get()).data()?.name || '';
     writes.push(db().collection('updates').add({
-      metricName: name, oldValue, newValue: value,
+      metricName, oldValue, newValue: update.value,
       description: updateNote || 'Value updated',
       timestamp: FieldValue.serverTimestamp(),
     }));
