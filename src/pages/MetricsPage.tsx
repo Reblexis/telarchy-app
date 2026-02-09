@@ -23,7 +23,7 @@ export function MetricsPage() {
     focusedMetricId, toggleFocus,
     addMetric, editMetric, removeMetric,
     loadMetricLogs,
-  } = useMetrics(!!user);
+  } = useMetrics(user);
 
   const [editingMetric, setEditingMetric] = useState<Metric | null>(null);
   const [graphMetric, setGraphMetric] = useState<Metric | null>(null);
