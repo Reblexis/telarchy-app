@@ -32,8 +32,7 @@ export function useMetrics(user: User | null) {
     (async () => {
       setLoading(true);
       await api.triggerDecay(user);
-      const loaded = await loadMetrics();
-      await loadUpdates();
+      const [loaded] = await Promise.all([loadMetrics(), loadUpdates()]);
       const savedFocus = getCookie('focusedMetricId');
       if (savedFocus && loaded.find((m: Metric) => m.id === savedFocus)) {
         setFocusedMetricId(savedFocus);

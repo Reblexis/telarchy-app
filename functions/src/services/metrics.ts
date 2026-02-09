@@ -44,6 +44,7 @@ export async function createMetric(
     throw new Error('This formula would create a circular dependency');
   }
   const docRef = await db().collection('metrics').add({ name, value, formula, description, decay, order: 999 });
+  // Re-fetch once after insert, reuse for both affected calculation and logging
   const metrics = await getAllMetrics();
   await logSpecificMetrics(getAffectedMetrics([docRef.id], metrics), metrics);
   return metrics;
@@ -57,14 +58,16 @@ export async function updateMetric(
   if (detectCircularDependency(id, formula, current)) {
     throw new Error('This formula would create a circular dependency');
   }
-  await db().collection('metrics').doc(id).update({ name, description, value, formula, decay });
-  if (oldValue !== value) {
-    await db().collection('updates').add({
-      metricName: name, oldValue, newValue: value,
-      description: updateNote || 'Value updated',
-      timestamp: FieldValue.serverTimestamp(),
-    });
-  }
+  const updatePromise = db().collection('metrics').doc(id).update({ name, description, value, formula, decay });
+  const logPromise = oldValue !== value
+    ? db().collection('updates').add({
+        metricName: name, oldValue, newValue: value,
+        description: updateNote || 'Value updated',
+        timestamp: FieldValue.serverTimestamp(),
+      })
+    : Promise.resolve();
+  await Promise.all([updatePromise, logPromise]);
+  // Single re-fetch after writes, reuse for affected calculation and logging
   const metrics = await getAllMetrics();
   await logSpecificMetrics(getAffectedMetrics([id], metrics), metrics);
   return metrics;
@@ -98,15 +101,18 @@ export async function getUpdates(limit?: number): Promise<UpdateEntry[]> {
 }
 
 export async function logSpecificMetrics(metricIds: string[], metrics: Metric[]): Promise<void> {
+  const batch = db().batch();
   for (const metricId of metricIds) {
     const metric = metrics.find(m => m.id === metricId);
     if (metric) {
-      await db().collection('metricLogs').add({
+      const ref = db().collection('metricLogs').doc();
+      batch.set(ref, {
         metricId: metric.id, metricName: metric.name, value: metric.total,
         timestamp: FieldValue.serverTimestamp(),
       });
     }
   }
+  await batch.commit();
 }
 
 export function getStatus(metrics: Metric[]) {
