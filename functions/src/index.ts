@@ -3,9 +3,11 @@ import * as admin from 'firebase-admin';
 import express from 'express';
 import cors from 'cors';
 import { authMiddleware } from './middleware/auth';
+import { requireRole } from './middleware/roles';
 import { metricsRouter } from './routes/metrics';
 import { updatesRouter } from './routes/updates';
 import { systemRouter } from './routes/system';
+import { agentsRouter } from './routes/agents';
 import type { Request, Response, NextFunction } from 'express';
 
 admin.initializeApp();
@@ -26,9 +28,10 @@ app.get('/api/help', (_req, res) => {
       depth: 'How many layers of dependents a metric has. Depth 0 = top-level aggregator, higher depth = more fundamental.',
     },
     authentication: {
-      api_key: 'Set X-API-Key header with your secret key.',
-      firebase_token: 'Set Authorization: Bearer <firebase-id-token> header.',
-      note: 'All endpoints except /api/help require authentication.',
+      api_key: 'Set X-API-Key header with your secret key (admin access).',
+      firebase_token: 'Set Authorization: Bearer <firebase-id-token> header (admin access).',
+      agent_key: 'Set X-Agent-Key header with your agent API key (agent-scoped access).',
+      note: 'All endpoints except /api/help and POST /api/agents/register require authentication.',
     },
     endpoints: [
       { method: 'GET', path: '/api/help', auth: false, description: 'This endpoint. Returns API documentation.' },
@@ -41,11 +44,24 @@ app.get('/api/help', (_req, res) => {
       { method: 'GET', path: '/api/metrics/:id/logs', auth: true, description: 'Historical value logs for a metric (for graphing).' },
       { method: 'GET', path: '/api/updates', auth: true, description: 'Update history. Query: ?limit=N', },
       { method: 'POST', path: '/api/decay', auth: true, description: 'Manually trigger daily decay. Returns count of affected metrics and days passed.' },
+      { method: 'POST', path: '/api/agents/register', auth: false, description: 'Register a new agent. Body: { agentId: string }. Returns API key (shown once).' },
+      { method: 'GET', path: '/api/agents', auth: 'admin', description: 'List all agents.' },
+      { method: 'GET', path: '/api/agents/:id', auth: 'self/admin', description: 'Get agent info (balance, role, stats).' },
+      { method: 'GET', path: '/api/agents/:id/balance', auth: 'self/admin', description: 'Get agent balance.' },
+      { method: 'PUT', path: '/api/agents/:id/approve', auth: 'admin', description: 'Approve a pending agent and grant starting balance.' },
+      { method: 'PUT', path: '/api/agents/:id/role', auth: 'admin', description: 'Change agent role. Body: { role: "admin"|"agent"|"pending" }' },
+      { method: 'POST', path: '/api/agents/:id/credit', auth: 'admin', description: 'Add credits. Body: { amount: number, reason: string }' },
+      { method: 'POST', path: '/api/agents/:id/spend', auth: 'admin', description: 'Deduct credits. Body: { amount: number, type: "betting"|"tokens", reason: string }' },
+      { method: 'DELETE', path: '/api/agents/:id', auth: 'admin', description: 'Delete an agent.' },
     ],
   });
 });
 
+// Agents router handles its own auth (registration is public)
+app.use('/api/agents', agentsRouter);
+
 app.use(authMiddleware);
+app.use(requireRole('admin'));
 
 app.use('/api/metrics', metricsRouter);
 app.use('/api/updates', updatesRouter);

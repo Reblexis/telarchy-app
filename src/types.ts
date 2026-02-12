@@ -35,3 +35,17 @@ export interface FirebaseConfig {
 }
 
 export type GraphInterval = 'day' | 'week' | 'month' | 'year';
+
+export type AgentRole = 'admin' | 'agent' | 'pending';
+
+export interface Agent {
+  id: string;
+  role: AgentRole;
+  balance: number;
+  gifted: number;
+  earnedBetting: number;
+  spentBetting: number;
+  spentTokens: number;
+  createdAt: string;
+  approvedAt: string | null;
+}

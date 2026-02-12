@@ -36,4 +36,17 @@ export const api = {
     request(`/api/updates${limit ? `?limit=${limit}` : ''}`, user),
   getStatus: (user: User) => request('/api/status', user),
   triggerDecay: (user: User) => request('/api/decay', user, { method: 'POST' }),
+
+  // Agents
+  getAgents: (user: User) => request('/api/agents', user),
+  approveAgent: (user: User, id: string) =>
+    request(`/api/agents/${id}/approve`, user, { method: 'PUT' }),
+  setAgentRole: (user: User, id: string, role: string) =>
+    request(`/api/agents/${id}/role`, user, { method: 'PUT', body: JSON.stringify({ role }) }),
+  creditAgent: (user: User, id: string, amount: number, reason: string) =>
+    request(`/api/agents/${id}/credit`, user, { method: 'POST', body: JSON.stringify({ amount, reason }) }),
+  spendAgent: (user: User, id: string, amount: number, type: 'betting' | 'tokens', reason: string) =>
+    request(`/api/agents/${id}/spend`, user, { method: 'POST', body: JSON.stringify({ amount, type, reason }) }),
+  deleteAgent: (user: User, id: string) =>
+    request(`/api/agents/${id}`, user, { method: 'DELETE' }),
 };

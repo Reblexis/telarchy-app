@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import type { GraphInterval } from '../types';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { getCookie, setCookie } from '../lib/cookies';
@@ -11,11 +12,15 @@ interface HeaderProps {
 
 export function Header({ onLogout, onReconfigure, graphInterval, onIntervalChange }: HeaderProps) {
   const { isDark, toggle } = useDarkMode();
+  const navigate = useNavigate();
 
   return (
     <div className="header">
       <h1>Metrics Tracker</h1>
       <div className="header-actions">
+        <button className="reconfigure-btn" onClick={() => navigate('/agents')}>
+          Agents
+        </button>
         <select
           id="graphInterval"
           title="Graph time interval"

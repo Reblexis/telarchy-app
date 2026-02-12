@@ -3,6 +3,7 @@ import { RootRedirect } from './pages/RootRedirect';
 import { SetupPage } from './pages/SetupPage';
 import { LoginPage } from './pages/LoginPage';
 import { MetricsPage } from './pages/MetricsPage';
+import { AgentsPage } from './pages/AgentsPage';
 
 export function App() {
   return (
@@ -12,6 +13,7 @@ export function App() {
         <Route path="/setup" element={<SetupPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/metrics" element={<MetricsPage />} />
+        <Route path="/agents" element={<AgentsPage />} />
       </Routes>
     </BrowserRouter>
   );

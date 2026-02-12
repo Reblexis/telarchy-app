@@ -24,3 +24,23 @@ export interface UpdateEntry {
   description: string;
   timestamp: Date;
 }
+
+export type AgentRole = 'admin' | 'agent' | 'pending';
+
+export interface Agent {
+  id: string;
+  apiKeyHash: string;
+  role: AgentRole;
+  balance: number;
+  gifted: number;
+  earnedBetting: number;
+  spentBetting: number;
+  spentTokens: number;
+  createdAt: FirebaseFirestore.Timestamp;
+  approvedAt: FirebaseFirestore.Timestamp | null;
+}
+
+export interface AuthInfo {
+  role: AgentRole | 'admin';
+  agentId?: string;
+}
