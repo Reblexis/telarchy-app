@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { api } from '../lib/api';
 import type { Agent } from '../types';
 
 export function AgentsPage() {
-  const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   useDarkMode();
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -57,10 +56,12 @@ export function AgentsPage() {
     <>
       <div className="header">
         <h1>Agents</h1>
-        <div className="header-actions">
-          <button className="btn-small" onClick={() => navigate('/markets')}>Markets</button>
-          <button className="btn-small" onClick={() => navigate('/metrics')}>Metrics</button>
-        </div>
+        <nav className="header-nav">
+          <Link to="/metrics" className="nav-link">Metrics</Link>
+          <Link to="/agents" className="nav-link active">Agents</Link>
+          <Link to="/markets" className="nav-link">Markets</Link>
+        </nav>
+        <div className="header-actions"></div>
       </div>
       <div className="container">
         {error && <div className="message error show">{error}</div>}

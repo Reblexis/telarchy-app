@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { User } from 'firebase/auth';
 import { getCookie, setCookie, deleteCookie } from '../lib/cookies';
 import { api } from '../lib/api';
+import { cacheGet, cacheSet, cacheDelete } from '../lib/cache';
 import {
   calculateXP, calculateRank, recalculateMetrics,
   calculateMetricDepths, detectCircularDependency,
@@ -16,11 +17,15 @@ function enrichMetrics(metrics: Metric[]): Metric[] {
   return metrics;
 }
 
+// Track last decay trigger globally so we don't call it on every mount
+let lastDecayTs = 0;
+const DECAY_INTERVAL = 60_000; // once per minute max
+
 export function useMetrics(user: User | null) {
-  const [metrics, setMetrics] = useState<Metric[]>([]);
-  const [updates, setUpdates] = useState<UpdateEntry[]>([]);
+  const [metrics, setMetrics] = useState<Metric[]>(() => cacheGet<Metric[]>('metrics') || []);
+  const [updates, setUpdates] = useState<UpdateEntry[]>(() => cacheGet<UpdateEntry[]>('updates') || []);
   const [focusedMetricId, setFocusedMetricId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cacheGet('metrics'));
 
   const xp = calculateXP(metrics);
   const rank = calculateRank(xp);
@@ -29,20 +34,39 @@ export function useMetrics(user: User | null) {
     if (!user) return [];
     const loaded: Metric[] = await api.getMetrics(user);
     setMetrics(loaded);
+    cacheSet('metrics', loaded);
     return loaded;
   }, [user]);
 
   const loadUpdates = useCallback(async () => {
     if (!user) return;
     const list: UpdateEntry[] = await api.getUpdates(user);
-    setUpdates(list.map(u => ({ ...u, timestamp: new Date(u.timestamp) })));
+    const parsed = list.map(u => ({ ...u, timestamp: new Date(u.timestamp) }));
+    setUpdates(parsed);
+    cacheSet('updates', parsed);
   }, [user]);
 
   useEffect(() => {
     if (!user) return;
+
+    // If we have cached data, show it immediately and refresh in background
+    const cached = cacheGet<Metric[]>('metrics');
+    if (cached) {
+      const savedFocus = getCookie('focusedMetricId');
+      if (savedFocus && cached.find((m: Metric) => m.id === savedFocus)) {
+        setFocusedMetricId(savedFocus);
+      }
+    }
+
     (async () => {
-      setLoading(true);
-      await api.triggerDecay(user);
+      if (!cached) setLoading(true);
+
+      // Only trigger decay if enough time has passed
+      if (Date.now() - lastDecayTs > DECAY_INTERVAL) {
+        await api.triggerDecay(user);
+        lastDecayTs = Date.now();
+      }
+
       const [loaded] = await Promise.all([loadMetrics(), loadUpdates()]);
       const savedFocus = getCookie('focusedMetricId');
       if (savedFocus && loaded.find((m: Metric) => m.id === savedFocus)) {
@@ -78,7 +102,7 @@ export function useMetrics(user: User | null) {
     const updated = metrics.map(m => m.id === id ? { ...m, name, description, value, formula, decay } : { ...m });
     setMetrics(enrichMetrics(updated));
     api.updateMetric(user, id, { name, description, value, formula, decay, oldValue, updateNote })
-      .then(() => { delete logsCache.current[id]; loadUpdates(); })
+      .then(() => { delete logsCache.current[id]; cacheDelete('metrics'); loadUpdates(); })
       .catch(() => setMetrics(prev));
   };
 
@@ -88,6 +112,7 @@ export function useMetrics(user: User | null) {
       setFocusedMetricId(null);
       deleteCookie('focusedMetricId');
     }
+    cacheDelete('metrics');
     await api.deleteMetric(user, id);
     await loadMetrics();
   };

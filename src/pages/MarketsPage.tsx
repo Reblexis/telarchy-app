@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { api } from '../lib/api';
 import type { Market, Metric } from '../types';
 
 export function MarketsPage() {
-  const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   useDarkMode();
   const [markets, setMarkets] = useState<Market[]>([]);
@@ -73,9 +72,12 @@ export function MarketsPage() {
     <>
       <div className="header">
         <h1>Markets</h1>
+        <nav className="header-nav">
+          <Link to="/metrics" className="nav-link">Metrics</Link>
+          <Link to="/agents" className="nav-link">Agents</Link>
+          <Link to="/markets" className="nav-link active">Markets</Link>
+        </nav>
         <div className="header-actions">
-          <button className="btn-small" onClick={() => navigate('/agents')}>Agents</button>
-          <button className="btn-small" onClick={() => navigate('/metrics')}>Metrics</button>
           <button className="btn" onClick={handleResolve}>Resolve Predictions</button>
         </div>
       </div>

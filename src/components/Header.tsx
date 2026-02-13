@@ -1,7 +1,6 @@
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import type { GraphInterval } from '../types';
 import { useDarkMode } from '../hooks/useDarkMode';
-import { getCookie, setCookie } from '../lib/cookies';
 
 interface HeaderProps {
   onLogout: () => void;
@@ -12,18 +11,16 @@ interface HeaderProps {
 
 export function Header({ onLogout, onReconfigure, graphInterval, onIntervalChange }: HeaderProps) {
   const { isDark, toggle } = useDarkMode();
-  const navigate = useNavigate();
 
   return (
     <div className="header">
       <h1>Metrics Tracker</h1>
+      <nav className="header-nav">
+        <Link to="/metrics" className="nav-link active">Metrics</Link>
+        <Link to="/agents" className="nav-link">Agents</Link>
+        <Link to="/markets" className="nav-link">Markets</Link>
+      </nav>
       <div className="header-actions">
-        <button className="reconfigure-btn" onClick={() => navigate('/agents')}>
-          Agents
-        </button>
-        <button className="reconfigure-btn" onClick={() => navigate('/markets')}>
-          Markets
-        </button>
         <select
           id="graphInterval"
           title="Graph time interval"
@@ -39,7 +36,7 @@ export function Header({ onLogout, onReconfigure, graphInterval, onIntervalChang
           {isDark ? '☀️' : '🌙'}
         </button>
         <button className="reconfigure-btn" onClick={onReconfigure}>
-          ⚙️ Reconfigure Firebase
+          ⚙️
         </button>
         <button className="logout-btn" onClick={onLogout}>
           Logout
