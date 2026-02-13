@@ -1,0 +1,145 @@
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import { useDarkMode } from '../hooks/useDarkMode';
+import { api } from '../lib/api';
+import type { Market, Metric } from '../types';
+
+export function MarketsPage() {
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+  useDarkMode();
+  const [markets, setMarkets] = useState<Market[]>([]);
+  const [metrics, setMetrics] = useState<Metric[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [resolveResult, setResolveResult] = useState('');
+
+  // Create market form
+  const [metricId, setMetricId] = useState('');
+  const [targetDate, setTargetDate] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!user) return;
+    setError('');
+    const [mkts, mets] = await Promise.all([
+      api.getMarkets(user).catch((e: Error) => { setError(e.message); return null; }),
+      api.getMetrics(user).catch(() => null),
+    ]);
+    if (mkts) setMarkets(mkts);
+    if (mets) setMetrics(mets);
+    setLoading(false);
+  }, [user]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleCreate = async () => {
+    if (!user || !metricId || !targetDate) return;
+    setCreating(true);
+    setError('');
+    const result = await api.createMarket(user, metricId, targetDate).catch((e: Error) => { setError(e.message); return null; });
+    setCreating(false);
+    if (result) {
+      setMetricId('');
+      setTargetDate('');
+      load();
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!user) return;
+    setError('');
+    await api.deleteMarket(user, id).catch((e: Error) => { setError(e.message); });
+    load();
+  };
+
+  const handleResolve = async () => {
+    if (!user) return;
+    setResolveResult('');
+    const result = await api.resolvePredictions(user).catch((e: Error) => { setError(e.message); return null; });
+    if (result) {
+      setResolveResult(`Resolved ${result.resolved} predictions. Total payout: ${result.totalPayout} credits.`);
+      load();
+    }
+  };
+
+  if (authLoading || !user) return <div className="loading">Loading...</div>;
+
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  const thStyle = { padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' } as const;
+
+  return (
+    <>
+      <div className="header">
+        <h1>Markets</h1>
+        <div className="header-actions">
+          <button className="btn-small" onClick={() => navigate('/agents')}>Agents</button>
+          <button className="btn-small" onClick={() => navigate('/metrics')}>Metrics</button>
+          <button className="btn" onClick={handleResolve}>Resolve Predictions</button>
+        </div>
+      </div>
+      <div className="container">
+        {error && <div className="message error show">{error}</div>}
+        {resolveResult && <div className="message success show">{resolveResult}</div>}
+
+        {/* Create market form */}
+        <div className="section" style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Metric</label>
+            <select value={metricId} onChange={e => setMetricId(e.target.value)}
+              style={{ padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)' }}>
+              <option value="">Select metric...</option>
+              {metrics.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Target Date</label>
+            <input type="date" value={targetDate} min={tomorrow} onChange={e => setTargetDate(e.target.value)}
+              style={{ padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)' }} />
+          </div>
+          <button className="btn" onClick={handleCreate} disabled={creating || !metricId || !targetDate}>
+            {creating ? 'Creating...' : 'Create Market'}
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="loading">Loading markets...</div>
+        ) : markets.length === 0 ? (
+          <div className="section"><p style={{ color: 'var(--text-secondary)' }}>No active markets.</p></div>
+        ) : (
+          <div className="section">
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
+                  <th style={thStyle}>Metric</th>
+                  <th style={thStyle}>Target Date</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>Consensus</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>Total Stake</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>Predictions</th>
+                  <th style={thStyle}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {markets.map(m => (
+                  <tr key={m.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                    <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600 }}>{m.metricName}</td>
+                    <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'monospace' }}>{m.targetDate}</td>
+                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{m.consensus ?? '—'}</td>
+                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace' }}>{m.totalStake}</td>
+                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{m.predictionCount}</td>
+                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>
+                      {m.predictionCount === 0 && (
+                        <button className="btn-small" style={{ color: 'var(--delete-color, #ef4444)' }} onClick={() => handleDelete(m.id)}>Delete</button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}

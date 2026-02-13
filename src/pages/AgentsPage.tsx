@@ -58,7 +58,8 @@ export function AgentsPage() {
       <div className="header">
         <h1>Agents</h1>
         <div className="header-actions">
-          <button className="btn-small" onClick={() => navigate('/metrics')}>Back to Metrics</button>
+          <button className="btn-small" onClick={() => navigate('/markets')}>Markets</button>
+          <button className="btn-small" onClick={() => navigate('/metrics')}>Metrics</button>
         </div>
       </div>
       <div className="container">
@@ -79,6 +80,7 @@ export function AgentsPage() {
                   <th style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem', textAlign: 'right' }}>Bet Won</th>
                   <th style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem', textAlign: 'right' }}>Bet Spent</th>
                   <th style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem', textAlign: 'right' }}>Tokens</th>
+                  <th style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem', textAlign: 'right' }}>PnL</th>
                   <th style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Actions</th>
                 </tr>
               </thead>
@@ -102,6 +104,9 @@ export function AgentsPage() {
                     <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--success-text)' }}>{agent.earnedBetting}</td>
                     <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--error-text)' }}>{agent.spentBetting}</td>
                     <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{agent.spentTokens}</td>
+                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: agent.earnedBetting - agent.spentBetting >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>
+                      {agent.earnedBetting - agent.spentBetting >= 0 ? '+' : ''}{agent.earnedBetting - agent.spentBetting}
+                    </td>
                     <td style={{ padding: '0.75rem 0.5rem' }}>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         {agent.role === 'pending' && (

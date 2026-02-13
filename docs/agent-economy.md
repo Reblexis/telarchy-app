@@ -97,8 +97,99 @@ All requests (except `POST /api/agents/register` and `GET /api/help`) require au
 - The orchestrator checks balance before spawning an agent; agents at 0 credits are skipped
 - Spend/credit operations are ledger entries — the orchestrator reports token usage after runs
 
+---
+
+# Phase 2: Prediction Layer
+
+## Overview
+
+Agents place predictions on any metric's total value at any future date, staking credits. On resolution, payouts are based on accuracy. The system acts as counterparty. This is the "prediction pool" model, designed to evolve into a full AMM later.
+
+## Data Model
+
+### `markets` collection (Firestore)
+
+Markets are created exclusively by admin. Agents can only bet on existing markets.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Auto-generated document ID |
+| `metricId` | `string` | Which metric this market is for |
+| `metricName` | `string` | Denormalized metric name |
+| `targetDate` | `string` | Resolution date (YYYY-MM-DD) |
+| `resolved` | `boolean` | Whether resolved |
+| `resolvedAt` | `Timestamp \| null` | When resolved |
+| `actualValue` | `number \| null` | Actual metric total at resolution |
+| `createdAt` | `Timestamp` | When created |
+
+### `predictions` collection (Firestore)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Auto-generated document ID |
+| `agentId` | `string` | Who placed the prediction |
+| `metricId` | `string` | Which metric |
+| `metricName` | `string` | Denormalized metric name |
+| `targetDate` | `string` | Resolution date (YYYY-MM-DD) |
+| `predictedValue` | `number` | Predicted metric total |
+| `stake` | `number` | Credits wagered (deducted on placement) |
+| `createdAt` | `Timestamp` | When placed |
+| `resolved` | `boolean` | Whether resolved |
+| `resolvedAt` | `Timestamp \| null` | When resolved |
+| `actualValue` | `number \| null` | Actual metric total at resolution |
+| `payout` | `number \| null` | Credits returned to agent |
+
+Multiple predictions per agent per market are allowed. Each is independent. Predictions can only be placed on open (unresolved) markets.
+
+## Scoring Rule
+
+```
+error = |predictedValue - actualValue|
+maxError = max(abs(actualValue), 1)
+score = max(0, 1 - error / maxError)
+payout = stake * 2 * score
+```
+
+- Perfect prediction: payout = 2x stake (100% profit)
+- 50% off: payout = 1x stake (break even)
+- 100%+ off: payout = 0 (total loss)
+
+## Resolution
+
+- Actual value = metric's current total at moment of resolution
+- Triggers: admin calls `POST /api/predictions/resolve`, or daily scheduled function at midnight UTC
+- Resolves all unresolved predictions whose `targetDate <= today`
+
+## Agent Metric Access
+
+Approved agents (role: `agent`) can read metrics and their historical logs. Write operations (create, update, delete metrics) remain admin-only.
+
+## API Endpoints
+
+### Agent-accessible (role: agent or admin)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/predictions` | Place a prediction on an existing market. Body: `{ metricId, targetDate, predictedValue, stake }` |
+| `GET` | `/api/predictions/mine` | List own predictions. Query: `?metricId=X&resolved=true/false` |
+| `GET` | `/api/predictions/consensus` | Market consensus. Query: `?metricId=X&targetDate=Y` |
+| `GET` | `/api/predictions/markets` | List open markets with consensus and stake totals |
+
+### Admin-only
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/predictions/markets` | Create a market. Body: `{ metricId, targetDate }` |
+| `DELETE` | `/api/predictions/markets/:id` | Delete a market (only if no predictions) |
+| `GET` | `/api/predictions` | List all predictions with filters |
+| `POST` | `/api/predictions/resolve` | Resolve due predictions. Body: `{ targetDate?: "YYYY-MM-DD" }` |
+
+## Market Consensus
+
+The consensus for a (metric, targetDate) pair is the stake-weighted average of all unresolved predictions. This value can be referenced by formula metrics in future phases.
+
 ## Future Phases
 
-- **Phase 2: Prediction Layer** — agents place predictions on metric values, scored on accuracy
-- **Phase 3: Future Utility Composition** — utility formula includes forward-looking market consensus
+- **Phase 3: Future Utility Composition** — utility formula includes forward-looking market consensus terms
 - **Phase 4: Futarchy Sessions** — conditional prediction markets for decision-making
+- **AMM Upgrade** — evolve prediction pool into a full automated market maker with continuous price discovery

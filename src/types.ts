@@ -49,3 +49,32 @@ export interface Agent {
   createdAt: string;
   approvedAt: string | null;
 }
+
+export interface Market {
+  id: string;
+  metricId: string;
+  metricName: string;
+  targetDate: string;
+  resolved: boolean;
+  resolvedAt: string | null;
+  actualValue: number | null;
+  createdAt: string;
+  consensus: number | null;
+  totalStake: number;
+  predictionCount: number;
+}
+
+export interface Prediction {
+  id: string;
+  agentId: string;
+  metricId: string;
+  metricName: string;
+  targetDate: string;
+  predictedValue: number;
+  stake: number;
+  createdAt: string;
+  resolved: boolean;
+  resolvedAt: string | null;
+  actualValue: number | null;
+  payout: number | null;
+}

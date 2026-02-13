@@ -1,4 +1,5 @@
 import { onRequest } from 'firebase-functions/v2/https';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as admin from 'firebase-admin';
 import express from 'express';
 import cors from 'cors';
@@ -8,6 +9,7 @@ import { metricsRouter } from './routes/metrics';
 import { updatesRouter } from './routes/updates';
 import { systemRouter } from './routes/system';
 import { agentsRouter } from './routes/agents';
+import { predictionsRouter } from './routes/predictions';
 import type { Request, Response, NextFunction } from 'express';
 
 admin.initializeApp();
@@ -35,15 +37,15 @@ app.get('/api/help', (_req, res) => {
     },
     endpoints: [
       { method: 'GET', path: '/api/help', auth: false, description: 'This endpoint. Returns API documentation.' },
-      { method: 'GET', path: '/api/status', auth: true, description: 'Compact summary: XP, rank, and all metric names/values/totals.' },
-      { method: 'GET', path: '/api/metrics', auth: true, description: 'List all metrics with computed totals and depths, sorted by depth then order.' },
-      { method: 'GET', path: '/api/metrics/:id', auth: true, description: 'Get a single metric by ID.' },
-      { method: 'POST', path: '/api/metrics', auth: true, description: 'Create a metric.', body: { name: 'string (required)', description: 'string', value: 'number (default 0)', formula: 'string (default "0")', decay: 'boolean (default false)' } },
-      { method: 'PUT', path: '/api/metrics/:id', auth: true, description: 'Update a metric.', body: { name: 'string', description: 'string', value: 'number', formula: 'string', decay: 'boolean', oldValue: 'number (previous value, for update history)', updateNote: 'string (description of the change)' } },
-      { method: 'DELETE', path: '/api/metrics/:id', auth: true, description: 'Delete a metric. Returns 204.' },
-      { method: 'GET', path: '/api/metrics/:id/logs', auth: true, description: 'Historical value logs for a metric (for graphing).' },
-      { method: 'GET', path: '/api/updates', auth: true, description: 'Update history. Query: ?limit=N', },
-      { method: 'POST', path: '/api/decay', auth: true, description: 'Manually trigger daily decay. Returns count of affected metrics and days passed.' },
+      { method: 'GET', path: '/api/status', auth: 'agent/admin', description: 'Compact summary: XP, rank, and all metric names/values/totals.' },
+      { method: 'GET', path: '/api/metrics', auth: 'agent/admin', description: 'List all metrics with computed totals and depths, sorted by depth then order.' },
+      { method: 'GET', path: '/api/metrics/:id', auth: 'agent/admin', description: 'Get a single metric by ID.' },
+      { method: 'POST', path: '/api/metrics', auth: 'admin', description: 'Create a metric.', body: { name: 'string (required)', description: 'string', value: 'number (default 0)', formula: 'string (default "0")', decay: 'boolean (default false)' } },
+      { method: 'PUT', path: '/api/metrics/:id', auth: 'admin', description: 'Update a metric.', body: { name: 'string', description: 'string', value: 'number', formula: 'string', decay: 'boolean', oldValue: 'number (previous value, for update history)', updateNote: 'string (description of the change)' } },
+      { method: 'DELETE', path: '/api/metrics/:id', auth: 'admin', description: 'Delete a metric. Returns 204.' },
+      { method: 'GET', path: '/api/metrics/:id/logs', auth: 'agent/admin', description: 'Historical value logs for a metric (for graphing).' },
+      { method: 'GET', path: '/api/updates', auth: 'admin', description: 'Update history. Query: ?limit=N', },
+      { method: 'POST', path: '/api/decay', auth: 'admin', description: 'Manually trigger daily decay. Returns count of affected metrics and days passed.' },
       { method: 'POST', path: '/api/agents/register', auth: false, description: 'Register a new agent. Body: { agentId: string }. Returns API key (shown once).' },
       { method: 'GET', path: '/api/agents', auth: 'admin', description: 'List all agents.' },
       { method: 'GET', path: '/api/agents/:id', auth: 'self/admin', description: 'Get agent info (balance, role, stats).' },
@@ -53,18 +55,26 @@ app.get('/api/help', (_req, res) => {
       { method: 'POST', path: '/api/agents/:id/credit', auth: 'admin', description: 'Add credits. Body: { amount: number, reason: string }' },
       { method: 'POST', path: '/api/agents/:id/spend', auth: 'admin', description: 'Deduct credits. Body: { amount: number, type: "betting"|"tokens", reason: string }' },
       { method: 'DELETE', path: '/api/agents/:id', auth: 'admin', description: 'Delete an agent.' },
+      { method: 'POST', path: '/api/predictions', auth: 'agent/admin', description: 'Place a prediction on an existing market. Body: { metricId, targetDate, predictedValue, stake }. Market must exist.' },
+      { method: 'GET', path: '/api/predictions/mine', auth: 'agent/admin', description: 'List own predictions. Query: ?metricId=X&resolved=true/false' },
+      { method: 'GET', path: '/api/predictions/consensus', auth: 'agent/admin', description: 'Market consensus. Query: ?metricId=X&targetDate=Y. Returns stake-weighted average.' },
+      { method: 'GET', path: '/api/predictions/markets', auth: 'agent/admin', description: 'List all open markets with consensus, total stake, prediction count.' },
+      { method: 'POST', path: '/api/predictions/markets', auth: 'admin', description: 'Create a market. Body: { metricId, targetDate (YYYY-MM-DD) }. Only admin can create markets.' },
+      { method: 'DELETE', path: '/api/predictions/markets/:id', auth: 'admin', description: 'Delete a market.' },
+      { method: 'GET', path: '/api/predictions', auth: 'admin', description: 'List all predictions. Query: ?agentId=X&metricId=Y&targetDate=Z&resolved=true/false' },
+      { method: 'POST', path: '/api/predictions/resolve', auth: 'admin', description: 'Resolve due predictions. Body: { targetDate?: "YYYY-MM-DD" }. Defaults to today.' },
     ],
   });
 });
 
-// Agents router handles its own auth (registration is public)
+// These routers handle their own auth
 app.use('/api/agents', agentsRouter);
+app.use('/api/predictions', predictionsRouter);
 
 app.use(authMiddleware);
-app.use(requireRole('admin'));
 
 app.use('/api/metrics', metricsRouter);
-app.use('/api/updates', updatesRouter);
+app.use('/api/updates', requireRole('admin'), updatesRouter);
 app.use('/api', systemRouter);
 
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
@@ -73,3 +83,9 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 export const api = onRequest(app);
+
+export const dailyResolve = onSchedule('every day 00:00', async () => {
+  const { resolvePredictions } = await import('./services/predictions');
+  const result = await resolvePredictions();
+  console.log('Daily prediction resolution:', result);
+});

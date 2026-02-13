@@ -49,4 +49,17 @@ export const api = {
     request(`/api/agents/${id}/spend`, user, { method: 'POST', body: JSON.stringify({ amount, type, reason }) }),
   deleteAgent: (user: User, id: string) =>
     request(`/api/agents/${id}`, user, { method: 'DELETE' }),
+
+  // Predictions & Markets
+  getPredictions: (user: User, params?: Record<string, string>) => {
+    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+    return request(`/api/predictions${qs}`, user);
+  },
+  getMarkets: (user: User) => request('/api/predictions/markets', user),
+  createMarket: (user: User, metricId: string, targetDate: string) =>
+    request('/api/predictions/markets', user, { method: 'POST', body: JSON.stringify({ metricId, targetDate }) }),
+  deleteMarket: (user: User, id: string) =>
+    request(`/api/predictions/markets/${id}`, user, { method: 'DELETE' }),
+  resolvePredictions: (user: User, targetDate?: string) =>
+    request('/api/predictions/resolve', user, { method: 'POST', body: JSON.stringify({ targetDate }) }),
 };

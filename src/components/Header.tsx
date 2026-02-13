@@ -21,6 +21,9 @@ export function Header({ onLogout, onReconfigure, graphInterval, onIntervalChang
         <button className="reconfigure-btn" onClick={() => navigate('/agents')}>
           Agents
         </button>
+        <button className="reconfigure-btn" onClick={() => navigate('/markets')}>
+          Markets
+        </button>
         <select
           id="graphInterval"
           title="Graph time interval"

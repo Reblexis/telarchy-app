@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { wrap } from '../lib/wrap';
+import { requireRole } from '../middleware/roles';
 import { getAffectedMetrics } from '../lib/metrics-engine';
 import * as svc from '../services/metrics';
 
@@ -8,21 +9,23 @@ function db() { return getFirestore(); }
 
 export const metricsRouter = Router();
 
-metricsRouter.get('/', wrap(async (_req, res) => {
+// Read routes: agent + admin
+metricsRouter.get('/', requireRole('agent', 'admin'), wrap(async (_req, res) => {
   res.json(await svc.getAllMetrics());
 }));
 
-metricsRouter.get('/:id', wrap(async (req, res) => {
+metricsRouter.get('/:id', requireRole('agent', 'admin'), wrap(async (req, res) => {
   const metric = await svc.getMetricById(req.params.id as string);
   if (!metric) { res.status(404).json({ error: 'Metric not found' }); return; }
   res.json(metric);
 }));
 
-metricsRouter.get('/:id/logs', wrap(async (req, res) => {
+metricsRouter.get('/:id/logs', requireRole('agent', 'admin'), wrap(async (req, res) => {
   res.json(await svc.getMetricLogs(req.params.id as string));
 }));
 
-metricsRouter.post('/', wrap(async (req, res) => {
+// Write routes: admin only
+metricsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
   const { name, description = '', value = 0, formula = '0', decay = false } = req.body;
   if (!name) { res.status(400).json({ error: 'name is required' }); return; }
 
@@ -34,7 +37,7 @@ metricsRouter.post('/', wrap(async (req, res) => {
   await svc.logSpecificMetrics(getAffectedMetrics([docRef.id], metrics), metrics);
 }));
 
-metricsRouter.put('/:id', wrap(async (req, res) => {
+metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
   const id = req.params.id as string;
   const { oldValue, updateNote = '', ...fields } = req.body;
 
@@ -63,7 +66,7 @@ metricsRouter.put('/:id', wrap(async (req, res) => {
   await svc.logSpecificMetrics(getAffectedMetrics([id], metrics), metrics);
 }));
 
-metricsRouter.delete('/:id', wrap(async (req, res) => {
+metricsRouter.delete('/:id', requireRole('admin'), wrap(async (req, res) => {
   await svc.deleteMetric(req.params.id as string);
   res.status(204).send();
 }));

@@ -40,6 +40,32 @@ export interface Agent {
   approvedAt: FirebaseFirestore.Timestamp | null;
 }
 
+export interface Market {
+  id: string;
+  metricId: string;
+  metricName: string;
+  targetDate: string;
+  resolved: boolean;
+  resolvedAt: FirebaseFirestore.Timestamp | null;
+  actualValue: number | null;
+  createdAt: FirebaseFirestore.Timestamp;
+}
+
+export interface Prediction {
+  id: string;
+  agentId: string;
+  metricId: string;
+  metricName: string;
+  targetDate: string;
+  predictedValue: number;
+  stake: number;
+  createdAt: FirebaseFirestore.Timestamp;
+  resolved: boolean;
+  resolvedAt: FirebaseFirestore.Timestamp | null;
+  actualValue: number | null;
+  payout: number | null;
+}
+
 export interface AuthInfo {
   role: AgentRole | 'admin';
   agentId?: string;
