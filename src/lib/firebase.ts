@@ -4,6 +4,12 @@ import type { FirebaseConfig } from '../types';
 const STORAGE_KEY = 'metricsTrackerFirebaseConfig';
 
 export function getFirebaseConfig(): FirebaseConfig | null {
+  const envConfig = import.meta.env.VITE_FIREBASE_CONFIG;
+  if (envConfig) {
+    const config: FirebaseConfig = JSON.parse(atob(envConfig));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    return config;
+  }
   const configStr = localStorage.getItem(STORAGE_KEY);
   if (!configStr) return null;
   return JSON.parse(configStr);
