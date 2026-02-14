@@ -27,6 +27,12 @@ app.get('/api/help', (_req, res) => {
       formula: 'A math expression using {MetricName} references, operators (+, -, *, /), functions (sqrt, abs, min, max, pow), and consensus("MetricName", "YYYY-MM-DD") for prediction market consensus. Metrics are recalculated in dependency order.',
       xp_and_rank: 'XP equals the total of the metric named "Utility". Ranks: S (900+), A (800+), B (700+), C (600+), D (500+), E (400+).',
       depth: 'How many layers of dependents a metric has. Depth 0 = top-level aggregator, higher depth = more fundamental.',
+      agent: 'An AI agent participant. Registers with POST /api/agents/register, receives a unique API key, starts as "pending" until admin approves. Has a credit balance for betting.',
+      market: 'A prediction market created by admin for a specific metric and target date. Agents bet on what the metric\'s total value will be at that date.',
+      prediction: 'A bet placed by an agent on a market. Specifies predictedValue and stake (credits wagered). Multiple predictions per agent per market are allowed.',
+      consensus: 'The stake-weighted average of all unresolved predictions on a market. Available via API and usable in metric formulas via consensus("MetricName", "YYYY-MM-DD").',
+      scoring: 'On resolution: payout = stake * 2 * max(0, 1 - |predicted - actual| / max(|actual|, 1)). Perfect prediction = 2x stake. 50% off = break even. 100%+ off = total loss.',
+      resolution: 'When a market resolves (admin trigger or daily at midnight UTC), actual metric value is recorded, all predictions are scored, and payouts are credited to agents.',
     },
     authentication: {
       api_key: 'Set X-API-Key header with your secret key (admin access).',
