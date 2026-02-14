@@ -1,13 +1,26 @@
 import type { Metric } from '../types';
 
-export function evaluateFormula(formula: string, metricsMap: Record<string, Metric>): number {
+const CONSENSUS_RE = /consensus\("([^"]+)",\s*"?(\d{4}-\d{2}-\d{2})"?\)/g;
+
+export function evaluateFormula(
+  formula: string,
+  metricsMap: Record<string, Metric>,
+  consensusMap: Record<string, number> = {},
+): number {
   if (!formula || formula.trim() === '0' || formula.trim() === '') {
     return 0;
   }
 
   let expression = formula;
-  const metricRefs = formula.match(/\{([^}]+)\}/g);
 
+  // Replace consensus("MetricName", "YYYY-MM-DD") with looked-up values
+  expression = expression.replace(CONSENSUS_RE, (_match, name: string, date: string) => {
+    const key = `${name}:${date}`;
+    return String(consensusMap[key] ?? 0);
+  });
+
+  // Replace {MetricName} references
+  const metricRefs = expression.match(/\{([^}]+)\}/g);
   if (metricRefs) {
     for (const ref of metricRefs) {
       const metricName = ref.slice(1, -1).trim();
@@ -22,8 +35,12 @@ export function evaluateFormula(formula: string, metricsMap: Record<string, Metr
   expression = expression.replace(/max\(/g, 'Math.max(');
   expression = expression.replace(/pow\(/g, 'Math.pow(');
 
-  const result = eval(expression);
-  return isNaN(result) ? 0 : result;
+  try {
+    const result = Function('return (' + expression + ')')();
+    return isNaN(result) ? 0 : result;
+  } catch {
+    return 0;
+  }
 }
 
 export function extractMetricReferences(formula: string): string[] {
@@ -31,6 +48,74 @@ export function extractMetricReferences(formula: string): string[] {
   const matches = formula.match(/\{([^}]+)\}/g);
   if (!matches) return [];
   return matches.map(m => m.slice(1, -1).trim());
+}
+
+export function extractConsensusReferences(formula: string): Array<{ name: string; date: string }> {
+  if (!formula) return [];
+  const refs: Array<{ name: string; date: string }> = [];
+  let match;
+  const re = new RegExp(CONSENSUS_RE.source, 'g');
+  while ((match = re.exec(formula)) !== null) {
+    refs.push({ name: match[1], date: match[2] });
+  }
+  return refs;
+}
+
+export interface FormulaWarning {
+  type: 'missing_market' | 'syntax_error';
+  message: string;
+  /** Only set for missing_market warnings */
+  metricName?: string;
+  targetDate?: string;
+}
+
+/**
+ * Validate a formula and return warnings. Does not throw.
+ * @param availableMarkets Set of "MetricName:YYYY-MM-DD" keys that exist
+ */
+export function validateFormula(
+  formula: string,
+  metricNames: Set<string>,
+  availableMarkets: Set<string>,
+): FormulaWarning[] {
+  if (!formula || formula.trim() === '0' || formula.trim() === '') return [];
+
+  const warnings: FormulaWarning[] = [];
+
+  // Check metric references
+  for (const name of extractMetricReferences(formula)) {
+    if (!metricNames.has(name)) {
+      warnings.push({ type: 'syntax_error', message: `Unknown metric: {${name}}` });
+    }
+  }
+
+  // Check consensus references
+  for (const { name, date } of extractConsensusReferences(formula)) {
+    const key = `${name}:${date}`;
+    if (!availableMarkets.has(key)) {
+      warnings.push({ type: 'missing_market', message: `No market for "${name}" on ${date}`, metricName: name, targetDate: date });
+    }
+  }
+
+  // Check syntax by attempting evaluation with dummy values
+  let testExpr = formula;
+  testExpr = testExpr.replace(new RegExp(CONSENSUS_RE.source, 'g'), '0');
+  testExpr = testExpr.replace(/\{([^}]+)\}/g, '0');
+  testExpr = testExpr.replace(/sqrt\(/g, 'Math.sqrt(');
+  testExpr = testExpr.replace(/abs\(/g, 'Math.abs(');
+  testExpr = testExpr.replace(/min\(/g, 'Math.min(');
+  testExpr = testExpr.replace(/max\(/g, 'Math.max(');
+  testExpr = testExpr.replace(/pow\(/g, 'Math.pow(');
+  try {
+    const result = Function('return (' + testExpr + ')')();
+    if (typeof result !== 'number' || isNaN(result)) {
+      warnings.push({ type: 'syntax_error', message: 'Formula evaluates to NaN' });
+    }
+  } catch (e) {
+    warnings.push({ type: 'syntax_error', message: `Invalid formula syntax: ${(e as Error).message}` });
+  }
+
+  return warnings;
 }
 
 export function getAffectedMetrics(changedMetricIds: string[], metrics: Metric[]): string[] {
@@ -198,7 +283,7 @@ export function topologicalSort(metrics: Metric[]): Metric[] {
   return sorted;
 }
 
-export function recalculateMetrics(metrics: Metric[]): Metric[] {
+export function recalculateMetrics(metrics: Metric[], consensusMap: Record<string, number> = {}): Metric[] {
   const sorted = topologicalSort(metrics);
   const nameToMetric: Record<string, Metric> = {};
 
@@ -207,7 +292,7 @@ export function recalculateMetrics(metrics: Metric[]): Metric[] {
   });
 
   sorted.forEach(metric => {
-    const formulaResult = evaluateFormula(metric.formula || '0', nameToMetric);
+    const formulaResult = evaluateFormula(metric.formula || '0', nameToMetric, consensusMap);
     metric.total = metric.value + formulaResult;
   });
 

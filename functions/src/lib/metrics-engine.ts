@@ -1,10 +1,24 @@
 import type { Metric } from '../types';
 
-export function evaluateFormula(formula: string, metricsMap: Record<string, Metric>): number {
+const CONSENSUS_RE = /consensus\("([^"]+)",\s*"?(\d{4}-\d{2}-\d{2})"?\)/g;
+
+export function evaluateFormula(
+  formula: string,
+  metricsMap: Record<string, Metric>,
+  consensusMap: Record<string, number> = {},
+): number {
   if (!formula || formula.trim() === '0' || formula.trim() === '') return 0;
 
   let expression = formula;
-  const metricRefs = formula.match(/\{([^}]+)\}/g);
+
+  // Replace consensus("MetricName", "YYYY-MM-DD") with looked-up values
+  expression = expression.replace(CONSENSUS_RE, (_match, name: string, date: string) => {
+    const key = `${name}:${date}`;
+    return String(consensusMap[key] ?? 0);
+  });
+
+  // Replace {MetricName} references
+  const metricRefs = expression.match(/\{([^}]+)\}/g);
   if (metricRefs) {
     for (const ref of metricRefs) {
       const metricName = ref.slice(1, -1).trim();
@@ -19,8 +33,23 @@ export function evaluateFormula(formula: string, metricsMap: Record<string, Metr
   expression = expression.replace(/max\(/g, 'Math.max(');
   expression = expression.replace(/pow\(/g, 'Math.pow(');
 
-  const result = eval(expression);
-  return isNaN(result) ? 0 : result;
+  try {
+    const result = Function('return (' + expression + ')')();
+    return isNaN(result) ? 0 : result;
+  } catch {
+    return 0;
+  }
+}
+
+export function extractConsensusReferences(formula: string): Array<{ name: string; date: string }> {
+  if (!formula) return [];
+  const refs: Array<{ name: string; date: string }> = [];
+  let match;
+  const re = new RegExp(CONSENSUS_RE.source, 'g');
+  while ((match = re.exec(formula)) !== null) {
+    refs.push({ name: match[1], date: match[2] });
+  }
+  return refs;
 }
 
 export function extractMetricReferences(formula: string): string[] {
@@ -119,12 +148,12 @@ export function topologicalSort(metrics: Metric[]): Metric[] {
   return sorted;
 }
 
-export function recalculateMetrics(metrics: Metric[]): Metric[] {
+export function recalculateMetrics(metrics: Metric[], consensusMap: Record<string, number> = {}): Metric[] {
   const sorted = topologicalSort(metrics);
   const nameToMetric: Record<string, Metric> = {};
   sorted.forEach(m => { nameToMetric[m.name] = m; });
   sorted.forEach(metric => {
-    metric.total = metric.value + evaluateFormula(metric.formula || '0', nameToMetric);
+    metric.total = metric.value + evaluateFormula(metric.formula || '0', nameToMetric, consensusMap);
   });
   return metrics;
 }

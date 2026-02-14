@@ -5,7 +5,6 @@ export interface Metric {
   value: number;
   total: number;
   formula: string;
-  decay: boolean;
   order: number;
   depth: number;
 }

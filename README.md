@@ -1,12 +1,11 @@
 # Metrics Tracker
 
-A self-hostable personal metrics tracking system with formulas, dependency graphs, daily decay, and an API for AI-agent automation. Built with React, TypeScript, and Firebase.
+A self-hostable personal metrics tracking system with formulas, dependency graphs, and an API for AI-agent automation. Built with React, TypeScript, and Firebase.
 
 ## Features
 
 - **Formula-Based Metrics** - Create derived metrics using expressions like `{Deep Work} * 2 + {Exercise}`
 - **Dependency Tracking** - Metrics recalculate automatically in topological order when values change
-- **Daily Decay** - Optional automatic -1/day for consistency-based metrics
 - **XP/Rank System** - Unified score from a "Utility" metric (ranks S through E)
 - **REST API** - Full CRUD over HTTP; authenticate with an API key (AI agents) or Firebase token (browser)
 - **Progress Graphs** - Visualize metric history over day/week/month/year intervals
@@ -81,7 +80,6 @@ All endpoints live under `/api`. Hit `GET /api/help` (no auth required) for a ma
 | `DELETE` | `/api/metrics/:id` | Yes | Delete a metric |
 | `GET` | `/api/metrics/:id/logs` | Yes | Historical value logs for graphing |
 | `GET` | `/api/updates` | Yes | Update history (`?limit=N`) |
-| `POST` | `/api/decay` | Yes | Manually trigger daily decay |
 
 ### Example: AI Agent Usage
 
@@ -91,12 +89,12 @@ curl -H "X-API-Key: YOUR_KEY" https://your-project.web.app/api/status
 
 # Create a metric
 curl -X POST -H "X-API-Key: YOUR_KEY" -H "Content-Type: application/json" \
-  -d '{"name":"Deep Work","value":5,"decay":true}' \
+  -d '{"name":"Deep Work","value":5}' \
   https://your-project.web.app/api/metrics
 
 # Update a metric's value
 curl -X PUT -H "X-API-Key: YOUR_KEY" -H "Content-Type: application/json" \
-  -d '{"name":"Deep Work","description":"","value":8,"formula":"0","decay":true,"oldValue":5,"updateNote":"Good focus day"}' \
+  -d '{"name":"Deep Work","description":"","value":8,"formula":"0","oldValue":5,"updateNote":"Good focus day"}' \
   https://your-project.web.app/api/metrics/METRIC_ID
 ```
 
@@ -118,10 +116,9 @@ Circular dependencies are detected and rejected.
 
 | Collection | Purpose |
 |------------|---------|
-| `metrics` | Name, base value, formula, decay flag, display order |
+| `metrics` | Name, base value, formula, display order |
 | `metricLogs` | Historical total values (for graphs) |
 | `updates` | Change history with timestamps and notes |
-| `system` | Internal state (last decay date) |
 
 All Firestore access goes through the API (Admin SDK). Direct client access is denied by security rules.
 
@@ -139,7 +136,7 @@ metrics-tracker/
 │       ├── index.ts        # Express app entry point
 │       ├── middleware/      # Auth (API key + Firebase token)
 │       ├── routes/          # metrics, updates, system endpoints
-│       ├── services/        # Firestore operations, decay logic
+│       ├── services/        # Firestore operations
 │       └── lib/             # Formula engine, async handler
 ├── firebase.json           # Hosting + Functions config
 └── firestore.rules         # Deny-all (Admin SDK bypasses)

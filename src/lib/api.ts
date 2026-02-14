@@ -24,9 +24,9 @@ async function request(path: string, user: User, options: RequestInit = {}) {
 
 export const api = {
   getMetrics: (user: User) => request('/api/metrics', user),
-  createMetric: (user: User, body: { name: string; description: string; value: number; formula: string; decay: boolean }) =>
+  createMetric: (user: User, body: { name: string; description: string; value: number; formula: string }) =>
     request('/api/metrics', user, { method: 'POST', body: JSON.stringify(body) }),
-  updateMetric: (user: User, id: string, body: { name: string; description: string; value: number; formula: string; decay: boolean; oldValue: number; updateNote: string }) =>
+  updateMetric: (user: User, id: string, body: { name: string; description: string; value: number; formula: string; oldValue: number; updateNote: string }) =>
     request(`/api/metrics/${id}`, user, { method: 'PUT', body: JSON.stringify(body) }),
   deleteMetric: (user: User, id: string) =>
     request(`/api/metrics/${id}`, user, { method: 'DELETE' }),
@@ -35,7 +35,6 @@ export const api = {
   getUpdates: (user: User, limit?: number) =>
     request(`/api/updates${limit ? `?limit=${limit}` : ''}`, user),
   getStatus: (user: User) => request('/api/status', user),
-  triggerDecay: (user: User) => request('/api/decay', user, { method: 'POST' }),
 
   // Agents
   getAgents: (user: User) => request('/api/agents', user),

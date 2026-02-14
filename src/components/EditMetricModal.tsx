@@ -6,7 +6,7 @@ interface EditMetricModalProps {
   onClose: () => void;
   onSave: (
     id: string, name: string, description: string, value: number,
-    formula: string, decay: boolean, oldValue: number, updateNote: string
+    formula: string, oldValue: number, updateNote: string
   ) => Promise<void>;
 }
 
@@ -15,7 +15,6 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
   const [description, setDescription] = useState('');
   const [value, setValue] = useState('');
   const [formula, setFormula] = useState('0');
-  const [decay, setDecay] = useState(false);
   const [updateNote, setUpdateNote] = useState('');
 
   useEffect(() => {
@@ -24,7 +23,6 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
       setDescription(metric.description || '');
       setValue(String(metric.value));
       setFormula(metric.formula || '0');
-      setDecay(metric.decay);
       setUpdateNote('');
     }
   }, [metric]);
@@ -33,7 +31,7 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    await onSave(metric.id, name, description, Number(value), formula, decay, metric.value, updateNote);
+    await onSave(metric.id, name, description, Number(value), formula, metric.value, updateNote);
     onClose();
   };
 
@@ -64,10 +62,6 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
           <div className="form-group">
             <label htmlFor="editFormula">Formula</label>
             <textarea id="editFormula" placeholder="e.g., {Deep Work} + {Exercise} * 2" value={formula} onChange={e => setFormula(e.target.value)} />
-          </div>
-          <div className="form-group decay-row">
-            <label htmlFor="editDecay">Enable daily decay</label>
-            <input type="checkbox" id="editDecay" checked={decay} onChange={e => setDecay(e.target.checked)} />
           </div>
           <div className="form-group">
             <label htmlFor="editUpdateNote">Update Note (optional)</label>

@@ -396,21 +396,6 @@ input::placeholder, textarea::placeholder {
   cursor: not-allowed;
 }
 
-.decay-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.decay-row label {
-  margin: 0;
-}
-
-.decay-row input[type="checkbox"] {
-  width: auto;
-  margin: 0;
-}
-
 /* ===== Timeline ===== */
 .timeline {
   margin-top: 1rem;

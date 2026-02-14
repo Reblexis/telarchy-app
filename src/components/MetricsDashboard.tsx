@@ -1,19 +1,22 @@
 import type { Metric } from '../types';
+import type { FormulaWarning } from '../lib/metrics-engine';
 import { getDependencyChain } from '../lib/metrics-engine';
 import { MetricCard } from './MetricCard';
 import { FocusBanner } from './FocusBanner';
 
 interface MetricsDashboardProps {
   metrics: Metric[];
+  formulaWarnings: Record<string, FormulaWarning[]>;
   focusedMetricId: string | null;
   onToggleFocus: (id: string) => void;
   onGraph: (metric: Metric) => void;
   onEdit: (metric: Metric) => void;
   onDelete: (id: string) => void;
+  onCreateMarket: (metricName: string, targetDate: string) => void;
 }
 
 export function MetricsDashboard({
-  metrics, focusedMetricId, onToggleFocus, onGraph, onEdit, onDelete,
+  metrics, formulaWarnings, focusedMetricId, onToggleFocus, onGraph, onEdit, onDelete, onCreateMarket,
 }: MetricsDashboardProps) {
   let metricsToRender = metrics;
   let focusedMetric: Metric | undefined;
@@ -50,11 +53,13 @@ export function MetricsDashboard({
                 <MetricCard
                   key={metric.id}
                   metric={metric}
+                  warnings={formulaWarnings[metric.id] || []}
                   isFocused={focusedMetricId === metric.id}
                   onFocus={() => onToggleFocus(metric.id)}
                   onGraph={() => onGraph(metric)}
                   onEdit={() => onEdit(metric)}
                   onDelete={() => onDelete(metric.id)}
+                  onCreateMarket={onCreateMarket}
                 />
               ))}
             </div>

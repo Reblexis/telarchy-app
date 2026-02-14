@@ -4,6 +4,7 @@ import { wrap } from '../lib/wrap';
 import { requireRole } from '../middleware/roles';
 import { getAffectedMetrics } from '../lib/metrics-engine';
 import * as svc from '../services/metrics';
+const { ensureMarketsForFormula } = svc;
 
 function db() { return getFirestore(); }
 
@@ -26,10 +27,11 @@ metricsRouter.get('/:id/logs', requireRole('agent', 'admin'), wrap(async (req, r
 
 // Write routes: admin only
 metricsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
-  const { name, description = '', value = 0, formula = '0', decay = false } = req.body;
+  const { name, description = '', value = 0, formula = '0' } = req.body;
   if (!name) { res.status(400).json({ error: 'name is required' }); return; }
 
-  const docRef = await db().collection('metrics').add({ name, value, formula, description, decay, order: 999 });
+  await ensureMarketsForFormula(formula);
+  const docRef = await db().collection('metrics').add({ name, value, formula, description, order: 999 });
   res.status(201).json({ ok: true, id: docRef.id });
 
   // Background: read metrics, recalculate, log
@@ -41,12 +43,14 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
   const id = req.params.id as string;
   const { oldValue, updateNote = '', ...fields } = req.body;
 
-  const allowed = ['name', 'description', 'value', 'formula', 'decay'] as const;
+  const allowed = ['name', 'description', 'value', 'formula'] as const;
   const update: Record<string, unknown> = {};
   for (const key of allowed) {
     if (fields[key] !== undefined) update[key] = fields[key];
   }
   if (Object.keys(update).length === 0) { res.status(400).json({ error: 'No fields to update' }); return; }
+
+  if (update.formula) await ensureMarketsForFormula(update.formula as string);
 
   const docRef = db().collection('metrics').doc(id);
   const writes: Promise<unknown>[] = [docRef.update(update)];

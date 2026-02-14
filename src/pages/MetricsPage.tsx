@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { useMetrics } from '../hooks/useMetrics';
 import { clearFirebaseConfig } from '../lib/firebase';
+import { api } from '../lib/api';
 import { getCookie, setCookie } from '../lib/cookies';
 import type { Metric, GraphInterval } from '../types';
 import { Header } from '../components/Header';
@@ -20,6 +21,7 @@ export function MetricsPage() {
   const { isDark } = useDarkMode();
   const {
     metrics, updates, xp, rank, loading: metricsLoading,
+    formulaWarnings,
     focusedMetricId, toggleFocus,
     addMetric, editMetric, removeMetric,
     loadMetricLogs,
@@ -55,15 +57,23 @@ export function MetricsPage() {
     }
   };
 
-  const handleAddMetric = async (name: string, description: string, value: number, formula: string, decay: boolean) => {
-    await addMetric(name, description, value, formula, decay);
+  const handleCreateMarket = async (metricName: string, targetDate: string) => {
+    if (!user) return;
+    const metric = metrics.find(m => m.name === metricName);
+    if (!metric) return;
+    if (!confirm(`Create a market for "${metricName}" on ${targetDate}?`)) return;
+    await api.createMarket(user, metric.id, targetDate);
+  };
+
+  const handleAddMetric = async (name: string, description: string, value: number, formula: string) => {
+    await addMetric(name, description, value, formula);
   };
 
   const handleSaveEdit = async (
     id: string, name: string, description: string, value: number,
-    formula: string, decay: boolean, oldValue: number, updateNote: string
+    formula: string, oldValue: number, updateNote: string
   ) => {
-    await editMetric(id, name, description, value, formula, decay, oldValue, updateNote);
+    await editMetric(id, name, description, value, formula, oldValue, updateNote);
   };
 
   if (authLoading || !user) {
@@ -86,11 +96,13 @@ export function MetricsPage() {
         <XPDisplay xp={xp} rank={rank} />
         <MetricsDashboard
           metrics={metrics}
+          formulaWarnings={formulaWarnings}
           focusedMetricId={focusedMetricId}
           onToggleFocus={toggleFocus}
           onGraph={setGraphMetric}
           onEdit={setEditingMetric}
           onDelete={handleDelete}
+          onCreateMarket={handleCreateMarket}
         />
         <AddMetricForm onAdd={handleAddMetric} />
         <UpdateHistory updates={updates} />
