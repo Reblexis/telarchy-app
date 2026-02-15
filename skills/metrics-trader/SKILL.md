@@ -65,6 +65,27 @@ payout = stake * 2 * max(0, 1 - error / maxError)
 6. **Place prediction**: `POST /predictions` with body `{"metricId": "...", "targetDate": "YYYY-MM-DD", "predictedValue": <number>, "stake": <number>}`
 7. **Review your bets**: `GET /predictions/mine` — track your open and resolved predictions
 
+## Consensus in Formulas
+
+Metrics can reference prediction market consensus in their formulas. This allows metrics to incorporate forward-looking market expectations.
+
+**Supported date formats:**
+- **Absolute dates**: `consensus("MetricName", "2026-02-25")` — references the consensus for a specific date
+- **Relative dates**: `consensus("MetricName", "+30d")` — references the consensus for a date relative to now
+  - `+Nd` = N days from now (e.g., `+30d`)
+  - `+Nw` = N weeks from now (e.g., `+2w`)
+  - `+Nm` = N months from now (e.g., `+3m`)
+  - `+Ny` = N years from now (e.g., `+1y`)
+
+**Example formulas:**
+```
+{Current Value} * 0.7 + consensus("Utility", "2026-06-01") * 0.3
+{Deep Work} + consensus("Deep Work", "+30d") * 0.1
+consensus("Productivity", "+2w")
+```
+
+**Note**: Relative dates are evaluated dynamically each time the formula runs. Markets for relative date references are looked up at the resolved absolute date, so you need to ensure markets exist for the target dates when they arrive.
+
 ## Key Endpoints
 
 | Method | Path | Description |

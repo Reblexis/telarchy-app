@@ -75,6 +75,8 @@ export async function getMetricById(id: string): Promise<Metric | null> {
 /**
  * Auto-create markets for any consensus() references in a formula
  * where the metric exists and the market doesn't yet exist.
+ * Note: Only creates markets for absolute date references.
+ * Relative dates (e.g., "+10d") are resolved at evaluation time and don't need markets pre-created.
  */
 export async function ensureMarketsForFormula(formula: string): Promise<void> {
   const refs = extractConsensusReferences(formula);
@@ -91,7 +93,10 @@ export async function ensureMarketsForFormula(formula: string): Promise<void> {
   const batch = db().batch();
   let writes = 0;
 
-  for (const { name, date } of refs) {
+  for (const { name, date, isRelative } of refs) {
+    // Skip relative date references - they are resolved dynamically at evaluation time
+    if (isRelative) continue;
+
     const metric = nameToMetric.get(name);
     if (!metric) continue; // metric doesn't exist, skip
 

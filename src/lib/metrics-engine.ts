@@ -1,6 +1,7 @@
 import type { Metric } from '../types';
+import { toAbsoluteDate, isRelativeDate } from './date-utils';
 
-const CONSENSUS_RE = /consensus\("([^"]+)",\s*"?(\d{4}-\d{2}-\d{2})"?\)/g;
+const CONSENSUS_RE = /consensus\("([^"]+)",\s*"?(\d{4}-\d{2}-\d{2}|\+\d+[dwmy])"?\)/g;
 
 export function evaluateFormula(
   formula: string,
@@ -13,9 +14,10 @@ export function evaluateFormula(
 
   let expression = formula;
 
-  // Replace consensus("MetricName", "YYYY-MM-DD") with looked-up values
+  // Replace consensus("MetricName", "YYYY-MM-DD" or "+10d") with looked-up values
   expression = expression.replace(CONSENSUS_RE, (_match, name: string, date: string) => {
-    const key = `${name}:${date}`;
+    const absoluteDate = toAbsoluteDate(date);
+    const key = `${name}:${absoluteDate}`;
     return String(consensusMap[key] ?? 0);
   });
 
@@ -50,13 +52,13 @@ export function extractMetricReferences(formula: string): string[] {
   return matches.map(m => m.slice(1, -1).trim());
 }
 
-export function extractConsensusReferences(formula: string): Array<{ name: string; date: string }> {
+export function extractConsensusReferences(formula: string): Array<{ name: string; date: string; isRelative: boolean }> {
   if (!formula) return [];
-  const refs: Array<{ name: string; date: string }> = [];
+  const refs: Array<{ name: string; date: string; isRelative: boolean }> = [];
   let match;
   const re = new RegExp(CONSENSUS_RE.source, 'g');
   while ((match = re.exec(formula)) !== null) {
-    refs.push({ name: match[1], date: match[2] });
+    refs.push({ name: match[1], date: match[2], isRelative: isRelativeDate(match[2]) });
   }
   return refs;
 }
@@ -90,7 +92,10 @@ export function validateFormula(
   }
 
   // Check consensus references
-  for (const { name, date } of extractConsensusReferences(formula)) {
+  for (const { name, date, isRelative } of extractConsensusReferences(formula)) {
+    // Skip market validation for relative dates - they are resolved dynamically
+    if (isRelative) continue;
+    
     const key = `${name}:${date}`;
     if (!availableMarkets.has(key)) {
       warnings.push({ type: 'missing_market', message: `No market for "${name}" on ${date}`, metricName: name, targetDate: date });
