@@ -59,6 +59,8 @@ export const api = {
     request('/api/predictions/markets', user, { method: 'POST', body: JSON.stringify({ metricId, targetDate }) }),
   deleteMarket: (user: User, id: string) =>
     request(`/api/predictions/markets/${id}`, user, { method: 'DELETE' }),
+  refreshMarkets: (user: User) =>
+    request('/api/predictions/markets/refresh', user, { method: 'POST' }),
   resolvePredictions: (user: User, targetDate?: string) =>
     request('/api/predictions/resolve', user, { method: 'POST', body: JSON.stringify({ targetDate }) }),
 };

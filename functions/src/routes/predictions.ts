@@ -5,6 +5,8 @@ import { authMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
 import { getAllMetrics } from '../services/metrics';
 import { resolvePredictions, getConsensus, getMarkets } from '../services/predictions';
+import { refreshRelativeDateMarkets } from '../services/markets';
+import { isValidDateFormat, endOfPeriod } from '../lib/date-utils';
 
 function db() { return getFirestore(); }
 
@@ -21,7 +23,7 @@ predictionsRouter.post('/', requireRole('agent', 'admin'), wrap(async (req, res)
 
   const { metricId, targetDate, predictedValue, stake } = req.body;
   if (!metricId || typeof metricId !== 'string') { res.status(400).json({ error: 'metricId is required' }); return; }
-  if (!targetDate || !/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) { res.status(400).json({ error: 'targetDate must be YYYY-MM-DD' }); return; }
+  if (!targetDate || typeof targetDate !== 'string' || !isValidDateFormat(targetDate)) { res.status(400).json({ error: 'targetDate must be YYYY, YYYY-MM, YYYY-Www, or YYYY-MM-DD' }); return; }
   if (typeof predictedValue !== 'number') { res.status(400).json({ error: 'predictedValue must be a number' }); return; }
   if (typeof stake !== 'number' || stake <= 0) { res.status(400).json({ error: 'stake must be a positive number' }); return; }
 
@@ -95,10 +97,10 @@ predictionsRouter.get('/markets', requireRole('agent', 'admin'), wrap(async (_re
 predictionsRouter.post('/markets', requireRole('admin'), wrap(async (req, res) => {
   const { metricId, targetDate } = req.body;
   if (!metricId || typeof metricId !== 'string') { res.status(400).json({ error: 'metricId is required' }); return; }
-  if (!targetDate || !/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) { res.status(400).json({ error: 'targetDate must be YYYY-MM-DD' }); return; }
+  if (!targetDate || typeof targetDate !== 'string' || !isValidDateFormat(targetDate)) { res.status(400).json({ error: 'targetDate must be YYYY, YYYY-MM, YYYY-Www, or YYYY-MM-DD' }); return; }
 
   const today = new Date().toISOString().slice(0, 10);
-  if (targetDate <= today) { res.status(400).json({ error: 'targetDate must be in the future' }); return; }
+  if (endOfPeriod(targetDate) <= today) { res.status(400).json({ error: 'targetDate period must be in the future' }); return; }
 
   // Validate metric exists
   const metrics = await getAllMetrics();
@@ -151,5 +153,10 @@ predictionsRouter.get('/', requireRole('admin'), wrap(async (req, res) => {
 predictionsRouter.post('/resolve', requireRole('admin'), wrap(async (req, res) => {
   const { targetDate } = req.body || {};
   const result = await resolvePredictions(targetDate);
+  res.json(result);
+}));
+
+predictionsRouter.post('/markets/refresh', requireRole('admin'), wrap(async (_req, res) => {
+  const result = await refreshRelativeDateMarkets();
   res.json(result);
 }));

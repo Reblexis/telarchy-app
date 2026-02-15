@@ -4,13 +4,14 @@ import {
   recalculateMetrics, calculateMetricDepths, calculateXP, calculateRank,
   extractConsensusReferences,
 } from '../lib/metrics-engine';
+import { toAbsoluteDate } from '../lib/date-utils';
 
 function db() { return getFirestore(); }
 
 function enrichMetrics(metrics: Metric[], consensusMap: Record<string, number> = {}): Metric[] {
   recalculateMetrics(metrics, consensusMap);
   const depths = calculateMetricDepths(metrics);
-  metrics.forEach(m => { m.depth = depths[m.id] || 0; });
+  metrics.forEach(m => { m.depth = depths[m.id] ?? 0; });
   metrics.sort((a, b) => a.depth !== b.depth ? a.depth - b.depth : (a.order || 999) - (b.order || 999));
   return metrics;
 }
@@ -75,8 +76,7 @@ export async function getMetricById(id: string): Promise<Metric | null> {
 /**
  * Auto-create markets for any consensus() references in a formula
  * where the metric exists and the market doesn't yet exist.
- * Note: Only creates markets for absolute date references.
- * Relative dates (e.g., "+10d") are resolved at evaluation time and don't need markets pre-created.
+ * Relative dates (e.g., "+10d") are resolved to absolute dates at the current time.
  */
 export async function ensureMarketsForFormula(formula: string): Promise<void> {
   const refs = extractConsensusReferences(formula);
@@ -94,8 +94,8 @@ export async function ensureMarketsForFormula(formula: string): Promise<void> {
   let writes = 0;
 
   for (const { name, date, isRelative } of refs) {
-    // Skip relative date references - they are resolved dynamically at evaluation time
-    if (isRelative) continue;
+    // Resolve relative dates to absolute dates
+    const targetDate = isRelative ? toAbsoluteDate(date) : date;
 
     const metric = nameToMetric.get(name);
     if (!metric) continue; // metric doesn't exist, skip
@@ -103,7 +103,7 @@ export async function ensureMarketsForFormula(formula: string): Promise<void> {
     // Check if market already exists
     const existing = await db().collection('markets')
       .where('metricId', '==', metric.id)
-      .where('targetDate', '==', date)
+      .where('targetDate', '==', targetDate)
       .limit(1)
       .get();
     if (!existing.empty) continue;
@@ -113,7 +113,7 @@ export async function ensureMarketsForFormula(formula: string): Promise<void> {
       id: ref.id,
       metricId: metric.id,
       metricName: metric.name,
-      targetDate: date,
+      targetDate: targetDate,
       resolved: false,
       resolvedAt: null,
       actualValue: null,

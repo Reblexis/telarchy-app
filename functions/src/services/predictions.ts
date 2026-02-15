@@ -1,6 +1,7 @@
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAllMetrics } from './metrics';
 import type { Metric } from '../types';
+import { endOfPeriod } from '../lib/date-utils';
 
 function db() { return getFirestore(); }
 
@@ -12,27 +13,34 @@ export function calculatePayout(predictedValue: number, actualValue: number, sta
 }
 
 export async function resolvePredictions(targetDate?: string): Promise<{ resolved: number; totalPayout: number }> {
-  const today = new Date().toISOString().slice(0, 10);
-  const cutoff = targetDate || today;
+  const today = targetDate || new Date().toISOString().slice(0, 10);
 
-  // Fetch unresolved markets with targetDate <= cutoff
+  // Fetch all unresolved markets (can't filter by targetDate in query due to mixed formats)
   const marketSnap = await db().collection('markets')
     .where('resolved', '==', false)
-    .where('targetDate', '<=', cutoff)
     .get();
 
-  if (marketSnap.empty) return { resolved: 0, totalPayout: 0 };
+  // Filter to markets whose period has ended
+  const marketsToResolve: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+  for (const doc of marketSnap.docs) {
+    const m = doc.data();
+    const periodEnd = endOfPeriod(m.targetDate);
+    if (periodEnd <= today) {
+      marketsToResolve.push(doc);
+    }
+  }
+
+  if (marketsToResolve.length === 0) return { resolved: 0, totalPayout: 0 };
 
   // Fetch current metric totals
   const metrics = await getAllMetrics();
   const metricMap = new Map<string, Metric>(metrics.map(m => [m.id, m]));
 
-  // Collect market keys to resolve
   const marketKeys = new Set<string>();
   const marketActuals = new Map<string, number>();
   const batch = db().batch();
 
-  for (const doc of marketSnap.docs) {
+  for (const doc of marketsToResolve) {
     const m = doc.data();
     const key = `${m.metricId}:${m.targetDate}`;
     const metric = metricMap.get(m.metricId);
@@ -47,11 +55,8 @@ export async function resolvePredictions(targetDate?: string): Promise<{ resolve
     });
   }
 
-  // Fetch all unresolved predictions for these markets
-  const predSnap = await db().collection('predictions')
-    .where('resolved', '==', false)
-    .where('targetDate', '<=', cutoff)
-    .get();
+  // Fetch all unresolved predictions and filter to those in markets we're resolving
+  const predSnap = await db().collection('predictions').where('resolved', '==', false).get();
 
   let totalPayout = 0;
   let resolvedCount = 0;

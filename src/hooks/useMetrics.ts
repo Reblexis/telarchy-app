@@ -14,7 +14,7 @@ import type { Metric, Market, MetricLog, UpdateEntry } from '../types';
 function enrichMetrics(metrics: Metric[], consensusMap: Record<string, number> = {}): Metric[] {
   recalculateMetrics(metrics, consensusMap);
   const depths = calculateMetricDepths(metrics);
-  metrics.forEach(m => { m.depth = depths[m.id] || 0; });
+  metrics.forEach(m => { m.depth = depths[m.id] ?? 0; });
   metrics.sort((a, b) => a.depth !== b.depth ? a.depth - b.depth : (a.order || 999) - (b.order || 999));
   return metrics;
 }
@@ -31,12 +31,11 @@ function buildConsensusMap(markets: Market[]): Record<string, number> {
 
 function buildWarnings(
   metrics: Metric[],
-  availableMarkets: Set<string>,
 ): Record<string, FormulaWarning[]> {
   const metricNames = new Set(metrics.map(m => m.name));
   const result: Record<string, FormulaWarning[]> = {};
   for (const m of metrics) {
-    const warnings = validateFormula(m.formula || '0', metricNames, availableMarkets);
+    const warnings = validateFormula(m.formula || '0', metricNames);
     if (warnings.length > 0) result[m.id] = warnings;
   }
   return result;
@@ -50,7 +49,6 @@ export function useMetrics(user: User | null) {
   const [loading, setLoading] = useState(!cacheGet('metrics'));
 
   const consensusMapRef = useRef<Record<string, number>>({});
-  const availableMarketsRef = useRef<Set<string>>(new Set());
 
   const xp = calculateXP(metrics);
   const rank = calculateRank(xp);
@@ -68,17 +66,14 @@ export function useMetrics(user: User | null) {
       }),
     ]);
 
-    // Build consensus map and available markets set
+    // Build consensus map
     consensusMapRef.current = buildConsensusMap(marketsData);
-    availableMarketsRef.current = new Set(
-      marketsData.map(m => `${m.metricName}:${m.targetDate}`),
-    );
 
     setMetrics(metricsData);
     cacheSet('metrics', metricsData);
 
     // Compute formula warnings
-    setFormulaWarnings(buildWarnings(metricsData, availableMarketsRef.current));
+    setFormulaWarnings(buildWarnings(metricsData));
 
     return metricsData;
   }, [user]);
@@ -116,7 +111,7 @@ export function useMetrics(user: User | null) {
     const { id } = await api.createMetric(user, { name, description, value, formula });
     const updated = [...metrics.map(m => ({ ...m })), { id, name, description, value, total: value, formula, order: 999, depth: 0 }];
     setMetrics(enrichMetrics(updated, consensusMapRef.current));
-    setFormulaWarnings(buildWarnings(updated, availableMarketsRef.current));
+    setFormulaWarnings(buildWarnings(updated));
     loadData();
   };
 
@@ -132,7 +127,7 @@ export function useMetrics(user: User | null) {
     const prev = metrics;
     const updated = metrics.map(m => m.id === id ? { ...m, name, description, value, formula } : { ...m });
     setMetrics(enrichMetrics(updated, consensusMapRef.current));
-    setFormulaWarnings(buildWarnings(updated, availableMarketsRef.current));
+    setFormulaWarnings(buildWarnings(updated));
     api.updateMetric(user, id, { name, description, value, formula, oldValue, updateNote })
       .then(() => { delete logsCache.current[id]; cacheDelete('metrics'); loadData(); })
       .catch(() => setMetrics(prev));

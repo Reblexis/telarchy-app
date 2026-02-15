@@ -4,7 +4,6 @@ import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { useMetrics } from '../hooks/useMetrics';
 import { clearFirebaseConfig } from '../lib/firebase';
-import { api } from '../lib/api';
 import { getCookie, setCookie } from '../lib/cookies';
 import type { Metric, GraphInterval } from '../types';
 import { Header } from '../components/Header';
@@ -57,13 +56,6 @@ export function MetricsPage() {
     }
   };
 
-  const handleCreateMarket = async (metricName: string, targetDate: string) => {
-    if (!user) return;
-    const metric = metrics.find(m => m.name === metricName);
-    if (!metric) return;
-    if (!confirm(`Create a market for "${metricName}" on ${targetDate}?`)) return;
-    await api.createMarket(user, metric.id, targetDate);
-  };
 
   const handleAddMetric = async (name: string, description: string, value: number, formula: string) => {
     await addMetric(name, description, value, formula);
@@ -102,7 +94,6 @@ export function MetricsPage() {
           onGraph={setGraphMetric}
           onEdit={setEditingMetric}
           onDelete={handleDelete}
-          onCreateMarket={handleCreateMarket}
         />
         <AddMetricForm onAdd={handleAddMetric} />
         <UpdateHistory updates={updates} />

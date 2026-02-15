@@ -62,29 +62,27 @@ payout = stake * 2 * max(0, 1 - error / maxError)
 3. **Read history**: `GET /metrics/{id}/logs` — see trends over time for metrics you want to bet on
 4. **List markets**: `GET /predictions/markets` — see what markets are open, current consensus, and total stake
 5. **Check consensus**: `GET /predictions/consensus?metricId=X&targetDate=Y` — see the stake-weighted average prediction
-6. **Place prediction**: `POST /predictions` with body `{"metricId": "...", "targetDate": "YYYY-MM-DD", "predictedValue": <number>, "stake": <number>}`
+6. **Place prediction**: `POST /predictions` with body `{"metricId": "...", "targetDate": "<date>", "predictedValue": <number>, "stake": <number>}` — targetDate: YYYY, YYYY-MM, YYYY-Www, or YYYY-MM-DD
 7. **Review your bets**: `GET /predictions/mine` — track your open and resolved predictions
 
 ## Consensus in Formulas
 
 Metrics can reference prediction market consensus in their formulas. This allows metrics to incorporate forward-looking market expectations.
 
-**Supported date formats:**
-- **Absolute dates**: `consensus("MetricName", "2026-02-25")` — references the consensus for a specific date
-- **Relative dates**: `consensus("MetricName", "+30d")` — references the consensus for a date relative to now
-  - `+Nd` = N days from now (e.g., `+30d`)
-  - `+Nw` = N weeks from now (e.g., `+2w`)
-  - `+Nm` = N months from now (e.g., `+3m`)
-  - `+Ny` = N years from now (e.g., `+1y`)
+**Supported date formats (granularity = when market resolves):**
+- **Absolute**: `YYYY` (end of year), `YYYY-MM` (end of month), `YYYY-Www` (end of ISO week), `YYYY-MM-DD` (that day)
+- **Relative**: `+Nd` (day), `+Nw` (week), `+Nm` (month), `+Ny` (year) — resolved at end of the period containing the target date
 
 **Example formulas:**
 ```
-{Current Value} * 0.7 + consensus("Utility", "2026-06-01") * 0.3
-{Deep Work} + consensus("Deep Work", "+30d") * 0.1
-consensus("Productivity", "+2w")
+consensus("Utility", "2026")              // end of 2026
+consensus("Health", "2026-06")            // end of June 2026
+consensus("Productivity", "2026-W20")     // end of ISO week 20
+consensus("Deep Work", "+30d")            // 30 days from now
+consensus("Health", "+2w")                // end of ISO week 2 weeks from now
 ```
 
-**Note**: Relative dates are evaluated dynamically each time the formula runs. Markets for relative date references are looked up at the resolved absolute date, so you need to ensure markets exist for the target dates when they arrive.
+**Note**: Relative dates are evaluated dynamically. Markets are auto-created and resolve at the end of their period.
 
 ## Key Endpoints
 

@@ -1,6 +1,6 @@
 import type { Metric } from '../types';
 import type { FormulaWarning } from '../lib/metrics-engine';
-import { getDependencyChain } from '../lib/metrics-engine';
+import { getDependencyChain, UNASSIGNED_DEPTH } from '../lib/metrics-engine';
 import { MetricCard } from './MetricCard';
 import { FocusBanner } from './FocusBanner';
 
@@ -12,11 +12,10 @@ interface MetricsDashboardProps {
   onGraph: (metric: Metric) => void;
   onEdit: (metric: Metric) => void;
   onDelete: (id: string) => void;
-  onCreateMarket: (metricName: string, targetDate: string) => void;
 }
 
 export function MetricsDashboard({
-  metrics, formulaWarnings, focusedMetricId, onToggleFocus, onGraph, onEdit, onDelete, onCreateMarket,
+  metrics, formulaWarnings, focusedMetricId, onToggleFocus, onGraph, onEdit, onDelete,
 }: MetricsDashboardProps) {
   let metricsToRender = metrics;
   let focusedMetric: Metric | undefined;
@@ -46,7 +45,7 @@ export function MetricsDashboard({
         {depths.map(depth => (
           <div className="depth-group" key={depth} style={{ marginBottom: '2rem' }}>
             <div style={{ fontSize: '0.75rem', color: '#999', marginBottom: '0.5rem', fontWeight: 500 }}>
-              Level {depth}
+              {depth >= UNASSIGNED_DEPTH ? 'Unassigned' : `Level ${depth}`}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
               {groupedByDepth[depth].map(metric => (
@@ -59,7 +58,6 @@ export function MetricsDashboard({
                   onGraph={() => onGraph(metric)}
                   onEdit={() => onEdit(metric)}
                   onDelete={() => onDelete(metric.id)}
-                  onCreateMarket={onCreateMarket}
                 />
               ))}
             </div>

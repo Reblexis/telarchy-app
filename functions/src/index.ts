@@ -24,13 +24,13 @@ app.get('/api/help', (_req, res) => {
     description: 'A self-hostable personal metrics tracking system. Track numeric metrics, define formulas that derive values from other metrics, and visualize progress over time. Designed for quantified-self workflows and AI-agent automation.',
     concepts: {
       metric: 'A named numeric value. Has a base value (manually set) and a total (base + formula result). Can reference other metrics via formulas like "{Deep Work} * 2 + {Exercise}".',
-      formula: 'A math expression using {MetricName} references, operators (+, -, *, /), functions (sqrt, abs, min, max, pow), and consensus("MetricName", "date") for prediction market consensus. Date can be absolute (YYYY-MM-DD) or relative (+10d, +2w, +3m, +1y). Metrics are recalculated in dependency order.',
+      formula: 'A math expression using {MetricName} references, operators (+, -, *, /), functions (sqrt, abs, min, max, pow), and consensus("MetricName", "date") for prediction market consensus. Date formats: absolute (YYYY, YYYY-MM, YYYY-Www, YYYY-MM-DD) or relative (+10d, +2w, +3m, +1y). Granularity determines resolution: year=end of year, month=end of month, week=end of ISO week, day=that day. Metrics are recalculated in dependency order.',
       xp_and_rank: 'XP equals the total of the metric named "Utility". Ranks: S (900+), A (800+), B (700+), C (600+), D (500+), E (400+).',
       depth: 'How many layers of dependents a metric has. Depth 0 = top-level aggregator, higher depth = more fundamental.',
       agent: 'An AI agent participant. Registers with POST /api/agents/register, receives a unique API key, starts as "pending" until admin approves. Has a credit balance for betting.',
       market: 'A prediction market created by admin for a specific metric and target date. Agents bet on what the metric\'s total value will be at that date.',
       prediction: 'A bet placed by an agent on a market. Specifies predictedValue and stake (credits wagered). Multiple predictions per agent per market are allowed.',
-      consensus: 'The stake-weighted average of all unresolved predictions on a market. Available via API and usable in metric formulas via consensus("MetricName", "date"). Date can be absolute (YYYY-MM-DD) or relative (+10d for 10 days from now, +2w for 2 weeks, +3m for 3 months, +1y for 1 year).',
+      consensus: 'The stake-weighted average of all unresolved predictions on a market. Available via API and usable in metric formulas via consensus("MetricName", "date"). Date formats: YYYY (year), YYYY-MM (month), YYYY-Www (ISO week), YYYY-MM-DD (day), or relative (+10d, +2w, +3m, +1y). Markets resolve at end of period.',
       scoring: 'On resolution: payout = stake * 2 * max(0, 1 - |predicted - actual| / max(|actual|, 1)). Perfect prediction = 2x stake. 50% off = break even. 100%+ off = total loss.',
       resolution: 'When a market resolves (admin trigger or daily at midnight UTC), actual metric value is recorded, all predictions are scored, and payouts are credited to agents.',
     },
@@ -59,11 +59,12 @@ app.get('/api/help', (_req, res) => {
       { method: 'POST', path: '/api/agents/:id/credit', auth: 'admin', description: 'Add credits. Body: { amount: number, reason: string }' },
       { method: 'POST', path: '/api/agents/:id/spend', auth: 'admin', description: 'Deduct credits. Body: { amount: number, type: "betting"|"tokens", reason: string }' },
       { method: 'DELETE', path: '/api/agents/:id', auth: 'admin', description: 'Delete an agent.' },
-      { method: 'POST', path: '/api/predictions', auth: 'agent/admin', description: 'Place a prediction on an existing market. Body: { metricId, targetDate, predictedValue, stake }. Market must exist.' },
+      { method: 'POST', path: '/api/predictions', auth: 'agent/admin', description: 'Place a prediction on an existing market. Body: { metricId, targetDate (YYYY|YYYY-MM|YYYY-Www|YYYY-MM-DD), predictedValue, stake }. Market must exist.' },
       { method: 'GET', path: '/api/predictions/mine', auth: 'agent/admin', description: 'List own predictions. Query: ?metricId=X&resolved=true/false' },
       { method: 'GET', path: '/api/predictions/consensus', auth: 'agent/admin', description: 'Market consensus. Query: ?metricId=X&targetDate=Y. Returns stake-weighted average.' },
       { method: 'GET', path: '/api/predictions/markets', auth: 'agent/admin', description: 'List all open markets with consensus, total stake, prediction count.' },
-      { method: 'POST', path: '/api/predictions/markets', auth: 'admin', description: 'Create a market. Body: { metricId, targetDate (YYYY-MM-DD) }. Only admin can create markets.' },
+      { method: 'POST', path: '/api/predictions/markets', auth: 'admin', description: 'Create a market. Body: { metricId, targetDate (YYYY|YYYY-MM|YYYY-Www|YYYY-MM-DD) }. Resolves at end of period. Only admin can create markets.' },
+      { method: 'POST', path: '/api/predictions/markets/refresh', auth: 'admin', description: 'Create missing markets for all consensus references in metric formulas (absolute and relative dates).' },
       { method: 'DELETE', path: '/api/predictions/markets/:id', auth: 'admin', description: 'Delete a market.' },
       { method: 'GET', path: '/api/predictions', auth: 'admin', description: 'List all predictions. Query: ?agentId=X&metricId=Y&targetDate=Z&resolved=true/false' },
       { method: 'POST', path: '/api/predictions/resolve', auth: 'admin', description: 'Resolve due predictions. Body: { targetDate?: "YYYY-MM-DD" }. Defaults to today.' },
@@ -92,4 +93,10 @@ export const dailyResolve = onSchedule('every day 00:00', async () => {
   const { resolvePredictions } = await import('./services/predictions');
   const result = await resolvePredictions();
   console.log('Daily prediction resolution:', result);
+});
+
+export const dailyMarketRefresh = onSchedule('every day 00:10', async () => {
+  const { refreshRelativeDateMarkets } = await import('./services/markets');
+  const result = await refreshRelativeDateMarkets();
+  console.log('Daily market refresh:', result);
 });

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { api } from '../lib/api';
+import { formatTargetDateDisplay } from '../lib/date-utils';
 import type { Market, Metric } from '../types';
 
 export function MarketsPage() {
@@ -13,6 +14,7 @@ export function MarketsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [resolveResult, setResolveResult] = useState('');
+  const [refreshResult, setRefreshResult] = useState('');
 
   // Create market form
   const [metricId, setMetricId] = useState('');
@@ -63,6 +65,16 @@ export function MarketsPage() {
     }
   };
 
+  const handleRefresh = async () => {
+    if (!user) return;
+    setRefreshResult('');
+    const result = await api.refreshMarkets(user).catch((e: Error) => { setError(e.message); return null; });
+    if (result) {
+      setRefreshResult(`Created ${result.created} markets from formula consensus references.`);
+      load();
+    }
+  };
+
   if (authLoading || !user) return <div className="loading">Loading...</div>;
 
   const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
@@ -78,12 +90,14 @@ export function MarketsPage() {
           <Link to="/markets" className="nav-link active">Markets</Link>
         </nav>
         <div className="header-actions">
+          <button className="btn" onClick={handleRefresh}>Refresh Markets</button>
           <button className="btn" onClick={handleResolve}>Resolve Predictions</button>
         </div>
       </div>
       <div className="container">
         {error && <div className="message error show">{error}</div>}
         {resolveResult && <div className="message success show">{resolveResult}</div>}
+        {refreshResult && <div className="message success show">{refreshResult}</div>}
 
         {/* Create market form */}
         <div className="section" style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
@@ -126,7 +140,7 @@ export function MarketsPage() {
                 {markets.map(m => (
                   <tr key={m.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                     <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600 }}>{m.metricName}</td>
-                    <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'monospace' }}>{m.targetDate}</td>
+                    <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'monospace' }}>{formatTargetDateDisplay(m.targetDate)}</td>
                     <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{m.consensus ?? '—'}</td>
                     <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace' }}>{m.totalStake}</td>
                     <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{m.predictionCount}</td>
