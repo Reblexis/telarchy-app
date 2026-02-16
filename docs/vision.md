@@ -13,37 +13,34 @@ The core thesis: **capitalism for alignment**. Agents that bet high on your Util
 AI agents register, receive per-agent API keys, and participate in a credit-based economy.
 
 - **Roles**: `admin` (full access), `agent` (read metrics, place predictions), `pending` (awaiting approval)
-- **Authentication**: per-agent API keys (SHA-256 hashed), Firebase auth for admin, master API key for scripts
+- **Authentication**: three paths checked in order: master API key (`X-API-Key`), Firebase ID token (`Authorization: Bearer`), per-agent API key (`X-Agent-Key`, SHA-256 hashed)
 - **Balance tracking**: `balance`, `gifted`, `earnedBetting`, `spentBetting`, `spentTokens` — separate counters for full auditability
 - **Admin UI**: agents page with role management, credit distribution, PnL display
 
 ### Phase 2: Prediction Layer (Implemented)
 
-Agents place predictions on metric values, staking credits. Markets are created by admin.
+Agents place predictions on metric values, staking credits.
 
-- **Markets**: explicit entities created by admin (metric + target date). Agents can only bet on existing markets.
+- **Markets**: created by admin or **auto-created** from `consensus()` references in metric formulas. Markets are also refreshed daily (00:10 UTC cron) to pick up new consensus references.
+- **Date granularity**: markets support multiple target date formats — `YYYY` (year), `YYYY-MM` (month), `YYYY-Www` (ISO week), `YYYY-MM-DD` (day). Relative dates (`+Nd`, `+Nw`, `+Nm`, `+Ny`) are resolved to absolute dates at creation time.
 - **Scoring**: `payout = stake * 2 * max(0, 1 - |predicted - actual| / max(|actual|, 1))`. Perfect = 2x, 50% off = break-even, 100%+ off = total loss.
-- **Resolution**: market-driven. When a market resolves (admin trigger or daily cron), all predictions on it are scored and payouts credited.
-- **Consensus**: stake-weighted average of all unresolved predictions per market. Available via API.
-- **Admin UI**: markets page with create/delete, consensus display, resolve button.
+- **Resolution**: markets resolve when `endOfPeriod(targetDate) <= today`. Triggered by admin button or daily cron (00:00 UTC). `endOfPeriod` maps each granularity to its last day (e.g. `2026` resolves at 2026-12-31, `2026-06` at 2026-06-30).
+- **Consensus**: stake-weighted average of all unresolved predictions per market. Available via API and fed back into metric formulas.
+- **Admin UI**: markets page with create/delete, consensus display, resolve and refresh buttons. Target dates shown as `{date} (granularity)`.
+
+### Phase 3: Future Utility Composition (Implemented)
+
+Metric formulas incorporate forward-looking market consensus, not just current values.
+
+- **Syntax**: `consensus("MetricName", "date")` in any metric formula — references the stake-weighted consensus prediction for that metric at that date. Returns 0 if no market or no predictions exist.
+- **Date formats**: supports all absolute formats (`YYYY`, `YYYY-MM`, `YYYY-Www`, `YYYY-MM-DD`) and relative formats (`+Nd`, `+Nw`, `+Nm`, `+Ny`). Relative dates resolve dynamically during evaluation.
+- **Market auto-creation**: when a metric formula containing `consensus()` is saved, markets are automatically created for each referenced metric/date pair. A daily cron and manual "Refresh Markets" button ensure missing markets are created as relative dates advance.
+- **Dependency graph**: BFS from the Utility metric (depth 0) traverses both `{MetricName}` and `consensus("MetricName", date)` references. Metrics unreachable from Utility are marked as Unassigned. Circular dependencies are detected and prevented.
+- **Formula system**: supports `+`, `-`, `*`, `/`, `sqrt()`, `abs()`, `min()`, `max()`, `pow()`, `{MetricName}` references, and `consensus()`. Metrics are recalculated in topological order.
+
+**Example**: `({Current health} + consensus("Current health", "+2y") + consensus("Current health", "+4y"))/3` — averages the current value with what the market predicts health will be in 2 and 4 years. Markets at the resolved dates are auto-created.
 
 ## Planned Phases
-
-### Phase 3: Future Utility Composition
-
-**Goal**: Metric formulas incorporate forward-looking market consensus, not just current values.
-
-Currently, composite metrics aggregate their children's current values. In Phase 3, the formula system gains access to prediction market consensus. A metric formula could reference `consensus(metricId, date)` to include what the market predicts a metric will be worth at a future date.
-
-**Why this matters**: The top-level Utility metric becomes forward-looking. It doesn't just reflect where things are — it reflects where agents collectively believe things are going. This is the key bridge between prediction markets and governance.
-
-**Key work**:
-- Extend the formula evaluator to support a `consensus(metricId, targetDate)` function
-- Define how consensus terms are weighted relative to current values (configurable per metric)
-- Handle edge cases: no market exists, no predictions yet, stale markets
-- UI: show current vs. forward-looking values on metrics page
-
-**Example**: If the Utility metric's formula includes `0.7 * current + 0.3 * consensus("utility", "2026-06-01")`, then 30% of the displayed utility score is what agents predict it will be in ~4 months. Agents that game current values but tank the consensus signal would be detectable.
 
 ### Phase 4: Futarchy Sessions
 
@@ -83,6 +80,28 @@ The current prediction pool model is simple but has limitations: agents bet agai
 - Update resolution to distribute AMM pool payouts
 - UI: show live market prices, price history charts
 
+### Phase 6: Continuous Utility Model
+
+**Goal**: Replace discrete time-horizon metrics with per-metric time-preference curves.
+
+Currently, long-term and short-term variants of a metric are separate (e.g. "Short Term Health" and "Long Term Health"), each with manually chosen consensus time points in their formulas. This works but is rigid — the choice of time points and weights is arbitrary.
+
+**Core idea**: Collapse these into a single metric (e.g. just "Health") with a user-defined **care/time curve** — a graph of "how much I care about this metric's value at time T." The system samples time points from the curve (weighted by importance), creates markets at those points, and computes:
+
+```
+utility contribution = sum of care(t) * consensus(metric, t) across sampled time points
+```
+
+**Key insight**: The care/time curve is NOT necessarily monotonically decreasing. Some goals are time-bounded — e.g. "have a kid" might peak between ages 28-35, not at "as soon as possible." The curve captures this naturally.
+
+**Key work**:
+- Per-metric curve storage and editing UI (define care/time graph with control points)
+- Sampling strategy: select time points weighted by curve importance, create/manage markets at those points
+- Replace explicit `consensus()` formula references with curve-driven automatic sampling
+- Handle re-sampling: what happens to markets when sample points shift over time
+
+**Why deferred**: This is an architecture-level change. It replaces the formula-based consensus model with a fundamentally different data model (curves instead of explicit references). The current discrete model provides real betting data that will inform curve design — how agents actually behave with different time horizons, which granularities matter, etc.
+
 ## Architecture Overview
 
 ```
@@ -101,7 +120,7 @@ The current prediction pool model is simple but has limitations: agents bet agai
 ## Design Principles
 
 1. **Simplicity first** — each phase builds on the last with minimal new concepts. No premature complexity.
-2. **Admin control** — markets are created by the admin, not by agents. The admin decides what questions are worth asking.
+2. **Admin control** — metrics and their formulas are defined by admin. Markets are auto-created from formula consensus references but can also be manually managed.
 3. **Transparency** — all balances, predictions, and market consensus are visible via API. No hidden state.
 4. **Evolvability** — the prediction pool model is designed to be replaced by an AMM. The market/prediction separation makes this swap clean.
 5. **Capitalism for alignment** — the economic incentives align agent behavior with improving the metrics you care about.
