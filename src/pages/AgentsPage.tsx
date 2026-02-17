@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
+import { useImpersonation } from '../hooks/useImpersonation';
 import { api } from '../lib/api';
 import type { Agent } from '../types';
 
 export function AgentsPage() {
   const { user, loading: authLoading } = useAuth();
   useDarkMode();
+  const { agentId: impersonatedId, setAgentId: setImpersonated } = useImpersonation();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -61,7 +63,9 @@ export function AgentsPage() {
           <Link to="/agents" className="nav-link active">Agents</Link>
           <Link to="/markets" className="nav-link">Markets</Link>
         </nav>
-        <div className="header-actions"></div>
+        <div className="header-actions">
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Acting as: <strong>{impersonatedId}</strong></span>
+        </div>
       </div>
       <div className="container">
         {error && <div className="message error show">{error}</div>}
@@ -87,7 +91,7 @@ export function AgentsPage() {
               </thead>
               <tbody>
                 {agents.map(agent => (
-                  <tr key={agent.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                  <tr key={agent.id} style={{ borderBottom: '1px solid var(--border-color)', background: agent.id === impersonatedId ? 'var(--bg-secondary, #f0f4ff)' : undefined }}>
                     <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600 }}>{agent.id}</td>
                     <td style={{ padding: '0.75rem 0.5rem' }}>
                       <select
@@ -113,6 +117,10 @@ export function AgentsPage() {
                         {agent.role === 'pending' && (
                           <button className="btn-small" onClick={() => handleApprove(agent.id)}>Approve</button>
                         )}
+                        <button className="btn-small" onClick={() => setImpersonated(agent.id)}
+                          style={agent.id === impersonatedId ? { background: 'var(--accent-color, #3b82f6)', color: '#fff' } : {}}>
+                          {agent.id === impersonatedId ? 'Active' : 'Impersonate'}
+                        </button>
                         <button className="btn-small" onClick={() => handleCredit(agent.id)}>Credit</button>
                         <button className="btn-small btn-delete" onClick={() => handleDelete(agent.id)}>Delete</button>
                       </div>

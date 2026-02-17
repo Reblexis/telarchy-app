@@ -2,9 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
+import { useImpersonation } from '../hooks/useImpersonation';
 import { api } from '../lib/api';
 import { formatTargetDateDisplay } from '../lib/date-utils';
-import type { Market, Metric, Agent } from '../types';
+import type { Market, Metric } from '../types';
 
 const inputStyle = { padding: '0.4rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', width: '80px' } as const;
 const labelStyle = { display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.15rem' } as const;
@@ -23,32 +24,27 @@ function ProbabilitySlider({ probability, rangeMin, rangeMax }: { probability: n
   );
 }
 
-function TradingPanel({ market, agents, user, onTrade, onError }: {
-  market: Market; agents: Agent[]; user: import('firebase/auth').User;
+function TradingPanel({ market, agentId, user, onTrade, onError }: {
+  market: Market; agentId: string; user: import('firebase/auth').User;
   onTrade: () => void; onError: (msg: string) => void;
 }) {
-  const [tradeAgent, setTradeAgent] = useState('');
   const [tradeAmount, setTradeAmount] = useState('');
   const [liqAmount, setLiqAmount] = useState('');
   const [tradeResult, setTradeResult] = useState('');
   const [trading, setTrading] = useState(false);
 
-  const doTrade = async (body: Record<string, unknown>) => {
+  const handleBetDirection = async (direction: 'higher' | 'lower') => {
+    const a = parseFloat(tradeAmount);
+    if (isNaN(a) || a <= 0) return;
     setTrading(true);
     setTradeResult('');
-    const result = await api.trade(user, body).catch((e: Error) => { onError(e.message); return null; });
+    const result = await api.trade(user, { marketId: market.id, direction, amount: a, agentId }).catch((e: Error) => { onError(e.message); return null; });
     setTrading(false);
     if (result) {
       setTradeResult(`Cost: ${result.cost} | Consensus: ${result.consensus}`);
       setTradeAmount('');
       onTrade();
     }
-  };
-
-  const handleBetDirection = (direction: 'higher' | 'lower') => {
-    const a = parseFloat(tradeAmount);
-    if (isNaN(a) || a <= 0) return;
-    doTrade({ marketId: market.id, direction, amount: a, ...(tradeAgent ? { agentId: tradeAgent } : {}) });
   };
 
   const handleLiquidity = async () => {
@@ -65,22 +61,13 @@ function TradingPanel({ market, agents, user, onTrade, onError }: {
   return (
     <div style={{ padding: '0.75rem 0.5rem', background: 'var(--bg-secondary, #f8f9fa)', borderRadius: '0.375rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
       <div>
-        <label style={labelStyle}>Agent</label>
-        <select value={tradeAgent} onChange={e => setTradeAgent(e.target.value)} style={{ ...inputStyle, width: '140px' }}>
-          <option value="">Select agent...</option>
-          {agents.filter(a => a.role === 'agent' || a.role === 'admin').map(a => (
-            <option key={a.id} value={a.id}>{a.id} ({a.balance})</option>
-          ))}
-        </select>
-      </div>
-      <div>
         <label style={labelStyle}>Amount</label>
         <input type="number" value={tradeAmount} onChange={e => setTradeAmount(e.target.value)} placeholder="credits" style={inputStyle} />
       </div>
       <div style={{ display: 'flex', gap: '0.25rem' }}>
-        <button className="btn-small" disabled={trading || !tradeAgent || !tradeAmount} onClick={() => handleBetDirection('lower')}
+        <button className="btn-small" disabled={trading || !tradeAmount} onClick={() => handleBetDirection('lower')}
           style={{ background: '#ef4444', color: '#fff', padding: '0.4rem 0.6rem' }}>Lower</button>
-        <button className="btn-small" disabled={trading || !tradeAgent || !tradeAmount} onClick={() => handleBetDirection('higher')}
+        <button className="btn-small" disabled={trading || !tradeAmount} onClick={() => handleBetDirection('higher')}
           style={{ background: '#22c55e', color: '#fff', padding: '0.4rem 0.6rem' }}>Higher</button>
       </div>
       <div style={{ borderLeft: '1px solid var(--border-color)', paddingLeft: '0.75rem', display: 'flex', gap: '0.25rem', alignItems: 'flex-end' }}>
@@ -98,9 +85,9 @@ function TradingPanel({ market, agents, user, onTrade, onError }: {
 export function MarketsPage() {
   const { user, loading: authLoading } = useAuth();
   useDarkMode();
+  const { agentId: impersonatedId } = useImpersonation();
   const [markets, setMarkets] = useState<Market[]>([]);
   const [metrics, setMetrics] = useState<Metric[]>([]);
-  const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [resolveResult, setResolveResult] = useState('');
@@ -114,14 +101,12 @@ export function MarketsPage() {
   const load = useCallback(async () => {
     if (!user) return;
     setError('');
-    const [mkts, mets, ags] = await Promise.all([
+    const [mkts, mets] = await Promise.all([
       api.getMarkets(user).catch((e: Error) => { setError(e.message); return null; }),
       api.getMetrics(user).catch(() => null),
-      api.getAgents(user).catch(() => null),
     ]);
     if (mkts) setMarkets(mkts);
     if (mets) setMetrics(mets);
-    if (ags) setAgents(ags);
     setLoading(false);
   }, [user]);
 
@@ -172,6 +157,7 @@ export function MarketsPage() {
           <Link to="/markets" className="nav-link active">Markets</Link>
         </nav>
         <div className="header-actions">
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Acting as: <strong>{impersonatedId}</strong></span>
           <button className="btn" onClick={handleRefresh}>Refresh Markets</button>
           <button className="btn" onClick={handleResolve}>Resolve Markets</button>
         </div>
@@ -243,7 +229,7 @@ export function MarketsPage() {
                     {expandedId === m.id && (
                       <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
                         <td colSpan={7} style={{ padding: '0 0.5rem 0.75rem' }}>
-                          <TradingPanel market={m} agents={agents} user={user} onTrade={load} onError={setError} />
+                          <TradingPanel market={m} agentId={impersonatedId} user={user} onTrade={load} onError={setError} />
                         </td>
                       </tr>
                     )}

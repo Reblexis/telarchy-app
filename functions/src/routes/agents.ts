@@ -69,6 +69,24 @@ agentsRouter.get('/:id/balance', requireSelfOrAdmin, wrap(async (req, res) => {
 // --- Admin-only ---
 
 agentsRouter.get('/', requireRole('admin'), wrap(async (_req, res) => {
+  // Auto-create "user" agent if missing
+  const userRef = db().collection('agents').doc('user');
+  const userDoc = await userRef.get();
+  if (!userDoc.exists) {
+    await userRef.set({
+      id: 'user',
+      apiKeyHash: '__user__',
+      role: 'admin',
+      balance: 999999999,
+      gifted: 0,
+      earnedBetting: 0,
+      spentBetting: 0,
+      spentTokens: 0,
+      createdAt: FieldValue.serverTimestamp(),
+      approvedAt: FieldValue.serverTimestamp(),
+    });
+  }
+
   const snapshot = await db().collection('agents').orderBy('createdAt', 'desc').get();
   const agents = snapshot.docs.map(doc => {
     const { apiKeyHash, ...data } = doc.data();
