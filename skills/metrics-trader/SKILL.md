@@ -1,14 +1,14 @@
 ---
 name: metrics-trader
-description: Trade on prediction markets in the Metrics Tracker system. Read metrics, analyze trends, and place predictions on future metric values.
+description: Trade on AMM prediction markets in the Metrics Tracker system. Buy/sell shares in bucketed numeric markets using LMSR pricing.
 metadata: {"openclaw": {"requires": {"env": ["METRICS_TRACKER_URL"]}}}
 ---
 
 # Metrics Trader
 
-You are a prediction market trader. "Betting" means placing predictions on open markets — you predict what a metric's value will be at a future date and stake credits on it. You earn credits by predicting accurately and lose credits when wrong. Use `POST /predictions` to place bets.
+You are a prediction market trader. Markets use an Automated Market Maker (LMSR) with bucketed numeric outcomes. Each market has a value range divided into buckets. You buy shares in buckets you think are underpriced. At resolution, shares in the correct bucket pay 1 credit each; all others pay 0.
 
-**Betting = placing a prediction via `POST /predictions` with `{ metricId, targetDate, predictedValue, stake }`.**
+**Trading = buying shares via `POST /predictions/trade` with `{ marketId, bucketIndex, shares }`.**
 
 ## Setup (first run only)
 
@@ -43,66 +43,50 @@ curl -s -H "X-Agent-Key: $KEY" "$METRICS_TRACKER_URL/metrics"
 
 The base URL is `$METRICS_TRACKER_URL`.
 
-## Scoring Rule
+## How AMM Markets Work
 
-```
-error = |predictedValue - actualValue|
-maxError = max(abs(actualValue), 1)
-payout = stake * 2 * max(0, 1 - error / maxError)
-```
+Each market has:
+- **rangeMin / rangeMax**: the value range (e.g. 0-1000)
+- **numBuckets**: how many buckets divide the range (e.g. 10 → buckets of 100 each)
+- **bucketProbabilities**: current probability distribution across buckets
 
-- Perfect prediction → 2× stake (100% profit)
-- 50% off → 1× stake (break even)
-- 100%+ off → 0 (total loss)
+Bucket i covers `[rangeMin + i*step, rangeMin + (i+1)*step)` where `step = (rangeMax - rangeMin) / numBuckets`.
+
+**Consensus** = expected value = sum of (bucket midpoint × bucket probability).
+
+**At resolution**: the actual metric value determines the winning bucket. Each share of the winning bucket pays **1 credit**. All other shares pay 0.
+
+**Pricing**: LMSR (Logarithmic Market Scoring Rule). Buying shares in a bucket increases its probability and costs more as probability rises. The cost is returned in the trade response.
 
 ## Workflow
 
 1. **Check balance**: `GET /agents/{your-agent-id}/balance`
 2. **Read metrics**: `GET /metrics` — understand what each metric measures, its current value, formula, and depth
-3. **Read history**: `GET /metrics/{id}/logs` — see trends over time for metrics you want to bet on
-4. **List markets**: `GET /predictions/markets` — see what markets are open, current consensus, and total stake
-5. **Check consensus**: `GET /predictions/consensus?metricId=X&targetDate=Y` — see the stake-weighted average prediction
-6. **Place prediction**: `POST /predictions` with body `{"metricId": "...", "targetDate": "<date>", "predictedValue": <number>, "stake": <number>}` — targetDate: YYYY, YYYY-MM, YYYY-Www, or YYYY-MM-DD
-7. **Review your bets**: `GET /predictions/mine` — track your open and resolved predictions
-
-## Consensus in Formulas
-
-Metrics can reference prediction market consensus in their formulas. This allows metrics to incorporate forward-looking market expectations.
-
-**Supported date formats (granularity = when market resolves):**
-- **Absolute**: `YYYY` (end of year), `YYYY-MM` (end of month), `YYYY-Www` (end of ISO week), `YYYY-MM-DD` (that day)
-- **Relative**: `+Nd` (day), `+Nw` (week), `+Nm` (month), `+Ny` (year) — resolved at end of the period containing the target date
-
-**Example formulas:**
-```
-consensus("Utility", "2026")              // end of 2026
-consensus("Health", "2026-06")            // end of June 2026
-consensus("Productivity", "2026-W20")     // end of ISO week 20
-consensus("Deep Work", "+30d")            // 30 days from now
-consensus("Health", "+2w")                // end of ISO week 2 weeks from now
-```
-
-**Note**: Relative dates are evaluated dynamically. Markets are auto-created and resolve at the end of their period.
+3. **Read history**: `GET /metrics/{id}/logs` — see trends over time
+4. **List markets**: `GET /predictions/markets` — see open markets with probability distributions and consensus
+5. **Market detail**: `GET /predictions/markets/{id}` — full bucket breakdown with probabilities and ranges
+6. **Buy shares**: `POST /predictions/trade` with `{"marketId": "...", "bucketIndex": <int>, "shares": <number>}` — positive shares = buy, negative = sell
+7. **Review positions**: `GET /predictions/positions` — your current share holdings across markets
 
 ## Key Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | /metrics | List all metrics (name, value, total, formula, depth) |
-| GET | /metrics/{id} | Single metric detail |
+| GET | /metrics | List all metrics |
 | GET | /metrics/{id}/logs | Historical value logs for trend analysis |
-| GET | /status | Compact summary: XP, rank, all metric values |
+| GET | /status | XP, rank, all metric values |
 | GET | /agents/{id}/balance | Your current credit balance |
-| GET | /predictions/markets | Open markets with consensus and stake info |
-| GET | /predictions/consensus?metricId=X&targetDate=Y | Consensus for a specific market |
-| POST | /predictions | Place a prediction (body: metricId, targetDate, predictedValue, stake) |
-| GET | /predictions/mine | Your predictions (filter: ?metricId=X&resolved=true/false) |
+| GET | /predictions/markets | Open markets with probabilities and consensus |
+| GET | /predictions/markets/{id} | Detailed market with per-bucket probability and range |
+| POST | /predictions/trade | Buy/sell shares (body: marketId, bucketIndex, shares) |
+| GET | /predictions/positions | Your share holdings (filter: ?marketId=X) |
 
 ## Strategy Guidelines
 
-- **Depth matters**: low-depth metrics (0, 1) are aggregators computed from formulas. High-depth metrics are direct inputs. Predicting direct inputs is often easier.
-- **Check the formula**: if a metric is `{A} * 0.5 + {B} * 0.5`, predict A and B separately, then derive the composite value.
-- **Consensus is signal**: if consensus already exists, consider whether you agree or disagree. Disagreeing is higher risk but higher reward if you're right.
-- **Stake sizing**: never bet more than 10-20% of your balance on a single prediction. Diversify across markets.
-- **History**: look at `/metrics/{id}/logs` to see the trend. Stable metrics are easier to predict than volatile ones.
-- **Multiple predictions**: you can place multiple predictions on the same market. Each is independent.
+- **Buy underpriced buckets**: if you think the true probability of a bucket is higher than its current probability, buy shares in it.
+- **Sell overpriced buckets**: if you hold shares in a bucket you think is overpriced, sell them.
+- **Check the distribution**: use `GET /predictions/markets/{id}` to see per-bucket probabilities. Uniform = no one has traded yet.
+- **Depth matters**: low-depth metrics are aggregators. High-depth metrics are direct inputs and often easier to predict.
+- **History**: look at `/metrics/{id}/logs` to see the trend. Use this to estimate which bucket the value will fall in.
+- **Cost awareness**: the trade response includes `cost`. Check it before placing large trades.
+- **Diversify**: spread your bets across multiple markets and buckets.

@@ -48,8 +48,33 @@ export interface Market {
   resolvedAt: FirebaseFirestore.Timestamp | null;
   actualValue: number | null;
   createdAt: FirebaseFirestore.Timestamp;
+  rangeMin: number;
+  rangeMax: number;
+  numBuckets: number;
+  bucketShares: number[];
+  liquidity: number;
 }
 
+export interface Position {
+  id: string;
+  agentId: string;
+  marketId: string;
+  bucketIndex: number;
+  shares: number;
+  totalCost: number;
+}
+
+export interface Trade {
+  id: string;
+  agentId: string;
+  marketId: string;
+  bucketIndex: number;
+  shares: number;
+  cost: number;
+  createdAt: FirebaseFirestore.Timestamp;
+}
+
+/** @deprecated Kept for migration; new system uses Position + Trade */
 export interface Prediction {
   id: string;
   agentId: string;

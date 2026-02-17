@@ -6,6 +6,23 @@ import { api } from '../lib/api';
 import { formatTargetDateDisplay } from '../lib/date-utils';
 import type { Market, Metric } from '../types';
 
+function ProbabilityBar({ probabilities, rangeMin, rangeMax }: { probabilities: number[]; rangeMin: number; rangeMax: number }) {
+  if (!probabilities || probabilities.length === 0) return null;
+  const step = (rangeMax - rangeMin) / probabilities.length;
+  const maxProb = Math.max(...probabilities, 0.01);
+  return (
+    <div style={{ display: 'flex', gap: '1px', alignItems: 'flex-end', height: '32px' }}>
+      {probabilities.map((p, i) => (
+        <div key={i} title={`${(rangeMin + i * step).toFixed(0)}-${(rangeMin + (i + 1) * step).toFixed(0)}: ${(p * 100).toFixed(1)}%`}
+          style={{
+            flex: 1, background: 'var(--accent-color, #3b82f6)', borderRadius: '2px 2px 0 0', opacity: 0.3 + 0.7 * (p / maxProb),
+            height: `${Math.max(2, (p / maxProb) * 100)}%`, minWidth: '4px',
+          }} />
+      ))}
+    </div>
+  );
+}
+
 export function MarketsPage() {
   const { user, loading: authLoading } = useAuth();
   useDarkMode();
@@ -15,6 +32,7 @@ export function MarketsPage() {
   const [error, setError] = useState('');
   const [resolveResult, setResolveResult] = useState('');
   const [refreshResult, setRefreshResult] = useState('');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Create market form
   const [metricId, setMetricId] = useState('');
@@ -60,7 +78,7 @@ export function MarketsPage() {
     setResolveResult('');
     const result = await api.resolvePredictions(user).catch((e: Error) => { setError(e.message); return null; });
     if (result) {
-      setResolveResult(`Resolved ${result.resolved} predictions. Total payout: ${result.totalPayout} credits.`);
+      setResolveResult(`Resolved ${result.resolved} markets. Total payout: ${result.totalPayout} credits.`);
       load();
     }
   };
@@ -91,7 +109,7 @@ export function MarketsPage() {
         </nav>
         <div className="header-actions">
           <button className="btn" onClick={handleRefresh}>Refresh Markets</button>
-          <button className="btn" onClick={handleResolve}>Resolve Predictions</button>
+          <button className="btn" onClick={handleResolve}>Resolve Markets</button>
         </div>
       </div>
       <div className="container">
@@ -130,23 +148,31 @@ export function MarketsPage() {
                 <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
                   <th style={thStyle}>Metric</th>
                   <th style={thStyle}>Target Date</th>
+                  <th style={thStyle}>Distribution</th>
                   <th style={{ ...thStyle, textAlign: 'right' }}>Consensus</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }}>Total Stake</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }}>Predictions</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>Range</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>Trades</th>
                   <th style={thStyle}></th>
                 </tr>
               </thead>
               <tbody>
                 {markets.map(m => (
-                  <tr key={m.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                  <tr key={m.id} style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer' }}
+                    onClick={() => setExpandedId(expandedId === m.id ? null : m.id)}>
                     <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600 }}>{m.metricName}</td>
                     <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'monospace' }}>{formatTargetDateDisplay(m.targetDate)}</td>
+                    <td style={{ padding: '0.75rem 0.5rem', width: '120px' }}>
+                      <ProbabilityBar probabilities={m.bucketProbabilities} rangeMin={m.rangeMin} rangeMax={m.rangeMax} />
+                    </td>
                     <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{m.consensus ?? '—'}</td>
-                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace' }}>{m.totalStake}</td>
-                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{m.predictionCount}</td>
+                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      {m.rangeMin}-{m.rangeMax}
+                    </td>
+                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{m.tradeCount}</td>
                     <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>
-                      {m.predictionCount === 0 && (
-                        <button className="btn-small" style={{ color: 'var(--delete-color, #ef4444)' }} onClick={() => handleDelete(m.id)}>Delete</button>
+                      {m.tradeCount === 0 && (
+                        <button className="btn-small" style={{ color: 'var(--delete-color, #ef4444)' }}
+                          onClick={(e) => { e.stopPropagation(); handleDelete(m.id); }}>Delete</button>
                       )}
                     </td>
                   </tr>

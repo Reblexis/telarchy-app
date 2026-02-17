@@ -5,6 +5,7 @@ import {
   extractConsensusReferences,
 } from '../lib/metrics-engine';
 import { toAbsoluteDate } from '../lib/date-utils';
+import { ammConsensus, AMM_DEFAULTS } from '../lib/amm';
 
 function db() { return getFirestore(); }
 
@@ -17,38 +18,15 @@ function enrichMetrics(metrics: Metric[], consensusMap: Record<string, number> =
 }
 
 async function buildConsensusMap(): Promise<Record<string, number>> {
-  const predSnap = await db().collection('predictions').where('resolved', '==', false).get();
-  if (predSnap.empty) return {};
-
-  // Fetch all open markets to get metric names
   const marketSnap = await db().collection('markets').where('resolved', '==', false).get();
-  const marketMetricNames = new Map<string, string>(); // metricId -> metricName
-  for (const doc of marketSnap.docs) {
-    const m = doc.data();
-    marketMetricNames.set(m.metricId, m.metricName);
-  }
-
-  // Group predictions by metricName:targetDate
-  const groups = new Map<string, { weightedSum: number; totalStake: number }>();
-  for (const doc of predSnap.docs) {
-    const { metricId, targetDate, predictedValue, stake } = doc.data();
-    const metricName = marketMetricNames.get(metricId);
-    if (!metricName) continue;
-    const key = `${metricName}:${targetDate}`;
-    const existing = groups.get(key);
-    if (existing) {
-      existing.weightedSum += predictedValue * stake;
-      existing.totalStake += stake;
-    } else {
-      groups.set(key, { weightedSum: predictedValue * stake, totalStake: stake });
-    }
-  }
+  if (marketSnap.empty) return {};
 
   const map: Record<string, number> = {};
-  for (const [key, { weightedSum, totalStake }] of groups) {
-    if (totalStake > 0) {
-      map[key] = Math.round((weightedSum / totalStake) * 100) / 100;
-    }
+  for (const doc of marketSnap.docs) {
+    const m = doc.data();
+    if (!m.bucketShares || !m.liquidity) continue;
+    const key = `${m.metricName}:${m.targetDate}`;
+    map[key] = ammConsensus(m.bucketShares, m.liquidity, m.rangeMin, m.rangeMax);
   }
   return map;
 }
@@ -118,6 +96,11 @@ export async function ensureMarketsForFormula(formula: string): Promise<void> {
       resolvedAt: null,
       actualValue: null,
       createdAt: FieldValue.serverTimestamp(),
+      rangeMin: AMM_DEFAULTS.rangeMin,
+      rangeMax: AMM_DEFAULTS.rangeMax,
+      numBuckets: AMM_DEFAULTS.numBuckets,
+      bucketShares: new Array(AMM_DEFAULTS.numBuckets).fill(0),
+      liquidity: AMM_DEFAULTS.liquidity,
     });
     writes++;
   }

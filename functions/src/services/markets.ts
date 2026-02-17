@@ -1,6 +1,7 @@
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { extractConsensusReferences } from '../lib/metrics-engine';
 import { toAbsoluteDate } from '../lib/date-utils';
+import { AMM_DEFAULTS } from '../lib/amm';
 
 function db() { return getFirestore(); }
 
@@ -61,6 +62,11 @@ export async function refreshRelativeDateMarkets(): Promise<{ created: number }>
       resolvedAt: null,
       actualValue: null,
       createdAt: FieldValue.serverTimestamp(),
+      rangeMin: AMM_DEFAULTS.rangeMin,
+      rangeMax: AMM_DEFAULTS.rangeMax,
+      numBuckets: AMM_DEFAULTS.numBuckets,
+      bucketShares: new Array(AMM_DEFAULTS.numBuckets).fill(0),
+      liquidity: AMM_DEFAULTS.liquidity,
     });
     created++;
   }

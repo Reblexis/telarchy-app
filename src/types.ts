@@ -60,20 +60,18 @@ export interface Market {
   createdAt: string;
   consensus: number | null;
   totalStake: number;
-  predictionCount: number;
+  tradeCount: number;
+  rangeMin: number;
+  rangeMax: number;
+  numBuckets: number;
+  bucketProbabilities: number[];
 }
 
-export interface Prediction {
+export interface Position {
   id: string;
   agentId: string;
-  metricId: string;
-  metricName: string;
-  targetDate: string;
-  predictedValue: number;
-  stake: number;
-  createdAt: string;
-  resolved: boolean;
-  resolvedAt: string | null;
-  actualValue: number | null;
-  payout: number | null;
+  marketId: string;
+  bucketIndex: number;
+  shares: number;
+  totalCost: number;
 }

@@ -49,12 +49,9 @@ export const api = {
   deleteAgent: (user: User, id: string) =>
     request(`/api/agents/${id}`, user, { method: 'DELETE' }),
 
-  // Predictions & Markets
-  getPredictions: (user: User, params?: Record<string, string>) => {
-    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
-    return request(`/api/predictions${qs}`, user);
-  },
+  // Markets & Trading
   getMarkets: (user: User) => request('/api/predictions/markets', user),
+  getMarketDetail: (user: User, id: string) => request(`/api/predictions/markets/${id}`, user),
   createMarket: (user: User, metricId: string, targetDate: string) =>
     request('/api/predictions/markets', user, { method: 'POST', body: JSON.stringify({ metricId, targetDate }) }),
   deleteMarket: (user: User, id: string) =>
@@ -63,4 +60,10 @@ export const api = {
     request('/api/predictions/markets/refresh', user, { method: 'POST' }),
   resolvePredictions: (user: User, targetDate?: string) =>
     request('/api/predictions/resolve', user, { method: 'POST', body: JSON.stringify({ targetDate }) }),
+  trade: (user: User, marketId: string, bucketIndex: number, shares: number) =>
+    request('/api/predictions/trade', user, { method: 'POST', body: JSON.stringify({ marketId, bucketIndex, shares }) }),
+  getPositions: (user: User, marketId?: string) => {
+    const qs = marketId ? `?marketId=${marketId}` : '';
+    return request(`/api/predictions/positions${qs}`, user);
+  },
 };
