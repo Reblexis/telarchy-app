@@ -59,19 +59,19 @@ export interface Market {
   actualValue: number | null;
   createdAt: string;
   consensus: number | null;
+  probability: number;
   totalStake: number;
   tradeCount: number;
   rangeMin: number;
   rangeMax: number;
-  numBuckets: number;
-  bucketProbabilities: number[];
+  liquidity: number;
 }
 
 export interface Position {
   id: string;
   agentId: string;
   marketId: string;
-  bucketIndex: number;
+  direction: 'higher' | 'lower';
   shares: number;
   totalCost: number;
 }

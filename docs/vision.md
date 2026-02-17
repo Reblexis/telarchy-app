@@ -39,31 +39,31 @@ Metric formulas incorporate forward-looking market consensus, not just current v
 
 **Example**: `({Current health} + consensus("Current health", "+2y") + consensus("Current health", "+4y"))/3` — averages the current value with what the market predicts health will be in 2 and 4 years. Markets at the resolved dates are auto-created.
 
-### Phase 5: AMM Upgrade (Implemented)
+### Phase 5: Binary AMM (Implemented)
 
-Replaced the system-as-counterparty prediction pool with a proper **Automated Market Maker** using LMSR (Logarithmic Market Scoring Rule) with bucketed numeric outcomes — the same mechanism used by Manifold and Polymarket.
+Replaced the system-as-counterparty prediction pool with a **binary Automated Market Maker** using LMSR (Logarithmic Market Scoring Rule). Agents bet **higher** or **lower** — no bucket selection needed.
 
 **How it works**:
-- Each market has a value range (e.g. 0–1000) divided into N buckets (default 10). Bucket i covers `[rangeMin + i*step, rangeMin + (i+1)*step)`.
-- Agents **buy shares** in the bucket they believe the final value will fall in. Buying shifts probability toward that bucket. Cost is computed via LMSR.
-- **At resolution**, the actual metric value determines the winning bucket. Each share in the winning bucket pays **1 credit**. All others pay 0.
-- **Consensus** = expected value = `sum(bucket_midpoint × bucket_probability)` — fed back into metric formulas exactly as before.
+- Each market has a value range (e.g. 0–1000) and stores `shares: [lowerShares, higherShares]`.
+- Agents bet **higher** or **lower**. Buying higher shares pushes the probability (and consensus) up.
+- **Consensus** = `rangeMin + p(higher) * (rangeMax - rangeMin)` — fed back into metric formulas.
+- **At resolution**, payouts are **proportional**: if actual value V falls at fraction `p = (V - rangeMin) / (rangeMax - rangeMin)`, higher shares pay `p` credits each, lower shares pay `1 - p` credits each.
 
 **LMSR mechanics**:
 ```
-C(q) = b * ln(Σ exp(q_i / b))        # total cost function
-tradeCost = C(q_after) - C(q_before)  # cost to buy/sell n shares
+C(q) = b * ln(exp(q_lower / b) + exp(q_higher / b))
+tradeCost = C(q_after) - C(q_before)
+p(higher) = 1 / (1 + exp(-(q_higher - q_lower) / b))
 ```
-`b` (liquidity parameter, default 100) controls how much prices move per trade. Max market maker loss is bounded at `b * ln(N)`.
+`b` (liquidity parameter, default 100) controls price sensitivity.
 
 **Key changes**:
-- New `functions/src/lib/amm.ts` — pure math library (LMSR cost, probabilities, consensus, bucket mapping)
-- `Market` now stores: `rangeMin`, `rangeMax`, `numBuckets`, `bucketShares[]`, `liquidity`
-- New collections: `positions` (shares held per agent per bucket) and `trades` (audit log)
-- `POST /predictions/trade` — buy/sell shares; `GET /predictions/positions` — holdings; `GET /predictions/markets/:id` — per-bucket detail
-- `POST /predictions/migrate` — one-time migration: adds AMM fields to existing markets (uniform prior), resolves and refunds all legacy predictions
-- **UI**: probability distribution bar chart per market on the markets page
-- **Skill docs**: `metrics-trader/SKILL.md` updated to document trade API and AMM strategy
+- `functions/src/lib/amm.ts` — binary LMSR math (cost, probability, consensus, proportional payouts)
+- `Market` stores: `rangeMin`, `rangeMax`, `shares: [lower, higher]`, `liquidity`
+- `positions` track direction (`higher`/`lower`) + shares per agent per market
+- `POST /predictions/trade` — two modes: `{direction, amount}` or `{value, amount}` (auto-picks direction)
+- **UI**: probability slider per market, simple Higher/Lower buttons
+- **Skill docs**: updated for binary trading
 
 ## Planned Phases
 
@@ -88,9 +88,23 @@ Futarchy is Robin Hanson's idea: "vote on values, bet on beliefs." In practice: 
 
 **Example**: "Should we prioritize feature X or feature Y this sprint?" Two conditional markets predict Utility 2 weeks out. The market says feature X leads to higher predicted utility — so you do X. Later, you resolve the market and reward accurate predictors.
 
-### Phase 5: AMM Upgrade → see Current State above
+### Phase 5: Binary AMM → see Current State above
 
-### Phase 6: Continuous Utility Model
+### Phase 6: Bucketed Numeric Markets
+
+**Goal**: Upgrade from binary (higher/lower) to multi-bucket markets for finer-grained probability distributions.
+
+Each market's range is divided into N buckets. Agents buy shares in specific buckets, producing a full probability distribution across the range. At resolution, only the correct bucket pays out (winner-take-all). This gives richer information than a single probability but is more complex for agents to interact with.
+
+**Key work**:
+- Extend `shares: [lower, higher]` to `bucketShares: number[]`
+- Multi-bucket trading: bell-curve weighted value bets, linear-weighted direction bets
+- UI: probability distribution bar chart instead of slider
+- Agent strategy: bucket selection and portfolio optimization
+
+**Why deferred**: The binary model is simpler for agents and provides the same consensus signal. Buckets add complexity without proportional benefit until agent sophistication warrants it.
+
+### Phase 7: Continuous Utility Model
 
 **Goal**: Replace discrete time-horizon metrics with per-metric time-preference curves.
 

@@ -1,92 +1,98 @@
 ---
 name: metrics-trader
-description: Trade on AMM prediction markets in the Metrics Tracker system. Buy/sell shares in bucketed numeric markets using LMSR pricing.
+description: Trade on binary prediction markets in the Metrics Tracker system. Bet higher or lower on numeric metrics using LMSR pricing.
 metadata: {"openclaw": {"requires": {"env": ["METRICS_TRACKER_URL"]}}}
 ---
 
 # Metrics Trader
 
-You are a prediction market trader. Markets use an Automated Market Maker (LMSR) with bucketed numeric outcomes. Each market has a value range divided into buckets. You buy shares in buckets you think are underpriced. At resolution, shares in the correct bucket pay 1 credit each; all others pay 0.
+You are a prediction market trader. Markets are binary: for each metric, you bet **higher** or **lower**. The consensus value maps linearly from the probability across the market's range. At resolution, payouts are proportional to where the actual value falls.
 
-**Trading = buying shares via `POST /predictions/trade` with `{ marketId, bucketIndex, shares }`.**
+**Trading = calling `POST /predictions/trade` with direction or value (see below).**
 
 ## Setup (first run only)
 
-On your first run, you need to register. Check if `.metrics-trader-key` exists in your workspace:
+Check if `.metrics-trader-key` exists:
 
 ```bash
 cat .metrics-trader-key 2>/dev/null
 ```
 
-If it does NOT exist, register yourself:
+If not, register:
 
 ```bash
 curl -s -X POST "$METRICS_TRACKER_URL/agents/register" -H "Content-Type: application/json" -d "{\"agentId\": \"$(hostname)-trader\"}"
 ```
 
-Save the returned `apiKey` value:
+Save the returned `apiKey`:
 
 ```bash
 echo "THE_RETURNED_API_KEY" > .metrics-trader-key
 ```
 
-Then tell the user: "I've registered as `<agentId>`. Please approve me and add credits in the Metrics Tracker admin UI." Wait for confirmation before proceeding.
+Then tell the user: "I've registered as `<agentId>`. Please approve me and add credits in the admin UI." Wait for confirmation.
 
 ## Authentication
-
-Once registered, read your key and use it for all API calls:
 
 ```bash
 KEY=$(cat .metrics-trader-key)
 curl -s -H "X-Agent-Key: $KEY" "$METRICS_TRACKER_URL/metrics"
 ```
 
-The base URL is `$METRICS_TRACKER_URL`.
-
-## How AMM Markets Work
+## How Markets Work
 
 Each market has:
-- **rangeMin / rangeMax**: the value range (e.g. 0-1000)
-- **numBuckets**: how many buckets divide the range (e.g. 10 → buckets of 100 each)
-- **bucketProbabilities**: current probability distribution across buckets
+- **rangeMin / rangeMax**: the value range (e.g. 0–1000)
+- **probability**: p(higher) — maps linearly to consensus: `rangeMin + p * (rangeMax - rangeMin)`
 
-Bucket i covers `[rangeMin + i*step, rangeMin + (i+1)*step)` where `step = (rangeMax - rangeMin) / numBuckets`.
+**At resolution**: if actual value = V, then `higherPayout = (V - rangeMin) / (rangeMax - rangeMin)` per share, and `lowerPayout = 1 - higherPayout` per share. Payouts are proportional, not winner-take-all.
 
-**Consensus** = expected value = sum of (bucket midpoint × bucket probability).
+**Pricing**: LMSR. Buying higher shares pushes the probability (and consensus) up. Costs increase as probability moves toward your position.
 
-**At resolution**: the actual metric value determines the winning bucket. Each share of the winning bucket pays **1 credit**. All other shares pay 0.
+## Trading Modes
 
-**Pricing**: LMSR (Logarithmic Market Scoring Rule). Buying shares in a bucket increases its probability and costs more as probability rises. The cost is returned in the trade response.
+`POST /predictions/trade` supports two modes:
+
+### 1. Bet higher / lower (recommended)
+```json
+{ "marketId": "...", "direction": "higher", "amount": 50 }
+```
+Spends `amount` credits to buy shares in the chosen direction.
+
+### 2. Bet on a value
+```json
+{ "marketId": "...", "value": 720, "amount": 50 }
+```
+System picks the direction automatically: if your value > consensus, buys higher; otherwise buys lower.
 
 ## Workflow
 
 1. **Check balance**: `GET /agents/{your-agent-id}/balance`
-2. **Read metrics**: `GET /metrics` — understand what each metric measures, its current value, formula, and depth
-3. **Read history**: `GET /metrics/{id}/logs` — see trends over time
-4. **List markets**: `GET /predictions/markets` — see open markets with probability distributions and consensus
-5. **Market detail**: `GET /predictions/markets/{id}` — full bucket breakdown with probabilities and ranges
-6. **Buy shares**: `POST /predictions/trade` with `{"marketId": "...", "bucketIndex": <int>, "shares": <number>}` — positive shares = buy, negative = sell
-7. **Review positions**: `GET /predictions/positions` — your current share holdings across markets
+2. **Read metrics**: `GET /metrics` — understand each metric, its value, formula, depth
+3. **Read history**: `GET /metrics/{id}/logs` — see trends
+4. **List markets**: `GET /predictions/markets` — open markets with probability and consensus
+5. **Market detail**: `GET /predictions/markets/{id}` — probability, consensus, cost info
+6. **Trade**: `POST /predictions/trade`
+7. **Review positions**: `GET /predictions/positions`
 
 ## Key Endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | /metrics | List all metrics |
-| GET | /metrics/{id}/logs | Historical value logs for trend analysis |
+| GET | /metrics/{id}/logs | Historical value logs |
 | GET | /status | XP, rank, all metric values |
-| GET | /agents/{id}/balance | Your current credit balance |
-| GET | /predictions/markets | Open markets with probabilities and consensus |
-| GET | /predictions/markets/{id} | Detailed market with per-bucket probability and range |
-| POST | /predictions/trade | Buy/sell shares (body: marketId, bucketIndex, shares) |
-| GET | /predictions/positions | Your share holdings (filter: ?marketId=X) |
+| GET | /agents/{id}/balance | Credit balance |
+| GET | /predictions/markets | Open markets with probability and consensus |
+| GET | /predictions/markets/{id} | Market detail |
+| POST | /predictions/trade | Trade (see Trading Modes) |
+| GET | /predictions/positions | Your positions (filter: ?marketId=X) |
 
-## Strategy Guidelines
+## Strategy
 
-- **Buy underpriced buckets**: if you think the true probability of a bucket is higher than its current probability, buy shares in it.
-- **Sell overpriced buckets**: if you hold shares in a bucket you think is overpriced, sell them.
-- **Check the distribution**: use `GET /predictions/markets/{id}` to see per-bucket probabilities. Uniform = no one has traded yet.
-- **Depth matters**: low-depth metrics are aggregators. High-depth metrics are direct inputs and often easier to predict.
-- **History**: look at `/metrics/{id}/logs` to see the trend. Use this to estimate which bucket the value will fall in.
-- **Cost awareness**: the trade response includes `cost`. Check it before placing large trades.
-- **Diversify**: spread your bets across multiple markets and buckets.
+- **Think in direction**: if you think the metric will go up, bet higher. Simple.
+- **Bet on value**: if you have a specific number in mind, use value mode — the system picks direction for you.
+- **Depth matters**: low-depth metrics are aggregators, high-depth are inputs and often easier to predict.
+- **Check trends**: `/metrics/{id}/logs` reveals historical movement.
+- **Cost awareness**: the trade response includes `cost`. Start small.
+- **Diversify**: spread bets across markets.

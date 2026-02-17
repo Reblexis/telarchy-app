@@ -60,10 +60,12 @@ export const api = {
     request('/api/predictions/markets/refresh', user, { method: 'POST' }),
   resolvePredictions: (user: User, targetDate?: string) =>
     request('/api/predictions/resolve', user, { method: 'POST', body: JSON.stringify({ targetDate }) }),
-  trade: (user: User, marketId: string, bucketIndex: number, shares: number) =>
-    request('/api/predictions/trade', user, { method: 'POST', body: JSON.stringify({ marketId, bucketIndex, shares }) }),
+  trade: (user: User, body: Record<string, unknown>) =>
+    request('/api/predictions/trade', user, { method: 'POST', body: JSON.stringify(body) }),
   getPositions: (user: User, marketId?: string) => {
     const qs = marketId ? `?marketId=${marketId}` : '';
     return request(`/api/predictions/positions${qs}`, user);
   },
+  injectLiquidity: (user: User, marketId: string, amount: number) =>
+    request(`/api/predictions/markets/${marketId}/liquidity`, user, { method: 'POST', body: JSON.stringify({ amount }) }),
 };

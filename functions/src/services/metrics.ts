@@ -5,7 +5,7 @@ import {
   extractConsensusReferences,
 } from '../lib/metrics-engine';
 import { toAbsoluteDate } from '../lib/date-utils';
-import { ammConsensus, AMM_DEFAULTS } from '../lib/amm';
+import { consensus as ammConsensus, AMM_DEFAULTS } from '../lib/amm';
 
 function db() { return getFirestore(); }
 
@@ -24,9 +24,9 @@ async function buildConsensusMap(): Promise<Record<string, number>> {
   const map: Record<string, number> = {};
   for (const doc of marketSnap.docs) {
     const m = doc.data();
-    if (!m.bucketShares || !m.liquidity) continue;
+    if (!m.shares || !m.liquidity) continue;
     const key = `${m.metricName}:${m.targetDate}`;
-    map[key] = ammConsensus(m.bucketShares, m.liquidity, m.rangeMin, m.rangeMax);
+    map[key] = ammConsensus(m.shares, m.liquidity, m.rangeMin, m.rangeMax);
   }
   return map;
 }
@@ -98,8 +98,7 @@ export async function ensureMarketsForFormula(formula: string): Promise<void> {
       createdAt: FieldValue.serverTimestamp(),
       rangeMin: AMM_DEFAULTS.rangeMin,
       rangeMax: AMM_DEFAULTS.rangeMax,
-      numBuckets: AMM_DEFAULTS.numBuckets,
-      bucketShares: new Array(AMM_DEFAULTS.numBuckets).fill(0),
+      shares: [0, 0],
       liquidity: AMM_DEFAULTS.liquidity,
     });
     writes++;

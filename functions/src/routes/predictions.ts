@@ -7,122 +7,103 @@ import { getAllMetrics } from '../services/metrics';
 import { resolvePredictions, getMarkets } from '../services/predictions';
 import { refreshRelativeDateMarkets } from '../services/markets';
 import { isValidDateFormat, endOfPeriod } from '../lib/date-utils';
-import { tradeCost, bucketProbabilities, ammConsensus, AMM_DEFAULTS } from '../lib/amm';
+import { consensus, pHigher, directionTradeCost, sharesForBudget, betOnValue, AMM_DEFAULTS } from '../lib/amm';
 
 function db() { return getFirestore(); }
 
 export const predictionsRouter = Router();
 
-// All prediction routes require auth
 predictionsRouter.use(authMiddleware);
 
-// --- Agent-accessible (role: agent or admin) ---
+// --- Agent-accessible ---
 
 predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req, res) => {
-  const agentId = req.auth!.agentId;
+  // Admin can impersonate an agent
+  let agentId = req.auth!.agentId;
+  if (req.body.agentId && req.auth!.role === 'admin') {
+    agentId = req.body.agentId;
+  }
   if (!agentId) { res.status(403).json({ error: 'Only agents can trade' }); return; }
 
-  const { marketId, bucketIndex, shares } = req.body;
+  const { marketId } = req.body;
   if (!marketId || typeof marketId !== 'string') { res.status(400).json({ error: 'marketId is required' }); return; }
-  if (typeof bucketIndex !== 'number' || !Number.isInteger(bucketIndex)) { res.status(400).json({ error: 'bucketIndex must be an integer' }); return; }
-  if (typeof shares !== 'number' || shares === 0) { res.status(400).json({ error: 'shares must be a non-zero number' }); return; }
 
-  // Load market
   const marketRef = db().collection('markets').doc(marketId);
   const marketDoc = await marketRef.get();
   if (!marketDoc.exists) { res.status(404).json({ error: 'Market not found' }); return; }
   const market = marketDoc.data()!;
   if (market.resolved) { res.status(400).json({ error: 'Market is resolved' }); return; }
-  if (bucketIndex < 0 || bucketIndex >= market.numBuckets) { res.status(400).json({ error: `bucketIndex must be 0-${market.numBuckets - 1}` }); return; }
 
-  // Check selling: agent must have enough shares
-  if (shares < 0) {
-    const posSnap = await db().collection('positions')
-      .where('agentId', '==', agentId)
-      .where('marketId', '==', marketId)
-      .where('bucketIndex', '==', bucketIndex)
-      .limit(1)
-      .get();
-    const currentShares = posSnap.empty ? 0 : posSnap.docs[0].data().shares;
-    if (currentShares + shares < 0) { res.status(400).json({ error: 'Insufficient shares', currentShares }); return; }
+  const shares: [number, number] = market.shares;
+  let direction: 0 | 1;
+  let amount: number;
+  let cost: number;
+
+  if (typeof req.body.value === 'number' && typeof req.body.amount === 'number') {
+    // Mode: bet on value — system picks direction
+    if (req.body.amount <= 0) { res.status(400).json({ error: 'amount must be positive' }); return; }
+    const result = betOnValue(shares, market.liquidity, market.rangeMin, market.rangeMax, req.body.value, req.body.amount);
+    direction = result.direction;
+    amount = result.amount;
+    cost = result.cost;
+  } else if (typeof req.body.direction === 'string' && typeof req.body.amount === 'number') {
+    // Mode: bet higher/lower
+    if (req.body.direction !== 'higher' && req.body.direction !== 'lower') {
+      res.status(400).json({ error: 'direction must be "higher" or "lower"' }); return;
+    }
+    if (req.body.amount <= 0) { res.status(400).json({ error: 'amount must be positive' }); return; }
+    direction = req.body.direction === 'higher' ? 1 : 0;
+    const result = sharesForBudget(shares, direction, req.body.amount, market.liquidity);
+    amount = result.amount;
+    cost = result.cost;
+  } else {
+    res.status(400).json({ error: 'Provide {value, amount} or {direction: "higher"|"lower", amount}' }); return;
   }
 
-  // Calculate cost via LMSR
-  const cost = tradeCost(market.bucketShares, bucketIndex, shares, market.liquidity);
+  if (amount <= 0) { res.status(400).json({ error: 'Trade too small' }); return; }
 
-  // Check agent balance (only for buys where cost > 0)
+  // Check agent balance
   const agentRef = db().collection('agents').doc(agentId);
   const agentDoc = await agentRef.get();
   if (!agentDoc.exists) { res.status(404).json({ error: 'Agent not found' }); return; }
   const balance = agentDoc.data()!.balance as number;
   if (cost > 0 && balance < cost) { res.status(400).json({ error: 'Insufficient balance', balance, cost }); return; }
 
-  // Execute trade atomically
-  const newBucketShares = [...market.bucketShares];
-  newBucketShares[bucketIndex] += shares;
+  // Execute trade
+  const dirLabel = direction === 1 ? 'higher' : 'lower';
+  const newShares: [number, number] = [shares[0], shares[1]];
+  newShares[direction] += amount;
 
-  const tradeRef = db().collection('trades').doc();
-  const posId = `${agentId}_${marketId}_${bucketIndex}`;
+  const posId = `${agentId}_${marketId}_${dirLabel}`;
   const posRef = db().collection('positions').doc(posId);
-
+  const tradeRef = db().collection('trades').doc();
   const batch = db().batch();
 
-  // Update market bucket shares
-  batch.update(marketRef, { bucketShares: newBucketShares });
+  batch.update(marketRef, { shares: newShares });
+  batch.update(agentRef, {
+    balance: FieldValue.increment(-cost),
+    spentBetting: FieldValue.increment(cost),
+  });
 
-  // Update agent balance
-  if (cost > 0) {
-    batch.update(agentRef, {
-      balance: FieldValue.increment(-cost),
-      spentBetting: FieldValue.increment(cost),
-    });
-  } else if (cost < 0) {
-    batch.update(agentRef, {
-      balance: FieldValue.increment(-cost),
-      earnedBetting: FieldValue.increment(-cost),
-    });
-  }
-
-  // Upsert position
   const posDoc = await posRef.get();
   if (posDoc.exists) {
-    batch.update(posRef, {
-      shares: FieldValue.increment(shares),
-      totalCost: FieldValue.increment(cost),
-    });
+    batch.update(posRef, { shares: FieldValue.increment(amount), totalCost: FieldValue.increment(cost) });
   } else {
-    batch.set(posRef, {
-      id: posId,
-      agentId,
-      marketId,
-      bucketIndex,
-      shares,
-      totalCost: cost,
-    });
+    batch.set(posRef, { id: posId, agentId, marketId, direction: dirLabel, shares: amount, totalCost: cost });
   }
 
-  // Log trade
-  batch.set(tradeRef, {
-    id: tradeRef.id,
-    agentId,
-    marketId,
-    bucketIndex,
-    shares,
-    cost,
-    createdAt: FieldValue.serverTimestamp(),
-  });
+  batch.set(tradeRef, { id: tradeRef.id, agentId, marketId, direction: dirLabel, shares: amount, cost, createdAt: FieldValue.serverTimestamp() });
 
   await batch.commit();
 
-  const probs = bucketProbabilities(newBucketShares, market.liquidity);
   res.status(201).json({
     tradeId: tradeRef.id,
     marketId,
-    bucketIndex,
-    shares,
+    direction: dirLabel,
+    shares: amount,
     cost,
-    newProbabilities: probs,
-    consensus: ammConsensus(newBucketShares, market.liquidity, market.rangeMin, market.rangeMax),
+    probability: Math.round(pHigher(newShares, market.liquidity) * 10000) / 10000,
+    consensus: consensus(newShares, market.liquidity, market.rangeMin, market.rangeMax),
   });
 }));
 
@@ -134,7 +115,7 @@ predictionsRouter.get('/positions', requireRole('agent', 'admin'), wrap(async (r
   if (req.query.marketId) query = query.where('marketId', '==', req.query.marketId as string);
 
   const snapshot = await query.get();
-  res.json(snapshot.docs.map(doc => doc.data()).filter((p: Record<string, unknown>) => (p.shares as number) !== 0));
+  res.json(snapshot.docs.map(doc => doc.data()).filter((p: Record<string, unknown>) => (p.shares as number) > 0));
 }));
 
 predictionsRouter.get('/markets', requireRole('agent', 'admin'), wrap(async (_req, res) => {
@@ -145,8 +126,7 @@ predictionsRouter.get('/markets/:id', requireRole('agent', 'admin'), wrap(async 
   const doc = await db().collection('markets').doc(req.params.id as string).get();
   if (!doc.exists) { res.status(404).json({ error: 'Market not found' }); return; }
   const m = doc.data()!;
-  const probs = bucketProbabilities(m.bucketShares, m.liquidity);
-  const step = (m.rangeMax - m.rangeMin) / m.numBuckets;
+  const prob = pHigher(m.shares, m.liquidity);
   res.json({
     id: doc.id,
     metricId: m.metricId,
@@ -155,22 +135,17 @@ predictionsRouter.get('/markets/:id', requireRole('agent', 'admin'), wrap(async 
     resolved: m.resolved,
     rangeMin: m.rangeMin,
     rangeMax: m.rangeMax,
-    numBuckets: m.numBuckets,
     liquidity: m.liquidity,
-    consensus: ammConsensus(m.bucketShares, m.liquidity, m.rangeMin, m.rangeMax),
-    buckets: probs.map((p, i) => ({
-      index: i,
-      rangeStart: m.rangeMin + i * step,
-      rangeEnd: m.rangeMin + (i + 1) * step,
-      probability: Math.round(p * 10000) / 10000,
-    })),
+    probability: Math.round(prob * 10000) / 10000,
+    consensus: consensus(m.shares, m.liquidity, m.rangeMin, m.rangeMax),
+    costToMoveUp1pct: directionTradeCost(m.shares, 1, m.liquidity * 0.01, m.liquidity),
   });
 }));
 
 // --- Admin-only ---
 
 predictionsRouter.post('/markets', requireRole('admin'), wrap(async (req, res) => {
-  const { metricId, targetDate, rangeMin, rangeMax, numBuckets, liquidity } = req.body;
+  const { metricId, targetDate, rangeMin, rangeMax, liquidity } = req.body;
   if (!metricId || typeof metricId !== 'string') { res.status(400).json({ error: 'metricId is required' }); return; }
   if (!targetDate || typeof targetDate !== 'string' || !isValidDateFormat(targetDate)) { res.status(400).json({ error: 'targetDate must be YYYY, YYYY-MM, YYYY-Www, or YYYY-MM-DD' }); return; }
 
@@ -190,7 +165,6 @@ predictionsRouter.post('/markets', requireRole('admin'), wrap(async (req, res) =
 
   const rMin = typeof rangeMin === 'number' ? rangeMin : AMM_DEFAULTS.rangeMin;
   const rMax = typeof rangeMax === 'number' ? rangeMax : AMM_DEFAULTS.rangeMax;
-  const nBuckets = typeof numBuckets === 'number' ? numBuckets : AMM_DEFAULTS.numBuckets;
   const liq = typeof liquidity === 'number' ? liquidity : AMM_DEFAULTS.liquidity;
 
   const ref = db().collection('markets').doc();
@@ -205,17 +179,26 @@ predictionsRouter.post('/markets', requireRole('admin'), wrap(async (req, res) =
     createdAt: FieldValue.serverTimestamp(),
     rangeMin: rMin,
     rangeMax: rMax,
-    numBuckets: nBuckets,
-    bucketShares: new Array(nBuckets).fill(0),
+    shares: [0, 0],
     liquidity: liq,
   });
 
   res.status(201).json({ id: ref.id, metricId, metricName: metric.name, targetDate });
 }));
 
+predictionsRouter.post('/markets/:id/liquidity', requireRole('admin'), wrap(async (req, res) => {
+  const { amount } = req.body;
+  if (typeof amount !== 'number' || amount <= 0) { res.status(400).json({ error: 'amount must be a positive number' }); return; }
+  const ref = db().collection('markets').doc(req.params.id as string);
+  const doc = await ref.get();
+  if (!doc.exists) { res.status(404).json({ error: 'Market not found' }); return; }
+  const newLiquidity = doc.data()!.liquidity + amount;
+  await ref.update({ liquidity: newLiquidity });
+  res.json({ liquidity: newLiquidity });
+}));
+
 predictionsRouter.delete('/markets/:id', requireRole('admin'), wrap(async (req, res) => {
-  const id = req.params.id as string;
-  const ref = db().collection('markets').doc(id);
+  const ref = db().collection('markets').doc(req.params.id as string);
   const doc = await ref.get();
   if (!doc.exists) { res.status(404).json({ error: 'Market not found' }); return; }
   await ref.delete();
@@ -233,7 +216,7 @@ predictionsRouter.post('/markets/refresh', requireRole('admin'), wrap(async (_re
   res.json(result);
 }));
 
-// One-time migration from old prediction model to AMM
+// One-time migration: add binary AMM fields to existing markets, refund old predictions
 predictionsRouter.post('/migrate', requireRole('admin'), wrap(async (_req, res) => {
   const marketsSnap = await db().collection('markets').get();
   const predsSnap = await db().collection('predictions').where('resolved', '==', false).get();
@@ -243,35 +226,26 @@ predictionsRouter.post('/migrate', requireRole('admin'), wrap(async (_req, res) 
   let refunded = 0;
   const agentRefunds = new Map<string, number>();
 
-  // Add AMM fields to markets missing them
   for (const doc of marketsSnap.docs) {
     const m = doc.data();
-    if (m.bucketShares) continue;
+    if (m.shares && Array.isArray(m.shares) && m.shares.length === 2) continue;
     await doc.ref.update({
-      rangeMin: AMM_DEFAULTS.rangeMin,
-      rangeMax: AMM_DEFAULTS.rangeMax,
-      numBuckets: AMM_DEFAULTS.numBuckets,
-      bucketShares: new Array(AMM_DEFAULTS.numBuckets).fill(0),
-      liquidity: AMM_DEFAULTS.liquidity,
+      rangeMin: m.rangeMin ?? AMM_DEFAULTS.rangeMin,
+      rangeMax: m.rangeMax ?? AMM_DEFAULTS.rangeMax,
+      shares: [0, 0],
+      liquidity: m.liquidity ?? AMM_DEFAULTS.liquidity,
     });
     marketsUpdated++;
   }
 
-  // Resolve and refund all unresolved old predictions
   for (const doc of predsSnap.docs) {
     const pred = doc.data();
-    await doc.ref.update({
-      resolved: true,
-      resolvedAt: FieldValue.serverTimestamp(),
-      actualValue: null,
-      payout: pred.stake,
-    });
+    await doc.ref.update({ resolved: true, resolvedAt: FieldValue.serverTimestamp(), actualValue: null, payout: pred.stake });
     agentRefunds.set(pred.agentId, (agentRefunds.get(pred.agentId) || 0) + pred.stake);
     predictionsResolved++;
     refunded += pred.stake;
   }
 
-  // Credit refunds to agent balances
   for (const [agentId, amount] of agentRefunds) {
     await db().collection('agents').doc(agentId).update({
       balance: FieldValue.increment(amount),

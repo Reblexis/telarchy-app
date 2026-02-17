@@ -50,8 +50,7 @@ export interface Market {
   createdAt: FirebaseFirestore.Timestamp;
   rangeMin: number;
   rangeMax: number;
-  numBuckets: number;
-  bucketShares: number[];
+  shares: [number, number]; // [lowerShares, higherShares]
   liquidity: number;
 }
 
@@ -59,7 +58,7 @@ export interface Position {
   id: string;
   agentId: string;
   marketId: string;
-  bucketIndex: number;
+  direction: 'higher' | 'lower';
   shares: number;
   totalCost: number;
 }
@@ -68,7 +67,7 @@ export interface Trade {
   id: string;
   agentId: string;
   marketId: string;
-  bucketIndex: number;
+  direction: 'higher' | 'lower';
   shares: number;
   cost: number;
   createdAt: FirebaseFirestore.Timestamp;

@@ -64,8 +64,7 @@ export async function refreshRelativeDateMarkets(): Promise<{ created: number }>
       createdAt: FieldValue.serverTimestamp(),
       rangeMin: AMM_DEFAULTS.rangeMin,
       rangeMax: AMM_DEFAULTS.rangeMax,
-      numBuckets: AMM_DEFAULTS.numBuckets,
-      bucketShares: new Array(AMM_DEFAULTS.numBuckets).fill(0),
+      shares: [0, 0],
       liquidity: AMM_DEFAULTS.liquidity,
     });
     created++;

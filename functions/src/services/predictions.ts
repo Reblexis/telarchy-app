@@ -2,7 +2,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { getAllMetrics } from './metrics';
 import type { Metric } from '../types';
 import { endOfPeriod } from '../lib/date-utils';
-import { valueToBucket, bucketProbabilities, ammConsensus } from '../lib/amm';
+import { pHigher, consensus, resolutionPayouts } from '../lib/amm';
 
 function db() { return getFirestore(); }
 
@@ -16,10 +16,7 @@ export async function resolvePredictions(targetDate?: string): Promise<{ resolve
   const marketsToResolve: FirebaseFirestore.QueryDocumentSnapshot[] = [];
   for (const doc of marketSnap.docs) {
     const m = doc.data();
-    const periodEnd = endOfPeriod(m.targetDate);
-    if (periodEnd <= today) {
-      marketsToResolve.push(doc);
-    }
+    if (endOfPeriod(m.targetDate) <= today) marketsToResolve.push(doc);
   }
 
   if (marketsToResolve.length === 0) return { resolved: 0, totalPayout: 0 };
@@ -34,27 +31,28 @@ export async function resolvePredictions(targetDate?: string): Promise<{ resolve
     const m = marketDoc.data();
     const metric = metricMap.get(m.metricId);
     const actualValue = metric ? metric.total : 0;
-    const winningBucket = valueToBucket(actualValue, m.rangeMin, m.rangeMax, m.numBuckets);
+    const [lowerPay, higherPay] = resolutionPayouts(actualValue, m.rangeMin, m.rangeMax);
 
     const batch = db().batch();
 
-    // Mark market resolved
     batch.update(marketDoc.ref, {
       resolved: true,
       resolvedAt: FieldValue.serverTimestamp(),
       actualValue,
     });
 
-    // Find all positions in the winning bucket for this market
+    // Pay out all positions proportionally
     const posSnap = await db().collection('positions')
       .where('marketId', '==', marketDoc.id)
-      .where('bucketIndex', '==', winningBucket)
       .get();
 
     for (const posDoc of posSnap.docs) {
       const pos = posDoc.data();
       if (pos.shares <= 0) continue;
-      const payout = Math.round(pos.shares * 100) / 100;
+      const payFactor = pos.direction === 'higher' ? higherPay : lowerPay;
+      const payout = Math.round(pos.shares * payFactor * 100) / 100;
+      if (payout <= 0) continue;
+
       totalPayout += payout;
       resolvedCount++;
 
@@ -77,7 +75,6 @@ export async function getMarkets(includeResolved = false) {
 
   if (marketSnap.empty) return [];
 
-  // Count trades per market
   const tradeSnap = await db().collection('trades').get();
   const tradeCountByMarket = new Map<string, number>();
   for (const doc of tradeSnap.docs) {
@@ -85,7 +82,6 @@ export async function getMarkets(includeResolved = false) {
     tradeCountByMarket.set(t.marketId, (tradeCountByMarket.get(t.marketId) || 0) + 1);
   }
 
-  // Sum total cost (stake equivalent) per market
   const posSnap = await db().collection('positions').get();
   const totalStakeByMarket = new Map<string, number>();
   for (const doc of posSnap.docs) {
@@ -97,12 +93,7 @@ export async function getMarkets(includeResolved = false) {
 
   return marketSnap.docs.map(doc => {
     const m = doc.data();
-    const probs = m.bucketShares
-      ? bucketProbabilities(m.bucketShares, m.liquidity)
-      : [];
-    const consensus = m.bucketShares
-      ? ammConsensus(m.bucketShares, m.liquidity, m.rangeMin, m.rangeMax)
-      : null;
+    const shares: [number, number] = m.shares || [0, 0];
     return {
       id: doc.id,
       metricId: m.metricId,
@@ -112,13 +103,13 @@ export async function getMarkets(includeResolved = false) {
       resolvedAt: m.resolvedAt,
       actualValue: m.actualValue,
       createdAt: m.createdAt,
-      consensus,
+      consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax),
+      probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
       totalStake: totalStakeByMarket.get(doc.id) || 0,
       tradeCount: tradeCountByMarket.get(doc.id) || 0,
       rangeMin: m.rangeMin,
       rangeMax: m.rangeMax,
-      numBuckets: m.numBuckets,
-      bucketProbabilities: probs,
+      liquidity: m.liquidity,
     };
   });
 }
