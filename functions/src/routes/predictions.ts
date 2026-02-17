@@ -92,19 +92,14 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
     batch.set(posRef, { id: posId, agentId, marketId, direction: dirLabel, shares: amount, totalCost: cost });
   }
 
-  batch.set(tradeRef, { id: tradeRef.id, agentId, marketId, direction: dirLabel, shares: amount, cost, createdAt: FieldValue.serverTimestamp() });
+  const newConsensus = consensus(newShares, market.liquidity, market.rangeMin, market.rangeMax);
+  const newProbability = Math.round(pHigher(newShares, market.liquidity) * 10000) / 10000;
+
+  batch.set(tradeRef, { id: tradeRef.id, agentId, marketId, direction: dirLabel, shares: amount, cost, consensus: newConsensus, probability: newProbability, createdAt: FieldValue.serverTimestamp() });
 
   await batch.commit();
 
-  res.status(201).json({
-    tradeId: tradeRef.id,
-    marketId,
-    direction: dirLabel,
-    shares: amount,
-    cost,
-    probability: Math.round(pHigher(newShares, market.liquidity) * 10000) / 10000,
-    consensus: consensus(newShares, market.liquidity, market.rangeMin, market.rangeMax),
-  });
+  res.status(201).json({ tradeId: tradeRef.id, marketId, direction: dirLabel, shares: amount, cost, probability: newProbability, consensus: newConsensus });
 }));
 
 predictionsRouter.get('/positions', requireRole('agent', 'admin'), wrap(async (req, res) => {
@@ -120,6 +115,26 @@ predictionsRouter.get('/positions', requireRole('agent', 'admin'), wrap(async (r
 
 predictionsRouter.get('/markets', requireRole('agent', 'admin'), wrap(async (_req, res) => {
   res.json(await getMarkets());
+}));
+
+predictionsRouter.get('/markets/:id/trades', requireRole('agent', 'admin'), wrap(async (req, res) => {
+  const snap = await db().collection('trades')
+    .where('marketId', '==', req.params.id as string)
+    .orderBy('createdAt', 'asc')
+    .get();
+  res.json(snap.docs.map(doc => {
+    const t = doc.data();
+    return {
+      id: t.id,
+      agentId: t.agentId,
+      direction: t.direction,
+      shares: t.shares,
+      cost: t.cost,
+      consensus: t.consensus ?? null,
+      probability: t.probability ?? null,
+      createdAt: t.createdAt,
+    };
+  }));
 }));
 
 predictionsRouter.get('/markets/:id', requireRole('agent', 'admin'), wrap(async (req, res) => {

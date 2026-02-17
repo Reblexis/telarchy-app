@@ -52,6 +52,7 @@ export const api = {
   // Markets & Trading
   getMarkets: (user: User) => request('/api/predictions/markets', user),
   getMarketDetail: (user: User, id: string) => request(`/api/predictions/markets/${id}`, user),
+  getMarketTrades: (user: User, id: string) => request(`/api/predictions/markets/${id}/trades`, user),
   createMarket: (user: User, metricId: string, targetDate: string) =>
     request('/api/predictions/markets', user, { method: 'POST', body: JSON.stringify({ metricId, targetDate }) }),
   deleteMarket: (user: User, id: string) =>
