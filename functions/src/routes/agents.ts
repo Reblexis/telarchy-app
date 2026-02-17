@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { randomBytes } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { hashKey, authMiddleware } from '../middleware/auth';
@@ -73,6 +73,7 @@ agentsRouter.get('/', requireRole('admin'), wrap(async (_req, res) => {
   const userRef = db().collection('agents').doc('user');
   const userDoc = await userRef.get();
   if (!userDoc.exists) {
+    const now = Timestamp.now();
     await userRef.set({
       id: 'user',
       apiKeyHash: '__user__',
@@ -82,8 +83,8 @@ agentsRouter.get('/', requireRole('admin'), wrap(async (_req, res) => {
       earnedBetting: 0,
       spentBetting: 0,
       spentTokens: 0,
-      createdAt: FieldValue.serverTimestamp(),
-      approvedAt: FieldValue.serverTimestamp(),
+      createdAt: now,
+      approvedAt: now,
     });
   }
 
