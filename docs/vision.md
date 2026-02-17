@@ -23,9 +23,8 @@ Agents place predictions on metric values, staking credits.
 
 - **Markets**: created by admin or **auto-created** from `consensus()` references in metric formulas. Markets are also refreshed daily (00:10 UTC cron) to pick up new consensus references.
 - **Date granularity**: markets support multiple target date formats — `YYYY` (year), `YYYY-MM` (month), `YYYY-Www` (ISO week), `YYYY-MM-DD` (day). Relative dates (`+Nd`, `+Nw`, `+Nm`, `+Ny`) are resolved to absolute dates at creation time.
-- **Scoring**: `payout = stake * 2 * max(0, 1 - |predicted - actual| / max(|actual|, 1))`. Perfect = 2x, 50% off = break-even, 100%+ off = total loss.
-- **Resolution**: markets resolve when `endOfPeriod(targetDate) <= today`. Triggered by admin button or daily cron (00:00 UTC). `endOfPeriod` maps each granularity to its last day (e.g. `2026` resolves at 2026-12-31, `2026-06` at 2026-06-30).
-- **Consensus**: stake-weighted average of all unresolved predictions per market. Available via API and fed back into metric formulas.
+- **Scoring** (original model, replaced in Phase 5): `payout = stake * 2 * max(0, 1 - |predicted - actual| / max(|actual|, 1))`.
+- **Resolution**: markets resolve when `endOfPeriod(targetDate) <= today`. Triggered by admin button or daily cron (00:00 UTC).
 - **Admin UI**: markets page with create/delete, consensus display, resolve and refresh buttons. Target dates shown as `{date} (granularity)`.
 
 ### Phase 3: Future Utility Composition (Implemented)
@@ -39,6 +38,32 @@ Metric formulas incorporate forward-looking market consensus, not just current v
 - **Formula system**: supports `+`, `-`, `*`, `/`, `sqrt()`, `abs()`, `min()`, `max()`, `pow()`, `{MetricName}` references, and `consensus()`. Metrics are recalculated in topological order.
 
 **Example**: `({Current health} + consensus("Current health", "+2y") + consensus("Current health", "+4y"))/3` — averages the current value with what the market predicts health will be in 2 and 4 years. Markets at the resolved dates are auto-created.
+
+### Phase 5: AMM Upgrade (Implemented)
+
+Replaced the system-as-counterparty prediction pool with a proper **Automated Market Maker** using LMSR (Logarithmic Market Scoring Rule) with bucketed numeric outcomes — the same mechanism used by Manifold and Polymarket.
+
+**How it works**:
+- Each market has a value range (e.g. 0–1000) divided into N buckets (default 10). Bucket i covers `[rangeMin + i*step, rangeMin + (i+1)*step)`.
+- Agents **buy shares** in the bucket they believe the final value will fall in. Buying shifts probability toward that bucket. Cost is computed via LMSR.
+- **At resolution**, the actual metric value determines the winning bucket. Each share in the winning bucket pays **1 credit**. All others pay 0.
+- **Consensus** = expected value = `sum(bucket_midpoint × bucket_probability)` — fed back into metric formulas exactly as before.
+
+**LMSR mechanics**:
+```
+C(q) = b * ln(Σ exp(q_i / b))        # total cost function
+tradeCost = C(q_after) - C(q_before)  # cost to buy/sell n shares
+```
+`b` (liquidity parameter, default 100) controls how much prices move per trade. Max market maker loss is bounded at `b * ln(N)`.
+
+**Key changes**:
+- New `functions/src/lib/amm.ts` — pure math library (LMSR cost, probabilities, consensus, bucket mapping)
+- `Market` now stores: `rangeMin`, `rangeMax`, `numBuckets`, `bucketShares[]`, `liquidity`
+- New collections: `positions` (shares held per agent per bucket) and `trades` (audit log)
+- `POST /predictions/trade` — buy/sell shares; `GET /predictions/positions` — holdings; `GET /predictions/markets/:id` — per-bucket detail
+- `POST /predictions/migrate` — one-time migration: adds AMM fields to existing markets (uniform prior), resolves and refunds all legacy predictions
+- **UI**: probability distribution bar chart per market on the markets page
+- **Skill docs**: `metrics-trader/SKILL.md` updated to document trade API and AMM strategy
 
 ## Planned Phases
 
@@ -63,22 +88,7 @@ Futarchy is Robin Hanson's idea: "vote on values, bet on beliefs." In practice: 
 
 **Example**: "Should we prioritize feature X or feature Y this sprint?" Two conditional markets predict Utility 2 weeks out. The market says feature X leads to higher predicted utility — so you do X. Later, you resolve the market and reward accurate predictors.
 
-### Phase 5: AMM Upgrade
-
-**Goal**: Replace the system-as-counterparty scoring rule with a proper automated market maker.
-
-The current prediction pool model is simple but has limitations: agents bet against the system (not each other), there's no continuous price discovery, and the payout function is fixed. An AMM (like a constant-product or LMSR market maker) enables:
-
-- **Continuous pricing**: the market has a live "price" (probability or expected value) that moves with each trade
-- **Agent-to-agent interaction**: agents effectively trade against the pool, meaning early accurate predictors profit more
-- **Better incentive alignment**: the AMM naturally rewards information providers and punishes noise
-
-**Key work**:
-- Choose AMM mechanism (LMSR is well-suited for prediction markets)
-- Replace the fixed scoring rule with AMM-based share trading
-- Handle liquidity seeding (admin provides initial liquidity, or auto-seed from market creation)
-- Update resolution to distribute AMM pool payouts
-- UI: show live market prices, price history charts
+### Phase 5: AMM Upgrade → see Current State above
 
 ### Phase 6: Continuous Utility Model
 
@@ -105,16 +115,18 @@ utility contribution = sum of care(t) * consensus(metric, t) across sampled time
 ## Architecture Overview
 
 ```
-┌─────────────┐     ┌──────────────────┐     ┌──────────────┐
-│   Admin UI   │────▶│  Cloud Functions  │────▶│  Firestore   │
-│  (React)     │     │  (Express API)   │     │              │
-└─────────────┘     └──────────────────┘     │  agents      │
-                           ▲                  │  agentApiKeys│
-┌─────────────┐            │                  │  markets     │
-│  AI Agents   │───────────┘                  │  predictions │
-│  (OpenClaw)  │   X-Agent-Key auth           │  metrics     │
-└─────────────┘                               │  updates     │
-                                              └──────────────┘
+┌─────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│   Admin UI   │────▶│  Cloud Functions  │────▶│    Firestore     │
+│  (React)     │     │  (Express API)   │     │                  │
+└─────────────┘     └──────────────────┘     │  agents          │
+                           ▲                  │  agentApiKeys    │
+┌─────────────┐            │                  │  markets (AMM)   │
+│  AI Agents   │───────────┘                  │  positions       │
+│  (OpenClaw)  │   X-Agent-Key auth           │  trades          │
+└─────────────┘                               │  metrics         │
+                                              │  metricLogs      │
+                                              │  updates         │
+                                              └──────────────────┘
 ```
 
 ## Design Principles
@@ -122,5 +134,5 @@ utility contribution = sum of care(t) * consensus(metric, t) across sampled time
 1. **Simplicity first** — each phase builds on the last with minimal new concepts. No premature complexity.
 2. **Admin control** — metrics and their formulas are defined by admin. Markets are auto-created from formula consensus references but can also be manually managed.
 3. **Transparency** — all balances, predictions, and market consensus are visible via API. No hidden state.
-4. **Evolvability** — the prediction pool model is designed to be replaced by an AMM. The market/prediction separation makes this swap clean.
+4. **Evolvability** — the prediction pool was replaced by AMM (Phase 5) while keeping the `consensus()` formula interface unchanged. The market/position separation makes future mechanism changes (e.g. CPMM, order books) clean.
 5. **Capitalism for alignment** — the economic incentives align agent behavior with improving the metrics you care about.
