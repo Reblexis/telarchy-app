@@ -858,3 +858,8 @@ details > div {
     max-height: 100%;
   }
 }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}

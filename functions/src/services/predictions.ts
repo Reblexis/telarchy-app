@@ -3,6 +3,7 @@ import { getAllMetrics } from './metrics';
 import type { Metric } from '../types';
 import { endOfPeriod } from '../lib/date-utils';
 import { pHigher, consensus, resolutionPayouts } from '../lib/amm';
+import { emitEvent } from './events';
 
 function db() { return getFirestore(); }
 
@@ -63,6 +64,7 @@ export async function resolvePredictions(targetDate?: string): Promise<{ resolve
     }
 
     await batch.commit();
+    emitEvent('market:resolved', { marketId: marketDoc.id, metricName: m.metricName, targetDate: m.targetDate, actualValue }).catch(() => {});
   }
 
   return { resolved: resolvedCount, totalPayout };

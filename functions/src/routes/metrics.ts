@@ -4,6 +4,7 @@ import { wrap } from '../lib/wrap';
 import { requireRole } from '../middleware/roles';
 import { getAffectedMetrics } from '../lib/metrics-engine';
 import * as svc from '../services/metrics';
+import { emitEvent } from '../services/events';
 const { ensureMarketsForFormula } = svc;
 
 function db() { return getFirestore(); }
@@ -68,6 +69,10 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
   // Background: read metrics, recalculate, log
   const metrics = await svc.getAllMetrics();
   await svc.logSpecificMetrics(getAffectedMetrics([id], metrics), metrics);
+  if (update.value !== undefined) {
+    const metric = metrics.find(m => m.id === id);
+    emitEvent('metric:updated', { metricId: id, metricName: metric?.name ?? '', oldValue: oldValue ?? null, newValue: update.value }).catch(() => {});
+  }
 }));
 
 metricsRouter.delete('/:id', requireRole('admin'), wrap(async (req, res) => {

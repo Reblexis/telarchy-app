@@ -69,4 +69,11 @@ export const api = {
   },
   injectLiquidity: (user: User, marketId: string, amount: number) =>
     request(`/api/predictions/markets/${marketId}/liquidity`, user, { method: 'POST', body: JSON.stringify({ amount }) }),
+
+  // Hooks (public, no auth)
+  getHooksStatus: async (): Promise<{ active: boolean; lastPolledAt?: string; intervalMs?: number; nextPollAt?: string }> => {
+    const res = await fetch(`${API_BASE}/api/events/hooks/status`);
+    if (!res.ok) return { active: false };
+    return res.json();
+  },
 };

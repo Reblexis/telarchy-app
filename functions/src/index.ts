@@ -10,6 +10,7 @@ import { updatesRouter } from './routes/updates';
 import { systemRouter } from './routes/system';
 import { agentsRouter } from './routes/agents';
 import { predictionsRouter } from './routes/predictions';
+import { eventsRouter } from './routes/events';
 import type { Request, Response, NextFunction } from 'express';
 
 admin.initializeApp();
@@ -69,6 +70,8 @@ app.get('/api/help', (_req, res) => {
       { method: 'DELETE', path: '/api/predictions/markets/:id', auth: 'admin', description: 'Delete a market.' },
       { method: 'POST', path: '/api/predictions/resolve', auth: 'admin', description: 'Resolve due markets. Proportional payout based on actual value position in range.' },
       { method: 'POST', path: '/api/predictions/migrate', auth: 'admin', description: 'One-time migration: add binary AMM fields to existing markets, refund old predictions.' },
+      { method: 'GET', path: '/api/events', auth: 'agent/admin', description: 'Event feed. Query: ?since=ISO_TIMESTAMP. Returns events (market:created, market:resolved, metric:updated, trade:executed) since the given time.' },
+      { method: 'GET', path: '/api/events/hooks/status', auth: false, description: 'Hook watcher status: active, lastPolledAt, intervalMs, nextPollAt.' },
     ],
   });
 });
@@ -76,6 +79,7 @@ app.get('/api/help', (_req, res) => {
 // These routers handle their own auth
 app.use('/api/agents', agentsRouter);
 app.use('/api/predictions', predictionsRouter);
+app.use('/api/events', eventsRouter);
 
 app.use(authMiddleware);
 
@@ -92,8 +96,10 @@ export const api = onRequest(app);
 
 export const dailyResolve = onSchedule('every day 00:00', async () => {
   const { resolvePredictions } = await import('./services/predictions');
+  const { cleanupOldEvents } = await import('./services/events');
   const result = await resolvePredictions();
-  console.log('Daily prediction resolution:', result);
+  const cleaned = await cleanupOldEvents();
+  console.log('Daily prediction resolution:', result, 'Events cleaned:', cleaned);
 });
 
 export const dailyMarketRefresh = onSchedule('every day 00:10', async () => {

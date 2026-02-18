@@ -8,6 +8,7 @@ import { resolvePredictions, getMarkets } from '../services/predictions';
 import { refreshRelativeDateMarkets } from '../services/markets';
 import { isValidDateFormat, endOfPeriod } from '../lib/date-utils';
 import { consensus, pHigher, directionTradeCost, sharesForBudget, betOnValue, AMM_DEFAULTS } from '../lib/amm';
+import { emitEvent } from '../services/events';
 
 function db() { return getFirestore(); }
 
@@ -100,6 +101,7 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
   await batch.commit();
 
   res.status(201).json({ tradeId: tradeRef.id, marketId, direction: dirLabel, shares: amount, cost, probability: newProbability, consensus: newConsensus });
+  emitEvent('trade:executed', { marketId, metricName: market.metricName, agentId, direction: dirLabel, cost, newConsensus }).catch(() => {});
 }));
 
 predictionsRouter.get('/positions', requireRole('agent', 'admin'), wrap(async (req, res) => {
@@ -199,6 +201,7 @@ predictionsRouter.post('/markets', requireRole('admin'), wrap(async (req, res) =
   });
 
   res.status(201).json({ id: ref.id, metricId, metricName: metric.name, targetDate });
+  emitEvent('market:created', { marketId: ref.id, metricName: metric.name, targetDate }).catch(() => {});
 }));
 
 predictionsRouter.post('/markets/:id/liquidity', requireRole('admin'), wrap(async (req, res) => {
