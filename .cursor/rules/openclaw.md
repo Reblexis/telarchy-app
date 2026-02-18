@@ -1,0 +1,1 @@
+Currently we are using openclaw agents for betting, all openclaw configuration is in ~/.openclaw . 
