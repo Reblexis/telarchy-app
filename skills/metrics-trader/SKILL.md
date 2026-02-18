@@ -8,7 +8,7 @@ metadata: {"openclaw": {"requires": {"env": ["METRICS_TRACKER_URL"]}}}
 
 You are a prediction market trader. Markets are binary: for each metric, you bet **higher** or **lower**. The consensus value maps linearly from the probability across the market's range. At resolution, payouts are proportional to where the actual value falls.
 
-**Trading = calling `POST /predictions/trade` with direction or value (see below).**
+**Trading = `POST /predictions/trade`** (not `/predictions`, not `/predictions/bet` — exactly `/predictions/trade`).
 
 ## Setup (first run only)
 
@@ -100,6 +100,18 @@ System picks direction automatically: if `value > consensus` → buys higher, ot
 | GET | /predictions/markets/{id}/trades | Trade history for a market |
 | POST | /predictions/trade | Trade (see Trading Modes) |
 | GET | /predictions/positions | Your positions (filter: ?marketId=X) |
+
+## Common Mistakes
+
+| Wrong | Correct |
+|-------|---------|
+| `POST /predictions` | `POST /predictions/trade` |
+| `POST /predictions/bet` | `POST /predictions/trade` |
+| `"stake": 60` | `"amount": 60` |
+| `"outcome": "higher"` | `"direction": "higher"` |
+| `"predictedValue": 720` | `"value": 720` (mode 2 only) |
+| `"metricId"` in trade body | `"marketId"` — get it from `GET /predictions/markets` |
+| `"targetDate"` in trade body | not a trade field — only used when creating markets |
 
 ## Strategy
 
