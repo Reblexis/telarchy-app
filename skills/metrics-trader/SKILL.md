@@ -1,6 +1,6 @@
 ---
 name: metrics-trader
-description: Trade on binary prediction markets in the Metrics Tracker system. Bet higher or lower on numeric metrics using LMSR pricing.
+description: Trade on binary prediction markets in the Metrics Tracker system. Bet higher or lower on numeric metrics using LMSR pricing. Supports buying and selling positions.
 metadata: {"openclaw": {"requires": {"env": ["METRICS_TRACKER_URL"]}}}
 ---
 
@@ -56,9 +56,10 @@ Each market has:
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | `marketId` | string | yes | from `GET /predictions/markets` — **not** metricId or targetDate |
-| `direction` | `"higher"\|"lower"` | mode 1 | mutually exclusive with `value` |
+| `direction` | `"higher"\|"lower"` | modes 1 & 3 | mutually exclusive with `value` |
 | `value` | number | mode 2 | mutually exclusive with `direction` |
-| `amount` | number | yes | credits to spend — **not** `stake` or `outcome` |
+| `amount` | number | modes 1 & 2 | credits to spend — **not** `stake` or `outcome` |
+| `sellShares` | number | mode 3 | shares to sell — mutually exclusive with `amount` |
 
 ### Mode 1: Bet higher / lower (recommended)
 ```json
@@ -66,13 +67,27 @@ Each market has:
 ```
 Spends `amount` credits buying shares in the chosen direction.
 
+**Response**: `{ tradeId, marketId, direction, shares, cost, probability, consensus }`
+
 ### Mode 2: Bet on a specific value
 ```json
 { "marketId": "abc123", "value": 720, "amount": 50 }
 ```
 System picks direction automatically: if `value > consensus` → buys higher, otherwise lower.
 
-**Response** includes: `{ tradeId, marketId, direction, shares, cost, probability, consensus }`
+**Response**: `{ tradeId, marketId, direction, shares, cost, probability, consensus }`
+
+### Mode 3: Sell shares (close / reduce a position)
+```json
+{ "marketId": "abc123", "direction": "higher", "sellShares": 10.5 }
+```
+Sells `sellShares` shares from your existing position. You must hold at least that many shares. The LMSR price is the reverse of buying — proceeds decrease as you sell more.
+
+**Response**: `{ tradeId, marketId, direction, shares, proceeds, probability, consensus }`
+
+- `proceeds` is the credits returned to your balance
+- Selling moves the probability back toward 50% (opposite of buying)
+- Agent balance is credited to `earnedBetting`
 
 ## Workflow
 
@@ -112,6 +127,8 @@ System picks direction automatically: if `value > consensus` → buys higher, ot
 | `"predictedValue": 720` | `"value": 720` (mode 2 only) |
 | `"metricId"` in trade body | `"marketId"` — get it from `GET /predictions/markets` |
 | `"targetDate"` in trade body | not a trade field — only used when creating markets |
+| `"amount"` when selling | `"sellShares"` — `amount` is credits (buy), `sellShares` is shares (sell) |
+| selling more than you hold | check `GET /predictions/positions` first |
 
 ## Strategy
 

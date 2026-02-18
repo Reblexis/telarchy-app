@@ -59,6 +59,13 @@ export function betOnValue(
   return { direction, amount, cost };
 }
 
+/** Proceeds from selling `amount` shares of higher (direction=1) or lower (direction=0). */
+export function directionSellProceeds(shares: [number, number], direction: 0 | 1, amount: number, b: number): number {
+  const after: [number, number] = [shares[0], shares[1]];
+  after[direction] -= amount;
+  return Math.round((lmsrCost(shares, b) - lmsrCost(after, b)) * 100) / 100;
+}
+
 /** Map actual value to proportional payout factors [lowerPayout, higherPayout]. */
 export function resolutionPayouts(actualValue: number, rangeMin: number, rangeMax: number): [number, number] {
   const p = Math.max(0, Math.min(1, (actualValue - rangeMin) / (rangeMax - rangeMin)));

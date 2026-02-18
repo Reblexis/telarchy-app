@@ -5,7 +5,7 @@ import { useDarkMode } from '../hooks/useDarkMode';
 import { useImpersonation } from '../hooks/useImpersonation';
 import { api } from '../lib/api';
 import { formatTargetDateDisplay, endOfPeriod } from '../lib/date-utils';
-import type { Market, Metric } from '../types';
+import type { Market, Metric, Position } from '../types';
 
 // --- Minimal LMSR math for live preview (mirrors backend amm.ts) ---
 function lmsrCost(q0: number, q1: number, b: number): number {
@@ -145,11 +145,14 @@ function TradingPanel({ market, agentId, user, onTrade, onError }: {
   const [lastResult, setLastResult] = useState<{ direction: string; shares: number; cost: number; consensus: number } | null>(null);
   const [trades, setTrades] = useState<TradePoint[]>([]);
   const [tradesLoading, setTradesLoading] = useState(true);
+  const [positions, setPositions] = useState<Position[]>([]);
+  const [sellInputs, setSellInputs] = useState<Record<string, string>>({});
 
   useEffect(() => {
     api.getMarketTrades(user, market.id)
       .then(data => { setTrades(data); setTradesLoading(false); })
       .catch(() => setTradesLoading(false));
+    api.getPositions(user, market.id).then(setPositions).catch(() => {});
   }, [user, market.id]);
 
   // Live preview
@@ -160,6 +163,8 @@ function TradingPanel({ market, agentId, user, onTrade, onError }: {
     const lower = previewTrade(market.probability, market.liquidity, 'lower', amount);
     return { higher, lower };
   }, [amount, market.probability, market.liquidity]);
+
+  const refreshPositions = () => api.getPositions(user, market.id).then(setPositions).catch(() => {});
 
   const handleBetDirection = async (direction: 'higher' | 'lower') => {
     if (isNaN(amount) || amount <= 0) return;
@@ -172,6 +177,23 @@ function TradingPanel({ market, agentId, user, onTrade, onError }: {
       setTradeAmount('');
       setTrades(prev => [...prev, { consensus: result.consensus, createdAt: { _seconds: Date.now() / 1000 } }]);
       api.getMarketTrades(user, market.id).then(data => setTrades(data)).catch(() => {});
+      refreshPositions();
+      onTrade();
+    }
+  };
+
+  const handleSell = async (direction: 'higher' | 'lower') => {
+    const sellShares = parseFloat(sellInputs[direction] || '');
+    if (isNaN(sellShares) || sellShares <= 0) return;
+    setTrading(true);
+    const result = await api.trade(user, { marketId: market.id, direction, sellShares, agentId })
+      .catch((e: Error) => { onError(e.message); return null; });
+    setTrading(false);
+    if (result) {
+      setLastResult({ direction, shares: result.shares, cost: -result.proceeds, consensus: result.consensus });
+      setSellInputs(prev => ({ ...prev, [direction]: '' }));
+      setTrades(prev => [...prev, { consensus: result.consensus, createdAt: { _seconds: Date.now() / 1000 } }]);
+      refreshPositions();
       onTrade();
     }
   };
@@ -251,7 +273,7 @@ function TradingPanel({ market, agentId, user, onTrade, onError }: {
         {lastResult && (
           <div style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem', background: 'var(--bg-secondary, #f0f4ff)', borderRadius: '0.375rem', borderLeft: `3px solid ${lastResult.direction === 'higher' ? '#22c55e' : '#ef4444'}` }}>
             <strong>{lastResult.direction === 'higher' ? '▲' : '▼'} {lastResult.shares} shares</strong>
-            {' '}for {lastResult.cost} credits → consensus <strong>{lastResult.consensus}</strong>
+            {' '}{lastResult.cost < 0 ? `sold for ${-lastResult.cost}` : `for ${lastResult.cost}`} credits → consensus <strong>{lastResult.consensus}</strong>
           </div>
         )}
 
@@ -263,6 +285,37 @@ function TradingPanel({ market, agentId, user, onTrade, onError }: {
           <button className="btn-small" onClick={handleLiquidity} style={{ padding: '0.4rem 0.6rem' }}>Inject</button>
         </div>
       </div>
+
+      {/* Sell controls */}
+      {positions.length > 0 && (
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)' }}>
+          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', alignSelf: 'center' }}>Sell position:</span>
+          {positions.map(pos => (
+            <div key={pos.direction} style={{ display: 'flex', gap: '0.25rem', alignItems: 'flex-end' }}>
+              <div>
+                <label style={labelStyle}>{pos.direction === 'higher' ? '▲' : '▼'} {pos.shares} shares</label>
+                <input
+                  type="number"
+                  value={sellInputs[pos.direction] || ''}
+                  onChange={e => setSellInputs(prev => ({ ...prev, [pos.direction]: e.target.value }))}
+                  placeholder="shares"
+                  style={{ ...inputStyle, width: '70px' }}
+                  min="0.01"
+                  max={pos.shares}
+                />
+              </div>
+              <button
+                className="btn-small"
+                disabled={trading || !sellInputs[pos.direction]}
+                onClick={() => handleSell(pos.direction)}
+                style={{ padding: '0.5rem 0.75rem', background: 'var(--text-secondary)', color: '#fff' }}
+              >
+                {trading ? '…' : 'Sell'}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
