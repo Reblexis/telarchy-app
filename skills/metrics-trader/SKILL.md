@@ -79,12 +79,16 @@ System picks the direction automatically: if your value > consensus, buys higher
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | /metrics | List all metrics |
-| GET | /metrics/{id}/logs | Historical value logs |
+| GET | /help | Full API documentation (no auth required) |
 | GET | /status | XP, rank, all metric values |
+| GET | /metrics | List all metrics |
+| GET | /metrics/{id} | Get a single metric by ID |
+| GET | /metrics/{id}/logs | Historical value logs |
+| GET | /agents/{id} | Full agent info (balance, earnedBetting, spentBetting, role) |
 | GET | /agents/{id}/balance | Credit balance |
 | GET | /predictions/markets | Open markets with probability and consensus |
-| GET | /predictions/markets/{id} | Market detail |
+| GET | /predictions/markets/{id} | Market detail with probability, consensus, cost info |
+| GET | /predictions/markets/{id}/trades | Trade history for a market |
 | POST | /predictions/trade | Trade (see Trading Modes) |
 | GET | /predictions/positions | Your positions (filter: ?marketId=X) |
 

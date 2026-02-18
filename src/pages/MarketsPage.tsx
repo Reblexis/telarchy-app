@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { useImpersonation } from '../hooks/useImpersonation';
 import { api } from '../lib/api';
-import { formatTargetDateDisplay } from '../lib/date-utils';
+import { formatTargetDateDisplay, endOfPeriod } from '../lib/date-utils';
 import type { Market, Metric } from '../types';
 
 // --- Minimal LMSR math for live preview (mirrors backend amm.ts) ---
@@ -42,20 +42,18 @@ function previewTrade(prob: number, liquidity: number, direction: 'higher' | 'lo
 // --- SVG line chart ---
 interface TradePoint { consensus: number | null; createdAt: { _seconds: number } | null }
 
-function ConsensusChart({ trades, rangeMin, rangeMax, currentConsensus }: {
-  trades: TradePoint[]; rangeMin: number; rangeMax: number; currentConsensus: number;
+function ConsensusChart({ trades, rangeMin, rangeMax }: {
+  trades: TradePoint[]; rangeMin: number; rangeMax: number;
 }) {
+  const defaultVal = (rangeMin + rangeMax) / 2;
   const pts = useMemo(() => {
     const withConsensus = trades.filter(t => t.consensus != null);
-    if (withConsensus.length === 0) return [];
-    return withConsensus.map((t, i) => ({ x: i, y: t.consensus! }));
-  }, [trades]);
+    const base = [{ x: 0, y: defaultVal }];
+    if (withConsensus.length === 0) return [...base, { x: 1, y: defaultVal }];
+    return [...base, ...withConsensus.map((t, i) => ({ x: i + 1, y: t.consensus! }))];
+  }, [trades, rangeMin, rangeMax]);
 
-  if (pts.length < 2) return (
-    <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-      No history yet — place a trade to start the chart.
-    </div>
-  );
+  if (pts.length < 2) return null;
 
   const W = 400, H = 80, PAD = 8;
   const yMin = rangeMin, yMax = rangeMax;
@@ -86,7 +84,7 @@ function ConsensusChart({ trades, rangeMin, rangeMax, currentConsensus }: {
         <circle cx={xScale(last.x)} cy={yScale(last.y)} r="3" fill="var(--accent-color, #3b82f6)" />
         {/* Current value label */}
         <text x={xScale(last.x)} y={yScale(last.y) - 5} fontSize="8" fill="var(--accent-color, #3b82f6)" textAnchor="middle" fontWeight="bold">
-          {currentConsensus}
+          {last.y}
         </text>
       </svg>
     </div>
@@ -119,6 +117,18 @@ function ProbabilitySlider({ probability, rangeMin, rangeMax, previewProb }: {
       <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', minWidth: '28px' }}>{rangeMax}</span>
     </div>
   );
+}
+
+function formatTimeRemaining(targetDate: string): string {
+  const end = new Date(endOfPeriod(targetDate) + 'T23:59:59');
+  const diffMs = end.getTime() - Date.now();
+  if (diffMs <= 0) return 'expired';
+  const d = Math.floor(diffMs / 86400000);
+  const h = Math.floor((diffMs % 86400000) / 3600000);
+  const m = Math.floor((diffMs % 3600000) / 60000);
+  if (d > 30) { const mo = Math.floor(d / 30); return `${mo}mo ${d % 30}d`; }
+  if (d > 0) return `${d}d ${h}h`;
+  return `${h}h ${m}m`;
 }
 
 const inputStyle = { padding: '0.4rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', width: '80px' } as const;
@@ -160,8 +170,8 @@ function TradingPanel({ market, agentId, user, onTrade, onError }: {
     if (result) {
       setLastResult({ direction, shares: result.shares, cost: result.cost, consensus: result.consensus });
       setTradeAmount('');
-      // Append new trade point for instant chart update
       setTrades(prev => [...prev, { consensus: result.consensus, createdAt: { _seconds: Date.now() / 1000 } }]);
+      api.getMarketTrades(user, market.id).then(data => setTrades(data)).catch(() => {});
       onTrade();
     }
   };
@@ -192,7 +202,6 @@ function TradingPanel({ market, agentId, user, onTrade, onError }: {
             trades={trades}
             rangeMin={market.rangeMin}
             rangeMax={market.rangeMax}
-            currentConsensus={market.consensus ?? 500}
           />
         </div>
       )}
@@ -270,6 +279,8 @@ export function MarketsPage() {
   const [resolveResult, setResolveResult] = useState('');
   const [refreshResult, setRefreshResult] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [, setTick] = useState(0);
+  useEffect(() => { const id = setInterval(() => setTick(t => t + 1), 60000); return () => clearInterval(id); }, []);
   // Track per-market preview for slider ghost
   const [hoverDir, setHoverDir] = useState<Record<string, 'higher' | 'lower' | undefined>>({});
 
@@ -390,7 +401,12 @@ export function MarketsPage() {
                       onClick={() => setExpandedId(expandedId === m.id ? null : m.id)}
                     >
                       <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600 }}>{m.metricName}</td>
-                      <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'monospace' }}>{formatTargetDateDisplay(m.targetDate)}</td>
+                      <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'monospace' }}>
+                        {formatTargetDateDisplay(m.targetDate)}
+                        <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', color: formatTimeRemaining(m.targetDate) === 'expired' ? 'var(--delete-color, #ef4444)' : 'var(--text-secondary)', opacity: 0.8 }}>
+                          {formatTimeRemaining(m.targetDate)}
+                        </span>
+                      </td>
                       <td style={{ padding: '0.75rem 0.5rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                           <ProbabilitySlider

@@ -93,6 +93,31 @@ export function validateFormula(
     }
   }
 
+  // Comma is JS comma operator (discards left side) — usually a typo for +
+  const stripCalls = (s: string): string => {
+    const fns = ['consensus', 'min', 'max', 'pow', 'sqrt', 'abs'];
+    let r = s;
+    for (const fn of fns) {
+      const re = new RegExp(fn + '\\s*\\(', 'g');
+      const m = re.exec(r);
+      if (m) {
+        let d = 1;
+        let i = m.index + m[0].length;
+        while (i < r.length && d > 0) {
+          if (r[i] === '(') d++;
+          else if (r[i] === ')') d--;
+          i++;
+        }
+        r = r.slice(0, m.index) + '0' + r.slice(i);
+        return stripCalls(r);
+      }
+    }
+    return r;
+  };
+  if (stripCalls(formula).includes(',')) {
+    warnings.push({ type: 'syntax_error', message: 'Comma in formula discards left side (use + to add terms)' });
+  }
+
   // Check syntax by attempting evaluation with dummy values
   let testExpr = formula;
   testExpr = testExpr.replace(new RegExp(CONSENSUS_RE.source, 'g'), '0');
