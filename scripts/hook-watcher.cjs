@@ -8,7 +8,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 
 const API_URL = process.env.METRICS_TRACKER_URL || 'https://metrics-tracker-vcihal.web.app/api';
 const INTERVAL_MS = 60_000;
@@ -65,12 +65,14 @@ async function postHeartbeat(apiKey) {
 function wakeAgent(agentId, events) {
   const summary = events.map(e => `- ${e.type}: ${JSON.stringify(e.data)}`).join('\n');
   const message = `Hook events triggered. Review and act on these:\n${summary}\n\nRead HEARTBEAT.md and follow your strategy.`;
-  const cmd = `openclaw agent --agent ${agentId} --session isolated --timeout 120 --message ${JSON.stringify(message)} --no-deliver`;
   console.log(`  Waking ${agentId} with ${events.length} event(s)`);
   try {
-    execSync(cmd, { stdio: 'ignore', timeout: 150_000 });
+    execFileSync('openclaw', [
+      'agent', '--agent', agentId, '--session', 'isolated',
+      '--timeout', '120', '--message', message, '--no-deliver',
+    ], { stdio: 'pipe', timeout: 150_000 });
   } catch (err) {
-    console.error(`  Failed to wake ${agentId}:`, err.message);
+    console.error(`  Failed to wake ${agentId}:`, err.stderr?.toString?.() || err.message);
   }
 }
 

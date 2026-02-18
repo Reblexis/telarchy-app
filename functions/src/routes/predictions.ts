@@ -3,10 +3,11 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
-import { getAllMetrics } from '../services/metrics';
+import { getAllMetrics, getMetricLogs, getUpdates } from '../services/metrics';
 import { resolvePredictions, getMarkets } from '../services/predictions';
 import { refreshRelativeDateMarkets } from '../services/markets';
 import { isValidDateFormat, endOfPeriod } from '../lib/date-utils';
+import { extractMetricReferences } from '../lib/metrics-engine';
 import { consensus, pHigher, directionTradeCost, sharesForBudget, betOnValue, directionSellProceeds, AMM_DEFAULTS } from '../lib/amm';
 import { emitEvent } from '../services/events';
 
@@ -182,6 +183,62 @@ predictionsRouter.get('/markets/:id', requireRole('agent', 'admin'), wrap(async 
     probability: Math.round(prob * 10000) / 10000,
     consensus: consensus(m.shares, m.liquidity, m.rangeMin, m.rangeMax),
     costToMoveUp1pct: directionTradeCost(m.shares, 1, m.liquidity * 0.01, m.liquidity),
+  });
+}));
+
+predictionsRouter.get('/markets/:id/context', requireRole('agent', 'admin'), wrap(async (req, res) => {
+  const doc = await db().collection('markets').doc(req.params.id as string).get();
+  if (!doc.exists) { res.status(404).json({ error: 'Market not found' }); return; }
+  const m = doc.data()!;
+
+  const metrics = await getAllMetrics();
+  const metric = metrics.find(mt => mt.id === m.metricId);
+  const deps = metric ? extractMetricReferences(metric.formula || '0') : [];
+  const depValues = deps.map(name => {
+    const d = metrics.find(mt => mt.name === name);
+    return { name, value: d?.value ?? null, total: d?.total ?? null };
+  });
+
+  const [logs, updates, relatedSnap] = await Promise.all([
+    metric ? getMetricLogs(metric.id) : Promise.resolve([]),
+    getUpdates(50),
+    db().collection('markets')
+      .where('metricId', '==', m.metricId)
+      .where('resolved', '==', false)
+      .get(),
+  ]);
+
+  const metricUpdates = metric
+    ? updates.filter(u => u.metricName === metric.name)
+    : [];
+
+  const relatedMarkets = relatedSnap.docs
+    .filter(d => d.id !== doc.id)
+    .map(d => {
+      const rm = d.data();
+      return {
+        id: d.id, targetDate: rm.targetDate,
+        consensus: consensus(rm.shares, rm.liquidity, rm.rangeMin, rm.rangeMax),
+        probability: Math.round(pHigher(rm.shares, rm.liquidity) * 10000) / 10000,
+      };
+    });
+
+  res.json({
+    market: {
+      id: doc.id, metricId: m.metricId, metricName: m.metricName,
+      targetDate: m.targetDate, rangeMin: m.rangeMin, rangeMax: m.rangeMax,
+      liquidity: m.liquidity,
+      probability: Math.round(pHigher(m.shares, m.liquidity) * 10000) / 10000,
+      consensus: consensus(m.shares, m.liquidity, m.rangeMin, m.rangeMax),
+    },
+    metric: metric ? {
+      name: metric.name, formula: metric.formula,
+      currentValue: metric.value, currentTotal: metric.total,
+      dependencies: depValues,
+    } : null,
+    history: logs.slice(-90),
+    recentUpdates: metricUpdates.slice(0, 30),
+    relatedMarkets,
   });
 }));
 

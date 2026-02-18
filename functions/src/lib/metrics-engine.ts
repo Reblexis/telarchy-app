@@ -67,6 +67,27 @@ export function extractMetricReferences(formula: string): string[] {
   return matches.map(m => m.slice(1, -1).trim());
 }
 
+/** BFS through {MetricName} references to find all transitive formula dependencies. */
+export function getTransitiveDependencyNames(metricName: string, nameToFormula: Record<string, string>): string[] {
+  const deps = new Set<string>();
+  const queue = [metricName];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    const formula = nameToFormula[current];
+    if (!formula) continue;
+
+    for (const depName of extractMetricReferences(formula)) {
+      if (!deps.has(depName)) {
+        deps.add(depName);
+        queue.push(depName);
+      }
+    }
+  }
+
+  return Array.from(deps);
+}
+
 export function getAffectedMetrics(changedMetricIds: string[], metrics: Metric[]): string[] {
   const nameToId: Record<string, string> = {};
   metrics.forEach(m => { nameToId[m.name] = m.id; });

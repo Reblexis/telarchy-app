@@ -2,7 +2,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import type { Metric, MetricLog, UpdateEntry } from '../types';
 import {
   recalculateMetrics, calculateMetricDepths, calculateXP, calculateRank,
-  extractConsensusReferences,
+  extractConsensusReferences, getTransitiveDependencyNames,
 } from '../lib/metrics-engine';
 import { toAbsoluteDate } from '../lib/date-utils';
 import { consensus as ammConsensus, AMM_DEFAULTS } from '../lib/amm';
@@ -52,35 +52,42 @@ export async function getMetricById(id: string): Promise<Metric | null> {
 }
 
 /**
- * Auto-create markets for any consensus() references in a formula
- * where the metric exists and the market doesn't yet exist.
- * Relative dates (e.g., "+10d") are resolved to absolute dates at the current time.
+ * Auto-create markets for any consensus() references in a formula,
+ * plus markets for all transitive {MetricName} dependencies at the same dates.
  */
 export async function ensureMarketsForFormula(formula: string): Promise<void> {
   const refs = extractConsensusReferences(formula);
   if (refs.length === 0) return;
 
-  // Look up which metrics exist by name
   const metricsSnap = await db().collection('metrics').get();
   const nameToMetric = new Map<string, { id: string; name: string }>();
+  const nameToFormula: Record<string, string> = {};
   for (const doc of metricsSnap.docs) {
     const d = doc.data();
     nameToMetric.set(d.name, { id: doc.id, name: d.name });
+    nameToFormula[d.name] = d.formula || '0';
+  }
+
+  // Collect all metric/date pairs including transitive deps
+  const pairs = new Map<string, { metricId: string; metricName: string; targetDate: string }>();
+  for (const { name, date, isRelative } of refs) {
+    const targetDate = isRelative ? toAbsoluteDate(date) : date;
+    const metric = nameToMetric.get(name);
+    if (!metric) continue;
+
+    pairs.set(`${metric.id}:${targetDate}`, { metricId: metric.id, metricName: metric.name, targetDate });
+    for (const depName of getTransitiveDependencyNames(name, nameToFormula)) {
+      const dep = nameToMetric.get(depName);
+      if (dep) pairs.set(`${dep.id}:${targetDate}`, { metricId: dep.id, metricName: dep.name, targetDate });
+    }
   }
 
   const batch = db().batch();
   let writes = 0;
 
-  for (const { name, date, isRelative } of refs) {
-    // Resolve relative dates to absolute dates
-    const targetDate = isRelative ? toAbsoluteDate(date) : date;
-
-    const metric = nameToMetric.get(name);
-    if (!metric) continue; // metric doesn't exist, skip
-
-    // Check if market already exists
+  for (const [, { metricId, metricName, targetDate }] of pairs) {
     const existing = await db().collection('markets')
-      .where('metricId', '==', metric.id)
+      .where('metricId', '==', metricId)
       .where('targetDate', '==', targetDate)
       .limit(1)
       .get();
@@ -88,18 +95,11 @@ export async function ensureMarketsForFormula(formula: string): Promise<void> {
 
     const ref = db().collection('markets').doc();
     batch.set(ref, {
-      id: ref.id,
-      metricId: metric.id,
-      metricName: metric.name,
-      targetDate: targetDate,
-      resolved: false,
-      resolvedAt: null,
-      actualValue: null,
+      id: ref.id, metricId, metricName, targetDate,
+      resolved: false, resolvedAt: null, actualValue: null,
       createdAt: FieldValue.serverTimestamp(),
-      rangeMin: AMM_DEFAULTS.rangeMin,
-      rangeMax: AMM_DEFAULTS.rangeMax,
-      shares: [0, 0],
-      liquidity: AMM_DEFAULTS.liquidity,
+      rangeMin: AMM_DEFAULTS.rangeMin, rangeMax: AMM_DEFAULTS.rangeMax,
+      shares: [0, 0], liquidity: AMM_DEFAULTS.liquidity,
     });
     writes++;
   }
