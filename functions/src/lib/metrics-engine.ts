@@ -35,8 +35,9 @@ export function evaluateFormula(
   expression = expression.replace(/max\(/g, 'Math.max(');
   expression = expression.replace(/pow\(/g, 'Math.pow(');
 
+  const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
   try {
-    const result = Function('return (' + expression + ')')();
+    const result = Function('clamp', 'return (' + expression + ')')(clamp);
     return isNaN(result) ? 0 : result;
   } catch {
     return 0;

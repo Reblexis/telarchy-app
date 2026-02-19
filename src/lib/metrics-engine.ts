@@ -37,8 +37,9 @@ export function evaluateFormula(
   expression = expression.replace(/max\(/g, 'Math.max(');
   expression = expression.replace(/pow\(/g, 'Math.pow(');
 
+  const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
   try {
-    const result = Function('return (' + expression + ')')();
+    const result = Function('clamp', 'return (' + expression + ')')(clamp);
     return isNaN(result) ? 0 : result;
   } catch {
     return 0;
@@ -95,7 +96,7 @@ export function validateFormula(
 
   // Comma is JS comma operator (discards left side) — usually a typo for +
   const stripCalls = (s: string): string => {
-    const fns = ['consensus', 'min', 'max', 'pow', 'sqrt', 'abs'];
+    const fns = ['consensus', 'min', 'max', 'pow', 'sqrt', 'abs', 'clamp'];
     let r = s;
     for (const fn of fns) {
       const re = new RegExp(fn + '\\s*\\(', 'g');
@@ -127,8 +128,9 @@ export function validateFormula(
   testExpr = testExpr.replace(/min\(/g, 'Math.min(');
   testExpr = testExpr.replace(/max\(/g, 'Math.max(');
   testExpr = testExpr.replace(/pow\(/g, 'Math.pow(');
+  const clampFn = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
   try {
-    const result = Function('return (' + testExpr + ')')();
+    const result = Function('clamp', 'return (' + testExpr + ')')(clampFn);
     if (typeof result !== 'number' || isNaN(result)) {
       warnings.push({ type: 'syntax_error', message: 'Formula evaluates to NaN' });
     }
