@@ -70,6 +70,43 @@ export async function resolvePredictions(targetDate?: string): Promise<{ resolve
   return { resolved: resolvedCount, totalPayout };
 }
 
+export async function voidMarket(marketId: string): Promise<{ refunded: number }> {
+  const marketRef = db().collection('markets').doc(marketId);
+  const marketDoc = await marketRef.get();
+  if (!marketDoc.exists) return { refunded: 0 };
+  const m = marketDoc.data()!;
+  if (m.resolved) return { refunded: 0 };
+
+  const posSnap = await db().collection('positions')
+    .where('marketId', '==', marketId)
+    .get();
+
+  const batch = db().batch();
+  let refunded = 0;
+
+  batch.update(marketRef, {
+    resolved: true,
+    resolvedAt: FieldValue.serverTimestamp(),
+    actualValue: null,
+    voided: true,
+  });
+
+  for (const posDoc of posSnap.docs) {
+    const pos = posDoc.data();
+    if (pos.totalCost <= 0) continue;
+    refunded += pos.totalCost;
+    batch.update(db().collection('agents').doc(pos.agentId), {
+      balance: FieldValue.increment(pos.totalCost),
+      earnedBetting: FieldValue.increment(pos.totalCost),
+      spentBetting: FieldValue.increment(-pos.totalCost),
+    });
+  }
+
+  await batch.commit();
+  emitEvent('market:resolved', { marketId, metricName: m.metricName, targetDate: m.targetDate, voided: true }).catch(() => {});
+  return { refunded };
+}
+
 export async function getMarkets(includeResolved = false) {
   let query: FirebaseFirestore.Query = db().collection('markets');
   if (!includeResolved) query = query.where('resolved', '==', false);

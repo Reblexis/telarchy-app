@@ -4,7 +4,7 @@ import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
 import { getAllMetrics, getMetricLogs, getUpdates } from '../services/metrics';
-import { resolvePredictions, getMarkets } from '../services/predictions';
+import { resolvePredictions, getMarkets, voidMarket } from '../services/predictions';
 import { refreshRelativeDateMarkets } from '../services/markets';
 import { isValidDateFormat, endOfPeriod } from '../lib/date-utils';
 import { extractMetricReferences } from '../lib/metrics-engine';
@@ -296,6 +296,11 @@ predictionsRouter.post('/markets/:id/liquidity', requireRole('admin'), wrap(asyn
   const newLiquidity = doc.data()!.liquidity + amount;
   await ref.update({ liquidity: newLiquidity });
   res.json({ liquidity: newLiquidity });
+}));
+
+predictionsRouter.post('/markets/:id/void', requireRole('admin'), wrap(async (req, res) => {
+  const result = await voidMarket(req.params.id as string);
+  res.json(result);
 }));
 
 predictionsRouter.delete('/markets/:id', requireRole('admin'), wrap(async (req, res) => {

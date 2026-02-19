@@ -410,6 +410,13 @@ export function MarketsPage() {
     load();
   };
 
+  const handleVoid = async (id: string) => {
+    if (!user) return;
+    setError('');
+    const result = await api.voidMarket(user, id).catch((e: Error) => { setError(e.message); return null; });
+    if (result) { setResolveResult(`Market voided. Refunded ${result.refunded} credits.`); load(); }
+  };
+
   const handleResolve = async () => {
     if (!user) return;
     setResolveResult('');
@@ -516,9 +523,12 @@ export function MarketsPage() {
                       </td>
                       <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{m.tradeCount}</td>
                       <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>
-                        {m.tradeCount === 0 && (
+                        {m.tradeCount === 0 ? (
                           <button className="btn-small" style={{ color: 'var(--delete-color, #ef4444)' }}
                             onClick={(e) => { e.stopPropagation(); handleDelete(m.id); }}>Delete</button>
+                        ) : (
+                          <button className="btn-small" style={{ color: 'var(--text-secondary)' }}
+                            onClick={(e) => { e.stopPropagation(); handleVoid(m.id); }}>Void</button>
                         )}
                       </td>
                     </tr>
