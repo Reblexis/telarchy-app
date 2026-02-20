@@ -69,8 +69,8 @@ function wakeAgent(agentId, events) {
   console.log(`  Waking ${agentId} with ${events.length} event(s)`);
   try {
     execFileSync(OPENCLAW_BIN, [
-      'agent', '--agent', agentId, '--session', 'isolated',
-      '--timeout', '120', '--message', message, '--no-deliver',
+      'agent', '--agent', agentId, '--local',
+      '--timeout', '120', '--message', message,
     ], { stdio: 'pipe', timeout: 150_000 });
   } catch (err) {
     console.error(`  Failed to wake ${agentId}:`, err.stderr?.toString?.() || err.message);
