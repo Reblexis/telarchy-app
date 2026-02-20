@@ -11,6 +11,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const API_URL = process.env.METRICS_TRACKER_URL || 'https://metrics-tracker-vcihal.web.app/api';
+const OPENCLAW_BIN = process.env.OPENCLAW_BIN || '/home/linuxbrew/.linuxbrew/bin/openclaw';
 const INTERVAL_MS = 60_000;
 const OPENCLAW_DIR = path.join(require('os').homedir(), '.openclaw');
 const STATE_FILE = path.join(OPENCLAW_DIR, '.hook-watcher-state.json');
@@ -67,7 +68,7 @@ function wakeAgent(agentId, events) {
   const message = `Hook events triggered. Review and act on these:\n${summary}\n\nRead HEARTBEAT.md and follow your strategy.`;
   console.log(`  Waking ${agentId} with ${events.length} event(s)`);
   try {
-    execFileSync('openclaw', [
+    execFileSync(OPENCLAW_BIN, [
       'agent', '--agent', agentId, '--session', 'isolated',
       '--timeout', '120', '--message', message, '--no-deliver',
     ], { stdio: 'pipe', timeout: 150_000 });
