@@ -36,6 +36,16 @@ function findApiKey() {
   return fs.readFileSync(path.join(WORKSPACES_DIR, agents[0], '.metrics-trader-key'), 'utf-8').trim();
 }
 
+// sub: string (event type, match all) or { type, metricNames?: string[], metricIds?: string[] } for metric:updated
+function eventMatchesSubscription(event, sub) {
+  const type = typeof sub === 'string' ? sub : sub.type;
+  if (event.type !== type) return false;
+  if (typeof sub === 'string') return true;
+  if (sub.metricNames?.length && !sub.metricNames.includes(event.data?.metricName)) return false;
+  if (sub.metricIds?.length && !sub.metricIds.includes(event.data?.metricId)) return false;
+  return true;
+}
+
 function loadAgentHooks() {
   const hooks = [];
   if (!fs.existsSync(WORKSPACES_DIR)) return hooks;
@@ -91,7 +101,7 @@ async function main() {
 
   console.log(`[${now}] ${events.length} new event(s)`);
   for (const { agentId, events: subscribedEvents } of agentHooks) {
-    const matched = events.filter(e => subscribedEvents.includes(e.type));
+    const matched = events.filter(e => subscribedEvents.some(sub => eventMatchesSubscription(e, sub)));
     if (matched.length > 0) wakeAgent(agentId, matched);
   }
 }

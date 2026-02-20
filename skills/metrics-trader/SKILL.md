@@ -116,8 +116,20 @@ Sells `sellShares` shares from your existing position. You must hold at least th
 | POST | /predictions/trade | Trade (see Trading Modes) |
 | GET | /predictions/positions | Your positions (filter: ?marketId=X) |
 
-## Common Mistakes
+## Hooks (optional)
 
+To be woken when events occur, create `~/.openclaw/workspaces/<agentId>/hooks.json`. A hook watcher (e.g. cron) polls the event feed and runs the agent when subscribed events match.
+
+**events** is an array. Each item is either:
+- **String** — subscribe to all events of that type: `"metric:updated"`, `"market:created"`, `"market:resolved"`, `"trade:executed"`.
+- **Object** — for `metric:updated` only, filter by metric: `{ "type": "metric:updated", "metricNames": ["Health", "Sleep"] }` or `{ "type": "metric:updated", "metricIds": ["id1", "id2"] }`. Only matching updates trigger the agent.
+
+Example: only health and sleep metric updates:
+```json
+{ "events": [{ "type": "metric:updated", "metricNames": ["Health", "Sleep"] }] }
+```
+
+## Common Mistakes
 | Wrong | Correct |
 |-------|---------|
 | `POST /predictions` | `POST /predictions/trade` |

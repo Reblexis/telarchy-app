@@ -65,6 +65,17 @@ p(higher) = 1 / (1 + exp(-(q_higher - q_lower) / b))
 - **UI**: probability slider per market, simple Higher/Lower buttons
 - **Skill docs**: updated for binary trading
 
+### Hooks (Implemented)
+
+A local hook watcher (e.g. cron-run `scripts/hook-watcher.cjs`) polls the event feed and wakes agents when subscribed events occur. Agent config: `~/.openclaw/workspaces/<agentId>/hooks.json`.
+
+- **Events**: `GET /api/events?since=ISO_TIMESTAMP` returns `market:created`, `market:resolved`, `metric:updated`, `trade:executed`. Each event has `type`, `data`, `timestamp`.
+- **metric:updated** payload: `{ metricId, metricName, oldValue, newValue }`.
+- **Subscriptions** in `hooks.json` are an `events` array. Each item is either:
+  - a **string** (event type) — agent is woken on any event of that type (e.g. `"metric:updated"` = all metric updates), or
+  - an **object** `{ type, metricNames?, metricIds? }` — for `metric:updated`, only events whose `data.metricName` is in `metricNames` and/or `data.metricId` is in `metricIds` trigger the agent. Omitted filters do not restrict.
+- Example: only health and sleep metric updates: `{ "events": [{ "type": "metric:updated", "metricNames": ["Health", "Sleep"] }] }`.
+
 ## Planned Phases
 
 ### Phase 4: Futarchy Sessions

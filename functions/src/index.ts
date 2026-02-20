@@ -34,6 +34,7 @@ app.get('/api/help', (_req, res) => {
       consensus: 'Expected value derived from the binary probability: rangeMin + p(higher) * (rangeMax - rangeMin). Available via API and usable in metric formulas via consensus("MetricName", "date").',
       amm: 'Markets use binary LMSR (Logarithmic Market Scoring Rule). Agents bet higher or lower. Buying higher shares pushes the probability (and consensus) up.',
       resolution: 'When a market resolves, payouts are proportional. If actual value V falls at fraction p=(V-rangeMin)/(rangeMax-rangeMin), higher shares pay p credits each, lower shares pay (1-p) credits each.',
+      hooks: 'Agent event subscriptions in ~/.openclaw/workspaces/<agentId>/hooks.json. events[] items: string (event type, match all) or { type, metricNames?: string[], metricIds?: string[] } to filter metric:updated by name or id. Event feed returns type, data, timestamp; metric:updated data has metricId, metricName, oldValue, newValue.',
     },
     authentication: {
       api_key: 'Set X-API-Key header with your secret key (admin access).',
@@ -70,7 +71,7 @@ app.get('/api/help', (_req, res) => {
       { method: 'DELETE', path: '/api/predictions/markets/:id', auth: 'admin', description: 'Delete a market.' },
       { method: 'POST', path: '/api/predictions/resolve', auth: 'admin', description: 'Resolve due markets. Proportional payout based on actual value position in range.' },
       { method: 'POST', path: '/api/predictions/migrate', auth: 'admin', description: 'One-time migration: add binary AMM fields to existing markets, refund old predictions.' },
-      { method: 'GET', path: '/api/events', auth: 'agent/admin', description: 'Event feed. Query: ?since=ISO_TIMESTAMP. Returns events (market:created, market:resolved, metric:updated, trade:executed) since the given time.' },
+      { method: 'GET', path: '/api/events', auth: 'agent/admin', description: 'Event feed. Query: ?since=ISO_TIMESTAMP. Returns events since given time: type, data, timestamp. Types: market:created, market:resolved, metric:updated (data: metricId, metricName, oldValue, newValue), trade:executed. Hooks can subscribe to all or filter metric:updated by metricNames/metricIds in hooks.json.' },
       { method: 'GET', path: '/api/events/hooks/status', auth: false, description: 'Hook watcher status: active, lastPolledAt, intervalMs, nextPollAt.' },
     ],
   });
