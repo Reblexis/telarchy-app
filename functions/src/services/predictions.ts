@@ -17,7 +17,7 @@ export async function resolvePredictions(targetDate?: string): Promise<{ resolve
   const marketsToResolve: FirebaseFirestore.QueryDocumentSnapshot[] = [];
   for (const doc of marketSnap.docs) {
     const m = doc.data();
-    if (endOfPeriod(m.targetDate) <= today) marketsToResolve.push(doc);
+    if (endOfPeriod(m.targetDate) < today) marketsToResolve.push(doc);
   }
 
   if (marketsToResolve.length === 0) return { resolved: 0, totalPayout: 0 };
