@@ -417,6 +417,13 @@ export function MarketsPage() {
     if (result) { setResolveResult(`Market voided. Refunded ${result.refunded} credits.`); load(); }
   };
 
+  const handleResolveOne = async (id: string) => {
+    if (!user) return;
+    setError('');
+    const result = await api.resolveMarket(user, id).catch((e: Error) => { setError(e.message); return null; });
+    if (result?.resolved) { setResolveResult(`Market resolved. Total payout: ${result.totalPayout} credits.`); load(); }
+  };
+
   const handleResolve = async () => {
     if (!user) return;
     setResolveResult('');
@@ -522,7 +529,9 @@ export function MarketsPage() {
                         {m.rangeMin}–{m.rangeMax}
                       </td>
                       <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{m.tradeCount}</td>
-                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>
+                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <button className="btn-small" style={{ color: 'var(--accent-color, #3b82f6)', marginRight: '0.25rem' }}
+                          onClick={(e) => { e.stopPropagation(); handleResolveOne(m.id); }}>Resolve</button>
                         {m.tradeCount === 0 ? (
                           <button className="btn-small" style={{ color: 'var(--delete-color, #ef4444)' }}
                             onClick={(e) => { e.stopPropagation(); handleDelete(m.id); }}>Delete</button>

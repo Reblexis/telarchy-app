@@ -59,6 +59,8 @@ export const api = {
     request(`/api/predictions/markets/${id}`, user, { method: 'DELETE' }),
   voidMarket: (user: User, id: string) =>
     request(`/api/predictions/markets/${id}/void`, user, { method: 'POST' }),
+  resolveMarket: (user: User, id: string) =>
+    request(`/api/predictions/markets/${id}/resolve`, user, { method: 'POST' }),
   refreshMarkets: (user: User) =>
     request('/api/predictions/markets/refresh', user, { method: 'POST' }),
   resolvePredictions: (user: User, targetDate?: string) =>

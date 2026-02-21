@@ -7,6 +7,55 @@ import { emitEvent } from './events';
 
 function db() { return getFirestore(); }
 
+async function resolveMarketDoc(
+  marketDoc: FirebaseFirestore.DocumentSnapshot,
+  metricMap: Map<string, Metric>,
+): Promise<{ positions: number; totalPayout: number }> {
+  const m = marketDoc.data()!;
+  const metric = metricMap.get(m.metricId);
+  const actualValue = metric ? metric.total : 0;
+  const [lowerPay, higherPay] = resolutionPayouts(actualValue, m.rangeMin, m.rangeMax);
+
+  const batch = db().batch();
+  batch.update(marketDoc.ref, { resolved: true, resolvedAt: FieldValue.serverTimestamp(), actualValue });
+
+  const posSnap = await db().collection('positions')
+    .where('marketId', '==', marketDoc.id)
+    .get();
+
+  let totalPayout = 0;
+  let positions = 0;
+  for (const posDoc of posSnap.docs) {
+    const pos = posDoc.data();
+    if (pos.shares <= 0) continue;
+    const payFactor = pos.direction === 'higher' ? higherPay : lowerPay;
+    const payout = Math.round(pos.shares * payFactor * 100) / 100;
+    if (payout <= 0) continue;
+    totalPayout += payout;
+    positions++;
+    batch.update(db().collection('agents').doc(pos.agentId), {
+      balance: FieldValue.increment(payout),
+      earnedBetting: FieldValue.increment(payout),
+    });
+  }
+
+  await batch.commit();
+  emitEvent('market:resolved', { marketId: marketDoc.id, metricName: m.metricName, targetDate: m.targetDate, actualValue }).catch(() => {});
+  return { positions, totalPayout };
+}
+
+export async function resolveMarket(marketId: string): Promise<{ resolved: boolean; totalPayout: number }> {
+  const marketRef = db().collection('markets').doc(marketId);
+  const marketDoc = await marketRef.get();
+  if (!marketDoc.exists) return { resolved: false, totalPayout: 0 };
+  if (marketDoc.data()!.resolved) return { resolved: false, totalPayout: 0 };
+
+  const metrics = await getAllMetrics();
+  const metricMap = new Map<string, Metric>(metrics.map(m => [m.id, m]));
+  const { totalPayout } = await resolveMarketDoc(marketDoc, metricMap);
+  return { resolved: true, totalPayout };
+}
+
 export async function resolvePredictions(targetDate?: string): Promise<{ resolved: number; totalPayout: number }> {
   const today = targetDate || new Date().toISOString().slice(0, 10);
 
@@ -29,42 +78,9 @@ export async function resolvePredictions(targetDate?: string): Promise<{ resolve
   let resolvedCount = 0;
 
   for (const marketDoc of marketsToResolve) {
-    const m = marketDoc.data();
-    const metric = metricMap.get(m.metricId);
-    const actualValue = metric ? metric.total : 0;
-    const [lowerPay, higherPay] = resolutionPayouts(actualValue, m.rangeMin, m.rangeMax);
-
-    const batch = db().batch();
-
-    batch.update(marketDoc.ref, {
-      resolved: true,
-      resolvedAt: FieldValue.serverTimestamp(),
-      actualValue,
-    });
-
-    // Pay out all positions proportionally
-    const posSnap = await db().collection('positions')
-      .where('marketId', '==', marketDoc.id)
-      .get();
-
-    for (const posDoc of posSnap.docs) {
-      const pos = posDoc.data();
-      if (pos.shares <= 0) continue;
-      const payFactor = pos.direction === 'higher' ? higherPay : lowerPay;
-      const payout = Math.round(pos.shares * payFactor * 100) / 100;
-      if (payout <= 0) continue;
-
-      totalPayout += payout;
-      resolvedCount++;
-
-      batch.update(db().collection('agents').doc(pos.agentId), {
-        balance: FieldValue.increment(payout),
-        earnedBetting: FieldValue.increment(payout),
-      });
-    }
-
-    await batch.commit();
-    emitEvent('market:resolved', { marketId: marketDoc.id, metricName: m.metricName, targetDate: m.targetDate, actualValue }).catch(() => {});
+    const result = await resolveMarketDoc(marketDoc, metricMap);
+    totalPayout += result.totalPayout;
+    resolvedCount++;
   }
 
   return { resolved: resolvedCount, totalPayout };
