@@ -71,7 +71,7 @@ app.get('/api/help', (_req, res) => {
       { method: 'DELETE', path: '/api/predictions/markets/:id', auth: 'admin', description: 'Delete a market.' },
       { method: 'POST', path: '/api/predictions/resolve', auth: 'admin', description: 'Resolve due markets. Proportional payout based on actual value position in range.' },
       { method: 'POST', path: '/api/predictions/migrate', auth: 'admin', description: 'One-time migration: add binary AMM fields to existing markets, refund old predictions.' },
-      { method: 'GET', path: '/api/events', auth: 'agent/admin', description: 'Event feed. Query: ?since=ISO_TIMESTAMP. Returns events since given time: type, data, timestamp. Types: market:created, market:resolved, metric:updated (data: metricId, metricName, oldValue, newValue), trade:executed. Hooks can subscribe to all or filter metric:updated by metricNames/metricIds in hooks.json.' },
+      { method: 'GET', path: '/api/events', auth: 'agent/admin', description: 'Event feed. Query: ?since=ISO_TIMESTAMP. Returns events since given time: type, data, timestamp. Types: market:created (data: marketId, metricName, targetDate), market:resolved (data: marketId, metricName, targetDate, actualValue), metric:updated (data: metricId, metricName, oldValue, newValue), trade:executed (data: marketId, metricName, direction, amount). hooks.json subscriptions can be a string (all events of that type) or { type, metricNames?, metricIds? } to filter by metric — works for any event type carrying metricName/metricId.' },
       { method: 'GET', path: '/api/events/hooks/status', auth: false, description: 'Hook watcher status: active, lastPolledAt, intervalMs, nextPollAt.' },
     ],
   });

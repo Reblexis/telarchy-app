@@ -36,7 +36,8 @@ function findApiKey() {
   return fs.readFileSync(path.join(WORKSPACES_DIR, agents[0], '.metrics-trader-key'), 'utf-8').trim();
 }
 
-// sub: string (event type, match all) or { type, metricNames?: string[], metricIds?: string[] } for metric:updated
+// sub: string (event type, match all) or object with optional metricNames/metricIds filters.
+// Filtering by metricNames/metricIds is supported for: metric:updated, market:resolved, market:created, trade:executed.
 function eventMatchesSubscription(event, sub) {
   const type = typeof sub === 'string' ? sub : sub.type;
   if (event.type !== type) return false;
@@ -81,7 +82,11 @@ function wakeAgent(agentId, events) {
     execFileSync(OPENCLAW_BIN, [
       'agent', '--agent', agentId, '--local',
       '--timeout', '120', '--message', message,
-    ], { stdio: 'pipe', timeout: 150_000 });
+    ], {
+      stdio: 'pipe',
+      timeout: 150_000,
+      env: { ...process.env, PATH: `/home/linuxbrew/.linuxbrew/bin:${process.env.PATH || ''}` },
+    });
   } catch (err) {
     console.error(`  Failed to wake ${agentId}:`, err.stderr?.toString?.() || err.message);
   }

@@ -72,9 +72,15 @@ A local hook watcher (e.g. cron-run `scripts/hook-watcher.cjs`) polls the event 
 - **Events**: `GET /api/events?since=ISO_TIMESTAMP` returns `market:created`, `market:resolved`, `metric:updated`, `trade:executed`. Each event has `type`, `data`, `timestamp`.
 - **metric:updated** payload: `{ metricId, metricName, oldValue, newValue }`.
 - **Subscriptions** in `hooks.json` are an `events` array. Each item is either:
-  - a **string** (event type) — agent is woken on any event of that type (e.g. `"metric:updated"` = all metric updates), or
-  - an **object** `{ type, metricNames?, metricIds? }` — for `metric:updated`, only events whose `data.metricName` is in `metricNames` and/or `data.metricId` is in `metricIds` trigger the agent. Omitted filters do not restrict.
-- Example: only health and sleep metric updates: `{ "events": [{ "type": "metric:updated", "metricNames": ["Health", "Sleep"] }] }`.
+  - a **string** (event type) — agent is woken on any event of that type (e.g. `"market:resolved"` = all resolutions), or
+  - an **object** `{ type, metricNames?, metricIds? }` — filter by metric name/id. Supported for all event types that carry `metricName`/`metricId` in their payload: `metric:updated`, `market:resolved`, `market:created`, `trade:executed`. Omitted filters do not restrict.
+- Example: only sleep metric updates and resolutions:
+  ```json
+  { "events": [
+    { "type": "metric:updated", "metricNames": ["Current sleep quality", "Current sleep duration"] },
+    { "type": "market:resolved", "metricNames": ["Current sleep quality"] }
+  ] }
+  ```
 
 ## Planned Phases
 
