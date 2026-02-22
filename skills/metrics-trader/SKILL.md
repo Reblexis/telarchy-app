@@ -56,12 +56,11 @@ Each market has:
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | `marketId` | string | yes | from `GET /predictions/markets` — **not** metricId or targetDate |
-| `direction` | `"higher"\|"lower"` | modes 1 & 4 | mutually exclusive with `value`/`targetValue` |
-| `value` | number | mode 2 | mutually exclusive with `direction` and `targetValue` |
-| `targetValue` | number | mode 3 | the consensus value you want to reach |
-| `amount` | number | modes 1 & 2 | credits to spend — **not** `stake` or `outcome` |
-| `maxBudget` | number | mode 3 | max credits to spend pushing towards `targetValue` |
-| `sellShares` | number | mode 4 | shares to sell — mutually exclusive with `amount` |
+| `direction` | `"higher"\|"lower"` | modes 1 & 3 | mutually exclusive with `targetValue`/`value` |
+| `targetValue` | number | mode 2 | the consensus value you want to reach (alias: `value`) |
+| `maxBudget` | number | mode 2 | max credits to spend pushing towards target (alias: `amount`) |
+| `amount` | number | mode 1 | credits to spend — **not** `stake` or `outcome` |
+| `sellShares` | number | mode 3 | shares to sell — mutually exclusive with `amount` |
 
 ### Mode 1: Bet higher / lower (recommended)
 ```json
@@ -71,23 +70,17 @@ Spends `amount` credits buying shares in the chosen direction.
 
 **Response**: `{ tradeId, marketId, direction, shares, cost, probability, consensus }`
 
-### Mode 2: Bet on a specific value
-```json
-{ "marketId": "abc123", "value": 720, "amount": 50 }
-```
-System picks direction automatically: if `value > consensus` → buys higher, otherwise lower.
-
-**Response**: `{ tradeId, marketId, direction, shares, cost, probability, consensus }`
-
-### Mode 3: Bet towards a value (recommended for conviction bets)
+### Mode 2: Bet towards a value (recommended for conviction bets)
 ```json
 { "marketId": "abc123", "targetValue": 720, "maxBudget": 200 }
 ```
-Buys shares to move the consensus towards `targetValue`, spending at most `maxBudget` credits. If reaching the target costs less than `maxBudget`, only the necessary amount is spent. If it costs more, the full `maxBudget` is spent pushing consensus as far as possible.
+Buys shares to move the consensus towards `targetValue`, spending at most `maxBudget` credits. Direction is picked automatically. If reaching the target costs less than `maxBudget`, only the necessary amount is spent. If it costs more, the full `maxBudget` is spent pushing consensus as far as possible.
+
+Aliases: `value` → `targetValue`, `amount` → `maxBudget`.
 
 **Response**: `{ tradeId, marketId, direction, shares, cost, probability, consensus }`
 
-### Mode 4: Sell shares (close / reduce a position)
+### Mode 3: Sell shares (close / reduce a position)
 ```json
 { "marketId": "abc123", "direction": "higher", "sellShares": 10.5 }
 ```
@@ -149,7 +142,7 @@ Example: sleep metric updates + resolutions only:
 | `POST /predictions/bet` | `POST /predictions/trade` |
 | `"stake": 60` | `"amount": 60` |
 | `"outcome": "higher"` | `"direction": "higher"` |
-| `"predictedValue": 720` | `"value": 720` (mode 2) or `"targetValue": 720` (mode 3) |
+| `"predictedValue": 720` | `"targetValue": 720` (or `"value": 720`) |
 | `"metricId"` in trade body | `"marketId"` — get it from `GET /predictions/markets` |
 | `"targetDate"` in trade body | not a trade field — only used when creating markets |
 | `"amount"` when selling | `"sellShares"` — `amount` is credits (buy), `sellShares` is shares (sell) |
@@ -162,7 +155,6 @@ Example: sleep metric updates + resolutions only:
 - **Analyze dependencies**: If a metric's formula is `{A} * 0.5 + {B} * 0.5`, look at A and B's current values and trends to predict the composite.
 - **Spot patterns**: Look for day-of-week effects, trends, and mean-reversion in the `history` array.
 - **Check related markets**: The `relatedMarkets` field shows other time horizons for the same metric. If the 1-week-out market has consensus 70 but 1-day-out is 50, there may be an opportunity.
-- **Bet towards value**: if you have high conviction on a specific number, use mode 3 (`targetValue` + `maxBudget`) — it spends only what's needed to push consensus to your target, up to your budget.
-- **Bet on value**: if you just want to spend a fixed amount in the direction of a value, use mode 2 (`value` + `amount`).
+- **Bet towards value**: if you have conviction on a specific number, use mode 2 (`targetValue` + `maxBudget`) — it spends only what's needed to push consensus to your target, up to your budget.
 - **Start small**: Keep individual bets under 10% of your balance. The trade response includes `cost`.
 - **High-depth metrics are easier**: Leaf metrics (high depth) like sleep quality have fewer formula dependencies and are more directly observable.

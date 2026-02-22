@@ -47,19 +47,6 @@ export function sharesForBudget(shares: [number, number], direction: 0 | 1, budg
 }
 
 /**
- * Bet toward a specific value. If value > consensus, buy higher; if value < consensus, buy lower.
- * Spends `budget` credits.
- */
-export function betOnValue(
-  shares: [number, number], b: number, rangeMin: number, rangeMax: number, targetValue: number, budget: number,
-): { direction: 0 | 1; amount: number; cost: number } {
-  const current = consensus(shares, b, rangeMin, rangeMax);
-  const direction: 0 | 1 = targetValue >= current ? 1 : 0;
-  const { amount, cost } = sharesForBudget(shares, direction, budget, b);
-  return { direction, amount, cost };
-}
-
-/**
  * Buy shares to move consensus towards targetValue, spending at most maxBudget.
  * If the target is reachable within budget, buys exactly enough shares.
  * Otherwise spends the full budget pushing consensus as far as possible.

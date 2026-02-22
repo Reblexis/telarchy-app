@@ -376,6 +376,14 @@ export function MarketsPage() {
   // Track per-market preview for slider ghost
   const [hoverDir, setHoverDir] = useState<Record<string, 'higher' | 'lower' | undefined>>({});
 
+  const [filterText, setFilterText] = useState('');
+
+  const filteredMarkets = useMemo(() => {
+    if (!filterText) return markets;
+    const q = filterText.toLowerCase();
+    return markets.filter(m => m.metricName.toLowerCase().includes(q));
+  }, [markets, filterText]);
+
   const [metricId, setMetricId] = useState('');
   const [targetDate, setTargetDate] = useState('');
   const [creating, setCreating] = useState(false);
@@ -489,6 +497,15 @@ export function MarketsPage() {
           <div className="section"><p style={{ color: 'var(--text-secondary)' }}>No active markets.</p></div>
         ) : (
           <div className="section">
+            <div style={{ marginBottom: '0.75rem' }}>
+              <input
+                type="text"
+                value={filterText}
+                onChange={e => setFilterText(e.target.value)}
+                placeholder="Search metrics..."
+                style={{ padding: '0.4rem 0.6rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', fontSize: '0.85rem', width: '200px' }}
+              />
+            </div>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
@@ -501,7 +518,7 @@ export function MarketsPage() {
                 </tr>
               </thead>
               <tbody>
-                {markets.map(m => (
+                {filteredMarkets.map(m => (
                   <React.Fragment key={m.id}>
                     <tr
                       style={{ borderBottom: expandedId === m.id ? 'none' : '1px solid var(--border-color)', cursor: 'pointer' }}

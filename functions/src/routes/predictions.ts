@@ -8,7 +8,7 @@ import { resolvePredictions, resolveMarket, getMarkets, voidMarket } from '../se
 import { refreshRelativeDateMarkets } from '../services/markets';
 import { isValidDateFormat, endOfPeriod } from '../lib/date-utils';
 import { extractMetricReferences } from '../lib/metrics-engine';
-import { consensus, pHigher, directionTradeCost, sharesForBudget, betOnValue, betTowardsValue, directionSellProceeds, AMM_DEFAULTS } from '../lib/amm';
+import { consensus, pHigher, directionTradeCost, sharesForBudget, betTowardsValue, directionSellProceeds, AMM_DEFAULTS } from '../lib/amm';
 import { emitEvent } from '../services/events';
 
 function db() { return getFirestore(); }
@@ -43,18 +43,15 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
   let cost = 0;
   let isSell = false;
 
-  if (typeof req.body.targetValue === 'number' && typeof req.body.maxBudget === 'number') {
+  const targetValue = req.body.targetValue ?? req.body.value;
+  const maxBudget = req.body.maxBudget ?? req.body.amount;
+  if (typeof targetValue === 'number' && typeof maxBudget === 'number') {
     // Mode: bet towards value — buy shares to move consensus to targetValue, capped by maxBudget
-    if (req.body.maxBudget <= 0) { res.status(400).json({ error: 'maxBudget must be positive' }); return; }
-    if (req.body.targetValue < market.rangeMin || req.body.targetValue > market.rangeMax) {
-      res.status(400).json({ error: `targetValue must be between ${market.rangeMin} and ${market.rangeMax}` }); return;
+    if (maxBudget <= 0) { res.status(400).json({ error: 'maxBudget/amount must be positive' }); return; }
+    if (targetValue < market.rangeMin || targetValue > market.rangeMax) {
+      res.status(400).json({ error: `targetValue/value must be between ${market.rangeMin} and ${market.rangeMax}` }); return;
     }
-    const result = betTowardsValue(shares, b, market.rangeMin, market.rangeMax, req.body.targetValue, req.body.maxBudget);
-    direction = result.direction; amount = result.amount; cost = result.cost;
-  } else if (typeof req.body.value === 'number' && typeof req.body.amount === 'number') {
-    // Mode: bet on value — system picks direction
-    if (req.body.amount <= 0) { res.status(400).json({ error: 'amount must be positive' }); return; }
-    const result = betOnValue(shares, b, market.rangeMin, market.rangeMax, req.body.value, req.body.amount);
+    const result = betTowardsValue(shares, b, market.rangeMin, market.rangeMax, targetValue, maxBudget);
     direction = result.direction; amount = result.amount; cost = result.cost;
   } else if (typeof req.body.direction === 'string' && typeof req.body.sellShares === 'number') {
     // Mode: sell shares
@@ -75,7 +72,7 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
     const result = sharesForBudget(shares, direction, req.body.amount, b);
     amount = result.amount; cost = result.cost;
   } else {
-    res.status(400).json({ error: 'Provide {targetValue, maxBudget}, {value, amount}, {direction, amount}, or {direction, sellShares}' }); return;
+    res.status(400).json({ error: 'Provide {targetValue, maxBudget}, {direction, amount}, or {direction, sellShares}' }); return;
   }
 
   if (amount <= 0) { res.status(400).json({ error: 'Trade too small' }); return; }

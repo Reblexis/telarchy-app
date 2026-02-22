@@ -1,0 +1,1 @@
+If you're less than 99 percent sure about anything, ask.
