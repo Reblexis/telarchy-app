@@ -124,7 +124,7 @@ agentsRouter.put('/:id/role', requireRole('admin'), wrap(async (req, res) => {
 }));
 
 agentsRouter.post('/:id/credit', requireRole('admin'), wrap(async (req, res) => {
-  const { amount, reason } = req.body;
+  const { amount, reason, fromAgentId } = req.body;
   if (typeof amount !== 'number' || amount <= 0) {
     res.status(400).json({ error: 'amount must be a positive number' }); return;
   }
@@ -133,11 +133,25 @@ agentsRouter.post('/:id/credit', requireRole('admin'), wrap(async (req, res) => 
   const doc = await ref.get();
   if (!doc.exists) { res.status(404).json({ error: 'Agent not found' }); return; }
 
-  await ref.update({
-    balance: FieldValue.increment(amount),
-    gifted: FieldValue.increment(amount),
-  });
-  res.json({ ok: true, credited: amount, reason: reason || '' });
+  if (fromAgentId && fromAgentId !== id) {
+    const fromRef = db().collection('agents').doc(fromAgentId);
+    const fromDoc = await fromRef.get();
+    if (!fromDoc.exists) { res.status(404).json({ error: 'Source agent not found' }); return; }
+    const fromBalance = fromDoc.data()!.balance as number;
+    if (fromBalance < amount) {
+      res.status(400).json({ error: 'Insufficient balance on source agent', balance: fromBalance }); return;
+    }
+    const batch = db().batch();
+    batch.update(fromRef, { balance: FieldValue.increment(-amount) });
+    batch.update(ref, { balance: FieldValue.increment(amount), gifted: FieldValue.increment(amount) });
+    await batch.commit();
+  } else {
+    await ref.update({
+      balance: FieldValue.increment(amount),
+      gifted: FieldValue.increment(amount),
+    });
+  }
+  res.json({ ok: true, credited: amount, reason: reason || '', from: fromAgentId || null });
 }));
 
 agentsRouter.post('/:id/spend', requireRole('admin'), wrap(async (req, res) => {

@@ -42,8 +42,8 @@ export const api = {
     request(`/api/agents/${id}/approve`, user, { method: 'PUT' }),
   setAgentRole: (user: User, id: string, role: string) =>
     request(`/api/agents/${id}/role`, user, { method: 'PUT', body: JSON.stringify({ role }) }),
-  creditAgent: (user: User, id: string, amount: number, reason: string) =>
-    request(`/api/agents/${id}/credit`, user, { method: 'POST', body: JSON.stringify({ amount, reason }) }),
+  creditAgent: (user: User, id: string, amount: number, reason: string, fromAgentId?: string) =>
+    request(`/api/agents/${id}/credit`, user, { method: 'POST', body: JSON.stringify({ amount, reason, fromAgentId }) }),
   spendAgent: (user: User, id: string, amount: number, type: 'betting' | 'tokens', reason: string) =>
     request(`/api/agents/${id}/spend`, user, { method: 'POST', body: JSON.stringify({ amount, type, reason }) }),
   deleteAgent: (user: User, id: string) =>

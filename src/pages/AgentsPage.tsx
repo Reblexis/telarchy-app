@@ -42,7 +42,7 @@ export function AgentsPage() {
     if (!input) return;
     const amount = Number(input);
     if (!amount || amount <= 0) return;
-    await api.creditAgent(user, id, amount, 'Manual credit');
+    await api.creditAgent(user, id, amount, 'Manual credit', impersonatedId);
     loadAgents();
   };
 
