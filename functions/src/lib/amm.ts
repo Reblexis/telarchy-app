@@ -59,6 +59,33 @@ export function betOnValue(
   return { direction, amount, cost };
 }
 
+/**
+ * Buy shares to move consensus towards targetValue, spending at most maxBudget.
+ * If the target is reachable within budget, buys exactly enough shares.
+ * Otherwise spends the full budget pushing consensus as far as possible.
+ */
+export function betTowardsValue(
+  shares: [number, number], b: number, rangeMin: number, rangeMax: number, targetValue: number, maxBudget: number,
+): { direction: 0 | 1; amount: number; cost: number } {
+  const current = consensus(shares, b, rangeMin, rangeMax);
+  if (Math.abs(targetValue - current) < 0.01) return { direction: 1, amount: 0, cost: 0 };
+
+  const direction: 0 | 1 = targetValue >= current ? 1 : 0;
+  const clampedP = Math.max(0.001, Math.min(0.999, (targetValue - rangeMin) / (rangeMax - rangeMin)));
+  const targetDiff = -b * Math.log(1 / clampedP - 1);
+  const currentDiff = shares[1] - shares[0];
+  const neededAmount = Math.max(0, direction === 1 ? targetDiff - currentDiff : currentDiff - targetDiff);
+  const neededCost = directionTradeCost(shares, direction, neededAmount, b);
+
+  if (neededCost <= maxBudget) {
+    const amount = Math.round(neededAmount * 100) / 100;
+    const cost = directionTradeCost(shares, direction, amount, b);
+    return { direction, amount, cost };
+  }
+  const { amount, cost } = sharesForBudget(shares, direction, maxBudget, b);
+  return { direction, amount, cost };
+}
+
 /** Proceeds from selling `amount` shares of higher (direction=1) or lower (direction=0). */
 export function directionSellProceeds(shares: [number, number], direction: 0 | 1, amount: number, b: number): number {
   const after: [number, number] = [shares[0], shares[1]];
