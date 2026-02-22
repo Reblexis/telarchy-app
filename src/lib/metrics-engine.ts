@@ -249,19 +249,8 @@ export function detectCircularDependency(metricId: string | null, formula: strin
   });
 
   if (metricId) {
-    const metricDeps = extractMetricReferences(formula);
-    const consensusDeps = extractConsensusReferences(formula);
-    
-    // Check {MetricName} references
-    for (const depName of metricDeps) {
-      const depId = nameToId[depName];
-      if (depId === metricId) return true;
-    }
-    
-    // Check consensus("MetricName", date) references
-    for (const { name } of consensusDeps) {
-      const depId = nameToId[name];
-      if (depId === metricId) return true;
+    for (const depName of extractMetricReferences(formula)) {
+      if (nameToId[depName] === metricId) return true;
     }
   }
 
@@ -277,23 +266,9 @@ export function detectCircularDependency(metricId: string | null, formula: strin
 
     const current = idToMetric[currentId];
     if (current && current.formula) {
-      const metricDeps = extractMetricReferences(current.formula);
-      const consensusDeps = extractConsensusReferences(current.formula);
-      
-      // Check {MetricName} references
-      for (const depName of metricDeps) {
+      for (const depName of extractMetricReferences(current.formula)) {
         const depId = nameToId[depName];
-        if (depId && hasCycle(depId)) {
-          return true;
-        }
-      }
-      
-      // Check consensus("MetricName", date) references
-      for (const { name } of consensusDeps) {
-        const depId = nameToId[name];
-        if (depId && hasCycle(depId)) {
-          return true;
-        }
+        if (depId && hasCycle(depId)) return true;
       }
     }
 
