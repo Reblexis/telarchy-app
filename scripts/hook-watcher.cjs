@@ -87,28 +87,50 @@ function wakeAgent(agentId, events) {
       timeout: 150_000,
       env: { ...process.env, PATH: `/home/linuxbrew/.linuxbrew/bin:${process.env.PATH || ''}` },
     });
+    return true;
   } catch (err) {
     console.error(`  Failed to wake ${agentId}:`, err.stderr?.toString?.() || err.message);
+    return false;
   }
 }
+
+const RETRY_MAX_AGE_MS = 10 * 60_000;
 
 async function main() {
   const state = loadState();
   const apiKey = findApiKey();
   const agentHooks = loadAgentHooks();
   const now = new Date().toISOString();
+  const nowMs = Date.now();
 
   const events = await fetchEvents(apiKey, state.lastPolledAt);
   await postHeartbeat(apiKey);
-  saveState({ lastPolledAt: now });
 
-  if (events.length === 0 || agentHooks.length === 0) return;
+  const pending = state.pending || {};
+  const hasPending = Object.keys(pending).length > 0;
 
-  console.log(`[${now}] ${events.length} new event(s)`);
+  if (events.length === 0 && agentHooks.length === 0 && !hasPending) {
+    saveState({ lastPolledAt: now });
+    return;
+  }
+
+  if (events.length > 0) console.log(`[${now}] ${events.length} new event(s)`);
+
+  const nextPending = {};
   for (const { agentId, events: subscribedEvents } of agentHooks) {
     const matched = events.filter(e => subscribedEvents.some(sub => eventMatchesSubscription(e, sub)));
-    if (matched.length > 0) wakeAgent(agentId, matched);
+    const retries = (pending[agentId] || []).filter(e => nowMs - new Date(e.timestamp).getTime() < RETRY_MAX_AGE_MS);
+    if (retries.length > 0) console.log(`  Retrying ${retries.length} pending event(s) for ${agentId}`);
+    const all = [...retries, ...matched];
+    if (all.length === 0) continue;
+    if (wakeAgent(agentId, all)) continue;
+    nextPending[agentId] = all;
   }
+
+  saveState({
+    lastPolledAt: now,
+    ...(Object.keys(nextPending).length > 0 && { pending: nextPending }),
+  });
 }
 
 main().catch(err => { console.error('Fatal:', err); process.exit(1); });
