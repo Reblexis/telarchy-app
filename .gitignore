@@ -27,3 +27,4 @@ Thumbs.db
 # Exclude personal-webpage (contains real Firebase credentials)
 personal-webpage/
 
+.firebase/
