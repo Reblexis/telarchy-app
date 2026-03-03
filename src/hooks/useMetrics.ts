@@ -128,12 +128,12 @@ export function useMetrics(user: User | null) {
     const prev = metrics;
     const updated = metrics.map(m =>
       m.id === id
-        ? { ...m, name, description, value, formula, timePreference: timePreference ?? m.timePreference }
+        ? { ...m, name, description, value, formula, timePreference: timePreference === null ? undefined : (timePreference ?? m.timePreference) }
         : { ...m }
     );
     setMetrics(enrichMetrics(updated, consensusMapRef.current));
     setFormulaWarnings(buildWarnings(updated));
-    api.updateMetric(user, id, { name, description, value, formula, oldValue, updateNote, timePreference: timePreference ?? undefined })
+    api.updateMetric(user, id, { name, description, value, formula, oldValue, updateNote, timePreference: timePreference === undefined ? undefined : timePreference })
       .then(() => { delete logsCache.current[id]; cacheDelete('metrics'); loadData(); })
       .catch(() => setMetrics(prev));
   };

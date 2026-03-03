@@ -75,31 +75,30 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
             <label htmlFor="editFormula">Formula</label>
             <textarea id="editFormula" placeholder="e.g., {Deep Work} + {Exercise} * 2" value={formula} onChange={e => setFormula(e.target.value)} />
           </div>
-          <div className="form-group">
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: isLeaf ? 'not-allowed' : 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={tpEnabled && !isLeaf}
-                disabled={isLeaf}
-                onChange={e => setTpEnabled(e.target.checked)}
-              />
-              Time Preference
-              {isLeaf && (
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>
-                  (requires a formula)
-                </span>
-              )}
-            </label>
+          <div className="form-group tp-row">
+            <div className="tp-toggle">
+              <span className="tp-label">
+                Time Preference
+                {isLeaf && <span className="tp-note">(requires a formula)</span>}
+              </span>
+              <label className={`tp-switch${isLeaf ? ' tp-switch--disabled' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={tpEnabled && !isLeaf}
+                  disabled={isLeaf}
+                  onChange={e => setTpEnabled(e.target.checked)}
+                />
+                <span className="tp-slider" />
+              </label>
+            </div>
             {tpEnabled && !isLeaf && (
-              <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <label htmlFor="editHalfLife" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                  Half-life (years)
-                </label>
+              <div className="tp-halflife">
+                <label htmlFor="editHalfLife">Half-life (years)</label>
                 <input
                   type="number" id="editHalfLife" step="0.01" min="0.01"
                   value={tpHalfLife}
                   onChange={e => setTpHalfLife(e.target.value)}
-                  style={{ width: '80px' }}
+                  className="tp-halflife-input"
                 />
               </div>
             )}
