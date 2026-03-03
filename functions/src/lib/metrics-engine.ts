@@ -1,25 +1,14 @@
 import type { Metric } from '../types';
-import { toAbsoluteDate, isValidDateFormat, isRelativeDate } from './date-utils';
-
-const CONSENSUS_RE = /consensus\("([^"]+)",\s*"([^"]+)"\)/g;
+import { sampleTimePoints, WEIGHT_T0 } from './time-preference';
 
 export function evaluateFormula(
   formula: string,
   metricsMap: Record<string, Metric>,
-  consensusMap: Record<string, number> = {},
 ): number {
   if (!formula || formula.trim() === '0' || formula.trim() === '') return 0;
 
   let expression = formula;
 
-  // Replace consensus("MetricName", "YYYY-MM-DD" or "+10d") with looked-up values
-  expression = expression.replace(CONSENSUS_RE, (_match, name: string, date: string) => {
-    const absoluteDate = toAbsoluteDate(date);
-    const key = `${name}:${absoluteDate}`;
-    return String(consensusMap[key] ?? 0);
-  });
-
-  // Replace {MetricName} references
   const metricRefs = expression.match(/\{([^}]+)\}/g);
   if (metricRefs) {
     for (const ref of metricRefs) {
@@ -44,21 +33,57 @@ export function evaluateFormula(
   }
 }
 
-export function extractConsensusReferences(formula: string): Array<{ name: string; date: string; isRelative: boolean }> {
-  if (!formula) return [];
-  const refs: Array<{ name: string; date: string; isRelative: boolean }> = [];
-  let match;
-  const re = new RegExp(CONSENSUS_RE.source, 'g');
-  while ((match = re.exec(formula)) !== null) {
-    const date = match[2];
-    const isRel = isRelativeDate(date);
-    const isAbs = isValidDateFormat(date);
-    
-    if (isAbs || isRel) {
-      refs.push({ name: match[1], date, isRelative: isRel });
+/**
+ * Evaluate a formula at a future time point.
+ * Leaf nodes (formula = "0") use their market consensus at targetDate.
+ * Intermediate nodes are evaluated recursively using their static formulas.
+ */
+export function evaluateFormulaAtTime(
+  formula: string,
+  nameToFormula: Record<string, string>,
+  consensusMap: Record<string, number>,
+  targetDate: string,
+  memo: Record<string, number> = {},
+): number {
+  if (!formula || formula.trim() === '0' || formula.trim() === '') return 0;
+
+  let expression = formula;
+
+  const metricRefs = expression.match(/\{([^}]+)\}/g);
+  if (metricRefs) {
+    for (const ref of metricRefs) {
+      const name = ref.slice(1, -1).trim();
+      const memoKey = `${name}:${targetDate}`;
+      let value: number;
+      if (memoKey in memo) {
+        value = memo[memoKey];
+      } else {
+        const childFormula = nameToFormula[name];
+        if (!childFormula || childFormula.trim() === '0' || childFormula.trim() === '') {
+          value = consensusMap[`${name}:${targetDate}`] ?? 0;
+        } else {
+          memo[memoKey] = 0; // break potential cycles
+          value = evaluateFormulaAtTime(childFormula, nameToFormula, consensusMap, targetDate, memo);
+        }
+        memo[memoKey] = value;
+      }
+      expression = expression.replace(ref, String(value));
     }
   }
-  return refs;
+
+  expression = expression.replace(/sqrt\(/g, 'Math.sqrt(');
+  expression = expression.replace(/abs\(/g, 'Math.abs(');
+  expression = expression.replace(/min\(/g, 'Math.min(');
+  expression = expression.replace(/max\(/g, 'Math.max(');
+  expression = expression.replace(/pow\(/g, 'Math.pow(');
+
+  const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
+  try {
+    const result = Function('clamp', 'return (' + expression + ')')(clamp);
+    return isNaN(result) ? 0 : result;
+  } catch {
+    return 0;
+  }
 }
 
 export function extractMetricReferences(formula: string): string[] {
@@ -97,20 +122,10 @@ export function getAffectedMetrics(changedMetricIds: string[], metrics: Metric[]
   metrics.forEach(m => { dependents[m.id] = []; });
 
   metrics.forEach(metric => {
-    const metricRefs = extractMetricReferences(metric.formula || '0');
-    const consensusRefs = extractConsensusReferences(metric.formula || '0');
-    
-    // Handle {MetricName} references
-    metricRefs.forEach(depName => {
+    for (const depName of extractMetricReferences(metric.formula || '0')) {
       const depId = nameToId[depName];
       if (depId && dependents[depId]) dependents[depId].push(metric.id);
-    });
-    
-    // Handle consensus("MetricName", date) references
-    consensusRefs.forEach(({ name }) => {
-      const depId = nameToId[name];
-      if (depId && dependents[depId]) dependents[depId].push(metric.id);
-    });
+    }
   });
 
   const affected = new Set(changedMetricIds);
@@ -174,22 +189,12 @@ export function topologicalSort(metrics: Metric[]): Metric[] {
   function visit(metric: Metric) {
     if (temp.has(metric.id) || visited.has(metric.id)) return;
     temp.add(metric.id);
-    
-    const metricRefs = extractMetricReferences(metric.formula || '0');
-    const consensusRefs = extractConsensusReferences(metric.formula || '0');
-    
-    // Handle {MetricName} references
-    for (const depName of metricRefs) {
+
+    for (const depName of extractMetricReferences(metric.formula || '0')) {
       const dep = nameToMetric[depName];
       if (dep) visit(dep);
     }
-    
-    // Handle consensus("MetricName", date) references
-    for (const { name } of consensusRefs) {
-      const dep = nameToMetric[name];
-      if (dep) visit(dep);
-    }
-    
+
     temp.delete(metric.id);
     visited.add(metric.id);
     sorted.push(metric);
@@ -203,9 +208,35 @@ export function recalculateMetrics(metrics: Metric[], consensusMap: Record<strin
   const sorted = topologicalSort(metrics);
   const nameToMetric: Record<string, Metric> = {};
   sorted.forEach(m => { nameToMetric[m.name] = m; });
+
+  const nameToFormula: Record<string, string> = {};
+  sorted.forEach(m => { nameToFormula[m.name] = m.formula || '0'; });
+
   sorted.forEach(metric => {
-    metric.total = metric.value + evaluateFormula(metric.formula || '0', nameToMetric, consensusMap);
+    const isLeaf = !metric.formula || metric.formula.trim() === '0';
+    if (isLeaf) {
+      metric.total = metric.value;
+    } else if (metric.timePreference?.enabled) {
+      const { halfLife } = metric.timePreference;
+      const formula = metric.formula;
+
+      const formulaAt0 = evaluateFormula(formula, nameToMetric);
+      let weightedSum = WEIGHT_T0 * formulaAt0;
+      let totalWeight = WEIGHT_T0;
+
+      const memo: Record<string, number> = {};
+      for (const { date, weight } of sampleTimePoints(halfLife)) {
+        const formulaAtT = evaluateFormulaAtTime(formula, nameToFormula, consensusMap, date, memo);
+        weightedSum += weight * formulaAtT;
+        totalWeight += weight;
+      }
+
+      metric.total = totalWeight > 0 ? weightedSum / totalWeight : formulaAt0;
+    } else {
+      metric.total = evaluateFormula(metric.formula, nameToMetric);
+    }
   });
+
   return metrics;
 }
 
@@ -215,35 +246,25 @@ export function calculateMetricDepths(metrics: Metric[]): Record<string, number>
   const nameToMetric: Record<string, Metric> = {};
   metrics.forEach(m => { nameToMetric[m.name] = m; });
 
-  // Build children map: for each metric, which metrics does it reference
   const children: Record<string, string[]> = {};
   metrics.forEach(metric => {
-    const metricRefs = extractMetricReferences(metric.formula || '0');
-    const consensusRefs = extractConsensusReferences(metric.formula || '0');
-    
     const deps: string[] = [];
-    for (const depName of metricRefs) {
+    for (const depName of extractMetricReferences(metric.formula || '0')) {
       const dep = nameToMetric[depName];
-      if (dep) deps.push(dep.id);
-    }
-    for (const { name } of consensusRefs) {
-      const dep = nameToMetric[name];
       if (dep) deps.push(dep.id);
     }
     children[metric.id] = deps;
   });
 
-  // BFS from Utility to assign levels
   const depths: Record<string, number> = {};
   const utility = metrics.find(m => m.name === 'Utility');
-  
+
   if (utility) {
     const queue: Array<{ id: string; depth: number }> = [{ id: utility.id, depth: 0 }];
     depths[utility.id] = 0;
-    
+
     while (queue.length > 0) {
       const { id, depth } = queue.shift()!;
-      
       for (const childId of (children[id] || [])) {
         const newDepth = depth + 1;
         if (depths[childId] === undefined || newDepth < depths[childId]) {
@@ -254,11 +275,8 @@ export function calculateMetricDepths(metrics: Metric[]): Record<string, number>
     }
   }
 
-  // Anything not reachable from Utility is unassigned
   metrics.forEach(metric => {
-    if (depths[metric.id] === undefined) {
-      depths[metric.id] = UNASSIGNED_DEPTH;
-    }
+    if (depths[metric.id] === undefined) depths[metric.id] = UNASSIGNED_DEPTH;
   });
 
   return depths;

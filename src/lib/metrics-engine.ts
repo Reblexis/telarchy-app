@@ -1,33 +1,99 @@
 import type { Metric } from '../types';
-import { toAbsoluteDate, isValidDateFormat, isRelativeDate } from './date-utils';
 
-const CONSENSUS_RE = /consensus\("([^"]+)",\s*"([^"]+)"\)/g;
+// --- Time preference sampling (mirrored from backend time-preference.ts) ---
+
+const WEIGHT_T0 = 1.0;
+const SAMPLE_MULTIPLIERS = [0.25, 0.5, 1.0, 2.0];
+
+function fractionalYearsToDate(years: number, base: Date): string {
+  if (years < 2) {
+    const monthsToAdd = Math.max(1, Math.round(years * 12));
+    const d = new Date(base);
+    d.setMonth(d.getMonth() + monthsToAdd);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+  return String(base.getFullYear() + Math.round(years));
+}
+
+function sampleTPTimePoints(halfLife: number): Array<{ date: string; weight: number }> {
+  const seen = new Set<string>();
+  const result: Array<{ date: string; weight: number }> = [];
+  const base = new Date();
+  for (const m of SAMPLE_MULTIPLIERS) {
+    const weight = Math.pow(2, -m);
+    const date = fractionalYearsToDate(m * halfLife, base);
+    if (!seen.has(date)) {
+      seen.add(date);
+      result.push({ date, weight });
+    }
+  }
+  return result;
+}
+
+// --- Formula evaluation ---
 
 export function evaluateFormula(
   formula: string,
   metricsMap: Record<string, Metric>,
-  consensusMap: Record<string, number> = {},
 ): number {
-  if (!formula || formula.trim() === '0' || formula.trim() === '') {
-    return 0;
-  }
+  if (!formula || formula.trim() === '0' || formula.trim() === '') return 0;
 
   let expression = formula;
 
-  // Replace consensus("MetricName", "YYYY-MM-DD" or "+10d") with looked-up values
-  expression = expression.replace(CONSENSUS_RE, (_match, name: string, date: string) => {
-    const absoluteDate = toAbsoluteDate(date);
-    const key = `${name}:${absoluteDate}`;
-    return String(consensusMap[key] ?? 0);
-  });
-
-  // Replace {MetricName} references
   const metricRefs = expression.match(/\{([^}]+)\}/g);
   if (metricRefs) {
     for (const ref of metricRefs) {
       const metricName = ref.slice(1, -1).trim();
       const metric = metricsMap[metricName];
       expression = expression.replace(ref, metric ? String(metric.total) : '0');
+    }
+  }
+
+  expression = expression.replace(/sqrt\(/g, 'Math.sqrt(');
+  expression = expression.replace(/abs\(/g, 'Math.abs(');
+  expression = expression.replace(/min\(/g, 'Math.min(');
+  expression = expression.replace(/max\(/g, 'Math.max(');
+  expression = expression.replace(/pow\(/g, 'Math.pow(');
+
+  const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
+  try {
+    const result = Function('clamp', 'return (' + expression + ')')(clamp);
+    return isNaN(result) ? 0 : result;
+  } catch {
+    return 0;
+  }
+}
+
+export function evaluateFormulaAtTime(
+  formula: string,
+  nameToFormula: Record<string, string>,
+  consensusMap: Record<string, number>,
+  targetDate: string,
+  memo: Record<string, number> = {},
+): number {
+  if (!formula || formula.trim() === '0' || formula.trim() === '') return 0;
+
+  let expression = formula;
+
+  const metricRefs = expression.match(/\{([^}]+)\}/g);
+  if (metricRefs) {
+    for (const ref of metricRefs) {
+      const name = ref.slice(1, -1).trim();
+      const memoKey = `${name}:${targetDate}`;
+      let value: number;
+      if (memoKey in memo) {
+        value = memo[memoKey];
+      } else {
+        const childFormula = nameToFormula[name];
+        if (!childFormula || childFormula.trim() === '0' || childFormula.trim() === '') {
+          value = consensusMap[`${name}:${targetDate}`] ?? 0;
+        } else {
+          memo[memoKey] = 0;
+          value = evaluateFormulaAtTime(childFormula, nameToFormula, consensusMap, targetDate, memo);
+        }
+        memo[memoKey] = value;
+      }
+      expression = expression.replace(ref, String(value));
     }
   }
 
@@ -53,50 +119,24 @@ export function extractMetricReferences(formula: string): string[] {
   return matches.map(m => m.slice(1, -1).trim());
 }
 
-export function extractConsensusReferences(formula: string): Array<{ name: string; date: string; isRelative: boolean }> {
-  if (!formula) return [];
-  const refs: Array<{ name: string; date: string; isRelative: boolean }> = [];
-  let match;
-  const re = new RegExp(CONSENSUS_RE.source, 'g');
-  while ((match = re.exec(formula)) !== null) {
-    const date = match[2];
-    const isRel = isRelativeDate(date);
-    const isAbs = isValidDateFormat(date);
-    
-    if (isAbs || isRel) {
-      refs.push({ name: match[1], date, isRelative: isRel });
-    }
-  }
-  return refs;
-}
-
 export interface FormulaWarning {
   type: 'syntax_error';
   message: string;
 }
 
-/**
- * Validate a formula and return warnings. Does not throw.
- * Markets for consensus() references are auto-created by the backend.
- */
-export function validateFormula(
-  formula: string,
-  metricNames: Set<string>,
-): FormulaWarning[] {
+export function validateFormula(formula: string, metricNames: Set<string>): FormulaWarning[] {
   if (!formula || formula.trim() === '0' || formula.trim() === '') return [];
 
   const warnings: FormulaWarning[] = [];
 
-  // Check metric references
   for (const name of extractMetricReferences(formula)) {
     if (!metricNames.has(name)) {
       warnings.push({ type: 'syntax_error', message: `Unknown metric: {${name}}` });
     }
   }
 
-  // Comma is JS comma operator (discards left side) — usually a typo for +
   const stripCalls = (s: string): string => {
-    const fns = ['consensus', 'min', 'max', 'pow', 'sqrt', 'abs', 'clamp'];
+    const fns = ['min', 'max', 'pow', 'sqrt', 'abs', 'clamp'];
     let r = s;
     for (const fn of fns) {
       const re = new RegExp(fn + '\\s*\\(', 'g');
@@ -119,9 +159,7 @@ export function validateFormula(
     warnings.push({ type: 'syntax_error', message: 'Comma in formula discards left side (use + to add terms)' });
   }
 
-  // Check syntax by attempting evaluation with dummy values
   let testExpr = formula;
-  testExpr = testExpr.replace(new RegExp(CONSENSUS_RE.source, 'g'), '0');
   testExpr = testExpr.replace(/\{([^}]+)\}/g, '0');
   testExpr = testExpr.replace(/sqrt\(/g, 'Math.sqrt(');
   testExpr = testExpr.replace(/abs\(/g, 'Math.abs(');
@@ -143,65 +181,39 @@ export function validateFormula(
 
 export function getAffectedMetrics(changedMetricIds: string[], metrics: Metric[]): string[] {
   const nameToId: Record<string, string> = {};
-  metrics.forEach(m => {
-    nameToId[m.name] = m.id;
-  });
+  metrics.forEach(m => { nameToId[m.name] = m.id; });
 
   const dependents: Record<string, string[]> = {};
-  metrics.forEach(m => {
-    dependents[m.id] = [];
-  });
+  metrics.forEach(m => { dependents[m.id] = []; });
 
   metrics.forEach(metric => {
-    const metricRefs = extractMetricReferences(metric.formula || '0');
-    const consensusRefs = extractConsensusReferences(metric.formula || '0');
-    
-    // Handle {MetricName} references
-    metricRefs.forEach(depName => {
+    for (const depName of extractMetricReferences(metric.formula || '0')) {
       const depId = nameToId[depName];
-      if (depId && dependents[depId]) {
-        dependents[depId].push(metric.id);
-      }
-    });
-    
-    // Handle consensus("MetricName", date) references
-    consensusRefs.forEach(({ name }) => {
-      const depId = nameToId[name];
-      if (depId && dependents[depId]) {
-        dependents[depId].push(metric.id);
-      }
-    });
+      if (depId && dependents[depId]) dependents[depId].push(metric.id);
+    }
   });
 
   const affected = new Set(changedMetricIds);
   const queue = [...changedMetricIds];
-
   while (queue.length > 0) {
     const currentId = queue.shift()!;
-    const deps = dependents[currentId] || [];
-    for (const depId of deps) {
+    for (const depId of (dependents[currentId] || [])) {
       if (!affected.has(depId)) {
         affected.add(depId);
         queue.push(depId);
       }
     }
   }
-
   return Array.from(affected);
 }
 
 export function getDependencyChain(metricId: string, metrics: Metric[]): string[] {
   const nameToId: Record<string, string> = {};
   const idToMetric: Record<string, Metric> = {};
-  metrics.forEach(m => {
-    nameToId[m.name] = m.id;
-    idToMetric[m.id] = m;
-  });
+  metrics.forEach(m => { nameToId[m.name] = m.id; idToMetric[m.id] = m; });
 
   const chain = new Set([metricId]);
-
-  const children = getAffectedMetrics([metricId], metrics);
-  children.forEach(id => chain.add(id));
+  getAffectedMetrics([metricId], metrics).forEach(id => chain.add(id));
 
   const visited = new Set<string>();
   function addParents(currentId: string) {
@@ -209,44 +221,21 @@ export function getDependencyChain(metricId: string, metrics: Metric[]): string[
     visited.add(currentId);
     const metric = idToMetric[currentId];
     if (metric && metric.formula) {
-      const metricRefs = extractMetricReferences(metric.formula);
-      const consensusRefs = extractConsensusReferences(metric.formula);
-      
-      // Handle {MetricName} references
-      metricRefs.forEach(depName => {
+      for (const depName of extractMetricReferences(metric.formula)) {
         const depId = nameToId[depName];
-        if (depId) {
-          chain.add(depId);
-          addParents(depId);
-        }
-      });
-      
-      // Handle consensus("MetricName", date) references
-      consensusRefs.forEach(({ name }) => {
-        const depId = nameToId[name];
-        if (depId) {
-          chain.add(depId);
-          addParents(depId);
-        }
-      });
+        if (depId) { chain.add(depId); addParents(depId); }
+      }
     }
   }
-
   addParents(metricId);
   return Array.from(chain);
 }
 
 export function detectCircularDependency(metricId: string | null, formula: string, allMetrics: Metric[]): boolean {
-  const tempMetrics = allMetrics.map(m =>
-    m.id === metricId ? { ...m, formula } : m
-  );
-
+  const tempMetrics = allMetrics.map(m => m.id === metricId ? { ...m, formula } : m);
   const nameToId: Record<string, string> = {};
   const idToMetric: Record<string, Metric> = {};
-  tempMetrics.forEach(m => {
-    nameToId[m.name] = m.id;
-    idToMetric[m.id] = m;
-  });
+  tempMetrics.forEach(m => { nameToId[m.name] = m.id; idToMetric[m.id] = m; });
 
   if (metricId) {
     for (const depName of extractMetricReferences(formula)) {
@@ -260,10 +249,8 @@ export function detectCircularDependency(metricId: string | null, formula: strin
   function hasCycle(currentId: string): boolean {
     if (recStack.has(currentId)) return true;
     if (visited.has(currentId)) return false;
-
     visited.add(currentId);
     recStack.add(currentId);
-
     const current = idToMetric[currentId];
     if (current && current.formula) {
       for (const depName of extractMetricReferences(current.formula)) {
@@ -271,81 +258,70 @@ export function detectCircularDependency(metricId: string | null, formula: strin
         if (depId && hasCycle(depId)) return true;
       }
     }
-
     recStack.delete(currentId);
     return false;
   }
 
-  if (metricId) {
-    return hasCycle(metricId);
-  }
-
-  for (const m of tempMetrics) {
-    if (hasCycle(m.id)) return true;
-  }
+  if (metricId) return hasCycle(metricId);
+  for (const m of tempMetrics) { if (hasCycle(m.id)) return true; }
   return false;
 }
 
 export function topologicalSort(metrics: Metric[]): Metric[] {
   const nameToMetric: Record<string, Metric> = {};
-  metrics.forEach(m => {
-    nameToMetric[m.name] = m;
-  });
+  metrics.forEach(m => { nameToMetric[m.name] = m; });
 
   const sorted: Metric[] = [];
   const visited = new Set<string>();
   const temp = new Set<string>();
 
   function visit(metric: Metric) {
-    if (temp.has(metric.id)) return;
-    if (visited.has(metric.id)) return;
-
+    if (temp.has(metric.id) || visited.has(metric.id)) return;
     temp.add(metric.id);
-
-    const metricRefs = extractMetricReferences(metric.formula || '0');
-    const consensusRefs = extractConsensusReferences(metric.formula || '0');
-    
-    // Handle {MetricName} references
-    metricRefs.forEach(depName => {
-      const depMetric = nameToMetric[depName];
-      if (depMetric) {
-        visit(depMetric);
-      }
-    });
-    
-    // Handle consensus("MetricName", date) references
-    consensusRefs.forEach(({ name }) => {
-      const depMetric = nameToMetric[name];
-      if (depMetric) {
-        visit(depMetric);
-      }
-    });
-
+    for (const depName of extractMetricReferences(metric.formula || '0')) {
+      const dep = nameToMetric[depName];
+      if (dep) visit(dep);
+    }
     temp.delete(metric.id);
     visited.add(metric.id);
     sorted.push(metric);
   }
 
-  metrics.forEach(metric => {
-    if (!visited.has(metric.id)) {
-      visit(metric);
-    }
-  });
-
+  metrics.forEach(m => { if (!visited.has(m.id)) visit(m); });
   return sorted;
 }
 
 export function recalculateMetrics(metrics: Metric[], consensusMap: Record<string, number> = {}): Metric[] {
   const sorted = topologicalSort(metrics);
   const nameToMetric: Record<string, Metric> = {};
+  sorted.forEach(m => { nameToMetric[m.name] = m; });
 
-  sorted.forEach(m => {
-    nameToMetric[m.name] = m;
-  });
+  const nameToFormula: Record<string, string> = {};
+  sorted.forEach(m => { nameToFormula[m.name] = m.formula || '0'; });
 
   sorted.forEach(metric => {
-    const formulaResult = evaluateFormula(metric.formula || '0', nameToMetric, consensusMap);
-    metric.total = metric.value + formulaResult;
+    const isLeaf = !metric.formula || metric.formula.trim() === '0';
+    if (isLeaf) {
+      metric.total = metric.value;
+    } else if (metric.timePreference?.enabled) {
+      const { halfLife } = metric.timePreference;
+      const formula = metric.formula;
+
+      const formulaAt0 = evaluateFormula(formula, nameToMetric);
+      let weightedSum = WEIGHT_T0 * formulaAt0;
+      let totalWeight = WEIGHT_T0;
+
+      const memo: Record<string, number> = {};
+      for (const { date, weight } of sampleTPTimePoints(halfLife)) {
+        const formulaAtT = evaluateFormulaAtTime(formula, nameToFormula, consensusMap, date, memo);
+        weightedSum += weight * formulaAtT;
+        totalWeight += weight;
+      }
+
+      metric.total = totalWeight > 0 ? weightedSum / totalWeight : formulaAt0;
+    } else {
+      metric.total = evaluateFormula(metric.formula, nameToMetric);
+    }
   });
 
   return metrics;
@@ -355,39 +331,27 @@ export const UNASSIGNED_DEPTH = 9999;
 
 export function calculateMetricDepths(metrics: Metric[]): Record<string, number> {
   const nameToMetric: Record<string, Metric> = {};
-  metrics.forEach(m => {
-    nameToMetric[m.name] = m;
-  });
+  metrics.forEach(m => { nameToMetric[m.name] = m; });
 
-  // Build children map: for each metric, which metrics does it reference
   const children: Record<string, string[]> = {};
   metrics.forEach(metric => {
-    const metricRefs = extractMetricReferences(metric.formula || '0');
-    const consensusRefs = extractConsensusReferences(metric.formula || '0');
-    
     const deps: string[] = [];
-    metricRefs.forEach(depName => {
+    for (const depName of extractMetricReferences(metric.formula || '0')) {
       const dep = nameToMetric[depName];
       if (dep) deps.push(dep.id);
-    });
-    consensusRefs.forEach(({ name }) => {
-      const dep = nameToMetric[name];
-      if (dep) deps.push(dep.id);
-    });
+    }
     children[metric.id] = deps;
   });
 
-  // BFS from Utility to assign levels
   const depths: Record<string, number> = {};
   const utility = metrics.find(m => m.name === 'Utility');
-  
+
   if (utility) {
     const queue: Array<{ id: string; depth: number }> = [{ id: utility.id, depth: 0 }];
     depths[utility.id] = 0;
-    
+
     while (queue.length > 0) {
       const { id, depth } = queue.shift()!;
-      
       for (const childId of (children[id] || [])) {
         const newDepth = depth + 1;
         if (depths[childId] === undefined || newDepth < depths[childId]) {
@@ -398,11 +362,8 @@ export function calculateMetricDepths(metrics: Metric[]): Record<string, number>
     }
   }
 
-  // Anything not reachable from Utility is unassigned
   metrics.forEach(metric => {
-    if (depths[metric.id] === undefined) {
-      depths[metric.id] = UNASSIGNED_DEPTH;
-    }
+    if (depths[metric.id] === undefined) depths[metric.id] = UNASSIGNED_DEPTH;
   });
 
   return depths;
@@ -426,9 +387,7 @@ export function calculateRank(xp: number): string {
 export function calculateDaysPassed(lastDate: string, currentDate: Date): number {
   const last = new Date(lastDate);
   const current = new Date(currentDate);
-
   last.setHours(0, 0, 0, 0);
   current.setHours(0, 0, 0, 0);
-
   return Math.floor((current.getTime() - last.getTime()) / (1000 * 60 * 60 * 24));
 }

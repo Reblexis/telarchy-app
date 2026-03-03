@@ -12,8 +12,7 @@ interface MetricCardProps {
 }
 
 export function MetricCard({ metric, warnings, isFocused, onFocus, onGraph, onEdit, onDelete }: MetricCardProps) {
-  const hasFormula = metric.formula && metric.formula !== '0';
-  const formulaResult = metric.total - metric.value;
+  const isLeaf = !metric.formula || metric.formula === '0';
 
   return (
     <div className="metric-card">
@@ -30,11 +29,19 @@ export function MetricCard({ metric, warnings, isFocused, onFocus, onGraph, onEd
           </div>
         )}
         <div className="metric-stats">
-          Base: {metric.value.toFixed(2)} | Total: {metric.total.toFixed(2)}
+          {isLeaf ? `Value: ${metric.value.toFixed(2)}` : `Total: ${metric.total.toFixed(2)}`}
+          {metric.timePreference?.enabled && (
+            <span
+              title={`Time preference: exponential decay, half-life ${metric.timePreference.halfLife}y`}
+              style={{ marginLeft: '0.5rem', color: 'var(--accent-color, #3b82f6)', fontSize: '0.75rem' }}
+            >
+              ⏳ {metric.timePreference.halfLife}y
+            </span>
+          )}
         </div>
-        {hasFormula && (
+        {!isLeaf && (
           <details style={{ marginTop: '0.5rem' }}>
-            <summary>Formula (+{formulaResult.toFixed(2)})</summary>
+            <summary>Formula</summary>
             <div>{metric.formula}</div>
           </details>
         )}

@@ -8,15 +8,17 @@ export function AddMetricForm({ onAdd }: AddMetricFormProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [value, setValue] = useState('');
-  const [formula, setFormula] = useState('0');
+  const [formula, setFormula] = useState('');
+
+  const isLeaf = !formula || formula.trim() === '0';
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    await onAdd(name, description, Number(value), formula);
+    await onAdd(name, description, isLeaf ? Number(value) : 0, formula || '0');
     setName('');
     setDescription('');
     setValue('');
-    setFormula('0');
+    setFormula('');
   };
 
   return (
@@ -32,13 +34,15 @@ export function AddMetricForm({ onAdd }: AddMetricFormProps) {
           <textarea id="metricDescription" placeholder="What does this metric represent?" value={description} onChange={e => setDescription(e.target.value)} />
         </div>
         <div className="form-group">
-          <label htmlFor="metricValue">Base Value</label>
-          <input type="number" id="metricValue" step="any" required value={value} onChange={e => setValue(e.target.value)} />
-        </div>
-        <div className="form-group">
           <label htmlFor="metricFormula">Formula (optional)</label>
           <textarea id="metricFormula" placeholder="e.g., {Deep Work} + {Exercise} * 2" value={formula} onChange={e => setFormula(e.target.value)} />
         </div>
+        {isLeaf && (
+          <div className="form-group">
+            <label htmlFor="metricValue">Value</label>
+            <input type="number" id="metricValue" step="any" required value={value} onChange={e => setValue(e.target.value)} />
+          </div>
+        )}
         <button type="submit" className="btn">Add Metric</button>
       </form>
     </div>

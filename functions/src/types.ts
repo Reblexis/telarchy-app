@@ -1,3 +1,8 @@
+export interface TimePreference {
+  enabled: boolean;
+  halfLife: number; // in years
+}
+
 export interface Metric {
   id: string;
   name: string;
@@ -7,6 +12,7 @@ export interface Metric {
   formula: string;
   order: number;
   depth: number;
+  timePreference?: TimePreference;
 }
 
 export interface MetricLog {

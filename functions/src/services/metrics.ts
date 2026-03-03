@@ -1,10 +1,7 @@
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import type { Metric, MetricLog, UpdateEntry } from '../types';
-import {
-  recalculateMetrics, calculateMetricDepths, calculateXP, calculateRank,
-  extractConsensusReferences, getTransitiveDependencyNames,
-} from '../lib/metrics-engine';
-import { toAbsoluteDate } from '../lib/date-utils';
+import { recalculateMetrics, calculateMetricDepths, calculateXP, calculateRank } from '../lib/metrics-engine';
+import { sampleTimePoints, getLeafDescendantNames } from '../lib/time-preference';
 import { consensus as ammConsensus, AMM_DEFAULTS } from '../lib/amm';
 
 function db() { return getFirestore(); }
@@ -42,6 +39,7 @@ export async function getAllMetrics(): Promise<Metric[]> {
       id: doc.id, name: data.name, description: data.description || '',
       value: data.value, total: data.value, formula: data.formula || '0',
       order: data.order || 999, depth: 0,
+      timePreference: data.timePreference?.enabled ? data.timePreference : undefined,
     };
   }), consensusMap);
 }
@@ -52,59 +50,120 @@ export async function getMetricById(id: string): Promise<Metric | null> {
 }
 
 /**
- * Auto-create markets for any consensus() references in a formula,
- * plus markets for all transitive {MetricName} dependencies at the same dates.
+ * Create markets for all leaf descendants of a time-preferenced node at the
+ * time points sampled from its decay curve. Skips already-existing markets.
  */
-export async function ensureMarketsForFormula(formula: string): Promise<void> {
-  const refs = extractConsensusReferences(formula);
-  if (refs.length === 0) return;
-
+export async function ensureMarketsForTimePreference(
+  tpMetricId: string,
+  halfLife: number,
+): Promise<void> {
   const metricsSnap = await db().collection('metrics').get();
-  const nameToMetric = new Map<string, { id: string; name: string }>();
   const nameToFormula: Record<string, string> = {};
+  const nameToId = new Map<string, string>();
+  const idToName = new Map<string, string>();
+  let tpMetricName = '';
+
   for (const doc of metricsSnap.docs) {
     const d = doc.data();
-    nameToMetric.set(d.name, { id: doc.id, name: d.name });
     nameToFormula[d.name] = d.formula || '0';
+    nameToId.set(d.name, doc.id);
+    idToName.set(doc.id, d.name);
+    if (doc.id === tpMetricId) tpMetricName = d.name;
   }
 
-  // Collect all metric/date pairs including transitive deps
-  const pairs = new Map<string, { metricId: string; metricName: string; targetDate: string }>();
-  for (const { name, date, isRelative } of refs) {
-    const targetDate = isRelative ? toAbsoluteDate(date) : date;
-    const metric = nameToMetric.get(name);
-    if (!metric) continue;
+  if (!tpMetricName) return;
 
-    pairs.set(`${metric.id}:${targetDate}`, { metricId: metric.id, metricName: metric.name, targetDate });
-    for (const depName of getTransitiveDependencyNames(name, nameToFormula)) {
-      const dep = nameToMetric.get(depName);
-      if (dep) pairs.set(`${dep.id}:${targetDate}`, { metricId: dep.id, metricName: dep.name, targetDate });
-    }
+  const leafNames = getLeafDescendantNames(tpMetricName, nameToFormula);
+  if (leafNames.length === 0) return;
+
+  const timePoints = sampleTimePoints(halfLife);
+
+  // Load all existing markets once to avoid N individual reads
+  const existingMarkets = new Set<string>();
+  const marketSnap = await db().collection('markets').get();
+  for (const doc of marketSnap.docs) {
+    const d = doc.data();
+    existingMarkets.add(`${d.metricId}:${d.targetDate}`);
   }
 
   const batch = db().batch();
   let writes = 0;
 
-  for (const [, { metricId, metricName, targetDate }] of pairs) {
-    const existing = await db().collection('markets')
-      .where('metricId', '==', metricId)
-      .where('targetDate', '==', targetDate)
-      .limit(1)
-      .get();
-    if (!existing.empty) continue;
+  for (const leafName of leafNames) {
+    const leafId = nameToId.get(leafName);
+    if (!leafId) continue;
 
-    const ref = db().collection('markets').doc();
-    batch.set(ref, {
-      id: ref.id, metricId, metricName, targetDate,
-      resolved: false, resolvedAt: null, actualValue: null,
-      createdAt: FieldValue.serverTimestamp(),
-      rangeMin: AMM_DEFAULTS.rangeMin, rangeMax: AMM_DEFAULTS.rangeMax,
-      shares: [0, 0], liquidity: AMM_DEFAULTS.liquidity,
-    });
-    writes++;
+    for (const { date } of timePoints) {
+      const key = `${leafId}:${date}`;
+      if (existingMarkets.has(key)) continue;
+      existingMarkets.add(key);
+
+      const ref = db().collection('markets').doc();
+      batch.set(ref, {
+        id: ref.id, metricId: leafId, metricName: leafName, targetDate: date,
+        resolved: false, resolvedAt: null, actualValue: null,
+        createdAt: FieldValue.serverTimestamp(),
+        rangeMin: AMM_DEFAULTS.rangeMin, rangeMax: AMM_DEFAULTS.rangeMax,
+        shares: [0, 0], liquidity: AMM_DEFAULTS.liquidity,
+      });
+      writes++;
+    }
   }
 
   if (writes > 0) await batch.commit();
+}
+
+/**
+ * Void all open markets for the leaf descendants of a time-preferenced node,
+ * refunding positions, then recreate fresh markets.
+ */
+export async function respawnMarketsForTimePreference(
+  tpMetricId: string,
+  halfLife: number,
+): Promise<void> {
+  const metricsSnap = await db().collection('metrics').get();
+  const nameToFormula: Record<string, string> = {};
+  const nameToId = new Map<string, string>();
+  let tpMetricName = '';
+
+  for (const doc of metricsSnap.docs) {
+    const d = doc.data();
+    nameToFormula[d.name] = d.formula || '0';
+    nameToId.set(d.name, doc.id);
+    if (doc.id === tpMetricId) tpMetricName = d.name;
+  }
+
+  if (!tpMetricName) return;
+
+  const leafNames = getLeafDescendantNames(tpMetricName, nameToFormula);
+  if (leafNames.length === 0) return;
+
+  const leafIds = new Set(leafNames.map(n => nameToId.get(n)).filter(Boolean) as string[]);
+
+  // Void all open markets for these leaves (refund positions)
+  const openMarkets = await db().collection('markets').where('resolved', '==', false).get();
+  for (const doc of openMarkets.docs) {
+    const m = doc.data();
+    if (!leafIds.has(m.metricId)) continue;
+
+    const posSnap = await db().collection('positions').where('marketId', '==', doc.id).get();
+    const batch = db().batch();
+    batch.update(doc.ref, { resolved: true, resolvedAt: FieldValue.serverTimestamp(), actualValue: null, voided: true });
+
+    for (const posDoc of posSnap.docs) {
+      const pos = posDoc.data();
+      if (pos.totalCost <= 0) continue;
+      batch.update(db().collection('agents').doc(pos.agentId), {
+        balance: FieldValue.increment(pos.totalCost),
+        earnedBetting: FieldValue.increment(pos.totalCost),
+        spentBetting: FieldValue.increment(-pos.totalCost),
+      });
+    }
+    await batch.commit();
+  }
+
+  // Now spawn fresh markets
+  await ensureMarketsForTimePreference(tpMetricId, halfLife);
 }
 
 export async function deleteMetric(id: string): Promise<void> {

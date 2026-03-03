@@ -1,45 +1,42 @@
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { extractConsensusReferences, getTransitiveDependencyNames } from '../lib/metrics-engine';
-import { toAbsoluteDate } from '../lib/date-utils';
+import { sampleTimePoints, getLeafDescendantNames } from '../lib/time-preference';
 import { AMM_DEFAULTS } from '../lib/amm';
 
 function db() { return getFirestore(); }
 
-type MetricRef = { metricId: string; metricName: string; targetDate: string };
-
-function addRef(refs: Map<string, MetricRef>, metric: { id: string; name: string }, targetDate: string) {
-  refs.set(`${metric.id}:${targetDate}`, { metricId: metric.id, metricName: metric.name, targetDate });
-}
-
 /**
- * Refresh markets for consensus references in formulas.
- * For each consensus() reference, also creates markets for all transitive
- * {MetricName} dependencies at the same target date.
+ * Ensure markets exist for all time-preferenced metrics.
+ * Called by the daily cron (00:10 UTC) and the manual "Refresh Markets" button.
+ * Creates markets for any (leaf, date) pair not yet present.
  */
 export async function refreshRelativeDateMarkets(): Promise<{ created: number }> {
   const metricsSnap = await db().collection('metrics').get();
-  const nameToMetric = new Map<string, { id: string; name: string }>();
   const nameToFormula: Record<string, string> = {};
-  const formulas: string[] = [];
+  const nameToId = new Map<string, string>();
+  const tpMetrics: { id: string; name: string; halfLife: number }[] = [];
 
   for (const doc of metricsSnap.docs) {
-    const data = doc.data();
-    nameToMetric.set(data.name, { id: doc.id, name: data.name });
-    nameToFormula[data.name] = data.formula || '0';
-    if (data.formula) formulas.push(data.formula);
+    const d = doc.data();
+    nameToFormula[d.name] = d.formula || '0';
+    nameToId.set(d.name, doc.id);
+    if (d.timePreference?.enabled) {
+      tpMetrics.push({ id: doc.id, name: d.name, halfLife: d.timePreference.halfLife });
+    }
   }
 
-  const allRefs = new Map<string, MetricRef>();
-  for (const formula of formulas) {
-    for (const { name, date, isRelative } of extractConsensusReferences(formula)) {
-      const targetDate = isRelative ? toAbsoluteDate(date) : date;
-      const metric = nameToMetric.get(name);
-      if (!metric) continue;
+  if (tpMetrics.length === 0) return { created: 0 };
 
-      addRef(allRefs, metric, targetDate);
-      for (const depName of getTransitiveDependencyNames(name, nameToFormula)) {
-        const dep = nameToMetric.get(depName);
-        if (dep) addRef(allRefs, dep, targetDate);
+  // Collect all (leaf, date) pairs across all TP metrics
+  const allRefs = new Map<string, { metricId: string; metricName: string; targetDate: string }>();
+  for (const tp of tpMetrics) {
+    const leafNames = getLeafDescendantNames(tp.name, nameToFormula);
+    const timePoints = sampleTimePoints(tp.halfLife);
+
+    for (const leafName of leafNames) {
+      const leafId = nameToId.get(leafName);
+      if (!leafId) continue;
+      for (const { date } of timePoints) {
+        allRefs.set(`${leafId}:${date}`, { metricId: leafId, metricName: leafName, targetDate: date });
       }
     }
   }
@@ -49,29 +46,22 @@ export async function refreshRelativeDateMarkets(): Promise<{ created: number }>
   const existingMarkets = new Set<string>();
   const marketSnap = await db().collection('markets').get();
   for (const doc of marketSnap.docs) {
-    const data = doc.data();
-    existingMarkets.add(`${data.metricId}:${data.targetDate}`);
+    const d = doc.data();
+    existingMarkets.add(`${d.metricId}:${d.targetDate}`);
   }
 
   const batch = db().batch();
   let created = 0;
+
   for (const [key, { metricId, metricName, targetDate }] of allRefs) {
     if (existingMarkets.has(key)) continue;
-
     const ref = db().collection('markets').doc();
     batch.set(ref, {
-      id: ref.id,
-      metricId,
-      metricName,
-      targetDate,
-      resolved: false,
-      resolvedAt: null,
-      actualValue: null,
+      id: ref.id, metricId, metricName, targetDate,
+      resolved: false, resolvedAt: null, actualValue: null,
       createdAt: FieldValue.serverTimestamp(),
-      rangeMin: AMM_DEFAULTS.rangeMin,
-      rangeMax: AMM_DEFAULTS.rangeMax,
-      shares: [0, 0],
-      liquidity: AMM_DEFAULTS.liquidity,
+      rangeMin: AMM_DEFAULTS.rangeMin, rangeMax: AMM_DEFAULTS.rangeMax,
+      shares: [0, 0], liquidity: AMM_DEFAULTS.liquidity,
     });
     created++;
   }

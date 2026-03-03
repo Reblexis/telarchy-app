@@ -117,7 +117,8 @@ export function useMetrics(user: User | null) {
 
   const editMetric = async (
     id: string, name: string, description: string, value: number,
-    formula: string, oldValue: number, updateNote: string
+    formula: string, oldValue: number, updateNote: string,
+    timePreference?: { enabled: boolean; halfLife: number } | null,
   ) => {
     if (!user) return;
     if (detectCircularDependency(id, formula, metrics)) {
@@ -125,10 +126,14 @@ export function useMetrics(user: User | null) {
     }
     // Optimistic: update UI instantly, write in background
     const prev = metrics;
-    const updated = metrics.map(m => m.id === id ? { ...m, name, description, value, formula } : { ...m });
+    const updated = metrics.map(m =>
+      m.id === id
+        ? { ...m, name, description, value, formula, timePreference: timePreference ?? m.timePreference }
+        : { ...m }
+    );
     setMetrics(enrichMetrics(updated, consensusMapRef.current));
     setFormulaWarnings(buildWarnings(updated));
-    api.updateMetric(user, id, { name, description, value, formula, oldValue, updateNote })
+    api.updateMetric(user, id, { name, description, value, formula, oldValue, updateNote, timePreference: timePreference ?? undefined })
       .then(() => { delete logsCache.current[id]; cacheDelete('metrics'); loadData(); })
       .catch(() => setMetrics(prev));
   };

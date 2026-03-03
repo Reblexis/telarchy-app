@@ -63,9 +63,10 @@ export function MetricsPage() {
 
   const handleSaveEdit = async (
     id: string, name: string, description: string, value: number,
-    formula: string, oldValue: number, updateNote: string
+    formula: string, oldValue: number, updateNote: string,
+    timePreference: import('../types').TimePreference | null,
   ) => {
-    await editMetric(id, name, description, value, formula, oldValue, updateNote);
+    await editMetric(id, name, description, value, formula, oldValue, updateNote, timePreference);
   };
 
   if (authLoading || !user) {

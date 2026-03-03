@@ -24,9 +24,9 @@ async function request(path: string, user: User, options: RequestInit = {}) {
 
 export const api = {
   getMetrics: (user: User) => request('/api/metrics', user),
-  createMetric: (user: User, body: { name: string; description: string; value: number; formula: string }) =>
+  createMetric: (user: User, body: { name: string; description: string; value: number; formula: string; timePreference?: { enabled: boolean; halfLife: number } }) =>
     request('/api/metrics', user, { method: 'POST', body: JSON.stringify(body) }),
-  updateMetric: (user: User, id: string, body: { name: string; description: string; value: number; formula: string; oldValue: number; updateNote: string }) =>
+  updateMetric: (user: User, id: string, body: { name: string; description: string; value: number; formula: string; oldValue: number; updateNote: string; timePreference?: { enabled: boolean; halfLife: number } | null }) =>
     request(`/api/metrics/${id}`, user, { method: 'PUT', body: JSON.stringify(body) }),
   deleteMetric: (user: User, id: string) =>
     request(`/api/metrics/${id}`, user, { method: 'DELETE' }),
