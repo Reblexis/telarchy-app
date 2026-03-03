@@ -190,6 +190,6 @@ The consensus for a (metric, targetDate) pair is the stake-weighted average of a
 
 ## Future Phases
 
-- **Phase 3: Future Utility Composition** — utility formula includes forward-looking market consensus terms
+- **Phase 3: Future Utility Composition** — ~~utility formula includes forward-looking market consensus terms~~ superseded by Phase 7 (Time Preference System). Instead of `consensus()` calls in formulas, forward-looking evaluation is a per-node property with exponential decay weighting. Markets are created only for leaf nodes at time points sampled from the decay curve. See `docs/vision.md` Phase 7 for full specification.
 - **Phase 4: Futarchy Sessions** — conditional prediction markets for decision-making
 - **AMM Upgrade** — evolve prediction pool into a full automated market maker with continuous price discovery
