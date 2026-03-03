@@ -589,6 +589,16 @@ input::placeholder, textarea::placeholder {
   text-align: right;
 }
 
+.tp-halflife-input::-webkit-inner-spin-button,
+.tp-halflife-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.tp-halflife-input[type=number] {
+  -moz-appearance: textfield;
+}
+
 /* ===== Focus Banner ===== */
 .focus-banner {
   display: flex;
