@@ -443,7 +443,13 @@ export function MarketsPage() {
     if (!user) return;
     setRefreshResult('');
     const result = await api.refreshMarkets(user).catch((e: Error) => { setError(e.message); return null; });
-    if (result) { setRefreshResult(`Created ${result.created} markets.`); load(); }
+    if (result) {
+      const parts = [];
+      if (result.created > 0) parts.push(`${result.created} created`);
+      if (result.voided > 0) parts.push(`${result.voided} voided`);
+      setRefreshResult(parts.length > 0 ? `Markets refreshed: ${parts.join(', ')}.` : 'Markets up to date.');
+      load();
+    }
   };
 
   if (authLoading || !user) return <div className="loading">Loading...</div>;
