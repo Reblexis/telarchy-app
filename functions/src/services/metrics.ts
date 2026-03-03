@@ -3,6 +3,7 @@ import type { Metric, MetricLog, UpdateEntry } from '../types';
 import { recalculateMetrics, calculateMetricDepths, calculateXP, calculateRank } from '../lib/metrics-engine';
 import { sampleTimePoints, getLeafDescendantNames } from '../lib/time-preference';
 import { consensus as ammConsensus, AMM_DEFAULTS } from '../lib/amm';
+import { voidMarket } from './markets';
 
 function db() { return getFirestore(); }
 
@@ -143,23 +144,7 @@ export async function respawnMarketsForTimePreference(
   // Void all open markets for these leaves (refund positions)
   const openMarkets = await db().collection('markets').where('resolved', '==', false).get();
   for (const doc of openMarkets.docs) {
-    const m = doc.data();
-    if (!leafIds.has(m.metricId)) continue;
-
-    const posSnap = await db().collection('positions').where('marketId', '==', doc.id).get();
-    const batch = db().batch();
-    batch.update(doc.ref, { resolved: true, resolvedAt: FieldValue.serverTimestamp(), actualValue: null, voided: true });
-
-    for (const posDoc of posSnap.docs) {
-      const pos = posDoc.data();
-      if (pos.totalCost <= 0) continue;
-      batch.update(db().collection('agents').doc(pos.agentId), {
-        balance: FieldValue.increment(pos.totalCost),
-        earnedBetting: FieldValue.increment(pos.totalCost),
-        spentBetting: FieldValue.increment(-pos.totalCost),
-      });
-    }
-    await batch.commit();
+    if (leafIds.has(doc.data().metricId)) await voidMarket(doc);
   }
 
   // Now spawn fresh markets

@@ -8,6 +8,7 @@ import {
 } from '../lib/metrics-engine';
 import { sampleTimePoints, getLeafDescendantNames } from '../lib/time-preference';
 import * as svc from '../services/metrics';
+import { voidMarket, voidOpenMarketsForMetrics } from '../services/markets';
 import { emitEvent } from '../services/events';
 import type { TimePreference } from '../types';
 
@@ -177,8 +178,30 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
 }));
 
 metricsRouter.delete('/:id', requireRole('admin'), wrap(async (req, res) => {
-  await svc.deleteMetric(req.params.id as string);
+  const id = req.params.id as string;
+  const docSnap = await db().collection('metrics').doc(id).get();
+  if (!docSnap.exists) { res.status(404).json({ error: 'Metric not found' }); return; }
+  const data = docSnap.data()!;
+
+  // Find TP ancestors before deleting (metric must still exist in collection for BFS to work)
+  const tpAncestorIds = await findTPAncestors(id);
+
+  await svc.deleteMetric(id);
   res.status(204).send();
+
+  // Background: void markets and respawn TP ancestor markets
+  if (data.timePreference?.enabled) {
+    // TP metric deleted: void all open markets for its leaf descendants
+    await voidLeafMarketsForTPMetric(id, data.timePreference.halfLife);
+  } else {
+    // Leaf or definition metric: void any direct markets, then respawn TP ancestors
+    await voidOpenMarketsForMetrics(new Set([id]));
+    for (const tpId of tpAncestorIds) {
+      const tpDoc = await db().collection('metrics').doc(tpId).get();
+      const tpHalfLife = tpDoc.data()?.timePreference?.halfLife;
+      if (tpHalfLife) await svc.respawnMarketsForTimePreference(tpId, tpHalfLife);
+    }
+  }
 }));
 
 /** One-time migration: zero the base value on all existing definition metrics. */
@@ -345,21 +368,6 @@ async function voidLeafMarketsForTPMetric(tpMetricId: string, oldHalfLife: numbe
   const openMarkets = await db().collection('markets').where('resolved', '==', false).get();
   for (const doc of openMarkets.docs) {
     const m = doc.data();
-    if (!leafIds.has(m.metricId) || !oldDates.has(m.targetDate)) continue;
-
-    const posSnap = await db().collection('positions').where('marketId', '==', doc.id).get();
-    const batch = db().batch();
-    batch.update(doc.ref, { resolved: true, resolvedAt: FieldValue.serverTimestamp(), actualValue: null, voided: true });
-
-    for (const posDoc of posSnap.docs) {
-      const pos = posDoc.data();
-      if (pos.totalCost <= 0) continue;
-      batch.update(db().collection('agents').doc(pos.agentId), {
-        balance: FieldValue.increment(pos.totalCost),
-        earnedBetting: FieldValue.increment(pos.totalCost),
-        spentBetting: FieldValue.increment(-pos.totalCost),
-      });
-    }
-    await batch.commit();
+    if (leafIds.has(m.metricId) && oldDates.has(m.targetDate)) await voidMarket(doc);
   }
 }
