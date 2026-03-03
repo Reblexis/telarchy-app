@@ -19,6 +19,7 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
   const [updateNote, setUpdateNote] = useState('');
   const [tpEnabled, setTpEnabled] = useState(false);
   const [tpHalfLife, setTpHalfLife] = useState('1');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (metric) {
@@ -29,6 +30,7 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
       setUpdateNote('');
       setTpEnabled(metric.timePreference?.enabled ?? false);
       setTpHalfLife(String(metric.timePreference?.halfLife ?? 1));
+      setError('');
     }
   }, [metric]);
 
@@ -38,11 +40,16 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setError('');
     const tp: TimePreference | null = tpEnabled && !isLeaf
       ? { enabled: true, halfLife: Math.max(0.01, Number(tpHalfLife)) }
       : null;
-    await onSave(metric.id, name, description, Number(value), formula, metric.value, updateNote, tp);
-    onClose();
+    try {
+      await onSave(metric.id, name, description, Number(value), formula, metric.value, updateNote, tp);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Save failed');
+    }
   };
 
   const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -107,6 +114,7 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
             <label htmlFor="editUpdateNote">Update Note (optional)</label>
             <textarea id="editUpdateNote" placeholder="Describe what changed and why..." value={updateNote} onChange={e => setUpdateNote(e.target.value)} />
           </div>
+          {error && <div className="message error show" style={{ marginBottom: '0.75rem' }}>{error}</div>}
           <button type="submit" className="btn">Save Changes</button>
         </form>
       </div>

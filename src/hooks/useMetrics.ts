@@ -133,9 +133,9 @@ export function useMetrics(user: User | null) {
     );
     setMetrics(enrichMetrics(updated, consensusMapRef.current));
     setFormulaWarnings(buildWarnings(updated));
-    api.updateMetric(user, id, { name, description, value, formula, oldValue, updateNote, timePreference: timePreference === undefined ? undefined : timePreference })
+    return api.updateMetric(user, id, { name, description, value, formula, oldValue, updateNote, timePreference: timePreference === undefined ? undefined : timePreference })
       .then(() => { delete logsCache.current[id]; cacheDelete('metrics'); loadData(); })
-      .catch(() => setMetrics(prev));
+      .catch((err: Error) => { setMetrics(prev); throw err; });
   };
 
   const removeMetric = async (id: string) => {
