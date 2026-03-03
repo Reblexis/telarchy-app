@@ -10,7 +10,6 @@ import { Header } from '../components/Header';
 import { XPDisplay } from '../components/XPDisplay';
 import { MetricsDashboard } from '../components/MetricsDashboard';
 import { AddMetricForm } from '../components/AddMetricForm';
-import { UpdateHistory } from '../components/UpdateHistory';
 import { EditMetricModal } from '../components/EditMetricModal';
 import { GraphModal } from '../components/GraphModal';
 
@@ -19,7 +18,7 @@ export function MetricsPage() {
   const { user, loading: authLoading, logout } = useAuth();
   const { isDark } = useDarkMode();
   const {
-    metrics, updates, xp, rank, loading: metricsLoading,
+    metrics, xp, rank, loading: metricsLoading,
     formulaWarnings,
     focusedMetricId, toggleFocus,
     addMetric, editMetric, removeMetric,
@@ -97,7 +96,6 @@ export function MetricsPage() {
           onDelete={handleDelete}
         />
         <AddMetricForm onAdd={handleAddMetric} />
-        <UpdateHistory updates={updates} />
       </div>
       <EditMetricModal
         metric={editingMetric}
