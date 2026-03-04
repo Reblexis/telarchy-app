@@ -46,8 +46,8 @@ export function sampleTimePoints(halfLife: number, base: Date = new Date()): Tim
   const result: TimePoint[] = [];
   const lambda = Math.LN2 / halfLife;
 
-  for (let i = 1; i <= N_SAMPLES; i++) {
-    const p = (2 * i - 1) / (2 * N_SAMPLES);
+  for (let i = 0; i < N_SAMPLES; i++) {
+    const p = i / N_SAMPLES;
     const tYears = T_MIN_YEARS + (-Math.log(1 - p)) / lambda;
     const date = fractionalYearsToDate(tYears, base);
     if (!seen.has(date)) {

@@ -21,8 +21,8 @@ function sampleTPTimePoints(halfLife: number): Array<{ date: string; weight: num
   const result: Array<{ date: string; weight: number }> = [];
   const base = new Date();
   const lambda = Math.LN2 / halfLife;
-  for (let i = 1; i <= N_SAMPLES; i++) {
-    const p = (2 * i - 1) / (2 * N_SAMPLES);
+  for (let i = 0; i < N_SAMPLES; i++) {
+    const p = i / N_SAMPLES;
     const tYears = T_MIN_YEARS + (-Math.log(1 - p)) / lambda;
     const date = fractionalYearsToDate(tYears, base);
     if (!seen.has(date)) {
