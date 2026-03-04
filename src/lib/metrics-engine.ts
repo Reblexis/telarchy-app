@@ -4,9 +4,14 @@ import type { Metric } from '../types';
 
 const WEIGHT_T0 = 1.0;
 const N_SAMPLES = 10;
-const T_MIN_YEARS = 1 / 365;
 
 function fractionalYearsToDate(years: number, base: Date): string {
+  const daysTotal = Math.max(1, Math.round(years * 365));
+  if (years < 1 / 12) {
+    const d = new Date(base);
+    d.setDate(d.getDate() + daysTotal);
+    return d.toISOString().slice(0, 10); // YYYY-MM-DD
+  }
   if (years < 2) {
     const monthsToAdd = Math.max(1, Math.round(years * 12));
     const d = new Date(base);
@@ -16,14 +21,14 @@ function fractionalYearsToDate(years: number, base: Date): string {
   return String(base.getFullYear() + Math.round(years));
 }
 
-function sampleTPTimePoints(halfLife: number): Array<{ date: string; weight: number }> {
+export function sampleTimePoints(halfLife: number): Array<{ date: string; weight: number }> {
   const seen = new Set<string>();
   const result: Array<{ date: string; weight: number }> = [];
   const base = new Date();
   const lambda = Math.LN2 / halfLife;
-  for (let i = 0; i < N_SAMPLES; i++) {
-    const p = i / N_SAMPLES;
-    const tYears = T_MIN_YEARS + (-Math.log(1 - p)) / lambda;
+  for (let i = 1; i <= N_SAMPLES; i++) {
+    const p = (2 * i - 1) / (2 * N_SAMPLES);
+    const tYears = (-Math.log(1 - p)) / lambda;
     const date = fractionalYearsToDate(tYears, base);
     if (!seen.has(date)) {
       seen.add(date);
@@ -32,6 +37,8 @@ function sampleTPTimePoints(halfLife: number): Array<{ date: string; weight: num
   }
   return result;
 }
+
+function sampleTPTimePoints(halfLife: number) { return sampleTimePoints(halfLife); }
 
 // --- Formula evaluation ---
 

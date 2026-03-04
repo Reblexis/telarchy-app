@@ -1,5 +1,6 @@
 import { useState, useEffect, FormEvent } from 'react';
 import type { Metric, TimePreference } from '../types';
+import { sampleTimePoints } from '../lib/metrics-engine';
 
 interface EditMetricModalProps {
   metric: Metric | null;
@@ -109,6 +110,16 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
                 />
               </div>
             )}
+            {tpEnabled && !isLeaf && (() => {
+              const hl = Math.max(0.01, Number(tpHalfLife) || 1);
+              const dates = sampleTimePoints(hl).map(p => p.date);
+              return (
+                <div className="tp-preview">
+                  <span className="tp-preview-label">Market dates</span>
+                  <span className="tp-preview-dates">{dates.join(', ')}</span>
+                </div>
+              );
+            })()}
           </div>
           <div className="form-group">
             <label htmlFor="editUpdateNote">Update Note (optional)</label>

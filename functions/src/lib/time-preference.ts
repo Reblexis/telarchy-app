@@ -4,18 +4,19 @@
  * A time-preferenced metric node has an exponential decay function:
  *   f(t) = λe^(-λt)  where λ = ln(2) / halfLife
  *
- * We sample 10 quantile-midpoints of this distribution, shifted to start at
- * T_MIN = 1 day. Each bin covers equal probability mass, so all sample
- * points receive equal weight (1.0) in the weighted average.
+ * We sample 10 quantile-midpoints of this distribution.
+ * Each bin covers equal probability mass, so all sample points receive
+ * equal weight (1.0) in the weighted average.
  *
  *   p_i = (2i − 1) / 20   for i = 1..10  →  [0.05, 0.15, …, 0.95]
- *   t_i = T_MIN + (−ln(1 − p_i)) / λ
+ *   t_i = (−ln(1 − p_i)) / λ
+ *
+ * Dates are formatted with day/month/year granularity depending on distance.
  */
 
 export const WEIGHT_T0 = 1.0; // weight at t = 0 (current)
 
 const N_SAMPLES = 10;
-const T_MIN_YEARS = 1 / 365; // 1 day
 
 export interface TimePoint {
   date: string;   // absolute date string (YYYY-MM or YYYY)
@@ -28,6 +29,13 @@ export interface TimePoint {
  * ≥ 2 years → YYYY   (year granularity)
  */
 function fractionalYearsToDate(years: number, base: Date): string {
+  const daysTotal = Math.max(1, Math.round(years * 365));
+  if (years < 1 / 12) {
+    // Day granularity for < ~1 month
+    const d = new Date(base);
+    d.setDate(d.getDate() + daysTotal);
+    return d.toISOString().slice(0, 10); // YYYY-MM-DD
+  }
   if (years < 2) {
     const monthsToAdd = Math.max(1, Math.round(years * 12));
     const d = new Date(base);
@@ -46,9 +54,9 @@ export function sampleTimePoints(halfLife: number, base: Date = new Date()): Tim
   const result: TimePoint[] = [];
   const lambda = Math.LN2 / halfLife;
 
-  for (let i = 0; i < N_SAMPLES; i++) {
-    const p = i / N_SAMPLES;
-    const tYears = T_MIN_YEARS + (-Math.log(1 - p)) / lambda;
+  for (let i = 1; i <= N_SAMPLES; i++) {
+    const p = (2 * i - 1) / (2 * N_SAMPLES);
+    const tYears = (-Math.log(1 - p)) / lambda;
     const date = fractionalYearsToDate(tYears, base);
     if (!seen.has(date)) {
       seen.add(date);
