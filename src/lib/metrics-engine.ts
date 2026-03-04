@@ -3,7 +3,8 @@ import type { Metric } from '../types';
 // --- Time preference sampling (mirrored from backend time-preference.ts) ---
 
 const WEIGHT_T0 = 1.0;
-const SAMPLE_MULTIPLIERS = [0.25, 0.5, 1.0, 2.0];
+const N_SAMPLES = 10;
+const T_MIN_YEARS = 1 / 365;
 
 function fractionalYearsToDate(years: number, base: Date): string {
   if (years < 2) {
@@ -19,12 +20,14 @@ function sampleTPTimePoints(halfLife: number): Array<{ date: string; weight: num
   const seen = new Set<string>();
   const result: Array<{ date: string; weight: number }> = [];
   const base = new Date();
-  for (const m of SAMPLE_MULTIPLIERS) {
-    const weight = Math.pow(2, -m);
-    const date = fractionalYearsToDate(m * halfLife, base);
+  const lambda = Math.LN2 / halfLife;
+  for (let i = 1; i <= N_SAMPLES; i++) {
+    const p = (2 * i - 1) / (2 * N_SAMPLES);
+    const tYears = T_MIN_YEARS + (-Math.log(1 - p)) / lambda;
+    const date = fractionalYearsToDate(tYears, base);
     if (!seen.has(date)) {
       seen.add(date);
-      result.push({ date, weight });
+      result.push({ date, weight: 1.0 });
     }
   }
   return result;

@@ -2,19 +2,20 @@
  * Time Preference System — sampling and leaf-discovery utilities.
  *
  * A time-preferenced metric node has an exponential decay function:
- *   weight(t) = e^(-λt)  where λ = ln(2) / halfLife
+ *   f(t) = λe^(-λt)  where λ = ln(2) / halfLife
  *
- * We sample at 4 fixed multiples of the half-life:
- *   0.25×, 0.5×, 1×, 2×  (plus t=0 which always uses current values)
+ * We sample 10 quantile-midpoints of this distribution, shifted to start at
+ * T_MIN = 1 day. Each bin covers equal probability mass, so all sample
+ * points receive equal weight (1.0) in the weighted average.
  *
- * Weights at those multipliers are always 2^(-0.25), 2^(-0.5), 2^(-1), 2^(-2)
- * regardless of halfLife, because the multipliers are in units of halfLife.
+ *   p_i = (2i − 1) / 20   for i = 1..10  →  [0.05, 0.15, …, 0.95]
+ *   t_i = T_MIN + (−ln(1 − p_i)) / λ
  */
 
 export const WEIGHT_T0 = 1.0; // weight at t = 0 (current)
 
-// Fixed sample multipliers (multiples of halfLife)
-const SAMPLE_MULTIPLIERS = [0.25, 0.5, 1.0, 2.0];
+const N_SAMPLES = 10;
+const T_MIN_YEARS = 1 / 365; // 1 day
 
 export interface TimePoint {
   date: string;   // absolute date string (YYYY-MM or YYYY)
@@ -37,20 +38,21 @@ function fractionalYearsToDate(years: number, base: Date): string {
 }
 
 /**
- * Return the time points (date + weight) to sample for a given halfLife.
- * Deduplicates dates that map to the same period.
+ * Return 10 quantile-midpoint time points for a given halfLife.
+ * Deduplicates dates that collapse to the same period.
  */
 export function sampleTimePoints(halfLife: number, base: Date = new Date()): TimePoint[] {
   const seen = new Set<string>();
   const result: TimePoint[] = [];
+  const lambda = Math.LN2 / halfLife;
 
-  for (const m of SAMPLE_MULTIPLIERS) {
-    const tYears = m * halfLife;
-    const weight = Math.pow(2, -m);
+  for (let i = 1; i <= N_SAMPLES; i++) {
+    const p = (2 * i - 1) / (2 * N_SAMPLES);
+    const tYears = T_MIN_YEARS + (-Math.log(1 - p)) / lambda;
     const date = fractionalYearsToDate(tYears, base);
     if (!seen.has(date)) {
       seen.add(date);
-      result.push({ date, weight });
+      result.push({ date, weight: 1.0 });
     }
   }
 
