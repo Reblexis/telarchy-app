@@ -1,6 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react';
 import type { Metric, TimePreference } from '../types';
-import { sampleTimePoints } from '../lib/metrics-engine';
 
 interface EditMetricModalProps {
   metric: Metric | null;
@@ -112,11 +111,19 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
             )}
             {tpEnabled && !isLeaf && (() => {
               const hl = Math.max(0.01, Number(tpHalfLife) || 1);
-              const dates = sampleTimePoints(hl).map(p => p.date);
+              const lambda = Math.LN2 / hl;
+              const offsets = Array.from({ length: 10 }, (_, i) => {
+                const p = (2 * i + 1) / 20;
+                const days = Math.max(1, Math.round((-Math.log(1 - p)) / lambda * 365));
+                if (days < 14) return `${days}d`;
+                if (days < 60) return `${Math.round(days / 7)}w`;
+                if (days < 730) return `${Math.round(days / 30)}mo`;
+                return `${Math.round(days / 365)}y`;
+              });
               return (
                 <div className="tp-preview">
-                  <span className="tp-preview-label">Market dates</span>
-                  <span className="tp-preview-dates">{dates.join(', ')}</span>
+                  <span className="tp-preview-label">Market offsets</span>
+                  <span className="tp-preview-dates">{offsets.join(', ')}</span>
                 </div>
               );
             })()}
