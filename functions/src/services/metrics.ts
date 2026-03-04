@@ -79,9 +79,9 @@ export async function ensureMarketsForTimePreference(
 
   const timePoints = sampleTimePoints(halfLife);
 
-  // Load all existing markets once to avoid N individual reads
+  // Only check open markets — resolved/voided docs must not block re-creation
   const existingMarkets = new Set<string>();
-  const marketSnap = await db().collection('markets').get();
+  const marketSnap = await db().collection('markets').where('resolved', '==', false).get();
   for (const doc of marketSnap.docs) {
     const d = doc.data();
     existingMarkets.add(`${d.metricId}:${d.targetDate}`);

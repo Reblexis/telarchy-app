@@ -66,16 +66,16 @@ export async function refreshRelativeDateMarkets(): Promise<{ created: number; v
     }
   }
 
-  // Single pass over all markets: track existing keys and collect open stale docs
-  const marketSnap = await db().collection('markets').get();
-  const existingAllKeys = new Set<string>();
+  // Only load open markets — resolved/voided docs must not block re-creation
+  const marketSnap = await db().collection('markets').where('resolved', '==', false).get();
+  const openKeys = new Set<string>();
   const staleOpenDocs: QueryDocumentSnapshot[] = [];
 
   for (const doc of marketSnap.docs) {
     const d = doc.data();
     const key = `${d.metricId}:${d.targetDate}`;
-    existingAllKeys.add(key);
-    if (!d.resolved && !desiredRefs.has(key)) staleOpenDocs.push(doc);
+    openKeys.add(key);
+    if (!desiredRefs.has(key)) staleOpenDocs.push(doc);
   }
 
   // Prune stale open markets
@@ -89,7 +89,7 @@ export async function refreshRelativeDateMarkets(): Promise<{ created: number; v
   const batch = db().batch();
   let created = 0;
   for (const [key, { metricId, metricName, targetDate }] of desiredRefs) {
-    if (existingAllKeys.has(key)) continue;
+    if (openKeys.has(key)) continue;
     const ref = db().collection('markets').doc();
     batch.set(ref, {
       id: ref.id, metricId, metricName, targetDate,
