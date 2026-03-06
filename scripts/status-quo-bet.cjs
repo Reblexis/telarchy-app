@@ -41,13 +41,17 @@ async function api(method, endpoint, apiKey, body) {
   return res.json();
 }
 
-async function betOnMarket(apiKey, marketId) {
-  const market = await api('GET', `/predictions/markets/${marketId}`, apiKey);
-  const metric = await api('GET', `/metrics/${market.metricId}`, apiKey);
+async function betOnMarket(apiKey, market, metricsByIdOrNull) {
+  // market can be a pre-fetched list item (has rangeMin/rangeMax/metricId) or a market id string
+  if (typeof market === 'string') {
+    market = await api('GET', `/predictions/markets/${market}`, apiKey);
+  }
+  const metric = metricsByIdOrNull?.[market.metricId]
+    ?? await api('GET', `/metrics/${market.metricId}`, apiKey);
   const value = Math.max(market.rangeMin, Math.min(market.rangeMax, metric.total));
 
   const result = await api('POST', '/predictions/trade', apiKey, {
-    marketId,
+    marketId: market.id,
     targetValue: value,
     maxBudget: MAX_BUDGET,
   });
@@ -56,16 +60,23 @@ async function betOnMarket(apiKey, marketId) {
 }
 
 async function betAll(apiKey) {
-  const markets = await api('GET', '/predictions/markets', apiKey);
+  const [markets, allMetrics, { balance: startBalance }] = await Promise.all([
+    api('GET', '/predictions/markets', apiKey),
+    api('GET', '/metrics', apiKey),
+    api('GET', `/agents/${AGENT_ID}/balance`, apiKey),
+  ]);
+
+  if (startBalance < 1) { console.log('Out of credits.'); return; }
+
+  const metricsById = Object.fromEntries(allMetrics.map(m => [m.id, m]));
 
   let bets = 0;
   for (const market of markets) {
-    const { balance } = await api('GET', `/agents/${AGENT_ID}/balance`, apiKey);
-    if (balance < 1) { console.log('Out of credits.'); break; }
     try {
-      await betOnMarket(apiKey, market.id);
+      await betOnMarket(apiKey, market, metricsById);
       bets++;
     } catch (err) {
+      if (err.message.includes('Insufficient balance')) { console.log('Out of credits.'); break; }
       console.error(`Failed on ${market.id}: ${err.message}`);
     }
   }
@@ -81,15 +92,24 @@ async function main() {
   } else if (args[0] === '--market' && args[1]) {
     const { balance } = await api('GET', `/agents/${AGENT_ID}/balance`, apiKey);
     if (balance < 1) { console.log('Out of credits.'); return; }
-    await betOnMarket(apiKey, args[1]);
+    await betOnMarket(apiKey, args[1], null);
   } else if (args[0] === '--metric' && args[1]) {
-    const markets = await api('GET', '/predictions/markets', apiKey);
+    const [markets, allMetrics, { balance }] = await Promise.all([
+      api('GET', '/predictions/markets', apiKey),
+      api('GET', '/metrics', apiKey),
+      api('GET', `/agents/${AGENT_ID}/balance`, apiKey),
+    ]);
+    if (balance < 1) { console.log('Out of credits.'); return; }
+    const metricsById = Object.fromEntries(allMetrics.map(m => [m.id, m]));
     const matching = markets.filter(m => m.metricId === args[1]);
     if (matching.length === 0) { console.log(`No open markets for metric ${args[1]}.`); return; }
     for (const market of matching) {
-      const { balance } = await api('GET', `/agents/${AGENT_ID}/balance`, apiKey);
-      if (balance < 1) { console.log('Out of credits.'); break; }
-      await betOnMarket(apiKey, market.id);
+      try {
+        await betOnMarket(apiKey, market, metricsById);
+      } catch (err) {
+        if (err.message.includes('Insufficient balance')) { console.log('Out of credits.'); break; }
+        console.error(`Failed on ${market.id}: ${err.message}`);
+      }
     }
   } else {
     console.error('Usage: status-quo-bet.cjs --all | --market <marketId> | --metric <metricId>');

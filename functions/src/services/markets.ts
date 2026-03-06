@@ -33,11 +33,12 @@ export async function voidOpenMarketsForMetrics(metricIds: Set<string>): Promise
 }
 
 /**
- * Ensure markets exist for all time-preferenced metrics, and prune any open
- * markets that are no longer in the desired (leaf, date) set.
+ * Ensure markets exist for all time-preferenced metrics.
+ * Markets that fall out of the desired (leaf, date) set are marked active:false
+ * (not voided) so they can still be naturally resolved when their date arrives.
  * Called by the daily cron (00:10 UTC) and the manual "Refresh Markets" button.
  */
-export async function refreshRelativeDateMarkets(): Promise<{ created: number; voided: number }> {
+export async function refreshRelativeDateMarkets(): Promise<{ created: number; deactivated: number }> {
   const metricsSnap = await db().collection('metrics').get();
   const nameToFormula: Record<string, string> = {};
   const nameToId = new Map<string, string>();
@@ -69,31 +70,31 @@ export async function refreshRelativeDateMarkets(): Promise<{ created: number; v
   // Only load open markets — resolved/voided docs must not block re-creation
   const marketSnap = await db().collection('markets').where('resolved', '==', false).get();
   const openKeys = new Set<string>();
-  const staleOpenDocs: QueryDocumentSnapshot[] = [];
+
+  const batch = db().batch();
+  let deactivated = 0;
 
   for (const doc of marketSnap.docs) {
     const d = doc.data();
     const key = `${d.metricId}:${d.targetDate}`;
     openKeys.add(key);
-    if (!desiredRefs.has(key)) staleOpenDocs.push(doc);
-  }
-
-  // Prune stale open markets
-  let voided = 0;
-  for (const doc of staleOpenDocs) {
-    await voidMarket(doc);
-    voided++;
+    const shouldBeActive = desiredRefs.has(key);
+    if (shouldBeActive && d.active === false) {
+      batch.update(doc.ref, { active: true });
+    } else if (!shouldBeActive && d.active !== false) {
+      batch.update(doc.ref, { active: false });
+      deactivated++;
+    }
   }
 
   // Create missing markets
-  const batch = db().batch();
   let created = 0;
   for (const [key, { metricId, metricName, targetDate }] of desiredRefs) {
     if (openKeys.has(key)) continue;
     const ref = db().collection('markets').doc();
     batch.set(ref, {
       id: ref.id, metricId, metricName, targetDate,
-      resolved: false, resolvedAt: null, actualValue: null,
+      resolved: false, resolvedAt: null, actualValue: null, active: true,
       createdAt: FieldValue.serverTimestamp(),
       rangeMin: AMM_DEFAULTS.rangeMin, rangeMax: AMM_DEFAULTS.rangeMax,
       shares: [0, 0], liquidity: AMM_DEFAULTS.liquidity,
@@ -101,6 +102,6 @@ export async function refreshRelativeDateMarkets(): Promise<{ created: number; v
     created++;
   }
 
-  if (created > 0) await batch.commit();
-  return { created, voided };
+  if (created > 0 || deactivated > 0) await batch.commit();
+  return { created, deactivated };
 }

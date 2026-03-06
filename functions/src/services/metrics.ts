@@ -102,7 +102,7 @@ export async function ensureMarketsForTimePreference(
       const ref = db().collection('markets').doc();
       batch.set(ref, {
         id: ref.id, metricId: leafId, metricName: leafName, targetDate: date,
-        resolved: false, resolvedAt: null, actualValue: null,
+        resolved: false, resolvedAt: null, actualValue: null, active: true,
         createdAt: FieldValue.serverTimestamp(),
         rangeMin: AMM_DEFAULTS.rangeMin, rangeMax: AMM_DEFAULTS.rangeMax,
         shares: [0, 0], liquidity: AMM_DEFAULTS.liquidity,

@@ -130,6 +130,13 @@ export async function getMarkets(includeResolved = false) {
 
   if (marketSnap.empty) return [];
 
+  // Exclude inactive markets (active === false) unless fetching resolved history
+  const docs = includeResolved
+    ? marketSnap.docs
+    : marketSnap.docs.filter(doc => doc.data().active !== false);
+
+  if (docs.length === 0) return [];
+
   const tradeSnap = await db().collection('trades').get();
   const tradeCountByMarket = new Map<string, number>();
   for (const doc of tradeSnap.docs) {
@@ -146,7 +153,7 @@ export async function getMarkets(includeResolved = false) {
     }
   }
 
-  return marketSnap.docs.map(doc => {
+  return docs.map(doc => {
     const m = doc.data();
     const shares: [number, number] = m.shares || [0, 0];
     return {
@@ -157,6 +164,7 @@ export async function getMarkets(includeResolved = false) {
       resolved: m.resolved,
       resolvedAt: m.resolvedAt,
       actualValue: m.actualValue,
+      active: m.active !== false,
       createdAt: m.createdAt,
       consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax),
       probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
