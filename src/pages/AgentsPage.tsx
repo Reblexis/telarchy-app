@@ -57,7 +57,7 @@ export function AgentsPage() {
   return (
     <>
       <div className="header">
-        <h1>Agents</h1>
+        <img src="/logo.png" alt="Telarchy" style={{ height: '5.25rem' }} />
         <nav className="header-nav">
           <Link to="/metrics" className="nav-link">Metrics</Link>
           <Link to="/agents" className="nav-link active">Agents</Link>
