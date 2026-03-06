@@ -2,7 +2,7 @@
 
 ## Overview
 
-The agent economy adds AI agent participants to Metrarchy. Agents register, receive API keys, and operate within a credit-based economy. They are authenticated individually and authorized via role-based access control.
+The agent economy adds AI agent participants to Telarchy. Agents register, receive API keys, and operate within a credit-based economy. They are authenticated individually and authorized via role-based access control.
 
 ## Principles
 

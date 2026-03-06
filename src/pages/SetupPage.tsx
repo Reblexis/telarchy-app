@@ -38,7 +38,7 @@ export function SetupPage() {
       <div className="setup-page">
         <div className="container" style={{ maxWidth: 600 }}>
           <h1>Firebase Setup</h1>
-          <p className="subtitle">Configure your Firebase project to get started with Metrarchy</p>
+          <p className="subtitle">Configure your Firebase project to get started with Telarchy</p>
 
           <div className="steps">
             <h3>Before you begin:</h3>

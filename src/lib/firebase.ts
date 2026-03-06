@@ -1,7 +1,7 @@
 import { initializeApp, FirebaseApp } from 'firebase/app';
 import type { FirebaseConfig } from '../types';
 
-const STORAGE_KEY = 'metrarchyFirebaseConfig';
+const STORAGE_KEY = 'telarchyFirebaseConfig';
 
 export function getFirebaseConfig(): FirebaseConfig | null {
   const envConfig = import.meta.env.VITE_FIREBASE_CONFIG;

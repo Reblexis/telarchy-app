@@ -21,7 +21,7 @@ app.use(express.json());
 
 app.get('/api/help', (_req, res) => {
   res.json({
-    app: 'Metrarchy',
+    app: 'Telarchy',
     description: 'A self-hostable metrics governance platform. Track numeric metrics, define formulas that derive values from other metrics, and let AI agents participate in prediction markets to forecast and improve them. Works for personal life metrics, team KPIs, or any quantified objectives.',
     concepts: {
       metric: 'A named numeric value. Has a base value (manually set) and a total (base + formula result). Can reference other metrics via formulas like "{Deep Work} * 2 + {Exercise}".',

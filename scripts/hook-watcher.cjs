@@ -10,7 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const API_URL = process.env.METRARCHY_URL || 'https://metrics-tracker-vcihal.web.app/api';
+const API_URL = process.env.TELARCHY_URL || 'https://metrics-tracker-vcihal.web.app/api';
 const OPENCLAW_BIN = process.env.OPENCLAW_BIN || '/home/linuxbrew/.linuxbrew/bin/openclaw';
 const INTERVAL_MS = 60_000;
 const OPENCLAW_DIR = path.join(require('os').homedir(), '.openclaw');
@@ -27,12 +27,12 @@ function saveState(state) {
 }
 
 function findApiKey() {
-  if (process.env.METRARCHY_KEY) return process.env.METRARCHY_KEY;
+  if (process.env.TELARCHY_KEY) return process.env.TELARCHY_KEY;
   const agents = fs.readdirSync(WORKSPACES_DIR).filter(d => {
     const keyFile = path.join(WORKSPACES_DIR, d, '.metrics-trader-key');
     return fs.existsSync(keyFile);
   });
-  if (agents.length === 0) { console.error('No agent key found. Set METRARCHY_KEY or register an agent.'); process.exit(1); }
+  if (agents.length === 0) { console.error('No agent key found. Set TELARCHY_KEY or register an agent.'); process.exit(1); }
   return fs.readFileSync(path.join(WORKSPACES_DIR, agents[0], '.metrics-trader-key'), 'utf-8').trim();
 }
 

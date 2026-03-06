@@ -1,4 +1,4 @@
-# Metrarchy: Prediction Markets + Futarchy
+# Telarchy: Prediction Markets + Futarchy
 
 ## Vision
 
