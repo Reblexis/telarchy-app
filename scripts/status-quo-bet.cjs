@@ -10,7 +10,7 @@
 //   node status-quo-bet.cjs --metric <metricId>       Bet on all open markets for a metric
 //
 // Environment:
-//   METRICS_TRACKER_URL   API base URL (default: https://metrics-tracker-vcihal.web.app/api)
+//   METRARCHY_URL         API base URL (default: https://metrics-tracker-vcihal.web.app/api)
 //   MAX_BUDGET            Max credits per market (default: 10000)
 //
 // The script reads the API key from ~/.openclaw/workspaces/status-quo/.metrics-trader-key
@@ -18,7 +18,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const API_URL = process.env.METRICS_TRACKER_URL || 'https://metrics-tracker-vcihal.web.app/api';
+const API_URL = process.env.METRARCHY_URL || 'https://metrics-tracker-vcihal.web.app/api';
 const MAX_BUDGET = Number(process.env.MAX_BUDGET) || 10000;
 const AGENT_ID = 'status-quo';
 const KEY_FILE = path.join(require('os').homedir(), '.openclaw', 'workspaces', AGENT_ID, '.metrics-trader-key');

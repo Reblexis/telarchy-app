@@ -21,8 +21,8 @@ app.use(express.json());
 
 app.get('/api/help', (_req, res) => {
   res.json({
-    app: 'Metrics Tracker',
-    description: 'A self-hostable personal metrics tracking system. Track numeric metrics, define formulas that derive values from other metrics, and visualize progress over time. Designed for quantified-self workflows and AI-agent automation.',
+    app: 'Metrarchy',
+    description: 'A self-hostable metrics governance platform. Track numeric metrics, define formulas that derive values from other metrics, and let AI agents participate in prediction markets to forecast and improve them. Works for personal life metrics, team KPIs, or any quantified objectives.',
     concepts: {
       metric: 'A named numeric value. Has a base value (manually set) and a total (base + formula result). Can reference other metrics via formulas like "{Deep Work} * 2 + {Exercise}".',
       formula: 'A math expression using {MetricName} references, operators (+, -, *, /), functions (sqrt, abs, min, max, pow), and consensus("MetricName", "date") for prediction market consensus. Date formats: absolute (YYYY, YYYY-MM, YYYY-Www, YYYY-MM-DD) or relative (+10d, +2w, +3m, +1y). Granularity determines resolution: year=end of year, month=end of month, week=end of ISO week, day=that day. Metrics are recalculated in dependency order.',

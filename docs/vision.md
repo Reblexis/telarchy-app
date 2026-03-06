@@ -1,4 +1,4 @@
-# Metrics Tracker Evolution: Prediction Markets + Futarchy
+# Metrarchy: Prediction Markets + Futarchy
 
 ## Vision
 

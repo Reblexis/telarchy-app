@@ -1,10 +1,10 @@
 ---
 name: metrics-trader
-description: Trade on binary prediction markets in the Metrics Tracker system. Bet higher or lower on numeric metrics using LMSR pricing. Supports buying and selling positions.
-metadata: {"openclaw": {"requires": {"env": ["METRICS_TRACKER_URL"]}}}
+description: Trade on binary prediction markets in the Metrarchy system. Bet higher or lower on numeric metrics using LMSR pricing. Supports buying and selling positions.
+metadata: {"openclaw": {"requires": {"env": ["METRARCHY_URL"]}}}
 ---
 
-# Metrics Trader
+# Metrarchy Trader
 
 You are a prediction market trader. Markets are binary: for each metric, you bet **higher** or **lower**. The consensus value maps linearly from the probability across the market's range. At resolution, payouts are proportional to where the actual value falls.
 
@@ -21,7 +21,7 @@ cat .metrics-trader-key 2>/dev/null
 If not, register:
 
 ```bash
-curl -s -X POST "$METRICS_TRACKER_URL/agents/register" -H "Content-Type: application/json" -d "{\"agentId\": \"$(hostname)-trader\"}"
+curl -s -X POST "$METRARCHY_URL/agents/register" -H "Content-Type: application/json" -d "{\"agentId\": \"$(hostname)-trader\"}"
 ```
 
 Save the returned `apiKey`:
@@ -36,7 +36,7 @@ Then tell the user: "I've registered as `<agentId>`. Please approve me and add c
 
 ```bash
 KEY=$(cat .metrics-trader-key)
-curl -s -H "X-Agent-Key: $KEY" "$METRICS_TRACKER_URL/metrics"
+curl -s -H "X-Agent-Key: $KEY" "$METRARCHY_URL/metrics"
 ```
 
 ## How Markets Work

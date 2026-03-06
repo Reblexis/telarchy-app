@@ -1,6 +1,6 @@
-# Metrics Tracker
+# Metrarchy
 
-A self-hostable personal metrics tracking system with formulas, dependency graphs, and an API for AI-agent automation. Built with React, TypeScript, and Firebase.
+A self-hostable metrics governance platform with prediction markets, formulas, dependency graphs, and an API for AI-agent automation. Built with React, TypeScript, and Firebase.
 
 ## Features
 

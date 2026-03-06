@@ -1,5 +1,5 @@
 {
-  "name": "metrics-tracker-functions",
+  "name": "metrarchy-functions",
   "main": "lib/index.js",
   "scripts": {
     "build": "tsc"

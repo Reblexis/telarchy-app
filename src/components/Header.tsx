@@ -14,7 +14,7 @@ export function Header({ onLogout, onReconfigure, graphInterval, onIntervalChang
 
   return (
     <div className="header">
-      <h1>Metrics Tracker</h1>
+      <h1>Metrarchy</h1>
       <nav className="header-nav">
         <Link to="/metrics" className="nav-link active">Metrics</Link>
         <Link to="/agents" className="nav-link">Agents</Link>

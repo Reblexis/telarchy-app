@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-const DARK_MODE_KEY = 'metricsTrackerDarkMode';
+const DARK_MODE_KEY = 'metrarchyDarkMode';
 
 export function useDarkMode() {
   const [isDark, setIsDark] = useState(() => {
