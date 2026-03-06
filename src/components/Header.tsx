@@ -14,7 +14,7 @@ export function Header({ onLogout, onReconfigure, graphInterval, onIntervalChang
 
   return (
     <div className="header">
-      <img src="/logo.png" alt="Telarchy" style={{ height: '3.5rem' }} />
+      <img src="/logo.png" alt="Telarchy" style={{ height: '5.25rem' }} />
       <nav className="header-nav">
         <Link to="/metrics" className="nav-link active">Metrics</Link>
         <Link to="/agents" className="nav-link">Agents</Link>
