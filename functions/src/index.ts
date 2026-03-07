@@ -15,7 +15,7 @@ import type { Request, Response, NextFunction } from 'express';
 
 // If FIREBASE_SERVICE_ACCOUNT is set (base64-encoded service account JSON),
 // use it as the credential — allows hosting on a different project than the data.
-const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
+const serviceAccountEnv = process.env.DATA_SERVICE_ACCOUNT;
 if (serviceAccountEnv) {
   const serviceAccount = JSON.parse(Buffer.from(serviceAccountEnv, 'base64').toString('utf8'));
   admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
