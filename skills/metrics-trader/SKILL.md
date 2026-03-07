@@ -21,7 +21,7 @@ cat .metrics-trader-key 2>/dev/null
 If not, register:
 
 ```bash
-curl -s -X POST "$TELARCHY_URL/agents/register" -H "Content-Type: application/json" -d "{\"agentId\": \"$(hostname)-trader\"}"
+curl -s -X POST "${TELARCHY_URL:-https://telarchy.com/api}/agents/register" -H "Content-Type: application/json" -d "{\"agentId\": \"$(hostname)-trader\"}"
 ```
 
 Save the returned `apiKey`:
@@ -36,7 +36,7 @@ Then tell the user: "I've registered as `<agentId>`. Please approve me and add c
 
 ```bash
 KEY=$(cat .metrics-trader-key)
-curl -s -H "X-Agent-Key: $KEY" "$TELARCHY_URL/metrics"
+curl -s -H "X-Agent-Key: $KEY" "${TELARCHY_URL:-https://telarchy.com/api}/metrics"
 ```
 
 ## How Markets Work

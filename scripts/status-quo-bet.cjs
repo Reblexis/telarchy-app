@@ -18,7 +18,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const API_URL = process.env.TELARCHY_URL || 'https://metrics-tracker-vcihal.web.app/api';
+const API_URL = process.env.TELARCHY_URL || 'https://telarchy.com/api';
 const MAX_BUDGET = Number(process.env.MAX_BUDGET) || 10000;
 const AGENT_ID = 'status-quo';
 const KEY_FILE = path.join(require('os').homedir(), '.openclaw', 'workspaces', AGENT_ID, '.metrics-trader-key');

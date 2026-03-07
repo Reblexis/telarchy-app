@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "telarchy-e0043"
+  },
+  "targets": {
+    "telarchy-e0043": {
+      "hosting": {
+        "production": [
+          "telarchy-e0043"
+        ]
+      }
+    }
+  }
+}

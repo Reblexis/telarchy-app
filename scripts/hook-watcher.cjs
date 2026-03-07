@@ -10,7 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
-const API_URL = process.env.TELARCHY_URL || 'https://metrics-tracker-vcihal.web.app/api';
+const API_URL = process.env.TELARCHY_URL || 'https://telarchy.com/api';
 const OPENCLAW_BIN = process.env.OPENCLAW_BIN || '/home/linuxbrew/.linuxbrew/bin/openclaw';
 const INTERVAL_MS = 60_000;
 const OPENCLAW_DIR = path.join(require('os').homedir(), '.openclaw');
