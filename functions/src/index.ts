@@ -13,7 +13,15 @@ import { predictionsRouter } from './routes/predictions';
 import { eventsRouter } from './routes/events';
 import type { Request, Response, NextFunction } from 'express';
 
-admin.initializeApp();
+// If FIREBASE_SERVICE_ACCOUNT is set (base64-encoded service account JSON),
+// use it as the credential — allows hosting on a different project than the data.
+const serviceAccountEnv = process.env.FIREBASE_SERVICE_ACCOUNT;
+if (serviceAccountEnv) {
+  const serviceAccount = JSON.parse(Buffer.from(serviceAccountEnv, 'base64').toString('utf8'));
+  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+} else {
+  admin.initializeApp();
+}
 
 const app = express();
 app.use(cors({ origin: true }));
