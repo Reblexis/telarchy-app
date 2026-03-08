@@ -506,7 +506,7 @@ export function MarketsPage() {
         {loading ? (
           <div className="loading">Loading markets...</div>
         ) : markets.length === 0 ? (
-          <div className="section"><p style={{ color: 'var(--text-secondary)' }}>No active markets.</p></div>
+          <div className="section"><p style={{ color: 'var(--text-secondary)' }}>No markets.</p></div>
         ) : (
           <div className="section">
             <div style={{ marginBottom: '0.75rem' }}>
@@ -533,10 +533,13 @@ export function MarketsPage() {
                 {filteredMarkets.map(m => (
                   <React.Fragment key={m.id}>
                     <tr
-                      style={{ borderBottom: expandedId === m.id ? 'none' : '1px solid var(--border-color)', cursor: 'pointer' }}
+                      style={{ borderBottom: expandedId === m.id ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', opacity: m.active ? 1 : 0.5 }}
                       onClick={() => setExpandedId(expandedId === m.id ? null : m.id)}
                     >
-                      <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600 }}>{m.metricName}</td>
+                      <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600 }}>
+                        {m.metricName}
+                        {!m.active && <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', fontWeight: 500, color: 'var(--text-secondary)', background: 'var(--border-color)', borderRadius: '0.25rem', padding: '0.1rem 0.35rem', verticalAlign: 'middle' }}>inactive</span>}
+                      </td>
                       <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'monospace' }}>
                         {formatTargetDateDisplay(m.targetDate)}
                         <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', color: formatTimeRemaining(m.targetDate) === 'expired' ? 'var(--delete-color, #ef4444)' : 'var(--text-secondary)', opacity: 0.8 }}>

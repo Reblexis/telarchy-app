@@ -130,10 +130,7 @@ export async function getMarkets(includeResolved = false) {
 
   if (marketSnap.empty) return [];
 
-  // Exclude inactive markets (active === false) unless fetching resolved history
-  const docs = includeResolved
-    ? marketSnap.docs
-    : marketSnap.docs.filter(doc => doc.data().active !== false);
+  const docs = marketSnap.docs;
 
   if (docs.length === 0) return [];
 

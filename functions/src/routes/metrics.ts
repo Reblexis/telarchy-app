@@ -8,7 +8,7 @@ import {
 } from '../lib/metrics-engine';
 import { sampleTimePoints, getLeafDescendantNames } from '../lib/time-preference';
 import * as svc from '../services/metrics';
-import { voidMarket, voidOpenMarketsForMetrics } from '../services/markets';
+import { voidOpenMarketsForMetrics } from '../services/markets';
 import { emitEvent } from '../services/events';
 import type { TimePreference } from '../types';
 
@@ -145,8 +145,8 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
       // Newly enabled: spawn markets
       await svc.ensureMarketsForTimePreference(id, newTP.halfLife);
     } else if (!newTP?.enabled && wasTPEnabled) {
-      // Disabled: void leaf markets (respawn with dummy halfLife = 0 won't spawn; just void)
-      await voidLeafMarketsForTPMetric(id, oldTP!.halfLife);
+      // Disabled: disable betting on leaf markets so they resolve naturally
+      await deactivateLeafMarketsForTPMetric(id, oldTP!.halfLife);
     } else if (newTP?.enabled && wasTPEnabled && newTP.halfLife !== oldTP!.halfLife) {
       // HalfLife changed: respawn
       await svc.respawnMarketsForTimePreference(id, newTP.halfLife);
@@ -191,8 +191,8 @@ metricsRouter.delete('/:id', requireRole('admin'), wrap(async (req, res) => {
 
   // Background: void markets and respawn TP ancestor markets
   if (data.timePreference?.enabled) {
-    // TP metric deleted: void all open markets for its leaf descendants
-    await voidLeafMarketsForTPMetric(id, data.timePreference.halfLife);
+    // TP metric deleted: disable betting on leaf markets so they resolve naturally
+    await deactivateLeafMarketsForTPMetric(id, data.timePreference.halfLife);
   } else {
     // Leaf or definition metric: void any direct markets, then respawn TP ancestors
     await voidOpenMarketsForMetrics(new Set([id]));
@@ -340,9 +340,11 @@ async function findTPConflict(metricId: string, metricName: string): Promise<str
 }
 
 /**
- * Void all open markets for leaf descendants of a TP node (used when disabling TP).
+ * Disable betting on open markets for leaf descendants of a TP node (used when
+ * disabling or deleting TP). Markets are left unresolved so agents' bets resolve
+ * naturally at the target date.
  */
-async function voidLeafMarketsForTPMetric(tpMetricId: string, oldHalfLife: number): Promise<void> {
+async function deactivateLeafMarketsForTPMetric(tpMetricId: string, oldHalfLife: number): Promise<void> {
   const metricsSnap = await db().collection('metrics').get();
   const nameToFormula: Record<string, string> = {};
   const nameToId = new Map<string, string>();
@@ -356,18 +358,19 @@ async function voidLeafMarketsForTPMetric(tpMetricId: string, oldHalfLife: numbe
 
   if (!tpMetricName) return;
 
-  // Use the old formula (before update) — formula may still be in Firestore since we're post-update
   const leafNames = getLeafDescendantNames(tpMetricName, nameToFormula);
   if (leafNames.length === 0) return;
 
   const leafIds = new Set(leafNames.map((n: string) => nameToId.get(n)).filter(Boolean) as string[]);
-
-  // Get the specific dates that were spawned under old halfLife to limit scope
   const oldDates = new Set(sampleTimePoints(oldHalfLife).map(p => p.date));
 
   const openMarkets = await db().collection('markets').where('resolved', '==', false).get();
+  const batch = db().batch();
   for (const doc of openMarkets.docs) {
     const m = doc.data();
-    if (leafIds.has(m.metricId) && oldDates.has(m.targetDate)) await voidMarket(doc);
+    if (leafIds.has(m.metricId) && oldDates.has(m.targetDate) && m.active !== false) {
+      batch.update(doc.ref, { active: false });
+    }
   }
+  await batch.commit();
 }

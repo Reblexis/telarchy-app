@@ -3,7 +3,6 @@ import type { Metric, MetricLog, UpdateEntry } from '../types';
 import { recalculateMetrics, calculateMetricDepths, calculateXP, calculateRank } from '../lib/metrics-engine';
 import { sampleTimePoints, getLeafDescendantNames } from '../lib/time-preference';
 import { consensus as ammConsensus, AMM_DEFAULTS } from '../lib/amm';
-import { voidMarket } from './markets';
 import { emitEvent } from './events';
 
 function db() { return getFirestore(); }
@@ -121,39 +120,15 @@ export async function ensureMarketsForTimePreference(
 }
 
 /**
- * Void all open markets for the leaf descendants of a time-preferenced node,
- * refunding positions, then recreate fresh markets.
+ * Ensure markets exist for the new desired set of leaf/date pairs after a
+ * definition change. Existing markets are left running (betting disabled by the
+ * daily refresh if they fall out of the desired set) so agents' bets resolve
+ * naturally at the target date.
  */
 export async function respawnMarketsForTimePreference(
   tpMetricId: string,
   halfLife: number,
 ): Promise<void> {
-  const metricsSnap = await db().collection('metrics').get();
-  const nameToFormula: Record<string, string> = {};
-  const nameToId = new Map<string, string>();
-  let tpMetricName = '';
-
-  for (const doc of metricsSnap.docs) {
-    const d = doc.data();
-    nameToFormula[d.name] = d.formula || '0';
-    nameToId.set(d.name, doc.id);
-    if (doc.id === tpMetricId) tpMetricName = d.name;
-  }
-
-  if (!tpMetricName) return;
-
-  const leafNames = getLeafDescendantNames(tpMetricName, nameToFormula);
-  if (leafNames.length === 0) return;
-
-  const leafIds = new Set(leafNames.map(n => nameToId.get(n)).filter(Boolean) as string[]);
-
-  // Void all open markets for these leaves (refund positions)
-  const openMarkets = await db().collection('markets').where('resolved', '==', false).get();
-  for (const doc of openMarkets.docs) {
-    if (leafIds.has(doc.data().metricId)) await voidMarket(doc);
-  }
-
-  // Now spawn fresh markets
   await ensureMarketsForTimePreference(tpMetricId, halfLife);
 }
 

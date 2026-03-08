@@ -63,6 +63,7 @@ export interface Market {
   resolved: boolean;
   resolvedAt: string | null;
   actualValue: number | null;
+  active: boolean;
   createdAt: string;
   consensus: number | null;
   probability: number;
