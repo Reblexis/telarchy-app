@@ -332,6 +332,33 @@ predictionsRouter.post('/markets/refresh', requireRole('admin'), wrap(async (_re
   res.json(result);
 }));
 
+// Emit market:created for existing open markets of a metric (so hook watchers notify agents).
+predictionsRouter.post('/markets/notify', requireRole('admin'), wrap(async (req, res) => {
+  const { metricId, metricName } = req.body || {};
+  if (!metricId && !metricName) {
+    res.status(400).json({ error: 'metricId or metricName is required' });
+    return;
+  }
+  let targetMetricId: string | null = metricId ?? null;
+  if (!targetMetricId && metricName) {
+    const metrics = await getAllMetrics();
+    const m = metrics.find(x => x.name === metricName);
+    if (!m) { res.status(404).json({ error: 'Metric not found' }); return; }
+    targetMetricId = m.id;
+  }
+  const snap = await db().collection('markets')
+    .where('metricId', '==', targetMetricId!)
+    .where('resolved', '==', false)
+    .get();
+  let emitted = 0;
+  for (const doc of snap.docs) {
+    const d = doc.data();
+    await emitEvent('market:created', { marketId: doc.id, metricName: d.metricName, targetDate: d.targetDate });
+    emitted++;
+  }
+  res.json({ emitted });
+}));
+
 // One-time migration: add binary AMM fields to existing markets, refund old predictions
 predictionsRouter.post('/migrate', requireRole('admin'), wrap(async (_req, res) => {
   const marketsSnap = await db().collection('markets').get();

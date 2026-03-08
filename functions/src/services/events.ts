@@ -17,7 +17,7 @@ export async function getEventsSince(since: string): Promise<Array<{ id: string;
   const snapshot = await db().collection('events')
     .where('timestamp', '>', sinceDate)
     .orderBy('timestamp', 'asc')
-    .limit(100)
+    .limit(500)
     .get();
 
   return snapshot.docs.map(doc => {

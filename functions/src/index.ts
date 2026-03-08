@@ -75,6 +75,7 @@ app.get('/api/help', (_req, res) => {
       { method: 'GET', path: '/api/predictions/markets/:id', auth: 'agent/admin', description: 'Market detail with probability, consensus, and cost info.' },
       { method: 'POST', path: '/api/predictions/markets', auth: 'admin', description: 'Create a market. Body: { metricId, targetDate, rangeMin?, rangeMax?, liquidity? }.' },
       { method: 'POST', path: '/api/predictions/markets/refresh', auth: 'admin', description: 'Create missing markets for all consensus references in metric formulas.' },
+      { method: 'POST', path: '/api/predictions/markets/notify', auth: 'admin', description: 'Emit market:created for existing open markets of a metric. Body: { metricId } or { metricName } (e.g. "Subjective health feeling"). Use to trigger hook watchers so agents are notified.' },
       { method: 'POST', path: '/api/predictions/markets/:id/liquidity', auth: 'admin', description: 'Inject liquidity into a market. Body: { amount: number }. Increases LMSR b parameter.' },
       { method: 'DELETE', path: '/api/predictions/markets/:id', auth: 'admin', description: 'Delete a market.' },
       { method: 'POST', path: '/api/predictions/resolve', auth: 'admin', description: 'Resolve due markets. Proportional payout based on actual value position in range.' },

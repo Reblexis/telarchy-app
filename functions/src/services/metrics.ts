@@ -4,6 +4,7 @@ import { recalculateMetrics, calculateMetricDepths, calculateXP, calculateRank }
 import { sampleTimePoints, getLeafDescendantNames } from '../lib/time-preference';
 import { consensus as ammConsensus, AMM_DEFAULTS } from '../lib/amm';
 import { voidMarket } from './markets';
+import { emitEvent } from './events';
 
 function db() { return getFirestore(); }
 
@@ -88,7 +89,7 @@ export async function ensureMarketsForTimePreference(
   }
 
   const batch = db().batch();
-  let writes = 0;
+  const created: Array<{ marketId: string; metricName: string; targetDate: string }> = [];
 
   for (const leafName of leafNames) {
     const leafId = nameToId.get(leafName);
@@ -107,11 +108,16 @@ export async function ensureMarketsForTimePreference(
         rangeMin: AMM_DEFAULTS.rangeMin, rangeMax: AMM_DEFAULTS.rangeMax,
         shares: [0, 0], liquidity: AMM_DEFAULTS.liquidity,
       });
-      writes++;
+      created.push({ marketId: ref.id, metricName: leafName, targetDate: date });
     }
   }
 
-  if (writes > 0) await batch.commit();
+  if (created.length > 0) {
+    await batch.commit();
+    for (const { marketId, metricName, targetDate } of created) {
+      await emitEvent('market:created', { marketId, metricName, targetDate });
+    }
+  }
 }
 
 /**
