@@ -11,8 +11,14 @@
  *   p_i = (2i − 1) / 20   for i = 1..10  →  [0.05, 0.15, …, 0.95]
  *   t_i = (−ln(1 − p_i)) / λ
  *
- * Dates are formatted with day/month/year granularity depending on distance.
+ * Date granularity by distance:
+ *   < 1 week  → YYYY-MM-DD (day)
+ *   < 1 month → YYYY-Www   (week)
+ *   < 1 year  → YYYY-MM    (month)
+ *   ≥ 1 year  → YYYY       (year)
  */
+
+import { toISOWeekString } from './date-utils';
 
 export const WEIGHT_T0 = 1.0; // weight at t = 0 (current)
 
@@ -23,26 +29,21 @@ export interface TimePoint {
   weight: number; // e^(-λt) pre-computed
 }
 
-/**
- * Convert a fractional year offset to an absolute date string.
- * < 2 years → YYYY-MM (month granularity)
- * ≥ 2 years → YYYY   (year granularity)
- */
 function fractionalYearsToDate(years: number, base: Date): string {
-  const daysTotal = Math.max(1, Math.round(years * 365));
-  if (years < 1 / 12) {
-    // Day granularity for < ~1 month
-    const d = new Date(base);
-    d.setDate(d.getDate() + daysTotal);
+  const days = Math.max(1, Math.round(years * 365));
+  const d = new Date(base);
+  d.setDate(d.getDate() + days);
+
+  if (years < 7 / 365) {
     return d.toISOString().slice(0, 10); // YYYY-MM-DD
   }
-  if (years < 2) {
-    const monthsToAdd = Math.max(1, Math.round(years * 12));
-    const d = new Date(base);
-    d.setMonth(d.getMonth() + monthsToAdd);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  if (years < 1 / 12) {
+    return toISOWeekString(d); // YYYY-Www
   }
-  return String(base.getFullYear() + Math.round(years));
+  if (years < 1) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; // YYYY-MM
+  }
+  return String(d.getFullYear()); // YYYY
 }
 
 /**

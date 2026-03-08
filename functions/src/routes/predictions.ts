@@ -35,6 +35,7 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
   if (!marketDoc.exists) { res.status(404).json({ error: 'Market not found' }); return; }
   const market = marketDoc.data()!;
   if (market.resolved) { res.status(400).json({ error: 'Market is resolved' }); return; }
+  if (market.active === false) { res.status(400).json({ error: 'Market is inactive' }); return; }
 
   const shares: [number, number] = market.shares;
   const b = market.liquidity;

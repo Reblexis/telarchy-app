@@ -71,7 +71,7 @@ export function toAbsoluteDate(dateStr: string, baseDate: Date = new Date()): st
 }
 
 /** Get ISO week string YYYY-Www for a date */
-function toISOWeekString(d: Date): string {
+export function toISOWeekString(d: Date): string {
   const jan4 = new Date(d.getFullYear(), 0, 4);
   const mon = new Date(jan4);
   mon.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7));

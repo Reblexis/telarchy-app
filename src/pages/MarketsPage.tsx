@@ -576,13 +576,17 @@ export function MarketsPage() {
                     {expandedId === m.id && (
                       <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
                         <td colSpan={6} style={{ padding: '0 0.5rem 0.75rem' }}>
-                          <TradingPanel
-                            market={m}
-                            agentId={impersonatedId}
-                            user={user}
-                            onTrade={() => { load(); }}
-                            onError={setError}
-                          />
+                          {m.active ? (
+                            <TradingPanel
+                              market={m}
+                              agentId={impersonatedId}
+                              user={user}
+                              onTrade={() => { load(); }}
+                              onError={setError}
+                            />
+                          ) : (
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>Betting is disabled on inactive markets. This market will resolve at its target date.</p>
+                          )}
                         </td>
                       </tr>
                     )}
