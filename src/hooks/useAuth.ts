@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getAuth, onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { initializeFirebaseApp } from '../lib/firebase';
+import { onAuthStateChanged, signOut, User } from 'firebase/auth';
+import { initializeFirebaseApp, getFirebaseAuth } from '../lib/firebase';
 
 interface UseAuthOptions {
   skip?: boolean;
@@ -13,18 +13,27 @@ export function useAuth(options: UseAuthOptions = {}) {
 
   useEffect(() => {
     if (skip) return;
-    const app = initializeFirebaseApp();
-    const auth = getAuth(app);
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
+    initializeFirebaseApp();
+    const auth = getFirebaseAuth();
+    let resolved = false;
+    const resolve = (u: User | null) => {
+      if (resolved) return;
+      resolved = true;
       setUser(u);
       setLoading(false);
-    });
-    return unsubscribe;
+    };
+    const unsubscribe = onAuthStateChanged(auth, resolve, () => resolve(null));
+    // If onAuthStateChanged hangs (stale/invalid stored credentials), sign out
+    // to clear them. signOut() itself triggers onAuthStateChanged(null) which
+    // calls resolve — self-healing for future page loads too.
+    const timeout = setTimeout(() => {
+      if (!resolved) signOut(auth).catch(() => resolve(null));
+    }, 5000);
+    return () => { unsubscribe(); clearTimeout(timeout); };
   }, [skip]);
 
   const logout = async () => {
-    const app = initializeFirebaseApp();
-    const auth = getAuth(app);
+    const auth = getFirebaseAuth();
     await signOut(auth);
   };
 

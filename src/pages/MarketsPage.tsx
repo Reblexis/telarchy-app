@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { useImpersonation } from '../hooks/useImpersonation';
@@ -361,6 +361,7 @@ function HookStatus() {
 
 // --- Main page ---
 export function MarketsPage() {
+  const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   useDarkMode();
   const { agentId: impersonatedId } = useImpersonation();
@@ -452,7 +453,8 @@ export function MarketsPage() {
     }
   };
 
-  if (authLoading || !user) return <div className="loading">Loading...</div>;
+  if (authLoading) return <div className="loading">Loading...</div>;
+  if (!user) { navigate('/', { replace: true }); return null; }
 
   const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
   const thStyle = { padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' } as const;

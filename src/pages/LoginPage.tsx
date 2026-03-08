@@ -1,7 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
-import { initializeFirebaseApp } from '../lib/firebase';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { initializeFirebaseApp, getFirebaseAuth } from '../lib/firebase';
 import { useDarkMode } from '../hooks/useDarkMode';
 
 export function LoginPage() {
@@ -20,8 +20,8 @@ export function LoginPage() {
     setSubmitting(true);
 
     try {
-      const app = initializeFirebaseApp();
-      const auth = getAuth(app);
+      initializeFirebaseApp();
+      const auth = getFirebaseAuth();
 
       if (isSignUp) {
         if (password !== confirmPassword) throw new Error('Passwords do not match');

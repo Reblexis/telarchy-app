@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { useImpersonation } from '../hooks/useImpersonation';
@@ -7,6 +7,7 @@ import { api } from '../lib/api';
 import type { Agent } from '../types';
 
 export function AgentsPage() {
+  const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   useDarkMode();
   const { agentId: impersonatedId, setAgentId: setImpersonated } = useImpersonation();
@@ -52,7 +53,8 @@ export function AgentsPage() {
     loadAgents();
   };
 
-  if (authLoading || !user) return <div className="loading">Loading...</div>;
+  if (authLoading) return <div className="loading">Loading...</div>;
+  if (!user) { navigate('/', { replace: true }); return null; }
 
   return (
     <>

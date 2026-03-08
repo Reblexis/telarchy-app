@@ -1,4 +1,5 @@
 import { initializeApp, FirebaseApp } from 'firebase/app';
+import { initializeAuth, browserLocalPersistence, browserSessionPersistence, Auth } from 'firebase/auth';
 import type { FirebaseConfig } from '../types';
 
 const STORAGE_KEY = 'telarchyFirebaseConfig';
@@ -7,6 +8,10 @@ export function getFirebaseConfig(): FirebaseConfig | null {
   const envConfig = import.meta.env.VITE_FIREBASE_CONFIG;
   if (envConfig) {
     const config: FirebaseConfig = JSON.parse(atob(envConfig));
+    // Clear any stale Firebase Auth credentials that may cause auth/invalid-credential loops
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith('firebase:')) localStorage.removeItem(key);
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
     return config;
   }
@@ -40,13 +45,20 @@ export function clearFirebaseConfig(): void {
 }
 
 let app: FirebaseApp | null = null;
+let auth: Auth | null = null;
 
 export function initializeFirebaseApp(): FirebaseApp {
   if (app) return app;
   const config = getFirebaseConfig();
-  if (!config) {
-    throw new Error('Firebase config not found.');
-  }
+  if (!config) throw new Error('Firebase config not found.');
   app = initializeApp(config);
+  auth = initializeAuth(app, {
+    persistence: import.meta.env.VITE_FIREBASE_CONFIG ? browserSessionPersistence : browserLocalPersistence,
+  });
   return app;
+}
+
+export function getFirebaseAuth(): Auth {
+  if (!auth) initializeFirebaseApp();
+  return auth!;
 }

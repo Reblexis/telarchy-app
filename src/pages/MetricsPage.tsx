@@ -68,9 +68,8 @@ export function MetricsPage() {
     await editMetric(id, name, description, value, formula, oldValue, updateNote, timePreference);
   };
 
-  if (authLoading || !user) {
-    return <div className="loading">Loading...</div>;
-  }
+  if (authLoading) return <div className="loading">Loading...</div>;
+  if (!user) { navigate('/', { replace: true }); return null; }
 
   if (metricsLoading) {
     return <div className="loading">Loading...</div>;
