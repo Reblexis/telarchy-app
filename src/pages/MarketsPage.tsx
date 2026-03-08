@@ -392,12 +392,16 @@ export function MarketsPage() {
   const load = useCallback(async () => {
     if (!user) return;
     setError('');
+    const cachedMkts = sessionStorage.getItem('cache:markets');
+    const cachedMets = sessionStorage.getItem('cache:metrics');
+    if (cachedMkts) { setMarkets(JSON.parse(cachedMkts)); setLoading(false); }
+    if (cachedMets) setMetrics(JSON.parse(cachedMets));
     const [mkts, mets] = await Promise.all([
       api.getMarkets(user).catch((e: Error) => { setError(e.message); return null; }),
       api.getMetrics(user).catch(() => null),
     ]);
-    if (mkts) setMarkets(mkts);
-    if (mets) setMetrics(mets);
+    if (mkts) { setMarkets(mkts); sessionStorage.setItem('cache:markets', JSON.stringify(mkts)); }
+    if (mets) { setMetrics(mets); sessionStorage.setItem('cache:metrics', JSON.stringify(mets)); }
     setLoading(false);
   }, [user]);
 

@@ -18,8 +18,10 @@ export function AgentsPage() {
   const loadAgents = useCallback(async () => {
     if (!user) return;
     setError('');
+    const cached = sessionStorage.getItem('cache:agents');
+    if (cached) { setAgents(JSON.parse(cached)); setLoading(false); }
     const data = await api.getAgents(user).catch((e: Error) => { setError(e.message); return null; });
-    if (data) setAgents(data);
+    if (data) { setAgents(data); sessionStorage.setItem('cache:agents', JSON.stringify(data)); }
     setLoading(false);
   }, [user]);
 

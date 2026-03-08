@@ -101,7 +101,7 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   res.status(400).json({ error: err.message });
 });
 
-export const api = onRequest(app);
+export const api = onRequest({ minInstances: 1 }, app);
 
 export const dailyResolve = onSchedule('every day 00:00', async () => {
   const { resolvePredictions } = await import('./services/predictions');
