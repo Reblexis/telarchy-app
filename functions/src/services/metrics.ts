@@ -3,6 +3,7 @@ import type { Metric, MetricLog, UpdateEntry } from '../types';
 import { recalculateMetrics, calculateMetricDepths, calculateXP, calculateRank } from '../lib/metrics-engine';
 import { sampleTimePoints, getLeafDescendantNames } from '../lib/time-preference';
 import { consensus as ammConsensus, AMM_DEFAULTS } from '../lib/amm';
+import { toISOWeekString } from '../lib/date-utils';
 import { emitEvent } from './events';
 
 function db() { return getFirestore(); }
@@ -19,12 +20,37 @@ async function buildConsensusMap(): Promise<Record<string, number>> {
   const marketSnap = await db().collection('markets').where('resolved', '==', false).get();
   if (marketSnap.empty) return {};
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const map: Record<string, number> = {};
+
   for (const doc of marketSnap.docs) {
     const m = doc.data();
     if (!m.shares || !m.liquidity) continue;
-    const key = `${m.metricName}:${m.targetDate}`;
-    map[key] = ammConsensus(m.shares, m.liquidity, m.rangeMin, m.rangeMax);
+    const c = ammConsensus(m.shares, m.liquidity, m.rangeMin, m.rangeMax);
+    map[`${m.metricName}:${m.targetDate}`] = c;
+
+    // Bridge old-format dates to new-format keys so that sampleTimePoints lookups
+    // still resolve correctly while existing markets retain their original targetDate.
+    // Zone 1: old YYYY-MM-DD (7–30 days away) → new YYYY-Www
+    if (/^\d{4}-\d{2}-\d{2}$/.test(m.targetDate)) {
+      const target = new Date(m.targetDate);
+      const diffDays = (target.getTime() - today.getTime()) / 86400000;
+      if (diffDays >= 7 && diffDays < 31) {
+        const weekKey = `${m.metricName}:${toISOWeekString(target)}`;
+        if (!map[weekKey]) map[weekKey] = c;
+      }
+    }
+    // Zone 2: old YYYY-MM (1–2 years away) → new YYYY
+    if (/^\d{4}-\d{2}$/.test(m.targetDate)) {
+      const [y, mo] = m.targetDate.split('-').map(Number);
+      const target = new Date(y, mo - 1, 15);
+      const diffYears = (target.getTime() - today.getTime()) / (365.25 * 86400000);
+      if (diffYears >= 1 && diffYears < 2) {
+        const yearKey = `${m.metricName}:${y}`;
+        if (!map[yearKey]) map[yearKey] = c;
+      }
+    }
   }
   return map;
 }
