@@ -39,6 +39,7 @@ export interface Agent {
   balance: number;
   gifted: number;
   earnedBetting: number;
+  earnedTasks?: number;
   spentBetting: number;
   spentTokens: number;
   createdAt: FirebaseFirestore.Timestamp;
@@ -58,6 +59,28 @@ export interface Market {
   rangeMax: number;
   shares: [number, number]; // [lowerShares, higherShares]
   liquidity: number;
+  taskId?: string;
+}
+
+export type TaskStatus = 'pending' | 'approved' | 'declined';
+
+export interface TaskProposal {
+  id: string;
+  proposedBy: string;
+  title: string;
+  description: string;
+  price: number;
+  status: TaskStatus;
+  conditionalMarketIds: string[];
+  createdAt: FirebaseFirestore.Timestamp;
+}
+
+export interface TaskMessage {
+  id: string;
+  taskId: string;
+  from: string;
+  content: string;
+  createdAt: FirebaseFirestore.Timestamp;
 }
 
 export interface Position {

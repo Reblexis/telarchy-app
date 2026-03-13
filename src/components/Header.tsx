@@ -19,6 +19,7 @@ export function Header({ onLogout, onReconfigure, graphInterval, onIntervalChang
         <Link to="/metrics" className="nav-link active">Metrics</Link>
         <Link to="/agents" className="nav-link">Agents</Link>
         <Link to="/markets" className="nav-link">Markets</Link>
+        <Link to="/tasks" className="nav-link">Tasks</Link>
       </nav>
       <div className="header-actions">
         <select

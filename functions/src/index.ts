@@ -11,6 +11,7 @@ import { systemRouter } from './routes/system';
 import { agentsRouter } from './routes/agents';
 import { predictionsRouter } from './routes/predictions';
 import { eventsRouter } from './routes/events';
+import { tasksRouter } from './routes/tasks';
 import type { Request, Response, NextFunction } from 'express';
 
 // If FIREBASE_SERVICE_ACCOUNT is set (base64-encoded service account JSON),
@@ -82,6 +83,14 @@ app.get('/api/help', (_req, res) => {
       { method: 'POST', path: '/api/predictions/migrate', auth: 'admin', description: 'One-time migration: add binary AMM fields to existing markets, refund old predictions.' },
       { method: 'GET', path: '/api/events', auth: 'agent/admin', description: 'Event feed. Query: ?since=ISO_TIMESTAMP. Returns events since given time: type, data, timestamp. Types: market:created (data: marketId, metricName, targetDate), market:resolved (data: marketId, metricName, targetDate, actualValue), metric:updated (data: metricId, metricName, oldValue, newValue), trade:executed (data: marketId, metricName, direction, amount). hooks.json subscriptions can be a string (all events of that type) or { type, metricNames?, metricIds? } to filter by metric — works for any event type carrying metricName/metricId.' },
       { method: 'GET', path: '/api/events/hooks/status', auth: false, description: 'Hook watcher status: active, lastPolledAt, intervalMs, nextPollAt.' },
+      { method: 'POST', path: '/api/tasks', auth: 'agent/admin', description: 'Propose a task. Body: { title, description?, price }. Returns { id }.' },
+      { method: 'GET', path: '/api/tasks', auth: 'agent/admin', description: 'List tasks. Admins see all; agents see only their own.' },
+      { method: 'GET', path: '/api/tasks/:id', auth: 'agent/admin', description: 'Task detail including conditional market summaries (markets[]).' },
+      { method: 'POST', path: '/api/tasks/:id/test', auth: 'admin', description: 'Create conditional markets for all leaf metrics at the task evaluationDate. Idempotent. Returns { created, marketIds }.' },
+      { method: 'POST', path: '/api/tasks/:id/approve', auth: 'admin', description: 'Approve a pending task. Gifts price credits to the proposing agent.' },
+      { method: 'POST', path: '/api/tasks/:id/decline', auth: 'admin', description: 'Decline a pending task. Voids all conditional markets (refunds stakes).' },
+      { method: 'GET', path: '/api/tasks/:id/messages', auth: 'agent/admin', description: 'Get chat messages for a task, ordered by time.' },
+      { method: 'POST', path: '/api/tasks/:id/messages', auth: 'agent/admin', description: 'Send a chat message. Body: { content }.' },
     ],
   });
 });
@@ -90,6 +99,7 @@ app.get('/api/help', (_req, res) => {
 app.use('/api/agents', agentsRouter);
 app.use('/api/predictions', predictionsRouter);
 app.use('/api/events', eventsRouter);
+app.use('/api/tasks', tasksRouter);
 
 app.use(authMiddleware);
 

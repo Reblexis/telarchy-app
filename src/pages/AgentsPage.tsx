@@ -66,6 +66,7 @@ export function AgentsPage() {
           <Link to="/metrics" className="nav-link">Metrics</Link>
           <Link to="/agents" className="nav-link active">Agents</Link>
           <Link to="/markets" className="nav-link">Markets</Link>
+          <Link to="/tasks" className="nav-link">Tasks</Link>
         </nav>
         <div className="header-actions">
           <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Acting as: <strong>{impersonatedId}</strong></span>

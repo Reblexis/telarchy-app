@@ -6,6 +6,7 @@ import { LoginPage } from './pages/LoginPage';
 import { MetricsPage } from './pages/MetricsPage';
 import { AgentsPage } from './pages/AgentsPage';
 import { MarketsPage } from './pages/MarketsPage';
+import { TasksPage } from './pages/TasksPage';
 
 export function App() {
   return (
@@ -18,6 +19,7 @@ export function App() {
           <Route path="/metrics" element={<MetricsPage />} />
           <Route path="/agents" element={<AgentsPage />} />
           <Route path="/markets" element={<MarketsPage />} />
+          <Route path="/tasks" element={<TasksPage />} />
         </Routes>
       </ImpersonationProvider>
     </BrowserRouter>

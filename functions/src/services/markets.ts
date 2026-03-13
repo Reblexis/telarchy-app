@@ -78,6 +78,8 @@ export async function refreshRelativeDateMarkets(): Promise<{ created: number; d
     const d = doc.data();
     const key = `${d.metricId}:${d.targetDate}`;
     openKeys.add(key);
+    // Task-conditional markets are managed by the task lifecycle — skip them.
+    if (d.taskId) continue;
     const shouldBeActive = desiredRefs.has(key);
     if (shouldBeActive && d.active === false) {
       batch.update(doc.ref, { active: true });

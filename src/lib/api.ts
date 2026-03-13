@@ -74,6 +74,21 @@ export const api = {
   injectLiquidity: (user: User, marketId: string, amount: number) =>
     request(`/api/predictions/markets/${marketId}/liquidity`, user, { method: 'POST', body: JSON.stringify({ amount }) }),
 
+  // Tasks
+  getTasks: (user: User) => request('/api/tasks', user),
+  getTask: (user: User, id: string) => request(`/api/tasks/${id}`, user),
+  createTask: (user: User, body: { title: string; description: string; price: number }) =>
+    request('/api/tasks', user, { method: 'POST', body: JSON.stringify(body) }),
+  testTask: (user: User, id: string) =>
+    request(`/api/tasks/${id}/test`, user, { method: 'POST' }),
+  approveTask: (user: User, id: string) =>
+    request(`/api/tasks/${id}/approve`, user, { method: 'POST' }),
+  declineTask: (user: User, id: string) =>
+    request(`/api/tasks/${id}/decline`, user, { method: 'POST' }),
+  getTaskMessages: (user: User, id: string) => request(`/api/tasks/${id}/messages`, user),
+  sendTaskMessage: (user: User, id: string, content: string) =>
+    request(`/api/tasks/${id}/messages`, user, { method: 'POST', body: JSON.stringify({ content }) }),
+
   // Hooks (public, no auth)
   getHooksStatus: async (): Promise<{ active: boolean; lastPolledAt?: string; intervalMs?: number; nextPollAt?: string }> => {
     const res = await fetch(`${API_BASE}/api/events/hooks/status`);

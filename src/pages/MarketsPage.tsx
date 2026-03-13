@@ -471,6 +471,7 @@ export function MarketsPage() {
           <Link to="/metrics" className="nav-link">Metrics</Link>
           <Link to="/agents" className="nav-link">Agents</Link>
           <Link to="/markets" className="nav-link active">Markets</Link>
+          <Link to="/tasks" className="nav-link">Tasks</Link>
         </nav>
         <div className="header-actions">
           <HookStatus />
