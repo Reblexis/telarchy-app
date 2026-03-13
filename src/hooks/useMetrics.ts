@@ -41,7 +41,7 @@ function buildWarnings(
   return result;
 }
 
-export function useMetrics(user: User | null) {
+export function useMetrics(user: User | null, inspectTaskId?: string | null) {
   const [metrics, setMetrics] = useState<Metric[]>(() => cacheGet<Metric[]>('metrics') || []);
   const [updates, setUpdates] = useState<UpdateEntry[]>(() => cacheGet<UpdateEntry[]>('updates') || []);
   const [formulaWarnings, setFormulaWarnings] = useState<Record<string, FormulaWarning[]>>({});
@@ -58,7 +58,7 @@ export function useMetrics(user: User | null) {
 
     const [metricsData, marketsData, _] = await Promise.all([
       api.getMetrics(user) as Promise<Metric[]>,
-      api.getMarkets(user).then((d: Market[]) => d, (): Market[] => []),
+      api.getMarkets(user, inspectTaskId || undefined).then((d: Market[]) => d, (): Market[] => []),
       api.getUpdates(user).then((list: UpdateEntry[]) => {
         const parsed = list.map(u => ({ ...u, timestamp: new Date(u.timestamp) }));
         setUpdates(parsed);
@@ -66,17 +66,23 @@ export function useMetrics(user: User | null) {
       }),
     ]);
 
-    // Build consensus map
+    // Build consensus map from whichever markets we fetched (conditional or regular)
     consensusMapRef.current = buildConsensusMap(marketsData);
 
-    setMetrics(metricsData);
-    cacheSet('metrics', metricsData);
+    if (inspectTaskId) {
+      // Re-enrich metrics using conditional market consensus instead of backend values
+      const cloned = metricsData.map(m => ({ ...m }));
+      setMetrics(enrichMetrics(cloned, consensusMapRef.current));
+    } else {
+      setMetrics(metricsData);
+      cacheSet('metrics', metricsData);
+    }
 
     // Compute formula warnings
     setFormulaWarnings(buildWarnings(metricsData));
 
     return metricsData;
-  }, [user]);
+  }, [user, inspectTaskId]);
 
   useEffect(() => {
     if (!user) return;

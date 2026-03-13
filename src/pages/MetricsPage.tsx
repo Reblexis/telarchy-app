@@ -6,6 +6,7 @@ import { useMetrics } from '../hooks/useMetrics';
 import { clearFirebaseConfig } from '../lib/firebase';
 import { getCookie, setCookie } from '../lib/cookies';
 import type { Metric, GraphInterval } from '../types';
+import { useInspectMode } from '../hooks/useInspectMode';
 import { Header } from '../components/Header';
 import { XPDisplay } from '../components/XPDisplay';
 import { MetricsDashboard } from '../components/MetricsDashboard';
@@ -17,13 +18,14 @@ export function MetricsPage() {
   const navigate = useNavigate();
   const { user, loading: authLoading, logout } = useAuth();
   const { isDark } = useDarkMode();
+  const { inspectTask } = useInspectMode();
   const {
     metrics, xp, rank, loading: metricsLoading,
     formulaWarnings,
     focusedMetricId, toggleFocus,
     addMetric, editMetric, removeMetric,
     loadMetricLogs,
-  } = useMetrics(user);
+  } = useMetrics(user, inspectTask?.id);
 
   const [editingMetric, setEditingMetric] = useState<Metric | null>(null);
   const [graphMetric, setGraphMetric] = useState<Metric | null>(null);

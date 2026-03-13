@@ -50,7 +50,10 @@ export const api = {
     request(`/api/agents/${id}`, user, { method: 'DELETE' }),
 
   // Markets & Trading
-  getMarkets: (user: User) => request('/api/predictions/markets', user),
+  getMarkets: (user: User, taskId?: string) => {
+    const qs = taskId ? `?taskId=${taskId}` : '';
+    return request(`/api/predictions/markets${qs}`, user);
+  },
   getMarketDetail: (user: User, id: string) => request(`/api/predictions/markets/${id}`, user),
   getMarketTrades: (user: User, id: string) => request(`/api/predictions/markets/${id}/trades`, user),
   createMarket: (user: User, metricId: string, targetDate: string) =>

@@ -123,9 +123,10 @@ export async function voidMarket(marketId: string): Promise<{ refunded: number }
   return { refunded };
 }
 
-export async function getMarkets(includeResolved = false) {
+export async function getMarkets(includeResolved = false, taskId?: string) {
   let query: FirebaseFirestore.Query = db().collection('markets');
   if (!includeResolved) query = query.where('resolved', '==', false);
+  if (taskId) query = query.where('taskId', '==', taskId);
   const marketSnap = await query.orderBy('targetDate', 'asc').get();
 
   if (marketSnap.empty) return [];

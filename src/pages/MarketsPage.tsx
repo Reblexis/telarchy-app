@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { useImpersonation } from '../hooks/useImpersonation';
 import { api } from '../lib/api';
+import { useInspectMode } from '../hooks/useInspectMode';
 import { formatTargetDateDisplay, endOfPeriod } from '../lib/date-utils';
 import type { Market, Metric, Position } from '../types';
 
@@ -365,6 +366,7 @@ export function MarketsPage() {
   const { user, loading: authLoading } = useAuth();
   useDarkMode();
   const { agentId: impersonatedId } = useImpersonation();
+  const { inspectTask } = useInspectMode();
   const [markets, setMarkets] = useState<Market[]>([]);
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [loading, setLoading] = useState(true);
@@ -392,18 +394,27 @@ export function MarketsPage() {
   const load = useCallback(async () => {
     if (!user) return;
     setError('');
-    const cachedMkts = sessionStorage.getItem('cache:markets');
-    const cachedMets = sessionStorage.getItem('cache:metrics');
-    if (cachedMkts) { setMarkets(JSON.parse(cachedMkts)); setLoading(false); }
-    if (cachedMets) setMetrics(JSON.parse(cachedMets));
+    // Skip cache when inspecting — conditional markets are task-specific
+    if (!inspectTask) {
+      const cachedMkts = sessionStorage.getItem('cache:markets');
+      const cachedMets = sessionStorage.getItem('cache:metrics');
+      if (cachedMkts) { setMarkets(JSON.parse(cachedMkts)); setLoading(false); }
+      if (cachedMets) setMetrics(JSON.parse(cachedMets));
+    }
     const [mkts, mets] = await Promise.all([
-      api.getMarkets(user).catch((e: Error) => { setError(e.message); return null; }),
+      api.getMarkets(user, inspectTask?.id).catch((e: Error) => { setError(e.message); return null; }),
       api.getMetrics(user).catch(() => null),
     ]);
-    if (mkts) { setMarkets(mkts); sessionStorage.setItem('cache:markets', JSON.stringify(mkts)); }
-    if (mets) { setMetrics(mets); sessionStorage.setItem('cache:metrics', JSON.stringify(mets)); }
+    if (mkts) {
+      setMarkets(mkts);
+      if (!inspectTask) sessionStorage.setItem('cache:markets', JSON.stringify(mkts));
+    }
+    if (mets) {
+      setMetrics(mets);
+      if (!inspectTask) sessionStorage.setItem('cache:metrics', JSON.stringify(mets));
+    }
     setLoading(false);
-  }, [user]);
+  }, [user, inspectTask]);
 
   useEffect(() => { load(); }, [load]);
 

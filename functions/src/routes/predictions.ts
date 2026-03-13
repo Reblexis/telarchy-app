@@ -148,8 +148,9 @@ predictionsRouter.get('/positions', requireRole('agent', 'admin'), wrap(async (r
   res.json(snapshot.docs.map(doc => doc.data()).filter((p: Record<string, unknown>) => (p.shares as number) > 0));
 }));
 
-predictionsRouter.get('/markets', requireRole('agent', 'admin'), wrap(async (_req, res) => {
-  res.json(await getMarkets());
+predictionsRouter.get('/markets', requireRole('agent', 'admin'), wrap(async (req, res) => {
+  const taskId = typeof req.query.taskId === 'string' ? req.query.taskId : undefined;
+  res.json(await getMarkets(false, taskId));
 }));
 
 predictionsRouter.get('/markets/:id/trades', requireRole('agent', 'admin'), wrap(async (req, res) => {

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
+import { useInspectMode } from '../hooks/useInspectMode';
 import { api } from '../lib/api';
 import type { TaskProposal, TaskMessage, TaskMarketSummary } from '../types';
 
@@ -141,9 +142,11 @@ interface TaskDetailProps {
 }
 
 function TaskDetail({ task, user, onAction, onError }: TaskDetailProps) {
+  const { inspectTask, setInspectTask } = useInspectMode();
   const [markets, setMarkets] = useState<TaskMarketSummary[]>(task.markets || []);
   const [acting, setActing] = useState(false);
-  const [testResult, setTestResult] = useState('');
+
+  const isInspecting = inspectTask?.id === task.id;
 
   const handle = async (action: () => Promise<unknown>) => {
     setActing(true);
@@ -152,17 +155,19 @@ function TaskDetail({ task, user, onAction, onError }: TaskDetailProps) {
     onAction();
   };
 
-  const handleTest = async () => {
-    setActing(true);
-    setTestResult('');
-    const result = await api.testTask(user, task.id).catch((e: Error) => { onError(e.message); return null; });
-    if (result) {
-      setTestResult(`${result.created} markets created.`);
-      const detail = await api.getTask(user, task.id).catch(() => null);
-      if (detail?.markets) setMarkets(detail.markets);
+  const handleInspect = async () => {
+    // Create conditional markets if not yet done, then enter inspect mode
+    if (task.conditionalMarketIds.length === 0) {
+      setActing(true);
+      const result = await api.testTask(user, task.id).catch((e: Error) => { onError(e.message); return null; });
+      if (result) {
+        const detail = await api.getTask(user, task.id).catch(() => null);
+        if (detail?.markets) setMarkets(detail.markets);
+      }
+      setActing(false);
+      onAction();
     }
-    setActing(false);
-    onAction();
+    setInspectTask(isInspecting ? null : { id: task.id, title: task.title });
   };
 
   return (
@@ -177,10 +182,10 @@ function TaskDetail({ task, user, onAction, onError }: TaskDetailProps) {
           <button
             className="btn-small"
             disabled={acting}
-            onClick={handleTest}
-            style={{ background: 'var(--accent-color, #3b82f6)', color: '#fff', padding: '0.45rem 0.9rem' }}
+            onClick={handleInspect}
+            style={{ background: isInspecting ? '#7c3aed' : 'var(--accent-color, #3b82f6)', color: '#fff', padding: '0.45rem 0.9rem' }}
           >
-            {acting ? '…' : 'Test'}
+            {acting ? '…' : isInspecting ? 'Exit Inspect' : 'Inspect'}
           </button>
           <button
             className="btn-small"
@@ -198,7 +203,6 @@ function TaskDetail({ task, user, onAction, onError }: TaskDetailProps) {
           >
             {acting ? '…' : 'Decline'}
           </button>
-          {testResult && <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{testResult}</span>}
         </div>
       )}
 
