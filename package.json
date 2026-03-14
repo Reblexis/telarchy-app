@@ -11,7 +11,7 @@
     "deploy:hosting": "npm run build && npx firebase-tools deploy --only hosting",
     "deploy:functions": "npm run build:functions && npx firebase-tools deploy --only functions",
     "preview": "vite preview",
-    "dev:local": "npm run build:functions && concurrently -n emu,vite -c blue,green \"npx firebase-tools emulators:start --only functions\" \"vite\""
+    "dev:local": "npm run build:functions && concurrently -n emu,vite,tsc -c blue,green,yellow \"npx firebase-tools emulators:start --only functions\" \"vite\" \"npm --prefix functions run watch\""
   },
   "dependencies": {
     "chart.js": "^4.4.0",

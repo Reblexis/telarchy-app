@@ -61,7 +61,7 @@ interface LiquidityEvent {
   amount: number;
   totalLiquidity: number;
   type: 'initial' | 'injection';
-  createdAt: { _seconds: number } | null;
+  createdAt: unknown;
 }
 
 // --- SVG line chart ---
@@ -99,6 +99,7 @@ function getTimestampSeconds(ts: unknown): number | null {
   }
   return null;
 }
+
 
 function ConsensusChart({ trades, rangeMin, rangeMax }: {
   trades: TradePoint[]; rangeMin: number; rangeMax: number;
@@ -326,6 +327,7 @@ function TradingPanel({ market, agentId, user, onTrade, onError }: {
     setPositions(data);
   }).catch(() => {});
 
+
   const handleBetDirection = async (direction: 'higher' | 'lower') => {
     if (isNaN(amount) || amount <= 0) return;
     setTrading(true);
@@ -375,6 +377,18 @@ function TradingPanel({ market, agentId, user, onTrade, onError }: {
     const result = await api.injectLiquidity(user, market.id, a).catch((e: Error) => { onError(e.message); return null; });
     if (result) {
       setLiqAmount('');
+      const optimistic: LiquidityEvent = {
+        id: `optimistic-${Date.now()}`,
+        amount: a,
+        totalLiquidity: result.liquidity,
+        type: 'injection',
+        createdAt: { _seconds: Date.now() / 1000 },
+      };
+      setLiquidityEvents(prev => {
+        const next = [...prev, optimistic];
+        marketLiquidityEventsCache.set(market.id, next);
+        return next;
+      });
       api.getMarketLiquidityEvents(user, market.id).then(data => {
         marketLiquidityEventsCache.set(market.id, data);
         setLiquidityEvents(data);
@@ -416,8 +430,8 @@ function TradingPanel({ market, agentId, user, onTrade, onError }: {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' }}>
                   <thead>
                     <tr style={{ position: 'sticky', top: 0, background: 'var(--bg-secondary, #f8f9fa)' }}>
-                      {['Time', 'Agent', 'Dir', 'Shares', 'Cost', 'Consensus'].map(h => (
-                        <th key={h} style={{ padding: '0.2rem 0.4rem', textAlign: h === 'Dir' ? 'center' : ['Shares', 'Cost', 'Consensus'].includes(h) ? 'right' : 'left', color: 'var(--text-secondary)', fontWeight: 500, borderBottom: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>{h}</th>
+                      {['Time', 'Actor', 'Type', 'Amount', 'Detail', 'Result'].map(h => (
+                        <th key={h} style={{ padding: '0.2rem 0.4rem', textAlign: h === 'Type' ? 'center' : ['Amount', 'Detail', 'Result'].includes(h) ? 'right' : 'left', color: 'var(--text-secondary)', fontWeight: 500, borderBottom: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -428,7 +442,9 @@ function TradingPanel({ market, agentId, user, onTrade, onError }: {
                         <td style={{ padding: '0.2rem 0.4rem', fontFamily: 'monospace', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.data.agentId ?? '—'}</td>
                         <td style={{ padding: '0.2rem 0.4rem', textAlign: 'center', color: entry.data.direction === 'higher' ? '#22c55e' : '#ef4444' }}>{entry.data.direction === 'higher' ? '▲' : '▼'}</td>
                         <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>{entry.data.shares ?? '—'}</td>
-                        <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>{entry.data.cost ?? '—'}</td>
+                        <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>
+                          {entry.data.cost == null ? '—' : entry.data.cost > 0 ? `cost ${entry.data.cost}` : `proceeds ${-entry.data.cost}`}
+                        </td>
                         <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{entry.data.consensus}</td>
                       </tr>
                     ) : (
@@ -436,8 +452,10 @@ function TradingPanel({ market, agentId, user, onTrade, onError }: {
                         <td style={{ padding: '0.2rem 0.4rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{fmtTime(entry.ts)}</td>
                         <td style={{ padding: '0.2rem 0.4rem', color: 'var(--text-secondary)' }}>admin</td>
                         <td style={{ padding: '0.2rem 0.4rem', textAlign: 'center', color: '#3b82f6' }}>{entry.data.type === 'initial' ? 'init' : '+liq'}</td>
-                        <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', color: 'var(--text-secondary)' }}>—</td>
-                        <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', color: '#3b82f6', fontFamily: 'monospace' }}>+{entry.data.amount}</td>
+                        <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', color: '#3b82f6', fontFamily: 'monospace', fontWeight: 600 }}>+{entry.data.amount}</td>
+                        <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', color: 'var(--text-secondary)' }}>
+                          {entry.data.type === 'initial' ? 'initial liquidity' : 'liquidity injection'}
+                        </td>
                         <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>b={entry.data.totalLiquidity}</td>
                       </tr>
                     ))}

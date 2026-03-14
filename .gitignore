@@ -23,6 +23,7 @@ Thumbs.db
 
 # Local development
 *.local
+.emulator-data/
 
 # Exclude personal-webpage (contains real Firebase credentials)
 personal-webpage/

@@ -297,7 +297,7 @@ predictionsRouter.post('/markets', requireRole('admin'), wrap(async (req, res) =
   });
 
   const liqRef = db().collection('liquidityEvents').doc();
-  liqRef.set({ id: liqRef.id, marketId: ref.id, amount: liq, totalLiquidity: liq, type: 'initial', createdAt: FieldValue.serverTimestamp() }).catch(() => {});
+  await liqRef.set({ id: liqRef.id, marketId: ref.id, amount: liq, totalLiquidity: liq, type: 'initial', createdAt: FieldValue.serverTimestamp() });
 
   res.status(201).json({ id: ref.id, metricId, metricName: metric.name, targetDate });
   emitEvent('market:created', { marketId: ref.id, metricName: metric.name, targetDate }).catch(() => {});
@@ -306,7 +306,6 @@ predictionsRouter.post('/markets', requireRole('admin'), wrap(async (req, res) =
 predictionsRouter.get('/markets/:id/liquidity-events', requireRole('agent', 'admin'), wrap(async (req, res) => {
   const snap = await db().collection('liquidityEvents')
     .where('marketId', '==', req.params.id as string)
-    .orderBy('createdAt', 'asc')
     .get();
   res.json(snap.docs.map(doc => {
     const d = doc.data();
@@ -324,10 +323,15 @@ predictionsRouter.post('/markets/:id/liquidity', requireRole('admin'), wrap(asyn
   const ref = db().collection('markets').doc(req.params.id as string);
   const doc = await ref.get();
   if (!doc.exists) { res.status(404).json({ error: 'Market not found' }); return; }
-  const newLiquidity = doc.data()!.liquidity + amount;
-  await ref.update({ liquidity: newLiquidity });
+  const oldLiquidity = doc.data()!.liquidity as number;
+  const oldShares = doc.data()!.shares as [number, number];
+  const newLiquidity = oldLiquidity + amount;
+  // Scale shares proportionally so (q1-q0)/b stays constant → consensus unchanged
+  const scale = newLiquidity / oldLiquidity;
+  const newShares: [number, number] = [oldShares[0] * scale, oldShares[1] * scale];
+  await ref.update({ liquidity: newLiquidity, shares: newShares });
   const liqRef = db().collection('liquidityEvents').doc();
-  liqRef.set({ id: liqRef.id, marketId: req.params.id as string, amount, totalLiquidity: newLiquidity, type: 'injection', createdAt: FieldValue.serverTimestamp() }).catch(() => {});
+  await liqRef.set({ id: liqRef.id, marketId: req.params.id as string, amount, totalLiquidity: newLiquidity, type: 'injection', createdAt: FieldValue.serverTimestamp() });
   res.json({ liquidity: newLiquidity });
 }));
 
