@@ -607,6 +607,7 @@ export function MarketsPage() {
   const { inspectTask } = useInspectMode();
   const [markets, setMarkets] = useState<Market[]>([]);
   const [metrics, setMetrics] = useState<Metric[]>([]);
+  const [mainMarketsMap, setMainMarketsMap] = useState<Map<string, Market>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [resolveResult, setResolveResult] = useState('');
@@ -647,6 +648,15 @@ export function MarketsPage() {
       api.getMarkets(user, inspectTask?.id).catch((e: Error) => { setError(e.message); return null; }),
       api.getMetrics(user).catch(() => null),
     ]);
+    if (inspectTask) {
+      api.getMarkets(user).then((mains: Market[]) => {
+        const map = new Map<string, Market>();
+        for (const m of mains) map.set(`${m.metricId}:${m.targetDate}`, m);
+        setMainMarketsMap(map);
+      }).catch(() => {});
+    } else {
+      setMainMarketsMap(new Map());
+    }
     if (mkts) {
       setMarkets(mkts);
       if (!inspectTask) sessionStorage.setItem('cache:markets', JSON.stringify(mkts));
@@ -813,6 +823,18 @@ export function MarketsPage() {
                             previewProb={hoverDir[m.id] ? previewTrade(m.probability, m.liquidity, hoverDir[m.id]!, 50).newProb : undefined}
                           />
                           <span style={{ fontFamily: 'monospace', fontWeight: 600, minWidth: '42px' }}>{m.consensus ?? '—'}</span>
+                          {inspectTask && (() => {
+                            const main = mainMarketsMap.get(`${m.metricId}:${m.targetDate}`);
+                            if (!main || m.consensus === null || main.consensus === null) return null;
+                            const delta = m.consensus - main.consensus;
+                            if (Math.abs(delta) < 0.005) return null;
+                            return (
+                              <span style={{ fontSize: '0.72rem', color: delta > 0 ? '#22c55e' : '#ef4444', fontFamily: 'monospace' }}>
+                                {delta > 0 ? '▲' : '▼'}{Math.abs(delta).toFixed(2)}
+                                <span style={{ color: 'var(--text-secondary)', marginLeft: '0.2rem' }}>({main.consensus})</span>
+                              </span>
+                            );
+                          })()}
                         </div>
                       </td>
                       <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>

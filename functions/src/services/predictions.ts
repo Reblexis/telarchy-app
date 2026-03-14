@@ -131,7 +131,9 @@ export async function getMarkets(includeResolved = false, taskId?: string) {
 
   if (marketSnap.empty) return [];
 
-  const docs = marketSnap.docs;
+  const docs = taskId
+    ? marketSnap.docs
+    : marketSnap.docs.filter(d => !d.data().taskId);
 
   if (docs.length === 0) return [];
 

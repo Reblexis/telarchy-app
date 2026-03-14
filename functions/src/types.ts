@@ -13,6 +13,7 @@ export interface Metric {
   order: number;
   depth: number;
   timePreference?: TimePreference;
+  timeSeries?: Array<{ date: string; value: number }>;
 }
 
 export interface MetricLog {

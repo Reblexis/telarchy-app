@@ -1,6 +1,6 @@
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import type { Metric, MetricLog, UpdateEntry } from '../types';
-import { recalculateMetrics, calculateMetricDepths, calculateXP, calculateRank } from '../lib/metrics-engine';
+import { recalculateMetrics, calculateMetricDepths, calculateXP, calculateRank, evaluateFormulaAtTime } from '../lib/metrics-engine';
 import { sampleTimePoints, getLeafDescendantNames } from '../lib/time-preference';
 import { consensus as ammConsensus, AMM_DEFAULTS } from '../lib/amm';
 import { toISOWeekString } from '../lib/date-utils';
@@ -12,6 +12,53 @@ function enrichMetrics(metrics: Metric[], consensusMap: Record<string, number> =
   recalculateMetrics(metrics, consensusMap);
   const depths = calculateMetricDepths(metrics);
   metrics.forEach(m => { m.depth = depths[m.id] ?? 0; });
+
+  const nameToFormula: Record<string, string> = {};
+  metrics.forEach(m => { nameToFormula[m.name] = m.formula || '0'; });
+
+  const nameToTimeSeries: Record<string, Array<{ date: string; value: number }>> = {};
+
+  for (const tpMetric of metrics) {
+    if (!tpMetric.timePreference?.enabled) continue;
+
+    // Use the TP node's own time points — always future dates, always the right set.
+    const timePoints = sampleTimePoints(tpMetric.timePreference.halfLife);
+
+    // BFS to collect all descendants.
+    const descendants = new Set<string>();
+    const queue = [tpMetric.name];
+    const visited = new Set([tpMetric.name]);
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      const refs = (nameToFormula[current] || '').match(/\{([^}]+)\}/g) ?? [];
+      for (const ref of refs) {
+        const name = ref.slice(1, -1).trim();
+        if (!visited.has(name)) { visited.add(name); descendants.add(name); queue.push(name); }
+      }
+    }
+
+    const memo: Record<string, number> = {};
+    for (const name of descendants) {
+      if (nameToTimeSeries[name]) continue;
+      const formula = nameToFormula[name] || '0';
+      const isLeaf = formula.trim() === '0';
+      const series: Array<{ date: string; value: number }> = [];
+
+      for (const { date } of timePoints) {
+        if (isLeaf) {
+          // Only include dates where a market consensus actually exists — skip missing ones.
+          const val = consensusMap[`${name}:${date}`];
+          if (val !== undefined) series.push({ date, value: val });
+        } else {
+          series.push({ date, value: evaluateFormulaAtTime(formula, nameToFormula, consensusMap, date, memo) });
+        }
+      }
+
+      if (series.length > 0) nameToTimeSeries[name] = series;
+    }
+  }
+
+  metrics.forEach(m => { if (nameToTimeSeries[m.name]) m.timeSeries = nameToTimeSeries[m.name]; });
   metrics.sort((a, b) => a.depth !== b.depth ? a.depth - b.depth : (a.order || 999) - (b.order || 999));
   return metrics;
 }
@@ -26,6 +73,7 @@ async function buildConsensusMap(): Promise<Record<string, number>> {
 
   for (const doc of marketSnap.docs) {
     const m = doc.data();
+    if (m.taskId) continue; // skip conditional task markets — they use the same keys but are untraded
     if (!m.shares || !m.liquidity) continue;
     const c = ammConsensus(m.shares, m.liquidity, m.rangeMin, m.rangeMax);
     map[`${m.metricName}:${m.targetDate}`] = c;

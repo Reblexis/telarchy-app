@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
@@ -345,9 +345,8 @@ export function TasksPage() {
               </thead>
               <tbody>
                 {tasks.map(task => (
-                  <>
+                  <React.Fragment key={task.id}>
                     <tr
-                      key={task.id}
                       style={{ borderBottom: expandedId === task.id ? 'none' : '1px solid var(--border-color)', cursor: 'pointer' }}
                       onClick={() => handleExpand(task.id)}
                     >
@@ -360,7 +359,7 @@ export function TasksPage() {
                       <td style={{ padding: '0.75rem 0.5rem' }}><StatusBadge status={task.status} /></td>
                     </tr>
                     {expandedId === task.id && (
-                      <tr key={`${task.id}-detail`} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
                         <td colSpan={5} style={{ padding: '0 0.5rem 0.75rem' }}>
                           <TaskDetail
                             task={expandedData[task.id] ?? task}
@@ -371,7 +370,7 @@ export function TasksPage() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

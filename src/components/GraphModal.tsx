@@ -1,13 +1,14 @@
 import { useEffect, useState, useCallback } from 'react';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, BarElement,
-  Tooltip, type ChartData, type ChartOptions,
+  PointElement, LineElement, Tooltip, Filler,
+  type ChartData, type ChartOptions,
 } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
 import type { Metric, MetricLog, GraphInterval } from '../types';
 import { buildChartData } from '../lib/graph-utils';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip);
+ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Tooltip, Filler);
 
 interface GraphModalProps {
   metric: Metric | null;

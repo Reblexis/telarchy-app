@@ -72,8 +72,9 @@ export function useMetrics(user: User | null, inspectTaskId?: string | null) {
     consensusMapRef.current = buildConsensusMap(marketsData);
 
     if (inspectTaskId) {
-      // Re-enrich metrics using conditional market consensus instead of backend values
-      const cloned = metricsData.map(m => ({ ...m }));
+      // Re-enrich metrics using conditional market consensus instead of backend values.
+      // Preserve the backend total (regular consensus) as baselineTotal for diff display.
+      const cloned = metricsData.map(m => ({ ...m, baselineTotal: m.total }));
       setMetrics(enrichMetrics(cloned, consensusMapRef.current));
     } else {
       setMetrics(metricsData);
