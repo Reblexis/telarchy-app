@@ -101,6 +101,8 @@ export async function refreshRelativeDateMarkets(): Promise<{ created: number; d
       rangeMin: AMM_DEFAULTS.rangeMin, rangeMax: AMM_DEFAULTS.rangeMax,
       shares: [0, 0], liquidity: AMM_DEFAULTS.liquidity,
     });
+    const liqRef = db().collection('liquidityEvents').doc();
+    batch.set(liqRef, { id: liqRef.id, marketId: ref.id, amount: AMM_DEFAULTS.liquidity, totalLiquidity: AMM_DEFAULTS.liquidity, type: 'initial', createdAt: FieldValue.serverTimestamp() });
     created++;
   }
 

@@ -1,16 +1,14 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { initializeFirebaseApp, getFirebaseAuth } from '../lib/firebase';
 import { useDarkMode } from '../hooks/useDarkMode';
 
 export function LoginPage() {
   const navigate = useNavigate();
   const { isDark, toggle } = useDarkMode();
-  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -22,14 +20,7 @@ export function LoginPage() {
     try {
       initializeFirebaseApp();
       const auth = getFirebaseAuth();
-
-      if (isSignUp) {
-        if (password !== confirmPassword) throw new Error('Passwords do not match');
-        if (password.length < 6) throw new Error('Password must be at least 6 characters');
-        await createUserWithEmailAndPassword(auth, email, password);
-      } else {
-        await signInWithEmailAndPassword(auth, email, password);
-      }
+      await signInWithEmailAndPassword(auth, email, password);
 
       navigate('/metrics');
     } catch (err: unknown) {
@@ -54,7 +45,7 @@ export function LoginPage() {
       </button>
       <div className="login-page">
         <div className="container" style={{ maxWidth: 400 }}>
-          <h1>{isSignUp ? 'Sign Up' : 'Login'}</h1>
+          <h1>Login</h1>
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label htmlFor="email">Email</label>
@@ -64,22 +55,11 @@ export function LoginPage() {
               <label htmlFor="password">Password</label>
               <input type="password" id="password" required value={password} onChange={e => setPassword(e.target.value)} />
             </div>
-            {isSignUp && (
-              <div className="form-group">
-                <label htmlFor="confirmPassword">Confirm Password</label>
-                <input type="password" id="confirmPassword" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
-              </div>
-            )}
             <button type="submit" disabled={submitting}>
-              {submitting ? (isSignUp ? 'Signing up...' : 'Logging in...') : (isSignUp ? 'Sign Up' : 'Login')}
+              {submitting ? 'Logging in...' : 'Login'}
             </button>
             {error && <div className="error show">{error}</div>}
           </form>
-          <div className="toggle-mode">
-            <button type="button" onClick={() => { setIsSignUp(!isSignUp); setError(''); }}>
-              {isSignUp ? 'Already have an account? Login' : "Don't have an account? Sign up"}
-            </button>
-          </div>
           <div className="reconfigure-link">
             <a href="/setup">Reconfigure Firebase</a>
           </div>

@@ -138,7 +138,9 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
 }));
 
 predictionsRouter.get('/positions', requireRole('agent', 'admin'), wrap(async (req, res) => {
-  const agentId = req.auth!.agentId;
+  const agentId = req.auth!.role === 'admin' && typeof req.query.agentId === 'string'
+    ? req.query.agentId
+    : req.auth!.agentId;
   if (!agentId) { res.status(403).json({ error: 'Only agents can list positions' }); return; }
 
   let query: FirebaseFirestore.Query = db().collection('positions').where('agentId', '==', agentId);
@@ -160,6 +162,10 @@ predictionsRouter.get('/markets/:id/trades', requireRole('agent', 'admin'), wrap
     .get();
   res.json(snap.docs.map(doc => {
     const t = doc.data();
+    const ts = t.createdAt;
+    const secs = ts && typeof ts === 'object' && ('seconds' in ts || '_seconds' in ts)
+      ? (ts.seconds ?? ts._seconds)
+      : null;
     return {
       id: t.id,
       agentId: t.agentId,
@@ -168,7 +174,7 @@ predictionsRouter.get('/markets/:id/trades', requireRole('agent', 'admin'), wrap
       cost: t.cost,
       consensus: t.consensus ?? null,
       probability: t.probability ?? null,
-      createdAt: t.createdAt,
+      createdAt: secs != null ? { _seconds: secs } : null,
     };
   }));
 }));
@@ -290,8 +296,26 @@ predictionsRouter.post('/markets', requireRole('admin'), wrap(async (req, res) =
     liquidity: liq,
   });
 
+  const liqRef = db().collection('liquidityEvents').doc();
+  liqRef.set({ id: liqRef.id, marketId: ref.id, amount: liq, totalLiquidity: liq, type: 'initial', createdAt: FieldValue.serverTimestamp() }).catch(() => {});
+
   res.status(201).json({ id: ref.id, metricId, metricName: metric.name, targetDate });
   emitEvent('market:created', { marketId: ref.id, metricName: metric.name, targetDate }).catch(() => {});
+}));
+
+predictionsRouter.get('/markets/:id/liquidity-events', requireRole('agent', 'admin'), wrap(async (req, res) => {
+  const snap = await db().collection('liquidityEvents')
+    .where('marketId', '==', req.params.id as string)
+    .orderBy('createdAt', 'asc')
+    .get();
+  res.json(snap.docs.map(doc => {
+    const d = doc.data();
+    const ts = d.createdAt;
+    const secs = ts && typeof ts === 'object' && ('seconds' in ts || '_seconds' in ts)
+      ? (ts.seconds ?? ts._seconds)
+      : null;
+    return { id: d.id, amount: d.amount, totalLiquidity: d.totalLiquidity, type: d.type, createdAt: secs != null ? { _seconds: secs } : null };
+  }));
 }));
 
 predictionsRouter.post('/markets/:id/liquidity', requireRole('admin'), wrap(async (req, res) => {
@@ -302,6 +326,8 @@ predictionsRouter.post('/markets/:id/liquidity', requireRole('admin'), wrap(asyn
   if (!doc.exists) { res.status(404).json({ error: 'Market not found' }); return; }
   const newLiquidity = doc.data()!.liquidity + amount;
   await ref.update({ liquidity: newLiquidity });
+  const liqRef = db().collection('liquidityEvents').doc();
+  liqRef.set({ id: liqRef.id, marketId: req.params.id as string, amount, totalLiquidity: newLiquidity, type: 'injection', createdAt: FieldValue.serverTimestamp() }).catch(() => {});
   res.json({ liquidity: newLiquidity });
 }));
 

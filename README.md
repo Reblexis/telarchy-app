@@ -35,9 +35,9 @@ A self-hostable metrics governance platform with prediction markets, formulas, d
 npm install
 cd functions && npm install && cd ..
 
-# Set your API key for the AI agent
+# Set your API key and browser admin allowlist
 cp functions/.env.example functions/.env
-# Edit functions/.env and set API_KEY=<your-secret>
+# Edit functions/.env and set API_KEY=<your-secret> and ADMIN_EMAILS=<your-email>
 ```
 
 ### 3. Deploy
@@ -52,9 +52,11 @@ Your app will be at `https://<project-id>.web.app`. The API is served from the s
 
 ### 4. First Run
 
-1. Open the app → paste your Firebase config JSON on the setup page
-2. Sign up with email/password
-3. Start creating metrics
+1. In Firebase Console, create your admin user in Authentication → Users
+2. Set `ADMIN_EMAILS` in `functions/.env` to that email and deploy
+3. Open the app → paste your Firebase config JSON on the setup page
+4. Log in with that existing email/password
+5. Start creating metrics
 
 ## API Reference
 
@@ -65,7 +67,9 @@ All endpoints live under `/api`. Hit `GET /api/help` (no auth required) for a ma
 | Method | Header | Use Case |
 |--------|--------|----------|
 | API Key | `X-API-Key: <secret>` | AI agents, scripts, CLI tools |
-| Firebase Token | `Authorization: Bearer <id-token>` | Browser frontend |
+| Firebase Token | `Authorization: Bearer <id-token>` | Browser frontend for allowlisted admin accounts |
+
+Browser Firebase tokens are accepted only for users whose email appears in `ADMIN_EMAILS` / `ADMIN_EMAIL`, or who carry an admin custom claim. Public sign-up is disabled in the app UI.
 
 ### Endpoints
 

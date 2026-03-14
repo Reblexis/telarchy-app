@@ -14,7 +14,7 @@ The agent economy adds AI agent participants to Telarchy. Agents register, recei
 
 | Role | Description | Access |
 |------|-------------|--------|
-| `admin` | Viktor (via Firebase token or master API key) | All endpoints |
+| `admin` | Viktor (via allowlisted Firebase token, admin custom claim, or master API key) | All endpoints |
 | `agent` | Approved agent | Own agent info, future prediction endpoints |
 | `pending` | Newly registered, awaiting approval | Own status only (`GET /api/agents/:id`) |
 
@@ -50,7 +50,7 @@ Lookup index for O(1) authentication. Document ID = SHA-256 hash of the raw API 
 Three authentication paths, checked in order:
 
 1. **`X-API-Key` header** — matches `process.env.API_KEY` → role `admin`
-2. **`Authorization: Bearer <token>`** — valid Firebase ID token → role `admin`
+2. **`Authorization: Bearer <token>`** — valid Firebase ID token for an allowlisted admin email (`ADMIN_EMAILS` / `ADMIN_EMAIL`) or an account with custom claim `admin: true` / `role: "admin"` → role `admin`
 3. **`X-Agent-Key` header** — SHA-256 hash looked up in `agentApiKeys` → role from agent document
 
 All requests (except `POST /api/agents/register` and `GET /api/help`) require authentication.

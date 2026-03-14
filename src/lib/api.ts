@@ -56,6 +56,7 @@ export const api = {
   },
   getMarketDetail: (user: User, id: string) => request(`/api/predictions/markets/${id}`, user),
   getMarketTrades: (user: User, id: string) => request(`/api/predictions/markets/${id}/trades`, user),
+  getMarketLiquidityEvents: (user: User, id: string) => request(`/api/predictions/markets/${id}/liquidity-events`, user),
   createMarket: (user: User, metricId: string, targetDate: string) =>
     request('/api/predictions/markets', user, { method: 'POST', body: JSON.stringify({ metricId, targetDate }) }),
   deleteMarket: (user: User, id: string) =>
@@ -70,8 +71,11 @@ export const api = {
     request('/api/predictions/resolve', user, { method: 'POST', body: JSON.stringify({ targetDate }) }),
   trade: (user: User, body: Record<string, unknown>) =>
     request('/api/predictions/trade', user, { method: 'POST', body: JSON.stringify(body) }),
-  getPositions: (user: User, marketId?: string) => {
-    const qs = marketId ? `?marketId=${marketId}` : '';
+  getPositions: (user: User, marketId?: string, agentId?: string) => {
+    const params = new URLSearchParams();
+    if (marketId) params.set('marketId', marketId);
+    if (agentId) params.set('agentId', agentId);
+    const qs = params.toString() ? `?${params.toString()}` : '';
     return request(`/api/predictions/positions${qs}`, user);
   },
   injectLiquidity: (user: User, marketId: string, amount: number) =>

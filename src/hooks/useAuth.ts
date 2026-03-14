@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { initializeFirebaseApp, getFirebaseAuth } from '../lib/firebase';
+import { clearCache, clearSessionCache } from '../lib/cache';
 
 interface UseAuthOptions {
   skip?: boolean;
@@ -15,10 +16,21 @@ export function useAuth(options: UseAuthOptions = {}) {
     if (skip) return;
     initializeFirebaseApp();
     const auth = getFirebaseAuth();
+    const syncCaches = (u: User | null) => {
+      const nextUid = u?.uid || '';
+      const prevUid = sessionStorage.getItem('authUserUid') || '';
+      if (prevUid && prevUid !== nextUid) {
+        clearCache();
+        clearSessionCache();
+      }
+      if (nextUid) sessionStorage.setItem('authUserUid', nextUid);
+      else sessionStorage.removeItem('authUserUid');
+    };
     let resolved = false;
     const resolve = (u: User | null) => {
       if (resolved) return;
       resolved = true;
+      syncCaches(u);
       setUser(u);
       setLoading(false);
     };

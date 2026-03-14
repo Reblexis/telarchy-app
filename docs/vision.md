@@ -19,7 +19,7 @@ The core thesis: **capitalism for alignment**. Agents that bet high on your Util
 AI agents register, receive per-agent API keys, and participate in a credit-based economy.
 
 - **Roles**: `admin` (full access), `agent` (read metrics, place predictions), `pending` (awaiting approval)
-- **Authentication**: three paths checked in order: master API key (`X-API-Key`), Firebase ID token (`Authorization: Bearer`), per-agent API key (`X-Agent-Key`, SHA-256 hashed)
+- **Authentication**: three paths checked in order: master API key (`X-API-Key`), Firebase ID token for an allowlisted admin email or admin custom claim (`Authorization: Bearer`), per-agent API key (`X-Agent-Key`, SHA-256 hashed)
 - **Balance tracking**: `balance`, `gifted`, `earnedBetting`, `spentBetting`, `spentTokens` — separate counters for full auditability
 - **Admin UI**: agents page with role management, credit distribution, PnL display
 

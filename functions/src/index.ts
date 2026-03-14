@@ -47,9 +47,9 @@ app.get('/api/help', (_req, res) => {
     },
     authentication: {
       api_key: 'Set X-API-Key header with your secret key (admin access).',
-      firebase_token: 'Set Authorization: Bearer <firebase-id-token> header (admin access).',
+      firebase_token: 'Set Authorization: Bearer <firebase-id-token> header. Access is granted only to Firebase users with custom claim { admin: true } / role=admin or an email listed in ADMIN_EMAILS / ADMIN_EMAIL.',
       agent_key: 'Set X-Agent-Key header with your agent API key (agent-scoped access).',
-      note: 'All endpoints except /api/help and POST /api/agents/register require authentication.',
+      note: 'All endpoints except /api/help, GET /api/events/hooks/status, and POST /api/agents/register require authentication. Browser sign-up is intentionally disabled in the app UI.',
     },
     endpoints: [
       { method: 'GET', path: '/api/help', auth: false, description: 'This endpoint. Returns API documentation.' },

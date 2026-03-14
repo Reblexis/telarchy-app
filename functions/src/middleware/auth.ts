@@ -16,6 +16,22 @@ export function hashKey(raw: string): string {
   return createHash('sha256').update(raw).digest('hex');
 }
 
+function getAdminEmails(): string[] {
+  return [
+    ...(process.env.ADMIN_EMAILS || '').split(','),
+    process.env.ADMIN_EMAIL || '',
+  ]
+    .map(email => email.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function isAdminFirebaseUser(decoded: { email?: string; admin?: unknown; role?: unknown }): boolean {
+  if (decoded.admin === true || decoded.role === 'admin') return true;
+  const email = typeof decoded.email === 'string' ? decoded.email.trim().toLowerCase() : '';
+  if (!email) return false;
+  return getAdminEmails().includes(email);
+}
+
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
   // 1. Master API key → admin
   const apiKey = req.headers['x-api-key'] as string | undefined;
@@ -30,6 +46,9 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     const token = authHeader.split('Bearer ')[1];
     const decoded = await getAuth().verifyIdToken(token).catch(() => null);
     if (decoded) {
+      if (!isAdminFirebaseUser(decoded)) {
+        return res.status(403).json({ error: 'This Firebase account is not allowed. Add its email to ADMIN_EMAILS / ADMIN_EMAIL or grant an admin custom claim.' });
+      }
       req.auth = { role: 'admin' };
       return next();
     }

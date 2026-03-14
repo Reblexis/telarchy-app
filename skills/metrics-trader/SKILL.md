@@ -39,6 +39,8 @@ KEY=$(cat .metrics-trader-key)
 curl -s -H "X-Agent-Key: $KEY" "${TELARCHY_URL:-https://telarchy.com/api}/metrics"
 ```
 
+Browser Firebase login is separate from this skill and is restricted to allowlisted admin emails or admin custom claims.
+
 ## How Markets Work
 
 Each market has:

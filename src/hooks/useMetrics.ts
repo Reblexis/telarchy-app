@@ -47,6 +47,7 @@ export function useMetrics(user: User | null, inspectTaskId?: string | null) {
   const [formulaWarnings, setFormulaWarnings] = useState<Record<string, FormulaWarning[]>>({});
   const [focusedMetricId, setFocusedMetricId] = useState<string | null>(null);
   const [loading, setLoading] = useState(!cacheGet('metrics'));
+  const [error, setError] = useState('');
 
   const consensusMapRef = useRef<Record<string, number>>({});
 
@@ -55,6 +56,7 @@ export function useMetrics(user: User | null, inspectTaskId?: string | null) {
 
   const loadData = useCallback(async () => {
     if (!user) return [];
+    setError('');
 
     const [metricsData, marketsData, _] = await Promise.all([
       api.getMetrics(user) as Promise<Metric[]>,
@@ -98,14 +100,20 @@ export function useMetrics(user: User | null, inspectTaskId?: string | null) {
 
     (async () => {
       if (!cached) setLoading(true);
-      const loaded = await loadData();
-      const savedFocus = getCookie('focusedMetricId');
-      if (savedFocus && loaded.find((m: Metric) => m.id === savedFocus)) {
-        setFocusedMetricId(savedFocus);
-      } else if (savedFocus) {
-        deleteCookie('focusedMetricId');
+      try {
+        const loaded = await loadData();
+        const savedFocus = getCookie('focusedMetricId');
+        if (savedFocus && loaded.find((m: Metric) => m.id === savedFocus)) {
+          setFocusedMetricId(savedFocus);
+        } else if (savedFocus) {
+          deleteCookie('focusedMetricId');
+        }
+      } catch (err: unknown) {
+        const e = err as { message?: string };
+        setError(e.message || 'Failed to load metrics');
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     })();
   }, [user, loadData]);
 
@@ -177,7 +185,7 @@ export function useMetrics(user: User | null, inspectTaskId?: string | null) {
   }, [user]);
 
   return {
-    metrics, updates, xp, rank, loading,
+    metrics, updates, xp, rank, loading, error,
     formulaWarnings,
     focusedMetricId, toggleFocus,
     addMetric, editMetric, removeMetric,

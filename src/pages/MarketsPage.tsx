@@ -7,6 +7,21 @@ import { api } from '../lib/api';
 import { useInspectMode } from '../hooks/useInspectMode';
 import { formatTargetDateDisplay, endOfPeriod } from '../lib/date-utils';
 import type { Market, Metric, Position } from '../types';
+import { Line } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Tooltip as ChartTooltip,
+  Filler,
+  type ChartOptions,
+  type ChartData,
+  type ActiveElement,
+  type ChartEvent,
+} from 'chart.js';
+
+ChartJS.register(LinearScale, PointElement, LineElement, ChartTooltip, Filler);
 
 // --- Minimal LMSR math for live preview (mirrors backend amm.ts) ---
 function lmsrCost(q0: number, q1: number, b: number): number {
@@ -40,54 +55,172 @@ function previewTrade(prob: number, liquidity: number, direction: 'higher' | 'lo
   return { shares, newProb };
 }
 
+// --- Types ---
+interface LiquidityEvent {
+  id: string;
+  amount: number;
+  totalLiquidity: number;
+  type: 'initial' | 'injection';
+  createdAt: { _seconds: number } | null;
+}
+
 // --- SVG line chart ---
-interface TradePoint { consensus: number | null; createdAt: { _seconds: number } | null }
+interface TradePoint {
+  consensus: number | null;
+  createdAt: { _seconds: number } | null;
+  agentId?: string;
+  direction?: 'higher' | 'lower';
+  shares?: number;
+  cost?: number;
+}
+
+const marketTradesCache = new Map<string, TradePoint[]>();
+const marketLiquidityEventsCache = new Map<string, LiquidityEvent[]>();
+const marketPositionsCache = new Map<string, Position[]>();
+
+function fmtTime(secs: number) {
+  return new Date(secs * 1000).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function positionsCacheKey(marketId: string, agentId: string) {
+  return `${marketId}:${agentId}`;
+}
+
+function getTimestampSeconds(ts: unknown): number | null {
+  if (ts == null) return null;
+  if (typeof ts === 'object') {
+    const o = ts as Record<string, unknown>;
+    const s = o._seconds ?? o.seconds;
+    return typeof s === 'number' ? s : null;
+  }
+  if (typeof ts === 'string') {
+    const ms = Date.parse(ts);
+    return isNaN(ms) ? null : Math.floor(ms / 1000);
+  }
+  return null;
+}
 
 function ConsensusChart({ trades, rangeMin, rangeMax }: {
   trades: TradePoint[]; rangeMin: number; rangeMax: number;
 }) {
+  const { isDark } = useDarkMode();
+  const [clickedTrade, setClickedTrade] = useState<TradePoint | null>(null);
   const defaultVal = (rangeMin + rangeMax) / 2;
-  const pts = useMemo(() => {
-    const withConsensus = trades.filter(t => t.consensus != null);
-    const base = [{ x: 0, y: defaultVal }];
-    if (withConsensus.length === 0) return [...base, { x: 1, y: defaultVal }];
-    return [...base, ...withConsensus.map((t, i) => ({ x: i + 1, y: t.consensus! }))];
-  }, [trades, rangeMin, rangeMax]);
 
-  if (pts.length < 2) return null;
+  const withT = useMemo(() => {
+    return trades.filter(t => {
+      const secs = getTimestampSeconds(t.createdAt);
+      return t.consensus != null && secs != null;
+    }).map(t => ({ ...t, _ts: getTimestampSeconds(t.createdAt)! }));
+  }, [trades]);
 
-  const W = 400, H = 80, PAD = 8;
-  const yMin = rangeMin, yMax = rangeMax;
-  const xScale = (i: number) => PAD + (i / (pts.length - 1)) * (W - 2 * PAD);
-  const yScale = (v: number) => H - PAD - ((v - yMin) / (yMax - yMin)) * (H - 2 * PAD);
+  if (withT.length === 0) {
+    return <div style={{ height: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>No trades yet</div>;
+  }
 
-  const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${xScale(p.x).toFixed(1)},${yScale(p.y).toFixed(1)}`).join(' ');
-  const last = pts[pts.length - 1];
+  const tFirst = withT[0]._ts;
+  const tLast = withT[withT.length - 1]._ts;
+  const span = Math.max(tLast - tFirst, 60);
+  const tMin = (tFirst - span * 0.08) * 1000;
+  const tMax = (tLast + span * 0.04) * 1000;
+
+  const pts: Array<{ t: number; y: number; trade: (typeof withT)[0] | null }> = [
+    { t: tMin, y: defaultVal, trade: null },
+    ...withT.map(t => ({ t: t._ts * 1000, y: t.consensus!, trade: t })),
+  ];
+
+  const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+  const tickColor = isDark ? '#b0b0b0' : '#666';
+
+  const chartData: ChartData<'line'> = {
+    datasets: [{
+      data: pts.map(p => ({ x: p.t, y: p.y })),
+      borderColor: '#3b82f6',
+      backgroundColor: 'rgba(59,130,246,0.08)',
+      fill: true,
+      tension: 0.2,
+      pointBackgroundColor: pts.map(p =>
+        p.trade?.direction === 'lower' ? '#ef4444' :
+        p.trade?.direction === 'higher' ? '#22c55e' : 'transparent'
+      ),
+      pointBorderColor: pts.map(p => p.trade ? (isDark ? '#222' : '#fff') : 'transparent'),
+      pointBorderWidth: 1.5,
+      pointRadius: pts.map(p => p.trade ? 5 : 0),
+      pointHoverRadius: pts.map(p => p.trade ? 7 : 0),
+    }],
+  };
+
+  const options: ChartOptions<'line'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: {
+        type: 'linear',
+        min: tMin,
+        max: tMax,
+        grid: { color: gridColor },
+        ticks: {
+          callback: (val) => fmtTime((val as number) / 1000),
+          maxTicksLimit: 4,
+          color: tickColor,
+          font: { size: 10 },
+        },
+      },
+      y: {
+        min: rangeMin,
+        max: rangeMax,
+        grid: { color: gridColor },
+        ticks: { maxTicksLimit: 5, color: tickColor, font: { size: 10 } },
+      },
+    },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: isDark ? '#2a2a2a' : '#fff',
+        titleColor: isDark ? '#e0e0e0' : '#1a1a1a',
+        bodyColor: isDark ? '#b0b0b0' : '#4a4a4a',
+        borderColor: isDark ? '#3a3a3a' : '#e0e0e0',
+        borderWidth: 1,
+        callbacks: {
+          title: (items) => { const x = items[0]?.parsed?.x; return x != null ? fmtTime(x / 1000) : ''; },
+          label: (item) => {
+            const p = pts[item.dataIndex];
+            if (!p.trade) return `Consensus: ${item.parsed.y}`;
+            const dir = p.trade.direction === 'higher' ? '▲ Higher' : '▼ Lower';
+            const costStr = (p.trade.cost ?? 0) > 0 ? `cost ${p.trade.cost}` : `proceeds ${-(p.trade.cost ?? 0)}`;
+            return [`${dir}  →  ${item.parsed.y}`, p.trade.agentId ?? '', `${p.trade.shares} shares · ${costStr} credits`];
+          },
+        },
+      },
+    },
+    onClick: (_event: ChartEvent, elements: ActiveElement[]) => {
+      if (elements.length > 0) {
+        const p = pts[elements[0].index];
+        setClickedTrade(prev => prev === p.trade ? null : p.trade);
+      } else {
+        setClickedTrade(null);
+      }
+    },
+  };
 
   return (
-    <div style={{ width: '100%', overflowX: 'auto' }}>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: '80px', display: 'block' }}>
-        {/* Range grid lines */}
-        <line x1={PAD} y1={yScale(rangeMin)} x2={W - PAD} y2={yScale(rangeMin)} stroke="var(--border-color)" strokeWidth="0.5" />
-        <line x1={PAD} y1={yScale(rangeMax)} x2={W - PAD} y2={yScale(rangeMax)} stroke="var(--border-color)" strokeWidth="0.5" />
-        <line x1={PAD} y1={yScale((rangeMin + rangeMax) / 2)} x2={W - PAD} y2={yScale((rangeMin + rangeMax) / 2)} stroke="var(--border-color)" strokeWidth="0.5" strokeDasharray="3,3" />
-        {/* Labels */}
-        <text x={W - PAD + 2} y={yScale(rangeMax) + 4} fontSize="7" fill="var(--text-secondary)">{rangeMax}</text>
-        <text x={W - PAD + 2} y={yScale(rangeMin) + 4} fontSize="7" fill="var(--text-secondary)">{rangeMin}</text>
-        {/* Fill area under line */}
-        <path
-          d={`${path} L${xScale(pts.length - 1).toFixed(1)},${yScale(rangeMin).toFixed(1)} L${xScale(0).toFixed(1)},${yScale(rangeMin).toFixed(1)} Z`}
-          fill="var(--accent-color, #3b82f6)" fillOpacity="0.08"
-        />
-        {/* Line */}
-        <path d={path} fill="none" stroke="var(--accent-color, #3b82f6)" strokeWidth="1.5" strokeLinejoin="round" />
-        {/* Endpoint dot */}
-        <circle cx={xScale(last.x)} cy={yScale(last.y)} r="3" fill="var(--accent-color, #3b82f6)" />
-        {/* Current value label */}
-        <text x={xScale(last.x)} y={yScale(last.y) - 5} fontSize="8" fill="var(--accent-color, #3b82f6)" textAnchor="middle" fontWeight="bold">
-          {last.y}
-        </text>
-      </svg>
+    <div>
+      <div style={{ height: '150px', position: 'relative', cursor: 'crosshair' }}>
+        <Line key={`${withT.length}-${tFirst}-${tLast}`} data={chartData} options={options} redraw />
+      </div>
+      {clickedTrade && (
+        <div style={{ margin: '0.35rem 0', padding: '0.35rem 0.6rem', background: 'var(--bg-color)', border: `2px solid ${clickedTrade.direction === 'higher' ? '#22c55e' : '#ef4444'}`, borderRadius: '0.375rem', fontSize: '0.75rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ color: clickedTrade.direction === 'higher' ? '#22c55e' : '#ef4444', fontWeight: 700 }}>
+            {clickedTrade.direction === 'higher' ? '▲ Higher' : '▼ Lower'}
+          </span>
+          <span style={{ fontFamily: 'monospace' }}>{clickedTrade.agentId}</span>
+          <span>{clickedTrade.shares} shares</span>
+          <span>{(clickedTrade.cost ?? 0) > 0 ? `cost ${clickedTrade.cost}` : `proceeds ${-(clickedTrade.cost ?? 0)}`} credits</span>
+          <span>→ <strong>{clickedTrade.consensus}</strong></span>
+          <span style={{ color: 'var(--text-secondary)' }}>{(() => { const s = getTimestampSeconds(clickedTrade.createdAt); return s != null ? fmtTime(s) : ''; })()}</span>
+          <button onClick={() => setClickedTrade(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '1rem', lineHeight: 1 }}>×</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -145,16 +278,39 @@ function TradingPanel({ market, agentId, user, onTrade, onError }: {
   const [trading, setTrading] = useState(false);
   const [lastResult, setLastResult] = useState<{ direction: string; shares: number; cost: number; consensus: number } | null>(null);
   const [trades, setTrades] = useState<TradePoint[]>([]);
+  const [liquidityEvents, setLiquidityEvents] = useState<LiquidityEvent[]>([]);
   const [tradesLoading, setTradesLoading] = useState(true);
   const [positions, setPositions] = useState<Position[]>([]);
   const [sellInputs, setSellInputs] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    const cachedTrades = marketTradesCache.get(market.id);
+    const cachedLiquidityEvents = marketLiquidityEventsCache.get(market.id);
+    const cachedPositions = marketPositionsCache.get(positionsCacheKey(market.id, agentId));
+
+    if (cachedTrades) setTrades(cachedTrades);
+    if (cachedLiquidityEvents) setLiquidityEvents(cachedLiquidityEvents);
+    if (cachedPositions) setPositions(cachedPositions);
+
+    setTradesLoading(!cachedTrades);
     api.getMarketTrades(user, market.id)
-      .then(data => { setTrades(data); setTradesLoading(false); })
-      .catch(() => setTradesLoading(false));
-    api.getPositions(user, market.id).then(setPositions).catch(() => {});
-  }, [user, market.id]);
+      .then(data => {
+        marketTradesCache.set(market.id, data);
+        setTrades(data);
+      })
+      .catch(() => {})
+      .finally(() => setTradesLoading(false));
+    api.getMarketLiquidityEvents(user, market.id)
+      .then(data => {
+        marketLiquidityEventsCache.set(market.id, data);
+        setLiquidityEvents(data);
+      })
+      .catch(() => {});
+    api.getPositions(user, market.id, agentId).then(data => {
+      marketPositionsCache.set(positionsCacheKey(market.id, agentId), data);
+      setPositions(data);
+    }).catch(() => {});
+  }, [user, market.id, agentId]);
 
   // Live preview
   const amount = parseFloat(tradeAmount);
@@ -165,7 +321,10 @@ function TradingPanel({ market, agentId, user, onTrade, onError }: {
     return { higher, lower };
   }, [amount, market.probability, market.liquidity]);
 
-  const refreshPositions = () => api.getPositions(user, market.id).then(setPositions).catch(() => {});
+  const refreshPositions = () => api.getPositions(user, market.id, agentId).then(data => {
+    marketPositionsCache.set(positionsCacheKey(market.id, agentId), data);
+    setPositions(data);
+  }).catch(() => {});
 
   const handleBetDirection = async (direction: 'higher' | 'lower') => {
     if (isNaN(amount) || amount <= 0) return;
@@ -176,8 +335,15 @@ function TradingPanel({ market, agentId, user, onTrade, onError }: {
     if (result) {
       setLastResult({ direction, shares: result.shares, cost: result.cost, consensus: result.consensus });
       setTradeAmount('');
-      setTrades(prev => [...prev, { consensus: result.consensus, createdAt: { _seconds: Date.now() / 1000 } }]);
-      api.getMarketTrades(user, market.id).then(data => setTrades(data)).catch(() => {});
+      setTrades(prev => {
+        const next = [...prev, { consensus: result.consensus, createdAt: { _seconds: Date.now() / 1000 }, agentId, direction, shares: result.shares, cost: result.cost }];
+        marketTradesCache.set(market.id, next);
+        return next;
+      });
+      api.getMarketTrades(user, market.id).then(data => {
+        marketTradesCache.set(market.id, data);
+        setTrades(data);
+      }).catch(() => {});
       refreshPositions();
       onTrade();
     }
@@ -193,7 +359,11 @@ function TradingPanel({ market, agentId, user, onTrade, onError }: {
     if (result) {
       setLastResult({ direction, shares: result.shares, cost: -result.proceeds, consensus: result.consensus });
       setSellInputs(prev => ({ ...prev, [direction]: '' }));
-      setTrades(prev => [...prev, { consensus: result.consensus, createdAt: { _seconds: Date.now() / 1000 } }]);
+      setTrades(prev => {
+        const next = [...prev, { consensus: result.consensus, createdAt: { _seconds: Date.now() / 1000 }, agentId, direction, shares: result.shares, cost: -result.proceeds }];
+        marketTradesCache.set(market.id, next);
+        return next;
+      });
       refreshPositions();
       onTrade();
     }
@@ -203,7 +373,14 @@ function TradingPanel({ market, agentId, user, onTrade, onError }: {
     const a = parseFloat(liqAmount);
     if (isNaN(a) || a <= 0) return;
     const result = await api.injectLiquidity(user, market.id, a).catch((e: Error) => { onError(e.message); return null; });
-    if (result) { setLiqAmount(''); onTrade(); }
+    if (result) {
+      setLiqAmount('');
+      api.getMarketLiquidityEvents(user, market.id).then(data => {
+        marketLiquidityEventsCache.set(market.id, data);
+        setLiquidityEvents(data);
+      }).catch(() => {});
+      onTrade();
+    }
   };
 
   const previewConsensus = (dir: 'higher' | 'lower') => {
@@ -215,7 +392,7 @@ function TradingPanel({ market, agentId, user, onTrade, onError }: {
 
   return (
     <div style={{ padding: '0.75rem 0.5rem 0.5rem' }}>
-      {/* Consensus chart */}
+      {/* Consensus chart + trade log */}
       {!tradesLoading && (
         <div style={{ marginBottom: '0.75rem', background: 'var(--bg-secondary, #f8f9fa)', borderRadius: '0.375rem', padding: '0.5rem 0.5rem 0' }}>
           <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', paddingLeft: '0.25rem' }}>
@@ -226,6 +403,49 @@ function TradingPanel({ market, agentId, user, onTrade, onError }: {
             rangeMin={market.rangeMin}
             rangeMax={market.rangeMax}
           />
+          {(trades.length > 0 || liquidityEvents.length > 0) && (() => {
+            type LogEntry =
+              | { kind: 'trade'; ts: number; data: TradePoint }
+              | { kind: 'liquidity'; ts: number; data: LiquidityEvent };
+            const entries: LogEntry[] = [
+              ...trades.filter(t => t.consensus != null).flatMap(t => { const ts = getTimestampSeconds(t.createdAt); return ts != null ? [{ kind: 'trade' as const, ts, data: t }] : []; }),
+              ...liquidityEvents.flatMap(e => { const ts = getTimestampSeconds(e.createdAt); return ts != null ? [{ kind: 'liquidity' as const, ts, data: e }] : []; }),
+            ].sort((a, b) => b.ts - a.ts);
+            return (
+              <div style={{ marginTop: '0.5rem', maxHeight: '160px', overflowY: 'auto', borderTop: '1px solid var(--border-color)' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' }}>
+                  <thead>
+                    <tr style={{ position: 'sticky', top: 0, background: 'var(--bg-secondary, #f8f9fa)' }}>
+                      {['Time', 'Agent', 'Dir', 'Shares', 'Cost', 'Consensus'].map(h => (
+                        <th key={h} style={{ padding: '0.2rem 0.4rem', textAlign: h === 'Dir' ? 'center' : ['Shares', 'Cost', 'Consensus'].includes(h) ? 'right' : 'left', color: 'var(--text-secondary)', fontWeight: 500, borderBottom: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {entries.map((entry, i) => entry.kind === 'trade' ? (
+                      <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '0.2rem 0.4rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{fmtTime(entry.ts)}</td>
+                        <td style={{ padding: '0.2rem 0.4rem', fontFamily: 'monospace', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.data.agentId ?? '—'}</td>
+                        <td style={{ padding: '0.2rem 0.4rem', textAlign: 'center', color: entry.data.direction === 'higher' ? '#22c55e' : '#ef4444' }}>{entry.data.direction === 'higher' ? '▲' : '▼'}</td>
+                        <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>{entry.data.shares ?? '—'}</td>
+                        <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>{entry.data.cost ?? '—'}</td>
+                        <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{entry.data.consensus}</td>
+                      </tr>
+                    ) : (
+                      <tr key={i} style={{ borderBottom: '1px solid var(--border-color)', opacity: 0.8 }}>
+                        <td style={{ padding: '0.2rem 0.4rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{fmtTime(entry.ts)}</td>
+                        <td style={{ padding: '0.2rem 0.4rem', color: 'var(--text-secondary)' }}>admin</td>
+                        <td style={{ padding: '0.2rem 0.4rem', textAlign: 'center', color: '#3b82f6' }}>{entry.data.type === 'initial' ? 'init' : '+liq'}</td>
+                        <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', color: 'var(--text-secondary)' }}>—</td>
+                        <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', color: '#3b82f6', fontFamily: 'monospace' }}>+{entry.data.amount}</td>
+                        <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>b={entry.data.totalLiquidity}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -373,19 +593,23 @@ export function MarketsPage() {
   const [error, setError] = useState('');
   const [resolveResult, setResolveResult] = useState('');
   const [refreshResult, setRefreshResult] = useState('');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const [, setTick] = useState(0);
   useEffect(() => { const id = setInterval(() => setTick(t => t + 1), 60000); return () => clearInterval(id); }, []);
   // Track per-market preview for slider ghost
   const [hoverDir, setHoverDir] = useState<Record<string, 'higher' | 'lower' | undefined>>({});
 
   const [filterText, setFilterText] = useState('');
+  const [showInactive, setShowInactive] = useState(false);
 
   const filteredMarkets = useMemo(() => {
-    if (!filterText) return markets;
-    const q = filterText.toLowerCase();
-    return markets.filter(m => m.metricName.toLowerCase().includes(q));
-  }, [markets, filterText]);
+    let result = showInactive ? markets : markets.filter(m => m.active);
+    if (filterText) {
+      const q = filterText.toLowerCase();
+      result = result.filter(m => m.metricName.toLowerCase().includes(q));
+    }
+    return result;
+  }, [markets, filterText, showInactive]);
 
   const [metricId, setMetricId] = useState('');
   const [targetDate, setTargetDate] = useState('');
@@ -521,7 +745,7 @@ export function MarketsPage() {
           <div className="section"><p style={{ color: 'var(--text-secondary)' }}>No markets.</p></div>
         ) : (
           <div className="section">
-            <div style={{ marginBottom: '0.75rem' }}>
+            <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <input
                 type="text"
                 value={filterText}
@@ -529,6 +753,10 @@ export function MarketsPage() {
                 placeholder="Search metrics..."
                 style={{ padding: '0.4rem 0.6rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', fontSize: '0.85rem', width: '200px' }}
               />
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', color: 'var(--text-secondary)', cursor: 'pointer', userSelect: 'none' }}>
+                <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
+                Show inactive
+              </label>
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
@@ -545,8 +773,8 @@ export function MarketsPage() {
                 {filteredMarkets.map(m => (
                   <React.Fragment key={m.id}>
                     <tr
-                      style={{ borderBottom: expandedId === m.id ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', opacity: m.active ? 1 : 0.5 }}
-                      onClick={() => setExpandedId(expandedId === m.id ? null : m.id)}
+                      style={{ borderBottom: expandedIds.includes(m.id) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', opacity: m.active ? 1 : 0.5 }}
+                      onClick={() => setExpandedIds(prev => prev.includes(m.id) ? prev.filter(id => id !== m.id) : [...prev, m.id])}
                     >
                       <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600 }}>
                         {m.metricName}
@@ -585,7 +813,7 @@ export function MarketsPage() {
                         )}
                       </td>
                     </tr>
-                    {expandedId === m.id && (
+                    {expandedIds.includes(m.id) && (
                       <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
                         <td colSpan={6} style={{ padding: '0 0.5rem 0.75rem' }}>
                           {m.active ? (

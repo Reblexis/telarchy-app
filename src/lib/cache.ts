@@ -22,3 +22,13 @@ export function cacheSet(key: string, data: unknown): void {
 export function cacheDelete(key: string): void {
   store.delete(key);
 }
+
+export function clearCache(): void {
+  store.clear();
+}
+
+export function clearSessionCache(): void {
+  for (const key of Object.keys(sessionStorage)) {
+    if (key.startsWith('cache:')) sessionStorage.removeItem(key);
+  }
+}
