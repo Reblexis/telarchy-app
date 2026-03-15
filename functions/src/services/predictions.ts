@@ -74,13 +74,29 @@ export async function resolvePredictions(targetDate?: string): Promise<{ resolve
   const metrics = await getAllMetrics();
   const metricMap = new Map<string, Metric>(metrics.map(m => [m.id, m]));
 
+  // Batch-fetch task statuses for any conditional markets
+  const taskIds = [...new Set(marketsToResolve.map(d => d.data().taskId).filter(Boolean) as string[])];
+  const taskStatusMap = new Map<string, string>();
+  if (taskIds.length > 0) {
+    const taskRefs = taskIds.map(id => db().collection('tasks').doc(id));
+    const taskDocs = await db().getAll(...taskRefs);
+    for (const doc of taskDocs) {
+      if (doc.exists) taskStatusMap.set(doc.id, doc.data()!.status);
+    }
+  }
+
   let totalPayout = 0;
   let resolvedCount = 0;
 
   for (const marketDoc of marketsToResolve) {
-    const result = await resolveMarketDoc(marketDoc, metricMap);
-    totalPayout += result.totalPayout;
-    resolvedCount++;
+    const taskId: string | undefined = marketDoc.data().taskId;
+    if (taskId && taskStatusMap.get(taskId) !== 'approved') {
+      await voidMarket(marketDoc.id);
+    } else {
+      const result = await resolveMarketDoc(marketDoc, metricMap);
+      totalPayout += result.totalPayout;
+      resolvedCount++;
+    }
   }
 
   return { resolved: resolvedCount, totalPayout };
