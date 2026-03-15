@@ -3,55 +3,14 @@ import type { User } from 'firebase/auth';
 import { getCookie, setCookie, deleteCookie } from '../lib/cookies';
 import { api } from '../lib/api';
 import { cacheGet, cacheSet, cacheDelete } from '../lib/cache';
+import { buildConsensusMap, buildInspectMetrics, enrichMetrics } from '../lib/inspect-metrics';
 import {
-  calculateXP, calculateRank, recalculateMetrics,
-  calculateMetricDepths, detectCircularDependency,
-  validateFormula, evaluateFormulaAtTime,
+  calculateXP, calculateRank,
+  detectCircularDependency,
+  validateFormula,
 } from '../lib/metrics-engine';
 import type { FormulaWarning } from '../lib/metrics-engine';
 import type { Metric, Market, MetricLog, UpdateEntry } from '../types';
-
-function enrichMetrics(metrics: Metric[], consensusMap: Record<string, number> = {}): Metric[] {
-  recalculateMetrics(metrics, consensusMap);
-  const depths = calculateMetricDepths(metrics);
-  metrics.forEach(m => { m.depth = depths[m.id] ?? 0; });
-  metrics.sort((a, b) => a.depth !== b.depth ? a.depth - b.depth : (a.order || 999) - (b.order || 999));
-  return metrics;
-}
-
-function buildConsensusMap(markets: Market[]): Record<string, number> {
-  const map: Record<string, number> = {};
-  for (const m of markets) {
-    if (m.consensus !== null) {
-      map[`${m.metricName}:${m.targetDate}`] = m.consensus;
-    }
-  }
-  return map;
-}
-
-function attachConditionalTimeSeries(
-  metrics: Metric[],
-  consensusMap: Record<string, number>,
-): void {
-  const nameToFormula: Record<string, string> = {};
-  metrics.forEach(m => { nameToFormula[m.name] = m.formula || '0'; });
-
-  for (const m of metrics) {
-    if (!m.timeSeries || m.timeSeries.length === 0) continue;
-    const isLeaf = !m.formula || m.formula.trim() === '0';
-    const series: Array<{ date: string; value: number }> = [];
-    const memo: Record<string, number> = {};
-    for (const { date } of m.timeSeries) {
-      if (isLeaf) {
-        const val = consensusMap[`${m.name}:${date}`];
-        if (val !== undefined) series.push({ date, value: val });
-      } else {
-        series.push({ date, value: evaluateFormulaAtTime(m.formula, nameToFormula, consensusMap, date, memo) });
-      }
-    }
-    m.conditionalTimeSeries = series.length > 0 ? series : undefined;
-  }
-}
 
 function buildWarnings(
   metrics: Metric[],
@@ -95,10 +54,7 @@ export function useMetrics(user: User | null, inspectTaskId?: string | null) {
     consensusMapRef.current = buildConsensusMap(marketsData);
 
     if (inspectTaskId) {
-      const cloned = metricsData.map(m => ({ ...m, baselineTotal: m.total }));
-      const enriched = enrichMetrics(cloned, consensusMapRef.current);
-      attachConditionalTimeSeries(enriched, consensusMapRef.current);
-      setMetrics(enriched);
+      setMetrics(buildInspectMetrics(metricsData, marketsData));
     } else {
       setMetrics(metricsData);
       cacheSet('metrics', metricsData);

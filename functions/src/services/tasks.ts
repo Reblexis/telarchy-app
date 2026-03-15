@@ -1,7 +1,85 @@
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { pHigher, consensus } from '../lib/amm';
+import { consensus } from '../lib/amm';
+import { recalculateMetrics } from '../lib/metrics-engine';
+import { getAllMetrics } from './metrics';
 
 function db() { return getFirestore(); }
+
+type TaskMarketDoc = {
+  metricId: string;
+  metricName: string;
+  targetDate: string;
+  rangeMin: number;
+  rangeMax: number;
+  liquidity: number;
+  shares?: [number, number];
+};
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
+  return chunks;
+}
+
+async function getTradeCountMap(marketIds: string[]): Promise<Map<string, number>> {
+  const tradeCountMap = new Map<string, number>();
+  for (const ids of chunk(marketIds, 10)) {
+    const tradesSnap = await db().collection('trades')
+      .where('marketId', 'in', ids)
+      .get();
+    for (const d of tradesSnap.docs) {
+      const marketId = d.data().marketId;
+      tradeCountMap.set(marketId, (tradeCountMap.get(marketId) || 0) + 1);
+    }
+  }
+  return tradeCountMap;
+}
+
+async function getBaselineConsensusMap(markets: TaskMarketDoc[]): Promise<Map<string, number>> {
+  const wantedKeys = new Set(markets.map(m => `${m.metricId}:${m.targetDate}`));
+  const metricIds = Array.from(new Set(markets.map(m => m.metricId)));
+  const baselineConsensusMap = new Map<string, number>();
+
+  for (const ids of chunk(metricIds, 10)) {
+    const snap = await db().collection('markets')
+      .where('resolved', '==', false)
+      .where('metricId', 'in', ids)
+      .get();
+
+    for (const doc of snap.docs) {
+      const market = doc.data();
+      if (market.taskId || market.active === false) continue;
+      const key = `${market.metricId}:${market.targetDate}`;
+      if (!wantedKeys.has(key) || baselineConsensusMap.has(key)) continue;
+      baselineConsensusMap.set(
+        key,
+        consensus(market.shares || [0, 0], market.liquidity, market.rangeMin, market.rangeMax),
+      );
+    }
+  }
+
+  return baselineConsensusMap;
+}
+
+export async function getTaskUtilitySummary(markets: Array<{ metricName: string; targetDate: string; consensus: number | null }>) {
+  const baselineMetrics = await getAllMetrics();
+  const baselineUtility = baselineMetrics.find(m => m.name === 'Utility')?.total ?? null;
+  if (markets.length === 0) {
+    return { expectedCurrentUtility: null, baselineUtility };
+  }
+
+  const conditionalConsensusMap: Record<string, number> = {};
+  for (const market of markets) {
+    if (market.consensus === null) continue;
+    conditionalConsensusMap[`${market.metricName}:${market.targetDate}`] = market.consensus;
+  }
+
+  const conditionalMetrics = baselineMetrics.map(metric => ({ ...metric }));
+  recalculateMetrics(conditionalMetrics, conditionalConsensusMap);
+  const expectedCurrentUtility = conditionalMetrics.find(m => m.name === 'Utility')?.total ?? null;
+
+  return { expectedCurrentUtility, baselineUtility };
+}
 
 /**
  * Create conditional markets for a task by cloning all currently open, active
@@ -143,26 +221,43 @@ export async function approveTask(taskId: string): Promise<void> {
 export async function getTaskMarketSummaries(marketIds: string[]) {
   if (marketIds.length === 0) return [];
   const docs = await Promise.all(marketIds.map(id => db().collection('markets').doc(id).get()));
-  const tradeCountMap = new Map<string, number>();
-  if (marketIds.length > 0) {
-    const tradesSnap = await db().collection('trades')
-      .where('marketId', 'in', marketIds.slice(0, 10)) // Firestore 'in' limit = 10
-      .get();
-    for (const d of tradesSnap.docs) tradeCountMap.set(d.data().marketId, (tradeCountMap.get(d.data().marketId) || 0) + 1);
-  }
-  return docs
-    .filter(d => d.exists)
+  return buildTaskMarketSummariesFromDocs(docs);
+}
+
+export async function getTaskMarketSummariesForTask(taskId: string) {
+  const snap = await db().collection('markets')
+    .where('taskId', '==', taskId)
+    .where('resolved', '==', false)
+    .orderBy('targetDate', 'asc')
+    .get();
+  return buildTaskMarketSummariesFromDocs(snap.docs);
+}
+
+async function buildTaskMarketSummariesFromDocs(
+  docs: Array<FirebaseFirestore.DocumentSnapshot | FirebaseFirestore.QueryDocumentSnapshot>,
+) {
+  const existingDocs = docs.filter(d => d.exists);
+  const taskMarkets = existingDocs.map(d => d.data() as TaskMarketDoc);
+  const [tradeCountMap, baselineConsensusMap] = await Promise.all([
+    getTradeCountMap(existingDocs.map(d => d.id)),
+    getBaselineConsensusMap(taskMarkets),
+  ]);
+
+  return existingDocs
     .map(d => {
       const m = d.data()!;
       const shares: [number, number] = m.shares || [0, 0];
+      const key = `${m.metricId}:${m.targetDate}`;
       return {
         marketId: d.id,
         metricId: m.metricId,
         metricName: m.metricName,
+        targetDate: m.targetDate,
         consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax),
-        probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
+        baselineConsensus: baselineConsensusMap.get(key) ?? null,
         rangeMin: m.rangeMin,
         rangeMax: m.rangeMax,
+        liquidity: m.liquidity,
         tradeCount: tradeCountMap.get(d.id) || 0,
         resolved: m.resolved,
         actualValue: m.actualValue ?? null,

@@ -3,7 +3,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
-import { voidTaskMarkets, approveTask, getTaskMarketSummaries } from '../services/tasks';
+import { voidTaskMarkets, approveTask, getTaskMarketSummariesForTask, getTaskUtilitySummary } from '../services/tasks';
 
 function db() { return getFirestore(); }
 
@@ -60,8 +60,9 @@ tasksRouter.get('/:taskId', requireRole('agent', 'admin'), wrap(async (req, res)
 
   if (!isAdmin && task.proposedBy !== agentId) { res.status(403).json({ error: 'Forbidden' }); return; }
 
-  const markets = await getTaskMarketSummaries(task.conditionalMarketIds || []);
-  res.json({ ...task, markets });
+  const markets = await getTaskMarketSummariesForTask(task.id);
+  const utilitySummary = await getTaskUtilitySummary(markets);
+  res.json({ ...task, markets, utilitySummary });
 }));
 
 // --- Admin: approve task ---

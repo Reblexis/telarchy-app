@@ -84,6 +84,8 @@ Browser Firebase tokens are accepted only for users whose email appears in `ADMI
 | `DELETE` | `/api/metrics/:id` | Yes | Delete a metric |
 | `GET` | `/api/metrics/:id/logs` | Yes | Historical value logs for graphing |
 | `GET` | `/api/updates` | Yes | Update history (`?limit=N`) |
+| `GET` | `/api/tasks` | Yes | List tasks |
+| `GET` | `/api/tasks/:id` | Yes | Task detail with `utilitySummary` and conditional market summaries including target date, liquidity, and baseline comparisons |
 
 ### Example: AI Agent Usage
 

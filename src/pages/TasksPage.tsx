@@ -3,8 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { useInspectMode } from '../hooks/useInspectMode';
+import { useTaskUtilitySummary } from '../hooks/useTaskUtilitySummary';
 import { api } from '../lib/api';
-import type { TaskProposal, TaskMessage, TaskMarketSummary } from '../types';
+import { formatTargetDateDisplay } from '../lib/date-utils';
+import type { TaskProposal, TaskMessage, TaskMarketSummary, TaskDetailData, TaskUtilitySummary } from '../types';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: '#f59e0b',
@@ -24,6 +26,60 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+function formatNumber(value: number | null | undefined): string {
+  if (value == null) return '—';
+  const rounded = Math.round(value);
+  return Math.abs(value - rounded) < 0.005 ? String(rounded) : value.toFixed(2);
+}
+
+function formatCurrency(value: number): string {
+  return `$${value.toFixed(2)}`;
+}
+
+function DeltaBadge({ current, baseline }: { current: number | null | undefined; baseline: number | null | undefined }) {
+  if (current == null || baseline == null) return null;
+  const delta = current - baseline;
+  if (Math.abs(delta) < 0.005) return null;
+  return (
+    <span style={{ fontSize: '0.72rem', color: delta > 0 ? '#22c55e' : '#ef4444', fontFamily: 'monospace' }}>
+      {delta > 0 ? '▲' : '▼'}{Math.abs(delta).toFixed(2)}
+      <span style={{ color: 'var(--text-secondary)', marginLeft: '0.2rem' }}>({formatNumber(baseline)})</span>
+    </span>
+  );
+}
+
+function UtilitySummaryCard({ summary, loading }: { summary?: TaskUtilitySummary; loading: boolean }) {
+  const expectedUtility = summary?.expectedCurrentUtility ?? null;
+  const baselineUtility = summary?.baselineUtility ?? null;
+
+  return (
+    <div style={{
+      border: '1px solid var(--border-color)',
+      borderRadius: '0.5rem',
+      padding: '0.75rem',
+      background: 'var(--bg-secondary, #f8f9fa)',
+    }}>
+      <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        Expected Current Utility
+      </div>
+      {loading ? (
+        <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+          Loading...
+        </div>
+      ) : expectedUtility === null ? (
+        <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+          Unavailable until conditional markets exist for this task.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <span style={{ fontFamily: 'monospace', fontSize: '1rem', fontWeight: 600 }}>{formatNumber(expectedUtility)}</span>
+          <DeltaBadge current={expectedUtility} baseline={baselineUtility} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MarketSummaryTable({ markets }: { markets: TaskMarketSummary[] }) {
   if (markets.length === 0) return <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>No conditional markets yet. Click &quot;Inspect&quot; to view them in Markets.</p>;
   const thStyle = { padding: '0.4rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.8rem', textAlign: 'left' as const };
@@ -32,8 +88,9 @@ function MarketSummaryTable({ markets }: { markets: TaskMarketSummary[] }) {
       <thead>
         <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
           <th style={thStyle}>Metric</th>
+          <th style={thStyle}>Resolution Date</th>
           <th style={thStyle}>Consensus</th>
-          <th style={thStyle}>Probability</th>
+          <th style={thStyle}>Liquidity</th>
           <th style={thStyle}>Trades</th>
           <th style={thStyle}>Range</th>
         </tr>
@@ -42,18 +99,20 @@ function MarketSummaryTable({ markets }: { markets: TaskMarketSummary[] }) {
         {markets.map(m => (
           <tr key={m.marketId} style={{ borderBottom: '1px solid var(--border-color)' }}>
             <td style={{ padding: '0.4rem 0.5rem', fontWeight: 500 }}>{m.metricName}</td>
-            <td style={{ padding: '0.4rem 0.5rem', fontFamily: 'monospace' }}>{m.consensus ?? '—'}</td>
             <td style={{ padding: '0.4rem 0.5rem', fontFamily: 'monospace' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <div style={{ width: '60px', height: '6px', background: 'var(--border-color)', borderRadius: '3px', position: 'relative' }}>
-                  <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${m.probability * 100}%`, background: 'var(--accent-color, #3b82f6)', borderRadius: '3px' }} />
-                </div>
-                <span>{Math.round(m.probability * 100)}%</span>
+              <div>{formatTargetDateDisplay(m.targetDate)}</div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{m.targetDate}</div>
+            </td>
+            <td style={{ padding: '0.4rem 0.5rem', fontFamily: 'monospace' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                <span>{formatNumber(m.consensus)}</span>
+                <DeltaBadge current={m.consensus} baseline={m.baselineConsensus} />
               </div>
             </td>
+            <td style={{ padding: '0.4rem 0.5rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>{formatNumber(m.liquidity)}</td>
             <td style={{ padding: '0.4rem 0.5rem', color: 'var(--text-secondary)' }}>{m.tradeCount}</td>
             <td style={{ padding: '0.4rem 0.5rem', color: 'var(--text-secondary)', fontFamily: 'monospace', fontSize: '0.75rem' }}>
-              {m.rangeMin}–{m.rangeMax}
+              {formatNumber(m.rangeMin)}–{formatNumber(m.rangeMax)}
             </td>
           </tr>
         ))}
@@ -135,15 +194,16 @@ function ChatPanel({ taskId, user }: { taskId: string; user: import('firebase/au
 }
 
 interface TaskDetailProps {
-  task: TaskProposal & { markets?: TaskMarketSummary[] };
+  task: TaskDetailData;
   user: import('firebase/auth').User;
   onAction: () => void;
   onError: (msg: string) => void;
 }
 
-function TaskDetail({ task, user, onAction, onError }: TaskDetailProps) {
+function TaskDetailPanel({ task, user, onAction, onError }: TaskDetailProps) {
   const { inspectTask, setInspectTask } = useInspectMode();
   const [acting, setActing] = useState(false);
+  const { summary: utilitySummary, loading: utilitySummaryLoading } = useTaskUtilitySummary(user, task.id);
 
   const isInspecting = inspectTask?.id === task.id;
 
@@ -194,6 +254,8 @@ function TaskDetail({ task, user, onAction, onError }: TaskDetailProps) {
       )}
 
       {/* Conditional markets */}
+      <UtilitySummaryCard summary={utilitySummary} loading={utilitySummaryLoading} />
+
       <div>
         <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Conditional Markets
@@ -220,7 +282,7 @@ export function TasksPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [expandedData, setExpandedData] = useState<Record<string, TaskProposal & { markets?: TaskMarketSummary[] }>>({});
+  const [expandedData, setExpandedData] = useState<Record<string, TaskDetailData>>({});
 
   // New task form
   const [form, setForm] = useState({ title: '', description: '', price: '' });
@@ -239,7 +301,7 @@ export function TasksPage() {
   const handleExpand = async (id: string) => {
     if (expandedId === id) { setExpandedId(null); return; }
     setExpandedId(id);
-    if (!expandedData[id] && user) {
+    if (user) {
       const detail = await api.getTask(user, id).catch(() => null);
       if (detail) setExpandedData(prev => ({ ...prev, [id]: detail }));
     }
@@ -325,7 +387,7 @@ export function TasksPage() {
                 <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
                   <th style={thStyle}>Title</th>
                   <th style={thStyle}>Agent</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }}>Price</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>Price ($)</th>
                   <th style={thStyle}>Markets</th>
                   <th style={thStyle}>Status</th>
                 </tr>
@@ -339,7 +401,7 @@ export function TasksPage() {
                     >
                       <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600 }}>{task.title}</td>
                       <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{task.proposedBy}</td>
-                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{task.price}</td>
+                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{formatCurrency(task.price)}</td>
                       <td style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
                         {task.conditionalMarketIds.length > 0 ? task.conditionalMarketIds.length : '—'}
                       </td>
@@ -348,7 +410,7 @@ export function TasksPage() {
                     {expandedId === task.id && (
                       <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
                         <td colSpan={5} style={{ padding: '0 0.5rem 0.75rem' }}>
-                          <TaskDetail
+                          <TaskDetailPanel
                             task={expandedData[task.id] ?? task}
                             user={user}
                             onAction={() => handleAction(task.id)}

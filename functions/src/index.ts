@@ -85,7 +85,7 @@ app.get('/api/help', (_req, res) => {
       { method: 'GET', path: '/api/events/hooks/status', auth: false, description: 'Hook watcher status: active, lastPolledAt, intervalMs, nextPollAt.' },
       { method: 'POST', path: '/api/tasks', auth: 'agent/admin', description: 'Propose a task. Body: { title, description?, price }. Returns { id }.' },
       { method: 'GET', path: '/api/tasks', auth: 'agent/admin', description: 'List tasks. Admins see all; agents see only their own.' },
-      { method: 'GET', path: '/api/tasks/:id', auth: 'agent/admin', description: 'Task detail including conditional market summaries (markets[]).' },
+      { method: 'GET', path: '/api/tasks/:id', auth: 'agent/admin', description: 'Task detail including utilitySummary and conditional market summaries with targetDate, liquidity, and baseline consensus comparisons (markets[]).' },
       { method: 'GET', path: '/api/predictions/markets?taskId=X', auth: 'agent/admin', description: 'List markets for a task (inspect/conditional mode). Auto-creates conditional markets if none exist yet for the task.' },
       { method: 'POST', path: '/api/tasks/:id/approve', auth: 'admin', description: 'Approve a pending task. Gifts price credits to the proposing agent.' },
       { method: 'POST', path: '/api/tasks/:id/decline', auth: 'admin', description: 'Decline a pending task. Voids all conditional markets (refunds stakes).' },

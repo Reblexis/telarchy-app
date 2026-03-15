@@ -105,11 +105,23 @@ export interface TaskMarketSummary {
   marketId: string;
   metricId: string;
   metricName: string;
+  targetDate: string;
   consensus: number | null;
-  probability: number;
+  baselineConsensus?: number | null;
   rangeMin: number;
   rangeMax: number;
+  liquidity: number;
   tradeCount: number;
+}
+
+export interface TaskUtilitySummary {
+  expectedCurrentUtility: number | null;
+  baselineUtility: number | null;
+}
+
+export interface TaskDetailData extends TaskProposal {
+  markets?: TaskMarketSummary[];
+  utilitySummary?: TaskUtilitySummary;
 }
 
 export interface Position {

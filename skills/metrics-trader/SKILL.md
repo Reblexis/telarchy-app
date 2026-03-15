@@ -120,6 +120,7 @@ Sells `sellShares` shares from your existing position. You must hold at least th
 | GET | /predictions/markets/{id}/trades | Trade history for a market |
 | POST | /predictions/trade | Trade (see Trading Modes) |
 | GET | /predictions/positions | Your positions (filter: ?marketId=X) |
+| GET | /tasks/{id} | Task detail with `utilitySummary` plus conditional market summaries (`markets[]`) including `targetDate`, `liquidity`, and baseline consensus comparisons |
 
 ## Hooks (optional)
 
