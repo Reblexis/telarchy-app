@@ -196,6 +196,16 @@ Utility itself has no time preference — it simply sums the already-time-weight
 - Definition-change detection: compare metric snapshots to detect definition changes and trigger market respawn
 - UI: per-metric time-preference toggle with half-life slider/input
 
+#### Market Lifecycle & Invariants
+
+**Market set.** The daily cron (00:10 UTC) and the "Refresh Markets" button call `refreshRelativeDateMarkets`, which computes the desired `(leafId, targetDate)` set by sampling time points for every TP node and collecting all leaf descendants. A leaf can be a descendant of multiple TP ancestor nodes — for example, a leaf under both `Social network` (halfLife=0.25yr) and `Power` (halfLife=1yr) contributes markets at two different time scales. Within a single refresh run, desired pairs are stored in a Map keyed by `leafId:date`, so overlapping contributions from multiple TP parents are automatically deduplicated.
+
+**Inactive markets resolve normally.** When the sample set shifts forward (time moves on), markets that fall out of the desired set are set `active: false` — they are NOT voided. Inactive markets remain unresolved in Firestore and are resolved by the normal resolution flow (`endOfPeriod(targetDate) < today`), paying out based on the metric's actual value at resolution time. This applies to markets whose leaf metric definition has not changed (still a leaf, still connected to a TP ancestor via an unchanged formula graph).
+
+**Concurrent refresh protection.** A Firestore document (`_system/marketRefreshLock`, 2-minute TTL) is atomically acquired at the start of each refresh. If another refresh is already running, the call returns immediately with zeros. This prevents the race condition where two concurrent calls (e.g. daily cron + manual trigger) both read the same empty state and independently create duplicate markets. Each refresh also deduplicates: for any `(metricId, targetDate)` pair with multiple open non-task markets, all but the oldest (by `createdAt`) are voided.
+
+**Conditional markets for task inspection.** When a task is tested (`POST /api/tasks/:id/test`), any previously created conditional markets for that task are voided and new ones are created fresh from the currently active regular TP markets — same metric, same target date, same range, zero bets, tagged with `taskId`. Inspect mode therefore always shows the same target dates as regular mode. Conditional markets participate in the normal resolution flow.
+
 #### Future Extensions
 
 - Additional curve types beyond exponential decay (e.g. control-point graphs for time-bounded goals like "have a kid" peaking at ages 28-35)

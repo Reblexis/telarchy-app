@@ -37,8 +37,20 @@ export async function voidOpenMarketsForMetrics(metricIds: Set<string>): Promise
  * Markets that fall out of the desired (leaf, date) set are marked active:false
  * (not voided) so they can still be naturally resolved when their date arrives.
  * Called by the daily cron (00:10 UTC) and the manual "Refresh Markets" button.
+ *
+ * A Firestore distributed lock prevents concurrent executions (e.g. cron + manual
+ * trigger overlapping) from creating duplicate markets.
  */
-export async function refreshRelativeDateMarkets(): Promise<{ created: number; deactivated: number }> {
+export async function refreshRelativeDateMarkets(): Promise<{ created: number; deactivated: number; deduplicated: number }> {
+  const lockRef = db().doc('_system/marketRefreshLock');
+  const acquired = await db().runTransaction(async tx => {
+    const lock = await tx.get(lockRef);
+    const d = lock.data() ?? {};
+    if (lock.exists && d.locked && (d.expiresAt as number) > Date.now()) return false;
+    tx.set(lockRef, { locked: true, expiresAt: Date.now() + 120_000 });
+    return true;
+  });
+  if (!acquired) return { created: 0, deactivated: 0, deduplicated: 0 };
   const metricsSnap = await db().collection('metrics').get();
   const nameToFormula: Record<string, string> = {};
   const nameToId = new Map<string, string>();
@@ -74,12 +86,29 @@ export async function refreshRelativeDateMarkets(): Promise<{ created: number; d
   const batch = db().batch();
   let deactivated = 0;
 
+  // Track non-task markets per key to detect duplicates
+  const seenNonTask = new Map<string, { doc: QueryDocumentSnapshot; createdSecs: number }>();
+  const toVoid: QueryDocumentSnapshot[] = [];
+
   for (const doc of marketSnap.docs) {
     const d = doc.data();
     const key = `${d.metricId}:${d.targetDate}`;
     openKeys.add(key);
     // Task-conditional markets are managed by the task lifecycle — skip them.
     if (d.taskId) continue;
+
+    // Detect duplicates: keep the oldest, mark extras for voiding
+    const createdSecs = (d.createdAt as { seconds?: number })?.seconds ?? 0;
+    const prev = seenNonTask.get(key);
+    if (!prev) {
+      seenNonTask.set(key, { doc, createdSecs });
+    } else if (createdSecs < prev.createdSecs) {
+      toVoid.push(prev.doc);
+      seenNonTask.set(key, { doc, createdSecs });
+    } else {
+      toVoid.push(doc);
+    }
+
     const shouldBeActive = desiredRefs.has(key);
     if (shouldBeActive && d.active === false) {
       batch.update(doc.ref, { active: true });
@@ -107,5 +136,11 @@ export async function refreshRelativeDateMarkets(): Promise<{ created: number; d
   }
 
   if (created > 0 || deactivated > 0) await batch.commit();
-  return { created, deactivated };
+
+  // Void duplicate markets (sequential to respect Firestore limits)
+  for (const doc of toVoid) await voidMarket(doc);
+  const deduplicated = toVoid.length;
+
+  await lockRef.set({ locked: false });
+  return { created, deactivated, deduplicated };
 }

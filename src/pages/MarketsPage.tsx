@@ -714,7 +714,8 @@ export function MarketsPage() {
     if (result) {
       const parts = [];
       if (result.created > 0) parts.push(`${result.created} created`);
-      if (result.voided > 0) parts.push(`${result.voided} voided`);
+      if (result.deactivated > 0) parts.push(`${result.deactivated} deactivated`);
+      if (result.deduplicated > 0) parts.push(`${result.deduplicated} deduplicated`);
       setRefreshResult(parts.length > 0 ? `Markets refreshed: ${parts.join(', ')}.` : 'Markets up to date.');
       load();
     }

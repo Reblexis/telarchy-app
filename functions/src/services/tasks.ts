@@ -1,15 +1,20 @@
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { pHigher, consensus } from '../lib/amm';
-import { voidMarket } from './predictions';
 
 function db() { return getFirestore(); }
 
 /**
  * Create conditional markets for a task by cloning all currently open, active
  * leaf markets (TP-driven). Each clone has the same metric/date/range but starts
- * with zero bets and is tagged with taskId. Idempotent.
+ * with zero bets and is tagged with taskId.
+ *
+ * Always voids any existing conditional markets for this task first, so that
+ * re-testing a task reflects the current TP market dates rather than stale ones.
  */
 export async function createConditionalMarkets(taskId: string): Promise<string[]> {
+  // Void any existing conditional markets so re-test always uses current dates
+  await voidTaskMarkets(taskId);
+
   // Identify leaf metric IDs (no formula or formula === '0')
   const metricsSnap = await db().collection('metrics').get();
   const leafMetricIds = new Set(
@@ -18,27 +23,22 @@ export async function createConditionalMarkets(taskId: string): Promise<string[]
       .map(d => d.id),
   );
 
-  // All open, active markets for leaf metrics
+  // All open, non-conditional markets for leaf metrics (active !== false)
   const openSnap = await db().collection('markets')
     .where('resolved', '==', false)
-    .where('active', '==', true)
     .get();
-  const sourceMarkets = openSnap.docs.filter(d => leafMetricIds.has(d.data().metricId) && !d.data().taskId);
+  const sourceMarkets = openSnap.docs.filter(d => {
+    const dd = d.data();
+    return dd.active !== false && !dd.taskId && leafMetricIds.has(dd.metricId);
+  });
 
-  // Already-created conditional markets for this task (for idempotency)
-  const existingSnap = await db().collection('markets')
-    .where('taskId', '==', taskId)
-    .where('resolved', '==', false)
-    .get();
-  const existingKeys = new Set(existingSnap.docs.map(d => `${d.data().metricId}:${d.data().targetDate}`));
-  const existingIds = existingSnap.docs.map(d => d.id);
-
-  const batch = db().batch();
+  const BATCH_LIMIT = 450;
   const newIds: string[] = [];
+  let batch = db().batch();
+  let batchCount = 0;
 
   for (const src of sourceMarkets) {
     const m = src.data();
-    if (existingKeys.has(`${m.metricId}:${m.targetDate}`)) continue;
     const ref = db().collection('markets').doc();
     batch.set(ref, {
       id: ref.id,
@@ -57,21 +57,65 @@ export async function createConditionalMarkets(taskId: string): Promise<string[]
       liquidity: m.liquidity,
     });
     newIds.push(ref.id);
+    batchCount++;
+    if (batchCount >= BATCH_LIMIT) {
+      await batch.commit();
+      batch = db().batch();
+      batchCount = 0;
+    }
   }
 
-  if (newIds.length > 0) await batch.commit();
-  return [...existingIds, ...newIds];
+  if (batchCount > 0) await batch.commit();
+  return newIds;
 }
 
-/** Void all open conditional markets tied to a task. */
+/** Void all open conditional markets tied to a task, batching writes. */
 export async function voidTaskMarkets(taskId: string): Promise<void> {
   const marketsSnap = await db().collection('markets')
     .where('taskId', '==', taskId)
     .where('resolved', '==', false)
     .get();
-  for (const doc of marketsSnap.docs) {
-    await voidMarket(doc.id);
+  if (marketsSnap.empty) return;
+
+  const marketIds = marketsSnap.docs.map(d => d.id);
+  const posSnap = await db().collection('positions').get();
+  const refundsByAgent = new Map<string, number>();
+  for (const posDoc of posSnap.docs) {
+    const pos = posDoc.data();
+    if (!marketIds.includes(pos.marketId) || pos.totalCost <= 0) continue;
+    refundsByAgent.set(pos.agentId, (refundsByAgent.get(pos.agentId) || 0) + pos.totalCost);
   }
+
+  // Firestore batch limit is 500 writes; chunk as needed
+  const BATCH_LIMIT = 450;
+  let ops: Array<() => void> = [];
+  const flush = async () => {
+    if (ops.length === 0) return;
+    const b = db().batch();
+    for (const op of ops) op.call(b);
+    await b.commit();
+    ops = [];
+  };
+  const addOp = async (op: () => void) => {
+    ops.push(op);
+    if (ops.length >= BATCH_LIMIT) await flush();
+  };
+
+  for (const doc of marketsSnap.docs) {
+    await addOp(function (this: FirebaseFirestore.WriteBatch) {
+      this.update(doc.ref, { resolved: true, resolvedAt: FieldValue.serverTimestamp(), actualValue: null, voided: true });
+    });
+  }
+  for (const [agentId, amount] of refundsByAgent) {
+    await addOp(function (this: FirebaseFirestore.WriteBatch) {
+      this.update(db().collection('agents').doc(agentId), {
+        balance: FieldValue.increment(amount),
+        earnedBetting: FieldValue.increment(amount),
+        spentBetting: FieldValue.increment(-amount),
+      });
+    });
+  }
+  await flush();
 }
 
 /** Gift price credits to the proposing agent and mark the task approved. */
