@@ -6,6 +6,7 @@ import { FocusBanner } from './FocusBanner';
 
 interface MetricsDashboardProps {
   metrics: Metric[];
+  isInspectMode: boolean;
   formulaWarnings: Record<string, FormulaWarning[]>;
   focusedMetricId: string | null;
   onToggleFocus: (id: string) => void;
@@ -15,7 +16,7 @@ interface MetricsDashboardProps {
 }
 
 export function MetricsDashboard({
-  metrics, formulaWarnings, focusedMetricId, onToggleFocus, onGraph, onEdit, onDelete,
+  metrics, isInspectMode, formulaWarnings, focusedMetricId, onToggleFocus, onGraph, onEdit, onDelete,
 }: MetricsDashboardProps) {
   let metricsToRender = metrics;
   let focusedMetric: Metric | undefined;
@@ -52,6 +53,7 @@ export function MetricsDashboard({
                 <MetricCard
                   key={metric.id}
                   metric={metric}
+                  isInspectMode={isInspectMode}
                   warnings={formulaWarnings[metric.id] || []}
                   isFocused={focusedMetricId === metric.id}
                   onFocus={() => onToggleFocus(metric.id)}

@@ -107,6 +107,7 @@ export function MetricsPage() {
         <XPDisplay xp={xp} rank={rank} />
         <MetricsDashboard
           metrics={metrics}
+          isInspectMode={!!inspectTask}
           formulaWarnings={formulaWarnings}
           focusedMetricId={focusedMetricId}
           onToggleFocus={toggleFocus}
@@ -125,6 +126,7 @@ export function MetricsPage() {
         metric={graphMetric}
         interval={graphInterval}
         isDark={isDark}
+        isInspectMode={!!inspectTask}
         loadLogs={loadMetricLogs}
         onClose={() => setGraphMetric(null)}
       />

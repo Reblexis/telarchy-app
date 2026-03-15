@@ -90,6 +90,20 @@ A local hook watcher (e.g. cron-run `scripts/hook-watcher.cjs`) polls the event 
   ] }
   ```
 
+### Metrics Graphing System (Implemented)
+
+The Metrics tab uses a single Chart.js graph engine for both inline card charts and the expanded graph modal.
+
+- **Shared renderer**: inline and modal charts are rendered by the same `MetricsTimeChart` component, so axes, tooltips, and interaction semantics stay consistent.
+- **Unified date model**: mixed target date formats (`YYYY`, `YYYY-MM`, `YYYY-Www`, `YYYY-MM-DD`) are normalized into canonical timestamps before plotting.
+- **Inspect contract**:
+  - `normal` mode: primary series with inspectable points/tooltips.
+  - `inspect` mode: primary series plus inspect context overlays (current and baseline reference lines when available), with legend enabled.
+- **Axis behavior**: x-axis labels are adaptive to visible time span, y-axis labels use deterministic numeric formatting, and both axes are explicitly titled (`Target date`, `Value`).
+- **Interaction behavior**:
+  - Inline charts: lightweight inspection (hover tooltip + point interaction) with click-to-open modal.
+  - Modal charts: full interaction (tooltip inspection + x-axis pan/zoom via Chart.js zoom plugin).
+
 ## Planned Phases
 
 ### Phase 4: Futarchy Sessions
