@@ -6,7 +6,7 @@ import { cacheGet, cacheSet, cacheDelete } from '../lib/cache';
 import {
   calculateXP, calculateRank, recalculateMetrics,
   calculateMetricDepths, detectCircularDependency,
-  validateFormula,
+  validateFormula, evaluateFormulaAtTime,
 } from '../lib/metrics-engine';
 import type { FormulaWarning } from '../lib/metrics-engine';
 import type { Metric, Market, MetricLog, UpdateEntry } from '../types';
@@ -27,6 +27,30 @@ function buildConsensusMap(markets: Market[]): Record<string, number> {
     }
   }
   return map;
+}
+
+function attachConditionalTimeSeries(
+  metrics: Metric[],
+  consensusMap: Record<string, number>,
+): void {
+  const nameToFormula: Record<string, string> = {};
+  metrics.forEach(m => { nameToFormula[m.name] = m.formula || '0'; });
+
+  for (const m of metrics) {
+    if (!m.timeSeries || m.timeSeries.length === 0) continue;
+    const isLeaf = !m.formula || m.formula.trim() === '0';
+    const series: Array<{ date: string; value: number }> = [];
+    const memo: Record<string, number> = {};
+    for (const { date } of m.timeSeries) {
+      if (isLeaf) {
+        const val = consensusMap[`${m.name}:${date}`];
+        if (val !== undefined) series.push({ date, value: val });
+      } else {
+        series.push({ date, value: evaluateFormulaAtTime(m.formula, nameToFormula, consensusMap, date, memo) });
+      }
+    }
+    m.conditionalTimeSeries = series.length > 0 ? series : undefined;
+  }
 }
 
 function buildWarnings(
@@ -68,14 +92,13 @@ export function useMetrics(user: User | null, inspectTaskId?: string | null) {
       }),
     ]);
 
-    // Build consensus map from whichever markets we fetched (conditional or regular)
     consensusMapRef.current = buildConsensusMap(marketsData);
 
     if (inspectTaskId) {
-      // Re-enrich metrics using conditional market consensus instead of backend values.
-      // Preserve the backend total (regular consensus) as baselineTotal for diff display.
       const cloned = metricsData.map(m => ({ ...m, baselineTotal: m.total }));
-      setMetrics(enrichMetrics(cloned, consensusMapRef.current));
+      const enriched = enrichMetrics(cloned, consensusMapRef.current);
+      attachConditionalTimeSeries(enriched, consensusMapRef.current);
+      setMetrics(enriched);
     } else {
       setMetrics(metricsData);
       cacheSet('metrics', metricsData);

@@ -15,6 +15,7 @@ export interface Metric {
   timePreference?: TimePreference;
   baselineTotal?: number;
   timeSeries?: Array<{ date: string; value: number }>;
+  conditionalTimeSeries?: Array<{ date: string; value: number }>;
 }
 
 export interface MetricLog {
