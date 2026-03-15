@@ -40,6 +40,7 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
 
   const shares: [number, number] = market.shares;
   const b = market.liquidity;
+  if (b <= 0) { res.status(400).json({ error: 'Market has no liquidity — admin must inject liquidity before trading' }); return; }
   let direction: 0 | 1;
   let amount: number;
   let cost = 0;
@@ -338,9 +339,9 @@ predictionsRouter.post('/markets/:id/liquidity', requireRole('admin'), wrap(asyn
   const oldLiquidity = doc.data()!.liquidity as number;
   const oldShares = doc.data()!.shares as [number, number];
   const newLiquidity = oldLiquidity + amount;
-  // Scale shares proportionally so (q1-q0)/b stays constant → consensus unchanged
-  const scale = newLiquidity / oldLiquidity;
-  const newShares: [number, number] = [oldShares[0] * scale, oldShares[1] * scale];
+  const newShares: [number, number] = oldLiquidity > 0
+    ? [oldShares[0] * newLiquidity / oldLiquidity, oldShares[1] * newLiquidity / oldLiquidity]
+    : [0, 0];
   await ref.update({ liquidity: newLiquidity, shares: newShares });
   const liqRef = db().collection('liquidityEvents').doc();
   await liqRef.set({ id: liqRef.id, marketId: req.params.id as string, amount, totalLiquidity: newLiquidity, type: 'injection', createdAt: FieldValue.serverTimestamp() });

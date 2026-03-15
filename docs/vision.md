@@ -63,7 +63,7 @@ C(q) = b * ln(exp(q_lower / b) + exp(q_higher / b))
 tradeCost = C(q_after) - C(q_before)
 p(higher) = 1 / (1 + exp(-(q_higher - q_lower) / b))
 ```
-`b` (liquidity parameter, default 100) controls price sensitivity.
+`b` (liquidity parameter, default 0 — admin injects liquidity to enable trading) controls price sensitivity.
 
 **Key changes**:
 - `functions/src/lib/amm.ts` — binary LMSR math (cost, probability, consensus, proportional payouts)
