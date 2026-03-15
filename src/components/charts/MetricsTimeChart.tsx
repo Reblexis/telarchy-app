@@ -108,7 +108,7 @@ export function MetricsTimeChart({
             const p = sorted[item.dataIndex];
             return p ? formatTooltipTitle(p) : '';
           },
-          label: (ctx) => `${ctx.dataset.label}: ${formatAxisValue(ctx.parsed.y)}`,
+          label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y != null ? formatAxisValue(ctx.parsed.y) : ''}`,
         },
       },
       zoom: variant === 'modal'
