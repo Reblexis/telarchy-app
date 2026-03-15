@@ -33,8 +33,11 @@ metricsRouter.get('/:id/logs', requireRole('agent', 'admin'), wrap(async (req, r
 
 // Write routes: admin only
 metricsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
-  const { name, description = '', value = 0, formula = '0', timePreference } = req.body;
+  const { name, description = '', value = 0, formula = '0', timePreference, marketRangeMax } = req.body;
   if (!name) { res.status(400).json({ error: 'name is required' }); return; }
+  if (marketRangeMax !== undefined && (typeof marketRangeMax !== 'number' || marketRangeMax <= 0)) {
+    res.status(400).json({ error: 'marketRangeMax must be a positive number' }); return;
+  }
 
   const tp = parseTimePreference(timePreference);
   if (tp instanceof Error) { res.status(400).json({ error: tp.message }); return; }
@@ -50,6 +53,7 @@ metricsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
     name, value: isDefinition ? 0 : (value || 0), formula, description, order: 999,
   };
   if (tp?.enabled) firestoreData.timePreference = tp;
+  if (marketRangeMax !== undefined) firestoreData.marketRangeMax = marketRangeMax;
 
   const docRef = await db().collection('metrics').add(firestoreData);
   res.status(201).json({ ok: true, id: docRef.id });
@@ -70,7 +74,11 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
   const newTP = parseTimePreference(rawTP);
   if (newTP instanceof Error) { res.status(400).json({ error: newTP.message }); return; }
 
-  const allowed = ['name', 'description', 'value', 'formula'] as const;
+  if (fields.marketRangeMax !== undefined && (typeof fields.marketRangeMax !== 'number' || fields.marketRangeMax <= 0)) {
+    res.status(400).json({ error: 'marketRangeMax must be a positive number' }); return;
+  }
+
+  const allowed = ['name', 'description', 'value', 'formula', 'marketRangeMax'] as const;
   const update: Record<string, unknown> = {};
   for (const key of allowed) {
     if (fields[key] !== undefined) update[key] = fields[key];
@@ -153,8 +161,13 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
     }
   }
 
-  // Definition change on a non-TP metric: find TP ancestors and respawn
+  // Range change: void existing markets so they are recreated with the new range
   const definitionChanged = isDefinitionChange(oldData, update, effectiveFormula);
+  if (update.marketRangeMax !== undefined && update.marketRangeMax !== oldData.marketRangeMax) {
+    await voidOpenMarketsForMetrics(new Set([id]));
+  }
+
+  // Definition change on a non-TP metric: find TP ancestors and respawn
   if (definitionChanged && !isTPEnabled) {
     const tpAncestorIds = await findTPAncestors(id);
     for (const tpId of tpAncestorIds) {
@@ -247,6 +260,7 @@ function isDefinitionChange(
   if (update.name !== undefined && update.name !== oldData.name) return true;
   if (update.description !== undefined && update.description !== oldData.description) return true;
   if (update.formula !== undefined && update.formula !== (oldData.formula ?? '0')) return true;
+  if (update.marketRangeMax !== undefined && update.marketRangeMax !== oldData.marketRangeMax) return true;
   // Value change is a definition change only for non-leaf nodes
   const isLeaf = !effectiveFormula || effectiveFormula.trim() === '0';
   if (!isLeaf && update.value !== undefined && update.value !== oldData.value) return true;

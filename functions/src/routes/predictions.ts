@@ -6,6 +6,7 @@ import { requireRole } from '../middleware/roles';
 import { getAllMetrics, getMetricLogs, getUpdates } from '../services/metrics';
 import { resolvePredictions, resolveMarket, getMarkets, voidMarket } from '../services/predictions';
 import { refreshRelativeDateMarkets } from '../services/markets';
+import { createConditionalMarkets } from '../services/tasks';
 import { isValidDateFormat, endOfPeriod } from '../lib/date-utils';
 import { extractMetricReferences } from '../lib/metrics-engine';
 import { consensus, pHigher, directionTradeCost, sharesForBudget, betTowardsValue, directionSellProceeds, AMM_DEFAULTS } from '../lib/amm';
@@ -152,6 +153,17 @@ predictionsRouter.get('/positions', requireRole('agent', 'admin'), wrap(async (r
 
 predictionsRouter.get('/markets', requireRole('agent', 'admin'), wrap(async (req, res) => {
   const taskId = typeof req.query.taskId === 'string' ? req.query.taskId : undefined;
+  if (taskId) {
+    const taskRef = db().collection('tasks').doc(taskId);
+    const taskDoc = await taskRef.get();
+    if (taskDoc.exists) {
+      const task = taskDoc.data()!;
+      if (!task.conditionalMarketIds?.length) {
+        const marketIds = await createConditionalMarkets(taskId);
+        await taskRef.update({ conditionalMarketIds: marketIds });
+      }
+    }
+  }
   res.json(await getMarkets(false, taskId));
 }));
 
@@ -277,7 +289,7 @@ predictionsRouter.post('/markets', requireRole('admin'), wrap(async (req, res) =
   if (!existing.empty) { res.status(409).json({ error: 'Market already exists' }); return; }
 
   const rMin = typeof rangeMin === 'number' ? rangeMin : AMM_DEFAULTS.rangeMin;
-  const rMax = typeof rangeMax === 'number' ? rangeMax : AMM_DEFAULTS.rangeMax;
+  const rMax = typeof rangeMax === 'number' ? rangeMax : (metric.marketRangeMax ?? AMM_DEFAULTS.rangeMax);
   const liq = typeof liquidity === 'number' ? liquidity : AMM_DEFAULTS.liquidity;
 
   const ref = db().collection('markets').doc();
@@ -359,7 +371,17 @@ predictionsRouter.post('/resolve', requireRole('admin'), wrap(async (req, res) =
   res.json(result);
 }));
 
-predictionsRouter.post('/markets/refresh', requireRole('admin'), wrap(async (_req, res) => {
+predictionsRouter.post('/markets/refresh', requireRole('admin'), wrap(async (req, res) => {
+  const taskId = typeof req.body?.taskId === 'string' ? req.body.taskId : undefined;
+  if (taskId) {
+    const taskRef = db().collection('tasks').doc(taskId);
+    const taskDoc = await taskRef.get();
+    if (!taskDoc.exists) { res.status(404).json({ error: 'Task not found' }); return; }
+    const marketIds = await createConditionalMarkets(taskId);
+    await taskRef.update({ conditionalMarketIds: marketIds });
+    res.json({ created: marketIds.length, deactivated: 0, deduplicated: 0 });
+    return;
+  }
   const result = await refreshRelativeDateMarkets();
   res.json(result);
 }));

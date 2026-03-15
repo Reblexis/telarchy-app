@@ -25,7 +25,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function MarketSummaryTable({ markets }: { markets: TaskMarketSummary[] }) {
-  if (markets.length === 0) return <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>No conditional markets yet. Click &quot;Test&quot; to create them.</p>;
+  if (markets.length === 0) return <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>No conditional markets yet. Click &quot;Inspect&quot; to view them in Markets.</p>;
   const thStyle = { padding: '0.4rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.8rem', textAlign: 'left' as const };
   return (
     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
@@ -143,7 +143,6 @@ interface TaskDetailProps {
 
 function TaskDetail({ task, user, onAction, onError }: TaskDetailProps) {
   const { inspectTask, setInspectTask } = useInspectMode();
-  const [markets, setMarkets] = useState<TaskMarketSummary[]>(task.markets || []);
   const [acting, setActing] = useState(false);
 
   const isInspecting = inspectTask?.id === task.id;
@@ -155,18 +154,7 @@ function TaskDetail({ task, user, onAction, onError }: TaskDetailProps) {
     onAction();
   };
 
-  const handleInspect = async () => {
-    // Create conditional markets if not yet done, then enter inspect mode
-    if (task.conditionalMarketIds.length === 0) {
-      setActing(true);
-      const result = await api.testTask(user, task.id).catch((e: Error) => { onError(e.message); return null; });
-      if (result) {
-        const detail = await api.getTask(user, task.id).catch(() => null);
-        if (detail?.markets) setMarkets(detail.markets);
-      }
-      setActing(false);
-      onAction();
-    }
+  const handleInspect = () => {
     setInspectTask(isInspecting ? null : { id: task.id, title: task.title });
   };
 
@@ -181,11 +169,10 @@ function TaskDetail({ task, user, onAction, onError }: TaskDetailProps) {
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <button
             className="btn-small"
-            disabled={acting}
             onClick={handleInspect}
             style={{ background: isInspecting ? '#7c3aed' : 'var(--accent-color, #3b82f6)', color: '#fff', padding: '0.45rem 0.9rem' }}
           >
-            {acting ? '…' : isInspecting ? 'Exit Inspect' : 'Inspect'}
+            {isInspecting ? 'Exit Inspect' : 'Inspect'}
           </button>
           <button
             className="btn-small"
@@ -211,7 +198,7 @@ function TaskDetail({ task, user, onAction, onError }: TaskDetailProps) {
         <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Conditional Markets
         </div>
-        <MarketSummaryTable markets={markets} />
+        <MarketSummaryTable markets={task.markets || []} />
       </div>
 
       {/* Chat */}
@@ -318,7 +305,7 @@ export function TasksPage() {
               placeholder="Optional" style={{ ...inputStyle, width: '200px' }} />
           </div>
           <div>
-            <label style={labelStyle}>Price (credits)</label>
+            <label style={labelStyle}>Price ($)</label>
             <input type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
               placeholder="500" min="1" style={{ ...inputStyle, width: '90px' }} />
           </div>

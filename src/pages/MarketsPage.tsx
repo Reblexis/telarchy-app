@@ -188,8 +188,9 @@ function ConsensusChart({ trades, rangeMin, rangeMax }: {
             const p = pts[item.dataIndex];
             if (!p.trade) return `Consensus: ${item.parsed.y}`;
             const dir = p.trade.direction === 'higher' ? '▲ Higher' : '▼ Lower';
-            const costStr = (p.trade.cost ?? 0) > 0 ? `cost ${p.trade.cost}` : `proceeds ${-(p.trade.cost ?? 0)}`;
-            return [`${dir}  →  ${item.parsed.y}`, p.trade.agentId ?? '', `${p.trade.shares} shares · ${costStr} credits`];
+            const tradeCost = p.trade.cost ?? 0;
+            const costStr = tradeCost > 0 ? `cost $${tradeCost}` : `proceeds $${-tradeCost}`;
+            return [`${dir}  →  ${item.parsed.y}`, p.trade.agentId ?? '', `${p.trade.shares} shares · ${costStr}`];
           },
         },
       },
@@ -216,7 +217,7 @@ function ConsensusChart({ trades, rangeMin, rangeMax }: {
           </span>
           <span style={{ fontFamily: 'monospace' }}>{clickedTrade.agentId}</span>
           <span>{clickedTrade.shares} shares</span>
-          <span>{(clickedTrade.cost ?? 0) > 0 ? `cost ${clickedTrade.cost}` : `proceeds ${-(clickedTrade.cost ?? 0)}`} credits</span>
+          <span>{(clickedTrade.cost ?? 0) > 0 ? `cost $${clickedTrade.cost}` : `proceeds $${-(clickedTrade.cost ?? 0)}`}</span>
           <span>→ <strong>{clickedTrade.consensus}</strong></span>
           <span style={{ color: 'var(--text-secondary)' }}>{(() => { const s = getTimestampSeconds(clickedTrade.createdAt); return s != null ? fmtTime(s) : ''; })()}</span>
           <button onClick={() => setClickedTrade(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '1rem', lineHeight: 1 }}>×</button>
@@ -470,7 +471,7 @@ function TradingPanel({ market, agentId, user, onTrade, onError }: {
       {/* Trade controls */}
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div>
-          <label style={labelStyle}>Amount (credits)</label>
+          <label style={labelStyle}>Amount ($)</label>
           <input
             type="number" value={tradeAmount}
             onChange={e => setTradeAmount(e.target.value)}
@@ -512,7 +513,7 @@ function TradingPanel({ market, agentId, user, onTrade, onError }: {
         {lastResult && (
           <div style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem', background: 'var(--bg-secondary, #f0f4ff)', borderRadius: '0.375rem', borderLeft: `3px solid ${lastResult.direction === 'higher' ? '#22c55e' : '#ef4444'}` }}>
             <strong>{lastResult.direction === 'higher' ? '▲' : '▼'} {lastResult.shares} shares</strong>
-            {' '}{lastResult.cost < 0 ? `sold for ${-lastResult.cost}` : `for ${lastResult.cost}`} credits → consensus <strong>{lastResult.consensus}</strong>
+            {' '}{lastResult.cost < 0 ? `sold for $${-lastResult.cost}` : `for $${lastResult.cost}`} → consensus <strong>{lastResult.consensus}</strong>
           </div>
         )}
 
@@ -690,27 +691,27 @@ export function MarketsPage() {
     if (!user) return;
     setError('');
     const result = await api.voidMarket(user, id).catch((e: Error) => { setError(e.message); return null; });
-    if (result) { setResolveResult(`Market voided. Refunded ${result.refunded} credits.`); load(); }
+    if (result) { setResolveResult(`Market voided. Refunded $${result.refunded}.`); load(); }
   };
 
   const handleResolveOne = async (id: string) => {
     if (!user) return;
     setError('');
     const result = await api.resolveMarket(user, id).catch((e: Error) => { setError(e.message); return null; });
-    if (result?.resolved) { setResolveResult(`Market resolved. Total payout: ${result.totalPayout} credits.`); load(); }
+    if (result?.resolved) { setResolveResult(`Market resolved. Total payout: $${result.totalPayout}.`); load(); }
   };
 
   const handleResolve = async () => {
     if (!user) return;
     setResolveResult('');
     const result = await api.resolvePredictions(user).catch((e: Error) => { setError(e.message); return null; });
-    if (result) { setResolveResult(`Resolved ${result.resolved} markets. Total payout: ${result.totalPayout} credits.`); load(); }
+    if (result) { setResolveResult(`Resolved ${result.resolved} markets. Total payout: $${result.totalPayout}.`); load(); }
   };
 
   const handleRefresh = async () => {
     if (!user) return;
     setRefreshResult('');
-    const result = await api.refreshMarkets(user).catch((e: Error) => { setError(e.message); return null; });
+    const result = await api.refreshMarkets(user, inspectTask?.id).catch((e: Error) => { setError(e.message); return null; });
     if (result) {
       const parts = [];
       if (result.created > 0) parts.push(`${result.created} created`);

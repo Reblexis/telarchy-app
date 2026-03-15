@@ -41,7 +41,7 @@ export function AgentsPage() {
 
   const handleCredit = async (id: string) => {
     if (!user) return;
-    const input = prompt('Credits to add:');
+    const input = prompt('Dollars to add:');
     if (!input) return;
     const amount = Number(input);
     if (!amount || amount <= 0) return;
@@ -109,13 +109,13 @@ export function AgentsPage() {
                         <option value="admin">admin</option>
                       </select>
                     </td>
-                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace' }}>{agent.balance}</td>
-                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{agent.gifted}</td>
-                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--success-text)' }}>{agent.earnedBetting}</td>
-                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--error-text)' }}>{agent.spentBetting}</td>
-                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{agent.spentTokens}</td>
+                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace' }}>${agent.balance}</td>
+                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>${agent.gifted}</td>
+                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--success-text)' }}>${agent.earnedBetting}</td>
+                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--error-text)' }}>${agent.spentBetting}</td>
+                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>${agent.spentTokens}</td>
                     <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: agent.earnedBetting - agent.spentBetting >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>
-                      {agent.earnedBetting - agent.spentBetting >= 0 ? '+' : ''}{agent.earnedBetting - agent.spentBetting}
+                      {agent.earnedBetting - agent.spentBetting >= 0 ? '+$' : '-$'}{Math.abs(agent.earnedBetting - agent.spentBetting)}
                     </td>
                     <td style={{ padding: '0.75rem 0.5rem' }}>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>

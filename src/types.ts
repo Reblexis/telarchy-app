@@ -13,6 +13,7 @@ export interface Metric {
   order: number;
   depth: number;
   timePreference?: TimePreference;
+  marketRangeMax?: number;
   baselineTotal?: number;
   timeSeries?: Array<{ date: string; value: number }>;
   conditionalTimeSeries?: Array<{ date: string; value: number }>;

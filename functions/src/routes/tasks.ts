@@ -3,7 +3,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
-import { createConditionalMarkets, voidTaskMarkets, approveTask, getTaskMarketSummaries } from '../services/tasks';
+import { voidTaskMarkets, approveTask, getTaskMarketSummaries } from '../services/tasks';
 
 function db() { return getFirestore(); }
 
@@ -62,22 +62,6 @@ tasksRouter.get('/:taskId', requireRole('agent', 'admin'), wrap(async (req, res)
 
   const markets = await getTaskMarketSummaries(task.conditionalMarketIds || []);
   res.json({ ...task, markets });
-}));
-
-// --- Admin: run "Test" — create conditional markets ---
-
-tasksRouter.post('/:taskId/test', requireRole('admin'), wrap(async (req, res) => {
-  const taskRef = db().collection('tasks').doc(req.params.taskId as string);
-  const taskDoc = await taskRef.get();
-  if (!taskDoc.exists) { res.status(404).json({ error: 'Task not found' }); return; }
-
-  const task = taskDoc.data()!;
-  if (task.status !== 'pending') { res.status(400).json({ error: 'Can only test pending tasks' }); return; }
-
-  const marketIds = await createConditionalMarkets(task.id);
-  await taskRef.update({ conditionalMarketIds: marketIds });
-
-  res.json({ created: marketIds.length, marketIds });
 }));
 
 // --- Admin: approve task ---

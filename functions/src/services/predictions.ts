@@ -10,10 +10,17 @@ function db() { return getFirestore(); }
 async function resolveMarketDoc(
   marketDoc: FirebaseFirestore.DocumentSnapshot,
   metricMap: Map<string, Metric>,
-): Promise<{ positions: number; totalPayout: number }> {
+): Promise<{ positions: number; totalPayout: number; skipped?: boolean }> {
   const m = marketDoc.data()!;
   const metric = metricMap.get(m.metricId);
-  const actualValue = metric ? metric.total : 0;
+  const rawValue = metric ? metric.total : 0;
+
+  if (rawValue < 0) {
+    console.error(`Market ${marketDoc.id} (${m.metricName}): metric total is negative (${rawValue}), skipping resolution`);
+    return { positions: 0, totalPayout: 0, skipped: true };
+  }
+
+  const actualValue = Math.min(rawValue, m.rangeMax);
   const [lowerPay, higherPay] = resolutionPayouts(actualValue, m.rangeMin, m.rangeMax);
 
   const batch = db().batch();
@@ -52,8 +59,9 @@ export async function resolveMarket(marketId: string): Promise<{ resolved: boole
 
   const metrics = await getAllMetrics();
   const metricMap = new Map<string, Metric>(metrics.map(m => [m.id, m]));
-  const { totalPayout } = await resolveMarketDoc(marketDoc, metricMap);
-  return { resolved: true, totalPayout };
+  const result = await resolveMarketDoc(marketDoc, metricMap);
+  if (result.skipped) return { resolved: false, totalPayout: 0 };
+  return { resolved: true, totalPayout: result.totalPayout };
 }
 
 export async function resolvePredictions(targetDate?: string): Promise<{ resolved: number; totalPayout: number }> {
@@ -94,8 +102,10 @@ export async function resolvePredictions(targetDate?: string): Promise<{ resolve
       await voidMarket(marketDoc.id);
     } else {
       const result = await resolveMarketDoc(marketDoc, metricMap);
-      totalPayout += result.totalPayout;
-      resolvedCount++;
+      if (!result.skipped) {
+        totalPayout += result.totalPayout;
+        resolvedCount++;
+      }
     }
   }
 

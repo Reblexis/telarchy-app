@@ -58,16 +58,17 @@ export function MetricsPage() {
   };
 
 
-  const handleAddMetric = async (name: string, description: string, value: number, formula: string) => {
-    await addMetric(name, description, value, formula);
+  const handleAddMetric = async (name: string, description: string, value: number, formula: string, marketRangeMax?: number) => {
+    await addMetric(name, description, value, formula, marketRangeMax);
   };
 
   const handleSaveEdit = async (
     id: string, name: string, description: string, value: number,
     formula: string, oldValue: number, updateNote: string,
     timePreference: import('../types').TimePreference | null,
+    marketRangeMax?: number,
   ) => {
-    await editMetric(id, name, description, value, formula, oldValue, updateNote, timePreference);
+    await editMetric(id, name, description, value, formula, oldValue, updateNote, timePreference, marketRangeMax);
   };
 
   if (authLoading) return <div className="loading">Loading...</div>;

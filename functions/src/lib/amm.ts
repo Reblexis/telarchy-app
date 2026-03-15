@@ -89,5 +89,5 @@ export function resolutionPayouts(actualValue: number, rangeMin: number, rangeMa
 export const AMM_DEFAULTS = {
   rangeMin: 0,
   rangeMax: 1000,
-  liquidity: 100,
+  liquidity: 0,
 };

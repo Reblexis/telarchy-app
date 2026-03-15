@@ -8,6 +8,7 @@ interface EditMetricModalProps {
     id: string, name: string, description: string, value: number,
     formula: string, oldValue: number, updateNote: string,
     timePreference: TimePreference | null,
+    marketRangeMax?: number,
   ) => Promise<void>;
 }
 
@@ -19,6 +20,7 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
   const [updateNote, setUpdateNote] = useState('');
   const [tpEnabled, setTpEnabled] = useState(false);
   const [tpHalfLife, setTpHalfLife] = useState('1');
+  const [marketRangeMax, setMarketRangeMax] = useState('1000');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -30,6 +32,7 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
       setUpdateNote('');
       setTpEnabled(metric.timePreference?.enabled ?? false);
       setTpHalfLife(String(metric.timePreference?.halfLife ?? 1));
+      setMarketRangeMax(String(metric.marketRangeMax ?? 1000));
       setError('');
     }
   }, [metric]);
@@ -45,7 +48,8 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
       ? { enabled: true, halfLife: Math.max(0.01, Number(tpHalfLife)) }
       : null;
     try {
-      await onSave(metric.id, name, description, Number(value), formula, metric.value, updateNote, tp);
+      const rmx = Math.max(1, Number(marketRangeMax) || 1000);
+      await onSave(metric.id, name, description, Number(value), formula, metric.value, updateNote, tp, rmx);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
@@ -81,6 +85,10 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
           <div className="form-group">
             <label htmlFor="editFormula">Formula</label>
             <textarea id="editFormula" placeholder="e.g., {Deep Work} + {Exercise} * 2" value={formula} onChange={e => setFormula(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label htmlFor="editMarketRangeMax">Market Range Max</label>
+            <input type="number" id="editMarketRangeMax" step="any" min="1" value={marketRangeMax} onChange={e => setMarketRangeMax(e.target.value)} />
           </div>
           <div className="form-group tp-row">
             <div className="tp-toggle">

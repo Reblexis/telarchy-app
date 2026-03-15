@@ -1,7 +1,7 @@
 import { useState, FormEvent } from 'react';
 
 interface AddMetricFormProps {
-  onAdd: (name: string, description: string, value: number, formula: string) => Promise<void>;
+  onAdd: (name: string, description: string, value: number, formula: string, marketRangeMax?: number) => Promise<void>;
 }
 
 export function AddMetricForm({ onAdd }: AddMetricFormProps) {
@@ -9,16 +9,19 @@ export function AddMetricForm({ onAdd }: AddMetricFormProps) {
   const [description, setDescription] = useState('');
   const [value, setValue] = useState('');
   const [formula, setFormula] = useState('');
+  const [marketRangeMax, setMarketRangeMax] = useState('');
 
   const isLeaf = !formula || formula.trim() === '0';
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    await onAdd(name, description, isLeaf ? Number(value) : 0, formula || '0');
+    const rmx = marketRangeMax ? Math.max(1, Number(marketRangeMax)) : undefined;
+    await onAdd(name, description, isLeaf ? Number(value) : 0, formula || '0', rmx);
     setName('');
     setDescription('');
     setValue('');
     setFormula('');
+    setMarketRangeMax('');
   };
 
   return (
@@ -43,6 +46,10 @@ export function AddMetricForm({ onAdd }: AddMetricFormProps) {
             <input type="number" id="metricValue" step="any" required value={value} onChange={e => setValue(e.target.value)} />
           </div>
         )}
+        <div className="form-group">
+          <label htmlFor="metricMarketRangeMax">Market Range Max (default 1000)</label>
+          <input type="number" id="metricMarketRangeMax" step="any" min="1" placeholder="1000" value={marketRangeMax} onChange={e => setMarketRangeMax(e.target.value)} />
+        </div>
         <button type="submit" className="btn">Add Metric</button>
       </form>
     </div>

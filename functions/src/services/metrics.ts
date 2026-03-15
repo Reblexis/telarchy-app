@@ -115,6 +115,7 @@ export async function getAllMetrics(): Promise<Metric[]> {
       value: data.value, total: data.value, formula: data.formula || '0',
       order: data.order || 999, depth: 0,
       timePreference: data.timePreference?.enabled ? data.timePreference : undefined,
+      marketRangeMax: data.marketRangeMax,
     };
   }), consensusMap);
 }
@@ -138,11 +139,14 @@ export async function ensureMarketsForTimePreference(
   const idToName = new Map<string, string>();
   let tpMetricName = '';
 
+  const idToRangeMax = new Map<string, number>();
+
   for (const doc of metricsSnap.docs) {
     const d = doc.data();
     nameToFormula[d.name] = d.formula || '0';
     nameToId.set(d.name, doc.id);
     idToName.set(doc.id, d.name);
+    if (d.marketRangeMax != null) idToRangeMax.set(doc.id, d.marketRangeMax);
     if (doc.id === tpMetricId) tpMetricName = d.name;
   }
 
@@ -167,6 +171,7 @@ export async function ensureMarketsForTimePreference(
   for (const leafName of leafNames) {
     const leafId = nameToId.get(leafName);
     if (!leafId) continue;
+    const rMax = idToRangeMax.get(leafId) ?? AMM_DEFAULTS.rangeMax;
 
     for (const { date } of timePoints) {
       const key = `${leafId}:${date}`;
@@ -178,7 +183,7 @@ export async function ensureMarketsForTimePreference(
         id: ref.id, metricId: leafId, metricName: leafName, targetDate: date,
         resolved: false, resolvedAt: null, actualValue: null, active: true,
         createdAt: FieldValue.serverTimestamp(),
-        rangeMin: AMM_DEFAULTS.rangeMin, rangeMax: AMM_DEFAULTS.rangeMax,
+        rangeMin: AMM_DEFAULTS.rangeMin, rangeMax: rMax,
         shares: [0, 0], liquidity: AMM_DEFAULTS.liquidity,
       });
       const liqRef = db().collection('liquidityEvents').doc();

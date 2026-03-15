@@ -54,12 +54,14 @@ export async function refreshRelativeDateMarkets(): Promise<{ created: number; d
   const metricsSnap = await db().collection('metrics').get();
   const nameToFormula: Record<string, string> = {};
   const nameToId = new Map<string, string>();
+  const idToRangeMax = new Map<string, number>();
   const tpMetrics: { id: string; name: string; halfLife: number }[] = [];
 
   for (const doc of metricsSnap.docs) {
     const d = doc.data();
     nameToFormula[d.name] = d.formula || '0';
     nameToId.set(d.name, doc.id);
+    if (d.marketRangeMax != null) idToRangeMax.set(doc.id, d.marketRangeMax);
     if (d.timePreference?.enabled) {
       tpMetrics.push({ id: doc.id, name: d.name, halfLife: d.timePreference.halfLife });
     }
@@ -122,12 +124,13 @@ export async function refreshRelativeDateMarkets(): Promise<{ created: number; d
   let created = 0;
   for (const [key, { metricId, metricName, targetDate }] of desiredRefs) {
     if (openKeys.has(key)) continue;
+    const rMax = idToRangeMax.get(metricId) ?? AMM_DEFAULTS.rangeMax;
     const ref = db().collection('markets').doc();
     batch.set(ref, {
       id: ref.id, metricId, metricName, targetDate,
       resolved: false, resolvedAt: null, actualValue: null, active: true,
       createdAt: FieldValue.serverTimestamp(),
-      rangeMin: AMM_DEFAULTS.rangeMin, rangeMax: AMM_DEFAULTS.rangeMax,
+      rangeMin: AMM_DEFAULTS.rangeMin, rangeMax: rMax,
       shares: [0, 0], liquidity: AMM_DEFAULTS.liquidity,
     });
     const liqRef = db().collection('liquidityEvents').doc();
