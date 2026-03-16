@@ -265,7 +265,7 @@ export async function logSpecificMetrics(metricIds: string[], metrics: Metric[])
   const batch = db().batch();
   for (const metricId of metricIds) {
     const metric = metrics.find(m => m.id === metricId);
-    if (metric) {
+    if (metric && metric.total !== null) {
       batch.set(db().collection('metricLogs').doc(), {
         metricId: metric.id, metricName: metric.name, value: metric.total,
         timestamp: FieldValue.serverTimestamp(),

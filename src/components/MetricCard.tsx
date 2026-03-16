@@ -77,11 +77,11 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
         <div className="metric-stats">
           {isLeaf
             ? `Value: ${metric.value.toFixed(2)}`
-            : metric.missingMarkets?.length
-              ? <span title={`Awaiting first trade on: ${metric.missingMarkets.join(', ')}`} style={{ color: 'var(--text-secondary)', cursor: 'help' }}>Total: — <span style={{ fontSize: '0.8em' }}>(awaiting {metric.missingMarkets.length === 1 ? metric.missingMarkets[0] : `${metric.missingMarkets.length} markets`})</span></span>
+            : metric.total === null
+              ? `Total: —`
               : `Total: ${metric.total.toFixed(2)}`
           }
-          {!isLeaf && metric.baselineTotal !== undefined && (() => {
+          {!isLeaf && metric.baselineTotal != null && metric.total !== null && (() => {
             const delta = metric.total - metric.baselineTotal;
             if (Math.abs(delta) < 0.005) return null;
             return (

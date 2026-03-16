@@ -72,7 +72,7 @@ export function buildInspectMetrics(metricsData: Metric[], marketsData: Market[]
   const tradedOverlay = buildConsensusMap(marketsData, true);
   const consensusMap = { ...baselineConsensus, ...tradedOverlay };
 
-  const cloned = metricsData.map(metric => ({ ...metric, baselineTotal: metric.total }));
+  const cloned = metricsData.map(metric => ({ ...metric, baselineTotal: metric.total, missingMarkets: undefined }));
   const enriched = enrichMetrics(cloned, consensusMap);
   attachConditionalTimeSeries(enriched, consensusMap);
   return enriched;

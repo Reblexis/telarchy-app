@@ -4,7 +4,7 @@ import { sampleTimePoints, WEIGHT_T0 } from './time-preference';
 export function evaluateFormula(
   formula: string,
   metricsMap: Record<string, Metric>,
-): number {
+): number | null {
   if (!formula || formula.trim() === '0' || formula.trim() === '') return 0;
 
   let expression = formula;
@@ -14,6 +14,7 @@ export function evaluateFormula(
     for (const ref of metricRefs) {
       const metricName = ref.slice(1, -1).trim();
       const metric = metricsMap[metricName];
+      if (metric?.total === null) return null;
       expression = expression.replace(ref, metric ? String(metric.total) : '0');
     }
   }
@@ -227,21 +228,28 @@ export function recalculateMetrics(metrics: Metric[], consensusMap: Record<strin
     if (isLeaf) {
       metric.total = metric.value;
     } else if (metric.timePreference?.enabled) {
-      const { halfLife } = metric.timePreference;
-      const formula = metric.formula;
+      if (metric.missingMarkets?.length) {
+        metric.total = null;
+      } else {
+        const { halfLife } = metric.timePreference;
+        const formula = metric.formula;
 
-      const formulaAt0 = evaluateFormula(formula, nameToMetric);
-      let weightedSum = WEIGHT_T0 * formulaAt0;
-      let totalWeight = WEIGHT_T0;
+        const formulaAt0 = evaluateFormula(formula, nameToMetric);
+        if (formulaAt0 === null) { metric.total = null; }
+        else {
+          let weightedSum = WEIGHT_T0 * formulaAt0;
+          let totalWeight = WEIGHT_T0;
 
-      const memo: Record<string, number> = {};
-      for (const { date, weight } of sampleTimePoints(halfLife)) {
-        const formulaAtT = evaluateFormulaAtTime(formula, nameToFormula, consensusMap, date, memo);
-        weightedSum += weight * formulaAtT;
-        totalWeight += weight;
+          const memo: Record<string, number> = {};
+          for (const { date, weight } of sampleTimePoints(halfLife)) {
+            const formulaAtT = evaluateFormulaAtTime(formula, nameToFormula, consensusMap, date, memo);
+            weightedSum += weight * formulaAtT;
+            totalWeight += weight;
+          }
+
+          metric.total = totalWeight > 0 ? weightedSum / totalWeight : formulaAt0;
+        }
       }
-
-      metric.total = totalWeight > 0 ? weightedSum / totalWeight : formulaAt0;
     } else {
       metric.total = evaluateFormula(metric.formula, nameToMetric);
     }
@@ -292,12 +300,13 @@ export function calculateMetricDepths(metrics: Metric[]): Record<string, number>
   return depths;
 }
 
-export function calculateXP(metrics: Metric[]): number {
+export function calculateXP(metrics: Metric[]): number | null {
   const utilityMetric = metrics.find(m => m.name === 'Utility');
   return utilityMetric ? utilityMetric.total : 0;
 }
 
-export function calculateRank(xp: number): string {
+export function calculateRank(xp: number | null): string {
+  if (xp === null) return '—';
   if (xp >= 900) return 'S';
   if (xp >= 800) return 'A';
   if (xp >= 700) return 'B';

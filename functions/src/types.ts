@@ -8,7 +8,7 @@ export interface Metric {
   name: string;
   description: string;
   value: number;
-  total: number;
+  total: number | null;
   formula: string;
   order: number;
   depth: number;
