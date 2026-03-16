@@ -7,7 +7,7 @@
  */
 
 /** LMSR cost function for 2 outcomes. */
-function lmsrCost(shares: [number, number], b: number): number {
+export function lmsrCost(shares: [number, number], b: number): number {
   const max = Math.max(shares[0], shares[1]);
   return b * (max / b + Math.log(Math.exp((shares[0] - max) / b) + Math.exp((shares[1] - max) / b)));
 }
@@ -93,6 +93,12 @@ export function directionSellProceeds(shares: [number, number], direction: 0 | 1
 export function resolutionPayouts(actualValue: number, rangeMin: number, rangeMax: number): [number, number] {
   const p = Math.max(0, Math.min(1, (actualValue - rangeMin) / (rangeMax - rangeMin)));
   return [Math.round((1 - p) * 10000) / 10000, Math.round(p * 10000) / 10000];
+}
+
+/** Initial pool subsidy for a market with liquidity b: C(0,0) = b * ln(2). */
+export function initialPool(b: number): number {
+  if (b <= 0) return 0;
+  return Math.round(b * Math.log(2) * 100) / 100;
 }
 
 export const AMM_DEFAULTS = {

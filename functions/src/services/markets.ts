@@ -1,7 +1,7 @@
 import { FieldValue, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { db } from '../lib/db';
 import { sampleTimePoints, getLeafDescendantNames } from '../lib/time-preference';
-import { AMM_DEFAULTS } from '../lib/amm';
+import { AMM_DEFAULTS, initialPool } from '../lib/amm';
 import { emitEvent } from './events';
 
 /** Void a single open market: refund all positions at cost, mark resolved+voided. */
@@ -20,7 +20,7 @@ export async function voidMarket(
   let refunded = 0;
 
   batch.update(marketDoc.ref, {
-    resolved: true, resolvedAt: FieldValue.serverTimestamp(), actualValue: null, voided: true,
+    resolved: true, resolvedAt: FieldValue.serverTimestamp(), actualValue: null, voided: true, pool: 0,
   });
   for (const posDoc of posSnap.docs) {
     const pos = posDoc.data();
@@ -157,6 +157,7 @@ export async function refreshRelativeDateMarkets(): Promise<{ created: number; d
       createdAt: FieldValue.serverTimestamp(),
       rangeMin: AMM_DEFAULTS.rangeMin, rangeMax: rMax,
       shares: [0, 0], liquidity: AMM_DEFAULTS.liquidity,
+      pool: initialPool(AMM_DEFAULTS.liquidity),
     });
     const liqRef = db().collection('liquidityEvents').doc();
     batch.set(liqRef, { id: liqRef.id, marketId: ref.id, amount: AMM_DEFAULTS.liquidity, totalLiquidity: AMM_DEFAULTS.liquidity, type: 'initial', createdAt: FieldValue.serverTimestamp() });

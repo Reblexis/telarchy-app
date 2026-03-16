@@ -1,6 +1,6 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '../lib/db';
-import { consensus } from '../lib/amm';
+import { consensus, initialPool } from '../lib/amm';
 import { recalculateMetrics } from '../lib/metrics-engine';
 import { getAllMetrics, buildConsensusMap } from './metrics';
 import { voidMarket } from './markets';
@@ -163,6 +163,7 @@ export async function createConditionalMarkets(taskId: string): Promise<string[]
       rangeMax: m.rangeMax,
       shares: [0, 0],
       liquidity: m.liquidity,
+      pool: initialPool(m.liquidity),
     });
     newIds.push(ref.id);
     batchCount++;

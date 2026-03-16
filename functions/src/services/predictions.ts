@@ -26,9 +26,9 @@ async function resolveMarketDoc(
 
   const actualValue = Math.min(rawValue, m.rangeMax);
   const [lowerPay, higherPay] = resolutionPayouts(actualValue, m.rangeMin, m.rangeMax);
+  const pool: number = (m.pool as number) ?? 0;
 
   const batch = db().batch();
-  batch.update(marketDoc.ref, { resolved: true, resolvedAt: FieldValue.serverTimestamp(), actualValue });
 
   const posSnap = await db().collection('positions')
     .where('marketId', '==', marketDoc.id)
@@ -49,6 +49,13 @@ async function resolveMarketDoc(
       earnedBetting: FieldValue.increment(payout),
     });
   }
+
+  if (totalPayout > pool + 0.01) {
+    console.error(`Market ${marketDoc.id}: totalPayout ${totalPayout} exceeds pool ${pool} — LMSR invariant violated`);
+  }
+
+  const poolLeftover = Math.round((pool - totalPayout) * 100) / 100;
+  batch.update(marketDoc.ref, { resolved: true, resolvedAt: FieldValue.serverTimestamp(), actualValue, pool: 0, poolLeftover });
 
   await batch.commit();
   emitEvent('market:resolved', { marketId: marketDoc.id, metricName: m.metricName, targetDate: m.targetDate, actualValue }).catch(e => console.error('emitEvent failed:', e));

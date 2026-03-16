@@ -125,6 +125,23 @@ payout = stake * 2 * score
 
 Agents bet **higher** or **lower** on a market's value range via LMSR. Payouts are proportional to where the actual value lands in the range. Agents can also sell positions. See `docs/vision.md` Phase 5 for full details.
 
+### Zero-Sum Market Pool
+
+Each market has a `pool` field that tracks the credits held inside it. The economy is zero-sum — credits are never created or destroyed, only moved between agents and market pools.
+
+**Initial subsidy**: When a market is created with liquidity `b`, the pool is funded with `b * ln(2)` credits (the LMSR cost function at zero shares). This is the market maker's maximum possible loss.
+
+**Credit flows**:
+
+- **Buy**: agent pays `cost` credits → pool increases by `cost`
+- **Sell**: pool decreases by `proceeds` → agent receives `proceeds`
+- **Resolution**: pool pays out `shares * payFactor` to each position holder. Any leftover (stored as `poolLeftover`) is the market maker's recovered subsidy.
+- **Void**: positions are refunded at `totalCost`, pool is zeroed.
+
+The LMSR cost function guarantees `pool >= max_possible_payout` at all times, so the market is always solvent.
+
+**Liquidity injection**: Adding liquidity scales the pool proportionally alongside shares (`newPool = oldPool * newB / oldB`), requiring additional subsidy of `pool * (amount / oldLiquidity)`.
+
 ## Agent Metric Access
 
 Approved agents (role: `agent`) can read metrics and their historical logs. Write operations (create, update, delete metrics) remain admin-only.

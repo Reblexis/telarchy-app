@@ -10,7 +10,7 @@ import { refreshRelativeDateMarkets } from '../services/markets';
 import { createConditionalMarkets } from '../services/tasks';
 import { isValidDateFormat, endOfPeriod } from '../lib/date-utils';
 import { extractMetricReferences } from '../lib/metrics-engine';
-import { consensus, pHigher, directionTradeCost, sharesForBudget, betTowardsValue, directionSellProceeds, AMM_DEFAULTS } from '../lib/amm';
+import { consensus, pHigher, directionTradeCost, sharesForBudget, betTowardsValue, directionSellProceeds, lmsrCost, initialPool, AMM_DEFAULTS } from '../lib/amm';
 import { emitEvent } from '../services/events';
 
 export const predictionsRouter = Router();
@@ -107,12 +107,12 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
   const tradeRef = db().collection('trades').doc();
   const batch = db().batch();
 
-  batch.update(marketRef, { shares: newShares });
-
   if (isSell) {
+    batch.update(marketRef, { shares: newShares, pool: FieldValue.increment(-proceeds) });
     batch.update(agentRef, { balance: FieldValue.increment(proceeds), earnedBetting: FieldValue.increment(proceeds) });
     batch.update(posRef, { shares: FieldValue.increment(-amount) });
   } else {
+    batch.update(marketRef, { shares: newShares, pool: FieldValue.increment(cost) });
     batch.update(agentRef, { balance: FieldValue.increment(-cost), spentBetting: FieldValue.increment(cost) });
     if (posDoc.exists) {
       batch.update(posRef, { shares: FieldValue.increment(amount), totalCost: FieldValue.increment(cost) });
@@ -306,6 +306,7 @@ predictionsRouter.post('/markets', requireRole('admin'), wrap(async (req, res) =
     rangeMax: rMax,
     shares: [0, 0],
     liquidity: liq,
+    pool: initialPool(liq),
   });
 
   const liqRef = db().collection('liquidityEvents').doc();
@@ -335,13 +336,18 @@ predictionsRouter.post('/markets/:id/liquidity', requireRole('admin'), wrap(asyn
   const ref = db().collection('markets').doc(req.params.id as string);
   const doc = await ref.get();
   if (!doc.exists) { res.status(404).json({ error: 'Market not found' }); return; }
-  const oldLiquidity = doc.data()!.liquidity as number;
-  const oldShares = doc.data()!.shares as [number, number];
+  const data = doc.data()!;
+  const oldLiquidity = data.liquidity as number;
+  const oldShares = data.shares as [number, number];
+  const oldPool = (data.pool as number) ?? 0;
   const newLiquidity = oldLiquidity + amount;
   const newShares: [number, number] = oldLiquidity > 0
     ? [oldShares[0] * newLiquidity / oldLiquidity, oldShares[1] * newLiquidity / oldLiquidity]
     : [0, 0];
-  await ref.update({ liquidity: newLiquidity, shares: newShares });
+  const newPool = oldLiquidity > 0
+    ? Math.round(oldPool * newLiquidity / oldLiquidity * 100) / 100
+    : initialPool(newLiquidity);
+  await ref.update({ liquidity: newLiquidity, shares: newShares, pool: newPool });
   const liqRef = db().collection('liquidityEvents').doc();
   await liqRef.set({ id: liqRef.id, marketId: req.params.id as string, amount, totalLiquidity: newLiquidity, type: 'injection', createdAt: FieldValue.serverTimestamp() });
   res.json({ liquidity: newLiquidity });
@@ -422,18 +428,29 @@ predictionsRouter.post('/migrate', requireRole('admin'), wrap(async (_req, res) 
   const predsSnap = await db().collection('predictions').where('resolved', '==', false).get();
 
   let marketsUpdated = 0;
+  let poolsBackfilled = 0;
   let predictionsResolved = 0;
   let refunded = 0;
   const agentRefunds = new Map<string, number>();
 
   for (const doc of marketsSnap.docs) {
     const m = doc.data();
-    if (m.shares && Array.isArray(m.shares) && m.shares.length === 2) continue;
+    if (m.shares && Array.isArray(m.shares) && m.shares.length === 2) {
+      if (m.pool == null && !m.resolved) {
+        const b = m.liquidity as number;
+        const shares = m.shares as [number, number];
+        const pool = b > 0 ? Math.round(lmsrCost(shares, b) * 100) / 100 : 0;
+        await doc.ref.update({ pool });
+        poolsBackfilled++;
+      }
+      continue;
+    }
     await doc.ref.update({
       rangeMin: m.rangeMin ?? AMM_DEFAULTS.rangeMin,
       rangeMax: m.rangeMax ?? AMM_DEFAULTS.rangeMax,
       shares: [0, 0],
       liquidity: m.liquidity ?? AMM_DEFAULTS.liquidity,
+      pool: initialPool(m.liquidity ?? AMM_DEFAULTS.liquidity),
     });
     marketsUpdated++;
   }
@@ -453,5 +470,5 @@ predictionsRouter.post('/migrate', requireRole('admin'), wrap(async (_req, res) 
     });
   }
 
-  res.json({ marketsUpdated, predictionsResolved, refunded });
+  res.json({ marketsUpdated, poolsBackfilled, predictionsResolved, refunded });
 }));
