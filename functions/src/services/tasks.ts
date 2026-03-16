@@ -81,7 +81,7 @@ export async function getTaskUtilitySummary(
     conditionalConsensusMap[`${market.metricName}:${market.targetDate}`] = market.consensus;
   }
 
-  const conditionalMetrics = baselineMetrics.map(metric => ({ ...metric }));
+  const conditionalMetrics = baselineMetrics.map(metric => ({ ...metric, missingMarkets: undefined }));
   recalculateMetrics(conditionalMetrics, conditionalConsensusMap);
   const expectedCurrentUtility = conditionalMetrics.find(m => m.name === 'Utility')?.total ?? null;
 

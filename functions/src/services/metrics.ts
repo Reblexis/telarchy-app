@@ -8,16 +8,10 @@ import { toISOWeekString } from '../lib/date-utils';
 import { emitEvent } from './events';
 
 function enrichMetrics(metrics: Metric[], consensusMap: Record<string, number> = {}, untradedLeaves: Set<string> = new Set()): Metric[] {
-  recalculateMetrics(metrics, consensusMap);
-  const depths = calculateMetricDepths(metrics);
-  metrics.forEach(m => {
-    if (depths[m.id] === undefined) console.error(`enrichMetrics: no depth calculated for metric ${m.id} (${m.name})`);
-    m.depth = depths[m.id] ?? 0;
-  });
-
   const nameToFormula: Record<string, string> = {};
   metrics.forEach(m => { nameToFormula[m.name] = m.formula || '0'; });
 
+  // Set missingMarkets BEFORE recalculateMetrics so null propagation fires correctly.
   if (untradedLeaves.size > 0) {
     metrics.forEach(m => {
       const isLeaf = !m.formula || m.formula.trim() === '0';
@@ -27,6 +21,13 @@ function enrichMetrics(metrics: Metric[], consensusMap: Record<string, number> =
       if (missing.length > 0) m.missingMarkets = missing;
     });
   }
+
+  recalculateMetrics(metrics, consensusMap);
+  const depths = calculateMetricDepths(metrics);
+  metrics.forEach(m => {
+    if (depths[m.id] === undefined) console.error(`enrichMetrics: no depth calculated for metric ${m.id} (${m.name})`);
+    m.depth = depths[m.id] ?? 0;
+  });
 
   const nameToTimeSeries: Record<string, Array<{ date: string; value: number }>> = {};
 

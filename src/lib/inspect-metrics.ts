@@ -72,7 +72,16 @@ export function buildInspectMetrics(metricsData: Metric[], marketsData: Market[]
   const tradedOverlay = buildConsensusMap(marketsData, true);
   const consensusMap = { ...baselineConsensus, ...tradedOverlay };
 
-  const cloned = metricsData.map(metric => ({ ...metric, baselineTotal: metric.total, missingMarkets: undefined }));
+  // Only clear missingMarkets for a leaf if it actually has consensus data
+  // (baseline timeSeries or a traded conditional market). If a leaf has no
+  // data at all, it should stay missing so null propagates correctly.
+  const leavesWithData = new Set(Object.keys(consensusMap).map(k => k.split(':')[0]));
+
+  const cloned = metricsData.map(metric => ({
+    ...metric,
+    baselineTotal: metric.total,
+    missingMarkets: metric.missingMarkets?.filter(name => !leavesWithData.has(name)),
+  }));
   const enriched = enrichMetrics(cloned, consensusMap);
   attachConditionalTimeSeries(enriched, consensusMap);
   return enriched;
@@ -80,6 +89,10 @@ export function buildInspectMetrics(metricsData: Metric[], marketsData: Market[]
 
 export function getInspectUtilitySummary(metricsData: Metric[], marketsData: Market[]): TaskUtilitySummary {
   const baselineUtility = metricsData.find(metric => metric.name === 'Utility')?.total ?? null;
+  // Only compute expected utility when at least one conditional market has trades.
+  if (!marketsData.some(m => m.tradeCount > 0)) {
+    return { expectedCurrentUtility: null, baselineUtility };
+  }
   const inspectMetrics = buildInspectMetrics(metricsData, marketsData);
   const expectedCurrentUtility = inspectMetrics.find(metric => metric.name === 'Utility')?.total ?? null;
   return { expectedCurrentUtility, baselineUtility };
