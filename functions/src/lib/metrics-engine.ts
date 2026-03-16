@@ -27,8 +27,13 @@ export function evaluateFormula(
   const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
   try {
     const result = Function('clamp', 'return (' + expression + ')')(clamp);
-    return isNaN(result) ? 0 : result;
-  } catch {
+    if (isNaN(result)) {
+      console.error(`evaluateFormula: formula "${formula}" evaluated to NaN (expanded: "${expression}")`);
+      return 0;
+    }
+    return result;
+  } catch (e) {
+    console.error(`evaluateFormula: formula "${formula}" threw (expanded: "${expression}"):`, e);
     return 0;
   }
 }
@@ -80,8 +85,13 @@ export function evaluateFormulaAtTime(
   const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
   try {
     const result = Function('clamp', 'return (' + expression + ')')(clamp);
-    return isNaN(result) ? 0 : result;
-  } catch {
+    if (isNaN(result)) {
+      console.error(`evaluateFormulaAtTime: formula "${formula}" evaluated to NaN at ${targetDate} (expanded: "${expression}")`);
+      return 0;
+    }
+    return result;
+  } catch (e) {
+    console.error(`evaluateFormulaAtTime: formula "${formula}" threw at ${targetDate} (expanded: "${expression}"):`, e);
     return 0;
   }
 }

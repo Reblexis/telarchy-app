@@ -8,11 +8,7 @@ import './style.css';
 // so Firebase config is available when useAuth initializes.
 const urlConfig = getConfigFromURL();
 if (urlConfig) {
-  try {
-    saveFirebaseConfig(urlConfig);
-  } catch (e) {
-    console.error('Failed to save config from URL:', e);
-  }
+  saveFirebaseConfig(urlConfig);
   const url = new URL(window.location.href);
   url.searchParams.delete('config');
   window.history.replaceState({}, document.title, url.toString());

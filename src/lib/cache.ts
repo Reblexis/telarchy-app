@@ -1,6 +1,3 @@
-// Simple in-memory cache that persists across React route changes (but not page reloads).
-// Each entry has a maxAge after which it's considered stale.
-
 const store = new Map<string, { data: unknown; ts: number }>();
 
 const DEFAULT_MAX_AGE = 30_000; // 30 seconds
@@ -27,8 +24,7 @@ export function clearCache(): void {
   store.clear();
 }
 
+/** @deprecated No longer uses sessionStorage; calls clearCache() for backward compat. */
 export function clearSessionCache(): void {
-  for (const key of Object.keys(sessionStorage)) {
-    if (key.startsWith('cache:')) sessionStorage.removeItem(key);
-  }
+  clearCache();
 }

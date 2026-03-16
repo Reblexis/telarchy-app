@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
+import { db } from '../lib/db';
 import { wrap } from '../lib/wrap';
 import { requireRole } from '../middleware/roles';
 import {
@@ -11,8 +12,6 @@ import * as svc from '../services/metrics';
 import { voidOpenMarketsForMetrics } from '../services/markets';
 import { emitEvent } from '../services/events';
 import type { TimePreference } from '../types';
-
-function db() { return getFirestore(); }
 
 export const metricsRouter = Router();
 
@@ -186,7 +185,8 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
   await svc.logSpecificMetrics(getAffectedMetrics([id], metrics), metrics);
   if (update.value !== undefined) {
     const metric = metrics.find(m => m.id === id);
-    emitEvent('metric:updated', { metricId: id, metricName: metric?.name ?? '', oldValue: oldValue ?? null, newValue: update.value }).catch(() => {});
+    if (!metric) console.error(`emitEvent: metric ${id} not found after update`);
+    emitEvent('metric:updated', { metricId: id, metricName: metric!.name, oldValue: oldValue ?? null, newValue: update.value }).catch(e => console.error('emitEvent failed:', e));
   }
 }));
 

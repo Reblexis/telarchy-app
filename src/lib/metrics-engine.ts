@@ -1,24 +1,20 @@
 import type { Metric } from '../types';
+import { toISOWeekString } from './date-utils';
 
-// --- Time preference sampling (mirrored from backend time-preference.ts) ---
+// --- Time preference sampling (must stay in sync with backend time-preference.ts) ---
 
 const WEIGHT_T0 = 1.0;
 const N_SAMPLES = 10;
 
 function fractionalYearsToDate(years: number, base: Date): string {
-  const daysTotal = Math.max(1, Math.round(years * 365));
-  if (years < 1 / 12) {
-    const d = new Date(base);
-    d.setDate(d.getDate() + daysTotal);
-    return d.toISOString().slice(0, 10); // YYYY-MM-DD
-  }
-  if (years < 2) {
-    const monthsToAdd = Math.max(1, Math.round(years * 12));
-    const d = new Date(base);
-    d.setMonth(d.getMonth() + monthsToAdd);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  }
-  return String(base.getFullYear() + Math.round(years));
+  const days = Math.max(1, Math.round(years * 365));
+  const d = new Date(base);
+  d.setDate(d.getDate() + days);
+
+  if (years < 7 / 365) return d.toISOString().slice(0, 10);            // YYYY-MM-DD
+  if (years < 1 / 12)  return toISOWeekString(d);                       // YYYY-Www
+  if (years < 1)        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; // YYYY-MM
+  return String(d.getFullYear());                                        // YYYY
 }
 
 export function sampleTimePoints(halfLife: number): Array<{ date: string; weight: number }> {
@@ -37,8 +33,6 @@ export function sampleTimePoints(halfLife: number): Array<{ date: string; weight
   }
   return result;
 }
-
-function sampleTPTimePoints(halfLife: number) { return sampleTimePoints(halfLife); }
 
 // --- Formula evaluation ---
 
@@ -68,8 +62,13 @@ export function evaluateFormula(
   const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
   try {
     const result = Function('clamp', 'return (' + expression + ')')(clamp);
-    return isNaN(result) ? 0 : result;
-  } catch {
+    if (isNaN(result)) {
+      console.error(`evaluateFormula: "${formula}" evaluated to NaN (expanded: "${expression}")`);
+      return 0;
+    }
+    return result;
+  } catch (e) {
+    console.error(`evaluateFormula: "${formula}" threw (expanded: "${expression}"):`, e);
     return 0;
   }
 }
@@ -116,8 +115,13 @@ export function evaluateFormulaAtTime(
   const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
   try {
     const result = Function('clamp', 'return (' + expression + ')')(clamp);
-    return isNaN(result) ? 0 : result;
-  } catch {
+    if (isNaN(result)) {
+      console.error(`evaluateFormulaAtTime: "${formula}" evaluated to NaN at ${targetDate} (expanded: "${expression}")`);
+      return 0;
+    }
+    return result;
+  } catch (e) {
+    console.error(`evaluateFormulaAtTime: "${formula}" threw at ${targetDate} (expanded: "${expression}"):`, e);
     return 0;
   }
 }
@@ -322,7 +326,7 @@ export function recalculateMetrics(metrics: Metric[], consensusMap: Record<strin
       let totalWeight = WEIGHT_T0;
 
       const memo: Record<string, number> = {};
-      for (const { date, weight } of sampleTPTimePoints(halfLife)) {
+      for (const { date, weight } of sampleTimePoints(halfLife)) {
         const formulaAtT = evaluateFormulaAtTime(formula, nameToFormula, consensusMap, date, memo);
         weightedSum += weight * formulaAtT;
         totalWeight += weight;

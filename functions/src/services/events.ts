@@ -1,6 +1,5 @@
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-
-function db() { return getFirestore(); }
+import { FieldValue } from 'firebase-admin/firestore';
+import { db } from '../lib/db';
 
 export type EventType = 'market:created' | 'market:resolved' | 'metric:updated' | 'trade:executed';
 
@@ -26,7 +25,11 @@ export async function getEventsSince(since: string): Promise<Array<{ id: string;
       id: doc.id,
       type: d.type,
       data: d.data,
-      timestamp: d.timestamp?.toDate?.()?.toISOString() ?? new Date().toISOString(),
+      timestamp: (() => {
+        const ts = d.timestamp?.toDate?.()?.toISOString();
+        if (!ts) console.error(`Event ${doc.id} has no valid timestamp`);
+        return ts ?? new Date().toISOString();
+      })(),
     };
   });
 }

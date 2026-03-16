@@ -1,27 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { useImpersonation } from '../hooks/useImpersonation';
 import { api } from '../lib/api';
+import { cacheGet, cacheSet } from '../lib/cache';
+import { Header } from '../components/Header';
 import type { Agent } from '../types';
 
 export function AgentsPage() {
-  const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   useDarkMode();
   const { agentId: impersonatedId, setAgentId: setImpersonated } = useImpersonation();
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [agents, setAgents] = useState<Agent[]>(() => cacheGet<Agent[]>('agents') || []);
+  const [loading, setLoading] = useState(!cacheGet('agents'));
   const [error, setError] = useState('');
 
   const loadAgents = useCallback(async () => {
     if (!user) return;
     setError('');
-    const cached = sessionStorage.getItem('cache:agents');
-    if (cached) { setAgents(JSON.parse(cached)); setLoading(false); }
     const data = await api.getAgents(user).catch((e: Error) => { setError(e.message); return null; });
-    if (data) { setAgents(data); sessionStorage.setItem('cache:agents', JSON.stringify(data)); }
+    if (data) { setAgents(data); cacheSet('agents', data); }
     setLoading(false);
   }, [user]);
 
@@ -55,23 +53,13 @@ export function AgentsPage() {
     loadAgents();
   };
 
-  if (authLoading) return <div className="loading">Loading...</div>;
-  if (!user) { navigate('/', { replace: true }); return null; }
+  if (!user) return null;
 
   return (
     <>
-      <div className="header">
-        <img src="/logo.png" alt="Telarchy" style={{ height: '5.25rem' }} />
-        <nav className="header-nav">
-          <Link to="/metrics" className="nav-link">Metrics</Link>
-          <Link to="/agents" className="nav-link active">Agents</Link>
-          <Link to="/markets" className="nav-link">Markets</Link>
-          <Link to="/tasks" className="nav-link">Tasks</Link>
-        </nav>
-        <div className="header-actions">
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Acting as: <strong>{impersonatedId}</strong></span>
-        </div>
-      </div>
+      <Header activePage="agents" actions={
+        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Acting as: <strong>{impersonatedId}</strong></span>
+      } />
       <div className="container">
         {error && <div className="message error show">{error}</div>}
         {loading ? (

@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { useInspectMode } from '../hooks/useInspectMode';
 import { useTaskUtilitySummary } from '../hooks/useTaskUtilitySummary';
 import { api } from '../lib/api';
+import { Header } from '../components/Header';
 import { formatTargetDateDisplay } from '../lib/date-utils';
 import type { TaskProposal, TaskMessage, TaskMarketSummary, TaskDetailData, TaskUtilitySummary } from '../types';
 
@@ -125,10 +125,11 @@ function ChatPanel({ taskId, user }: { taskId: string; user: import('firebase/au
   const [messages, setMessages] = useState<TaskMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const loadMessages = useCallback(async () => {
-    const data = await api.getTaskMessages(user, taskId).catch(() => null);
+    const data = await api.getTaskMessages(user, taskId).catch((e: Error) => { setLoadError(e.message); return null; });
     if (data) setMessages(data);
   }, [user, taskId]);
 
@@ -138,11 +139,14 @@ function ChatPanel({ taskId, user }: { taskId: string; user: import('firebase/au
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const [sendError, setSendError] = useState('');
+
   const handleSend = async () => {
     if (!input.trim()) return;
     setSending(true);
-    await api.sendTaskMessage(user, taskId, input.trim()).catch(() => {});
-    setInput('');
+    setSendError('');
+    const ok = await api.sendTaskMessage(user, taskId, input.trim()).catch((e: Error) => { setSendError(e.message); return null; });
+    if (ok) setInput('');
     setSending(false);
     loadMessages();
   };
@@ -172,6 +176,7 @@ function ChatPanel({ taskId, user }: { taskId: string; user: import('firebase/au
         ))}
         <div ref={bottomRef} />
       </div>
+      {(loadError || sendError) && <div style={{ color: '#ef4444', fontSize: '0.8rem' }}>{loadError || sendError}</div>}
       <div style={{ display: 'flex', gap: '0.5rem' }}>
         <textarea
           value={input}
@@ -260,7 +265,7 @@ function TaskDetailPanel({ task, user, onAction, onError }: TaskDetailProps) {
         <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Conditional Markets
         </div>
-        <MarketSummaryTable markets={task.markets || []} />
+        <MarketSummaryTable markets={task.markets ?? []} />
       </div>
 
       {/* Chat */}
@@ -275,8 +280,7 @@ function TaskDetailPanel({ task, user, onAction, onError }: TaskDetailProps) {
 }
 
 export function TasksPage() {
-  const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   useDarkMode();
   const [tasks, setTasks] = useState<TaskProposal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -302,7 +306,7 @@ export function TasksPage() {
     if (expandedId === id) { setExpandedId(null); return; }
     setExpandedId(id);
     if (user) {
-      const detail = await api.getTask(user, id).catch(() => null);
+      const detail = await api.getTask(user, id).catch((e: Error) => { setError(e.message); return null; });
       if (detail) setExpandedData(prev => ({ ...prev, [id]: detail }));
     }
   };
@@ -327,13 +331,12 @@ export function TasksPage() {
     await load();
     // Refresh expanded detail
     if (user) {
-      const detail = await api.getTask(user, taskId).catch(() => null);
+      const detail = await api.getTask(user, taskId).catch((e: Error) => { setError(e.message); return null; });
       if (detail) setExpandedData(prev => ({ ...prev, [taskId]: detail }));
     }
   };
 
-  if (authLoading) return <div className="loading">Loading...</div>;
-  if (!user) { navigate('/', { replace: true }); return null; }
+  if (!user) return null;
 
   const inputStyle = { padding: '0.4rem 0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)' } as const;
   const labelStyle = { display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' } as const;
@@ -341,16 +344,7 @@ export function TasksPage() {
 
   return (
     <>
-      <div className="header">
-        <img src="/logo.png" alt="Telarchy" style={{ height: '5.25rem' }} />
-        <nav className="header-nav">
-          <Link to="/metrics" className="nav-link">Metrics</Link>
-          <Link to="/agents" className="nav-link">Agents</Link>
-          <Link to="/markets" className="nav-link">Markets</Link>
-          <Link to="/tasks" className="nav-link active">Tasks</Link>
-        </nav>
-        <div className="header-actions" />
-      </div>
+      <Header activePage="tasks" />
       <div className="container">
         {error && <div className="message error show">{error}</div>}
 

@@ -1,6 +1,7 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { ImpersonationProvider } from './hooks/useImpersonation';
 import { InspectModeProvider, useInspectMode } from './hooks/useInspectMode';
+import { RequireAuth } from './components/RequireAuth';
 import { RootRedirect } from './pages/RootRedirect';
 import { SetupPage } from './pages/SetupPage';
 import { LoginPage } from './pages/LoginPage';
@@ -9,7 +10,6 @@ import { AgentsPage } from './pages/AgentsPage';
 import { MarketsPage } from './pages/MarketsPage';
 import { TasksPage } from './pages/TasksPage';
 import { WaitlistPage } from './pages/WaitlistPage';
-import { Link } from 'react-router-dom';
 
 function InspectBanner() {
   const { inspectTask, setInspectTask } = useInspectMode();
@@ -42,11 +42,13 @@ export function App() {
             <Route path="/" element={<RootRedirect />} />
             <Route path="/setup" element={<SetupPage />} />
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/metrics" element={<MetricsPage />} />
-            <Route path="/agents" element={<AgentsPage />} />
-            <Route path="/markets" element={<MarketsPage />} />
-            <Route path="/tasks" element={<TasksPage />} />
             <Route path="/waitlist" element={<WaitlistPage />} />
+            <Route element={<RequireAuth />}>
+              <Route path="/metrics" element={<MetricsPage />} />
+              <Route path="/agents" element={<AgentsPage />} />
+              <Route path="/markets" element={<MarketsPage />} />
+              <Route path="/tasks" element={<TasksPage />} />
+            </Route>
           </Routes>
           <InspectBanner />
         </InspectModeProvider>

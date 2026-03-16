@@ -43,7 +43,7 @@ export function useMetrics(user: User | null, inspectTaskId?: string | null) {
 
     const [metricsData, marketsData, _] = await Promise.all([
       api.getMetrics(user) as Promise<Metric[]>,
-      api.getMarkets(user, inspectTaskId || undefined).then((d: Market[]) => d, (): Market[] => []),
+      api.getMarkets(user, inspectTaskId || undefined).catch((e: Error) => { console.error('Failed to load markets for metrics page:', e.message); return [] as Market[]; }),
       api.getUpdates(user).then((list: UpdateEntry[]) => {
         const parsed = list.map(u => ({ ...u, timestamp: new Date(u.timestamp) }));
         setUpdates(parsed);

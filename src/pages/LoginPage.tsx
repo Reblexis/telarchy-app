@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { initializeFirebaseApp, getFirebaseAuth } from '../lib/firebase';
 import { useDarkMode } from '../hooks/useDarkMode';
+import { DarkModeToggle } from '../components/DarkModeToggle';
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { isDark, toggle } = useDarkMode();
+  useDarkMode();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -40,9 +41,7 @@ export function LoginPage() {
 
   return (
     <>
-      <button className="dark-mode-toggle" onClick={toggle} title="Toggle dark mode" style={{ position: 'fixed', top: '1rem', right: '1rem', zIndex: 1000 }}>
-        {isDark ? '☀️' : '🌙'}
-      </button>
+      <DarkModeToggle fixed />
       <div className="login-page">
         <div className="container" style={{ maxWidth: 400 }}>
           <h1>Login</h1>

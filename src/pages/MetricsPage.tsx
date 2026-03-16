@@ -8,6 +8,7 @@ import { getCookie, setCookie } from '../lib/cookies';
 import type { Metric, GraphInterval } from '../types';
 import { useInspectMode } from '../hooks/useInspectMode';
 import { Header } from '../components/Header';
+import { DarkModeToggle } from '../components/DarkModeToggle';
 import { XPDisplay } from '../components/XPDisplay';
 import { MetricsDashboard } from '../components/MetricsDashboard';
 import { AddMetricForm } from '../components/AddMetricForm';
@@ -16,7 +17,7 @@ import { GraphModal } from '../components/GraphModal';
 
 export function MetricsPage() {
   const navigate = useNavigate();
-  const { user, loading: authLoading, logout } = useAuth();
+  const { user, logout } = useAuth();
   const { isDark } = useDarkMode();
   const { inspectTask } = useInspectMode();
   const {
@@ -57,7 +58,6 @@ export function MetricsPage() {
     }
   };
 
-
   const handleAddMetric = async (name: string, description: string, value: number, formula: string, marketRangeMax?: number) => {
     await addMetric(name, description, value, formula, marketRangeMax);
   };
@@ -71,10 +71,7 @@ export function MetricsPage() {
     await editMetric(id, name, description, value, formula, oldValue, updateNote, timePreference, marketRangeMax);
   };
 
-  if (authLoading) return <div className="loading">Loading...</div>;
-  if (!user) { navigate('/', { replace: true }); return null; }
-
-  if (metricsLoading) {
+  if (!user || metricsLoading) {
     return <div className="loading">Loading...</div>;
   }
 
@@ -98,12 +95,18 @@ export function MetricsPage() {
 
   return (
     <>
-      <Header
-        onLogout={handleLogout}
-        onReconfigure={handleReconfigure}
-        graphInterval={graphInterval}
-        onIntervalChange={handleIntervalChange}
-      />
+      <Header activePage="metrics" actions={<>
+        <select id="graphInterval" title="Graph time interval" value={graphInterval}
+          onChange={e => handleIntervalChange(e.target.value as GraphInterval)}>
+          <option value="day">Daily</option>
+          <option value="week">Weekly</option>
+          <option value="month">Monthly</option>
+          <option value="year">Yearly</option>
+        </select>
+        <DarkModeToggle />
+        <button className="reconfigure-btn" onClick={handleReconfigure}>⚙️</button>
+        <button className="logout-btn" onClick={handleLogout}>Logout</button>
+      </>} />
       <div className="container">
         <XPDisplay xp={xp} rank={rank} />
         <MetricsDashboard

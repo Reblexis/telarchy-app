@@ -1,20 +1,31 @@
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import type { QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { FieldValue, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
+import { db } from '../lib/db';
 import { sampleTimePoints, getLeafDescendantNames } from '../lib/time-preference';
 import { AMM_DEFAULTS } from '../lib/amm';
-
-function db() { return getFirestore(); }
+import { emitEvent } from './events';
 
 /** Void a single open market: refund all positions at cost, mark resolved+voided. */
-export async function voidMarket(marketDoc: QueryDocumentSnapshot): Promise<void> {
+export async function voidMarket(
+  docOrId: QueryDocumentSnapshot | FirebaseFirestore.DocumentSnapshot | string,
+): Promise<{ refunded: number }> {
+  const marketDoc = typeof docOrId === 'string'
+    ? await db().collection('markets').doc(docOrId).get()
+    : docOrId;
+  if (!marketDoc.exists) return { refunded: 0 };
+  const m = marketDoc.data()!;
+  if (m.resolved) return { refunded: 0 };
+
   const posSnap = await db().collection('positions').where('marketId', '==', marketDoc.id).get();
   const batch = db().batch();
+  let refunded = 0;
+
   batch.update(marketDoc.ref, {
     resolved: true, resolvedAt: FieldValue.serverTimestamp(), actualValue: null, voided: true,
   });
   for (const posDoc of posSnap.docs) {
     const pos = posDoc.data();
     if (pos.totalCost <= 0) continue;
+    refunded += pos.totalCost;
     batch.update(db().collection('agents').doc(pos.agentId), {
       balance: FieldValue.increment(pos.totalCost),
       earnedBetting: FieldValue.increment(pos.totalCost),
@@ -22,6 +33,8 @@ export async function voidMarket(marketDoc: QueryDocumentSnapshot): Promise<void
     });
   }
   await batch.commit();
+  emitEvent('market:resolved', { marketId: marketDoc.id, metricName: m.metricName, targetDate: m.targetDate, voided: true }).catch(e => console.error('emitEvent failed:', e));
+  return { refunded };
 }
 
 /** Void all open markets whose metricId is in the provided set. */
@@ -99,8 +112,11 @@ export async function refreshRelativeDateMarkets(): Promise<{ created: number; d
     // Task-conditional markets are managed by the task lifecycle — skip them.
     if (d.taskId) continue;
 
-    // Detect duplicates: keep the oldest, mark extras for voiding
-    const createdSecs = (d.createdAt as { seconds?: number })?.seconds ?? 0;
+    const createdSecs = (d.createdAt as { seconds?: number })?.seconds;
+    if (createdSecs === undefined) {
+      console.error(`Market ${doc.id} has no createdAt timestamp — data integrity issue`);
+      continue;
+    }
     const prev = seenNonTask.get(key);
     if (!prev) {
       seenNonTask.set(key, { doc, createdSecs });
@@ -117,6 +133,15 @@ export async function refreshRelativeDateMarkets(): Promise<{ created: number; d
     } else if (!shouldBeActive && d.active !== false) {
       batch.update(doc.ref, { active: false });
       deactivated++;
+    }
+
+    // Normalize stale liquidity: untraded markets (shares [0,0]) should use the
+    // current default. Markets created under an old AMM_DEFAULTS.liquidity linger
+    // with the old value otherwise.
+    const shares = d.shares as [number, number] | undefined;
+    const isUntraded = shares && shares[0] === 0 && shares[1] === 0;
+    if (isUntraded && d.liquidity !== AMM_DEFAULTS.liquidity) {
+      batch.update(doc.ref, { liquidity: AMM_DEFAULTS.liquidity });
     }
   }
 
@@ -138,7 +163,7 @@ export async function refreshRelativeDateMarkets(): Promise<{ created: number; d
     created++;
   }
 
-  if (created > 0 || deactivated > 0) await batch.commit();
+  await batch.commit();
 
   // Void duplicate markets (sequential to respect Firestore limits)
   for (const doc of toVoid) await voidMarket(doc);

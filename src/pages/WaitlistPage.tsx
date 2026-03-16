@@ -1,10 +1,11 @@
 import { useState, FormEvent } from 'react';
 import { useDarkMode } from '../hooks/useDarkMode';
+import { DarkModeToggle } from '../components/DarkModeToggle';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 export function WaitlistPage() {
-  const { isDark, toggle } = useDarkMode();
+  useDarkMode();
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -35,9 +36,7 @@ export function WaitlistPage() {
       <div style={{ position: 'fixed', top: '1rem', left: '1rem', zIndex: 1000 }}>
         <img src="/logo.png" alt="Telarchy" style={{ height: '5.25rem' }} />
       </div>
-      <button className="dark-mode-toggle" onClick={toggle} title="Toggle dark mode" style={{ position: 'fixed', top: '1rem', right: '1rem', zIndex: 1000 }}>
-        {isDark ? '☀️' : '🌙'}
-      </button>
+      <DarkModeToggle fixed />
       <div className="login-page">
         <div className="container" style={{ maxWidth: 420 }}>
           <h1>Telarchy</h1>

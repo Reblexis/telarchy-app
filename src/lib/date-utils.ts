@@ -71,7 +71,7 @@ export function toAbsoluteDate(dateStr: string, baseDate: Date = new Date()): st
 }
 
 /** Get ISO week string YYYY-Www for a date */
-function toISOWeekString(d: Date): string {
+export function toISOWeekString(d: Date): string {
   const jan4 = new Date(d.getFullYear(), 0, 4);
   const mon = new Date(jan4);
   mon.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7));
@@ -146,4 +146,34 @@ export function isValidDateFormat(dateStr: string): boolean {
     ABS_MONTH_RE.test(dateStr) ||
     ABS_WEEK_RE.test(dateStr) ||
     ABS_DAY_RE.test(dateStr);
+}
+
+export function fmtTime(secs: number): string {
+  return new Date(secs * 1000).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+export function getTimestampSeconds(ts: unknown): number | null {
+  if (ts == null) return null;
+  if (typeof ts === 'object') {
+    const o = ts as Record<string, unknown>;
+    const s = o._seconds ?? o.seconds;
+    return typeof s === 'number' ? s : null;
+  }
+  if (typeof ts === 'string') {
+    const ms = Date.parse(ts);
+    return isNaN(ms) ? null : Math.floor(ms / 1000);
+  }
+  return null;
+}
+
+export function formatTimeRemaining(targetDate: string): string {
+  const end = new Date(endOfPeriod(targetDate) + 'T23:59:59');
+  const diffMs = end.getTime() - Date.now();
+  if (diffMs <= 0) return 'expired';
+  const d = Math.floor(diffMs / 86400000);
+  const h = Math.floor((diffMs % 86400000) / 3600000);
+  const m = Math.floor((diffMs % 3600000) / 60000);
+  if (d > 30) { const mo = Math.floor(d / 30); return `${mo}mo ${d % 30}d`; }
+  if (d > 0) return `${d}d ${h}h`;
+  return `${h}h ${m}m`;
 }

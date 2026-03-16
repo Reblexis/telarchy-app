@@ -1,9 +1,9 @@
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
+import { db } from '../lib/db';
 import { consensus } from '../lib/amm';
 import { recalculateMetrics } from '../lib/metrics-engine';
-import { getAllMetrics } from './metrics';
-
-function db() { return getFirestore(); }
+import { getAllMetrics, buildConsensusMap } from './metrics';
+import { voidMarket } from './markets';
 
 type TaskMarketDoc = {
   metricId: string;
@@ -61,16 +61,25 @@ async function getBaselineConsensusMap(markets: TaskMarketDoc[]): Promise<Map<st
   return baselineConsensusMap;
 }
 
-export async function getTaskUtilitySummary(markets: Array<{ metricName: string; targetDate: string; consensus: number | null }>) {
-  const baselineMetrics = await getAllMetrics();
+export async function getTaskUtilitySummary(
+  markets: Array<{ metricName: string; targetDate: string; consensus: number | null; tradeCount: number }>,
+) {
+  const [baselineMetrics, baselineConsensus] = await Promise.all([
+    getAllMetrics(),
+    buildConsensusMap(),
+  ]);
   const baselineUtility = baselineMetrics.find(m => m.name === 'Utility')?.total ?? null;
   if (markets.length === 0) {
     return { expectedCurrentUtility: null, baselineUtility };
   }
 
-  const conditionalConsensusMap: Record<string, number> = {};
+  // Start from the baseline map and only overlay conditional values from
+  // markets that have actually been traded on. Untouched conditional markets
+  // (tradeCount=0) should inherit the baseline consensus, not overwrite it
+  // with an artificial value from 0-liquidity defaults.
+  const conditionalConsensusMap: Record<string, number> = { ...baselineConsensus };
   for (const market of markets) {
-    if (market.consensus === null) continue;
+    if (market.consensus === null || market.tradeCount === 0) continue;
     conditionalConsensusMap[`${market.metricName}:${market.targetDate}`] = market.consensus;
   }
 
@@ -86,13 +95,12 @@ export async function getTaskUtilitySummary(markets: Array<{ metricName: string;
  * leaf markets (TP-driven). Each clone has the same metric/date/range but starts
  * with zero bets and is tagged with taskId.
  *
- * Always voids any existing conditional markets for this task first, so that
- * re-testing a task reflects the current TP market dates rather than stale ones.
+ * If unresolved conditional markets already exist for this task and their
+ * (metricId, targetDate) set matches the current source markets, the existing
+ * markets are kept as-is (preserving any trades). Otherwise the stale set is
+ * voided and a fresh set is created.
  */
 export async function createConditionalMarkets(taskId: string): Promise<string[]> {
-  // Void any existing conditional markets so re-test always uses current dates
-  await voidTaskMarkets(taskId);
-
   // Identify leaf metric IDs (no formula or formula === '0')
   const metricsSnap = await db().collection('metrics').get();
   const leafMetricIds = new Set(
@@ -109,6 +117,30 @@ export async function createConditionalMarkets(taskId: string): Promise<string[]
     const dd = d.data();
     return dd.active !== false && !dd.taskId && leafMetricIds.has(dd.metricId);
   });
+
+  const desiredKeys = new Set(sourceMarkets.map(d => {
+    const m = d.data();
+    return `${m.metricId}:${m.targetDate}`;
+  }));
+
+  // Check existing unresolved conditional markets for this task
+  const existingSnap = await db().collection('markets')
+    .where('taskId', '==', taskId)
+    .where('resolved', '==', false)
+    .get();
+
+  if (existingSnap.size > 0) {
+    const existingKeys = new Set(existingSnap.docs.map(d => {
+      const m = d.data();
+      return `${m.metricId}:${m.targetDate}`;
+    }));
+    const setsMatch = desiredKeys.size === existingKeys.size &&
+      [...desiredKeys].every(k => existingKeys.has(k));
+    if (setsMatch) return existingSnap.docs.map(d => d.id);
+  }
+
+  // Stale set — void and recreate
+  await voidTaskMarkets(taskId);
 
   const BATCH_LIMIT = 450;
   const newIds: string[] = [];
@@ -147,53 +179,15 @@ export async function createConditionalMarkets(taskId: string): Promise<string[]
   return newIds;
 }
 
-/** Void all open conditional markets tied to a task, batching writes. */
+/** Void all open conditional markets tied to a task. */
 export async function voidTaskMarkets(taskId: string): Promise<void> {
   const marketsSnap = await db().collection('markets')
     .where('taskId', '==', taskId)
     .where('resolved', '==', false)
     .get();
-  if (marketsSnap.empty) return;
-
-  const marketIds = marketsSnap.docs.map(d => d.id);
-  const posSnap = await db().collection('positions').get();
-  const refundsByAgent = new Map<string, number>();
-  for (const posDoc of posSnap.docs) {
-    const pos = posDoc.data();
-    if (!marketIds.includes(pos.marketId) || pos.totalCost <= 0) continue;
-    refundsByAgent.set(pos.agentId, (refundsByAgent.get(pos.agentId) || 0) + pos.totalCost);
-  }
-
-  // Firestore batch limit is 500 writes; chunk as needed
-  const BATCH_LIMIT = 450;
-  let ops: Array<() => void> = [];
-  const flush = async () => {
-    if (ops.length === 0) return;
-    const b = db().batch();
-    for (const op of ops) op.call(b);
-    await b.commit();
-    ops = [];
-  };
-  const addOp = async (op: () => void) => {
-    ops.push(op);
-    if (ops.length >= BATCH_LIMIT) await flush();
-  };
-
   for (const doc of marketsSnap.docs) {
-    await addOp(function (this: FirebaseFirestore.WriteBatch) {
-      this.update(doc.ref, { resolved: true, resolvedAt: FieldValue.serverTimestamp(), actualValue: null, voided: true });
-    });
+    await voidMarket(doc);
   }
-  for (const [agentId, amount] of refundsByAgent) {
-    await addOp(function (this: FirebaseFirestore.WriteBatch) {
-      this.update(db().collection('agents').doc(agentId), {
-        balance: FieldValue.increment(amount),
-        earnedBetting: FieldValue.increment(amount),
-        spentBetting: FieldValue.increment(-amount),
-      });
-    });
-  }
-  await flush();
 }
 
 /** Gift price credits to the proposing agent and mark the task approved. */

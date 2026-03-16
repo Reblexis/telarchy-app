@@ -1,11 +1,10 @@
 import { Router } from 'express';
-import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { db } from '../lib/db';
 import { randomBytes } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { hashKey, authMiddleware } from '../middleware/auth';
 import { requireRole, requireSelfOrAdmin } from '../middleware/roles';
-
-function db() { return getFirestore(); }
 
 export const agentsRouter = Router();
 

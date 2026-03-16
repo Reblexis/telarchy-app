@@ -1,4 +1,5 @@
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
+import { db } from '../lib/db';
 import type { Metric, MetricLog, UpdateEntry } from '../types';
 import { recalculateMetrics, calculateMetricDepths, calculateXP, calculateRank, evaluateFormulaAtTime } from '../lib/metrics-engine';
 import { sampleTimePoints, getLeafDescendantNames } from '../lib/time-preference';
@@ -6,12 +7,13 @@ import { consensus as ammConsensus, AMM_DEFAULTS } from '../lib/amm';
 import { toISOWeekString } from '../lib/date-utils';
 import { emitEvent } from './events';
 
-function db() { return getFirestore(); }
-
 function enrichMetrics(metrics: Metric[], consensusMap: Record<string, number> = {}): Metric[] {
   recalculateMetrics(metrics, consensusMap);
   const depths = calculateMetricDepths(metrics);
-  metrics.forEach(m => { m.depth = depths[m.id] ?? 0; });
+  metrics.forEach(m => {
+    if (depths[m.id] === undefined) console.error(`enrichMetrics: no depth calculated for metric ${m.id} (${m.name})`);
+    m.depth = depths[m.id] ?? 0;
+  });
 
   const nameToFormula: Record<string, string> = {};
   metrics.forEach(m => { nameToFormula[m.name] = m.formula || '0'; });
@@ -63,7 +65,7 @@ function enrichMetrics(metrics: Metric[], consensusMap: Record<string, number> =
   return metrics;
 }
 
-async function buildConsensusMap(): Promise<Record<string, number>> {
+export async function buildConsensusMap(): Promise<Record<string, number>> {
   const marketSnap = await db().collection('markets').where('resolved', '==', false).get();
   if (marketSnap.empty) return {};
 
@@ -73,7 +75,8 @@ async function buildConsensusMap(): Promise<Record<string, number>> {
 
   for (const doc of marketSnap.docs) {
     const m = doc.data();
-    if (m.taskId) continue; // skip conditional task markets — they use the same keys but are untraded
+    if (m.taskId) continue;
+    if (m.active === false) continue;
     if (!m.shares || !m.liquidity) continue;
     const c = ammConsensus(m.shares, m.liquidity, m.rangeMin, m.rangeMax);
     map[`${m.metricName}:${m.targetDate}`] = c;

@@ -14,6 +14,7 @@ import { eventsRouter } from './routes/events';
 import { tasksRouter } from './routes/tasks';
 import { waitlistRouter } from './routes/waitlist';
 import type { Request, Response, NextFunction } from 'express';
+import { AppError } from './lib/errors';
 
 // If FIREBASE_SERVICE_ACCOUNT is set (base64-encoded service account JSON),
 // use it as the credential — allows hosting on a different project than the data.
@@ -111,8 +112,9 @@ app.use('/api/updates', requireRole('admin'), updatesRouter);
 app.use('/api', systemRouter);
 
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  console.error(err);
-  res.status(400).json({ error: err.message });
+  const status = err instanceof AppError ? err.status : 500;
+  if (status >= 500) console.error(err);
+  res.status(status).json({ error: err.message });
 });
 
 export const api = onRequest({ minInstances: 1 }, app);

@@ -1,11 +1,11 @@
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
+import { db } from '../lib/db';
 import { getAllMetrics } from './metrics';
+import { voidMarket } from './markets';
 import type { Metric } from '../types';
 import { endOfPeriod } from '../lib/date-utils';
 import { pHigher, consensus, resolutionPayouts } from '../lib/amm';
 import { emitEvent } from './events';
-
-function db() { return getFirestore(); }
 
 async function resolveMarketDoc(
   marketDoc: FirebaseFirestore.DocumentSnapshot,
@@ -13,7 +13,11 @@ async function resolveMarketDoc(
 ): Promise<{ positions: number; totalPayout: number; skipped?: boolean }> {
   const m = marketDoc.data()!;
   const metric = metricMap.get(m.metricId);
-  const rawValue = metric ? metric.total : 0;
+  if (!metric) {
+    console.error(`Market ${marketDoc.id} (${m.metricName}): metric ${m.metricId} not found, skipping resolution`);
+    return { positions: 0, totalPayout: 0, skipped: true };
+  }
+  const rawValue = metric.total;
 
   if (rawValue < 0) {
     console.error(`Market ${marketDoc.id} (${m.metricName}): metric total is negative (${rawValue}), skipping resolution`);
@@ -47,7 +51,7 @@ async function resolveMarketDoc(
   }
 
   await batch.commit();
-  emitEvent('market:resolved', { marketId: marketDoc.id, metricName: m.metricName, targetDate: m.targetDate, actualValue }).catch(() => {});
+  emitEvent('market:resolved', { marketId: marketDoc.id, metricName: m.metricName, targetDate: m.targetDate, actualValue }).catch(e => console.error('emitEvent failed:', e));
   return { positions, totalPayout };
 }
 
@@ -99,7 +103,7 @@ export async function resolvePredictions(targetDate?: string): Promise<{ resolve
   for (const marketDoc of marketsToResolve) {
     const taskId: string | undefined = marketDoc.data().taskId;
     if (taskId && taskStatusMap.get(taskId) !== 'approved') {
-      await voidMarket(marketDoc.id);
+      await voidMarket(marketDoc);
     } else {
       const result = await resolveMarketDoc(marketDoc, metricMap);
       if (!result.skipped) {
@@ -112,42 +116,7 @@ export async function resolvePredictions(targetDate?: string): Promise<{ resolve
   return { resolved: resolvedCount, totalPayout };
 }
 
-export async function voidMarket(marketId: string): Promise<{ refunded: number }> {
-  const marketRef = db().collection('markets').doc(marketId);
-  const marketDoc = await marketRef.get();
-  if (!marketDoc.exists) return { refunded: 0 };
-  const m = marketDoc.data()!;
-  if (m.resolved) return { refunded: 0 };
-
-  const posSnap = await db().collection('positions')
-    .where('marketId', '==', marketId)
-    .get();
-
-  const batch = db().batch();
-  let refunded = 0;
-
-  batch.update(marketRef, {
-    resolved: true,
-    resolvedAt: FieldValue.serverTimestamp(),
-    actualValue: null,
-    voided: true,
-  });
-
-  for (const posDoc of posSnap.docs) {
-    const pos = posDoc.data();
-    if (pos.totalCost <= 0) continue;
-    refunded += pos.totalCost;
-    batch.update(db().collection('agents').doc(pos.agentId), {
-      balance: FieldValue.increment(pos.totalCost),
-      earnedBetting: FieldValue.increment(pos.totalCost),
-      spentBetting: FieldValue.increment(-pos.totalCost),
-    });
-  }
-
-  await batch.commit();
-  emitEvent('market:resolved', { marketId, metricName: m.metricName, targetDate: m.targetDate, voided: true }).catch(() => {});
-  return { refunded };
-}
+export { voidMarket } from './markets';
 
 export async function getMarkets(includeResolved = false, taskId?: string) {
   let query: FirebaseFirestore.Query = db().collection('markets');

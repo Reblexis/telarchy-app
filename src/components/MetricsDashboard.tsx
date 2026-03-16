@@ -29,7 +29,7 @@ export function MetricsDashboard({
 
   const groupedByDepth: Record<number, Metric[]> = {};
   metricsToRender.forEach(metric => {
-    const depth = metric.depth || 0;
+    const depth = metric.depth ?? 0;
     if (!groupedByDepth[depth]) groupedByDepth[depth] = [];
     groupedByDepth[depth].push(metric);
   });

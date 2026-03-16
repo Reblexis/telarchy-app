@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
+import { db } from '../lib/db';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
@@ -11,8 +12,6 @@ import { isValidDateFormat, endOfPeriod } from '../lib/date-utils';
 import { extractMetricReferences } from '../lib/metrics-engine';
 import { consensus, pHigher, directionTradeCost, sharesForBudget, betTowardsValue, directionSellProceeds, AMM_DEFAULTS } from '../lib/amm';
 import { emitEvent } from '../services/events';
-
-function db() { return getFirestore(); }
 
 export const predictionsRouter = Router();
 
@@ -136,7 +135,7 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
     ? { tradeId: tradeRef.id, marketId, direction: dirLabel, shares: amount, proceeds, probability: newProbability, consensus: newConsensus }
     : { tradeId: tradeRef.id, marketId, direction: dirLabel, shares: amount, cost, probability: newProbability, consensus: newConsensus };
   res.status(201).json(response);
-  emitEvent('trade:executed', { marketId, metricName: market.metricName, agentId, direction: dirLabel, cost: isSell ? -proceeds : cost, newConsensus }).catch(() => {});
+  emitEvent('trade:executed', { marketId, metricName: market.metricName, agentId, direction: dirLabel, cost: isSell ? -proceeds : cost, newConsensus }).catch(e => console.error('emitEvent failed:', e));
 }));
 
 predictionsRouter.get('/positions', requireRole('agent', 'admin'), wrap(async (req, res) => {
@@ -313,7 +312,7 @@ predictionsRouter.post('/markets', requireRole('admin'), wrap(async (req, res) =
   await liqRef.set({ id: liqRef.id, marketId: ref.id, amount: liq, totalLiquidity: liq, type: 'initial', createdAt: FieldValue.serverTimestamp() });
 
   res.status(201).json({ id: ref.id, metricId, metricName: metric.name, targetDate });
-  emitEvent('market:created', { marketId: ref.id, metricName: metric.name, targetDate }).catch(() => {});
+  emitEvent('market:created', { marketId: ref.id, metricName: metric.name, targetDate }).catch(e => console.error('emitEvent failed:', e));
 }));
 
 predictionsRouter.get('/markets/:id/liquidity-events', requireRole('agent', 'admin'), wrap(async (req, res) => {
@@ -378,9 +377,12 @@ predictionsRouter.post('/markets/refresh', requireRole('admin'), wrap(async (req
     const taskRef = db().collection('tasks').doc(taskId);
     const taskDoc = await taskRef.get();
     if (!taskDoc.exists) { res.status(404).json({ error: 'Task not found' }); return; }
+    const existingIds: string[] = taskDoc.data()!.conditionalMarketIds ?? [];
     const marketIds = await createConditionalMarkets(taskId);
     await taskRef.update({ conditionalMarketIds: marketIds });
-    res.json({ created: marketIds.length, deactivated: 0, deduplicated: 0 });
+    const reused = existingIds.length > 0 && existingIds.length === marketIds.length &&
+      existingIds.every(id => marketIds.includes(id));
+    res.json({ created: reused ? 0 : marketIds.length, deactivated: 0, deduplicated: 0 });
     return;
   }
   const result = await refreshRelativeDateMarkets();

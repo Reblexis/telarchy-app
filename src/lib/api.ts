@@ -102,7 +102,7 @@ export const api = {
   // Hooks (public, no auth)
   getHooksStatus: async (): Promise<{ active: boolean; lastPolledAt?: string; intervalMs?: number; nextPollAt?: string }> => {
     const res = await fetch(`${API_BASE}/api/events/hooks/status`);
-    if (!res.ok) return { active: false };
+    if (!res.ok) throw new Error(`Hooks status request failed: ${res.status}`);
     return res.json();
   },
 };

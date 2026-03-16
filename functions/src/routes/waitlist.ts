@@ -1,8 +1,7 @@
 import { Router } from 'express';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
+import { db } from '../lib/db';
 import { wrap } from '../lib/wrap';
-
-function db() { return getFirestore(); }
 
 export const waitlistRouter = Router();
 

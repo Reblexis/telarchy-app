@@ -1,47 +1,33 @@
+import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import type { GraphInterval } from '../types';
-import { useDarkMode } from '../hooks/useDarkMode';
+
+type Page = 'metrics' | 'agents' | 'markets' | 'tasks';
+
+const NAV_ITEMS: { to: string; label: string; page: Page }[] = [
+  { to: '/metrics', label: 'Metrics', page: 'metrics' },
+  { to: '/agents', label: 'Agents', page: 'agents' },
+  { to: '/markets', label: 'Markets', page: 'markets' },
+  { to: '/tasks', label: 'Tasks', page: 'tasks' },
+];
 
 interface HeaderProps {
-  onLogout: () => void;
-  onReconfigure: () => void;
-  graphInterval: GraphInterval;
-  onIntervalChange: (interval: GraphInterval) => void;
+  activePage: Page;
+  actions?: ReactNode;
 }
 
-export function Header({ onLogout, onReconfigure, graphInterval, onIntervalChange }: HeaderProps) {
-  const { isDark, toggle } = useDarkMode();
-
+export function Header({ activePage, actions }: HeaderProps) {
   return (
     <div className="header">
       <img src="/logo.png" alt="Telarchy" style={{ height: '5.25rem' }} />
       <nav className="header-nav">
-        <Link to="/metrics" className="nav-link active">Metrics</Link>
-        <Link to="/agents" className="nav-link">Agents</Link>
-        <Link to="/markets" className="nav-link">Markets</Link>
-        <Link to="/tasks" className="nav-link">Tasks</Link>
+        {NAV_ITEMS.map(item => (
+          <Link key={item.page} to={item.to} className={`nav-link${item.page === activePage ? ' active' : ''}`}>
+            {item.label}
+          </Link>
+        ))}
       </nav>
       <div className="header-actions">
-        <select
-          id="graphInterval"
-          title="Graph time interval"
-          value={graphInterval}
-          onChange={(e) => onIntervalChange(e.target.value as GraphInterval)}
-        >
-          <option value="day">Daily</option>
-          <option value="week">Weekly</option>
-          <option value="month">Monthly</option>
-          <option value="year">Yearly</option>
-        </select>
-        <button className="dark-mode-toggle" onClick={toggle} title="Toggle dark mode">
-          {isDark ? '☀️' : '🌙'}
-        </button>
-        <button className="reconfigure-btn" onClick={onReconfigure}>
-          ⚙️
-        </button>
-        <button className="logout-btn" onClick={onLogout}>
-          Logout
-        </button>
+        {actions}
       </div>
     </div>
   );

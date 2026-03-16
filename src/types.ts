@@ -132,3 +132,20 @@ export interface Position {
   shares: number;
   totalCost: number;
 }
+
+export interface LiquidityEvent {
+  id: string;
+  amount: number;
+  totalLiquidity: number;
+  type: 'initial' | 'injection';
+  createdAt: unknown;
+}
+
+export interface TradePoint {
+  consensus: number | null;
+  createdAt: { _seconds: number } | null;
+  agentId?: string;
+  direction?: 'higher' | 'lower';
+  shares?: number;
+  cost?: number;
+}
