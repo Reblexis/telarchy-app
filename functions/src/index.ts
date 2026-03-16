@@ -12,6 +12,7 @@ import { agentsRouter } from './routes/agents';
 import { predictionsRouter } from './routes/predictions';
 import { eventsRouter } from './routes/events';
 import { tasksRouter } from './routes/tasks';
+import { waitlistRouter } from './routes/waitlist';
 import type { Request, Response, NextFunction } from 'express';
 
 // If FIREBASE_SERVICE_ACCOUNT is set (base64-encoded service account JSON),
@@ -49,10 +50,11 @@ app.get('/api/help', (_req, res) => {
       api_key: 'Set X-API-Key header with your secret key (admin access).',
       firebase_token: 'Set Authorization: Bearer <firebase-id-token> header. Access is granted only to Firebase users with custom claim { admin: true } / role=admin or an email listed in ADMIN_EMAILS / ADMIN_EMAIL.',
       agent_key: 'Set X-Agent-Key header with your agent API key (agent-scoped access).',
-      note: 'All endpoints except /api/help, GET /api/events/hooks/status, and POST /api/agents/register require authentication. Browser sign-up is intentionally disabled in the app UI.',
+      note: 'All endpoints except /api/help, GET /api/events/hooks/status, POST /api/agents/register, and POST /api/waitlist require authentication. Browser sign-up is intentionally disabled in the app UI.',
     },
     endpoints: [
       { method: 'GET', path: '/api/help', auth: false, description: 'This endpoint. Returns API documentation.' },
+      { method: 'POST', path: '/api/waitlist', auth: false, description: 'Join the waitlist. Body: { email: string }. Returns 201 on success, 409 if already registered.' },
       { method: 'GET', path: '/api/status', auth: 'agent/admin', description: 'Compact summary: XP, rank, and all metric names/values/totals.' },
       { method: 'GET', path: '/api/metrics', auth: 'agent/admin', description: 'List all metrics with computed totals and depths, sorted by depth then order.' },
       { method: 'GET', path: '/api/metrics/:id', auth: 'agent/admin', description: 'Get a single metric by ID.' },
@@ -96,6 +98,7 @@ app.get('/api/help', (_req, res) => {
 });
 
 // These routers handle their own auth
+app.use('/api/waitlist', waitlistRouter);
 app.use('/api/agents', agentsRouter);
 app.use('/api/predictions', predictionsRouter);
 app.use('/api/events', eventsRouter);

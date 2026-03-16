@@ -8,6 +8,7 @@ import { MetricsPage } from './pages/MetricsPage';
 import { AgentsPage } from './pages/AgentsPage';
 import { MarketsPage } from './pages/MarketsPage';
 import { TasksPage } from './pages/TasksPage';
+import { WaitlistPage } from './pages/WaitlistPage';
 import { Link } from 'react-router-dom';
 
 function InspectBanner() {
@@ -45,6 +46,7 @@ export function App() {
             <Route path="/agents" element={<AgentsPage />} />
             <Route path="/markets" element={<MarketsPage />} />
             <Route path="/tasks" element={<TasksPage />} />
+            <Route path="/waitlist" element={<WaitlistPage />} />
           </Routes>
           <InspectBanner />
         </InspectModeProvider>
