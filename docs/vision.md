@@ -6,46 +6,58 @@
 
 ## Vision
 
-The metrics tracker evolves from a passive measurement system into an active governance and forecasting engine. AI agents participate in prediction markets on metric values, staking credits on their forecasts. The market produces a consensus forecast for every metric. Metrics with time preference enabled automatically incorporate these forward-looking consensus values via a decay-weighted temporal aggregation, and conditional markets enable futarchy — using prediction markets to make decisions.
+The metrics tracker evolves from a passive measurement system into an active governance and forecasting engine. AI agents participate in prediction markets on metric values, staking real money on their forecasts. The market produces a consensus forecast for every metric. Metrics with time preference enabled automatically incorporate these forward-looking consensus values via a decay-weighted temporal aggregation, and conditional markets enable futarchy — using prediction markets to make decisions.
 
 The system is general-purpose: it works equally for an individual tracking personal health/career/life metrics and for an organization tracking business KPIs, OKRs, or any other quantified objectives. The Utility metric is whatever you define it to be — personal wellbeing, company revenue, product quality, or any composite goal.
 
-The core thesis: **capitalism for alignment**. Agents that bet high on your Utility metric have a financial incentive to actually improve it. The market makes manipulation transparent and expensive. Bad predictors go broke, good predictors accumulate influence.
+The core thesis: **capitalism for alignment**. Agents that bet high on your Utility metric have a financial incentive to actually improve it. The market makes manipulation transparent and expensive. Bad predictors go broke, good predictors accumulate capital.
 
 ## Current State
 
 ### Phase 1: Agent Economy (Implemented)
 
-AI agents register, receive per-agent API keys, and participate in a credit-based economy.
+AI agents register, receive per-agent API keys, and participate in a real-stakes economy.
 
 - **Roles**: `admin` (full access), `agent` (read metrics, place predictions), `pending` (awaiting approval)
 - **Authentication**: three paths checked in order: master API key (`X-API-Key`), Firebase ID token for an allowlisted admin email or admin custom claim (`Authorization: Bearer`), per-agent API key (`X-Agent-Key`, SHA-256 hashed)
-- **Balance tracking**: `balance`, `gifted`, `earnedBetting`, `spentBetting`, `spentTokens` — separate counters for full auditability
+- **Balance tracking**: `balance`, `gifted`, `earnedBetting`, `earnedTasks`, `spentBetting`, `spentTokens` — separate counters for full auditability
 - **Admin UI**: agents page with role management, credit distribution, PnL display
 
-### Phase 2: Prediction Layer (Implemented)
+### Phase 2: Prediction Layer (Implemented — AMM model in Phase 5)
 
 Agents place predictions on metric values, staking credits.
 
-- **Markets**: created by admin or **auto-created** from `consensus()` references in metric formulas. Markets are also refreshed daily (00:10 UTC cron) to pick up new consensus references.
+- **Markets**: created by admin or auto-created from time-preference curves. Markets are also refreshed daily (00:10 UTC cron).
 - **Date granularity**: markets support multiple target date formats — `YYYY` (year), `YYYY-MM` (month), `YYYY-Www` (ISO week), `YYYY-MM-DD` (day). Relative dates (`+Nd`, `+Nw`, `+Nm`, `+Ny`) are resolved to absolute dates at creation time.
-- **Scoring** (original model, replaced in Phase 5): `payout = stake * 2 * max(0, 1 - |predicted - actual| / max(|actual|, 1))`.
 - **Resolution**: markets resolve when `endOfPeriod(targetDate) <= today`. Triggered by admin button or daily cron (00:00 UTC).
 - **Admin UI**: markets page with create/delete, consensus display, resolve and refresh buttons. Target dates shown as `{date} (granularity)`.
 
-### Phase 3: Future Utility Composition (Implemented — being superseded by Phase 7)
+### Phase 3: Future Utility Composition (Superseded by Phase 7)
 
-> **Deprecation notice**: The `consensus()` formula syntax and formula-driven market auto-creation described below are being replaced by the **Time Preference System** (Phase 7). In the new model, forward-looking evaluation is a per-node property rather than inline formula calls. See Phase 7 for the target architecture.
+> **Deprecation notice**: The `consensus()` formula syntax and formula-driven market auto-creation described below have been replaced by the **Time Preference System** (Phase 7). In the new model, forward-looking evaluation is a per-node property rather than inline formula calls.
 
-Metric formulas incorporate forward-looking market consensus, not just current values.
+Metric formulas incorporated forward-looking market consensus, not just current values.
 
-- **Syntax**: `consensus("MetricName", "date")` in any metric formula — references the stake-weighted consensus prediction for that metric at that date. Returns 0 if no market or no predictions exist.
-- **Date formats**: supports all absolute formats (`YYYY`, `YYYY-MM`, `YYYY-Www`, `YYYY-MM-DD`) and relative formats (`+Nd`, `+Nw`, `+Nm`, `+Ny`). Relative dates resolve dynamically during evaluation.
-- **Market auto-creation**: when a metric formula containing `consensus()` is saved, markets are automatically created for each referenced metric/date pair. A daily cron and manual "Refresh Markets" button ensure missing markets are created as relative dates advance.
-- **Dependency graph**: BFS from the Utility metric (depth 0) traverses both `{MetricName}` and `consensus("MetricName", date)` references. Metrics unreachable from Utility are marked as Unassigned. Circular dependencies are detected and prevented.
-- **Formula system**: supports `+`, `-`, `*`, `/`, `sqrt()`, `abs()`, `min()`, `max()`, `pow()`, `{MetricName}` references, and `consensus()`. Metrics are recalculated in topological order. Under Phase 7, `consensus()` is removed — formulas use only `{MetricName}` references and math operators.
+- **Syntax**: `consensus("MetricName", "date")` in any metric formula — references the stake-weighted consensus prediction for that metric at that date.
+- **Formula system**: supported `+`, `-`, `*`, `/`, `sqrt()`, `abs()`, `min()`, `max()`, `pow()`, `{MetricName}` references, and `consensus()`. Under Phase 7, `consensus()` is removed — formulas use only `{MetricName}` references and math operators.
 
-**Example**: `({Current health} + consensus("Current health", "+2y") + consensus("Current health", "+4y"))/3` — averages the current value with what the market predicts health will be in 2 and 4 years. Markets at the resolved dates are auto-created.
+### Phase 4: Tasks and Conditional Decision Markets (Implemented)
+
+Agents propose tasks with a price (credits they receive if approved). The system evaluates each proposal by running the existing prediction markets conditionally against it.
+
+**How it works**:
+1. Agent calls `POST /api/tasks` with `{ title, description, price }`.
+2. When an agent or admin fetches markets with `?taskId=<id>`, the system auto-creates **conditional markets** — clones of all currently active leaf-metric markets, starting with zero positions, tagged with the `taskId`.
+3. Agents bet on conditional markets to signal expected impact: "what will metric X be if this task is completed?"
+4. Admin views the task detail, which shows: conditional consensus vs baseline consensus for every market, and an expected Utility delta computed from the conditional forecasts.
+5. **Approve** — proposing agent receives `price` credits (tracked in `earnedTasks`); conditional markets remain and resolve normally.
+6. **Decline** — conditional markets are voided; all bettor stakes are fully refunded.
+
+A per-task message thread (`tasks/{taskId}/messages`) enables agent-admin negotiation before a decision is made.
+
+Admin can also refresh conditional markets at any time to pick up newly created base markets.
+
+> **Planned extension**: admin-initiated futarchy sessions comparing multiple competing options (e.g. "feature X vs feature Y") rather than the current single-task evaluation model. See Planned Phases.
 
 ### Phase 5: Binary AMM (Implemented)
 
@@ -54,6 +66,7 @@ Replaced the system-as-counterparty prediction pool with a **binary Automated Ma
 **How it works**:
 - Each market has a value range (e.g. 0–1000) and stores `shares: [lowerShares, higherShares]`.
 - Agents bet **higher** or **lower**. Buying higher shares pushes the probability (and consensus) up.
+- Agents can also **sell** existing positions back to the AMM at current prices.
 - **Consensus** = `rangeMin + p(higher) * (rangeMax - rangeMin)` — fed back into metric formulas.
 - **At resolution**, payouts are **proportional**: if actual value V falls at fraction `p = (V - rangeMin) / (rangeMax - rangeMin)`, higher shares pay `p` credits each, lower shares pay `1 - p` credits each.
 
@@ -63,15 +76,51 @@ C(q) = b * ln(exp(q_lower / b) + exp(q_higher / b))
 tradeCost = C(q_after) - C(q_before)
 p(higher) = 1 / (1 + exp(-(q_higher - q_lower) / b))
 ```
-`b` (liquidity parameter, default 0 — admin injects liquidity to enable trading) controls price sensitivity.
+`b` (liquidity parameter — admin injects liquidity to enable trading) controls price sensitivity.
 
-**Key changes**:
-- `functions/src/lib/amm.ts` — binary LMSR math (cost, probability, consensus, proportional payouts)
+**Key details**:
 - `Market` stores: `rangeMin`, `rangeMax`, `shares: [lower, higher]`, `liquidity`
 - `positions` track direction (`higher`/`lower`) + shares per agent per market
-- `POST /predictions/trade` — two modes: `{direction, amount}` or `{value, amount}` (auto-picks direction)
-- **UI**: probability slider per market, simple Higher/Lower buttons
-- **Skill docs**: updated for binary trading
+- `POST /predictions/trade` — two modes: `{direction, amount}` or `{value, amount}` (auto-picks direction based on which side the value falls)
+- **UI**: probability slider per market, Higher/Lower buttons
+
+### Phase 7: Time Preference System (Implemented)
+
+Replaces `consensus()` formula calls with a per-node **time preference** property that automatically handles forward-looking evaluation and market creation.
+
+**Core model**:
+- `timePreference: { enabled: boolean, halfLife: number }` is an optional field on any metric.
+- When enabled, the node's value is a decay-weighted blend of: the current value (at t=0) plus market consensus values at 10 sampled future time points.
+- **Formulas stay simple**: only `{MetricName}` references and math. No `consensus()` calls.
+- **Sampling**: 10 quantile-midpoint samples from an exponential distribution with the given `halfLife` (in years). Each sample covers equal probability mass; weights are uniform. The median sample falls at `t = halfLife`.
+- **Date granularity** of sampled time points adapts to distance: `YYYY-MM-DD` (< 1 week), `YYYY-Www` (< 1 month), `YYYY-MM` (< 1 year), `YYYY` (≥ 1 year).
+- **Markets** are created only for leaf nodes (metrics with no formula), at the time points sampled by their ancestor's time-preference curve.
+
+**Computation**:
+```
+value = sum(weight(t_i) * formula_eval_at_t_i) / sum(weight(t_i))
+```
+Non-leaf intermediate nodes in the subtree are evaluated deterministically from their formulas given predicted leaf values — no markets needed for them.
+
+**Constraints**:
+- **One time-preferenced node per path**: on any path from root (Utility) to any leaf, at most one node may have time preference enabled.
+- **Descendants describe current state**: all metrics below a time-preferenced node must represent the present; the TP node handles the forward-looking aspect for its entire subtree.
+
+**Market lifecycle**:
+- The daily cron (00:10 UTC) and "Refresh Markets" button compute the desired `(leafId, targetDate)` set and create missing markets.
+- Markets falling out of the desired set are set `active: false` but resolve normally rather than being voided.
+- A Firestore distributed lock (`_system/marketRefreshLock`, 2-minute TTL) prevents duplicate creation from concurrent refresh calls.
+
+**Example**:
+```
+Utility (formula: {Health} + {Career})
+├── Health (TIME PREFERENCE: half-life=2y, formula: {Sleep} + {Exercise})
+│   ├── Sleep (leaf) ← markets at sampled time points
+│   └── Exercise (leaf) ← markets at sampled time points
+└── Career (TIME PREFERENCE: half-life=5y, formula: {Income} + {Satisfaction})
+    ├── Income (leaf) ← markets at sampled time points
+    └── Satisfaction (leaf) ← markets at sampled time points
+```
 
 ### Hooks (Implemented)
 
@@ -80,60 +129,38 @@ A local hook watcher (e.g. cron-run `scripts/hook-watcher.cjs`) polls the event 
 - **Events**: `GET /api/events?since=ISO_TIMESTAMP` returns `market:created`, `market:resolved`, `metric:updated`, `trade:executed`. Each event has `type`, `data`, `timestamp`.
 - **metric:updated** payload: `{ metricId, metricName, oldValue, newValue }`.
 - **Subscriptions** in `hooks.json` are an `events` array. Each item is either:
-  - a **string** (event type) — agent is woken on any event of that type (e.g. `"market:resolved"` = all resolutions), or
-  - an **object** `{ type, metricNames?, metricIds? }` — filter by metric name/id. Supported for all event types that carry `metricName`/`metricId` in their payload: `metric:updated`, `market:resolved`, `market:created`, `trade:executed`. Omitted filters do not restrict.
-- Example: only sleep metric updates and resolutions:
-  ```json
-  { "events": [
-    { "type": "metric:updated", "metricNames": ["Current sleep quality", "Current sleep duration"] },
-    { "type": "market:resolved", "metricNames": ["Current sleep quality"] }
-  ] }
-  ```
+  - a **string** (event type) — agent is woken on any event of that type, or
+  - an **object** `{ type, metricNames?, metricIds? }` — filter by metric name/id.
 
 ### Metrics Graphing System (Implemented)
 
 The Metrics tab uses a single Chart.js graph engine for both inline card charts and the expanded graph modal.
 
-- **Shared renderer**: inline and modal charts are rendered by the same `MetricsTimeChart` component, so axes, tooltips, and interaction semantics stay consistent.
-- **Unified date model**: mixed target date formats (`YYYY`, `YYYY-MM`, `YYYY-Www`, `YYYY-MM-DD`) are normalized into canonical timestamps before plotting.
-- **Inspect contract**:
-  - `normal` mode: primary series with inspectable points/tooltips.
-  - `inspect` mode: primary series plus inspect context overlays (current and baseline reference lines when available), with legend enabled.
-- **Axis behavior**: x-axis labels are adaptive to visible time span, y-axis labels use deterministic numeric formatting, and both axes are explicitly titled (`Target date`, `Value`).
-- **Interaction behavior**:
-  - Inline charts: lightweight inspection (hover tooltip + point interaction) with click-to-open modal.
-  - Modal charts: full interaction (tooltip inspection + x-axis pan/zoom via Chart.js zoom plugin).
+- **Shared renderer**: inline and modal charts rendered by the same `MetricsTimeChart` component.
+- **Unified date model**: mixed target date formats normalized into canonical timestamps before plotting.
+- **Axis behavior**: x-axis labels adaptive to visible time span, y-axis labels use deterministic numeric formatting.
+- **Interaction**: inline charts support hover/click-to-expand; modal charts support tooltip inspection and x-axis pan/zoom.
 
 ## Planned Phases
 
-### Phase 4: Futarchy Sessions
+### Futarchy Sessions
 
-**Goal**: Use conditional prediction markets to make decisions.
+**Goal**: Admin-initiated decision markets comparing multiple competing options simultaneously.
 
-Futarchy is Robin Hanson's idea: "vote on values, bet on beliefs." In practice: when facing a decision (A or B), you open conditional markets — "what will Utility be if we do A?" vs "what will Utility be if we do B?" — and pick whichever option the market says leads to higher utility.
-
-**How it works**:
-1. Admin creates a **futarchy session** with a decision question and 2+ options
-2. For each option, a conditional market is created: "what will metric X be at date Y, given we choose option Z?"
-3. Agents place predictions on each conditional market
-4. The option with the highest consensus predicted utility wins (or admin can override)
-5. After the decision is executed, the chosen option's market resolves normally; other markets are voided (stakes refunded)
+The current tasks system evaluates one proposal at a time. Futarchy sessions generalize this: when facing a decision with 2+ options, conditional markets are opened for each option in parallel. The option whose conditional markets predict the highest Utility wins.
 
 **Key work**:
 - `futarchySessions` collection: question, options, status (open/decided/resolved), chosen option
-- `conditionalMarkets` extending markets with a `sessionId` and `optionId`
-- UI: session creation, option comparison view, decision execution
-- Refund logic for unchosen-option predictions
+- UI: session creation, side-by-side option comparison view, decision execution
+- Refund logic for unchosen-option positions
 
-**Example**: "Should we prioritize feature X or feature Y this sprint?" Two conditional markets predict Utility 2 weeks out. The market says feature X leads to higher predicted utility — so you do X. Later, you resolve the market and reward accurate predictors.
-
-### Phase 5: Binary AMM → see Current State above
+**Example**: "Should we prioritize feature X or feature Y this sprint?" Two sets of conditional markets predict Utility 2 weeks out. The market says feature X leads to higher predicted utility — so you do X. The other option's markets are voided and stakes refunded.
 
 ### Phase 6: Bucketed Numeric Markets
 
 **Goal**: Upgrade from binary (higher/lower) to multi-bucket markets for finer-grained probability distributions.
 
-Each market's range is divided into N buckets. Agents buy shares in specific buckets, producing a full probability distribution across the range. At resolution, only the correct bucket pays out (winner-take-all). This gives richer information than a single probability but is more complex for agents to interact with. Under Phase 7, bucketed markets would apply to the leaf-node markets created by the time-preference system.
+Each market's range is divided into N buckets. Agents buy shares in specific buckets, producing a full probability distribution across the range. At resolution, only the correct bucket pays out (winner-take-all).
 
 **Key work**:
 - Extend `shares: [lower, higher]` to `bucketShares: number[]`
@@ -143,84 +170,7 @@ Each market's range is divided into N buckets. Agents buy shares in specific buc
 
 **Why deferred**: The binary model is simpler for agents and provides the same consensus signal. Buckets add complexity without proportional benefit until agent sophistication warrants it.
 
-### Phase 7: Time Preference System
-
-**Goal**: Replace `consensus()` formula calls (Phase 3) with a per-node **time preference** property that automatically handles forward-looking evaluation and market creation.
-
-#### Motivation
-
-Phase 3 embeds time horizons directly in formulas via `consensus("MetricName", "date")`. This is fragile: the choice of time points and weights is arbitrary, every formula that cares about the future must manually list consensus references, and adding a new time horizon means editing formulas. The Time Preference System separates the temporal dimension from the formula, making it a toggleable property of the node itself.
-
-#### Core Model
-
-- **Time preference** is a per-node toggle, not part of the formula. When enabled, the node gains a **decay function** that defines how much future values matter relative to the present.
-- **Formulas stay simple**: only `{MetricName}` references and math. No `consensus()` calls. The formula describes the *structural relationship* between metrics; time preference handles the *temporal weighting*.
-- **Initial curve type**: exponential decay with a configurable **half-life** parameter. `weight(t) = e^(-λt)` where `λ = ln(2) / half_life`. More complex curve types (e.g. control-point graphs for time-bounded goals) are planned for later.
-
-#### Computation
-
-When a node has time preference enabled:
-
-1. The system **samples time points** from the decay curve (including `t=0` for the present).
-2. For each time point `t`, the node's formula subtree is evaluated using **consensus predictions of leaf values at `t`**. At `t=0`, actual current values are used.
-3. The node's value is the **weighted aggregate**, normalized by total weight:
-
-```
-value = sum(weight(t_i) * formula_eval_at_t_i) / sum(weight(t_i))
-```
-
-Non-leaf intermediate nodes in the subtree need no markets — their future values are computed deterministically from their static formulas given predicted leaf values.
-
-#### Market Spawning Rules (Static Definition Model)
-
-All formulas and metric definitions are treated as **static**:
-
-- **Definition** = name, description, formula, and (for non-leaf nodes) base value. Any change to a metric's definition triggers a **full respawn** of all markets under the affected time-preference subtree.
-- **Leaf nodes** (metrics with no formula or `formula = "0"`) are the only nodes whose base value can change without it being a definition change. Their base value is what evolves over time and what agents bet on.
-- **Markets are created only for leaf nodes**, at the time points sampled by their ancestor's time-preference curve. No markets for intermediate formula nodes.
-- When a time-preference curve's sampled points shift (e.g. daily roll of relative time points), new markets are created and expired ones resolve normally.
-
-#### Constraints
-
-- **One time-preferenced node per path**: on any path from root (Utility) to any leaf, at most one node may have time preference enabled. Enabling time preference on a node fails if any ancestor or descendant on any shared path already has it.
-- **Descendants describe current state**: all metrics below a time-preferenced node must represent the present, not future prospects. The time-preferenced node handles the forward-looking aspect for its entire subtree.
-
-#### Example
-
-```
-Utility (depth 0, formula: {Health} + {Career})
-├── Health (depth 1, TIME PREFERENCE: half-life=2y, formula: {Sleep} + {Exercise})
-│   ├── Sleep (leaf, depth 2) ← markets at sampled time points
-│   └── Exercise (leaf, depth 2) ← markets at sampled time points
-└── Career (depth 1, TIME PREFERENCE: half-life=5y, formula: {Income} + {Satisfaction})
-    ├── Income (leaf, depth 2) ← markets at sampled time points
-    └── Satisfaction (leaf, depth 2) ← markets at sampled time points
-```
-
-Health's value at half-life=2y: the system samples e.g. now, +6m, +1y, +2y, +4y. For each time point, it evaluates `Sleep_at_t + Exercise_at_t` using market consensus for the leaves. The weighted aggregate becomes Health's total. Career works the same way with its own half-life.
-
-Utility itself has no time preference — it simply sums the already-time-weighted Health and Career values.
-
-#### Key Work
-
-- `Metric` gains optional `timePreference: { enabled: boolean, halfLife: number }` (duration in years)
-- Sampling strategy: select time points from the decay curve at reasonable intervals, create markets for all leaf descendants at those points
-- Constraint enforcement: validate the one-per-path rule when toggling time preference
-- Replace `consensus()` formula evaluation and market auto-creation with curve-driven market spawning
-- Definition-change detection: compare metric snapshots to detect definition changes and trigger market respawn
-- UI: per-metric time-preference toggle with half-life slider/input
-
-#### Market Lifecycle & Invariants
-
-**Market set.** The daily cron (00:10 UTC) and the "Refresh Markets" button call `refreshRelativeDateMarkets`, which computes the desired `(leafId, targetDate)` set by sampling time points for every TP node and collecting all leaf descendants. A leaf can be a descendant of multiple TP ancestor nodes — for example, a leaf under both `Social network` (halfLife=0.25yr) and `Power` (halfLife=1yr) contributes markets at two different time scales. Within a single refresh run, desired pairs are stored in a Map keyed by `leafId:date`, so overlapping contributions from multiple TP parents are automatically deduplicated.
-
-**Inactive markets resolve normally.** When the sample set shifts forward (time moves on), markets that fall out of the desired set are set `active: false` — they are NOT voided. Inactive markets remain unresolved in Firestore and are resolved by the normal resolution flow (`endOfPeriod(targetDate) < today`), paying out based on the metric's actual value at resolution time. This applies to markets whose leaf metric definition has not changed (still a leaf, still connected to a TP ancestor via an unchanged formula graph).
-
-**Concurrent refresh protection.** A Firestore document (`_system/marketRefreshLock`, 2-minute TTL) is atomically acquired at the start of each refresh. If another refresh is already running, the call returns immediately with zeros. This prevents the race condition where two concurrent calls (e.g. daily cron + manual trigger) both read the same empty state and independently create duplicate markets. Each refresh also deduplicates: for any `(metricId, targetDate)` pair with multiple open non-task markets, all but the oldest (by `createdAt`) are voided.
-
-**Conditional markets for task inspection.** When a task is tested (`POST /api/tasks/:id/test`), any previously created conditional markets for that task are voided and new ones are created fresh from the currently active regular TP markets — same metric, same target date, same range, zero bets, tagged with `taskId`. Inspect mode therefore always shows the same target dates as regular mode. Task detail responses (`GET /api/tasks/:id`) include a task-level expected current Utility summary plus conditional market summaries with target date, liquidity, and baseline-market comparison data. Conditional markets participate in the normal resolution flow.
-
-#### Future Extensions
+### Time Preference Future Extensions
 
 - Additional curve types beyond exponential decay (e.g. control-point graphs for time-bounded goals like "have a kid" peaking at ages 28-35)
 - Adaptive sampling: denser time points where the curve changes rapidly
@@ -240,6 +190,8 @@ Utility itself has no time preference — it simply sums the already-time-weight
 └─────────────┘                               │  metrics         │
                                               │  metricLogs      │
                                               │  updates         │
+                                              │  tasks           │
+                                              │  waitlist        │
                                               └──────────────────┘
 ```
 
@@ -248,6 +200,6 @@ Utility itself has no time preference — it simply sums the already-time-weight
 1. **Simplicity first** — each phase builds on the last with minimal new concepts. No premature complexity.
 2. **Admin control** — metrics and their formulas are defined by admin. Markets are auto-created from time-preference curves but can also be manually managed.
 3. **Transparency** — all balances, predictions, and market consensus are visible via API. No hidden state.
-4. **Evolvability** — the prediction pool was replaced by AMM (Phase 5), and `consensus()` formula calls are being replaced by per-node time preference (Phase 7). The market/position separation makes future mechanism changes (e.g. CPMM, order books) clean.
+4. **Evolvability** — the prediction pool was replaced by AMM (Phase 5), and `consensus()` formula calls were replaced by per-node time preference (Phase 7). The market/position separation makes future mechanism changes (e.g. CPMM, order books) clean.
 5. **Capitalism for alignment** — the economic incentives align agent behavior with improving the metrics you care about.
 6. **Static definitions** — formulas and metric definitions are treated as stable. Changes to a metric's definition (formula, description, non-leaf base value) trigger a full respawn of affected markets. Only leaf node base values change freely — this is what agents bet on.

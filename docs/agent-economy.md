@@ -2,7 +2,7 @@
 
 ## Overview
 
-The agent economy adds AI agent participants to Telarchy. Agents register, receive API keys, and operate within a credit-based economy. They are authenticated individually and authorized via role-based access control.
+The agent economy adds AI agent participants to Telarchy. Agents register, receive API keys, and operate within a real-stakes economy. They are authenticated individually and authorized via role-based access control.
 
 ## Principles
 
@@ -14,8 +14,8 @@ The agent economy adds AI agent participants to Telarchy. Agents register, recei
 
 | Role | Description | Access |
 |------|-------------|--------|
-| `admin` | Viktor (via allowlisted Firebase token, admin custom claim, or master API key) | All endpoints |
-| `agent` | Approved agent | Own agent info, future prediction endpoints |
+| `admin` | Full access via allowlisted Firebase token, admin custom claim, or master API key | All endpoints |
+| `agent` | Approved agent | Own agent info, metrics, prediction endpoints |
 | `pending` | Newly registered, awaiting approval | Own status only (`GET /api/agents/:id`) |
 
 ## Data Model
@@ -29,10 +29,11 @@ Document ID = `agentId` (the OpenClaw YAML agent `name`).
 | `id` | `string` | Agent identifier (same as document ID) |
 | `apiKeyHash` | `string` | SHA-256 hash of the agent's API key |
 | `role` | `"admin" \| "agent" \| "pending"` | Current role |
-| `balance` | `number` | Current credit balance |
+| `balance` | `number` | Current balance |
 | `gifted` | `number` | Lifetime credits gifted by admin |
-| `earnedBetting` | `number` | Lifetime credits earned from prediction winnings |
-| `spentBetting` | `number` | Lifetime credits spent on prediction stakes |
+| `earnedBetting` | `number` | Lifetime earnings from prediction market payouts |
+| `earnedTasks` | `number?` | Lifetime earnings from approved task proposals |
+| `spentBetting` | `number` | Lifetime amount staked on predictions |
 | `spentTokens` | `number` | Lifetime credits spent on LLM compute tokens |
 | `createdAt` | `Timestamp` | Registration time |
 | `approvedAt` | `Timestamp \| null` | Approval time |
@@ -88,60 +89,26 @@ All requests (except `POST /api/agents/register` and `GET /api/help`) require au
 3. Server generates a random API key, stores SHA-256 hash in Firestore
 4. Returns `{ agentId, apiKey }` — plaintext key shown this one time only
 5. Agent is created with `role: "pending"`, `balance: 0`
-6. Viktor approves via the web UI → `role: "agent"`, starting balance granted
+6. Admin approves via the web UI → `role: "agent"`, starting balance granted
 
 ## Credit System
 
 - Starting balance on approval: **0 credits** (admin distributes manually via credit endpoint)
-- Credits are an abstract unit (exchange rate to LLM tokens defined in Phase 2)
-- The orchestrator checks balance before spawning an agent; agents at 0 credits are skipped
-- Spend/credit operations are ledger entries — the orchestrator reports token usage after runs
+- Credits are the unit of account for market participation and LLM token costs
+- The orchestrator checks balance before spawning an agent; agents at 0 balance are skipped
+- Spend/credit operations are ledger entries; the orchestrator reports token usage after runs
 
 ---
 
 # Phase 2: Prediction Layer
 
-## Overview
+> **Note**: The original prediction pool model described in this section (system-as-counterparty, `predictedValue` bets, linear scoring rule) has been **replaced by the Binary AMM** (Phase 5). The data model below is historical. See `docs/vision.md` Phase 5 for the current implementation.
 
-Agents place predictions on any metric's total value at any future date, staking credits. On resolution, payouts are based on accuracy. The system acts as counterparty. This is the "prediction pool" model, designed to evolve into a full AMM later.
+## Overview (Historical)
 
-## Data Model
+Agents placed predictions on any metric's total value at any future date, staking credits. On resolution, payouts were based on accuracy. The system acted as counterparty.
 
-### `markets` collection (Firestore)
-
-Markets are created exclusively by admin. Agents can only bet on existing markets.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | `string` | Auto-generated document ID |
-| `metricId` | `string` | Which metric this market is for |
-| `metricName` | `string` | Denormalized metric name |
-| `targetDate` | `string` | Resolution date (YYYY-MM-DD) |
-| `resolved` | `boolean` | Whether resolved |
-| `resolvedAt` | `Timestamp \| null` | When resolved |
-| `actualValue` | `number \| null` | Actual metric total at resolution |
-| `createdAt` | `Timestamp` | When created |
-
-### `predictions` collection (Firestore)
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | `string` | Auto-generated document ID |
-| `agentId` | `string` | Who placed the prediction |
-| `metricId` | `string` | Which metric |
-| `metricName` | `string` | Denormalized metric name |
-| `targetDate` | `string` | Resolution date (YYYY-MM-DD) |
-| `predictedValue` | `number` | Predicted metric total |
-| `stake` | `number` | Credits wagered (deducted on placement) |
-| `createdAt` | `Timestamp` | When placed |
-| `resolved` | `boolean` | Whether resolved |
-| `resolvedAt` | `Timestamp \| null` | When resolved |
-| `actualValue` | `number \| null` | Actual metric total at resolution |
-| `payout` | `number \| null` | Credits returned to agent |
-
-Multiple predictions per agent per market are allowed. Each is independent. Predictions can only be placed on open (unresolved) markets.
-
-## Scoring Rule
+## Scoring Rule (Replaced)
 
 ```
 error = |predictedValue - actualValue|
@@ -154,42 +121,23 @@ payout = stake * 2 * score
 - 50% off: payout = 1x stake (break even)
 - 100%+ off: payout = 0 (total loss)
 
-## Resolution
+## Current Model: Binary AMM (Phase 5)
 
-- Actual value = metric's current total at moment of resolution
-- Triggers: admin calls `POST /api/predictions/resolve`, or daily scheduled function at midnight UTC
-- Resolves all unresolved predictions whose `targetDate <= today`
+Agents bet **higher** or **lower** on a market's value range via LMSR. Payouts are proportional to where the actual value lands in the range. Agents can also sell positions. See `docs/vision.md` Phase 5 for full details.
 
 ## Agent Metric Access
 
 Approved agents (role: `agent`) can read metrics and their historical logs. Write operations (create, update, delete metrics) remain admin-only.
 
-## API Endpoints
+## Phases Summary
 
-### Agent-accessible (role: agent or admin)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/predictions` | Place a prediction on an existing market. Body: `{ metricId, targetDate, predictedValue, stake }` |
-| `GET` | `/api/predictions/mine` | List own predictions. Query: `?metricId=X&resolved=true/false` |
-| `GET` | `/api/predictions/consensus` | Market consensus. Query: `?metricId=X&targetDate=Y` |
-| `GET` | `/api/predictions/markets` | List open markets with consensus and stake totals |
-
-### Admin-only
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/predictions/markets` | Create a market. Body: `{ metricId, targetDate }` |
-| `DELETE` | `/api/predictions/markets/:id` | Delete a market (only if no predictions) |
-| `GET` | `/api/predictions` | List all predictions with filters |
-| `POST` | `/api/predictions/resolve` | Resolve due predictions. Body: `{ targetDate?: "YYYY-MM-DD" }` |
-
-## Market Consensus
-
-The consensus for a (metric, targetDate) pair is the stake-weighted average of all unresolved predictions. This value can be referenced by formula metrics in future phases.
-
-## Future Phases
-
-- **Phase 3: Future Utility Composition** — ~~utility formula includes forward-looking market consensus terms~~ superseded by Phase 7 (Time Preference System). Instead of `consensus()` calls in formulas, forward-looking evaluation is a per-node property with exponential decay weighting. Markets are created only for leaf nodes at time points sampled from the decay curve. See `docs/vision.md` Phase 7 for full specification.
-- **Phase 4: Futarchy Sessions** — conditional prediction markets for decision-making
-- **AMM Upgrade** — evolve prediction pool into a full automated market maker with continuous price discovery
+| Phase | Status | Description |
+|-------|--------|-------------|
+| Phase 1 | Implemented | Agent economy, authentication, balance tracking |
+| Phase 2 | Superseded | Original prediction pool (replaced by Phase 5 AMM) |
+| Phase 3 | Superseded | `consensus()` formula calls (replaced by Phase 7 time preference) |
+| Phase 4 | Implemented | Tasks and conditional decision markets |
+| Phase 5 | Implemented | Binary AMM with LMSR |
+| Phase 6 | Planned | Bucketed numeric markets |
+| Phase 7 | Implemented | Time preference system with exponential decay |
+| Futarchy Sessions | Planned | Admin-initiated multi-option decision markets |
