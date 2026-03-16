@@ -32,6 +32,9 @@ export function WaitlistPage() {
 
   return (
     <>
+      <div style={{ position: 'fixed', top: '1rem', left: '1rem', zIndex: 1000 }}>
+        <img src="/logo.png" alt="Telarchy" style={{ height: '5.25rem' }} />
+      </div>
       <button className="dark-mode-toggle" onClick={toggle} title="Toggle dark mode" style={{ position: 'fixed', top: '1rem', right: '1rem', zIndex: 1000 }}>
         {isDark ? '☀️' : '🌙'}
       </button>

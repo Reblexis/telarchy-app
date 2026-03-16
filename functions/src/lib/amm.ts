@@ -14,7 +14,7 @@ function lmsrCost(shares: [number, number], b: number): number {
 
 /** Probability that the value is "higher" (maps to upper end of range). */
 export function pHigher(shares: [number, number], b: number): number {
-  if (b <= 0) return 0.5;
+  if (b <= 0) return 0;
   const diff = shares[1] - shares[0];
   return 1 / (1 + Math.exp(-diff / b));
 }
