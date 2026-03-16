@@ -12,14 +12,21 @@ function lmsrCost(shares: [number, number], b: number): number {
   return b * (max / b + Math.log(Math.exp((shares[0] - max) / b) + Math.exp((shares[1] - max) / b)));
 }
 
-/** Probability that the value is "higher" (maps to upper end of range). */
+/**
+ * Probability that the value is "higher" (maps to upper end of range).
+ * When b = 0 (no liquidity injected yet) the market is uninformed: returns 0,
+ * which causes consensus() to equal rangeMin (the uninformed prior).
+ */
 export function pHigher(shares: [number, number], b: number): number {
   if (b <= 0) return 0;
   const diff = shares[1] - shares[0];
   return 1 / (1 + Math.exp(-diff / b));
 }
 
-/** Consensus value = rangeMin + p(higher) * (rangeMax - rangeMin). */
+/**
+ * Consensus value = rangeMin + p(higher) * (rangeMax - rangeMin).
+ * With no liquidity (b = 0), returns rangeMin as the uninformed prior.
+ */
 export function consensus(shares: [number, number], b: number, rangeMin: number, rangeMax: number): number {
   return Math.round((rangeMin + pHigher(shares, b) * (rangeMax - rangeMin)) * 100) / 100;
 }

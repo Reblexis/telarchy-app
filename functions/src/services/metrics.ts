@@ -48,9 +48,12 @@ function enrichMetrics(metrics: Metric[], consensusMap: Record<string, number> =
 
       for (const { date } of timePoints) {
         if (isLeaf) {
-          // Only include dates where a market consensus actually exists — skip missing ones.
           const val = consensusMap[`${name}:${date}`];
-          if (val !== undefined) series.push({ date, value: val });
+          if (val === undefined) {
+            console.error(`enrichMetrics: no market consensus for leaf "${name}" at date "${date}" — market missing or date mismatch`);
+          } else {
+            series.push({ date, value: val });
+          }
         } else {
           series.push({ date, value: evaluateFormulaAtTime(formula, nameToFormula, consensusMap, date, memo) });
         }
@@ -77,8 +80,9 @@ export async function buildConsensusMap(): Promise<Record<string, number>> {
     const m = doc.data();
     if (m.taskId) continue;
     if (m.active === false) continue;
-    if (!m.shares || !m.liquidity) continue;
-    const c = ammConsensus(m.shares, m.liquidity, m.rangeMin, m.rangeMax);
+    if (!m.shares) continue;
+    // consensus() handles b=0 (no liquidity) by returning rangeMin as the uninformed prior.
+    const c = ammConsensus(m.shares, m.liquidity ?? 0, m.rangeMin, m.rangeMax);
     map[`${m.metricName}:${m.targetDate}`] = c;
 
     // Bridge old-format dates to new-format keys so that sampleTimePoints lookups
