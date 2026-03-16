@@ -161,7 +161,7 @@ export async function getMarkets(includeResolved = false, taskId?: string) {
       actualValue: m.actualValue,
       active: m.active !== false,
       createdAt: m.createdAt,
-      consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax),
+      consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
       probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
       totalStake: totalStakeByMarket.get(doc.id) || 0,
       tradeCount: tradeCountByMarket.get(doc.id) || 0,

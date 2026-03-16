@@ -75,7 +75,12 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
           </div>
         )}
         <div className="metric-stats">
-          {isLeaf ? `Value: ${metric.value.toFixed(2)}` : `Total: ${metric.total.toFixed(2)}`}
+          {isLeaf
+            ? `Value: ${metric.value.toFixed(2)}`
+            : metric.missingMarkets?.length
+              ? <span title={`Awaiting first trade on: ${metric.missingMarkets.join(', ')}`} style={{ color: 'var(--text-secondary)', cursor: 'help' }}>Total: — <span style={{ fontSize: '0.8em' }}>(awaiting {metric.missingMarkets.length === 1 ? metric.missingMarkets[0] : `${metric.missingMarkets.length} markets`})</span></span>
+              : `Total: ${metric.total.toFixed(2)}`
+          }
           {!isLeaf && metric.baselineTotal !== undefined && (() => {
             const delta = metric.total - metric.baselineTotal;
             if (Math.abs(delta) < 0.005) return null;
@@ -107,7 +112,12 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
             ))}
           </div>
         )}
-        {metric.timeSeries && metric.timeSeries.length > 0 && (
+        {metric.missingMarkets?.length ? (
+          <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}
+            title={`Awaiting first trade on: ${metric.missingMarkets.join(', ')}`}>
+            No forecast chart — awaiting {metric.missingMarkets.length === 1 ? metric.missingMarkets[0] : `${metric.missingMarkets.length} markets`}
+          </div>
+        ) : metric.timeSeries && metric.timeSeries.length > 0 && (
           <div style={{ marginTop: '0.75rem', height: 220 }}>
             <MetricsTimeChart
               points={points}

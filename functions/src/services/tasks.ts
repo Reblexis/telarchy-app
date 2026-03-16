@@ -51,10 +51,8 @@ async function getBaselineConsensusMap(markets: TaskMarketDoc[]): Promise<Map<st
       if (market.taskId || market.active === false) continue;
       const key = `${market.metricId}:${market.targetDate}`;
       if (!wantedKeys.has(key) || baselineConsensusMap.has(key)) continue;
-      baselineConsensusMap.set(
-        key,
-        consensus(market.shares || [0, 0], market.liquidity, market.rangeMin, market.rangeMax),
-      );
+      const c = consensus(market.shares || [0, 0], market.liquidity, market.rangeMin, market.rangeMax);
+      if (c !== undefined) baselineConsensusMap.set(key, c);
     }
   }
 
@@ -64,7 +62,7 @@ async function getBaselineConsensusMap(markets: TaskMarketDoc[]): Promise<Map<st
 export async function getTaskUtilitySummary(
   markets: Array<{ metricName: string; targetDate: string; consensus: number | null; tradeCount: number }>,
 ) {
-  const [baselineMetrics, baselineConsensus] = await Promise.all([
+  const [baselineMetrics, { map: baselineConsensus }] = await Promise.all([
     getAllMetrics(),
     buildConsensusMap(),
   ]);
@@ -76,7 +74,7 @@ export async function getTaskUtilitySummary(
   // Start from the baseline map and only overlay conditional values from
   // markets that have actually been traded on. Untouched conditional markets
   // (tradeCount=0) should inherit the baseline consensus, not overwrite it
-  // with an artificial value from 0-liquidity defaults.
+  // with an artificial value from untraded defaults.
   const conditionalConsensusMap: Record<string, number> = { ...baselineConsensus };
   for (const market of markets) {
     if (market.consensus === null || market.tradeCount === 0) continue;

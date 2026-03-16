@@ -17,6 +17,7 @@ export interface Metric {
   baselineTotal?: number;
   timeSeries?: Array<{ date: string; value: number }>;
   conditionalTimeSeries?: Array<{ date: string; value: number }>;
+  missingMarkets?: string[];
 }
 
 export interface MetricLog {

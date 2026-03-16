@@ -14,8 +14,8 @@ function lmsrCost(shares: [number, number], b: number): number {
 
 /**
  * Probability that the value is "higher" (maps to upper end of range).
- * When b = 0 (no liquidity injected yet) the market is uninformed: returns 0,
- * which causes consensus() to equal rangeMin (the uninformed prior).
+ * When b = 0 (no liquidity) returns 0; callers should use consensus() which
+ * returns undefined for no-liquidity and untraded markets.
  */
 export function pHigher(shares: [number, number], b: number): number {
   if (b <= 0) return 0;
@@ -25,9 +25,10 @@ export function pHigher(shares: [number, number], b: number): number {
 
 /**
  * Consensus value = rangeMin + p(higher) * (rangeMax - rangeMin).
- * With no liquidity (b = 0), returns rangeMin as the uninformed prior.
+ * Returns undefined when b = 0 (no liquidity) or when no one has traded yet (shares = [0, 0]).
  */
-export function consensus(shares: [number, number], b: number, rangeMin: number, rangeMax: number): number {
+export function consensus(shares: [number, number], b: number, rangeMin: number, rangeMax: number): number | undefined {
+  if (b <= 0 || (shares[0] === 0 && shares[1] === 0)) return undefined;
   return Math.round((rangeMin + pHigher(shares, b) * (rangeMax - rangeMin)) * 100) / 100;
 }
 
@@ -62,7 +63,7 @@ export function sharesForBudget(shares: [number, number], direction: 0 | 1, budg
 export function betTowardsValue(
   shares: [number, number], b: number, rangeMin: number, rangeMax: number, targetValue: number, maxBudget: number,
 ): { direction: 0 | 1; amount: number; cost: number } {
-  const current = consensus(shares, b, rangeMin, rangeMax);
+  const current = consensus(shares, b, rangeMin, rangeMax) ?? (rangeMin + (rangeMax - rangeMin) / 2);
   if (Math.abs(targetValue - current) < 0.01) return { direction: 1, amount: 0, cost: 0 };
 
   const direction: 0 | 1 = targetValue >= current ? 1 : 0;

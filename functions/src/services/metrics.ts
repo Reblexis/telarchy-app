@@ -7,7 +7,7 @@ import { consensus as ammConsensus, AMM_DEFAULTS } from '../lib/amm';
 import { toISOWeekString } from '../lib/date-utils';
 import { emitEvent } from './events';
 
-function enrichMetrics(metrics: Metric[], consensusMap: Record<string, number> = {}): Metric[] {
+function enrichMetrics(metrics: Metric[], consensusMap: Record<string, number> = {}, untradedLeaves: Set<string> = new Set()): Metric[] {
   recalculateMetrics(metrics, consensusMap);
   const depths = calculateMetricDepths(metrics);
   metrics.forEach(m => {
@@ -17,6 +17,16 @@ function enrichMetrics(metrics: Metric[], consensusMap: Record<string, number> =
 
   const nameToFormula: Record<string, string> = {};
   metrics.forEach(m => { nameToFormula[m.name] = m.formula || '0'; });
+
+  if (untradedLeaves.size > 0) {
+    metrics.forEach(m => {
+      const isLeaf = !m.formula || m.formula.trim() === '0';
+      const missing = isLeaf
+        ? (untradedLeaves.has(m.name) ? [m.name] : [])
+        : getLeafDescendantNames(m.name, nameToFormula).filter(n => untradedLeaves.has(n));
+      if (missing.length > 0) m.missingMarkets = missing;
+    });
+  }
 
   const nameToTimeSeries: Record<string, Array<{ date: string; value: number }>> = {};
 
@@ -50,7 +60,7 @@ function enrichMetrics(metrics: Metric[], consensusMap: Record<string, number> =
         if (isLeaf) {
           const val = consensusMap[`${name}:${date}`];
           if (val === undefined) {
-            console.error(`enrichMetrics: no market consensus for leaf "${name}" at date "${date}" — market missing or date mismatch`);
+            // Market may be untraded or missing; skipping this time point.
           } else {
             series.push({ date, value: val });
           }
@@ -68,21 +78,25 @@ function enrichMetrics(metrics: Metric[], consensusMap: Record<string, number> =
   return metrics;
 }
 
-export async function buildConsensusMap(): Promise<Record<string, number>> {
+export async function buildConsensusMap(): Promise<{ map: Record<string, number>; untradedLeaves: Set<string> }> {
   const marketSnap = await db().collection('markets').where('resolved', '==', false).get();
-  if (marketSnap.empty) return {};
+  if (marketSnap.empty) return { map: {}, untradedLeaves: new Set() };
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const map: Record<string, number> = {};
+  const untradedLeaves = new Set<string>();
 
   for (const doc of marketSnap.docs) {
     const m = doc.data();
     if (m.taskId) continue;
     if (m.active === false) continue;
     if (!m.shares) continue;
-    // consensus() handles b=0 (no liquidity) by returning rangeMin as the uninformed prior.
     const c = ammConsensus(m.shares, m.liquidity ?? 0, m.rangeMin, m.rangeMax);
+    if (c === undefined) {
+      untradedLeaves.add(m.metricName);
+      continue;
+    }
     map[`${m.metricName}:${m.targetDate}`] = c;
 
     // Bridge old-format dates to new-format keys so that sampleTimePoints lookups
@@ -107,11 +121,11 @@ export async function buildConsensusMap(): Promise<Record<string, number>> {
       }
     }
   }
-  return map;
+  return { map, untradedLeaves };
 }
 
 export async function getAllMetrics(): Promise<Metric[]> {
-  const [snapshot, consensusMap] = await Promise.all([
+  const [snapshot, { map, untradedLeaves }] = await Promise.all([
     db().collection('metrics').get(),
     buildConsensusMap(),
   ]);
@@ -124,7 +138,7 @@ export async function getAllMetrics(): Promise<Metric[]> {
       timePreference: data.timePreference?.enabled ? data.timePreference : undefined,
       marketRangeMax: data.marketRangeMax,
     };
-  }), consensusMap);
+  }), map, untradedLeaves);
 }
 
 export async function getMetricById(id: string): Promise<Metric | null> {

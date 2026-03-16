@@ -101,7 +101,7 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
   const newShares: [number, number] = [shares[0], shares[1]];
   newShares[direction] += isSell ? -amount : amount;
 
-  const newConsensus = consensus(newShares, b, market.rangeMin, market.rangeMax);
+  const newConsensus = consensus(newShares, b, market.rangeMin, market.rangeMax) ?? null;
   const newProbability = Math.round(pHigher(newShares, b) * 10000) / 10000;
 
   const tradeRef = db().collection('trades').doc();
@@ -196,7 +196,7 @@ predictionsRouter.get('/markets/:id', requireRole('agent', 'admin'), wrap(async 
   if (!doc.exists) { res.status(404).json({ error: 'Market not found' }); return; }
   const m = doc.data()!;
   const prob = pHigher(m.shares, m.liquidity);
-  res.json({
+    res.json({
     id: doc.id,
     metricId: m.metricId,
     metricName: m.metricName,
@@ -206,7 +206,7 @@ predictionsRouter.get('/markets/:id', requireRole('agent', 'admin'), wrap(async 
     rangeMax: m.rangeMax,
     liquidity: m.liquidity,
     probability: Math.round(prob * 10000) / 10000,
-    consensus: consensus(m.shares, m.liquidity, m.rangeMin, m.rangeMax),
+    consensus: consensus(m.shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
     costToMoveUp1pct: directionTradeCost(m.shares, 1, m.liquidity * 0.01, m.liquidity),
   });
 }));
@@ -243,7 +243,7 @@ predictionsRouter.get('/markets/:id/context', requireRole('agent', 'admin'), wra
       const rm = d.data();
       return {
         id: d.id, targetDate: rm.targetDate,
-        consensus: consensus(rm.shares, rm.liquidity, rm.rangeMin, rm.rangeMax),
+        consensus: consensus(rm.shares, rm.liquidity, rm.rangeMin, rm.rangeMax) ?? null,
         probability: Math.round(pHigher(rm.shares, rm.liquidity) * 10000) / 10000,
       };
     });
@@ -254,7 +254,7 @@ predictionsRouter.get('/markets/:id/context', requireRole('agent', 'admin'), wra
       targetDate: m.targetDate, rangeMin: m.rangeMin, rangeMax: m.rangeMax,
       liquidity: m.liquidity,
       probability: Math.round(pHigher(m.shares, m.liquidity) * 10000) / 10000,
-      consensus: consensus(m.shares, m.liquidity, m.rangeMin, m.rangeMax),
+      consensus: consensus(m.shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
     },
     metric: metric ? {
       name: metric.name, formula: metric.formula,

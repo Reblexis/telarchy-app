@@ -15,6 +15,7 @@ export interface Metric {
   timePreference?: TimePreference;
   marketRangeMax?: number;
   timeSeries?: Array<{ date: string; value: number }>;
+  missingMarkets?: string[];
 }
 
 export interface MetricLog {
