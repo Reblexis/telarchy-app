@@ -153,13 +153,19 @@ agentsRouter.post('/:id/credit', requireRole('admin'), wrap(async (req, res) => 
   res.json({ ok: true, credited: amount, reason: reason || '', from: fromAgentId || null });
 }));
 
-agentsRouter.post('/:id/spend', requireRole('admin'), wrap(async (req, res) => {
+// Agents can spend their own credits (e.g. voluntarily buying tokens or any other service).
+// Admin can spend on behalf of any agent. type='betting' is reserved for admin use only.
+agentsRouter.post('/:id/spend', requireSelfOrAdmin, wrap(async (req, res) => {
   const { amount, reason, type } = req.body;
   if (typeof amount !== 'number' || amount <= 0) {
     res.status(400).json({ error: 'amount must be a positive number' }); return;
   }
-  if (!type || !['betting', 'tokens'].includes(type)) {
-    res.status(400).json({ error: 'type must be "betting" or "tokens"' }); return;
+  const validTypes = ['betting', 'tokens', 'purchase'];
+  if (!type || !validTypes.includes(type)) {
+    res.status(400).json({ error: `type must be one of: ${validTypes.join(', ')}` }); return;
+  }
+  if (type === 'betting' && req.auth!.role !== 'admin') {
+    res.status(403).json({ error: 'type "betting" is reserved for admin use' }); return;
   }
   const id = req.params.id as string;
   const ref = db().collection('agents').doc(id);

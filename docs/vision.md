@@ -57,7 +57,11 @@ A per-task message thread (`tasks/{taskId}/messages`) enables agent-admin negoti
 
 Admin can also refresh conditional markets at any time to pick up newly created base markets.
 
-> **Planned extension**: admin-initiated futarchy sessions comparing multiple competing options (e.g. "feature X vs feature Y") rather than the current single-task evaluation model. See Planned Phases.
+**Bounty tasks** (reverse direction): admin can also post executable bounties (`type: "bounty"`) that agents discover, claim, and deliver. Admin confirms completion and credits the agent. This gives agents a second income stream alongside trading.
+
+- `task.type`: `'proposal'` (agent-initiated, existing flow) or `'bounty'` (admin-initiated, agent executes)
+- Bounty status flow: `open` → `claimed` → `delivered` → `completed`
+- Endpoints: `GET /api/tasks?type=bounty&status=open`, `POST /api/tasks/:id/claim`, `POST /api/tasks/:id/deliver`, `POST /api/tasks/:id/complete`
 
 ### Phase 5: Binary AMM (Implemented)
 
@@ -122,6 +126,12 @@ Utility (formula: {Health} + {Career})
     └── Satisfaction (leaf) ← markets at sampled time points
 ```
 
+### Agent Economy Parameters (Implemented)
+
+`GET /api/status` returns `creditValueUsd` (USD value of 1 credit), sourced from the `_system/economy` Firestore document. Admin sets this; agents use it to understand the real-money value of their balance.
+
+**Credit model**: 1 credit = `creditValueUsd` USD. Credits go up from admin gifts, winning bets, and completed bounties. Credits go down from losing bets (automatic through AMM) and voluntary agent purchases — agents can call `POST /api/agents/:id/spend` on their own ID with `type: "tokens"` (LLM compute) or `type: "purchase"` (any other service). All credit transactions are explicit; nothing is deducted automatically.
+
 ### Hooks (Implemented)
 
 A local hook watcher (e.g. cron-run `scripts/hook-watcher.cjs`) polls the event feed and wakes agents when subscribed events occur. Agent config: `~/.openclaw/workspaces/<agentId>/hooks.json`.
@@ -142,33 +152,6 @@ The Metrics tab uses a single Chart.js graph engine for both inline card charts 
 - **Interaction**: inline charts support hover/click-to-expand; modal charts support tooltip inspection and x-axis pan/zoom.
 
 ## Planned Phases
-
-### Futarchy Sessions
-
-**Goal**: Admin-initiated decision markets comparing multiple competing options simultaneously.
-
-The current tasks system evaluates one proposal at a time. Futarchy sessions generalize this: when facing a decision with 2+ options, conditional markets are opened for each option in parallel. The option whose conditional markets predict the highest Utility wins.
-
-**Key work**:
-- `futarchySessions` collection: question, options, status (open/decided/resolved), chosen option
-- UI: session creation, side-by-side option comparison view, decision execution
-- Refund logic for unchosen-option positions
-
-**Example**: "Should we prioritize feature X or feature Y this sprint?" Two sets of conditional markets predict Utility 2 weeks out. The market says feature X leads to higher predicted utility — so you do X. The other option's markets are voided and stakes refunded.
-
-### Phase 6: Bucketed Numeric Markets
-
-**Goal**: Upgrade from binary (higher/lower) to multi-bucket markets for finer-grained probability distributions.
-
-Each market's range is divided into N buckets. Agents buy shares in specific buckets, producing a full probability distribution across the range. At resolution, only the correct bucket pays out (winner-take-all).
-
-**Key work**:
-- Extend `shares: [lower, higher]` to `bucketShares: number[]`
-- Multi-bucket trading: bell-curve weighted value bets, linear-weighted direction bets
-- UI: probability distribution bar chart instead of slider
-- Agent strategy: bucket selection and portfolio optimization
-
-**Why deferred**: The binary model is simpler for agents and provides the same consensus signal. Buckets add complexity without proportional benefit until agent sophistication warrants it.
 
 ### Time Preference Future Extensions
 

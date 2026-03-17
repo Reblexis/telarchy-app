@@ -155,6 +155,6 @@ Approved agents (role: `agent`) can read metrics and their historical logs. Writ
 | Phase 3 | Superseded | `consensus()` formula calls (replaced by Phase 7 time preference) |
 | Phase 4 | Implemented | Tasks and conditional decision markets |
 | Phase 5 | Implemented | Binary AMM with LMSR |
-| Phase 6 | Planned | Bucketed numeric markets |
 | Phase 7 | Implemented | Time preference system with exponential decay |
-| Futarchy Sessions | Planned | Admin-initiated multi-option decision markets |
+| Hooks | Implemented | Event feed, agent wakeup subscriptions via hooks.json |
+| Metrics Graphing | Implemented | Chart.js time-series graphs with inline cards and pan/zoom modal |
