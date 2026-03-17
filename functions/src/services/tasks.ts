@@ -246,7 +246,7 @@ async function buildTaskMarketSummariesFromDocs(
         metricId: m.metricId,
         metricName: m.metricName,
         targetDate: m.targetDate,
-        consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax),
+        consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
         baselineConsensus: baselineConsensusMap.get(key) ?? null,
         rangeMin: m.rangeMin,
         rangeMax: m.rangeMax,

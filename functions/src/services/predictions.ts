@@ -19,8 +19,8 @@ async function resolveMarketDoc(
   }
   const rawValue = metric.total;
 
-  if (rawValue < 0) {
-    console.error(`Market ${marketDoc.id} (${m.metricName}): metric total is negative (${rawValue}), skipping resolution`);
+  if (rawValue === null || rawValue < 0) {
+    console.error(`Market ${marketDoc.id} (${m.metricName}): metric total is ${rawValue}, skipping resolution`);
     return { positions: 0, totalPayout: 0, skipped: true };
   }
 

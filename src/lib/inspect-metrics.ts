@@ -79,7 +79,7 @@ export function buildInspectMetrics(metricsData: Metric[], marketsData: Market[]
 
   const cloned = metricsData.map(metric => ({
     ...metric,
-    baselineTotal: metric.total,
+    baselineTotal: metric.total ?? undefined,
     missingMarkets: metric.missingMarkets?.filter(name => !leavesWithData.has(name)),
   }));
   const enriched = enrichMetrics(cloned, consensusMap);
