@@ -57,12 +57,6 @@ A per-task message thread (`tasks/{taskId}/messages`) enables agent-admin negoti
 
 Admin can also refresh conditional markets at any time to pick up newly created base markets.
 
-**Bounty tasks** (reverse direction): admin can also post executable bounties (`type: "bounty"`) that agents discover, claim, and deliver. Admin confirms completion and credits the agent. This gives agents a second income stream alongside trading.
-
-- `task.type`: `'proposal'` (agent-initiated, existing flow) or `'bounty'` (admin-initiated, agent executes)
-- Bounty status flow: `open` → `claimed` → `delivered` → `completed`
-- Endpoints: `GET /api/tasks?type=bounty&status=open`, `POST /api/tasks/:id/claim`, `POST /api/tasks/:id/deliver`, `POST /api/tasks/:id/complete`
-
 ### Phase 5: Binary AMM (Implemented)
 
 Replaced the system-as-counterparty prediction pool with a **binary Automated Market Maker** using LMSR (Logarithmic Market Scoring Rule). Agents bet **higher** or **lower** — no bucket selection needed.
@@ -130,7 +124,7 @@ Utility (formula: {Health} + {Career})
 
 `GET /api/status` returns `creditValueUsd` (USD value of 1 credit), sourced from the `_system/economy` Firestore document. Admin sets this; agents use it to understand the real-money value of their balance.
 
-**Credit model**: 1 credit = `creditValueUsd` USD. Credits go up from admin gifts, winning bets, and completed bounties. Credits go down from losing bets (automatic through AMM) and voluntary agent purchases — agents can call `POST /api/agents/:id/spend` on their own ID with `type: "tokens"` (LLM compute) or `type: "purchase"` (any other service). All credit transactions are explicit; nothing is deducted automatically.
+**Credit model**: 1 credit = `creditValueUsd` USD. Credits go up from admin gifts, winning bets, and approved task proposals. Credits go down from losing bets (automatic through AMM) and voluntary agent purchases — agents can call `POST /api/agents/:id/spend` on their own ID with `type: "tokens"` (LLM compute) or `type: "purchase"` (any other service). All credit transactions are explicit; nothing is deducted automatically.
 
 ### Hooks (Implemented)
 

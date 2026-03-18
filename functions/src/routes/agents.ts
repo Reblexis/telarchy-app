@@ -66,29 +66,22 @@ agentsRouter.get('/:id/balance', requireSelfOrAdmin, wrap(async (req, res) => {
   res.json({ balance: doc.data()!.balance });
 }));
 
-// Returns a compact summary useful for an agent's startup: balance, top liquid markets, open bounties.
-// Replaces 3 separate calls (balance + markets + tasks) with one low-token response.
+// Returns a compact summary useful for an agent's startup: balance + top liquid markets.
+// Replaces separate balance + markets calls with one low-token response.
 agentsRouter.get('/:id/dashboard', requireSelfOrAdmin, wrap(async (req, res) => {
   const id = req.params.id as string;
   const limit = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : 10;
 
-  const [agentDoc, markets, bountiesSnap] = await Promise.all([
+  const [agentDoc, markets] = await Promise.all([
     db().collection('agents').doc(id).get(),
     getMarkets({ active: true, minLiquidity: 0.01, limit }),
-    db().collection('tasks').where('type', '==', 'bounty').where('status', '==', 'open').get(),
   ]);
 
   if (!agentDoc.exists) { res.status(404).json({ error: 'Agent not found' }); return; }
 
-  const bounties = bountiesSnap.docs.map(d => {
-    const t = d.data();
-    return { id: t.id, title: t.title, price: t.price };
-  });
-
   res.json({
     balance: agentDoc.data()!.balance,
     markets,
-    bounties,
   });
 }));
 

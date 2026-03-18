@@ -15,24 +15,20 @@ tasksRouter.use(authMiddleware);
 // type='bounty': admin posts an executable task that agents can claim
 
 tasksRouter.post('/', requireRole('agent', 'admin'), wrap(async (req, res) => {
-  const { title, description, price, type = 'proposal' } = req.body;
+  const { title, description, price } = req.body;
   if (!title || typeof title !== 'string') { res.status(400).json({ error: 'title is required' }); return; }
   if (typeof price !== 'number' || price <= 0) { res.status(400).json({ error: 'price must be a positive number' }); return; }
-  if (type !== 'proposal' && type !== 'bounty') { res.status(400).json({ error: 'type must be "proposal" or "bounty"' }); return; }
-  if (type === 'bounty' && req.auth!.role !== 'admin') { res.status(403).json({ error: 'Only admins can post bounties' }); return; }
 
   const proposedBy = req.auth!.agentId || 'admin';
-  const status = type === 'bounty' ? 'open' : 'pending';
 
   const ref = db().collection('tasks').doc();
   await ref.set({
     id: ref.id,
     proposedBy,
-    type,
     title,
     description: description || '',
     price,
-    status,
+    status: 'pending',
     conditionalMarketIds: [],
     createdAt: FieldValue.serverTimestamp(),
   });
@@ -41,25 +37,20 @@ tasksRouter.post('/', requireRole('agent', 'admin'), wrap(async (req, res) => {
 }));
 
 // --- Agent or admin: list tasks ---
-// Query params: ?type=proposal|bounty, ?status=open|claimed|delivered|completed|pending|approved|declined
+// Query params: ?status=pending|approved|declined
 
 tasksRouter.get('/', requireRole('agent', 'admin'), wrap(async (req, res) => {
   const isAdmin = req.auth!.role === 'admin';
   const agentId = req.auth!.agentId;
-  const { type, status } = req.query as Record<string, string>;
+  const { status } = req.query as Record<string, string>;
 
   let query: FirebaseFirestore.Query = db().collection('tasks').orderBy('createdAt', 'desc');
 
-  if (type) query = query.where('type', '==', type);
   if (status) query = query.where('status', '==', status);
 
-  // Non-admin agents: proposals they submitted + any open bounties
+  // Non-admin agents only see their own tasks
   if (!isAdmin && agentId) {
-    if (type === 'bounty') {
-      // Agents can browse bounties freely
-    } else {
-      query = query.where('proposedBy', '==', agentId);
-    }
+    query = query.where('proposedBy', '==', agentId);
   }
 
   const snap = await query.get();
@@ -117,71 +108,6 @@ tasksRouter.post('/:taskId/decline', requireRole('admin'), wrap(async (req, res)
 
   await voidTaskMarkets(task.id);
   await taskRef.update({ status: 'declined' });
-
-  res.json({ ok: true });
-}));
-
-// --- Agent: claim an open bounty ---
-
-tasksRouter.post('/:taskId/claim', requireRole('agent', 'admin'), wrap(async (req, res) => {
-  const taskRef = db().collection('tasks').doc(req.params.taskId as string);
-  const taskDoc = await taskRef.get();
-  if (!taskDoc.exists) { res.status(404).json({ error: 'Task not found' }); return; }
-
-  const task = taskDoc.data()!;
-  if (task.type !== 'bounty') { res.status(400).json({ error: 'Only bounty tasks can be claimed' }); return; }
-  if (task.status !== 'open') { res.status(400).json({ error: 'Task is not open for claiming' }); return; }
-
-  const agentId = req.auth!.agentId;
-  if (!agentId) { res.status(403).json({ error: 'Admin cannot claim bounties' }); return; }
-
-  await taskRef.update({ status: 'claimed', claimedBy: agentId, claimedAt: FieldValue.serverTimestamp() });
-  res.json({ ok: true });
-}));
-
-// --- Agent: deliver output for a claimed bounty ---
-
-tasksRouter.post('/:taskId/deliver', requireRole('agent', 'admin'), wrap(async (req, res) => {
-  const { output } = req.body;
-  if (!output || typeof output !== 'string') { res.status(400).json({ error: 'output is required' }); return; }
-
-  const taskRef = db().collection('tasks').doc(req.params.taskId as string);
-  const taskDoc = await taskRef.get();
-  if (!taskDoc.exists) { res.status(404).json({ error: 'Task not found' }); return; }
-
-  const task = taskDoc.data()!;
-  if (task.type !== 'bounty') { res.status(400).json({ error: 'Only bounty tasks can be delivered' }); return; }
-  if (task.status !== 'claimed') { res.status(400).json({ error: 'Task must be claimed before delivery' }); return; }
-
-  const agentId = req.auth!.agentId;
-  if (task.claimedBy !== agentId) { res.status(403).json({ error: 'Only the claiming agent can deliver' }); return; }
-
-  await taskRef.update({ status: 'delivered', output, deliveredAt: FieldValue.serverTimestamp() });
-  res.json({ ok: true });
-}));
-
-// --- Admin: complete a delivered bounty and pay the agent ---
-
-tasksRouter.post('/:taskId/complete', requireRole('admin'), wrap(async (req, res) => {
-  const taskRef = db().collection('tasks').doc(req.params.taskId as string);
-  const taskDoc = await taskRef.get();
-  if (!taskDoc.exists) { res.status(404).json({ error: 'Task not found' }); return; }
-
-  const task = taskDoc.data()!;
-  if (task.type !== 'bounty') { res.status(400).json({ error: 'Only bounty tasks can be completed' }); return; }
-  if (task.status !== 'delivered') { res.status(400).json({ error: 'Task must be delivered before completion' }); return; }
-
-  const agentRef = db().collection('agents').doc(task.claimedBy);
-  const agentDoc = await agentRef.get();
-  if (!agentDoc.exists) { res.status(404).json({ error: 'Claiming agent not found' }); return; }
-
-  await db().runTransaction(async t => {
-    t.update(taskRef, { status: 'completed', completedAt: FieldValue.serverTimestamp() });
-    t.update(agentRef, {
-      balance: FieldValue.increment(task.price),
-      earnedTasks: FieldValue.increment(task.price),
-    });
-  });
 
   res.json({ ok: true });
 }));
