@@ -78,10 +78,23 @@ function wakeAgent(agentId, events) {
   const summary = events.map(e => `- ${e.type}: ${JSON.stringify(e.data)}`).join('\n');
   const message = `Hook events triggered. Review and act on these:\n${summary}\n\nRead HEARTBEAT.md and follow your strategy.`;
   console.log(`  Waking ${agentId} with ${events.length} event(s)`);
+  // Fresh session each invocation so context never accumulates across runs.
+  const sessionId = require('crypto').randomUUID();
+  // Archive any previous session files so they don't get reloaded next time.
+  const sessionsDir = path.join(OPENCLAW_DIR, 'agents', agentId, 'sessions');
+  const archiveDir = path.join(sessionsDir, 'archive');
+  if (fs.existsSync(sessionsDir)) {
+    fs.mkdirSync(archiveDir, { recursive: true });
+    for (const f of fs.readdirSync(sessionsDir)) {
+      if (f.endsWith('.jsonl')) {
+        fs.renameSync(path.join(sessionsDir, f), path.join(archiveDir, f));
+      }
+    }
+  }
   try {
     execFileSync(OPENCLAW_BIN, [
       'agent', '--agent', agentId, '--local',
-      '--timeout', '120', '--message', message,
+      '--timeout', '120', '--session-id', sessionId, '--message', message,
     ], {
       stdio: 'pipe',
       timeout: 150_000,
