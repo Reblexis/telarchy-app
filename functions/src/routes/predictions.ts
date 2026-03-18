@@ -164,29 +164,32 @@ predictionsRouter.get('/markets', requireRole('agent', 'admin'), wrap(async (req
       }
     }
   }
-  res.json(await getMarkets(false, taskId));
+  const active = req.query.active === 'true' ? true : req.query.active === 'false' ? false : undefined;
+  const minLiquidity = typeof req.query.minLiquidity === 'string' ? parseFloat(req.query.minLiquidity) : undefined;
+  const limit = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : undefined;
+  res.json(await getMarkets({ taskId, active, minLiquidity, limit }));
 }));
 
 predictionsRouter.get('/markets/:id/trades', requireRole('agent', 'admin'), wrap(async (req, res) => {
-  const snap = await db().collection('trades')
+  const last = typeof req.query.last === 'string' ? parseInt(req.query.last, 10) : undefined;
+  let query: FirebaseFirestore.Query = db().collection('trades')
     .where('marketId', '==', req.params.id as string)
-    .orderBy('createdAt', 'asc')
-    .get();
-  res.json(snap.docs.map(doc => {
+    .orderBy('createdAt', last !== undefined ? 'desc' : 'asc');
+  if (last !== undefined) query = query.limit(last);
+  const snap = await query.get();
+  const docs = last !== undefined ? snap.docs.reverse() : snap.docs;
+  res.json(docs.map(doc => {
     const t = doc.data();
     const ts = t.createdAt;
     const secs = ts && typeof ts === 'object' && ('seconds' in ts || '_seconds' in ts)
       ? (ts.seconds ?? ts._seconds)
       : null;
     return {
-      id: t.id,
-      agentId: t.agentId,
       direction: t.direction,
       shares: t.shares,
       cost: t.cost,
       consensus: t.consensus ?? null,
-      probability: t.probability ?? null,
-      createdAt: secs != null ? { _seconds: secs } : null,
+      createdAt: secs,
     };
   }));
 }));
@@ -216,17 +219,20 @@ predictionsRouter.get('/markets/:id/context', requireRole('agent', 'admin'), wra
   if (!doc.exists) { res.status(404).json({ error: 'Market not found' }); return; }
   const m = doc.data()!;
 
+  const historyLimit = typeof req.query.historyLimit === 'string' ? Math.min(parseInt(req.query.historyLimit, 10), 90) : 20;
+  const updatesLimit = typeof req.query.updatesLimit === 'string' ? Math.min(parseInt(req.query.updatesLimit, 10), 30) : 10;
+
   const metrics = await getAllMetrics();
   const metric = metrics.find(mt => mt.id === m.metricId);
   const deps = metric ? extractMetricReferences(metric.formula || '0') : [];
   const depValues = deps.map(name => {
     const d = metrics.find(mt => mt.name === name);
-    return { name, value: d?.value ?? null, total: d?.total ?? null };
+    return { name, value: d?.value ?? null };
   });
 
   const [logs, updates, relatedSnap] = await Promise.all([
     metric ? getMetricLogs(metric.id) : Promise.resolve([]),
-    getUpdates(50),
+    getUpdates(200),
     db().collection('markets')
       .where('metricId', '==', m.metricId)
       .where('resolved', '==', false)
@@ -248,21 +254,23 @@ predictionsRouter.get('/markets/:id/context', requireRole('agent', 'admin'), wra
       };
     });
 
+  const shares: [number, number] = m.shares || [0, 0];
   res.json({
     market: {
-      id: doc.id, metricId: m.metricId, metricName: m.metricName,
+      id: doc.id, metricName: m.metricName,
       targetDate: m.targetDate, rangeMin: m.rangeMin, rangeMax: m.rangeMax,
-      liquidity: m.liquidity,
-      probability: Math.round(pHigher(m.shares, m.liquidity) * 10000) / 10000,
-      consensus: consensus(m.shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
+      probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
+      consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
     },
     metric: metric ? {
       name: metric.name, formula: metric.formula,
       currentValue: metric.value, currentTotal: metric.total,
       dependencies: depValues,
     } : null,
-    history: logs.slice(-90),
-    recentUpdates: metricUpdates.slice(0, 30),
+    history: logs.slice(-historyLimit).map(l => ({ value: l.value, timestamp: l.timestamp })),
+    recentUpdates: metricUpdates.slice(0, updatesLimit).map(u => ({
+      oldValue: u.oldValue, newValue: u.newValue, description: u.description, timestamp: u.timestamp,
+    })),
     relatedMarkets,
   });
 }));

@@ -125,34 +125,45 @@ export async function resolvePredictions(targetDate?: string): Promise<{ resolve
 
 export { voidMarket } from './markets';
 
-export async function getMarkets(includeResolved = false, taskId?: string) {
+export interface GetMarketsOptions {
+  includeResolved?: boolean;
+  taskId?: string;
+  active?: boolean;
+  minLiquidity?: number;
+  limit?: number;
+}
+
+export async function getMarkets(options: GetMarketsOptions | boolean = false, taskId?: string) {
+  // Support legacy boolean signature
+  const opts: GetMarketsOptions = typeof options === 'boolean'
+    ? { includeResolved: options, taskId }
+    : options;
+
   let query: FirebaseFirestore.Query = db().collection('markets');
-  if (!includeResolved) query = query.where('resolved', '==', false);
-  if (taskId) query = query.where('taskId', '==', taskId);
+  if (!opts.includeResolved) query = query.where('resolved', '==', false);
+  if (opts.taskId) query = query.where('taskId', '==', opts.taskId);
   const marketSnap = await query.orderBy('targetDate', 'asc').get();
 
   if (marketSnap.empty) return [];
 
-  const docs = taskId
+  let docs = opts.taskId
     ? marketSnap.docs
     : marketSnap.docs.filter(d => !d.data().taskId);
 
   if (docs.length === 0) return [];
 
-  const tradeSnap = await db().collection('trades').get();
-  const tradeCountByMarket = new Map<string, number>();
-  for (const doc of tradeSnap.docs) {
-    const t = doc.data();
-    tradeCountByMarket.set(t.marketId, (tradeCountByMarket.get(t.marketId) || 0) + 1);
+  if (opts.active !== undefined) {
+    docs = docs.filter(d => (d.data().active !== false) === opts.active);
   }
-
-  const posSnap = await db().collection('positions').get();
-  const totalStakeByMarket = new Map<string, number>();
-  for (const doc of posSnap.docs) {
-    const p = doc.data();
-    if (p.totalCost > 0) {
-      totalStakeByMarket.set(p.marketId, (totalStakeByMarket.get(p.marketId) || 0) + p.totalCost);
-    }
+  if (opts.minLiquidity !== undefined && opts.minLiquidity > 0) {
+    docs = docs.filter(d => (d.data().liquidity ?? 0) >= opts.minLiquidity!);
+  }
+  // Sort by liquidity descending before limiting (most liquid first)
+  if (opts.minLiquidity !== undefined || opts.limit !== undefined) {
+    docs = [...docs].sort((a, b) => (b.data().liquidity ?? 0) - (a.data().liquidity ?? 0));
+  }
+  if (opts.limit !== undefined && opts.limit > 0) {
+    docs = docs.slice(0, opts.limit);
   }
 
   return docs.map(doc => {
@@ -160,18 +171,11 @@ export async function getMarkets(includeResolved = false, taskId?: string) {
     const shares: [number, number] = m.shares || [0, 0];
     return {
       id: doc.id,
-      metricId: m.metricId,
       metricName: m.metricName,
       targetDate: m.targetDate,
-      resolved: m.resolved,
-      resolvedAt: m.resolvedAt,
-      actualValue: m.actualValue,
       active: m.active !== false,
-      createdAt: m.createdAt,
       consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
       probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
-      totalStake: totalStakeByMarket.get(doc.id) || 0,
-      tradeCount: tradeCountByMarket.get(doc.id) || 0,
       rangeMin: m.rangeMin,
       rangeMax: m.rangeMax,
       liquidity: m.liquidity,

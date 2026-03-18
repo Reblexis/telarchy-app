@@ -63,7 +63,22 @@ tasksRouter.get('/', requireRole('agent', 'admin'), wrap(async (req, res) => {
   }
 
   const snap = await query.get();
-  res.json(snap.docs.map(d => d.data()));
+  res.json(snap.docs.map(d => {
+    const t = d.data();
+    return {
+      id: t.id,
+      type: t.type,
+      title: t.title,
+      description: typeof t.description === 'string' && t.description.length > 150
+        ? t.description.slice(0, 150) + '…'
+        : (t.description ?? ''),
+      price: t.price,
+      status: t.status,
+      proposedBy: t.proposedBy,
+      claimedBy: t.claimedBy ?? null,
+      createdAt: t.createdAt,
+    };
+  }));
 }));
 
 // --- Agent or admin: get task detail with market summaries ---
