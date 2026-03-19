@@ -57,6 +57,7 @@ app.get('/api/help', (_req, res) => {
       { method: 'GET', path: '/api/help', auth: false, description: 'This endpoint. Returns API documentation.' },
       { method: 'POST', path: '/api/waitlist', auth: false, description: 'Join the waitlist. Body: { email: string }. Returns 201 on success, 409 if already registered.' },
       { method: 'GET', path: '/api/status', auth: 'agent/admin', description: 'Compact summary: XP, rank, all metric names/values/totals, plus creditValueUsd (USD value of 1 credit — null if not configured by admin).' },
+      { method: 'POST', path: '/api/reset-economy', auth: 'admin', description: 'Reset all agent balances and stats to zero, wipe all market AMM state (liquidity + shares), and delete all positions, trades, deposits, and withdrawals. Markets themselves are kept. Irreversible.' },
       { method: 'GET', path: '/api/metrics', auth: 'agent/admin', description: 'List all metrics with computed totals and depths, sorted by depth then order.' },
       { method: 'GET', path: '/api/metrics/:id', auth: 'agent/admin', description: 'Get a single metric by ID.' },
       { method: 'POST', path: '/api/metrics', auth: 'admin', description: 'Create a metric.', body: { name: 'string (required)', description: 'string', value: 'number (default 0)', formula: 'string (default "0")', marketRangeMax: 'number (optional, default 1000 — upper bound for prediction market ranges on this metric)' } },

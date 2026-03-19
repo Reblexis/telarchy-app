@@ -48,6 +48,8 @@ export const api = {
     request(`/api/agents/${id}/spend`, user, { method: 'POST', body: JSON.stringify({ amount, type, reason }) }),
   deleteAgent: (user: User, id: string) =>
     request(`/api/agents/${id}`, user, { method: 'DELETE' }),
+  getTreasury: (user: User) => request('/api/agents/treasury', user),
+  resetEconomy: (user: User) => request('/api/reset-economy', user, { method: 'POST' }),
 
   // Markets & Trading
   getMarkets: (user: User, taskId?: string) => {

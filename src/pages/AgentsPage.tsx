@@ -14,16 +14,31 @@ export function AgentsPage() {
   const [agents, setAgents] = useState<Agent[]>(() => cacheGet<Agent[]>('agents') || []);
   const [loading, setLoading] = useState(!cacheGet('agents'));
   const [error, setError] = useState('');
+  const [treasury, setTreasury] = useState<{ address: string; usdcBalance: number } | null>(null);
+  const [resetting, setResetting] = useState(false);
 
   const loadAgents = useCallback(async () => {
     if (!user) return;
     setError('');
-    const data = await api.getAgents(user).catch((e: Error) => { setError(e.message); return null; });
+    const [data, treas] = await Promise.all([
+      api.getAgents(user).catch((e: Error) => { setError(e.message); return null; }),
+      api.getTreasury(user).catch(() => null),
+    ]);
     if (data) { setAgents(data); cacheSet('agents', data); }
+    if (treas) setTreasury(treas);
     setLoading(false);
   }, [user]);
 
   useEffect(() => { loadAgents(); }, [loadAgents]);
+
+  const handleResetEconomy = async () => {
+    if (!user) return;
+    if (!confirm('Reset all agent balances, market liquidity, positions, and trades? This cannot be undone.')) return;
+    setResetting(true);
+    await api.resetEconomy(user).catch((e: Error) => setError(e.message));
+    setResetting(false);
+    loadAgents();
+  };
 
   const handleApprove = async (id: string) => {
     if (!user) return;
@@ -62,6 +77,25 @@ export function AgentsPage() {
       } />
       <div className="container">
         {error && <div className="message error show">{error}</div>}
+        {treasury && (
+          <div className="section" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>Treasury (Base USDC)</div>
+              <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '1.1rem' }}>
+                ${treasury.usdcBalance.toFixed(2)}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>{treasury.address}</div>
+            </div>
+            <button
+              className="btn-small btn-delete"
+              onClick={handleResetEconomy}
+              disabled={resetting}
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              {resetting ? 'Resetting…' : 'Reset Economy'}
+            </button>
+          </div>
+        )}
         {loading ? (
           <div className="loading">Loading agents...</div>
         ) : agents.length === 0 ? (
