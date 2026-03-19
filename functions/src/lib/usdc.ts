@@ -12,7 +12,7 @@ const ERC20_ABI = [
 ];
 
 function getTreasuryWallet(): Wallet {
-  const pk = process.env.TREASURY_PRIVATE_KEY;
+  const pk = process.env.TREASURY_PRIVATE_KEY?.trim();
   if (!pk) throw new AppError('TREASURY_PRIVATE_KEY is not configured', 500);
   const provider = new JsonRpcProvider(BASE_RPC);
   return new Wallet(pk, provider);
@@ -41,7 +41,7 @@ export async function getTreasuryUsdcBalance(): Promise<number> {
 }
 
 export function getTreasuryAddress(): string {
-  const pk = process.env.TREASURY_PRIVATE_KEY;
+  const pk = process.env.TREASURY_PRIVATE_KEY?.trim();
   if (!pk) throw new AppError('TREASURY_PRIVATE_KEY is not configured', 500);
   return new Wallet(pk).address;
 }
