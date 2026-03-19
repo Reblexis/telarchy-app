@@ -49,7 +49,6 @@ export const api = {
   deleteAgent: (user: User, id: string) =>
     request(`/api/agents/${id}`, user, { method: 'DELETE' }),
   getTreasury: (user: User) => request('/api/agents/treasury', user),
-  resetEconomy: (user: User) => request('/api/reset-economy', user, { method: 'POST' }),
 
   // Markets & Trading
   getMarkets: (user: User, taskId?: string) => {
