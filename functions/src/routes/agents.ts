@@ -51,6 +51,16 @@ agentsRouter.post('/register', wrap(async (req, res) => {
 
 agentsRouter.use(authMiddleware);
 
+// Returns treasury USDC balance and address on Base. Admin only.
+// Must be before /:id to avoid "treasury" being matched as an agent id.
+agentsRouter.get('/treasury', requireRole('admin'), wrap(async (_req, res) => {
+  const [balance, address] = await Promise.all([
+    getTreasuryUsdcBalance(),
+    Promise.resolve(getTreasuryAddress()),
+  ]);
+  res.json({ address, usdcBalance: balance });
+}));
+
 // --- Agent-accessible (self or admin) ---
 
 agentsRouter.get('/:id', requireSelfOrAdmin, wrap(async (req, res) => {
@@ -85,16 +95,6 @@ agentsRouter.get('/:id/dashboard', requireSelfOrAdmin, wrap(async (req, res) => 
     balance: agentDoc.data()!.balance,
     markets,
   });
-}));
-
-// Returns treasury USDC balance and address on Base. Admin only.
-// Must be declared before /:id routes to avoid "treasury" being treated as an id.
-agentsRouter.get('/treasury', requireRole('admin'), wrap(async (_req, res) => {
-  const [balance, address] = await Promise.all([
-    getTreasuryUsdcBalance(),
-    Promise.resolve(getTreasuryAddress()),
-  ]);
-  res.json({ address, usdcBalance: balance });
 }));
 
 // --- Admin-only ---
