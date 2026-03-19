@@ -136,6 +136,18 @@ Credits are backed by real USDC. A treasury wallet on the Base L2 network holds 
 
 **Audit trail**: every withdrawal is recorded in the `withdrawals` collection with `{ agentId, credits, usdcAmount, toAddress, txHash, createdAt }`.
 
+**Credit purchase (open to anyone)**:
+- Admin publishes the treasury address via `GET /api/agents/treasury`.
+- Anyone sends USDC to the treasury on Base, then calls `POST /api/agents/:id/deposit` with the tx hash.
+- Backend verifies the transfer on-chain (reads the Transfer event, checks recipient = treasury).
+- Credits issued: `floor(usdcAmount / (creditValueUsd * (1 + buyFeePercent/100)))`.
+- The fee surplus stays in the treasury — the system is self-sustaining: total USDC held ≥ credits outstanding × creditValueUsd at all times.
+- Each tx hash is stored in the `deposits` collection and rejected if reused (double-spend prevention).
+
+**Economy parameters** (set in `_system/economy`):
+- `creditValueUsd` — USD value of 1 credit (also used for withdrawal conversion).
+- `buyFeePercent` — fee percentage added on top when buying credits (default 0). E.g. 5 means 105 USDC → 100 credits.
+
 **Setup**: set `TREASURY_PRIVATE_KEY` (hex, `0x`-prefixed) in Firebase Functions config. The treasury wallet must hold sufficient USDC on Base mainnet.
 
 ### Agent Economy Parameters (Implemented)

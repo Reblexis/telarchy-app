@@ -6,7 +6,7 @@ import { wrap } from '../lib/wrap';
 import { hashKey, authMiddleware } from '../middleware/auth';
 import { requireRole, requireSelfOrAdmin } from '../middleware/roles';
 import { getMarkets } from '../services/predictions';
-import { sendUsdc, getTreasuryUsdcBalance, getTreasuryAddress, validateWalletAddress } from '../lib/usdc';
+import { sendUsdc, getTreasuryUsdcBalance, getTreasuryAddress, validateWalletAddress, verifyUsdcDeposit } from '../lib/usdc';
 import { AppError } from '../lib/errors';
 
 export const agentsRouter = Router();
@@ -215,6 +215,62 @@ agentsRouter.post('/:id/spend', requireSelfOrAdmin, wrap(async (req, res) => {
     [field]: FieldValue.increment(amount),
   });
   res.json({ ok: true, spent: amount, type, reason: reason || '' });
+}));
+
+// --- USDC deposit → credits ---
+
+// Anyone can purchase credits by sending USDC to the treasury on Base, then calling this endpoint.
+// Credits issued = floor(usdcAmount / (creditValueUsd * (1 + buyFeePercent/100))).
+// The fee stays in the treasury as surplus, ensuring withdrawals are always fully backed.
+// Body: { txHash: string } — the on-chain tx hash of the USDC transfer to the treasury.
+agentsRouter.post('/:id/deposit', requireSelfOrAdmin, wrap(async (req, res) => {
+  const id = req.params.id as string;
+  const { txHash } = req.body;
+  if (!txHash || typeof txHash !== 'string') {
+    res.status(400).json({ error: 'txHash is required' }); return;
+  }
+
+  const agentRef = db().collection('agents').doc(id);
+  const agentDoc = await agentRef.get();
+  if (!agentDoc.exists) { res.status(404).json({ error: 'Agent not found' }); return; }
+
+  // Deduplicate: each tx hash can only be used once across the whole system.
+  const depositRef = db().collection('deposits').doc(txHash);
+  const existing = await depositRef.get();
+  if (existing.exists) {
+    res.status(409).json({ error: 'This transaction has already been used to purchase credits' }); return;
+  }
+
+  const economyDoc = await db().collection('_system').doc('economy').get();
+  const economy = economyDoc.exists ? economyDoc.data()! : {};
+  const creditValueUsd: number = economy.creditValueUsd ?? 1;
+  const buyFeePercent: number = economy.buyFeePercent ?? 0;
+  const buyRate = creditValueUsd * (1 + buyFeePercent / 100); // USDC cost per credit
+
+  const { usdcAmount, from } = await verifyUsdcDeposit(txHash);
+  const credits = Math.floor(usdcAmount / buyRate);
+
+  if (credits <= 0) {
+    res.status(400).json({ error: `Deposit too small. Minimum: ${buyRate.toFixed(6)} USDC for 1 credit` }); return;
+  }
+
+  const batch = db().batch();
+  batch.set(depositRef, {
+    txHash,
+    agentId: id,
+    from,
+    usdcAmount,
+    credits,
+    buyRate,
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  batch.update(agentRef, {
+    balance: FieldValue.increment(credits),
+    gifted: FieldValue.increment(credits),
+  });
+  await batch.commit();
+
+  res.status(201).json({ ok: true, usdcAmount, credits, buyRate, from });
 }));
 
 // --- Wallet & USDC withdrawal ---
