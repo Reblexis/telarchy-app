@@ -6,7 +6,7 @@ import { wrap } from '../lib/wrap';
 import { hashKey, authMiddleware } from '../middleware/auth';
 import { requireRole, requireSelfOrAdmin } from '../middleware/roles';
 import { getMarkets } from '../services/predictions';
-import { sendUsdc, getTreasuryUsdcBalance, getTreasuryAddress, validateWalletAddress, verifyUsdcDeposit } from '../lib/usdc';
+import { sendUsdc, getTreasuryBalances, getTreasuryAddress, validateWalletAddress, verifyUsdcDeposit } from '../lib/usdc';
 import { AppError } from '../lib/errors';
 
 export const agentsRouter = Router();
@@ -54,11 +54,7 @@ agentsRouter.use(authMiddleware);
 // Returns treasury USDC balance and address on Base. Admin only.
 // Must be before /:id to avoid "treasury" being matched as an agent id.
 agentsRouter.get('/treasury', requireRole('admin'), wrap(async (_req, res) => {
-  const [balance, address] = await Promise.all([
-    getTreasuryUsdcBalance(),
-    Promise.resolve(getTreasuryAddress()),
-  ]);
-  res.json({ address, usdcBalance: balance });
+  res.json(await getTreasuryBalances());
 }));
 
 // --- Agent-accessible (self or admin) ---

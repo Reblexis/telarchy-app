@@ -14,7 +14,7 @@ export function AgentsPage() {
   const [agents, setAgents] = useState<Agent[]>(() => cacheGet<Agent[]>('agents') || []);
   const [loading, setLoading] = useState(!cacheGet('agents'));
   const [error, setError] = useState('');
-  const [treasury, setTreasury] = useState<{ address: string; usdcBalance: number } | null>(null);
+  const [treasury, setTreasury] = useState<{ address: string; usdcBalance: number; ethBalance: number } | null>(null);
   const loadAgents = useCallback(async () => {
     if (!user) return;
     setError('');
@@ -67,10 +67,19 @@ export function AgentsPage() {
       <div className="container">
         {error && <div className="message error show">{error}</div>}
         {treasury && (
-          <div className="section">
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>Treasury (Base USDC)</div>
-            <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '1.1rem' }}>${treasury.usdcBalance.toFixed(2)}</div>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>{treasury.address}</div>
+          <div className="section" style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>Treasury USDC (Base)</div>
+              <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '1.1rem' }}>${treasury.usdcBalance.toFixed(2)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>Treasury ETH (Base)</div>
+              <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '1.1rem' }}>{treasury.ethBalance.toFixed(6)} ETH</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>Address</div>
+              <div style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{treasury.address}</div>
+            </div>
           </div>
         )}
         {loading ? (

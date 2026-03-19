@@ -1,4 +1,4 @@
-import { JsonRpcProvider, Wallet, Contract, parseUnits, formatUnits, isAddress, getAddress, id as ethersId } from 'ethers';
+import { JsonRpcProvider, Wallet, Contract, parseUnits, formatUnits, isAddress, getAddress, id as ethersId, formatEther } from 'ethers';
 import { AppError } from './errors';
 
 // Native USDC on Base (Circle-issued, 6 decimals)
@@ -32,12 +32,26 @@ export async function sendUsdc(to: string, usdcAmount: number): Promise<string> 
   return tx.hash as string;
 }
 
-/** Returns treasury USDC balance on Base in decimal form (e.g. 100.50). */
-export async function getTreasuryUsdcBalance(): Promise<number> {
+export interface TreasuryBalances {
+  usdcBalance: number;
+  ethBalance: number;
+  address: string;
+}
+
+/** Returns treasury USDC and ETH balances on Base. */
+export async function getTreasuryBalances(): Promise<TreasuryBalances> {
   const wallet = getTreasuryWallet();
-  const usdc = new Contract(USDC_ADDRESS, ERC20_ABI, wallet.provider!);
-  const raw = await usdc.balanceOf(wallet.address);
-  return Number(formatUnits(raw, USDC_DECIMALS));
+  const provider = wallet.provider!;
+  const usdc = new Contract(USDC_ADDRESS, ERC20_ABI, provider);
+  const [usdcRaw, ethRaw] = await Promise.all([
+    usdc.balanceOf(wallet.address),
+    provider.getBalance(wallet.address),
+  ]);
+  return {
+    address: wallet.address,
+    usdcBalance: Number(formatUnits(usdcRaw, USDC_DECIMALS)),
+    ethBalance: Number(formatEther(ethRaw)),
+  };
 }
 
 export function getTreasuryAddress(): string {
