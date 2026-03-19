@@ -45,8 +45,20 @@ export interface Agent {
   earnedTasks?: number;
   spentBetting: number;
   spentTokens: number;
+  walletAddress?: string;   // Base network USDC withdrawal address (checksummed)
+  withdrawnUsdc?: number;   // total USDC withdrawn on-chain
   createdAt: FirebaseFirestore.Timestamp;
   approvedAt: FirebaseFirestore.Timestamp | null;
+}
+
+export interface Withdrawal {
+  id: string;
+  agentId: string;
+  credits: number;
+  usdcAmount: number;
+  toAddress: string;
+  txHash: string;
+  createdAt: FirebaseFirestore.Timestamp;
 }
 
 export interface Market {

@@ -30,3 +30,5 @@ personal-webpage/
 
 .firebase/
 .env.production
+functions/.env
+functions/.env.local

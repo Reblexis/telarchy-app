@@ -123,7 +123,7 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   res.status(status).json({ error: err.message });
 });
 
-export const api = onRequest({ minInstances: 1 }, app);
+export const api = onRequest({ minInstances: 1, secrets: ['TREASURY_PRIVATE_KEY'] }, app);
 
 export const dailyResolve = onSchedule('every day 00:00', async () => {
   const { resolvePredictions } = await import('./services/predictions');

@@ -6,6 +6,8 @@ import { wrap } from '../lib/wrap';
 import { hashKey, authMiddleware } from '../middleware/auth';
 import { requireRole, requireSelfOrAdmin } from '../middleware/roles';
 import { getMarkets } from '../services/predictions';
+import { sendUsdc, getTreasuryUsdcBalance, getTreasuryAddress, validateWalletAddress } from '../lib/usdc';
+import { AppError } from '../lib/errors';
 
 export const agentsRouter = Router();
 
@@ -83,6 +85,16 @@ agentsRouter.get('/:id/dashboard', requireSelfOrAdmin, wrap(async (req, res) => 
     balance: agentDoc.data()!.balance,
     markets,
   });
+}));
+
+// Returns treasury USDC balance and address on Base. Admin only.
+// Must be declared before /:id routes to avoid "treasury" being treated as an id.
+agentsRouter.get('/treasury', requireRole('admin'), wrap(async (_req, res) => {
+  const [balance, address] = await Promise.all([
+    getTreasuryUsdcBalance(),
+    Promise.resolve(getTreasuryAddress()),
+  ]);
+  res.json({ address, usdcBalance: balance });
 }));
 
 // --- Admin-only ---
@@ -203,6 +215,85 @@ agentsRouter.post('/:id/spend', requireSelfOrAdmin, wrap(async (req, res) => {
     [field]: FieldValue.increment(amount),
   });
   res.json({ ok: true, spent: amount, type, reason: reason || '' });
+}));
+
+// --- Wallet & USDC withdrawal ---
+
+// Register or update an agent's Base wallet address for USDC withdrawals.
+agentsRouter.put('/:id/wallet', requireSelfOrAdmin, wrap(async (req, res) => {
+  const id = req.params.id as string;
+  const { walletAddress } = req.body;
+  if (!walletAddress || typeof walletAddress !== 'string') {
+    res.status(400).json({ error: 'walletAddress is required' }); return;
+  }
+  const checksummed = validateWalletAddress(walletAddress);
+  const ref = db().collection('agents').doc(id);
+  const doc = await ref.get();
+  if (!doc.exists) { res.status(404).json({ error: 'Agent not found' }); return; }
+
+  await ref.update({ walletAddress: checksummed });
+  res.json({ ok: true, walletAddress: checksummed });
+}));
+
+// Withdraw credits as USDC on Base. Converts at current creditValueUsd rate.
+// Body: { amount: number } — credits to withdraw.
+agentsRouter.post('/:id/withdraw', requireSelfOrAdmin, wrap(async (req, res) => {
+  const id = req.params.id as string;
+  const { amount } = req.body;
+  if (typeof amount !== 'number' || amount <= 0) {
+    res.status(400).json({ error: 'amount must be a positive number' }); return;
+  }
+
+  const economyDoc = await db().collection('_system').doc('economy').get();
+  const creditValueUsd: number | null = economyDoc.exists ? (economyDoc.data()!.creditValueUsd ?? null) : null;
+  if (!creditValueUsd) throw new AppError('creditValueUsd is not configured in _system/economy', 500);
+
+  // Atomically deduct the balance, failing early if insufficient.
+  let walletAddress: string;
+  await db().runTransaction(async (tx) => {
+    const ref = db().collection('agents').doc(id);
+    const doc = await tx.get(ref);
+    if (!doc.exists) throw new AppError('Agent not found', 404);
+
+    const data = doc.data()!;
+    if (!data.walletAddress) throw new AppError('Agent has no registered wallet address', 400);
+    if ((data.balance as number) < amount) {
+      throw new AppError(`Insufficient balance (have ${data.balance}, need ${amount})`, 400);
+    }
+
+    walletAddress = data.walletAddress as string;
+    tx.update(ref, { balance: FieldValue.increment(-amount) });
+  });
+
+  const usdcAmount = Math.round(amount * creditValueUsd * 1e6) / 1e6; // 6 decimal precision
+
+  let txHash: string;
+  try {
+    txHash = await sendUsdc(walletAddress!, usdcAmount);
+  } catch (err) {
+    // Re-credit on tx failure so the balance remains consistent.
+    await db().collection('agents').doc(id).update({ balance: FieldValue.increment(amount) });
+    console.error(`[withdraw] USDC send failed for agent ${id}, re-credited ${amount} credits:`, err);
+    throw new AppError('On-chain transfer failed; credits have been restored', 502);
+  }
+
+  const withdrawalRef = db().collection('withdrawals').doc();
+  await Promise.all([
+    withdrawalRef.set({
+      id: withdrawalRef.id,
+      agentId: id,
+      credits: amount,
+      usdcAmount,
+      toAddress: walletAddress!,
+      txHash,
+      createdAt: FieldValue.serverTimestamp(),
+    }),
+    db().collection('agents').doc(id).update({
+      withdrawnUsdc: FieldValue.increment(usdcAmount),
+    }),
+  ]);
+
+  res.json({ ok: true, credits: amount, usdcAmount, txHash, toAddress: walletAddress! });
 }));
 
 agentsRouter.delete('/:id', requireRole('admin'), wrap(async (req, res) => {
