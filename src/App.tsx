@@ -5,6 +5,9 @@ import { RequireAuth } from './components/RequireAuth';
 import { RootRedirect } from './pages/RootRedirect';
 import { SetupPage } from './pages/SetupPage';
 import { LoginPage } from './pages/LoginPage';
+import { SignupPage } from './pages/SignupPage';
+import { CreateWorkspacePage } from './pages/CreateWorkspacePage';
+import { MarketplacePage } from './pages/MarketplacePage';
 import { MetricsPage } from './pages/MetricsPage';
 import { AgentsPage } from './pages/AgentsPage';
 import { MarketsPage } from './pages/MarketsPage';
@@ -42,8 +45,11 @@ export function App() {
             <Route path="/" element={<RootRedirect />} />
             <Route path="/setup" element={<SetupPage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/marketplace" element={<MarketplacePage />} />
             <Route path="/waitlist" element={<WaitlistPage />} />
             <Route element={<RequireAuth />}>
+              <Route path="/create-workspace" element={<CreateWorkspacePage />} />
               <Route path="/metrics" element={<MetricsPage />} />
               <Route path="/agents" element={<AgentsPage />} />
               <Route path="/markets" element={<MarketsPage />} />

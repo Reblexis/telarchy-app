@@ -1,5 +1,18 @@
 import type { User } from 'firebase/auth';
 
+export interface MarketplaceListing {
+  workspaceId: string;
+  workspaceName: string;
+  marketId: string;
+  metricName: string;
+  targetDate: string;
+  consensus: number | null;
+  probability: number;
+  liquidity: number;
+  rangeMin: number;
+  rangeMax: number;
+}
+
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 async function request(path: string, user: User, options: RequestInit = {}) {
@@ -108,4 +121,39 @@ export const api = {
     if (!res.ok) throw new Error(`Hooks status request failed: ${res.status}`);
     return res.json();
   },
+
+  // Marketplace (public, no auth)
+  getMarketplace: async (limit = 50): Promise<MarketplaceListing[]> => {
+    const res = await fetch(`${API_BASE}/api/marketplace?limit=${limit}`);
+    if (!res.ok) throw new Error(`Marketplace request failed: ${res.status}`);
+    return res.json();
+  },
+  getMarketplaceWorkspace: async (workspaceId: string): Promise<{ workspaceId: string; name: string; visibility: string; markets: MarketplaceListing[] }> => {
+    const res = await fetch(`${API_BASE}/api/marketplace/${encodeURIComponent(workspaceId)}`);
+    if (!res.ok) throw new Error(`Marketplace workspace request failed: ${res.status}`);
+    return res.json();
+  },
+  getPublicWorkspaces: async (): Promise<Array<{ workspaceId: string; name: string; visibility: string }>> => {
+    const res = await fetch(`${API_BASE}/api/marketplace/workspaces/public`);
+    if (!res.ok) throw new Error(`Public workspaces request failed: ${res.status}`);
+    return res.json();
+  },
+  joinWorkspace: (user: User, workspaceId: string) =>
+    request(`/api/marketplace/${encodeURIComponent(workspaceId)}/join`, user, { method: 'POST' }),
+
+  // User auth / profile
+  getProfile: (user: User) => request('/api/auth/me', user),
+  upsertProfile: (user: User, email?: string) =>
+    request('/api/auth/profile', user, { method: 'POST', body: JSON.stringify({ email }) }),
+  deleteAccount: (user: User) =>
+    request('/api/auth/me', user, { method: 'DELETE' }),
+  exportAccount: (user: User) => request('/api/auth/me/export', user),
+
+  // Workspaces
+  createWorkspace: (user: User, name: string, visibility: 'public' | 'unlisted' | 'private') =>
+    request('/api/workspaces', user, { method: 'POST', body: JSON.stringify({ name, visibility }) }),
+  listWorkspaces: (user: User) => request('/api/workspaces', user),
+  getWorkspace: (user: User, id: string) => request(`/api/workspaces/${id}`, user),
+  updateWorkspaceSettings: (user: User, id: string, body: { name?: string; visibility?: string }) =>
+    request(`/api/workspaces/${id}/settings`, user, { method: 'PUT', body: JSON.stringify(body) }),
 };

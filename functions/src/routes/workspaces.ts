@@ -152,6 +152,33 @@ workspacesRouter.post('/:id/members', requireRole('admin'), wrap(async (req, res
   res.status(201).json({ ok: true, workspaceId: wsId, uid: inviteeUid, role });
 }));
 
+// --- Join a public/unlisted workspace (self-service) ---
+
+workspacesRouter.post('/:id/join', requireRole('admin'), wrap(async (req, res) => {
+  const { uid } = req.auth!;
+  if (!uid) { res.status(403).json({ error: 'Firebase account required to join a workspace' }); return; }
+
+  const wsId = req.params.id as string;
+  const wsDoc = await db().collection('workspaces').doc(wsId).get();
+  if (!wsDoc.exists) { res.status(404).json({ error: 'Workspace not found' }); return; }
+
+  const ws = wsDoc.data()!;
+  if (ws.visibility === 'private') {
+    res.status(403).json({ error: 'This workspace is invite-only' }); return;
+  }
+
+  const userDoc = await db().collection('users').doc(uid).get();
+  const existing = userDoc.data()?.workspaces?.[wsId];
+  if (existing) { res.json({ ok: true, role: existing.role, alreadyMember: true }); return; }
+
+  const now = FieldValue.serverTimestamp();
+  await db().collection('users').doc(uid).set({
+    workspaces: { [wsId]: { role: 'trader', joinedAt: now } },
+  }, { merge: true });
+
+  res.status(201).json({ ok: true, workspaceId: wsId, role: 'trader' });
+}));
+
 // --- Remove member ---
 
 workspacesRouter.delete('/:id/members/:uid', requireRole('admin'), wrap(async (req, res) => {

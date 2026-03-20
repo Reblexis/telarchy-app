@@ -1,5 +1,5 @@
 import { useState, FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { initializeFirebaseApp, getFirebaseAuth } from '../lib/firebase';
 import { useDarkMode } from '../hooks/useDarkMode';
@@ -60,6 +60,9 @@ export function LoginPage() {
             {error && <div className="error show">{error}</div>}
           </form>
           <div className="reconfigure-link">
+            Don't have an account? <Link to="/signup">Sign up</Link>
+          </div>
+          <div className="reconfigure-link" style={{ marginTop: '0.25rem' }}>
             <a href="/setup">Reconfigure Firebase</a>
           </div>
         </div>

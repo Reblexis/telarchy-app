@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { getAuth } from 'firebase-admin/auth';
 import { db } from '../lib/db';
 import { wrap } from '../lib/wrap';
 import { requireRole } from '../middleware/roles';
@@ -53,4 +54,35 @@ userauthRouter.post('/profile', requireRole('admin'), wrap(async (req, res) => {
 
   await db().collection('users').doc(uid).set(update, { merge: true });
   res.json({ ok: true });
+}));
+
+/**
+ * DELETE /api/auth/me
+ * GDPR: deletes the user's Firestore profile document and Firebase Auth account.
+ * Does NOT delete workspace data (positions, trades etc.) — those are anonymized.
+ */
+userauthRouter.delete('/me', requireRole('admin'), wrap(async (req, res) => {
+  const { uid } = req.auth!;
+  if (!uid) { res.status(403).json({ error: 'Firebase account required' }); return; }
+
+  await db().collection('users').doc(uid).delete();
+  await getAuth().deleteUser(uid);
+
+  res.status(204).send();
+}));
+
+/**
+ * GET /api/auth/me/export
+ * GDPR: exports all data associated with the current user.
+ */
+userauthRouter.get('/me/export', requireRole('admin'), wrap(async (req, res) => {
+  const { uid } = req.auth!;
+  if (!uid) { res.status(403).json({ error: 'Firebase account required' }); return; }
+
+  const userDoc = await db().collection('users').doc(uid).get();
+  res.json({
+    uid,
+    profile: userDoc.exists ? userDoc.data() : null,
+    exportedAt: new Date().toISOString(),
+  });
 }));

@@ -16,6 +16,7 @@ import { tasksRouter } from './routes/tasks';
 import { waitlistRouter } from './routes/waitlist';
 import { workspacesRouter } from './routes/workspaces';
 import { userauthRouter } from './routes/userauth';
+import { marketplaceRouter } from './routes/marketplace';
 import type { Request, Response, NextFunction } from 'express';
 import { AppError } from './lib/errors';
 
@@ -164,18 +165,28 @@ app.get('/api/help', (_req, res) => {
       { method: 'PUT', path: '/api/workspaces/:id/settings', auth: 'admin', description: 'Update workspace name or visibility. Body: { name?, visibility? }.' },
       { method: 'POST', path: '/api/workspaces/:id/members', auth: 'admin', description: 'Invite a member. Body: { uid, role?: "owner"|"admin"|"trader"|"viewer" }.' },
       { method: 'DELETE', path: '/api/workspaces/:id/members/:uid', auth: 'admin', description: 'Remove a member from a workspace.' },
+      { method: 'POST', path: '/api/workspaces/:id/join', auth: 'admin', description: 'Self-service join for public/unlisted workspaces. Adds caller as trader.' },
+      { method: 'DELETE', path: '/api/auth/me', auth: 'admin', description: 'GDPR: delete your account. Deletes Firestore profile and Firebase Auth user.' },
+      { method: 'GET', path: '/api/auth/me/export', auth: 'admin', description: 'GDPR: export your account data.' },
+      { method: 'GET', path: '/api/marketplace', auth: false, description: 'List active markets from all public workspaces. Query: ?limit=N (default 50). No auth required.' },
+      { method: 'GET', path: '/api/marketplace/:workspaceId', auth: false, description: 'List markets from a specific public/unlisted workspace.' },
+      { method: 'GET', path: '/api/marketplace/workspaces/public', auth: false, description: 'List all publicly discoverable workspaces.' },
+      { method: 'POST', path: '/api/marketplace/:workspaceId/join', auth: 'admin', description: 'Join a public/unlisted workspace as a trader.' },
     ],
   });
 });
 
-// These routers handle their own auth
+// Public routes — no global auth middleware applied
 app.use('/api/waitlist', registrationLimiter, waitlistRouter);
 app.use('/api/agents', agentsRouter);
 app.use('/api/predictions/trade', strictLimiter);
 app.use('/api/predictions', predictionsRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/tasks', tasksRouter);
+// GET /api/marketplace (and /workspaces/public) are public; POST /:id/join applies its own auth inside
+app.use('/api/marketplace', marketplaceRouter);
 
+// From here on, every request must be authenticated
 app.use(authMiddleware);
 
 app.use('/api/metrics', metricsRouter);
