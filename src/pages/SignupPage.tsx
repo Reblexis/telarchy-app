@@ -1,10 +1,11 @@
 import { useState, FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, User } from 'firebase/auth';
 import { initializeFirebaseApp, getFirebaseAuth } from '../lib/firebase';
 import { api } from '../lib/api';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { DarkModeToggle } from '../components/DarkModeToggle';
+import { OAuthButtons } from '../components/OAuthButtons';
 
 type Intent = 'creator' | 'agent';
 
@@ -24,6 +25,11 @@ export function SignupPage() {
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const handleOAuthSuccess = async (user: User) => {
+    await api.upsertProfile(user, user.email ?? undefined);
+    navigate(intent === 'creator' ? '/create-workspace' : '/agents');
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -88,6 +94,14 @@ export function SignupPage() {
                 </span>
               </label>
             ))}
+          </div>
+
+          <OAuthButtons onSuccess={handleOAuthSuccess} onError={setError} />
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: '1rem 0' }}>
+            <div style={{ flex: 1, height: 1, background: 'var(--border-color)' }} />
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>or</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border-color)' }} />
           </div>
 
           <form onSubmit={handleSubmit}>

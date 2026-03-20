@@ -4,6 +4,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { initializeFirebaseApp, getFirebaseAuth } from '../lib/firebase';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { DarkModeToggle } from '../components/DarkModeToggle';
+import { OAuthButtons } from '../components/OAuthButtons';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -45,6 +46,14 @@ export function LoginPage() {
       <div className="login-page">
         <div className="container" style={{ maxWidth: 400 }}>
           <h1>Login</h1>
+          <OAuthButtons onSuccess={() => navigate('/metrics')} onError={setError} />
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: '1rem 0' }}>
+            <div style={{ flex: 1, height: 1, background: 'var(--border-color)' }} />
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>or</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border-color)' }} />
+          </div>
+
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label htmlFor="email">Email</label>
