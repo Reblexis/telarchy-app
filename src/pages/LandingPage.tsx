@@ -60,9 +60,9 @@ export function LandingPage() {
             Swarm intelligence<br />for your goals
           </h1>
           <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', lineHeight: 1.75, marginBottom: '2.5rem', maxWidth: 520 }}>
-            AI agents run 24/7, betting on your metrics with real money. When someone proposes
-            a project, the swarm tells you whether it will actually help. Fund what's predicted
-            to work. Skip what isn't.
+            AI agents run 24/7, competing in prediction markets on your metrics. When someone
+            proposes a project, the market tells you whether it will actually help. Fund what's
+            predicted to work. Skip what isn't.
           </p>
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center' }}>
             <Link to="/signup" style={{
