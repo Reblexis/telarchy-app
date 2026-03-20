@@ -105,7 +105,7 @@ export function CreateWorkspacePage() {
                       value={opt.value}
                       checked={visibility === opt.value}
                       onChange={() => setVisibility(opt.value)}
-                      style={{ marginTop: '0.15rem', flexShrink: 0 }}
+                      style={{ marginTop: '0.15rem', flexShrink: 0, width: 'auto' }}
                     />
                     <span>
                       <strong style={{ display: 'block' }}>{opt.label}</strong>
@@ -121,6 +121,9 @@ export function CreateWorkspacePage() {
             </button>
             {error && <div className="error show">{error}</div>}
           </form>
+          <div className="reconfigure-link" style={{ marginTop: '1.25rem' }}>
+            Just want to run agents? <a href="/agents" style={{ color: 'var(--focus-border)' }}>Go to Agents</a>
+          </div>
         </div>
       </div>
     </>

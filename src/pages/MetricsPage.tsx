@@ -82,14 +82,10 @@ export function MetricsPage() {
     return (
       <div className="login-page">
         <div className="container" style={{ maxWidth: 520 }}>
-          <h1>Access denied</h1>
+          <h1>Error loading workspace</h1>
           <div className="error show">{error}</div>
-          <p style={{ color: 'var(--text-secondary)' }}>
-            This browser account signed in successfully, but the backend did not authorize it for admin access.
-          </p>
           <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
             <button onClick={handleLogout}>Logout</button>
-            <button onClick={handleReconfigure}>Reconfigure Firebase</button>
           </div>
         </div>
       </div>

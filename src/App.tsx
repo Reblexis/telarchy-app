@@ -1,8 +1,8 @@
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { ImpersonationProvider } from './hooks/useImpersonation';
 import { InspectModeProvider, useInspectMode } from './hooks/useInspectMode';
-import { RequireAuth } from './components/RequireAuth';
-import { RootRedirect } from './pages/RootRedirect';
+import { RequireAuth, RequireWorkspace } from './components/RequireAuth';
+import { LandingPage } from './pages/LandingPage';
 import { SetupPage } from './pages/SetupPage';
 import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
@@ -43,17 +43,21 @@ export function App() {
       <ImpersonationProvider>
         <InspectModeProvider>
           <Routes>
-            <Route path="/" element={<RootRedirect />} />
+            <Route path="/" element={<LandingPage />} />
             <Route path="/setup" element={<SetupPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/marketplace" element={<MarketplacePage />} />
             <Route path="/waitlist" element={<WaitlistPage />} />
+            {/* Requires login, but not a workspace (e.g. agent-only users, new accounts) */}
             <Route element={<RequireAuth />}>
               <Route path="/create-workspace" element={<CreateWorkspacePage />} />
+              <Route path="/agents" element={<AgentsPage />} />
+            </Route>
+            {/* Requires login + an active workspace */}
+            <Route element={<RequireWorkspace />}>
               <Route path="/settings" element={<WorkspaceSettingsPage />} />
               <Route path="/metrics" element={<MetricsPage />} />
-              <Route path="/agents" element={<AgentsPage />} />
               <Route path="/markets" element={<MarketsPage />} />
               <Route path="/tasks" element={<TasksPage />} />
             </Route>

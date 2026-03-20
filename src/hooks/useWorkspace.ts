@@ -8,13 +8,18 @@ export interface WorkspaceInfo {
   workspaceId: string;
   /** Role in the current workspace. Null for platform admins (workspaceId='default'). */
   memberRole: WorkspaceMemberRole | null;
+  /** Auth role returned by the backend: 'admin' | 'agent' | 'pending' */
+  authRole: string;
   /**
    * Effective permission tier:
-   * - 'admin'  — can create markets, edit metrics, manage members (owner/admin/platform-admin)
+   * - 'admin'  — can create markets, edit metrics, manage members
    * - 'trader' — can view and trade but not manage
    * - 'viewer' — read-only
+   * - 'none'   — no workspace yet, needs to create one
    */
-  tier: 'admin' | 'trader' | 'viewer';
+  tier: 'admin' | 'trader' | 'viewer' | 'none';
+  /** True when the user is authenticated but has no workspace yet */
+  needsWorkspace: boolean;
 }
 
 export function useWorkspace(user: User | null): {
@@ -33,19 +38,27 @@ export function useWorkspace(user: User | null): {
         if (cancelled) return;
         const workspaceId = profile.workspaceId ?? 'default';
         const memberRole = profile.memberRole ?? null;
-        const tier: WorkspaceInfo['tier'] =
-          workspaceId === 'default' || memberRole === 'owner' || memberRole === 'admin'
+        const authRole = profile.authRole ?? 'pending';
+
+        // A user with no workspace resolves to workspaceId='default' with authRole='pending'.
+        // Platform admins also get workspaceId='default' but with authRole='admin'.
+        const needsWorkspace = authRole === 'pending';
+
+        const tier: WorkspaceInfo['tier'] = needsWorkspace
+          ? 'none'
+          : authRole === 'admin'
             ? 'admin'
-            : memberRole === 'trader'
+            : authRole === 'agent'
               ? 'trader'
               : 'viewer';
-        setWorkspace({ workspaceId, memberRole, tier });
+
+        setWorkspace({ workspaceId, memberRole, authRole, tier, needsWorkspace });
       })
       .catch((e: Error) => {
         if (cancelled) return;
         console.error('useWorkspace: failed to fetch profile', e.message);
-        // Fallback: assume admin for existing sessions (backward compat)
-        setWorkspace({ workspaceId: 'default', memberRole: null, tier: 'admin' });
+        // On error, assume platform admin (backward compat for existing admin sessions)
+        setWorkspace({ workspaceId: 'default', memberRole: null, authRole: 'admin', tier: 'admin', needsWorkspace: false });
       })
       .finally(() => { if (!cancelled) setLoading(false); });
 

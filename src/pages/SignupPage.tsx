@@ -1,14 +1,24 @@
 import { useState, FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { initializeFirebaseApp, getFirebaseAuth } from '../lib/firebase';
 import { api } from '../lib/api';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { DarkModeToggle } from '../components/DarkModeToggle';
 
+type Intent = 'creator' | 'agent';
+
+const INTENT_OPTIONS: { value: Intent; label: string; description: string }[] = [
+  { value: 'creator', label: 'Publish markets', description: 'Create a workspace, define metrics, and let agents bet on your outcomes' },
+  { value: 'agent',   label: 'Deploy agents',   description: 'Register AI agents and monitor their trading activity and earnings' },
+];
+
 export function SignupPage() {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   useDarkMode();
+
+  const [intent, setIntent] = useState<Intent>((params.get('intent') as Intent) || 'creator');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -28,10 +38,9 @@ export function SignupPage() {
       const auth = getFirebaseAuth();
       const { user } = await createUserWithEmailAndPassword(auth, email, password);
 
-      // Register profile on backend so workspace resolution works
       await api.upsertProfile(user, email);
 
-      navigate('/create-workspace');
+      navigate(intent === 'creator' ? '/create-workspace' : '/agents');
     } catch (err: unknown) {
       const firebaseErr = err as { code?: string; message?: string };
       let msg = 'An error occurred';
@@ -48,51 +57,61 @@ export function SignupPage() {
     <>
       <DarkModeToggle fixed />
       <div className="login-page">
-        <div className="container" style={{ maxWidth: 400 }}>
+        <div className="container" style={{ maxWidth: 440 }}>
           <h1>Create account</h1>
-          <p className="subtitle" style={{ marginBottom: '1.5rem' }}>
-            Start tracking and publishing your metrics
-          </p>
+
+          {/* Intent selector */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', margin: '1.25rem 0' }}>
+            {INTENT_OPTIONS.map(opt => (
+              <label
+                key={opt.value}
+                style={{
+                  display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
+                  padding: '0.75rem',
+                  border: `1px solid ${intent === opt.value ? 'var(--focus-border)' : 'var(--border-color)'}`,
+                  borderRadius: '0.375rem',
+                  background: intent === opt.value ? 'var(--focus-bg)' : 'var(--bg-secondary)',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="radio"
+                  name="intent"
+                  value={opt.value}
+                  checked={intent === opt.value}
+                  onChange={() => setIntent(opt.value)}
+                  style={{ marginTop: '0.2rem', flexShrink: 0, width: 'auto' }}
+                />
+                <span>
+                  <strong style={{ display: 'block', fontSize: '0.9rem' }}>{opt.label}</strong>
+                  <span style={{ fontSize: '0.825rem', color: 'var(--text-secondary)' }}>{opt.description}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label htmlFor="email">Email</label>
-              <input
-                type="email"
-                id="email"
-                required
-                autoComplete="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-              />
+              <input type="email" id="email" required autoComplete="email"
+                value={email} onChange={e => setEmail(e.target.value)} />
             </div>
             <div className="form-group">
               <label htmlFor="password">Password</label>
-              <input
-                type="password"
-                id="password"
-                required
-                autoComplete="new-password"
-                minLength={8}
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-              />
+              <input type="password" id="password" required autoComplete="new-password" minLength={8}
+                value={password} onChange={e => setPassword(e.target.value)} />
             </div>
             <div className="form-group">
               <label htmlFor="confirm">Confirm password</label>
-              <input
-                type="password"
-                id="confirm"
-                required
-                autoComplete="new-password"
-                value={confirm}
-                onChange={e => setConfirm(e.target.value)}
-              />
+              <input type="password" id="confirm" required autoComplete="new-password"
+                value={confirm} onChange={e => setConfirm(e.target.value)} />
             </div>
             <button type="submit" disabled={submitting}>
               {submitting ? 'Creating account...' : 'Create account'}
             </button>
             {error && <div className="error show">{error}</div>}
           </form>
+
           <div className="reconfigure-link">
             Already have an account? <Link to="/login">Log in</Link>
           </div>
