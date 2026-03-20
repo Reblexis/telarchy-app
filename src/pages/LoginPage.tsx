@@ -62,9 +62,6 @@ export function LoginPage() {
           <div className="reconfigure-link">
             Don't have an account? <Link to="/signup">Sign up</Link>
           </div>
-          <div className="reconfigure-link" style={{ marginTop: '0.25rem' }}>
-            <a href="/setup">Reconfigure Firebase</a>
-          </div>
         </div>
       </div>
     </>

@@ -33,19 +33,26 @@ if (serviceAccountEnv) {
 // CORS — only allow requests from known origins.
 // ALLOWED_ORIGIN is the production Firebase Hosting domain.
 // In development, localhost origins are also permitted.
-const ALLOWED_ORIGINS = [
-  process.env.ALLOWED_ORIGIN,              // e.g. https://telarchy-e0043.web.app
-  'https://telarchy-e0043.web.app',        // production fallback if env not set
+const ALLOWED_ORIGIN_EXACT = [
+  process.env.ALLOWED_ORIGIN,
+  'https://telarchy-e0043.web.app',
   'https://telarchy-e0043.firebaseapp.com',
-  'http://localhost:5173',                 // Vite dev server
-  'http://localhost:5000',                 // Firebase emulator hosting
+  'https://telarchy.com',
+  'https://www.telarchy.com',
 ].filter(Boolean) as string[];
+
+// Patterns for dynamic origins we always trust
+const ALLOWED_ORIGIN_PATTERNS = [
+  /^https:\/\/telarchy-e0043(--.+)?\.web\.app$/,   // Firebase Hosting + preview channels
+  /^http:\/\/localhost(:\d+)?$/,                    // local dev on any port
+];
 
 const app = express();
 app.use(cors({
   origin: (origin, cb) => {
-    // Allow server-to-server (no origin header) and known browser origins.
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    if (!origin) return cb(null, true); // server-to-server
+    if (ALLOWED_ORIGIN_EXACT.includes(origin)) return cb(null, true);
+    if (ALLOWED_ORIGIN_PATTERNS.some(r => r.test(origin))) return cb(null, true);
     return cb(new Error('CORS: origin not allowed'));
   },
   credentials: true,

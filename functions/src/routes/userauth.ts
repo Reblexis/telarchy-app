@@ -12,17 +12,17 @@ export const userauthRouter = Router();
  * Works for both Firebase users (uid set) and master API key (uid undefined).
  */
 userauthRouter.get('/me', requireFirebaseUser, wrap(async (req, res) => {
-  const { uid, workspaceId } = req.auth!;
+  const { uid, workspaceId, role: authRole } = req.auth!;
 
   if (!uid) {
     // Master API key — return a synthetic profile
-    res.json({ uid: null, email: null, workspaceId, workspaces: {} });
+    res.json({ uid: null, email: null, workspaceId, authRole, workspaces: {} });
     return;
   }
 
   const userDoc = await db().collection('users').doc(uid).get();
   if (!userDoc.exists) {
-    res.json({ uid, email: null, workspaceId, workspaces: {} });
+    res.json({ uid, email: null, workspaceId, authRole, memberRole: null, workspaces: {} });
     return;
   }
 
@@ -33,7 +33,8 @@ userauthRouter.get('/me', requireFirebaseUser, wrap(async (req, res) => {
     uid,
     email: data.email ?? null,
     workspaceId,
-    memberRole,
+    authRole,   // 'admin' | 'agent' | 'pending' — derived from workspace membership
+    memberRole, // 'owner' | 'admin' | 'trader' | 'viewer' | null
     workspaces,
   });
 }));

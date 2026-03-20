@@ -29,7 +29,7 @@ export function useWorkspace(user: User | null): {
     let cancelled = false;
 
     api.getProfile(user)
-      .then((profile: { workspaceId?: string; memberRole?: WorkspaceMemberRole | null }) => {
+      .then((profile: { workspaceId?: string; authRole?: string; memberRole?: WorkspaceMemberRole | null }) => {
         if (cancelled) return;
         const workspaceId = profile.workspaceId ?? 'default';
         const memberRole = profile.memberRole ?? null;

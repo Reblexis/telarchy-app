@@ -21,20 +21,14 @@ export function RootRedirect() {
       return;
     }
 
-    // Check whether the user has a workspace. Admins resolve to 'default'; new users to nothing.
+    // authRole='pending' means no workspace yet; 'admin'/'agent' means they can access the dashboard.
     setChecking(true);
     api.getProfile(user)
-      .then((profile: { workspaceId?: string; workspaces?: Record<string, unknown> }) => {
-        // 'default' means platform admin — go straight to dashboard
-        if (profile.workspaceId === 'default') {
-          navigate('/metrics', { replace: true });
-          return;
-        }
-        const hasWorkspace = profile.workspaces && Object.keys(profile.workspaces).length > 0;
-        navigate(hasWorkspace ? '/metrics' : '/create-workspace', { replace: true });
+      .then((profile: { authRole?: string }) => {
+        navigate(profile.authRole === 'pending' ? '/create-workspace' : '/metrics', { replace: true });
       })
       .catch(() => {
-        // On error (e.g. first sign-in before profile exists), go to create-workspace
+        // On error (e.g. brand-new user before profile doc exists) go to create-workspace.
         navigate('/create-workspace', { replace: true });
       });
   }, [config, user, loading, checking, navigate]);
