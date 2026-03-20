@@ -1,5 +1,6 @@
 import { FieldValue, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { db } from '../lib/db';
+import { wsCol, wsLockDoc } from '../lib/workspace';
 import { sampleTimePoints, getLeafDescendantNames } from '../lib/time-preference';
 import { AMM_DEFAULTS, initialPool } from '../lib/amm';
 import { emitEvent } from './events';
@@ -7,15 +8,16 @@ import { emitEvent } from './events';
 /** Void a single open market: refund all positions at cost, mark resolved+voided. */
 export async function voidMarket(
   docOrId: QueryDocumentSnapshot | FirebaseFirestore.DocumentSnapshot | string,
+  workspaceId = 'default',
 ): Promise<{ refunded: number }> {
   const marketDoc = typeof docOrId === 'string'
-    ? await db().collection('markets').doc(docOrId).get()
+    ? await wsCol(workspaceId, 'markets').doc(docOrId).get()
     : docOrId;
   if (!marketDoc.exists) return { refunded: 0 };
   const m = marketDoc.data()!;
   if (m.resolved) return { refunded: 0 };
 
-  const posSnap = await db().collection('positions').where('marketId', '==', marketDoc.id).get();
+  const posSnap = await wsCol(workspaceId, 'positions').where('marketId', '==', marketDoc.id).get();
   const batch = db().batch();
   let refunded = 0;
 
@@ -26,6 +28,7 @@ export async function voidMarket(
     const pos = posDoc.data();
     if (pos.totalCost <= 0) continue;
     refunded += pos.totalCost;
+    // agents is a global collection — not workspace-scoped
     batch.update(db().collection('agents').doc(pos.agentId), {
       balance: FieldValue.increment(pos.totalCost),
       earnedBetting: FieldValue.increment(pos.totalCost),
@@ -33,15 +36,15 @@ export async function voidMarket(
     });
   }
   await batch.commit();
-  emitEvent('market:resolved', { marketId: marketDoc.id, metricName: m.metricName, targetDate: m.targetDate, voided: true }).catch(e => console.error('emitEvent failed:', e));
+  emitEvent('market:resolved', { marketId: marketDoc.id, metricName: m.metricName, targetDate: m.targetDate, voided: true }, workspaceId).catch(e => console.error('emitEvent failed:', e));
   return { refunded };
 }
 
 /** Void all open markets whose metricId is in the provided set. */
-export async function voidOpenMarketsForMetrics(metricIds: Set<string>): Promise<void> {
-  const openSnap = await db().collection('markets').where('resolved', '==', false).get();
+export async function voidOpenMarketsForMetrics(metricIds: Set<string>, workspaceId = 'default'): Promise<void> {
+  const openSnap = await wsCol(workspaceId, 'markets').where('resolved', '==', false).get();
   for (const doc of openSnap.docs) {
-    if (metricIds.has(doc.data().metricId)) await voidMarket(doc);
+    if (metricIds.has(doc.data().metricId)) await voidMarket(doc, workspaceId);
   }
 }
 
@@ -54,8 +57,8 @@ export async function voidOpenMarketsForMetrics(metricIds: Set<string>): Promise
  * A Firestore distributed lock prevents concurrent executions (e.g. cron + manual
  * trigger overlapping) from creating duplicate markets.
  */
-export async function refreshRelativeDateMarkets(): Promise<{ created: number; deactivated: number; deduplicated: number }> {
-  const lockRef = db().doc('_system/marketRefreshLock');
+export async function refreshRelativeDateMarkets(workspaceId = 'default'): Promise<{ created: number; deactivated: number; deduplicated: number }> {
+  const lockRef = wsLockDoc(workspaceId, 'marketRefreshLock');
   const acquired = await db().runTransaction(async tx => {
     const lock = await tx.get(lockRef);
     const d = lock.data() ?? {};
@@ -64,7 +67,7 @@ export async function refreshRelativeDateMarkets(): Promise<{ created: number; d
     return true;
   });
   if (!acquired) return { created: 0, deactivated: 0, deduplicated: 0 };
-  const metricsSnap = await db().collection('metrics').get();
+  const metricsSnap = await wsCol(workspaceId, 'metrics').get();
   const nameToFormula: Record<string, string> = {};
   const nameToId = new Map<string, string>();
   const idToRangeMax = new Map<string, number>();
@@ -95,7 +98,7 @@ export async function refreshRelativeDateMarkets(): Promise<{ created: number; d
   }
 
   // Only load open markets — resolved/voided docs must not block re-creation
-  const marketSnap = await db().collection('markets').where('resolved', '==', false).get();
+  const marketSnap = await wsCol(workspaceId, 'markets').where('resolved', '==', false).get();
   const openKeys = new Set<string>();
 
   const batch = db().batch();
@@ -150,7 +153,7 @@ export async function refreshRelativeDateMarkets(): Promise<{ created: number; d
   for (const [key, { metricId, metricName, targetDate }] of desiredRefs) {
     if (openKeys.has(key)) continue;
     const rMax = idToRangeMax.get(metricId) ?? AMM_DEFAULTS.rangeMax;
-    const ref = db().collection('markets').doc();
+    const ref = wsCol(workspaceId, 'markets').doc();
     batch.set(ref, {
       id: ref.id, metricId, metricName, targetDate,
       resolved: false, resolvedAt: null, actualValue: null, active: true,
@@ -159,7 +162,7 @@ export async function refreshRelativeDateMarkets(): Promise<{ created: number; d
       shares: [0, 0], liquidity: AMM_DEFAULTS.liquidity,
       pool: initialPool(AMM_DEFAULTS.liquidity),
     });
-    const liqRef = db().collection('liquidityEvents').doc();
+    const liqRef = wsCol(workspaceId, 'liquidityEvents').doc();
     batch.set(liqRef, { id: liqRef.id, marketId: ref.id, amount: AMM_DEFAULTS.liquidity, totalLiquidity: AMM_DEFAULTS.liquidity, type: 'initial', createdAt: FieldValue.serverTimestamp() });
     created++;
   }
@@ -167,7 +170,7 @@ export async function refreshRelativeDateMarkets(): Promise<{ created: number; d
   await batch.commit();
 
   // Void duplicate markets (sequential to respect Firestore limits)
-  for (const doc of toVoid) await voidMarket(doc);
+  for (const doc of toVoid) await voidMarket(doc, workspaceId);
   const deduplicated = toVoid.length;
 
   await lockRef.set({ locked: false });

@@ -13,7 +13,8 @@ const WATCHER_DOC = 'hookWatcher';
 eventsRouter.get('/', authMiddleware, requireRole('agent', 'admin'), wrap(async (req, res) => {
   const since = req.query.since as string;
   if (!since) { res.status(400).json({ error: 'since query parameter is required (ISO timestamp)' }); return; }
-  res.json(await getEventsSince(since));
+  const { workspaceId } = req.auth!;
+  res.json(await getEventsSince(since, workspaceId));
 }));
 
 // Watcher heartbeat — agent/admin (called by the local watcher script)

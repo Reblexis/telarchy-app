@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { FieldValue } from 'firebase-admin/firestore';
+import { db } from '../lib/db';
+import { wsCol } from '../lib/workspace';
 import { wrap } from '../lib/wrap';
 import { requireRole } from '../middleware/roles';
 import { getAllMetrics, getStatus } from '../services/metrics';
-import { db } from '../lib/db';
 
 export const systemRouter = Router();
 
@@ -14,27 +15,30 @@ async function getEconomy() {
   return { creditValueUsd };
 }
 
-systemRouter.get('/status', requireRole('agent', 'admin'), wrap(async (_req, res) => {
-  const [metrics, economy] = await Promise.all([getAllMetrics(), getEconomy()]);
+systemRouter.get('/status', requireRole('agent', 'admin'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
+  const [metrics, economy] = await Promise.all([getAllMetrics(workspaceId), getEconomy()]);
   res.json({ ...getStatus(metrics), ...economy });
 }));
 
 // Wipe all agent balances/stats, market AMM state, positions, trades, deposits, and withdrawals.
 // Markets themselves are kept (with zeroed liquidity) so admin doesn't need to recreate them.
-systemRouter.post('/reset-economy', requireRole('admin'), wrap(async (_req, res) => {
+systemRouter.post('/reset-economy', requireRole('admin'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
   const firestore = db();
 
-  async function deleteCollection(name: string) {
-    let snapshot = await firestore.collection(name).limit(400).get();
+  async function deleteWsCollection(name: string) {
+    let snapshot = await wsCol(workspaceId, name).limit(400).get();
     while (!snapshot.empty) {
       const batch = firestore.batch();
       snapshot.docs.forEach(d => batch.delete(d.ref));
       await batch.commit();
-      snapshot = await firestore.collection(name).limit(400).get();
+      snapshot = await wsCol(workspaceId, name).limit(400).get();
     }
   }
 
   // Reset agent balances — skip the 'user' pseudo-agent (admin with infinite credits)
+  // agents is a global collection — not workspace-scoped
   const agentsSnap = await firestore.collection('agents').get();
   const agentReset = {
     balance: 0, gifted: 0,
@@ -51,7 +55,7 @@ systemRouter.post('/reset-economy', requireRole('admin'), wrap(async (_req, res)
   }
 
   // Reset market AMM state
-  const marketsSnap = await firestore.collection('markets').get();
+  const marketsSnap = await wsCol(workspaceId, 'markets').get();
   for (let i = 0; i < marketsSnap.docs.length; i += 400) {
     const batch = firestore.batch();
     marketsSnap.docs.slice(i, i + 400).forEach(d => batch.update(d.ref, { liquidity: 0, shares: [0, 0] }));
@@ -60,10 +64,25 @@ systemRouter.post('/reset-economy', requireRole('admin'), wrap(async (_req, res)
 
   // Delete position/trade/financial history collections
   await Promise.all([
-    deleteCollection('positions'),
-    deleteCollection('trades'),
-    deleteCollection('deposits'),
-    deleteCollection('withdrawals'),
+    deleteWsCollection('positions'),
+    deleteWsCollection('trades'),
+    // deposits and withdrawals are global — not workspace-scoped
+    firestore.collection('deposits').limit(400).get().then(async snap => {
+      while (!snap.empty) {
+        const batch = firestore.batch();
+        snap.docs.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+        snap = await firestore.collection('deposits').limit(400).get();
+      }
+    }),
+    firestore.collection('withdrawals').limit(400).get().then(async snap => {
+      while (!snap.empty) {
+        const batch = firestore.batch();
+        snap.docs.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+        snap = await firestore.collection('withdrawals').limit(400).get();
+      }
+    }),
   ]);
 
   res.json({ ok: true });

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '../lib/db';
+import { wsCol } from '../lib/workspace';
 import { wrap } from '../lib/wrap';
 import { requireRole } from '../middleware/roles';
 import {
@@ -16,22 +17,26 @@ import type { TimePreference } from '../types';
 export const metricsRouter = Router();
 
 // Read routes: agent + admin
-metricsRouter.get('/', requireRole('agent', 'admin'), wrap(async (_req, res) => {
-  res.json(await svc.getAllMetrics());
+metricsRouter.get('/', requireRole('agent', 'admin'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
+  res.json(await svc.getAllMetrics(workspaceId));
 }));
 
 metricsRouter.get('/:id', requireRole('agent', 'admin'), wrap(async (req, res) => {
-  const metric = await svc.getMetricById(req.params.id as string);
+  const { workspaceId } = req.auth!;
+  const metric = await svc.getMetricById(req.params.id as string, workspaceId);
   if (!metric) { res.status(404).json({ error: 'Metric not found' }); return; }
   res.json(metric);
 }));
 
 metricsRouter.get('/:id/logs', requireRole('agent', 'admin'), wrap(async (req, res) => {
-  res.json(await svc.getMetricLogs(req.params.id as string));
+  const { workspaceId } = req.auth!;
+  res.json(await svc.getMetricLogs(req.params.id as string, workspaceId));
 }));
 
 // Write routes: admin only
 metricsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
   const { name, description = '', value = 0, formula = '0', timePreference, marketRangeMax } = req.body;
   if (!name) { res.status(400).json({ error: 'name is required' }); return; }
   if (marketRangeMax !== undefined && (typeof marketRangeMax !== 'number' || marketRangeMax <= 0)) {
@@ -54,18 +59,19 @@ metricsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
   if (tp?.enabled) firestoreData.timePreference = tp;
   if (marketRangeMax !== undefined) firestoreData.marketRangeMax = marketRangeMax;
 
-  const docRef = await db().collection('metrics').add(firestoreData);
+  const docRef = await wsCol(workspaceId, 'metrics').add(firestoreData);
   res.status(201).json({ ok: true, id: docRef.id });
 
   // Background: spawn TP markets if needed, then log
   if (tp?.enabled) {
-    await svc.ensureMarketsForTimePreference(docRef.id, tp.halfLife);
+    await svc.ensureMarketsForTimePreference(docRef.id, tp.halfLife, workspaceId);
   }
-  const metrics = await svc.getAllMetrics();
-  await svc.logSpecificMetrics(getAffectedMetrics([docRef.id], metrics), metrics);
+  const metrics = await svc.getAllMetrics(workspaceId);
+  await svc.logSpecificMetrics(getAffectedMetrics([docRef.id], metrics), metrics, workspaceId);
 }));
 
 metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
   const id = req.params.id as string;
   const { oldValue, updateNote = '', timePreference: rawTP, ...fields } = req.body;
 
@@ -87,7 +93,7 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
   }
 
   // Read old doc
-  const docRef = db().collection('metrics').doc(id);
+  const docRef = wsCol(workspaceId, 'metrics').doc(id);
   const oldDoc = await docRef.get();
   if (!oldDoc.exists) { res.status(404).json({ error: 'Metric not found' }); return; }
   const oldData = oldDoc.data()!;
@@ -104,7 +110,7 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
 
   // Circular dependency check
   if (update.formula) {
-    const allMetrics = await svc.getAllMetrics();
+    const allMetrics = await svc.getAllMetrics(workspaceId);
     if (detectCircularDependency(id, update.formula as string, allMetrics)) {
       res.status(400).json({ error: 'This formula would create a circular dependency' }); return;
     }
@@ -114,7 +120,7 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
   const wasTPEnabled = oldTP?.enabled ?? false;
   const isTPEnabled = newTP !== undefined ? (newTP?.enabled ?? false) : wasTPEnabled;
   if (isTPEnabled && !wasTPEnabled) {
-    const conflict = await findTPConflict(id, effectiveName);
+    const conflict = await findTPConflict(id, effectiveName, workspaceId);
     if (conflict) {
       res.status(400).json({ error: `Time preference conflict: ${conflict} already has time preference on this path` });
       return;
@@ -134,7 +140,7 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
   const writes: Promise<unknown>[] = [docRef.update(update)];
   const isLeafMetric = !effectiveFormula || effectiveFormula.trim() === '0';
   if (isLeafMetric && oldValue !== undefined && update.value !== undefined && oldValue !== update.value) {
-    writes.push(db().collection('updates').add({
+    writes.push(wsCol(workspaceId, 'updates').add({
       metricName: effectiveName, oldValue, newValue: update.value,
       description: updateNote || 'Value updated',
       timestamp: FieldValue.serverTimestamp(),
@@ -150,76 +156,78 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
   if (newTP !== undefined) {
     if (newTP?.enabled && !wasTPEnabled) {
       // Newly enabled: spawn markets
-      await svc.ensureMarketsForTimePreference(id, newTP.halfLife);
+      await svc.ensureMarketsForTimePreference(id, newTP.halfLife, workspaceId);
     } else if (!newTP?.enabled && wasTPEnabled) {
       // Disabled: disable betting on leaf markets so they resolve naturally
-      await deactivateLeafMarketsForTPMetric(id, oldTP!.halfLife);
+      await deactivateLeafMarketsForTPMetric(id, oldTP!.halfLife, workspaceId);
     } else if (newTP?.enabled && wasTPEnabled && newTP.halfLife !== oldTP!.halfLife) {
       // HalfLife changed: respawn
-      await svc.respawnMarketsForTimePreference(id, newTP.halfLife);
+      await svc.respawnMarketsForTimePreference(id, newTP.halfLife, workspaceId);
     }
   }
 
   // Range change: void existing markets so they are recreated with the new range
   const definitionChanged = isDefinitionChange(oldData, update, effectiveFormula);
   if (update.marketRangeMax !== undefined && update.marketRangeMax !== oldData.marketRangeMax) {
-    await voidOpenMarketsForMetrics(new Set([id]));
+    await voidOpenMarketsForMetrics(new Set([id]), workspaceId);
   }
 
   // Definition change on a non-TP metric: find TP ancestors and respawn
   if (definitionChanged && !isTPEnabled) {
-    const tpAncestorIds = await findTPAncestors(id);
+    const tpAncestorIds = await findTPAncestors(id, workspaceId);
     for (const tpId of tpAncestorIds) {
-      const tpDoc = await db().collection('metrics').doc(tpId).get();
+      const tpDoc = await wsCol(workspaceId, 'metrics').doc(tpId).get();
       const tpHalfLife = tpDoc.data()?.timePreference?.halfLife;
-      if (tpHalfLife) await svc.respawnMarketsForTimePreference(tpId, tpHalfLife);
+      if (tpHalfLife) await svc.respawnMarketsForTimePreference(tpId, tpHalfLife, workspaceId);
     }
   }
 
   // Definition change on TP metric itself: respawn its markets
   if (definitionChanged && isTPEnabled) {
-    await svc.respawnMarketsForTimePreference(id, effectiveHalfLife);
+    await svc.respawnMarketsForTimePreference(id, effectiveHalfLife, workspaceId);
   }
 
-  const metrics = await svc.getAllMetrics();
-  await svc.logSpecificMetrics(getAffectedMetrics([id], metrics), metrics);
+  const metrics = await svc.getAllMetrics(workspaceId);
+  await svc.logSpecificMetrics(getAffectedMetrics([id], metrics), metrics, workspaceId);
   if (update.value !== undefined) {
     const metric = metrics.find(m => m.id === id);
     if (!metric) console.error(`emitEvent: metric ${id} not found after update`);
-    emitEvent('metric:updated', { metricId: id, metricName: metric!.name, oldValue: oldValue ?? null, newValue: update.value }).catch(e => console.error('emitEvent failed:', e));
+    emitEvent('metric:updated', { metricId: id, metricName: metric!.name, oldValue: oldValue ?? null, newValue: update.value }, workspaceId).catch(e => console.error('emitEvent failed:', e));
   }
 }));
 
 metricsRouter.delete('/:id', requireRole('admin'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
   const id = req.params.id as string;
-  const docSnap = await db().collection('metrics').doc(id).get();
+  const docSnap = await wsCol(workspaceId, 'metrics').doc(id).get();
   if (!docSnap.exists) { res.status(404).json({ error: 'Metric not found' }); return; }
   const data = docSnap.data()!;
 
   // Find TP ancestors before deleting (metric must still exist in collection for BFS to work)
-  const tpAncestorIds = await findTPAncestors(id);
+  const tpAncestorIds = await findTPAncestors(id, workspaceId);
 
-  await svc.deleteMetric(id);
+  await svc.deleteMetric(id, workspaceId);
   res.status(204).send();
 
   // Background: void markets and respawn TP ancestor markets
   if (data.timePreference?.enabled) {
     // TP metric deleted: disable betting on leaf markets so they resolve naturally
-    await deactivateLeafMarketsForTPMetric(id, data.timePreference.halfLife);
+    await deactivateLeafMarketsForTPMetric(id, data.timePreference.halfLife, workspaceId);
   } else {
     // Leaf or definition metric: void any direct markets, then respawn TP ancestors
-    await voidOpenMarketsForMetrics(new Set([id]));
+    await voidOpenMarketsForMetrics(new Set([id]), workspaceId);
     for (const tpId of tpAncestorIds) {
-      const tpDoc = await db().collection('metrics').doc(tpId).get();
+      const tpDoc = await wsCol(workspaceId, 'metrics').doc(tpId).get();
       const tpHalfLife = tpDoc.data()?.timePreference?.halfLife;
-      if (tpHalfLife) await svc.respawnMarketsForTimePreference(tpId, tpHalfLife);
+      if (tpHalfLife) await svc.respawnMarketsForTimePreference(tpId, tpHalfLife, workspaceId);
     }
   }
 }));
 
 /** One-time migration: zero the base value on all existing definition metrics. */
-metricsRouter.post('/migrate-leaf-types', requireRole('admin'), wrap(async (_req, res) => {
-  const snap = await db().collection('metrics').get();
+metricsRouter.post('/migrate-leaf-types', requireRole('admin'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
+  const snap = await wsCol(workspaceId, 'metrics').get();
   const batch = db().batch();
   let updated = 0;
   for (const doc of snap.docs) {
@@ -270,8 +278,8 @@ function isDefinitionChange(
 /**
  * Find TP metrics that are ancestors (direct or transitive referrers) of the given metric.
  */
-async function findTPAncestors(metricId: string): Promise<string[]> {
-  const metricsSnap = await db().collection('metrics').get();
+async function findTPAncestors(metricId: string, workspaceId: string): Promise<string[]> {
+  const metricsSnap = await wsCol(workspaceId, 'metrics').get();
   const referencedBy: Record<string, string[]> = {};
 
   for (const doc of metricsSnap.docs) {
@@ -312,8 +320,8 @@ async function findTPAncestors(metricId: string): Promise<string[]> {
  * Check if any ancestor or descendant of the given metric has TP enabled.
  * Returns the name of the conflicting metric, or null if no conflict.
  */
-async function findTPConflict(metricId: string, metricName: string): Promise<string | null> {
-  const metricsSnap = await db().collection('metrics').get();
+async function findTPConflict(metricId: string, metricName: string, workspaceId: string): Promise<string | null> {
+  const metricsSnap = await wsCol(workspaceId, 'metrics').get();
   const nameToId: Record<string, string> = {};
   const referencedBy: Record<string, string[]> = {};
   const nameToFormula: Record<string, string> = {};
@@ -358,8 +366,8 @@ async function findTPConflict(metricId: string, metricName: string): Promise<str
  * disabling or deleting TP). Markets are left unresolved so agents' bets resolve
  * naturally at the target date.
  */
-async function deactivateLeafMarketsForTPMetric(tpMetricId: string, oldHalfLife: number): Promise<void> {
-  const metricsSnap = await db().collection('metrics').get();
+async function deactivateLeafMarketsForTPMetric(tpMetricId: string, oldHalfLife: number, workspaceId: string): Promise<void> {
+  const metricsSnap = await wsCol(workspaceId, 'metrics').get();
   const nameToFormula: Record<string, string> = {};
   const nameToId = new Map<string, string>();
   let tpMetricName = '';
@@ -378,7 +386,7 @@ async function deactivateLeafMarketsForTPMetric(tpMetricId: string, oldHalfLife:
   const leafIds = new Set(leafNames.map((n: string) => nameToId.get(n)).filter(Boolean) as string[]);
   const oldDates = new Set(sampleTimePoints(oldHalfLife).map(p => p.date));
 
-  const openMarkets = await db().collection('markets').where('resolved', '==', false).get();
+  const openMarkets = await wsCol(workspaceId, 'markets').where('resolved', '==', false).get();
   const batch = db().batch();
   for (const doc of openMarkets.docs) {
     const m = doc.data();

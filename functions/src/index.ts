@@ -14,6 +14,8 @@ import { predictionsRouter } from './routes/predictions';
 import { eventsRouter } from './routes/events';
 import { tasksRouter } from './routes/tasks';
 import { waitlistRouter } from './routes/waitlist';
+import { workspacesRouter } from './routes/workspaces';
+import { userauthRouter } from './routes/userauth';
 import type { Request, Response, NextFunction } from 'express';
 import { AppError } from './lib/errors';
 
@@ -154,6 +156,14 @@ app.get('/api/help', (_req, res) => {
       { method: 'POST', path: '/api/tasks/:id/decline', auth: 'admin', description: 'Decline a pending proposal. Voids all conditional markets (refunds stakes).' },
       { method: 'GET', path: '/api/tasks/:id/messages', auth: 'agent/admin', description: 'Get chat messages for a task, ordered by time.' },
       { method: 'POST', path: '/api/tasks/:id/messages', auth: 'agent/admin', description: 'Send a chat message. Body: { content }.' },
+      { method: 'GET', path: '/api/auth/me', auth: 'admin', description: 'Current user profile: uid, email, workspaceId, workspaces map.' },
+      { method: 'POST', path: '/api/auth/profile', auth: 'admin', description: 'Upsert user profile after first sign-in. Body: { email? }.' },
+      { method: 'POST', path: '/api/workspaces', auth: 'admin', description: 'Create a workspace. Body: { name, visibility?: "public"|"unlisted"|"private" }. Requires Firebase auth (uid).' },
+      { method: 'GET', path: '/api/workspaces', auth: 'admin', description: 'List workspaces the current user belongs to.' },
+      { method: 'GET', path: '/api/workspaces/:id', auth: 'admin', description: 'Get workspace details.' },
+      { method: 'PUT', path: '/api/workspaces/:id/settings', auth: 'admin', description: 'Update workspace name or visibility. Body: { name?, visibility? }.' },
+      { method: 'POST', path: '/api/workspaces/:id/members', auth: 'admin', description: 'Invite a member. Body: { uid, role?: "owner"|"admin"|"trader"|"viewer" }.' },
+      { method: 'DELETE', path: '/api/workspaces/:id/members/:uid', auth: 'admin', description: 'Remove a member from a workspace.' },
     ],
   });
 });
@@ -170,6 +180,8 @@ app.use(authMiddleware);
 
 app.use('/api/metrics', metricsRouter);
 app.use('/api/updates', requireRole('admin'), updatesRouter);
+app.use('/api/workspaces', workspacesRouter);
+app.use('/api/auth', userauthRouter);
 app.use('/api', systemRouter);
 
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
@@ -184,13 +196,15 @@ export const api = onRequest({ minInstances: 1, secrets: ['TREASURY_PRIVATE_KEY'
 export const dailyResolve = onSchedule('every day 00:00', async () => {
   const { resolvePredictions } = await import('./services/predictions');
   const { cleanupOldEvents } = await import('./services/events');
-  const result = await resolvePredictions();
-  const cleaned = await cleanupOldEvents();
+  // Phase 1: run on 'default' workspace; Phase 2 will iterate all workspaces.
+  const result = await resolvePredictions(undefined, 'default');
+  const cleaned = await cleanupOldEvents('default');
   console.log('Daily prediction resolution:', result, 'Events cleaned:', cleaned);
 });
 
 export const dailyMarketRefresh = onSchedule('every day 00:10', async () => {
   const { refreshRelativeDateMarkets } = await import('./services/markets');
-  const result = await refreshRelativeDateMarkets();
+  // Phase 1: run on 'default' workspace; Phase 2 will iterate all workspaces.
+  const result = await refreshRelativeDateMarkets('default');
   console.log('Daily market refresh:', result);
 });

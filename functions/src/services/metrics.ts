@@ -1,5 +1,6 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '../lib/db';
+import { wsCol } from '../lib/workspace';
 import type { Metric, MetricLog, UpdateEntry } from '../types';
 import { recalculateMetrics, calculateMetricDepths, calculateXP, calculateRank, evaluateFormulaAtTime } from '../lib/metrics-engine';
 import { sampleTimePoints, getLeafDescendantNames } from '../lib/time-preference';
@@ -79,8 +80,8 @@ function enrichMetrics(metrics: Metric[], consensusMap: Record<string, number> =
   return metrics;
 }
 
-export async function buildConsensusMap(): Promise<{ map: Record<string, number>; untradedLeaves: Set<string> }> {
-  const marketSnap = await db().collection('markets').where('resolved', '==', false).get();
+export async function buildConsensusMap(workspaceId = 'default'): Promise<{ map: Record<string, number>; untradedLeaves: Set<string> }> {
+  const marketSnap = await wsCol(workspaceId, 'markets').where('resolved', '==', false).get();
   if (marketSnap.empty) return { map: {}, untradedLeaves: new Set() };
 
   const today = new Date();
@@ -125,10 +126,10 @@ export async function buildConsensusMap(): Promise<{ map: Record<string, number>
   return { map, untradedLeaves };
 }
 
-export async function getAllMetrics(): Promise<Metric[]> {
+export async function getAllMetrics(workspaceId = 'default'): Promise<Metric[]> {
   const [snapshot, { map, untradedLeaves }] = await Promise.all([
-    db().collection('metrics').get(),
-    buildConsensusMap(),
+    wsCol(workspaceId, 'metrics').get(),
+    buildConsensusMap(workspaceId),
   ]);
   return enrichMetrics(snapshot.docs.map(doc => {
     const data = doc.data();
@@ -142,8 +143,8 @@ export async function getAllMetrics(): Promise<Metric[]> {
   }), map, untradedLeaves);
 }
 
-export async function getMetricById(id: string): Promise<Metric | null> {
-  const metrics = await getAllMetrics();
+export async function getMetricById(id: string, workspaceId = 'default'): Promise<Metric | null> {
+  const metrics = await getAllMetrics(workspaceId);
   return metrics.find(m => m.id === id) || null;
 }
 
@@ -154,8 +155,9 @@ export async function getMetricById(id: string): Promise<Metric | null> {
 export async function ensureMarketsForTimePreference(
   tpMetricId: string,
   halfLife: number,
+  workspaceId = 'default',
 ): Promise<void> {
-  const metricsSnap = await db().collection('metrics').get();
+  const metricsSnap = await wsCol(workspaceId, 'metrics').get();
   const nameToFormula: Record<string, string> = {};
   const nameToId = new Map<string, string>();
   const idToName = new Map<string, string>();
@@ -181,7 +183,7 @@ export async function ensureMarketsForTimePreference(
 
   // Only check open markets — resolved/voided docs must not block re-creation
   const existingMarkets = new Set<string>();
-  const marketSnap = await db().collection('markets').where('resolved', '==', false).get();
+  const marketSnap = await wsCol(workspaceId, 'markets').where('resolved', '==', false).get();
   for (const doc of marketSnap.docs) {
     const d = doc.data();
     existingMarkets.add(`${d.metricId}:${d.targetDate}`);
@@ -200,7 +202,7 @@ export async function ensureMarketsForTimePreference(
       if (existingMarkets.has(key)) continue;
       existingMarkets.add(key);
 
-      const ref = db().collection('markets').doc();
+      const ref = wsCol(workspaceId, 'markets').doc();
       batch.set(ref, {
         id: ref.id, metricId: leafId, metricName: leafName, targetDate: date,
         resolved: false, resolvedAt: null, actualValue: null, active: true,
@@ -208,7 +210,7 @@ export async function ensureMarketsForTimePreference(
         rangeMin: AMM_DEFAULTS.rangeMin, rangeMax: rMax,
         shares: [0, 0], liquidity: AMM_DEFAULTS.liquidity,
       });
-      const liqRef = db().collection('liquidityEvents').doc();
+      const liqRef = wsCol(workspaceId, 'liquidityEvents').doc();
       batch.set(liqRef, { id: liqRef.id, marketId: ref.id, amount: AMM_DEFAULTS.liquidity, totalLiquidity: AMM_DEFAULTS.liquidity, type: 'initial', createdAt: FieldValue.serverTimestamp() });
       created.push({ marketId: ref.id, metricName: leafName, targetDate: date });
     }
@@ -217,7 +219,7 @@ export async function ensureMarketsForTimePreference(
   if (created.length > 0) {
     await batch.commit();
     for (const { marketId, metricName, targetDate } of created) {
-      await emitEvent('market:created', { marketId, metricName, targetDate });
+      await emitEvent('market:created', { marketId, metricName, targetDate }, workspaceId);
     }
   }
 }
@@ -231,16 +233,17 @@ export async function ensureMarketsForTimePreference(
 export async function respawnMarketsForTimePreference(
   tpMetricId: string,
   halfLife: number,
+  workspaceId = 'default',
 ): Promise<void> {
-  await ensureMarketsForTimePreference(tpMetricId, halfLife);
+  await ensureMarketsForTimePreference(tpMetricId, halfLife, workspaceId);
 }
 
-export async function deleteMetric(id: string): Promise<void> {
-  await db().collection('metrics').doc(id).delete();
+export async function deleteMetric(id: string, workspaceId = 'default'): Promise<void> {
+  await wsCol(workspaceId, 'metrics').doc(id).delete();
 }
 
-export async function getMetricLogs(metricId: string): Promise<MetricLog[]> {
-  const snapshot = await db().collection('metricLogs')
+export async function getMetricLogs(metricId: string, workspaceId = 'default'): Promise<MetricLog[]> {
+  const snapshot = await wsCol(workspaceId, 'metricLogs')
     .where('metricId', '==', metricId)
     .orderBy('timestamp', 'asc')
     .get();
@@ -250,8 +253,8 @@ export async function getMetricLogs(metricId: string): Promise<MetricLog[]> {
   });
 }
 
-export async function getUpdates(limit?: number): Promise<UpdateEntry[]> {
-  const ref = db().collection('updates').orderBy('timestamp', 'desc');
+export async function getUpdates(limit?: number, workspaceId = 'default'): Promise<UpdateEntry[]> {
+  const ref = wsCol(workspaceId, 'updates').orderBy('timestamp', 'desc');
   const snapshot = await (limit ? ref.limit(limit) : ref).get();
   return snapshot.docs.map(doc => {
     const data = doc.data();
@@ -262,12 +265,12 @@ export async function getUpdates(limit?: number): Promise<UpdateEntry[]> {
   });
 }
 
-export async function logSpecificMetrics(metricIds: string[], metrics: Metric[]): Promise<void> {
+export async function logSpecificMetrics(metricIds: string[], metrics: Metric[], workspaceId = 'default'): Promise<void> {
   const batch = db().batch();
   for (const metricId of metricIds) {
     const metric = metrics.find(m => m.id === metricId);
     if (metric && metric.total !== null) {
-      batch.set(db().collection('metricLogs').doc(), {
+      batch.set(wsCol(workspaceId, 'metricLogs').doc(), {
         metricId: metric.id, metricName: metric.name, value: metric.total,
         timestamp: FieldValue.serverTimestamp(),
       });

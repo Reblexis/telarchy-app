@@ -1,6 +1,7 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '../lib/db';
-import { getAllMetrics } from './metrics';
+import { wsCol } from '../lib/workspace';
+import { getAllMetrics, buildConsensusMap } from './metrics';
 import { voidMarket } from './markets';
 import type { Metric } from '../types';
 import { endOfPeriod } from '../lib/date-utils';
@@ -10,6 +11,7 @@ import { emitEvent } from './events';
 async function resolveMarketDoc(
   marketDoc: FirebaseFirestore.DocumentSnapshot,
   metricMap: Map<string, Metric>,
+  workspaceId: string,
 ): Promise<{ positions: number; totalPayout: number; skipped?: boolean }> {
   const m = marketDoc.data()!;
   const metric = metricMap.get(m.metricId);
@@ -30,7 +32,7 @@ async function resolveMarketDoc(
 
   const batch = db().batch();
 
-  const posSnap = await db().collection('positions')
+  const posSnap = await wsCol(workspaceId, 'positions')
     .where('marketId', '==', marketDoc.id)
     .get();
 
@@ -44,6 +46,7 @@ async function resolveMarketDoc(
     if (payout <= 0) continue;
     totalPayout += payout;
     positions++;
+    // agents is a global collection — not workspace-scoped
     batch.update(db().collection('agents').doc(pos.agentId), {
       balance: FieldValue.increment(payout),
       earnedBetting: FieldValue.increment(payout),
@@ -58,27 +61,27 @@ async function resolveMarketDoc(
   batch.update(marketDoc.ref, { resolved: true, resolvedAt: FieldValue.serverTimestamp(), actualValue, pool: 0, poolLeftover });
 
   await batch.commit();
-  emitEvent('market:resolved', { marketId: marketDoc.id, metricName: m.metricName, targetDate: m.targetDate, actualValue }).catch(e => console.error('emitEvent failed:', e));
+  emitEvent('market:resolved', { marketId: marketDoc.id, metricName: m.metricName, targetDate: m.targetDate, actualValue }, workspaceId).catch(e => console.error('emitEvent failed:', e));
   return { positions, totalPayout };
 }
 
-export async function resolveMarket(marketId: string): Promise<{ resolved: boolean; totalPayout: number }> {
-  const marketRef = db().collection('markets').doc(marketId);
+export async function resolveMarket(marketId: string, workspaceId = 'default'): Promise<{ resolved: boolean; totalPayout: number }> {
+  const marketRef = wsCol(workspaceId, 'markets').doc(marketId);
   const marketDoc = await marketRef.get();
   if (!marketDoc.exists) return { resolved: false, totalPayout: 0 };
   if (marketDoc.data()!.resolved) return { resolved: false, totalPayout: 0 };
 
-  const metrics = await getAllMetrics();
+  const metrics = await getAllMetrics(workspaceId);
   const metricMap = new Map<string, Metric>(metrics.map(m => [m.id, m]));
-  const result = await resolveMarketDoc(marketDoc, metricMap);
+  const result = await resolveMarketDoc(marketDoc, metricMap, workspaceId);
   if (result.skipped) return { resolved: false, totalPayout: 0 };
   return { resolved: true, totalPayout: result.totalPayout };
 }
 
-export async function resolvePredictions(targetDate?: string): Promise<{ resolved: number; totalPayout: number }> {
+export async function resolvePredictions(targetDate?: string, workspaceId = 'default'): Promise<{ resolved: number; totalPayout: number }> {
   const today = targetDate || new Date().toISOString().slice(0, 10);
 
-  const marketSnap = await db().collection('markets')
+  const marketSnap = await wsCol(workspaceId, 'markets')
     .where('resolved', '==', false)
     .get();
 
@@ -90,14 +93,14 @@ export async function resolvePredictions(targetDate?: string): Promise<{ resolve
 
   if (marketsToResolve.length === 0) return { resolved: 0, totalPayout: 0 };
 
-  const metrics = await getAllMetrics();
+  const metrics = await getAllMetrics(workspaceId);
   const metricMap = new Map<string, Metric>(metrics.map(m => [m.id, m]));
 
   // Batch-fetch task statuses for any conditional markets
   const taskIds = [...new Set(marketsToResolve.map(d => d.data().taskId).filter(Boolean) as string[])];
   const taskStatusMap = new Map<string, string>();
   if (taskIds.length > 0) {
-    const taskRefs = taskIds.map(id => db().collection('tasks').doc(id));
+    const taskRefs = taskIds.map(id => wsCol(workspaceId, 'tasks').doc(id));
     const taskDocs = await db().getAll(...taskRefs);
     for (const doc of taskDocs) {
       if (doc.exists) taskStatusMap.set(doc.id, doc.data()!.status);
@@ -110,9 +113,9 @@ export async function resolvePredictions(targetDate?: string): Promise<{ resolve
   for (const marketDoc of marketsToResolve) {
     const taskId: string | undefined = marketDoc.data().taskId;
     if (taskId && taskStatusMap.get(taskId) !== 'approved') {
-      await voidMarket(marketDoc);
+      await voidMarket(marketDoc, workspaceId);
     } else {
-      const result = await resolveMarketDoc(marketDoc, metricMap);
+      const result = await resolveMarketDoc(marketDoc, metricMap, workspaceId);
       if (!result.skipped) {
         totalPayout += result.totalPayout;
         resolvedCount++;
@@ -133,13 +136,13 @@ export interface GetMarketsOptions {
   limit?: number;
 }
 
-export async function getMarkets(options: GetMarketsOptions | boolean = false, taskId?: string) {
+export async function getMarkets(options: GetMarketsOptions | boolean = false, taskId?: string, workspaceId = 'default') {
   // Support legacy boolean signature
   const opts: GetMarketsOptions = typeof options === 'boolean'
     ? { includeResolved: options, taskId }
     : options;
 
-  let query: FirebaseFirestore.Query = db().collection('markets');
+  let query: FirebaseFirestore.Query = wsCol(workspaceId, 'markets');
   if (!opts.includeResolved) query = query.where('resolved', '==', false);
   if (opts.taskId) query = query.where('taskId', '==', opts.taskId);
   const marketSnap = await query.orderBy('targetDate', 'asc').get();

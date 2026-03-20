@@ -15,7 +15,7 @@ export const agentsRouter = Router();
 // --- Registration (no auth) ---
 
 agentsRouter.post('/register', wrap(async (req, res) => {
-  const { agentId } = req.body;
+  const { agentId, workspaceId = 'default' } = req.body;
   const agentIdError = validateAgentId(agentId);
   if (agentIdError) { res.status(400).json({ error: agentIdError }); return; }
 
@@ -41,7 +41,7 @@ agentsRouter.post('/register', wrap(async (req, res) => {
     createdAt: FieldValue.serverTimestamp(),
     approvedAt: null,
   });
-  batch.set(db().collection('agentApiKeys').doc(keyHash), { agentId });
+  batch.set(db().collection('agentApiKeys').doc(keyHash), { agentId, workspaceId });
   await batch.commit();
 
   res.status(201).json({ agentId, apiKey: rawKey });
@@ -78,11 +78,12 @@ agentsRouter.get('/:id/balance', requireSelfOrAdmin, wrap(async (req, res) => {
 // Replaces separate balance + markets calls with one low-token response.
 agentsRouter.get('/:id/dashboard', requireSelfOrAdmin, wrap(async (req, res) => {
   const id = req.params.id as string;
+  const { workspaceId } = req.auth!;
   const limit = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : 10;
 
   const [agentDoc, markets] = await Promise.all([
     db().collection('agents').doc(id).get(),
-    getMarkets({ active: true, minLiquidity: 0.01, limit }),
+    getMarkets({ active: true, minLiquidity: 0.01, limit }, undefined, workspaceId),
   ]);
 
   if (!agentDoc.exists) { res.status(404).json({ error: 'Agent not found' }); return; }

@@ -136,4 +136,32 @@ export interface Prediction {
 export interface AuthInfo {
   role: AgentRole | 'admin';
   agentId?: string;
+  /** Always set — 'default' for master-key or existing Firebase admin users. */
+  workspaceId: string;
+  /** Firebase Auth UID, set when authenticated via ID token. */
+  uid?: string;
+}
+
+export type WorkspaceVisibility = 'public' | 'unlisted' | 'private';
+export type WorkspaceMemberRole = 'owner' | 'admin' | 'trader' | 'viewer';
+
+export interface Workspace {
+  id: string;
+  name: string;
+  createdBy: string;
+  createdAt: FirebaseFirestore.Timestamp;
+  visibility: WorkspaceVisibility;
+}
+
+export interface WorkspaceMember {
+  role: WorkspaceMemberRole;
+  joinedAt: FirebaseFirestore.Timestamp;
+}
+
+export interface UserProfile {
+  uid: string;
+  email: string;
+  createdAt: FirebaseFirestore.Timestamp;
+  /** Map of workspaceId → membership info */
+  workspaces: Record<string, WorkspaceMember>;
 }

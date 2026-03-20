@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '../lib/db';
+import { wsCol } from '../lib/workspace';
 import { wrap } from '../lib/wrap';
 import { AppError } from '../lib/errors';
 import { authMiddleware } from '../middleware/auth';
@@ -21,6 +22,7 @@ predictionsRouter.use(authMiddleware);
 // --- Agent-accessible ---
 
 predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
   // Admin can impersonate an agent
   let agentId = req.auth!.agentId;
   if (req.body.agentId && req.auth!.role === 'admin') agentId = req.body.agentId;
@@ -60,10 +62,11 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
     res.status(400).json({ error: 'Provide {targetValue, maxBudget}, {direction, amount}, or {direction, sellShares}' }); return;
   }
 
-  const marketRef = db().collection('markets').doc(marketId);
+  const marketRef = wsCol(workspaceId, 'markets').doc(marketId);
+  // agents is a global collection — not workspace-scoped
   const agentRef = db().collection('agents').doc(agentId);
   // Generate the trade doc ID outside the transaction so it's stable across retries.
-  const tradeRef = db().collection('trades').doc();
+  const tradeRef = wsCol(workspaceId, 'trades').doc();
 
   // Capture values set inside the transaction for use in the response and event emission.
   let tradeResponse: Record<string, unknown>;
@@ -114,7 +117,7 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
 
     // Read position after direction is resolved (posId includes direction).
     const posId = `${agentId}_${marketId}_${dirLabel}`;
-    const posRef = db().collection('positions').doc(posId);
+    const posRef = wsCol(workspaceId, 'positions').doc(posId);
     const posDoc = await tx.get(posRef);
 
     let proceeds = 0;
@@ -162,16 +165,17 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
   });
 
   res.status(201).json(tradeResponse!);
-  emitEvent('trade:executed', eventPayload!).catch(e => console.error('emitEvent failed:', e));
+  emitEvent('trade:executed', eventPayload!, workspaceId).catch(e => console.error('emitEvent failed:', e));
 }));
 
 predictionsRouter.get('/positions', requireRole('agent', 'admin'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
   const agentId = req.auth!.role === 'admin' && typeof req.query.agentId === 'string'
     ? req.query.agentId
     : req.auth!.agentId;
   if (!agentId) { res.status(403).json({ error: 'Only agents can list positions' }); return; }
 
-  let query: FirebaseFirestore.Query = db().collection('positions').where('agentId', '==', agentId);
+  let query: FirebaseFirestore.Query = wsCol(workspaceId, 'positions').where('agentId', '==', agentId);
   if (req.query.marketId) query = query.where('marketId', '==', req.query.marketId as string);
 
   const snapshot = await query.get();
@@ -179,14 +183,15 @@ predictionsRouter.get('/positions', requireRole('agent', 'admin'), wrap(async (r
 }));
 
 predictionsRouter.get('/markets', requireRole('agent', 'admin'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
   const taskId = typeof req.query.taskId === 'string' ? req.query.taskId : undefined;
   if (taskId) {
-    const taskRef = db().collection('tasks').doc(taskId);
+    const taskRef = wsCol(workspaceId, 'tasks').doc(taskId);
     const taskDoc = await taskRef.get();
     if (taskDoc.exists) {
       const task = taskDoc.data()!;
       if (!task.conditionalMarketIds?.length) {
-        const marketIds = await createConditionalMarkets(taskId);
+        const marketIds = await createConditionalMarkets(taskId, workspaceId);
         await taskRef.update({ conditionalMarketIds: marketIds });
       }
     }
@@ -194,12 +199,13 @@ predictionsRouter.get('/markets', requireRole('agent', 'admin'), wrap(async (req
   const active = req.query.active === 'true' ? true : req.query.active === 'false' ? false : undefined;
   const minLiquidity = typeof req.query.minLiquidity === 'string' ? parseFloat(req.query.minLiquidity) : undefined;
   const limit = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : undefined;
-  res.json(await getMarkets({ taskId, active, minLiquidity, limit }));
+  res.json(await getMarkets({ taskId, active, minLiquidity, limit }, undefined, workspaceId));
 }));
 
 predictionsRouter.get('/markets/:id/trades', requireRole('agent', 'admin'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
   const last = typeof req.query.last === 'string' ? parseInt(req.query.last, 10) : undefined;
-  let query: FirebaseFirestore.Query = db().collection('trades')
+  let query: FirebaseFirestore.Query = wsCol(workspaceId, 'trades')
     .where('marketId', '==', req.params.id as string)
     .orderBy('createdAt', last !== undefined ? 'desc' : 'asc');
   if (last !== undefined) query = query.limit(last);
@@ -222,11 +228,12 @@ predictionsRouter.get('/markets/:id/trades', requireRole('agent', 'admin'), wrap
 }));
 
 predictionsRouter.get('/markets/:id', requireRole('agent', 'admin'), wrap(async (req, res) => {
-  const doc = await db().collection('markets').doc(req.params.id as string).get();
+  const { workspaceId } = req.auth!;
+  const doc = await wsCol(workspaceId, 'markets').doc(req.params.id as string).get();
   if (!doc.exists) { res.status(404).json({ error: 'Market not found' }); return; }
   const m = doc.data()!;
   const prob = pHigher(m.shares, m.liquidity);
-    res.json({
+  res.json({
     id: doc.id,
     metricId: m.metricId,
     metricName: m.metricName,
@@ -242,14 +249,15 @@ predictionsRouter.get('/markets/:id', requireRole('agent', 'admin'), wrap(async 
 }));
 
 predictionsRouter.get('/markets/:id/context', requireRole('agent', 'admin'), wrap(async (req, res) => {
-  const doc = await db().collection('markets').doc(req.params.id as string).get();
+  const { workspaceId } = req.auth!;
+  const doc = await wsCol(workspaceId, 'markets').doc(req.params.id as string).get();
   if (!doc.exists) { res.status(404).json({ error: 'Market not found' }); return; }
   const m = doc.data()!;
 
   const historyLimit = typeof req.query.historyLimit === 'string' ? Math.min(parseInt(req.query.historyLimit, 10), 90) : 20;
   const updatesLimit = typeof req.query.updatesLimit === 'string' ? Math.min(parseInt(req.query.updatesLimit, 10), 30) : 10;
 
-  const metrics = await getAllMetrics();
+  const metrics = await getAllMetrics(workspaceId);
   const metric = metrics.find(mt => mt.id === m.metricId);
   const deps = metric ? extractMetricReferences(metric.formula || '0') : [];
   const depValues = deps.map(name => {
@@ -258,9 +266,9 @@ predictionsRouter.get('/markets/:id/context', requireRole('agent', 'admin'), wra
   });
 
   const [logs, updates, relatedSnap] = await Promise.all([
-    metric ? getMetricLogs(metric.id) : Promise.resolve([]),
-    getUpdates(200),
-    db().collection('markets')
+    metric ? getMetricLogs(metric.id, workspaceId) : Promise.resolve([]),
+    getUpdates(200, workspaceId),
+    wsCol(workspaceId, 'markets')
       .where('metricId', '==', m.metricId)
       .where('resolved', '==', false)
       .get(),
@@ -305,6 +313,7 @@ predictionsRouter.get('/markets/:id/context', requireRole('agent', 'admin'), wra
 // --- Admin-only ---
 
 predictionsRouter.post('/markets', requireRole('admin'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
   const { metricId, targetDate, rangeMin, rangeMax, liquidity } = req.body;
   if (!metricId || typeof metricId !== 'string') { res.status(400).json({ error: 'metricId is required' }); return; }
   if (!targetDate || typeof targetDate !== 'string' || !isValidDateFormat(targetDate)) { res.status(400).json({ error: 'targetDate must be YYYY, YYYY-MM, YYYY-Www, or YYYY-MM-DD' }); return; }
@@ -312,11 +321,11 @@ predictionsRouter.post('/markets', requireRole('admin'), wrap(async (req, res) =
   const today = new Date().toISOString().slice(0, 10);
   if (endOfPeriod(targetDate) <= today) { res.status(400).json({ error: 'targetDate period must be in the future' }); return; }
 
-  const metrics = await getAllMetrics();
+  const metrics = await getAllMetrics(workspaceId);
   const metric = metrics.find(m => m.id === metricId);
   if (!metric) { res.status(404).json({ error: 'Metric not found' }); return; }
 
-  const existing = await db().collection('markets')
+  const existing = await wsCol(workspaceId, 'markets')
     .where('metricId', '==', metricId)
     .where('targetDate', '==', targetDate)
     .limit(1)
@@ -327,7 +336,7 @@ predictionsRouter.post('/markets', requireRole('admin'), wrap(async (req, res) =
   const rMax = typeof rangeMax === 'number' ? rangeMax : (metric.marketRangeMax ?? AMM_DEFAULTS.rangeMax);
   const liq = typeof liquidity === 'number' ? liquidity : AMM_DEFAULTS.liquidity;
 
-  const ref = db().collection('markets').doc();
+  const ref = wsCol(workspaceId, 'markets').doc();
   await ref.set({
     id: ref.id,
     metricId,
@@ -344,15 +353,16 @@ predictionsRouter.post('/markets', requireRole('admin'), wrap(async (req, res) =
     pool: initialPool(liq),
   });
 
-  const liqRef = db().collection('liquidityEvents').doc();
+  const liqRef = wsCol(workspaceId, 'liquidityEvents').doc();
   await liqRef.set({ id: liqRef.id, marketId: ref.id, amount: liq, totalLiquidity: liq, type: 'initial', createdAt: FieldValue.serverTimestamp() });
 
   res.status(201).json({ id: ref.id, metricId, metricName: metric.name, targetDate });
-  emitEvent('market:created', { marketId: ref.id, metricName: metric.name, targetDate }).catch(e => console.error('emitEvent failed:', e));
+  emitEvent('market:created', { marketId: ref.id, metricName: metric.name, targetDate }, workspaceId).catch(e => console.error('emitEvent failed:', e));
 }));
 
 predictionsRouter.get('/markets/:id/liquidity-events', requireRole('agent', 'admin'), wrap(async (req, res) => {
-  const snap = await db().collection('liquidityEvents')
+  const { workspaceId } = req.auth!;
+  const snap = await wsCol(workspaceId, 'liquidityEvents')
     .where('marketId', '==', req.params.id as string)
     .get();
   res.json(snap.docs.map(doc => {
@@ -366,12 +376,13 @@ predictionsRouter.get('/markets/:id/liquidity-events', requireRole('agent', 'adm
 }));
 
 predictionsRouter.post('/markets/liquidity/bulk', requireRole('admin'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
   const { amount, agentId, taskId } = req.body;
   if (typeof amount !== 'number' || amount <= 0) { res.status(400).json({ error: 'amount must be a positive number' }); return; }
   if (typeof agentId !== 'string' || !agentId) { res.status(400).json({ error: 'agentId is required' }); return; }
 
   const agentRef = db().collection('agents').doc(agentId);
-  let marketsQuery: FirebaseFirestore.Query = db().collection('markets').where('active', '==', true).where('resolved', '==', false);
+  let marketsQuery: FirebaseFirestore.Query = wsCol(workspaceId, 'markets').where('active', '==', true).where('resolved', '==', false);
   if (typeof taskId === 'string' && taskId) {
     marketsQuery = marketsQuery.where('taskId', '==', taskId);
   }
@@ -404,7 +415,7 @@ predictionsRouter.post('/markets/liquidity/bulk', requireRole('admin'), wrap(asy
       ? Math.round(oldPool * newLiquidity / oldLiquidity * 100) / 100
       : initialPool(newLiquidity);
     batch.update(marketDoc.ref, { liquidity: newLiquidity, shares: newShares, pool: newPool });
-    const liqRef = db().collection('liquidityEvents').doc();
+    const liqRef = wsCol(workspaceId, 'liquidityEvents').doc();
     batch.set(liqRef, { id: liqRef.id, marketId: marketDoc.id, amount, totalLiquidity: newLiquidity, type: 'injection', createdAt: FieldValue.serverTimestamp() });
   }
 
@@ -413,9 +424,10 @@ predictionsRouter.post('/markets/liquidity/bulk', requireRole('admin'), wrap(asy
 }));
 
 predictionsRouter.post('/markets/:id/liquidity', requireRole('admin'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
   const { amount } = req.body;
   if (typeof amount !== 'number' || amount <= 0) { res.status(400).json({ error: 'amount must be a positive number' }); return; }
-  const ref = db().collection('markets').doc(req.params.id as string);
+  const ref = wsCol(workspaceId, 'markets').doc(req.params.id as string);
   const doc = await ref.get();
   if (!doc.exists) { res.status(404).json({ error: 'Market not found' }); return; }
   const data = doc.data()!;
@@ -430,23 +442,26 @@ predictionsRouter.post('/markets/:id/liquidity', requireRole('admin'), wrap(asyn
     ? Math.round(oldPool * newLiquidity / oldLiquidity * 100) / 100
     : initialPool(newLiquidity);
   await ref.update({ liquidity: newLiquidity, shares: newShares, pool: newPool });
-  const liqRef = db().collection('liquidityEvents').doc();
+  const liqRef = wsCol(workspaceId, 'liquidityEvents').doc();
   await liqRef.set({ id: liqRef.id, marketId: req.params.id as string, amount, totalLiquidity: newLiquidity, type: 'injection', createdAt: FieldValue.serverTimestamp() });
   res.json({ liquidity: newLiquidity });
 }));
 
 predictionsRouter.post('/markets/:id/void', requireRole('admin'), wrap(async (req, res) => {
-  const result = await voidMarket(req.params.id as string);
+  const { workspaceId } = req.auth!;
+  const result = await voidMarket(req.params.id as string, workspaceId);
   res.json(result);
 }));
 
 predictionsRouter.post('/markets/:id/resolve', requireRole('admin'), wrap(async (req, res) => {
-  const result = await resolveMarket(req.params.id as string);
+  const { workspaceId } = req.auth!;
+  const result = await resolveMarket(req.params.id as string, workspaceId);
   res.json(result);
 }));
 
 predictionsRouter.delete('/markets/:id', requireRole('admin'), wrap(async (req, res) => {
-  const ref = db().collection('markets').doc(req.params.id as string);
+  const { workspaceId } = req.auth!;
+  const ref = wsCol(workspaceId, 'markets').doc(req.params.id as string);
   const doc = await ref.get();
   if (!doc.exists) { res.status(404).json({ error: 'Market not found' }); return; }
   await ref.delete();
@@ -454,31 +469,34 @@ predictionsRouter.delete('/markets/:id', requireRole('admin'), wrap(async (req, 
 }));
 
 predictionsRouter.post('/resolve', requireRole('admin'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
   const { targetDate } = req.body || {};
-  const result = await resolvePredictions(targetDate);
+  const result = await resolvePredictions(targetDate, workspaceId);
   res.json(result);
 }));
 
 predictionsRouter.post('/markets/refresh', requireRole('admin'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
   const taskId = typeof req.body?.taskId === 'string' ? req.body.taskId : undefined;
   if (taskId) {
-    const taskRef = db().collection('tasks').doc(taskId);
+    const taskRef = wsCol(workspaceId, 'tasks').doc(taskId);
     const taskDoc = await taskRef.get();
     if (!taskDoc.exists) { res.status(404).json({ error: 'Task not found' }); return; }
     const existingIds: string[] = taskDoc.data()!.conditionalMarketIds ?? [];
-    const marketIds = await createConditionalMarkets(taskId);
+    const marketIds = await createConditionalMarkets(taskId, workspaceId);
     await taskRef.update({ conditionalMarketIds: marketIds });
     const reused = existingIds.length > 0 && existingIds.length === marketIds.length &&
       existingIds.every(id => marketIds.includes(id));
     res.json({ created: reused ? 0 : marketIds.length, deactivated: 0, deduplicated: 0 });
     return;
   }
-  const result = await refreshRelativeDateMarkets();
+  const result = await refreshRelativeDateMarkets(workspaceId);
   res.json(result);
 }));
 
 // Emit market:created for existing open markets of a metric (so hook watchers notify agents).
 predictionsRouter.post('/markets/notify', requireRole('admin'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
   const { metricId, metricName } = req.body || {};
   if (!metricId && !metricName) {
     res.status(400).json({ error: 'metricId or metricName is required' });
@@ -486,28 +504,29 @@ predictionsRouter.post('/markets/notify', requireRole('admin'), wrap(async (req,
   }
   let targetMetricId: string | null = metricId ?? null;
   if (!targetMetricId && metricName) {
-    const metrics = await getAllMetrics();
+    const metrics = await getAllMetrics(workspaceId);
     const m = metrics.find(x => x.name === metricName);
     if (!m) { res.status(404).json({ error: 'Metric not found' }); return; }
     targetMetricId = m.id;
   }
-  const snap = await db().collection('markets')
+  const snap = await wsCol(workspaceId, 'markets')
     .where('metricId', '==', targetMetricId!)
     .where('resolved', '==', false)
     .get();
   let emitted = 0;
   for (const doc of snap.docs) {
     const d = doc.data();
-    await emitEvent('market:created', { marketId: doc.id, metricName: d.metricName, targetDate: d.targetDate });
+    await emitEvent('market:created', { marketId: doc.id, metricName: d.metricName, targetDate: d.targetDate }, workspaceId);
     emitted++;
   }
   res.json({ emitted });
 }));
 
 // One-time migration: add binary AMM fields to existing markets, refund old predictions
-predictionsRouter.post('/migrate', requireRole('admin'), wrap(async (_req, res) => {
-  const marketsSnap = await db().collection('markets').get();
-  const predsSnap = await db().collection('predictions').where('resolved', '==', false).get();
+predictionsRouter.post('/migrate', requireRole('admin'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
+  const marketsSnap = await wsCol(workspaceId, 'markets').get();
+  const predsSnap = await wsCol(workspaceId, 'predictions' as never).where('resolved', '==', false).get();
 
   let marketsUpdated = 0;
   let poolsBackfilled = 0;
