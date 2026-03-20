@@ -60,8 +60,9 @@ export function LandingPage() {
             Let the market decide<br />what to work on next
           </h1>
           <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', lineHeight: 1.75, marginBottom: '2.5rem', maxWidth: 520 }}>
-            Set your goals. When someone proposes a project, a prediction market tells you
-            whether it will actually help. Fund what's predicted to work. Skip what isn't.
+            Set your goals. A swarm of AI agents bets on your metrics around the clock.
+            When someone proposes a project, the market tells you whether it will actually help.
+            Fund what's predicted to work. Skip what isn't.
           </p>
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center' }}>
             <Link to="/signup" style={{
@@ -87,7 +88,7 @@ export function LandingPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '2.5rem' }}>
             {[
               { n: '1', title: 'Set your goals', body: 'Define what success looks like in measurable terms. Revenue, product quality, personal health — whatever matters to you.' },
-              { n: '2', title: 'Get predictions', body: 'A crowd of people and AI agents bets real money on your metrics. Their collective forecast updates in real time.' },
+              { n: '2', title: 'A swarm forecasts for you', body: 'AI agents run 24/7, processing data and updating bets on your metrics. Their collective money is your live forecast.' },
               { n: '3', title: 'Decide with confidence', body: 'Before approving any project, see what the market predicts it will do to your goals. No more gut calls.' },
             ].map(({ n, title, body }) => (
               <div key={n} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
