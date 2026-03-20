@@ -51,6 +51,9 @@ export const api = {
 
   // Agents
   getAgents: (user: User) => request('/api/agents', user),
+  getMyAgents: (user: User) => request('/api/agents/mine', user),
+  registerAgent: (user: User, agentId: string) =>
+    request('/api/agents/register', user, { method: 'POST', body: JSON.stringify({ agentId }) }),
   approveAgent: (user: User, id: string) =>
     request(`/api/agents/${id}/approve`, user, { method: 'PUT' }),
   setAgentRole: (user: User, id: string, role: string) =>

@@ -66,6 +66,32 @@ function memberRoleToAuthRole(memberRole: WorkspaceMemberRole | null): AgentRole
   return 'pending'; // viewer or no workspace
 }
 
+/** Like authMiddleware but never rejects — allows unauthenticated requests through with req.auth unset. */
+export async function optionalAuthMiddleware(req: Request, _res: Response, next: NextFunction) {
+  const apiKey = req.headers['x-api-key'] as string | undefined;
+  const masterKey = process.env.API_KEY;
+  if (apiKey && masterKey && safeCompare(apiKey, masterKey)) {
+    req.auth = { role: 'admin', workspaceId: 'default' };
+    return next();
+  }
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split('Bearer ')[1];
+    const decoded = await getAuth().verifyIdToken(token).catch(() => null);
+    if (decoded) {
+      if (isAdminFirebaseUser(decoded)) {
+        req.auth = { role: 'admin', workspaceId: 'default', uid: decoded.uid };
+      } else {
+        const { workspaceId, memberRole } = await resolveFirebaseWorkspace(decoded.uid);
+        req.auth = { role: memberRoleToAuthRole(memberRole), workspaceId, uid: decoded.uid };
+      }
+    }
+    // Invalid token: continue without auth (optional)
+  }
+  // No credentials at all: continue without auth
+  return next();
+}
+
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
   // 1. Master API key → admin, always in the 'default' workspace (timing-safe comparison)
   const apiKey = req.headers['x-api-key'] as string | undefined;

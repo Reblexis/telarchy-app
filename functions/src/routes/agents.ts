@@ -3,8 +3,8 @@ import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { db } from '../lib/db';
 import { randomBytes } from 'crypto';
 import { wrap } from '../lib/wrap';
-import { hashKey, authMiddleware } from '../middleware/auth';
-import { requireRole, requireSelfOrAdmin } from '../middleware/roles';
+import { hashKey, authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
+import { requireRole, requireSelfOrAdmin, requireFirebaseUser } from '../middleware/roles';
 import { getMarkets } from '../services/predictions';
 import { sendUsdc, getTreasuryBalances, getTreasuryAddress, validateWalletAddress, verifyUsdcDeposit } from '../lib/usdc';
 import { AppError } from '../lib/errors';
@@ -12,9 +12,9 @@ import { validateAgentId, validateTxHash } from '../lib/validation';
 
 export const agentsRouter = Router();
 
-// --- Registration (no auth) ---
+// --- Registration (optional auth — links agent to Firebase user if token present) ---
 
-agentsRouter.post('/register', wrap(async (req, res) => {
+agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => {
   const { agentId, workspaceId = 'default' } = req.body;
   const agentIdError = validateAgentId(agentId);
   if (agentIdError) { res.status(400).json({ error: agentIdError }); return; }
@@ -27,6 +27,7 @@ agentsRouter.post('/register', wrap(async (req, res) => {
 
   const rawKey = randomBytes(32).toString('hex');
   const keyHash = hashKey(rawKey);
+  const ownerUid = req.auth?.uid ?? null;
 
   const batch = db().batch();
   batch.set(agentRef, {
@@ -38,6 +39,7 @@ agentsRouter.post('/register', wrap(async (req, res) => {
     earnedBetting: 0,
     spentBetting: 0,
     spentTokens: 0,
+    ownerUid,
     createdAt: FieldValue.serverTimestamp(),
     approvedAt: null,
   });
@@ -45,6 +47,17 @@ agentsRouter.post('/register', wrap(async (req, res) => {
   await batch.commit();
 
   res.status(201).json({ agentId, apiKey: rawKey });
+}));
+
+// --- My agents (Firebase user sees only their own agents) ---
+
+agentsRouter.get('/mine', authMiddleware, requireFirebaseUser, wrap(async (req, res) => {
+  const { uid } = req.auth!;
+  const snap = await db().collection('agents').where('ownerUid', '==', uid).orderBy('createdAt', 'desc').get();
+  res.json(snap.docs.map(doc => {
+    const { apiKeyHash, ...data } = doc.data();
+    return data;
+  }));
 }));
 
 // --- All routes below require auth ---

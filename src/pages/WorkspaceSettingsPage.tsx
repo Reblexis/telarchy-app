@@ -110,7 +110,7 @@ export function WorkspaceSettingsPage() {
     return (
       <>
         <DarkModeToggle fixed />
-        <Header activePage="metrics" />
+        <Header activePage="metrics" navMode="creator" />
         <div className="container" style={{ maxWidth: 600, paddingTop: '2rem' }}>
           <h1>Workspace Settings</h1>
           <p style={{ color: 'var(--text-secondary)' }}>
@@ -126,7 +126,7 @@ export function WorkspaceSettingsPage() {
     return (
       <>
         <DarkModeToggle fixed />
-        <Header activePage="metrics" />
+        <Header activePage="metrics" navMode="creator" />
         <div className="container" style={{ maxWidth: 600, paddingTop: '2rem' }}>
           <h1>Workspace Settings</h1>
           <p style={{ color: 'var(--text-secondary)' }}>
@@ -144,7 +144,7 @@ export function WorkspaceSettingsPage() {
   return (
     <>
       <DarkModeToggle fixed />
-      <Header activePage="metrics" />
+      <Header activePage="metrics" navMode="creator" />
       <div className="container" style={{ maxWidth: 600, paddingTop: '1rem' }}>
         <h1 style={{ marginBottom: '0.25rem' }}>Workspace Settings</h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>

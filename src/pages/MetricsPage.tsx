@@ -96,6 +96,7 @@ export function MetricsPage() {
     <>
       <Header
         activePage="metrics"
+        navMode="creator"
         workspaceName={workspace?.workspaceId !== 'default' ? workspace?.workspaceId : undefined}
         showSettings={workspace?.tier === 'admin' && workspace?.workspaceId !== 'default'}
         actions={<>

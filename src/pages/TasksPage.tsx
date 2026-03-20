@@ -344,7 +344,7 @@ export function TasksPage() {
 
   return (
     <>
-      <Header activePage="tasks" />
+      <Header activePage="tasks" navMode="creator" />
       <div className="container">
         {error && <div className="message error show">{error}</div>}
 

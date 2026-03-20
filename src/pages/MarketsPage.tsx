@@ -161,7 +161,7 @@ export function MarketsPage() {
 
   return (
     <>
-      <Header activePage="markets" actions={isAdmin ? <>
+      <Header activePage="markets" navMode="creator" actions={isAdmin ? <>
         <HookStatus />
         <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Acting as: <strong>{impersonatedId}</strong></span>
         <button className="btn" onClick={handleRefresh} disabled={refreshing}>{refreshing ? 'Refreshing…' : 'Refresh Markets'}</button>

@@ -1,37 +1,44 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
-type Page = 'metrics' | 'agents' | 'markets' | 'tasks';
+type Page = 'metrics' | 'agents' | 'markets' | 'tasks' | 'marketplace';
 
-const NAV_ITEMS: { to: string; label: string; page: Page }[] = [
-  { to: '/metrics', label: 'Metrics', page: 'metrics' },
-  { to: '/agents', label: 'Agents', page: 'agents' },
-  { to: '/markets', label: 'Markets', page: 'markets' },
-  { to: '/tasks', label: 'Tasks', page: 'tasks' },
+const CREATOR_NAV: { to: string; label: string; page: Page }[] = [
+  { to: '/metrics',     label: 'Metrics',     page: 'metrics' },
+  { to: '/markets',     label: 'Markets',     page: 'markets' },
+  { to: '/tasks',       label: 'Tasks',       page: 'tasks' },
+  { to: '/agents',      label: 'Agents',      page: 'agents' },
+  { to: '/marketplace', label: 'Marketplace', page: 'marketplace' },
+];
+
+const OPERATOR_NAV: { to: string; label: string; page: Page }[] = [
+  { to: '/agents',      label: 'My Agents',   page: 'agents' },
+  { to: '/marketplace', label: 'Marketplace', page: 'marketplace' },
 ];
 
 export interface HeaderProps {
   activePage?: Page;
+  /** 'creator' = workspace owner nav; 'operator' = agent-only nav. Defaults to 'creator'. */
+  navMode?: 'creator' | 'operator';
   actions?: ReactNode;
-  /** If provided, displays the workspace name and a settings link. */
+  /** If provided, displays the workspace name. */
   workspaceName?: string;
   /** Whether to show the workspace settings gear link. */
   showSettings?: boolean;
 }
 
-export function Header({ activePage, actions, workspaceName, showSettings }: HeaderProps) {
+export function Header({ activePage, navMode = 'creator', actions, workspaceName, showSettings }: HeaderProps) {
+  const navItems = navMode === 'operator' ? OPERATOR_NAV : CREATOR_NAV;
+
   return (
     <div className="header">
       <img src="/logo.png" alt="Telarchy" style={{ height: '5.25rem' }} />
       <nav className="header-nav">
-        {NAV_ITEMS.map(item => (
+        {navItems.map(item => (
           <Link key={item.page} to={item.to} className={`nav-link${item.page === activePage ? ' active' : ''}`}>
             {item.label}
           </Link>
         ))}
-        <Link to="/marketplace" className="nav-link" style={{ fontSize: '0.85rem' }}>
-          Marketplace
-        </Link>
       </nav>
       <div className="header-actions">
         {workspaceName && (
