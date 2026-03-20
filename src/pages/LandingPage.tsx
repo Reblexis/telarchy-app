@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { DarkModeToggle } from '../components/DarkModeToggle';
 import { api } from '../lib/api';
+import { postLoginPath } from '../lib/postLoginPath';
 
 export function LandingPage() {
   const navigate = useNavigate();
@@ -13,8 +14,8 @@ export function LandingPage() {
   useEffect(() => {
     if (loading || !user) return;
     api.getProfile(user)
-      .then((profile: { authRole?: string }) => {
-        navigate(profile.authRole === 'pending' ? '/create-workspace' : '/metrics', { replace: true });
+      .then((profile: { authRole?: string; intent?: string | null }) => {
+        navigate(postLoginPath(profile), { replace: true });
       })
       .catch(() => navigate('/metrics', { replace: true }));
   }, [user, loading, navigate]);

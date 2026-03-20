@@ -22,7 +22,7 @@ userauthRouter.get('/me', requireFirebaseUser, wrap(async (req, res) => {
 
   const userDoc = await db().collection('users').doc(uid).get();
   if (!userDoc.exists) {
-    res.json({ uid, email: null, workspaceId, authRole, memberRole: null, workspaces: {} });
+    res.json({ uid, email: null, intent: null, workspaceId, authRole, memberRole: null, workspaces: {} });
     return;
   }
 
@@ -32,6 +32,7 @@ userauthRouter.get('/me', requireFirebaseUser, wrap(async (req, res) => {
   res.json({
     uid,
     email: data.email ?? null,
+    intent: (data.intent as 'creator' | 'agent') ?? null,
     workspaceId,
     authRole,   // 'admin' | 'agent' | 'pending' — derived from workspace membership
     memberRole, // 'owner' | 'admin' | 'trader' | 'viewer' | null
@@ -48,13 +49,17 @@ userauthRouter.post('/profile', requireFirebaseUser, wrap(async (req, res) => {
   const { uid } = req.auth!;
   if (!uid) { res.status(403).json({ error: 'Firebase account required' }); return; }
 
-  const { email } = req.body;
+  const { email, intent } = req.body;
   if (email !== undefined && typeof email !== 'string') {
     res.status(400).json({ error: 'email must be a string' }); return;
+  }
+  if (intent !== undefined && !['creator', 'agent'].includes(intent)) {
+    res.status(400).json({ error: 'intent must be "creator" or "agent"' }); return;
   }
 
   const update: Record<string, unknown> = {};
   if (email !== undefined) update.email = email;
+  if (intent !== undefined) update.intent = intent;
 
   await db().collection('users').doc(uid).set(update, { merge: true });
   res.json({ ok: true });

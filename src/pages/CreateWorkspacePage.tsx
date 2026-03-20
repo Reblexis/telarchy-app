@@ -1,5 +1,5 @@
 import { useState, FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
@@ -60,11 +60,23 @@ export function CreateWorkspacePage() {
   return (
     <>
       <DarkModeToggle fixed />
+      {/* Minimal nav */}
+      <nav style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '1rem 2rem', borderBottom: '1px solid var(--border-color)',
+      }}>
+        <Link to="/" style={{ fontWeight: 700, fontSize: '1rem', textDecoration: 'none', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+          Telarchy
+        </Link>
+        <Link to="/" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textDecoration: 'none' }}>
+          ← Back
+        </Link>
+      </nav>
       <div className="login-page">
         <div className="container" style={{ maxWidth: 480 }}>
           <h1>Create your workspace</h1>
           <p className="subtitle" style={{ marginBottom: '1.5rem' }}>
-            A workspace holds your metrics, markets, and forecasting activity.
+            A workspace holds your goals, markets, and forecasting activity.
             You can always change these settings later.
           </p>
 
@@ -121,9 +133,6 @@ export function CreateWorkspacePage() {
             </button>
             {error && <div className="error show">{error}</div>}
           </form>
-          <div className="reconfigure-link" style={{ marginTop: '1.25rem' }}>
-            Just want to run agents? <a href="/agents" style={{ color: 'var(--focus-border)' }}>Go to Agents</a>
-          </div>
         </div>
       </div>
     </>

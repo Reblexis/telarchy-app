@@ -10,6 +10,8 @@ export interface WorkspaceInfo {
   memberRole: WorkspaceMemberRole | null;
   /** Auth role returned by the backend: 'admin' | 'agent' | 'pending' */
   authRole: string;
+  /** User's signup intent, stored in their profile: 'creator' | 'agent' | null */
+  intent: 'creator' | 'agent' | null;
   /**
    * Effective permission tier:
    * - 'admin'  — can create markets, edit metrics, manage members
@@ -34,11 +36,12 @@ export function useWorkspace(user: User | null): {
     let cancelled = false;
 
     api.getProfile(user)
-      .then((profile: { workspaceId?: string; authRole?: string; memberRole?: WorkspaceMemberRole | null }) => {
+      .then((profile: { workspaceId?: string; authRole?: string; memberRole?: WorkspaceMemberRole | null; intent?: 'creator' | 'agent' | null }) => {
         if (cancelled) return;
         const workspaceId = profile.workspaceId ?? 'default';
         const memberRole = profile.memberRole ?? null;
         const authRole = profile.authRole ?? 'pending';
+        const intent = profile.intent ?? null;
 
         // A user with no workspace resolves to workspaceId='default' with authRole='pending'.
         // Platform admins also get workspaceId='default' but with authRole='admin'.
@@ -52,13 +55,13 @@ export function useWorkspace(user: User | null): {
               ? 'trader'
               : 'viewer';
 
-        setWorkspace({ workspaceId, memberRole, authRole, tier, needsWorkspace });
+        setWorkspace({ workspaceId, memberRole, authRole, intent, tier, needsWorkspace });
       })
       .catch((e: Error) => {
         if (cancelled) return;
         console.error('useWorkspace: failed to fetch profile', e.message);
         // On error, assume platform admin (backward compat for existing admin sessions)
-        setWorkspace({ workspaceId: 'default', memberRole: null, authRole: 'admin', tier: 'admin', needsWorkspace: false });
+        setWorkspace({ workspaceId: 'default', memberRole: null, authRole: 'admin', intent: null, tier: 'admin', needsWorkspace: false });
       })
       .finally(() => { if (!cancelled) setLoading(false); });
 

@@ -10,8 +10,8 @@ import { OAuthButtons } from '../components/OAuthButtons';
 type Intent = 'creator' | 'agent';
 
 const INTENT_OPTIONS: { value: Intent; label: string; description: string }[] = [
-  { value: 'creator', label: 'Publish markets', description: 'Create a workspace, define metrics, and let agents bet on your outcomes' },
-  { value: 'agent',   label: 'Deploy agents',   description: 'Register AI agents and monitor their trading activity and earnings' },
+  { value: 'creator', label: 'I want to make better decisions', description: 'Set goals, create prediction markets around them, and get crowd-backed signals on what actions are worth taking' },
+  { value: 'agent',   label: 'I want to trade and earn',        description: 'Bet on outcomes in public markets, or connect an AI bot to trade automatically and earn from correct predictions' },
 ];
 
 export function SignupPage() {
@@ -27,7 +27,7 @@ export function SignupPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const handleOAuthSuccess = async (user: User) => {
-    await api.upsertProfile(user, user.email ?? undefined);
+    await api.upsertProfile(user, user.email ?? undefined, intent);
     navigate(intent === 'creator' ? '/create-workspace' : '/agents');
   };
 
@@ -44,7 +44,7 @@ export function SignupPage() {
       const auth = getFirebaseAuth();
       const { user } = await createUserWithEmailAndPassword(auth, email, password);
 
-      await api.upsertProfile(user, email);
+      await api.upsertProfile(user, email, intent);
 
       navigate(intent === 'creator' ? '/create-workspace' : '/agents');
     } catch (err: unknown) {

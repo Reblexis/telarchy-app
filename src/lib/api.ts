@@ -146,8 +146,8 @@ export const api = {
 
   // User auth / profile
   getProfile: (user: User) => request('/api/auth/me', user),
-  upsertProfile: (user: User, email?: string) =>
-    request('/api/auth/profile', user, { method: 'POST', body: JSON.stringify({ email }) }),
+  upsertProfile: (user: User, email?: string, intent?: 'creator' | 'agent') =>
+    request('/api/auth/profile', user, { method: 'POST', body: JSON.stringify({ email, intent }) }),
   deleteAccount: (user: User) =>
     request('/api/auth/me', user, { method: 'DELETE' }),
   exportAccount: (user: User) => request('/api/auth/me/export', user),
