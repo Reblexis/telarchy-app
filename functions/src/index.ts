@@ -3,6 +3,7 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import * as admin from 'firebase-admin';
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import { authMiddleware } from './middleware/auth';
 import { requireRole } from './middleware/roles';
 import { metricsRouter } from './routes/metrics';
@@ -26,9 +27,57 @@ if (serviceAccountEnv) {
   admin.initializeApp();
 }
 
+// CORS — only allow requests from known origins.
+// ALLOWED_ORIGIN is the production Firebase Hosting domain.
+// In development, localhost origins are also permitted.
+const ALLOWED_ORIGINS = [
+  process.env.ALLOWED_ORIGIN,              // e.g. https://telarchy-e0043.web.app
+  'https://telarchy-e0043.web.app',        // production fallback if env not set
+  'https://telarchy-e0043.firebaseapp.com',
+  'http://localhost:5173',                 // Vite dev server
+  'http://localhost:5000',                 // Firebase emulator hosting
+].filter(Boolean) as string[];
+
 const app = express();
-app.use(cors({ origin: true }));
+app.use(cors({
+  origin: (origin, cb) => {
+    // Allow server-to-server (no origin header) and known browser origins.
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    return cb(new Error('CORS: origin not allowed'));
+  },
+  credentials: true,
+}));
 app.use(express.json());
+
+// Rate limiting — applied globally before any route handlers.
+// Cloud Functions sit behind Google's load balancer which sets X-Forwarded-For.
+const globalLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' },
+});
+
+// Stricter limit on mutating endpoints that cost money or resources.
+const strictLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' },
+});
+
+// Very strict limit on public registration and waitlist (anti-spam).
+const registrationLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' },
+});
+
+app.use(globalLimiter);
 
 app.get('/api/help', (_req, res) => {
   res.json({
@@ -110,8 +159,9 @@ app.get('/api/help', (_req, res) => {
 });
 
 // These routers handle their own auth
-app.use('/api/waitlist', waitlistRouter);
+app.use('/api/waitlist', registrationLimiter, waitlistRouter);
 app.use('/api/agents', agentsRouter);
+app.use('/api/predictions/trade', strictLimiter);
 app.use('/api/predictions', predictionsRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/tasks', tasksRouter);
@@ -125,7 +175,8 @@ app.use('/api', systemRouter);
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   const status = err instanceof AppError ? err.status : 500;
   if (status >= 500) console.error(err);
-  res.status(status).json({ error: err.message });
+  const extra = err instanceof AppError && err.extra ? err.extra : {};
+  res.status(status).json({ error: err.message, ...extra });
 });
 
 export const api = onRequest({ minInstances: 1, secrets: ['TREASURY_PRIVATE_KEY'] }, app);

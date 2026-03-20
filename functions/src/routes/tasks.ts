@@ -5,6 +5,7 @@ import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
 import { voidTaskMarkets, approveTask, getTaskMarketSummariesForTask, getTaskUtilitySummary } from '../services/tasks';
+import { validateContent } from '../lib/validation';
 
 export const tasksRouter = Router();
 
@@ -17,6 +18,12 @@ tasksRouter.use(authMiddleware);
 tasksRouter.post('/', requireRole('agent', 'admin'), wrap(async (req, res) => {
   const { title, description, price } = req.body;
   if (!title || typeof title !== 'string') { res.status(400).json({ error: 'title is required' }); return; }
+  const titleError = validateContent(title, 'title', 200);
+  if (titleError) { res.status(400).json({ error: titleError }); return; }
+  if (description !== undefined) {
+    const descError = validateContent(description, 'description');
+    if (descError) { res.status(400).json({ error: descError }); return; }
+  }
   if (typeof price !== 'number' || price <= 0) { res.status(400).json({ error: 'price must be a positive number' }); return; }
 
   const proposedBy = req.auth!.agentId || 'admin';
@@ -136,6 +143,8 @@ tasksRouter.get('/:taskId/messages', requireRole('agent', 'admin'), wrap(async (
 tasksRouter.post('/:taskId/messages', requireRole('agent', 'admin'), wrap(async (req, res) => {
   const { content } = req.body;
   if (!content || typeof content !== 'string') { res.status(400).json({ error: 'content is required' }); return; }
+  const contentError = validateContent(content, 'content', 5_000);
+  if (contentError) { res.status(400).json({ error: contentError }); return; }
 
   const taskDoc = await db().collection('tasks').doc(req.params.taskId as string).get();
   if (!taskDoc.exists) { res.status(404).json({ error: 'Task not found' }); return; }

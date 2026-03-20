@@ -8,6 +8,7 @@ import { requireRole, requireSelfOrAdmin } from '../middleware/roles';
 import { getMarkets } from '../services/predictions';
 import { sendUsdc, getTreasuryBalances, getTreasuryAddress, validateWalletAddress, verifyUsdcDeposit } from '../lib/usdc';
 import { AppError } from '../lib/errors';
+import { validateAgentId, validateTxHash } from '../lib/validation';
 
 export const agentsRouter = Router();
 
@@ -15,9 +16,8 @@ export const agentsRouter = Router();
 
 agentsRouter.post('/register', wrap(async (req, res) => {
   const { agentId } = req.body;
-  if (!agentId || typeof agentId !== 'string') {
-    res.status(400).json({ error: 'agentId is required' }); return;
-  }
+  const agentIdError = validateAgentId(agentId);
+  if (agentIdError) { res.status(400).json({ error: agentIdError }); return; }
 
   const agentRef = db().collection('agents').doc(agentId);
   const existing = await agentRef.get();
@@ -222,9 +222,8 @@ agentsRouter.post('/:id/spend', requireSelfOrAdmin, wrap(async (req, res) => {
 agentsRouter.post('/:id/deposit', requireSelfOrAdmin, wrap(async (req, res) => {
   const id = req.params.id as string;
   const { txHash } = req.body;
-  if (!txHash || typeof txHash !== 'string') {
-    res.status(400).json({ error: 'txHash is required' }); return;
-  }
+  const txHashError = validateTxHash(txHash);
+  if (txHashError) { res.status(400).json({ error: txHashError }); return; }
 
   const agentRef = db().collection('agents').doc(id);
   const agentDoc = await agentRef.get();

@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
-import { createHash } from 'crypto';
+import { createHash, timingSafeEqual } from 'crypto';
 import type { AuthInfo } from '../types';
 
 declare global {
@@ -32,10 +32,20 @@ function isAdminFirebaseUser(decoded: { email?: string; admin?: unknown; role?: 
   return getAdminEmails().includes(email);
 }
 
+function safeCompare(a: string, b: string): boolean {
+  try {
+    return timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  } catch {
+    // Buffers of different length would throw — treat as mismatch.
+    return false;
+  }
+}
+
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
-  // 1. Master API key → admin
+  // 1. Master API key → admin (timing-safe comparison prevents timing attacks)
   const apiKey = req.headers['x-api-key'] as string | undefined;
-  if (apiKey && apiKey === process.env.API_KEY) {
+  const masterKey = process.env.API_KEY;
+  if (apiKey && masterKey && safeCompare(apiKey, masterKey)) {
     req.auth = { role: 'admin' };
     return next();
   }

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '../lib/db';
 import { wrap } from '../lib/wrap';
+import { AppError } from '../lib/errors';
 import { authMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
 import { getAllMetrics, getMetricLogs, getUpdates } from '../services/metrics';
@@ -22,120 +23,146 @@ predictionsRouter.use(authMiddleware);
 predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req, res) => {
   // Admin can impersonate an agent
   let agentId = req.auth!.agentId;
-  if (req.body.agentId && req.auth!.role === 'admin') {
-    agentId = req.body.agentId;
-  }
+  if (req.body.agentId && req.auth!.role === 'admin') agentId = req.body.agentId;
   if (!agentId) { res.status(403).json({ error: 'Only agents can trade' }); return; }
 
   const { marketId } = req.body;
   if (!marketId || typeof marketId !== 'string') { res.status(400).json({ error: 'marketId is required' }); return; }
 
-  const marketRef = db().collection('markets').doc(marketId);
-  const marketDoc = await marketRef.get();
-  if (!marketDoc.exists) { res.status(404).json({ error: 'Market not found' }); return; }
-  const market = marketDoc.data()!;
-  if (market.resolved) { res.status(400).json({ error: 'Market is resolved' }); return; }
-  if (market.active === false) { res.status(400).json({ error: 'Market is inactive' }); return; }
+  // Determine trade mode from request body — no Firestore reads needed at this stage.
+  // Direction/amount computation requires fresh market state so happens inside the transaction.
+  type TradeMode =
+    | { type: 'targetValue'; targetValue: number; maxBudget: number }
+    | { type: 'sell'; direction: 0 | 1; dirLabel: 'higher' | 'lower'; sellShares: number }
+    | { type: 'buy'; direction: 0 | 1; dirLabel: 'higher' | 'lower'; amount: number };
 
-  const shares: [number, number] = market.shares;
-  const b = market.liquidity;
-  if (b <= 0) { res.status(400).json({ error: 'Market has no liquidity — admin must inject liquidity before trading' }); return; }
-  let direction: 0 | 1;
-  let amount: number;
-  let cost = 0;
-  let isSell = false;
-
+  let mode: TradeMode;
   const targetValue = req.body.targetValue ?? req.body.value;
   const maxBudget = req.body.maxBudget ?? req.body.amount;
   if (typeof targetValue === 'number' && typeof maxBudget === 'number') {
-    // Mode: bet towards value — buy shares to move consensus to targetValue, capped by maxBudget
     if (maxBudget <= 0) { res.status(400).json({ error: 'maxBudget/amount must be positive' }); return; }
-    if (targetValue < market.rangeMin || targetValue > market.rangeMax) {
-      res.status(400).json({ error: `targetValue/value must be between ${market.rangeMin} and ${market.rangeMax}` }); return;
-    }
-    const result = betTowardsValue(shares, b, market.rangeMin, market.rangeMax, targetValue, maxBudget);
-    direction = result.direction; amount = result.amount; cost = result.cost;
+    mode = { type: 'targetValue', targetValue, maxBudget };
   } else if (typeof req.body.direction === 'string' && typeof req.body.sellShares === 'number') {
-    // Mode: sell shares
     if (req.body.direction !== 'higher' && req.body.direction !== 'lower') {
       res.status(400).json({ error: 'direction must be "higher" or "lower"' }); return;
     }
     if (req.body.sellShares <= 0) { res.status(400).json({ error: 'sellShares must be positive' }); return; }
-    direction = req.body.direction === 'higher' ? 1 : 0;
-    amount = req.body.sellShares;
-    isSell = true;
+    const dir = req.body.direction as 'higher' | 'lower';
+    mode = { type: 'sell', direction: dir === 'higher' ? 1 : 0, dirLabel: dir, sellShares: req.body.sellShares };
   } else if (typeof req.body.direction === 'string' && typeof req.body.amount === 'number') {
-    // Mode: bet higher/lower
     if (req.body.direction !== 'higher' && req.body.direction !== 'lower') {
       res.status(400).json({ error: 'direction must be "higher" or "lower"' }); return;
     }
     if (req.body.amount <= 0) { res.status(400).json({ error: 'amount must be positive' }); return; }
-    direction = req.body.direction === 'higher' ? 1 : 0;
-    const result = sharesForBudget(shares, direction, req.body.amount, b);
-    amount = result.amount; cost = result.cost;
+    const dir = req.body.direction as 'higher' | 'lower';
+    mode = { type: 'buy', direction: dir === 'higher' ? 1 : 0, dirLabel: dir, amount: req.body.amount };
   } else {
     res.status(400).json({ error: 'Provide {targetValue, maxBudget}, {direction, amount}, or {direction, sellShares}' }); return;
   }
 
-  if (amount <= 0) { res.status(400).json({ error: 'Trade too small' }); return; }
-
-  const dirLabel = direction === 1 ? 'higher' : 'lower';
+  const marketRef = db().collection('markets').doc(marketId);
   const agentRef = db().collection('agents').doc(agentId);
-  const posId = `${agentId}_${marketId}_${dirLabel}`;
-  const posRef = db().collection('positions').doc(posId);
-
-  const [agentDoc, posDoc] = await Promise.all([agentRef.get(), posRef.get()]);
-  if (!agentDoc.exists) { res.status(404).json({ error: 'Agent not found' }); return; }
-  const balance = agentDoc.data()!.balance as number;
-
-  let proceeds = 0;
-  if (isSell) {
-    const posShares = posDoc.exists ? (posDoc.data()!.shares as number) : 0;
-    if (posShares < amount) { res.status(400).json({ error: 'Insufficient shares to sell', available: posShares }); return; }
-    proceeds = directionSellProceeds(shares, direction, amount, b);
-    if (proceeds <= 0) { res.status(400).json({ error: 'Trade too small' }); return; }
-  } else {
-    if (cost > 0 && balance < cost) { res.status(400).json({ error: 'Insufficient balance', balance, cost }); return; }
-  }
-
-  const newShares: [number, number] = [shares[0], shares[1]];
-  newShares[direction] += isSell ? -amount : amount;
-
-  const newConsensus = consensus(newShares, b, market.rangeMin, market.rangeMax) ?? null;
-  const newProbability = Math.round(pHigher(newShares, b) * 10000) / 10000;
-
+  // Generate the trade doc ID outside the transaction so it's stable across retries.
   const tradeRef = db().collection('trades').doc();
-  const batch = db().batch();
 
-  if (isSell) {
-    batch.update(marketRef, { shares: newShares, pool: FieldValue.increment(-proceeds) });
-    batch.update(agentRef, { balance: FieldValue.increment(proceeds), earnedBetting: FieldValue.increment(proceeds) });
-    batch.update(posRef, { shares: FieldValue.increment(-amount) });
-  } else {
-    batch.update(marketRef, { shares: newShares, pool: FieldValue.increment(cost) });
-    batch.update(agentRef, { balance: FieldValue.increment(-cost), spentBetting: FieldValue.increment(cost) });
-    if (posDoc.exists) {
-      batch.update(posRef, { shares: FieldValue.increment(amount), totalCost: FieldValue.increment(cost) });
+  // Capture values set inside the transaction for use in the response and event emission.
+  let tradeResponse: Record<string, unknown>;
+  let eventPayload: Record<string, unknown>;
+
+  // All reads, validation, computation, and writes happen atomically inside the transaction.
+  // Firestore retries automatically on contention — the callback must be side-effect-free
+  // (no external calls). emitEvent runs after the transaction commits.
+  await db().runTransaction(async (tx) => {
+    const [marketDoc, agentDoc] = await Promise.all([tx.get(marketRef), tx.get(agentRef)]);
+
+    if (!marketDoc.exists) throw new AppError('Market not found', 404);
+    const market = marketDoc.data()!;
+    if (market.resolved) throw new AppError('Market is resolved', 400);
+    if (market.active === false) throw new AppError('Market is inactive', 400);
+
+    const shares: [number, number] = market.shares;
+    const b = market.liquidity;
+    if (b <= 0) throw new AppError('Market has no liquidity — admin must inject liquidity before trading', 400);
+
+    if (!agentDoc.exists) throw new AppError('Agent not found', 404);
+    const balance = agentDoc.data()!.balance as number;
+
+    // Compute direction, amount, and cost from fresh market state.
+    let direction: 0 | 1;
+    let amount: number;
+    let cost = 0;
+    let isSell = false;
+    let dirLabel: 'higher' | 'lower';
+
+    if (mode.type === 'targetValue') {
+      if (mode.targetValue < market.rangeMin || mode.targetValue > market.rangeMax) {
+        throw new AppError(`targetValue/value must be between ${market.rangeMin} and ${market.rangeMax}`, 400);
+      }
+      const r = betTowardsValue(shares, b, market.rangeMin, market.rangeMax, mode.targetValue, mode.maxBudget);
+      direction = r.direction; amount = r.amount; cost = r.cost;
+      dirLabel = direction === 1 ? 'higher' : 'lower';
+    } else if (mode.type === 'sell') {
+      direction = mode.direction; dirLabel = mode.dirLabel;
+      amount = mode.sellShares; isSell = true;
     } else {
-      batch.set(posRef, { id: posId, agentId, marketId, direction: dirLabel, shares: amount, totalCost: cost });
+      direction = mode.direction; dirLabel = mode.dirLabel;
+      const r = sharesForBudget(shares, direction, mode.amount, b);
+      amount = r.amount; cost = r.cost;
     }
-  }
 
-  batch.set(tradeRef, {
-    id: tradeRef.id, agentId, marketId, direction: dirLabel,
-    shares: isSell ? -amount : amount,
-    cost: isSell ? -proceeds : cost,
-    consensus: newConsensus, probability: newProbability,
-    createdAt: FieldValue.serverTimestamp(),
+    if (amount <= 0) throw new AppError('Trade too small', 400);
+
+    // Read position after direction is resolved (posId includes direction).
+    const posId = `${agentId}_${marketId}_${dirLabel}`;
+    const posRef = db().collection('positions').doc(posId);
+    const posDoc = await tx.get(posRef);
+
+    let proceeds = 0;
+    if (isSell) {
+      const posShares = posDoc.exists ? (posDoc.data()!.shares as number) : 0;
+      if (posShares < amount) throw new AppError('Insufficient shares to sell', 400, { available: posShares });
+      proceeds = directionSellProceeds(shares, direction, amount, b);
+      if (proceeds <= 0) throw new AppError('Trade too small', 400);
+    } else {
+      if (cost > 0 && balance < cost) throw new AppError('Insufficient balance', 400, { balance, cost });
+    }
+
+    const newShares: [number, number] = [shares[0], shares[1]];
+    newShares[direction] += isSell ? -amount : amount;
+
+    const newConsensus = consensus(newShares, b, market.rangeMin, market.rangeMax) ?? null;
+    const newProbability = Math.round(pHigher(newShares, b) * 10000) / 10000;
+
+    if (isSell) {
+      tx.update(marketRef, { shares: newShares, pool: FieldValue.increment(-proceeds) });
+      tx.update(agentRef, { balance: FieldValue.increment(proceeds), earnedBetting: FieldValue.increment(proceeds) });
+      tx.update(posRef, { shares: FieldValue.increment(-amount) });
+    } else {
+      tx.update(marketRef, { shares: newShares, pool: FieldValue.increment(cost) });
+      tx.update(agentRef, { balance: FieldValue.increment(-cost), spentBetting: FieldValue.increment(cost) });
+      if (posDoc.exists) {
+        tx.update(posRef, { shares: FieldValue.increment(amount), totalCost: FieldValue.increment(cost) });
+      } else {
+        tx.set(posRef, { id: posId, agentId, marketId, direction: dirLabel, shares: amount, totalCost: cost });
+      }
+    }
+
+    tx.set(tradeRef, {
+      id: tradeRef.id, agentId, marketId, direction: dirLabel,
+      shares: isSell ? -amount : amount,
+      cost: isSell ? -proceeds : cost,
+      consensus: newConsensus, probability: newProbability,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+
+    tradeResponse = isSell
+      ? { tradeId: tradeRef.id, marketId, direction: dirLabel, shares: amount, proceeds, probability: newProbability, consensus: newConsensus }
+      : { tradeId: tradeRef.id, marketId, direction: dirLabel, shares: amount, cost, probability: newProbability, consensus: newConsensus };
+    eventPayload = { marketId, metricName: market.metricName, agentId, direction: dirLabel, cost: isSell ? -proceeds : cost, newConsensus };
   });
 
-  await batch.commit();
-
-  const response = isSell
-    ? { tradeId: tradeRef.id, marketId, direction: dirLabel, shares: amount, proceeds, probability: newProbability, consensus: newConsensus }
-    : { tradeId: tradeRef.id, marketId, direction: dirLabel, shares: amount, cost, probability: newProbability, consensus: newConsensus };
-  res.status(201).json(response);
-  emitEvent('trade:executed', { marketId, metricName: market.metricName, agentId, direction: dirLabel, cost: isSell ? -proceeds : cost, newConsensus }).catch(e => console.error('emitEvent failed:', e));
+  res.status(201).json(tradeResponse!);
+  emitEvent('trade:executed', eventPayload!).catch(e => console.error('emitEvent failed:', e));
 }));
 
 predictionsRouter.get('/positions', requireRole('agent', 'admin'), wrap(async (req, res) => {
