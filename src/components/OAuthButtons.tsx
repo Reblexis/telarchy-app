@@ -8,16 +8,10 @@ interface Props {
   onError: (msg: string) => void;
 }
 
-const FIREBASE_ERRORS: Record<string, string> = {
+const USER_ERRORS: Record<string, string> = {
   'auth/account-exists-with-different-credential': 'An account already exists with this email using a different sign-in method.',
-  'auth/popup-closed-by-user': 'Sign-in cancelled.',
-  'auth/cancelled-popup-request': 'Sign-in cancelled.',
 };
-
-function errorMessage(err: unknown): string {
-  const e = err as { code?: string; message?: string };
-  return FIREBASE_ERRORS[e.code ?? ''] ?? e.message ?? 'An error occurred';
-}
+const SILENT_CODES = new Set(['auth/popup-closed-by-user', 'auth/cancelled-popup-request']);
 
 export function OAuthButtons({ onSuccess, onError }: Props) {
   const [loading, setLoading] = useState<'google' | 'github' | null>(null);
@@ -31,8 +25,12 @@ export function OAuthButtons({ onSuccess, onError }: Props) {
       await api.upsertProfile(result.user, result.user.email ?? undefined);
       onSuccess(result.user);
     } catch (err) {
-      const msg = errorMessage(err);
-      if (msg !== 'Sign-in cancelled.') onError(msg);
+      const e = err as { code?: string; message?: string };
+      const code = e.code ?? '';
+      if (SILENT_CODES.has(code)) return;
+      const userMsg = USER_ERRORS[code];
+      if (userMsg) { onError(userMsg); return; }
+      console.error('[OAuthButtons] unexpected sign-in error:', err);
     } finally {
       setLoading(null);
     }

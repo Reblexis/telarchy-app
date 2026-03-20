@@ -14,7 +14,7 @@ export function LandingPage() {
   useEffect(() => {
     if (loading || !user) return;
     api.getProfile(user)
-      .then((profile: { authRole?: string; intent?: string | null }) => {
+      .then((profile: { authRole?: string }) => {
         navigate(postLoginPath(profile), { replace: true });
       })
       .catch(() => navigate('/metrics', { replace: true }));
@@ -123,7 +123,7 @@ export function LandingPage() {
                 <li>Evaluate proposed projects against your goals before approving</li>
                 <li>Works for startups, teams, or personal goals</li>
               </ul>
-              <Link to="/signup?intent=creator" style={{
+              <Link to="/signup" style={{
                 display: 'inline-block',
                 background: 'var(--button-bg)', color: 'var(--button-text)',
                 padding: '0.5rem 1.1rem', borderRadius: '0.375rem',

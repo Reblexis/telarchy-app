@@ -1,5 +1,5 @@
 import { initializeApp, FirebaseApp } from 'firebase/app';
-import { initializeAuth, browserLocalPersistence, Auth } from 'firebase/auth';
+import { getAuth, Auth } from 'firebase/auth';
 import type { FirebaseConfig } from '../types';
 
 const STORAGE_KEY = 'telarchyFirebaseConfig';
@@ -48,7 +48,7 @@ export function initializeFirebaseApp(): FirebaseApp {
   const config = getFirebaseConfig();
   if (!config) throw new Error('Firebase config not found.');
   app = initializeApp(config);
-  auth = initializeAuth(app, { persistence: browserLocalPersistence });
+  auth = getAuth(app);
   return app;
 }
 

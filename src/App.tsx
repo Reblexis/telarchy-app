@@ -14,6 +14,7 @@ import { AgentsPage } from './pages/AgentsPage';
 import { MarketsPage } from './pages/MarketsPage';
 import { TasksPage } from './pages/TasksPage';
 import { WaitlistPage } from './pages/WaitlistPage';
+import { StartPage } from './pages/StartPage';
 
 function InspectBanner() {
   const { inspectTask, setInspectTask } = useInspectMode();
@@ -49,8 +50,9 @@ export function App() {
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/marketplace" element={<MarketplacePage />} />
             <Route path="/waitlist" element={<WaitlistPage />} />
-            {/* Requires login, but not a workspace (e.g. agent-only users, new accounts) */}
+            {/* Requires login, but not a workspace */}
             <Route element={<RequireAuth />}>
+              <Route path="/start" element={<StartPage />} />
               <Route path="/create-workspace" element={<CreateWorkspacePage />} />
               <Route path="/agents" element={<AgentsPage />} />
             </Route>

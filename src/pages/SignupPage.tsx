@@ -1,5 +1,5 @@
 import { useState, FormEvent } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { createUserWithEmailAndPassword, User } from 'firebase/auth';
 import { initializeFirebaseApp, getFirebaseAuth } from '../lib/firebase';
 import { api } from '../lib/api';
@@ -7,19 +7,10 @@ import { useDarkMode } from '../hooks/useDarkMode';
 import { DarkModeToggle } from '../components/DarkModeToggle';
 import { OAuthButtons } from '../components/OAuthButtons';
 
-type Intent = 'creator' | 'agent';
-
-const INTENT_OPTIONS: { value: Intent; label: string; description: string }[] = [
-  { value: 'creator', label: 'I want to make better decisions', description: 'Set goals, create prediction markets around them, and get crowd-backed signals on what actions are worth taking' },
-  { value: 'agent',   label: 'I want to trade and earn',        description: 'Bet on outcomes in public markets, or connect an AI bot to trade automatically and earn from correct predictions' },
-];
-
 export function SignupPage() {
   const navigate = useNavigate();
-  const [params] = useSearchParams();
   useDarkMode();
 
-  const [intent, setIntent] = useState<Intent>((params.get('intent') as Intent) || 'creator');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -27,8 +18,8 @@ export function SignupPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const handleOAuthSuccess = async (user: User) => {
-    await api.upsertProfile(user, user.email ?? undefined, intent);
-    navigate(intent === 'creator' ? '/create-workspace' : '/agents');
+    await api.upsertProfile(user, user.email ?? undefined);
+    navigate('/start');
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -44,9 +35,9 @@ export function SignupPage() {
       const auth = getFirebaseAuth();
       const { user } = await createUserWithEmailAndPassword(auth, email, password);
 
-      await api.upsertProfile(user, email, intent);
+      await api.upsertProfile(user, email);
 
-      navigate(intent === 'creator' ? '/create-workspace' : '/agents');
+      navigate('/start');
     } catch (err: unknown) {
       const firebaseErr = err as { code?: string; message?: string };
       let msg = 'An error occurred';
@@ -63,38 +54,8 @@ export function SignupPage() {
     <>
       <DarkModeToggle fixed />
       <div className="login-page">
-        <div className="container" style={{ maxWidth: 440 }}>
+        <div className="container" style={{ maxWidth: 400 }}>
           <h1>Create account</h1>
-
-          {/* Intent selector */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', margin: '1.25rem 0' }}>
-            {INTENT_OPTIONS.map(opt => (
-              <label
-                key={opt.value}
-                style={{
-                  display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
-                  padding: '0.75rem',
-                  border: `1px solid ${intent === opt.value ? 'var(--focus-border)' : 'var(--border-color)'}`,
-                  borderRadius: '0.375rem',
-                  background: intent === opt.value ? 'var(--focus-bg)' : 'var(--bg-secondary)',
-                  cursor: 'pointer',
-                }}
-              >
-                <input
-                  type="radio"
-                  name="intent"
-                  value={opt.value}
-                  checked={intent === opt.value}
-                  onChange={() => setIntent(opt.value)}
-                  style={{ marginTop: '0.2rem', flexShrink: 0, width: 'auto' }}
-                />
-                <span>
-                  <strong style={{ display: 'block', fontSize: '0.9rem' }}>{opt.label}</strong>
-                  <span style={{ fontSize: '0.825rem', color: 'var(--text-secondary)' }}>{opt.description}</span>
-                </span>
-              </label>
-            ))}
-          </div>
 
           <OAuthButtons onSuccess={handleOAuthSuccess} onError={setError} />
 
