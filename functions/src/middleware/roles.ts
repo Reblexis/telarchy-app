@@ -10,6 +10,13 @@ export function requireRole(...roles: Array<AgentRole | 'admin'>) {
   };
 }
 
+/** Requires any authenticated Firebase user (uid present). Allows all workspace roles. */
+export function requireFirebaseUser(req: Request, res: Response, next: NextFunction) {
+  if (!req.auth) return res.status(401).json({ error: 'Unauthorized' });
+  if (!req.auth.uid) return res.status(403).json({ error: 'Firebase account required' });
+  return next();
+}
+
 export function requireSelfOrAdmin(req: Request, res: Response, next: NextFunction) {
   if (!req.auth) return res.status(401).json({ error: 'Unauthorized' });
   if (req.auth.role === 'admin') return next();

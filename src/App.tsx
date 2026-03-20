@@ -8,6 +8,7 @@ import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
 import { CreateWorkspacePage } from './pages/CreateWorkspacePage';
 import { MarketplacePage } from './pages/MarketplacePage';
+import { WorkspaceSettingsPage } from './pages/WorkspaceSettingsPage';
 import { MetricsPage } from './pages/MetricsPage';
 import { AgentsPage } from './pages/AgentsPage';
 import { MarketsPage } from './pages/MarketsPage';
@@ -50,6 +51,7 @@ export function App() {
             <Route path="/waitlist" element={<WaitlistPage />} />
             <Route element={<RequireAuth />}>
               <Route path="/create-workspace" element={<CreateWorkspacePage />} />
+              <Route path="/settings" element={<WorkspaceSettingsPage />} />
               <Route path="/metrics" element={<MetricsPage />} />
               <Route path="/agents" element={<AgentsPage />} />
               <Route path="/markets" element={<MarketsPage />} />

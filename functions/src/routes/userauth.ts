@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { getAuth } from 'firebase-admin/auth';
 import { db } from '../lib/db';
 import { wrap } from '../lib/wrap';
-import { requireRole } from '../middleware/roles';
+import { requireFirebaseUser } from '../middleware/roles';
 
 export const userauthRouter = Router();
 
@@ -11,7 +11,7 @@ export const userauthRouter = Router();
  * Returns the current user's profile and workspace memberships.
  * Works for both Firebase users (uid set) and master API key (uid undefined).
  */
-userauthRouter.get('/me', requireRole('admin'), wrap(async (req, res) => {
+userauthRouter.get('/me', requireFirebaseUser, wrap(async (req, res) => {
   const { uid, workspaceId } = req.auth!;
 
   if (!uid) {
@@ -27,11 +27,14 @@ userauthRouter.get('/me', requireRole('admin'), wrap(async (req, res) => {
   }
 
   const data = userDoc.data()!;
+  const workspaces = (data.workspaces ?? {}) as Record<string, { role: string }>;
+  const memberRole = workspaces[workspaceId]?.role ?? null;
   res.json({
     uid,
     email: data.email ?? null,
     workspaceId,
-    workspaces: data.workspaces ?? {},
+    memberRole,
+    workspaces,
   });
 }));
 
@@ -40,7 +43,7 @@ userauthRouter.get('/me', requireRole('admin'), wrap(async (req, res) => {
  * Upserts the current user's profile (email, display name).
  * Called after a Firebase user signs in for the first time.
  */
-userauthRouter.post('/profile', requireRole('admin'), wrap(async (req, res) => {
+userauthRouter.post('/profile', requireFirebaseUser, wrap(async (req, res) => {
   const { uid } = req.auth!;
   if (!uid) { res.status(403).json({ error: 'Firebase account required' }); return; }
 
@@ -61,7 +64,7 @@ userauthRouter.post('/profile', requireRole('admin'), wrap(async (req, res) => {
  * GDPR: deletes the user's Firestore profile document and Firebase Auth account.
  * Does NOT delete workspace data (positions, trades etc.) — those are anonymized.
  */
-userauthRouter.delete('/me', requireRole('admin'), wrap(async (req, res) => {
+userauthRouter.delete('/me', requireFirebaseUser, wrap(async (req, res) => {
   const { uid } = req.auth!;
   if (!uid) { res.status(403).json({ error: 'Firebase account required' }); return; }
 
@@ -75,7 +78,7 @@ userauthRouter.delete('/me', requireRole('admin'), wrap(async (req, res) => {
  * GET /api/auth/me/export
  * GDPR: exports all data associated with the current user.
  */
-userauthRouter.get('/me/export', requireRole('admin'), wrap(async (req, res) => {
+userauthRouter.get('/me/export', requireFirebaseUser, wrap(async (req, res) => {
   const { uid } = req.auth!;
   if (!uid) { res.status(403).json({ error: 'Firebase account required' }); return; }
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { useImpersonation } from '../hooks/useImpersonation';
+import { useWorkspace } from '../hooks/useWorkspace';
 import { api } from '../lib/api';
 import { cacheGet, cacheSet } from '../lib/cache';
 import { useInspectMode } from '../hooks/useInspectMode';
@@ -18,6 +19,8 @@ export function MarketsPage() {
   useDarkMode();
   const { agentId: impersonatedId } = useImpersonation();
   const { inspectTask } = useInspectMode();
+  const { workspace } = useWorkspace(user);
+  const isAdmin = !workspace || workspace.tier === 'admin';
   const [markets, setMarkets] = useState<Market[]>([]);
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [mainMarketsMap, setMainMarketsMap] = useState<Map<string, Market>>(new Map());
@@ -158,36 +161,38 @@ export function MarketsPage() {
 
   return (
     <>
-      <Header activePage="markets" actions={<>
+      <Header activePage="markets" actions={isAdmin ? <>
         <HookStatus />
         <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Acting as: <strong>{impersonatedId}</strong></span>
         <button className="btn" onClick={handleRefresh} disabled={refreshing}>{refreshing ? 'Refreshing…' : 'Refresh Markets'}</button>
         <button className="btn" onClick={handleResolve}>Resolve Markets</button>
-      </>} />
+      </> : undefined} />
       <div className="container">
         {error && <div className="message error show">{error}</div>}
         {resolveResult && <div className="message success show">{resolveResult}</div>}
         {refreshResult && <div className="message success show">{refreshResult}</div>}
         {bulkLiqResult && <div className="message success show">{bulkLiqResult}</div>}
 
-        <div className="section" style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Metric</label>
-            <select value={metricId} onChange={e => setMetricId(e.target.value)}
-              style={{ padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)' }}>
-              <option value="">Select metric...</option>
-              {metrics.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-            </select>
+        {isAdmin && (
+          <div className="section" style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Metric</label>
+              <select value={metricId} onChange={e => setMetricId(e.target.value)}
+                style={{ padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)' }}>
+                <option value="">Select metric...</option>
+                {metrics.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Target Date</label>
+              <input type="date" value={targetDate} min={tomorrow} onChange={e => setTargetDate(e.target.value)}
+                style={{ padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)' }} />
+            </div>
+            <button className="btn" onClick={handleCreate} disabled={creating || !metricId || !targetDate}>
+              {creating ? 'Creating...' : 'Create Market'}
+            </button>
           </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Target Date</label>
-            <input type="date" value={targetDate} min={tomorrow} onChange={e => setTargetDate(e.target.value)}
-              style={{ padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)' }} />
-          </div>
-          <button className="btn" onClick={handleCreate} disabled={creating || !metricId || !targetDate}>
-            {creating ? 'Creating...' : 'Create Market'}
-          </button>
-        </div>
+        )}
 
         {loading ? (
           <div className="loading">Loading markets...</div>
@@ -202,23 +207,25 @@ export function MarketsPage() {
                 <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
                 Show inactive
               </label>
-              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                {(() => {
-                  const activeCount = markets.filter(m => m.active).length;
-                  const a = parseFloat(bulkLiqAmount);
-                  const total = !isNaN(a) && a > 0 ? a * activeCount : null;
-                  return <>
-                    <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                      Inject to all ({activeCount}):
-                    </label>
-                    <input type="number" value={bulkLiqAmount} onChange={e => setBulkLiqAmount(e.target.value)} placeholder="amount"
-                      style={{ padding: '0.35rem 0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', fontSize: '0.85rem', width: '80px' }} />
-                    <button className="btn-small" onClick={handleBulkLiquidity} disabled={!bulkLiqAmount || parseFloat(bulkLiqAmount) <= 0}>
-                      {total !== null ? `Inject (${total} credits)` : 'Inject'}
-                    </button>
-                  </>;
-                })()}
-              </div>
+              {isAdmin && (
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  {(() => {
+                    const activeCount = markets.filter(m => m.active).length;
+                    const a = parseFloat(bulkLiqAmount);
+                    const total = !isNaN(a) && a > 0 ? a * activeCount : null;
+                    return <>
+                      <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                        Inject to all ({activeCount}):
+                      </label>
+                      <input type="number" value={bulkLiqAmount} onChange={e => setBulkLiqAmount(e.target.value)} placeholder="amount"
+                        style={{ padding: '0.35rem 0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', fontSize: '0.85rem', width: '80px' }} />
+                      <button className="btn-small" onClick={handleBulkLiquidity} disabled={!bulkLiqAmount || parseFloat(bulkLiqAmount) <= 0}>
+                        {total !== null ? `Inject (${total} credits)` : 'Inject'}
+                      </button>
+                    </>;
+                  })()}
+                </div>
+              )}
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
@@ -276,15 +283,17 @@ export function MarketsPage() {
                       </td>
                       <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{m.tradeCount}</td>
                       <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <button className="btn-small" style={{ color: 'var(--accent-color, #3b82f6)', marginRight: '0.25rem' }}
-                          onClick={(e) => { e.stopPropagation(); handleResolveOne(m.id); }}>Resolve</button>
-                        {m.tradeCount === 0 ? (
-                          <button className="btn-small" style={{ color: 'var(--delete-color, #ef4444)' }}
-                            onClick={(e) => { e.stopPropagation(); handleDelete(m.id); }}>Delete</button>
-                        ) : (
-                          <button className="btn-small" style={{ color: 'var(--text-secondary)' }}
-                            onClick={(e) => { e.stopPropagation(); handleVoid(m.id); }}>Void</button>
-                        )}
+                        {isAdmin && <>
+                          <button className="btn-small" style={{ color: 'var(--accent-color, #3b82f6)', marginRight: '0.25rem' }}
+                            onClick={(e) => { e.stopPropagation(); handleResolveOne(m.id); }}>Resolve</button>
+                          {m.tradeCount === 0 ? (
+                            <button className="btn-small" style={{ color: 'var(--delete-color, #ef4444)' }}
+                              onClick={(e) => { e.stopPropagation(); handleDelete(m.id); }}>Delete</button>
+                          ) : (
+                            <button className="btn-small" style={{ color: 'var(--text-secondary)' }}
+                              onClick={(e) => { e.stopPropagation(); handleVoid(m.id); }}>Void</button>
+                          )}
+                        </>}
                       </td>
                     </tr>
                     {expandedIds.includes(m.id) && (

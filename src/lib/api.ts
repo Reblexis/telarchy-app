@@ -156,4 +156,8 @@ export const api = {
   getWorkspace: (user: User, id: string) => request(`/api/workspaces/${id}`, user),
   updateWorkspaceSettings: (user: User, id: string, body: { name?: string; visibility?: string }) =>
     request(`/api/workspaces/${id}/settings`, user, { method: 'PUT', body: JSON.stringify(body) }),
+  inviteMember: (user: User, workspaceId: string, uid: string, role: string) =>
+    request(`/api/workspaces/${workspaceId}/members`, user, { method: 'POST', body: JSON.stringify({ uid, role }) }),
+  removeMember: (user: User, workspaceId: string, uid: string) =>
+    request(`/api/workspaces/${workspaceId}/members/${encodeURIComponent(uid)}`, user, { method: 'DELETE' }),
 };

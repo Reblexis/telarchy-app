@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 import { createHash, timingSafeEqual } from 'crypto';
-import type { AuthInfo } from '../types';
+import type { AgentRole, AuthInfo, WorkspaceMemberRole } from '../types';
 
 declare global {
   namespace Express {
@@ -42,19 +42,28 @@ function safeCompare(a: string, b: string): boolean {
 }
 
 /**
- * Resolve the default workspaceId for a Firebase user.
- * Checks `users/{uid}` for explicit workspace memberships; falls back to 'default'.
+ * Resolve workspace and member role for a Firebase user.
+ * Priority: owner > admin > trader/viewer > no workspace.
+ * Returns workspaceId='default' (platform context) when the user has no workspaces.
  */
-async function resolveFirebaseWorkspace(uid: string): Promise<string> {
+async function resolveFirebaseWorkspace(uid: string): Promise<{ workspaceId: string; memberRole: WorkspaceMemberRole | null }> {
   const userDoc = await getFirestore().collection('users').doc(uid).get();
-  if (!userDoc.exists) return 'default';
-  const workspaces = userDoc.data()!.workspaces as Record<string, unknown> | undefined;
-  if (!workspaces) return 'default';
-  // Return the first non-default workspace they own, or 'default'.
-  const owned = Object.entries(workspaces).find(([wsId, m]) =>
-    wsId !== 'default' && (m as Record<string, unknown>).role === 'owner',
-  );
-  return owned ? owned[0] : 'default';
+  if (!userDoc.exists) return { workspaceId: 'default', memberRole: null };
+  const workspaces = userDoc.data()!.workspaces as Record<string, { role: WorkspaceMemberRole }> | undefined;
+  if (!workspaces) return { workspaceId: 'default', memberRole: null };
+  const entries = Object.entries(workspaces).filter(([wsId]) => wsId !== 'default');
+  if (entries.length === 0) return { workspaceId: 'default', memberRole: null };
+  // Prefer higher-privilege roles
+  const ROLE_PRIORITY: WorkspaceMemberRole[] = ['owner', 'admin', 'trader', 'viewer'];
+  entries.sort(([, a], [, b]) => ROLE_PRIORITY.indexOf(a.role) - ROLE_PRIORITY.indexOf(b.role));
+  const [wsId, membership] = entries[0];
+  return { workspaceId: wsId, memberRole: membership.role };
+}
+
+function memberRoleToAuthRole(memberRole: WorkspaceMemberRole | null): AgentRole {
+  if (memberRole === 'owner' || memberRole === 'admin') return 'admin';
+  if (memberRole === 'trader') return 'agent';
+  return 'pending'; // viewer or no workspace
 }
 
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
@@ -66,17 +75,20 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     return next();
   }
 
-  // 2. Firebase ID token → admin
+  // 2. Firebase ID token — platform admins get full access; others get workspace-derived role
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.split('Bearer ')[1];
     const decoded = await getAuth().verifyIdToken(token).catch(() => null);
     if (decoded) {
-      if (!isAdminFirebaseUser(decoded)) {
-        return res.status(403).json({ error: 'This Firebase account is not allowed. Add its email to ADMIN_EMAILS / ADMIN_EMAIL or grant an admin custom claim.' });
+      if (isAdminFirebaseUser(decoded)) {
+        // Platform admin: full access to the default workspace
+        req.auth = { role: 'admin', workspaceId: 'default', uid: decoded.uid };
+      } else {
+        // Workspace user: resolve role from workspace membership
+        const { workspaceId, memberRole } = await resolveFirebaseWorkspace(decoded.uid);
+        req.auth = { role: memberRoleToAuthRole(memberRole), workspaceId, uid: decoded.uid };
       }
-      const workspaceId = await resolveFirebaseWorkspace(decoded.uid);
-      req.auth = { role: 'admin', workspaceId, uid: decoded.uid };
       return next();
     }
     return res.status(401).json({ error: 'Invalid token' });

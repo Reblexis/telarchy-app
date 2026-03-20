@@ -11,8 +11,8 @@ interface MetricsDashboardProps {
   focusedMetricId: string | null;
   onToggleFocus: (id: string) => void;
   onGraph: (metric: Metric) => void;
-  onEdit: (metric: Metric) => void;
-  onDelete: (id: string) => void;
+  onEdit?: (metric: Metric) => void;
+  onDelete?: (id: string) => void;
 }
 
 export function MetricsDashboard({
@@ -58,8 +58,8 @@ export function MetricsDashboard({
                   isFocused={focusedMetricId === metric.id}
                   onFocus={() => onToggleFocus(metric.id)}
                   onGraph={() => onGraph(metric)}
-                  onEdit={() => onEdit(metric)}
-                  onDelete={() => onDelete(metric.id)}
+                  onEdit={onEdit ? () => onEdit(metric) : undefined}
+                  onDelete={onDelete ? () => onDelete(metric.id) : undefined}
                 />
               ))}
             </div>

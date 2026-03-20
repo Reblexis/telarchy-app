@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
 import { useMetrics } from '../hooks/useMetrics';
+import { useWorkspace } from '../hooks/useWorkspace';
 import { clearFirebaseConfig } from '../lib/firebase';
 import { getCookie, setCookie } from '../lib/cookies';
 import type { Metric, GraphInterval } from '../types';
@@ -20,6 +21,8 @@ export function MetricsPage() {
   const { user, logout } = useAuth();
   const { isDark } = useDarkMode();
   const { inspectTask } = useInspectMode();
+  const { workspace } = useWorkspace(user);
+  const isAdmin = !workspace || workspace.tier === 'admin';
   const {
     metrics, xp, rank, loading: metricsLoading, error,
     formulaWarnings,
@@ -95,20 +98,41 @@ export function MetricsPage() {
 
   return (
     <>
-      <Header activePage="metrics" actions={<>
-        <select id="graphInterval" title="Graph time interval" value={graphInterval}
-          onChange={e => handleIntervalChange(e.target.value as GraphInterval)}>
-          <option value="day">Daily</option>
-          <option value="week">Weekly</option>
-          <option value="month">Monthly</option>
-          <option value="year">Yearly</option>
-        </select>
-        <DarkModeToggle />
-        <button className="reconfigure-btn" onClick={handleReconfigure}>⚙️</button>
-        <button className="logout-btn" onClick={handleLogout}>Logout</button>
-      </>} />
+      <Header
+        activePage="metrics"
+        workspaceName={workspace?.workspaceId !== 'default' ? workspace?.workspaceId : undefined}
+        showSettings={workspace?.tier === 'admin' && workspace?.workspaceId !== 'default'}
+        actions={<>
+          <select id="graphInterval" title="Graph time interval" value={graphInterval}
+            onChange={e => handleIntervalChange(e.target.value as GraphInterval)}>
+            <option value="day">Daily</option>
+            <option value="week">Weekly</option>
+            <option value="month">Monthly</option>
+            <option value="year">Yearly</option>
+          </select>
+          <DarkModeToggle />
+          {isAdmin && <button className="reconfigure-btn" onClick={handleReconfigure}>⚙️</button>}
+          <button className="logout-btn" onClick={handleLogout}>Logout</button>
+        </>}
+      />
       <div className="container">
-        <XPDisplay xp={xp} rank={rank} />
+        {isAdmin && <XPDisplay xp={xp} rank={rank} />}
+        {metrics.length === 0 && isAdmin && (
+          <div style={{
+            padding: '2rem',
+            background: 'var(--focus-bg)',
+            border: '1px solid var(--focus-border)',
+            borderRadius: '0.5rem',
+            marginBottom: '1.5rem',
+            textAlign: 'center',
+          }}>
+            <h3 style={{ marginBottom: '0.5rem' }}>Your workspace is empty</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1rem' }}>
+              Add your first metric below. Start with your top-level goal — something like "Utility", "Revenue", or "Health Score".
+              Break it down into sub-metrics using formulas.
+            </p>
+          </div>
+        )}
         <MetricsDashboard
           metrics={metrics}
           isInspectMode={!!inspectTask}
@@ -116,10 +140,10 @@ export function MetricsPage() {
           focusedMetricId={focusedMetricId}
           onToggleFocus={toggleFocus}
           onGraph={setGraphMetric}
-          onEdit={setEditingMetric}
-          onDelete={handleDelete}
+          onEdit={isAdmin ? setEditingMetric : undefined}
+          onDelete={isAdmin ? handleDelete : undefined}
         />
-        <AddMetricForm onAdd={handleAddMetric} />
+        {isAdmin && <AddMetricForm onAdd={handleAddMetric} />}
       </div>
       <EditMetricModal
         metric={editingMetric}

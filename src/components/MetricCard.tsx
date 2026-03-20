@@ -44,8 +44,8 @@ interface MetricCardProps {
   isFocused: boolean;
   onFocus: () => void;
   onGraph: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus, onGraph, onEdit, onDelete }: MetricCardProps) {

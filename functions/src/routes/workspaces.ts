@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '../lib/db';
 import { wrap } from '../lib/wrap';
-import { requireRole } from '../middleware/roles';
+import { requireRole, requireFirebaseUser } from '../middleware/roles';
 import type { WorkspaceVisibility, WorkspaceMemberRole } from '../types';
 
 export const workspacesRouter = Router();
@@ -12,7 +12,7 @@ const VALID_MEMBER_ROLES: WorkspaceMemberRole[] = ['owner', 'admin', 'trader', '
 
 // --- Create workspace ---
 
-workspacesRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
+workspacesRouter.post('/', requireFirebaseUser, wrap(async (req, res) => {
   const { uid } = req.auth!;
   if (!uid) { res.status(403).json({ error: 'Firebase account required to create a workspace' }); return; }
 
@@ -45,7 +45,7 @@ workspacesRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
 
 // --- List workspaces the current user belongs to ---
 
-workspacesRouter.get('/', requireRole('admin'), wrap(async (req, res) => {
+workspacesRouter.get('/', requireFirebaseUser, wrap(async (req, res) => {
   const { uid } = req.auth!;
   if (!uid) {
     // Master API key: return all workspaces
@@ -71,7 +71,7 @@ workspacesRouter.get('/', requireRole('admin'), wrap(async (req, res) => {
 
 // --- Get workspace detail ---
 
-workspacesRouter.get('/:id', requireRole('admin'), wrap(async (req, res) => {
+workspacesRouter.get('/:id', requireFirebaseUser, wrap(async (req, res) => {
   const wsId = req.params.id as string;
   const doc = await db().collection('workspaces').doc(wsId).get();
   if (!doc.exists) { res.status(404).json({ error: 'Workspace not found' }); return; }
@@ -154,7 +154,7 @@ workspacesRouter.post('/:id/members', requireRole('admin'), wrap(async (req, res
 
 // --- Join a public/unlisted workspace (self-service) ---
 
-workspacesRouter.post('/:id/join', requireRole('admin'), wrap(async (req, res) => {
+workspacesRouter.post('/:id/join', requireFirebaseUser, wrap(async (req, res) => {
   const { uid } = req.auth!;
   if (!uid) { res.status(403).json({ error: 'Firebase account required to join a workspace' }); return; }
 
