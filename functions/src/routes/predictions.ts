@@ -338,6 +338,53 @@ predictionsRouter.get('/markets/:id/liquidity-events', requireRole('agent', 'adm
   }));
 }));
 
+predictionsRouter.post('/markets/liquidity/bulk', requireRole('admin'), wrap(async (req, res) => {
+  const { amount, agentId, taskId } = req.body;
+  if (typeof amount !== 'number' || amount <= 0) { res.status(400).json({ error: 'amount must be a positive number' }); return; }
+  if (typeof agentId !== 'string' || !agentId) { res.status(400).json({ error: 'agentId is required' }); return; }
+
+  const agentRef = db().collection('agents').doc(agentId);
+  let marketsQuery: FirebaseFirestore.Query = db().collection('markets').where('active', '==', true).where('resolved', '==', false);
+  if (typeof taskId === 'string' && taskId) {
+    marketsQuery = marketsQuery.where('taskId', '==', taskId);
+  }
+  const [agentDoc, marketsSnap] = await Promise.all([agentRef.get(), marketsQuery.get()]);
+  if (!agentDoc.exists) { res.status(404).json({ error: 'Agent not found' }); return; }
+
+  const balance = agentDoc.data()!.balance as number;
+  const marketDocs = taskId
+    ? marketsSnap.docs
+    : marketsSnap.docs.filter(d => !d.data().taskId);
+  const marketCount = marketDocs.length;
+  if (marketCount === 0) { res.status(400).json({ error: 'No active markets' }); return; }
+
+  const totalCost = amount * marketCount;
+  if (balance < totalCost) { res.status(400).json({ error: `Insufficient balance: need ${totalCost}, have ${balance}` }); return; }
+
+  const batch = db().batch();
+  batch.update(agentRef, { balance: FieldValue.increment(-totalCost), spentBetting: FieldValue.increment(totalCost) });
+
+  for (const marketDoc of marketDocs) {
+    const data = marketDoc.data();
+    const oldLiquidity = data.liquidity as number;
+    const oldShares = data.shares as [number, number];
+    const oldPool = (data.pool as number) ?? 0;
+    const newLiquidity = oldLiquidity + amount;
+    const newShares: [number, number] = oldLiquidity > 0
+      ? [oldShares[0] * newLiquidity / oldLiquidity, oldShares[1] * newLiquidity / oldLiquidity]
+      : [0, 0];
+    const newPool = oldLiquidity > 0
+      ? Math.round(oldPool * newLiquidity / oldLiquidity * 100) / 100
+      : initialPool(newLiquidity);
+    batch.update(marketDoc.ref, { liquidity: newLiquidity, shares: newShares, pool: newPool });
+    const liqRef = db().collection('liquidityEvents').doc();
+    batch.set(liqRef, { id: liqRef.id, marketId: marketDoc.id, amount, totalLiquidity: newLiquidity, type: 'injection', createdAt: FieldValue.serverTimestamp() });
+  }
+
+  await batch.commit();
+  res.json({ markets: marketCount, totalCost, amountPerMarket: amount });
+}));
+
 predictionsRouter.post('/markets/:id/liquidity', requireRole('admin'), wrap(async (req, res) => {
   const { amount } = req.body;
   if (typeof amount !== 'number' || amount <= 0) { res.status(400).json({ error: 'amount must be a positive number' }); return; }

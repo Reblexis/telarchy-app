@@ -99,6 +99,21 @@ export async function getTaskUtilitySummary(
  * voided and a fresh set is created.
  */
 export async function createConditionalMarkets(taskId: string): Promise<string[]> {
+  // Distributed lock — prevents concurrent calls from creating duplicate markets.
+  const lockRef = db().doc(`_system/taskMarketLock_${taskId}`);
+  const acquired = await db().runTransaction(async tx => {
+    const lock = await tx.get(lockRef);
+    const d = lock.data() ?? {};
+    if (lock.exists && d.locked && (d.expiresAt as number) > Date.now()) return false;
+    tx.set(lockRef, { locked: true, expiresAt: Date.now() + 300_000 }); // 5-min TTL
+    return true;
+  });
+  if (!acquired) {
+    const snap = await db().collection('markets').where('taskId', '==', taskId).where('resolved', '==', false).get();
+    return snap.docs.map(d => d.id);
+  }
+
+  try {
   // Identify leaf metric IDs (no formula or formula === '0')
   const metricsSnap = await db().collection('metrics').get();
   const leafMetricIds = new Set(
@@ -132,7 +147,8 @@ export async function createConditionalMarkets(taskId: string): Promise<string[]
       const m = d.data();
       return `${m.metricId}:${m.targetDate}`;
     }));
-    const setsMatch = desiredKeys.size === existingKeys.size &&
+    // Use existingSnap.size (not existingKeys.size) so duplicate docs per key are detected.
+    const setsMatch = existingSnap.size === desiredKeys.size &&
       [...desiredKeys].every(k => existingKeys.has(k));
     if (setsMatch) return existingSnap.docs.map(d => d.id);
   }
@@ -176,17 +192,58 @@ export async function createConditionalMarkets(taskId: string): Promise<string[]
 
   if (batchCount > 0) await batch.commit();
   return newIds;
+  } finally {
+    await lockRef.delete();
+  }
 }
 
-/** Void all open conditional markets tied to a task. */
+/** Void all open conditional markets tied to a task.
+ *  Fetches positions in parallel chunks, then commits resolved=true + refunds in batched writes.
+ */
 export async function voidTaskMarkets(taskId: string): Promise<void> {
   const marketsSnap = await db().collection('markets')
     .where('taskId', '==', taskId)
     .where('resolved', '==', false)
     .get();
-  for (const doc of marketsSnap.docs) {
-    await voidMarket(doc);
+  if (marketsSnap.empty) return;
+
+  const marketDocs = marketsSnap.docs;
+
+  // Fetch positions for all markets in parallel (chunked to avoid overwhelming Firestore)
+  const POS_CHUNK = 50;
+  const posSnaps: FirebaseFirestore.QuerySnapshot[] = [];
+  for (let i = 0; i < marketDocs.length; i += POS_CHUNK) {
+    const chunk = marketDocs.slice(i, i + POS_CHUNK);
+    const snaps = await Promise.all(
+      chunk.map(d => db().collection('positions').where('marketId', '==', d.id).get()),
+    );
+    posSnaps.push(...snaps);
   }
+
+  // Batch all writes together
+  const BATCH_LIMIT = 450;
+  let batch = db().batch();
+  let count = 0;
+  const flush = async () => { await batch.commit(); batch = db().batch(); count = 0; };
+
+  for (let i = 0; i < marketDocs.length; i++) {
+    batch.update(marketDocs[i].ref, {
+      resolved: true, resolvedAt: FieldValue.serverTimestamp(), actualValue: null, voided: true, pool: 0,
+    });
+    if (++count >= BATCH_LIMIT) await flush();
+
+    for (const posDoc of posSnaps[i].docs) {
+      const pos = posDoc.data();
+      if (pos.totalCost <= 0) continue;
+      batch.update(db().collection('agents').doc(pos.agentId), {
+        balance: FieldValue.increment(pos.totalCost),
+        earnedBetting: FieldValue.increment(pos.totalCost),
+        spentBetting: FieldValue.increment(-pos.totalCost),
+      });
+      if (++count >= BATCH_LIMIT) await flush();
+    }
+  }
+  if (count > 0) await batch.commit();
 }
 
 /** Gift price credits to the proposing agent and mark the task approved. */

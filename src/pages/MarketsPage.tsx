@@ -32,6 +32,9 @@ export function MarketsPage() {
 
   const [filterText, setFilterText] = useState('');
   const [showInactive, setShowInactive] = useState(false);
+  const [bulkLiqAmount, setBulkLiqAmount] = useState('');
+  const [bulkLiqResult, setBulkLiqResult] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
   const filteredMarkets = useMemo(() => {
     let result = showInactive ? markets : markets.filter(m => m.active);
@@ -118,10 +121,26 @@ export function MarketsPage() {
     if (result) { setResolveResult(`Resolved ${result.resolved} markets. Total payout: $${result.totalPayout}.`); load(); }
   };
 
-  const handleRefresh = async () => {
+  const handleBulkLiquidity = async () => {
     if (!user) return;
+    const a = parseFloat(bulkLiqAmount);
+    if (isNaN(a) || a <= 0) return;
+    setError('');
+    setBulkLiqResult('');
+    const result = await api.injectLiquidityBulk(user, impersonatedId, a, inspectTask?.id).catch((e: Error) => { setError(e.message); return null; });
+    if (result) {
+      setBulkLiqAmount('');
+      setBulkLiqResult(`Injected ${a} into ${result.markets} markets (total: ${result.totalCost} credits).`);
+      load();
+    }
+  };
+
+  const handleRefresh = async () => {
+    if (!user || refreshing) return;
     setRefreshResult('');
+    setRefreshing(true);
     const result = await api.refreshMarkets(user, inspectTask?.id).catch((e: Error) => { setError(e.message); return null; });
+    setRefreshing(false);
     if (result) {
       const parts = [];
       if (result.created > 0) parts.push(`${result.created} created`);
@@ -142,13 +161,14 @@ export function MarketsPage() {
       <Header activePage="markets" actions={<>
         <HookStatus />
         <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Acting as: <strong>{impersonatedId}</strong></span>
-        <button className="btn" onClick={handleRefresh}>Refresh Markets</button>
+        <button className="btn" onClick={handleRefresh} disabled={refreshing}>{refreshing ? 'Refreshing…' : 'Refresh Markets'}</button>
         <button className="btn" onClick={handleResolve}>Resolve Markets</button>
       </>} />
       <div className="container">
         {error && <div className="message error show">{error}</div>}
         {resolveResult && <div className="message success show">{resolveResult}</div>}
         {refreshResult && <div className="message success show">{refreshResult}</div>}
+        {bulkLiqResult && <div className="message success show">{bulkLiqResult}</div>}
 
         <div className="section" style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div>
@@ -175,13 +195,30 @@ export function MarketsPage() {
           <div className="section"><p style={{ color: 'var(--text-secondary)' }}>No markets.</p></div>
         ) : (
           <div className="section">
-            <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
               <input type="text" value={filterText} onChange={e => setFilterText(e.target.value)} placeholder="Search metrics..."
                 style={{ padding: '0.4rem 0.6rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', fontSize: '0.85rem', width: '200px' }} />
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', color: 'var(--text-secondary)', cursor: 'pointer', userSelect: 'none' }}>
                 <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
                 Show inactive
               </label>
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                {(() => {
+                  const activeCount = markets.filter(m => m.active).length;
+                  const a = parseFloat(bulkLiqAmount);
+                  const total = !isNaN(a) && a > 0 ? a * activeCount : null;
+                  return <>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                      Inject to all ({activeCount}):
+                    </label>
+                    <input type="number" value={bulkLiqAmount} onChange={e => setBulkLiqAmount(e.target.value)} placeholder="amount"
+                      style={{ padding: '0.35rem 0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', fontSize: '0.85rem', width: '80px' }} />
+                    <button className="btn-small" onClick={handleBulkLiquidity} disabled={!bulkLiqAmount || parseFloat(bulkLiqAmount) <= 0}>
+                      {total !== null ? `Inject (${total} credits)` : 'Inject'}
+                    </button>
+                  </>;
+                })()}
+              </div>
             </div>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>

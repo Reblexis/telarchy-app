@@ -1,5 +1,27 @@
 For more info about this project look into docs/vision.md.
 
+## Debugging with the API
+
+When uncertain about a bug or data state, use the live API directly before making code changes. Do not guess — verify.
+
+**Base URL**: `https://api-ksc7usrtbq-uc.a.run.app/api`
+**Auth header**: `X-API-Key: mtrk_a7f3x9kL2pQw8vNdR4jY6mBs`
+
+Example:
+```bash
+curl -s -H "X-API-Key: mtrk_a7f3x9kL2pQw8vNdR4jY6mBs" \
+  "https://api-ksc7usrtbq-uc.a.run.app/api/predictions/markets?limit=5"
+```
+
+Known working endpoints for debugging:
+- `GET /api/status` — system health
+- `GET /api/agents` — list agents and balances
+- `GET /api/tasks` — list tasks (returns id, title, status)
+- `GET /api/predictions/markets` — non-conditional markets (add `?taskId=X` for conditional)
+- `POST /api/predictions/markets/refresh` — trigger market refresh (body: `{}` or `{ taskId }`)
+
+Important: always rebuild functions before checking compiled output — `npm run build:functions`. The deploy script does this automatically but if you edit `.ts` files and check `lib/*.js` directly, recompile first or the compiled output will be stale.
+
 Currently we are using openclaw agents for betting, all openclaw configuration is in ~/.openclaw . 
 
 If modifying the api capabilities or otherwise changing behaviour of the backend relevant to api communication, always update the documentation and api help endpoint correspondingly as well as the skill description.

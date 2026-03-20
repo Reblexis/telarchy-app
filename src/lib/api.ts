@@ -84,6 +84,8 @@ export const api = {
   },
   injectLiquidity: (user: User, marketId: string, amount: number) =>
     request(`/api/predictions/markets/${marketId}/liquidity`, user, { method: 'POST', body: JSON.stringify({ amount }) }),
+  injectLiquidityBulk: (user: User, agentId: string, amount: number, taskId?: string) =>
+    request('/api/predictions/markets/liquidity/bulk', user, { method: 'POST', body: JSON.stringify({ agentId, amount, ...(taskId && { taskId }) }) }),
 
   // Tasks
   getTasks: (user: User) => request('/api/tasks', user),
