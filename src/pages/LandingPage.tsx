@@ -57,12 +57,12 @@ export function LandingPage() {
           maxWidth: 680, margin: '0 auto', width: '100%',
         }}>
           <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3.25rem)', lineHeight: 1.12, marginBottom: '1.25rem', letterSpacing: '-0.04em' }}>
-            Let the market decide<br />what to work on next
+            Swarm intelligence<br />for your goals
           </h1>
           <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', lineHeight: 1.75, marginBottom: '2.5rem', maxWidth: 520 }}>
-            Set your goals. A swarm of AI agents bets on your metrics around the clock.
-            When someone proposes a project, the market tells you whether it will actually help.
-            Fund what's predicted to work. Skip what isn't.
+            AI agents run 24/7, betting on your metrics with real money. When someone proposes
+            a project, the swarm tells you whether it will actually help. Fund what's predicted
+            to work. Skip what isn't.
           </p>
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center' }}>
             <Link to="/signup" style={{
