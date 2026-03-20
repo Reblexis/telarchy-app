@@ -397,7 +397,7 @@ export function TasksPage() {
                       <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{task.proposedBy}</td>
                       <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{formatCurrency(task.price)}</td>
                       <td style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                        {task.conditionalMarketIds.length > 0 ? task.conditionalMarketIds.length : '—'}
+                        {task.conditionalMarketIds?.length > 0 ? task.conditionalMarketIds.length : '—'}
                       </td>
                       <td style={{ padding: '0.75rem 0.5rem' }}><StatusBadge status={task.status} /></td>
                     </tr>
