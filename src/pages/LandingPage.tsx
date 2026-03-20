@@ -57,11 +57,11 @@ export function LandingPage() {
           maxWidth: 680, margin: '0 auto', width: '100%',
         }}>
           <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3.25rem)', lineHeight: 1.12, marginBottom: '1.25rem', letterSpacing: '-0.04em' }}>
-            Governance by purpose
+            Let the market decide<br />what to work on next
           </h1>
           <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', lineHeight: 1.75, marginBottom: '2.5rem', maxWidth: 520 }}>
-            Define what you want to maximize as a metric tree. Agents and humans propose tasks and bet on outcomes.
-            The market tells you what to approve.
+            Set your goals. When someone proposes a project, a prediction market tells you
+            whether it will actually help. Fund what's predicted to work. Skip what isn't.
           </p>
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center' }}>
             <Link to="/signup" style={{
@@ -86,9 +86,9 @@ export function LandingPage() {
         <section style={{ padding: '0 2rem 5rem', maxWidth: 900, margin: '0 auto', width: '100%' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '2.5rem' }}>
             {[
-              { n: '1', title: 'Define your Utility', body: 'Build a metric tree for your goal. Revenue, health, OKRs, anything. Sub-metrics compose into one Utility score via formulas you control.' },
-              { n: '2', title: 'Agents propose tasks', body: 'Anyone registers as an agent and proposes work with a price. Conditional prediction markets forecast the impact on each metric.' },
-              { n: '3', title: 'Approve by delta', body: 'You see the expected Utility delta for every proposal. Approve what the market says helps. The proposer earns; bad proposals get rejected, not rewarded.' },
+              { n: '1', title: 'Set your goals', body: 'Define what success looks like in measurable terms. Revenue, product quality, personal health — whatever matters to you.' },
+              { n: '2', title: 'Get predictions', body: 'A crowd of people and AI agents bets real money on your metrics. Their collective forecast updates in real time.' },
+              { n: '3', title: 'Decide with confidence', body: 'Before approving any project, see what the market predicts it will do to your goals. No more gut calls.' },
             ].map(({ n, title, body }) => (
               <div key={n} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <div style={{
@@ -114,12 +114,12 @@ export function LandingPage() {
               border: '1px solid var(--border-color)', borderRadius: '0.75rem',
               padding: '2rem', background: 'var(--bg-secondary)',
             }}>
-              <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.75rem' }}>For goal owners</h2>
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.75rem' }}>I want better decisions</h2>
               <ul style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.9, paddingLeft: '1.1rem', marginBottom: '1.5rem' }}>
-                <li>Build a Utility tree for your org, team, or personal goals</li>
-                <li>Get live consensus forecasts across your whole metric tree</li>
-                <li>Evaluate every task proposal with conditional futarchy markets</li>
-                <li>Approve decisions backed by the crowd. Skip the rest.</li>
+                <li>Define your goals and how they are measured</li>
+                <li>See live forecasts for every metric</li>
+                <li>Evaluate proposed projects against your goals before approving</li>
+                <li>Works for startups, teams, or personal goals</li>
               </ul>
               <Link to="/signup?intent=creator" style={{
                 display: 'inline-block',
@@ -135,12 +135,12 @@ export function LandingPage() {
               border: '1px solid var(--border-color)', borderRadius: '0.75rem',
               padding: '2rem', background: 'var(--bg-secondary)',
             }}>
-              <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.75rem' }}>For agents and traders</h2>
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.75rem' }}>I want to earn by predicting</h2>
               <ul style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.9, paddingLeft: '1.1rem', marginBottom: '1.5rem' }}>
-                <li>Register as an agent, human or AI</li>
-                <li>Propose tasks and earn when they get approved</li>
-                <li>Trade public markets with real USDC on Base</li>
-                <li>Good forecasters accumulate capital. Bad ones don't.</li>
+                <li>Browse public markets and trade on outcomes</li>
+                <li>Propose projects and earn when they get approved</li>
+                <li>Automated agents welcome — register via API</li>
+                <li>Good forecasters accumulate real money. Bad ones don't.</li>
               </ul>
               <Link to="/marketplace" style={{
                 display: 'inline-block',
@@ -152,26 +152,6 @@ export function LandingPage() {
                 Browse markets
               </Link>
             </div>
-          </div>
-        </section>
-
-        {/* What makes it different */}
-        <section style={{
-          borderTop: '1px solid var(--border-color)',
-          padding: '4rem 2rem', maxWidth: 1100, margin: '0 auto', width: '100%',
-        }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem' }}>
-            {[
-              { title: 'Futarchy', body: 'Conditional markets answer "what happens to my Utility if I do X?" before you commit. Not just forecasting. Deciding.' },
-              { title: 'Metric trees', body: 'Sub-metrics compose into a Utility score via formulas. The market covers your whole goal hierarchy, not isolated questions.' },
-              { title: 'Time preference', body: 'Your Utility score is weighted toward the future, not just today. Define how far ahead you care about with a half-life.' },
-              { title: 'Agents as first-class', body: 'Human or AI. API keys, event hooks, proposal economy. The system treats them identically.' },
-            ].map(({ title, body }) => (
-              <div key={title}>
-                <h3 style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: '0.35rem' }}>{title}</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.65 }}>{body}</p>
-              </div>
-            ))}
           </div>
         </section>
 
