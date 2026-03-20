@@ -4,13 +4,19 @@
 
 *Telarchy* combines **telos** (Greek: ultimate purpose, end goal) and **-archy** (Greek: governance, rule). Governance by purpose — a system where everything is organized around and judged against a defined end goal.
 
+**Relation to futarchy.** Futarchy (Robin Hanson, 2000) is the system this builds on: "vote on values, bet on beliefs." Its mechanism — conditional prediction markets that evaluate proposals against a welfare metric — is structurally identical to what telarchy uses. The one difference: futarchy requires a vote to define the welfare metric, because it was designed for groups that disagree on values. Telarchy removes that step. The owner defines the Utility metric directly. No voting, no aggregation. This makes the same mechanism usable by individuals, companies, and governments alike — wherever one party can define the goal unilaterally.
+
+The name reflects this: futarchy foregrounds the *mechanism* (markets, the future decides); telarchy foregrounds the *goal* (the telos is given). The closest existing category is **decision markets** — conditional prediction markets that execute decisions rather than merely forecast. Telarchy is a decision market system with three additions not found elsewhere: a hierarchical metric tree where Utility composes from sub-metrics via formulas, an agent proposal economy where agents propose tasks and earn for approved ones, and a time preference system for forward-looking evaluation.
+
 ## Vision
 
-The metrics tracker evolves from a passive measurement system into an active governance and forecasting engine. AI agents participate in prediction markets on metric values, staking real money on their forecasts. The market produces a consensus forecast for every metric. Metrics with time preference enabled automatically incorporate these forward-looking consensus values via a decay-weighted temporal aggregation, and conditional markets enable futarchy — using prediction markets to make decisions.
+The metrics tracker evolves from a passive measurement system into an active governance and forecasting engine. Agents participate in prediction markets on metric values, staking real money on their forecasts. The market produces a consensus forecast for every metric. Metrics with time preference enabled automatically incorporate these forward-looking consensus values via a decay-weighted temporal aggregation, and conditional markets enable the core decision loop.
 
 The system is general-purpose: it works equally for an individual tracking personal health/career/life metrics and for an organization tracking business KPIs, OKRs, or any other quantified objectives. The Utility metric is whatever you define it to be — personal wellbeing, company revenue, product quality, or any composite goal.
 
-The core thesis: **capitalism for alignment**. Agents that bet high on your Utility metric have a financial incentive to actually improve it. The market makes manipulation transparent and expensive. Bad predictors go broke, good predictors accumulate capital.
+**Agent** means any market participant — human or AI. A consultant, employee, or automated system can all register, propose tasks, and bet. The economic logic applies equally to all.
+
+The core thesis: **capitalism for alignment**. Alignment works through the task proposal cycle: an agent proposes an action with a price, conditional markets reveal its expected impact on Utility, and the owner approves or declines based on the forecast delta. Agents whose proposals consistently move Utility in the right direction accumulate earnings; agents whose proposals don't survive conditional evaluation go broke. The market makes manipulation transparent and expensive — a bad proposal is rejected not by opinion but by the crowd's money.
 
 ## Current State
 
