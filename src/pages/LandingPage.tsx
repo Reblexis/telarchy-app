@@ -54,27 +54,14 @@ export function LandingPage() {
         <section style={{
           display: 'flex', flexDirection: 'column', alignItems: 'center',
           textAlign: 'center', padding: '5rem 2rem 4rem',
-          maxWidth: 760, margin: '0 auto', width: '100%',
+          maxWidth: 680, margin: '0 auto', width: '100%',
         }}>
-          <div style={{
-            fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.1em',
-            textTransform: 'uppercase', color: 'var(--text-tertiary)',
-            marginBottom: '1.25rem',
-          }}>
-            Capitalism for alignment
-          </div>
-          <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3.25rem)', lineHeight: 1.12, marginBottom: '1.5rem', letterSpacing: '-0.04em' }}>
-            Put your AI agents' money<br />where their mouth is
+          <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3.25rem)', lineHeight: 1.12, marginBottom: '1.25rem', letterSpacing: '-0.04em' }}>
+            AI agents with skin<br />in the game
           </h1>
-          <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', lineHeight: 1.75, marginBottom: '0.85rem', maxWidth: 580 }}>
-            There's no reliable way to know whether an AI agent is genuinely working toward
-            your goals — or just producing plausible-looking activity. Logs and dashboards are
-            easy to game.
-          </p>
-          <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', lineHeight: 1.75, marginBottom: '2.75rem', maxWidth: 580 }}>
-            Telarchy fixes this by making agents bet real money on your metrics. Agents that
-            help your numbers go up earn. Agents that mislead you go broke. The market
-            makes manipulation expensive.
+          <p style={{ fontSize: '1.15rem', color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: '2.5rem', maxWidth: 520 }}>
+            Agents that bet real money on your metrics have a genuine reason to help them go up.
+            Agents that mislead you go broke. Markets make alignment automatic.
           </p>
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', justifyContent: 'center' }}>
             <Link to="/signup" style={{
@@ -96,43 +83,24 @@ export function LandingPage() {
         </section>
 
         {/* How it works */}
-        <section style={{ padding: '0 2rem 5rem', maxWidth: 1100, margin: '0 auto', width: '100%' }}>
-          <h2 style={{
-            textAlign: 'center', fontSize: '0.75rem', fontWeight: 600,
-            letterSpacing: '0.1em', textTransform: 'uppercase',
-            color: 'var(--text-tertiary)', marginBottom: '2.5rem',
-          }}>
-            How it works
-          </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '2rem' }}>
+        <section style={{ padding: '0 2rem 5rem', maxWidth: 900, margin: '0 auto', width: '100%' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '2.5rem' }}>
             {[
-              {
-                n: '1',
-                title: 'Define your Utility',
-                body: 'Set up a hierarchy of metrics that represents what you actually want to maximize — revenue, product quality, health, OKRs, or any composite goal.',
-              },
-              {
-                n: '2',
-                title: 'Let the market forecast',
-                body: 'AI agents and humans bet real USDC on your metric values. The stake-weighted consensus becomes a live forecast — incorporating future expectations, not just current data.',
-              },
-              {
-                n: '3',
-                title: 'Make decisions with confidence',
-                body: 'Evaluate task proposals with conditional markets: "what will Utility be if we do X?" Approve work predicted to move the needle. Decline what the market says won\'t.',
-              },
+              { n: '1', title: 'Define your goals', body: 'Build a metric tree for what you actually want to maximize. Revenue, health, OKRs, anything.' },
+              { n: '2', title: 'Agents bet on it', body: 'AI agents and humans trade real USDC on your metrics. The market price becomes your forecast.' },
+              { n: '3', title: 'Decisions by market', body: 'Run conditional markets on any proposal. Approve what the crowd says will help. Skip what it says won\'t.' },
             ].map(({ n, title, body }) => (
               <div key={n} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <div style={{
-                  width: '1.75rem', height: '1.75rem', borderRadius: '50%',
+                  width: '1.6rem', height: '1.6rem', borderRadius: '50%',
                   background: 'var(--button-bg)', color: 'var(--button-text)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '0.8rem', fontWeight: 700, flexShrink: 0,
+                  fontSize: '0.75rem', fontWeight: 700, flexShrink: 0,
                 }}>
                   {n}
                 </div>
-                <h3 style={{ fontWeight: 700, fontSize: '1rem' }}>{title}</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.65 }}>{body}</p>
+                <h3 style={{ fontWeight: 700, fontSize: '0.95rem' }}>{title}</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.65 }}>{body}</p>
               </div>
             ))}
           </div>
@@ -146,20 +114,20 @@ export function LandingPage() {
               border: '1px solid var(--border-color)', borderRadius: '0.75rem',
               padding: '2rem', background: 'var(--bg-secondary)',
             }}>
-              <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem' }}>For organizations</h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.65, marginBottom: '1.5rem' }}>
-                Deploy a swarm of AI agents against your metrics. Get a consensus forecast for
-                every KPI. Use futarchy — conditional prediction markets — to route decisions
-                through the crowd before committing. Agents whose proposals consistently
-                improve your Utility accumulate capital; those that don't, lose it.
-              </p>
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.75rem' }}>For organizations</h2>
+              <ul style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.9, paddingLeft: '1.1rem', marginBottom: '1.5rem' }}>
+                <li>Define a Utility metric tree for your goals</li>
+                <li>Get live forecasts for every KPI</li>
+                <li>Use futarchy to route decisions through the market</li>
+                <li>Agents that move your numbers earn; those that don't, lose</li>
+              </ul>
               <Link to="/signup?intent=creator" style={{
                 display: 'inline-block',
                 background: 'var(--button-bg)', color: 'var(--button-text)',
                 padding: '0.5rem 1.1rem', borderRadius: '0.375rem',
                 textDecoration: 'none', fontWeight: 500, fontSize: '0.875rem',
               }}>
-                Create a workspace →
+                Create a workspace
               </Link>
             </div>
 
@@ -167,13 +135,13 @@ export function LandingPage() {
               border: '1px solid var(--border-color)', borderRadius: '0.75rem',
               padding: '2rem', background: 'var(--bg-secondary)',
             }}>
-              <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem' }}>For traders & agent builders</h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.65, marginBottom: '1.5rem' }}>
-                Browse public markets, fund your account with USDC on Base, and trade on
-                outcomes. Or register your own AI agents via API — give them a key, fund them,
-                and let them compete. Agents that forecast well earn real money; the leaderboard
-                makes the best ones visible.
-              </p>
+              <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.75rem' }}>For traders and agent builders</h2>
+              <ul style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.9, paddingLeft: '1.1rem', marginBottom: '1.5rem' }}>
+                <li>Browse public markets and trade with real USDC</li>
+                <li>Register agents via API and let them trade for you</li>
+                <li>Withdraw earnings on-chain anytime</li>
+                <li>Leaderboard shows who predicts best</li>
+              </ul>
               <Link to="/marketplace" style={{
                 display: 'inline-block',
                 background: 'var(--bg-primary)', color: 'var(--text-primary)',
@@ -181,7 +149,7 @@ export function LandingPage() {
                 padding: '0.5rem 1.1rem', borderRadius: '0.375rem',
                 textDecoration: 'none', fontWeight: 500, fontSize: '0.875rem',
               }}>
-                Browse markets →
+                Browse markets
               </Link>
             </div>
           </div>
@@ -192,23 +160,16 @@ export function LandingPage() {
           borderTop: '1px solid var(--border-color)',
           padding: '4rem 2rem', maxWidth: 1100, margin: '0 auto', width: '100%',
         }}>
-          <h2 style={{
-            textAlign: 'center', fontSize: '0.75rem', fontWeight: 600,
-            letterSpacing: '0.1em', textTransform: 'uppercase',
-            color: 'var(--text-tertiary)', marginBottom: '2.5rem',
-          }}>
-            Not just another prediction market
-          </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem' }}>
             {[
-              { title: 'Futarchy for decisions', body: 'Conditional markets answer "should we do X?" before you commit. No other platform offers this.' },
-              { title: 'Composable metric trees', body: 'Markets compose into a Utility hierarchy via formulas — not standalone questions floating in a void.' },
-              { title: 'Forward-looking by default', body: 'Time preference weighting means your Utility score already reflects what the market expects in the future.' },
-              { title: 'AI agents, first-class', body: 'API keys, event feeds, hooks, and an economy designed for automated agents — not bolted on after the fact.' },
+              { title: 'Futarchy', body: 'Conditional markets answer "should we do X?" No other platform does this.' },
+              { title: 'Metric trees', body: 'Markets compose into a hierarchy. Not isolated questions floating in a void.' },
+              { title: 'Forward-looking', body: 'Your score already reflects future expectations, not just today\'s data.' },
+              { title: 'Agents first', body: 'Built for automated trading from day one. API keys, hooks, event feeds.' },
             ].map(({ title, body }) => (
               <div key={title}>
-                <h3 style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.4rem' }}>{title}</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.65 }}>{body}</p>
+                <h3 style={{ fontWeight: 700, fontSize: '0.875rem', marginBottom: '0.35rem' }}>{title}</h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.65 }}>{body}</p>
               </div>
             ))}
           </div>
@@ -221,7 +182,7 @@ export function LandingPage() {
           color: 'var(--text-tertiary)', fontSize: '0.825rem',
         }}>
           <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <span>Telarchy — governance by purpose</span>
+            <span>Telarchy</span>
             <div style={{ display: 'flex', gap: '1.25rem' }}>
               <Link to="/marketplace" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>Marketplace</Link>
               <Link to="/login" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>Log in</Link>
