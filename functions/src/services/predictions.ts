@@ -2,7 +2,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '../lib/db';
 import { wsCol } from '../lib/workspace';
 import { getAllMetrics, buildConsensusMap } from './metrics';
-import { voidMarket } from './markets';
+import { voidMarket, distributeLPLeftover } from './markets';
 import type { Metric } from '../types';
 import { endOfPeriod } from '../lib/date-utils';
 import { pHigher, consensus, resolutionPayouts } from '../lib/amm';
@@ -59,6 +59,8 @@ async function resolveMarketDoc(
 
   const poolLeftover = Math.round((pool - totalPayout) * 100) / 100;
   batch.update(marketDoc.ref, { resolved: true, resolvedAt: FieldValue.serverTimestamp(), actualValue, pool: 0, poolLeftover });
+
+  await distributeLPLeftover(batch, marketDoc.id, poolLeftover, workspaceId);
 
   await batch.commit();
   emitEvent('market:resolved', { marketId: marketDoc.id, metricName: m.metricName, targetDate: m.targetDate, actualValue }, workspaceId).catch(e => console.error('emitEvent failed:', e));

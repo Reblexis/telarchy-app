@@ -112,21 +112,32 @@ export function MarketplacePage() {
     : markets;
 
   return (
-    <>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <DarkModeToggle fixed />
+
       {!user && (
-        <div style={{ padding: '1rem 0 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <strong style={{ fontSize: '1.1rem' }}>Telarchy Marketplace</strong>
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <nav style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          paddingBottom: '1.25rem', borderBottom: '1px solid var(--border-color)',
+          marginBottom: '2rem',
+        }}>
+          <Link to="/" style={{ fontWeight: 700, fontSize: '1.05rem', letterSpacing: '-0.02em', textDecoration: 'none', color: 'var(--text-primary)' }}>
+            Telarchy
+          </Link>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <Link to="/login" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>Log in</Link>
-            <Link to="/signup">
-              <button style={{ padding: '0.4rem 1rem', fontSize: '0.9rem' }}>Sign up</button>
+            <Link to="/signup" style={{
+              background: 'var(--button-bg)', color: 'var(--button-text)',
+              padding: '0.4rem 1rem', borderRadius: '0.375rem',
+              textDecoration: 'none', fontSize: '0.9rem', fontWeight: 500,
+            }}>
+              Sign up
             </Link>
           </div>
-        </div>
+        </nav>
       )}
 
-      <div style={{ maxWidth: 720, margin: '0 auto' }}>
+      <div style={{ maxWidth: 720, margin: '0 auto', width: '100%', flex: 1 }}>
         <div style={{ marginBottom: '1.5rem' }}>
           <h2 style={{ marginBottom: '0.25rem' }}>Public markets</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
@@ -171,16 +182,21 @@ export function MarketplacePage() {
               </span>
             </p>
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
-              <Link to="/signup"><button>Create account</button></Link>
-              <Link to="/login">
-                <button style={{ background: 'var(--button-secondary-bg)', color: 'var(--text-primary)' }}>
-                  Log in
-                </button>
-              </Link>
+              <Link to="/signup" style={{
+                background: 'var(--button-bg)', color: 'var(--button-text)',
+                padding: '0.5rem 1.1rem', borderRadius: '0.375rem',
+                textDecoration: 'none', fontWeight: 500, fontSize: '0.875rem',
+              }}>Create account</Link>
+              <Link to="/login" style={{
+                background: 'var(--bg-secondary)', color: 'var(--text-primary)',
+                border: '1px solid var(--border-color)',
+                padding: '0.5rem 1.1rem', borderRadius: '0.375rem',
+                textDecoration: 'none', fontWeight: 500, fontSize: '0.875rem',
+              }}>Log in</Link>
             </div>
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 }

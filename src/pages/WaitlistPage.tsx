@@ -5,7 +5,7 @@ import { DarkModeToggle } from '../components/DarkModeToggle';
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 export function WaitlistPage() {
-  useDarkMode();
+  const { isDark } = useDarkMode();
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -34,7 +34,7 @@ export function WaitlistPage() {
   return (
     <>
       <div style={{ position: 'fixed', top: '1rem', left: '1rem', zIndex: 1000 }}>
-        <img src="/logo.png" alt="Telarchy" style={{ height: '5.25rem' }} />
+        <img src={isDark ? '/logo_transparent_bg_dark_mode.png' : '/logo_transparent_bg.png'} alt="Telarchy" style={{ height: '5.25rem' }} />
       </div>
       <DarkModeToggle fixed />
       <div className="login-page">

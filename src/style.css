@@ -994,3 +994,99 @@ details > div {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
+
+/* Landing page needs full-width layout — remove body padding */
+body.landing-page {
+  padding: 0;
+}
+
+/* ===== Landing Page Animations ===== */
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes drawPath {
+  from { stroke-dashoffset: 1; }
+  to   { stroke-dashoffset: 0; }
+}
+
+@keyframes nodeAppear {
+  from { opacity: 0; transform: scale(0.4); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes agentDot {
+  0%   { offset-distance: 0%;   opacity: 0.9; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
+}
+
+@keyframes barOscillate {
+  0%   { width: 52%; }
+  25%  { width: 61%; }
+  50%  { width: 55%; }
+  75%  { width: 68%; }
+  100% { width: 52%; }
+}
+
+@keyframes shimmer {
+  0%   { opacity: 0.6; }
+  50%  { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes deltaAppear {
+  0%   { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50%       { box-shadow: 0 0 0 3px color-mix(in srgb, var(--button-bg) 20%, transparent); }
+}
+
+/* Scroll-reveal base state */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.55s ease, transform 0.55s ease;
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Landing hero responsive collapse */
+@media (max-width: 700px) {
+  .landing-hero-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .landing-hero-sim {
+    display: none !important;
+  }
+}
+
+/* Audience card hover lift */
+.audience-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.audience-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--text-primary) 8%, transparent);
+  border-color: var(--border-hover);
+}

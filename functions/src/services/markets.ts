@@ -5,6 +5,46 @@ import { sampleTimePoints, getLeafDescendantNames } from '../lib/time-preference
 import { AMM_DEFAULTS, initialPool } from '../lib/amm';
 import { emitEvent } from './events';
 
+/**
+ * Read liquidityEvents for a market and credit the given pool amount back to
+ * LPs proportionally to their recorded poolContribution. Mutates the batch.
+ */
+export async function distributeLPLeftover(
+  batch: FirebaseFirestore.WriteBatch,
+  marketId: string,
+  poolAmount: number,
+  workspaceId: string,
+): Promise<void> {
+  if (poolAmount <= 0) return;
+  const liqSnap = await wsCol(workspaceId, 'liquidityEvents').where('marketId', '==', marketId).get();
+
+  const contributions = new Map<string, number>();
+  let total = 0;
+  for (const doc of liqSnap.docs) {
+    const d = doc.data();
+    if (typeof d.agentId !== 'string' || !d.agentId) continue;
+    if (typeof d.poolContribution !== 'number' || d.poolContribution <= 0) continue;
+    contributions.set(d.agentId, (contributions.get(d.agentId) ?? 0) + d.poolContribution);
+    total += d.poolContribution;
+  }
+  if (total <= 0) return;
+
+  let distributed = 0;
+  const entries = [...contributions.entries()];
+  for (let i = 0; i < entries.length; i++) {
+    const [agentId, contribution] = entries[i];
+    const share = i === entries.length - 1
+      ? Math.round((poolAmount - distributed) * 100) / 100
+      : Math.round(poolAmount * contribution / total * 100) / 100;
+    if (share <= 0) continue;
+    distributed += share;
+    batch.update(db().collection('agents').doc(agentId), {
+      balance: FieldValue.increment(share),
+      earnedBetting: FieldValue.increment(share),
+    });
+  }
+}
+
 /** Void a single open market: refund all positions at cost, mark resolved+voided. */
 export async function voidMarket(
   docOrId: QueryDocumentSnapshot | FirebaseFirestore.DocumentSnapshot | string,
@@ -21,6 +61,7 @@ export async function voidMarket(
   const batch = db().batch();
   let refunded = 0;
 
+  const pool: number = (m.pool as number) ?? 0;
   batch.update(marketDoc.ref, {
     resolved: true, resolvedAt: FieldValue.serverTimestamp(), actualValue: null, voided: true, pool: 0,
   });
@@ -35,6 +76,10 @@ export async function voidMarket(
       spentBetting: FieldValue.increment(-pos.totalCost),
     });
   }
+
+  const lpLeftover = Math.round((pool - refunded) * 100) / 100;
+  await distributeLPLeftover(batch, marketDoc.id, lpLeftover, workspaceId);
+
   await batch.commit();
   emitEvent('market:resolved', { marketId: marketDoc.id, metricName: m.metricName, targetDate: m.targetDate, voided: true }, workspaceId).catch(e => console.error('emitEvent failed:', e));
   return { refunded };

@@ -425,27 +425,40 @@ predictionsRouter.post('/markets/liquidity/bulk', requireRole('admin'), wrap(asy
   const marketCount = marketDocs.length;
   if (marketCount === 0) { res.status(400).json({ error: 'No active markets' }); return; }
 
-  const totalCost = amount * marketCount;
-  if (balance < totalCost) { res.status(400).json({ error: `Insufficient balance: need ${totalCost}, have ${balance}` }); return; }
-
-  const batch = db().batch();
-  batch.update(agentRef, { balance: FieldValue.increment(-totalCost), spentBetting: FieldValue.increment(totalCost) });
-
-  for (const marketDoc of marketDocs) {
+  // Compute actual pool increases per market (what LP actually funds)
+  type MarketUpdate = {
+    doc: FirebaseFirestore.QueryDocumentSnapshot;
+    newLiquidity: number;
+    newShares: [number, number];
+    newPool: number;
+    poolContribution: number;
+  };
+  const updates: MarketUpdate[] = marketDocs.map(marketDoc => {
     const data = marketDoc.data();
     const oldLiquidity = data.liquidity as number;
     const oldShares = data.shares as [number, number];
     const oldPool = (data.pool as number) ?? 0;
     const newLiquidity = oldLiquidity + amount;
     const newShares: [number, number] = oldLiquidity > 0
-      ? [oldShares[0] * newLiquidity / oldLiquidity, oldShares[1] * newLiquidity / oldLiquidity]
+      ? [Math.round(oldShares[0] * newLiquidity / oldLiquidity * 100) / 100, Math.round(oldShares[1] * newLiquidity / oldLiquidity * 100) / 100]
       : [0, 0];
     const newPool = oldLiquidity > 0
       ? Math.round(oldPool * newLiquidity / oldLiquidity * 100) / 100
       : initialPool(newLiquidity);
+    const poolContribution = Math.round((newPool - oldPool) * 100) / 100;
+    return { doc: marketDoc, newLiquidity, newShares, newPool, poolContribution };
+  });
+
+  const totalCost = Math.round(updates.reduce((s, u) => s + u.poolContribution, 0) * 100) / 100;
+  if (balance < totalCost) { res.status(400).json({ error: `Insufficient balance: need ${totalCost}, have ${balance}` }); return; }
+
+  const batch = db().batch();
+  batch.update(agentRef, { balance: FieldValue.increment(-totalCost), spentBetting: FieldValue.increment(totalCost) });
+
+  for (const { doc: marketDoc, newLiquidity, newShares, newPool, poolContribution } of updates) {
     batch.update(marketDoc.ref, { liquidity: newLiquidity, shares: newShares, pool: newPool });
     const liqRef = wsCol(workspaceId, 'liquidityEvents').doc();
-    batch.set(liqRef, { id: liqRef.id, marketId: marketDoc.id, amount, totalLiquidity: newLiquidity, type: 'injection', createdAt: FieldValue.serverTimestamp() });
+    batch.set(liqRef, { id: liqRef.id, marketId: marketDoc.id, agentId, amount, poolContribution, totalLiquidity: newLiquidity, type: 'injection', createdAt: FieldValue.serverTimestamp() });
   }
 
   await batch.commit();
@@ -454,26 +467,40 @@ predictionsRouter.post('/markets/liquidity/bulk', requireRole('admin'), wrap(asy
 
 predictionsRouter.post('/markets/:id/liquidity', requireRole('admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
-  const { amount } = req.body;
+  const { amount, agentId } = req.body;
   if (typeof amount !== 'number' || amount <= 0) { res.status(400).json({ error: 'amount must be a positive number' }); return; }
-  const ref = wsCol(workspaceId, 'markets').doc(req.params.id as string);
-  const doc = await ref.get();
-  if (!doc.exists) { res.status(404).json({ error: 'Market not found' }); return; }
-  const data = doc.data()!;
+  if (typeof agentId !== 'string' || !agentId) { res.status(400).json({ error: 'agentId is required' }); return; }
+
+  const [marketDoc, agentDoc] = await Promise.all([
+    wsCol(workspaceId, 'markets').doc(req.params.id as string).get(),
+    db().collection('agents').doc(agentId).get(),
+  ]);
+  if (!marketDoc.exists) { res.status(404).json({ error: 'Market not found' }); return; }
+  if (!agentDoc.exists) { res.status(404).json({ error: 'Agent not found' }); return; }
+
+  const data = marketDoc.data()!;
   const oldLiquidity = data.liquidity as number;
   const oldShares = data.shares as [number, number];
   const oldPool = (data.pool as number) ?? 0;
   const newLiquidity = oldLiquidity + amount;
   const newShares: [number, number] = oldLiquidity > 0
-    ? [oldShares[0] * newLiquidity / oldLiquidity, oldShares[1] * newLiquidity / oldLiquidity]
+    ? [Math.round(oldShares[0] * newLiquidity / oldLiquidity * 100) / 100, Math.round(oldShares[1] * newLiquidity / oldLiquidity * 100) / 100]
     : [0, 0];
   const newPool = oldLiquidity > 0
     ? Math.round(oldPool * newLiquidity / oldLiquidity * 100) / 100
     : initialPool(newLiquidity);
-  await ref.update({ liquidity: newLiquidity, shares: newShares, pool: newPool });
+  const poolContribution = Math.round((newPool - oldPool) * 100) / 100;
+
+  const balance = agentDoc.data()!.balance as number;
+  if (balance < poolContribution) { res.status(400).json({ error: `Insufficient balance: need ${poolContribution}, have ${balance}` }); return; }
+
+  const batch = db().batch();
+  batch.update(marketDoc.ref, { liquidity: newLiquidity, shares: newShares, pool: newPool });
+  batch.update(db().collection('agents').doc(agentId), { balance: FieldValue.increment(-poolContribution), spentBetting: FieldValue.increment(poolContribution) });
   const liqRef = wsCol(workspaceId, 'liquidityEvents').doc();
-  await liqRef.set({ id: liqRef.id, marketId: req.params.id as string, amount, totalLiquidity: newLiquidity, type: 'injection', createdAt: FieldValue.serverTimestamp() });
-  res.json({ liquidity: newLiquidity });
+  batch.set(liqRef, { id: liqRef.id, marketId: req.params.id as string, agentId, amount, poolContribution, totalLiquidity: newLiquidity, type: 'injection', createdAt: FieldValue.serverTimestamp() });
+  await batch.commit();
+  res.json({ liquidity: newLiquidity, poolContribution });
 }));
 
 predictionsRouter.post('/markets/:id/void', requireRole('admin'), wrap(async (req, res) => {
