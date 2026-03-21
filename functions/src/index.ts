@@ -17,6 +17,7 @@ import { waitlistRouter } from './routes/waitlist';
 import { workspacesRouter } from './routes/workspaces';
 import { userauthRouter } from './routes/userauth';
 import { marketplaceRouter } from './routes/marketplace';
+import { groupsRouter } from './routes/groups';
 import type { Request, Response, NextFunction } from 'express';
 import { AppError } from './lib/errors';
 
@@ -199,6 +200,7 @@ app.use(authMiddleware);
 app.use('/api/metrics', metricsRouter);
 app.use('/api/updates', requireRole('admin'), updatesRouter);
 app.use('/api/workspaces', workspacesRouter);
+app.use('/api/groups', groupsRouter);
 app.use('/api/auth', userauthRouter);
 app.use('/api', systemRouter);
 

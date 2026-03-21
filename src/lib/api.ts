@@ -153,14 +153,23 @@ export const api = {
   exportAccount: (user: User) => request('/api/auth/me/export', user),
 
   // Workspaces
-  createWorkspace: (user: User, name: string, visibility: 'public' | 'unlisted' | 'private') =>
-    request('/api/workspaces', user, { method: 'POST', body: JSON.stringify({ name, visibility }) }),
+  createWorkspace: (user: User, name: string) =>
+    request('/api/workspaces', user, { method: 'POST', body: JSON.stringify({ name }) }),
   listWorkspaces: (user: User) => request('/api/workspaces', user),
   getWorkspace: (user: User, id: string) => request(`/api/workspaces/${id}`, user),
-  updateWorkspaceSettings: (user: User, id: string, body: { name?: string; visibility?: string }) =>
+  updateWorkspaceSettings: (user: User, id: string, body: { name?: string }) =>
     request(`/api/workspaces/${id}/settings`, user, { method: 'PUT', body: JSON.stringify(body) }),
   inviteMember: (user: User, workspaceId: string, uid: string, role: string) =>
     request(`/api/workspaces/${workspaceId}/members`, user, { method: 'POST', body: JSON.stringify({ uid, role }) }),
   removeMember: (user: User, workspaceId: string, uid: string) =>
     request(`/api/workspaces/${workspaceId}/members/${encodeURIComponent(uid)}`, user, { method: 'DELETE' }),
+
+  // Permission groups
+  listGroups: (user: User) => request('/api/groups', user),
+  createGroup: (user: User, name: string) =>
+    request('/api/groups', user, { method: 'POST', body: JSON.stringify({ name }) }),
+  updateGroup: (user: User, id: string, body: { name?: string; agentIds?: string[]; permissions?: Record<string, { read: boolean; trade: boolean }> }) =>
+    request(`/api/groups/${id}`, user, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteGroup: (user: User, id: string) =>
+    request(`/api/groups/${id}`, user, { method: 'DELETE' }),
 };

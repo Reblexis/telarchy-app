@@ -68,6 +68,32 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
   // Generate the trade doc ID outside the transaction so it's stable across retries.
   const tradeRef = wsCol(workspaceId, 'trades').doc();
 
+  // Pre-check: verify this agent's permission groups allow trading this metric.
+  // If any group has trade:true for this metric, only agents in those groups may trade it.
+  {
+    const marketSnap = await marketRef.get();
+    if (marketSnap.exists) {
+      const metricId = marketSnap.data()!.metricId as string | undefined;
+      if (metricId) {
+        const groupsSnap = await wsCol(workspaceId, 'permissionGroups').get();
+        const restrictingGroups = groupsSnap.docs.filter(d => {
+          const perms = d.data().permissions as Record<string, { trade: boolean }> | undefined;
+          return perms?.[metricId]?.trade === true;
+        });
+        if (restrictingGroups.length > 0) {
+          const agentInGroup = restrictingGroups.some(g => {
+            const ids = g.data().agentIds as string[] | undefined;
+            return ids?.includes(agentId);
+          });
+          if (!agentInGroup) {
+            res.status(403).json({ error: 'Agent not authorized to trade this metric' });
+            return;
+          }
+        }
+      }
+    }
+  }
+
   // Capture values set inside the transaction for use in the response and event emission.
   let tradeResponse: Record<string, unknown>;
   let eventPayload: Record<string, unknown>;

@@ -48,6 +48,19 @@ export type GraphInterval = 'day' | 'week' | 'month' | 'year';
 
 export type AgentRole = 'admin' | 'agent' | 'pending';
 
+export interface MetricPermission {
+  read: boolean;
+  trade: boolean;
+}
+
+export interface PermissionGroup {
+  id: string;
+  name: string;
+  agentIds: string[];
+  /** metricId → permissions */
+  permissions: Record<string, MetricPermission>;
+}
+
 export interface Agent {
   id: string;
   role: AgentRole;

@@ -8,7 +8,7 @@ import { api } from '../lib/api';
 import { cacheGet, cacheSet } from '../lib/cache';
 import { Header } from '../components/Header';
 import { DarkModeToggle } from '../components/DarkModeToggle';
-import type { Agent } from '../types';
+import type { Agent, PermissionGroup, Metric } from '../types';
 
 // ─── Operator view (agent operators with no workspace) ──────────────────────
 
@@ -252,6 +252,14 @@ function AgentAdminPage({ user }: { user: NonNullable<ReturnType<typeof useAuth>
   const [error, setError] = useState('');
   const [treasury, setTreasury] = useState<{ address: string; usdcBalance: number; ethBalance: number } | null>(null);
 
+  // Groups state
+  const [groups, setGroups] = useState<PermissionGroup[]>([]);
+  const [metrics, setMetrics] = useState<Metric[]>([]);
+  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const [groupError, setGroupError] = useState('');
+
   const loadAgents = useCallback(async () => {
     setError('');
     const [data, treas] = await Promise.all([
@@ -263,7 +271,17 @@ function AgentAdminPage({ user }: { user: NonNullable<ReturnType<typeof useAuth>
     setLoading(false);
   }, [user]);
 
+  const loadGroups = useCallback(async () => {
+    const [groupData, metricData] = await Promise.all([
+      api.listGroups(user).catch((e: Error) => { console.error('listGroups:', e); return []; }),
+      api.getMetrics(user).catch((e: Error) => { console.error('getMetrics:', e); return []; }),
+    ]);
+    setGroups(groupData);
+    setMetrics((metricData as Metric[]).filter((m: Metric) => !m.formula || m.formula.trim() === '0'));
+  }, [user]);
+
   useEffect(() => { loadAgents(); }, [loadAgents]);
+  useEffect(() => { loadGroups(); }, [loadGroups]);
 
   const handleApprove = async (id: string) => { if (!user) return; await api.approveAgent(user, id); loadAgents(); };
   const handleDelete = async (id: string) => { if (!user || !confirm(`Delete agent "${id}"?`)) return; await api.deleteAgent(user, id); loadAgents(); };
@@ -277,6 +295,47 @@ function AgentAdminPage({ user }: { user: NonNullable<ReturnType<typeof useAuth>
     loadAgents();
   };
   const handleRoleChange = async (id: string, role: string) => { if (!user) return; await api.setAgentRole(user, id, role); loadAgents(); };
+
+  const handleCreateGroup = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!newGroupName.trim()) return;
+    setCreatingGroup(true);
+    setGroupError('');
+    try {
+      const created = await api.createGroup(user, newGroupName.trim()) as PermissionGroup;
+      setGroups(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+      setNewGroupName('');
+      setExpandedGroupId(created.id);
+    } catch (e: unknown) {
+      setGroupError((e as Error).message);
+    } finally {
+      setCreatingGroup(false);
+    }
+  };
+
+  const handleDeleteGroup = async (groupId: string) => {
+    if (!confirm('Delete this group?')) return;
+    await api.deleteGroup(user, groupId).catch((e: Error) => console.error('deleteGroup:', e));
+    setGroups(prev => prev.filter(g => g.id !== groupId));
+    if (expandedGroupId === groupId) setExpandedGroupId(null);
+  };
+
+  const handleToggleAgent = async (group: PermissionGroup, agentId: string) => {
+    const next = group.agentIds.includes(agentId)
+      ? group.agentIds.filter(a => a !== agentId)
+      : [...group.agentIds, agentId];
+    await api.updateGroup(user, group.id, { agentIds: next }).catch((e: Error) => console.error('updateGroup:', e));
+    setGroups(prev => prev.map(g => g.id === group.id ? { ...g, agentIds: next } : g));
+  };
+
+  const handleTogglePermission = async (group: PermissionGroup, metricId: string, field: 'read' | 'trade') => {
+    const current = group.permissions[metricId] ?? { read: false, trade: false };
+    const next = { ...group.permissions, [metricId]: { ...current, [field]: !current[field] } };
+    // Remove entry entirely if both are false to keep the map clean
+    if (!next[metricId].read && !next[metricId].trade) delete next[metricId];
+    await api.updateGroup(user, group.id, { permissions: next }).catch((e: Error) => console.error('updateGroup:', e));
+    setGroups(prev => prev.map(g => g.id === group.id ? { ...g, permissions: next } : g));
+  };
 
   return (
     <>
@@ -351,6 +410,139 @@ function AgentAdminPage({ user }: { user: NonNullable<ReturnType<typeof useAuth>
             </table>
           </div>
         )}
+
+        {/* Permission Groups */}
+        <div className="section">
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '1rem' }}>Permission Groups</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+            Groups control which agents can read or trade specific leaf metrics.
+            If a metric has no group with trade access set, all agents may trade it.
+          </p>
+
+          {/* Create group */}
+          <form onSubmit={handleCreateGroup} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              placeholder="Group name"
+              value={newGroupName}
+              onChange={e => setNewGroupName(e.target.value)}
+              style={{ flex: 1, minWidth: 180, marginBottom: 0 }}
+            />
+            <button type="submit" disabled={creatingGroup || !newGroupName.trim()} style={{ whiteSpace: 'nowrap' }}>
+              {creatingGroup ? 'Creating…' : 'New group'}
+            </button>
+          </form>
+          {groupError && <div className="message error show" style={{ marginBottom: '0.75rem' }}>{groupError}</div>}
+
+          {groups.length === 0 ? (
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No groups yet.</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              {groups.map(group => {
+                const isExpanded = expandedGroupId === group.id;
+                const activeAgents = agents.filter(a => a.role !== 'pending');
+                const restrictedMetrics = Object.keys(group.permissions).length;
+                return (
+                  <div key={group.id} style={{ border: '1px solid var(--border-color)', borderRadius: '0.375rem', overflow: 'hidden' }}>
+                    {/* Group header row */}
+                    <div
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.6rem 0.75rem', cursor: 'pointer', background: isExpanded ? 'var(--bg-secondary)' : undefined }}
+                      onClick={() => setExpandedGroupId(isExpanded ? null : group.id)}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{group.name}</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                          {group.agentIds.length} agent{group.agentIds.length !== 1 ? 's' : ''}
+                          {restrictedMetrics > 0 && ` · ${restrictedMetrics} metric${restrictedMetrics !== 1 ? 's' : ''}`}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <button
+                          className="btn-small btn-delete"
+                          onClick={e => { e.stopPropagation(); handleDeleteGroup(group.id); }}
+                        >
+                          Delete
+                        </button>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{isExpanded ? '▲' : '▼'}</span>
+                      </div>
+                    </div>
+
+                    {isExpanded && (
+                      <div style={{ padding: '0.75rem', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+
+                        {/* Agents */}
+                        <div>
+                          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Agents</div>
+                          {activeAgents.length === 0 ? (
+                            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>No approved agents.</p>
+                          ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                              {activeAgents.map(a => (
+                                <label key={a.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', cursor: 'pointer' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={group.agentIds.includes(a.id)}
+                                    onChange={() => handleToggleAgent(group, a.id)}
+                                    style={{ width: 'auto' }}
+                                  />
+                                  <span style={{ fontFamily: 'monospace' }}>{a.id}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Metric permissions */}
+                        <div>
+                          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Metric Permissions</div>
+                          {metrics.length === 0 ? (
+                            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>No leaf metrics.</p>
+                          ) : (
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                              <thead>
+                                <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                  <th style={{ textAlign: 'left', padding: '0.3rem 0.5rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Metric</th>
+                                  <th style={{ textAlign: 'center', padding: '0.3rem 0.5rem', color: 'var(--text-secondary)', fontWeight: 500, width: 60 }}>Read</th>
+                                  <th style={{ textAlign: 'center', padding: '0.3rem 0.5rem', color: 'var(--text-secondary)', fontWeight: 500, width: 60 }}>Trade</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {metrics.map(m => {
+                                  const perms = group.permissions[m.id] ?? { read: false, trade: false };
+                                  return (
+                                    <tr key={m.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                      <td style={{ padding: '0.3rem 0.5rem' }}>{m.name}</td>
+                                      <td style={{ padding: '0.3rem 0.5rem', textAlign: 'center' }}>
+                                        <input
+                                          type="checkbox"
+                                          checked={perms.read}
+                                          onChange={() => handleTogglePermission(group, m.id, 'read')}
+                                          style={{ width: 'auto' }}
+                                        />
+                                      </td>
+                                      <td style={{ padding: '0.3rem 0.5rem', textAlign: 'center' }}>
+                                        <input
+                                          type="checkbox"
+                                          checked={perms.trade}
+                                          onChange={() => handleTogglePermission(group, m.id, 'trade')}
+                                          style={{ width: 'auto' }}
+                                        />
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </>
   );

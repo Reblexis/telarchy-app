@@ -165,3 +165,17 @@ export interface UserProfile {
   /** Map of workspaceId → membership info */
   workspaces: Record<string, WorkspaceMember>;
 }
+
+export interface MetricPermission {
+  read: boolean;
+  trade: boolean;
+}
+
+export interface PermissionGroup {
+  id: string;
+  name: string;
+  /** Agent IDs that belong to this group */
+  agentIds: string[];
+  /** metricId → permissions */
+  permissions: Record<string, MetricPermission>;
+}
