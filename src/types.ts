@@ -53,11 +53,14 @@ export interface MetricPermission {
   trade: boolean;
 }
 
+export type PermissionGroupType = 'public' | 'admin' | 'custom';
+
 export interface PermissionGroup {
   id: string;
   name: string;
+  type: PermissionGroupType;
+  description: string;
   agentIds: string[];
-  /** metricId → permissions */
   permissions: Record<string, MetricPermission>;
 }
 

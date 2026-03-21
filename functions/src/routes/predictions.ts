@@ -69,7 +69,8 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
   const tradeRef = wsCol(workspaceId, 'trades').doc();
 
   // Pre-check: verify this agent's permission groups allow trading this metric.
-  // If any group has trade:true for this metric, only agents in those groups may trade it.
+  // If any group has trade:true for this metric, only agents in those groups may trade.
+  // Exception: the 'public' group grants access to all agents implicitly.
   {
     const marketSnap = await marketRef.get();
     if (marketSnap.exists) {
@@ -81,13 +82,17 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
           return perms?.[metricId]?.trade === true;
         });
         if (restrictingGroups.length > 0) {
-          const agentInGroup = restrictingGroups.some(g => {
-            const ids = g.data().agentIds as string[] | undefined;
-            return ids?.includes(agentId);
-          });
-          if (!agentInGroup) {
-            res.status(403).json({ error: 'Agent not authorized to trade this metric' });
-            return;
+          // Public group grants access to everyone
+          const publicGroupRestricts = restrictingGroups.some(g => g.data().type === 'public');
+          if (!publicGroupRestricts) {
+            const agentInGroup = restrictingGroups.some(g => {
+              const ids = g.data().agentIds as string[] | undefined;
+              return ids?.includes(agentId);
+            });
+            if (!agentInGroup) {
+              res.status(403).json({ error: 'Agent not authorized to trade this metric' });
+              return;
+            }
           }
         }
       }

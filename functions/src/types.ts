@@ -171,10 +171,15 @@ export interface MetricPermission {
   trade: boolean;
 }
 
+export type PermissionGroupType = 'public' | 'admin' | 'custom';
+
 export interface PermissionGroup {
   id: string;
   name: string;
-  /** Agent IDs that belong to this group */
+  type: PermissionGroupType;
+  /** Shown to all agents */
+  description: string;
+  /** Agent IDs that belong to this group. For 'public' type, all agents are implicitly members. */
   agentIds: string[];
   /** metricId → permissions */
   permissions: Record<string, MetricPermission>;

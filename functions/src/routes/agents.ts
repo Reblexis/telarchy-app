@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { db } from '../lib/db';
+import { wsCol } from '../lib/workspace';
 import { randomBytes } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { hashKey, authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
@@ -33,7 +34,7 @@ agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => 
   batch.set(agentRef, {
     id: agentId,
     apiKeyHash: keyHash,
-    role: 'pending',
+    role: 'agent',
     balance: 0,
     gifted: 0,
     earnedBetting: 0,
@@ -41,10 +42,16 @@ agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => 
     spentTokens: 0,
     ownerUid,
     createdAt: FieldValue.serverTimestamp(),
-    approvedAt: null,
+    approvedAt: FieldValue.serverTimestamp(),
   });
   batch.set(db().collection('agentApiKeys').doc(keyHash), { agentId, workspaceId });
   await batch.commit();
+
+  // Auto-add to the workspace Public group (best-effort, outside the batch since it requires a query)
+  const pubSnap = await wsCol(workspaceId, 'permissionGroups').where('type', '==', 'public').limit(1).get();
+  if (!pubSnap.empty) {
+    await pubSnap.docs[0].ref.update({ agentIds: FieldValue.arrayUnion(agentId) });
+  }
 
   res.status(201).json({ agentId, apiKey: rawKey });
 }));

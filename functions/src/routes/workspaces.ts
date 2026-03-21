@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '../lib/db';
+import { wsCol } from '../lib/workspace';
 import { wrap } from '../lib/wrap';
 import { requireRole, requireFirebaseUser } from '../middleware/roles';
 import type { WorkspaceMemberRole } from '../types';
@@ -34,6 +35,18 @@ workspacesRouter.post('/', requireFirebaseUser, wrap(async (req, res) => {
     tx.set(db().collection('users').doc(uid), {
       workspaces: { [wsRef.id]: { role: 'owner', joinedAt: now } },
     }, { merge: true });
+    // Bootstrap system permission groups
+    const groupsCol = wsCol(wsRef.id, 'permissionGroups');
+    tx.set(groupsCol.doc(), {
+      name: 'Public', type: 'public',
+      description: 'All agents are members of this group automatically.',
+      agentIds: [], permissions: {}, createdAt: now,
+    });
+    tx.set(groupsCol.doc(), {
+      name: 'Admin', type: 'admin',
+      description: 'Agents with full administrative access to this workspace.',
+      agentIds: [], permissions: {}, createdAt: now,
+    });
   });
 
   res.status(201).json({ id: wsRef.id, name: name.trim(), visibility: 'private' });
