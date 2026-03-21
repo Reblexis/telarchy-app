@@ -178,6 +178,9 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
       } else {
         tx.set(posRef, { id: posId, agentId, marketId, direction: dirLabel, shares: amount, totalCost: cost });
       }
+      if (workspaceId !== 'default' && cost > 0) {
+        tx.update(db().collection('workspaces').doc(workspaceId), { tradedVolume: FieldValue.increment(cost) });
+      }
     }
 
     tx.set(tradeRef, {

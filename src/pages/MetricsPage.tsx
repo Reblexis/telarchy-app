@@ -16,7 +16,8 @@ export function MetricsPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { inspectTask } = useInspectMode();
-  const { workspace } = useWorkspace(user);
+  const { workspace, allWorkspaces, switchWorkspace } = useWorkspace(user);
+  const workspaceName = allWorkspaces.find(w => w.id === workspace?.workspaceId)?.name;
   const isAdmin = !workspace || workspace.tier === 'admin';
   const {
     metrics, xp, rank, loading: metricsLoading, error,
@@ -75,7 +76,10 @@ export function MetricsPage() {
       <Header
         activePage="metrics"
         navMode="creator"
-        workspaceName={workspace?.workspaceId !== 'default' ? workspace?.workspaceId : undefined}
+        workspaceName={workspaceName}
+        activeWorkspaceId={workspace?.workspaceId}
+        workspaces={allWorkspaces}
+        onWorkspaceSwitch={switchWorkspace}
         showSettings={workspace?.tier === 'admin' && workspace?.workspaceId !== 'default'}
         actions={<button className="logout-btn" onClick={handleLogout}>Logout</button>}
       />

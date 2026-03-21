@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { Timestamp } from 'firebase-admin/firestore';
 import { db } from '../lib/db';
 import { wsCol } from '../lib/workspace';
 import { wrap } from '../lib/wrap';
@@ -55,6 +56,34 @@ marketplaceRouter.get('/', wrap(async (req, res) => {
   // Sort by liquidity descending so most active markets appear first
   allMarkets.sort((a, b) => (b.liquidity as number) - (a.liquidity as number));
   res.json(allMarkets.slice(0, limit));
+}));
+
+/**
+ * GET /api/marketplace/stats
+ * Returns aggregate platform stats (active markets, agents, trades this week).
+ * No authentication required.
+ */
+marketplaceRouter.get('/stats', wrap(async (_req, res) => {
+  const weekAgo = Timestamp.fromDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+
+  const [wsSnap, agentsSnap] = await Promise.all([
+    db().collection('workspaces').get(),
+    db().collection('agents').where('role', '==', 'agent').get(),
+  ]);
+
+  let marketsActive = 0;
+  let tradesThisWeek = 0;
+
+  await Promise.all(wsSnap.docs.map(async wsDoc => {
+    const [mSnap, tSnap] = await Promise.all([
+      wsCol(wsDoc.id, 'markets').where('resolved', '==', false).where('active', '==', true).get(),
+      wsCol(wsDoc.id, 'trades').where('createdAt', '>=', weekAgo).get(),
+    ]);
+    marketsActive += mSnap.size;
+    tradesThisWeek += tSnap.size;
+  }));
+
+  res.json({ marketsActive, agentsActive: agentsSnap.size, tradesThisWeek });
 }));
 
 /**

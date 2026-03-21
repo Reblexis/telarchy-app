@@ -14,6 +14,7 @@ import { MarketsPage } from './pages/MarketsPage';
 import { TasksPage } from './pages/TasksPage';
 import { WaitlistPage } from './pages/WaitlistPage';
 import { StartPage } from './pages/StartPage';
+import { AdminPage } from './pages/AdminPage';
 
 function InspectBanner() {
   const { inspectTask, setInspectTask } = useInspectMode();
@@ -53,6 +54,7 @@ export function App() {
             <Route path="/start" element={<StartPage />} />
             <Route path="/create-workspace" element={<CreateWorkspacePage />} />
             <Route path="/agents" element={<AgentsPage />} />
+            <Route path="/admin" element={<AdminPage />} />
           </Route>
           {/* Requires login + an active workspace */}
           <Route element={<RequireWorkspace />}>

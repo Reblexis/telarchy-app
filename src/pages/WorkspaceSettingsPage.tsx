@@ -11,7 +11,7 @@ interface WorkspaceDetail { id: string; name: string }
 export function WorkspaceSettingsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { workspace } = useWorkspace(user);
+  const { workspace, allWorkspaces, switchWorkspace } = useWorkspace(user);
 
   const [ws, setWs] = useState<WorkspaceDetail | null>(null);
   const [name, setName] = useState('');
@@ -92,10 +92,20 @@ export function WorkspaceSettingsPage() {
     }
   };
 
+  const wsHeader = (
+    <Header
+      activePage="metrics"
+      navMode="creator"
+      workspaces={allWorkspaces}
+      activeWorkspaceId={workspace?.workspaceId}
+      onWorkspaceSwitch={switchWorkspace}
+    />
+  );
+
   if (!workspace || workspace.workspaceId === 'default') {
     return (
       <>
-        <Header activePage="metrics" navMode="creator" />
+        {wsHeader}
         <div className="container" style={{ maxWidth: 600, paddingTop: '2rem' }}>
           <h1>Workspace Settings</h1>
           <p style={{ color: 'var(--text-secondary)' }}>
@@ -110,7 +120,7 @@ export function WorkspaceSettingsPage() {
   if (workspace.tier !== 'admin') {
     return (
       <>
-        <Header activePage="metrics" navMode="creator" />
+        {wsHeader}
         <div className="container" style={{ maxWidth: 600, paddingTop: '2rem' }}>
           <h1>Workspace Settings</h1>
           <p style={{ color: 'var(--text-secondary)' }}>
@@ -126,7 +136,7 @@ export function WorkspaceSettingsPage() {
 
   return (
     <>
-      <Header activePage="metrics" navMode="creator" />
+      {wsHeader}
       <div className="container" style={{ maxWidth: 600, paddingTop: '1rem' }}>
         <h1 style={{ marginBottom: '0.25rem' }}>Workspace Settings</h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>

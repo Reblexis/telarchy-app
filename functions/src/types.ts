@@ -150,6 +150,8 @@ export interface Workspace {
   createdBy: string;
   createdAt: FirebaseFirestore.Timestamp;
   visibility: WorkspaceVisibility;
+  /** Running total of credits spent on buy trades in this workspace. */
+  tradedVolume?: number;
 }
 
 export interface WorkspaceMember {

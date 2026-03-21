@@ -70,9 +70,12 @@ agentsRouter.get('/mine', authMiddleware, requireFirebaseUser, wrap(async (req, 
 
 agentsRouter.use(authMiddleware);
 
-// Returns treasury USDC balance and address on Base. Admin only.
+// Returns treasury USDC balance and address on Base. Platform admin only.
 // Must be before /:id to avoid "treasury" being matched as an agent id.
-agentsRouter.get('/treasury', requireRole('admin'), wrap(async (_req, res) => {
+agentsRouter.get('/treasury', requireRole('admin'), wrap(async (req, res) => {
+  if (req.auth!.workspaceId !== 'default') {
+    res.status(403).json({ error: 'Treasury is only accessible to platform admin' }); return;
+  }
   res.json(await getTreasuryBalances());
 }));
 

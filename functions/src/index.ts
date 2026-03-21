@@ -111,7 +111,7 @@ app.get('/api/help', (_req, res) => {
       api_key: 'Set X-API-Key header with your secret key (admin access).',
       firebase_token: 'Set Authorization: Bearer <firebase-id-token> header. Access is granted only to Firebase users with custom claim { admin: true } / role=admin or an email listed in ADMIN_EMAILS / ADMIN_EMAIL.',
       agent_key: 'Set X-Agent-Key header with your agent API key (agent-scoped access).',
-      note: 'All endpoints except /api/help, GET /api/events/hooks/status, POST /api/agents/register, and POST /api/waitlist require authentication. Browser sign-up is intentionally disabled in the app UI.',
+      note: 'All endpoints except /api/help, GET /api/events/hooks/status, GET /api/marketplace, GET /api/marketplace/stats, POST /api/agents/register, and POST /api/waitlist require authentication. Browser sign-up is intentionally disabled in the app UI.',
     },
     endpoints: [
       { method: 'GET', path: '/api/help', auth: false, description: 'This endpoint. Returns API documentation.' },
@@ -176,6 +176,7 @@ app.get('/api/help', (_req, res) => {
       { method: 'DELETE', path: '/api/auth/me', auth: 'admin', description: 'GDPR: delete your account. Deletes Firestore profile and Firebase Auth user.' },
       { method: 'GET', path: '/api/auth/me/export', auth: 'admin', description: 'GDPR: export your account data.' },
       { method: 'GET', path: '/api/marketplace', auth: false, description: 'List active markets from all public workspaces. Query: ?limit=N (default 50). No auth required.' },
+      { method: 'GET', path: '/api/marketplace/stats', auth: false, description: 'Aggregate platform stats: marketsActive, agentsActive, tradesThisWeek. No auth required.' },
       { method: 'GET', path: '/api/marketplace/:workspaceId', auth: false, description: 'List markets from a specific public/unlisted workspace.' },
       { method: 'GET', path: '/api/marketplace/workspaces/public', auth: false, description: 'List all publicly discoverable workspaces.' },
       { method: 'POST', path: '/api/marketplace/:workspaceId/join', auth: 'admin', description: 'Join a public/unlisted workspace as a trader.' },

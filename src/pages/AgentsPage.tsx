@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { useWorkspace } from '../hooks/useWorkspace';
+import { useWorkspace, type WorkspaceInfo, type WorkspaceListItem } from '../hooks/useWorkspace';
 import { api } from '../lib/api';
 import { cacheGet, cacheSet } from '../lib/cache';
 import { Header } from '../components/Header';
@@ -18,7 +18,11 @@ interface MyAgent {
   createdAt?: { _seconds: number } | null;
 }
 
-function AgentOperatorPage({ user }: { user: NonNullable<ReturnType<typeof useAuth>['user']> }) {
+function AgentOperatorPage({ user, allWorkspaces, switchWorkspace }: {
+  user: NonNullable<ReturnType<typeof useAuth>['user']>;
+  allWorkspaces: WorkspaceListItem[];
+  switchWorkspace: (id: string) => void;
+}) {
   const navigate = useNavigate();
 
   const [myAgents, setMyAgents] = useState<MyAgent[]>([]);
@@ -59,11 +63,17 @@ function AgentOperatorPage({ user }: { user: NonNullable<ReturnType<typeof useAu
 
   return (
     <>
-      <Header activePage="agents" navMode="operator" actions={
-        <button className="logout-btn" onClick={async () => { await user.reload().catch(() => {}); navigate('/login'); }}>
-          Logout
-        </button>
-      } />
+      <Header
+        activePage="agents"
+        navMode="operator"
+        workspaces={allWorkspaces}
+        onWorkspaceSwitch={switchWorkspace}
+        actions={
+          <button className="logout-btn" onClick={async () => { await user.reload().catch(() => {}); navigate('/login'); }}>
+            Logout
+          </button>
+        }
+      />
       <div className="container">
 
         {/* My Agents */}
@@ -239,11 +249,19 @@ function AgentOperatorPage({ user }: { user: NonNullable<ReturnType<typeof useAu
 
 // ─── Admin view (workspace owners / admins) ─────────────────────────────────
 
-function AgentAdminPage({ user }: { user: NonNullable<ReturnType<typeof useAuth>['user']> }) {
+function AgentAdminPage({ user, workspace, allWorkspaces, switchWorkspace }: {
+  user: NonNullable<ReturnType<typeof useAuth>['user']>;
+  workspace: WorkspaceInfo | null;
+  allWorkspaces: WorkspaceListItem[];
+  switchWorkspace: (id: string) => void;
+}) {
+  const isPlatformAdmin = !workspace || workspace.workspaceId === 'default';
+  const workspaceName = allWorkspaces.find(w => w.id === workspace?.workspaceId)?.name;
+
   const [agents, setAgents] = useState<Agent[]>(() => cacheGet<Agent[]>('agents') || []);
   const [loading, setLoading] = useState(!cacheGet('agents'));
   const [error, setError] = useState('');
-  const [treasury, setTreasury] = useState<{ address: string; usdcBalance: number; ethBalance: number } | null>(null);
+  const [workspaceStats, setWorkspaceStats] = useState<{ tradedVolume: number } | null>(null);
 
   // Groups state
   const [groups, setGroups] = useState<PermissionGroup[]>([]);
@@ -257,14 +275,17 @@ function AgentAdminPage({ user }: { user: NonNullable<ReturnType<typeof useAuth>
 
   const loadAgents = useCallback(async () => {
     setError('');
-    const [data, treas] = await Promise.all([
+    const wsId = workspace?.workspaceId;
+    const [data, stats] = await Promise.all([
       api.getAgents(user).catch((e: Error) => { setError(e.message); return null; }),
-      api.getTreasury(user).catch(() => null),
+      !isPlatformAdmin && wsId && wsId !== 'default'
+        ? api.getWorkspaceStats(user, wsId).catch(() => null)
+        : Promise.resolve(null),
     ]);
     if (data) { setAgents(data); cacheSet('agents', data); }
-    if (treas) setTreasury(treas);
+    setWorkspaceStats(stats as { tradedVolume: number } | null);
     setLoading(false);
-  }, [user]);
+  }, [user, workspace, isPlatformAdmin]);
 
   const loadGroups = useCallback(async () => {
     const [groupData, metricData] = await Promise.all([
@@ -329,22 +350,23 @@ function AgentAdminPage({ user }: { user: NonNullable<ReturnType<typeof useAuth>
 
   return (
     <>
-      <Header activePage="agents" navMode="creator" />
+      <Header
+        activePage="agents"
+        navMode="creator"
+        workspaceName={workspaceName}
+        activeWorkspaceId={workspace?.workspaceId}
+        workspaces={allWorkspaces}
+        onWorkspaceSwitch={switchWorkspace}
+        showSettings={!isPlatformAdmin}
+      />
       <div className="container">
         {error && <div className="message error show">{error}</div>}
-        {treasury && (
+
+        {!isPlatformAdmin && workspaceStats !== null && (
           <div className="section" style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>Treasury USDC (Base)</div>
-              <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '1.1rem' }}>${treasury.usdcBalance.toFixed(2)}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>Treasury ETH (Base)</div>
-              <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '1.1rem' }}>{treasury.ethBalance.toFixed(6)} ETH</div>
-            </div>
-            <div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>Address</div>
-              <div style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>{treasury.address}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>Traded Volume</div>
+              <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '1.1rem' }}>{workspaceStats.tradedVolume.toFixed(2)} credits</div>
             </div>
           </div>
         )}
@@ -536,12 +558,12 @@ function AgentAdminPage({ user }: { user: NonNullable<ReturnType<typeof useAuth>
 
 export function AgentsPage() {
   const { user } = useAuth();
-  const { workspace, loading } = useWorkspace(user);
+  const { workspace, allWorkspaces, switchWorkspace, loading } = useWorkspace(user);
 
   if (!user || loading) return <div className="loading">Loading…</div>;
 
   if (workspace?.needsWorkspace) {
-    return <AgentOperatorPage user={user} />;
+    return <AgentOperatorPage user={user} allWorkspaces={allWorkspaces} switchWorkspace={switchWorkspace} />;
   }
-  return <AgentAdminPage user={user} />;
+  return <AgentAdminPage user={user} workspace={workspace} allWorkspaces={allWorkspaces} switchWorkspace={switchWorkspace} />;
 }

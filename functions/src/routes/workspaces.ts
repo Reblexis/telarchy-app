@@ -78,6 +78,16 @@ workspacesRouter.get('/', requireFirebaseUser, wrap(async (req, res) => {
   );
 }));
 
+// --- Workspace stats (traded volume) ---
+
+workspacesRouter.get('/:id/stats', requireFirebaseUser, wrap(async (req, res) => {
+  const wsId = req.params.id as string;
+  const doc = await db().collection('workspaces').doc(wsId).get();
+  if (!doc.exists) { res.status(404).json({ error: 'Workspace not found' }); return; }
+  const data = doc.data()!;
+  res.json({ tradedVolume: data.tradedVolume ?? 0 });
+}));
+
 // --- Get workspace detail ---
 
 workspacesRouter.get('/:id', requireFirebaseUser, wrap(async (req, res) => {

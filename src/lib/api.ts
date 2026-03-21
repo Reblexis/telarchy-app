@@ -15,13 +15,26 @@ export interface MarketplaceListing {
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
-async function request(path: string, user: User, options: RequestInit = {}) {
+let activeWorkspaceId: string | null = localStorage.getItem('activeWorkspaceId');
+
+export function setActiveWorkspace(id: string | null): void {
+  activeWorkspaceId = id;
+  if (id === null) {
+    localStorage.removeItem('activeWorkspaceId');
+  } else {
+    localStorage.setItem('activeWorkspaceId', id);
+  }
+}
+
+async function request(path: string, user: User, options: RequestInit = {}, skipWorkspaceHeader = false) {
   const token = await user.getIdToken();
+  const wsHeader: Record<string, string> = (!skipWorkspaceHeader && activeWorkspaceId) ? { 'X-Workspace-Id': activeWorkspaceId } : {};
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`,
+      ...wsHeader,
       ...(options.headers as Record<string, string>),
     },
   });
@@ -60,7 +73,7 @@ export const api = {
     request(`/api/agents/${id}/role`, user, { method: 'PUT', body: JSON.stringify({ role }) }),
   spendAgent: (user: User, id: string, amount: number, type: 'betting' | 'tokens', reason: string) =>
     request(`/api/agents/${id}/spend`, user, { method: 'POST', body: JSON.stringify({ amount, type, reason }) }),
-  getTreasury: (user: User) => request('/api/agents/treasury', user),
+  getTreasury: (user: User) => request('/api/agents/treasury', user, {}, true), // skip workspace header — treasury is always platform-level
 
   // Markets & Trading
   getMarkets: (user: User, taskId?: string) => {
@@ -122,6 +135,11 @@ export const api = {
   },
 
   // Marketplace (public, no auth)
+  getStats: async (): Promise<{ marketsActive: number; agentsActive: number; tradesThisWeek: number }> => {
+    const res = await fetch(`${API_BASE}/api/marketplace/stats`);
+    if (!res.ok) throw new Error(`Stats request failed: ${res.status}`);
+    return res.json();
+  },
   getMarketplace: async (limit = 50): Promise<MarketplaceListing[]> => {
     const res = await fetch(`${API_BASE}/api/marketplace?limit=${limit}`);
     if (!res.ok) throw new Error(`Marketplace request failed: ${res.status}`);
@@ -153,6 +171,7 @@ export const api = {
     request('/api/workspaces', user, { method: 'POST', body: JSON.stringify({ name }) }),
   listWorkspaces: (user: User) => request('/api/workspaces', user),
   getWorkspace: (user: User, id: string) => request(`/api/workspaces/${id}`, user),
+  getWorkspaceStats: (user: User, id: string) => request(`/api/workspaces/${id}/stats`, user),
   updateWorkspaceSettings: (user: User, id: string, body: { name?: string }) =>
     request(`/api/workspaces/${id}/settings`, user, { method: 'PUT', body: JSON.stringify(body) }),
   inviteMember: (user: User, workspaceId: string, uid: string, role: string) =>

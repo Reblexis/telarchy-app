@@ -41,20 +41,32 @@ function safeCompare(a: string, b: string): boolean {
   }
 }
 
+const ROLE_PRIORITY: WorkspaceMemberRole[] = ['owner', 'admin', 'trader', 'viewer'];
+
 /**
  * Resolve workspace and member role for a Firebase user.
- * Priority: owner > admin > trader/viewer > no workspace.
+ * If requestedWorkspaceId is provided, validates membership in that workspace and returns it.
+ * Returns null when requestedWorkspaceId is provided but the user is not a member (signals 403).
+ * Without requestedWorkspaceId: auto-resolves to highest-privilege workspace.
  * Returns workspaceId='default' (platform context) when the user has no workspaces.
  */
-async function resolveFirebaseWorkspace(uid: string): Promise<{ workspaceId: string; memberRole: WorkspaceMemberRole | null }> {
+async function resolveFirebaseWorkspace(
+  uid: string,
+  requestedWorkspaceId?: string,
+): Promise<{ workspaceId: string; memberRole: WorkspaceMemberRole | null } | null> {
   const userDoc = await getFirestore().collection('users').doc(uid).get();
   if (!userDoc.exists) return { workspaceId: 'default', memberRole: null };
   const workspaces = userDoc.data()!.workspaces as Record<string, { role: WorkspaceMemberRole }> | undefined;
   if (!workspaces) return { workspaceId: 'default', memberRole: null };
+
+  if (requestedWorkspaceId) {
+    const membership = workspaces[requestedWorkspaceId];
+    if (!membership) return null; // not a member — caller should return 403
+    return { workspaceId: requestedWorkspaceId, memberRole: membership.role };
+  }
+
   const entries = Object.entries(workspaces).filter(([wsId]) => wsId !== 'default');
   if (entries.length === 0) return { workspaceId: 'default', memberRole: null };
-  // Prefer higher-privilege roles
-  const ROLE_PRIORITY: WorkspaceMemberRole[] = ['owner', 'admin', 'trader', 'viewer'];
   entries.sort(([, a], [, b]) => ROLE_PRIORITY.indexOf(a.role) - ROLE_PRIORITY.indexOf(b.role));
   const [wsId, membership] = entries[0];
   return { workspaceId: wsId, memberRole: membership.role };
@@ -80,10 +92,15 @@ export async function optionalAuthMiddleware(req: Request, _res: Response, next:
     const decoded = await getAuth().verifyIdToken(token).catch(() => null);
     if (decoded) {
       if (isAdminFirebaseUser(decoded)) {
-        req.auth = { role: 'admin', workspaceId: 'default', uid: decoded.uid };
+        const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
+        req.auth = { role: 'admin', workspaceId: requestedWorkspaceId ?? 'default', uid: decoded.uid };
       } else {
-        const { workspaceId, memberRole } = await resolveFirebaseWorkspace(decoded.uid);
-        req.auth = { role: memberRoleToAuthRole(memberRole), workspaceId, uid: decoded.uid };
+        const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
+        const result = await resolveFirebaseWorkspace(decoded.uid, requestedWorkspaceId);
+        if (result !== null) {
+          req.auth = { role: memberRoleToAuthRole(result.memberRole), workspaceId: result.workspaceId, uid: decoded.uid };
+        }
+        // null means not a member; leave req.auth unset (optional middleware)
       }
     }
     // Invalid token: continue without auth (optional)
@@ -108,12 +125,17 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     const decoded = await getAuth().verifyIdToken(token).catch(() => null);
     if (decoded) {
       if (isAdminFirebaseUser(decoded)) {
-        // Platform admin: full access to the default workspace
-        req.auth = { role: 'admin', workspaceId: 'default', uid: decoded.uid };
+        // Platform admin: full admin access; can switch to any workspace via X-Workspace-Id
+        const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
+        req.auth = { role: 'admin', workspaceId: requestedWorkspaceId ?? 'default', uid: decoded.uid };
       } else {
         // Workspace user: resolve role from workspace membership
-        const { workspaceId, memberRole } = await resolveFirebaseWorkspace(decoded.uid);
-        req.auth = { role: memberRoleToAuthRole(memberRole), workspaceId, uid: decoded.uid };
+        const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
+        const result = await resolveFirebaseWorkspace(decoded.uid, requestedWorkspaceId);
+        if (result === null) {
+          return res.status(403).json({ error: 'Not a member of the specified workspace' });
+        }
+        req.auth = { role: memberRoleToAuthRole(result.memberRole), workspaceId: result.workspaceId, uid: decoded.uid };
       }
       return next();
     }

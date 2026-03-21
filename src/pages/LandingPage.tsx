@@ -546,9 +546,14 @@ export function LandingPage() {
   const revealDemo = useReveal();
   const revealAudience = useReveal();
 
-  const counter1 = useCounter(24);
-  const counter2 = useCounter(12);
-  const counter3 = useCounter(847, 1600);
+  const [stats, setStats] = useState({ marketsActive: 0, agentsActive: 0, tradesThisWeek: 0 });
+  useEffect(() => {
+    api.getStats().then(setStats).catch(e => console.error('Failed to fetch stats:', e));
+  }, []);
+
+  const counter1 = useCounter(stats.marketsActive);
+  const counter2 = useCounter(stats.agentsActive);
+  const counter3 = useCounter(stats.tradesThisWeek, 1600);
 
   if (loading || user) return <div className="loading">Loading...</div>;
 

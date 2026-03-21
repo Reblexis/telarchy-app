@@ -14,7 +14,7 @@ import type { Market, Metric } from '../types';
 export function MarketsPage() {
   const { user } = useAuth();
   const { inspectTask } = useInspectMode();
-  const { workspace } = useWorkspace(user);
+  const { workspace, allWorkspaces, switchWorkspace } = useWorkspace(user);
   const isAdmin = !workspace || workspace.tier === 'admin';
   const [markets, setMarkets] = useState<Market[]>([]);
   const [metrics, setMetrics] = useState<Metric[]>([]);
@@ -157,11 +157,18 @@ export function MarketsPage() {
 
   return (
     <>
-      <Header activePage="markets" navMode="creator" actions={isAdmin ? <>
-        <HookStatus />
-        <button className="btn" onClick={handleRefresh} disabled={refreshing}>{refreshing ? 'Refreshing…' : 'Refresh Markets'}</button>
-        <button className="btn" onClick={handleResolve}>Resolve Markets</button>
-      </> : undefined} />
+      <Header
+        activePage="markets"
+        navMode="creator"
+        workspaces={allWorkspaces}
+        activeWorkspaceId={workspace?.workspaceId}
+        onWorkspaceSwitch={switchWorkspace}
+        actions={isAdmin ? <>
+          <HookStatus />
+          <button className="btn" onClick={handleRefresh} disabled={refreshing}>{refreshing ? 'Refreshing…' : 'Refresh Markets'}</button>
+          <button className="btn" onClick={handleResolve}>Resolve Markets</button>
+        </> : undefined}
+      />
       <div className="container">
         {error && <div className="message error show">{error}</div>}
         {resolveResult && <div className="message success show">{resolveResult}</div>}
