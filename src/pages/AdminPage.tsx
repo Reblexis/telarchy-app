@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { api } from '../lib/api';
@@ -10,15 +9,12 @@ export function AdminPage() {
   const { workspace, allWorkspaces, switchWorkspace, loading } = useWorkspace(user);
   const [treasury, setTreasury] = useState<{ address: string; usdcBalance: number; ethBalance: number } | null>(null);
 
-  const isPlatformAdmin = !workspace || workspace.workspaceId === 'default';
-
   useEffect(() => {
-    if (!user || !isPlatformAdmin) return;
+    if (!user) return;
     api.getTreasury(user).then(setTreasury).catch((e: Error) => console.error('getTreasury:', e.message));
-  }, [user, isPlatformAdmin]);
+  }, [user]);
 
   if (!user || loading) return <div className="loading">Loading…</div>;
-  if (!isPlatformAdmin) return <Navigate to="/agents" replace />;
 
   return (
     <>
