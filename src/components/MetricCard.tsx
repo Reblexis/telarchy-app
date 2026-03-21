@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import type { Metric } from '../types';
 import type { FormulaWarning } from '../lib/metrics-engine';
-import { useDarkMode } from '../hooks/useDarkMode';
 import { MetricsTimeChart } from './charts/MetricsTimeChart';
 import { buildPointsFromTimeSeries } from '../lib/metrics-chart-model';
 
@@ -50,7 +49,6 @@ interface MetricCardProps {
 
 export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus, onGraph, onEdit, onDelete }: MetricCardProps) {
   const isLeaf = !metric.formula || metric.formula === '0';
-  const { isDark } = useDarkMode();
   const points = useMemo(
     () => (metric.timeSeries ? buildPointsFromTimeSeries(metric.timeSeries) : []),
     [metric.timeSeries],
@@ -122,7 +120,6 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
             <MetricsTimeChart
               points={points}
               conditionalPoints={conditionalPoints}
-              isDark={isDark}
               mode={isInspectMode ? 'inspect' : 'normal'}
               variant="inline"
             />

@@ -6,13 +6,12 @@ import { MetricsTimeChart } from './charts/MetricsTimeChart';
 interface GraphModalProps {
   metric: Metric | null;
   interval: GraphInterval;
-  isDark: boolean;
   isInspectMode: boolean;
   loadLogs: (metricId: string) => Promise<MetricLog[]>;
   onClose: () => void;
 }
 
-export function GraphModal({ metric, interval, isDark, isInspectMode, loadLogs, onClose }: GraphModalProps) {
+export function GraphModal({ metric, interval, isInspectMode, loadLogs, onClose }: GraphModalProps) {
   const [points, setPoints] = useState<ReturnType<typeof buildPointsFromLogs>>([]);
   const [status, setStatus] = useState<'loading' | 'no-data' | 'ready'>('loading');
 
@@ -56,7 +55,6 @@ export function GraphModal({ metric, interval, isDark, isInspectMode, loadLogs, 
             <div style={{ position: 'relative', width: '100%', height: '350px' }}>
               <MetricsTimeChart
                 points={points}
-                isDark={isDark}
                 mode={isInspectMode ? 'inspect' : 'normal'}
                 variant="modal"
               />

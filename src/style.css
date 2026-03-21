@@ -22,28 +22,6 @@
   --graph-bg: #f5f5f5;
 }
 
-.dark-mode {
-  --bg-primary: #1a1a1a;
-  --bg-secondary: #2a2a2a;
-  --bg-tertiary: #3a3a3a;
-  --text-primary: #e0e0e0;
-  --text-secondary: #b0b0b0;
-  --text-tertiary: #808080;
-  --border-color: #3a3a3a;
-  --border-hover: #e0e0e0;
-  --button-bg: #e0e0e0;
-  --button-text: #1a1a1a;
-  --button-secondary-bg: #2a2a2a;
-  --error-bg: #4a1a1a;
-  --error-text: #ff6b6b;
-  --success-bg: #1a3a1a;
-  --success-text: #6bff6b;
-  --focus-bg: #1a2a3a;
-  --focus-border: #4a9aff;
-  --delete-color: #ff4a4a;
-  --modal-overlay: rgba(0, 0, 0, 0.8);
-  --graph-bg: #2a2a2a;
-}
 
 /* ===== Global Reset ===== */
 * {
@@ -59,7 +37,6 @@ body {
   background: var(--bg-primary);
   min-height: 100vh;
   padding: 2rem;
-  transition: background 0.3s ease, color 0.3s ease;
 }
 
 /* ===== Header ===== */
@@ -1078,6 +1055,35 @@ body.landing-page {
   .landing-hero-sim {
     display: none !important;
   }
+}
+
+/* Market demo bet buttons */
+.demo-btn {
+  flex: 1;
+  padding: 0.65rem;
+  border-radius: 0.375rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: transform 0.08s ease, opacity 0.08s ease;
+  font-family: inherit;
+}
+
+.demo-btn:active {
+  transform: scale(0.95);
+  opacity: 0.85;
+}
+
+.demo-btn--secondary {
+  border: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.demo-btn--primary {
+  border: none;
+  background: var(--button-bg);
+  color: var(--button-text);
 }
 
 /* Audience card hover lift */

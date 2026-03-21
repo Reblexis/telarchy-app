@@ -1,12 +1,10 @@
 import { useState, useEffect, useCallback, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { useDarkMode } from '../hooks/useDarkMode';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { api } from '../lib/api';
 import { cacheGet, cacheSet } from '../lib/cache';
 import { Header } from '../components/Header';
-import { DarkModeToggle } from '../components/DarkModeToggle';
 import type { Agent, PermissionGroup, Metric } from '../types';
 
 // ─── Operator view (agent operators with no workspace) ──────────────────────
@@ -22,7 +20,6 @@ interface MyAgent {
 
 function AgentOperatorPage({ user }: { user: NonNullable<ReturnType<typeof useAuth>['user']> }) {
   const navigate = useNavigate();
-  useDarkMode();
 
   const [myAgents, setMyAgents] = useState<MyAgent[]>([]);
   const [loadingAgents, setLoadingAgents] = useState(true);
@@ -62,7 +59,6 @@ function AgentOperatorPage({ user }: { user: NonNullable<ReturnType<typeof useAu
 
   return (
     <>
-      <DarkModeToggle fixed />
       <Header activePage="agents" navMode="operator" actions={
         <button className="logout-btn" onClick={async () => { await user.reload().catch(() => {}); navigate('/login'); }}>
           Logout
@@ -244,7 +240,6 @@ function AgentOperatorPage({ user }: { user: NonNullable<ReturnType<typeof useAu
 // ─── Admin view (workspace owners / admins) ─────────────────────────────────
 
 function AgentAdminPage({ user }: { user: NonNullable<ReturnType<typeof useAuth>['user']> }) {
-  useDarkMode();
   const [agents, setAgents] = useState<Agent[]>(() => cacheGet<Agent[]>('agents') || []);
   const [loading, setLoading] = useState(!cacheGet('agents'));
   const [error, setError] = useState('');

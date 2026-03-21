@@ -4,6 +4,7 @@ import { wsCol, wsLockDoc } from '../lib/workspace';
 import { sampleTimePoints, getLeafDescendantNames } from '../lib/time-preference';
 import { AMM_DEFAULTS, initialPool } from '../lib/amm';
 import { emitEvent } from './events';
+import { toUnits, fromUnits } from '../lib/validation';
 
 /**
  * Read liquidityEvents for a market and credit the given pool amount back to
@@ -39,7 +40,7 @@ export async function distributeLPLeftover(
     if (share <= 0) continue;
     distributed += share;
     batch.update(db().collection('agents').doc(agentId), {
-      balance: FieldValue.increment(share),
+      balance: FieldValue.increment(toUnits(share)),
       earnedBetting: FieldValue.increment(share),
     });
   }
@@ -71,7 +72,7 @@ export async function voidMarket(
     refunded += pos.totalCost;
     // agents is a global collection — not workspace-scoped
     batch.update(db().collection('agents').doc(pos.agentId), {
-      balance: FieldValue.increment(pos.totalCost),
+      balance: FieldValue.increment(toUnits(pos.totalCost)),
       earnedBetting: FieldValue.increment(pos.totalCost),
       spentBetting: FieldValue.increment(-pos.totalCost),
     });

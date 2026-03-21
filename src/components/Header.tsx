@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { useDarkMode } from '../hooks/useDarkMode';
 
 type Page = 'metrics' | 'agents' | 'markets' | 'tasks' | 'marketplace';
 
@@ -30,11 +29,10 @@ export interface HeaderProps {
 
 export function Header({ activePage, navMode = 'creator', actions, workspaceName, showSettings }: HeaderProps) {
   const navItems = navMode === 'operator' ? OPERATOR_NAV : CREATOR_NAV;
-  const { isDark } = useDarkMode();
 
   return (
     <div className="header">
-      <img src={isDark ? '/logo_transparent_bg_dark_mode.png' : '/logo_transparent_bg.png'} alt="Telarchy" style={{ height: '5.25rem' }} />
+      <img src="/logo_transparent_bg.png" alt="Telarchy" style={{ height: '5.25rem' }} />
       <nav className="header-nav">
         {navItems.map(item => (
           <Link key={item.page} to={item.to} className={`nav-link${item.page === activePage ? ' active' : ''}`}>

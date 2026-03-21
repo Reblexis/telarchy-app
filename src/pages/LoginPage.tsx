@@ -2,15 +2,12 @@ import { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { initializeFirebaseApp, getFirebaseAuth } from '../lib/firebase';
-import { useDarkMode } from '../hooks/useDarkMode';
-import { DarkModeToggle } from '../components/DarkModeToggle';
 import { OAuthButtons } from '../components/OAuthButtons';
 import { api } from '../lib/api';
 import { postLoginPath } from '../lib/postLoginPath';
 
 export function LoginPage() {
   const navigate = useNavigate();
-  useDarkMode();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -44,7 +41,6 @@ export function LoginPage() {
 
   return (
     <>
-      <DarkModeToggle fixed />
       <div className="login-page">
         <div className="container" style={{ maxWidth: 400 }}>
           <h1>Login</h1>

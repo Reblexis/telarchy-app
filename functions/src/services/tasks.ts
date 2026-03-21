@@ -5,6 +5,7 @@ import { consensus, initialPool } from '../lib/amm';
 import { recalculateMetrics } from '../lib/metrics-engine';
 import { getAllMetrics, buildConsensusMap } from './metrics';
 import { voidMarket } from './markets';
+import { toUnits } from '../lib/validation';
 
 type TaskMarketDoc = {
   metricId: string;
@@ -239,7 +240,7 @@ export async function voidTaskMarkets(taskId: string, workspaceId = 'default'): 
       if (pos.totalCost <= 0) continue;
       // agents is a global collection — not workspace-scoped
       batch.update(db().collection('agents').doc(pos.agentId), {
-        balance: FieldValue.increment(pos.totalCost),
+        balance: FieldValue.increment(toUnits(pos.totalCost)),
         earnedBetting: FieldValue.increment(pos.totalCost),
         spentBetting: FieldValue.increment(-pos.totalCost),
       });
@@ -265,7 +266,7 @@ export async function approveTask(taskId: string, workspaceId = 'default'): Prom
   const batch = db().batch();
   batch.update(taskRef, { status: 'approved' });
   batch.update(agentRef, {
-    balance: FieldValue.increment(task.price),
+    balance: FieldValue.increment(toUnits(task.price)),
     earnedTasks: FieldValue.increment(task.price),
   });
   await batch.commit();

@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, type MarketplaceListing } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
-import { useDarkMode } from '../hooks/useDarkMode';
-import { DarkModeToggle } from '../components/DarkModeToggle';
 
 
 function JoinButton({ workspaceId }: { workspaceId: string }) {
@@ -89,7 +87,6 @@ function MarketCard({ market }: { market: MarketplaceListing }) {
 }
 
 export function MarketplacePage() {
-  useDarkMode();
   const { user } = useAuth();
 
   const [markets, setMarkets] = useState<MarketplaceListing[]>([]);
@@ -113,8 +110,6 @@ export function MarketplacePage() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <DarkModeToggle fixed />
-
       {!user && (
         <nav style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',

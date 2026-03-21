@@ -3,9 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
-import { useDarkMode } from '../hooks/useDarkMode';
 import { Header } from '../components/Header';
-import { DarkModeToggle } from '../components/DarkModeToggle';
 
 interface Member { role: string; joinedAt?: { _seconds?: number } }
 interface WorkspaceDetail { id: string; name: string }
@@ -14,7 +12,6 @@ export function WorkspaceSettingsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { workspace } = useWorkspace(user);
-  useDarkMode();
 
   const [ws, setWs] = useState<WorkspaceDetail | null>(null);
   const [name, setName] = useState('');
@@ -98,7 +95,6 @@ export function WorkspaceSettingsPage() {
   if (!workspace || workspace.workspaceId === 'default') {
     return (
       <>
-        <DarkModeToggle fixed />
         <Header activePage="metrics" navMode="creator" />
         <div className="container" style={{ maxWidth: 600, paddingTop: '2rem' }}>
           <h1>Workspace Settings</h1>
@@ -114,7 +110,6 @@ export function WorkspaceSettingsPage() {
   if (workspace.tier !== 'admin') {
     return (
       <>
-        <DarkModeToggle fixed />
         <Header activePage="metrics" navMode="creator" />
         <div className="container" style={{ maxWidth: 600, paddingTop: '2rem' }}>
           <h1>Workspace Settings</h1>
@@ -131,7 +126,6 @@ export function WorkspaceSettingsPage() {
 
   return (
     <>
-      <DarkModeToggle fixed />
       <Header activePage="metrics" navMode="creator" />
       <div className="container" style={{ maxWidth: 600, paddingTop: '1rem' }}>
         <h1 style={{ marginBottom: '0.25rem' }}>Workspace Settings</h1>

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { useDarkMode } from '../hooks/useDarkMode';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { api } from '../lib/api';
 import { cacheGet, cacheSet } from '../lib/cache';
@@ -14,7 +13,6 @@ import type { Market, Metric } from '../types';
 
 export function MarketsPage() {
   const { user } = useAuth();
-  useDarkMode();
   const { inspectTask } = useInspectMode();
   const { workspace } = useWorkspace(user);
   const isAdmin = !workspace || workspace.tier === 'admin';

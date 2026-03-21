@@ -3,13 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { createUserWithEmailAndPassword, User } from 'firebase/auth';
 import { initializeFirebaseApp, getFirebaseAuth } from '../lib/firebase';
 import { api } from '../lib/api';
-import { useDarkMode } from '../hooks/useDarkMode';
-import { DarkModeToggle } from '../components/DarkModeToggle';
 import { OAuthButtons } from '../components/OAuthButtons';
 
 export function SignupPage() {
   const navigate = useNavigate();
-  useDarkMode();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -52,7 +49,6 @@ export function SignupPage() {
 
   return (
     <>
-      <DarkModeToggle fixed />
       <div className="login-page">
         <div className="container" style={{ maxWidth: 400 }}>
           <h1>Create account</h1>

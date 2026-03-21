@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { useDarkMode } from '../hooks/useDarkMode';
 import { useMetrics } from '../hooks/useMetrics';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { clearFirebaseConfig } from '../lib/firebase';
@@ -9,7 +8,6 @@ import { getCookie, setCookie } from '../lib/cookies';
 import type { Metric, GraphInterval } from '../types';
 import { useInspectMode } from '../hooks/useInspectMode';
 import { Header } from '../components/Header';
-import { DarkModeToggle } from '../components/DarkModeToggle';
 import { XPDisplay } from '../components/XPDisplay';
 import { MetricsDashboard } from '../components/MetricsDashboard';
 import { AddMetricForm } from '../components/AddMetricForm';
@@ -19,7 +17,6 @@ import { GraphModal } from '../components/GraphModal';
 export function MetricsPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { isDark } = useDarkMode();
   const { inspectTask } = useInspectMode();
   const { workspace } = useWorkspace(user);
   const isAdmin = !workspace || workspace.tier === 'admin';
@@ -107,7 +104,6 @@ export function MetricsPage() {
             <option value="month">Monthly</option>
             <option value="year">Yearly</option>
           </select>
-          <DarkModeToggle />
           {isAdmin && <button className="reconfigure-btn" onClick={handleReconfigure}>⚙️</button>}
           <button className="logout-btn" onClick={handleLogout}>Logout</button>
         </>}
@@ -150,7 +146,6 @@ export function MetricsPage() {
       <GraphModal
         metric={graphMetric}
         interval={graphInterval}
-        isDark={isDark}
         isInspectMode={!!inspectTask}
         loadLogs={loadMetricLogs}
         onClose={() => setGraphMetric(null)}

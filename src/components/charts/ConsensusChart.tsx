@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react';
-import { useDarkMode } from '../../hooks/useDarkMode';
 import { fmtTime, getTimestampSeconds } from '../../lib/date-utils';
 import type { TradePoint } from '../../types';
 import { Line } from 'react-chartjs-2';
@@ -21,7 +20,6 @@ ChartJS.register(LinearScale, PointElement, LineElement, ChartTooltip, Filler);
 export function ConsensusChart({ trades, rangeMin, rangeMax }: {
   trades: TradePoint[]; rangeMin: number; rangeMax: number;
 }) {
-  const { isDark } = useDarkMode();
   const [clickedTrade, setClickedTrade] = useState<TradePoint | null>(null);
   const defaultVal = (rangeMin + rangeMax) / 2;
 
@@ -47,8 +45,8 @@ export function ConsensusChart({ trades, rangeMin, rangeMax }: {
     ...withT.map(t => ({ t: t._ts * 1000, y: t.consensus!, trade: t })),
   ];
 
-  const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
-  const tickColor = isDark ? '#b0b0b0' : '#666';
+  const gridColor = 'rgba(0,0,0,0.08)';
+  const tickColor = '#666';
 
   const chartData: ChartData<'line'> = {
     datasets: [{
@@ -61,7 +59,7 @@ export function ConsensusChart({ trades, rangeMin, rangeMax }: {
         p.trade?.direction === 'lower' ? '#ef4444' :
         p.trade?.direction === 'higher' ? '#22c55e' : 'transparent'
       ),
-      pointBorderColor: pts.map(p => p.trade ? (isDark ? '#222' : '#fff') : 'transparent'),
+      pointBorderColor: pts.map(p => p.trade ? '#fff' : 'transparent'),
       pointBorderWidth: 1.5,
       pointRadius: pts.map(p => p.trade ? 5 : 0),
       pointHoverRadius: pts.map(p => p.trade ? 7 : 0),
@@ -94,10 +92,10 @@ export function ConsensusChart({ trades, rangeMin, rangeMax }: {
     plugins: {
       legend: { display: false },
       tooltip: {
-        backgroundColor: isDark ? '#2a2a2a' : '#fff',
-        titleColor: isDark ? '#e0e0e0' : '#1a1a1a',
-        bodyColor: isDark ? '#b0b0b0' : '#4a4a4a',
-        borderColor: isDark ? '#3a3a3a' : '#e0e0e0',
+        backgroundColor: '#fff',
+        titleColor: '#1a1a1a',
+        bodyColor: '#4a4a4a',
+        borderColor: '#e0e0e0',
         borderWidth: 1,
         callbacks: {
           title: (items) => { const x = items[0]?.parsed?.x; return x != null ? fmtTime(x / 1000) : ''; },

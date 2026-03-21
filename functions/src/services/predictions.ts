@@ -3,6 +3,7 @@ import { db } from '../lib/db';
 import { wsCol } from '../lib/workspace';
 import { getAllMetrics, buildConsensusMap } from './metrics';
 import { voidMarket, distributeLPLeftover } from './markets';
+import { toUnits } from '../lib/validation';
 import type { Metric } from '../types';
 import { endOfPeriod } from '../lib/date-utils';
 import { pHigher, consensus, resolutionPayouts } from '../lib/amm';
@@ -48,7 +49,7 @@ async function resolveMarketDoc(
     positions++;
     // agents is a global collection — not workspace-scoped
     batch.update(db().collection('agents').doc(pos.agentId), {
-      balance: FieldValue.increment(payout),
+      balance: FieldValue.increment(toUnits(payout)),
       earnedBetting: FieldValue.increment(payout),
     });
   }

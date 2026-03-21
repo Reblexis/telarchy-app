@@ -14,6 +14,7 @@ import { isValidDateFormat, endOfPeriod } from '../lib/date-utils';
 import { extractMetricReferences } from '../lib/metrics-engine';
 import { consensus, pHigher, directionTradeCost, sharesForBudget, betTowardsValue, directionSellProceeds, lmsrCost, initialPool, AMM_DEFAULTS } from '../lib/amm';
 import { emitEvent } from '../services/events';
+import { sufficientBalance, toUnits, fromUnits } from '../lib/validation';
 
 export const predictionsRouter = Router();
 
@@ -117,7 +118,7 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
     if (b <= 0) throw new AppError('Market has no liquidity — admin must inject liquidity before trading', 400);
 
     if (!agentDoc.exists) throw new AppError('Agent not found', 404);
-    const balance = agentDoc.data()!.balance as number;
+    const balance = fromUnits(agentDoc.data()!.balance as number);
 
     // Compute direction, amount, and cost from fresh market state.
     let direction: 0 | 1;
@@ -156,7 +157,7 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
       proceeds = directionSellProceeds(shares, direction, amount, b);
       if (proceeds <= 0) throw new AppError('Trade too small', 400);
     } else {
-      if (cost > 0 && balance < cost) throw new AppError('Insufficient balance', 400, { balance, cost });
+      if (cost > 0 && !sufficientBalance(balance, cost)) throw new AppError('Insufficient balance', 400, { balance, cost });
     }
 
     const newShares: [number, number] = [shares[0], shares[1]];
@@ -167,11 +168,11 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
 
     if (isSell) {
       tx.update(marketRef, { shares: newShares, pool: FieldValue.increment(-proceeds) });
-      tx.update(agentRef, { balance: FieldValue.increment(proceeds), earnedBetting: FieldValue.increment(proceeds) });
+      tx.update(agentRef, { balance: toUnits(balance + proceeds), earnedBetting: FieldValue.increment(proceeds) });
       tx.update(posRef, { shares: FieldValue.increment(-amount) });
     } else {
       tx.update(marketRef, { shares: newShares, pool: FieldValue.increment(cost) });
-      tx.update(agentRef, { balance: FieldValue.increment(-cost), spentBetting: FieldValue.increment(cost) });
+      tx.update(agentRef, { balance: toUnits(balance - cost), spentBetting: FieldValue.increment(cost) });
       if (posDoc.exists) {
         tx.update(posRef, { shares: FieldValue.increment(amount), totalCost: FieldValue.increment(cost) });
       } else {
@@ -418,7 +419,7 @@ predictionsRouter.post('/markets/liquidity/bulk', requireRole('admin'), wrap(asy
   const [agentDoc, marketsSnap] = await Promise.all([agentRef.get(), marketsQuery.get()]);
   if (!agentDoc.exists) { res.status(404).json({ error: 'Agent not found' }); return; }
 
-  const balance = agentDoc.data()!.balance as number;
+  const balance = fromUnits(agentDoc.data()!.balance as number);
   const marketDocs = taskId
     ? marketsSnap.docs
     : marketsSnap.docs.filter(d => !d.data().taskId);
@@ -450,10 +451,10 @@ predictionsRouter.post('/markets/liquidity/bulk', requireRole('admin'), wrap(asy
   });
 
   const totalCost = Math.round(updates.reduce((s, u) => s + u.poolContribution, 0) * 100) / 100;
-  if (balance < totalCost) { res.status(400).json({ error: `Insufficient balance: need ${totalCost}, have ${balance}` }); return; }
+  if (!sufficientBalance(balance, totalCost)) { res.status(400).json({ error: `Insufficient balance: need ${totalCost}, have ${balance}` }); return; }
 
   const batch = db().batch();
-  batch.update(agentRef, { balance: FieldValue.increment(-totalCost), spentBetting: FieldValue.increment(totalCost) });
+  batch.update(agentRef, { balance: FieldValue.increment(-toUnits(totalCost)), spentBetting: FieldValue.increment(totalCost) });
 
   for (const { doc: marketDoc, newLiquidity, newShares, newPool, poolContribution } of updates) {
     batch.update(marketDoc.ref, { liquidity: newLiquidity, shares: newShares, pool: newPool });
@@ -491,12 +492,12 @@ predictionsRouter.post('/markets/:id/liquidity', requireRole('admin'), wrap(asyn
     : initialPool(newLiquidity);
   const poolContribution = Math.round((newPool - oldPool) * 100) / 100;
 
-  const balance = agentDoc.data()!.balance as number;
-  if (balance < poolContribution) { res.status(400).json({ error: `Insufficient balance: need ${poolContribution}, have ${balance}` }); return; }
+  const balanceUnits = agentDoc.data()!.balance as number;
+  if (!sufficientBalance(balanceUnits, poolContribution)) { res.status(400).json({ error: `Insufficient balance: need ${poolContribution}, have ${fromUnits(balanceUnits)}` }); return; }
 
   const batch = db().batch();
   batch.update(marketDoc.ref, { liquidity: newLiquidity, shares: newShares, pool: newPool });
-  batch.update(db().collection('agents').doc(agentId), { balance: FieldValue.increment(-poolContribution), spentBetting: FieldValue.increment(poolContribution) });
+  batch.update(db().collection('agents').doc(agentId), { balance: FieldValue.increment(-toUnits(poolContribution)), spentBetting: FieldValue.increment(poolContribution) });
   const liqRef = wsCol(workspaceId, 'liquidityEvents').doc();
   batch.set(liqRef, { id: liqRef.id, marketId: req.params.id as string, agentId, amount, poolContribution, totalLiquidity: newLiquidity, type: 'injection', createdAt: FieldValue.serverTimestamp() });
   await batch.commit();
@@ -622,7 +623,7 @@ predictionsRouter.post('/migrate', requireRole('admin'), wrap(async (req, res) =
 
   for (const [agentId, amount] of agentRefunds) {
     await db().collection('agents').doc(agentId).update({
-      balance: FieldValue.increment(amount),
+      balance: FieldValue.increment(toUnits(amount)),
       earnedBetting: FieldValue.increment(amount),
     });
   }

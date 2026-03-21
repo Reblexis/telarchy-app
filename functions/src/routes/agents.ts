@@ -9,7 +9,7 @@ import { requireRole, requireSelfOrAdmin, requireFirebaseUser } from '../middlew
 import { getMarkets } from '../services/predictions';
 import { sendUsdc, getTreasuryBalances, getTreasuryAddress, validateWalletAddress, verifyUsdcDeposit } from '../lib/usdc';
 import { AppError } from '../lib/errors';
-import { validateAgentId, validateTxHash } from '../lib/validation';
+import { validateAgentId, validateTxHash, sufficientBalance, toUnits, fromUnits, CREDIT_PRECISION } from '../lib/validation';
 
 export const agentsRouter = Router();
 
@@ -63,7 +63,7 @@ agentsRouter.get('/mine', authMiddleware, requireFirebaseUser, wrap(async (req, 
   const snap = await db().collection('agents').where('ownerUid', '==', uid).orderBy('createdAt', 'desc').get();
   res.json(snap.docs.map(doc => {
     const { apiKeyHash, ...data } = doc.data();
-    return data;
+    return { ...data, balance: fromUnits(data.balance as number) };
   }));
 }));
 
@@ -84,14 +84,14 @@ agentsRouter.get('/:id', requireSelfOrAdmin, wrap(async (req, res) => {
   const doc = await db().collection('agents').doc(id).get();
   if (!doc.exists) { res.status(404).json({ error: 'Agent not found' }); return; }
   const { apiKeyHash, ...agent } = doc.data()!;
-  res.json(agent);
+  res.json({ ...agent, balance: fromUnits(agent.balance as number) });
 }));
 
 agentsRouter.get('/:id/balance', requireSelfOrAdmin, wrap(async (req, res) => {
   const id = req.params.id as string;
   const doc = await db().collection('agents').doc(id).get();
   if (!doc.exists) { res.status(404).json({ error: 'Agent not found' }); return; }
-  res.json({ balance: doc.data()!.balance });
+  res.json({ balance: fromUnits(doc.data()!.balance as number) });
 }));
 
 // Returns a compact summary useful for an agent's startup: balance + top liquid markets.
@@ -109,7 +109,7 @@ agentsRouter.get('/:id/dashboard', requireSelfOrAdmin, wrap(async (req, res) => 
   if (!agentDoc.exists) { res.status(404).json({ error: 'Agent not found' }); return; }
 
   res.json({
-    balance: agentDoc.data()!.balance,
+    balance: fromUnits(agentDoc.data()!.balance as number),
     markets,
   });
 }));
@@ -126,7 +126,7 @@ agentsRouter.get('/', requireRole('admin'), wrap(async (_req, res) => {
       id: 'user',
       apiKeyHash: '__user__',
       role: 'admin',
-      balance: 999999999,
+      balance: toUnits(1_000_000), // 1M credits; toUnits(999999999) would overflow MAX_SAFE_INTEGER at 1e9 precision
       gifted: 0,
       earnedBetting: 0,
       spentBetting: 0,
@@ -139,7 +139,7 @@ agentsRouter.get('/', requireRole('admin'), wrap(async (_req, res) => {
   const snapshot = await db().collection('agents').orderBy('createdAt', 'desc').get();
   const agents = snapshot.docs.map(doc => {
     const { apiKeyHash, ...data } = doc.data();
-    return data;
+    return { ...data, balance: fromUnits(data.balance as number) };
   });
   res.json(agents);
 }));
@@ -186,16 +186,16 @@ agentsRouter.post('/:id/credit', requireRole('admin'), wrap(async (req, res) => 
     const fromDoc = await fromRef.get();
     if (!fromDoc.exists) { res.status(404).json({ error: 'Source agent not found' }); return; }
     const fromBalance = fromDoc.data()!.balance as number;
-    if (fromBalance < amount) {
-      res.status(400).json({ error: 'Insufficient balance on source agent', balance: fromBalance }); return;
+    if (!sufficientBalance(fromBalance, amount)) {
+      res.status(400).json({ error: 'Insufficient balance on source agent', balance: fromUnits(fromBalance) }); return;
     }
     const batch = db().batch();
-    batch.update(fromRef, { balance: FieldValue.increment(-amount) });
-    batch.update(ref, { balance: FieldValue.increment(amount), gifted: FieldValue.increment(amount) });
+    batch.update(fromRef, { balance: FieldValue.increment(-toUnits(amount)) });
+    batch.update(ref, { balance: FieldValue.increment(toUnits(amount)), gifted: FieldValue.increment(amount) });
     await batch.commit();
   } else {
     await ref.update({
-      balance: FieldValue.increment(amount),
+      balance: FieldValue.increment(toUnits(amount)),
       gifted: FieldValue.increment(amount),
     });
   }
@@ -222,13 +222,13 @@ agentsRouter.post('/:id/spend', requireSelfOrAdmin, wrap(async (req, res) => {
   if (!doc.exists) { res.status(404).json({ error: 'Agent not found' }); return; }
 
   const current = doc.data()!.balance as number;
-  if (current < amount) {
-    res.status(400).json({ error: 'Insufficient balance', balance: current }); return;
+  if (!sufficientBalance(current, amount)) {
+    res.status(400).json({ error: 'Insufficient balance', balance: fromUnits(current) }); return;
   }
 
   const field = type === 'betting' ? 'spentBetting' : 'spentTokens';
   await ref.update({
-    balance: FieldValue.increment(-amount),
+    balance: FieldValue.increment(-toUnits(amount)),
     [field]: FieldValue.increment(amount),
   });
   res.json({ ok: true, spent: amount, type, reason: reason || '' });
@@ -281,7 +281,7 @@ agentsRouter.post('/:id/deposit', requireSelfOrAdmin, wrap(async (req, res) => {
     createdAt: FieldValue.serverTimestamp(),
   });
   batch.update(agentRef, {
-    balance: FieldValue.increment(credits),
+    balance: FieldValue.increment(toUnits(credits)),
     gifted: FieldValue.increment(credits),
   });
   await batch.commit();
@@ -329,12 +329,12 @@ agentsRouter.post('/:id/withdraw', requireSelfOrAdmin, wrap(async (req, res) => 
 
     const data = doc.data()!;
     if (!data.walletAddress) throw new AppError('Agent has no registered wallet address', 400);
-    if ((data.balance as number) < amount) {
-      throw new AppError(`Insufficient balance (have ${data.balance}, need ${amount})`, 400);
+    if (!sufficientBalance(data.balance as number, amount)) {
+      throw new AppError(`Insufficient balance (have ${fromUnits(data.balance as number)}, need ${amount})`, 400);
     }
 
     walletAddress = data.walletAddress as string;
-    tx.update(ref, { balance: FieldValue.increment(-amount) });
+    tx.update(ref, { balance: FieldValue.increment(-toUnits(amount)) });
   });
 
   const usdcAmount = Math.round(amount * creditValueUsd * 1e6) / 1e6; // 6 decimal precision
@@ -344,7 +344,7 @@ agentsRouter.post('/:id/withdraw', requireSelfOrAdmin, wrap(async (req, res) => 
     txHash = await sendUsdc(walletAddress!, usdcAmount);
   } catch (err) {
     // Re-credit on tx failure so the balance remains consistent.
-    await db().collection('agents').doc(id).update({ balance: FieldValue.increment(amount) });
+    await db().collection('agents').doc(id).update({ balance: FieldValue.increment(toUnits(amount)) });
     console.error(`[withdraw] USDC send failed for agent ${id}, re-credited ${amount} credits:`, err);
     throw new AppError('On-chain transfer failed; credits have been restored', 502);
   }
@@ -366,6 +366,26 @@ agentsRouter.post('/:id/withdraw', requireSelfOrAdmin, wrap(async (req, res) => 
   ]);
 
   res.json({ ok: true, credits: amount, usdcAmount, txHash, toAddress: walletAddress! });
+}));
+
+// One-time migration: convert all agent balances from float credits to integer nanocredits (×1e9).
+// Safe to call multiple times — skips agents whose balance is already in nanocredit format.
+// Detection: balances >= CREDIT_PRECISION are assumed already migrated (represent ≥1 credit in nanocredits).
+// Balances above 1,000,000 credits are capped to toUnits(1_000_000) to avoid integer overflow.
+agentsRouter.post('/migrate-balances-to-units', requireRole('admin'), wrap(async (_req, res) => {
+  const snap = await db().collection('agents').get();
+  const batch = db().batch();
+  let converted = 0;
+  let skipped = 0;
+  for (const doc of snap.docs) {
+    const balance = doc.data().balance as number;
+    if (Number.isInteger(balance) && balance >= CREDIT_PRECISION) { skipped++; continue; }
+    const credits = Math.min(balance, 1_000_000); // cap to avoid MAX_SAFE_INTEGER overflow
+    batch.update(doc.ref, { balance: toUnits(credits) });
+    converted++;
+  }
+  if (converted > 0) await batch.commit();
+  res.json({ converted, skipped });
 }));
 
 agentsRouter.delete('/:id', requireRole('admin'), wrap(async (req, res) => {

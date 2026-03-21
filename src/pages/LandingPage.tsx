@@ -1,8 +1,6 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { useDarkMode } from '../hooks/useDarkMode';
-import { DarkModeToggle } from '../components/DarkModeToggle';
 import { api } from '../lib/api';
 import { postLoginPath } from '../lib/postLoginPath';
 
@@ -72,18 +70,16 @@ function MetricTreeSim() {
   const [flashing, setFlashing] = useState<string | null>(null);
   const [probPct, setProbPct] = useState(62);
 
-  // Randomly nudge leaf values every 1.8s
+  // Randomly nudge non-income leaf values every 1.8s
   useEffect(() => {
-    const leaves = ['s', 'e', 'i', 'sa'];
+    const leaves = ['s', 'e', 'sa'];
     const id = setInterval(() => {
       const leaf = leaves[Math.floor(Math.random() * leaves.length)];
       setFlashing(leaf);
       setValues(v => {
         const delta = Math.round((Math.random() - 0.5) * 6);
         const next = { ...v, [leaf]: Math.max(10, Math.min(99, v[leaf] + delta)) };
-        // update parent h or c
         if (leaf === 's' || leaf === 'e') next['h'] = Math.round((next['s'] + next['e']) / 2);
-        if (leaf === 'i' || leaf === 'sa') next['c'] = Math.round((next['i'] + next['sa']) / 2);
         next['u'] = Math.round((next['h'] + next['c']) / 2);
         return next;
       });
@@ -92,12 +88,19 @@ function MetricTreeSim() {
     return () => clearInterval(id);
   }, []);
 
-  // Slowly oscillate probability bar
+  // Oscillate probPct and keep Income node + Career/Utility in sync
   useEffect(() => {
     let t = 0;
     const id = setInterval(() => {
       t += 0.06;
-      setProbPct(62 + Math.round(Math.sin(t) * 9 + Math.sin(t * 1.7) * 4));
+      const next = 62 + Math.round(Math.sin(t) * 9 + Math.sin(t * 1.7) * 4);
+      setProbPct(next);
+      // Map probPct (0-100) → income internal value (0-99) so Career/Utility stay consistent
+      setValues(v => {
+        const incomeVal = Math.round(next * 0.99);
+        const c = Math.round((incomeVal + v['sa']) / 2);
+        return { ...v, i: incomeVal, c, u: Math.round((v['h'] + c) / 2) };
+      });
     }, 120);
     return () => clearInterval(id);
   }, []);
@@ -132,7 +135,7 @@ function MetricTreeSim() {
           );
         })}
 
-        {/* Agent dots traveling along edges */}
+        {/* Agent dots traveling along edges — bottom to top (child → parent) */}
         {TREE_EDGES.map(([a, b], idx) => {
           const na = nodeById(a), nb = nodeById(b);
           return (
@@ -141,7 +144,7 @@ function MetricTreeSim() {
               r={3}
               fill="var(--button-bg)"
               style={{
-                offsetPath: `path('M ${na.x} ${na.y} L ${nb.x} ${nb.y}')`,
+                offsetPath: `path('M ${nb.x} ${nb.y} L ${na.x} ${na.y}')`,
                 animation: `agentDot ${1.6 + idx * 0.3}s linear ${idx * 0.55}s infinite`,
               } as React.CSSProperties}
             />
@@ -179,45 +182,54 @@ function MetricTreeSim() {
               <text
                 x={node.x} y={node.y + 8}
                 textAnchor="middle"
-                fontSize={isRoot ? 11 : 10}
+                fontSize={isRoot ? 11 : node.id === 'i' ? 8 : 10}
                 fontWeight="700"
                 fill={isRoot ? 'var(--button-text)' : (isFlashing ? 'var(--button-bg)' : 'var(--text-primary)')}
                 style={{ transition: 'fill 0.2s', fontFamily: 'inherit' }}
               >
-                {values[node.id]}
+                {node.id === 'i'
+                  ? `$${Math.round(55 + (probPct / 100) * 60)}K`
+                  : values[node.id]}
               </text>
             </g>
           );
         })}
       </svg>
 
-      {/* Live market bar under the tree */}
-      <div style={{
-        marginTop: '0.75rem',
-        background: 'var(--bg-secondary)',
-        border: '1px solid var(--border-color)',
-        borderRadius: '0.5rem',
-        padding: '0.65rem 0.85rem',
-        fontSize: '0.75rem',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem', color: 'var(--text-secondary)' }}>
-          <span>Income · market consensus</span>
-          <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{probPct}%</span>
-        </div>
-        <div style={{ height: 6, background: 'var(--border-color)', borderRadius: 3, overflow: 'hidden' }}>
+      {/* Live income market — dollar value consensus */}
+      {(() => {
+        const rangeMin = 55, rangeMax = 115; // $K
+        const consensus = Math.round(rangeMin + (probPct / 100) * (rangeMax - rangeMin));
+        const barPct = ((consensus - rangeMin) / (rangeMax - rangeMin)) * 100;
+        return (
           <div style={{
-            height: '100%',
-            width: `${probPct}%`,
-            background: 'var(--button-bg)',
-            borderRadius: 3,
-            transition: 'width 0.3s ease',
-          }} />
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem', color: 'var(--text-tertiary)', fontSize: '0.7rem' }}>
-          <span>Lower</span>
-          <span>Higher</span>
-        </div>
-      </div>
+            marginTop: '0.75rem',
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '0.5rem',
+            padding: '0.65rem 0.85rem',
+            fontSize: '0.75rem',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem', color: 'var(--text-secondary)' }}>
+              <span>Income · predicted value</span>
+              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>${consensus}K</span>
+            </div>
+            <div style={{ position: 'relative', height: 6, background: 'var(--border-color)', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{
+                position: 'absolute', left: 0, top: 0, height: '100%',
+                width: `${barPct}%`,
+                background: 'var(--button-bg)',
+                borderRadius: 3,
+                transition: 'width 0.3s ease',
+              }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem', color: 'var(--text-tertiary)', fontSize: '0.7rem' }}>
+              <span>$55K</span>
+              <span>$115K</span>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Live badge */}
       <div style={{
@@ -319,18 +331,28 @@ function SwarmIllustration({ visible }: { visible: boolean }) {
           fill="var(--text-secondary)" style={{ fontFamily: 'inherit' }}
         >AI agents betting 24/7</text>
       </svg>
-      <div style={{
-        background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
-        borderRadius: '0.4rem', padding: '0.5rem 0.65rem', fontSize: '0.7rem',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, color: 'var(--text-secondary)' }}>
-          <span>Revenue consensus</span>
-          <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{pct}%</span>
-        </div>
-        <div style={{ height: 5, background: 'var(--border-color)', borderRadius: 3, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${pct}%`, background: 'var(--button-bg)', borderRadius: 3, transition: 'width 0.25s ease' }} />
-        </div>
-      </div>
+      {(() => {
+        const rMin = 400, rMax = 900;
+        const val = Math.round(rMin + (pct / 100) * (rMax - rMin));
+        const barPct = ((val - rMin) / (rMax - rMin)) * 100;
+        return (
+          <div style={{
+            background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
+            borderRadius: '0.4rem', padding: '0.5rem 0.65rem', fontSize: '0.7rem',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, color: 'var(--text-secondary)' }}>
+              <span>Revenue · predicted</span>
+              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>${val}K</span>
+            </div>
+            <div style={{ height: 5, background: 'var(--border-color)', borderRadius: 3, overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${barPct}%`, background: 'var(--button-bg)', borderRadius: 3, transition: 'width 0.25s ease' }} />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3, color: 'var(--text-tertiary)', fontSize: '0.65rem' }}>
+              <span>$400K</span><span>$900K</span>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -388,26 +410,25 @@ function DecisionIllustration({ visible }: { visible: boolean }) {
 
 // ─── Interactive Market Demo ───────────────────────────────────────────────
 
+const DEMO_RANGE_MIN = 400;
+const DEMO_RANGE_MAX = 900;
+
 function MarketDemo() {
-  const [shares, setShares] = useState([120, 100]); // [lower, higher]
-  const b = 80;
+  // Start neutral [0,0] with b=15 so each click causes a large, visible probability shift
+  const [shares, setShares] = useState([0, 0]); // [lower, higher]
+  const b = 15;
 
-  const pHigher = useCallback(() => {
-    const [lo, hi] = shares;
-    return 1 / (1 + Math.exp(-(hi - lo) / b));
-  }, [shares]);
-
-  const consensus = Math.round(pHigher() * 100);
+  const [lo, hi] = shares;
+  const p = 1 / (1 + Math.exp(-(hi - lo) / b));
+  const consensusVal = Math.round(DEMO_RANGE_MIN + p * (DEMO_RANGE_MAX - DEMO_RANGE_MIN));
 
   const trade = (dir: 'higher' | 'lower') => {
-    setShares(([lo, hi]) =>
-      dir === 'higher' ? [lo, Math.min(hi + 12, 340)] : [Math.min(lo + 12, 340), hi]
+    setShares(([l, h]) =>
+      dir === 'higher' ? [l, Math.min(h + 15, 150)] : [Math.min(l + 15, 150), h]
     );
   };
 
-  const reset = () => setShares([120, 100]);
-
-  const p = pHigher();
+  const reset = () => setShares([0, 0]);
 
   return (
     <div style={{
@@ -421,17 +442,19 @@ function MarketDemo() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1.25rem' }}>
         <div>
           <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Revenue · 2026</div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 2 }}>Range: 0 – 100</div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+            Range: ${DEMO_RANGE_MIN}K – ${DEMO_RANGE_MAX}K
+          </div>
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.03em' }}>
-            {Math.round(p * 100)}
+            ${consensusVal}K
           </div>
-          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>consensus</div>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>predicted value</div>
         </div>
       </div>
 
-      {/* Probability bar */}
+      {/* Value bar */}
       <div style={{ position: 'relative', height: 14, background: 'var(--border-color)', borderRadius: 7, overflow: 'hidden', marginBottom: '0.5rem' }}>
         <div style={{
           position: 'absolute', left: 0, top: 0, height: '100%',
@@ -442,38 +465,16 @@ function MarketDemo() {
         }} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-tertiary)', marginBottom: '1.25rem' }}>
-        <span>← Lower</span>
-        <span>Higher →</span>
+        <span>${DEMO_RANGE_MIN}K</span>
+        <span>${DEMO_RANGE_MAX}K</span>
       </div>
 
       {/* Bet buttons */}
       <div style={{ display: 'flex', gap: '0.6rem' }}>
-        <button
-          onClick={() => trade('lower')}
-          style={{
-            flex: 1, padding: '0.6rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)',
-            background: 'var(--bg-primary)', color: 'var(--text-primary)',
-            fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer',
-            transition: 'background 0.15s, transform 0.1s',
-          }}
-          onMouseDown={e => (e.currentTarget.style.transform = 'scale(0.97)')}
-          onMouseUp={e => (e.currentTarget.style.transform = '')}
-          onMouseLeave={e => (e.currentTarget.style.transform = '')}
-        >
+        <button onClick={() => trade('lower')} className="demo-btn demo-btn--secondary">
           ↓ Bet Lower
         </button>
-        <button
-          onClick={() => trade('higher')}
-          style={{
-            flex: 1, padding: '0.6rem', borderRadius: '0.375rem', border: 'none',
-            background: 'var(--button-bg)', color: 'var(--button-text)',
-            fontWeight: 600, fontSize: '0.875rem', cursor: 'pointer',
-            transition: 'background 0.15s, transform 0.1s',
-          }}
-          onMouseDown={e => (e.currentTarget.style.transform = 'scale(0.97)')}
-          onMouseUp={e => (e.currentTarget.style.transform = '')}
-          onMouseLeave={e => (e.currentTarget.style.transform = '')}
-        >
+        <button onClick={() => trade('higher')} className="demo-btn demo-btn--primary">
           ↑ Bet Higher
         </button>
       </div>
@@ -507,7 +508,6 @@ function MarketDemo() {
 export function LandingPage() {
   const navigate = useNavigate();
   const { user, loading } = useAuth();
-  useDarkMode();
 
   useEffect(() => {
     document.body.classList.add('landing-page');
@@ -554,7 +554,6 @@ export function LandingPage() {
 
   return (
     <>
-      <DarkModeToggle fixed />
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: 0 }}>
 
         {/* Nav */}
@@ -563,7 +562,7 @@ export function LandingPage() {
           padding: '1.25rem 2rem', borderBottom: '1px solid var(--border-color)',
           maxWidth: 1100, margin: '0 auto', width: '100%',
         }}>
-          <span style={{ fontWeight: 700, fontSize: '1.1rem', letterSpacing: '-0.02em' }}>Telarchy</span>
+          <img src="/logo_transparent_bg.png" alt="Telarchy" style={{ height: '3rem' }} />
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <Link to="/marketplace" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>
               Marketplace

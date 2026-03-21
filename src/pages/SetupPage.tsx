@@ -1,12 +1,9 @@
 import { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { saveFirebaseConfig } from '../lib/firebase';
-import { useDarkMode } from '../hooks/useDarkMode';
-import { DarkModeToggle } from '../components/DarkModeToggle';
 
 export function SetupPage() {
   const navigate = useNavigate();
-  useDarkMode();
   const [configInput, setConfigInput] = useState('');
   const [message, setMessage] = useState<{ text: string; type: 'error' | 'success' } | null>(null);
   const [saving, setSaving] = useState(false);
@@ -33,7 +30,6 @@ export function SetupPage() {
 
   return (
     <>
-      <DarkModeToggle fixed />
       <div className="setup-page">
         <div className="container" style={{ maxWidth: 600 }}>
           <h1>Firebase Setup</h1>

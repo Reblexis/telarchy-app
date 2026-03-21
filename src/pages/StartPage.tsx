@@ -1,15 +1,11 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { useDarkMode } from '../hooks/useDarkMode';
-import { DarkModeToggle } from '../components/DarkModeToggle';
 
 export function StartPage() {
   const { logout } = useAuth();
-  useDarkMode();
 
   return (
     <>
-      <DarkModeToggle fixed />
       <nav style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '1rem 2rem', borderBottom: '1px solid var(--border-color)',

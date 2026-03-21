@@ -20,23 +20,22 @@ ChartJS.register(LinearScale, PointElement, LineElement, Filler, Tooltip, Legend
 export interface MetricsTimeChartProps {
   points: ChartPoint[];
   conditionalPoints?: ChartPoint[];
-  isDark: boolean;
   mode: 'normal' | 'inspect';
   variant: 'inline' | 'modal';
 }
 
 export function MetricsTimeChart({
-  points, conditionalPoints, isDark, mode, variant,
+  points, conditionalPoints, mode, variant,
 }: MetricsTimeChartProps) {
   const currentColor = '#3b82f6';
   const conditionalColor = '#f59e0b';
-  const currentFill = isDark ? 'rgba(59,130,246,0.12)' : 'rgba(59,130,246,0.08)';
-  const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
-  const textColor = isDark ? '#b0b0b0' : '#666';
-  const tipBg = isDark ? '#2a2a2a' : '#fff';
-  const tipTitle = isDark ? '#e0e0e0' : '#1a1a1a';
-  const tipBody = isDark ? '#b0b0b0' : '#4a4a4a';
-  const tipBorder = isDark ? '#3a3a3a' : '#e0e0e0';
+  const currentFill = 'rgba(59,130,246,0.08)';
+  const gridColor = 'rgba(0,0,0,0.08)';
+  const textColor = '#666';
+  const tipBg = '#fff';
+  const tipTitle = '#1a1a1a';
+  const tipBody = '#4a4a4a';
+  const tipBorder = '#e0e0e0';
 
   if (points.length === 0) {
     return <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>No time-series points</div>;

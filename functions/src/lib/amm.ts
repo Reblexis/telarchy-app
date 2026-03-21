@@ -6,6 +6,13 @@
  * Market stores [lowerShares, higherShares].
  */
 
+import { CREDIT_PRECISION } from './validation';
+
+/** Round a credit amount to the system's storage precision (nanocredits). */
+function roundCredits(x: number): number {
+  return Math.round(x * CREDIT_PRECISION) / CREDIT_PRECISION;
+}
+
 /** LMSR cost function for 2 outcomes. */
 export function lmsrCost(shares: [number, number], b: number): number {
   const max = Math.max(shares[0], shares[1]);
@@ -36,7 +43,7 @@ export function consensus(shares: [number, number], b: number, rangeMin: number,
 export function directionTradeCost(shares: [number, number], direction: 0 | 1, amount: number, b: number): number {
   const after: [number, number] = [shares[0], shares[1]];
   after[direction] += amount;
-  return Math.round((lmsrCost(after, b) - lmsrCost(shares, b)) * 100) / 100;
+  return roundCredits(lmsrCost(after, b) - lmsrCost(shares, b));
 }
 
 /**
@@ -50,7 +57,7 @@ export function sharesForBudget(shares: [number, number], direction: 0 | 1, budg
     const cost = directionTradeCost(shares, direction, mid, b);
     if (cost < budget) lo = mid; else hi = mid;
   }
-  const amount = Math.round(lo * 100) / 100;
+  const amount = roundCredits(lo);
   const cost = directionTradeCost(shares, direction, amount, b);
   return { amount, cost };
 }
@@ -74,7 +81,7 @@ export function betTowardsValue(
   const neededCost = directionTradeCost(shares, direction, neededAmount, b);
 
   if (neededCost <= maxBudget) {
-    const amount = Math.round(neededAmount * 100) / 100;
+    const amount = roundCredits(neededAmount);
     const cost = directionTradeCost(shares, direction, amount, b);
     return { direction, amount, cost };
   }
@@ -86,7 +93,7 @@ export function betTowardsValue(
 export function directionSellProceeds(shares: [number, number], direction: 0 | 1, amount: number, b: number): number {
   const after: [number, number] = [shares[0], shares[1]];
   after[direction] -= amount;
-  return Math.round((lmsrCost(shares, b) - lmsrCost(after, b)) * 100) / 100;
+  return roundCredits(lmsrCost(shares, b) - lmsrCost(after, b));
 }
 
 /** Map actual value to proportional payout factors [lowerPayout, higherPayout]. */
@@ -98,7 +105,7 @@ export function resolutionPayouts(actualValue: number, rangeMin: number, rangeMa
 /** Initial pool subsidy for a market with liquidity b: C(0,0) = b * ln(2). */
 export function initialPool(b: number): number {
   if (b <= 0) return 0;
-  return Math.round(b * Math.log(2) * 100) / 100;
+  return roundCredits(b * Math.log(2));
 }
 
 export const AMM_DEFAULTS = {

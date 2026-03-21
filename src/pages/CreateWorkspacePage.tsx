@@ -2,13 +2,10 @@ import { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
-import { useDarkMode } from '../hooks/useDarkMode';
-import { DarkModeToggle } from '../components/DarkModeToggle';
 
 export function CreateWorkspacePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  useDarkMode();
 
   const [name, setName] = useState('');
   const [error, setError] = useState('');
@@ -40,7 +37,6 @@ export function CreateWorkspacePage() {
 
   return (
     <>
-      <DarkModeToggle fixed />
       {/* Minimal nav */}
       <nav style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',

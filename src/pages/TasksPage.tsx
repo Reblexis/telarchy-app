@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { useDarkMode } from '../hooks/useDarkMode';
 import { useInspectMode } from '../hooks/useInspectMode';
 import { useTaskUtilitySummary } from '../hooks/useTaskUtilitySummary';
 import { api } from '../lib/api';
@@ -281,7 +280,6 @@ function TaskDetailPanel({ task, user, onAction, onError }: TaskDetailProps) {
 
 export function TasksPage() {
   const { user } = useAuth();
-  useDarkMode();
   const [tasks, setTasks] = useState<TaskProposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
