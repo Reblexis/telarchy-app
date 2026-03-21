@@ -117,7 +117,7 @@ agentsRouter.get('/:id/dashboard', requireSelfOrAdmin, wrap(async (req, res) => 
 // --- Admin-only ---
 
 agentsRouter.get('/', requireRole('admin'), wrap(async (_req, res) => {
-  // Auto-create "user" agent if missing
+  // Auto-create "user" agent if missing (balance starts at 0 — credits must be USDC-backed)
   const userRef = db().collection('agents').doc('user');
   const userDoc = await userRef.get();
   if (!userDoc.exists) {
@@ -126,7 +126,7 @@ agentsRouter.get('/', requireRole('admin'), wrap(async (_req, res) => {
       id: 'user',
       apiKeyHash: '__user__',
       role: 'admin',
-      balance: toUnits(1_000_000), // 1M credits; toUnits(999999999) would overflow MAX_SAFE_INTEGER at 1e9 precision
+      balance: 0,
       gifted: 0,
       earnedBetting: 0,
       spentBetting: 0,
@@ -171,35 +171,39 @@ agentsRouter.put('/:id/role', requireRole('admin'), wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
+// Transfer credits from one agent to another. fromAgentId is required — credits cannot be created
+// from thin air; the system is zero-sum and all credits must be USDC-backed via /deposit.
 agentsRouter.post('/:id/credit', requireRole('admin'), wrap(async (req, res) => {
   const { amount, reason, fromAgentId } = req.body;
   if (typeof amount !== 'number' || amount <= 0) {
     res.status(400).json({ error: 'amount must be a positive number' }); return;
   }
-  const id = req.params.id as string;
-  const ref = db().collection('agents').doc(id);
-  const doc = await ref.get();
-  if (!doc.exists) { res.status(404).json({ error: 'Agent not found' }); return; }
-
-  if (fromAgentId && fromAgentId !== id) {
-    const fromRef = db().collection('agents').doc(fromAgentId);
-    const fromDoc = await fromRef.get();
-    if (!fromDoc.exists) { res.status(404).json({ error: 'Source agent not found' }); return; }
-    const fromBalance = fromDoc.data()!.balance as number;
-    if (!sufficientBalance(fromBalance, amount)) {
-      res.status(400).json({ error: 'Insufficient balance on source agent', balance: fromUnits(fromBalance) }); return;
-    }
-    const batch = db().batch();
-    batch.update(fromRef, { balance: FieldValue.increment(-toUnits(amount)) });
-    batch.update(ref, { balance: FieldValue.increment(toUnits(amount)), gifted: FieldValue.increment(amount) });
-    await batch.commit();
-  } else {
-    await ref.update({
-      balance: FieldValue.increment(toUnits(amount)),
-      gifted: FieldValue.increment(amount),
-    });
+  if (!fromAgentId || typeof fromAgentId !== 'string') {
+    res.status(400).json({ error: 'fromAgentId is required — credits must come from an existing agent balance' }); return;
   }
-  res.json({ ok: true, credited: amount, reason: reason || '', from: fromAgentId || null });
+  const id = req.params.id as string;
+  if (fromAgentId === id) {
+    res.status(400).json({ error: 'fromAgentId must differ from the destination agent' }); return;
+  }
+
+  const [fromDoc, toDoc] = await Promise.all([
+    db().collection('agents').doc(fromAgentId).get(),
+    db().collection('agents').doc(id).get(),
+  ]);
+  if (!fromDoc.exists) { res.status(404).json({ error: 'Source agent not found' }); return; }
+  if (!toDoc.exists) { res.status(404).json({ error: 'Agent not found' }); return; }
+
+  const fromBalance = fromDoc.data()!.balance as number;
+  if (!sufficientBalance(fromBalance, amount)) {
+    res.status(400).json({ error: 'Insufficient balance on source agent', balance: fromUnits(fromBalance) }); return;
+  }
+
+  const batch = db().batch();
+  batch.update(fromDoc.ref, { balance: FieldValue.increment(-toUnits(amount)) });
+  batch.update(toDoc.ref, { balance: FieldValue.increment(toUnits(amount)), gifted: FieldValue.increment(amount) });
+  await batch.commit();
+
+  res.json({ ok: true, credited: amount, reason: reason || '', from: fromAgentId });
 }));
 
 // Agents can spend their own credits (e.g. voluntarily buying tokens or any other service).

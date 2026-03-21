@@ -1,5 +1,9 @@
 For more info about this project look into docs/vision.md.
 
+## Keeping docs current
+
+When implementing a new feature or design decision not already captured in `docs/`, update the relevant doc file (or `docs/vision.md` if none fits) with a brief note — one or two sentences covering the what and why. Keep it minimal; don't repeat what the code makes obvious.
+
 ## Debugging with the API
 
 When uncertain about a bug or data state, use the live API directly before making code changes. Do not guess — verify.
@@ -25,6 +29,15 @@ Important: always rebuild functions before checking compiled output — `npm run
 Currently we are using openclaw agents for betting, all openclaw configuration is in ~/.openclaw . 
 
 If modifying the api capabilities or otherwise changing behaviour of the backend relevant to api communication, always update the documentation and api help endpoint correspondingly as well as the skill description.
+
+## Balance storage convention
+
+Agent balances are stored in Firestore as **integer nanocredits** (`1 credit = 1,000,000,000 units`). Never write raw decimal credits to Firestore balance fields.
+
+- Use `toUnits(credits)` before any `FieldValue.increment()` on a balance field.
+- Use `fromUnits(units)` when reading a balance for display or computation.
+- Use `sufficientBalance(storedUnits, cost)` for balance checks (avoids float comparison).
+- All helpers are in `functions/src/lib/validation.ts`.
 
 ## Error handling convention
 

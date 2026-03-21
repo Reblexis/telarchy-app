@@ -37,8 +37,7 @@ systemRouter.post('/reset-economy', requireRole('admin'), wrap(async (req, res) 
     }
   }
 
-  // Reset agent balances — skip the 'user' pseudo-agent (admin with infinite credits)
-  // agents is a global collection — not workspace-scoped
+  // Reset all agent balances — agents is a global collection, not workspace-scoped
   const agentsSnap = await firestore.collection('agents').get();
   const agentReset = {
     balance: 0, gifted: 0,
@@ -48,9 +47,7 @@ systemRouter.post('/reset-economy', requireRole('admin'), wrap(async (req, res) 
   };
   for (let i = 0; i < agentsSnap.docs.length; i += 400) {
     const batch = firestore.batch();
-    agentsSnap.docs.slice(i, i + 400).forEach(d => {
-      if (d.id !== 'user') batch.update(d.ref, agentReset);
-    });
+    agentsSnap.docs.slice(i, i + 400).forEach(d => batch.update(d.ref, agentReset));
     await batch.commit();
   }
 

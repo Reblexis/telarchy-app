@@ -78,14 +78,14 @@ Add `ALLOWED_ORIGIN` to the deployment config.
 - `functions/src/middleware/auth.ts` (line 46)
 - `functions/src/index.ts` (add to `secrets` array)
 
-### 0.5 Input validation
+### 0.5 Input validation ✓ Done
 
 **Problem:** `agentId`, content fields, `txHash` have no length/format limits.
 
 **Fix:** Add validation helpers, apply at route level.
 
 **Files:**
-- `functions/src/lib/validation.ts` (new) — `validateAgentId`, `validateContent`, `validateTxHash`
+- `functions/src/lib/validation.ts` — `validateAgentId`, `validateContent`, `validateTxHash`, plus `toUnits`/`fromUnits`/`CREDIT_PRECISION` for nanocredit storage and `sufficientBalance()`
 - `functions/src/routes/agents.ts` — apply to registration, spend, deposit
 - `functions/src/routes/tasks.ts` — apply to task creation, messages
 - `functions/src/routes/predictions.ts` — apply to trade
