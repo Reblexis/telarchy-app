@@ -278,21 +278,6 @@ function AgentAdminPage({ user }: { user: NonNullable<ReturnType<typeof useAuth>
   useEffect(() => { loadAgents(); }, [loadAgents]);
   useEffect(() => { loadGroups(); }, [loadGroups]);
 
-  const handleDelete = async (id: string) => {
-    if (!user || !confirm(`Delete agent "${id}"?`)) return;
-    await api.deleteAgent(user, id);
-    loadAgents();
-  };
-  const handleCredit = async (id: string) => {
-    if (!user) return;
-    const input = prompt('Dollars to add:');
-    if (!input) return;
-    const amount = Number(input);
-    if (!amount || amount <= 0) return;
-    await api.creditAgent(user, id, amount, 'Manual credit');
-    loadAgents();
-  };
-
   const handleCreateGroup = async (e: FormEvent) => {
     e.preventDefault();
     if (!newGroupName.trim()) return;
@@ -374,8 +359,8 @@ function AgentAdminPage({ user }: { user: NonNullable<ReturnType<typeof useAuth>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
-                  {['Agent', 'Balance', 'Gifted', 'Bet Won', 'Bet Spent', 'PnL', 'Actions'].map((h, i) => (
-                    <th key={h} style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem', textAlign: i >= 1 && i <= 5 ? 'right' : 'left' }}>{h}</th>
+                  {['Agent', 'Balance', 'Bet Won', 'Bet Spent', 'PnL'].map((h, i) => (
+                    <th key={h} style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem', textAlign: i >= 1 ? 'right' : 'left' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -389,17 +374,10 @@ function AgentAdminPage({ user }: { user: NonNullable<ReturnType<typeof useAuth>
                       )}
                     </td>
                     <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace' }}>${agent.balance}</td>
-                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>${agent.gifted}</td>
                     <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--success-text)' }}>${agent.earnedBetting}</td>
                     <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--error-text)' }}>${agent.spentBetting}</td>
                     <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: agent.earnedBetting - agent.spentBetting >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>
                       {agent.earnedBetting - agent.spentBetting >= 0 ? '+$' : '-$'}{Math.abs(agent.earnedBetting - agent.spentBetting)}
-                    </td>
-                    <td style={{ padding: '0.75rem 0.5rem' }}>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button className="btn-small" onClick={() => handleCredit(agent.id)}>Credit</button>
-                        <button className="btn-small btn-delete" onClick={() => handleDelete(agent.id)}>Delete</button>
-                      </div>
                     </td>
                   </tr>
                 ))}

@@ -250,7 +250,7 @@ export async function voidTaskMarkets(taskId: string, workspaceId = 'default'): 
   if (count > 0) await batch.commit();
 }
 
-/** Gift price credits to the proposing agent and mark the task approved. */
+/** Pay price credits to the proposing agent and mark the task approved. */
 export async function approveTask(taskId: string, workspaceId = 'default'): Promise<void> {
   const taskRef = wsCol(workspaceId, 'tasks').doc(taskId);
   const taskDoc = await taskRef.get();

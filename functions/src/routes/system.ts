@@ -40,7 +40,7 @@ systemRouter.post('/reset-economy', requireRole('admin'), wrap(async (req, res) 
   // Reset all agent balances — agents is a global collection, not workspace-scoped
   const agentsSnap = await firestore.collection('agents').get();
   const agentReset = {
-    balance: 0, gifted: 0,
+    balance: 0,
     earnedBetting: 0, earnedTasks: 0,
     spentBetting: 0, spentTokens: 0,
     withdrawnUsdc: FieldValue.delete(),

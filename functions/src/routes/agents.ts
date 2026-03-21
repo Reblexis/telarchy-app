@@ -36,7 +36,6 @@ agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => 
     apiKeyHash: keyHash,
     role: 'agent',
     balance: 0,
-    gifted: 0,
     earnedBetting: 0,
     spentBetting: 0,
     spentTokens: 0,
@@ -127,7 +126,6 @@ agentsRouter.get('/', requireRole('admin'), wrap(async (_req, res) => {
       apiKeyHash: '__user__',
       role: 'admin',
       balance: 0,
-      gifted: 0,
       earnedBetting: 0,
       spentBetting: 0,
       spentTokens: 0,
@@ -169,41 +167,6 @@ agentsRouter.put('/:id/role', requireRole('admin'), wrap(async (req, res) => {
 
   await ref.update({ role });
   res.json({ ok: true });
-}));
-
-// Transfer credits from one agent to another. fromAgentId is required — credits cannot be created
-// from thin air; the system is zero-sum and all credits must be USDC-backed via /deposit.
-agentsRouter.post('/:id/credit', requireRole('admin'), wrap(async (req, res) => {
-  const { amount, reason, fromAgentId } = req.body;
-  if (typeof amount !== 'number' || amount <= 0) {
-    res.status(400).json({ error: 'amount must be a positive number' }); return;
-  }
-  if (!fromAgentId || typeof fromAgentId !== 'string') {
-    res.status(400).json({ error: 'fromAgentId is required — credits must come from an existing agent balance' }); return;
-  }
-  const id = req.params.id as string;
-  if (fromAgentId === id) {
-    res.status(400).json({ error: 'fromAgentId must differ from the destination agent' }); return;
-  }
-
-  const [fromDoc, toDoc] = await Promise.all([
-    db().collection('agents').doc(fromAgentId).get(),
-    db().collection('agents').doc(id).get(),
-  ]);
-  if (!fromDoc.exists) { res.status(404).json({ error: 'Source agent not found' }); return; }
-  if (!toDoc.exists) { res.status(404).json({ error: 'Agent not found' }); return; }
-
-  const fromBalance = fromDoc.data()!.balance as number;
-  if (!sufficientBalance(fromBalance, amount)) {
-    res.status(400).json({ error: 'Insufficient balance on source agent', balance: fromUnits(fromBalance) }); return;
-  }
-
-  const batch = db().batch();
-  batch.update(fromDoc.ref, { balance: FieldValue.increment(-toUnits(amount)) });
-  batch.update(toDoc.ref, { balance: FieldValue.increment(toUnits(amount)), gifted: FieldValue.increment(amount) });
-  await batch.commit();
-
-  res.json({ ok: true, credited: amount, reason: reason || '', from: fromAgentId });
 }));
 
 // Agents can spend their own credits (e.g. voluntarily buying tokens or any other service).
@@ -286,7 +249,6 @@ agentsRouter.post('/:id/deposit', requireSelfOrAdmin, wrap(async (req, res) => {
   });
   batch.update(agentRef, {
     balance: FieldValue.increment(toUnits(credits)),
-    gifted: FieldValue.increment(credits),
   });
   await batch.commit();
 

@@ -40,7 +40,6 @@ export interface Agent {
   apiKeyHash: string;
   role: AgentRole;
   balance: number;
-  gifted: number;
   earnedBetting: number;
   earnedTasks?: number;
   spentBetting: number;

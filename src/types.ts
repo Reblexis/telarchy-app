@@ -68,7 +68,6 @@ export interface Agent {
   id: string;
   role: AgentRole;
   balance: number;
-  gifted: number;
   earnedBetting: number;
   earnedTasks?: number;
   spentBetting: number;
