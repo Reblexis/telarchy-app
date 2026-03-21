@@ -23,9 +23,7 @@ predictionsRouter.use(authMiddleware);
 
 predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
-  // Admin can impersonate an agent
-  let agentId = req.auth!.agentId;
-  if (req.body.agentId && req.auth!.role === 'admin') agentId = req.body.agentId;
+  const agentId = req.auth!.agentId;
   if (!agentId) { res.status(403).json({ error: 'Only agents can trade' }); return; }
 
   const { marketId } = req.body;

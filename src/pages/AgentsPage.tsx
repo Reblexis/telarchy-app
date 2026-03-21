@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
-import { useImpersonation } from '../hooks/useImpersonation';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { api } from '../lib/api';
 import { cacheGet, cacheSet } from '../lib/cache';
@@ -246,7 +245,6 @@ function AgentOperatorPage({ user }: { user: NonNullable<ReturnType<typeof useAu
 
 function AgentAdminPage({ user }: { user: NonNullable<ReturnType<typeof useAuth>['user']> }) {
   useDarkMode();
-  const { agentId: impersonatedId, setAgentId: setImpersonated } = useImpersonation();
   const [agents, setAgents] = useState<Agent[]>(() => cacheGet<Agent[]>('agents') || []);
   const [loading, setLoading] = useState(!cacheGet('agents'));
   const [error, setError] = useState('');
@@ -296,7 +294,7 @@ function AgentAdminPage({ user }: { user: NonNullable<ReturnType<typeof useAuth>
     if (!input) return;
     const amount = Number(input);
     if (!amount || amount <= 0) return;
-    await api.creditAgent(user, id, amount, 'Manual credit', impersonatedId);
+    await api.creditAgent(user, id, amount, 'Manual credit');
     loadAgents();
   };
 
@@ -351,9 +349,7 @@ function AgentAdminPage({ user }: { user: NonNullable<ReturnType<typeof useAuth>
 
   return (
     <>
-      <Header activePage="agents" navMode="creator" actions={
-        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Acting as: <strong>{impersonatedId}</strong></span>
-      } />
+      <Header activePage="agents" navMode="creator" />
       <div className="container">
         {error && <div className="message error show">{error}</div>}
         {treasury && (
@@ -390,7 +386,7 @@ function AgentAdminPage({ user }: { user: NonNullable<ReturnType<typeof useAuth>
               </thead>
               <tbody>
                 {agents.map(agent => (
-                  <tr key={agent.id} style={{ borderBottom: '1px solid var(--border-color)', background: agent.id === impersonatedId ? 'var(--bg-secondary)' : undefined }}>
+                  <tr key={agent.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                     <td style={{ padding: '0.75rem 0.5rem' }}>
                       <span style={{ fontWeight: 600 }}>{agent.id}</span>
                       {agent.role === 'admin' && (
@@ -406,10 +402,6 @@ function AgentAdminPage({ user }: { user: NonNullable<ReturnType<typeof useAuth>
                     </td>
                     <td style={{ padding: '0.75rem 0.5rem' }}>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button className="btn-small" onClick={() => setImpersonated(agent.id)}
-                          style={agent.id === impersonatedId ? { background: 'var(--accent-color, #3b82f6)', color: '#fff' } : {}}>
-                          {agent.id === impersonatedId ? 'Active' : 'Impersonate'}
-                        </button>
                         <button className="btn-small" onClick={() => handleCredit(agent.id)}>Credit</button>
                         <button className="btn-small btn-delete" onClick={() => handleDelete(agent.id)}>Delete</button>
                       </div>

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useDarkMode } from '../hooks/useDarkMode';
-import { useImpersonation } from '../hooks/useImpersonation';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { api } from '../lib/api';
 import { cacheGet, cacheSet } from '../lib/cache';
@@ -11,13 +10,11 @@ import { formatTargetDateDisplay, formatTimeRemaining } from '../lib/date-utils'
 import { Header } from '../components/Header';
 import { HookStatus } from '../components/HookStatus';
 import { ProbabilitySlider } from '../components/ProbabilitySlider';
-import { TradingPanel } from '../components/TradingPanel';
 import type { Market, Metric } from '../types';
 
 export function MarketsPage() {
   const { user } = useAuth();
   useDarkMode();
-  const { agentId: impersonatedId } = useImpersonation();
   const { inspectTask } = useInspectMode();
   const { workspace } = useWorkspace(user);
   const isAdmin = !workspace || workspace.tier === 'admin';
@@ -35,6 +32,7 @@ export function MarketsPage() {
 
   const [filterText, setFilterText] = useState('');
   const [showInactive, setShowInactive] = useState(false);
+  const [bulkLiqAgent, setBulkLiqAgent] = useState('');
   const [bulkLiqAmount, setBulkLiqAmount] = useState('');
   const [bulkLiqResult, setBulkLiqResult] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -127,10 +125,10 @@ export function MarketsPage() {
   const handleBulkLiquidity = async () => {
     if (!user) return;
     const a = parseFloat(bulkLiqAmount);
-    if (isNaN(a) || a <= 0) return;
+    if (isNaN(a) || a <= 0 || !bulkLiqAgent.trim()) return;
     setError('');
     setBulkLiqResult('');
-    const result = await api.injectLiquidityBulk(user, impersonatedId, a, inspectTask?.id).catch((e: Error) => { setError(e.message); return null; });
+    const result = await api.injectLiquidityBulk(user, bulkLiqAgent.trim(), a, inspectTask?.id).catch((e: Error) => { setError(e.message); return null; });
     if (result) {
       setBulkLiqAmount('');
       setBulkLiqResult(`Injected ${a} into ${result.markets} markets (total: ${result.totalCost} credits).`);
@@ -163,7 +161,6 @@ export function MarketsPage() {
     <>
       <Header activePage="markets" navMode="creator" actions={isAdmin ? <>
         <HookStatus />
-        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Acting as: <strong>{impersonatedId}</strong></span>
         <button className="btn" onClick={handleRefresh} disabled={refreshing}>{refreshing ? 'Refreshing…' : 'Refresh Markets'}</button>
         <button className="btn" onClick={handleResolve}>Resolve Markets</button>
       </> : undefined} />
@@ -217,9 +214,11 @@ export function MarketsPage() {
                       <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                         Inject to all ({activeCount}):
                       </label>
+                      <input type="text" value={bulkLiqAgent} onChange={e => setBulkLiqAgent(e.target.value)} placeholder="agent-id"
+                        style={{ padding: '0.35rem 0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', fontSize: '0.85rem', width: '110px' }} />
                       <input type="number" value={bulkLiqAmount} onChange={e => setBulkLiqAmount(e.target.value)} placeholder="amount"
                         style={{ padding: '0.35rem 0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', fontSize: '0.85rem', width: '80px' }} />
-                      <button className="btn-small" onClick={handleBulkLiquidity} disabled={!bulkLiqAmount || parseFloat(bulkLiqAmount) <= 0}>
+                      <button className="btn-small" onClick={handleBulkLiquidity} disabled={!bulkLiqAgent.trim() || !bulkLiqAmount || parseFloat(bulkLiqAmount) <= 0}>
                         {total !== null ? `Inject (${total} credits)` : 'Inject'}
                       </button>
                     </>;
@@ -299,11 +298,9 @@ export function MarketsPage() {
                     {expandedIds.includes(m.id) && (
                       <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
                         <td colSpan={6} style={{ padding: '0 0.5rem 0.75rem' }}>
-                          {m.active ? (
-                            <TradingPanel market={m} agentId={impersonatedId} user={user} onTrade={load} onError={setError} />
-                          ) : (
-                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>Betting is disabled on inactive markets. This market will resolve at its target date.</p>
-                          )}
+                          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
+                            {m.active ? 'Trading is performed by agents via API.' : 'Betting is disabled on inactive markets. This market will resolve at its target date.'}
+                          </p>
                         </td>
                       </tr>
                     )}

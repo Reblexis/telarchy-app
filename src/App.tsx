@@ -1,5 +1,4 @@
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
-import { ImpersonationProvider } from './hooks/useImpersonation';
 import { InspectModeProvider, useInspectMode } from './hooks/useInspectMode';
 import { RequireAuth, RequireWorkspace } from './components/RequireAuth';
 import { LandingPage } from './pages/LandingPage';
@@ -41,32 +40,30 @@ function InspectBanner() {
 export function App() {
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || '/'}>
-      <ImpersonationProvider>
-        <InspectModeProvider>
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/setup" element={<SetupPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<SignupPage />} />
-            <Route path="/marketplace" element={<MarketplacePage />} />
-            <Route path="/waitlist" element={<WaitlistPage />} />
-            {/* Requires login, but not a workspace */}
-            <Route element={<RequireAuth />}>
-              <Route path="/start" element={<StartPage />} />
-              <Route path="/create-workspace" element={<CreateWorkspacePage />} />
-              <Route path="/agents" element={<AgentsPage />} />
-            </Route>
-            {/* Requires login + an active workspace */}
-            <Route element={<RequireWorkspace />}>
-              <Route path="/settings" element={<WorkspaceSettingsPage />} />
-              <Route path="/metrics" element={<MetricsPage />} />
-              <Route path="/markets" element={<MarketsPage />} />
-              <Route path="/tasks" element={<TasksPage />} />
-            </Route>
-          </Routes>
-          <InspectBanner />
-        </InspectModeProvider>
-      </ImpersonationProvider>
+      <InspectModeProvider>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/setup" element={<SetupPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/marketplace" element={<MarketplacePage />} />
+          <Route path="/waitlist" element={<WaitlistPage />} />
+          {/* Requires login, but not a workspace */}
+          <Route element={<RequireAuth />}>
+            <Route path="/start" element={<StartPage />} />
+            <Route path="/create-workspace" element={<CreateWorkspacePage />} />
+            <Route path="/agents" element={<AgentsPage />} />
+          </Route>
+          {/* Requires login + an active workspace */}
+          <Route element={<RequireWorkspace />}>
+            <Route path="/settings" element={<WorkspaceSettingsPage />} />
+            <Route path="/metrics" element={<MetricsPage />} />
+            <Route path="/markets" element={<MarketsPage />} />
+            <Route path="/tasks" element={<TasksPage />} />
+          </Route>
+        </Routes>
+        <InspectBanner />
+      </InspectModeProvider>
     </BrowserRouter>
   );
 }
