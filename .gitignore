@@ -23,12 +23,12 @@ Thumbs.db
 
 # Local development
 *.local
+!.env.local
 .emulator-data/
 
 # Exclude personal-webpage (contains real Firebase credentials)
 personal-webpage/
 
 .firebase/
-.env.production
 functions/.env
 functions/.env.local
