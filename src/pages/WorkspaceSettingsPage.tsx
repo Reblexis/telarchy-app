@@ -5,7 +5,6 @@ import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { Header } from '../components/Header';
 
-interface Member { role: string; joinedAt?: { _seconds?: number } }
 interface WorkspaceDetail { id: string; name: string }
 
 export function WorkspaceSettingsPage() {
@@ -19,20 +18,8 @@ export function WorkspaceSettingsPage() {
   const [saveMsg, setSaveMsg] = useState('');
   const [error, setError] = useState('');
 
-  const [members, setMembers] = useState<Record<string, Member>>({});
-  const [inviteUid, setInviteUid] = useState('');
-  const [inviteRole, setInviteRole] = useState<'admin' | 'trader' | 'viewer'>('trader');
-  const [inviting, setInviting] = useState(false);
-  const [inviteMsg, setInviteMsg] = useState('');
-
   useEffect(() => {
     if (!user || !workspace || workspace.workspaceId === 'default') return;
-
-    api.getProfile(user)
-      .then((profile: { workspaces?: Record<string, Member> }) => {
-        setMembers(profile.workspaces ?? {});
-      })
-      .catch((e: Error) => setError(e.message));
 
     api.getWorkspace(user, workspace.workspaceId)
       .then((detail: WorkspaceDetail) => {
@@ -56,39 +43,6 @@ export function WorkspaceSettingsPage() {
       setError((e as Error).message);
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleInvite = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!user || !workspace || !inviteUid.trim()) return;
-    setInviting(true);
-    setInviteMsg('');
-    setError('');
-    try {
-      await api.inviteMember(user, workspace.workspaceId, inviteUid.trim(), inviteRole);
-      setInviteMsg(`Invited UID ${inviteUid.trim()} as ${inviteRole}.`);
-      setInviteUid('');
-    } catch (e: unknown) {
-      setError((e as Error).message);
-    } finally {
-      setInviting(false);
-    }
-  };
-
-  const handleRemove = async (uid: string) => {
-    if (!user || !workspace) return;
-    if (!confirm(`Remove this member?`)) return;
-    setError('');
-    try {
-      await api.removeMember(user, workspace.workspaceId, uid);
-      setMembers(prev => {
-        const next = { ...prev };
-        delete next[uid];
-        return next;
-      });
-    } catch (e: unknown) {
-      setError((e as Error).message);
     }
   };
 
@@ -145,7 +99,6 @@ export function WorkspaceSettingsPage() {
 
         {error && <div className="error show" style={{ marginBottom: '1rem' }}>{error}</div>}
 
-        {/* Settings form */}
         <div className="section">
           <h3 style={{ marginBottom: '1rem' }}>General</h3>
           <form onSubmit={handleSave}>
@@ -166,57 +119,6 @@ export function WorkspaceSettingsPage() {
             {saveMsg && <span style={{ marginLeft: '1rem', fontSize: '0.875rem', color: 'var(--success-text)' }}>{saveMsg}</span>}
           </form>
         </div>
-
-        {/* Members */}
-        <div className="section">
-          <h3 style={{ marginBottom: '1rem' }}>Members</h3>
-          {Object.entries(members).length === 0 && (
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No members yet.</p>
-          )}
-          {Object.entries(members).map(([uid, m]) => (
-            <div key={uid} style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: '0.5rem 0', borderBottom: '1px solid var(--border-color)',
-              fontSize: '0.875rem',
-            }}>
-              <div>
-                <code style={{ fontSize: '0.8rem' }}>{uid}</code>
-                <span style={{ marginLeft: '0.5rem', color: 'var(--text-secondary)' }}>{m.role}</span>
-              </div>
-              <button
-                style={{ padding: '0.25rem 0.6rem', fontSize: '0.8rem', color: 'var(--delete-color)' }}
-                onClick={() => handleRemove(uid)}
-              >
-                Remove
-              </button>
-            </div>
-          ))}
-
-          <h4 style={{ marginTop: '1.25rem', marginBottom: '0.75rem' }}>Invite by UID</h4>
-          <form onSubmit={handleInvite} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <input
-              type="text"
-              placeholder="Firebase UID"
-              value={inviteUid}
-              onChange={e => setInviteUid(e.target.value)}
-              style={{ flex: 1, minWidth: 200 }}
-            />
-            <select
-              value={inviteRole}
-              onChange={e => setInviteRole(e.target.value as typeof inviteRole)}
-              style={{ padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
-            >
-              <option value="trader">Trader</option>
-              <option value="admin">Admin</option>
-              <option value="viewer">Viewer</option>
-            </select>
-            <button type="submit" disabled={inviting || !inviteUid.trim()}>
-              {inviting ? 'Inviting...' : 'Invite'}
-            </button>
-          </form>
-          {inviteMsg && <p style={{ marginTop: '0.5rem', color: 'var(--success-text)', fontSize: '0.875rem' }}>{inviteMsg}</p>}
-        </div>
-
       </div>
     </>
   );

@@ -1,5 +1,9 @@
 For more info about this project look into docs/vision.md.
 
+## Commit and push
+
+After every feature implementation or bug fix, commit and push. Keep commit messages concise and descriptive.
+
 ## Keeping docs current
 
 When implementing a new feature or design decision not already captured in `docs/`, update the relevant doc file (or `docs/vision.md` if none fits) with a brief note — one or two sentences covering the what and why. Keep it minimal; don't repeat what the code makes obvious.
