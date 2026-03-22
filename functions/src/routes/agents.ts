@@ -5,7 +5,7 @@ import { wsCol } from '../lib/workspace';
 import { randomBytes } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { hashKey, authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
-import { requireRole, requireSelfOrAdmin, requireFirebaseUser } from '../middleware/roles';
+import { requireRole, requireSelfOrAdmin, requireIdentity } from '../middleware/roles';
 import { getMarkets } from '../services/predictions';
 import { sendUsdc, getTreasuryBalances, getTreasuryAddress, validateWalletAddress, verifyUsdcDeposit } from '../lib/usdc';
 import { AppError } from '../lib/errors';
@@ -55,15 +55,25 @@ agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => 
   res.status(201).json({ agentId, apiKey: rawKey });
 }));
 
-// --- My agents (Firebase user sees only their own agents) ---
+// --- My agents ---
+// Firebase user: returns all agents they own (ownerUid == uid)
+// Agent key auth: returns just the authenticated agent itself
 
-agentsRouter.get('/mine', authMiddleware, requireFirebaseUser, wrap(async (req, res) => {
-  const { uid } = req.auth!;
-  const snap = await db().collection('agents').where('ownerUid', '==', uid).orderBy('createdAt', 'desc').get();
-  res.json(snap.docs.map(doc => {
-    const { apiKeyHash, ...data } = doc.data();
-    return { ...data, balance: fromUnits(data.balance as number) };
-  }));
+agentsRouter.get('/mine', authMiddleware, requireIdentity, wrap(async (req, res) => {
+  const { uid, agentId } = req.auth!;
+
+  if (uid) {
+    const snap = await db().collection('agents').where('ownerUid', '==', uid).orderBy('createdAt', 'desc').get();
+    res.json(snap.docs.map(doc => {
+      const { apiKeyHash, ...data } = doc.data();
+      return { ...data, balance: fromUnits(data.balance as number) };
+    }));
+  } else {
+    const doc = await db().collection('agents').doc(agentId!).get();
+    if (!doc.exists) { res.status(404).json({ error: 'Agent not found' }); return; }
+    const { apiKeyHash, ...data } = doc.data()!;
+    res.json([{ ...data, balance: fromUnits(data.balance as number) }]);
+  }
 }));
 
 // --- All routes below require auth ---

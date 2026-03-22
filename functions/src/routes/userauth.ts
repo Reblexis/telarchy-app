@@ -1,8 +1,11 @@
 import { Router } from 'express';
+import { randomBytes } from 'crypto';
 import { getAuth } from 'firebase-admin/auth';
+import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '../lib/db';
 import { wrap } from '../lib/wrap';
 import { requireFirebaseUser } from '../middleware/roles';
+import { hashKey } from '../middleware/auth';
 
 export const userauthRouter = Router();
 
@@ -42,8 +45,8 @@ userauthRouter.get('/me', requireFirebaseUser, wrap(async (req, res) => {
 
 /**
  * POST /api/auth/profile
- * Upserts the current user's profile (email, display name).
- * Called after a Firebase user signs in for the first time.
+ * Upserts the current user's profile. Auto-creates a linked agent on first call.
+ * Returns { ok, agentId, apiKey? } — apiKey is only present on first creation.
  */
 userauthRouter.post('/profile', requireFirebaseUser, wrap(async (req, res) => {
   const { uid } = req.auth!;
@@ -61,8 +64,75 @@ userauthRouter.post('/profile', requireFirebaseUser, wrap(async (req, res) => {
   if (email !== undefined) update.email = email;
   if (intent !== undefined) update.intent = intent;
 
-  await db().collection('users').doc(uid).set(update, { merge: true });
-  res.json({ ok: true });
+  // Auto-create agent on first signup if not already linked
+  const userRef = db().collection('users').doc(uid);
+  const userDoc = await userRef.get();
+  const existingAgentId = userDoc.exists ? (userDoc.data()!.agentId as string | undefined) : undefined;
+
+  let agentId: string;
+  let apiKey: string | undefined;
+
+  if (existingAgentId) {
+    agentId = existingAgentId;
+  } else {
+    // Derive agentId from Firebase UID (lowercase, alphanumeric only)
+    const candidateId = uid.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 28);
+    agentId = candidateId || `u${uid.slice(0, 20)}`;
+
+    const agentRef = db().collection('agents').doc(agentId);
+    const agentDoc = await agentRef.get();
+
+    if (agentDoc.exists && (agentDoc.data()!.ownerUid as string | undefined) === uid) {
+      // Agent already exists for this uid (e.g. registered manually before) — just link it
+    } else if (!agentDoc.exists) {
+      const rawKey = randomBytes(32).toString('hex');
+      const keyHash = hashKey(rawKey);
+      apiKey = rawKey;
+
+      const batch = db().batch();
+      batch.set(agentRef, {
+        id: agentId,
+        apiKeyHash: keyHash,
+        role: 'agent',
+        balance: 0,
+        earnedBetting: 0,
+        spentBetting: 0,
+        spentTokens: 0,
+        ownerUid: uid,
+        createdAt: FieldValue.serverTimestamp(),
+        approvedAt: FieldValue.serverTimestamp(),
+      });
+      batch.set(db().collection('agentApiKeys').doc(keyHash), { agentId, workspaceId: 'default' });
+      await batch.commit();
+    } else {
+      // ID collision with an unrelated agent — append uid suffix
+      agentId = `${candidateId.slice(0, 20)}${uid.slice(-6).toLowerCase()}`;
+      const rawKey = randomBytes(32).toString('hex');
+      const keyHash = hashKey(rawKey);
+      apiKey = rawKey;
+
+      const batch = db().batch();
+      batch.set(db().collection('agents').doc(agentId), {
+        id: agentId,
+        apiKeyHash: keyHash,
+        role: 'agent',
+        balance: 0,
+        earnedBetting: 0,
+        spentBetting: 0,
+        spentTokens: 0,
+        ownerUid: uid,
+        createdAt: FieldValue.serverTimestamp(),
+        approvedAt: FieldValue.serverTimestamp(),
+      });
+      batch.set(db().collection('agentApiKeys').doc(keyHash), { agentId, workspaceId: 'default' });
+      await batch.commit();
+    }
+
+    update.agentId = agentId;
+  }
+
+  await userRef.set(update, { merge: true });
+  res.json({ ok: true, agentId, ...(apiKey !== undefined && { apiKey }) });
 }));
 
 /**

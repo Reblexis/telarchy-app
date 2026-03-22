@@ -4,18 +4,29 @@ import { createUserWithEmailAndPassword, User } from 'firebase/auth';
 import { initializeFirebaseApp, getFirebaseAuth } from '../lib/firebase';
 import { api } from '../lib/api';
 import { OAuthButtons } from '../components/OAuthButtons';
+import { useAgentSession } from '../hooks/useAgentSession';
 
 export function SignupPage() {
   const navigate = useNavigate();
+  const { login: agentLogin } = useAgentSession();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [agentCreds, setAgentCreds] = useState<{ agentId: string; apiKey: string } | null>(null);
+
+  const handleProfileResult = (result: { agentId?: string; apiKey?: string }) => {
+    if (result.agentId && result.apiKey) {
+      agentLogin(result.agentId, result.apiKey);
+      setAgentCreds({ agentId: result.agentId, apiKey: result.apiKey });
+    }
+  };
 
   const handleOAuthSuccess = async (user: User) => {
-    await api.upsertProfile(user, user.email ?? undefined);
+    const result = await api.upsertProfile(user, user.email ?? undefined) as { agentId?: string; apiKey?: string };
+    handleProfileResult(result ?? {});
     navigate('/start');
   };
 
@@ -32,7 +43,8 @@ export function SignupPage() {
       const auth = getFirebaseAuth();
       const { user } = await createUserWithEmailAndPassword(auth, email, password);
 
-      await api.upsertProfile(user, email);
+      const result = await api.upsertProfile(user, email) as { agentId?: string; apiKey?: string };
+      handleProfileResult(result ?? {});
 
       navigate('/start');
     } catch (err: unknown) {
@@ -46,6 +58,9 @@ export function SignupPage() {
       setSubmitting(false);
     }
   };
+
+  // Suppress unused warning — agentCreds is stored but shown later (e.g. profile page)
+  void agentCreds;
 
   return (
     <>

@@ -3,7 +3,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '../lib/db';
 import { wsCol } from '../lib/workspace';
 import { wrap } from '../lib/wrap';
-import { requireRole, requireFirebaseUser } from '../middleware/roles';
+import { requireRole, requireIdentity } from '../middleware/roles';
 import type { WorkspaceMemberRole } from '../types';
 
 export const workspacesRouter = Router();
@@ -12,9 +12,9 @@ const VALID_MEMBER_ROLES: WorkspaceMemberRole[] = ['owner', 'admin', 'trader', '
 
 // --- Create workspace ---
 
-workspacesRouter.post('/', requireFirebaseUser, wrap(async (req, res) => {
-  const { uid } = req.auth!;
-  if (!uid) { res.status(403).json({ error: 'Firebase account required to create a workspace' }); return; }
+workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
+  const { uid, agentId } = req.auth!;
+  const identity = uid ?? agentId!;
 
   const { name } = req.body;
   if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -27,12 +27,12 @@ workspacesRouter.post('/', requireFirebaseUser, wrap(async (req, res) => {
     tx.set(wsRef, {
       id: wsRef.id,
       name: name.trim(),
-      createdBy: uid,
+      createdBy: identity,
       createdAt: now,
       visibility: 'private',
     });
-    // Record membership in the user profile
-    tx.set(db().collection('users').doc(uid), {
+    // Record membership keyed by identity (uid for Firebase users, agentId for pure agents)
+    tx.set(db().collection('users').doc(identity), {
       workspaces: { [wsRef.id]: { role: 'owner', joinedAt: now } },
     }, { merge: true });
     // Bootstrap system permission groups
@@ -52,18 +52,21 @@ workspacesRouter.post('/', requireFirebaseUser, wrap(async (req, res) => {
   res.status(201).json({ id: wsRef.id, name: name.trim(), visibility: 'private' });
 }));
 
-// --- List workspaces the current user belongs to ---
+// --- List workspaces the current user/agent belongs to ---
 
-workspacesRouter.get('/', requireFirebaseUser, wrap(async (req, res) => {
-  const { uid } = req.auth!;
-  if (!uid) {
+workspacesRouter.get('/', requireIdentity, wrap(async (req, res) => {
+  const { uid, agentId } = req.auth!;
+
+  if (!uid && !agentId) {
     // Master API key: return all workspaces
     const snap = await db().collection('workspaces').get();
     res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     return;
   }
 
-  const userDoc = await db().collection('users').doc(uid).get();
+  // Use uid for Firebase users, agentId for pure agents
+  const identity = uid ?? agentId!;
+  const userDoc = await db().collection('users').doc(identity).get();
   if (!userDoc.exists) { res.json([]); return; }
 
   const workspaces = userDoc.data()!.workspaces as Record<string, { role: string }> | undefined;
@@ -80,7 +83,7 @@ workspacesRouter.get('/', requireFirebaseUser, wrap(async (req, res) => {
 
 // --- Workspace stats (traded volume) ---
 
-workspacesRouter.get('/:id/stats', requireFirebaseUser, wrap(async (req, res) => {
+workspacesRouter.get('/:id/stats', requireIdentity, wrap(async (req, res) => {
   const wsId = req.params.id as string;
   const doc = await db().collection('workspaces').doc(wsId).get();
   if (!doc.exists) { res.status(404).json({ error: 'Workspace not found' }); return; }
@@ -90,7 +93,7 @@ workspacesRouter.get('/:id/stats', requireFirebaseUser, wrap(async (req, res) =>
 
 // --- Get workspace detail ---
 
-workspacesRouter.get('/:id', requireFirebaseUser, wrap(async (req, res) => {
+workspacesRouter.get('/:id', requireIdentity, wrap(async (req, res) => {
   const wsId = req.params.id as string;
   const doc = await db().collection('workspaces').doc(wsId).get();
   if (!doc.exists) { res.status(404).json({ error: 'Workspace not found' }); return; }
@@ -100,15 +103,16 @@ workspacesRouter.get('/:id', requireFirebaseUser, wrap(async (req, res) => {
 // --- Update workspace settings ---
 
 workspacesRouter.put('/:id/settings', requireRole('admin'), wrap(async (req, res) => {
-  const { uid } = req.auth!;
+  const { uid, agentId } = req.auth!;
   const wsId = req.params.id as string;
 
   const wsDoc = await db().collection('workspaces').doc(wsId).get();
   if (!wsDoc.exists) { res.status(404).json({ error: 'Workspace not found' }); return; }
 
-  // Only the owner or platform admin (master key, no uid) can update settings
-  if (uid) {
-    const userDoc = await db().collection('users').doc(uid).get();
+  // Only the owner or platform admin (master key, no identity) can update settings
+  const identity = uid ?? agentId;
+  if (identity) {
+    const userDoc = await db().collection('users').doc(identity).get();
     const membership = userDoc.data()?.workspaces?.[wsId];
     if (!membership || !['owner', 'admin'].includes(membership.role)) {
       res.status(403).json({ error: 'Only workspace owner or admin can update settings' }); return;
@@ -134,12 +138,14 @@ workspacesRouter.put('/:id/settings', requireRole('admin'), wrap(async (req, res
 // --- Invite / add member ---
 
 workspacesRouter.post('/:id/members', requireRole('admin'), wrap(async (req, res) => {
-  const { uid: callerUid } = req.auth!;
+  const { uid: callerUid, agentId: callerAgentId } = req.auth!;
   const wsId = req.params.id as string;
-  const { uid: inviteeUid, role = 'viewer' } = req.body;
+  // Accept either uid (Firebase user) or agentId (pure agent) as the invitee identity
+  const { uid: inviteeUid, agentId: inviteeAgentId, role = 'viewer' } = req.body;
+  const inviteeIdentity = inviteeUid ?? inviteeAgentId;
 
-  if (!inviteeUid || typeof inviteeUid !== 'string') {
-    res.status(400).json({ error: 'uid is required' }); return;
+  if (!inviteeIdentity || typeof inviteeIdentity !== 'string') {
+    res.status(400).json({ error: 'uid or agentId is required' }); return;
   }
   if (!VALID_MEMBER_ROLES.includes(role)) {
     res.status(400).json({ error: `role must be one of: ${VALID_MEMBER_ROLES.join(', ')}` }); return;
@@ -149,8 +155,9 @@ workspacesRouter.post('/:id/members', requireRole('admin'), wrap(async (req, res
   if (!wsDoc.exists) { res.status(404).json({ error: 'Workspace not found' }); return; }
 
   // Only owner/admin can invite
-  if (callerUid) {
-    const callerDoc = await db().collection('users').doc(callerUid).get();
+  const callerIdentity = callerUid ?? callerAgentId;
+  if (callerIdentity) {
+    const callerDoc = await db().collection('users').doc(callerIdentity).get();
     const membership = callerDoc.data()?.workspaces?.[wsId];
     if (!membership || !['owner', 'admin'].includes(membership.role)) {
       res.status(403).json({ error: 'Only workspace owner or admin can invite members' }); return;
@@ -158,38 +165,40 @@ workspacesRouter.post('/:id/members', requireRole('admin'), wrap(async (req, res
   }
 
   const now = FieldValue.serverTimestamp();
-  await db().collection('users').doc(inviteeUid).set({
+  await db().collection('users').doc(inviteeIdentity).set({
     workspaces: { [wsId]: { role, joinedAt: now } },
   }, { merge: true });
 
-  res.status(201).json({ ok: true, workspaceId: wsId, uid: inviteeUid, role });
+  res.status(201).json({ ok: true, workspaceId: wsId, identity: inviteeIdentity, role });
 }));
 
 // --- Join (disabled: all workspaces are invite-only) ---
 
-workspacesRouter.post('/:id/join', requireFirebaseUser, wrap(async (_req, res) => {
+workspacesRouter.post('/:id/join', requireIdentity, wrap(async (_req, res) => {
   res.status(403).json({ error: 'This workspace is invite-only' });
 }));
 
 // --- Remove member ---
 
-workspacesRouter.delete('/:id/members/:uid', requireRole('admin'), wrap(async (req, res) => {
-  const { uid: callerUid } = req.auth!;
+workspacesRouter.delete('/:id/members/:identity', requireRole('admin'), wrap(async (req, res) => {
+  const { uid: callerUid, agentId: callerAgentId } = req.auth!;
   const wsId = req.params.id as string;
-  const targetUid = req.params.uid as string;
+  // The :identity param is either a Firebase uid or an agentId
+  const targetIdentity = req.params.identity as string;
 
   const wsDoc = await db().collection('workspaces').doc(wsId).get();
   if (!wsDoc.exists) { res.status(404).json({ error: 'Workspace not found' }); return; }
 
-  if (callerUid) {
-    const callerDoc = await db().collection('users').doc(callerUid).get();
+  const callerIdentity = callerUid ?? callerAgentId;
+  if (callerIdentity) {
+    const callerDoc = await db().collection('users').doc(callerIdentity).get();
     const membership = callerDoc.data()?.workspaces?.[wsId];
     if (!membership || !['owner', 'admin'].includes(membership.role)) {
       res.status(403).json({ error: 'Only workspace owner or admin can remove members' }); return;
     }
   }
 
-  await db().collection('users').doc(targetUid).update({
+  await db().collection('users').doc(targetIdentity).update({
     [`workspaces.${wsId}`]: FieldValue.delete(),
   });
 
