@@ -1,92 +1,232 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/api';
-import type { Agent } from '../types';
+
+interface MyAgent {
+  id: string;
+  balance: number;
+  walletAddress?: string;
+  earnedBetting: number;
+  spentBetting: number;
+}
+
+interface TreasuryInfo {
+  address: string;
+  usdcBalance: number;
+}
 
 export function AccountPage() {
   const { user } = useAuth();
-  const [agents, setAgents] = useState<Agent[]>([]);
+  const [agent, setAgent] = useState<MyAgent | null>(null);
+  const [treasury, setTreasury] = useState<TreasuryInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const [txHash, setTxHash] = useState('');
+  const [depositing, setDepositing] = useState(false);
+  const [depositMsg, setDepositMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawing, setWithdrawing] = useState(false);
+  const [withdrawMsg, setWithdrawMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const [walletAddr, setWalletAddr] = useState('');
+  const [savingWallet, setSavingWallet] = useState(false);
+  const [walletMsg, setWalletMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const load = useCallback(async () => {
     if (!user) return;
     setError('');
-    const data = await api.getAgents(user).catch((e: Error) => { setError(e.message); return null; });
-    if (data) setAgents(data);
+    const [agents, treas] = await Promise.all([
+      api.getMyAgents(user).catch((e: Error) => { setError(e.message); return null; }),
+      api.getTreasury(user).catch(() => null),
+    ]);
+    const myAgent = agents?.[0] ?? null;
+    setAgent(myAgent);
+    if (myAgent) setWalletAddr(myAgent.walletAddress ?? '');
+    if (treas) setTreasury(treas as TreasuryInfo);
     setLoading(false);
   }, [user]);
 
   useEffect(() => { load(); }, [load]);
 
+  const handleDeposit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!user || !agent) return;
+    setDepositing(true);
+    setDepositMsg(null);
+    const result = await api.depositForAgent(user, agent.id, txHash.trim())
+      .catch((e: Error) => { setDepositMsg({ ok: false, text: e.message }); return null; });
+    if (result) {
+      setDepositMsg({ ok: true, text: `Deposited ${(result as { credits: number }).credits} credits.` });
+      setTxHash('');
+      load();
+    }
+    setDepositing(false);
+  };
+
+  const handleWithdraw = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!user || !agent) return;
+    const amount = parseFloat(withdrawAmount);
+    if (isNaN(amount) || amount <= 0) return;
+    setWithdrawing(true);
+    setWithdrawMsg(null);
+    const result = await api.withdrawFromAgent(user, agent.id, amount)
+      .catch((e: Error) => { setWithdrawMsg({ ok: false, text: e.message }); return null; });
+    if (result) {
+      const r = result as { usdcAmount: number; txHash: string };
+      setWithdrawMsg({ ok: true, text: `Withdrew ${r.usdcAmount} USDC. Tx: ${r.txHash}` });
+      setWithdrawAmount('');
+      load();
+    }
+    setWithdrawing(false);
+  };
+
+  const handleSaveWallet = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!user || !agent) return;
+    setSavingWallet(true);
+    setWalletMsg(null);
+    const result = await api.setAgentWallet(user, agent.id, walletAddr.trim())
+      .catch((e: Error) => { setWalletMsg({ ok: false, text: e.message }); return null; });
+    if (result) {
+      setWalletMsg({ ok: true, text: 'Wallet address saved.' });
+      load();
+    }
+    setSavingWallet(false);
+  };
+
   if (!user) return null;
 
+  const inputStyle = {
+    padding: '0.45rem 0.6rem',
+    borderRadius: '0.375rem',
+    border: '1px solid var(--border-color)',
+    background: 'var(--bg-primary)',
+    color: 'var(--text-primary)',
+    fontSize: '0.875rem',
+  } as const;
+
   return (
-    <div className="container" style={{ maxWidth: 700 }}>
-      <h1 style={{ marginBottom: '0.25rem' }}>Account</h1>
-      <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-        Manage your agents and credits. To deposit or withdraw USDC, go to the Agent Portal for the relevant agent.
-      </p>
+    <div className="container" style={{ maxWidth: 640 }}>
+      <h1 style={{ marginBottom: '1.5rem' }}>Account</h1>
 
       {error && <div className="message error show" style={{ marginBottom: '1rem' }}>{error}</div>}
 
-      <div className="section">
-        <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Agents & Balances</h2>
+      {loading ? (
+        <div className="loading">Loading…</div>
+      ) : !agent ? (
+        <div className="section">
+          <p style={{ color: 'var(--text-secondary)' }}>No account agent found. Contact support or register via the API.</p>
+        </div>
+      ) : (
+        <>
+          {/* Balance */}
+          <div className="section">
+            <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.4rem' }}>
+              Credit balance
+            </div>
+            <div style={{ fontFamily: 'monospace', fontSize: '2.5rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
+              {agent.balance.toFixed(2)}
+              <span style={{ fontSize: '1rem', fontWeight: 400, color: 'var(--text-secondary)', marginLeft: '0.4rem' }}>credits</span>
+            </div>
+            {(agent.earnedBetting !== 0 || agent.spentBetting !== 0) && (
+              <div style={{ marginTop: '0.5rem', display: 'flex', gap: '1.25rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                <span>Earned: <span style={{ color: 'var(--success-text)', fontFamily: 'monospace' }}>+{agent.earnedBetting.toFixed(2)}</span></span>
+                <span>Spent: <span style={{ color: 'var(--error-text)', fontFamily: 'monospace' }}>-{agent.spentBetting.toFixed(2)}</span></span>
+              </div>
+            )}
+          </div>
 
-        {loading ? (
-          <div className="loading">Loading…</div>
-        ) : agents.length === 0 ? (
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No agents registered yet.</p>
-        ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
-                {['Agent', 'Balance', 'PnL', ''].map((h, i) => (
-                  <th key={i} style={{ padding: '0.65rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.8rem', textAlign: i >= 1 && i < 3 ? 'right' : 'left' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {agents.map(agent => {
-                const pnl = agent.earnedBetting - agent.spentBetting;
-                return (
-                  <tr key={agent.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '0.65rem 0.5rem' }}>
-                      <span style={{ fontWeight: 600, fontFamily: 'monospace' }}>{agent.id}</span>
-                      {agent.role === 'admin' && (
-                        <span style={{ marginLeft: '0.4rem', fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '999px', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>admin</span>
-                      )}
-                    </td>
-                    <td style={{ padding: '0.65rem 0.5rem', textAlign: 'right', fontFamily: 'monospace' }}>${agent.balance}</td>
-                    <td style={{ padding: '0.65rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: pnl >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>
-                      {pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}
-                    </td>
-                    <td style={{ padding: '0.65rem 0.5rem', textAlign: 'right' }}>
-                      <Link
-                        to="/agent-login"
-                        style={{ fontSize: '0.8rem', color: 'var(--focus-border)', textDecoration: 'none', fontWeight: 500 }}
-                      >
-                        Manage funds
-                      </Link>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+          {/* Add credits */}
+          <div className="section">
+            <h2 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>Add credits</h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+              Send USDC on Base to the treasury address, then paste your transaction hash below to mint credits.
+            </p>
+            {treasury && (
+              <div style={{ marginBottom: '0.75rem', padding: '0.6rem 0.75rem', background: 'var(--bg-secondary)', borderRadius: '0.375rem', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Treasury address (Base)</div>
+                <code style={{ fontSize: '0.8rem', wordBreak: 'break-all' }}>{treasury.address}</code>
+              </div>
+            )}
+            <form onSubmit={handleDeposit} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <input
+                type="text"
+                value={txHash}
+                onChange={e => setTxHash(e.target.value)}
+                placeholder="0x… transaction hash"
+                required
+                style={{ ...inputStyle, flex: 1, minWidth: 220 }}
+              />
+              <button type="submit" disabled={depositing || !txHash.trim()} style={{ whiteSpace: 'nowrap' }}>
+                {depositing ? 'Verifying…' : 'Verify & deposit'}
+              </button>
+            </form>
+            {depositMsg && (
+              <div className={`message ${depositMsg.ok ? 'success' : 'error'} show`} style={{ marginTop: '0.5rem' }}>
+                {depositMsg.text}
+              </div>
+            )}
+          </div>
 
-      <div className="section">
-        <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Depositing credits</h2>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.75rem' }}>
-          Credits are topped up per agent. Send USDC to the treasury on Base L2, then verify the transaction in the Agent Portal to mint credits to the agent's balance.
-        </p>
-        <Link to="/agent-login">
-          <button className="btn">Go to Agent Portal</button>
-        </Link>
-      </div>
+          {/* Withdraw */}
+          <div className="section">
+            <h2 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>Withdraw credits</h2>
+
+            {/* Wallet setup */}
+            <div style={{ marginBottom: '1rem' }}>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                Register your Base wallet address to receive USDC withdrawals.
+              </p>
+              <form onSubmit={handleSaveWallet} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <input
+                  type="text"
+                  value={walletAddr}
+                  onChange={e => setWalletAddr(e.target.value)}
+                  placeholder="0x… Base wallet address"
+                  required
+                  style={{ ...inputStyle, flex: 1, minWidth: 220 }}
+                />
+                <button type="submit" disabled={savingWallet || !walletAddr.trim()} style={{ whiteSpace: 'nowrap' }}>
+                  {savingWallet ? 'Saving…' : agent.walletAddress ? 'Update wallet' : 'Save wallet'}
+                </button>
+              </form>
+              {walletMsg && (
+                <div className={`message ${walletMsg.ok ? 'success' : 'error'} show`} style={{ marginTop: '0.5rem' }}>
+                  {walletMsg.text}
+                </div>
+              )}
+            </div>
+
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+              Convert credits to USDC sent to your registered wallet.
+              {!agent.walletAddress && <strong> Register a wallet address first.</strong>}
+            </p>
+            <form onSubmit={handleWithdraw} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <input
+                type="number"
+                value={withdrawAmount}
+                onChange={e => setWithdrawAmount(e.target.value)}
+                placeholder="Amount in credits"
+                min="0.000001"
+                step="any"
+                required
+                style={{ ...inputStyle, width: 180 }}
+              />
+              <button type="submit" disabled={withdrawing || !withdrawAmount || !agent.walletAddress} style={{ whiteSpace: 'nowrap' }}>
+                {withdrawing ? 'Withdrawing…' : 'Withdraw'}
+              </button>
+            </form>
+            {withdrawMsg && (
+              <div className={`message ${withdrawMsg.ok ? 'success' : 'error'} show`} style={{ marginTop: '0.5rem' }}>
+                {withdrawMsg.text}
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

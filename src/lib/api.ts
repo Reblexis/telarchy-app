@@ -124,6 +124,12 @@ export const api = {
   spendAgent: (user: User, id: string, amount: number, type: 'betting' | 'tokens', reason: string) =>
     request(`/api/agents/${id}/spend`, user, { method: 'POST', body: JSON.stringify({ amount, type, reason }) }),
   getTreasury: (user: User) => request('/api/agents/treasury', user, {}, true), // skip workspace header — treasury is always platform-level
+  depositForAgent: (user: User, agentId: string, txHash: string) =>
+    request(`/api/agents/${agentId}/deposit`, user, { method: 'POST', body: JSON.stringify({ txHash }) }),
+  withdrawFromAgent: (user: User, agentId: string, amount: number) =>
+    request(`/api/agents/${agentId}/withdraw`, user, { method: 'POST', body: JSON.stringify({ amount }) }),
+  setAgentWallet: (user: User, agentId: string, walletAddress: string) =>
+    request(`/api/agents/${agentId}/wallet`, user, { method: 'PUT', body: JSON.stringify({ walletAddress }) }),
 
   // Markets & Trading
   getMarkets: (user: User, taskId?: string) => {
