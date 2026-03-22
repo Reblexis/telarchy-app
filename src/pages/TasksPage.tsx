@@ -3,7 +3,6 @@ import { useAuth } from '../hooks/useAuth';
 import { useInspectMode } from '../hooks/useInspectMode';
 import { useTaskUtilitySummary } from '../hooks/useTaskUtilitySummary';
 import { api } from '../lib/api';
-import { Header } from '../components/Header';
 import { formatTargetDateDisplay } from '../lib/date-utils';
 import type { TaskProposal, TaskMessage, TaskMarketSummary, TaskDetailData, TaskUtilitySummary } from '../types';
 
@@ -342,7 +341,6 @@ export function TasksPage() {
 
   return (
     <>
-      <Header activePage="tasks" navMode="creator" />
       <div className="container">
         {error && <div className="message error show">{error}</div>}
 

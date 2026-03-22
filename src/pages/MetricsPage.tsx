@@ -5,7 +5,6 @@ import { useMetrics } from '../hooks/useMetrics';
 import { useWorkspace } from '../hooks/useWorkspace';
 import type { Metric } from '../types';
 import { useInspectMode } from '../hooks/useInspectMode';
-import { Header } from '../components/Header';
 import { XPDisplay } from '../components/XPDisplay';
 import { MetricsDashboard } from '../components/MetricsDashboard';
 import { AddMetricForm } from '../components/AddMetricForm';
@@ -16,8 +15,7 @@ export function MetricsPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { inspectTask } = useInspectMode();
-  const { workspace, allWorkspaces, switchWorkspace } = useWorkspace(user);
-  const workspaceName = allWorkspaces.find(w => w.id === workspace?.workspaceId)?.name;
+  const { workspace } = useWorkspace(user);
   const isAdmin = !workspace || workspace.tier === 'admin';
   const {
     metrics, xp, rank, loading: metricsLoading, error,
@@ -73,16 +71,6 @@ export function MetricsPage() {
 
   return (
     <>
-      <Header
-        activePage="metrics"
-        navMode="creator"
-        workspaceName={workspaceName}
-        activeWorkspaceId={workspace?.workspaceId}
-        workspaces={allWorkspaces}
-        onWorkspaceSwitch={switchWorkspace}
-        showSettings={workspace?.tier === 'admin' && workspace?.workspaceId !== 'default'}
-        actions={<button className="logout-btn" onClick={handleLogout}>Logout</button>}
-      />
       <div className="container">
         {isAdmin && <XPDisplay xp={xp} rank={rank} />}
         {metrics.length === 0 && isAdmin && (

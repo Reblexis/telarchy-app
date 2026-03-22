@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback, FormEvent } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
-import { useWorkspace, type WorkspaceInfo, type WorkspaceListItem } from '../hooks/useWorkspace';
+import { useWorkspace, type WorkspaceInfo } from '../hooks/useWorkspace';
 import { api, agentApi } from '../lib/api';
 import { cacheGet, cacheSet } from '../lib/cache';
-import { Header, OPERATOR_ID } from '../components/Header';
 import type { Agent, PermissionGroup, Metric } from '../types';
 
 // ─── Operator view ───────────────────────────────────────────────────────────
@@ -15,13 +14,10 @@ interface WatchedAgent { id: string; apiKey: string }
 interface AgentDashboard { balance: number; markets: { id: string; metricName: string; targetDate: string; consensus: number | null; liquidity: number }[] }
 interface Position { marketId: string; higherShares: number; lowerShares: number }
 
-function AgentOperatorPage({ user, allWorkspaces, switchWorkspace, hasWorkspace }: {
+function AgentOperatorPage({ user, hasWorkspace }: {
   user: NonNullable<ReturnType<typeof useAuth>['user']>;
-  allWorkspaces: WorkspaceListItem[];
-  switchWorkspace: (id: string) => void;
   hasWorkspace: boolean;
 }) {
-  const navigate = useNavigate();
   const apiBase = import.meta.env.VITE_API_URL || 'https://api-ksc7usrtbq-uc.a.run.app';
 
   const [watched, setWatched] = useState<WatchedAgent | null>(() => {
@@ -67,18 +63,6 @@ function AgentOperatorPage({ user, allWorkspaces, switchWorkspace, hasWorkspace 
 
   return (
     <>
-      <Header
-        activePage="agents"
-        navMode={hasWorkspace ? 'creator' : 'operator'}
-        workspaces={allWorkspaces}
-        activeWorkspaceId={hasWorkspace ? OPERATOR_ID : undefined}
-        onWorkspaceSwitch={switchWorkspace}
-        actions={
-          !hasWorkspace
-            ? <button className="logout-btn" onClick={async () => { await user.reload().catch(() => {}); navigate('/login'); }}>Logout</button>
-            : undefined
-        }
-      />
       <div className="container">
 
         {/* Watch agent */}
@@ -218,14 +202,11 @@ function AgentOperatorPage({ user, allWorkspaces, switchWorkspace, hasWorkspace 
 
 // ─── Admin view (workspace owners / admins) ─────────────────────────────────
 
-function AgentAdminPage({ user, workspace, allWorkspaces, switchWorkspace }: {
+function AgentAdminPage({ user, workspace }: {
   user: NonNullable<ReturnType<typeof useAuth>['user']>;
   workspace: WorkspaceInfo | null;
-  allWorkspaces: WorkspaceListItem[];
-  switchWorkspace: (id: string) => void;
 }) {
   const isPlatformAdmin = !workspace || workspace.workspaceId === 'default';
-  const workspaceName = allWorkspaces.find(w => w.id === workspace?.workspaceId)?.name;
 
   const [agents, setAgents] = useState<Agent[]>(() => cacheGet<Agent[]>('agents') || []);
   const [loading, setLoading] = useState(!cacheGet('agents'));
@@ -319,15 +300,6 @@ function AgentAdminPage({ user, workspace, allWorkspaces, switchWorkspace }: {
 
   return (
     <>
-      <Header
-        activePage="agents"
-        navMode="creator"
-        workspaceName={workspaceName}
-        activeWorkspaceId={workspace?.workspaceId}
-        workspaces={allWorkspaces}
-        onWorkspaceSwitch={switchWorkspace}
-        showSettings={!isPlatformAdmin}
-      />
       <div className="container">
         {error && <div className="message error show">{error}</div>}
 
@@ -527,7 +499,7 @@ function AgentAdminPage({ user, workspace, allWorkspaces, switchWorkspace }: {
 
 export function AgentsPage() {
   const { user } = useAuth();
-  const { workspace, allWorkspaces, switchWorkspace, loading } = useWorkspace(user);
+  const { workspace, loading } = useWorkspace(user);
   const [params] = useSearchParams();
   const forceOperator = params.get('view') === 'operator';
 
@@ -536,7 +508,7 @@ export function AgentsPage() {
   const hasWorkspace = !workspace?.needsWorkspace;
 
   if (workspace?.needsWorkspace || forceOperator) {
-    return <AgentOperatorPage user={user} allWorkspaces={allWorkspaces} switchWorkspace={switchWorkspace} hasWorkspace={hasWorkspace} />;
+    return <AgentOperatorPage user={user} hasWorkspace={hasWorkspace} />;
   }
-  return <AgentAdminPage user={user} workspace={workspace} allWorkspaces={allWorkspaces} switchWorkspace={switchWorkspace} />;
+  return <AgentAdminPage user={user} workspace={workspace} />;
 }

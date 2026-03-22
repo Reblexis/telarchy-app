@@ -3,14 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
-import { Header } from '../components/Header';
 
 interface WorkspaceDetail { id: string; name: string }
 
 export function WorkspaceSettingsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { workspace, allWorkspaces, switchWorkspace } = useWorkspace(user);
+  const { workspace } = useWorkspace(user);
 
   const [ws, setWs] = useState<WorkspaceDetail | null>(null);
   const [name, setName] = useState('');
@@ -46,53 +45,35 @@ export function WorkspaceSettingsPage() {
     }
   };
 
-  const wsHeader = (
-    <Header
-      activePage="metrics"
-      navMode="creator"
-      workspaces={allWorkspaces}
-      activeWorkspaceId={workspace?.workspaceId}
-      onWorkspaceSwitch={switchWorkspace}
-    />
-  );
-
   if (!workspace || workspace.workspaceId === 'default') {
     return (
-      <>
-        {wsHeader}
-        <div className="container" style={{ maxWidth: 600, paddingTop: '2rem' }}>
-          <h1>Workspace Settings</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>
-            You are using the default workspace. Create a named workspace to access settings.
-          </p>
-          <button onClick={() => navigate('/create-workspace')}>Create workspace</button>
-        </div>
-      </>
+      <div className="container" style={{ maxWidth: 600 }}>
+        <h1>Workspace Settings</h1>
+        <p style={{ color: 'var(--text-secondary)' }}>
+          You are using the default workspace. Create a named workspace to access settings.
+        </p>
+        <button onClick={() => navigate('/create-workspace')}>Create workspace</button>
+      </div>
     );
   }
 
   if (workspace.tier !== 'admin') {
     return (
-      <>
-        {wsHeader}
-        <div className="container" style={{ maxWidth: 600, paddingTop: '2rem' }}>
-          <h1>Workspace Settings</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>
-            Only workspace owners and admins can manage settings.
-          </p>
-          <button onClick={() => navigate('/metrics')}>Back to metrics</button>
-        </div>
-      </>
+      <div className="container" style={{ maxWidth: 600 }}>
+        <h1>Workspace Settings</h1>
+        <p style={{ color: 'var(--text-secondary)' }}>
+          Only workspace owners and admins can manage settings.
+        </p>
+        <button onClick={() => navigate('/metrics')}>Back to metrics</button>
+      </div>
     );
   }
 
   const wsId = workspace.workspaceId;
 
   return (
-    <>
-      {wsHeader}
-      <div className="container" style={{ maxWidth: 600, paddingTop: '1rem' }}>
-        <h1 style={{ marginBottom: '0.25rem' }}>Workspace Settings</h1>
+    <div className="container" style={{ maxWidth: 600 }}>
+      <h1 style={{ marginBottom: '0.25rem' }}>Workspace Settings</h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
           ID: <code style={{ fontSize: '0.8rem' }}>{wsId}</code>
         </p>
@@ -119,7 +100,6 @@ export function WorkspaceSettingsPage() {
             {saveMsg && <span style={{ marginLeft: '1rem', fontSize: '0.875rem', color: 'var(--success-text)' }}>{saveMsg}</span>}
           </form>
         </div>
-      </div>
-    </>
+    </div>
   );
 }

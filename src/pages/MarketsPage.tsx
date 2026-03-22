@@ -6,7 +6,6 @@ import { cacheGet, cacheSet } from '../lib/cache';
 import { useInspectMode } from '../hooks/useInspectMode';
 import { previewTrade } from '../lib/amm';
 import { formatTargetDateDisplay, formatTimeRemaining } from '../lib/date-utils';
-import { Header } from '../components/Header';
 import { HookStatus } from '../components/HookStatus';
 import { ProbabilitySlider } from '../components/ProbabilitySlider';
 import type { Market, Metric } from '../types';
@@ -14,7 +13,7 @@ import type { Market, Metric } from '../types';
 export function MarketsPage() {
   const { user } = useAuth();
   const { inspectTask } = useInspectMode();
-  const { workspace, allWorkspaces, switchWorkspace } = useWorkspace(user);
+  const { workspace } = useWorkspace(user);
   const isAdmin = !workspace || workspace.tier === 'admin';
   const [markets, setMarkets] = useState<Market[]>([]);
   const [metrics, setMetrics] = useState<Metric[]>([]);
@@ -156,20 +155,14 @@ export function MarketsPage() {
   const thStyle = { padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' } as const;
 
   return (
-    <>
-      <Header
-        activePage="markets"
-        navMode="creator"
-        workspaces={allWorkspaces}
-        activeWorkspaceId={workspace?.workspaceId}
-        onWorkspaceSwitch={switchWorkspace}
-        actions={isAdmin ? <>
-          <HookStatus />
-          <button className="btn" onClick={handleRefresh} disabled={refreshing}>{refreshing ? 'Refreshing…' : 'Refresh Markets'}</button>
-          <button className="btn" onClick={handleResolve}>Resolve Markets</button>
-        </> : undefined}
-      />
-      <div className="container">
+    <div className="container">
+        {isAdmin && (
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
+            <HookStatus />
+            <button className="btn" onClick={handleRefresh} disabled={refreshing}>{refreshing ? 'Refreshing…' : 'Refresh Markets'}</button>
+            <button className="btn" onClick={handleResolve}>Resolve Markets</button>
+          </div>
+        )}
         {error && <div className="message error show">{error}</div>}
         {resolveResult && <div className="message success show">{resolveResult}</div>}
         {refreshResult && <div className="message success show">{refreshResult}</div>}
@@ -315,7 +308,6 @@ export function MarketsPage() {
             </table>
           </div>
         )}
-      </div>
-    </>
+    </div>
   );
 }
