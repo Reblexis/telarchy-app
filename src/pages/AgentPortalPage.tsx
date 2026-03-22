@@ -395,11 +395,11 @@ function SettingsSection({ agentId, apiKey, profile, onProfileRefresh }: {
 
 type Section = 'overview' | 'markets' | 'positions' | 'settings';
 
-const SECTIONS: { id: Section; label: string }[] = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'markets', label: 'Markets' },
-  { id: 'positions', label: 'Positions' },
-  { id: 'settings', label: 'Settings' },
+const SECTIONS: { id: Section; label: string; icon: string }[] = [
+  { id: 'overview',  label: 'Overview',  icon: '◈' },
+  { id: 'markets',   label: 'Markets',   icon: '⇅' },
+  { id: 'positions', label: 'Positions', icon: '▤' },
+  { id: 'settings',  label: 'Settings',  icon: '⚙' },
 ];
 
 export function AgentPortalPage() {
@@ -428,60 +428,66 @@ export function AgentPortalPage() {
     navigate('/agent-login');
   };
 
-  const tabStyle = (s: Section): React.CSSProperties => ({
-    padding: '0.45rem 1rem',
-    fontWeight: section === s ? 600 : 400,
-    color: section === s ? 'var(--text-primary)' : 'var(--text-secondary)',
-    background: 'none',
-    border: 'none',
-    borderBottom: section === s ? '2px solid var(--focus-border)' : '2px solid transparent',
-    cursor: 'pointer',
-    fontSize: '0.875rem',
-    transition: 'color 0.15s',
-    whiteSpace: 'nowrap',
-  });
-
   return (
     <>
       <Header
         navMode="agent"
-        agentId={agentId}
         actions={
           <button className="logout-btn" onClick={handleLogout}>Logout</button>
         }
       />
-      <div className="container">
-        {profileError && <div className="message error show" style={{ marginBottom: '1rem' }}>{profileError}</div>}
-
-        {/* Tab bar */}
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: '1.5rem', overflowX: 'auto' }}>
+      <div className="portal-layout">
+        {/* Left sidebar */}
+        <aside className="portal-sidebar">
+          <div className="portal-sidebar-header">
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.35rem', fontWeight: 500 }}>
+              Agent
+            </div>
+            <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.875rem', wordBreak: 'break-all', color: 'var(--text-primary)' }}>
+              {agentId}
+            </div>
+            {profile && (
+              <div style={{ marginTop: '0.6rem', display: 'flex', alignItems: 'baseline', gap: '0.3rem' }}>
+                <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '1rem' }}>${profile.balance.toFixed(2)}</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>credits</span>
+              </div>
+            )}
+          </div>
           {SECTIONS.map(s => (
-            <button key={s.id} style={tabStyle(s.id)} onClick={() => setSection(s.id)}>
+            <button
+              key={s.id}
+              className={`portal-nav-item${section === s.id ? ' active' : ''}`}
+              onClick={() => setSection(s.id)}
+            >
+              <span style={{ fontSize: '0.9rem', opacity: 0.7 }}>{s.icon}</span>
               {s.label}
             </button>
           ))}
-        </div>
+        </aside>
 
-        {/* Section content */}
-        <div className="section">
-          {section === 'overview' && (
-            profile
-              ? <OverviewSection profile={profile} />
-              : <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Loading profile…</p>
-          )}
-          {section === 'markets' && (
-            <MarketsSection agentId={agentId} apiKey={apiKey} />
-          )}
-          {section === 'positions' && (
-            <PositionsSection agentId={agentId} apiKey={apiKey} />
-          )}
-          {section === 'settings' && profile && (
-            <SettingsSection agentId={agentId} apiKey={apiKey} profile={profile} onProfileRefresh={loadProfile} />
-          )}
-          {section === 'settings' && !profile && (
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Loading…</p>
-          )}
-        </div>
+        {/* Main content */}
+        <main>
+          {profileError && <div className="message error show" style={{ marginBottom: '1rem' }}>{profileError}</div>}
+          <div className="section">
+            {section === 'overview' && (
+              profile
+                ? <OverviewSection profile={profile} />
+                : <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Loading profile…</p>
+            )}
+            {section === 'markets' && (
+              <MarketsSection agentId={agentId} apiKey={apiKey} />
+            )}
+            {section === 'positions' && (
+              <PositionsSection agentId={agentId} apiKey={apiKey} />
+            )}
+            {section === 'settings' && profile && (
+              <SettingsSection agentId={agentId} apiKey={apiKey} profile={profile} onProfileRefresh={loadProfile} />
+            )}
+            {section === 'settings' && !profile && (
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Loading…</p>
+            )}
+          </div>
+        </main>
       </div>
     </>
   );

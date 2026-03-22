@@ -2,21 +2,18 @@ import { useState, useEffect, useCallback, FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace, type WorkspaceInfo, type WorkspaceListItem } from '../hooks/useWorkspace';
-import { api } from '../lib/api';
+import { api, agentApi } from '../lib/api';
 import { cacheGet, cacheSet } from '../lib/cache';
 import { Header, OPERATOR_ID } from '../components/Header';
 import type { Agent, PermissionGroup, Metric } from '../types';
 
-// ─── Operator view (agent operators with no workspace) ──────────────────────
+// ─── Operator view ───────────────────────────────────────────────────────────
 
-interface MyAgent {
-  id: string;
-  role: string;
-  balance: number;
-  earnedBetting: number;
-  spentBetting: number;
-  createdAt?: { _seconds: number } | null;
-}
+const STORED_AGENT_KEY = 'watchedAgent';
+
+interface WatchedAgent { id: string; apiKey: string }
+interface AgentDashboard { balance: number; markets: { id: string; metricName: string; targetDate: string; consensus: number | null; liquidity: number }[] }
+interface Position { marketId: string; higherShares: number; lowerShares: number }
 
 function AgentOperatorPage({ user, allWorkspaces, switchWorkspace, hasWorkspace }: {
   user: NonNullable<ReturnType<typeof useAuth>['user']>;
@@ -25,42 +22,48 @@ function AgentOperatorPage({ user, allWorkspaces, switchWorkspace, hasWorkspace 
   hasWorkspace: boolean;
 }) {
   const navigate = useNavigate();
+  const apiBase = import.meta.env.VITE_API_URL || 'https://api-ksc7usrtbq-uc.a.run.app';
 
-  const [myAgents, setMyAgents] = useState<MyAgent[]>([]);
-  const [loadingAgents, setLoadingAgents] = useState(true);
-  const [agentId, setAgentId] = useState('');
-  const [newKey, setNewKey] = useState<{ agentId: string; apiKey: string } | null>(null);
-  const [registering, setRegistering] = useState(false);
-  const [registerError, setRegisterError] = useState('');
+  const [watched, setWatched] = useState<WatchedAgent | null>(() => {
+    const stored = localStorage.getItem(STORED_AGENT_KEY);
+    return stored ? JSON.parse(stored) : null;
+  });
+  const [inputId, setInputId] = useState('');
+  const [inputKey, setInputKey] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [dashboard, setDashboard] = useState<AgentDashboard | null>(null);
+  const [positions, setPositions] = useState<Position[]>([]);
 
-  const loadMyAgents = useCallback(async () => {
-    setLoadingAgents(true);
-    const data = await api.getMyAgents(user).catch((e: Error) => { console.error('getMyAgents', e.message); return []; });
-    setMyAgents(data);
-    setLoadingAgents(false);
-  }, [user]);
+  useEffect(() => {
+    if (!watched) return;
+    setLoading(true);
+    setError('');
+    Promise.all([
+      agentApi.getDashboard(watched.id, watched.apiKey),
+      agentApi.getPositions(watched.id, watched.apiKey),
+    ])
+      .then(([dash, pos]) => { setDashboard(dash); setPositions(pos ?? []); })
+      .catch((e: Error) => { setError(e.message); setDashboard(null); setPositions([]); })
+      .finally(() => setLoading(false));
+  }, [watched]);
 
-  useEffect(() => { loadMyAgents(); }, [loadMyAgents]);
-
-  const handleRegister = async (e: FormEvent) => {
+  const handleWatch = (e: FormEvent) => {
     e.preventDefault();
-    setRegisterError('');
-    const id = agentId.trim();
-    if (!id) return;
-    setRegistering(true);
-    try {
-      const result = await api.registerAgent(user, id);
-      setNewKey(result);
-      setAgentId('');
-      loadMyAgents();
-    } catch (err: unknown) {
-      setRegisterError((err as Error).message || 'Registration failed');
-    } finally {
-      setRegistering(false);
-    }
+    const agent: WatchedAgent = { id: inputId.trim(), apiKey: inputKey.trim() };
+    localStorage.setItem(STORED_AGENT_KEY, JSON.stringify(agent));
+    setWatched(agent);
+    setInputId('');
+    setInputKey('');
   };
 
-  const apiBase = import.meta.env.VITE_API_URL || 'https://api-ksc7usrtbq-uc.a.run.app';
+  const handleClear = () => {
+    localStorage.removeItem(STORED_AGENT_KEY);
+    setWatched(null);
+    setDashboard(null);
+    setPositions([]);
+    setError('');
+  };
 
   return (
     <>
@@ -78,151 +81,132 @@ function AgentOperatorPage({ user, allWorkspaces, switchWorkspace, hasWorkspace 
       />
       <div className="container">
 
-        {/* My Agents */}
+        {/* Watch agent */}
         <div className="section">
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '1rem' }}>My agents</h2>
-          {loadingAgents ? (
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Loading…</p>
-          ) : myAgents.length === 0 ? (
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>No agents registered yet. Register your first agent below.</p>
-          ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
-                  {['Agent ID', 'Status', 'Balance', 'Won', 'Spent', 'PnL'].map(h => (
-                    <th key={h} style={{ padding: '0.6rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.8rem', textAlign: h === 'Agent ID' || h === 'Status' ? 'left' : 'right' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {myAgents.map(a => {
-                  const pnl = a.earnedBetting - a.spentBetting;
-                  return (
-                    <tr key={a.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '0.6rem 0.5rem', fontWeight: 600, fontFamily: 'monospace', fontSize: '0.9rem' }}>{a.id}</td>
-                      <td style={{ padding: '0.6rem 0.5rem' }}>
-                        <span style={{
-                          fontSize: '0.75rem', padding: '0.15rem 0.5rem', borderRadius: '999px',
-                          background: a.role === 'agent' ? 'var(--success-bg)' : 'var(--bg-tertiary)',
-                          color: a.role === 'agent' ? 'var(--success-text)' : 'var(--text-secondary)',
-                        }}>
-                          {a.role === 'pending' ? 'awaiting approval' : a.role}
-                        </span>
-                      </td>
-                      <td style={{ padding: '0.6rem 0.5rem', textAlign: 'right', fontFamily: 'monospace' }}>${a.balance}</td>
-                      <td style={{ padding: '0.6rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--success-text)' }}>${a.earnedBetting}</td>
-                      <td style={{ padding: '0.6rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--error-text)' }}>${a.spentBetting}</td>
-                      <td style={{ padding: '0.6rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: pnl >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>
-                        {pnl >= 0 ? '+' : '-'}${Math.abs(pnl)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        {/* Register new agent */}
-        <div className="section">
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Register a new agent</h2>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Watch an agent</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
-            Choose a unique ID for your bot. You'll get an API key to include in its requests. The key is only shown once.
+            Enter your agent's ID and API key to view its live balance, markets, and positions.
+            Credentials are stored locally and never sent to our servers except to authenticate with the API.
           </p>
-          <form onSubmit={handleRegister} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 200 }}>
-              <input
-                type="text"
-                placeholder="e.g. my-trading-bot"
-                value={agentId}
-                onChange={e => setAgentId(e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, ''))}
-                pattern="[a-z0-9\-_]+"
-                title="Lowercase letters, numbers, hyphens and underscores only"
-                required
-                style={{ marginBottom: 0 }}
-              />
-            </div>
-            <button type="submit" disabled={registering || !agentId.trim()} style={{ whiteSpace: 'nowrap' }}>
-              {registering ? 'Registering…' : 'Register agent'}
-            </button>
-          </form>
-          {registerError && <div className="error show" style={{ marginTop: '0.5rem' }}>{registerError}</div>}
 
-          {newKey && (
-            <div style={{
-              marginTop: '1rem', padding: '1rem', borderRadius: '0.5rem',
-              background: 'var(--success-bg)', border: '1px solid var(--success-text)',
-            }}>
-              <p style={{ fontWeight: 600, color: 'var(--success-text)', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
-                Agent <code>{newKey.agentId}</code> registered. Copy your API key — it won't be shown again.
-              </p>
-              <code style={{
-                display: 'block', padding: '0.6rem 0.75rem',
-                background: 'var(--bg-primary)', borderRadius: '0.375rem',
-                fontSize: '0.8rem', wordBreak: 'break-all', userSelect: 'all',
-                border: '1px solid var(--border-color)',
-              }}>
-                {newKey.apiKey}
-              </code>
-              <p style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                Status: <strong>pending</strong> — a workspace admin must approve your agent before it can trade.
-              </p>
-              <button className="btn-small" style={{ marginTop: '0.5rem' }} onClick={() => setNewKey(null)}>Dismiss</button>
+          {!watched ? (
+            <form onSubmit={handleWatch} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <div className="form-group" style={{ flex: 1, minWidth: 160, marginBottom: 0 }}>
+                <label htmlFor="agent-id" style={{ fontSize: '0.8rem' }}>Agent ID</label>
+                <input id="agent-id" type="text" placeholder="my-trading-bot" value={inputId} onChange={e => setInputId(e.target.value)} required style={{ marginBottom: 0 }} />
+              </div>
+              <div className="form-group" style={{ flex: 2, minWidth: 260, marginBottom: 0 }}>
+                <label htmlFor="agent-key" style={{ fontSize: '0.8rem' }}>API Key</label>
+                <input id="agent-key" type="password" placeholder="agnt_…" value={inputKey} onChange={e => setInputKey(e.target.value)} required style={{ marginBottom: 0 }} />
+              </div>
+              <button type="submit" disabled={!inputId.trim() || !inputKey.trim()} style={{ whiteSpace: 'nowrap' }}>Watch</button>
+            </form>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+              <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.95rem' }}>{watched.id}</span>
+              <button className="btn-small" onClick={handleClear} style={{ fontSize: '0.8rem' }}>Change agent</button>
+            </div>
+          )}
+
+          {error && <div className="error show" style={{ marginTop: '0.75rem' }}>{error}</div>}
+
+          {watched && loading && <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '1rem' }}>Loading…</p>}
+
+          {dashboard && (
+            <div style={{ marginTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {/* Balance */}
+              <div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Balance</div>
+                <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '1.3rem' }}>{dashboard.balance} credits</div>
+              </div>
+
+              {/* Positions */}
+              {positions.length > 0 && (
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Open positions</div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        {['Market', 'Higher shares', 'Lower shares'].map(h => (
+                          <th key={h} style={{ padding: '0.4rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.78rem', textAlign: h === 'Market' ? 'left' : 'right', fontWeight: 500 }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {positions.map(p => (
+                        <tr key={p.marketId} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '0.4rem 0.5rem', fontFamily: 'monospace', fontSize: '0.8rem' }}>{p.marketId}</td>
+                          <td style={{ padding: '0.4rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--success-text)' }}>{p.higherShares.toFixed(3)}</td>
+                          <td style={{ padding: '0.4rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--error-text)' }}>{p.lowerShares.toFixed(3)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Available markets */}
+              {dashboard.markets.length > 0 && (
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Top markets</div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        {['Metric', 'Target', 'Consensus', 'Liquidity'].map(h => (
+                          <th key={h} style={{ padding: '0.4rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.78rem', textAlign: h === 'Metric' ? 'left' : 'right', fontWeight: 500 }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dashboard.markets.map(m => (
+                        <tr key={m.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '0.4rem 0.5rem', fontSize: '0.875rem' }}>{m.metricName}</td>
+                          <td style={{ padding: '0.4rem 0.5rem', textAlign: 'right', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{m.targetDate}</td>
+                          <td style={{ padding: '0.4rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontSize: '0.875rem' }}>{m.consensus !== null ? m.consensus.toFixed(2) : '—'}</td>
+                          <td style={{ padding: '0.4rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontSize: '0.875rem' }}>{m.liquidity.toFixed(1)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* How to use your agent */}
+        {/* Connecting your bot */}
         <div className="section">
           <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Connecting your bot</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
-            Include the API key in every request using the <code>X-Agent-Key</code> header.
-            Your agent must be approved by the workspace admin before it can place trades.
+            Register via the API (no auth required). Include the returned key in every subsequent request.
           </p>
-
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', fontWeight: 500 }}>1. Check balance and available markets</p>
-              <pre style={{
-                background: 'var(--bg-secondary)', padding: '0.75rem 1rem',
-                borderRadius: '0.375rem', fontSize: '0.78rem', overflowX: 'auto',
-                border: '1px solid var(--border-color)', margin: 0,
-              }}>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', fontWeight: 500 }}>1. Register your agent</p>
+              <pre style={{ background: 'var(--bg-secondary)', padding: '0.75rem 1rem', borderRadius: '0.375rem', fontSize: '0.78rem', overflowX: 'auto', border: '1px solid var(--border-color)', margin: 0 }}>
+{`curl -X POST -H "Content-Type: application/json" \\
+  -d '{"agentId":"my-bot"}' \\
+  ${apiBase}/api/agents/register`}
+              </pre>
+            </div>
+            <div>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', fontWeight: 500 }}>2. Check balance and available markets</p>
+              <pre style={{ background: 'var(--bg-secondary)', padding: '0.75rem 1rem', borderRadius: '0.375rem', fontSize: '0.78rem', overflowX: 'auto', border: '1px solid var(--border-color)', margin: 0 }}>
 {`curl -H "X-Agent-Key: <your-key>" \\
   ${apiBase}/api/agents/<agent-id>/dashboard`}
               </pre>
             </div>
-
             <div>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', fontWeight: 500 }}>2. Place a trade</p>
-              <pre style={{
-                background: 'var(--bg-secondary)', padding: '0.75rem 1rem',
-                borderRadius: '0.375rem', fontSize: '0.78rem', overflowX: 'auto',
-                border: '1px solid var(--border-color)', margin: 0,
-              }}>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', fontWeight: 500 }}>3. Place a trade</p>
+              <pre style={{ background: 'var(--bg-secondary)', padding: '0.75rem 1rem', borderRadius: '0.375rem', fontSize: '0.78rem', overflowX: 'auto', border: '1px solid var(--border-color)', margin: 0 }}>
 {`curl -X POST -H "X-Agent-Key: <your-key>" \\
   -H "Content-Type: application/json" \\
-  -d '{"marketId":"<id>","prediction":0.72,"stake":10}' \\
+  -d '{"marketId":"<id>","direction":"higher","amount":10}' \\
   ${apiBase}/api/predictions/trade`}
               </pre>
             </div>
-
-            <div>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', fontWeight: 500 }}>3. Check your positions</p>
-              <pre style={{
-                background: 'var(--bg-secondary)', padding: '0.75rem 1rem',
-                borderRadius: '0.375rem', fontSize: '0.78rem', overflowX: 'auto',
-                border: '1px solid var(--border-color)', margin: 0,
-              }}>
-{`curl -H "X-Agent-Key: <your-key>" \\
-  ${apiBase}/api/predictions/positions`}
-              </pre>
-            </div>
           </div>
-
           <p style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-            Deposit credits: send USDC on Base to the treasury, then call{' '}
-            <code>POST /api/agents/&lt;id&gt;/deposit</code> with the tx hash.
             See the full <a href={`${apiBase}/api/help`} target="_blank" rel="noreferrer" style={{ color: 'var(--focus-border)' }}>API reference</a>.
           </p>
         </div>

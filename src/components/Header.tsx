@@ -3,18 +3,21 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 type Page = 'metrics' | 'agents' | 'markets' | 'tasks';
 
-const CREATOR_NAV: { to: string; label: string; page: Page }[] = [
+type NavItem = { to: string; label: string; page?: Page };
+
+const CREATOR_NAV: NavItem[] = [
   { to: '/metrics', label: 'Metrics',   page: 'metrics' },
   { to: '/markets', label: 'Markets',   page: 'markets' },
   { to: '/tasks',   label: 'Tasks',     page: 'tasks'   },
   { to: '/agents',  label: 'Agents',    page: 'agents'  },
 ];
 
-const OPERATOR_NAV: { to: string; label: string; page: Page }[] = [
-  { to: '/agents',  label: 'My Agents', page: 'agents'  },
+const OPERATOR_NAV: NavItem[] = [
+  { to: '/agents',      label: 'My Agents',    page: 'agents' },
+  { to: '/agent-login', label: 'Agent Portal' },
 ];
 
-const AGENT_NAV: { to: string; label: string; page: Page }[] = [];
+const AGENT_NAV: NavItem[] = [];
 
 export interface HeaderProps {
   activePage?: Page;
@@ -217,7 +220,7 @@ export function Header({ activePage, navMode = 'creator', actions, workspaceName
       </div>
       <nav className="header-nav">
         {navItems.map(item => (
-          <Link key={item.page} to={item.to} className={`nav-link${item.page === activePage ? ' active' : ''}`}>
+          <Link key={item.to} to={item.to} className={`nav-link${item.page === activePage ? ' active' : ''}`}>
             {item.label}
           </Link>
         ))}
