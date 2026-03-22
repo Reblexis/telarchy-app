@@ -17,6 +17,56 @@ const API_BASE = import.meta.env.VITE_API_URL || '';
 
 let activeWorkspaceId: string | null = localStorage.getItem('activeWorkspaceId');
 
+async function agentRequest(path: string, apiKey: string, options: RequestInit = {}) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Agent-Key': apiKey,
+      ...(options.headers as Record<string, string>),
+    },
+  });
+  if (res.status === 204) return null;
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    throw new Error(`API unavailable (${res.status}). Ensure Cloud Functions are deployed.`);
+  }
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'API error');
+  return data;
+}
+
+export const agentApi = {
+  register: async (agentId: string): Promise<{ agentId: string; apiKey: string }> => {
+    const res = await fetch(`${API_BASE}/api/agents/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agentId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Registration failed');
+    return data;
+  },
+  getProfile: (agentId: string, apiKey: string) =>
+    agentRequest(`/api/agents/${agentId}`, apiKey),
+  getDashboard: (agentId: string, apiKey: string) =>
+    agentRequest(`/api/agents/${agentId}/dashboard`, apiKey),
+  getMarkets: (agentId: string, apiKey: string) =>
+    agentRequest('/api/predictions/markets', apiKey),
+  getPositions: (agentId: string, apiKey: string, marketId?: string) => {
+    const qs = marketId ? `?marketId=${marketId}` : '';
+    return agentRequest(`/api/predictions/positions${qs}`, apiKey);
+  },
+  trade: (agentId: string, apiKey: string, body: Record<string, unknown>) =>
+    agentRequest('/api/predictions/trade', apiKey, { method: 'POST', body: JSON.stringify(body) }),
+  setWallet: (agentId: string, apiKey: string, walletAddress: string) =>
+    agentRequest(`/api/agents/${agentId}/wallet`, apiKey, { method: 'PUT', body: JSON.stringify({ walletAddress }) }),
+  deposit: (agentId: string, apiKey: string, txHash: string) =>
+    agentRequest(`/api/agents/${agentId}/deposit`, apiKey, { method: 'POST', body: JSON.stringify({ txHash }) }),
+  withdraw: (agentId: string, apiKey: string, amount: number) =>
+    agentRequest(`/api/agents/${agentId}/withdraw`, apiKey, { method: 'POST', body: JSON.stringify({ amount }) }),
+};
+
 export function setActiveWorkspace(id: string | null): void {
   activeWorkspaceId = id;
   if (id === null) {

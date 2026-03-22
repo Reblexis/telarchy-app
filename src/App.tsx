@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { InspectModeProvider, useInspectMode } from './hooks/useInspectMode';
-import { RequireAuth, RequireWorkspace } from './components/RequireAuth';
+import { RequireAuth, RequireWorkspace, RequireAgentSession } from './components/RequireAuth';
 import { LandingPage } from './pages/LandingPage';
 import { SetupPage } from './pages/SetupPage';
 import { LoginPage } from './pages/LoginPage';
@@ -15,6 +15,8 @@ import { TasksPage } from './pages/TasksPage';
 import { WaitlistPage } from './pages/WaitlistPage';
 import { StartPage } from './pages/StartPage';
 import { AdminPage } from './pages/AdminPage';
+import { AgentLoginPage } from './pages/AgentLoginPage';
+import { AgentPortalPage } from './pages/AgentPortalPage';
 
 function InspectBanner() {
   const { inspectTask, setInspectTask } = useInspectMode();
@@ -49,6 +51,11 @@ export function App() {
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/marketplace" element={<MarketplacePage />} />
           <Route path="/waitlist" element={<WaitlistPage />} />
+          <Route path="/agent-login" element={<AgentLoginPage />} />
+          {/* Agent portal — requires agent session (agent ID + API key), not Firebase */}
+          <Route element={<RequireAgentSession />}>
+            <Route path="/agent" element={<AgentPortalPage />} />
+          </Route>
           {/* Requires login, but not a workspace */}
           <Route element={<RequireAuth />}>
             <Route path="/start" element={<StartPage />} />

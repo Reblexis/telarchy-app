@@ -1,5 +1,5 @@
 import { type ReactNode, useState, useRef, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 type Page = 'metrics' | 'agents' | 'markets' | 'tasks';
 
@@ -14,10 +14,12 @@ const OPERATOR_NAV: { to: string; label: string; page: Page }[] = [
   { to: '/agents',  label: 'My Agents', page: 'agents'  },
 ];
 
+const AGENT_NAV: { to: string; label: string; page: Page }[] = [];
+
 export interface HeaderProps {
   activePage?: Page;
-  /** 'creator' = workspace owner nav; 'operator' = agent-only nav. Defaults to 'creator'. */
-  navMode?: 'creator' | 'operator';
+  /** 'creator' = workspace owner nav; 'operator' = agent-only nav; 'agent' = agent portal nav. Defaults to 'creator'. */
+  navMode?: 'creator' | 'operator' | 'agent';
   actions?: ReactNode;
   /** If provided, displays the workspace name (fallback when workspaces list not supplied). */
   workspaceName?: string;
@@ -29,7 +31,11 @@ export interface HeaderProps {
   activeWorkspaceId?: string;
   /** Called when the user selects a different workspace. */
   onWorkspaceSwitch?: (id: string) => void;
+  /** Agent ID to display in agent nav mode. */
+  agentId?: string;
 }
+
+export const OPERATOR_ID = '__operator__';
 
 function WorkspaceSwitcher({ workspaces, activeId, onSwitch }: {
   workspaces: { id: string; name: string }[];
@@ -38,7 +44,10 @@ function WorkspaceSwitcher({ workspaces, activeId, onSwitch }: {
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const active = workspaces.find(w => w.id === activeId) ?? workspaces[0];
+  const navigate = useNavigate();
+  const isOperatorMode = activeId === OPERATOR_ID;
+  const active = isOperatorMode ? null : (workspaces.find(w => w.id === activeId) ?? workspaces[0]);
+  const label = isOperatorMode ? 'My Agents' : (active?.name ?? '—');
 
   useEffect(() => {
     if (!open) return;
@@ -70,7 +79,7 @@ function WorkspaceSwitcher({ workspaces, activeId, onSwitch }: {
         onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--border-hover)')}
         onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-color)')}
       >
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{active?.name ?? '—'}</span>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
         <span style={{ fontSize: '0.6rem', color: 'var(--text-tertiary)', flexShrink: 0 }}>{open ? '▲' : '▼'}</span>
       </button>
       {open && (
@@ -108,15 +117,45 @@ function WorkspaceSwitcher({ workspaces, activeId, onSwitch }: {
               {w.id === activeId && <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>✓</span>}
             </button>
           ))}
+          <div style={{ borderTop: '1px solid var(--border-color)', margin: '0.25rem 0' }} />
+          <button
+            onClick={() => { navigate('/agents?view=operator'); setOpen(false); }}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              width: '100%',
+              textAlign: 'left',
+              padding: '0.6rem 1rem',
+              background: isOperatorMode ? 'var(--bg-secondary)' : 'none',
+              border: 'none',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              fontWeight: isOperatorMode ? 600 : 400,
+              color: 'var(--text-secondary)',
+            }}
+          >
+            My Agents
+            {isOperatorMode && <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>✓</span>}
+          </button>
         </div>
       )}
     </div>
   );
 }
 
-export function Header({ activePage, navMode = 'creator', actions, workspaceName, showSettings, workspaces, activeWorkspaceId, onWorkspaceSwitch }: HeaderProps) {
-  const navItems = navMode === 'operator' ? OPERATOR_NAV : CREATOR_NAV;
+export function Header({ activePage, navMode = 'creator', actions, workspaceName, showSettings, workspaces, activeWorkspaceId, onWorkspaceSwitch, agentId }: HeaderProps) {
+  const navItems = navMode === 'operator' ? OPERATOR_NAV : navMode === 'agent' ? AGENT_NAV : CREATOR_NAV;
   const location = useLocation();
+
+  const agentArea: ReactNode = agentId ? (
+    <span style={{
+      fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)',
+      background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
+      borderRadius: '8px', padding: '0.45rem 0.75rem',
+      fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+    }}>
+      {agentId}
+    </span>
+  ) : null;
 
   let workspaceArea: ReactNode = null;
   if (workspaces !== undefined) {
@@ -159,7 +198,15 @@ export function Header({ activePage, navMode = 'creator', actions, workspaceName
     <div className="header">
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start' }}>
         <img src="/logo_transparent_bg.png" alt="Telarchy" style={{ height: '4.5rem' }} />
-        {workspaceArea && (
+        {agentArea && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 500 }}>
+              Agent
+            </span>
+            {agentArea}
+          </div>
+        )}
+        {!agentArea && workspaceArea && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 500 }}>
               Workspace
