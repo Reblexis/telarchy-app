@@ -41,7 +41,16 @@ export function AccountPage() {
       api.getMyAgents(user).catch((e: Error) => { setError(e.message); return null; }),
       api.getTreasury(user).catch(() => null),
     ]);
-    const myAgent = agents?.[0] ?? null;
+
+    let myAgent = agents?.[0] ?? null;
+
+    // If no agent is linked yet, call upsertProfile to auto-create and link one, then re-fetch.
+    if (!myAgent && agents !== null) {
+      await api.upsertProfile(user).catch((e: Error) => console.error('upsertProfile failed:', e.message));
+      const refreshed = await api.getMyAgents(user).catch(() => null);
+      myAgent = refreshed?.[0] ?? null;
+    }
+
     setAgent(myAgent);
     if (myAgent) setWalletAddr(myAgent.walletAddress ?? '');
     if (treas) setTreasury(treas as TreasuryInfo);

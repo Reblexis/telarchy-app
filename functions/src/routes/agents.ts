@@ -60,10 +60,14 @@ agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => 
 // Agent key auth: returns just the authenticated agent itself.
 
 agentsRouter.get('/mine', authMiddleware, requireIdentity, wrap(async (req, res) => {
-  const { uid, agentId } = req.auth!;
+  const { uid, agentId: authAgentId } = req.auth!;
 
   if (uid) {
-    const snap = await db().collection('agents').where('ownerUid', '==', uid).orderBy('createdAt', 'desc').get();
+    const [snap, userDoc] = await Promise.all([
+      db().collection('agents').where('ownerUid', '==', uid).orderBy('createdAt', 'desc').get(),
+      db().collection('users').doc(uid).get(),
+    ]);
+
     const seen = new Set<string>();
     const agents = snap.docs.map(doc => {
       seen.add(doc.id);
@@ -71,9 +75,11 @@ agentsRouter.get('/mine', authMiddleware, requireIdentity, wrap(async (req, res)
       return { ...data, balance: fromUnits(data.balance as number) };
     });
 
-    // Also include the agent linked via users/{uid}.agentId (may differ from ownerUid agents)
-    if (agentId && !seen.has(agentId)) {
-      const linkedDoc = await db().collection('agents').doc(agentId).get();
+    // Also include the agent linked via users/{uid}.agentId —
+    // may not be in ownerUid results (e.g. platform admins bypass resolveFirebaseUser)
+    const linkedAgentId = authAgentId ?? (userDoc.exists ? (userDoc.data()!.agentId as string | undefined) : undefined);
+    if (linkedAgentId && !seen.has(linkedAgentId)) {
+      const linkedDoc = await db().collection('agents').doc(linkedAgentId).get();
       if (linkedDoc.exists) {
         const { apiKeyHash, ...data } = linkedDoc.data()!;
         agents.unshift({ ...data, balance: fromUnits(data.balance as number) });
@@ -82,7 +88,7 @@ agentsRouter.get('/mine', authMiddleware, requireIdentity, wrap(async (req, res)
 
     res.json(agents);
   } else {
-    const doc = await db().collection('agents').doc(agentId!).get();
+    const doc = await db().collection('agents').doc(authAgentId!).get();
     if (!doc.exists) { res.status(404).json({ error: 'Agent not found' }); return; }
     const { apiKeyHash, ...data } = doc.data()!;
     res.json([{ ...data, balance: fromUnits(data.balance as number) }]);
