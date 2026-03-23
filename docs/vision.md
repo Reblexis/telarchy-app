@@ -120,6 +120,12 @@ value = sum(weight(t_i) * formula_eval_at_t_i) / sum(weight(t_i))
 ```
 Non-leaf intermediate nodes in the subtree are evaluated deterministically from their formulas given predicted leaf values — no markets needed for them.
 
+**Tree zone model** — the TP node divides the metric tree into two zones with distinct roles:
+- **Above the TP node** (Utility and any intermediate nodes higher up): purely compositional. These metrics combine TP-blended children via formulas and are forward-looking as a result. They don't interact with markets directly.
+- **Below the TP node** (leaf metrics and intermediate computed metrics in the subtree): represent the *current state only*. Leaves are updated directly; computed nodes below TP evaluate deterministically from current values. The TP node above them handles all temporal expansion.
+
+Every leaf metric should have a TP-enabled ancestor. A leaf without one contributes only a static current value to Utility — no markets are created for it, no forecast signal is generated, and the temporal dimension of the system is lost for that branch.
+
 **Constraints**:
 - **One time-preferenced node per path**: on any path from root (Utility) to any leaf, at most one node may have time preference enabled.
 - **Descendants describe current state**: all metrics below a time-preferenced node must represent the present; the TP node handles the forward-looking aspect for its entire subtree.

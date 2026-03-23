@@ -165,8 +165,13 @@ function SectionOverview() {
     └── Satisfaction (leaf)`}</Block>
       <P>
         When you update <Code>Sleep</Code>, <Code>Health</Code> and <Code>Utility</Code> both
-        recompute automatically. Markets exist on the leaf metrics; agents bet on what those
-        leaves will be at future dates.
+        recompute automatically. But the system goes further: <Code>Health</Code> and
+        <Code>Career</Code> have <strong>time preference</strong> enabled, which means they
+        don't just use today's leaf values — they blend present and predicted future values
+        using market consensus at sampled future dates. Markets are created on the leaves
+        (<Code>Sleep</Code>, <Code>Exercise</Code>, etc.) at those future dates, and agents
+        bet on what those values will be. That forecast propagates up through the tree into
+        Utility. See the <em>Time Preference</em> section for a full explanation.
       </P>
     </div>
   );
@@ -291,62 +296,111 @@ pow({Progress}, 1.5)`}</Block>
 function SectionTimePreference() {
   return (
     <div>
-      <H2>Time preference</H2>
+      <H2>Why time preference is central</H2>
       <P>
-        Time preference makes a computed metric forward-looking. Instead of only reflecting
-        the current values of its leaf descendants, a time-preferenced metric blends the
-        <em> present</em> value with the <em>predicted future</em> values — using market
-        consensus at 10 sampled time points.
+        A metric that only reflects its current value tells you where things stand <em>right
+        now</em>. But what you actually care about is how things will look in the future — and
+        how much you discount that future relative to the present. Time preference is the
+        mechanism that gives every sub-goal a temporal dimension.
       </P>
       <P>
-        This is how you answer the question: <em>"What is this metric worth to me, accounting
-        for the fact that I care more about sooner outcomes than distant ones?"</em>
+        Without a time-preferenced ancestor, a leaf metric is a static number: it can be updated
+        and logged, but it never drives market creation and never feeds a forecast into Utility.
+        <strong> Every leaf metric should sit below a time-preferenced node.</strong> If one
+        doesn't, it contributes nothing to the system's forward-looking signal — you'd be
+        saying "I only care about this metric today", which is almost never the intent.
+      </P>
+
+      <H2>The two zones of the metric tree</H2>
+      <P>
+        A TP-enabled node divides the metric tree into two distinct zones with different
+        roles:
+      </P>
+
+      <H3>Above the TP node — goal aggregation</H3>
+      <P>
+        Metrics above a TP node (including Utility itself) are purely compositional. They
+        combine TP nodes via formulas and are themselves forward-looking as a result — because
+        each TP child already delivers a blended present+future value. These metrics don't
+        interact with markets directly; they inherit the temporal dimension from below.
+      </P>
+
+      <H3>The TP node — the temporal bridge</H3>
+      <P>
+        The TP-enabled metric is where current state meets future forecast. It samples 10 time
+        points from an exponential curve defined by its half-life, creates prediction markets
+        for each of its leaf descendants at those dates, and blends the resulting consensus
+        values with t=0 into a single present-equivalent score. This is the only place in the
+        tree where markets are born.
+      </P>
+
+      <H3>Below the TP node — current state only</H3>
+      <P>
+        Metrics below a TP node describe <em>what things are like today</em>. Leaf metrics here
+        are updated directly by the admin (or external data sources). Intermediate computed
+        metrics here are evaluated deterministically from those current values — no markets are
+        created for them. The TP node above them handles all the temporal expansion.
+      </P>
+      <Callout>
+        Because the TP node already projects its subtree into the future, nesting another TP
+        node inside that subtree is not allowed. On any path from Utility to a leaf, at most
+        one node may have time preference enabled.
+      </Callout>
+
+      <H2>How markets arise from this structure</H2>
+      <P>
+        Markets exist <em>because</em> of time preference. When you enable TP on a node, the
+        system asks: "what will each leaf in this subtree look like at each sampled future
+        date?" It creates a binary AMM market for every <em>(leaf, date)</em> pair. Agents bet
+        on those markets — pushing the consensus toward their best estimate of the future value.
+        That consensus is what feeds back into the TP node's blend, and from there into Utility.
+      </P>
+      <P>
+        This is why markets are meaningful: each bet is a signal about the future trajectory of
+        a real, measurable quantity. Tasks are then evaluated against whether they shift those
+        forecasts in a positive direction. Without TP, none of this chain exists.
       </P>
 
       <H2>Half-life</H2>
       <P>
-        The only parameter is <strong>half-life</strong> (in years). It controls how quickly
-        your preference decays into the future:
+        The only parameter is <strong>half-life</strong> (in years). It sets the timescale of
+        your concern — the median sampled time point falls exactly at the half-life:
       </P>
       <ul style={{ paddingLeft: '1.5rem', margin: '0.4rem 0' }}>
-        <Li><strong>Short half-life (e.g. 0.5y)</strong> — you care heavily about the near term; the median sampled time point is 6 months out.</Li>
-        <Li><strong>Long half-life (e.g. 5y)</strong> — you weigh the future more equally; the median sample is 5 years out.</Li>
+        <Li><strong>Short half-life (e.g. 0.5y)</strong> — near-term dominated; most weight on the next few months. Good for fast-moving metrics like sleep or weekly revenue.</Li>
+        <Li><strong>Long half-life (e.g. 5y)</strong> — long-horizon; samples spread across years. Good for slow-moving goals like career trajectory or savings.</Li>
       </ul>
       <P>
-        The metric's total is a weighted average across t=0 (now) and 10 future time points,
-        with equal weights — the curve shape is determined by the sampling, not by reweighting
-        individual samples.
+        The blend is a simple average across t=0 and the 10 sampled future points — all weights
+        are equal. The half-life shapes <em>where</em> those 10 samples fall, not how much each
+        one counts.
       </P>
 
       <H2>How to enable it</H2>
       <ol style={{ paddingLeft: '1.5rem', margin: '0.4rem 0' }}>
-        <Li>Create the computed metric (needs a formula referencing leaf descendants).</Li>
+        <Li>Create the computed metric with a formula referencing its leaf descendants.</Li>
         <Li>Open <strong>Edit</strong> on that metric.</Li>
-        <Li>Toggle <em>Time Preference</em> on.</Li>
-        <Li>Set the half-life in years.</Li>
+        <Li>Toggle <em>Time Preference</em> on and set the half-life in years.</Li>
         <Li>Save. Markets are automatically created for all leaf descendants at the 10 sampled dates.</Li>
       </ol>
 
-      <H2>Constraints</H2>
-      <ul style={{ paddingLeft: '1.5rem', margin: '0.4rem 0' }}>
-        <Li>Only <strong>computed</strong> metrics (those with a formula) can have time preference.</Li>
-        <Li>On any path from Utility down to a leaf, <strong>at most one</strong> metric can have time preference. You can't nest TP nodes.</Li>
-        <Li>All metrics <em>below</em> a TP-enabled node describe the present state; the TP node handles the forward-looking blending for its whole subtree.</Li>
-      </ul>
-
       <H2>Example</H2>
-      <Block>{`Utility  (formula: {Health} + {Career})
-
-├── Health  (TIME PREFERENCE: half-life=2y, formula: {Sleep} + {Exercise})
-│   ├── Sleep    ← markets created at sampled dates (e.g. +3mo, +6mo, +1y, +2y …)
-│   └── Exercise ← markets created at sampled dates
-
-└── Career  (TIME PREFERENCE: half-life=5y, formula: {Income} + {Satisfaction})
-    ├── Income       ← markets at sampled dates
-    └── Satisfaction ← markets at sampled dates`}</Block>
+      <Block>{`Utility  (formula: {Health} + {Career})          ← ABOVE: aggregates TP nodes, itself forward-looking
+│
+├── Health  (TIME PREFERENCE: half-life=2y)        ← TP NODE: the temporal bridge
+│   formula: {Sleep} + {Exercise}
+│   ├── Sleep    (leaf, current value only)         ← BELOW: current state; markets created here
+│   └── Exercise (leaf, current value only)         ← BELOW: current state; markets created here
+│
+└── Career  (TIME PREFERENCE: half-life=5y)        ← TP NODE: separate timescale for career
+    formula: {Income} + {Satisfaction}
+    ├── Income       (leaf, current value only)     ← BELOW: markets at sampled dates
+    └── Satisfaction (leaf, current value only)     ← BELOW: markets at sampled dates`}</Block>
       <P>
-        Utility itself has no time preference — it just sums Health and Career, each of which
-        already incorporates a forward-looking blend.
+        Utility sums two TP-blended values — it is already forward-looking without needing its
+        own TP flag. Health and Career each answer "what is this sub-goal worth to me across
+        time?" using different timescales. The leaves are purely about today; the TP nodes take
+        care of the rest.
       </P>
     </div>
   );
