@@ -147,11 +147,6 @@ function SectionOverview() {
           Its value is derived automatically; you never edit it directly.
         </Li>
       </ul>
-      <Callout>
-        <strong>Always create leaf metrics before computed ones</strong> — a formula can only
-        reference metrics that already exist by exact name.
-      </Callout>
-
       <H2>The Utility metric</H2>
       <P>
         The metric named exactly <Code>Utility</Code> is special. It is the root of the tree,
@@ -202,9 +197,8 @@ function SectionCreating() {
 
       <H3>Recommended creation order</H3>
       <ol style={{ paddingLeft: '1.5rem', margin: '0.4rem 0' }}>
-        <Li>Create all <strong>leaf</strong> metrics first (no formula).</Li>
-        <Li>Create <strong>computed</strong> metrics bottom-up — each formula metric should only reference already-created metrics.</Li>
-        <Li>Create <strong>Utility</strong> last, as the top-level formula combining everything.</Li>
+        <Li>Create leaf metrics and computed metrics in any order.</Li>
+        <Li>Create <strong>Utility</strong> once its direct sub-metrics exist so the formula resolves immediately — though you can always edit it later.</Li>
       </ol>
 
       <H3>Editing a metric</H3>
