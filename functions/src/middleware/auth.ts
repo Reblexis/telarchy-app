@@ -108,7 +108,8 @@ export async function optionalAuthMiddleware(req: Request, _res: Response, next:
   const masterKey = process.env.API_KEY;
   if (apiKey && masterKey && safeCompare(apiKey, masterKey)) {
     const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
-    req.auth = { role: 'admin', workspaceId: requestedWorkspaceId ?? 'default' };
+    if (!requestedWorkspaceId) return next(); // no workspace → treat as unauthenticated
+    req.auth = { role: 'admin', workspaceId: requestedWorkspaceId };
     return next();
   }
   const authHeader = req.headers.authorization;
@@ -127,12 +128,13 @@ export async function optionalAuthMiddleware(req: Request, _res: Response, next:
 }
 
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
-  // 1. Master API key → admin, respects X-Workspace-Id (falls back to 'default')
+  // 1. Master API key → admin, requires X-Workspace-Id
   const apiKey = req.headers['x-api-key'] as string | undefined;
   const masterKey = process.env.API_KEY;
   if (apiKey && masterKey && safeCompare(apiKey, masterKey)) {
     const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
-    req.auth = { role: 'admin', workspaceId: requestedWorkspaceId ?? 'default' };
+    if (!requestedWorkspaceId) return res.status(400).json({ error: 'X-Workspace-Id header is required' });
+    req.auth = { role: 'admin', workspaceId: requestedWorkspaceId };
     return next();
   }
 

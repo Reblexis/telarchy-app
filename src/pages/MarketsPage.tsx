@@ -5,7 +5,7 @@ import { api } from '../lib/api';
 import { cacheGet, cacheSet } from '../lib/cache';
 import { useInspectMode } from '../hooks/useInspectMode';
 import { previewTrade } from '../lib/amm';
-import { formatTargetDateDisplay, formatTimeRemaining } from '../lib/date-utils';
+import { formatTargetDateDisplay, formatTimeRemaining, endOfPeriod } from '../lib/date-utils';
 import { HookStatus } from '../components/HookStatus';
 import { ProbabilitySlider } from '../components/ProbabilitySlider';
 import type { Market, Metric } from '../types';
@@ -39,7 +39,7 @@ export function MarketsPage() {
       const q = filterText.toLowerCase();
       result = result.filter(m => m.metricName.toLowerCase().includes(q));
     }
-    return result;
+    return [...result].sort((a, b) => endOfPeriod(a.targetDate).localeCompare(endOfPeriod(b.targetDate)));
   }, [markets, filterText, showInactive]);
 
   const [metricId, setMetricId] = useState('');
