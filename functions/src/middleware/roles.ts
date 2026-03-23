@@ -17,10 +17,11 @@ export function requireFirebaseUser(req: Request, res: Response, next: NextFunct
   return next();
 }
 
-/** Requires any authenticated identity — either a Firebase uid or an agent agentId. */
+/** Requires any authenticated identity — either a Firebase uid or an agent agentId.
+ *  Master API key (role=admin, no uid/agentId) is also allowed through. */
 export function requireIdentity(req: Request, res: Response, next: NextFunction) {
   if (!req.auth) return res.status(401).json({ error: 'Unauthorized' });
-  if (!req.auth.uid && !req.auth.agentId) return res.status(403).json({ error: 'Identity required' });
+  if (!req.auth.uid && !req.auth.agentId && req.auth.role !== 'admin') return res.status(403).json({ error: 'Identity required' });
   return next();
 }
 
