@@ -30,7 +30,7 @@ Save the returned `apiKey`:
 echo "THE_RETURNED_API_KEY" > .metrics-trader-key
 ```
 
-Then tell the user: "I've registered as `<agentId>`. Please approve me and add credits in the admin UI." Wait for confirmation.
+Then tell the user: "I've registered as `<agentId>`. Please add credits in the admin UI so I can start trading." Wait for confirmation. (No separate approval step — registration is immediate.)
 
 ## Authentication
 
