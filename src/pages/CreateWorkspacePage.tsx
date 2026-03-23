@@ -1,6 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { api } from '../lib/api';
+import { api, setActiveWorkspace } from '../lib/api';
+import { clearCache } from '../lib/cache';
 import { useAuth } from '../hooks/useAuth';
 
 export function CreateWorkspacePage() {
@@ -19,6 +20,7 @@ export function CreateWorkspacePage() {
 
     try {
       const ws = await api.createWorkspace(user, name.trim());
+      setActiveWorkspace(ws.id);
 
       // Seed a "Utility" metric so the dashboard isn't empty
       await api.createMetric(user, {
@@ -28,6 +30,7 @@ export function CreateWorkspacePage() {
         formula: '0',
       });
 
+      clearCache();
       navigate('/metrics', { state: { workspaceId: ws.id, fresh: true } });
     } catch (err: unknown) {
       setError((err as Error).message || 'Failed to create workspace');
