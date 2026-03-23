@@ -152,6 +152,8 @@ export interface Workspace {
   visibility: WorkspaceVisibility;
   /** Running total of credits spent on buy trades in this workspace. */
   tradedVolume?: number;
+  /** If set, the frontend routes all workspace-scoped data requests to this URL instead of the central API. */
+  customApiUrl?: string;
 }
 
 export interface WorkspaceMember {

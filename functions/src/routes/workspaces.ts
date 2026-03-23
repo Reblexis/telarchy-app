@@ -120,13 +120,19 @@ workspacesRouter.put('/:id/settings', requireRole('admin'), wrap(async (req, res
     }
   }
 
-  const { name } = req.body;
+  const { name, customApiUrl } = req.body;
   const update: Record<string, unknown> = {};
   if (name !== undefined) {
     if (typeof name !== 'string' || name.trim().length === 0) {
       res.status(400).json({ error: 'name must be a non-empty string' }); return;
     }
     update.name = name.trim();
+  }
+  if (customApiUrl !== undefined) {
+    if (customApiUrl !== null && (typeof customApiUrl !== 'string' || customApiUrl.length === 0)) {
+      res.status(400).json({ error: 'customApiUrl must be a non-empty string or null' }); return;
+    }
+    update.customApiUrl = customApiUrl ?? FieldValue.delete();
   }
   if (Object.keys(update).length === 0) {
     res.status(400).json({ error: 'No fields to update' }); return;

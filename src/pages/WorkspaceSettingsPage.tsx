@@ -1,10 +1,10 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../lib/api';
+import { api, getCustomApiKey, setCustomApiKey, setCustomApiUrl } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
 
-interface WorkspaceDetail { id: string; name: string }
+interface WorkspaceDetail { id: string; name: string; customApiUrl?: string }
 
 export function WorkspaceSettingsPage() {
   const navigate = useNavigate();
@@ -18,6 +18,13 @@ export function WorkspaceSettingsPage() {
   const [error, setError] = useState('');
   const [wsLoading, setWsLoading] = useState(true);
 
+  // Custom server state
+  const [customUrl, setCustomUrl] = useState('');
+  const [customKey, setCustomKey] = useState('');
+  const [savingCustom, setSavingCustom] = useState(false);
+  const [customMsg, setCustomMsg] = useState('');
+  const [customError, setCustomError] = useState('');
+
   const wsId = workspace?.workspaceId;
 
   useEffect(() => {
@@ -28,6 +35,8 @@ export function WorkspaceSettingsPage() {
         const d = detail as WorkspaceDetail;
         setWs(d);
         setName(d.name);
+        setCustomUrl(d.customApiUrl ?? '');
+        setCustomKey(getCustomApiKey(wsId) ?? '');
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setWsLoading(false));
@@ -45,6 +54,42 @@ export function WorkspaceSettingsPage() {
       setError((e as Error).message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveCustomServer = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!user || !wsId || wsId === 'default') return;
+    setCustomError(''); setCustomMsg(''); setSavingCustom(true);
+    try {
+      const url = customUrl.trim() || null;
+      await api.updateWorkspaceSettings(user, wsId, { customApiUrl: url });
+      setCustomApiUrl(url);
+      setCustomApiKey(wsId, customKey.trim() || null);
+      setWs(prev => prev ? { ...prev, customApiUrl: url ?? undefined } : prev);
+      setCustomMsg('Saved.');
+    } catch (e: unknown) {
+      setCustomError((e as Error).message);
+    } finally {
+      setSavingCustom(false);
+    }
+  };
+
+  const handleClearCustomServer = async () => {
+    if (!user || !wsId) return;
+    setCustomError(''); setCustomMsg(''); setSavingCustom(true);
+    try {
+      await api.updateWorkspaceSettings(user, wsId, { customApiUrl: null });
+      setCustomApiUrl(null);
+      setCustomApiKey(wsId, null);
+      setCustomUrl('');
+      setCustomKey('');
+      setWs(prev => prev ? { ...prev, customApiUrl: undefined } : prev);
+      setCustomMsg('Custom server removed.');
+    } catch (e: unknown) {
+      setCustomError((e as Error).message);
+    } finally {
+      setSavingCustom(false);
     }
   };
 
@@ -113,6 +158,64 @@ export function WorkspaceSettingsPage() {
           </button>{' '}
           page. The Admin group grants full workspace access.
         </p>
+      </div>
+
+      <div className="section" style={{ marginTop: '2rem' }}>
+        <h3 style={{ marginBottom: '0.5rem' }}>Custom Server</h3>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+          Route all workspace data (metrics, markets, tasks, events) to a server you control.
+          Neither the app developers nor the central platform can access your data.
+        </p>
+        {customError && <div className="error show" style={{ marginBottom: '1rem' }}>{customError}</div>}
+        <form onSubmit={handleSaveCustomServer}>
+          <div className="form-group">
+            <label htmlFor="custom-url">Server URL</label>
+            <input
+              id="custom-url"
+              type="url"
+              placeholder="https://your-server.example.com"
+              value={customUrl}
+              onChange={e => setCustomUrl(e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="custom-key">
+              API Key{' '}
+              <span style={{ fontWeight: 400, color: 'var(--text-tertiary)', fontSize: '0.8rem' }}>
+                — stored in this browser only, never sent to the central server
+              </span>
+            </label>
+            <input
+              id="custom-key"
+              type="password"
+              placeholder="Your server API key"
+              value={customKey}
+              onChange={e => setCustomKey(e.target.value)}
+              autoComplete="off"
+            />
+          </div>
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <button type="submit" disabled={savingCustom}>
+              {savingCustom ? 'Saving...' : 'Save custom server'}
+            </button>
+            {ws?.customApiUrl && (
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={savingCustom}
+                onClick={handleClearCustomServer}
+              >
+                Remove
+              </button>
+            )}
+            {customMsg && <span style={{ fontSize: '0.875rem', color: 'var(--success-text)' }}>{customMsg}</span>}
+          </div>
+        </form>
+        {ws?.customApiUrl && (
+          <p style={{ marginTop: '0.75rem', fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
+            Active: <code style={{ fontSize: '0.75rem' }}>{ws.customApiUrl}</code>
+          </p>
+        )}
       </div>
 
       {ws && (
