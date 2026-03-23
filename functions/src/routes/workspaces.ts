@@ -30,6 +30,7 @@ workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
       createdBy: identity,
       createdAt: now,
       visibility: 'private',
+      members: { [identity]: { role: 'owner', joinedAt: now } },
     });
     // Record membership keyed by identity (uid for Firebase users, agentId for pure agents)
     tx.set(db().collection('users').doc(identity), {
@@ -165,9 +166,14 @@ workspacesRouter.post('/:id/members', requireRole('admin'), wrap(async (req, res
   }
 
   const now = FieldValue.serverTimestamp();
-  await db().collection('users').doc(inviteeIdentity).set({
+  const batch = db().batch();
+  batch.set(db().collection('users').doc(inviteeIdentity), {
     workspaces: { [wsId]: { role, joinedAt: now } },
   }, { merge: true });
+  batch.update(db().collection('workspaces').doc(wsId), {
+    [`members.${inviteeIdentity}`]: { role, joinedAt: now },
+  });
+  await batch.commit();
 
   res.status(201).json({ ok: true, workspaceId: wsId, identity: inviteeIdentity, role });
 }));
@@ -176,6 +182,16 @@ workspacesRouter.post('/:id/members', requireRole('admin'), wrap(async (req, res
 
 workspacesRouter.post('/:id/join', requireIdentity, wrap(async (_req, res) => {
   res.status(403).json({ error: 'This workspace is invite-only' });
+}));
+
+// --- List members ---
+
+workspacesRouter.get('/:id/members', requireRole('admin'), wrap(async (req, res) => {
+  const wsId = req.params.id as string;
+  const doc = await db().collection('workspaces').doc(wsId).get();
+  if (!doc.exists) { res.status(404).json({ error: 'Workspace not found' }); return; }
+  const members = (doc.data()!.members ?? {}) as Record<string, { role: string; joinedAt: unknown }>;
+  res.json(Object.entries(members).map(([identity, m]) => ({ identity, role: m.role, joinedAt: m.joinedAt })));
 }));
 
 // --- Remove member ---
@@ -198,9 +214,14 @@ workspacesRouter.delete('/:id/members/:identity', requireRole('admin'), wrap(asy
     }
   }
 
-  await db().collection('users').doc(targetIdentity).update({
+  const batch = db().batch();
+  batch.update(db().collection('users').doc(targetIdentity), {
     [`workspaces.${wsId}`]: FieldValue.delete(),
   });
+  batch.update(db().collection('workspaces').doc(wsId), {
+    [`members.${targetIdentity}`]: FieldValue.delete(),
+  });
+  await batch.commit();
 
   res.status(204).send();
 }));

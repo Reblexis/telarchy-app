@@ -230,10 +230,12 @@ export const api = {
   getWorkspaceStats: (user: User, id: string) => request(`/api/workspaces/${id}/stats`, user),
   updateWorkspaceSettings: (user: User, id: string, body: { name?: string }) =>
     request(`/api/workspaces/${id}/settings`, user, { method: 'PUT', body: JSON.stringify(body) }),
-  inviteMember: (user: User, workspaceId: string, uid: string, role: string) =>
-    request(`/api/workspaces/${workspaceId}/members`, user, { method: 'POST', body: JSON.stringify({ uid, role }) }),
-  removeMember: (user: User, workspaceId: string, uid: string) =>
-    request(`/api/workspaces/${workspaceId}/members/${encodeURIComponent(uid)}`, user, { method: 'DELETE' }),
+  getWorkspaceMembers: (user: User, workspaceId: string) =>
+    request(`/api/workspaces/${workspaceId}/members`, user),
+  inviteMember: (user: User, workspaceId: string, identity: string, role: string, type: 'uid' | 'agentId' = 'agentId') =>
+    request(`/api/workspaces/${workspaceId}/members`, user, { method: 'POST', body: JSON.stringify({ [type]: identity, role }) }),
+  removeMember: (user: User, workspaceId: string, identity: string) =>
+    request(`/api/workspaces/${workspaceId}/members/${encodeURIComponent(identity)}`, user, { method: 'DELETE' }),
 
   // Permission groups
   listGroups: (user: User) => request('/api/groups', user),

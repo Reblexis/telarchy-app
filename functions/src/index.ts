@@ -177,6 +177,7 @@ app.get('/api/help', (_req, res) => {
       { method: 'GET', path: '/api/workspaces', auth: 'agent/admin', description: 'List workspaces the caller belongs to.' },
       { method: 'GET', path: '/api/workspaces/:id', auth: 'agent/admin', description: 'Get workspace details.' },
       { method: 'PUT', path: '/api/workspaces/:id/settings', auth: 'admin', description: 'Update workspace name. Body: { name }. Requires owner or admin membership in the workspace (pass X-Workspace-Id header).' },
+      { method: 'GET', path: '/api/workspaces/:id/members', auth: 'admin', description: 'List workspace members. Returns [{identity, role, joinedAt}]. Requires owner or admin membership (pass X-Workspace-Id header).' },
       { method: 'POST', path: '/api/workspaces/:id/members', auth: 'admin', description: 'Add a member. Body: { agentId, role } or { uid, role }. role: "owner"|"admin"|"trader"|"viewer". Agents and Firebase users can both be added. Requires owner or admin membership (pass X-Workspace-Id header).' },
       { method: 'DELETE', path: '/api/workspaces/:id/members/:identity', auth: 'admin', description: 'Remove a member. :identity is a Firebase uid or agentId. Requires owner or admin membership (pass X-Workspace-Id header).' },
       { method: 'DELETE', path: '/api/auth/me', auth: 'admin', description: 'GDPR: delete your account. Deletes Firestore profile and Firebase Auth user.' },
