@@ -67,6 +67,9 @@ export function Sidebar() {
         <Link to="/account" className={`sidebar-nav-item${currentPath === '/account' ? ' active' : ''}`}>
           Account
         </Link>
+        <Link to="/guides" className={`sidebar-nav-item${currentPath === '/guides' ? ' active' : ''}`}>
+          Guides
+        </Link>
       </div>
 
       <div className="sidebar-spacer" />

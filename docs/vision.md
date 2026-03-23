@@ -224,7 +224,9 @@ The Metrics tab uses a single Chart.js graph engine for both inline card charts 
 
 ## Navigation
 
-The app uses a persistent left sidebar (`Sidebar.tsx` + `AppLayout.tsx`) for all authenticated pages. The sidebar handles workspace switching (all workspaces listed, click to switch), workspace-scoped nav (Metrics, Markets, Tasks, Agents), platform nav (Marketplace, Account), and logout. The horizontal header (`Header.tsx`) is kept only for the agent portal. `/account` shows agents and balances, and links to the Agent Portal for USDC deposit/withdrawal.
+The app uses a persistent left sidebar (`Sidebar.tsx` + `AppLayout.tsx`) for all authenticated pages. The sidebar handles workspace switching (all workspaces listed, click to switch), workspace-scoped nav (Metrics, Markets, Tasks, Agents), platform nav (Marketplace, Account, Guides), and logout. The horizontal header (`Header.tsx`) is kept only for the agent portal. `/account` shows agents and balances, and links to the Agent Portal for USDC deposit/withdrawal.
+
+`/guides` is a publicly accessible in-app reference covering metric structure, formula syntax, time preference, markets, and the task decision loop. No auth required.
 
 ## Design Principles
 

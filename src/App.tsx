@@ -19,6 +19,7 @@ import { AdminPage } from './pages/AdminPage';
 import { AccountPage } from './pages/AccountPage';
 import { AgentLoginPage } from './pages/AgentLoginPage';
 import { AgentPortalPage } from './pages/AgentPortalPage';
+import { GuidesPage } from './pages/GuidesPage';
 
 function InspectBanner() {
   const { inspectTask, setInspectTask } = useInspectMode();
@@ -60,6 +61,7 @@ export function App() {
           {/* Authenticated routes — all wrapped in AppLayout (sidebar) */}
           <Route element={<AppLayout />}>
             <Route path="/marketplace" element={<MarketplacePage />} />
+            <Route path="/guides" element={<GuidesPage />} />
             <Route element={<RequireAuth />}>
               <Route path="/start" element={<StartPage />} />
               <Route path="/create-workspace" element={<CreateWorkspacePage />} />
