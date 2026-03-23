@@ -4,7 +4,8 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
-    "test": "jest"
+    "test": "jest",
+    "start:standalone": "node lib/server.js"
   },
   "engines": {
     "node": "20"
