@@ -69,9 +69,10 @@ Admin can also refresh conditional markets at any time to pick up newly created 
 
 Per-metric access control via a `permissionGroups` workspace subcollection.
 
-- **Types**: `public` (all agents implicitly member), `admin` (drives `agent.role`), `custom`.
+- **Types**: `public` (all agents implicitly member), `admin` (grants full access), `custom`.
 - **System groups**: `Public` and `Admin` are bootstrapped on workspace creation and cannot be renamed or deleted.
-- **Admin group**: adding an agent to the Admin group sets `agent.role = 'admin'`; removing sets it back to `'agent'`. This is the only way to promote/demote agents.
+- **Unified access model**: Groups have both `agentIds[]` (AI agents) and `uids[]` (Firebase users). Adding any identity to the Admin group grants admin-level workspace access; adding to any other group grants trader-level access. There is no separate "members" concept — permission groups are the single source of truth.
+- **Admin group sync**: adding an agent to Admin sets `agent.role = 'admin'`; adding a user UID writes `users/{uid}.workspaces[wsId] = { role: 'admin' }` for the discovery index. Removal cleans up accordingly.
 - **Custom groups**: hold an explicit `agentIds[]` and a `permissions` map of `metricId → { read: boolean, trade: boolean }` for fine-grained market access.
 - **API**: `GET/POST /groups` (agent-readable, admin-writable), `PUT/DELETE /groups/:id`.
 
