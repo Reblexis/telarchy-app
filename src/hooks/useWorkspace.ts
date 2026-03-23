@@ -6,7 +6,7 @@ export type WorkspaceMemberRole = 'owner' | 'admin' | 'trader' | 'viewer';
 
 export interface WorkspaceInfo {
   workspaceId: string;
-  /** Role in the current workspace. Null when in the default (platform-level) context. */
+  /** Role in the current workspace. Null when no workspace is active. */
   memberRole: WorkspaceMemberRole | null;
   /** Auth role returned by the backend: 'admin' | 'agent' | 'pending' */
   authRole: string;
@@ -40,9 +40,8 @@ export function useWorkspace(user: User | null): {
   const [allWorkspaces, setAllWorkspaces] = useState<WorkspaceListItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 'default' is a sentinel meaning "switch back to the platform-level context"
   const switchWorkspace = useCallback((id: string) => {
-    setActiveWorkspace(id === 'default' ? null : id);
+    setActiveWorkspace(id);
     window.location.reload();
   }, []);
 
@@ -77,13 +76,7 @@ export function useWorkspace(user: User | null): {
         setWorkspace({ workspaceId, memberRole, authRole, intent, tier, needsWorkspace });
 
         const mapped = wsList.map(w => ({ id: w.id, name: w.name, memberRole: w.memberRole }));
-        // Admin users with workspaces get a sentinel "Platform" entry so they can switch back
-        // to the default (platform-level) context. authRole is used rather than workspaceId
-        // since admins can switch into a workspace, at which point workspaceId is no longer 'default'.
-        const enriched = (authRole === 'admin' && mapped.length > 0)
-          ? [{ id: 'default', name: 'Platform', memberRole: '' }, ...mapped]
-          : mapped;
-        setAllWorkspaces(enriched);
+        setAllWorkspaces(mapped);
       })
       .catch((e: Error) => {
         if (cancelled) return;
