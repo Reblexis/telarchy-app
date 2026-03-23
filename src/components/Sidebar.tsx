@@ -4,12 +4,12 @@ import { useWorkspace } from '../hooks/useWorkspace';
 
 export function Sidebar() {
   const { user, logout } = useAuth();
-  const { workspace, allWorkspaces, switchWorkspace } = useWorkspace(user);
+  const { workspace, allWorkspaces, switchWorkspace, error } = useWorkspace(user);
   const location = useLocation();
   const navigate = useNavigate();
 
   const currentPath = location.pathname;
-  const inWorkspace = workspace?.workspaceId && workspace.workspaceId !== 'default';
+  const canAccessWorkspace = workspace?.tier && workspace.tier !== 'none';
   const isAdmin = workspace?.tier === 'admin';
 
   const handleLogout = async () => {
@@ -23,25 +23,40 @@ export function Sidebar() {
         <img src="/logo_transparent_bg.png" alt="Telarchy" style={{ height: '3rem' }} />
       </div>
 
+      {error && (
+        <div className="sidebar-section" style={{ color: 'var(--error-text)', fontSize: '0.8rem', padding: '0.5rem 1rem' }}>
+          Failed to load workspace
+        </div>
+      )}
+
       {allWorkspaces.length > 0 && (
         <div className="sidebar-section">
           <div className="sidebar-section-label">Workspaces</div>
-          {allWorkspaces.map(ws => (
-            <button
-              key={ws.id}
-              className={`sidebar-nav-item${ws.id === workspace?.workspaceId ? ' active' : ''}`}
-              onClick={() => switchWorkspace(ws.id)}
-            >
-              {ws.name}
-            </button>
-          ))}
+          {allWorkspaces.map(ws => {
+            const isActive = ws.id === workspace?.workspaceId;
+            return (
+              <div key={ws.id}>
+                <button
+                  className={`sidebar-nav-item${isActive ? ' active' : ''}`}
+                  onClick={() => switchWorkspace(ws.id)}
+                >
+                  {ws.name}
+                </button>
+                {isActive && (
+                  <div style={{ padding: '0 1rem 0.35rem', fontSize: '0.7rem', fontFamily: 'monospace', color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {ws.id}
+                  </div>
+                )}
+              </div>
+            );
+          })}
           <Link to="/create-workspace" className="sidebar-nav-item sidebar-nav-muted">
             + Create workspace
           </Link>
         </div>
       )}
 
-      {inWorkspace && (
+      {canAccessWorkspace && (
         <div className="sidebar-section">
           <div className="sidebar-section-label">Workspace</div>
           <Link to="/metrics" className={`sidebar-nav-item${currentPath === '/metrics' ? ' active' : ''}`}>
@@ -75,7 +90,7 @@ export function Sidebar() {
       <div className="sidebar-spacer" />
 
       <div className="sidebar-bottom">
-        {inWorkspace && isAdmin && workspace?.workspaceId !== 'default' && (
+        {canAccessWorkspace && isAdmin && (
           <Link to="/settings" className={`sidebar-nav-item${currentPath === '/settings' ? ' active' : ''}`}>
             Settings
           </Link>

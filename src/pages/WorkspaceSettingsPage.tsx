@@ -21,23 +21,33 @@ export function WorkspaceSettingsPage() {
   const [saveMsg, setSaveMsg] = useState('');
   const [error, setError] = useState('');
 
+  const [wsLoading, setWsLoading] = useState(true);
   const [members, setMembers] = useState<Member[]>([]);
+  const [membersError, setMembersError] = useState('');
   const [newIdentity, setNewIdentity] = useState('');
   const [newRole, setNewRole] = useState<Role>('trader');
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState('');
   const [removing, setRemoving] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState('');
 
   const wsId = workspace?.workspaceId;
 
   useEffect(() => {
-    if (!user || !wsId || wsId === 'default') return;
-    api.getWorkspace(user, wsId)
-      .then((detail: WorkspaceDetail) => { setWs(detail); setName(detail.name); })
-      .catch((e: Error) => setError(e.message));
-    api.getWorkspaceMembers(user, wsId)
-      .then((data: Member[]) => setMembers(data))
-      .catch((e: Error) => console.error('Failed to load members', e));
+    if (!user || !wsId || wsId === 'default') { setWsLoading(false); return; }
+    setWsLoading(true);
+    Promise.all([
+      api.getWorkspace(user, wsId),
+      api.getWorkspaceMembers(user, wsId),
+    ])
+      .then(([detail, membersData]) => {
+        const d = detail as WorkspaceDetail;
+        setWs(d);
+        setName(d.name);
+        setMembers(membersData as Member[]);
+      })
+      .catch((e: Error) => setError(e.message))
+      .finally(() => setWsLoading(false));
   }, [user, wsId]);
 
   const handleSave = async (e: FormEvent) => {
@@ -76,15 +86,18 @@ export function WorkspaceSettingsPage() {
   const handleRemoveMember = async (identity: string) => {
     if (!user || !wsId) return;
     setRemoving(identity);
+    setRemoveError('');
     try {
       await api.removeMember(user, wsId, identity);
       setMembers(prev => prev.filter(m => m.identity !== identity));
     } catch (e: unknown) {
-      console.error('Failed to remove member', e);
+      setRemoveError((e as Error).message);
     } finally {
       setRemoving(null);
     }
   };
+
+  if (wsLoading) return <div className="loading">Loading…</div>;
 
   if (!workspace || wsId === 'default') {
     return (
@@ -140,6 +153,9 @@ export function WorkspaceSettingsPage() {
 
       <div className="section" style={{ marginTop: '2rem' }}>
         <h3 style={{ marginBottom: '1rem' }}>Members</h3>
+
+        {membersError && <div className="error show" style={{ marginBottom: '0.75rem' }}>{membersError}</div>}
+        {removeError && <div className="error show" style={{ marginBottom: '0.75rem' }}>{removeError}</div>}
 
         {members.length > 0 && (
           <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '1.5rem', fontSize: '0.875rem' }}>

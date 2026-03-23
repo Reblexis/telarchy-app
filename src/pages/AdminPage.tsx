@@ -8,10 +8,13 @@ export function AdminPage() {
   const { user } = useAuth();
   const { workspace, allWorkspaces, switchWorkspace, loading } = useWorkspace(user);
   const [treasury, setTreasury] = useState<{ address: string; usdcBalance: number; ethBalance: number } | null>(null);
+  const [treasuryError, setTreasuryError] = useState('');
 
   useEffect(() => {
     if (!user) return;
-    api.getTreasury(user).then(setTreasury).catch((e: Error) => console.error('getTreasury:', e.message));
+    api.getTreasury(user)
+      .then(data => setTreasury(data as { address: string; usdcBalance: number; ethBalance: number }))
+      .catch((e: Error) => setTreasuryError(e.message));
   }, [user]);
 
   if (!user || loading) return <div className="loading">Loading…</div>;
@@ -25,6 +28,8 @@ export function AdminPage() {
       />
       <div className="container">
         <h1 style={{ marginBottom: '1.5rem', fontSize: '1.3rem', fontWeight: 700 }}>Platform Admin</h1>
+
+        {treasuryError && <div className="error show" style={{ marginBottom: '1rem' }}>{treasuryError}</div>}
 
         {treasury && (
           <div className="section">

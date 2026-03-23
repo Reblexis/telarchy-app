@@ -35,10 +35,12 @@ export function useWorkspace(user: User | null): {
   allWorkspaces: WorkspaceListItem[];
   switchWorkspace: (id: string) => void;
   loading: boolean;
+  error: string | null;
 } {
   const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
   const [allWorkspaces, setAllWorkspaces] = useState<WorkspaceListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const switchWorkspace = useCallback((id: string) => {
     setActiveWorkspace(id);
@@ -46,7 +48,7 @@ export function useWorkspace(user: User | null): {
   }, []);
 
   useEffect(() => {
-    if (!user) { setWorkspace(null); setAllWorkspaces([]); setLoading(false); return; }
+    if (!user) { setWorkspace(null); setAllWorkspaces([]); setError(null); setLoading(false); return; }
     let cancelled = false;
 
     Promise.all([
@@ -65,14 +67,19 @@ export function useWorkspace(user: User | null): {
 
         const needsWorkspace = authRole === 'pending';
 
-        const tier: WorkspaceInfo['tier'] = needsWorkspace
-          ? 'none'
-          : authRole === 'admin'
-            ? 'admin'
-            : authRole === 'agent'
-              ? 'trader'
-              : 'viewer';
+        const tier: WorkspaceInfo['tier'] = (() => {
+          if (needsWorkspace) return 'none';
+          // memberRole is set when user has an explicit workspace membership
+          if (memberRole === 'owner' || memberRole === 'admin') return 'admin';
+          if (memberRole === 'trader') return 'trader';
+          if (memberRole === 'viewer') return 'viewer';
+          // No memberRole — fall back to auth-level role (platform admin / unattached user)
+          if (authRole === 'admin') return 'admin';
+          if (authRole === 'agent') return 'trader';
+          return 'viewer';
+        })();
 
+        setError(null);
         setWorkspace({ workspaceId, memberRole, authRole, intent, tier, needsWorkspace });
 
         const mapped = wsList.map(w => ({ id: w.id, name: w.name, memberRole: w.memberRole }));
@@ -81,9 +88,9 @@ export function useWorkspace(user: User | null): {
       .catch((e: Error) => {
         if (cancelled) return;
         console.error('useWorkspace: failed to fetch profile', e.message);
-        // Clear stale active workspace that may have caused a 403
         setActiveWorkspace(null);
-        setWorkspace({ workspaceId: 'default', memberRole: null, authRole: 'admin', intent: null, tier: 'admin', needsWorkspace: false });
+        setError(e.message);
+        setWorkspace(null);
         setAllWorkspaces([]);
       })
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -91,5 +98,5 @@ export function useWorkspace(user: User | null): {
     return () => { cancelled = true; };
   }, [user]);
 
-  return { workspace, allWorkspaces, switchWorkspace, loading };
+  return { workspace, allWorkspaces, switchWorkspace, loading, error };
 }

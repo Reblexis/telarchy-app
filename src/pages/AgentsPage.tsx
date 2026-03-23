@@ -22,7 +22,8 @@ function AgentOperatorPage({ user, hasWorkspace }: {
 
   const [watched, setWatched] = useState<WatchedAgent | null>(() => {
     const stored = localStorage.getItem(STORED_AGENT_KEY);
-    return stored ? JSON.parse(stored) : null;
+    if (!stored) return null;
+    try { return JSON.parse(stored); } catch { localStorage.removeItem(STORED_AGENT_KEY); return null; }
   });
   const [inputId, setInputId] = useState('');
   const [inputKey, setInputKey] = useState('');
@@ -268,32 +269,47 @@ function AgentAdminPage({ user, workspace }: {
 
   const handleDeleteGroup = async (groupId: string) => {
     if (!confirm('Delete this group?')) return;
-    await api.deleteGroup(user, groupId).catch((e: Error) => console.error('deleteGroup:', e));
-    setGroups(prev => prev.filter(g => g.id !== groupId));
-    if (expandedGroupId === groupId) setExpandedGroupId(null);
+    try {
+      await api.deleteGroup(user, groupId);
+      setGroups(prev => prev.filter(g => g.id !== groupId));
+      if (expandedGroupId === groupId) setExpandedGroupId(null);
+    } catch (e: unknown) {
+      setGroupError((e as Error).message);
+    }
   };
 
   const handleAddAgentToGroup = async (group: PermissionGroup, agentId: string) => {
     const next = [...new Set([...group.agentIds, agentId])];
-    await api.updateGroup(user, group.id, { agentIds: next }).catch((e: Error) => console.error('updateGroup:', e));
-    setGroups(prev => prev.map(g => g.id === group.id ? { ...g, agentIds: next } : g));
-    // Also refresh agent list if admin role changed
-    if (group.type === 'admin') loadAgents();
+    try {
+      await api.updateGroup(user, group.id, { agentIds: next });
+      setGroups(prev => prev.map(g => g.id === group.id ? { ...g, agentIds: next } : g));
+      if (group.type === 'admin') loadAgents();
+    } catch (e: unknown) {
+      setGroupError((e as Error).message);
+    }
   };
 
   const handleRemoveAgentFromGroup = async (group: PermissionGroup, agentId: string) => {
     const next = group.agentIds.filter(a => a !== agentId);
-    await api.updateGroup(user, group.id, { agentIds: next }).catch((e: Error) => console.error('updateGroup:', e));
-    setGroups(prev => prev.map(g => g.id === group.id ? { ...g, agentIds: next } : g));
-    if (group.type === 'admin') loadAgents();
+    try {
+      await api.updateGroup(user, group.id, { agentIds: next });
+      setGroups(prev => prev.map(g => g.id === group.id ? { ...g, agentIds: next } : g));
+      if (group.type === 'admin') loadAgents();
+    } catch (e: unknown) {
+      setGroupError((e as Error).message);
+    }
   };
 
   const handleTogglePermission = async (group: PermissionGroup, metricId: string, field: 'read' | 'trade') => {
     const current = group.permissions[metricId] ?? { read: false, trade: false };
     const next = { ...group.permissions, [metricId]: { ...current, [field]: !current[field] } };
     if (!next[metricId].read && !next[metricId].trade) delete next[metricId];
-    await api.updateGroup(user, group.id, { permissions: next }).catch((e: Error) => console.error('updateGroup:', e));
-    setGroups(prev => prev.map(g => g.id === group.id ? { ...g, permissions: next } : g));
+    try {
+      await api.updateGroup(user, group.id, { permissions: next });
+      setGroups(prev => prev.map(g => g.id === group.id ? { ...g, permissions: next } : g));
+    } catch (e: unknown) {
+      setGroupError((e as Error).message);
+    }
   };
 
   const isSystemGroup = (type: string) => type === 'public' || type === 'admin';

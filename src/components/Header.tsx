@@ -148,6 +148,7 @@ function WorkspaceSwitcher({ workspaces, activeId, onSwitch }: {
 export function Header({ activePage, navMode = 'creator', actions, workspaceName, showSettings, workspaces, activeWorkspaceId, onWorkspaceSwitch, agentId }: HeaderProps) {
   const navItems = navMode === 'operator' ? OPERATOR_NAV : navMode === 'agent' ? AGENT_NAV : CREATOR_NAV;
   const location = useLocation();
+  const navigate = useNavigate();
 
   const agentArea: ReactNode = agentId ? (
     <span style={{
@@ -227,9 +228,7 @@ export function Header({ activePage, navMode = 'creator', actions, workspaceName
       </nav>
       <div className="header-actions">
         {showSettings && (
-          <Link to="/settings" title="Workspace settings">
-            <button className="btn" style={{ padding: '0.3rem 0.6rem', fontSize: '1rem' }}>⚙</button>
-          </Link>
+          <button className="btn" style={{ padding: '0.3rem 0.6rem', fontSize: '1rem' }} title="Workspace settings" onClick={() => navigate('/settings')}>⚙</button>
         )}
         {actions}
       </div>

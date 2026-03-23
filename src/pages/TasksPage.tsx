@@ -127,6 +127,7 @@ function ChatPanel({ taskId, user }: { taskId: string; user: import('firebase/au
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const loadMessages = useCallback(async () => {
+    setLoadError('');
     const data = await api.getTaskMessages(user, taskId).catch((e: Error) => { setLoadError(e.message); return null; });
     if (data) setMessages(data);
   }, [user, taskId]);
