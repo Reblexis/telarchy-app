@@ -5,10 +5,6 @@ import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
 
 interface WorkspaceDetail { id: string; name: string }
-interface Member { identity: string; role: string }
-
-const ROLES = ['owner', 'admin', 'trader', 'viewer'] as const;
-type Role = typeof ROLES[number];
 
 export function WorkspaceSettingsPage() {
   const navigate = useNavigate();
@@ -20,31 +16,18 @@ export function WorkspaceSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
   const [error, setError] = useState('');
-
   const [wsLoading, setWsLoading] = useState(true);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [membersError, setMembersError] = useState('');
-  const [newIdentity, setNewIdentity] = useState('');
-  const [newRole, setNewRole] = useState<Role>('trader');
-  const [adding, setAdding] = useState(false);
-  const [addError, setAddError] = useState('');
-  const [removing, setRemoving] = useState<string | null>(null);
-  const [removeError, setRemoveError] = useState('');
 
   const wsId = workspace?.workspaceId;
 
   useEffect(() => {
     if (!user || !wsId || wsId === 'default') { setWsLoading(false); return; }
     setWsLoading(true);
-    Promise.all([
-      api.getWorkspace(user, wsId),
-      api.getWorkspaceMembers(user, wsId),
-    ])
-      .then(([detail, membersData]) => {
+    api.getWorkspace(user, wsId)
+      .then(detail => {
         const d = detail as WorkspaceDetail;
         setWs(d);
         setName(d.name);
-        setMembers(membersData as Member[]);
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setWsLoading(false));
@@ -62,38 +45,6 @@ export function WorkspaceSettingsPage() {
       setError((e as Error).message);
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleAddMember = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!user || !wsId || !newIdentity.trim()) return;
-    setAddError(''); setAdding(true);
-    try {
-      await api.inviteMember(user, wsId, newIdentity.trim(), newRole, 'agentId');
-      setMembers(prev => {
-        const filtered = prev.filter(m => m.identity !== newIdentity.trim());
-        return [...filtered, { identity: newIdentity.trim(), role: newRole }];
-      });
-      setNewIdentity('');
-    } catch (e: unknown) {
-      setAddError((e as Error).message);
-    } finally {
-      setAdding(false);
-    }
-  };
-
-  const handleRemoveMember = async (identity: string) => {
-    if (!user || !wsId) return;
-    setRemoving(identity);
-    setRemoveError('');
-    try {
-      await api.removeMember(user, wsId, identity);
-      setMembers(prev => prev.filter(m => m.identity !== identity));
-    } catch (e: unknown) {
-      setRemoveError((e as Error).message);
-    } finally {
-      setRemoving(null);
     }
   };
 
@@ -115,7 +66,7 @@ export function WorkspaceSettingsPage() {
     return (
       <div className="container" style={{ maxWidth: 600 }}>
         <h1>Workspace Settings</h1>
-        <p style={{ color: 'var(--text-secondary)' }}>Only workspace owners and admins can manage settings.</p>
+        <p style={{ color: 'var(--text-secondary)' }}>Only workspace admins can manage settings.</p>
         <button onClick={() => navigate('/metrics')}>Back to metrics</button>
       </div>
     );
@@ -152,70 +103,25 @@ export function WorkspaceSettingsPage() {
       </div>
 
       <div className="section" style={{ marginTop: '2rem' }}>
-        <h3 style={{ marginBottom: '1rem' }}>Members</h3>
-
-        {membersError && <div className="error show" style={{ marginBottom: '0.75rem' }}>{membersError}</div>}
-        {removeError && <div className="error show" style={{ marginBottom: '0.75rem' }}>{removeError}</div>}
-
-        {members.length > 0 && (
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '1.5rem', fontSize: '0.875rem' }}>
-            <thead>
-              <tr>
-                {['Identity', 'Role', ''].map(h => (
-                  <th key={h} style={{ textAlign: 'left', padding: '0.35rem 0.5rem', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', fontWeight: 500 }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {members.map(m => (
-                <tr key={m.identity}>
-                  <td style={{ padding: '0.4rem 0.5rem', fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-primary)' }}>{m.identity}</td>
-                  <td style={{ padding: '0.4rem 0.5rem', color: 'var(--text-secondary)' }}>{m.role}</td>
-                  <td style={{ padding: '0.4rem 0.5rem', textAlign: 'right' }}>
-                    <button
-                      className="btn-danger-sm"
-                      disabled={removing === m.identity}
-                      onClick={() => handleRemoveMember(m.identity)}
-                      style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
-                    >
-                      {removing === m.identity ? '…' : 'Remove'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-
-        <form onSubmit={handleAddMember} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div className="form-group" style={{ margin: 0, flex: '1 1 180px' }}>
-            <label htmlFor="new-identity" style={{ fontSize: '0.8125rem' }}>Agent ID or user ID</label>
-            <input
-              id="new-identity"
-              type="text"
-              placeholder="e.g. faa-trader"
-              value={newIdentity}
-              onChange={e => setNewIdentity(e.target.value)}
-              style={{ marginTop: '0.25rem' }}
-            />
-          </div>
-          <div className="form-group" style={{ margin: 0, flex: '0 0 120px' }}>
-            <label htmlFor="new-role" style={{ fontSize: '0.8125rem' }}>Role</label>
-            <select
-              id="new-role"
-              value={newRole}
-              onChange={e => setNewRole(e.target.value as Role)}
-              style={{ marginTop: '0.25rem' }}
-            >
-              {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-            </select>
-          </div>
-          <button type="submit" disabled={adding || !newIdentity.trim()} style={{ alignSelf: 'flex-end', marginBottom: '0' }}>
-            {adding ? 'Adding…' : 'Add member'}
-          </button>
-        </form>
-        {addError && <div className="error show" style={{ marginTop: '0.5rem' }}>{addError}</div>}
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+          Manage access by adding agents and users to permission groups in the{' '}
+          <button
+            onClick={() => navigate('/agents')}
+            style={{ background: 'none', border: 'none', padding: 0, color: 'var(--focus-border)', cursor: 'pointer', fontSize: 'inherit', textDecoration: 'underline' }}
+          >
+            Agents
+          </button>{' '}
+          page. The Admin group grants full workspace access.
+        </p>
       </div>
+
+      {ws && (
+        <div className="section" style={{ marginTop: '2rem' }}>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
+            Created: {ws.id}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

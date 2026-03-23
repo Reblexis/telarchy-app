@@ -23,6 +23,7 @@ async function ensureSystemGroups(workspaceId: string): Promise<void> {
       type: 'public',
       description: 'All agents are members of this group automatically.',
       agentIds: [],
+      uids: [],
       permissions: {},
       createdAt: FieldValue.serverTimestamp(),
     });
@@ -31,8 +32,9 @@ async function ensureSystemGroups(workspaceId: string): Promise<void> {
     batch.set(col.doc(), {
       name: 'Admin',
       type: 'admin',
-      description: 'Agents with full administrative access to this workspace.',
+      description: 'Agents and users with full administrative access to this workspace.',
       agentIds: [],
+      uids: [],
       permissions: {},
       createdAt: FieldValue.serverTimestamp(),
     });
@@ -64,10 +66,11 @@ groupsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
     type: 'custom' as PermissionGroupType,
     description: typeof description === 'string' ? description.trim() : '',
     agentIds: [],
+    uids: [],
     permissions: {},
     createdAt: FieldValue.serverTimestamp(),
   });
-  res.status(201).json({ id: ref.id, name: name.trim(), type: 'custom', description, agentIds: [], permissions: {} });
+  res.status(201).json({ id: ref.id, name: name.trim(), type: 'custom', description, agentIds: [], uids: [], permissions: {} });
 }));
 
 // --- Update group (admin only) ---
@@ -81,7 +84,7 @@ groupsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
   if (!doc.exists) { res.status(404).json({ error: 'Group not found' }); return; }
   const current = doc.data()!;
 
-  const { name, description, agentIds, permissions } = req.body;
+  const { name, description, agentIds, uids, permissions } = req.body;
   const update: Record<string, unknown> = {};
 
   if (name !== undefined) {
@@ -122,6 +125,79 @@ groupsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
         roleBatch.update(db().collection('agents').doc(id), { role: 'agent' });
       }
       if (added.length || removed.length) await roleBatch.commit();
+    }
+  }
+
+  if (uids !== undefined) {
+    if (!Array.isArray(uids) || uids.some((u: unknown) => typeof u !== 'string')) {
+      res.status(400).json({ error: 'uids must be an array of strings' }); return;
+    }
+    update.uids = uids;
+
+    const oldUids = new Set<string>(current.uids ?? []);
+    const newUids = new Set<string>(uids);
+    const addedUids = uids.filter((id: string) => !oldUids.has(id));
+    const removedUids = [...oldUids].filter(id => !newUids.has(id));
+
+    if (addedUids.length || removedUids.length) {
+      const uidBatch = db().batch();
+
+      if (current.type === 'admin') {
+        // Admin group: added → workspace role 'admin', removed → check if still in any group
+        for (const uid of addedUids) {
+          uidBatch.set(db().collection('users').doc(uid), {
+            workspaces: { [workspaceId]: { role: 'admin', joinedAt: FieldValue.serverTimestamp() } },
+          }, { merge: true });
+        }
+        for (const uid of removedUids) {
+          // Check remaining groups for this uid to determine fallback role
+          const allGroupsSnap = await wsCol(workspaceId, 'permissionGroups').get();
+          const isInOtherGroup = allGroupsSnap.docs.some(d => {
+            if (d.id === groupId) return false;
+            const otherUids: string[] = d.data().uids ?? [];
+            return otherUids.includes(uid);
+          });
+          if (isInOtherGroup) {
+            uidBatch.set(db().collection('users').doc(uid), {
+              workspaces: { [workspaceId]: { role: 'trader', joinedAt: FieldValue.serverTimestamp() } },
+            }, { merge: true });
+          } else {
+            uidBatch.update(db().collection('users').doc(uid), {
+              [`workspaces.${workspaceId}`]: FieldValue.delete(),
+            });
+          }
+        }
+      } else {
+        // Non-admin group: added → ensure workspace entry exists (don't overwrite 'admin')
+        for (const uid of addedUids) {
+          const userDoc = await db().collection('users').doc(uid).get();
+          const currentRole = userDoc.data()?.workspaces?.[workspaceId]?.role;
+          if (currentRole !== 'admin') {
+            uidBatch.set(db().collection('users').doc(uid), {
+              workspaces: { [workspaceId]: { role: 'trader', joinedAt: FieldValue.serverTimestamp() } },
+            }, { merge: true });
+          }
+        }
+        for (const uid of removedUids) {
+          // Check if still in any group (including admin)
+          const allGroupsSnap = await wsCol(workspaceId, 'permissionGroups').get();
+          const adminGroup = allGroupsSnap.docs.find(d => d.data().type === 'admin');
+          const adminUids: string[] = adminGroup?.data().uids ?? [];
+          const isAdmin = adminUids.includes(uid);
+          const isInOtherGroup = allGroupsSnap.docs.some(d => {
+            if (d.id === groupId) return false;
+            const otherUids: string[] = d.data().uids ?? [];
+            return otherUids.includes(uid);
+          });
+          if (!isAdmin && !isInOtherGroup) {
+            uidBatch.update(db().collection('users').doc(uid), {
+              [`workspaces.${workspaceId}`]: FieldValue.delete(),
+            });
+          }
+        }
+      }
+
+      await uidBatch.commit();
     }
   }
 

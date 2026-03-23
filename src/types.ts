@@ -61,6 +61,7 @@ export interface PermissionGroup {
   type: PermissionGroupType;
   description: string;
   agentIds: string[];
+  uids: string[];
   permissions: Record<string, MetricPermission>;
 }
 

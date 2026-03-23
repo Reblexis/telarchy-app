@@ -223,6 +223,8 @@ function AgentAdminPage({ user, workspace }: {
   const [groupError, setGroupError] = useState('');
   // Per-group agent search query
   const [agentSearch, setAgentSearch] = useState<Record<string, string>>({});
+  // Per-group user uid input
+  const [uidInput, setUidInput] = useState<Record<string, string>>({});
 
   const loadAgents = useCallback(async () => {
     setError('');
@@ -300,6 +302,27 @@ function AgentAdminPage({ user, workspace }: {
     }
   };
 
+  const handleAddUserToGroup = async (group: PermissionGroup, uid: string) => {
+    const next = [...new Set([...(group.uids ?? []), uid])];
+    try {
+      await api.updateGroup(user, group.id, { uids: next });
+      setGroups(prev => prev.map(g => g.id === group.id ? { ...g, uids: next } : g));
+      setUidInput(prev => ({ ...prev, [group.id]: '' }));
+    } catch (e: unknown) {
+      setGroupError((e as Error).message);
+    }
+  };
+
+  const handleRemoveUserFromGroup = async (group: PermissionGroup, uid: string) => {
+    const next = (group.uids ?? []).filter(u => u !== uid);
+    try {
+      await api.updateGroup(user, group.id, { uids: next });
+      setGroups(prev => prev.map(g => g.id === group.id ? { ...g, uids: next } : g));
+    } catch (e: unknown) {
+      setGroupError((e as Error).message);
+    }
+  };
+
   const handleTogglePermission = async (group: PermissionGroup, metricId: string, field: 'read' | 'trade') => {
     const current = group.permissions[metricId] ?? { read: false, trade: false };
     const next = { ...group.permissions, [metricId]: { ...current, [field]: !current[field] } };
@@ -369,7 +392,7 @@ function AgentAdminPage({ user, workspace }: {
         <div className="section">
           <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.25rem' }}>Permission Groups</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
-            Groups control which agents can read or trade individual leaf metrics. Public and Admin groups are system groups.
+            Groups control workspace access for both agents and users. The Admin group grants full access. Public and Admin groups are system groups.
           </p>
 
           <form onSubmit={handleCreateGroup} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
@@ -414,7 +437,14 @@ function AgentAdminPage({ user, workspace }: {
                           )}
                         </div>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                          {group.type === 'public' ? 'all agents' : `${group.agentIds.length} agent${group.agentIds.length !== 1 ? 's' : ''}`}
+                          {group.type === 'public' ? 'all agents' : (() => {
+                            const agentCount = group.agentIds.length;
+                            const userCount = (group.uids ?? []).length;
+                            const parts = [];
+                            if (agentCount > 0) parts.push(`${agentCount} agent${agentCount !== 1 ? 's' : ''}`);
+                            if (userCount > 0) parts.push(`${userCount} user${userCount !== 1 ? 's' : ''}`);
+                            return parts.length > 0 ? parts.join(', ') : 'empty';
+                          })()}
                           {restrictedMetrics > 0 && ` · ${restrictedMetrics} metric${restrictedMetrics !== 1 ? 's' : ''}`}
                         </span>
                       </div>
@@ -431,37 +461,74 @@ function AgentAdminPage({ user, workspace }: {
                     {isExpanded && (
                       <div style={{ padding: '0.75rem', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
 
-                        {/* Agents */}
+                        {/* Agents + Users */}
                         {group.type !== 'public' && (
-                          <div>
-                            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Members</div>
-                            {members.length > 0 && (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', marginBottom: '0.6rem' }}>
-                                {members.map(a => (
-                                  <div key={a.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.3rem 0.5rem', background: 'var(--bg-secondary)', borderRadius: '0.25rem' }}>
-                                    <span style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>{a.id}</span>
-                                    <button className="btn-small btn-delete" style={{ padding: '0.15rem 0.4rem', fontSize: '0.75rem' }} onClick={() => handleRemoveAgentFromGroup(group, a.id)}>Remove</button>
-                                  </div>
-                                ))}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+                            {/* Agent members */}
+                            <div>
+                              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Agents</div>
+                              {members.length > 0 && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', marginBottom: '0.6rem' }}>
+                                  {members.map(a => (
+                                    <div key={a.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.3rem 0.5rem', background: 'var(--bg-secondary)', borderRadius: '0.25rem' }}>
+                                      <span style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>{a.id}</span>
+                                      <button className="btn-small btn-delete" style={{ padding: '0.15rem 0.4rem', fontSize: '0.75rem' }} onClick={() => handleRemoveAgentFromGroup(group, a.id)}>Remove</button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              <input
+                                type="text"
+                                placeholder="Search agents to add…"
+                                value={query}
+                                onChange={e => setAgentSearch(prev => ({ ...prev, [group.id]: e.target.value }))}
+                                style={{ width: '100%', marginBottom: query ? '0.3rem' : 0 }}
+                                onClick={e => e.stopPropagation()}
+                              />
+                              {query && nonMembers.length === 0 && (
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>No matching agents.</p>
+                              )}
+                              {nonMembers.slice(0, 8).map(a => (
+                                <div key={a.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.3rem 0.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                                  <span style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>{a.id}</span>
+                                  <button className="btn-small" style={{ padding: '0.15rem 0.4rem', fontSize: '0.75rem' }} onClick={() => { handleAddAgentToGroup(group, a.id); setAgentSearch(prev => ({ ...prev, [group.id]: '' })); }}>Add</button>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* User UID members */}
+                            <div>
+                              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Users</div>
+                              {(group.uids ?? []).length > 0 && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', marginBottom: '0.6rem' }}>
+                                  {(group.uids ?? []).map(uid => (
+                                    <div key={uid} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.3rem 0.5rem', background: 'var(--bg-secondary)', borderRadius: '0.25rem' }}>
+                                      <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: '0.5rem' }}>{uid}</span>
+                                      <button className="btn-small btn-delete" style={{ padding: '0.15rem 0.4rem', fontSize: '0.75rem', flexShrink: 0 }} onClick={() => handleRemoveUserFromGroup(group, uid)}>Remove</button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              <div style={{ display: 'flex', gap: '0.4rem' }} onClick={e => e.stopPropagation()}>
+                                <input
+                                  type="text"
+                                  placeholder="Firebase UID…"
+                                  value={uidInput[group.id] ?? ''}
+                                  onChange={e => setUidInput(prev => ({ ...prev, [group.id]: e.target.value }))}
+                                  style={{ flex: 1, marginBottom: 0, fontFamily: 'monospace', fontSize: '0.8rem' }}
+                                />
+                                <button
+                                  className="btn-small"
+                                  style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+                                  disabled={!(uidInput[group.id] ?? '').trim()}
+                                  onClick={() => handleAddUserToGroup(group, (uidInput[group.id] ?? '').trim())}
+                                >
+                                  Add user
+                                </button>
                               </div>
-                            )}
-                            <input
-                              type="text"
-                              placeholder="Search agents to add…"
-                              value={query}
-                              onChange={e => setAgentSearch(prev => ({ ...prev, [group.id]: e.target.value }))}
-                              style={{ width: '100%', marginBottom: query ? '0.3rem' : 0 }}
-                              onClick={e => e.stopPropagation()}
-                            />
-                            {query && nonMembers.length === 0 && (
-                              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>No matching agents.</p>
-                            )}
-                            {nonMembers.slice(0, 8).map(a => (
-                              <div key={a.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.3rem 0.5rem', borderBottom: '1px solid var(--border-color)' }}>
-                                <span style={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>{a.id}</span>
-                                <button className="btn-small" style={{ padding: '0.15rem 0.4rem', fontSize: '0.75rem' }} onClick={() => { handleAddAgentToGroup(group, a.id); setAgentSearch(prev => ({ ...prev, [group.id]: '' })); }}>Add</button>
-                              </div>
-                            ))}
+                            </div>
+
                           </div>
                         )}
 

@@ -230,18 +230,11 @@ export const api = {
   getWorkspaceStats: (user: User, id: string) => request(`/api/workspaces/${id}/stats`, user),
   updateWorkspaceSettings: (user: User, id: string, body: { name?: string }) =>
     request(`/api/workspaces/${id}/settings`, user, { method: 'PUT', body: JSON.stringify(body) }),
-  getWorkspaceMembers: (user: User, workspaceId: string) =>
-    request(`/api/workspaces/${workspaceId}/members`, user),
-  inviteMember: (user: User, workspaceId: string, identity: string, role: string, type: 'uid' | 'agentId' = 'agentId') =>
-    request(`/api/workspaces/${workspaceId}/members`, user, { method: 'POST', body: JSON.stringify({ [type]: identity, role }) }),
-  removeMember: (user: User, workspaceId: string, identity: string) =>
-    request(`/api/workspaces/${workspaceId}/members/${encodeURIComponent(identity)}`, user, { method: 'DELETE' }),
-
   // Permission groups
   listGroups: (user: User) => request('/api/groups', user),
   createGroup: (user: User, name: string) =>
     request('/api/groups', user, { method: 'POST', body: JSON.stringify({ name }) }),
-  updateGroup: (user: User, id: string, body: { name?: string; agentIds?: string[]; permissions?: Record<string, { read: boolean; trade: boolean }> }) =>
+  updateGroup: (user: User, id: string, body: { name?: string; agentIds?: string[]; uids?: string[]; permissions?: Record<string, { read: boolean; trade: boolean }> }) =>
     request(`/api/groups/${id}`, user, { method: 'PUT', body: JSON.stringify(body) }),
   deleteGroup: (user: User, id: string) =>
     request(`/api/groups/${id}`, user, { method: 'DELETE' }),
