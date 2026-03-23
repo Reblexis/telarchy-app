@@ -341,11 +341,40 @@ function SectionTimePreference() {
         metrics here are evaluated deterministically from those current values — no markets are
         created for them. The TP node above them handles all the temporal expansion.
       </P>
-      <Callout>
-        Because the TP node already projects its subtree into the future, nesting another TP
-        node inside that subtree is not allowed. On any path from Utility to a leaf, at most
-        one node may have time preference enabled.
-      </Callout>
+      <H3>Why you can't nest TP nodes — and don't need to</H3>
+      <P>
+        The rule is: on any path from Utility to a leaf, at most one node may have time
+        preference enabled. Here's why nesting would break the model — and why a single node
+        is always sufficient.
+      </P>
+      <P>
+        A TP node expects everything below it to represent the <em>current state</em>. It then
+        asks: "what will these current-state leaves look like at each future date?" and gets the
+        answer from market consensus. If a second TP node sat inside that subtree, it would be
+        computing a future-blend of its own leaves and passing that up as if it were a current
+        value. The outer TP node would then sample <em>that already-blended future value</em>{' '}
+        at further future dates — a future-of-a-future with no coherent interpretation.
+      </P>
+      <P>
+        You also can't get around this by using different half-lives to "stack" two timescales.
+        If you want sub-goals with different timescales, make them <strong>siblings</strong>,
+        each with their own TP node, under a common parent:
+      </P>
+      <Block>{`# Correct: sibling TP nodes with different half-lives
+Utility  (formula: {Health} + {Career})
+├── Health  (TP: half-life=2y)   ← short-horizon concerns
+└── Career  (TP: half-life=5y)   ← long-horizon concerns
+
+# Wrong: nested TP nodes — inner one violates "current state below TP" rule
+Utility
+└── Health  (TP: half-life=2y)
+    └── PhysicalHealth  (TP: half-life=1y)  ← not allowed
+        └── Sleep  (leaf)`}</Block>
+      <P>
+        In the nested case, just pick one half-life for the subtree. If the two half-lives
+        represented genuinely different time horizons, split the sub-goals into separate
+        sibling branches instead.
+      </P>
 
       <H2>How markets arise from this structure</H2>
       <P>
