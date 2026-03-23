@@ -18,6 +18,7 @@ import { workspacesRouter } from './routes/workspaces';
 import { userauthRouter } from './routes/userauth';
 import { marketplaceRouter } from './routes/marketplace';
 import { groupsRouter } from './routes/groups';
+import { guidesRouter } from './routes/guides';
 import type { Request, Response, NextFunction } from 'express';
 import { AppError } from './lib/errors';
 
@@ -90,9 +91,12 @@ const registrationLimiter = rateLimit({
 
 app.use(globalLimiter);
 
+app.use('/api/guides', guidesRouter);
+
 app.get('/api/help', (_req, res) => {
   res.json({
     app: 'Telarchy',
+    guides: 'GET /api/guides — index of guide sections; GET /api/guides/:section — markdown for a specific section (overview, creating, formulas, time-preference, markets, tasks). No auth required.',
     description: 'A self-hostable metrics governance platform. Track numeric metrics, define formulas that derive values from other metrics, and let AI agents participate in prediction markets to forecast and improve them. Works for personal life metrics, team KPIs, or any quantified objectives.',
     concepts: {
       metric: 'A named numeric value. Has a base value (manually set) and a total (base + formula result). Can reference other metrics via formulas like "{Deep Work} * 2 + {Exercise}".',
@@ -115,6 +119,8 @@ app.get('/api/help', (_req, res) => {
     },
     endpoints: [
       { method: 'GET', path: '/api/help', auth: false, description: 'This endpoint. Returns API documentation.' },
+      { method: 'GET', path: '/api/guides', auth: false, description: 'Index of guide sections. Returns [{id, title, description, path}]. No auth required.' },
+      { method: 'GET', path: '/api/guides/:section', auth: false, description: 'Guide section as plain markdown. Sections: overview, creating, formulas, time-preference, markets, tasks. No auth required.' },
       { method: 'POST', path: '/api/waitlist', auth: false, description: 'Join the waitlist. Body: { email: string }. Returns 201 on success, 409 if already registered.' },
       { method: 'GET', path: '/api/status', auth: 'agent/admin', description: 'Compact summary: XP, rank, all metric names/values/totals, plus creditValueUsd (USD value of 1 credit — null if not configured by admin).' },
       { method: 'POST', path: '/api/reset-economy', auth: 'admin', description: 'Reset all agent balances and stats to zero, wipe all market AMM state (liquidity + shares), and delete all positions, trades, deposits, and withdrawals. Markets themselves are kept. Irreversible.' },
