@@ -233,6 +233,25 @@ agentsRouter.post('/:id/spend', requireSelfOrAdmin, wrap(async (req, res) => {
   res.json({ ok: true, spent: amount, type, reason: reason || '' });
 }));
 
+// Admin-only direct balance adjustment. Use when USDC is already confirmed in the treasury
+// but was not registered via the deposit flow (e.g. pre-system transfers).
+// Body: { amount: number, reason?: string }
+agentsRouter.post('/:id/credit', requireRole('admin'), wrap(async (req, res) => {
+  const id = req.params.id as string;
+  const { amount, reason = 'admin credit' } = req.body;
+  if (typeof amount !== 'number' || amount <= 0) {
+    res.status(400).json({ error: 'amount must be a positive number' }); return;
+  }
+  const agentRef = db().collection('agents').doc(id);
+  const agentDoc = await agentRef.get();
+  if (!agentDoc.exists) { res.status(404).json({ error: 'Agent not found' }); return; }
+  await agentRef.update({ balance: FieldValue.increment(toUnits(amount)) });
+  const updated = await agentRef.get();
+  const newBalance = fromUnits(updated.data()!.balance);
+  console.log(`[admin credit] ${id} +${amount} credits (${reason}). New balance: ${newBalance}`);
+  res.json({ ok: true, credited: amount, balance: newBalance });
+}));
+
 // --- USDC deposit → credits ---
 
 // Anyone can purchase credits by sending USDC to the treasury on Base, then calling this endpoint.
