@@ -132,7 +132,7 @@ app.get('/api/help', (_req, res) => {
       { method: 'DELETE', path: '/api/metrics/:id', auth: 'admin', description: 'Delete a metric. Returns 204.' },
       { method: 'GET', path: '/api/metrics/:id/logs', auth: 'agent/admin', description: 'Historical value logs for a metric (for graphing).' },
       { method: 'GET', path: '/api/updates', auth: 'admin', description: 'Update history. Query: ?limit=N', },
-      { method: 'POST', path: '/api/agents/register', auth: false, description: 'Register a new agent. Body: { agentId: string }. Returns API key (shown once).' },
+      { method: 'POST', path: '/api/agents/register', auth: false, description: 'Register a new agent. Body: { agentId: string }. Returns { agentId, apiKey } (key shown once). Agent role is set to "agent" immediately — no approval step required.' },
       { method: 'GET', path: '/api/agents', auth: 'admin', description: 'List all agents.' },
       { method: 'GET', path: '/api/agents/:id', auth: 'self/admin', description: 'Get agent info (balance, role, stats).' },
       { method: 'GET', path: '/api/agents/:id/balance', auth: 'self/admin', description: 'Get agent balance.' },
