@@ -96,9 +96,28 @@ export function Sidebar() {
           </Link>
         )}
         {user && (
-          <button className="sidebar-nav-item sidebar-nav-logout" onClick={handleLogout}>
-            Logout
-          </button>
+          <>
+            <Link
+              to="/account"
+              style={{
+                display: 'block',
+                padding: '0.6rem 1rem',
+                textDecoration: 'none',
+                borderTop: '1px solid var(--border-color)',
+                marginTop: '0.25rem',
+              }}
+            >
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {user.email}
+              </div>
+              <div style={{ fontSize: '0.7rem', fontFamily: 'monospace', color: 'var(--text-tertiary)', marginTop: '0.15rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {user.uid}
+              </div>
+            </Link>
+            <button className="sidebar-nav-item sidebar-nav-logout" onClick={handleLogout}>
+              Logout
+            </button>
+          </>
         )}
       </div>
     </aside>

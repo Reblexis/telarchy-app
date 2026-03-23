@@ -1,4 +1,12 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react';
+import {
+  updatePassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  GoogleAuthProvider,
+  reauthenticateWithPopup,
+} from 'firebase/auth';
+import { getFirebaseAuth } from '../lib/firebase';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/api';
 
@@ -33,6 +41,20 @@ export function AccountPage() {
   const [walletAddr, setWalletAddr] = useState('');
   const [savingWallet, setSavingWallet] = useState(false);
   const [walletMsg, setWalletMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordMsg, setPasswordMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const [copied, setCopied] = useState(false);
+  const copyUid = () => {
+    if (!user) return;
+    navigator.clipboard.writeText(user.uid).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -106,6 +128,35 @@ export function AccountPage() {
     setSavingWallet(false);
   };
 
+  const handleChangePassword = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setChangingPassword(true);
+    setPasswordMsg(null);
+    const auth = getFirebaseAuth();
+    const currentUser = auth.currentUser;
+    if (!currentUser) { setPasswordMsg({ ok: false, text: 'Not authenticated.' }); setChangingPassword(false); return; }
+
+    // Determine provider to re-authenticate
+    const providers = currentUser.providerData.map(p => p.providerId);
+    try {
+      if (providers.includes('password')) {
+        const cred = EmailAuthProvider.credential(currentUser.email!, currentPassword);
+        await reauthenticateWithCredential(currentUser, cred);
+      } else if (providers.includes('google.com')) {
+        await reauthenticateWithPopup(currentUser, new GoogleAuthProvider());
+      }
+      await updatePassword(currentUser, newPassword);
+      setPasswordMsg({ ok: true, text: 'Password updated.' });
+      setCurrentPassword('');
+      setNewPassword('');
+    } catch (e) {
+      const err = e as { message?: string };
+      setPasswordMsg({ ok: false, text: err.message || 'Failed to update password.' });
+    }
+    setChangingPassword(false);
+  };
+
   if (!user) return null;
 
   const inputStyle = {
@@ -120,6 +171,65 @@ export function AccountPage() {
   return (
     <div className="container" style={{ maxWidth: 640 }}>
       <h1 style={{ marginBottom: '1.5rem' }}>Account</h1>
+
+      {/* Identity */}
+      <div className="section" style={{ marginBottom: '1.5rem' }}>
+        <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.75rem' }}>
+          Identity
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Email</span>
+            <span style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}>{user.email}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>User ID</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <code style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{user.uid}</code>
+              <button
+                onClick={copyUid}
+                style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '0.25rem', cursor: 'pointer', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}
+              >
+                {copied ? 'Copied!' : 'Copy'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Change password */}
+      {user.providerData.some(p => p.providerId === 'password') && (
+        <div className="section" style={{ marginBottom: '1.5rem' }}>
+          <h2 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem' }}>Change password</h2>
+          <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <input
+              type="password"
+              value={currentPassword}
+              onChange={e => setCurrentPassword(e.target.value)}
+              placeholder="Current password"
+              required
+              style={inputStyle}
+            />
+            <input
+              type="password"
+              value={newPassword}
+              onChange={e => setNewPassword(e.target.value)}
+              placeholder="New password"
+              required
+              minLength={6}
+              style={inputStyle}
+            />
+            <button type="submit" disabled={changingPassword || !currentPassword || !newPassword} style={{ alignSelf: 'flex-start' }}>
+              {changingPassword ? 'Updating…' : 'Update password'}
+            </button>
+          </form>
+          {passwordMsg && (
+            <div className={`message ${passwordMsg.ok ? 'success' : 'error'} show`} style={{ marginTop: '0.5rem' }}>
+              {passwordMsg.text}
+            </div>
+          )}
+        </div>
+      )}
 
       {error && <div className="message error show" style={{ marginBottom: '1rem' }}>{error}</div>}
 
