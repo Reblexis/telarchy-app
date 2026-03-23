@@ -409,10 +409,11 @@ predictionsRouter.get('/markets/:id/liquidity-events', requireRole('agent', 'adm
 }));
 
 predictionsRouter.post('/markets/liquidity/bulk', requireRole('admin'), wrap(async (req, res) => {
-  const { workspaceId } = req.auth!;
-  const { amount, agentId, taskId } = req.body;
+  const { workspaceId, agentId: callerAgentId } = req.auth!;
+  const { amount, agentId: bodyAgentId, taskId } = req.body;
   if (typeof amount !== 'number' || amount <= 0) { res.status(400).json({ error: 'amount must be a positive number' }); return; }
-  if (typeof agentId !== 'string' || !agentId) { res.status(400).json({ error: 'agentId is required' }); return; }
+  const agentId = (typeof bodyAgentId === 'string' && bodyAgentId) ? bodyAgentId : callerAgentId;
+  if (!agentId) { res.status(400).json({ error: 'agentId is required (or link an agent to your account)' }); return; }
 
   const agentRef = db().collection('agents').doc(agentId);
   let marketsQuery: FirebaseFirestore.Query = wsCol(workspaceId, 'markets').where('active', '==', true).where('resolved', '==', false);

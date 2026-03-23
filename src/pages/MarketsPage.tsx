@@ -29,7 +29,6 @@ export function MarketsPage() {
 
   const [filterText, setFilterText] = useState('');
   const [showInactive, setShowInactive] = useState(false);
-  const [bulkLiqAgent, setBulkLiqAgent] = useState('');
   const [bulkLiqAmount, setBulkLiqAmount] = useState('');
   const [bulkLiqResult, setBulkLiqResult] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -122,10 +121,10 @@ export function MarketsPage() {
   const handleBulkLiquidity = async () => {
     if (!user) return;
     const a = parseFloat(bulkLiqAmount);
-    if (isNaN(a) || a <= 0 || !bulkLiqAgent.trim()) return;
+    if (isNaN(a) || a <= 0) return;
     setError('');
     setBulkLiqResult('');
-    const result = await api.injectLiquidityBulk(user, bulkLiqAgent.trim(), a, inspectTask?.id).catch((e: Error) => { setError(e.message); return null; });
+    const result = await api.injectLiquidityBulk(user, a, inspectTask?.id).catch((e: Error) => { setError(e.message); return null; });
     if (result) {
       setBulkLiqAmount('');
       setBulkLiqResult(`Injected ${a} into ${result.markets} markets (total: ${result.totalCost} credits).`);
@@ -212,11 +211,9 @@ export function MarketsPage() {
                       <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                         Inject to all ({activeCount}):
                       </label>
-                      <input type="text" value={bulkLiqAgent} onChange={e => setBulkLiqAgent(e.target.value)} placeholder="agent-id"
-                        style={{ padding: '0.35rem 0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', fontSize: '0.85rem', width: '110px' }} />
                       <input type="number" value={bulkLiqAmount} onChange={e => setBulkLiqAmount(e.target.value)} placeholder="amount"
                         style={{ padding: '0.35rem 0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', fontSize: '0.85rem', width: '80px' }} />
-                      <button className="btn-small" onClick={handleBulkLiquidity} disabled={!bulkLiqAgent.trim() || !bulkLiqAmount || parseFloat(bulkLiqAmount) <= 0}>
+                      <button className="btn-small" onClick={handleBulkLiquidity} disabled={!bulkLiqAmount || parseFloat(bulkLiqAmount) <= 0}>
                         {total !== null ? `Inject (${total} credits)` : 'Inject'}
                       </button>
                     </>;
