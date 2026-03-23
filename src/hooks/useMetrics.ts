@@ -52,7 +52,6 @@ export function useMetrics(user: User | null, inspectTaskId?: string | null) {
     ]);
 
     consensusMapRef.current = buildConsensusMap(marketsData);
-
     if (inspectTaskId) {
       setMetrics(buildInspectMetrics(metricsData, marketsData));
     } else {

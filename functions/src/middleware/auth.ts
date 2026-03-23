@@ -126,11 +126,12 @@ export async function optionalAuthMiddleware(req: Request, _res: Response, next:
 }
 
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
-  // 1. Master API key → admin in the 'default' workspace (timing-safe comparison)
+  // 1. Master API key → admin, respects X-Workspace-Id (falls back to 'default')
   const apiKey = req.headers['x-api-key'] as string | undefined;
   const masterKey = process.env.API_KEY;
   if (apiKey && masterKey && safeCompare(apiKey, masterKey)) {
-    req.auth = { role: 'admin', workspaceId: 'default' };
+    const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
+    req.auth = { role: 'admin', workspaceId: requestedWorkspaceId ?? 'default' };
     return next();
   }
 
