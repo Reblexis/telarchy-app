@@ -18,6 +18,33 @@ The system is general-purpose: it works equally for an individual tracking perso
 
 The core thesis: **capitalism for alignment**. Alignment works through the task proposal cycle: an agent proposes an action with a price, conditional markets reveal its expected impact on Utility, and the owner approves or declines based on the forecast delta. Agents whose proposals consistently move Utility in the right direction accumulate earnings; agents whose proposals don't survive conditional evaluation go broke. The market makes manipulation transparent and expensive — a bad proposal is rejected not by opinion but by the crowd's money.
 
+## Metrics vs Tasks
+
+The distinction between metrics and tasks is foundational.
+
+**Metrics** are definitional commitments. A metric declares that some quantity *certainly* affects your utility in a known way. If you later find the metric was wrong — that you measured the wrong thing — that is a definition error, not a system failure, and the system cannot fix it for you. The practical implication: define metrics at the level of abstraction you are genuinely certain about, and keep them as subjective as necessary. A self-reported *Happiness* score is often a better leaf metric than *Dopamine level*, because the link between dopamine and subjective happiness is uncertain.
+
+> **Example.** Suppose you define Happiness as dopamine level, then start taking drugs. Your dopamine metric rises; you are still unhappy. The system has done nothing wrong — it optimized exactly what you asked. The error was in the definition. The correct approach: keep *Happiness* as the metric (self-reported), and create a task — *"Will increasing dopamine improve my subjective happiness?"* — evaluated via conditional prediction markets before committing.
+
+**Tasks** are hypothesis tests. Any time you are uncertain whether an action will improve a metric, that uncertainty belongs in a task, not in the metric definition. Conditional markets answer the question "what would Utility look like if this task were completed?" and the crowd's money resolves the uncertainty.
+
+## Multi-workspace and domain metrics
+
+Telarchy workspaces are composable. A common pattern: one personal workspace defining personal Utility, and one or more domain workspaces (a startup, a project, a team) with their own metric trees.
+
+The connection between startup metrics and personal utility is often uncertain. How much does the startup's user count correspond to personal wealth? To social capital? These are empirical questions, not definitional ones — they should not be hardwired into the personal Utility formula. Instead:
+
+- Treat the startup workspace as an information source. Agents observing both workspaces can use startup metrics as signal when proposing tasks and placing bets in the personal workspace.
+- Use tasks to test the connection. A task such as *"Will growing MAU by 20% improve my personal Utility?"* lets conditional markets evaluate the hypothesis before you commit resources.
+
+This keeps the two workspaces decoupled at the definition level while still allowing agents to reason across them.
+
+**Why maintain a separate domain workspace at all?**
+
+1. **Agent information** — domain metrics (revenue, retention, velocity) give agents richer signal to reason about how to improve personal utility, without being hardcoded as direct inputs to the personal Utility formula.
+2. **Privacy** — the personal utility workspace may contain sensitive self-assessments. The startup workspace can be shared with employees, investors, or the public without exposing personal data.
+3. **Multi-stakeholder** — multiple shareholders can co-own a startup workspace and independently evaluate its impact on their respective personal utilities. The exact coordination mechanism for this is an open design question.
+
 ## Current State
 
 ### Phase 1: Agent Economy (Implemented)
@@ -243,3 +270,4 @@ The app uses a persistent left sidebar (`Sidebar.tsx` + `AppLayout.tsx`) for all
 4. **Evolvability** — the prediction pool was replaced by AMM (Phase 5), and `consensus()` formula calls were replaced by per-node time preference (Phase 7). The market/position separation makes future mechanism changes (e.g. CPMM, order books) clean.
 5. **Capitalism for alignment** — the economic incentives align agent behavior with improving the metrics you care about.
 6. **Static definitions** — formulas and metric definitions are treated as stable. Changes to a metric's definition (formula, description, non-leaf base value) trigger a full respawn of affected markets. Only leaf node base values change freely — this is what agents bet on.
+7. **Metrics as commitments, tasks as hypotheses** — a metric expresses what you are already certain affects your utility, at the level of abstraction you are certain about. If you are unsure whether a proxy truly maps to your goal, that uncertainty belongs in a task (with conditional markets to test it), not in the metric definition. The system optimizes exactly what you measure; defining the wrong metric is the user's responsibility. Prefer subjective, high-level definitions (e.g. *Happiness* as a self-reported score) over over-specified proxies (e.g. dopamine level). Proxies belong in tasks.

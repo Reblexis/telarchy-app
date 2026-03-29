@@ -51,6 +51,47 @@ When you update \`Sleep\`, \`Health\` and \`Utility\` both recompute automatical
 `,
   },
   {
+    id: 'metric-design',
+    title: 'Metric Design',
+    description: 'How to define metrics correctly: commitments vs hypotheses, avoiding over-specification, and connecting multiple workspaces.',
+    content: `# Metric Design
+
+## Metrics are commitments
+
+A metric declares that some quantity *certainly* affects your utility in a known way. This is a strong claim — and it should be. The system will optimize exactly what you measure, so defining the wrong metric is a definition error, not a system failure, that the system cannot correct for you.
+
+**Define metrics at the level of abstraction you are genuinely certain about.** When in doubt, keep the definition more subjective rather than more specific. A self-reported *Happiness* score is often a better leaf metric than *Dopamine level*, because the causal link between dopamine and subjective happiness is an open empirical question.
+
+> **Example — the dopamine trap.** You define Happiness as dopamine level, then start taking drugs. Dopamine rises; you are still unhappy. The system did nothing wrong — it optimized exactly what you asked. The fix: keep *Happiness* as a self-reported leaf metric and create a **task** — *"Will increasing dopamine improve my subjective happiness?"* — evaluated by conditional prediction markets before committing to that path.
+
+## Tasks are hypothesis tests
+
+Any time you are unsure whether X will improve metric Y, that uncertainty belongs in a **task**, not in the metric definition. Conditional markets answer "what would Utility look like if this task were completed?" and the crowd's money resolves the uncertainty.
+
+This separation prevents over-specification:
+
+- Metric definition: *what do I actually care about?*
+- Task proposal: *will doing this improve what I care about?*
+
+## Connecting domain workspaces to personal utility
+
+A common pattern is one personal workspace (defining personal Utility) plus one or more domain workspaces (a startup, a project, a team). The link between domain metrics and personal utility is usually uncertain — how exactly does startup MAU correspond to personal wealth or happiness? — and should not be hardwired into the personal Utility formula.
+
+**Instead:**
+
+- Keep the domain workspace as an **information source**. Agents observing both workspaces can use startup metrics as signal when proposing tasks and placing bets in your personal workspace.
+- Use **tasks** to test the connection. A task like *"Will growing MAU by 20% improve my personal Utility?"* lets conditional markets evaluate the hypothesis before you commit resources.
+
+This keeps the two workspaces decoupled at the definition level while still allowing agents to reason across them.
+
+### Why maintain a separate domain workspace at all?
+
+1. **Agent information** — domain metrics give agents richer signal to reason about your personal utility, without being hardcoded as direct formula inputs.
+2. **Privacy** — your personal utility workspace may contain sensitive self-assessments. A startup workspace can be shared with collaborators or investors without exposing personal data.
+3. **Multi-stakeholder** — multiple shareholders can co-own a startup workspace and independently evaluate its impact on their respective personal utilities.
+`,
+  },
+  {
     id: 'creating',
     title: 'Creating Metrics',
     description: 'How to create, edit, and delete metrics, and what each field does.',
@@ -292,7 +333,9 @@ The default range is 0–1000. If your metric represents a percentage (0–100),
     description: 'How agents propose tasks, conditional markets measure expected impact, and admins decide.',
     content: `# Tasks & Decisions
 
-Tasks are the decision loop. An agent proposes an action with a price (credits they receive if the task is approved). Before the admin decides, the system runs prediction markets *conditionally* — agents bet on what the metrics would look like *if this task were completed*.
+Tasks are the mechanism for uncertainty. Any time you are unsure whether an action will improve a metric — whether the causal link is direct, indirect, or speculative — express it as a task rather than encoding the assumption into a metric definition. See *Metric Design* for the underlying principle.
+
+Tasks are also the decision loop. An agent proposes an action with a price (credits they receive if the task is approved). Before the admin decides, the system runs prediction markets *conditionally* — agents bet on what the metrics would look like *if this task were completed*.
 
 The result is an expected Utility delta: a quantitative forecast of how much the task would move the top-level goal. The admin approves or declines based on that signal.
 
