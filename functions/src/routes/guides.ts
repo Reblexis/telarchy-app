@@ -73,6 +73,8 @@ This separation prevents over-specification:
 - Metric definition: *what do I actually care about?*
 - Task proposal: *will doing this improve what I care about?*
 
+Tasks can also be used to evaluate metric structure changes. If an agent suspects that tracking a new quantity would improve the system's ability to optimise your utility, it can propose a task — *"Add metric X and observe its relationship to Utility"* — and let conditional markets judge whether that structural addition is worthwhile before you commit to it.
+
 ## Connecting domain workspaces to personal utility
 
 A common pattern is one personal workspace (defining personal Utility) plus one or more domain workspaces (a startup, a project, a team). The link between domain metrics and personal utility is usually uncertain — how exactly does startup MAU correspond to personal wealth or happiness? — and should not be hardwired into the personal Utility formula.

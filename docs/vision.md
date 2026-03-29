@@ -26,7 +26,7 @@ The distinction between metrics and tasks is foundational.
 
 > **Example.** Suppose you define Happiness as dopamine level, then start taking drugs. Your dopamine metric rises; you are still unhappy. The system has done nothing wrong — it optimized exactly what you asked. The error was in the definition. The correct approach: keep *Happiness* as the metric (self-reported), and create a task — *"Will increasing dopamine improve my subjective happiness?"* — evaluated via conditional prediction markets before committing.
 
-**Tasks** are hypothesis tests. Any time you are uncertain whether an action will improve a metric, that uncertainty belongs in a task, not in the metric definition. Conditional markets answer the question "what would Utility look like if this task were completed?" and the crowd's money resolves the uncertainty.
+**Tasks** are hypothesis tests. Any time you are uncertain whether an action will improve a metric, that uncertainty belongs in a task, not in the metric definition. Conditional markets answer the question "what would Utility look like if this task were completed?" and the crowd's money resolves the uncertainty. This extends to metric structure itself: an agent can propose a task such as *"Create a new metric X and evaluate its relationship to Utility"*, letting the market judge whether adding that measurement will produce useful signal before the admin commits to a structural change.
 
 ## Multi-workspace and domain metrics
 
