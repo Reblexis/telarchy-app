@@ -219,6 +219,8 @@ export async function refreshRelativeDateMarkets(workspaceId = 'default'): Promi
   for (const doc of toVoid) await voidMarket(doc, workspaceId);
   const deduplicated = toVoid.length;
 
-  await lockRef.set({ locked: false });
+  // Keep the lock held for 5 minutes as a cooldown so that on-demand calls from
+  // GET /markets don't trigger a full Firestore scan on every request.
+  await lockRef.set({ locked: true, expiresAt: Date.now() + 5 * 60 * 1000 });
   return { created, deactivated, deduplicated };
 }

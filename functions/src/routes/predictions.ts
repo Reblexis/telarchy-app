@@ -228,6 +228,11 @@ predictionsRouter.get('/markets', requireRole('agent', 'admin'), wrap(async (req
         await taskRef.update({ conditionalMarketIds: marketIds });
       }
     }
+  } else {
+    // Ensure all TP-implied markets exist before returning. refreshRelativeDateMarkets
+    // uses a Firestore lock with a 5-minute cooldown so this is a cheap no-op for most
+    // requests; only the first call after the cooldown does real work.
+    await refreshRelativeDateMarkets(workspaceId);
   }
   const active = req.query.active === 'true' ? true : req.query.active === 'false' ? false : undefined;
   const minLiquidity = typeof req.query.minLiquidity === 'string' ? parseFloat(req.query.minLiquidity) : undefined;
