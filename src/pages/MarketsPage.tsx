@@ -21,7 +21,6 @@ export function MarketsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [resolveResult, setResolveResult] = useState('');
-  const [refreshResult, setRefreshResult] = useState('');
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const [, setTick] = useState(0);
   useEffect(() => { const id = setInterval(() => setTick(t => t + 1), 60000); return () => clearInterval(id); }, []);
@@ -31,8 +30,6 @@ export function MarketsPage() {
   const [showInactive, setShowInactive] = useState(false);
   const [bulkLiqAmount, setBulkLiqAmount] = useState('');
   const [bulkLiqResult, setBulkLiqResult] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
-
   const filteredMarkets = useMemo(() => {
     let result = showInactive ? markets : markets.filter(m => m.active);
     if (filterText) {
@@ -111,13 +108,6 @@ export function MarketsPage() {
     if (result?.resolved) { setResolveResult(`Market resolved. Total payout: $${result.totalPayout}.`); load(); }
   };
 
-  const handleResolve = async () => {
-    if (!user) return;
-    setResolveResult('');
-    const result = await api.resolvePredictions(user).catch((e: Error) => { setError(e.message); return null; });
-    if (result) { setResolveResult(`Resolved ${result.resolved} markets. Total payout: $${result.totalPayout}.`); load(); }
-  };
-
   const handleBulkLiquidity = async () => {
     if (!user) return;
     const a = parseFloat(bulkLiqAmount);
@@ -132,22 +122,6 @@ export function MarketsPage() {
     }
   };
 
-  const handleRefresh = async () => {
-    if (!user || refreshing) return;
-    setRefreshResult('');
-    setRefreshing(true);
-    const result = await api.refreshMarkets(user, inspectTask?.id).catch((e: Error) => { setError(e.message); return null; });
-    setRefreshing(false);
-    if (result) {
-      const parts = [];
-      if (result.created > 0) parts.push(`${result.created} created`);
-      if (result.deactivated > 0) parts.push(`${result.deactivated} deactivated`);
-      if (result.deduplicated > 0) parts.push(`${result.deduplicated} deduplicated`);
-      setRefreshResult(parts.length > 0 ? `Markets refreshed: ${parts.join(', ')}.` : 'Markets up to date.');
-      load();
-    }
-  };
-
   if (!user) return null;
 
   const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
@@ -158,13 +132,10 @@ export function MarketsPage() {
         {isAdmin && (
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
             <HookStatus />
-            <button className="btn" onClick={handleRefresh} disabled={refreshing}>{refreshing ? 'Refreshing…' : 'Refresh Markets'}</button>
-            <button className="btn" onClick={handleResolve}>Resolve Markets</button>
           </div>
         )}
         {error && <div className="message error show">{error}</div>}
         {resolveResult && <div className="message success show">{resolveResult}</div>}
-        {refreshResult && <div className="message success show">{refreshResult}</div>}
         {bulkLiqResult && <div className="message success show">{bulkLiqResult}</div>}
 
         {isAdmin && (
