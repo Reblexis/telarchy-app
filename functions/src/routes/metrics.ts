@@ -153,7 +153,9 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
     }
   });
 
-  res.json({ ok: true });
+  const [updated] = await db.select().from(metrics)
+    .where(and(eq(metrics.id, id), eq(metrics.workspaceId, workspaceId)));
+  res.json(updated);
 
   const effectiveHalfLife = newTP?.halfLife ?? oldTP?.halfLife ?? 1;
 

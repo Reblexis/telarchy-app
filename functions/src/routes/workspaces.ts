@@ -9,8 +9,10 @@ import { requireRole, requireIdentity } from '../middleware/roles';
 export const workspacesRouter = Router();
 
 workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
-  const { uid, agentId } = req.auth!;
-  const identity = uid ?? agentId!;
+  const { uid, agentId, role } = req.auth!;
+  // Master API key (role=admin, no uid/agentId) gets a synthetic identity.
+  const identity = uid ?? agentId ?? (role === 'admin' ? 'admin' : undefined);
+  if (!identity) { res.status(403).json({ error: 'Identity required to create a workspace' }); return; }
 
   const { name } = req.body;
   if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -29,12 +31,16 @@ workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
       visibility: 'private',
     });
 
-    await tx.insert(userWorkspaces).values({
-      userId: identity,
-      workspaceId: wsId,
-      role: 'owner',
-      joinedAt: now,
-    });
+    // Only insert a user_workspaces row when the creator is a real BetterAuth user.
+    // Master API key (uid=undefined) has no authUser row and cannot be a member.
+    if (uid) {
+      await tx.insert(userWorkspaces).values({
+        userId: uid,
+        workspaceId: wsId,
+        role: 'owner',
+        joinedAt: now,
+      });
+    }
 
     // Bootstrap Public and Admin permission groups
     await tx.insert(permissionGroups).values([
@@ -59,12 +65,17 @@ workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
 }));
 
 workspacesRouter.get('/', requireIdentity, wrap(async (req, res) => {
-  const { uid, agentId } = req.auth!;
+  const { uid, agentId, role } = req.auth!;
 
+  // Master API key or platform admin via session — return all workspaces.
   if (!uid && !agentId) {
-    // Master API key — return all workspaces
     const all = await db.select().from(workspaces);
     res.json(all); return;
+  }
+
+  if (role === 'admin') {
+    const all = await db.select().from(workspaces);
+    res.json(all.map(ws => ({ ...ws, memberRole: 'owner' }))); return;
   }
 
   const identity = uid ?? agentId!;

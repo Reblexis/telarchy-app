@@ -1,7 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
-import { authMiddleware } from './middleware/auth';
+import { authMiddleware, optionalAuthMiddleware } from './middleware/auth';
 import { requireRole } from './middleware/roles';
 import { metricsRouter } from './routes/metrics';
 import { updatesRouter } from './routes/updates';
@@ -76,7 +76,13 @@ const registrationLimiter = rateLimit({
 
 app.use(globalLimiter);
 
-// BetterAuth handles its own paths (/api/auth/sign-in, /sign-up, /sign-out, etc.).
+// Our custom /api/auth/* routes (me, profile, export, delete) must be registered
+// BEFORE the BetterAuth handler, which never calls next(). optionalAuthMiddleware
+// resolves sessions without rejecting unauthenticated requests, so BetterAuth's
+// own sign-in/sign-up/sign-out paths still flow through when the router has no match.
+app.use('/api/auth', optionalAuthMiddleware, userauthRouter);
+
+// BetterAuth handles remaining /api/auth/* paths (sign-in, sign-up, session, callback…).
 // Must be mounted on a path prefix — toNodeHandler() does not call next(), so
 // mounting it globally would swallow all other routes with a 404.
 app.all('/api/auth/*', toNodeHandler(auth));
@@ -189,7 +195,6 @@ app.use('/api/metrics', metricsRouter);
 app.use('/api/updates', requireRole('admin'), updatesRouter);
 app.use('/api/workspaces', workspacesRouter);
 app.use('/api/groups', groupsRouter);
-app.use('/api/auth', userauthRouter);
 app.use('/api', systemRouter);
 
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { authClient } from '../lib/auth-client';
 import { clearCache, clearSessionCache } from '../lib/cache';
 
@@ -11,9 +11,16 @@ export interface AppUser {
 export function useAuth() {
   const { data: session, isPending } = authClient.useSession();
 
-  const user: AppUser | null = session?.user
-    ? { id: session.user.id, email: session.user.email, name: session.user.name }
-    : null;
+  // Memoize so the object reference is stable across renders.
+  // Without this, every render creates a new object, causing useCallback/useEffect
+  // deps that include `user` to fire on every render → infinite API call loops.
+  const user: AppUser | null = useMemo(
+    () => session?.user
+      ? { id: session.user.id, email: session.user.email, name: session.user.name }
+      : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [session?.user?.id, session?.user?.email, session?.user?.name],
+  );
 
   const prevUidRef = useRef<string | null>(null);
   useEffect(() => {

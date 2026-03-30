@@ -1,6 +1,6 @@
 import { db } from '../db/client';
-import { agents, markets, positions, tasks } from '../db/schema';
-import { eq, and, inArray, sql, asc } from 'drizzle-orm';
+import { agents, markets, positions, tasks, trades } from '../db/schema';
+import { eq, and, inArray, sql, asc, count } from 'drizzle-orm';
 import { getAllMetrics, buildConsensusMap } from './metrics';
 import { voidMarket, distributeLPLeftover } from './markets';
 import { toUnits } from '../lib/validation';
@@ -163,18 +163,38 @@ export async function getMarkets(options: GetMarketsOptions | boolean = false, t
     rows = rows.slice(0, opts.limit);
   }
 
+  // Batch-count trades per market to avoid N+1 queries.
+  const marketIds = rows.map(m => m.id);
+  const tradeCounts = marketIds.length
+    ? await db.select({ marketId: trades.marketId, count: count() })
+        .from(trades)
+        .where(inArray(trades.marketId, marketIds))
+        .groupBy(trades.marketId)
+    : [];
+  const tradeCountMap: Record<string, number> = {};
+  for (const r of tradeCounts) tradeCountMap[r.marketId] = Number(r.count);
+
   return rows.map(m => {
     const shares = (m.shares as [number, number]) || [0, 0];
     return {
       id: m.id,
+      metricId: m.metricId,
       metricName: m.metricName,
       targetDate: m.targetDate,
       active: m.active !== false,
+      resolved: m.resolved,
+      resolvedAt: m.resolvedAt ?? null,
+      actualValue: m.actualValue ?? null,
+      voided: m.voided,
+      createdAt: m.createdAt,
+      taskId: m.taskId ?? undefined,
       consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
       probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
       rangeMin: m.rangeMin,
       rangeMax: m.rangeMax,
       liquidity: m.liquidity,
+      totalStake: m.liquidity,
+      tradeCount: tradeCountMap[m.id] ?? 0,
     };
   });
 }

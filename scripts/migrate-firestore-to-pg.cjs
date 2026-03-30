@@ -212,7 +212,8 @@ async function migrateAgents() {
       id: doc.id,
       apiKeyHash: keyHash,
       role: d.role ?? 'agent',
-      balance: toUnits(d.balance ?? 0),
+      // Firestore already stores balances as integer nanocredits; copy directly.
+      balance: d.balance ?? 0,
       earnedBetting: d.earnedBetting ?? 0,
       spentBetting: d.spentBetting ?? 0,
       spentTokens: d.spentTokens ?? 0,
