@@ -27,14 +27,11 @@ import { AppError } from './lib/errors';
 // The production app always includes the Telarchy domains.
 const ALLOWED_ORIGIN_EXACT = [
   process.env.ALLOWED_ORIGIN,
-  'https://telarchy-e0043.web.app',
-  'https://telarchy-e0043.firebaseapp.com',
   'https://telarchy.com',
   'https://www.telarchy.com',
 ].filter(Boolean) as string[];
 
 const ALLOWED_ORIGIN_PATTERNS = [
-  /^https:\/\/telarchy-e0043(--.+)?\.web\.app$/,
   /^http:\/\/localhost(:\d+)?$/,
 ];
 
