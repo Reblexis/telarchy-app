@@ -23,12 +23,12 @@
 
 import path from 'path';
 import fs from 'fs';
+import express from 'express';
 
 import('./app').then(({ app }) => {
   // Serve frontend static files when bundled in self-hosted mode
-  const publicDir = path.join(__dirname, '..', 'public');
+  const publicDir = path.join(__dirname, 'public');
   if (fs.existsSync(publicDir)) {
-    const { default: express } = require('express');
     app.use(express.static(publicDir));
     // SPA fallback — serve index.html for all non-API routes
     app.get('*', (req, res) => {

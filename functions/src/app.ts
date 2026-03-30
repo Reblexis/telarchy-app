@@ -76,9 +76,10 @@ const registrationLimiter = rateLimit({
 
 app.use(globalLimiter);
 
-// BetterAuth handles its own paths (/api/auth/sign-in, /sign-up, /sign-out, etc.)
-// and calls next() for unknown paths.
-app.use(toNodeHandler(auth));
+// BetterAuth handles its own paths (/api/auth/sign-in, /sign-up, /sign-out, etc.).
+// Must be mounted on a path prefix — toNodeHandler() does not call next(), so
+// mounting it globally would swallow all other routes with a 404.
+app.all('/api/auth/*', toNodeHandler(auth));
 
 app.use('/api/guides', guidesRouter);
 
@@ -182,7 +183,7 @@ app.use('/api/events', eventsRouter);
 app.use('/api/tasks', tasksRouter);
 app.use('/api/marketplace', marketplaceRouter);
 
-app.use(authMiddleware);
+app.use('/api', authMiddleware);
 
 app.use('/api/metrics', metricsRouter);
 app.use('/api/updates', requireRole('admin'), updatesRouter);

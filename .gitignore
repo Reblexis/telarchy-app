@@ -32,3 +32,5 @@ personal-webpage/
 .firebase/
 functions/.env
 functions/.env.local
+/home/cihalvi/src/metrics-tracker/.env
+.env
