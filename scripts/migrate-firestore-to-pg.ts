@@ -1,21 +1,26 @@
 /**
  * Firestore → PostgreSQL migration script.
  *
- * Reads all data from a Firestore project and inserts it into a PostgreSQL
- * database (already migrated via `npm run db:migrate` in functions/).
+ * Reads workspace data from a Firestore project and inserts it into a
+ * PostgreSQL database that has been migrated via `npm run db:migrate`.
+ *
+ * This script migrates workspace DATA only (metrics, markets, agents, etc.).
+ * User authentication records are NOT migrated — users must sign up fresh
+ * via BetterAuth. After running this script, add yourself as workspace owner
+ * using the instructions printed at the end.
  *
  * Prerequisites:
  *   1. Run `npm run db:migrate` in functions/ to create the schema.
- *   2. Set GOOGLE_APPLICATION_CREDENTIALS to a service account JSON with
- *      Firestore read access (roles/datastore.viewer or higher).
- *   3. Set FIRESTORE_PROJECT_ID to the source Firebase project ID.
+ *   2. Set GOOGLE_APPLICATION_CREDENTIALS to a Firebase service account JSON
+ *      with Firestore read access (roles/datastore.viewer or higher).
+ *      Download from: Firebase Console → Project Settings → Service Accounts.
+ *   3. Set FIRESTORE_PROJECT_ID to the source Firebase project ID (e.g. vcihal).
  *   4. Set DATABASE_URL to the target PostgreSQL connection string.
  *
- * Usage:
- *   cd functions
- *   FIRESTORE_PROJECT_ID=my-project \
- *   DATABASE_URL=postgres://... \
- *   GOOGLE_APPLICATION_CREDENTIALS=/path/to/sa.json \
+ * Usage (run from the functions/ directory):
+ *   FIRESTORE_PROJECT_ID=vcihal \
+ *   DATABASE_URL=postgres://telarchy:changeme@localhost:5432/telarchy \
+ *   GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json \
  *   npx ts-node ../scripts/migrate-firestore-to-pg.ts
  */
 
@@ -23,7 +28,6 @@ import * as admin from 'firebase-admin';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from '../functions/src/db/schema';
-import { randomUUID } from 'crypto';
 import { toUnits } from '../functions/src/lib/validation';
 
 const projectId = process.env.FIRESTORE_PROJECT_ID;
@@ -38,33 +42,46 @@ const firestore = admin.firestore();
 const pool = new Pool({ connectionString: databaseUrl });
 const db = drizzle(pool, { schema });
 
-function toDate(v: admin.firestore.Timestamp | null | undefined): Date {
+type Timestamp = admin.firestore.Timestamp;
+
+function toDate(v: Timestamp | null | undefined): Date {
   if (!v) return new Date();
   return v.toDate();
 }
 
-async function migrateWorkspace(workspaceId: string) {
-  console.log(`\nMigrating workspace: ${workspaceId}`);
-
-  const wsDoc = await firestore.collection('workspaces').doc(workspaceId).get();
-  if (!wsDoc.exists) {
-    console.warn(`  Workspace doc not found: ${workspaceId}`);
-    return;
+/** Convert Firestore shares field to [lower, higher] tuple. */
+function toSharesTuple(shares: unknown): [number, number] {
+  if (Array.isArray(shares) && shares.length === 2) {
+    return [Number(shares[0]) || 0, Number(shares[1]) || 0];
   }
-  const wsData = wsDoc.data()!;
+  if (shares && typeof shares === 'object') {
+    const s = shares as Record<string, number>;
+    return [Number(s.lower ?? s[0]) || 0, Number(s.higher ?? s[1]) || 0];
+  }
+  return [0, 0];
+}
 
-  // Upsert workspace row
+/** Get collection reference — handles both default (top-level) and other workspaces. */
+function wsCollection(workspaceId: string, collName: string) {
+  return workspaceId === 'default'
+    ? firestore.collection(collName)
+    : firestore.collection(`workspaces/${workspaceId}/${collName}`);
+}
+
+async function migrateWorkspace(workspaceId: string, workspaceName: string, createdBy: string) {
+  console.log(`\nMigrating workspace: ${workspaceId} (${workspaceName})`);
+
   await db.insert(schema.workspaces).values({
     id: workspaceId,
-    name: wsData.name ?? workspaceId,
-    visibility: wsData.visibility ?? 'private',
-    customApiUrl: wsData.customApiUrl ?? null,
-    createdAt: toDate(wsData.createdAt),
+    name: workspaceName,
+    visibility: 'private',
+    createdBy,
+    createdAt: new Date(),
   }).onConflictDoNothing();
-  console.log(`  ✓ workspace`);
+  console.log(`  ✓ workspace row`);
 
   // Metrics
-  const metricsSnap = await firestore.collection(`workspaces/${workspaceId}/metrics`).get();
+  const metricsSnap = await wsCollection(workspaceId, 'metrics').get();
   for (const doc of metricsSnap.docs) {
     const d = doc.data();
     await db.insert(schema.metrics).values({
@@ -75,19 +92,21 @@ async function migrateWorkspace(workspaceId: string) {
       value: d.value ?? 0,
       formula: d.formula ?? '0',
       order: d.order ?? 0,
-      depth: d.depth ?? 0,
       timePreference: d.timePreference ?? null,
-      marketRangeMax: d.marketRangeMax ?? 1000,
+      marketRangeMax: d.marketRangeMax ?? null,
       createdAt: toDate(d.createdAt),
-      updatedAt: toDate(d.updatedAt),
+      updatedAt: toDate(d.updatedAt ?? d.createdAt),
     }).onConflictDoNothing();
   }
   console.log(`  ✓ ${metricsSnap.size} metrics`);
 
   // Markets
-  const marketsSnap = await firestore.collection(`workspaces/${workspaceId}/markets`).get();
+  const marketsSnap = await wsCollection(workspaceId, 'markets').get();
   for (const doc of marketsSnap.docs) {
     const d = doc.data();
+    const liquidity = d.liquidity ?? 0;
+    // Old AMM stored pool separately; fall back to liquidity as the b parameter
+    const pool = d.pool ?? liquidity;
     await db.insert(schema.markets).values({
       id: doc.id,
       workspaceId,
@@ -98,12 +117,12 @@ async function migrateWorkspace(workspaceId: string) {
       resolvedAt: d.resolvedAt ? toDate(d.resolvedAt) : null,
       actualValue: d.actualValue ?? null,
       active: d.active ?? true,
+      voided: d.voided ?? false,
       rangeMin: d.rangeMin ?? 0,
       rangeMax: d.rangeMax ?? 1000,
-      liquidity: d.liquidity ?? 0,
-      shares: d.shares ?? { higher: 0, lower: 0 },
-      totalStake: d.totalStake ?? 0,
-      tradeCount: d.tradeCount ?? 0,
+      shares: toSharesTuple(d.shares),
+      liquidity,
+      pool,
       taskId: d.taskId ?? null,
       createdAt: toDate(d.createdAt),
     }).onConflictDoNothing();
@@ -111,7 +130,7 @@ async function migrateWorkspace(workspaceId: string) {
   console.log(`  ✓ ${marketsSnap.size} markets`);
 
   // Positions
-  const positionsSnap = await firestore.collection(`workspaces/${workspaceId}/positions`).get();
+  const positionsSnap = await wsCollection(workspaceId, 'positions').get();
   for (const doc of positionsSnap.docs) {
     const d = doc.data();
     await db.insert(schema.positions).values({
@@ -122,14 +141,12 @@ async function migrateWorkspace(workspaceId: string) {
       direction: d.direction ?? 'higher',
       shares: d.shares ?? 0,
       totalCost: d.totalCost ?? 0,
-      createdAt: toDate(d.createdAt),
-      updatedAt: toDate(d.updatedAt),
     }).onConflictDoNothing();
   }
   console.log(`  ✓ ${positionsSnap.size} positions`);
 
   // Trades
-  const tradesSnap = await firestore.collection(`workspaces/${workspaceId}/trades`).get();
+  const tradesSnap = await wsCollection(workspaceId, 'trades').get();
   for (const doc of tradesSnap.docs) {
     const d = doc.data();
     await db.insert(schema.trades).values({
@@ -140,14 +157,13 @@ async function migrateWorkspace(workspaceId: string) {
       direction: d.direction ?? 'higher',
       shares: d.shares ?? 0,
       cost: d.cost ?? 0,
-      consensus: d.consensus ?? null,
       createdAt: toDate(d.createdAt),
     }).onConflictDoNothing();
   }
   console.log(`  ✓ ${tradesSnap.size} trades`);
 
   // Tasks
-  const tasksSnap = await firestore.collection(`workspaces/${workspaceId}/tasks`).get();
+  const tasksSnap = await wsCollection(workspaceId, 'tasks').get();
   for (const doc of tasksSnap.docs) {
     const d = doc.data();
     await db.insert(schema.tasks).values({
@@ -164,8 +180,8 @@ async function migrateWorkspace(workspaceId: string) {
   }
   console.log(`  ✓ ${tasksSnap.size} tasks`);
 
-  // Updates (metric update log)
-  const updatesSnap = await firestore.collection(`workspaces/${workspaceId}/updates`).get();
+  // Updates (metric change log)
+  const updatesSnap = await wsCollection(workspaceId, 'updates').get();
   for (const doc of updatesSnap.docs) {
     const d = doc.data();
     await db.insert(schema.updates).values({
@@ -181,7 +197,7 @@ async function migrateWorkspace(workspaceId: string) {
   console.log(`  ✓ ${updatesSnap.size} updates`);
 
   // Permission groups
-  const groupsSnap = await firestore.collection(`workspaces/${workspaceId}/permissionGroups`).get();
+  const groupsSnap = await wsCollection(workspaceId, 'permissionGroups').get();
   for (const doc of groupsSnap.docs) {
     const d = doc.data();
     await db.insert(schema.permissionGroups).values({
@@ -202,61 +218,41 @@ async function migrateWorkspace(workspaceId: string) {
 async function migrateAgents() {
   console.log('\nMigrating agents...');
   const snap = await firestore.collection('agents').get();
+  let migrated = 0;
   for (const doc of snap.docs) {
     const d = doc.data();
+    const keyHash = d.apiKeyHash ?? d.apiKey;
+    if (!keyHash) {
+      console.warn(`  ⚠ agent ${doc.id} has no API key hash — skipping`);
+      continue;
+    }
     await db.insert(schema.agents).values({
       id: doc.id,
-      role: d.role ?? 'pending',
+      apiKeyHash: keyHash,
+      role: d.role ?? 'agent',
+      // balance is bigint nanocredits — old Firestore stored as decimal credits
       balance: toUnits(d.balance ?? 0),
-      earnedBetting: toUnits(d.earnedBetting ?? 0),
-      earnedTasks: toUnits(d.earnedTasks ?? 0),
-      spentBetting: toUnits(d.spentBetting ?? 0),
-      spentTokens: toUnits(d.spentTokens ?? 0),
+      // These stats are doublePrecision floats — stored as raw credits
+      earnedBetting: d.earnedBetting ?? 0,
+      spentBetting: d.spentBetting ?? 0,
+      spentTokens: d.spentTokens ?? 0,
+      earnedTasks: d.earnedTasks ?? 0,
       walletAddress: d.walletAddress ?? null,
+      withdrawnUsdc: d.withdrawnUsdc ?? 0,
+      ownerUid: d.ownerUid ?? null,
+      createdAt: toDate(d.createdAt),
       approvedAt: d.approvedAt ? toDate(d.approvedAt) : null,
-      createdAt: toDate(d.createdAt),
-      updatedAt: toDate(d.updatedAt),
     }).onConflictDoNothing();
 
-    // Agent API keys (apiKey in Firestore was already the hash)
-    if (d.apiKeyHash ?? d.apiKey) {
-      await db.insert(schema.agentApiKeys).values({
-        hash: d.apiKeyHash ?? d.apiKey,
-        agentId: doc.id,
-        workspaceId: 'default',
-      }).onConflictDoNothing();
-    }
-  }
-  console.log(`  ✓ ${snap.size} agents`);
-}
-
-async function migrateUsers() {
-  console.log('\nMigrating app users...');
-  const snap = await firestore.collection('users').get();
-  for (const doc of snap.docs) {
-    const d = doc.data();
-    // Note: BetterAuth's authUser table must be populated separately via
-    // Firebase Auth export + import. This migrates the app-level profile only.
-    await db.insert(schema.appUsers).values({
-      userId: doc.id,
-      email: d.email ?? null,
-      intent: d.intent ?? null,
-      agentId: d.agentId ?? null,
-      authRole: d.role ?? 'pending',
-      createdAt: toDate(d.createdAt),
-      updatedAt: toDate(d.updatedAt),
+    await db.insert(schema.agentApiKeys).values({
+      hash: keyHash,
+      agentId: doc.id,
+      workspaceId: 'default',
     }).onConflictDoNothing();
 
-    // User workspaces
-    if (d.workspaceId) {
-      await db.insert(schema.userWorkspaces).values({
-        userId: doc.id,
-        workspaceId: d.workspaceId,
-        memberRole: d.memberRole ?? 'owner',
-      }).onConflictDoNothing();
-    }
+    migrated++;
   }
-  console.log(`  ✓ ${snap.size} users`);
+  console.log(`  ✓ ${migrated} agents`);
 }
 
 async function main() {
@@ -264,22 +260,46 @@ async function main() {
   console.log(`Target: ${databaseUrl!.replace(/:[^:@]+@/, ':***@')}\n`);
 
   await migrateAgents();
-  await migrateUsers();
 
-  // Get all workspaces
+  // Discover non-default workspaces
   const wsSnap = await firestore.collection('workspaces').get();
-  const wsIds = wsSnap.docs.map(d => d.id);
-  console.log(`\nFound ${wsIds.length} workspaces to migrate`);
+  const nonDefaultWorkspaces = wsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-  for (const wsId of wsIds) {
-    await migrateWorkspace(wsId);
+  // Always migrate the default workspace (top-level collections)
+  const defaultMetrics = await firestore.collection('metrics').get();
+  const hasDefaultData = defaultMetrics.size > 0;
+
+  const PLACEHOLDER_CREATOR = 'migrated';
+
+  if (hasDefaultData) {
+    await migrateWorkspace('default', 'Default', PLACEHOLDER_CREATOR);
   }
 
-  console.log('\n✓ Migration complete');
+  console.log(`\nFound ${nonDefaultWorkspaces.length} additional workspaces`);
+  for (const ws of nonDefaultWorkspaces) {
+    await migrateWorkspace(ws.id, (ws as Record<string, string>).name ?? ws.id, PLACEHOLDER_CREATOR);
+  }
+
+  console.log('\n✓ Migration complete!');
+  console.log('\n─────────────────────────────────────────────────────────────────');
+  console.log('NEXT STEPS:');
+  console.log('1. Start your Telarchy server (docker-compose up or node lib/server.js)');
+  console.log('2. Sign up at http://localhost:8080/signup with your email');
+  console.log('3. Get your user ID from the account page or the /api/auth/me endpoint');
+  console.log('4. Add yourself as workspace owner using the master API key:');
+  console.log('');
+  console.log('   curl -s -X POST http://localhost:8080/api/workspaces/default/members \\');
+  console.log('     -H "X-API-Key: $API_KEY" -H "X-Workspace-Id: default" \\');
+  console.log('     -H "Content-Type: application/json" \\');
+  console.log('     -d \'{"userId":"<YOUR_USER_ID>","role":"owner"}\'');
+  console.log('');
+  console.log('   (Repeat for each workspace you want to own)');
+  console.log('─────────────────────────────────────────────────────────────────');
+
   await pool.end();
 }
 
 main().catch(err => {
-  console.error('Migration failed:', err);
+  console.error('\nMigration failed:', err);
   process.exit(1);
 });

@@ -137,3 +137,42 @@ workspacesRouter.put('/:id/settings', requireRole('admin'), wrap(async (req, res
 workspacesRouter.post('/:id/join', requireIdentity, wrap(async (_req, res) => {
   res.status(403).json({ error: 'This workspace is invite-only. Add members via permission groups.' });
 }));
+
+/**
+ * POST /api/workspaces/:id/members
+ * Admin-only: add a user to a workspace with a specified role.
+ * Requires master API key or workspace owner/admin session.
+ * Body: { userId: string, role: 'owner'|'admin'|'trader'|'viewer' }
+ */
+workspacesRouter.post('/:id/members', requireRole('admin'), wrap(async (req, res) => {
+  const { uid, agentId } = req.auth!;
+  const wsId = req.params.id as string;
+
+  const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, wsId));
+  if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
+
+  // If not using master key, require workspace-level owner/admin
+  const identity = uid ?? agentId;
+  if (identity) {
+    const [membership] = await db.select().from(userWorkspaces)
+      .where(and(eq(userWorkspaces.userId, identity), eq(userWorkspaces.workspaceId, wsId)));
+    if (!membership || !['owner', 'admin'].includes(membership.role)) {
+      res.status(403).json({ error: 'Only workspace owner or admin can add members' }); return;
+    }
+  }
+
+  const { userId, role } = req.body;
+  if (!userId || typeof userId !== 'string') {
+    res.status(400).json({ error: 'userId is required' }); return;
+  }
+  const validRoles = ['owner', 'admin', 'trader', 'viewer'];
+  if (!role || !validRoles.includes(role)) {
+    res.status(400).json({ error: `role must be one of: ${validRoles.join(', ')}` }); return;
+  }
+
+  await db.insert(userWorkspaces)
+    .values({ userId, workspaceId: wsId, role, joinedAt: new Date() })
+    .onConflictDoUpdate({ target: [userWorkspaces.userId, userWorkspaces.workspaceId], set: { role } });
+
+  res.status(201).json({ ok: true, workspaceId: wsId, userId, role });
+}));
