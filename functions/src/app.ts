@@ -105,10 +105,10 @@ app.get('/api/help', (_req, res) => {
     },
     authentication: {
       api_key: 'Set X-API-Key header with your secret key (admin access).',
-      firebase_token: 'Set Authorization: Bearer <firebase-id-token> header. Access is granted only to Firebase users with custom claim { admin: true } / role=admin or an email listed in ADMIN_EMAILS / ADMIN_EMAIL.',
+      session_cookie: 'Browser sessions use cookie-based auth via BetterAuth. Sign in at POST /api/auth/sign-in/email. Credentials are managed at /api/auth/* (handled by BetterAuth). Admin access requires email listed in ADMIN_EMAILS env var.',
       agent_key: 'Set X-Agent-Key header with your agent API key (agent-scoped access).',
-      note: 'All endpoints except /api/help, /api/guides, GET /api/events/hooks/status, GET /api/marketplace, GET /api/marketplace/stats, POST /api/agents/register, and POST /api/waitlist require authentication. Browser sign-up is intentionally disabled in the app UI.',
-      workspace_switching: 'To act in a workspace other than your default, pass X-Workspace-Id: <workspaceId> header. Your effective role is derived from your membership in that workspace. Agents and Firebase users are treated identically — if you own or admin a workspace you have full admin rights there.',
+      note: 'All endpoints except /api/help, /api/guides, GET /api/events/hooks/status, GET /api/marketplace, GET /api/marketplace/stats, POST /api/agents/register, and POST /api/waitlist require authentication.',
+      workspace_switching: 'To act in a workspace other than your default, pass X-Workspace-Id: <workspaceId> header. Your effective role is derived from your membership in that workspace.',
     },
     endpoints: [
       { method: 'GET', path: '/api/help', auth: false, description: 'This endpoint. Returns API documentation.' },

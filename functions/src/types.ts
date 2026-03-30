@@ -44,10 +44,10 @@ export interface Agent {
   earnedTasks?: number;
   spentBetting: number;
   spentTokens: number;
-  walletAddress?: string;   // Base network USDC withdrawal address (checksummed)
-  withdrawnUsdc?: number;   // total USDC withdrawn on-chain
-  createdAt: FirebaseFirestore.Timestamp;
-  approvedAt: FirebaseFirestore.Timestamp | null;
+  walletAddress?: string;
+  withdrawnUsdc?: number;
+  createdAt: Date;
+  approvedAt: Date | null;
 }
 
 export interface Withdrawal {
@@ -57,7 +57,7 @@ export interface Withdrawal {
   usdcAmount: number;
   toAddress: string;
   txHash: string;
-  createdAt: FirebaseFirestore.Timestamp;
+  createdAt: Date;
 }
 
 export interface Market {
@@ -66,12 +66,12 @@ export interface Market {
   metricName: string;
   targetDate: string;
   resolved: boolean;
-  resolvedAt: FirebaseFirestore.Timestamp | null;
+  resolvedAt: Date | null;
   actualValue: number | null;
-  createdAt: FirebaseFirestore.Timestamp;
+  createdAt: Date;
   rangeMin: number;
   rangeMax: number;
-  shares: [number, number]; // [lowerShares, higherShares]
+  shares: [number, number];
   liquidity: number;
   taskId?: string;
 }
@@ -86,7 +86,7 @@ export interface TaskProposal {
   price: number;
   status: TaskStatus;
   conditionalMarketIds: string[];
-  createdAt: FirebaseFirestore.Timestamp;
+  createdAt: Date;
 }
 
 export interface TaskMessage {
@@ -94,7 +94,7 @@ export interface TaskMessage {
   taskId: string;
   from: string;
   content: string;
-  createdAt: FirebaseFirestore.Timestamp;
+  createdAt: Date;
 }
 
 export interface Position {
@@ -113,23 +113,7 @@ export interface Trade {
   direction: 'higher' | 'lower';
   shares: number;
   cost: number;
-  createdAt: FirebaseFirestore.Timestamp;
-}
-
-/** @deprecated Kept for migration; new system uses Position + Trade */
-export interface Prediction {
-  id: string;
-  agentId: string;
-  metricId: string;
-  metricName: string;
-  targetDate: string;
-  predictedValue: number;
-  stake: number;
-  createdAt: FirebaseFirestore.Timestamp;
-  resolved: boolean;
-  resolvedAt: FirebaseFirestore.Timestamp | null;
-  actualValue: number | null;
-  payout: number | null;
+  createdAt: Date;
 }
 
 export interface AuthInfo {
@@ -148,24 +132,21 @@ export interface Workspace {
   id: string;
   name: string;
   createdBy: string;
-  createdAt: FirebaseFirestore.Timestamp;
+  createdAt: Date;
   visibility: WorkspaceVisibility;
-  /** Running total of credits spent on buy trades in this workspace. */
   tradedVolume?: number;
-  /** If set, the frontend routes all workspace-scoped data requests to this URL instead of the central API. */
   customApiUrl?: string;
 }
 
 export interface WorkspaceMember {
   role: WorkspaceMemberRole;
-  joinedAt: FirebaseFirestore.Timestamp;
+  joinedAt: Date;
 }
 
 export interface UserProfile {
   uid: string;
   email: string;
-  createdAt: FirebaseFirestore.Timestamp;
-  /** Map of workspaceId → membership info */
+  createdAt: Date;
   workspaces: Record<string, WorkspaceMember>;
 }
 

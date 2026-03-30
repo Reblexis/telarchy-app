@@ -62,6 +62,8 @@ async function resolveUser(
   const memberships = await db.select().from(userWorkspaces).where(eq(userWorkspaces.userId, userId));
 
   if (memberships.length === 0) {
+    // User belongs to no workspaces; deny if a specific non-default workspace was requested
+    if (requestedWorkspaceId && requestedWorkspaceId !== 'default') return null;
     return { workspaceId: 'default', memberRole: null, agentId };
   }
 

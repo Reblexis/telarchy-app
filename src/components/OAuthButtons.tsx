@@ -1,32 +1,26 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { authClient } from '../lib/auth-client';
-import { api } from '../lib/api';
-import { postLoginPath } from '../lib/postLoginPath';
 
 interface Props {
-  onSuccess: () => void;
   onError: (msg: string) => void;
 }
 
 export function OAuthButtons({ onError }: Props) {
-  const navigate = useNavigate();
   const [loading, setLoading] = useState<'google' | 'github' | null>(null);
 
   const signIn = async (provider: 'google' | 'github') => {
     setLoading(provider);
-    const { error } = await authClient.signIn.social({ provider });
+    // OAuth is a full-page redirect — the callbackURL is where the browser lands after auth.
+    // RootRedirect (at "/") handles the post-login navigation based on authRole.
+    const { error } = await authClient.signIn.social({
+      provider,
+      callbackURL: '/',
+    });
     if (error) {
       onError(error.message || `Failed to sign in with ${provider}`);
       setLoading(null);
-      return;
     }
-    // After OAuth redirect back, session is set — upsert profile then navigate
-    const result = await api.upsertProfile().catch((e: Error) => {
-      console.error('upsertProfile failed:', e.message);
-      return {};
-    }) as { authRole?: string };
-    navigate(postLoginPath(result));
+    // No code after this — the browser will have redirected to the OAuth provider.
   };
 
   const btnStyle = (disabled: boolean): React.CSSProperties => ({

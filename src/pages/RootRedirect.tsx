@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/api';
+import { postLoginPath } from '../lib/postLoginPath';
 
 export function RootRedirect() {
   const navigate = useNavigate();
@@ -18,10 +19,10 @@ export function RootRedirect() {
     setChecking(true);
     api.getProfile()
       .then((profile: { authRole?: string }) => {
-        navigate(profile.authRole === 'pending' ? '/create-workspace' : '/metrics', { replace: true });
+        navigate(postLoginPath(profile), { replace: true });
       })
       .catch(() => {
-        navigate('/create-workspace', { replace: true });
+        navigate('/start', { replace: true });
       });
   }, [user, loading, checking, navigate]);
 

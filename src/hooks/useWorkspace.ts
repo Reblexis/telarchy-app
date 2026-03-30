@@ -38,6 +38,7 @@ export function useWorkspace(authenticated: boolean = true): {
 
   useEffect(() => {
     if (!authenticated) { setWorkspace(null); setAllWorkspaces([]); setError(null); setLoading(false); return; }
+    setLoading(true);
     let cancelled = false;
 
     Promise.all([

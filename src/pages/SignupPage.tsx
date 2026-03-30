@@ -51,7 +51,7 @@ export function SignupPage() {
       <div className="container" style={{ maxWidth: 400 }}>
         <h1>Create account</h1>
 
-        <OAuthButtons onSuccess={() => {}} onError={setError} />
+        <OAuthButtons onError={setError} />
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: '1rem 0' }}>
           <div style={{ flex: 1, height: 1, background: 'var(--border-color)' }} />

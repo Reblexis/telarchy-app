@@ -171,12 +171,11 @@ async function migrateWorkspace(workspaceId: string) {
     await db.insert(schema.updates).values({
       id: doc.id,
       workspaceId,
-      metricId: d.metricId ?? '',
       metricName: d.metricName ?? '',
       oldValue: d.oldValue ?? 0,
       newValue: d.newValue ?? 0,
       description: d.description ?? '',
-      createdAt: toDate(d.timestamp ?? d.createdAt),
+      timestamp: toDate(d.timestamp ?? d.createdAt),
     }).onConflictDoNothing();
   }
   console.log(`  ✓ ${updatesSnap.size} updates`);
@@ -219,13 +218,12 @@ async function migrateAgents() {
       updatedAt: toDate(d.updatedAt),
     }).onConflictDoNothing();
 
-    // Agent API keys
-    if (d.apiKey) {
+    // Agent API keys (apiKey in Firestore was already the hash)
+    if (d.apiKeyHash ?? d.apiKey) {
       await db.insert(schema.agentApiKeys).values({
-        id: randomUUID(),
+        hash: d.apiKeyHash ?? d.apiKey,
         agentId: doc.id,
-        keyHash: d.apiKey, // NOTE: Firestore stored the raw key; hash it if needed
-        createdAt: toDate(d.createdAt),
+        workspaceId: 'default',
       }).onConflictDoNothing();
     }
   }
