@@ -50,9 +50,12 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// RATE_LIMIT_MAX env var lets self-hosters raise or disable the limit.
+// Default: 300/min (generous for single-user). Set to 0 to disable entirely.
+const rateLimitMax = parseInt(process.env.RATE_LIMIT_MAX ?? '300', 10);
 const globalLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 120,
+  max: rateLimitMax || 1_000_000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },
@@ -60,7 +63,7 @@ const globalLimiter = rateLimit({
 
 const strictLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 30,
+  max: rateLimitMax ? Math.max(Math.floor(rateLimitMax / 4), 10) : 1_000_000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },

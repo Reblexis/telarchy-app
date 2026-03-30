@@ -401,11 +401,14 @@ predictionsRouter.post('/markets/liquidity/bulk', requireRole('admin'), wrap(asy
   const marketUpdates = marketRows.map(m => {
     const oldShares = (m.shares as [number, number]) || [0, 0];
     const newLiquidity = m.liquidity + amount;
-    const newShares: [number, number] = m.liquidity > 0
+    const hasLiquidity = m.liquidity > 0;
+    const newShares: [number, number] = hasLiquidity
       ? [Math.round(oldShares[0] * newLiquidity / m.liquidity * 100) / 100, Math.round(oldShares[1] * newLiquidity / m.liquidity * 100) / 100]
       : [0, 0];
-    const oldPool = m.pool ?? 0;
-    const newPool = m.liquidity > 0
+    // When a market has no existing liquidity it is treated as fresh, so oldPool = 0
+    // regardless of any stale pool value stored in the DB (e.g. from migration).
+    const oldPool = hasLiquidity ? (m.pool ?? 0) : 0;
+    const newPool = hasLiquidity
       ? Math.round(oldPool * newLiquidity / m.liquidity * 100) / 100
       : initialPool(newLiquidity);
     const poolContribution = Math.round((newPool - oldPool) * 100) / 100;
@@ -451,11 +454,14 @@ predictionsRouter.post('/markets/:id/liquidity', requireRole('admin'), wrap(asyn
 
   const oldShares = (market.shares as [number, number]) || [0, 0];
   const newLiquidity = market.liquidity + amount;
-  const newShares: [number, number] = market.liquidity > 0
+  const hasLiquidity = market.liquidity > 0;
+  const newShares: [number, number] = hasLiquidity
     ? [Math.round(oldShares[0] * newLiquidity / market.liquidity * 100) / 100, Math.round(oldShares[1] * newLiquidity / market.liquidity * 100) / 100]
     : [0, 0];
-  const oldPool = market.pool ?? 0;
-  const newPool = market.liquidity > 0
+  // When a market has no existing liquidity it is treated as fresh, so oldPool = 0
+  // regardless of any stale pool value stored in the DB (e.g. from migration).
+  const oldPool = hasLiquidity ? (market.pool ?? 0) : 0;
+  const newPool = hasLiquidity
     ? Math.round(oldPool * newLiquidity / market.liquidity * 100) / 100
     : initialPool(newLiquidity);
   const poolContribution = Math.round((newPool - oldPool) * 100) / 100;
