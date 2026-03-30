@@ -16,6 +16,7 @@ import { userauthRouter } from './routes/userauth';
 import { marketplaceRouter } from './routes/marketplace';
 import { groupsRouter } from './routes/groups';
 import { guidesRouter } from './routes/guides';
+import { cronRouter } from './routes/cron';
 import type { Request, Response, NextFunction } from 'express';
 import { AppError } from './lib/errors';
 
@@ -168,6 +169,7 @@ app.get('/api/help', (_req, res) => {
   });
 });
 
+app.use('/api/cron', cronRouter);
 app.use('/api/waitlist', registrationLimiter, waitlistRouter);
 app.use('/api/agents', agentsRouter);
 app.use('/api/predictions/trade', strictLimiter);

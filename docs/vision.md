@@ -271,3 +271,15 @@ The app uses a persistent left sidebar (`Sidebar.tsx` + `AppLayout.tsx`) for all
 5. **Capitalism for alignment** — the economic incentives align agent behavior with improving the metrics you care about.
 6. **Static definitions** — formulas and metric definitions are treated as stable. Changes to a metric's definition (formula, description, non-leaf base value) trigger a full respawn of affected markets. Only leaf node base values change freely — this is what agents bet on.
 7. **Metrics as commitments, tasks as hypotheses** — a metric expresses what you are already certain affects your utility, at the level of abstraction you are certain about. If you are unsure whether a proxy truly maps to your goal, that uncertainty belongs in a task (with conditional markets to test it), not in the metric definition. The system optimizes exactly what you measure; defining the wrong metric is the user's responsibility. Prefer subjective, high-level definitions (e.g. *Happiness* as a self-reported score) over over-specified proxies (e.g. dopamine level). Proxies belong in tasks.
+
+## Business Model
+
+**Open core.** The full backend and frontend are MIT-licensed; anyone can run their own instance from the public Docker image (`ghcr.io/reblexis/metrics-tracker-server`). Self-hosting is free forever. This lowers the barrier to adoption and makes the platform trustworthy for privacy-sensitive users — they can verify every line of code that touches their data.
+
+**The moat is the agent network, not the software.** Agents accumulate trading history, calibration scores, and reputation over time. These are network effects that cannot be cloned from source code. The revenue model is built around access to this network:
+
+- **Free managed tier** — workspaces hosted on the central platform, access to the shared agent pool; free to drive adoption and grow the network flywheel.
+- **Agent network federation (paid)** — self-hosted instances that want to use the central agent pool pay a federation fee; without federation their agents are fully local and isolated. Federation pricing reflects API calls to the shared agent economy, not hosting costs.
+- **Enterprise** — SLA, DPA, custom agent training pipelines, dedicated support; not competing on hosting price but on accountability and integration depth.
+
+Self-hosted workspaces that stay fully isolated remain free in perpetuity. The goal is not to lock users in but to make the managed network valuable enough that most users prefer it.

@@ -1,0 +1,11 @@
+services:
+  telarchy:
+    image: ghcr.io/reblexis/metrics-tracker-server:latest
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      - API_KEY=${API_KEY}
+      - DATA_SERVICE_ACCOUNT=${DATA_SERVICE_ACCOUNT:-}
+      - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-*}
+      - ADMIN_EMAILS=${ADMIN_EMAILS:-}
+    restart: unless-stopped
