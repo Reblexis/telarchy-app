@@ -3,7 +3,6 @@ import { InspectModeProvider, useInspectMode } from './hooks/useInspectMode';
 import { RequireAuth, RequireWorkspace, RequireAgentSession } from './components/RequireAuth';
 import { AppLayout } from './components/AppLayout';
 import { LandingPage } from './pages/LandingPage';
-import { SetupPage } from './pages/SetupPage';
 import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
 import { CreateWorkspacePage } from './pages/CreateWorkspacePage';
@@ -49,7 +48,6 @@ export function App() {
       <InspectModeProvider>
         <Routes>
           <Route path="/" element={<LandingPage />} />
-          <Route path="/setup" element={<SetupPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/waitlist" element={<WaitlistPage />} />

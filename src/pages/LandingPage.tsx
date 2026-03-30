@@ -516,7 +516,7 @@ export function LandingPage() {
 
   useEffect(() => {
     if (loading || !user) return;
-    api.getProfile(user)
+    api.getProfile()
       .then((profile: { authRole?: string }) => {
         navigate(postLoginPath(profile), { replace: true });
       })

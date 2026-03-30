@@ -1,7 +1,8 @@
 import { Router } from 'express';
-import { FieldValue } from 'firebase-admin/firestore';
-import { db } from '../lib/db';
-import { wsCol } from '../lib/workspace';
+import { db } from '../db/client';
+import { agents, permissionGroups, userWorkspaces } from '../db/schema';
+import { eq, and, inArray } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { requireRole } from '../middleware/roles';
 import type { MetricPermission, PermissionGroupType } from '../types';
@@ -10,50 +11,37 @@ export const groupsRouter = Router();
 
 const SYSTEM_GROUP_TYPES: PermissionGroupType[] = ['public', 'admin'];
 
-/** Ensure the workspace has its Public and Admin system groups, creating them if absent. */
 async function ensureSystemGroups(workspaceId: string): Promise<void> {
-  const col = wsCol(workspaceId, 'permissionGroups');
-  const snap = await col.where('type', 'in', ['public', 'admin']).get();
-  const existingTypes = new Set(snap.docs.map(d => d.data().type as PermissionGroupType));
+  const existing = await db.select({ type: permissionGroups.type }).from(permissionGroups)
+    .where(and(eq(permissionGroups.workspaceId, workspaceId), inArray(permissionGroups.type, ['public', 'admin'])));
+  const existingTypes = new Set(existing.map(r => r.type));
 
-  const batch = db().batch();
+  const toInsert: typeof permissionGroups.$inferInsert[] = [];
   if (!existingTypes.has('public')) {
-    batch.set(col.doc(), {
-      name: 'Public',
-      type: 'public',
+    toInsert.push({
+      id: randomUUID(), workspaceId, name: 'Public', type: 'public',
       description: 'All agents are members of this group automatically.',
-      agentIds: [],
-      uids: [],
-      permissions: {},
-      createdAt: FieldValue.serverTimestamp(),
+      agentIds: [], uids: [], permissions: {}, createdAt: new Date(),
     });
   }
   if (!existingTypes.has('admin')) {
-    batch.set(col.doc(), {
-      name: 'Admin',
-      type: 'admin',
+    toInsert.push({
+      id: randomUUID(), workspaceId, name: 'Admin', type: 'admin',
       description: 'Agents and users with full administrative access to this workspace.',
-      agentIds: [],
-      uids: [],
-      permissions: {},
-      createdAt: FieldValue.serverTimestamp(),
+      agentIds: [], uids: [], permissions: {}, createdAt: new Date(),
     });
   }
-  if (!existingTypes.has('public') || !existingTypes.has('admin')) {
-    await batch.commit();
-  }
+  if (toInsert.length > 0) await db.insert(permissionGroups).values(toInsert);
 }
-
-// --- List groups — readable by all authenticated agents ---
 
 groupsRouter.get('/', requireRole('agent', 'admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   await ensureSystemGroups(workspaceId);
-  const snap = await wsCol(workspaceId, 'permissionGroups').orderBy('name').get();
-  res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  const rows = await db.select().from(permissionGroups)
+    .where(eq(permissionGroups.workspaceId, workspaceId))
+    .orderBy(permissionGroups.name);
+  res.json(rows);
 }));
-
-// --- Create custom group (admin only) ---
 
 groupsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
@@ -61,34 +49,31 @@ groupsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
   if (!name || typeof name !== 'string' || !name.trim()) {
     res.status(400).json({ error: 'name is required' }); return;
   }
-  const ref = await wsCol(workspaceId, 'permissionGroups').add({
-    name: name.trim(),
-    type: 'custom' as PermissionGroupType,
-    description: typeof description === 'string' ? description.trim() : '',
-    agentIds: [],
-    uids: [],
-    permissions: {},
-    createdAt: FieldValue.serverTimestamp(),
-  });
-  res.status(201).json({ id: ref.id, name: name.trim(), type: 'custom', description, agentIds: [], uids: [], permissions: {} });
-}));
 
-// --- Update group (admin only) ---
+  const id = randomUUID();
+  await db.insert(permissionGroups).values({
+    id, workspaceId,
+    name: name.trim(),
+    type: 'custom',
+    description: typeof description === 'string' ? description.trim() : '',
+    agentIds: [], uids: [], permissions: {}, createdAt: new Date(),
+  });
+  res.status(201).json({ id, name: name.trim(), type: 'custom', description, agentIds: [], uids: [], permissions: {} });
+}));
 
 groupsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const groupId = req.params.id as string;
 
-  const ref = wsCol(workspaceId, 'permissionGroups').doc(groupId);
-  const doc = await ref.get();
-  if (!doc.exists) { res.status(404).json({ error: 'Group not found' }); return; }
-  const current = doc.data()!;
+  const [group] = await db.select().from(permissionGroups)
+    .where(and(eq(permissionGroups.id, groupId), eq(permissionGroups.workspaceId, workspaceId)));
+  if (!group) { res.status(404).json({ error: 'Group not found' }); return; }
 
   const { name, description, agentIds, uids, permissions } = req.body;
-  const update: Record<string, unknown> = {};
+  const update: Partial<typeof permissionGroups.$inferInsert> = {};
 
   if (name !== undefined) {
-    if (SYSTEM_GROUP_TYPES.includes(current.type)) {
+    if (SYSTEM_GROUP_TYPES.includes(group.type as PermissionGroupType)) {
       res.status(400).json({ error: 'System groups cannot be renamed' }); return;
     }
     if (typeof name !== 'string' || !name.trim()) {
@@ -110,21 +95,22 @@ groupsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
     }
     update.agentIds = agentIds;
 
-    // Sync agent.role for admin-type groups
-    if (current.type === 'admin') {
-      const oldIds = new Set<string>(current.agentIds ?? []);
+    if (group.type === 'admin') {
+      const oldIds = new Set<string>((group.agentIds as string[]) ?? []);
       const newIds = new Set<string>(agentIds);
       const added = agentIds.filter((id: string) => !oldIds.has(id));
       const removed = [...oldIds].filter(id => !newIds.has(id));
 
-      const roleBatch = db().batch();
-      for (const id of added) {
-        roleBatch.update(db().collection('agents').doc(id), { role: 'admin' });
+      if (added.length) {
+        for (const id of added) {
+          await db.update(agents).set({ role: 'admin' }).where(eq(agents.id, id));
+        }
       }
-      for (const id of removed) {
-        roleBatch.update(db().collection('agents').doc(id), { role: 'agent' });
+      if (removed.length) {
+        for (const id of removed) {
+          await db.update(agents).set({ role: 'agent' }).where(eq(agents.id, id));
+        }
       }
-      if (added.length || removed.length) await roleBatch.commit();
     }
   }
 
@@ -134,70 +120,54 @@ groupsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
     }
     update.uids = uids;
 
-    const oldUids = new Set<string>(current.uids ?? []);
+    const oldUids = new Set<string>((group.uids as string[]) ?? []);
     const newUids = new Set<string>(uids);
     const addedUids = uids.filter((id: string) => !oldUids.has(id));
     const removedUids = [...oldUids].filter(id => !newUids.has(id));
 
-    if (addedUids.length || removedUids.length) {
-      const uidBatch = db().batch();
+    const allGroups = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, workspaceId));
 
-      if (current.type === 'admin') {
-        // Admin group: added → workspace role 'admin', removed → check if still in any group
-        for (const uid of addedUids) {
-          uidBatch.set(db().collection('users').doc(uid), {
-            workspaces: { [workspaceId]: { role: 'admin', joinedAt: FieldValue.serverTimestamp() } },
-          }, { merge: true });
-        }
-        for (const uid of removedUids) {
-          // Check remaining groups for this uid to determine fallback role
-          const allGroupsSnap = await wsCol(workspaceId, 'permissionGroups').get();
-          const isInOtherGroup = allGroupsSnap.docs.some(d => {
-            if (d.id === groupId) return false;
-            const otherUids: string[] = d.data().uids ?? [];
-            return otherUids.includes(uid);
-          });
-          if (isInOtherGroup) {
-            uidBatch.set(db().collection('users').doc(uid), {
-              workspaces: { [workspaceId]: { role: 'trader', joinedAt: FieldValue.serverTimestamp() } },
-            }, { merge: true });
-          } else {
-            uidBatch.update(db().collection('users').doc(uid), {
-              [`workspaces.${workspaceId}`]: FieldValue.delete(),
-            });
-          }
-        }
-      } else {
-        // Non-admin group: added → ensure workspace entry exists (don't overwrite 'admin')
-        for (const uid of addedUids) {
-          const userDoc = await db().collection('users').doc(uid).get();
-          const currentRole = userDoc.data()?.workspaces?.[workspaceId]?.role;
-          if (currentRole !== 'admin') {
-            uidBatch.set(db().collection('users').doc(uid), {
-              workspaces: { [workspaceId]: { role: 'trader', joinedAt: FieldValue.serverTimestamp() } },
-            }, { merge: true });
-          }
-        }
-        for (const uid of removedUids) {
-          // Check if still in any group (including admin)
-          const allGroupsSnap = await wsCol(workspaceId, 'permissionGroups').get();
-          const adminGroup = allGroupsSnap.docs.find(d => d.data().type === 'admin');
-          const adminUids: string[] = adminGroup?.data().uids ?? [];
-          const isAdmin = adminUids.includes(uid);
-          const isInOtherGroup = allGroupsSnap.docs.some(d => {
-            if (d.id === groupId) return false;
-            const otherUids: string[] = d.data().uids ?? [];
-            return otherUids.includes(uid);
-          });
-          if (!isAdmin && !isInOtherGroup) {
-            uidBatch.update(db().collection('users').doc(uid), {
-              [`workspaces.${workspaceId}`]: FieldValue.delete(),
-            });
-          }
+    if (group.type === 'admin') {
+      for (const uid of addedUids) {
+        await db.insert(userWorkspaces)
+          .values({ userId: uid, workspaceId, role: 'admin', joinedAt: new Date() })
+          .onConflictDoUpdate({ target: [userWorkspaces.userId, userWorkspaces.workspaceId], set: { role: 'admin' } });
+      }
+      for (const uid of removedUids) {
+        const isInOtherGroup = allGroups.some(g => {
+          if (g.id === groupId) return false;
+          return (g.uids as string[])?.includes(uid);
+        });
+        if (isInOtherGroup) {
+          await db.update(userWorkspaces).set({ role: 'trader' })
+            .where(and(eq(userWorkspaces.userId, uid), eq(userWorkspaces.workspaceId, workspaceId)));
+        } else {
+          await db.delete(userWorkspaces)
+            .where(and(eq(userWorkspaces.userId, uid), eq(userWorkspaces.workspaceId, workspaceId)));
         }
       }
-
-      await uidBatch.commit();
+    } else {
+      for (const uid of addedUids) {
+        const [existing] = await db.select().from(userWorkspaces)
+          .where(and(eq(userWorkspaces.userId, uid), eq(userWorkspaces.workspaceId, workspaceId)));
+        if (existing?.role !== 'admin') {
+          await db.insert(userWorkspaces)
+            .values({ userId: uid, workspaceId, role: 'trader', joinedAt: new Date() })
+            .onConflictDoUpdate({ target: [userWorkspaces.userId, userWorkspaces.workspaceId], set: { role: 'trader' } });
+        }
+      }
+      for (const uid of removedUids) {
+        const adminGroup = allGroups.find(g => g.type === 'admin');
+        const isAdmin = (adminGroup?.uids as string[])?.includes(uid);
+        const isInOtherGroup = allGroups.some(g => {
+          if (g.id === groupId) return false;
+          return (g.uids as string[])?.includes(uid);
+        });
+        if (!isAdmin && !isInOtherGroup) {
+          await db.delete(userWorkspaces)
+            .where(and(eq(userWorkspaces.userId, uid), eq(userWorkspaces.workspaceId, workspaceId)));
+        }
+      }
     }
   }
 
@@ -218,22 +188,24 @@ groupsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
     res.status(400).json({ error: 'No fields to update' }); return;
   }
 
-  await ref.update(update);
+  await db.update(permissionGroups).set(update)
+    .where(and(eq(permissionGroups.id, groupId), eq(permissionGroups.workspaceId, workspaceId)));
   res.json({ ok: true });
 }));
-
-// --- Delete group (admin only, system groups protected) ---
 
 groupsRouter.delete('/:id', requireRole('admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const groupId = req.params.id as string;
-  const ref = wsCol(workspaceId, 'permissionGroups').doc(groupId);
-  const doc = await ref.get();
-  if (!doc.exists) { res.status(404).json({ error: 'Group not found' }); return; }
-  if (SYSTEM_GROUP_TYPES.includes(doc.data()!.type)) {
+
+  const [group] = await db.select().from(permissionGroups)
+    .where(and(eq(permissionGroups.id, groupId), eq(permissionGroups.workspaceId, workspaceId)));
+  if (!group) { res.status(404).json({ error: 'Group not found' }); return; }
+  if (SYSTEM_GROUP_TYPES.includes(group.type as PermissionGroupType)) {
     res.status(400).json({ error: 'System groups cannot be deleted' }); return;
   }
-  await ref.delete();
+
+  await db.delete(permissionGroups)
+    .where(and(eq(permissionGroups.id, groupId), eq(permissionGroups.workspaceId, workspaceId)));
   res.status(204).send();
 }));
 

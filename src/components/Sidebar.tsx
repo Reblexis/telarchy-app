@@ -4,7 +4,7 @@ import { useWorkspace } from '../hooks/useWorkspace';
 
 export function Sidebar() {
   const { user, logout } = useAuth();
-  const { workspace, allWorkspaces, switchWorkspace, error } = useWorkspace(user);
+  const { workspace, allWorkspaces, switchWorkspace, error } = useWorkspace(!!user);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -111,7 +111,7 @@ export function Sidebar() {
                 {user.email}
               </div>
               <div style={{ fontSize: '0.7rem', fontFamily: 'monospace', color: 'var(--text-tertiary)', marginTop: '0.15rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {user.uid}
+                {user.id}
               </div>
             </Link>
             <button className="sidebar-nav-item sidebar-nav-logout" onClick={handleLogout}>

@@ -9,7 +9,7 @@ interface WorkspaceDetail { id: string; name: string; customApiUrl?: string }
 export function WorkspaceSettingsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { workspace } = useWorkspace(user);
+  const { workspace } = useWorkspace(!!user);
 
   const [ws, setWs] = useState<WorkspaceDetail | null>(null);
   const [name, setName] = useState('');
@@ -30,7 +30,7 @@ export function WorkspaceSettingsPage() {
   useEffect(() => {
     if (!user || !wsId || wsId === 'default') { setWsLoading(false); return; }
     setWsLoading(true);
-    api.getWorkspace(user, wsId)
+    api.getWorkspace(wsId)
       .then(detail => {
         const d = detail as WorkspaceDetail;
         setWs(d);
@@ -47,7 +47,7 @@ export function WorkspaceSettingsPage() {
     if (!user || !wsId || wsId === 'default') return;
     setError(''); setSaveMsg(''); setSaving(true);
     try {
-      await api.updateWorkspaceSettings(user, wsId, { name: name.trim() });
+      await api.updateWorkspaceSettings(wsId, { name: name.trim() });
       setSaveMsg('Saved.');
       setWs(prev => prev ? { ...prev, name: name.trim() } : prev);
     } catch (e: unknown) {
@@ -63,7 +63,7 @@ export function WorkspaceSettingsPage() {
     setCustomError(''); setCustomMsg(''); setSavingCustom(true);
     try {
       const url = customUrl.trim() || null;
-      await api.updateWorkspaceSettings(user, wsId, { customApiUrl: url });
+      await api.updateWorkspaceSettings(wsId, { customApiUrl: url });
       setCustomApiUrl(url);
       setCustomApiKey(wsId, customKey.trim() || null);
       setWs(prev => prev ? { ...prev, customApiUrl: url ?? undefined } : prev);
@@ -79,7 +79,7 @@ export function WorkspaceSettingsPage() {
     if (!user || !wsId) return;
     setCustomError(''); setCustomMsg(''); setSavingCustom(true);
     try {
-      await api.updateWorkspaceSettings(user, wsId, { customApiUrl: null });
+      await api.updateWorkspaceSettings(wsId, { customApiUrl: null });
       setCustomApiUrl(null);
       setCustomApiKey(wsId, null);
       setCustomUrl('');

@@ -1,5 +1,7 @@
 import { Router } from 'express';
-import { db } from '../lib/db';
+import { db } from '../db/client';
+import { hookWatcher } from '../db/schema';
+import { eq } from 'drizzle-orm';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
@@ -7,9 +9,6 @@ import { getEventsSince } from '../services/events';
 
 export const eventsRouter = Router();
 
-const WATCHER_DOC = 'hookWatcher';
-
-// Events feed — agent/admin
 eventsRouter.get('/', authMiddleware, requireRole('agent', 'admin'), wrap(async (req, res) => {
   const since = req.query.since as string;
   if (!since) { res.status(400).json({ error: 'since query parameter is required (ISO timestamp)' }); return; }
@@ -17,29 +16,38 @@ eventsRouter.get('/', authMiddleware, requireRole('agent', 'admin'), wrap(async 
   res.json(await getEventsSince(since, workspaceId));
 }));
 
-// Watcher heartbeat — agent/admin (called by the local watcher script)
 eventsRouter.post('/hooks/heartbeat', authMiddleware, requireRole('agent', 'admin'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
   const { lastPolledAt, intervalMs } = req.body;
-  await db().collection('system').doc(WATCHER_DOC).set({
-    lastPolledAt: lastPolledAt || new Date().toISOString(),
-    intervalMs: intervalMs || 60000,
-    updatedAt: new Date().toISOString(),
-  }, { merge: true });
+  await db.insert(hookWatcher)
+    .values({
+      workspaceId,
+      lastHeartbeat: lastPolledAt ? new Date(lastPolledAt) : new Date(),
+      status: JSON.stringify({ intervalMs: intervalMs || 60000 }),
+    })
+    .onConflictDoUpdate({
+      target: hookWatcher.workspaceId,
+      set: {
+        lastHeartbeat: lastPolledAt ? new Date(lastPolledAt) : new Date(),
+        status: JSON.stringify({ intervalMs: intervalMs || 60000 }),
+      },
+    });
   res.json({ ok: true });
 }));
 
-// Watcher status — public (for the UI timer)
-eventsRouter.get('/hooks/status', wrap(async (_req, res) => {
-  const doc = await db().collection('system').doc(WATCHER_DOC).get();
-  if (!doc.exists) { res.json({ active: false }); return; }
-  const d = doc.data()!;
-  const lastPolledAt = d.lastPolledAt;
-  const intervalMs = d.intervalMs || 60000;
-  const ageMs = Date.now() - new Date(lastPolledAt).getTime();
+eventsRouter.get('/hooks/status', wrap(async (req, res) => {
+  const workspaceId = (req.headers['x-workspace-id'] as string) || 'default';
+  const [row] = await db.select().from(hookWatcher).where(eq(hookWatcher.workspaceId, workspaceId));
+  if (!row?.lastHeartbeat) { res.json({ active: false }); return; }
+
+  const statusData = row.status ? JSON.parse(row.status) : {};
+  const intervalMs = statusData.intervalMs || 60000;
+  const lastPolledAt = row.lastHeartbeat.toISOString();
+  const ageMs = Date.now() - row.lastHeartbeat.getTime();
   res.json({
     active: ageMs < intervalMs * 3,
     lastPolledAt,
     intervalMs,
-    nextPollAt: new Date(new Date(lastPolledAt).getTime() + intervalMs).toISOString(),
+    nextPollAt: new Date(row.lastHeartbeat.getTime() + intervalMs).toISOString(),
   });
 }));

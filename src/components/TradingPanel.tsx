@@ -9,8 +9,8 @@ import type { Market, Position, TradePoint, LiquidityEvent } from '../types';
 const inputStyle = { padding: '0.4rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', width: '80px' } as const;
 const labelStyle = { display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.15rem' } as const;
 
-export function TradingPanel({ market, agentId, user, onTrade, onError }: {
-  market: Market; agentId: string; user: import('firebase/auth').User;
+export function TradingPanel({ market, agentId, onTrade, onError }: {
+  market: Market; agentId: string;
   onTrade: () => void; onError: (msg: string) => void;
 }) {
   const [tradeAmount, setTradeAmount] = useState('');
@@ -37,17 +37,17 @@ export function TradingPanel({ market, agentId, user, onTrade, onError }: {
     if (cachedPositions) setPositions(cachedPositions);
 
     setTradesLoading(!cachedTrades);
-    api.getMarketTrades(user, market.id)
+    api.getMarketTrades(market.id)
       .then(data => { cacheSet(tKey, data); setTrades(data); })
       .catch((e: Error) => onError(e.message))
       .finally(() => setTradesLoading(false));
-    api.getMarketLiquidityEvents(user, market.id)
+    api.getMarketLiquidityEvents(market.id)
       .then(data => { cacheSet(lKey, data); setLiquidityEvents(data); })
       .catch((e: Error) => onError(e.message));
-    api.getPositions(user, market.id, agentId)
+    api.getPositions(market.id, agentId)
       .then(data => { cacheSet(pKey, data); setPositions(data); })
       .catch((e: Error) => onError(e.message));
-  }, [user, market.id, agentId]);
+  }, [market.id, agentId]);
 
   const amount = parseFloat(tradeAmount);
   const preview = useMemo(() => {
@@ -57,7 +57,7 @@ export function TradingPanel({ market, agentId, user, onTrade, onError }: {
     return { higher, lower };
   }, [amount, market.probability, market.liquidity]);
 
-  const refreshPositions = () => api.getPositions(user, market.id, agentId).then(data => {
+  const refreshPositions = () => api.getPositions(market.id, agentId).then(data => {
     cacheSet(`positions:${market.id}:${agentId}`, data);
     setPositions(data);
   }).catch((e: Error) => onError(`Failed to refresh positions: ${e.message}`));
@@ -65,7 +65,7 @@ export function TradingPanel({ market, agentId, user, onTrade, onError }: {
   const handleBetDirection = async (direction: 'higher' | 'lower') => {
     if (isNaN(amount) || amount <= 0) return;
     setTrading(true);
-    const result = await api.trade(user, { marketId: market.id, direction, amount, agentId })
+    const result = await api.trade({ marketId: market.id, direction, amount, agentId })
       .catch((e: Error) => { onError(e.message); return null; });
     setTrading(false);
     if (result) {
@@ -76,7 +76,7 @@ export function TradingPanel({ market, agentId, user, onTrade, onError }: {
         cacheSet(`trades:${market.id}`, next);
         return next;
       });
-      api.getMarketTrades(user, market.id).then(data => {
+      api.getMarketTrades(market.id).then(data => {
         cacheSet(`trades:${market.id}`, data);
         setTrades(data);
       }).catch((e: Error) => onError(`Failed to refresh trades: ${e.message}`));
@@ -89,7 +89,7 @@ export function TradingPanel({ market, agentId, user, onTrade, onError }: {
     const sellShares = parseFloat(sellInputs[direction] || '');
     if (isNaN(sellShares) || sellShares <= 0) return;
     setTrading(true);
-    const result = await api.trade(user, { marketId: market.id, direction, sellShares, agentId })
+    const result = await api.trade({ marketId: market.id, direction, sellShares, agentId })
       .catch((e: Error) => { onError(e.message); return null; });
     setTrading(false);
     if (result) {
@@ -108,7 +108,7 @@ export function TradingPanel({ market, agentId, user, onTrade, onError }: {
   const handleLiquidity = async () => {
     const a = parseFloat(liqAmount);
     if (isNaN(a) || a <= 0) return;
-    const result = await api.injectLiquidity(user, market.id, a).catch((e: Error) => { onError(e.message); return null; });
+    const result = await api.injectLiquidity(market.id, a).catch((e: Error) => { onError(e.message); return null; });
     if (result) {
       setLiqAmount('');
       const optimistic: LiquidityEvent = {
@@ -123,7 +123,7 @@ export function TradingPanel({ market, agentId, user, onTrade, onError }: {
         cacheSet(`liqEvents:${market.id}`, next);
         return next;
       });
-      api.getMarketLiquidityEvents(user, market.id).then(data => {
+      api.getMarketLiquidityEvents(market.id).then(data => {
         cacheSet(`liqEvents:${market.id}`, data);
         setLiquidityEvents(data);
       }).catch((e: Error) => onError(`Failed to refresh liquidity events: ${e.message}`));

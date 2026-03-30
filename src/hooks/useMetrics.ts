@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { User } from 'firebase/auth';
 import { getCookie, setCookie, deleteCookie } from '../lib/cookies';
 import { api } from '../lib/api';
 import { cacheGet, cacheSet, cacheDelete } from '../lib/cache';
@@ -24,7 +23,7 @@ function buildWarnings(
   return result;
 }
 
-export function useMetrics(user: User | null, inspectTaskId?: string | null) {
+export function useMetrics(authenticated: boolean, inspectTaskId?: string | null) {
   const [metrics, setMetrics] = useState<Metric[]>(() => cacheGet<Metric[]>('metrics') || []);
   const [updates, setUpdates] = useState<UpdateEntry[]>(() => cacheGet<UpdateEntry[]>('updates') || []);
   const [formulaWarnings, setFormulaWarnings] = useState<Record<string, FormulaWarning[]>>({});
@@ -38,13 +37,13 @@ export function useMetrics(user: User | null, inspectTaskId?: string | null) {
   const rank = calculateRank(xp);
 
   const loadData = useCallback(async () => {
-    if (!user) return [];
+    if (!authenticated) return [];
     setError('');
 
     const [metricsData, marketsData, _] = await Promise.all([
-      api.getMetrics(user) as Promise<Metric[]>,
-      api.getMarkets(user, inspectTaskId || undefined).catch((e: Error) => { console.error('Failed to load markets for metrics page:', e.message); return [] as Market[]; }),
-      api.getUpdates(user).then((list: UpdateEntry[]) => {
+      api.getMetrics() as Promise<Metric[]>,
+      api.getMarkets(inspectTaskId || undefined).catch((e: Error) => { console.error('Failed to load markets for metrics page:', e.message); return [] as Market[]; }),
+      api.getUpdates().then((list: UpdateEntry[]) => {
         const parsed = list.map(u => ({ ...u, timestamp: new Date(u.timestamp) }));
         setUpdates(parsed);
         cacheSet('updates', parsed);
@@ -59,16 +58,14 @@ export function useMetrics(user: User | null, inspectTaskId?: string | null) {
       cacheSet('metrics', metricsData);
     }
 
-    // Compute formula warnings
     setFormulaWarnings(buildWarnings(metricsData));
 
     return metricsData;
-  }, [user, inspectTaskId]);
+  }, [authenticated, inspectTaskId]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!authenticated) return;
 
-    // If we have cached data, show it immediately and refresh in background
     const cached = cacheGet<Metric[]>('metrics');
     if (cached) {
       const savedFocus = getCookie('focusedMetricId');
@@ -94,14 +91,13 @@ export function useMetrics(user: User | null, inspectTaskId?: string | null) {
         setLoading(false);
       }
     })();
-  }, [user, loadData]);
+  }, [authenticated, loadData]);
 
   const addMetric = async (name: string, description: string, value: number, formula: string, marketRangeMax?: number) => {
-    if (!user) return;
     if (detectCircularDependency(null, formula, metrics)) {
       throw new Error('This formula would create a circular dependency');
     }
-    const { id } = await api.createMetric(user, { name, description, value, formula, marketRangeMax });
+    const { id } = await api.createMetric({ name, description, value, formula, marketRangeMax });
     const updated = [...metrics.map(m => ({ ...m })), { id, name, description, value, total: value, formula, order: 999, depth: 0, marketRangeMax }];
     setMetrics(enrichMetrics(updated, consensusMapRef.current));
     setFormulaWarnings(buildWarnings(updated));
@@ -114,11 +110,9 @@ export function useMetrics(user: User | null, inspectTaskId?: string | null) {
     timePreference?: { enabled: boolean; halfLife: number } | null,
     marketRangeMax?: number,
   ) => {
-    if (!user) return;
     if (detectCircularDependency(id, formula, metrics)) {
       throw new Error('This formula would create a circular dependency');
     }
-    // Optimistic: update UI instantly, write in background
     const prev = metrics;
     const updated = metrics.map(m =>
       m.id === id
@@ -127,19 +121,18 @@ export function useMetrics(user: User | null, inspectTaskId?: string | null) {
     );
     setMetrics(enrichMetrics(updated, consensusMapRef.current));
     setFormulaWarnings(buildWarnings(updated));
-    return api.updateMetric(user, id, { name, description, value, formula, oldValue, updateNote, timePreference: timePreference === undefined ? undefined : timePreference, marketRangeMax })
+    return api.updateMetric(id, { name, description, value, formula, oldValue, updateNote, timePreference: timePreference === undefined ? undefined : timePreference, marketRangeMax })
       .then(() => { delete logsCache.current[id]; cacheDelete('metrics'); loadData(); })
       .catch((err: Error) => { setMetrics(prev); throw err; });
   };
 
   const removeMetric = async (id: string) => {
-    if (!user) return;
     if (focusedMetricId === id) {
       setFocusedMetricId(null);
       deleteCookie('focusedMetricId');
     }
     cacheDelete('metrics');
-    await api.deleteMetric(user, id);
+    await api.deleteMetric(id);
     await loadData();
   };
 
@@ -156,13 +149,13 @@ export function useMetrics(user: User | null, inspectTaskId?: string | null) {
   const logsCache = useRef<Record<string, MetricLog[]>>({});
 
   const loadMetricLogs = useCallback(async (metricId: string): Promise<MetricLog[]> => {
-    if (!user) return [];
+    if (!authenticated) return [];
     if (logsCache.current[metricId]) return logsCache.current[metricId];
-    const logs = await api.getMetricLogs(user, metricId);
+    const logs = await api.getMetricLogs(metricId);
     const parsed = logs.map((l: MetricLog) => ({ ...l, timestamp: new Date(l.timestamp) }));
     logsCache.current[metricId] = parsed;
     return parsed;
-  }, [user]);
+  }, [authenticated]);
 
   return {
     metrics, updates, xp, rank, loading, error,

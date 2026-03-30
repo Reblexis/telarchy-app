@@ -1,7 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
-import { getAuth } from 'firebase-admin/auth';
-import { getFirestore } from 'firebase-admin/firestore';
+import { fromNodeHeaders } from 'better-auth/node';
 import { createHash, timingSafeEqual } from 'crypto';
+import { db } from '../db/client';
+import { appUsers, userWorkspaces, agents, agentApiKeys } from '../db/schema';
+import { auth } from '../auth';
+import { eq, and } from 'drizzle-orm';
 import type { AgentRole, AuthInfo, WorkspaceMemberRole } from '../types';
 
 declare global {
@@ -24,8 +27,7 @@ function safeCompare(a: string, b: string): boolean {
   }
 }
 
-/** Bootstrap: emails listed in ADMIN_EMAILS / ADMIN_EMAIL env vars are platform admins. */
-function isBootstrapAdmin(email: string | undefined): boolean {
+function isBootstrapAdmin(email: string | undefined | null): boolean {
   if (!email) return false;
   const lower = email.trim().toLowerCase();
   const listed = [
@@ -43,63 +45,49 @@ function memberRoleToAuthRole(memberRole: WorkspaceMemberRole | null): AgentRole
   return 'pending';
 }
 
-/**
- * Resolve workspace, role, and linked agentId for any Firebase user.
- * All users — including platform admins — go through this single path.
- *
- * Platform admin = users/{uid}.platformAdmin === true OR email in ADMIN_EMAILS bootstrap list.
- * Platform admins have implicit owner access to all workspaces and workspaceId='default'.
- */
-async function resolveFirebaseUser(
-  uid: string,
-  email: string | undefined,
+async function resolveUser(
+  userId: string,
+  email: string | undefined | null,
   requestedWorkspaceId?: string,
 ): Promise<{ workspaceId: string; memberRole: WorkspaceMemberRole | null; agentId?: string } | null> {
-  const userDoc = await getFirestore().collection('users').doc(uid).get();
-  const data = userDoc.exists ? userDoc.data()! : null;
-  const agentId = data?.agentId as string | undefined;
-
-  const isPlatformAdmin = data?.platformAdmin === true || isBootstrapAdmin(email);
+  const [profile] = await db.select().from(appUsers).where(eq(appUsers.userId, userId));
+  const agentId = profile?.agentId ?? undefined;
+  const isPlatformAdmin = profile?.platformAdmin === true || isBootstrapAdmin(email);
 
   if (isPlatformAdmin) {
-    // Platform admins can switch into any workspace; default context is workspaceId='default'.
     const wsId = requestedWorkspaceId ?? 'default';
     return { workspaceId: wsId, memberRole: 'owner', agentId };
   }
 
-  // Regular user: derive role from workspace membership.
-  const workspaces = data?.workspaces as Record<string, { role: WorkspaceMemberRole }> | undefined;
+  const memberships = await db.select().from(userWorkspaces).where(eq(userWorkspaces.userId, userId));
 
-  if (!workspaces || Object.keys(workspaces).length === 0) {
+  if (memberships.length === 0) {
     return { workspaceId: 'default', memberRole: null, agentId };
   }
 
   if (requestedWorkspaceId) {
-    const membership = workspaces[requestedWorkspaceId];
-    if (!membership) return null; // not a member → caller returns 403
-    return { workspaceId: requestedWorkspaceId, memberRole: membership.role, agentId };
+    const membership = memberships.find(m => m.workspaceId === requestedWorkspaceId);
+    if (!membership) return null;
+    return { workspaceId: requestedWorkspaceId, memberRole: membership.role as WorkspaceMemberRole, agentId };
   }
 
-  const entries = Object.entries(workspaces).filter(([wsId]) => wsId !== 'default');
-  if (entries.length === 0) return { workspaceId: 'default', memberRole: null, agentId };
-  entries.sort(([, a], [, b]) => ROLE_PRIORITY.indexOf(a.role) - ROLE_PRIORITY.indexOf(b.role));
-  const [wsId, membership] = entries[0];
-  return { workspaceId: wsId, memberRole: membership.role, agentId };
+  const nonDefault = memberships.filter(m => m.workspaceId !== 'default');
+  if (nonDefault.length === 0) return { workspaceId: 'default', memberRole: null, agentId };
+  nonDefault.sort((a, b) =>
+    ROLE_PRIORITY.indexOf(a.role as WorkspaceMemberRole) -
+    ROLE_PRIORITY.indexOf(b.role as WorkspaceMemberRole),
+  );
+  return { workspaceId: nonDefault[0].workspaceId, memberRole: nonDefault[0].role as WorkspaceMemberRole, agentId };
 }
 
-/**
- * Look up workspace membership for a pure agent (no Firebase UID) via the users/{agentId} document.
- */
 async function resolveAgentWorkspace(
   agentId: string,
   requestedWorkspaceId: string,
 ): Promise<{ workspaceId: string; memberRole: WorkspaceMemberRole } | null> {
-  const userDoc = await getFirestore().collection('users').doc(agentId).get();
-  if (!userDoc.exists) return null;
-  const workspaces = userDoc.data()!.workspaces as Record<string, { role: WorkspaceMemberRole }> | undefined;
-  const membership = workspaces?.[requestedWorkspaceId];
+  const [membership] = await db.select().from(userWorkspaces)
+    .where(and(eq(userWorkspaces.userId, agentId), eq(userWorkspaces.workspaceId, requestedWorkspaceId)));
   if (!membership) return null;
-  return { workspaceId: requestedWorkspaceId, memberRole: membership.role };
+  return { workspaceId: requestedWorkspaceId, memberRole: membership.role as WorkspaceMemberRole };
 }
 
 /** Like authMiddleware but never rejects — unauthenticated requests pass through with req.auth unset. */
@@ -108,20 +96,22 @@ export async function optionalAuthMiddleware(req: Request, _res: Response, next:
   const masterKey = process.env.API_KEY;
   if (apiKey && masterKey && safeCompare(apiKey, masterKey)) {
     const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
-    if (!requestedWorkspaceId) return next(); // no workspace → treat as unauthenticated
+    if (!requestedWorkspaceId) return next();
     req.auth = { role: 'admin', workspaceId: requestedWorkspaceId };
     return next();
   }
-  const authHeader = req.headers.authorization;
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.split('Bearer ')[1];
-    const decoded = await getAuth().verifyIdToken(token).catch(() => null);
-    if (decoded) {
-      const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
-      const result = await resolveFirebaseUser(decoded.uid, decoded.email ?? undefined, requestedWorkspaceId);
-      if (result !== null) {
-        req.auth = { role: memberRoleToAuthRole(result.memberRole), workspaceId: result.workspaceId, uid: decoded.uid, agentId: result.agentId };
-      }
+
+  const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null);
+  if (session?.user) {
+    const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
+    const result = await resolveUser(session.user.id, session.user.email, requestedWorkspaceId);
+    if (result !== null) {
+      req.auth = {
+        role: memberRoleToAuthRole(result.memberRole),
+        workspaceId: result.workspaceId,
+        uid: session.user.id,
+        agentId: result.agentId,
+      };
     }
   }
   return next();
@@ -138,38 +128,35 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     return next();
   }
 
-  // 2. Firebase ID token — all users resolved through the same path
-  const authHeader = req.headers.authorization;
-  if (authHeader?.startsWith('Bearer ')) {
-    const token = authHeader.split('Bearer ')[1];
-    const decoded = await getAuth().verifyIdToken(token).catch(() => null);
-    if (decoded) {
-      const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
-      const result = await resolveFirebaseUser(decoded.uid, decoded.email ?? undefined, requestedWorkspaceId);
-      if (result === null) {
-        return res.status(403).json({ error: 'Not a member of the specified workspace' });
-      }
-      req.auth = { role: memberRoleToAuthRole(result.memberRole), workspaceId: result.workspaceId, uid: decoded.uid, agentId: result.agentId };
-      return next();
+  // 2. BetterAuth session (cookie or Bearer token)
+  const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null);
+  if (session?.user) {
+    const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
+    const result = await resolveUser(session.user.id, session.user.email, requestedWorkspaceId);
+    if (result === null) {
+      return res.status(403).json({ error: 'Not a member of the specified workspace' });
     }
-    return res.status(401).json({ error: 'Invalid token' });
+    req.auth = {
+      role: memberRoleToAuthRole(result.memberRole),
+      workspaceId: result.workspaceId,
+      uid: session.user.id,
+      agentId: result.agentId,
+    };
+    return next();
   }
 
-  // 3. Agent API key → role from Firestore agent doc
+  // 3. Agent API key
   const agentKey = req.headers['x-agent-key'] as string | undefined;
   if (agentKey) {
     const hash = hashKey(agentKey);
-    const keyDoc = await getFirestore().collection('agentApiKeys').doc(hash).get();
-    if (!keyDoc.exists) return res.status(401).json({ error: 'Invalid agent key' });
+    const [keyRecord] = await db.select().from(agentApiKeys).where(eq(agentApiKeys.hash, hash));
+    if (!keyRecord) return res.status(401).json({ error: 'Invalid agent key' });
 
-    const keyData = keyDoc.data() as { agentId: string; workspaceId?: string };
-    const { agentId } = keyData;
-    const keyWorkspaceId = keyData.workspaceId ?? 'default';
+    const { agentId } = keyRecord;
+    const keyWorkspaceId = keyRecord.workspaceId ?? 'default';
 
-    const agentDoc = await getFirestore().collection('agents').doc(agentId).get();
-    if (!agentDoc.exists) return res.status(401).json({ error: 'Agent not found' });
-
-    const agent = agentDoc.data()!;
+    const [agent] = await db.select().from(agents).where(eq(agents.id, agentId));
+    if (!agent) return res.status(401).json({ error: 'Agent not found' });
 
     const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
     if (requestedWorkspaceId && requestedWorkspaceId !== keyWorkspaceId) {
@@ -180,7 +167,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
       }
     }
 
-    req.auth = { role: agent.role, agentId, workspaceId: keyWorkspaceId };
+    req.auth = { role: agent.role as AgentRole, agentId, workspaceId: keyWorkspaceId };
     return next();
   }
 

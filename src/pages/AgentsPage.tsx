@@ -230,9 +230,9 @@ function AgentAdminPage({ user, workspace }: {
     setError('');
     const wsId = workspace?.workspaceId;
     const [data, stats] = await Promise.all([
-      api.getAgents(user).catch((e: Error) => { setError(e.message); return null; }),
+      api.getAgents().catch((e: Error) => { setError(e.message); return null; }),
       !isPlatformAdmin && wsId && wsId !== 'default'
-        ? api.getWorkspaceStats(user, wsId).catch(() => null)
+        ? api.getWorkspaceStats(wsId).catch(() => null)
         : Promise.resolve(null),
     ]);
     if (data) { setAgents(data); cacheSet('agents', data); }
@@ -242,8 +242,8 @@ function AgentAdminPage({ user, workspace }: {
 
   const loadGroups = useCallback(async () => {
     const [groupData, metricData] = await Promise.all([
-      api.listGroups(user).catch((e: Error) => { console.error('listGroups:', e); return []; }),
-      api.getMetrics(user).catch((e: Error) => { console.error('getMetrics:', e); return []; }),
+      api.listGroups().catch((e: Error) => { console.error('listGroups:', e); return []; }),
+      api.getMetrics().catch((e: Error) => { console.error('getMetrics:', e); return []; }),
     ]);
     setGroups(groupData);
     setMetrics((metricData as Metric[]).filter((m: Metric) => !m.formula || m.formula.trim() === '0'));
@@ -258,7 +258,7 @@ function AgentAdminPage({ user, workspace }: {
     setCreatingGroup(true);
     setGroupError('');
     try {
-      const created = await api.createGroup(user, newGroupName.trim()) as PermissionGroup;
+      const created = await api.createGroup(newGroupName.trim()) as PermissionGroup;
       setGroups(prev => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
       setNewGroupName('');
       setExpandedGroupId(created.id);
@@ -272,7 +272,7 @@ function AgentAdminPage({ user, workspace }: {
   const handleDeleteGroup = async (groupId: string) => {
     if (!confirm('Delete this group?')) return;
     try {
-      await api.deleteGroup(user, groupId);
+      await api.deleteGroup(groupId);
       setGroups(prev => prev.filter(g => g.id !== groupId));
       if (expandedGroupId === groupId) setExpandedGroupId(null);
     } catch (e: unknown) {
@@ -283,7 +283,7 @@ function AgentAdminPage({ user, workspace }: {
   const handleAddAgentToGroup = async (group: PermissionGroup, agentId: string) => {
     const next = [...new Set([...group.agentIds, agentId])];
     try {
-      await api.updateGroup(user, group.id, { agentIds: next });
+      await api.updateGroup(group.id, { agentIds: next });
       setGroups(prev => prev.map(g => g.id === group.id ? { ...g, agentIds: next } : g));
       if (group.type === 'admin') loadAgents();
     } catch (e: unknown) {
@@ -294,7 +294,7 @@ function AgentAdminPage({ user, workspace }: {
   const handleRemoveAgentFromGroup = async (group: PermissionGroup, agentId: string) => {
     const next = group.agentIds.filter(a => a !== agentId);
     try {
-      await api.updateGroup(user, group.id, { agentIds: next });
+      await api.updateGroup(group.id, { agentIds: next });
       setGroups(prev => prev.map(g => g.id === group.id ? { ...g, agentIds: next } : g));
       if (group.type === 'admin') loadAgents();
     } catch (e: unknown) {
@@ -305,7 +305,7 @@ function AgentAdminPage({ user, workspace }: {
   const handleAddUserToGroup = async (group: PermissionGroup, uid: string) => {
     const next = [...new Set([...(group.uids ?? []), uid])];
     try {
-      await api.updateGroup(user, group.id, { uids: next });
+      await api.updateGroup(group.id, { uids: next });
       setGroups(prev => prev.map(g => g.id === group.id ? { ...g, uids: next } : g));
       setUidInput(prev => ({ ...prev, [group.id]: '' }));
     } catch (e: unknown) {
@@ -316,7 +316,7 @@ function AgentAdminPage({ user, workspace }: {
   const handleRemoveUserFromGroup = async (group: PermissionGroup, uid: string) => {
     const next = (group.uids ?? []).filter(u => u !== uid);
     try {
-      await api.updateGroup(user, group.id, { uids: next });
+      await api.updateGroup(group.id, { uids: next });
       setGroups(prev => prev.map(g => g.id === group.id ? { ...g, uids: next } : g));
     } catch (e: unknown) {
       setGroupError((e as Error).message);
@@ -328,7 +328,7 @@ function AgentAdminPage({ user, workspace }: {
     const next = { ...group.permissions, [metricId]: { ...current, [field]: !current[field] } };
     if (!next[metricId].read && !next[metricId].trade) delete next[metricId];
     try {
-      await api.updateGroup(user, group.id, { permissions: next });
+      await api.updateGroup(group.id, { permissions: next });
       setGroups(prev => prev.map(g => g.id === group.id ? { ...g, permissions: next } : g));
     } catch (e: unknown) {
       setGroupError((e as Error).message);
@@ -582,7 +582,7 @@ function AgentAdminPage({ user, workspace }: {
 
 export function AgentsPage() {
   const { user } = useAuth();
-  const { workspace, loading } = useWorkspace(user);
+  const { workspace, loading } = useWorkspace(!!user);
   const [params] = useSearchParams();
   const forceOperator = params.get('view') === 'operator';
 

@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { Timestamp } from 'firebase-admin/firestore';
-import { db } from '../lib/db';
-import { wsCol } from '../lib/workspace';
+import { db } from '../db/client';
+import { workspaces, markets, agents, trades, userWorkspaces } from '../db/schema';
+import { eq, and, gt, count } from 'drizzle-orm';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
@@ -9,39 +9,34 @@ import { consensus, pHigher } from '../lib/amm';
 
 export const marketplaceRouter = Router();
 
-/**
- * GET /api/marketplace
- * Returns active, open markets from all public workspaces.
- * No authentication required — this is the public discovery endpoint.
- */
 marketplaceRouter.get('/', wrap(async (req, res) => {
   const limit = typeof req.query.limit === 'string'
     ? Math.min(parseInt(req.query.limit, 10), 100)
     : 50;
 
-  const wsSnap = await db().collection('workspaces')
-    .where('visibility', '==', 'public')
-    .get();
+  const publicWs = await db.select({ id: workspaces.id, name: workspaces.name })
+    .from(workspaces)
+    .where(eq(workspaces.visibility, 'public'));
 
-  if (wsSnap.empty) { res.json([]); return; }
+  if (publicWs.length === 0) { res.json([]); return; }
 
   const allMarkets: Array<Record<string, unknown>> = [];
 
-  await Promise.all(wsSnap.docs.map(async wsDoc => {
-    const ws = wsDoc.data();
-    const marketSnap = await wsCol(wsDoc.id, 'markets')
-      .where('resolved', '==', false)
-      .where('active', '==', true)
-      .get();
+  await Promise.all(publicWs.map(async ws => {
+    const wsMarkets = await db.select().from(markets)
+      .where(and(
+        eq(markets.workspaceId, ws.id),
+        eq(markets.resolved, false),
+        eq(markets.active, true),
+      ));
 
-    for (const mDoc of marketSnap.docs) {
-      const m = mDoc.data();
-      if (m.taskId) continue; // skip conditional markets
-      const shares: [number, number] = m.shares || [0, 0];
+    for (const m of wsMarkets) {
+      if (m.taskId) continue;
+      const shares = (m.shares as [number, number]) || [0, 0];
       allMarkets.push({
-        workspaceId: wsDoc.id,
+        workspaceId: ws.id,
         workspaceName: ws.name,
-        marketId: mDoc.id,
+        marketId: m.id,
         metricName: m.metricName,
         targetDate: m.targetDate,
         consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
@@ -53,127 +48,83 @@ marketplaceRouter.get('/', wrap(async (req, res) => {
     }
   }));
 
-  // Sort by liquidity descending so most active markets appear first
   allMarkets.sort((a, b) => (b.liquidity as number) - (a.liquidity as number));
   res.json(allMarkets.slice(0, limit));
 }));
 
-/**
- * GET /api/marketplace/stats
- * Returns aggregate platform stats (active markets, agents, trades this week).
- * No authentication required.
- */
 marketplaceRouter.get('/stats', wrap(async (_req, res) => {
-  const weekAgo = Timestamp.fromDate(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const allWs = await db.select({ id: workspaces.id }).from(workspaces);
 
-  const [wsSnap, agentsSnap] = await Promise.all([
-    db().collection('workspaces').get(),
-    db().collection('agents').where('role', '==', 'agent').get(),
-  ]);
+  const [agentCount] = await db.select({ count: count() }).from(agents).where(eq(agents.role, 'agent'));
 
   let marketsActive = 0;
   let tradesThisWeek = 0;
 
-  await Promise.all(wsSnap.docs.map(async wsDoc => {
-    const [mSnap, tSnap] = await Promise.all([
-      wsCol(wsDoc.id, 'markets').where('resolved', '==', false).where('active', '==', true).get(),
-      wsCol(wsDoc.id, 'trades').where('createdAt', '>=', weekAgo).get(),
+  await Promise.all(allWs.map(async ws => {
+    const [mCount, tCount] = await Promise.all([
+      db.select({ count: count() }).from(markets)
+        .where(and(eq(markets.workspaceId, ws.id), eq(markets.resolved, false), eq(markets.active, true)))
+        .then(r => r[0]?.count ?? 0),
+      db.select({ count: count() }).from(trades)
+        .where(and(eq(trades.workspaceId, ws.id), gt(trades.createdAt, weekAgo)))
+        .then(r => r[0]?.count ?? 0),
     ]);
-    marketsActive += mSnap.size;
-    tradesThisWeek += tSnap.size;
+    marketsActive += Number(mCount);
+    tradesThisWeek += Number(tCount);
   }));
 
-  res.json({ marketsActive, agentsActive: agentsSnap.size, tradesThisWeek });
+  res.json({ marketsActive, agentsActive: Number(agentCount.count), tradesThisWeek });
 }));
 
-/**
- * GET /api/marketplace/:workspaceId
- * Returns workspace metadata + its active markets (public workspaces only).
- */
+marketplaceRouter.get('/workspaces/public', wrap(async (_req, res) => {
+  const rows = await db.select({ id: workspaces.id, name: workspaces.name, visibility: workspaces.visibility })
+    .from(workspaces)
+    .where(eq(workspaces.visibility, 'public'));
+  res.json(rows.map(r => ({ workspaceId: r.id, name: r.name, visibility: r.visibility })));
+}));
+
 marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
   const { workspaceId } = req.params as { workspaceId: string };
-  const wsDoc = await db().collection('workspaces').doc(workspaceId).get();
-  if (!wsDoc.exists) { res.status(404).json({ error: 'Workspace not found' }); return; }
+  const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId));
+  if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
+  if (ws.visibility === 'private') { res.status(403).json({ error: 'This workspace is private' }); return; }
 
-  const ws = wsDoc.data()!;
-  if (ws.visibility === 'private') {
-    res.status(403).json({ error: 'This workspace is private' }); return;
-  }
+  const wsMarkets = await db.select().from(markets)
+    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false), eq(markets.active, true)));
 
-  const marketSnap = await wsCol(workspaceId, 'markets')
-    .where('resolved', '==', false)
-    .where('active', '==', true)
-    .orderBy('targetDate', 'asc')
-    .get();
-
-  const markets = marketSnap.docs
-    .filter(d => !d.data().taskId)
-    .map(d => {
-      const m = d.data();
-      const shares: [number, number] = m.shares || [0, 0];
-      return {
-        marketId: d.id,
-        metricName: m.metricName,
-        targetDate: m.targetDate,
-        consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
-        probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
-        liquidity: m.liquidity,
-        rangeMin: m.rangeMin,
-        rangeMax: m.rangeMax,
-      };
-    });
-
-  res.json({
-    workspaceId,
-    name: ws.name,
-    visibility: ws.visibility,
-    markets,
+  const marketList = wsMarkets.filter(m => !m.taskId).map(m => {
+    const shares = (m.shares as [number, number]) || [0, 0];
+    return {
+      marketId: m.id,
+      metricName: m.metricName,
+      targetDate: m.targetDate,
+      consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
+      probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
+      liquidity: m.liquidity,
+      rangeMin: m.rangeMin,
+      rangeMax: m.rangeMax,
+    };
   });
+
+  res.json({ workspaceId, name: ws.name, visibility: ws.visibility, markets: marketList });
 }));
 
-/**
- * GET /api/marketplace/list
- * Returns all workspaces with visibility public or unlisted that the user can discover.
- * Unlisted workspaces are findable by direct link but not listed here.
- */
-marketplaceRouter.get('/workspaces/public', wrap(async (req, res) => {
-  const wsSnap = await db().collection('workspaces')
-    .where('visibility', '==', 'public')
-    .get();
-
-  res.json(wsSnap.docs.map(d => ({
-    workspaceId: d.id,
-    name: d.data().name,
-    visibility: d.data().visibility,
-  })));
-}));
-
-/**
- * POST /api/marketplace/:workspaceId/join
- * Join a public or unlisted workspace as a trader (requires auth).
- */
 marketplaceRouter.post('/:workspaceId/join', authMiddleware, requireRole('admin'), wrap(async (req, res) => {
   const { uid } = req.auth!;
-  if (!uid) { res.status(403).json({ error: 'Firebase account required to join a workspace' }); return; }
+  if (!uid) { res.status(403).json({ error: 'User account required to join a workspace' }); return; }
 
   const { workspaceId } = req.params as { workspaceId: string };
-  const wsDoc = await db().collection('workspaces').doc(workspaceId).get();
-  if (!wsDoc.exists) { res.status(404).json({ error: 'Workspace not found' }); return; }
+  const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId));
+  if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
+  if (ws.visibility === 'private') { res.status(403).json({ error: 'This workspace is invite-only' }); return; }
 
-  const ws = wsDoc.data()!;
-  if (ws.visibility === 'private') {
-    res.status(403).json({ error: 'This workspace is invite-only' }); return;
-  }
-
-  const userDoc = await db().collection('users').doc(uid).get();
-  const existing = userDoc.data()?.workspaces?.[workspaceId];
+  const [existing] = await db.select().from(userWorkspaces)
+    .where(and(eq(userWorkspaces.userId, uid), eq(userWorkspaces.workspaceId, workspaceId)));
   if (existing) {
     res.json({ ok: true, role: existing.role, alreadyMember: true }); return;
   }
 
-  await db().collection('users').doc(uid).set({
-    workspaces: { [workspaceId]: { role: 'trader', joinedAt: new Date() } },
-  }, { merge: true });
-
+  await db.insert(userWorkspaces).values({ userId: uid, workspaceId, role: 'trader', joinedAt: new Date() });
   res.status(201).json({ ok: true, workspaceId, role: 'trader' });
 }));

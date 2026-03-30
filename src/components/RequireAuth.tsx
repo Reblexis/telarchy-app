@@ -20,7 +20,7 @@ export function RequireAgentSession() {
 /** Wraps routes that require an active workspace. Redirects to /start if none exists. */
 export function RequireWorkspace() {
   const { user, loading: authLoading } = useAuth();
-  const { workspace, loading: wsLoading } = useWorkspace(user);
+  const { workspace, loading: wsLoading } = useWorkspace(!!user);
   if (authLoading || wsLoading) return <div className="loading">Loading...</div>;
   if (!user) return <Navigate to="/" replace />;
   if (workspace?.needsWorkspace) return <Navigate to="/start" replace />;

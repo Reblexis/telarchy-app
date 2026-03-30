@@ -1,6 +1,8 @@
 import { Router } from 'express';
-import { FieldValue } from 'firebase-admin/firestore';
-import { wsCol } from '../lib/workspace';
+import { db } from '../db/client';
+import { tasks, taskMessages } from '../db/schema';
+import { eq, and, desc, asc } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
@@ -10,10 +12,6 @@ import { validateContent } from '../lib/validation';
 export const tasksRouter = Router();
 
 tasksRouter.use(authMiddleware);
-
-// --- Agent or admin: propose a task; admin only: post a bounty ---
-// type='proposal' (default): agent proposes, admin approves/declines
-// type='bounty': admin posts an executable task that agents can claim
 
 tasksRouter.post('/', requireRole('agent', 'admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
@@ -28,24 +26,16 @@ tasksRouter.post('/', requireRole('agent', 'admin'), wrap(async (req, res) => {
   if (typeof price !== 'number' || price <= 0) { res.status(400).json({ error: 'price must be a positive number' }); return; }
 
   const proposedBy = req.auth!.agentId || 'admin';
+  const id = randomUUID();
 
-  const ref = wsCol(workspaceId, 'tasks').doc();
-  await ref.set({
-    id: ref.id,
-    proposedBy,
-    title,
-    description: description || '',
-    price,
-    status: 'pending',
-    conditionalMarketIds: [],
-    createdAt: FieldValue.serverTimestamp(),
+  await db.insert(tasks).values({
+    id, workspaceId, proposedBy,
+    title, description: description || '', price,
+    status: 'pending', conditionalMarketIds: [], createdAt: new Date(),
   });
 
-  res.status(201).json({ id: ref.id });
+  res.status(201).json({ id });
 }));
-
-// --- Agent or admin: list tasks ---
-// Query params: ?status=pending|approved|declined
 
 tasksRouter.get('/', requireRole('agent', 'admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
@@ -53,53 +43,41 @@ tasksRouter.get('/', requireRole('agent', 'admin'), wrap(async (req, res) => {
   const agentId = req.auth!.agentId;
   const { status } = req.query as Record<string, string>;
 
-  let query: FirebaseFirestore.Query = wsCol(workspaceId, 'tasks').orderBy('createdAt', 'desc');
+  let rows = await db.select().from(tasks)
+    .where(eq(tasks.workspaceId, workspaceId))
+    .orderBy(desc(tasks.createdAt));
 
-  if (status) query = query.where('status', '==', status);
+  if (status) rows = rows.filter(t => t.status === status);
+  if (!isAdmin && agentId) rows = rows.filter(t => t.proposedBy === agentId);
 
-  // Non-admin agents only see their own tasks
-  if (!isAdmin && agentId) {
-    query = query.where('proposedBy', '==', agentId);
-  }
-
-  const snap = await query.get();
-  res.json(snap.docs.map(d => {
-    const t = d.data();
-    return {
-      id: t.id,
-      type: t.type,
-      title: t.title,
-      description: typeof t.description === 'string' && t.description.length > 150
-        ? t.description.slice(0, 150) + '…'
-        : (t.description ?? ''),
-      price: t.price,
-      status: t.status,
-      proposedBy: t.proposedBy,
-      claimedBy: t.claimedBy ?? null,
-      createdAt: t.createdAt,
-    };
-  }));
+  res.json(rows.map(t => ({
+    id: t.id,
+    title: t.title,
+    description: typeof t.description === 'string' && t.description.length > 150
+      ? t.description.slice(0, 150) + '…'
+      : (t.description ?? ''),
+    price: t.price,
+    status: t.status,
+    proposedBy: t.proposedBy,
+    createdAt: t.createdAt,
+  })));
 }));
-
-// --- Agent or admin: get task detail with market summaries ---
 
 tasksRouter.get('/:taskId', requireRole('agent', 'admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
-  const doc = await wsCol(workspaceId, 'tasks').doc(req.params.taskId as string).get();
-  if (!doc.exists) { res.status(404).json({ error: 'Task not found' }); return; }
+  const taskId = req.params.taskId as string;
+  const [task] = await db.select().from(tasks)
+    .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
+  if (!task) { res.status(404).json({ error: 'Task not found' }); return; }
 
-  const task = doc.data()!;
   const isAdmin = req.auth!.role === 'admin';
   const agentId = req.auth!.agentId;
-
   if (!isAdmin && task.proposedBy !== agentId) { res.status(403).json({ error: 'Forbidden' }); return; }
 
-  const markets = await getTaskMarketSummariesForTask(task.id, workspaceId);
-  const utilitySummary = await getTaskUtilitySummary(markets, workspaceId);
-  res.json({ ...task, markets, utilitySummary });
+  const taskMarkets = await getTaskMarketSummariesForTask(task.id, workspaceId);
+  const utilitySummary = await getTaskUtilitySummary(taskMarkets, workspaceId);
+  res.json({ ...task, markets: taskMarkets, utilitySummary });
 }));
-
-// --- Admin: approve task ---
 
 tasksRouter.post('/:taskId/approve', requireRole('admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
@@ -107,69 +85,58 @@ tasksRouter.post('/:taskId/approve', requireRole('admin'), wrap(async (req, res)
   res.json({ ok: true });
 }));
 
-// --- Admin: decline task ---
-
 tasksRouter.post('/:taskId/decline', requireRole('admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
-  const taskRef = wsCol(workspaceId, 'tasks').doc(req.params.taskId as string);
-  const taskDoc = await taskRef.get();
-  if (!taskDoc.exists) { res.status(404).json({ error: 'Task not found' }); return; }
-
-  const task = taskDoc.data()!;
+  const taskId = req.params.taskId as string;
+  const [task] = await db.select().from(tasks)
+    .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
+  if (!task) { res.status(404).json({ error: 'Task not found' }); return; }
   if (task.status !== 'pending') { res.status(400).json({ error: 'Can only decline pending tasks' }); return; }
 
   await voidTaskMarkets(task.id, workspaceId);
-  await taskRef.update({ status: 'declined' });
+  await db.update(tasks).set({ status: 'declined' })
+    .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
 
   res.json({ ok: true });
 }));
 
-// --- Agent or admin: get chat messages ---
-
 tasksRouter.get('/:taskId/messages', requireRole('agent', 'admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
-  const taskDoc = await wsCol(workspaceId, 'tasks').doc(req.params.taskId as string).get();
-  if (!taskDoc.exists) { res.status(404).json({ error: 'Task not found' }); return; }
+  const taskId = req.params.taskId as string;
+  const [task] = await db.select().from(tasks)
+    .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
+  if (!task) { res.status(404).json({ error: 'Task not found' }); return; }
 
-  const task = taskDoc.data()!;
   const isAdmin = req.auth!.role === 'admin';
   const agentId = req.auth!.agentId;
   if (!isAdmin && task.proposedBy !== agentId) { res.status(403).json({ error: 'Forbidden' }); return; }
 
-  const snap = await wsCol(workspaceId, 'tasks').doc(req.params.taskId as string)
-    .collection('messages')
-    .orderBy('createdAt', 'asc')
-    .get();
+  const messages = await db.select().from(taskMessages)
+    .where(and(eq(taskMessages.workspaceId, workspaceId), eq(taskMessages.taskId, taskId)))
+    .orderBy(asc(taskMessages.createdAt));
 
-  res.json(snap.docs.map(d => d.data()));
+  res.json(messages);
 }));
-
-// --- Agent or admin: send chat message ---
 
 tasksRouter.post('/:taskId/messages', requireRole('agent', 'admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
+  const taskId = req.params.taskId as string;
   const { content } = req.body;
   if (!content || typeof content !== 'string') { res.status(400).json({ error: 'content is required' }); return; }
   const contentError = validateContent(content, 'content', 5_000);
   if (contentError) { res.status(400).json({ error: contentError }); return; }
 
-  const taskDoc = await wsCol(workspaceId, 'tasks').doc(req.params.taskId as string).get();
-  if (!taskDoc.exists) { res.status(404).json({ error: 'Task not found' }); return; }
+  const [task] = await db.select().from(tasks)
+    .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
+  if (!task) { res.status(404).json({ error: 'Task not found' }); return; }
 
-  const task = taskDoc.data()!;
   const isAdmin = req.auth!.role === 'admin';
   const agentId = req.auth!.agentId;
   if (!isAdmin && task.proposedBy !== agentId) { res.status(403).json({ error: 'Forbidden' }); return; }
 
   const from = agentId || 'admin';
-  const ref = wsCol(workspaceId, 'tasks').doc(req.params.taskId as string).collection('messages').doc();
-  await ref.set({
-    id: ref.id,
-    taskId: req.params.taskId,
-    from,
-    content,
-    createdAt: FieldValue.serverTimestamp(),
-  });
+  const id = randomUUID();
+  await db.insert(taskMessages).values({ id, workspaceId, taskId, from, content, createdAt: new Date() });
 
-  res.status(201).json({ id: ref.id, from, content });
+  res.status(201).json({ id, from, content });
 }));

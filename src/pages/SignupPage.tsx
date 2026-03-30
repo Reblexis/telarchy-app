@@ -1,7 +1,6 @@
 import { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { createUserWithEmailAndPassword, User } from 'firebase/auth';
-import { initializeFirebaseApp, getFirebaseAuth } from '../lib/firebase';
+import { authClient } from '../lib/auth-client';
 import { api } from '../lib/api';
 import { OAuthButtons } from '../components/OAuthButtons';
 import { useAgentSession } from '../hooks/useAgentSession';
@@ -15,19 +14,11 @@ export function SignupPage() {
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [agentCreds, setAgentCreds] = useState<{ agentId: string; apiKey: string } | null>(null);
 
   const handleProfileResult = (result: { agentId?: string; apiKey?: string }) => {
     if (result.agentId && result.apiKey) {
       agentLogin(result.agentId, result.apiKey);
-      setAgentCreds({ agentId: result.agentId, apiKey: result.apiKey });
     }
-  };
-
-  const handleOAuthSuccess = async (user: User) => {
-    const result = await api.upsertProfile(user, user.email ?? undefined) as { agentId?: string; apiKey?: string };
-    handleProfileResult(result ?? {});
-    navigate('/start');
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -38,71 +29,62 @@ export function SignupPage() {
     if (password.length < 8) { setError('Password must be at least 8 characters'); return; }
 
     setSubmitting(true);
-    try {
-      initializeFirebaseApp();
-      const auth = getFirebaseAuth();
-      const { user } = await createUserWithEmailAndPassword(auth, email, password);
 
-      const result = await api.upsertProfile(user, email) as { agentId?: string; apiKey?: string };
-      handleProfileResult(result ?? {});
-
-      navigate('/start');
-    } catch (err: unknown) {
-      const firebaseErr = err as { code?: string; message?: string };
-      let msg = 'An error occurred';
-      if (firebaseErr.code === 'auth/email-already-in-use') msg = 'Email already in use';
-      else if (firebaseErr.code === 'auth/invalid-email') msg = 'Invalid email address';
-      else if (firebaseErr.code === 'auth/weak-password') msg = 'Password is too weak (min 6 chars)';
-      else if (firebaseErr.message) msg = firebaseErr.message;
-      setError(msg);
+    const { error: signUpError } = await authClient.signUp.email({ email, password, name: email });
+    if (signUpError) {
+      setError(signUpError.message || 'An error occurred');
       setSubmitting(false);
+      return;
     }
+
+    const result = await api.upsertProfile(email).catch((e: Error) => {
+      console.error('upsertProfile failed:', e.message);
+      return {};
+    }) as { agentId?: string; apiKey?: string };
+    handleProfileResult(result);
+
+    navigate('/start');
   };
 
-  // Suppress unused warning — agentCreds is stored but shown later (e.g. profile page)
-  void agentCreds;
-
   return (
-    <>
-      <div className="login-page">
-        <div className="container" style={{ maxWidth: 400 }}>
-          <h1>Create account</h1>
+    <div className="login-page">
+      <div className="container" style={{ maxWidth: 400 }}>
+        <h1>Create account</h1>
 
-          <OAuthButtons onSuccess={handleOAuthSuccess} onError={setError} />
+        <OAuthButtons onSuccess={() => {}} onError={setError} />
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: '1rem 0' }}>
-            <div style={{ flex: 1, height: 1, background: 'var(--border-color)' }} />
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>or</span>
-            <div style={{ flex: 1, height: 1, background: 'var(--border-color)' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: '1rem 0' }}>
+          <div style={{ flex: 1, height: 1, background: 'var(--border-color)' }} />
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>or</span>
+          <div style={{ flex: 1, height: 1, background: 'var(--border-color)' }} />
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="email">Email</label>
+            <input type="email" id="email" required autoComplete="email"
+              value={email} onChange={e => setEmail(e.target.value)} />
           </div>
-
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label htmlFor="email">Email</label>
-              <input type="email" id="email" required autoComplete="email"
-                value={email} onChange={e => setEmail(e.target.value)} />
-            </div>
-            <div className="form-group">
-              <label htmlFor="password">Password</label>
-              <input type="password" id="password" required autoComplete="new-password" minLength={8}
-                value={password} onChange={e => setPassword(e.target.value)} />
-            </div>
-            <div className="form-group">
-              <label htmlFor="confirm">Confirm password</label>
-              <input type="password" id="confirm" required autoComplete="new-password"
-                value={confirm} onChange={e => setConfirm(e.target.value)} />
-            </div>
-            <button type="submit" disabled={submitting}>
-              {submitting ? 'Creating account...' : 'Create account'}
-            </button>
-            {error && <div className="error show">{error}</div>}
-          </form>
-
-          <div className="reconfigure-link">
-            Already have an account? <Link to="/login">Log in</Link>
+          <div className="form-group">
+            <label htmlFor="password">Password</label>
+            <input type="password" id="password" required autoComplete="new-password" minLength={8}
+              value={password} onChange={e => setPassword(e.target.value)} />
           </div>
+          <div className="form-group">
+            <label htmlFor="confirm">Confirm password</label>
+            <input type="password" id="confirm" required autoComplete="new-password"
+              value={confirm} onChange={e => setConfirm(e.target.value)} />
+          </div>
+          <button type="submit" disabled={submitting}>
+            {submitting ? 'Creating account...' : 'Create account'}
+          </button>
+          {error && <div className="error show">{error}</div>}
+        </form>
+
+        <div className="reconfigure-link">
+          Already have an account? <Link to="/login">Log in</Link>
         </div>
       </div>
-    </>
+    </div>
   );
 }

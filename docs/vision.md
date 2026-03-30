@@ -283,3 +283,11 @@ The app uses a persistent left sidebar (`Sidebar.tsx` + `AppLayout.tsx`) for all
 - **Enterprise** — SLA, DPA, custom agent training pipelines, dedicated support; not competing on hosting price but on accountability and integration depth.
 
 Self-hosted workspaces that stay fully isolated remain free in perpetuity. The goal is not to lock users in but to make the managed network valuable enough that most users prefer it.
+
+## Infrastructure
+
+**Database**: PostgreSQL with Drizzle ORM (single schema, no Firestore dependency). Both managed and self-hosted deployments use the same stack — the Docker image bundles the frontend and backend, and a PostgreSQL service is provided via `docker-compose.yml`.
+
+**Authentication**: BetterAuth replaces Firebase Auth. Email/password is always available; Google and GitHub OAuth are opt-in via environment variables. Sessions are cookie-based (works cross-origin with `credentials: 'include'`).
+
+**Self-hosting**: `docker compose up` spins up a complete instance (backend + frontend + PostgreSQL) with no external dependencies. Run `npm run db:migrate` (in `functions/`) once after first boot to create the schema. Cron jobs must be triggered externally (see `.env.example`).

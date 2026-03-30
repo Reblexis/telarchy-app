@@ -1,12 +1,5 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react';
-import {
-  updatePassword,
-  EmailAuthProvider,
-  reauthenticateWithCredential,
-  GoogleAuthProvider,
-  reauthenticateWithPopup,
-} from 'firebase/auth';
-import { getFirebaseAuth } from '../lib/firebase';
+import { authClient } from '../lib/auth-client';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/api';
 
@@ -50,7 +43,7 @@ export function AccountPage() {
   const [copied, setCopied] = useState(false);
   const copyUid = () => {
     if (!user) return;
-    navigator.clipboard.writeText(user.uid).then(() => {
+    navigator.clipboard.writeText(user.id).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     });
@@ -60,16 +53,15 @@ export function AccountPage() {
     if (!user) return;
     setError('');
     const [agents, treas] = await Promise.all([
-      api.getMyAgents(user).catch((e: Error) => { setError(e.message); return null; }),
-      api.getTreasury(user).catch(() => null),
+      api.getMyAgents().catch((e: Error) => { setError(e.message); return null; }),
+      api.getTreasury().catch(() => null),
     ]);
 
     let myAgent = agents?.[0] ?? null;
 
-    // If no agent is linked yet, call upsertProfile to auto-create and link one, then re-fetch.
     if (!myAgent && agents !== null) {
-      await api.upsertProfile(user).catch((e: Error) => console.error('upsertProfile failed:', e.message));
-      const refreshed = await api.getMyAgents(user).catch(() => null);
+      await api.upsertProfile().catch((e: Error) => console.error('upsertProfile failed:', e.message));
+      const refreshed = await api.getMyAgents().catch(() => null);
       myAgent = refreshed?.[0] ?? null;
     }
 
@@ -83,10 +75,10 @@ export function AccountPage() {
 
   const handleDeposit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!user || !agent) return;
+    if (!agent) return;
     setDepositing(true);
     setDepositMsg(null);
-    const result = await api.depositForAgent(user, agent.id, txHash.trim())
+    const result = await api.depositForAgent(agent.id, txHash.trim())
       .catch((e: Error) => { setDepositMsg({ ok: false, text: e.message }); return null; });
     if (result) {
       setDepositMsg({ ok: true, text: `Deposited ${(result as { credits: number }).credits} credits.` });
@@ -98,12 +90,12 @@ export function AccountPage() {
 
   const handleWithdraw = async (e: FormEvent) => {
     e.preventDefault();
-    if (!user || !agent) return;
+    if (!agent) return;
     const amount = parseFloat(withdrawAmount);
     if (isNaN(amount) || amount <= 0) return;
     setWithdrawing(true);
     setWithdrawMsg(null);
-    const result = await api.withdrawFromAgent(user, agent.id, amount)
+    const result = await api.withdrawFromAgent(agent.id, amount)
       .catch((e: Error) => { setWithdrawMsg({ ok: false, text: e.message }); return null; });
     if (result) {
       const r = result as { usdcAmount: number; txHash: string };
@@ -116,10 +108,10 @@ export function AccountPage() {
 
   const handleSaveWallet = async (e: FormEvent) => {
     e.preventDefault();
-    if (!user || !agent) return;
+    if (!agent) return;
     setSavingWallet(true);
     setWalletMsg(null);
-    const result = await api.setAgentWallet(user, agent.id, walletAddr.trim())
+    const result = await api.setAgentWallet(agent.id, walletAddr.trim())
       .catch((e: Error) => { setWalletMsg({ ok: false, text: e.message }); return null; });
     if (result) {
       setWalletMsg({ ok: true, text: 'Wallet address saved.' });
@@ -130,29 +122,18 @@ export function AccountPage() {
 
   const handleChangePassword = async (e: FormEvent) => {
     e.preventDefault();
-    if (!user) return;
     setChangingPassword(true);
     setPasswordMsg(null);
-    const auth = getFirebaseAuth();
-    const currentUser = auth.currentUser;
-    if (!currentUser) { setPasswordMsg({ ok: false, text: 'Not authenticated.' }); setChangingPassword(false); return; }
-
-    // Determine provider to re-authenticate
-    const providers = currentUser.providerData.map(p => p.providerId);
-    try {
-      if (providers.includes('password')) {
-        const cred = EmailAuthProvider.credential(currentUser.email!, currentPassword);
-        await reauthenticateWithCredential(currentUser, cred);
-      } else if (providers.includes('google.com')) {
-        await reauthenticateWithPopup(currentUser, new GoogleAuthProvider());
-      }
-      await updatePassword(currentUser, newPassword);
+    const { error: pwError } = await authClient.changePassword({
+      currentPassword,
+      newPassword,
+    });
+    if (pwError) {
+      setPasswordMsg({ ok: false, text: pwError.message || 'Failed to update password.' });
+    } else {
       setPasswordMsg({ ok: true, text: 'Password updated.' });
       setCurrentPassword('');
       setNewPassword('');
-    } catch (e) {
-      const err = e as { message?: string };
-      setPasswordMsg({ ok: false, text: err.message || 'Failed to update password.' });
     }
     setChangingPassword(false);
   };
@@ -185,7 +166,7 @@ export function AccountPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>User ID</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <code style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{user.uid}</code>
+              <code style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{user.id}</code>
               <button
                 onClick={copyUid}
                 style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '0.25rem', cursor: 'pointer', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}
@@ -198,38 +179,36 @@ export function AccountPage() {
       </div>
 
       {/* Change password */}
-      {user.providerData.some(p => p.providerId === 'password') && (
-        <div className="section" style={{ marginBottom: '1.5rem' }}>
-          <h2 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem' }}>Change password</h2>
-          <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <input
-              type="password"
-              value={currentPassword}
-              onChange={e => setCurrentPassword(e.target.value)}
-              placeholder="Current password"
-              required
-              style={inputStyle}
-            />
-            <input
-              type="password"
-              value={newPassword}
-              onChange={e => setNewPassword(e.target.value)}
-              placeholder="New password"
-              required
-              minLength={6}
-              style={inputStyle}
-            />
-            <button type="submit" disabled={changingPassword || !currentPassword || !newPassword} style={{ alignSelf: 'flex-start' }}>
-              {changingPassword ? 'Updating…' : 'Update password'}
-            </button>
-          </form>
-          {passwordMsg && (
-            <div className={`message ${passwordMsg.ok ? 'success' : 'error'} show`} style={{ marginTop: '0.5rem' }}>
-              {passwordMsg.text}
-            </div>
-          )}
-        </div>
-      )}
+      <div className="section" style={{ marginBottom: '1.5rem' }}>
+        <h2 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem' }}>Change password</h2>
+        <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <input
+            type="password"
+            value={currentPassword}
+            onChange={e => setCurrentPassword(e.target.value)}
+            placeholder="Current password"
+            required
+            style={inputStyle}
+          />
+          <input
+            type="password"
+            value={newPassword}
+            onChange={e => setNewPassword(e.target.value)}
+            placeholder="New password"
+            required
+            minLength={8}
+            style={inputStyle}
+          />
+          <button type="submit" disabled={changingPassword || !currentPassword || !newPassword} style={{ alignSelf: 'flex-start' }}>
+            {changingPassword ? 'Updating…' : 'Update password'}
+          </button>
+        </form>
+        {passwordMsg && (
+          <div className={`message ${passwordMsg.ok ? 'success' : 'error'} show`} style={{ marginTop: '0.5rem' }}>
+            {passwordMsg.text}
+          </div>
+        )}
+      </div>
 
       {error && <div className="message error show" style={{ marginBottom: '1rem' }}>{error}</div>}
 
@@ -294,7 +273,6 @@ export function AccountPage() {
           <div className="section">
             <h2 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>Withdraw credits</h2>
 
-            {/* Wallet setup */}
             <div style={{ marginBottom: '1rem' }}>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
                 Register your Base wallet address to receive USDC withdrawals.

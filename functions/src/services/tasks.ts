@@ -1,68 +1,52 @@
-import { FieldValue } from 'firebase-admin/firestore';
-import { db } from '../lib/db';
-import { wsCol, wsLockDoc } from '../lib/workspace';
+import { db } from '../db/client';
+import { agents, markets, metrics as metricsTable, positions, tasks, trades, systemConfig } from '../db/schema';
+import { eq, and, inArray, sql } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
 import { consensus, initialPool } from '../lib/amm';
 import { recalculateMetrics } from '../lib/metrics-engine';
 import { getAllMetrics, buildConsensusMap } from './metrics';
 import { voidMarket } from './markets';
 import { toUnits } from '../lib/validation';
 
-type TaskMarketDoc = {
-  metricId: string;
-  metricName: string;
-  targetDate: string;
-  rangeMin: number;
-  rangeMax: number;
-  liquidity: number;
-  shares?: [number, number];
-};
-
-function chunk<T>(items: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < items.length; i += size) chunks.push(items.slice(i, i + size));
-  return chunks;
-}
+type MarketRow = typeof markets.$inferSelect;
 
 async function getTradeCountMap(marketIds: string[], workspaceId: string): Promise<Map<string, number>> {
-  const tradeCountMap = new Map<string, number>();
-  for (const ids of chunk(marketIds, 10)) {
-    const tradesSnap = await wsCol(workspaceId, 'trades')
-      .where('marketId', 'in', ids)
-      .get();
-    for (const d of tradesSnap.docs) {
-      const marketId = d.data().marketId;
-      tradeCountMap.set(marketId, (tradeCountMap.get(marketId) || 0) + 1);
-    }
+  if (marketIds.length === 0) return new Map();
+  const tradeRows = await db.select({ marketId: trades.marketId }).from(trades)
+    .where(and(eq(trades.workspaceId, workspaceId), inArray(trades.marketId, marketIds)));
+  const map = new Map<string, number>();
+  for (const { marketId } of tradeRows) {
+    map.set(marketId, (map.get(marketId) ?? 0) + 1);
   }
-  return tradeCountMap;
+  return map;
 }
 
-async function getBaselineConsensusMap(markets: TaskMarketDoc[], workspaceId: string): Promise<Map<string, number>> {
-  const wantedKeys = new Set(markets.map(m => `${m.metricId}:${m.targetDate}`));
-  const metricIds = Array.from(new Set(markets.map(m => m.metricId)));
-  const baselineConsensusMap = new Map<string, number>();
+async function getBaselineConsensusMap(marketRows: MarketRow[], workspaceId: string): Promise<Map<string, number>> {
+  if (marketRows.length === 0) return new Map();
+  const metricIds = [...new Set(marketRows.map(m => m.metricId))];
+  const wantedKeys = new Set(marketRows.map(m => `${m.metricId}:${m.targetDate}`));
 
-  for (const ids of chunk(metricIds, 10)) {
-    const snap = await wsCol(workspaceId, 'markets')
-      .where('resolved', '==', false)
-      .where('metricId', 'in', ids)
-      .get();
+  const openMarkets = await db.select().from(markets)
+    .where(and(
+      eq(markets.workspaceId, workspaceId),
+      eq(markets.resolved, false),
+      inArray(markets.metricId, metricIds),
+    ));
 
-    for (const doc of snap.docs) {
-      const market = doc.data();
-      if (market.taskId || market.active === false) continue;
-      const key = `${market.metricId}:${market.targetDate}`;
-      if (!wantedKeys.has(key) || baselineConsensusMap.has(key)) continue;
-      const c = consensus(market.shares || [0, 0], market.liquidity, market.rangeMin, market.rangeMax);
-      if (c !== undefined) baselineConsensusMap.set(key, c);
-    }
+  const map = new Map<string, number>();
+  for (const m of openMarkets) {
+    if (m.taskId || !m.active) continue;
+    const key = `${m.metricId}:${m.targetDate}`;
+    if (!wantedKeys.has(key) || map.has(key)) continue;
+    const shares = (m.shares as [number, number]) || [0, 0];
+    const c = consensus(shares, m.liquidity, m.rangeMin, m.rangeMax);
+    if (c !== undefined) map.set(key, c);
   }
-
-  return baselineConsensusMap;
+  return map;
 }
 
 export async function getTaskUtilitySummary(
-  markets: Array<{ metricName: string; targetDate: string; consensus: number | null; tradeCount: number }>,
+  taskMarkets: Array<{ metricName: string; targetDate: string; consensus: number | null; tradeCount: number }>,
   workspaceId = 'default',
 ) {
   const [baselineMetrics, { map: baselineConsensus }] = await Promise.all([
@@ -70,253 +54,163 @@ export async function getTaskUtilitySummary(
     buildConsensusMap(workspaceId),
   ]);
   const baselineUtility = baselineMetrics.find(m => m.name === 'Utility')?.total ?? null;
-  if (markets.length === 0) {
-    return { expectedCurrentUtility: null, baselineUtility };
-  }
+  if (taskMarkets.length === 0) return { expectedCurrentUtility: null, baselineUtility };
 
-  // Start from the baseline map and only overlay conditional values from
-  // markets that have actually been traded on. Untouched conditional markets
-  // (tradeCount=0) should inherit the baseline consensus, not overwrite it
-  // with an artificial value from untraded defaults.
   const conditionalConsensusMap: Record<string, number> = { ...baselineConsensus };
-  for (const market of markets) {
+  for (const market of taskMarkets) {
     if (market.consensus === null || market.tradeCount === 0) continue;
     conditionalConsensusMap[`${market.metricName}:${market.targetDate}`] = market.consensus;
   }
 
-  const conditionalMetrics = baselineMetrics.map(metric => ({ ...metric, missingMarkets: undefined }));
+  const conditionalMetrics = baselineMetrics.map(m => ({ ...m, missingMarkets: undefined }));
   recalculateMetrics(conditionalMetrics, conditionalConsensusMap);
   const expectedCurrentUtility = conditionalMetrics.find(m => m.name === 'Utility')?.total ?? null;
-
   return { expectedCurrentUtility, baselineUtility };
 }
 
-/**
- * Create conditional markets for a task by cloning all currently open, active
- * leaf markets (TP-driven). Each clone has the same metric/date/range but starts
- * with zero bets and is tagged with taskId.
- *
- * If unresolved conditional markets already exist for this task and their
- * (metricId, targetDate) set matches the current source markets, the existing
- * markets are kept as-is (preserving any trades). Otherwise the stale set is
- * voided and a fresh set is created.
- */
 export async function createConditionalMarkets(taskId: string, workspaceId = 'default'): Promise<string[]> {
-  // Distributed lock — prevents concurrent calls from creating duplicate markets.
-  const lockRef = wsLockDoc(workspaceId, `taskMarketLock_${taskId}`);
-  const acquired = await db().runTransaction(async tx => {
-    const lock = await tx.get(lockRef);
-    const d = lock.data() ?? {};
-    if (lock.exists && d.locked && (d.expiresAt as number) > Date.now()) return false;
-    tx.set(lockRef, { locked: true, expiresAt: Date.now() + 300_000 }); // 5-min TTL
+  const lockKey = `lock:taskMarket:${taskId}`;
+
+  const acquired = await db.transaction(async tx => {
+    const rows = await tx.select().from(systemConfig)
+      .where(eq(systemConfig.key, lockKey))
+      .for('update');
+    const existing = rows[0]?.value as { locked?: boolean; expiresAt?: number } | undefined;
+    if (existing?.locked && (existing.expiresAt ?? 0) > Date.now()) return false;
+    await tx.insert(systemConfig)
+      .values({ key: lockKey, value: { locked: true, expiresAt: Date.now() + 300_000 } })
+      .onConflictDoUpdate({
+        target: systemConfig.key,
+        set: { value: { locked: true, expiresAt: Date.now() + 300_000 } },
+      });
     return true;
   });
+
   if (!acquired) {
-    const snap = await wsCol(workspaceId, 'markets').where('taskId', '==', taskId).where('resolved', '==', false).get();
-    return snap.docs.map(d => d.id);
+    const existing = await db.select({ id: markets.id }).from(markets)
+      .where(and(eq(markets.workspaceId, workspaceId), eq(markets.taskId, taskId), eq(markets.resolved, false)));
+    return existing.map(m => m.id);
   }
 
   try {
-    // Identify leaf metric IDs (no formula or formula === '0')
-    const metricsSnap = await wsCol(workspaceId, 'metrics').get();
+    const metricRows = await db.select().from(metricsTable)
+      .where(eq(metricsTable.workspaceId, workspaceId));
+
     const leafMetricIds = new Set(
-      metricsSnap.docs
-        .filter(d => { const f = d.data().formula; return !f || f === '0'; })
-        .map(d => d.id),
+      metricRows.filter(r => !r.formula || r.formula === '0').map(r => r.id),
     );
 
-    // All open, non-conditional markets for leaf metrics (active !== false)
-    const openSnap = await wsCol(workspaceId, 'markets')
-      .where('resolved', '==', false)
-      .get();
-    const sourceMarkets = openSnap.docs.filter(d => {
-      const dd = d.data();
-      return dd.active !== false && !dd.taskId && leafMetricIds.has(dd.metricId);
-    });
+    const openMarkets = await db.select().from(markets)
+      .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
 
-    const desiredKeys = new Set(sourceMarkets.map(d => {
-      const m = d.data();
-      return `${m.metricId}:${m.targetDate}`;
-    }));
+    const sourceMarkets = openMarkets.filter(m => m.active !== false && !m.taskId && leafMetricIds.has(m.metricId));
+    const desiredKeys = new Set(sourceMarkets.map(m => `${m.metricId}:${m.targetDate}`));
 
-    // Check existing unresolved conditional markets for this task
-    const existingSnap = await wsCol(workspaceId, 'markets')
-      .where('taskId', '==', taskId)
-      .where('resolved', '==', false)
-      .get();
+    const existingConditional = await db.select().from(markets)
+      .where(and(eq(markets.workspaceId, workspaceId), eq(markets.taskId, taskId), eq(markets.resolved, false)));
 
-    if (existingSnap.size > 0) {
-      const existingKeys = new Set(existingSnap.docs.map(d => {
-        const m = d.data();
-        return `${m.metricId}:${m.targetDate}`;
-      }));
-      // Use existingSnap.size (not existingKeys.size) so duplicate docs per key are detected.
-      const setsMatch = existingSnap.size === desiredKeys.size &&
+    if (existingConditional.length > 0) {
+      const existingKeys = new Set(existingConditional.map(m => `${m.metricId}:${m.targetDate}`));
+      const setsMatch = existingConditional.length === desiredKeys.size &&
         [...desiredKeys].every(k => existingKeys.has(k));
-      if (setsMatch) return existingSnap.docs.map(d => d.id);
+      if (setsMatch) return existingConditional.map(m => m.id);
     }
 
-    // Stale set — void and recreate
     await voidTaskMarkets(taskId, workspaceId);
 
-    const BATCH_LIMIT = 450;
-    const newIds: string[] = [];
-    let batch = db().batch();
-    let batchCount = 0;
-
+    const newMarkets: typeof markets.$inferInsert[] = [];
     for (const src of sourceMarkets) {
-      const m = src.data();
-      const ref = wsCol(workspaceId, 'markets').doc();
-      batch.set(ref, {
-        id: ref.id,
-        metricId: m.metricId,
-        metricName: m.metricName,
-        targetDate: m.targetDate,
-        resolved: false,
-        resolvedAt: null,
-        actualValue: null,
-        active: true,
-        taskId,
-        createdAt: FieldValue.serverTimestamp(),
-        rangeMin: m.rangeMin,
-        rangeMax: m.rangeMax,
-        shares: [0, 0],
-        liquidity: m.liquidity,
-        pool: initialPool(m.liquidity),
+      const marketId = randomUUID();
+      newMarkets.push({
+        id: marketId, workspaceId,
+        metricId: src.metricId, metricName: src.metricName, targetDate: src.targetDate,
+        resolved: false, resolvedAt: null, actualValue: null, active: true, taskId,
+        rangeMin: src.rangeMin, rangeMax: src.rangeMax,
+        shares: [0, 0] as [number, number], liquidity: src.liquidity,
+        pool: initialPool(src.liquidity), createdAt: new Date(),
       });
-      newIds.push(ref.id);
-      batchCount++;
-      if (batchCount >= BATCH_LIMIT) {
-        await batch.commit();
-        batch = db().batch();
-        batchCount = 0;
-      }
     }
 
-    if (batchCount > 0) await batch.commit();
-    return newIds;
+    if (newMarkets.length > 0) {
+      await db.insert(markets).values(newMarkets);
+    }
+    return newMarkets.map(m => m.id as string);
   } finally {
-    await lockRef.delete();
-  }
-}
-
-/** Void all open conditional markets tied to a task.
- *  Fetches positions in parallel chunks, then commits resolved=true + refunds in batched writes.
- */
-export async function voidTaskMarkets(taskId: string, workspaceId = 'default'): Promise<void> {
-  const marketsSnap = await wsCol(workspaceId, 'markets')
-    .where('taskId', '==', taskId)
-    .where('resolved', '==', false)
-    .get();
-  if (marketsSnap.empty) return;
-
-  const marketDocs = marketsSnap.docs;
-
-  // Fetch positions for all markets in parallel (chunked to avoid overwhelming Firestore)
-  const POS_CHUNK = 50;
-  const posSnaps: FirebaseFirestore.QuerySnapshot[] = [];
-  for (let i = 0; i < marketDocs.length; i += POS_CHUNK) {
-    const chunkDocs = marketDocs.slice(i, i + POS_CHUNK);
-    const snaps = await Promise.all(
-      chunkDocs.map(d => wsCol(workspaceId, 'positions').where('marketId', '==', d.id).get()),
-    );
-    posSnaps.push(...snaps);
-  }
-
-  // Batch all writes together
-  const BATCH_LIMIT = 450;
-  let batch = db().batch();
-  let count = 0;
-  const flush = async () => { await batch.commit(); batch = db().batch(); count = 0; };
-
-  for (let i = 0; i < marketDocs.length; i++) {
-    batch.update(marketDocs[i].ref, {
-      resolved: true, resolvedAt: FieldValue.serverTimestamp(), actualValue: null, voided: true, pool: 0,
-    });
-    if (++count >= BATCH_LIMIT) await flush();
-
-    for (const posDoc of posSnaps[i].docs) {
-      const pos = posDoc.data();
-      if (pos.totalCost <= 0) continue;
-      // agents is a global collection — not workspace-scoped
-      batch.update(db().collection('agents').doc(pos.agentId), {
-        balance: FieldValue.increment(toUnits(pos.totalCost)),
-        earnedBetting: FieldValue.increment(pos.totalCost),
-        spentBetting: FieldValue.increment(-pos.totalCost),
+    await db.insert(systemConfig)
+      .values({ key: lockKey, value: { locked: false, expiresAt: 0 } })
+      .onConflictDoUpdate({
+        target: systemConfig.key,
+        set: { value: { locked: false, expiresAt: 0 } },
       });
-      if (++count >= BATCH_LIMIT) await flush();
-    }
   }
-  if (count > 0) await batch.commit();
 }
 
-/** Pay price credits to the proposing agent and mark the task approved. */
+export async function voidTaskMarkets(taskId: string, workspaceId = 'default'): Promise<void> {
+  const openMarkets = await db.select().from(markets)
+    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.taskId, taskId), eq(markets.resolved, false)));
+
+  for (const market of openMarkets) {
+    await voidMarket(market, workspaceId);
+  }
+}
+
 export async function approveTask(taskId: string, workspaceId = 'default'): Promise<void> {
-  const taskRef = wsCol(workspaceId, 'tasks').doc(taskId);
-  const taskDoc = await taskRef.get();
-  if (!taskDoc.exists) throw new Error('Task not found');
-  const task = taskDoc.data()!;
+  const [task] = await db.select().from(tasks)
+    .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
+
+  if (!task) throw new Error('Task not found');
   if (task.status !== 'pending') throw new Error('Task is not pending');
 
-  // agents is a global collection — not workspace-scoped
-  const agentRef = db().collection('agents').doc(task.proposedBy);
-  const agentDoc = await agentRef.get();
-  if (!agentDoc.exists) throw new Error('Proposing agent not found');
+  const [agent] = await db.select().from(agents).where(eq(agents.id, task.proposedBy));
+  if (!agent) throw new Error('Proposing agent not found');
 
-  const batch = db().batch();
-  batch.update(taskRef, { status: 'approved' });
-  batch.update(agentRef, {
-    balance: FieldValue.increment(toUnits(task.price)),
-    earnedTasks: FieldValue.increment(task.price),
+  await db.transaction(async tx => {
+    await tx.update(tasks).set({ status: 'approved' })
+      .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
+    await tx.update(agents)
+      .set({
+        balance: sql`${agents.balance} + ${toUnits(task.price)}`,
+        earnedTasks: sql`${agents.earnedTasks} + ${task.price}`,
+      })
+      .where(eq(agents.id, task.proposedBy));
   });
-  await batch.commit();
 }
 
-/** Return enriched market summaries for the given market IDs. */
 export async function getTaskMarketSummaries(marketIds: string[], workspaceId = 'default') {
   if (marketIds.length === 0) return [];
-  const docs = await Promise.all(marketIds.map(id => wsCol(workspaceId, 'markets').doc(id).get()));
-  return buildTaskMarketSummariesFromDocs(docs, workspaceId);
+  const rows = await db.select().from(markets)
+    .where(and(eq(markets.workspaceId, workspaceId), inArray(markets.id, marketIds)));
+  return buildTaskMarketSummariesFromRows(rows, workspaceId);
 }
 
 export async function getTaskMarketSummariesForTask(taskId: string, workspaceId = 'default') {
-  const snap = await wsCol(workspaceId, 'markets')
-    .where('taskId', '==', taskId)
-    .where('resolved', '==', false)
-    .orderBy('targetDate', 'asc')
-    .get();
-  return buildTaskMarketSummariesFromDocs(snap.docs, workspaceId);
+  const rows = await db.select().from(markets)
+    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.taskId, taskId), eq(markets.resolved, false)));
+  return buildTaskMarketSummariesFromRows(rows, workspaceId);
 }
 
-async function buildTaskMarketSummariesFromDocs(
-  docs: Array<FirebaseFirestore.DocumentSnapshot | FirebaseFirestore.QueryDocumentSnapshot>,
-  workspaceId: string,
-) {
-  const existingDocs = docs.filter(d => d.exists);
-  const taskMarkets = existingDocs.map(d => d.data() as TaskMarketDoc);
+async function buildTaskMarketSummariesFromRows(rows: MarketRow[], workspaceId: string) {
   const [tradeCountMap, baselineConsensusMap] = await Promise.all([
-    getTradeCountMap(existingDocs.map(d => d.id), workspaceId),
-    getBaselineConsensusMap(taskMarkets, workspaceId),
+    getTradeCountMap(rows.map(r => r.id), workspaceId),
+    getBaselineConsensusMap(rows, workspaceId),
   ]);
 
-  return existingDocs
-    .map(d => {
-      const m = d.data()!;
-      const shares: [number, number] = m.shares || [0, 0];
-      const key = `${m.metricId}:${m.targetDate}`;
-      return {
-        marketId: d.id,
-        metricId: m.metricId,
-        metricName: m.metricName,
-        targetDate: m.targetDate,
-        consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
-        baselineConsensus: baselineConsensusMap.get(key) ?? null,
-        rangeMin: m.rangeMin,
-        rangeMax: m.rangeMax,
-        liquidity: m.liquidity,
-        tradeCount: tradeCountMap.get(d.id) || 0,
-        resolved: m.resolved,
-        actualValue: m.actualValue ?? null,
-      };
-    });
+  return rows.map(m => {
+    const shares = (m.shares as [number, number]) || [0, 0];
+    const key = `${m.metricId}:${m.targetDate}`;
+    return {
+      marketId: m.id,
+      metricId: m.metricId,
+      metricName: m.metricName,
+      targetDate: m.targetDate,
+      consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
+      baselineConsensus: baselineConsensusMap.get(key) ?? null,
+      rangeMin: m.rangeMin,
+      rangeMax: m.rangeMax,
+      liquidity: m.liquidity,
+      tradeCount: tradeCountMap.get(m.id) ?? 0,
+      resolved: m.resolved,
+      actualValue: m.actualValue ?? null,
+    };
+  });
 }

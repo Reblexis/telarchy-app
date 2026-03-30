@@ -17,6 +17,8 @@ import { marketplaceRouter } from './routes/marketplace';
 import { groupsRouter } from './routes/groups';
 import { guidesRouter } from './routes/guides';
 import { cronRouter } from './routes/cron';
+import { toNodeHandler } from 'better-auth/node';
+import { auth } from './auth';
 import type { Request, Response, NextFunction } from 'express';
 import { AppError } from './lib/errors';
 
@@ -76,6 +78,10 @@ const registrationLimiter = rateLimit({
 });
 
 app.use(globalLimiter);
+
+// BetterAuth handles its own paths (/api/auth/sign-in, /sign-up, /sign-out, etc.)
+// and calls next() for unknown paths.
+app.use(toNodeHandler(auth));
 
 app.use('/api/guides', guidesRouter);
 

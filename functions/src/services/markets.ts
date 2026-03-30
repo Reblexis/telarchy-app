@@ -1,32 +1,31 @@
-import { FieldValue, type QueryDocumentSnapshot } from 'firebase-admin/firestore';
-import { db } from '../lib/db';
-import { wsCol, wsLockDoc } from '../lib/workspace';
+import { db } from '../db/client';
+import { agents, markets, metrics as metricsTable, positions, liquidityEvents, systemConfig } from '../db/schema';
+import { eq, and, sql } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
 import { sampleTimePoints, getLeafDescendantNames } from '../lib/time-preference';
 import { AMM_DEFAULTS, initialPool } from '../lib/amm';
 import { emitEvent } from './events';
-import { toUnits, fromUnits } from '../lib/validation';
+import { toUnits } from '../lib/validation';
 
-/**
- * Read liquidityEvents for a market and credit the given pool amount back to
- * LPs proportionally to their recorded poolContribution. Mutates the batch.
- */
+type MarketRow = typeof markets.$inferSelect;
+
+/** Credit LP contributors proportionally from the pool leftover. */
 export async function distributeLPLeftover(
-  batch: FirebaseFirestore.WriteBatch,
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
   marketId: string,
   poolAmount: number,
   workspaceId: string,
 ): Promise<void> {
   if (poolAmount <= 0) return;
-  const liqSnap = await wsCol(workspaceId, 'liquidityEvents').where('marketId', '==', marketId).get();
+  const liqRows = await tx.select().from(liquidityEvents)
+    .where(and(eq(liquidityEvents.workspaceId, workspaceId), eq(liquidityEvents.marketId, marketId)));
 
   const contributions = new Map<string, number>();
   let total = 0;
-  for (const doc of liqSnap.docs) {
-    const d = doc.data();
-    if (typeof d.agentId !== 'string' || !d.agentId) continue;
-    if (typeof d.poolContribution !== 'number' || d.poolContribution <= 0) continue;
-    contributions.set(d.agentId, (contributions.get(d.agentId) ?? 0) + d.poolContribution);
-    total += d.poolContribution;
+  for (const row of liqRows) {
+    if (!row.agentId || !row.poolContribution || row.poolContribution <= 0) continue;
+    contributions.set(row.agentId, (contributions.get(row.agentId) ?? 0) + row.poolContribution);
+    total += row.poolContribution;
   }
   if (total <= 0) return;
 
@@ -39,97 +38,128 @@ export async function distributeLPLeftover(
       : Math.round(poolAmount * contribution / total * 100) / 100;
     if (share <= 0) continue;
     distributed += share;
-    batch.update(db().collection('agents').doc(agentId), {
-      balance: FieldValue.increment(toUnits(share)),
-      earnedBetting: FieldValue.increment(share),
-    });
+    await tx.update(agents)
+      .set({
+        balance: sql`${agents.balance} + ${toUnits(share)}`,
+        earnedBetting: sql`${agents.earnedBetting} + ${share}`,
+      })
+      .where(eq(agents.id, agentId));
   }
 }
 
 /** Void a single open market: refund all positions at cost, mark resolved+voided. */
 export async function voidMarket(
-  docOrId: QueryDocumentSnapshot | FirebaseFirestore.DocumentSnapshot | string,
+  marketOrId: MarketRow | string,
   workspaceId = 'default',
 ): Promise<{ refunded: number }> {
-  const marketDoc = typeof docOrId === 'string'
-    ? await wsCol(workspaceId, 'markets').doc(docOrId).get()
-    : docOrId;
-  if (!marketDoc.exists) return { refunded: 0 };
-  const m = marketDoc.data()!;
-  if (m.resolved) return { refunded: 0 };
+  const market = typeof marketOrId === 'string'
+    ? await db.select().from(markets)
+        .where(and(eq(markets.id, marketOrId), eq(markets.workspaceId, workspaceId)))
+        .then(r => r[0] ?? null)
+    : marketOrId;
 
-  const posSnap = await wsCol(workspaceId, 'positions').where('marketId', '==', marketDoc.id).get();
-  const batch = db().batch();
+  if (!market || market.resolved) return { refunded: 0 };
+
+  const posRows = await db.select().from(positions)
+    .where(and(eq(positions.workspaceId, workspaceId), eq(positions.marketId, market.id)));
+
   let refunded = 0;
+  const pool = market.pool ?? 0;
 
-  const pool: number = (m.pool as number) ?? 0;
-  batch.update(marketDoc.ref, {
-    resolved: true, resolvedAt: FieldValue.serverTimestamp(), actualValue: null, voided: true, pool: 0,
+  await db.transaction(async tx => {
+    await tx.update(markets)
+      .set({ resolved: true, resolvedAt: new Date(), actualValue: null, voided: true, pool: 0 })
+      .where(and(eq(markets.id, market.id), eq(markets.workspaceId, workspaceId)));
+
+    for (const pos of posRows) {
+      if (pos.totalCost <= 0) continue;
+      refunded += pos.totalCost;
+      await tx.update(agents)
+        .set({
+          balance: sql`${agents.balance} + ${toUnits(pos.totalCost)}`,
+          earnedBetting: sql`${agents.earnedBetting} + ${pos.totalCost}`,
+          spentBetting: sql`${agents.spentBetting} - ${pos.totalCost}`,
+        })
+        .where(eq(agents.id, pos.agentId));
+    }
+
+    const lpLeftover = Math.round((pool - refunded) * 100) / 100;
+    await distributeLPLeftover(tx, market.id, lpLeftover, workspaceId);
   });
-  for (const posDoc of posSnap.docs) {
-    const pos = posDoc.data();
-    if (pos.totalCost <= 0) continue;
-    refunded += pos.totalCost;
-    // agents is a global collection — not workspace-scoped
-    batch.update(db().collection('agents').doc(pos.agentId), {
-      balance: FieldValue.increment(toUnits(pos.totalCost)),
-      earnedBetting: FieldValue.increment(pos.totalCost),
-      spentBetting: FieldValue.increment(-pos.totalCost),
-    });
-  }
 
-  const lpLeftover = Math.round((pool - refunded) * 100) / 100;
-  await distributeLPLeftover(batch, marketDoc.id, lpLeftover, workspaceId);
-
-  await batch.commit();
-  emitEvent('market:resolved', { marketId: marketDoc.id, metricName: m.metricName, targetDate: m.targetDate, voided: true }, workspaceId).catch(e => console.error('emitEvent failed:', e));
+  emitEvent('market:resolved', { marketId: market.id, metricName: market.metricName, targetDate: market.targetDate, voided: true }, workspaceId)
+    .catch(e => console.error('emitEvent failed:', e));
   return { refunded };
 }
 
 /** Void all open markets whose metricId is in the provided set. */
 export async function voidOpenMarketsForMetrics(metricIds: Set<string>, workspaceId = 'default'): Promise<void> {
-  const openSnap = await wsCol(workspaceId, 'markets').where('resolved', '==', false).get();
-  for (const doc of openSnap.docs) {
-    if (metricIds.has(doc.data().metricId)) await voidMarket(doc, workspaceId);
+  const openMarkets = await db.select().from(markets)
+    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
+
+  for (const m of openMarkets) {
+    if (metricIds.has(m.metricId)) await voidMarket(m, workspaceId);
   }
 }
 
-/**
- * Ensure markets exist for all time-preferenced metrics.
- * Markets that fall out of the desired (leaf, date) set are marked active:false
- * (not voided) so they can still be naturally resolved when their date arrives.
- * Called by the daily cron (00:10 UTC) and the manual "Refresh Markets" button.
- *
- * A Firestore distributed lock prevents concurrent executions (e.g. cron + manual
- * trigger overlapping) from creating duplicate markets.
- */
-export async function refreshRelativeDateMarkets(workspaceId = 'default'): Promise<{ created: number; deactivated: number; deduplicated: number }> {
-  const lockRef = wsLockDoc(workspaceId, 'marketRefreshLock');
-  const acquired = await db().runTransaction(async tx => {
-    const lock = await tx.get(lockRef);
-    const d = lock.data() ?? {};
-    if (lock.exists && d.locked && (d.expiresAt as number) > Date.now()) return false;
-    tx.set(lockRef, { locked: true, expiresAt: Date.now() + 120_000 });
+/** Acquire a named lock using systemConfig as a lock table. Returns true if acquired. */
+async function acquireLock(lockKey: string, ttlMs: number): Promise<boolean> {
+  return db.transaction(async tx => {
+    const rows = await tx.select().from(systemConfig)
+      .where(eq(systemConfig.key, lockKey))
+      .for('update');
+    const existing = rows[0]?.value as { locked?: boolean; expiresAt?: number } | undefined;
+    if (existing?.locked && (existing.expiresAt ?? 0) > Date.now()) return false;
+    await tx.insert(systemConfig)
+      .values({ key: lockKey, value: { locked: true, expiresAt: Date.now() + ttlMs } })
+      .onConflictDoUpdate({
+        target: systemConfig.key,
+        set: { value: { locked: true, expiresAt: Date.now() + ttlMs } },
+      });
     return true;
   });
+}
+
+async function setLockCooldown(lockKey: string, ttlMs: number): Promise<void> {
+  await db.insert(systemConfig)
+    .values({ key: lockKey, value: { locked: true, expiresAt: Date.now() + ttlMs } })
+    .onConflictDoUpdate({
+      target: systemConfig.key,
+      set: { value: { locked: true, expiresAt: Date.now() + ttlMs } },
+    });
+}
+
+async function releaseLock(lockKey: string): Promise<void> {
+  await db.insert(systemConfig)
+    .values({ key: lockKey, value: { locked: false, expiresAt: 0 } })
+    .onConflictDoUpdate({
+      target: systemConfig.key,
+      set: { value: { locked: false, expiresAt: 0 } },
+    });
+}
+
+export async function refreshRelativeDateMarkets(workspaceId = 'default'): Promise<{ created: number; deactivated: number; deduplicated: number }> {
+  const lockKey = `lock:marketRefresh:${workspaceId}`;
+  const acquired = await acquireLock(lockKey, 120_000);
   if (!acquired) return { created: 0, deactivated: 0, deduplicated: 0 };
-  const metricsSnap = await wsCol(workspaceId, 'metrics').get();
+
+  const metricRows = await db.select().from(metricsTable).where(eq(metricsTable.workspaceId, workspaceId));
+
   const nameToFormula: Record<string, string> = {};
   const nameToId = new Map<string, string>();
   const idToRangeMax = new Map<string, number>();
   const tpMetrics: { id: string; name: string; halfLife: number }[] = [];
 
-  for (const doc of metricsSnap.docs) {
-    const d = doc.data();
-    nameToFormula[d.name] = d.formula || '0';
-    nameToId.set(d.name, doc.id);
-    if (d.marketRangeMax != null) idToRangeMax.set(doc.id, d.marketRangeMax);
-    if (d.timePreference?.enabled) {
-      tpMetrics.push({ id: doc.id, name: d.name, halfLife: d.timePreference.halfLife });
+  for (const row of metricRows) {
+    nameToFormula[row.name] = row.formula || '0';
+    nameToId.set(row.name, row.id);
+    if (row.marketRangeMax != null) idToRangeMax.set(row.id, row.marketRangeMax);
+    const tp = row.timePreference as { enabled?: boolean; halfLife?: number } | null;
+    if (tp?.enabled && tp.halfLife) {
+      tpMetrics.push({ id: row.id, name: row.name, halfLife: tp.halfLife });
     }
   }
 
-  // Collect desired (leaf, date) pairs across all TP metrics
   const desiredRefs = new Map<string, { metricId: string; metricName: string; targetDate: string }>();
   for (const tp of tpMetrics) {
     const leafNames = getLeafDescendantNames(tp.name, nameToFormula);
@@ -143,84 +173,107 @@ export async function refreshRelativeDateMarkets(workspaceId = 'default'): Promi
     }
   }
 
-  // Only load open markets — resolved/voided docs must not block re-creation
-  const marketSnap = await wsCol(workspaceId, 'markets').where('resolved', '==', false).get();
+  const openMarkets = await db.select().from(markets)
+    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
+
   const openKeys = new Set<string>();
-
-  const batch = db().batch();
   let deactivated = 0;
+  const toDeactivate: string[] = [];
+  const toActivate: string[] = [];
+  const toLiquidityNormalize: string[] = [];
+  const seenNonTask = new Map<string, { id: string; createdAt: Date }>();
+  const toVoid: MarketRow[] = [];
 
-  // Track non-task markets per key to detect duplicates
-  const seenNonTask = new Map<string, { doc: QueryDocumentSnapshot; createdSecs: number }>();
-  const toVoid: QueryDocumentSnapshot[] = [];
-
-  for (const doc of marketSnap.docs) {
-    const d = doc.data();
-    const key = `${d.metricId}:${d.targetDate}`;
+  for (const m of openMarkets) {
+    const key = `${m.metricId}:${m.targetDate}`;
     openKeys.add(key);
-    // Task-conditional markets are managed by the task lifecycle — skip them.
-    if (d.taskId) continue;
+    if (m.taskId) continue;
 
-    const createdSecs = (d.createdAt as { seconds?: number })?.seconds;
-    if (createdSecs === undefined) {
-      console.error(`Market ${doc.id} has no createdAt timestamp — data integrity issue`);
-      continue;
-    }
     const prev = seenNonTask.get(key);
     if (!prev) {
-      seenNonTask.set(key, { doc, createdSecs });
-    } else if (createdSecs < prev.createdSecs) {
-      toVoid.push(prev.doc);
-      seenNonTask.set(key, { doc, createdSecs });
+      seenNonTask.set(key, { id: m.id, createdAt: m.createdAt });
+    } else if (m.createdAt < prev.createdAt) {
+      toVoid.push(openMarkets.find(om => om.id === prev.id)!);
+      seenNonTask.set(key, { id: m.id, createdAt: m.createdAt });
     } else {
-      toVoid.push(doc);
+      toVoid.push(m);
     }
 
     const shouldBeActive = desiredRefs.has(key);
-    if (shouldBeActive && d.active === false) {
-      batch.update(doc.ref, { active: true });
-    } else if (!shouldBeActive && d.active !== false) {
-      batch.update(doc.ref, { active: false });
+    if (shouldBeActive && !m.active) {
+      toActivate.push(m.id);
+    } else if (!shouldBeActive && m.active) {
+      toDeactivate.push(m.id);
       deactivated++;
     }
 
-    // Normalize stale liquidity: untraded markets (shares [0,0]) should use the
-    // current default. Markets created under an old AMM_DEFAULTS.liquidity linger
-    // with the old value otherwise.
-    const shares = d.shares as [number, number] | undefined;
+    const shares = m.shares as [number, number] | null;
     const isUntraded = shares && shares[0] === 0 && shares[1] === 0;
-    if (isUntraded && d.liquidity !== AMM_DEFAULTS.liquidity) {
-      batch.update(doc.ref, { liquidity: AMM_DEFAULTS.liquidity });
+    if (isUntraded && m.liquidity !== AMM_DEFAULTS.liquidity) {
+      toLiquidityNormalize.push(m.id);
     }
+  }
+
+  // Apply updates in a transaction
+  if (toActivate.length || toDeactivate.length || toLiquidityNormalize.length) {
+    await db.transaction(async tx => {
+      if (toActivate.length) {
+        for (const id of toActivate) {
+          await tx.update(markets).set({ active: true })
+            .where(and(eq(markets.id, id), eq(markets.workspaceId, workspaceId)));
+        }
+      }
+      if (toDeactivate.length) {
+        for (const id of toDeactivate) {
+          await tx.update(markets).set({ active: false })
+            .where(and(eq(markets.id, id), eq(markets.workspaceId, workspaceId)));
+        }
+      }
+      if (toLiquidityNormalize.length) {
+        for (const id of toLiquidityNormalize) {
+          await tx.update(markets).set({ liquidity: AMM_DEFAULTS.liquidity })
+            .where(and(eq(markets.id, id), eq(markets.workspaceId, workspaceId)));
+        }
+      }
+    });
   }
 
   // Create missing markets
   let created = 0;
+  const newMarkets: typeof markets.$inferInsert[] = [];
+  const newLiqEvents: typeof liquidityEvents.$inferInsert[] = [];
+
   for (const [key, { metricId, metricName, targetDate }] of desiredRefs) {
     if (openKeys.has(key)) continue;
     const rMax = idToRangeMax.get(metricId) ?? AMM_DEFAULTS.rangeMax;
-    const ref = wsCol(workspaceId, 'markets').doc();
-    batch.set(ref, {
-      id: ref.id, metricId, metricName, targetDate,
+    const marketId = randomUUID();
+    newMarkets.push({
+      id: marketId, workspaceId, metricId, metricName, targetDate,
       resolved: false, resolvedAt: null, actualValue: null, active: true,
-      createdAt: FieldValue.serverTimestamp(),
       rangeMin: AMM_DEFAULTS.rangeMin, rangeMax: rMax,
-      shares: [0, 0], liquidity: AMM_DEFAULTS.liquidity,
-      pool: initialPool(AMM_DEFAULTS.liquidity),
+      shares: [0, 0] as [number, number], liquidity: AMM_DEFAULTS.liquidity,
+      pool: initialPool(AMM_DEFAULTS.liquidity), createdAt: new Date(),
     });
-    const liqRef = wsCol(workspaceId, 'liquidityEvents').doc();
-    batch.set(liqRef, { id: liqRef.id, marketId: ref.id, amount: AMM_DEFAULTS.liquidity, totalLiquidity: AMM_DEFAULTS.liquidity, type: 'initial', createdAt: FieldValue.serverTimestamp() });
+    newLiqEvents.push({
+      id: randomUUID(), workspaceId, marketId, amount: AMM_DEFAULTS.liquidity,
+      totalLiquidity: AMM_DEFAULTS.liquidity, type: 'initial', createdAt: new Date(),
+    });
     created++;
   }
 
-  await batch.commit();
+  if (newMarkets.length > 0) {
+    await db.transaction(async tx => {
+      await tx.insert(markets).values(newMarkets);
+      await tx.insert(liquidityEvents).values(newLiqEvents);
+    });
+  }
 
-  // Void duplicate markets (sequential to respect Firestore limits)
-  for (const doc of toVoid) await voidMarket(doc, workspaceId);
+  // Void duplicates
+  for (const m of toVoid) await voidMarket(m, workspaceId);
   const deduplicated = toVoid.length;
 
-  // Keep the lock held for 5 minutes as a cooldown so that on-demand calls from
-  // GET /markets don't trigger a full Firestore scan on every request.
-  await lockRef.set({ locked: true, expiresAt: Date.now() + 5 * 60 * 1000 });
+  // Hold lock as cooldown for 5 minutes
+  await setLockCooldown(lockKey, 5 * 60 * 1000);
+
   return { created, deactivated, deduplicated };
 }

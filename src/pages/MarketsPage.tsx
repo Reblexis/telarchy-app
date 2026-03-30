@@ -13,7 +13,7 @@ import type { Market, Metric } from '../types';
 export function MarketsPage() {
   const { user } = useAuth();
   const { inspectTask } = useInspectMode();
-  const { workspace } = useWorkspace(user);
+  const { workspace } = useWorkspace(!!user);
   const isAdmin = !workspace || workspace.tier === 'admin';
   const [markets, setMarkets] = useState<Market[]>([]);
   const [metrics, setMetrics] = useState<Metric[]>([]);
@@ -53,11 +53,11 @@ export function MarketsPage() {
       if (cachedMets) setMetrics(cachedMets);
     }
     const [mkts, mets] = await Promise.all([
-      api.getMarkets(user, inspectTask?.id).catch((e: Error) => { setError(e.message); return null; }),
-      api.getMetrics(user).catch((e: Error) => { setError(e.message); return null; }),
+      api.getMarkets(inspectTask?.id).catch((e: Error) => { setError(e.message); return null; }),
+      api.getMetrics().catch((e: Error) => { setError(e.message); return null; }),
     ]);
     if (inspectTask) {
-      api.getMarkets(user).then((mains: Market[]) => {
+      api.getMarkets().then((mains: Market[]) => {
         const map = new Map<string, Market>();
         for (const m of mains) map.set(`${m.metricId}:${m.targetDate}`, m);
         setMainMarketsMap(map);
@@ -82,7 +82,7 @@ export function MarketsPage() {
     if (!user || !metricId || !targetDate) return;
     setCreating(true);
     setError('');
-    const result = await api.createMarket(user, metricId, targetDate).catch((e: Error) => { setError(e.message); return null; });
+    const result = await api.createMarket(metricId, targetDate).catch((e: Error) => { setError(e.message); return null; });
     setCreating(false);
     if (result) { setMetricId(''); setTargetDate(''); load(); }
   };
@@ -90,21 +90,21 @@ export function MarketsPage() {
   const handleDelete = async (id: string) => {
     if (!user) return;
     setError('');
-    await api.deleteMarket(user, id).catch((e: Error) => { setError(e.message); });
+    await api.deleteMarket(id).catch((e: Error) => { setError(e.message); });
     load();
   };
 
   const handleVoid = async (id: string) => {
     if (!user) return;
     setError('');
-    const result = await api.voidMarket(user, id).catch((e: Error) => { setError(e.message); return null; });
+    const result = await api.voidMarket(id).catch((e: Error) => { setError(e.message); return null; });
     if (result) { setResolveResult(`Market voided. Refunded $${result.refunded}.`); load(); }
   };
 
   const handleResolveOne = async (id: string) => {
     if (!user) return;
     setError('');
-    const result = await api.resolveMarket(user, id).catch((e: Error) => { setError(e.message); return null; });
+    const result = await api.resolveMarket(id).catch((e: Error) => { setError(e.message); return null; });
     if (result?.resolved) { setResolveResult(`Market resolved. Total payout: $${result.totalPayout}.`); load(); }
   };
 
@@ -114,7 +114,7 @@ export function MarketsPage() {
     if (isNaN(a) || a <= 0) return;
     setError('');
     setBulkLiqResult('');
-    const result = await api.injectLiquidityBulk(user, a, inspectTask?.id).catch((e: Error) => { setError(e.message); return null; });
+    const result = await api.injectLiquidityBulk(a, inspectTask?.id).catch((e: Error) => { setError(e.message); return null; });
     if (result) {
       setBulkLiqAmount('');
       setBulkLiqResult(`Injected ${a} into ${result.markets} markets (total: ${result.totalCost} credits).`);

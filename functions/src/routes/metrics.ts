@@ -1,7 +1,8 @@
 import { Router } from 'express';
-import { FieldValue } from 'firebase-admin/firestore';
-import { db } from '../lib/db';
-import { wsCol } from '../lib/workspace';
+import { db } from '../db/client';
+import { metrics, markets, updates } from '../db/schema';
+import { eq, and, sql } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { requireRole } from '../middleware/roles';
 import {
@@ -16,25 +17,20 @@ import type { TimePreference } from '../types';
 
 export const metricsRouter = Router();
 
-// Read routes: agent + admin
 metricsRouter.get('/', requireRole('agent', 'admin'), wrap(async (req, res) => {
-  const { workspaceId } = req.auth!;
-  res.json(await svc.getAllMetrics(workspaceId));
+  res.json(await svc.getAllMetrics(req.auth!.workspaceId));
 }));
 
 metricsRouter.get('/:id', requireRole('agent', 'admin'), wrap(async (req, res) => {
-  const { workspaceId } = req.auth!;
-  const metric = await svc.getMetricById(req.params.id as string, workspaceId);
+  const metric = await svc.getMetricById(req.params.id as string, req.auth!.workspaceId);
   if (!metric) { res.status(404).json({ error: 'Metric not found' }); return; }
   res.json(metric);
 }));
 
 metricsRouter.get('/:id/logs', requireRole('agent', 'admin'), wrap(async (req, res) => {
-  const { workspaceId } = req.auth!;
-  res.json(await svc.getMetricLogs(req.params.id as string, workspaceId));
+  res.json(await svc.getMetricLogs(req.params.id as string, req.auth!.workspaceId));
 }));
 
-// Write routes: admin only
 metricsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const { name, description = '', value = 0, formula = '0', timePreference, marketRangeMax } = req.body;
@@ -46,28 +42,30 @@ metricsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
   const tp = parseTimePreference(timePreference);
   if (tp instanceof Error) { res.status(400).json({ error: tp.message }); return; }
 
-  // Validate TP only makes sense on non-leaf metrics
   if (tp?.enabled && (!formula || formula.trim() === '0')) {
     res.status(400).json({ error: 'Time preference can only be enabled on non-leaf metrics (with a formula)' });
     return;
   }
 
   const isDefinition = formula && formula.trim() !== '0';
-  const firestoreData: Record<string, unknown> = {
-    name, value: isDefinition ? 0 : (value || 0), formula, description, order: 999,
-  };
-  if (tp?.enabled) firestoreData.timePreference = tp;
-  if (marketRangeMax !== undefined) firestoreData.marketRangeMax = marketRangeMax;
+  const id = randomUUID();
 
-  const docRef = await wsCol(workspaceId, 'metrics').add(firestoreData);
-  res.status(201).json({ ok: true, id: docRef.id });
+  await db.insert(metrics).values({
+    id, workspaceId, name,
+    value: isDefinition ? 0 : (value || 0),
+    formula, description, order: 999,
+    timePreference: tp?.enabled ? tp : null,
+    marketRangeMax: marketRangeMax ?? null,
+    createdAt: new Date(), updatedAt: new Date(),
+  });
 
-  // Background: spawn TP markets if needed, then log
+  res.status(201).json({ ok: true, id });
+
   if (tp?.enabled) {
-    await svc.ensureMarketsForTimePreference(docRef.id, tp.halfLife, workspaceId);
+    await svc.ensureMarketsForTimePreference(id, tp.halfLife, workspaceId);
   }
-  const metrics = await svc.getAllMetrics(workspaceId);
-  await svc.logSpecificMetrics(getAffectedMetrics([docRef.id], metrics), metrics, workspaceId);
+  const allMetrics = await svc.getAllMetrics(workspaceId);
+  await svc.logSpecificMetrics(getAffectedMetrics([id], allMetrics), allMetrics, workspaceId);
 }));
 
 metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
@@ -75,7 +73,6 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
   const id = req.params.id as string;
   const { oldValue, updateNote = '', timePreference: rawTP, ...fields } = req.body;
 
-  // Validate and parse timePreference
   const newTP = parseTimePreference(rawTP);
   if (newTP instanceof Error) { res.status(400).json({ error: newTP.message }); return; }
 
@@ -92,23 +89,22 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
     res.status(400).json({ error: 'No fields to update' }); return;
   }
 
-  // Read old doc
-  const docRef = wsCol(workspaceId, 'metrics').doc(id);
-  const oldDoc = await docRef.get();
-  if (!oldDoc.exists) { res.status(404).json({ error: 'Metric not found' }); return; }
-  const oldData = oldDoc.data()!;
-  const oldTP: TimePreference | undefined = oldData.timePreference?.enabled ? oldData.timePreference : undefined;
+  const [oldRow] = await db.select().from(metrics)
+    .where(and(eq(metrics.id, id), eq(metrics.workspaceId, workspaceId)));
+  if (!oldRow) { res.status(404).json({ error: 'Metric not found' }); return; }
 
-  const effectiveFormula = (update.formula as string | undefined) ?? oldData.formula ?? '0';
-  const effectiveName = (update.name as string | undefined) ?? oldData.name;
+  const oldTP = (oldRow.timePreference as TimePreference | null)?.enabled
+    ? oldRow.timePreference as TimePreference
+    : undefined;
 
-  // Validate TP on non-leaf
+  const effectiveFormula = (update.formula as string | undefined) ?? oldRow.formula ?? '0';
+  const effectiveName = (update.name as string | undefined) ?? oldRow.name;
+
   if (newTP?.enabled && (!effectiveFormula || effectiveFormula.trim() === '0')) {
     res.status(400).json({ error: 'Time preference can only be enabled on non-leaf metrics (with a formula)' });
     return;
   }
 
-  // Circular dependency check
   if (update.formula) {
     const allMetrics = await svc.getAllMetrics(workspaceId);
     if (detectCircularDependency(id, update.formula as string, allMetrics)) {
@@ -116,7 +112,6 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
     }
   }
 
-  // One-per-path constraint if enabling TP
   const wasTPEnabled = oldTP?.enabled ?? false;
   const isTPEnabled = newTP !== undefined ? (newTP?.enabled ?? false) : wasTPEnabled;
   if (isTPEnabled && !wasTPEnabled) {
@@ -127,117 +122,116 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
     }
   }
 
-  // Definition metrics must have value = 0
-  if (effectiveFormula && effectiveFormula.trim() !== '0') {
-    update.value = 0;
-  }
+  if (effectiveFormula && effectiveFormula.trim() !== '0') update.value = 0;
 
-  // Build Firestore update
   if (rawTP !== undefined) {
-    update.timePreference = newTP?.enabled ? newTP : FieldValue.delete();
+    update.timePreference = newTP?.enabled ? newTP : null;
   }
+  update.updatedAt = new Date();
 
-  const writes: Promise<unknown>[] = [docRef.update(update)];
+  const dbUpdate: Partial<typeof metrics.$inferInsert> = {};
+  if (update.name !== undefined) dbUpdate.name = update.name as string;
+  if (update.description !== undefined) dbUpdate.description = update.description as string;
+  if (update.value !== undefined) dbUpdate.value = update.value as number;
+  if (update.formula !== undefined) dbUpdate.formula = update.formula as string;
+  if (update.marketRangeMax !== undefined) dbUpdate.marketRangeMax = update.marketRangeMax as number | null;
+  if (update.timePreference !== undefined) dbUpdate.timePreference = update.timePreference as TimePreference | null;
+  dbUpdate.updatedAt = new Date();
+
   const isLeafMetric = !effectiveFormula || effectiveFormula.trim() === '0';
-  if (isLeafMetric && oldValue !== undefined && update.value !== undefined && oldValue !== update.value) {
-    writes.push(wsCol(workspaceId, 'updates').add({
-      metricName: effectiveName, oldValue, newValue: update.value,
-      description: updateNote || 'Value updated',
-      timestamp: FieldValue.serverTimestamp(),
-    }));
-  }
-  await Promise.all(writes);
+
+  await db.transaction(async tx => {
+    await tx.update(metrics).set(dbUpdate)
+      .where(and(eq(metrics.id, id), eq(metrics.workspaceId, workspaceId)));
+
+    if (isLeafMetric && oldValue !== undefined && update.value !== undefined && oldValue !== update.value) {
+      await tx.insert(updates).values({
+        id: randomUUID(), workspaceId,
+        metricName: effectiveName, oldValue, newValue: update.value as number,
+        description: updateNote || 'Value updated', timestamp: new Date(),
+      });
+    }
+  });
+
   res.json({ ok: true });
 
-  // Background: market management and logging
   const effectiveHalfLife = newTP?.halfLife ?? oldTP?.halfLife ?? 1;
 
-  // TP state changes
   if (newTP !== undefined) {
     if (newTP?.enabled && !wasTPEnabled) {
-      // Newly enabled: spawn markets
       await svc.ensureMarketsForTimePreference(id, newTP.halfLife, workspaceId);
     } else if (!newTP?.enabled && wasTPEnabled) {
-      // Disabled: disable betting on leaf markets so they resolve naturally
       await deactivateLeafMarketsForTPMetric(id, oldTP!.halfLife, workspaceId);
     } else if (newTP?.enabled && wasTPEnabled && newTP.halfLife !== oldTP!.halfLife) {
-      // HalfLife changed: respawn
       await svc.respawnMarketsForTimePreference(id, newTP.halfLife, workspaceId);
     }
   }
 
-  // Range change: void existing markets so they are recreated with the new range
-  const definitionChanged = isDefinitionChange(oldData, update, effectiveFormula);
-  if (update.marketRangeMax !== undefined && update.marketRangeMax !== oldData.marketRangeMax) {
+  if (update.marketRangeMax !== undefined && update.marketRangeMax !== oldRow.marketRangeMax) {
     await voidOpenMarketsForMetrics(new Set([id]), workspaceId);
   }
 
-  // Definition change on a non-TP metric: find TP ancestors and respawn
+  const definitionChanged = isDefinitionChange(oldRow, update, effectiveFormula);
   if (definitionChanged && !isTPEnabled) {
     const tpAncestorIds = await findTPAncestors(id, workspaceId);
     for (const tpId of tpAncestorIds) {
-      const tpDoc = await wsCol(workspaceId, 'metrics').doc(tpId).get();
-      const tpHalfLife = tpDoc.data()?.timePreference?.halfLife;
+      const [tpRow] = await db.select({ timePreference: metrics.timePreference }).from(metrics)
+        .where(and(eq(metrics.id, tpId), eq(metrics.workspaceId, workspaceId)));
+      const tpHalfLife = (tpRow?.timePreference as TimePreference | null)?.halfLife;
       if (tpHalfLife) await svc.respawnMarketsForTimePreference(tpId, tpHalfLife, workspaceId);
     }
   }
 
-  // Definition change on TP metric itself: respawn its markets
   if (definitionChanged && isTPEnabled) {
     await svc.respawnMarketsForTimePreference(id, effectiveHalfLife, workspaceId);
   }
 
-  const metrics = await svc.getAllMetrics(workspaceId);
-  await svc.logSpecificMetrics(getAffectedMetrics([id], metrics), metrics, workspaceId);
+  const allMetrics = await svc.getAllMetrics(workspaceId);
+  await svc.logSpecificMetrics(getAffectedMetrics([id], allMetrics), allMetrics, workspaceId);
   if (update.value !== undefined) {
-    const metric = metrics.find(m => m.id === id);
+    const metric = allMetrics.find(m => m.id === id);
     if (!metric) console.error(`emitEvent: metric ${id} not found after update`);
-    emitEvent('metric:updated', { metricId: id, metricName: metric!.name, oldValue: oldValue ?? null, newValue: update.value }, workspaceId).catch(e => console.error('emitEvent failed:', e));
+    emitEvent('metric:updated', { metricId: id, metricName: metric!.name, oldValue: oldValue ?? null, newValue: update.value }, workspaceId)
+      .catch(e => console.error('emitEvent failed:', e));
   }
 }));
 
 metricsRouter.delete('/:id', requireRole('admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const id = req.params.id as string;
-  const docSnap = await wsCol(workspaceId, 'metrics').doc(id).get();
-  if (!docSnap.exists) { res.status(404).json({ error: 'Metric not found' }); return; }
-  const data = docSnap.data()!;
+  const [row] = await db.select().from(metrics)
+    .where(and(eq(metrics.id, id), eq(metrics.workspaceId, workspaceId)));
+  if (!row) { res.status(404).json({ error: 'Metric not found' }); return; }
 
-  // Find TP ancestors before deleting (metric must still exist in collection for BFS to work)
   const tpAncestorIds = await findTPAncestors(id, workspaceId);
-
   await svc.deleteMetric(id, workspaceId);
   res.status(204).send();
 
-  // Background: void markets and respawn TP ancestor markets
-  if (data.timePreference?.enabled) {
-    // TP metric deleted: disable betting on leaf markets so they resolve naturally
-    await deactivateLeafMarketsForTPMetric(id, data.timePreference.halfLife, workspaceId);
+  const tp = row.timePreference as TimePreference | null;
+  if (tp?.enabled) {
+    await deactivateLeafMarketsForTPMetric(id, tp.halfLife, workspaceId);
   } else {
-    // Leaf or definition metric: void any direct markets, then respawn TP ancestors
     await voidOpenMarketsForMetrics(new Set([id]), workspaceId);
     for (const tpId of tpAncestorIds) {
-      const tpDoc = await wsCol(workspaceId, 'metrics').doc(tpId).get();
-      const tpHalfLife = tpDoc.data()?.timePreference?.halfLife;
+      const [tpRow] = await db.select({ timePreference: metrics.timePreference }).from(metrics)
+        .where(and(eq(metrics.id, tpId), eq(metrics.workspaceId, workspaceId)));
+      const tpHalfLife = (tpRow?.timePreference as TimePreference | null)?.halfLife;
       if (tpHalfLife) await svc.respawnMarketsForTimePreference(tpId, tpHalfLife, workspaceId);
     }
   }
 }));
 
-/** One-time migration: zero the base value on all existing definition metrics. */
 metricsRouter.post('/migrate-leaf-types', requireRole('admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
-  const snap = await wsCol(workspaceId, 'metrics').get();
-  const batch = db().batch();
+  const rows = await db.select().from(metrics).where(eq(metrics.workspaceId, workspaceId));
   let updated = 0;
-  for (const doc of snap.docs) {
-    const formula = doc.data().formula || '0';
-    if (formula.trim() !== '0' && doc.data().value !== 0) {
-      batch.update(doc.ref, { value: 0 });
+  for (const row of rows) {
+    if ((row.formula ?? '0').trim() !== '0' && row.value !== 0) {
+      await db.update(metrics).set({ value: 0 })
+        .where(and(eq(metrics.id, row.id), eq(metrics.workspaceId, workspaceId)));
       updated++;
     }
   }
-  if (updated > 0) await batch.commit();
   res.json({ updated });
 }));
 
@@ -248,51 +242,38 @@ function parseTimePreference(raw: unknown): TimePreference | undefined | Error {
   if (typeof raw !== 'object') return new Error('timePreference must be an object');
   const obj = raw as Record<string, unknown>;
   if (typeof obj.enabled !== 'boolean') return new Error('timePreference.enabled must be a boolean');
-  if (obj.enabled) {
-    if (typeof obj.halfLife !== 'number' || obj.halfLife <= 0) {
-      return new Error('timePreference.halfLife must be a positive number (years)');
-    }
+  if (obj.enabled && (typeof obj.halfLife !== 'number' || obj.halfLife <= 0)) {
+    return new Error('timePreference.halfLife must be a positive number (years)');
   }
   return { enabled: obj.enabled, halfLife: (obj.halfLife as number) ?? 1 };
 }
 
-/**
- * Returns true if the update constitutes a definition change.
- * Leaf value changes (formula === '0') are NOT definition changes.
- */
 function isDefinitionChange(
-  oldData: FirebaseFirestore.DocumentData,
+  oldRow: typeof metrics.$inferSelect,
   update: Record<string, unknown>,
   effectiveFormula: string,
 ): boolean {
-  if (update.name !== undefined && update.name !== oldData.name) return true;
-  if (update.description !== undefined && update.description !== oldData.description) return true;
-  if (update.formula !== undefined && update.formula !== (oldData.formula ?? '0')) return true;
-  if (update.marketRangeMax !== undefined && update.marketRangeMax !== oldData.marketRangeMax) return true;
-  // Value change is a definition change only for non-leaf nodes
+  if (update.name !== undefined && update.name !== oldRow.name) return true;
+  if (update.description !== undefined && update.description !== oldRow.description) return true;
+  if (update.formula !== undefined && update.formula !== (oldRow.formula ?? '0')) return true;
+  if (update.marketRangeMax !== undefined && update.marketRangeMax !== oldRow.marketRangeMax) return true;
   const isLeaf = !effectiveFormula || effectiveFormula.trim() === '0';
-  if (!isLeaf && update.value !== undefined && update.value !== oldData.value) return true;
+  if (!isLeaf && update.value !== undefined && update.value !== oldRow.value) return true;
   return false;
 }
 
-/**
- * Find TP metrics that are ancestors (direct or transitive referrers) of the given metric.
- */
-async function findTPAncestors(metricId: string, workspaceId: string): Promise<string[]> {
-  const metricsSnap = await wsCol(workspaceId, 'metrics').get();
-  const referencedBy: Record<string, string[]> = {};
+async function getAllMetricRows(workspaceId: string) {
+  return db.select().from(metrics).where(eq(metrics.workspaceId, workspaceId));
+}
 
-  for (const doc of metricsSnap.docs) {
-    referencedBy[doc.id] = [];
-  }
-  for (const doc of metricsSnap.docs) {
-    const formula = doc.data().formula || '0';
-    for (const refName of extractMetricReferences(formula)) {
-      // Find the doc with this name
-      const refDoc = metricsSnap.docs.find(d => d.data().name === refName);
-      if (refDoc) {
-        referencedBy[refDoc.id].push(doc.id);
-      }
+async function findTPAncestors(metricId: string, workspaceId: string): Promise<string[]> {
+  const rows = await getAllMetricRows(workspaceId);
+  const referencedBy: Record<string, string[]> = {};
+  for (const row of rows) referencedBy[row.id] = [];
+  for (const row of rows) {
+    for (const refName of extractMetricReferences(row.formula || '0')) {
+      const refRow = rows.find(r => r.name === refName);
+      if (refRow) referencedBy[refRow.id].push(row.id);
     }
   }
 
@@ -304,9 +285,9 @@ async function findTPAncestors(metricId: string, workspaceId: string): Promise<s
     const currentId = queue.shift()!;
     if (visited.has(currentId)) continue;
     visited.add(currentId);
-
-    const doc = metricsSnap.docs.find(d => d.id === currentId);
-    if (doc?.data()?.timePreference?.enabled) {
+    const row = rows.find(r => r.id === currentId);
+    const tp = row?.timePreference as TimePreference | null;
+    if (tp?.enabled) {
       tpAncestors.push(currentId);
     } else {
       queue.push(...(referencedBy[currentId] || []));
@@ -316,66 +297,56 @@ async function findTPAncestors(metricId: string, workspaceId: string): Promise<s
   return tpAncestors;
 }
 
-/**
- * Check if any ancestor or descendant of the given metric has TP enabled.
- * Returns the name of the conflicting metric, or null if no conflict.
- */
 async function findTPConflict(metricId: string, metricName: string, workspaceId: string): Promise<string | null> {
-  const metricsSnap = await wsCol(workspaceId, 'metrics').get();
+  const rows = await getAllMetricRows(workspaceId);
   const nameToId: Record<string, string> = {};
   const referencedBy: Record<string, string[]> = {};
   const nameToFormula: Record<string, string> = {};
 
-  for (const doc of metricsSnap.docs) {
-    nameToId[doc.data().name] = doc.id;
-    referencedBy[doc.id] = [];
-    nameToFormula[doc.data().name] = doc.data().formula || '0';
+  for (const row of rows) {
+    nameToId[row.name] = row.id;
+    referencedBy[row.id] = [];
+    nameToFormula[row.name] = row.formula || '0';
   }
-  for (const doc of metricsSnap.docs) {
-    for (const refName of extractMetricReferences(doc.data().formula || '0')) {
+  for (const row of rows) {
+    for (const refName of extractMetricReferences(row.formula || '0')) {
       const refId = nameToId[refName];
-      if (refId) referencedBy[refId].push(doc.id);
+      if (refId) referencedBy[refId].push(row.id);
     }
   }
 
-  // Check ancestors
   const visitedAncestors = new Set<string>();
   const ancestorQueue = [...(referencedBy[metricId] || [])];
   while (ancestorQueue.length > 0) {
     const id = ancestorQueue.shift()!;
     if (visitedAncestors.has(id)) continue;
     visitedAncestors.add(id);
-    const doc = metricsSnap.docs.find(d => d.id === id);
-    if (doc?.data()?.timePreference?.enabled) return doc.data().name;
+    const row = rows.find(r => r.id === id);
+    const tp = row?.timePreference as TimePreference | null;
+    if (tp?.enabled) return row!.name;
     ancestorQueue.push(...(referencedBy[id] || []));
   }
 
-  // Check descendants
   const descNames = getTransitiveDependencyNames(metricName, nameToFormula);
   for (const name of descNames) {
-    const id = nameToId[name];
-    const doc = metricsSnap.docs.find(d => d.id === id);
-    if (doc?.data()?.timePreference?.enabled) return name;
+    const row = rows.find(r => r.name === name);
+    const tp = row?.timePreference as TimePreference | null;
+    if (tp?.enabled) return name;
   }
 
   return null;
 }
 
-/**
- * Disable betting on open markets for leaf descendants of a TP node (used when
- * disabling or deleting TP). Markets are left unresolved so agents' bets resolve
- * naturally at the target date.
- */
 async function deactivateLeafMarketsForTPMetric(tpMetricId: string, oldHalfLife: number, workspaceId: string): Promise<void> {
-  const metricsSnap = await wsCol(workspaceId, 'metrics').get();
+  const rows = await getAllMetricRows(workspaceId);
   const nameToFormula: Record<string, string> = {};
   const nameToId = new Map<string, string>();
   let tpMetricName = '';
 
-  for (const doc of metricsSnap.docs) {
-    nameToFormula[doc.data().name] = doc.data().formula || '0';
-    nameToId.set(doc.data().name, doc.id);
-    if (doc.id === tpMetricId) tpMetricName = doc.data().name;
+  for (const row of rows) {
+    nameToFormula[row.name] = row.formula || '0';
+    nameToId.set(row.name, row.id);
+    if (row.id === tpMetricId) tpMetricName = row.name;
   }
 
   if (!tpMetricName) return;
@@ -383,16 +354,16 @@ async function deactivateLeafMarketsForTPMetric(tpMetricId: string, oldHalfLife:
   const leafNames = getLeafDescendantNames(tpMetricName, nameToFormula);
   if (leafNames.length === 0) return;
 
-  const leafIds = new Set(leafNames.map((n: string) => nameToId.get(n)).filter(Boolean) as string[]);
+  const leafIds = new Set(leafNames.map(n => nameToId.get(n)).filter(Boolean) as string[]);
   const oldDates = new Set(sampleTimePoints(oldHalfLife).map(p => p.date));
 
-  const openMarkets = await wsCol(workspaceId, 'markets').where('resolved', '==', false).get();
-  const batch = db().batch();
-  for (const doc of openMarkets.docs) {
-    const m = doc.data();
+  const openMarkets = await db.select().from(markets)
+    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
+
+  for (const m of openMarkets) {
     if (leafIds.has(m.metricId) && oldDates.has(m.targetDate) && m.active !== false) {
-      batch.update(doc.ref, { active: false });
+      await db.update(markets).set({ active: false })
+        .where(and(eq(markets.id, m.id), eq(markets.workspaceId, workspaceId)));
     }
   }
-  await batch.commit();
 }

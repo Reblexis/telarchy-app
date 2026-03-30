@@ -119,7 +119,7 @@ function MarketSummaryTable({ markets }: { markets: TaskMarketSummary[] }) {
   );
 }
 
-function ChatPanel({ taskId, user }: { taskId: string; user: import('firebase/auth').User }) {
+function ChatPanel({ taskId }: { taskId: string }) {
   const [messages, setMessages] = useState<TaskMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -128,9 +128,9 @@ function ChatPanel({ taskId, user }: { taskId: string; user: import('firebase/au
 
   const loadMessages = useCallback(async () => {
     setLoadError('');
-    const data = await api.getTaskMessages(user, taskId).catch((e: Error) => { setLoadError(e.message); return null; });
+    const data = await api.getTaskMessages(taskId).catch((e: Error) => { setLoadError(e.message); return null; });
     if (data) setMessages(data);
-  }, [user, taskId]);
+  }, [taskId]);
 
   useEffect(() => { loadMessages(); }, [loadMessages]);
 
@@ -144,7 +144,7 @@ function ChatPanel({ taskId, user }: { taskId: string; user: import('firebase/au
     if (!input.trim()) return;
     setSending(true);
     setSendError('');
-    const ok = await api.sendTaskMessage(user, taskId, input.trim()).catch((e: Error) => { setSendError(e.message); return null; });
+    const ok = await api.sendTaskMessage(taskId, input.trim()).catch((e: Error) => { setSendError(e.message); return null; });
     if (ok) setInput('');
     setSending(false);
     loadMessages();
@@ -199,15 +199,14 @@ function ChatPanel({ taskId, user }: { taskId: string; user: import('firebase/au
 
 interface TaskDetailProps {
   task: TaskDetailData;
-  user: import('firebase/auth').User;
   onAction: () => void;
   onError: (msg: string) => void;
 }
 
-function TaskDetailPanel({ task, user, onAction, onError }: TaskDetailProps) {
+function TaskDetailPanel({ task, onAction, onError }: TaskDetailProps) {
   const { inspectTask, setInspectTask } = useInspectMode();
   const [acting, setActing] = useState(false);
-  const { summary: utilitySummary, loading: utilitySummaryLoading } = useTaskUtilitySummary(user, task.id);
+  const { summary: utilitySummary, loading: utilitySummaryLoading } = useTaskUtilitySummary(true, task.id);
 
   const isInspecting = inspectTask?.id === task.id;
 
@@ -241,7 +240,7 @@ function TaskDetailPanel({ task, user, onAction, onError }: TaskDetailProps) {
           <button
             className="btn-small"
             disabled={acting}
-            onClick={() => handle(() => api.approveTask(user, task.id))}
+            onClick={() => handle(() => api.approveTask(task.id))}
             style={{ background: '#22c55e', color: '#fff', padding: '0.45rem 0.9rem' }}
           >
             {acting ? '…' : 'Approve'}
@@ -249,7 +248,7 @@ function TaskDetailPanel({ task, user, onAction, onError }: TaskDetailProps) {
           <button
             className="btn-small"
             disabled={acting}
-            onClick={() => handle(() => api.declineTask(user, task.id))}
+            onClick={() => handle(() => api.declineTask(task.id))}
             style={{ background: '#ef4444', color: '#fff', padding: '0.45rem 0.9rem' }}
           >
             {acting ? '…' : 'Decline'}
@@ -272,7 +271,7 @@ function TaskDetailPanel({ task, user, onAction, onError }: TaskDetailProps) {
         <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Chat
         </div>
-        <ChatPanel taskId={task.id} user={user} />
+        <ChatPanel taskId={task.id} />
       </div>
     </div>
   );
@@ -293,7 +292,7 @@ export function TasksPage() {
   const load = useCallback(async () => {
     if (!user) return;
     setError('');
-    const data = await api.getTasks(user).catch((e: Error) => { setError(e.message); return null; });
+    const data = await api.getTasks().catch((e: Error) => { setError(e.message); return null; });
     if (data) setTasks(data);
     setLoading(false);
   }, [user]);
@@ -304,7 +303,7 @@ export function TasksPage() {
     if (expandedId === id) { setExpandedId(null); return; }
     setExpandedId(id);
     if (user) {
-      const detail = await api.getTask(user, id).catch((e: Error) => { setError(e.message); return null; });
+      const detail = await api.getTask(id).catch((e: Error) => { setError(e.message); return null; });
       if (detail) setExpandedData(prev => ({ ...prev, [id]: detail }));
     }
   };
@@ -313,7 +312,7 @@ export function TasksPage() {
     if (!user || !form.title || !form.price) return;
     setCreating(true);
     setError('');
-    const result = await api.createTask(user, {
+    const result = await api.createTask({
       title: form.title,
       description: form.description,
       price: parseFloat(form.price),
@@ -329,7 +328,7 @@ export function TasksPage() {
     await load();
     // Refresh expanded detail
     if (user) {
-      const detail = await api.getTask(user, taskId).catch((e: Error) => { setError(e.message); return null; });
+      const detail = await api.getTask(taskId).catch((e: Error) => { setError(e.message); return null; });
       if (detail) setExpandedData(prev => ({ ...prev, [taskId]: detail }));
     }
   };
@@ -403,7 +402,6 @@ export function TasksPage() {
                         <td colSpan={5} style={{ padding: '0 0.5rem 0.75rem' }}>
                           <TaskDetailPanel
                             task={expandedData[task.id] ?? task}
-                            user={user}
                             onAction={() => handleAction(task.id)}
                             onError={setError}
                           />

@@ -1,39 +1,32 @@
 import { useState } from 'react';
-import { signInWithPopup, GoogleAuthProvider, GithubAuthProvider, User } from 'firebase/auth';
-import { initializeFirebaseApp, getFirebaseAuth } from '../lib/firebase';
+import { useNavigate } from 'react-router-dom';
+import { authClient } from '../lib/auth-client';
 import { api } from '../lib/api';
+import { postLoginPath } from '../lib/postLoginPath';
 
 interface Props {
-  onSuccess: (user: User) => void;
+  onSuccess: () => void;
   onError: (msg: string) => void;
 }
 
-const USER_ERRORS: Record<string, string> = {
-  'auth/account-exists-with-different-credential': 'An account already exists with this email using a different sign-in method.',
-};
-const SILENT_CODES = new Set(['auth/popup-closed-by-user', 'auth/cancelled-popup-request']);
-
-export function OAuthButtons({ onSuccess, onError }: Props) {
+export function OAuthButtons({ onError }: Props) {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState<'google' | 'github' | null>(null);
 
-  const signIn = async (provider: GoogleAuthProvider | GithubAuthProvider, key: 'google' | 'github') => {
-    setLoading(key);
-    try {
-      initializeFirebaseApp();
-      const auth = getFirebaseAuth();
-      const result = await signInWithPopup(auth, provider);
-      await api.upsertProfile(result.user, result.user.email ?? undefined);
-      onSuccess(result.user);
-    } catch (err) {
-      const e = err as { code?: string; message?: string };
-      const code = e.code ?? '';
-      if (SILENT_CODES.has(code)) return;
-      const userMsg = USER_ERRORS[code];
-      if (userMsg) { onError(userMsg); return; }
-      console.error('[OAuthButtons] unexpected sign-in error:', err);
-    } finally {
+  const signIn = async (provider: 'google' | 'github') => {
+    setLoading(provider);
+    const { error } = await authClient.signIn.social({ provider });
+    if (error) {
+      onError(error.message || `Failed to sign in with ${provider}`);
       setLoading(null);
+      return;
     }
+    // After OAuth redirect back, session is set — upsert profile then navigate
+    const result = await api.upsertProfile().catch((e: Error) => {
+      console.error('upsertProfile failed:', e.message);
+      return {};
+    }) as { authRole?: string };
+    navigate(postLoginPath(result));
   };
 
   const btnStyle = (disabled: boolean): React.CSSProperties => ({
@@ -51,7 +44,7 @@ export function OAuthButtons({ onSuccess, onError }: Props) {
         type="button"
         style={btnStyle(loading !== null)}
         disabled={loading !== null}
-        onClick={() => signIn(new GoogleAuthProvider(), 'google')}
+        onClick={() => signIn('google')}
       >
         <GoogleIcon />
         {loading === 'google' ? 'Signing in...' : 'Continue with Google'}
@@ -60,7 +53,7 @@ export function OAuthButtons({ onSuccess, onError }: Props) {
         type="button"
         style={btnStyle(loading !== null)}
         disabled={loading !== null}
-        onClick={() => signIn(new GithubAuthProvider(), 'github')}
+        onClick={() => signIn('github')}
       >
         <GitHubIcon />
         {loading === 'github' ? 'Signing in...' : 'Continue with GitHub'}

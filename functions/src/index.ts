@@ -1,17 +1,14 @@
+/**
+ * Firebase Cloud Functions entry point (managed telarchy.com platform).
+ * For self-hosted deployments, use server.ts instead.
+ *
+ * Scheduled jobs are handled via HTTP cron endpoints (/api/cron/resolve,
+ * /api/cron/refresh) in self-hosted mode. These onSchedule exports serve
+ * the same purpose on Firebase.
+ */
 import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
-import * as admin from 'firebase-admin';
 import { app } from './app';
-
-// If DATA_SERVICE_ACCOUNT is set (base64-encoded service account JSON),
-// use it as the credential — allows hosting on a different project than the data.
-const serviceAccountEnv = process.env.DATA_SERVICE_ACCOUNT;
-if (serviceAccountEnv) {
-  const serviceAccount = JSON.parse(Buffer.from(serviceAccountEnv, 'base64').toString('utf8'));
-  admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-} else {
-  admin.initializeApp();
-}
 
 export const api = onRequest({ minInstances: 1, secrets: ['TREASURY_PRIVATE_KEY'] }, app);
 

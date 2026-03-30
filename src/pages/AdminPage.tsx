@@ -6,13 +6,13 @@ import { Header } from '../components/Header';
 
 export function AdminPage() {
   const { user } = useAuth();
-  const { workspace, allWorkspaces, switchWorkspace, loading } = useWorkspace(user);
+  const { workspace, allWorkspaces, switchWorkspace, loading } = useWorkspace(!!user);
   const [treasury, setTreasury] = useState<{ address: string; usdcBalance: number; ethBalance: number } | null>(null);
   const [treasuryError, setTreasuryError] = useState('');
 
   useEffect(() => {
     if (!user) return;
-    api.getTreasury(user)
+    api.getTreasury()
       .then(data => setTreasury(data as { address: string; usdcBalance: number; ethBalance: number }))
       .catch((e: Error) => setTreasuryError(e.message));
   }, [user]);

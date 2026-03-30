@@ -15,7 +15,7 @@ export function MetricsPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { inspectTask } = useInspectMode();
-  const { workspace } = useWorkspace(user);
+  const { workspace } = useWorkspace(!!user);
   const isAdmin = !workspace || workspace.tier === 'admin';
   const {
     metrics, xp, rank, loading: metricsLoading, error,
@@ -23,7 +23,7 @@ export function MetricsPage() {
     focusedMetricId, toggleFocus,
     addMetric, editMetric, removeMetric,
     loadMetricLogs,
-  } = useMetrics(user, inspectTask?.id);
+  } = useMetrics(!!user, inspectTask?.id);
 
   const [editingMetric, setEditingMetric] = useState<Metric | null>(null);
   const [graphMetric, setGraphMetric] = useState<Metric | null>(null);

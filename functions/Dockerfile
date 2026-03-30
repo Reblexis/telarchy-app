@@ -18,6 +18,9 @@ COPY --from=builder /app/lib ./lib
 ENV PORT=8080
 EXPOSE 8080
 
-# Required: DATA_SERVICE_ACCOUNT (base64 service account JSON), API_KEY
-# Optional: ALLOWED_ORIGIN, ADMIN_EMAILS, PORT
+# Required: DATABASE_URL, API_KEY
+# Optional: ALLOWED_ORIGIN, ADMIN_EMAILS, PORT,
+#           GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
+#           GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET,
+#           BETTER_AUTH_SECRET
 CMD ["node", "lib/server.js"]

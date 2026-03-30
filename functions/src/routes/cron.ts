@@ -1,14 +1,8 @@
 /**
  * HTTP cron endpoints for self-hosted deployments.
  *
- * On Firebase, market resolution and refresh run as scheduled Cloud Functions.
- * On standalone/Docker deployments, call these endpoints from any scheduler
- * (system cron, Cloud Scheduler, GitHub Actions scheduled workflow, etc.):
- *
+ * On standalone/Docker deployments, call these endpoints from any scheduler:
  *   curl -X POST https://your-server/api/cron/resolve \
- *     -H "X-API-Key: $API_KEY" -H "Content-Type: application/json" -d '{}'
- *
- *   curl -X POST https://your-server/api/cron/refresh \
  *     -H "X-API-Key: $API_KEY" -H "Content-Type: application/json" -d '{}'
  *
  * Auth: X-API-Key only (no X-Workspace-Id required — these are platform-wide).
@@ -17,7 +11,8 @@
 
 import { Router } from 'express';
 import { timingSafeEqual } from 'crypto';
-import { db } from '../lib/db';
+import { db } from '../db/client';
+import { workspaces } from '../db/schema';
 import { wrap } from '../lib/wrap';
 import type { Request, Response } from 'express';
 
@@ -38,8 +33,8 @@ function validateApiKey(req: Request, res: Response): boolean {
 }
 
 async function allWorkspaceIds(): Promise<string[]> {
-  const snap = await db().collection('workspaces').get();
-  return ['default', ...snap.docs.map(d => d.id)];
+  const rows = await db.select({ id: workspaces.id }).from(workspaces);
+  return ['default', ...rows.map(r => r.id)];
 }
 
 cronRouter.post('/resolve', wrap(async (req, res) => {
@@ -48,10 +43,7 @@ cronRouter.post('/resolve', wrap(async (req, res) => {
   const { resolvePredictions } = await import('../services/predictions');
   const { cleanupOldEvents } = await import('../services/events');
 
-  const wsIds = req.body?.workspaceId
-    ? [req.body.workspaceId as string]
-    : await allWorkspaceIds();
-
+  const wsIds = req.body?.workspaceId ? [req.body.workspaceId as string] : await allWorkspaceIds();
   const results = [];
   for (const wsId of wsIds) {
     const resolved = await resolvePredictions(req.body?.targetDate as string | undefined, wsId);
@@ -67,10 +59,7 @@ cronRouter.post('/refresh', wrap(async (req, res) => {
 
   const { refreshRelativeDateMarkets } = await import('../services/markets');
 
-  const wsIds = req.body?.workspaceId
-    ? [req.body.workspaceId as string]
-    : await allWorkspaceIds();
-
+  const wsIds = req.body?.workspaceId ? [req.body.workspaceId as string] : await allWorkspaceIds();
   const results = [];
   for (const wsId of wsIds) {
     const result = await refreshRelativeDateMarkets(wsId);

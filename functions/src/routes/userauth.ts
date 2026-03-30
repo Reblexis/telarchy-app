@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { randomBytes } from 'crypto';
-import { getAuth } from 'firebase-admin/auth';
-import { FieldValue } from 'firebase-admin/firestore';
-import { db } from '../lib/db';
+import { db } from '../db/client';
+import { appUsers, agents, agentApiKeys, userWorkspaces } from '../db/schema';
+import { eq, and } from 'drizzle-orm';
 import { wrap } from '../lib/wrap';
-import { requireFirebaseUser } from '../middleware/roles';
+import { requireUser } from '../middleware/roles';
 import { hashKey } from '../middleware/auth';
 
 export const userauthRouter = Router();
@@ -12,62 +12,47 @@ export const userauthRouter = Router();
 /**
  * GET /api/auth/me
  * Returns the current user's profile and workspace memberships.
- * Works for both Firebase users (uid set) and master API key (uid undefined).
  */
-userauthRouter.get('/me', requireFirebaseUser, wrap(async (req, res) => {
+userauthRouter.get('/me', requireUser, wrap(async (req, res) => {
   const { uid, workspaceId, role: authRole } = req.auth!;
 
   if (!uid) {
-    // Master API key — return a synthetic profile
     res.json({ uid: null, email: null, workspaceId, authRole, workspaces: {} });
     return;
   }
 
-  const userDoc = await db().collection('users').doc(uid).get();
-  if (!userDoc.exists) {
-    res.json({ uid, email: null, intent: null, workspaceId, authRole, memberRole: null, workspaces: {} });
-    return;
-  }
+  const [profile] = await db.select().from(appUsers).where(eq(appUsers.userId, uid));
+  const memberships = await db.select().from(userWorkspaces).where(eq(userWorkspaces.userId, uid));
 
-  const data = userDoc.data()!;
-  const workspaces = (data.workspaces ?? {}) as Record<string, { role: string }>;
+  const workspaces = Object.fromEntries(memberships.map(m => [m.workspaceId, { role: m.role }]));
   const memberRole = workspaces[workspaceId]?.role ?? null;
+
   res.json({
     uid,
-    email: data.email ?? null,
-    intent: (data.intent as 'creator' | 'agent') ?? null,
+    email: null, // BetterAuth session has the email — frontend reads from authClient.useSession()
+    intent: profile?.intent ?? null,
     workspaceId,
-    authRole,   // 'admin' | 'agent' | 'pending' — derived from workspace membership
-    memberRole, // 'owner' | 'admin' | 'trader' | 'viewer' | null
+    authRole,
+    memberRole,
     workspaces,
   });
 }));
 
 /**
  * POST /api/auth/profile
- * Upserts the current user's profile. Auto-creates a linked agent on first call.
- * Returns { ok, agentId, apiKey? } — apiKey is only present on first creation.
+ * Upserts the user's app profile. Auto-creates a linked agent on first call.
  */
-userauthRouter.post('/profile', requireFirebaseUser, wrap(async (req, res) => {
+userauthRouter.post('/profile', requireUser, wrap(async (req, res) => {
   const { uid } = req.auth!;
-  if (!uid) { res.status(403).json({ error: 'Firebase account required' }); return; }
+  if (!uid) { res.status(403).json({ error: 'User account required' }); return; }
 
   const { email, intent } = req.body;
-  if (email !== undefined && typeof email !== 'string') {
-    res.status(400).json({ error: 'email must be a string' }); return;
-  }
   if (intent !== undefined && !['creator', 'agent'].includes(intent)) {
     res.status(400).json({ error: 'intent must be "creator" or "agent"' }); return;
   }
 
-  const update: Record<string, unknown> = {};
-  if (email !== undefined) update.email = email;
-  if (intent !== undefined) update.intent = intent;
-
-  // Auto-create agent on first signup if not already linked
-  const userRef = db().collection('users').doc(uid);
-  const userDoc = await userRef.get();
-  const existingAgentId = userDoc.exists ? (userDoc.data()!.agentId as string | undefined) : undefined;
+  const [existingProfile] = await db.select().from(appUsers).where(eq(appUsers.userId, uid));
+  const existingAgentId = existingProfile?.agentId ?? undefined;
 
   let agentId: string;
   let apiKey: string | undefined;
@@ -75,77 +60,89 @@ userauthRouter.post('/profile', requireFirebaseUser, wrap(async (req, res) => {
   if (existingAgentId) {
     agentId = existingAgentId;
   } else {
-    // Derive agentId from Firebase UID (lowercase, alphanumeric only)
-    const candidateId = uid.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 28);
-    agentId = candidateId || `u${uid.slice(0, 20)}`;
+    const candidateId = uid.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 28) || `u${uid.slice(0, 20)}`;
 
-    const agentRef = db().collection('agents').doc(agentId);
-    const agentDoc = await agentRef.get();
+    const [existingAgent] = await db.select().from(agents).where(eq(agents.id, candidateId));
 
-    if (agentDoc.exists && (agentDoc.data()!.ownerUid as string | undefined) === uid) {
-      // Agent already exists for this uid (e.g. registered manually before) — just link it
-    } else if (!agentDoc.exists) {
+    if (existingAgent && existingAgent.ownerUid === uid) {
+      agentId = candidateId;
+    } else if (!existingAgent) {
+      agentId = candidateId;
       const rawKey = randomBytes(32).toString('hex');
       const keyHash = hashKey(rawKey);
       apiKey = rawKey;
 
-      const batch = db().batch();
-      batch.set(agentRef, {
-        id: agentId,
-        apiKeyHash: keyHash,
-        role: 'agent',
-        balance: 0,
-        earnedBetting: 0,
-        spentBetting: 0,
-        spentTokens: 0,
-        ownerUid: uid,
-        createdAt: FieldValue.serverTimestamp(),
-        approvedAt: FieldValue.serverTimestamp(),
+      await db.transaction(async tx => {
+        await tx.insert(agents).values({
+          id: agentId,
+          apiKeyHash: keyHash,
+          role: 'agent',
+          balance: 0,
+          ownerUid: uid,
+          createdAt: new Date(),
+          approvedAt: new Date(),
+        });
+        await tx.insert(agentApiKeys).values({ hash: keyHash, agentId, workspaceId: 'default' });
       });
-      batch.set(db().collection('agentApiKeys').doc(keyHash), { agentId, workspaceId: 'default' });
-      await batch.commit();
     } else {
-      // ID collision with an unrelated agent — append uid suffix
+      // ID collision — append uid suffix
       agentId = `${candidateId.slice(0, 20)}${uid.slice(-6).toLowerCase()}`;
       const rawKey = randomBytes(32).toString('hex');
       const keyHash = hashKey(rawKey);
       apiKey = rawKey;
 
-      const batch = db().batch();
-      batch.set(db().collection('agents').doc(agentId), {
-        id: agentId,
-        apiKeyHash: keyHash,
-        role: 'agent',
-        balance: 0,
-        earnedBetting: 0,
-        spentBetting: 0,
-        spentTokens: 0,
-        ownerUid: uid,
-        createdAt: FieldValue.serverTimestamp(),
-        approvedAt: FieldValue.serverTimestamp(),
+      await db.transaction(async tx => {
+        await tx.insert(agents).values({
+          id: agentId,
+          apiKeyHash: keyHash,
+          role: 'agent',
+          balance: 0,
+          ownerUid: uid,
+          createdAt: new Date(),
+          approvedAt: new Date(),
+        });
+        await tx.insert(agentApiKeys).values({ hash: keyHash, agentId, workspaceId: 'default' });
       });
-      batch.set(db().collection('agentApiKeys').doc(keyHash), { agentId, workspaceId: 'default' });
-      await batch.commit();
     }
-
-    update.agentId = agentId;
   }
 
-  await userRef.set(update, { merge: true });
+  // Upsert app user profile
+  await db.insert(appUsers)
+    .values({
+      userId: uid,
+      agentId,
+      intent: intent ?? null,
+      platformAdmin: false,
+      createdAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: appUsers.userId,
+      set: {
+        agentId,
+        ...(intent !== undefined ? { intent } : {}),
+      },
+    });
+
   res.json({ ok: true, agentId, ...(apiKey !== undefined && { apiKey }) });
 }));
 
 /**
  * DELETE /api/auth/me
- * GDPR: deletes the user's Firestore profile document and Firebase Auth account.
- * Does NOT delete workspace data (positions, trades etc.) — those are anonymized.
+ * GDPR: deletes the user's app profile. BetterAuth handles actual account deletion.
  */
-userauthRouter.delete('/me', requireFirebaseUser, wrap(async (req, res) => {
+userauthRouter.delete('/me', requireUser, wrap(async (req, res) => {
   const { uid } = req.auth!;
-  if (!uid) { res.status(403).json({ error: 'Firebase account required' }); return; }
+  if (!uid) { res.status(403).json({ error: 'User account required' }); return; }
 
-  await db().collection('users').doc(uid).delete();
-  await getAuth().deleteUser(uid);
+  await db.transaction(async tx => {
+    await tx.delete(userWorkspaces).where(eq(userWorkspaces.userId, uid));
+    await tx.delete(appUsers).where(eq(appUsers.userId, uid));
+    // Delete BetterAuth session/account rows (cascade deletes auth tables)
+    const { authAccount, authSession, authUser } = await import('../db/schema');
+    await tx.delete(authAccount).where(eq(authAccount.userId, uid));
+    await tx.delete(authSession).where(eq(authSession.userId, uid));
+    await tx.delete(authUser).where(eq(authUser.id, uid));
+  });
 
   res.status(204).send();
 }));
@@ -154,14 +151,19 @@ userauthRouter.delete('/me', requireFirebaseUser, wrap(async (req, res) => {
  * GET /api/auth/me/export
  * GDPR: exports all data associated with the current user.
  */
-userauthRouter.get('/me/export', requireFirebaseUser, wrap(async (req, res) => {
+userauthRouter.get('/me/export', requireUser, wrap(async (req, res) => {
   const { uid } = req.auth!;
-  if (!uid) { res.status(403).json({ error: 'Firebase account required' }); return; }
+  if (!uid) { res.status(403).json({ error: 'User account required' }); return; }
 
-  const userDoc = await db().collection('users').doc(uid).get();
+  const [profile, memberships] = await Promise.all([
+    db.select().from(appUsers).where(eq(appUsers.userId, uid)).then(r => r[0] ?? null),
+    db.select().from(userWorkspaces).where(eq(userWorkspaces.userId, uid)),
+  ]);
+
   res.json({
     uid,
-    profile: userDoc.exists ? userDoc.data() : null,
+    profile,
+    memberships,
     exportedAt: new Date().toISOString(),
   });
 }));

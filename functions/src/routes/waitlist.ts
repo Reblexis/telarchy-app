@@ -1,6 +1,7 @@
 import { Router } from 'express';
-import { FieldValue } from 'firebase-admin/firestore';
-import { db } from '../lib/db';
+import { db } from '../db/client';
+import { waitlist } from '../db/schema';
+import { eq } from 'drizzle-orm';
 import { wrap } from '../lib/wrap';
 
 export const waitlistRouter = Router();
@@ -12,12 +13,9 @@ waitlistRouter.post('/', wrap(async (req, res) => {
   }
 
   const normalized = email.trim().toLowerCase();
-  const ref = db().collection('waitlist').doc(normalized);
-  const existing = await ref.get();
-  if (existing.exists) {
-    res.status(409).json({ error: 'Already on the waitlist' }); return;
-  }
+  const [existing] = await db.select().from(waitlist).where(eq(waitlist.email, normalized));
+  if (existing) { res.status(409).json({ error: 'Already on the waitlist' }); return; }
 
-  await ref.set({ email: normalized, createdAt: FieldValue.serverTimestamp() });
+  await db.insert(waitlist).values({ email: normalized });
   res.status(201).json({ ok: true });
 }));

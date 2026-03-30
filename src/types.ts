@@ -35,15 +35,6 @@ export interface UpdateEntry {
   timestamp: Date;
 }
 
-export interface FirebaseConfig {
-  apiKey: string;
-  authDomain: string;
-  projectId: string;
-  storageBucket?: string;
-  messagingSenderId?: string;
-  appId?: string;
-}
-
 export type GraphInterval = 'day' | 'week' | 'month' | 'year';
 
 export type AgentRole = 'admin' | 'agent' | 'pending';

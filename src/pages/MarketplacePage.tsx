@@ -14,7 +14,7 @@ function JoinButton({ workspaceId }: { workspaceId: string }) {
     if (!user) { navigate('/signup'); return; }
     setState('joining');
     try {
-      await api.joinWorkspace(user, workspaceId);
+      await api.joinWorkspace(workspaceId);
       setState('joined');
     } catch (e: unknown) {
       setErrMsg((e as Error).message || 'Failed to join');

@@ -1,6 +1,6 @@
-import { FieldValue } from 'firebase-admin/firestore';
-import { db } from '../lib/db';
-import { wsCol } from '../lib/workspace';
+import { db } from '../db/client';
+import { agents, markets, positions, tasks } from '../db/schema';
+import { eq, and, inArray, sql, asc } from 'drizzle-orm';
 import { getAllMetrics, buildConsensusMap } from './metrics';
 import { voidMarket, distributeLPLeftover } from './markets';
 import { toUnits } from '../lib/validation';
@@ -9,74 +9,77 @@ import { endOfPeriod } from '../lib/date-utils';
 import { pHigher, consensus, resolutionPayouts } from '../lib/amm';
 import { emitEvent } from './events';
 
-async function resolveMarketDoc(
-  marketDoc: FirebaseFirestore.DocumentSnapshot,
+type MarketRow = typeof markets.$inferSelect;
+
+async function resolveMarketRow(
+  market: MarketRow,
   metricMap: Map<string, Metric>,
   workspaceId: string,
 ): Promise<{ positions: number; totalPayout: number; skipped?: boolean }> {
-  const m = marketDoc.data()!;
-  const metric = metricMap.get(m.metricId);
+  const metric = metricMap.get(market.metricId);
   if (!metric) {
-    console.error(`Market ${marketDoc.id} (${m.metricName}): metric ${m.metricId} not found, skipping resolution`);
+    console.error(`Market ${market.id} (${market.metricName}): metric ${market.metricId} not found, skipping`);
     return { positions: 0, totalPayout: 0, skipped: true };
   }
   const rawValue = metric.total;
-
   if (rawValue === null || rawValue < 0) {
-    console.error(`Market ${marketDoc.id} (${m.metricName}): metric total is ${rawValue}, skipping resolution`);
+    console.error(`Market ${market.id} (${market.metricName}): metric total is ${rawValue}, skipping`);
     return { positions: 0, totalPayout: 0, skipped: true };
   }
 
-  const actualValue = Math.min(rawValue, m.rangeMax);
-  const [lowerPay, higherPay] = resolutionPayouts(actualValue, m.rangeMin, m.rangeMax);
-  const pool: number = (m.pool as number) ?? 0;
+  const actualValue = Math.min(rawValue, market.rangeMax);
+  const [lowerPay, higherPay] = resolutionPayouts(actualValue, market.rangeMin, market.rangeMax);
+  const pool = market.pool ?? 0;
 
-  const batch = db().batch();
-
-  const posSnap = await wsCol(workspaceId, 'positions')
-    .where('marketId', '==', marketDoc.id)
-    .get();
+  const posRows = await db.select().from(positions)
+    .where(and(eq(positions.workspaceId, workspaceId), eq(positions.marketId, market.id)));
 
   let totalPayout = 0;
-  let positions = 0;
-  for (const posDoc of posSnap.docs) {
-    const pos = posDoc.data();
-    if (pos.shares <= 0) continue;
-    const payFactor = pos.direction === 'higher' ? higherPay : lowerPay;
-    const payout = Math.round(pos.shares * payFactor * 100) / 100;
-    if (payout <= 0) continue;
-    totalPayout += payout;
-    positions++;
-    // agents is a global collection — not workspace-scoped
-    batch.update(db().collection('agents').doc(pos.agentId), {
-      balance: FieldValue.increment(toUnits(payout)),
-      earnedBetting: FieldValue.increment(payout),
-    });
-  }
+  let positionCount = 0;
 
-  if (totalPayout > pool + 0.01) {
-    console.error(`Market ${marketDoc.id}: totalPayout ${totalPayout} exceeds pool ${pool} — LMSR invariant violated`);
-  }
+  await db.transaction(async tx => {
+    for (const pos of posRows) {
+      if (pos.shares <= 0) continue;
+      const payFactor = pos.direction === 'higher' ? higherPay : lowerPay;
+      const payout = Math.round(pos.shares * payFactor * 100) / 100;
+      if (payout <= 0) continue;
+      totalPayout += payout;
+      positionCount++;
+      await tx.update(agents)
+        .set({
+          balance: sql`${agents.balance} + ${toUnits(payout)}`,
+          earnedBetting: sql`${agents.earnedBetting} + ${payout}`,
+        })
+        .where(eq(agents.id, pos.agentId));
+    }
 
-  const poolLeftover = Math.round((pool - totalPayout) * 100) / 100;
-  batch.update(marketDoc.ref, { resolved: true, resolvedAt: FieldValue.serverTimestamp(), actualValue, pool: 0, poolLeftover });
+    if (totalPayout > pool + 0.01) {
+      console.error(`Market ${market.id}: totalPayout ${totalPayout} exceeds pool ${pool} — LMSR invariant violated`);
+    }
 
-  await distributeLPLeftover(batch, marketDoc.id, poolLeftover, workspaceId);
+    const poolLeftover = Math.round((pool - totalPayout) * 100) / 100;
+    await tx.update(markets)
+      .set({ resolved: true, resolvedAt: new Date(), actualValue, pool: 0 })
+      .where(and(eq(markets.id, market.id), eq(markets.workspaceId, workspaceId)));
 
-  await batch.commit();
-  emitEvent('market:resolved', { marketId: marketDoc.id, metricName: m.metricName, targetDate: m.targetDate, actualValue }, workspaceId).catch(e => console.error('emitEvent failed:', e));
-  return { positions, totalPayout };
+    await distributeLPLeftover(tx, market.id, poolLeftover, workspaceId);
+  });
+
+  emitEvent('market:resolved', { marketId: market.id, metricName: market.metricName, targetDate: market.targetDate, actualValue }, workspaceId)
+    .catch(e => console.error('emitEvent failed:', e));
+
+  return { positions: positionCount, totalPayout };
 }
 
 export async function resolveMarket(marketId: string, workspaceId = 'default'): Promise<{ resolved: boolean; totalPayout: number }> {
-  const marketRef = wsCol(workspaceId, 'markets').doc(marketId);
-  const marketDoc = await marketRef.get();
-  if (!marketDoc.exists) return { resolved: false, totalPayout: 0 };
-  if (marketDoc.data()!.resolved) return { resolved: false, totalPayout: 0 };
+  const [market] = await db.select().from(markets)
+    .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
 
-  const metrics = await getAllMetrics(workspaceId);
-  const metricMap = new Map<string, Metric>(metrics.map(m => [m.id, m]));
-  const result = await resolveMarketDoc(marketDoc, metricMap, workspaceId);
+  if (!market || market.resolved) return { resolved: false, totalPayout: 0 };
+
+  const allMetrics = await getAllMetrics(workspaceId);
+  const metricMap = new Map<string, Metric>(allMetrics.map(m => [m.id, m]));
+  const result = await resolveMarketRow(market, metricMap, workspaceId);
   if (result.skipped) return { resolved: false, totalPayout: 0 };
   return { resolved: true, totalPayout: result.totalPayout };
 }
@@ -84,41 +87,31 @@ export async function resolveMarket(marketId: string, workspaceId = 'default'): 
 export async function resolvePredictions(targetDate?: string, workspaceId = 'default'): Promise<{ resolved: number; totalPayout: number }> {
   const today = targetDate || new Date().toISOString().slice(0, 10);
 
-  const marketSnap = await wsCol(workspaceId, 'markets')
-    .where('resolved', '==', false)
-    .get();
+  const openMarkets = await db.select().from(markets)
+    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
 
-  const marketsToResolve: FirebaseFirestore.QueryDocumentSnapshot[] = [];
-  for (const doc of marketSnap.docs) {
-    const m = doc.data();
-    if (endOfPeriod(m.targetDate) < today) marketsToResolve.push(doc);
-  }
-
+  const marketsToResolve = openMarkets.filter(m => endOfPeriod(m.targetDate) < today);
   if (marketsToResolve.length === 0) return { resolved: 0, totalPayout: 0 };
 
-  const metrics = await getAllMetrics(workspaceId);
-  const metricMap = new Map<string, Metric>(metrics.map(m => [m.id, m]));
+  const allMetrics = await getAllMetrics(workspaceId);
+  const metricMap = new Map<string, Metric>(allMetrics.map(m => [m.id, m]));
 
-  // Batch-fetch task statuses for any conditional markets
-  const taskIds = [...new Set(marketsToResolve.map(d => d.data().taskId).filter(Boolean) as string[])];
+  const taskIds = [...new Set(marketsToResolve.map(m => m.taskId).filter(Boolean) as string[])];
   const taskStatusMap = new Map<string, string>();
   if (taskIds.length > 0) {
-    const taskRefs = taskIds.map(id => wsCol(workspaceId, 'tasks').doc(id));
-    const taskDocs = await db().getAll(...taskRefs);
-    for (const doc of taskDocs) {
-      if (doc.exists) taskStatusMap.set(doc.id, doc.data()!.status);
-    }
+    const taskRows = await db.select({ id: tasks.id, status: tasks.status }).from(tasks)
+      .where(and(eq(tasks.workspaceId, workspaceId), inArray(tasks.id, taskIds)));
+    for (const row of taskRows) taskStatusMap.set(row.id, row.status);
   }
 
   let totalPayout = 0;
   let resolvedCount = 0;
 
-  for (const marketDoc of marketsToResolve) {
-    const taskId: string | undefined = marketDoc.data().taskId;
-    if (taskId && taskStatusMap.get(taskId) !== 'approved') {
-      await voidMarket(marketDoc, workspaceId);
+  for (const market of marketsToResolve) {
+    if (market.taskId && taskStatusMap.get(market.taskId) !== 'approved') {
+      await voidMarket(market, workspaceId);
     } else {
-      const result = await resolveMarketDoc(marketDoc, metricMap, workspaceId);
+      const result = await resolveMarketRow(market, metricMap, workspaceId);
       if (!result.skipped) {
         totalPayout += result.totalPayout;
         resolvedCount++;
@@ -140,43 +133,40 @@ export interface GetMarketsOptions {
 }
 
 export async function getMarkets(options: GetMarketsOptions | boolean = false, taskId?: string, workspaceId = 'default') {
-  // Support legacy boolean signature
   const opts: GetMarketsOptions = typeof options === 'boolean'
     ? { includeResolved: options, taskId }
     : options;
 
-  let query: FirebaseFirestore.Query = wsCol(workspaceId, 'markets');
-  if (!opts.includeResolved) query = query.where('resolved', '==', false);
-  if (opts.taskId) query = query.where('taskId', '==', opts.taskId);
-  const marketSnap = await query.orderBy('targetDate', 'asc').get();
+  let rows = await db.select().from(markets)
+    .where(and(
+      eq(markets.workspaceId, workspaceId),
+      opts.includeResolved ? undefined : eq(markets.resolved, false),
+      opts.taskId ? eq(markets.taskId, opts.taskId) : undefined,
+    ))
+    .orderBy(asc(markets.targetDate));
 
-  if (marketSnap.empty) return [];
-
-  let docs = opts.taskId
-    ? marketSnap.docs
-    : marketSnap.docs.filter(d => !d.data().taskId);
-
-  if (docs.length === 0) return [];
+  if (!opts.taskId) {
+    rows = rows.filter(m => !m.taskId);
+  }
+  if (!rows.length) return [];
 
   if (opts.active !== undefined) {
-    docs = docs.filter(d => (d.data().active !== false) === opts.active);
+    rows = rows.filter(m => (m.active !== false) === opts.active);
   }
   if (opts.minLiquidity !== undefined && opts.minLiquidity > 0) {
-    docs = docs.filter(d => (d.data().liquidity ?? 0) >= opts.minLiquidity!);
+    rows = rows.filter(m => (m.liquidity ?? 0) >= opts.minLiquidity!);
   }
-  // Sort by liquidity descending before limiting (most liquid first)
   if (opts.minLiquidity !== undefined || opts.limit !== undefined) {
-    docs = [...docs].sort((a, b) => (b.data().liquidity ?? 0) - (a.data().liquidity ?? 0));
+    rows = [...rows].sort((a, b) => (b.liquidity ?? 0) - (a.liquidity ?? 0));
   }
   if (opts.limit !== undefined && opts.limit > 0) {
-    docs = docs.slice(0, opts.limit);
+    rows = rows.slice(0, opts.limit);
   }
 
-  return docs.map(doc => {
-    const m = doc.data();
-    const shares: [number, number] = m.shares || [0, 0];
+  return rows.map(m => {
+    const shares = (m.shares as [number, number]) || [0, 0];
     return {
-      id: doc.id,
+      id: m.id,
       metricName: m.metricName,
       targetDate: m.targetDate,
       active: m.active !== false,

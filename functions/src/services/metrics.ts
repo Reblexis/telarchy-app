@@ -1,6 +1,7 @@
-import { FieldValue } from 'firebase-admin/firestore';
-import { db } from '../lib/db';
-import { wsCol } from '../lib/workspace';
+import { db } from '../db/client';
+import { metrics, markets, liquidityEvents, metricLogs, updates } from '../db/schema';
+import { eq, and, asc, desc } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
 import type { Metric, MetricLog, UpdateEntry } from '../types';
 import { recalculateMetrics, calculateMetricDepths, calculateXP, calculateRank, evaluateFormulaAtTime } from '../lib/metrics-engine';
 import { sampleTimePoints, getLeafDescendantNames } from '../lib/time-preference';
@@ -8,13 +9,12 @@ import { consensus as ammConsensus, AMM_DEFAULTS } from '../lib/amm';
 import { toISOWeekString } from '../lib/date-utils';
 import { emitEvent } from './events';
 
-function enrichMetrics(metrics: Metric[], consensusMap: Record<string, number> = {}, untradedLeaves: Set<string> = new Set()): Metric[] {
+function enrichMetrics(rawMetrics: Metric[], consensusMap: Record<string, number> = {}, untradedLeaves: Set<string> = new Set()): Metric[] {
   const nameToFormula: Record<string, string> = {};
-  metrics.forEach(m => { nameToFormula[m.name] = m.formula || '0'; });
+  rawMetrics.forEach(m => { nameToFormula[m.name] = m.formula || '0'; });
 
-  // Set missingMarkets BEFORE recalculateMetrics so null propagation fires correctly.
   if (untradedLeaves.size > 0) {
-    metrics.forEach(m => {
+    rawMetrics.forEach(m => {
       const isLeaf = !m.formula || m.formula.trim() === '0';
       const missing = isLeaf
         ? (untradedLeaves.has(m.name) ? [m.name] : [])
@@ -23,28 +23,27 @@ function enrichMetrics(metrics: Metric[], consensusMap: Record<string, number> =
     });
   }
 
-  recalculateMetrics(metrics, consensusMap);
-  const depths = calculateMetricDepths(metrics);
-  metrics.forEach(m => {
-    if (depths[m.id] === undefined) console.error(`enrichMetrics: no depth calculated for metric ${m.id} (${m.name})`);
+  recalculateMetrics(rawMetrics, consensusMap);
+  const depths = calculateMetricDepths(rawMetrics);
+  rawMetrics.forEach(m => {
+    if (depths[m.id] === undefined) console.error(`enrichMetrics: no depth for metric ${m.id} (${m.name})`);
     m.depth = depths[m.id] ?? 0;
   });
 
   const nameToTimeSeries: Record<string, Array<{ date: string; value: number }>> = {};
+  const nameToFormulaLocal: Record<string, string> = {};
+  rawMetrics.forEach(m => { nameToFormulaLocal[m.name] = m.formula || '0'; });
 
-  for (const tpMetric of metrics) {
+  for (const tpMetric of rawMetrics) {
     if (!tpMetric.timePreference?.enabled) continue;
-
-    // Use the TP node's own time points — always future dates, always the right set.
     const timePoints = sampleTimePoints(tpMetric.timePreference.halfLife);
 
-    // BFS to collect all descendants.
     const descendants = new Set<string>();
     const queue = [tpMetric.name];
     const visited = new Set([tpMetric.name]);
     while (queue.length > 0) {
       const current = queue.shift()!;
-      const refs = (nameToFormula[current] || '').match(/\{([^}]+)\}/g) ?? [];
+      const refs = (nameToFormulaLocal[current] || '').match(/\{([^}]+)\}/g) ?? [];
       for (const ref of refs) {
         const name = ref.slice(1, -1).trim();
         if (!visited.has(name)) { visited.add(name); descendants.add(name); queue.push(name); }
@@ -54,20 +53,16 @@ function enrichMetrics(metrics: Metric[], consensusMap: Record<string, number> =
     const memo: Record<string, number> = {};
     for (const name of descendants) {
       if (nameToTimeSeries[name]) continue;
-      const formula = nameToFormula[name] || '0';
+      const formula = nameToFormulaLocal[name] || '0';
       const isLeaf = formula.trim() === '0';
       const series: Array<{ date: string; value: number }> = [];
 
       for (const { date } of timePoints) {
         if (isLeaf) {
           const val = consensusMap[`${name}:${date}`];
-          if (val === undefined) {
-            // Market may be untraded or missing; skipping this time point.
-          } else {
-            series.push({ date, value: val });
-          }
+          if (val !== undefined) series.push({ date, value: val });
         } else {
-          series.push({ date, value: evaluateFormulaAtTime(formula, nameToFormula, consensusMap, date, memo) });
+          series.push({ date, value: evaluateFormulaAtTime(formula, nameToFormulaLocal, consensusMap, date, memo) });
         }
       }
 
@@ -75,35 +70,34 @@ function enrichMetrics(metrics: Metric[], consensusMap: Record<string, number> =
     }
   }
 
-  metrics.forEach(m => { if (nameToTimeSeries[m.name]) m.timeSeries = nameToTimeSeries[m.name]; });
-  metrics.sort((a, b) => a.depth !== b.depth ? a.depth - b.depth : (a.order || 999) - (b.order || 999));
-  return metrics;
+  rawMetrics.forEach(m => { if (nameToTimeSeries[m.name]) m.timeSeries = nameToTimeSeries[m.name]; });
+  rawMetrics.sort((a, b) => a.depth !== b.depth ? a.depth - b.depth : (a.order || 999) - (b.order || 999));
+  return rawMetrics;
 }
 
 export async function buildConsensusMap(workspaceId = 'default'): Promise<{ map: Record<string, number>; untradedLeaves: Set<string> }> {
-  const marketSnap = await wsCol(workspaceId, 'markets').where('resolved', '==', false).get();
-  if (marketSnap.empty) return { map: {}, untradedLeaves: new Set() };
+  const openMarkets = await db.select().from(markets)
+    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
+
+  if (openMarkets.length === 0) return { map: {}, untradedLeaves: new Set() };
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const map: Record<string, number> = {};
   const untradedLeaves = new Set<string>();
 
-  for (const doc of marketSnap.docs) {
-    const m = doc.data();
+  for (const m of openMarkets) {
     if (m.taskId) continue;
-    if (m.active === false) continue;
+    if (!m.active) continue;
     if (!m.shares) continue;
-    const c = ammConsensus(m.shares, m.liquidity ?? 0, m.rangeMin, m.rangeMax);
+    const shares = m.shares as [number, number];
+    const c = ammConsensus(shares, m.liquidity ?? 0, m.rangeMin, m.rangeMax);
     if (c === undefined) {
       untradedLeaves.add(m.metricName);
       continue;
     }
     map[`${m.metricName}:${m.targetDate}`] = c;
 
-    // Bridge old-format dates to new-format keys so that sampleTimePoints lookups
-    // still resolve correctly while existing markets retain their original targetDate.
-    // Zone 1: old YYYY-MM-DD (7–30 days away) → new YYYY-Www
     if (/^\d{4}-\d{2}-\d{2}$/.test(m.targetDate)) {
       const target = new Date(m.targetDate);
       const diffDays = (target.getTime() - today.getTime()) / 86400000;
@@ -112,7 +106,6 @@ export async function buildConsensusMap(workspaceId = 'default'): Promise<{ map:
         if (!map[weekKey]) map[weekKey] = c;
       }
     }
-    // Zone 2: old YYYY-MM (1–2 years away) → new YYYY
     if (/^\d{4}-\d{2}$/.test(m.targetDate)) {
       const [y, mo] = m.targetDate.split('-').map(Number);
       const target = new Date(y, mo - 1, 15);
@@ -127,51 +120,49 @@ export async function buildConsensusMap(workspaceId = 'default'): Promise<{ map:
 }
 
 export async function getAllMetrics(workspaceId = 'default'): Promise<Metric[]> {
-  const [snapshot, { map, untradedLeaves }] = await Promise.all([
-    wsCol(workspaceId, 'metrics').get(),
+  const [rows, { map, untradedLeaves }] = await Promise.all([
+    db.select().from(metrics).where(eq(metrics.workspaceId, workspaceId)),
     buildConsensusMap(workspaceId),
   ]);
-  return enrichMetrics(snapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      id: doc.id, name: data.name, description: data.description || '',
-      value: data.value, total: data.value, formula: data.formula || '0',
-      order: data.order || 999, depth: 0,
-      timePreference: data.timePreference?.enabled ? data.timePreference : undefined,
-      marketRangeMax: data.marketRangeMax,
-    };
-  }), map, untradedLeaves);
+  return enrichMetrics(rows.map(row => ({
+    id: row.id,
+    name: row.name,
+    description: row.description || '',
+    value: row.value,
+    total: row.value,
+    formula: row.formula || '0',
+    order: row.order || 999,
+    depth: 0,
+    timePreference: (row.timePreference as { enabled: boolean; halfLife: number } | null)?.enabled
+      ? row.timePreference as { enabled: boolean; halfLife: number }
+      : undefined,
+    marketRangeMax: row.marketRangeMax ?? undefined,
+  })), map, untradedLeaves);
 }
 
 export async function getMetricById(id: string, workspaceId = 'default'): Promise<Metric | null> {
-  const metrics = await getAllMetrics(workspaceId);
-  return metrics.find(m => m.id === id) || null;
+  const all = await getAllMetrics(workspaceId);
+  return all.find(m => m.id === id) ?? null;
 }
 
-/**
- * Create markets for all leaf descendants of a time-preferenced node at the
- * time points sampled from its decay curve. Skips already-existing markets.
- */
 export async function ensureMarketsForTimePreference(
   tpMetricId: string,
   halfLife: number,
   workspaceId = 'default',
 ): Promise<void> {
-  const metricsSnap = await wsCol(workspaceId, 'metrics').get();
+  const metricRows = await db.select().from(metrics).where(eq(metrics.workspaceId, workspaceId));
   const nameToFormula: Record<string, string> = {};
   const nameToId = new Map<string, string>();
   const idToName = new Map<string, string>();
+  const idToRangeMax = new Map<string, number>();
   let tpMetricName = '';
 
-  const idToRangeMax = new Map<string, number>();
-
-  for (const doc of metricsSnap.docs) {
-    const d = doc.data();
-    nameToFormula[d.name] = d.formula || '0';
-    nameToId.set(d.name, doc.id);
-    idToName.set(doc.id, d.name);
-    if (d.marketRangeMax != null) idToRangeMax.set(doc.id, d.marketRangeMax);
-    if (doc.id === tpMetricId) tpMetricName = d.name;
+  for (const row of metricRows) {
+    nameToFormula[row.name] = row.formula || '0';
+    nameToId.set(row.name, row.id);
+    idToName.set(row.id, row.name);
+    if (row.marketRangeMax != null) idToRangeMax.set(row.id, row.marketRangeMax);
+    if (row.id === tpMetricId) tpMetricName = row.name;
   }
 
   if (!tpMetricName) return;
@@ -181,15 +172,14 @@ export async function ensureMarketsForTimePreference(
 
   const timePoints = sampleTimePoints(halfLife);
 
-  // Only check open markets — resolved/voided docs must not block re-creation
-  const existingMarkets = new Set<string>();
-  const marketSnap = await wsCol(workspaceId, 'markets').where('resolved', '==', false).get();
-  for (const doc of marketSnap.docs) {
-    const d = doc.data();
-    existingMarkets.add(`${d.metricId}:${d.targetDate}`);
-  }
+  const openMarkets = await db.select({ metricId: markets.metricId, targetDate: markets.targetDate })
+    .from(markets)
+    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
 
-  const batch = db().batch();
+  const existingMarkets = new Set(openMarkets.map(m => `${m.metricId}:${m.targetDate}`));
+
+  const newMarkets: typeof markets.$inferInsert[] = [];
+  const newLiqEvents: typeof liquidityEvents.$inferInsert[] = [];
   const created: Array<{ marketId: string; metricName: string; targetDate: string }> = [];
 
   for (const leafName of leafNames) {
@@ -202,34 +192,33 @@ export async function ensureMarketsForTimePreference(
       if (existingMarkets.has(key)) continue;
       existingMarkets.add(key);
 
-      const ref = wsCol(workspaceId, 'markets').doc();
-      batch.set(ref, {
-        id: ref.id, metricId: leafId, metricName: leafName, targetDate: date,
+      const marketId = randomUUID();
+      newMarkets.push({
+        id: marketId, workspaceId, metricId: leafId, metricName: leafName, targetDate: date,
         resolved: false, resolvedAt: null, actualValue: null, active: true,
-        createdAt: FieldValue.serverTimestamp(),
         rangeMin: AMM_DEFAULTS.rangeMin, rangeMax: rMax,
-        shares: [0, 0], liquidity: AMM_DEFAULTS.liquidity,
+        shares: [0, 0] as [number, number], liquidity: AMM_DEFAULTS.liquidity,
+        pool: AMM_DEFAULTS.liquidity, createdAt: new Date(),
       });
-      const liqRef = wsCol(workspaceId, 'liquidityEvents').doc();
-      batch.set(liqRef, { id: liqRef.id, marketId: ref.id, amount: AMM_DEFAULTS.liquidity, totalLiquidity: AMM_DEFAULTS.liquidity, type: 'initial', createdAt: FieldValue.serverTimestamp() });
-      created.push({ marketId: ref.id, metricName: leafName, targetDate: date });
+      newLiqEvents.push({
+        id: randomUUID(), workspaceId, marketId, amount: AMM_DEFAULTS.liquidity,
+        totalLiquidity: AMM_DEFAULTS.liquidity, type: 'initial', createdAt: new Date(),
+      });
+      created.push({ marketId, metricName: leafName, targetDate: date });
     }
   }
 
-  if (created.length > 0) {
-    await batch.commit();
+  if (newMarkets.length > 0) {
+    await db.transaction(async tx => {
+      await tx.insert(markets).values(newMarkets);
+      await tx.insert(liquidityEvents).values(newLiqEvents);
+    });
     for (const { marketId, metricName, targetDate } of created) {
       await emitEvent('market:created', { marketId, metricName, targetDate }, workspaceId);
     }
   }
 }
 
-/**
- * Ensure markets exist for the new desired set of leaf/date pairs after a
- * definition change. Existing markets are left running (betting disabled by the
- * daily refresh if they fall out of the desired set) so agents' bets resolve
- * naturally at the target date.
- */
 export async function respawnMarketsForTimePreference(
   tpMetricId: string,
   halfLife: number,
@@ -239,51 +228,54 @@ export async function respawnMarketsForTimePreference(
 }
 
 export async function deleteMetric(id: string, workspaceId = 'default'): Promise<void> {
-  await wsCol(workspaceId, 'metrics').doc(id).delete();
+  await db.delete(metrics).where(and(eq(metrics.id, id), eq(metrics.workspaceId, workspaceId)));
 }
 
 export async function getMetricLogs(metricId: string, workspaceId = 'default'): Promise<MetricLog[]> {
-  const snapshot = await wsCol(workspaceId, 'metricLogs')
-    .where('metricId', '==', metricId)
-    .orderBy('timestamp', 'asc')
-    .get();
-  return snapshot.docs.map(doc => {
-    const data = doc.data();
-    return { metricId: data.metricId, metricName: data.metricName, value: data.value, timestamp: data.timestamp.toDate() };
-  });
+  const rows = await db.select().from(metricLogs)
+    .where(and(eq(metricLogs.workspaceId, workspaceId), eq(metricLogs.metricId, metricId)))
+    .orderBy(asc(metricLogs.timestamp));
+  return rows.map(r => ({
+    metricId: r.metricId,
+    metricName: r.metricName,
+    value: r.value,
+    timestamp: r.timestamp,
+  }));
 }
 
 export async function getUpdates(limit?: number, workspaceId = 'default'): Promise<UpdateEntry[]> {
-  const ref = wsCol(workspaceId, 'updates').orderBy('timestamp', 'desc');
-  const snapshot = await (limit ? ref.limit(limit) : ref).get();
-  return snapshot.docs.map(doc => {
-    const data = doc.data();
-    return {
-      metricName: data.metricName, oldValue: data.oldValue, newValue: data.newValue,
-      description: data.description, timestamp: data.timestamp.toDate(),
-    };
-  });
+  const query = db.select().from(updates)
+    .where(eq(updates.workspaceId, workspaceId))
+    .orderBy(desc(updates.timestamp));
+  const rows = limit ? await query.limit(limit) : await query;
+  return rows.map(r => ({
+    metricName: r.metricName,
+    oldValue: r.oldValue,
+    newValue: r.newValue,
+    description: r.description,
+    timestamp: r.timestamp,
+  }));
 }
 
-export async function logSpecificMetrics(metricIds: string[], metrics: Metric[], workspaceId = 'default'): Promise<void> {
-  const batch = db().batch();
-  for (const metricId of metricIds) {
-    const metric = metrics.find(m => m.id === metricId);
-    if (metric && metric.total !== null) {
-      batch.set(wsCol(workspaceId, 'metricLogs').doc(), {
-        metricId: metric.id, metricName: metric.name, value: metric.total,
-        timestamp: FieldValue.serverTimestamp(),
-      });
-    }
+export async function logSpecificMetrics(metricIds: string[], allMetrics: Metric[], workspaceId = 'default'): Promise<void> {
+  const toInsert = metricIds
+    .map(id => allMetrics.find(m => m.id === id))
+    .filter((m): m is Metric => m !== undefined && m.total !== null)
+    .map(m => ({
+      id: randomUUID(), workspaceId, metricId: m.id, metricName: m.name,
+      value: m.total!, timestamp: new Date(),
+    }));
+
+  if (toInsert.length > 0) {
+    await db.insert(metricLogs).values(toInsert);
   }
-  await batch.commit();
 }
 
-export function getStatus(metrics: Metric[]) {
-  const xp = calculateXP(metrics);
+export function getStatus(allMetrics: Metric[]) {
+  const xp = calculateXP(allMetrics);
   return {
     xp,
     rank: calculateRank(xp),
-    metrics: metrics.map(m => ({ name: m.name, value: m.value, total: m.total })),
+    metrics: allMetrics.map(m => ({ name: m.name, value: m.value, total: m.total })),
   };
 }
