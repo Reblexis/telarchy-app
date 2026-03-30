@@ -253,6 +253,9 @@ function SettingsSection({ agentId, apiKey, profile, onProfileRefresh }: {
 }) {
   const [walletAddr, setWalletAddr] = useState(profile.walletAddress ?? '');
   const [savingWallet, setSavingWallet] = useState(false);
+
+  // Keep local input in sync when profile is refreshed after a successful save
+  useEffect(() => { setWalletAddr(profile.walletAddress ?? ''); }, [profile.walletAddress]);
   const [walletMsg, setWalletMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const [txHash, setTxHash] = useState('');

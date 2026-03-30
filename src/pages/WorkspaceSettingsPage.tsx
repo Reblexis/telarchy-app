@@ -221,7 +221,7 @@ export function WorkspaceSettingsPage() {
       {ws && (
         <div className="section" style={{ marginTop: '2rem' }}>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
-            Created: {ws.id}
+            Workspace ID: {ws.id}
           </p>
         </div>
       )}

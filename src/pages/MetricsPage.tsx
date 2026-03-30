@@ -16,7 +16,7 @@ export function MetricsPage() {
   const { user, logout } = useAuth();
   const { inspectTask } = useInspectMode();
   const { workspace } = useWorkspace(!!user);
-  const isAdmin = !workspace || workspace.tier === 'admin';
+  const isAdmin = workspace?.tier === 'admin';
   const {
     metrics, xp, rank, loading: metricsLoading, error,
     formulaWarnings,

@@ -11,7 +11,7 @@ export function OAuthButtons({ onError }: Props) {
   const signIn = async (provider: 'google' | 'github') => {
     setLoading(provider);
     // OAuth is a full-page redirect — the callbackURL is where the browser lands after auth.
-    // RootRedirect (at "/") handles the post-login navigation based on authRole.
+    // LandingPage (at "/") auto-redirects logged-in users via postLoginPath.
     const { error } = await authClient.signIn.social({
       provider,
       callbackURL: '/',

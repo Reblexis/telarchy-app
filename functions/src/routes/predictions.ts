@@ -100,7 +100,7 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
 
     const [agentRow] = await tx.select().from(agents).where(eq(agents.id, agentId)).for('update');
     if (!agentRow) throw new AppError('Agent not found', 404);
-    const balance = fromUnits(agentRow.balance as number);
+    const balanceUnits = agentRow.balance as number;
 
     let direction: 0 | 1;
     let amount: number;
@@ -137,7 +137,7 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
       proceeds = directionSellProceeds(shares, direction, amount, b);
       if (proceeds <= 0) throw new AppError('Trade too small', 400);
     } else {
-      if (cost > 0 && !sufficientBalance(balance, cost)) throw new AppError('Insufficient balance', 400, { balance, cost });
+      if (cost > 0 && !sufficientBalance(balanceUnits, cost)) throw new AppError('Insufficient balance', 400, { balance: fromUnits(balanceUnits), cost });
     }
 
     const newShares: [number, number] = [shares[0], shares[1]];
@@ -397,7 +397,7 @@ predictionsRouter.post('/markets/liquidity/bulk', requireRole('admin'), wrap(asy
   else marketRows = marketRows.filter(m => !m.taskId);
   if (marketRows.length === 0) { res.status(400).json({ error: 'No active markets' }); return; }
 
-  const balance = fromUnits(agent.balance as number);
+  const balanceUnits = agent.balance as number;
   const marketUpdates = marketRows.map(m => {
     const oldShares = (m.shares as [number, number]) || [0, 0];
     const newLiquidity = m.liquidity + amount;
@@ -413,8 +413,8 @@ predictionsRouter.post('/markets/liquidity/bulk', requireRole('admin'), wrap(asy
   });
 
   const totalCost = Math.round(marketUpdates.reduce((s, u) => s + u.poolContribution, 0) * 100) / 100;
-  if (!sufficientBalance(balance, totalCost)) {
-    res.status(400).json({ error: `Insufficient balance: need ${totalCost}, have ${balance}` }); return;
+  if (!sufficientBalance(balanceUnits, totalCost)) {
+    res.status(400).json({ error: `Insufficient balance: need ${totalCost}, have ${fromUnits(balanceUnits)}` }); return;
   }
 
   await db.transaction(async tx => {

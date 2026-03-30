@@ -20,7 +20,8 @@ const InspectModeContext = createContext<InspectModeContextValue>({
 export function InspectModeProvider({ children }: { children: ReactNode }) {
   const [inspectTask, setInspectTaskState] = useState<InspectTask | null>(() => {
     const stored = localStorage.getItem(KEY);
-    return stored ? JSON.parse(stored) : null;
+    if (!stored) return null;
+    try { return JSON.parse(stored) as InspectTask; } catch { localStorage.removeItem(KEY); return null; }
   });
 
   const setInspectTask = (task: InspectTask | null) => {

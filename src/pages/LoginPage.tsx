@@ -25,6 +25,7 @@ export function LoginPage() {
     }
 
     const profile = await api.getProfile().catch(() => ({}));
+    setSubmitting(false);
     navigate(postLoginPath(profile as { authRole?: string }));
   };
 

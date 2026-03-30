@@ -37,6 +37,7 @@ export function GuidesPage() {
     if (!active) return;
     if (cache.current.has(active)) {
       setContent(cache.current.get(active)!);
+      setLoading(false);
       return;
     }
     setLoading(true);

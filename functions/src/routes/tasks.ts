@@ -25,7 +25,8 @@ tasksRouter.post('/', requireRole('agent', 'admin'), wrap(async (req, res) => {
   }
   if (typeof price !== 'number' || price <= 0) { res.status(400).json({ error: 'price must be a positive number' }); return; }
 
-  const proposedBy = req.auth!.agentId || 'admin';
+  const proposedBy = req.auth!.agentId;
+  if (!proposedBy) { res.status(403).json({ error: 'Task creation requires a linked agent. Visit your account page to set one up.' }); return; }
   const id = randomUUID();
 
   await db.insert(tasks).values({

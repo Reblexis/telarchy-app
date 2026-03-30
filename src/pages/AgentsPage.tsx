@@ -207,7 +207,7 @@ function AgentAdminPage({ user, workspace }: {
   user: NonNullable<ReturnType<typeof useAuth>['user']>;
   workspace: WorkspaceInfo | null;
 }) {
-  const isPlatformAdmin = !workspace || workspace.workspaceId === 'default';
+  const isPlatformAdmin = workspace?.workspaceId === 'default';
 
   const [agents, setAgents] = useState<Agent[]>(() => cacheGet<Agent[]>('agents') || []);
   const [loading, setLoading] = useState(!cacheGet('agents'));
@@ -513,7 +513,7 @@ function AgentAdminPage({ user, workspace }: {
                               <div style={{ display: 'flex', gap: '0.4rem' }} onClick={e => e.stopPropagation()}>
                                 <input
                                   type="text"
-                                  placeholder="Firebase UID…"
+                                  placeholder="User ID…"
                                   value={uidInput[group.id] ?? ''}
                                   onChange={e => setUidInput(prev => ({ ...prev, [group.id]: e.target.value }))}
                                   style={{ flex: 1, marginBottom: 0, fontFamily: 'monospace', fontSize: '0.8rem' }}

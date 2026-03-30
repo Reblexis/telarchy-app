@@ -14,7 +14,7 @@ export function MarketsPage() {
   const { user } = useAuth();
   const { inspectTask } = useInspectMode();
   const { workspace } = useWorkspace(!!user);
-  const isAdmin = !workspace || workspace.tier === 'admin';
+  const isAdmin = workspace?.tier === 'admin';
   const [markets, setMarkets] = useState<Market[]>([]);
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [mainMarketsMap, setMainMarketsMap] = useState<Map<string, Market>>(new Map());

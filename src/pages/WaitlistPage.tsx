@@ -26,6 +26,7 @@ export function WaitlistPage() {
       return;
     }
     setDone(true);
+    setSubmitting(false);
   };
 
   return (

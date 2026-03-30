@@ -9,7 +9,7 @@ export function useTaskUtilitySummary(authenticated: boolean, taskId: string) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!authenticated) return;
+    if (!authenticated) { setSummary(undefined); setError(''); setLoading(false); return; }
     let cancelled = false;
 
     (async () => {

@@ -4,7 +4,7 @@ import { workspaces, markets, agents, trades, userWorkspaces } from '../db/schem
 import { eq, and, gt, count } from 'drizzle-orm';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
-import { requireRole } from '../middleware/roles';
+import { requireUser } from '../middleware/roles';
 import { consensus, pHigher } from '../lib/amm';
 
 export const marketplaceRouter = Router();
@@ -110,7 +110,7 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
   res.json({ workspaceId, name: ws.name, visibility: ws.visibility, markets: marketList });
 }));
 
-marketplaceRouter.post('/:workspaceId/join', authMiddleware, requireRole('admin'), wrap(async (req, res) => {
+marketplaceRouter.post('/:workspaceId/join', authMiddleware, requireUser, wrap(async (req, res) => {
   const { uid } = req.auth!;
   if (!uid) { res.status(403).json({ error: 'User account required to join a workspace' }); return; }
 

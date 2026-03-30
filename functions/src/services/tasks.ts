@@ -7,6 +7,7 @@ import { recalculateMetrics } from '../lib/metrics-engine';
 import { getAllMetrics, buildConsensusMap } from './metrics';
 import { voidMarket } from './markets';
 import { toUnits } from '../lib/validation';
+import { AppError } from '../lib/errors';
 
 type MarketRow = typeof markets.$inferSelect;
 
@@ -158,21 +159,25 @@ export async function approveTask(taskId: string, workspaceId = 'default'): Prom
   const [task] = await db.select().from(tasks)
     .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
 
-  if (!task) throw new Error('Task not found');
-  if (task.status !== 'pending') throw new Error('Task is not pending');
+  if (!task) throw new AppError('Task not found', 404);
+  if (task.status !== 'pending') throw new AppError('Task is not pending', 400);
 
   const [agent] = await db.select().from(agents).where(eq(agents.id, task.proposedBy));
-  if (!agent) throw new Error('Proposing agent not found');
 
   await db.transaction(async tx => {
     await tx.update(tasks).set({ status: 'approved' })
       .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
-    await tx.update(agents)
-      .set({
-        balance: sql`${agents.balance} + ${toUnits(task.price)}`,
-        earnedTasks: sql`${agents.earnedTasks} + ${task.price}`,
-      })
-      .where(eq(agents.id, task.proposedBy));
+    // Credit the proposing agent only if a real agent row exists
+    if (agent) {
+      await tx.update(agents)
+        .set({
+          balance: sql`${agents.balance} + ${toUnits(task.price)}`,
+          earnedTasks: sql`${agents.earnedTasks} + ${task.price}`,
+        })
+        .where(eq(agents.id, task.proposedBy));
+    } else {
+      console.error(`approveTask: no agent row for proposedBy=${task.proposedBy}, skipping payout`);
+    }
   });
 }
 

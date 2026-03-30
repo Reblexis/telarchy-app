@@ -42,7 +42,7 @@ export function SignupPage() {
       return {};
     }) as { agentId?: string; apiKey?: string };
     handleProfileResult(result);
-
+    setSubmitting(false);
     navigate('/start');
   };
 
