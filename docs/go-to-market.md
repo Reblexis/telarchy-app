@@ -2,14 +2,18 @@
 
 ## What's Already Built
 
-- Full LMSR prediction market engine with binary trading
-- Agent economy with registration, API keys, credit system
-- USDC settlement on Base (deposit/withdraw)
-- Time-preference system for forward-looking evaluation
-- Conditional markets for futarchy (task proposals)
-- Event feed + hooks for agent automation
-- Admin UI for metrics, markets, agents, tasks
-- Graph/chart system for metric visualization
+- Full LMSR prediction market engine with binary trading (buy/sell, AMM shares, balance deduction)
+- Agent economy with registration, API keys, credit system, approval flow, task payouts
+- Multi-workspace support with role-based access (owner, admin, trader, viewer, permission groups)
+- USDC settlement on Base (deposit/withdraw via on-chain tx verification)
+- Time-preference system for forward-looking evaluation (decay-weighted temporal aggregation)
+- Conditional markets for futarchy (task proposals, market summaries per task)
+- Event feed + SSE hooks for agent automation
+- Admin UI for metrics, markets, agents, tasks, workspace management
+- Graph/chart system for metric visualization and history
+- Self-hosting: single `docker compose up` deploys the full stack (frontend + backend + PostgreSQL)
+- BetterAuth (email/password, optional Google/GitHub OAuth via env vars)
+- PostgreSQL + Drizzle ORM (no Firebase dependency; same stack for managed and self-hosted)
 
 ## The Two Customer Segments
 
@@ -21,12 +25,10 @@ Orgs/individuals who define goals and want prediction insights.
 
 **What's missing:**
 
-1. **Multi-tenancy / Workspaces** — Currently single-tenant with one metrics tree. Each creator needs their own isolated workspace (metrics, markets, agents). The `metrics`, `markets`, `positions`, `trades`, `tasks`, `events` collections all need workspace scoping.
-2. **Self-service signup** — Currently only allowlisted admin emails can use the frontend. Need a registration flow where a creator signs up, creates a workspace, and becomes its admin.
-3. **Per-market access control** — All markets require auth. Need a `visibility` field (public, unlisted, private) and public-facing read endpoints.
-4. **Onboarding flow** — No guided experience. Templates for common use cases (startup KPIs, personal health, team OKRs) would reduce friction.
-5. **Billing** — No payment integration. Options: subscription, transaction fees, credit spread, or free tier + premium.
-6. **Creator dashboard** — Current admin UI needs a "getting started" state, workspace settings, member management, and market analytics.
+1. **Self-service signup** — New users land in a "pending" state and must create or be invited to a workspace. The `/start` flow exists but needs polishing — templates for common use cases (startup KPIs, personal health, team OKRs) would reduce friction.
+2. **Per-market access control** — All markets require auth. Need a `visibility` field (public, unlisted, private) and public-facing read endpoints for market discovery.
+3. **Billing** — No payment integration. Options: subscription, transaction fees, credit spread, or free tier + premium.
+4. **Creator dashboard** — Current admin UI works but lacks analytics, "getting started" state for empty workspaces, and market performance summaries.
 
 ### Segment B: Traders / Agent Builders
 
@@ -37,40 +39,37 @@ People who bet on markets or build automated agents.
 **What's missing:**
 
 1. **Public market discovery** — No way to browse markets without auth. Need a public marketplace page.
-2. **Trader-facing UI** — Current UI assumes admin role. Traders need: portfolio, positions, PnL history, trading interface.
-3. **Trader accounts** — Need Firebase Auth with a "trader" role. Currently only `admin`, `agent` (API-only), and `pending`.
-4. **Self-service deposit UI** — Backend USDC APIs exist but no frontend. Need wallet-connect integration.
-5. **Agent developer experience** — Only one OpenClaw skill. Need: developer portal, API docs, SDK, example agents, sandbox.
-6. **Leaderboard / reputation** — No public ranking. Data exists but isn't surfaced.
-7. **Portfolio dashboard** — `/api/agents/:id/dashboard` is minimal. Need position breakdown, trade history, PnL over time.
+2. **Trader-facing UI** — Traders interact via the Agent Portal page and API. The admin web UI is for workspace owners. Needs clearer separation.
+3. **Self-service deposit UI** — Backend USDC APIs exist but no frontend. Need wallet-connect integration.
+4. **Agent developer experience** — Only one OpenClaw skill. Need: developer portal, API docs, SDK, example agents, sandbox.
+5. **Leaderboard / reputation** — No public ranking. Data exists but isn't surfaced.
+6. **Portfolio dashboard** — `/api/agents/:id/dashboard` is minimal. Need position breakdown, trade history, PnL over time.
 
 ### Cross-Cutting Gaps
 
-1. **Landing page** — Only `/waitlist` exists. Need product page with live public markets.
-2. **User model rework** — Current auth doesn't support creator + trader roles. Need: Creator (owns workspace), Trader (has balance, trades), Agent (API-only, owned by trader), per-workspace roles.
-3. **Rate limiting** — `express-rate-limit` in dependencies but unused. Essential before going public.
-4. **Legal** — ToS, privacy policy, regulatory considerations for real-money prediction markets.
-5. **Notifications** — No email or push. Traders want resolution alerts; creators want prediction alerts.
+1. **Landing page** — A landing page exists but needs live public market widgets for social proof.
+2. **Rate limiting** — `express-rate-limit` is enabled globally; ensure limits are tuned for production load before going public.
+3. **Legal** — ToS, privacy policy, regulatory considerations for real-money prediction markets.
+4. **Notifications** — No email or push. Traders want resolution alerts; creators want prediction alerts.
 
 ## Implementation Sequence
 
-### Phase 1: Foundation
+### Phase 1: Foundation (Done ✓)
 
-- **User model rework** — Extend Firebase Auth for creator and trader roles. Decouple "workspace admin" from "platform admin." Update `authMiddleware` for workspace-scoped role checks.
-- **Workspace multi-tenancy** — Scope all collections to workspaces. Each workspace has its own Utility tree.
-- **Per-market access control** — `visibility` field on workspaces/markets. Public read endpoints without auth.
-- **Trade race condition fix** — Trade endpoint uses `batch` not `runTransaction`. Concurrent trades on the same market produce incorrect share counts. Must wrap in `runTransaction`.
-- **Security hardening** — CORS lockdown, rate limiting, API key to Secret Manager, input validation, timing-safe comparison.
+- ~~User model rework~~ — BetterAuth with email/password + optional OAuth; workspace-scoped roles (owner/admin/trader/viewer); platform admin via `ADMIN_EMAILS` env or `platformAdmin` DB flag.
+- ~~Workspace multi-tenancy~~ — All tables scoped by `workspaceId`; workspace switcher in sidebar.
+- ~~Trade race condition fix~~ — Trade endpoint wrapped in PostgreSQL `FOR UPDATE` row lock inside a transaction.
+- ~~Security hardening~~ — Rate limiting enabled, API keys hashed (SHA-256), CORS configurable via `ALLOWED_ORIGIN`.
 
-### Phase 2: Creator MVP
+### Phase 2: Creator MVP (Next)
 
-- **Creator signup** — Registration, workspace creation, onboarding wizard (define Utility, add metrics).
-- **Creator dashboard** — Workspace settings, member invites, market analytics, guided "next steps."
+- **Self-service onboarding** — Polish the `/start` flow; add templates for common use cases.
+- **Per-market visibility** — `visibility` field on workspaces/markets; public read endpoints.
+- **Creator dashboard** — Market analytics, workspace settings, member invite links.
 
 ### Phase 3: Trader MVP (parallel with Phase 2)
 
-- **Public market browse** — Landing page with live public markets, search/filter, market detail pages.
-- **Trader accounts** — Sign up, browse, trade. Separate from creator flow.
+- **Public market browse** — Live public markets visible without auth; search/filter; market detail pages.
 - **Wallet connect + deposit UI** — Frontend for USDC deposit/withdraw.
 
 ### Phase 4: Growth
@@ -82,9 +81,9 @@ People who bet on markets or build automated agents.
 
 ## Privacy, Security, and Data Sovereignty
 
-### Approach: GitHub Model
+### Approach: Open Core (GitLab Model)
 
-The platform stores customer data on managed infrastructure (Firestore/GCP). True E2E encryption is incompatible with prediction markets — the server must compute on the data (AMM, resolution, payouts). Same constraint GitHub faces with code (search, diffs, CI, Copilot).
+The full backend and frontend are MIT-licensed. Anyone can self-host from the public Docker image. True E2E encryption is incompatible with prediction markets — the server must compute on the data (AMM, resolution, payouts). Same constraint GitLab faces with CI and code search.
 
 Trust is built through security practices, compliance, and transparency:
 
@@ -99,31 +98,29 @@ Trust is built through security practices, compliance, and transparency:
 ### Current Security Posture
 
 **Strong:**
-- Firestore deny-all rules (Admin SDK only)
-- Agent API keys stored as SHA-256 hashes
-- Treasury private key in Firebase Secret Manager
+- Agent API keys stored as SHA-256 hashes, verified with `crypto.timingSafeEqual`
 - No server secrets in frontend bundle
+- Rate limiting via `express-rate-limit` (global + per-endpoint)
+- PostgreSQL row-level locking on trades (no race conditions)
 
-**Needs fixing before launch:**
-1. CORS wide open (`cors({ origin: true })`) — restrict to known domains
-2. Master API key not in Secret Manager — move + use `crypto.timingSafeEqual`
-3. No rate limiting — enable `express-rate-limit`
-4. Input validation gaps — `agentId`, content, `txHash` need length/format limits
-5. No admin audit trail — log approvals, role changes, credit distributions
+**Still needed before public launch:**
+1. Master API key rotation — currently static in `.env`; move to secrets manager for managed deployment
+2. Input validation gaps — `agentId` character limits, free-text length caps
+3. Admin audit trail — log approvals, role changes, credit distributions
+4. CORS lockdown — `ALLOWED_ORIGIN=*` fine for self-hosted; managed deployment should restrict to known domains
 
 ### Privacy / GDPR
 
-1. Self-service data deletion (`DELETE /api/me`)
-2. Data export (`GET /api/me/export`)
+1. Self-service data deletion (`DELETE /api/auth/me`)
+2. Data export (`GET /api/auth/me/export`)
 3. Privacy policy (PII inventory: emails, wallet addresses, free-text)
 4. PII retention policy with auto-cleanup
 5. Data residency documented in privacy policy
 
 ### Multi-Tenant Data Isolation
 
-Highest-risk area. Mitigations:
-- **Firestore subcollections** — `workspaces/{id}/markets` provides structural isolation. Cross-workspace queries via collection group queries.
-- **Query abstraction layer** — All access through workspace-scoped helpers.
+All tables include a `workspaceId` column; all queries filter by it. Mitigations:
+- **Query abstraction** — workspace ID flows from `req.auth.workspaceId` on every request; no cross-workspace leakage possible via standard routes.
 - **Integration tests** — Verify cross-tenant invisibility on every deploy.
 - **Position visibility** — Owner and workspace admin only. Per-workspace setting for social trading.
 
@@ -131,33 +128,26 @@ Highest-risk area. Mitigations:
 
 ### Current Architecture
 
-- Frontend: React 19, Vite, Chart.js
-- Backend: Firebase Cloud Functions v2 (Express on Cloud Run)
-- Database: Firestore
-- Auth: Firebase Auth + API keys
-- Deploy: Firebase Hosting + Cloud Functions
-- `minInstances: 1` — avoids cold starts
+- Frontend: React 19, Vite, Chart.js (served as static files by the Express backend in self-hosted mode)
+- Backend: Node.js Express API (`functions/src/`)
+- Database: PostgreSQL with Drizzle ORM
+- Auth: BetterAuth (email/password + optional Google/GitHub OAuth)
+- Managed deploy: Cloud Run (same image as self-hosted, different env vars)
+- Self-hosted deploy: `docker compose up` (includes postgres service)
 
-### Known Issues
+### Known Issues / Limitations
 
-1. **Trade race condition** — `POST /predictions/trade` reads market state, computes LMSR cost, writes via `batch.commit()` without a transaction. Two concurrent trades compute costs against stale state. Financial correctness bug — must use `runTransaction`.
+1. **No real-time updates** — Frontend polls every 60 seconds. SSE endpoint exists for agent hooks but not for browser UI updates.
 
-2. **No real-time updates** — Frontend polls every 60 seconds. Firestore real-time listeners blocked by deny-all rules. Options: SSE on trade execution, selective Firestore read rules, or WebSocket service.
+2. **No email verification** — BetterAuth `emailVerified` flag is set but email sending is not configured. Needed before allowing public signup.
 
-3. **Firestore write limit** — 1 write/second per document. Market doc updated on every trade. Caps throughput at ~1 trade/second per market. Fine for early days; at scale, move trading state to PostgreSQL.
+3. **Single PostgreSQL instance** — Trade throughput is bounded by PostgreSQL write capacity (~hundreds/second), which is fine for early scale. At very high load, consider read replicas or partitioning by workspace.
 
-### Cost Estimates
+### Cost Estimates (managed PostgreSQL + Cloud Run)
 
-- Small (100 users, 1K trades/day): ~$10-20/month
-- Medium (1K users, 10K trades/day): ~$50-100/month
-- Large (10K users, 100K trades/day): ~$200-500/month
-
-### When to Move Off Firebase
-
-- Firestore contention on hot markets (>1 trade/second per market)
-- Need for complex queries / joins / full-text search
-- Need for WebSocket support (real-time price feeds)
-- At that point: Postgres-backed service on Cloud Run
+- Small (100 users, 1K trades/day): ~$15-30/month
+- Medium (1K users, 10K trades/day): ~$60-120/month
+- Large (10K users, 100K trades/day): ~$250-600/month
 
 ## Competitive Landscape
 
