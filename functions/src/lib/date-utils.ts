@@ -116,11 +116,12 @@ export function endOfPeriod(targetDate: string): string {
     const [yStr, wStr] = targetDate.split('-W');
     const year = parseInt(yStr, 10);
     const week = parseInt(wStr, 10);
-    const jan4 = new Date(year, 0, 4);
+    // Use UTC throughout to avoid local-timezone day shifts
+    const jan4 = new Date(Date.UTC(year, 0, 4));
     const mon = new Date(jan4);
-    mon.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7));
+    mon.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() + 6) % 7));
     const sunday = new Date(mon);
-    sunday.setDate(mon.getDate() + (week - 1) * 7 + 6);
+    sunday.setUTCDate(mon.getUTCDate() + (week - 1) * 7 + 6);
     return sunday.toISOString().slice(0, 10);
   }
   if (ABS_DAY_RE.test(targetDate)) {

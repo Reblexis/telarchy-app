@@ -296,3 +296,29 @@ Self-hosted workspaces that stay fully isolated remain free in perpetuity. The g
 **Authentication**: BetterAuth replaces Firebase Auth. Email/password is always available; Google and GitHub OAuth are opt-in via environment variables. Sessions are cookie-based (works cross-origin with `credentials: 'include'`).
 
 **Self-hosting**: `docker compose up` spins up a complete instance (backend + frontend + PostgreSQL) with no external dependencies. Run `npm run db:migrate` (in `functions/`) once after first boot to create the schema. Cron jobs must be triggered externally (see `.env.example`).
+
+## Tests
+
+The test suite lives alongside the code it exercises. Tests serve as executable documentation — they define expected behavior and catch regressions.
+
+**Unit tests** (`functions/src/__tests__/`):
+| File | What it covers |
+|---|---|
+| `amm.test.ts` | LMSR AMM math: cost, probability, consensus, trade cost, payouts |
+| `metrics-engine.test.ts` | Formula evaluation, circular-dep detection, topo sort, recalculation, propagation |
+| `date-utils.test.ts` | Date parsing, granularity detection, relative-to-absolute conversion, `endOfPeriod` |
+| `validation.test.ts` | `validateAgentId`, `validateContent`, `validateTxHash` |
+
+Run with `npm test` (in `functions/`) or `npm test` from the repo root.
+
+**Integration tests** (`scripts/test-integration.ts`):
+
+End-to-end test suite that hits the live API. Covers: health, workspaces, agents, admin credit, metrics (CRUD, formulas, circular deps), prediction markets (create, refresh, liquidity injection, market fields), trading (buy, sell, balance tracking, error cases), tasks (propose, approve, decline), permission groups, workspace isolation (cross-tenant data separation), events, and auth.
+
+Run against a local instance:
+```bash
+BASE_URL=http://localhost:8080 API_KEY=<master-key> node scripts/test-integration.ts
+```
+Or via npm: `npm run test:integration` (set env vars first).
+
+The integration tests create their own workspace and data, and clean up after themselves. They are designed to pass on a fresh instance and to be extended by adding new `test()` calls in the appropriate `suite()` block.

@@ -5,6 +5,7 @@
     "build": "tsc",
     "watch": "tsc --watch",
     "test": "jest",
+    "test:integration": "node ../../scripts/test-integration.ts",
     "start:standalone": "node lib/server.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
