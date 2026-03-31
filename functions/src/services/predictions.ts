@@ -1,6 +1,6 @@
 import { db } from '../db/client';
 import { agents, markets, positions, tasks, trades } from '../db/schema';
-import { eq, and, inArray, sql, asc, count } from 'drizzle-orm';
+import { eq, and, inArray, sql, count } from 'drizzle-orm';
 import { getAllMetrics, buildConsensusMap } from './metrics';
 import { voidMarket, distributeLPLeftover } from './markets';
 import { toUnits } from '../lib/validation';
@@ -143,8 +143,7 @@ export async function getMarkets(options: GetMarketsOptions | boolean = false, t
       eq(markets.workspaceId, workspaceId),
       opts.includeResolved ? undefined : eq(markets.resolved, false),
       opts.taskId ? eq(markets.taskId, opts.taskId) : undefined,
-    ))
-    .orderBy(asc(markets.targetDate));
+    ));
 
   if (!opts.taskId) {
     rows = rows.filter(m => !m.taskId);
@@ -159,6 +158,12 @@ export async function getMarkets(options: GetMarketsOptions | boolean = false, t
   }
   if (opts.minLiquidity !== undefined || opts.limit !== undefined) {
     rows = [...rows].sort((a, b) => (b.liquidity ?? 0) - (a.liquidity ?? 0));
+  } else {
+    rows = [...rows].sort((a, b) => {
+      const dateDiff = endOfPeriod(a.targetDate).localeCompare(endOfPeriod(b.targetDate));
+      if (dateDiff !== 0) return dateDiff;
+      return a.targetDate.localeCompare(b.targetDate);
+    });
   }
   if (opts.limit !== undefined && opts.limit > 0) {
     rows = rows.slice(0, opts.limit);

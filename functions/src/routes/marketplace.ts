@@ -6,6 +6,7 @@ import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireIdentity } from '../middleware/roles';
 import { consensus, pHigher } from '../lib/amm';
+import { endOfPeriod } from '../lib/date-utils';
 import { ensureSystemGroups } from './groups';
 
 export const marketplaceRouter = Router();
@@ -65,7 +66,11 @@ marketplaceRouter.get('/', wrap(async (req, res) => {
     }
   }));
 
-  allMarkets.sort((a, b) => (b.liquidity as number) - (a.liquidity as number));
+  allMarkets.sort((a, b) => {
+    const dateDiff = endOfPeriod(a.targetDate as string).localeCompare(endOfPeriod(b.targetDate as string));
+    if (dateDiff !== 0) return dateDiff;
+    return (b.liquidity as number) - (a.liquidity as number);
+  });
   res.json(allMarkets.slice(0, limit));
 }));
 
@@ -122,6 +127,12 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
       rangeMin: m.rangeMin,
       rangeMax: m.rangeMax,
     };
+  });
+
+  marketList.sort((a, b) => {
+    const dateDiff = endOfPeriod(a.targetDate).localeCompare(endOfPeriod(b.targetDate));
+    if (dateDiff !== 0) return dateDiff;
+    return b.liquidity - a.liquidity;
   });
 
   res.json({ workspaceId, name: ws.name, visibility: ws.visibility, markets: marketList });

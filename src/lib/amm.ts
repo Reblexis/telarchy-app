@@ -17,7 +17,7 @@ export function previewTrade(prob: number, liquidity: number, direction: 'higher
       : lmsrCost(q0 + mid, q1, b) - lmsrCost(q0, q1, b);
     if (cost < amount) lo = mid; else hi = mid;
   }
-  const shares = Math.round(lo * 100) / 100;
+  const shares = Math.round(lo * 1_000_000_000) / 1_000_000_000;
 
   const newQ0 = direction === 'lower' ? q0 + shares : q0;
   const newQ1 = direction === 'higher' ? q1 + shares : q1;

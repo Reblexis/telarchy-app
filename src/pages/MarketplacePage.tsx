@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api, type MarketplaceListing } from '../lib/api';
 import { TradingPanel } from '../components/TradingPanel';
 import { useAuth } from '../hooks/useAuth';
+import { endOfPeriod, formatResolutionLabel } from '../lib/date-utils';
 import type { Market } from '../types';
 
 interface TradingAgent {
@@ -15,6 +16,20 @@ interface AccessibleWorkspaceMarkets {
   workspaceName: string;
   memberRole: string;
   markets: Market[];
+}
+
+function compareByResolutionDate<T extends { targetDate: string; liquidity: number }>(a: T, b: T): number {
+  const dateDiff = endOfPeriod(a.targetDate).localeCompare(endOfPeriod(b.targetDate));
+  if (dateDiff !== 0) return dateDiff;
+  return b.liquidity - a.liquidity;
+}
+
+function formatCompactNumber(value: number): string {
+  const abs = Math.abs(value);
+  if (abs >= 100) return value.toFixed(2);
+  if (abs >= 1) return value.toFixed(4).replace(/\.?0+$/, '');
+  if (abs >= 0.01) return value.toFixed(6).replace(/\.?0+$/, '');
+  return value.toFixed(9).replace(/\.?0+$/, '');
 }
 
 function JoinButton({ workspaceId, joined, onJoined }: {
@@ -92,7 +107,10 @@ function PublicMarketCard({ market, joined, onJoined }: {
             {market.metricName}
           </div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-            {market.workspaceName} · {market.targetDate}
+            {market.workspaceName}
+          </div>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)' }}>
+            {formatResolutionLabel(market.targetDate)}
           </div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -102,7 +120,7 @@ function PublicMarketCard({ market, joined, onJoined }: {
       </div>
       <ProbabilityBar probability={market.probability} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
-        <span>Liquidity: {market.liquidity.toFixed(0)}</span>
+        <span>Liquidity: {formatCompactNumber(market.liquidity)}</span>
         <JoinButton workspaceId={market.workspaceId} joined={joined} onJoined={onJoined} />
       </div>
     </div>
@@ -134,7 +152,10 @@ function AccessibleMarketCard({
             {market.metricName}
           </div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-            {workspaceName} · {market.targetDate}
+            {workspaceName}
+          </div>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)' }}>
+            {formatResolutionLabel(market.targetDate)}
           </div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -147,7 +168,7 @@ function AccessibleMarketCard({
       <ProbabilityBar probability={market.probability} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', gap: '0.75rem', flexWrap: 'wrap' }}>
         <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
-          Liquidity: {market.liquidity.toFixed(0)} · Range: {market.rangeMin}–{market.rangeMax}
+          Liquidity: {formatCompactNumber(market.liquidity)} · Range: {market.rangeMin}–{market.rangeMax}
         </div>
         <button
           className="btn-small"
@@ -257,16 +278,17 @@ export function MarketplacePage() {
 
   const normalizedSearch = search.trim().toLowerCase();
   const filteredPublic = useMemo(() => {
-    if (!normalizedSearch) return publicMarkets;
-    return publicMarkets.filter(market =>
+    const filtered = !normalizedSearch
+      ? publicMarkets
+      : publicMarkets.filter(market =>
       market.metricName.toLowerCase().includes(normalizedSearch) ||
       market.workspaceName.toLowerCase().includes(normalizedSearch),
-    );
+      );
+    return [...filtered].sort(compareByResolutionDate);
   }, [normalizedSearch, publicMarkets]);
 
   const filteredAccessible = useMemo(() => {
-    if (!normalizedSearch) return accessibleWorkspaces;
-    return accessibleWorkspaces
+    const filtered = (!normalizedSearch ? accessibleWorkspaces : accessibleWorkspaces
       .map(workspace => {
         const workspaceMatch = workspace.workspaceName.toLowerCase().includes(normalizedSearch);
         return {
@@ -276,7 +298,17 @@ export function MarketplacePage() {
             : workspace.markets.filter(market => market.metricName.toLowerCase().includes(normalizedSearch)),
         };
       })
-      .filter(workspace => workspace.markets.length > 0);
+      .filter(workspace => workspace.markets.length > 0));
+    return filtered
+      .map(workspace => ({ ...workspace, markets: [...workspace.markets].sort(compareByResolutionDate) }))
+      .sort((a, b) => {
+        const aFirst = a.markets[0];
+        const bFirst = b.markets[0];
+        if (!aFirst || !bFirst) return a.workspaceName.localeCompare(b.workspaceName);
+        const dateDiff = compareByResolutionDate(aFirst, bFirst);
+        if (dateDiff !== 0) return dateDiff;
+        return a.workspaceName.localeCompare(b.workspaceName);
+      });
   }, [accessibleWorkspaces, normalizedSearch]);
 
   return (

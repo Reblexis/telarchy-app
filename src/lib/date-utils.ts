@@ -138,6 +138,25 @@ export function formatTargetDateDisplay(dateStr: string): string {
   return `${dateStr} (${g})`;
 }
 
+function resolutionDateTime(targetDate: string): Date {
+  return new Date(`${endOfPeriod(targetDate)}T23:59:59Z`);
+}
+
+export function formatResolutionDateTime(targetDate: string): string {
+  return resolutionDateTime(targetDate).toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'UTC',
+  });
+}
+
+export function formatResolutionLabel(targetDate: string): string {
+  return `${formatTargetDateDisplay(targetDate)} · resolves ${formatResolutionDateTime(targetDate)} UTC`;
+}
+
 /**
  * Validate that a string is a recognized absolute date format.
  */
@@ -167,7 +186,7 @@ export function getTimestampSeconds(ts: unknown): number | null {
 }
 
 export function formatTimeRemaining(targetDate: string): string {
-  const end = new Date(endOfPeriod(targetDate) + 'T23:59:59');
+  const end = resolutionDateTime(targetDate);
   const diffMs = end.getTime() - Date.now();
   if (diffMs <= 0) return 'expired';
   const d = Math.floor(diffMs / 86400000);
