@@ -21,6 +21,39 @@ export const predictionsRouter = Router();
 
 predictionsRouter.use(authMiddleware);
 
+type MetricTradePermissionGroup = {
+  type: string;
+  agentIds: string[] | null;
+  uids: string[] | null;
+  permissions: Record<string, { read: boolean; trade: boolean }> | null;
+};
+
+async function getTradePermissionGroups(workspaceId: string): Promise<MetricTradePermissionGroup[]> {
+  const { permissionGroups } = await import('../db/schema');
+  const rows = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, workspaceId));
+  return rows.map(row => ({
+    type: row.type,
+    agentIds: (row.agentIds as string[]) ?? [],
+    uids: (row.uids as string[]) ?? [],
+    permissions: (row.permissions as Record<string, { read: boolean; trade: boolean }>) ?? {},
+  }));
+}
+
+function canTradeMetric(
+  metricId: string,
+  groups: MetricTradePermissionGroup[],
+  auth: { role: string; agentId?: string; uid?: string },
+): boolean {
+  if (auth.role === 'admin') return true;
+  const restrictingGroups = groups.filter(group => group.permissions?.[metricId]?.trade === true);
+  if (restrictingGroups.length === 0) return true;
+  if (restrictingGroups.some(group => group.type === 'public')) return true;
+  return restrictingGroups.some(group =>
+    (auth.agentId ? group.agentIds?.includes(auth.agentId) : false) ||
+    (auth.uid ? group.uids?.includes(auth.uid) : false),
+  );
+}
+
 predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const agentId = req.auth!.agentId;
@@ -63,20 +96,9 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
     const [market] = await db.select({ metricId: markets.metricId })
       .from(markets).where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
     if (market?.metricId) {
-      const { permissionGroups } = await import('../db/schema');
-      const groups = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, workspaceId));
-      const restrictingGroups = groups.filter(g => {
-        const perms = g.permissions as Record<string, { trade: boolean }> | null;
-        return perms?.[market.metricId]?.trade === true;
-      });
-      if (restrictingGroups.length > 0) {
-        const publicGroupRestricts = restrictingGroups.some(g => g.type === 'public');
-        if (!publicGroupRestricts) {
-          const agentInGroup = restrictingGroups.some(g => (g.agentIds as string[])?.includes(agentId));
-          if (!agentInGroup) {
-            res.status(403).json({ error: 'Agent not authorized to trade this metric' }); return;
-          }
-        }
+      const groups = await getTradePermissionGroups(workspaceId);
+      if (!canTradeMetric(market.metricId, groups, req.auth!)) {
+        res.status(403).json({ error: 'Agent not authorized to trade this metric' }); return;
       }
     }
   }
@@ -84,7 +106,6 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
   let tradeResponse!: Record<string, unknown>;
   let eventPayload!: Record<string, unknown>;
   const tradeId = randomUUID();
-  const posId = `${agentId}_${marketId}_PLACEHOLDER`; // resolved inside tx
 
   await db.transaction(async tx => {
     const [market] = await tx.select().from(markets)
@@ -238,7 +259,13 @@ predictionsRouter.get('/markets', requireRole('agent', 'admin'), wrap(async (req
   const active = req.query.active === 'true' ? true : req.query.active === 'false' ? false : undefined;
   const minLiquidity = typeof req.query.minLiquidity === 'string' ? parseFloat(req.query.minLiquidity) : undefined;
   const limit = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : undefined;
-  res.json(await getMarkets({ taskId, active, minLiquidity, limit }, undefined, workspaceId));
+  const marketRows = await getMarkets({ taskId, active, minLiquidity, limit }, undefined, workspaceId);
+  if (req.auth!.role === 'admin') {
+    res.json(marketRows);
+    return;
+  }
+  const groups = await getTradePermissionGroups(workspaceId);
+  res.json(marketRows.filter(market => canTradeMetric(market.metricId, groups, req.auth!)));
 }));
 
 predictionsRouter.get('/markets/:id/trades', requireRole('agent', 'admin'), wrap(async (req, res) => {

@@ -193,7 +193,8 @@ export async function refreshRelativeDateMarkets(workspaceId = 'default'): Promi
     if (!prev) {
       seenNonTask.set(key, { id: m.id, createdAt: m.createdAt });
     } else if (m.createdAt < prev.createdAt) {
-      toVoid.push(openMarkets.find(om => om.id === prev.id)!);
+      const prevMarket = openMarkets.find(om => om.id === prev.id);
+      if (prevMarket) toVoid.push(prevMarket);
       seenNonTask.set(key, { id: m.id, createdAt: m.createdAt });
     } else {
       toVoid.push(m);

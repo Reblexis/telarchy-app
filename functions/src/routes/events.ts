@@ -40,7 +40,10 @@ eventsRouter.get('/hooks/status', wrap(async (req, res) => {
   const [row] = await db.select().from(hookWatcher).where(eq(hookWatcher.workspaceId, workspaceId));
   if (!row?.lastHeartbeat) { res.json({ active: false }); return; }
 
-  const statusData = row.status ? JSON.parse(row.status) : {};
+  let statusData: { intervalMs?: number } = {};
+  if (row.status) {
+    try { statusData = JSON.parse(row.status); } catch { console.error('hookWatcher: malformed status JSON', row.status); }
+  }
   const intervalMs = statusData.intervalMs || 60000;
   const lastPolledAt = row.lastHeartbeat.toISOString();
   const ageMs = Date.now() - row.lastHeartbeat.getTime();

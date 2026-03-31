@@ -57,7 +57,8 @@ async function resolveMarketRow(
       console.error(`Market ${market.id}: totalPayout ${totalPayout} exceeds pool ${pool} — LMSR invariant violated`);
     }
 
-    const poolLeftover = Math.round((pool - totalPayout) * 100) / 100;
+    // Cap leftover at 0 so a violated invariant can never subtract from LPs.
+    const poolLeftover = Math.max(0, Math.round((pool - totalPayout) * 100) / 100);
     await tx.update(markets)
       .set({ resolved: true, resolvedAt: new Date(), actualValue, pool: 0 })
       .where(and(eq(markets.id, market.id), eq(markets.workspaceId, workspaceId)));

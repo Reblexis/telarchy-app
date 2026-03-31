@@ -4,6 +4,8 @@ import { agentApi } from '../lib/api';
 import { useAgentSession } from '../hooks/useAgentSession';
 import { Header } from '../components/Header';
 
+import type { Market, Position } from '../types';
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface AgentProfile {
@@ -14,28 +16,6 @@ interface AgentProfile {
   spentBetting: number;
   spentTokens: number;
   walletAddress?: string;
-}
-
-interface Market {
-  id: string;
-  metricId: string;
-  metricName: string;
-  targetDate: string;
-  rangeMin: number;
-  rangeMax: number;
-  probability: number;
-  consensus: number | null;
-  liquidity: number;
-  active: boolean;
-}
-
-interface Position {
-  agentId: string;
-  marketId: string;
-  direction: 'higher' | 'lower';
-  shares: number;
-  metricName?: string;
-  targetDate?: string;
 }
 
 // ─── Sub-sections ─────────────────────────────────────────────────────────────

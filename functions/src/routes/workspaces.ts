@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/client';
 import { workspaces, userWorkspaces, permissionGroups } from '../db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { requireRole, requireIdentity } from '../middleware/roles';
@@ -83,12 +83,10 @@ workspacesRouter.get('/', requireIdentity, wrap(async (req, res) => {
   if (memberships.length === 0) { res.json([]); return; }
 
   const wsIds = memberships.map(m => m.workspaceId);
-  const wsRows = await Promise.all(wsIds.map(id => db.select().from(workspaces).where(eq(workspaces.id, id))));
+  const wsRows = await db.select().from(workspaces).where(inArray(workspaces.id, wsIds));
   const roleMap = Object.fromEntries(memberships.map(m => [m.workspaceId, m.role]));
 
-  res.json(
-    wsRows.flatMap(r => r).map(ws => ({ ...ws, memberRole: roleMap[ws.id] })),
-  );
+  res.json(wsRows.map(ws => ({ ...ws, memberRole: roleMap[ws.id] })));
 }));
 
 workspacesRouter.get('/:id/stats', requireIdentity, wrap(async (req, res) => {

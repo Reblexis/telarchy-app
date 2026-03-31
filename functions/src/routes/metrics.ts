@@ -192,8 +192,8 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
   await svc.logSpecificMetrics(getAffectedMetrics([id], allMetrics), allMetrics, workspaceId);
   if (update.value !== undefined) {
     const metric = allMetrics.find(m => m.id === id);
-    if (!metric) console.error(`emitEvent: metric ${id} not found after update`);
-    emitEvent('metric:updated', { metricId: id, metricName: metric!.name, oldValue: oldValue ?? null, newValue: update.value }, workspaceId)
+    if (!metric) { console.error(`emitEvent: metric ${id} not found after update`); }
+    else emitEvent('metric:updated', { metricId: id, metricName: metric.name, oldValue: oldValue ?? null, newValue: update.value }, workspaceId)
       .catch(e => console.error('emitEvent failed:', e));
   }
 }));

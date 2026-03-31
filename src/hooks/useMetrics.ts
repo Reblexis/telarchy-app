@@ -40,14 +40,14 @@ export function useMetrics(authenticated: boolean, inspectTaskId?: string | null
     if (!authenticated) return [];
     setError('');
 
-    const [metricsData, marketsData, _] = await Promise.all([
+    const [metricsData, marketsData] = await Promise.all([
       api.getMetrics() as Promise<Metric[]>,
       api.getMarkets(inspectTaskId || undefined).catch((e: Error) => { console.error('Failed to load markets for metrics page:', e.message); return [] as Market[]; }),
       api.getUpdates().then((list: UpdateEntry[]) => {
         const parsed = list.map(u => ({ ...u, timestamp: new Date(u.timestamp) }));
         setUpdates(parsed);
         cacheSet('updates', parsed);
-      }),
+      }).catch((e: Error) => console.error('Failed to load updates:', e.message)),
     ]);
 
     consensusMapRef.current = buildConsensusMap(marketsData);
@@ -64,7 +64,7 @@ export function useMetrics(authenticated: boolean, inspectTaskId?: string | null
   }, [authenticated, inspectTaskId]);
 
   useEffect(() => {
-    if (!authenticated) return;
+    if (!authenticated) { setLoading(false); return; }
 
     const cached = cacheGet<Metric[]>('metrics');
     if (cached) {

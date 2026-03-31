@@ -1,10 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, type MarketplaceListing } from '../lib/api';
+import { TradingPanel } from '../components/TradingPanel';
 import { useAuth } from '../hooks/useAuth';
+import type { Market } from '../types';
 
+interface TradingAgent {
+  id: string;
+  balance: number;
+}
 
-function JoinButton({ workspaceId }: { workspaceId: string }) {
+interface AccessibleWorkspaceMarkets {
+  workspaceId: string;
+  workspaceName: string;
+  memberRole: string;
+  markets: Market[];
+}
+
+function JoinButton({ workspaceId, joined, onJoined }: {
+  workspaceId: string;
+  joined?: boolean;
+  onJoined?: () => void;
+}) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [state, setState] = useState<'idle' | 'joining' | 'joined' | 'error'>('idle');
@@ -16,12 +33,14 @@ function JoinButton({ workspaceId }: { workspaceId: string }) {
     try {
       await api.joinWorkspace(workspaceId);
       setState('joined');
+      onJoined?.();
     } catch (e: unknown) {
       setErrMsg((e as Error).message || 'Failed to join');
       setState('error');
     }
   };
 
+  if (joined) return <span style={{ color: 'var(--success-text)', fontSize: '0.875rem' }}>Joined</span>;
   if (state === 'joined') return <span style={{ color: 'var(--success-text)', fontSize: '0.875rem' }}>✓ Joined</span>;
   if (state === 'error') return <span style={{ color: 'var(--error-text)', fontSize: '0.8rem' }}>{errMsg}</span>;
 
@@ -56,7 +75,11 @@ function ProbabilityBar({ probability }: { probability: number }) {
   );
 }
 
-function MarketCard({ market }: { market: MarketplaceListing }) {
+function PublicMarketCard({ market, joined, onJoined }: {
+  market: MarketplaceListing;
+  joined?: boolean;
+  onJoined?: () => void;
+}) {
   const consensusDisplay = market.consensus !== null
     ? `${market.consensus.toFixed(2)} (of ${market.rangeMin}–${market.rangeMax})`
     : '—';
@@ -80,33 +103,181 @@ function MarketCard({ market }: { market: MarketplaceListing }) {
       <ProbabilityBar probability={market.probability} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
         <span>Liquidity: {market.liquidity.toFixed(0)}</span>
-        <JoinButton workspaceId={market.workspaceId} />
+        <JoinButton workspaceId={market.workspaceId} joined={joined} onJoined={onJoined} />
       </div>
+    </div>
+  );
+}
+
+function AccessibleMarketCard({
+  workspaceId,
+  workspaceName,
+  market,
+  agent,
+  onTrade,
+  onError,
+}: {
+  workspaceId: string;
+  workspaceName: string;
+  market: Market;
+  agent: TradingAgent;
+  onTrade: () => void;
+  onError: (msg: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="metric-card" style={{ padding: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.15rem' }}>
+            {market.metricName}
+          </div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            {workspaceName} · {market.targetDate}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Consensus</div>
+          <div style={{ fontWeight: 600 }}>
+            {market.consensus !== null ? market.consensus.toFixed(2) : '—'}
+          </div>
+        </div>
+      </div>
+      <ProbabilityBar probability={market.probability} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', gap: '0.75rem', flexWrap: 'wrap' }}>
+        <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
+          Liquidity: {market.liquidity.toFixed(0)} · Range: {market.rangeMin}–{market.rangeMax}
+        </div>
+        <button
+          className="btn-small"
+          onClick={() => setExpanded(open => !open)}
+          style={{ padding: '0.35rem 0.85rem', fontSize: '0.875rem' }}
+        >
+          {expanded ? 'Hide trade panel' : 'Trade'}
+        </button>
+      </div>
+      {expanded && (
+        <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
+          <TradingPanel
+            market={market}
+            agentId={agent.id}
+            workspaceId={workspaceId}
+            showLiquidityControls={false}
+            onTrade={onTrade}
+            onError={onError}
+          />
+        </div>
+      )}
     </div>
   );
 }
 
 export function MarketplacePage() {
   const { user } = useAuth();
-
-  const [markets, setMarkets] = useState<MarketplaceListing[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [publicMarkets, setPublicMarkets] = useState<MarketplaceListing[]>([]);
+  const [accessibleWorkspaces, setAccessibleWorkspaces] = useState<AccessibleWorkspaceMarkets[]>([]);
+  const [joinedWorkspaceIds, setJoinedWorkspaceIds] = useState<string[]>([]);
+  const [tradingAgent, setTradingAgent] = useState<TradingAgent | null>(null);
+  const [loadingPublic, setLoadingPublic] = useState(true);
+  const [loadingAccessible, setLoadingAccessible] = useState(false);
+  const [publicError, setPublicError] = useState('');
+  const [accessibleError, setAccessibleError] = useState('');
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    api.getMarketplace()
-      .then(setMarkets)
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
+  const loadPublic = useCallback(async () => {
+    setLoadingPublic(true);
+    setPublicError('');
+    try {
+      setPublicMarkets(await api.getMarketplace());
+    } catch (e: unknown) {
+      setPublicError((e as Error).message || 'Failed to load public markets');
+    } finally {
+      setLoadingPublic(false);
+    }
   }, []);
 
-  const filtered = search
-    ? markets.filter(m =>
-        m.metricName.toLowerCase().includes(search.toLowerCase()) ||
-        m.workspaceName.toLowerCase().includes(search.toLowerCase()),
-      )
-    : markets;
+  const loadAccessible = useCallback(async () => {
+    if (!user) {
+      setAccessibleWorkspaces([]);
+      setJoinedWorkspaceIds([]);
+      setTradingAgent(null);
+      setAccessibleError('');
+      setLoadingAccessible(false);
+      return;
+    }
+
+    setLoadingAccessible(true);
+    setAccessibleError('');
+
+    try {
+      const workspaces = await api.listWorkspaces() as Array<{ id: string; name: string; memberRole: string }>;
+      setJoinedWorkspaceIds(workspaces.map(workspace => workspace.id));
+
+      let agents = await api.getMyAgents().catch(() => null) as Array<{ id: string; balance: number }> | null;
+      if (agents && agents.length === 0) {
+        await api.upsertProfile().catch((e: Error) => console.error('upsertProfile failed:', e.message));
+        agents = await api.getMyAgents().catch(() => null) as Array<{ id: string; balance: number }> | null;
+      }
+
+      setTradingAgent(agents?.[0] ?? null);
+
+      const tradableWorkspaces = workspaces.filter(workspace => workspace.memberRole !== 'viewer');
+      const workspaceMarkets = await Promise.all(tradableWorkspaces.map(async workspace => {
+        const markets = await api.getMarkets(undefined, workspace.id).catch((e: Error) => {
+          console.error(`getMarkets failed for workspace ${workspace.id}:`, e.message);
+          return [];
+        }) as Market[];
+        return {
+          workspaceId: workspace.id,
+          workspaceName: workspace.name,
+          memberRole: workspace.memberRole,
+          markets: markets.filter(market => market.active),
+        };
+      }));
+
+      setAccessibleWorkspaces(workspaceMarkets.filter(workspace => workspace.markets.length > 0));
+    } catch (e: unknown) {
+      setAccessibleError((e as Error).message || 'Failed to load your markets');
+      setAccessibleWorkspaces([]);
+      setJoinedWorkspaceIds([]);
+      setTradingAgent(null);
+    } finally {
+      setLoadingAccessible(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    void loadPublic();
+  }, [loadPublic]);
+
+  useEffect(() => {
+    void loadAccessible();
+  }, [loadAccessible]);
+
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredPublic = useMemo(() => {
+    if (!normalizedSearch) return publicMarkets;
+    return publicMarkets.filter(market =>
+      market.metricName.toLowerCase().includes(normalizedSearch) ||
+      market.workspaceName.toLowerCase().includes(normalizedSearch),
+    );
+  }, [normalizedSearch, publicMarkets]);
+
+  const filteredAccessible = useMemo(() => {
+    if (!normalizedSearch) return accessibleWorkspaces;
+    return accessibleWorkspaces
+      .map(workspace => {
+        const workspaceMatch = workspace.workspaceName.toLowerCase().includes(normalizedSearch);
+        return {
+          ...workspace,
+          markets: workspaceMatch
+            ? workspace.markets
+            : workspace.markets.filter(market => market.metricName.toLowerCase().includes(normalizedSearch)),
+        };
+      })
+      .filter(workspace => workspace.markets.length > 0);
+  }, [accessibleWorkspaces, normalizedSearch]);
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -134,9 +305,9 @@ export function MarketplacePage() {
 
       <div style={{ maxWidth: 720, margin: '0 auto', width: '100%', flex: 1 }}>
         <div style={{ marginBottom: '1.5rem' }}>
-          <h2 style={{ marginBottom: '0.25rem' }}>Public markets</h2>
+          <h2 style={{ marginBottom: '0.25rem' }}>Marketplace</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            Browse prediction markets from public workspaces. Join a workspace to place trades.
+            Browse public markets and, when signed in, trade directly in the workspaces you already have access to.
           </p>
         </div>
 
@@ -149,22 +320,83 @@ export function MarketplacePage() {
           />
         </div>
 
-        {loading && <div className="loading" style={{ padding: '2rem 0' }}>Loading markets...</div>}
-        {error && <div className="error show">{error}</div>}
+        {user && (
+          <div style={{ marginBottom: '2rem' }}>
+            <div style={{ marginBottom: '0.75rem' }}>
+              <h3 style={{ marginBottom: '0.25rem' }}>Your accessible markets</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>
+                {tradingAgent
+                  ? `Trades use your linked agent ${tradingAgent.id} (${tradingAgent.balance.toFixed(2)} credits).`
+                  : 'Your linked trading agent is still loading.'}
+              </p>
+            </div>
 
-        {!loading && !error && filtered.length === 0 && (
+            {loadingAccessible && <div className="loading" style={{ padding: '1.5rem 0' }}>Loading your markets...</div>}
+            {accessibleError && <div className="error show">{accessibleError}</div>}
+            {!loadingAccessible && !accessibleError && filteredAccessible.length === 0 && (
+              <div style={{ color: 'var(--text-tertiary)', padding: '1rem 0 0' }}>
+                {normalizedSearch ? 'No accessible markets match your search.' : 'You do not have any tradable markets yet. Join a public workspace below to start trading.'}
+              </div>
+            )}
+
+            {!loadingAccessible && !accessibleError && tradingAgent && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                {filteredAccessible.map(workspace => (
+                  <section key={workspace.workspaceId} className="section" style={{ padding: '1rem' }}>
+                    <div style={{ marginBottom: '0.75rem' }}>
+                      <div style={{ fontWeight: 600 }}>{workspace.workspaceName}</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        {workspace.markets.length} active market{workspace.markets.length === 1 ? '' : 's'} · role: {workspace.memberRole}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {workspace.markets.map(market => (
+                        <AccessibleMarketCard
+                          key={market.id}
+                          workspaceId={workspace.workspaceId}
+                          workspaceName={workspace.workspaceName}
+                          market={market}
+                          agent={tradingAgent}
+                          onTrade={() => { void loadAccessible(); }}
+                          onError={setAccessibleError}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div style={{ marginBottom: '1rem' }}>
+          <h3 style={{ marginBottom: '0.25rem' }}>Public markets</h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>
+            Discover active markets from public workspaces.
+          </p>
+        </div>
+
+        {loadingPublic && <div className="loading" style={{ padding: '2rem 0' }}>Loading markets...</div>}
+        {publicError && <div className="error show">{publicError}</div>}
+
+        {!loadingPublic && !publicError && filteredPublic.length === 0 && (
           <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: '3rem 0' }}>
             {search ? 'No markets match your search.' : 'No public markets yet.'}
           </div>
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {filtered.map(m => (
-            <MarketCard key={`${m.workspaceId}:${m.marketId}`} market={m} />
+          {filteredPublic.map(market => (
+            <PublicMarketCard
+              key={`${market.workspaceId}:${market.marketId}`}
+              market={market}
+              joined={joinedWorkspaceIds.includes(market.workspaceId)}
+              onJoined={() => { void loadAccessible(); }}
+            />
           ))}
         </div>
 
-        {!user && filtered.length > 0 && (
+        {!user && filteredPublic.length > 0 && (
           <div style={{
             marginTop: '2rem', padding: '1.25rem',
             background: 'var(--focus-bg)', border: '1px solid var(--focus-border)',

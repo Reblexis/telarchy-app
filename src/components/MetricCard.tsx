@@ -48,7 +48,7 @@ interface MetricCardProps {
 }
 
 export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus, onGraph, onEdit, onDelete }: MetricCardProps) {
-  const isLeaf = !metric.formula || metric.formula === '0';
+  const isLeaf = !metric.formula || metric.formula.trim() === '0';
   const points = useMemo(
     () => (metric.timeSeries ? buildPointsFromTimeSeries(metric.timeSeries) : []),
     [metric.timeSeries],

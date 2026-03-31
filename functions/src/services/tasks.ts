@@ -13,13 +13,11 @@ type MarketRow = typeof markets.$inferSelect;
 
 async function getTradeCountMap(marketIds: string[], workspaceId: string): Promise<Map<string, number>> {
   if (marketIds.length === 0) return new Map();
-  const tradeRows = await db.select({ marketId: trades.marketId }).from(trades)
-    .where(and(eq(trades.workspaceId, workspaceId), inArray(trades.marketId, marketIds)));
-  const map = new Map<string, number>();
-  for (const { marketId } of tradeRows) {
-    map.set(marketId, (map.get(marketId) ?? 0) + 1);
-  }
-  return map;
+  const rows = await db.select({ marketId: trades.marketId, count: sql<number>`count(*)::int` })
+    .from(trades)
+    .where(and(eq(trades.workspaceId, workspaceId), inArray(trades.marketId, marketIds)))
+    .groupBy(trades.marketId);
+  return new Map(rows.map(r => [r.marketId, r.count]));
 }
 
 async function getBaselineConsensusMap(marketRows: MarketRow[], workspaceId: string): Promise<Map<string, number>> {

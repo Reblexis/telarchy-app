@@ -238,7 +238,7 @@ function AgentAdminPage({ user, workspace }: {
     if (data) { setAgents(data); cacheSet('agents', data); }
     setWorkspaceStats(stats as { tradedVolume: number } | null);
     setLoading(false);
-  }, [user, workspace, isPlatformAdmin]);
+  }, [workspace, isPlatformAdmin]);
 
   const loadGroups = useCallback(async () => {
     const [groupData, metricData] = await Promise.all([
@@ -247,7 +247,7 @@ function AgentAdminPage({ user, workspace }: {
     ]);
     setGroups(groupData);
     setMetrics((metricData as Metric[]).filter((m: Metric) => !m.formula || m.formula.trim() === '0'));
-  }, [user]);
+  }, []);
 
   useEffect(() => { loadAgents(); }, [loadAgents]);
   useEffect(() => { loadGroups(); }, [loadGroups]);

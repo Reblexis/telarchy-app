@@ -48,15 +48,20 @@ export function setCustomApiKey(workspaceId: string, key: string | null): void {
   }
 }
 
-async function customRequest(path: string, options: RequestInit = {}) {
-  const apiKey = activeWorkspaceId ? getCustomApiKey(activeWorkspaceId) : null;
-  const res = await fetch(`${customApiUrl}${path}`, {
+async function customRequest(
+  path: string,
+  options: RequestInit = {},
+  workspaceId = activeWorkspaceId,
+  apiUrl = customApiUrl,
+) {
+  const apiKey = workspaceId ? getCustomApiKey(workspaceId) : null;
+  const res = await fetch(`${apiUrl}${path}`, {
     ...options,
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...(apiKey ? { 'X-API-Key': apiKey } : {}),
-      ...(activeWorkspaceId ? { 'X-Workspace-Id': activeWorkspaceId } : {}),
+      ...(workspaceId ? { 'X-Workspace-Id': workspaceId } : {}),
       ...(options.headers as Record<string, string>),
     },
   });
@@ -132,10 +137,29 @@ export function setActiveWorkspace(id: string | null): void {
 }
 
 async function request(path: string, options: RequestInit = {}, skipWorkspaceHeader = false) {
-  if (!skipWorkspaceHeader && customApiUrl && isWorkspaceScopedPath(path)) {
-    return customRequest(path, options);
+  return requestWithWorkspace(path, options, { skipWorkspaceHeader });
+}
+
+type RequestWorkspaceOptions = {
+  skipWorkspaceHeader?: boolean;
+  workspaceId?: string;
+};
+
+async function requestWithWorkspace(
+  path: string,
+  options: RequestInit = {},
+  requestOptions: RequestWorkspaceOptions = {},
+) {
+  const { skipWorkspaceHeader = false, workspaceId } = requestOptions;
+  const effectiveWorkspaceId = skipWorkspaceHeader ? null : (workspaceId ?? activeWorkspaceId);
+  const effectiveCustomApiUrl = effectiveWorkspaceId
+    ? localStorage.getItem(`customApiUrl_${effectiveWorkspaceId}`)
+    : null;
+
+  if (effectiveWorkspaceId && effectiveCustomApiUrl && isWorkspaceScopedPath(path)) {
+    return customRequest(path, options, effectiveWorkspaceId, effectiveCustomApiUrl);
   }
-  const wsHeader: Record<string, string> = (!skipWorkspaceHeader && activeWorkspaceId) ? { 'X-Workspace-Id': activeWorkspaceId } : {};
+  const wsHeader: Record<string, string> = effectiveWorkspaceId ? { 'X-Workspace-Id': effectiveWorkspaceId } : {};
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     credentials: 'include',
@@ -189,13 +213,16 @@ export const api = {
     request(`/api/agents/${agentId}/wallet`, { method: 'PUT', body: JSON.stringify({ walletAddress }) }),
 
   // Markets & Trading
-  getMarkets: (taskId?: string) => {
+  getMarkets: (taskId?: string, workspaceId?: string) => {
     const qs = taskId ? `?taskId=${taskId}` : '';
-    return request(`/api/predictions/markets${qs}`);
+    return requestWithWorkspace(`/api/predictions/markets${qs}`, {}, { workspaceId });
   },
-  getMarketDetail: (id: string) => request(`/api/predictions/markets/${id}`),
-  getMarketTrades: (id: string) => request(`/api/predictions/markets/${id}/trades`),
-  getMarketLiquidityEvents: (id: string) => request(`/api/predictions/markets/${id}/liquidity-events`),
+  getMarketDetail: (id: string, workspaceId?: string) =>
+    requestWithWorkspace(`/api/predictions/markets/${id}`, {}, { workspaceId }),
+  getMarketTrades: (id: string, workspaceId?: string) =>
+    requestWithWorkspace(`/api/predictions/markets/${id}/trades`, {}, { workspaceId }),
+  getMarketLiquidityEvents: (id: string, workspaceId?: string) =>
+    requestWithWorkspace(`/api/predictions/markets/${id}/liquidity-events`, {}, { workspaceId }),
   createMarket: (metricId: string, targetDate: string) =>
     request('/api/predictions/markets', { method: 'POST', body: JSON.stringify({ metricId, targetDate }) }),
   deleteMarket: (id: string) =>
@@ -211,14 +238,14 @@ export const api = {
     }),
   resolvePredictions: (targetDate?: string) =>
     request('/api/predictions/resolve', { method: 'POST', body: JSON.stringify({ targetDate }) }),
-  trade: (body: Record<string, unknown>) =>
-    request('/api/predictions/trade', { method: 'POST', body: JSON.stringify(body) }),
-  getPositions: (marketId?: string, agentId?: string) => {
+  trade: (body: Record<string, unknown>, workspaceId?: string) =>
+    requestWithWorkspace('/api/predictions/trade', { method: 'POST', body: JSON.stringify(body) }, { workspaceId }),
+  getPositions: (marketId?: string, agentId?: string, workspaceId?: string) => {
     const params = new URLSearchParams();
     if (marketId) params.set('marketId', marketId);
     if (agentId) params.set('agentId', agentId);
     const qs = params.toString() ? `?${params.toString()}` : '';
-    return request(`/api/predictions/positions${qs}`);
+    return requestWithWorkspace(`/api/predictions/positions${qs}`, {}, { workspaceId });
   },
   injectLiquidity: (marketId: string, amount: number) =>
     request(`/api/predictions/markets/${marketId}/liquidity`, { method: 'POST', body: JSON.stringify({ amount }) }),

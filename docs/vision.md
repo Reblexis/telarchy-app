@@ -265,6 +265,8 @@ Self-hosted: docker compose up (includes postgres service) or any Linux host + p
 
 The app uses a persistent left sidebar (`Sidebar.tsx` + `AppLayout.tsx`) for all authenticated pages. The sidebar handles workspace switching (all workspaces listed, click to switch), workspace-scoped nav (Metrics, Markets, Tasks, Agents), platform nav (Marketplace, Account, Guides), and logout. The horizontal header (`Header.tsx`) is kept only for the agent portal. `/account` shows agents and balances, and links to the Agent Portal for USDC deposit/withdrawal.
 
+`/marketplace` is both a discovery surface and a trading surface: anonymous visitors can browse public markets, while signed-in users can see the active markets from workspaces they belong to and trade on them directly with their linked account agent.
+
 `/guides` is a publicly accessible in-app reference covering metric structure, formula syntax, time preference, markets, and the task decision loop. No auth required.
 
 The selected workspace now owns its workspace-scoped links directly in the sidebar. Metrics, Markets, Tasks, Agents, and workspace Settings render as a collapsible nested subsection under the active workspace rather than as a separate top-level "Workspace" section, which keeps workspace context and page context aligned.

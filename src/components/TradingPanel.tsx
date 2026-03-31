@@ -9,8 +9,8 @@ import type { Market, Position, TradePoint, LiquidityEvent } from '../types';
 const inputStyle = { padding: '0.4rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', width: '80px' } as const;
 const labelStyle = { display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.15rem' } as const;
 
-export function TradingPanel({ market, agentId, onTrade, onError }: {
-  market: Market; agentId: string;
+export function TradingPanel({ market, agentId, workspaceId, showLiquidityControls = true, onTrade, onError }: {
+  market: Market; agentId: string; workspaceId?: string; showLiquidityControls?: boolean;
   onTrade: () => void; onError: (msg: string) => void;
 }) {
   const [tradeAmount, setTradeAmount] = useState('');
@@ -37,27 +37,27 @@ export function TradingPanel({ market, agentId, onTrade, onError }: {
     if (cachedPositions) setPositions(cachedPositions);
 
     setTradesLoading(!cachedTrades);
-    api.getMarketTrades(market.id)
+    api.getMarketTrades(market.id, workspaceId)
       .then(data => { cacheSet(tKey, data); setTrades(data); })
       .catch((e: Error) => onError(e.message))
       .finally(() => setTradesLoading(false));
-    api.getMarketLiquidityEvents(market.id)
+    api.getMarketLiquidityEvents(market.id, workspaceId)
       .then(data => { cacheSet(lKey, data); setLiquidityEvents(data); })
       .catch((e: Error) => onError(e.message));
-    api.getPositions(market.id, agentId)
+    api.getPositions(market.id, agentId, workspaceId)
       .then(data => { cacheSet(pKey, data); setPositions(data); })
       .catch((e: Error) => onError(e.message));
-  }, [market.id, agentId]);
+  }, [market.id, agentId, workspaceId, onError]);
 
   const amount = parseFloat(tradeAmount);
   const preview = useMemo(() => {
-    if (isNaN(amount) || amount <= 0 || !market.probability) return null;
+    if (isNaN(amount) || amount <= 0 || market.probability == null) return null;
     const higher = previewTrade(market.probability, market.liquidity, 'higher', amount);
     const lower = previewTrade(market.probability, market.liquidity, 'lower', amount);
     return { higher, lower };
   }, [amount, market.probability, market.liquidity]);
 
-  const refreshPositions = () => api.getPositions(market.id, agentId).then(data => {
+  const refreshPositions = () => api.getPositions(market.id, agentId, workspaceId).then(data => {
     cacheSet(`positions:${market.id}:${agentId}`, data);
     setPositions(data);
   }).catch((e: Error) => onError(`Failed to refresh positions: ${e.message}`));
@@ -65,7 +65,7 @@ export function TradingPanel({ market, agentId, onTrade, onError }: {
   const handleBetDirection = async (direction: 'higher' | 'lower') => {
     if (isNaN(amount) || amount <= 0) return;
     setTrading(true);
-    const result = await api.trade({ marketId: market.id, direction, amount, agentId })
+    const result = await api.trade({ marketId: market.id, direction, amount, agentId }, workspaceId)
       .catch((e: Error) => { onError(e.message); return null; });
     setTrading(false);
     if (result) {
@@ -76,7 +76,7 @@ export function TradingPanel({ market, agentId, onTrade, onError }: {
         cacheSet(`trades:${market.id}`, next);
         return next;
       });
-      api.getMarketTrades(market.id).then(data => {
+      api.getMarketTrades(market.id, workspaceId).then(data => {
         cacheSet(`trades:${market.id}`, data);
         setTrades(data);
       }).catch((e: Error) => onError(`Failed to refresh trades: ${e.message}`));
@@ -89,7 +89,7 @@ export function TradingPanel({ market, agentId, onTrade, onError }: {
     const sellShares = parseFloat(sellInputs[direction] || '');
     if (isNaN(sellShares) || sellShares <= 0) return;
     setTrading(true);
-    const result = await api.trade({ marketId: market.id, direction, sellShares, agentId })
+    const result = await api.trade({ marketId: market.id, direction, sellShares, agentId }, workspaceId)
       .catch((e: Error) => { onError(e.message); return null; });
     setTrading(false);
     if (result) {
@@ -227,13 +227,15 @@ export function TradingPanel({ market, agentId, onTrade, onError }: {
             {' '}{lastResult.cost < 0 ? `sold for $${-lastResult.cost}` : `for $${lastResult.cost}`} → consensus <strong>{lastResult.consensus}</strong>
           </div>
         )}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.25rem', alignItems: 'flex-end' }}>
-          <div>
-            <label style={labelStyle}>Add liquidity (b={market.liquidity})</label>
-            <input type="number" value={liqAmount} onChange={e => setLiqAmount(e.target.value)} placeholder="+" style={{ ...inputStyle, width: '60px' }} />
+        {showLiquidityControls && (
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.25rem', alignItems: 'flex-end' }}>
+            <div>
+              <label style={labelStyle}>Add liquidity (b={market.liquidity})</label>
+              <input type="number" value={liqAmount} onChange={e => setLiqAmount(e.target.value)} placeholder="+" style={{ ...inputStyle, width: '60px' }} />
+            </div>
+            <button className="btn-small" onClick={handleLiquidity} style={{ padding: '0.4rem 0.6rem' }}>Inject</button>
           </div>
-          <button className="btn-small" onClick={handleLiquidity} style={{ padding: '0.4rem 0.6rem' }}>Inject</button>
-        </div>
+        )}
       </div>
 
       {positions.length > 0 && (

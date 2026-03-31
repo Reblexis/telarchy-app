@@ -18,15 +18,16 @@ export function GraphModal({ metric, interval, isInspectMode, loadLogs, onClose 
   const loadChart = useCallback(async (m: Metric) => {
     setStatus('loading');
     setPoints([]);
-
-    const logs = await loadLogs(m.id);
-    const nextPoints = buildPointsFromLogs(logs, interval);
-    if (nextPoints.length === 0) {
+    try {
+      const logs = await loadLogs(m.id);
+      const nextPoints = buildPointsFromLogs(logs, interval);
+      if (nextPoints.length === 0) { setStatus('no-data'); return; }
+      setPoints(nextPoints);
+      setStatus('ready');
+    } catch (e) {
+      console.error('GraphModal: failed to load logs', e);
       setStatus('no-data');
-      return;
     }
-    setPoints(nextPoints);
-    setStatus('ready');
   }, [interval, loadLogs]);
 
   useEffect(() => {
