@@ -198,7 +198,7 @@ Credits are backed by real USDC. A treasury wallet on the Base L2 network holds 
 - `creditValueUsd` — USD value of 1 credit (also used for withdrawal conversion).
 - `buyFeePercent` — fee percentage added on top when buying credits (default 0). E.g. 5 means 105 USDC → 100 credits.
 
-**Setup**: set `TREASURY_PRIVATE_KEY` (hex, `0x`-prefixed) in server environment configuration. The treasury wallet must hold sufficient USDC on Base mainnet.
+**Setup**: set `TREASURY_PRIVATE_KEY` (hex, `0x`-prefixed) in server environment configuration. Telarchy should refuse to start without it, because a valid server must always have a treasury wallet backing the economy. The treasury wallet must hold sufficient USDC on Base mainnet.
 
 ### Agent Economy Parameters (Implemented)
 

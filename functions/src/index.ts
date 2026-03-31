@@ -9,8 +9,12 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { app } from './app';
+import { assertTreasuryConfigured } from './lib/usdc';
 
-export const api = onRequest({ minInstances: 1, secrets: ['TREASURY_PRIVATE_KEY'] }, app);
+export const api = onRequest({ minInstances: 1, secrets: ['TREASURY_PRIVATE_KEY'] }, (req, res) => {
+  assertTreasuryConfigured();
+  return app(req, res);
+});
 
 export const dailyResolve = onSchedule('every day 00:00', async () => {
   const { resolvePredictions } = await import('./services/predictions');

@@ -6,6 +6,7 @@
  *   DATABASE_URL   — PostgreSQL connection string
  *                    e.g. postgresql://user:password@localhost:5432/telarchy
  *   API_KEY        — master API key (keep secret)
+ *   TREASURY_PRIVATE_KEY — Base treasury wallet private key for the backed economy
  *
  * Optional env vars:
  *   PORT                — HTTP port (default 8080)
@@ -24,8 +25,11 @@
 import path from 'path';
 import fs from 'fs';
 import express from 'express';
+import { assertTreasuryConfigured } from './lib/usdc';
 
 import('./app').then(({ app }) => {
+  assertTreasuryConfigured();
+
   // Serve frontend static files when bundled in self-hosted mode
   const publicDir = path.join(__dirname, 'public');
   if (fs.existsSync(publicDir)) {
