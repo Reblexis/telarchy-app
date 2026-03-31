@@ -96,13 +96,13 @@ app.get('/api/help', (_req, res) => {
   res.json({
     app: 'Telarchy',
     guides: 'GET /api/guides — index of guide sections; GET /api/guides/:section — markdown for a specific section (overview, creating, formulas, time-preference, markets, tasks). No auth required.',
-    description: 'A self-hostable metrics governance platform. Track numeric metrics, define formulas that derive values from other metrics, and let AI agents participate in prediction markets to forecast and improve them. Works for personal life metrics, team KPIs, or any quantified objectives.',
+    description: 'A self-hostable metrics governance platform. Track numeric metrics, define formulas that derive values from other metrics, and let participants using either browser accounts or agent keys take part in prediction markets to forecast and improve them. Works for personal life metrics, team KPIs, or any quantified objectives.',
     concepts: {
       metric: 'A named numeric value. Has a base value (manually set) and a total (base + formula result). Can reference other metrics via formulas like "{Deep Work} * 2 + {Exercise}".',
       formula: 'A math expression using {MetricName} references, operators (+, -, *, /), and functions (sqrt, abs, min, max, pow). Metrics are recalculated in dependency order. Date formats for market target dates: absolute (YYYY, YYYY-MM, YYYY-Www, YYYY-MM-DD) or relative (+10d, +2w, +3m, +1y). Granularity determines resolution: year=end of year, month=end of month, week=end of ISO week, day=that day.',
       xp_and_rank: 'XP equals the total of the metric named "Utility". Ranks: S (900+), A (800+), B (700+), C (600+), D (500+), E (400+).',
       depth: 'How many layers of dependents a metric has. Depth 0 = top-level aggregator, higher depth = more fundamental.',
-      agent: 'An AI agent participant. Registers with POST /api/agents/register, receives a unique API key, starts as "pending" until admin approves. Has a credit balance for betting.',
+      agent: 'A market participant identity used across both signup methods. Browser-account signup auto-creates a linked agent identity; agent-style signup can also happen directly via POST /api/agents/register. Trading, task, and workspace capabilities should be symmetric once identity is established.',
       market: 'A prediction market created by admin for a specific metric and target date. Agents bet on what the metric\'s total value will be at that date.',
       prediction: 'A bet placed by an agent on a market. Specifies predictedValue and stake (credits wagered). Multiple predictions per agent per market are allowed.',
       consensus: 'Expected value derived from the binary probability: rangeMin + p(higher) * (rangeMax - rangeMin). Available via API. Markets with no trades and zero liquidity report consensus as 0.',
@@ -112,8 +112,8 @@ app.get('/api/help', (_req, res) => {
     },
     authentication: {
       api_key: 'Set X-API-Key header with your secret key (admin access).',
-      session_cookie: 'Browser sessions use cookie-based auth via BetterAuth. Sign in at POST /api/auth/sign-in/email. Credentials are managed at /api/auth/* (handled by BetterAuth). Admin access requires email listed in ADMIN_EMAILS env var.',
-      agent_key: 'Set X-Agent-Key header with your agent API key (agent-scoped access).',
+      session_cookie: 'Browser sessions use cookie-based auth via BetterAuth. Sign in at POST /api/auth/sign-in/email. Credentials are managed at /api/auth/* (handled by BetterAuth). Browser-account signup auto-creates a linked agent identity so browser trading and agent-key trading share the same economic user.',
+      agent_key: 'Set X-Agent-Key header with your agent API key. Agent-key auth and browser auth should resolve to the same effective permissions for the same linked identity.',
       note: 'All endpoints except /api/help, /api/guides, GET /api/events/hooks/status, GET /api/marketplace, GET /api/marketplace/stats, POST /api/agents/register, and POST /api/waitlist require authentication.',
       workspace_switching: 'To act in a workspace other than your default, pass X-Workspace-Id: <workspaceId> header. Your effective role is derived from your membership in that workspace.',
     },
@@ -178,6 +178,7 @@ app.get('/api/help', (_req, res) => {
       { method: 'DELETE', path: '/api/auth/me', auth: 'admin', description: 'GDPR: delete your account.' },
       { method: 'GET', path: '/api/auth/me/export', auth: 'admin', description: 'GDPR: export your account data.' },
       { method: 'GET', path: '/api/marketplace', auth: false, description: 'List active markets from all public workspaces.' },
+      { method: 'POST', path: '/api/marketplace/:workspaceId/join', auth: 'identity', description: 'Join a public or unlisted workspace using either a browser account session or an agent key. Browser sessions add both the account and its linked trading identity; agent-key sessions add the trading identity directly.' },
       { method: 'GET', path: '/api/marketplace/stats', auth: false, description: 'Aggregate platform stats.' },
     ],
   });

@@ -45,6 +45,63 @@ function memberRoleToAuthRole(memberRole: WorkspaceMemberRole | null): AgentRole
   return 'pending';
 }
 
+export interface WorkspaceMembership {
+  workspaceId: string;
+  memberRole: WorkspaceMemberRole;
+}
+
+function upsertMembership(
+  memberships: Map<string, WorkspaceMemberRole>,
+  workspaceId: string,
+  memberRole: WorkspaceMemberRole,
+): void {
+  const current = memberships.get(workspaceId);
+  if (!current || ROLE_PRIORITY.indexOf(memberRole) < ROLE_PRIORITY.indexOf(current)) {
+    memberships.set(workspaceId, memberRole);
+  }
+}
+
+export async function getAgentWorkspaceMemberships(agentId: string): Promise<WorkspaceMembership[]> {
+  const { permissionGroups } = await import('../db/schema');
+  const groups = await db.select().from(permissionGroups);
+  const memberships = new Map<string, WorkspaceMemberRole>();
+
+  for (const group of groups) {
+    const agentIds = (group.agentIds as string[]) ?? [];
+    if (!agentIds.includes(agentId)) continue;
+    upsertMembership(memberships, group.workspaceId, group.type === 'admin' ? 'admin' : 'trader');
+  }
+
+  return Array.from(memberships.entries()).map(([workspaceId, memberRole]) => ({ workspaceId, memberRole }));
+}
+
+export async function getUserWorkspaceMemberships(userId: string, linkedAgentId?: string): Promise<WorkspaceMembership[]> {
+  const memberships = new Map<string, WorkspaceMemberRole>();
+  const rows = await db.select().from(userWorkspaces).where(eq(userWorkspaces.userId, userId));
+
+  for (const row of rows) {
+    upsertMembership(memberships, row.workspaceId, row.role as WorkspaceMemberRole);
+  }
+
+  if (linkedAgentId) {
+    const agentMemberships = await getAgentWorkspaceMemberships(linkedAgentId);
+    for (const membership of agentMemberships) {
+      upsertMembership(memberships, membership.workspaceId, membership.memberRole);
+    }
+  }
+
+  return Array.from(memberships.entries()).map(([workspaceId, memberRole]) => ({ workspaceId, memberRole }));
+}
+
+export async function getAuthWorkspaceMemberships(authInfo: {
+  uid?: string;
+  agentId?: string;
+}): Promise<WorkspaceMembership[]> {
+  if (authInfo.uid) return getUserWorkspaceMemberships(authInfo.uid, authInfo.agentId);
+  if (authInfo.agentId) return getAgentWorkspaceMemberships(authInfo.agentId);
+  return [];
+}
+
 async function resolveUser(
   userId: string,
   email: string | undefined | null,
@@ -59,10 +116,9 @@ async function resolveUser(
     return { workspaceId: wsId, memberRole: 'owner', agentId };
   }
 
-  const memberships = await db.select().from(userWorkspaces).where(eq(userWorkspaces.userId, userId));
+  const memberships = await getUserWorkspaceMemberships(userId, agentId);
 
   if (memberships.length === 0) {
-    // User belongs to no workspaces; deny if a specific non-default workspace was requested
     if (requestedWorkspaceId && requestedWorkspaceId !== 'default') return null;
     return { workspaceId: 'default', memberRole: null, agentId };
   }
@@ -70,26 +126,26 @@ async function resolveUser(
   if (requestedWorkspaceId) {
     const membership = memberships.find(m => m.workspaceId === requestedWorkspaceId);
     if (!membership) return null;
-    return { workspaceId: requestedWorkspaceId, memberRole: membership.role as WorkspaceMemberRole, agentId };
+    return { workspaceId: requestedWorkspaceId, memberRole: membership.memberRole, agentId };
   }
 
   const nonDefault = memberships.filter(m => m.workspaceId !== 'default');
   if (nonDefault.length === 0) return { workspaceId: 'default', memberRole: null, agentId };
   nonDefault.sort((a, b) =>
-    ROLE_PRIORITY.indexOf(a.role as WorkspaceMemberRole) -
-    ROLE_PRIORITY.indexOf(b.role as WorkspaceMemberRole),
+    ROLE_PRIORITY.indexOf(a.memberRole) -
+    ROLE_PRIORITY.indexOf(b.memberRole),
   );
-  return { workspaceId: nonDefault[0].workspaceId, memberRole: nonDefault[0].role as WorkspaceMemberRole, agentId };
+  return { workspaceId: nonDefault[0].workspaceId, memberRole: nonDefault[0].memberRole, agentId };
 }
 
 async function resolveAgentWorkspace(
   agentId: string,
   requestedWorkspaceId: string,
 ): Promise<{ workspaceId: string; memberRole: WorkspaceMemberRole } | null> {
-  const [membership] = await db.select().from(userWorkspaces)
-    .where(and(eq(userWorkspaces.userId, agentId), eq(userWorkspaces.workspaceId, requestedWorkspaceId)));
+  const memberships = await getAgentWorkspaceMemberships(agentId);
+  const membership = memberships.find(row => row.workspaceId === requestedWorkspaceId);
   if (!membership) return null;
-  return { workspaceId: requestedWorkspaceId, memberRole: membership.role as WorkspaceMemberRole };
+  return membership;
 }
 
 /** Like authMiddleware but never rejects — unauthenticated requests pass through with req.auth unset. */
@@ -163,6 +219,14 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
     if (requestedWorkspaceId && requestedWorkspaceId !== keyWorkspaceId) {
       const membership = await resolveAgentWorkspace(agentId, requestedWorkspaceId);
+      if (membership) {
+        req.auth = { role: memberRoleToAuthRole(membership.memberRole), agentId, workspaceId: membership.workspaceId };
+        return next();
+      }
+    }
+
+    if (keyWorkspaceId !== 'default') {
+      const membership = await resolveAgentWorkspace(agentId, keyWorkspaceId);
       if (membership) {
         req.auth = { role: memberRoleToAuthRole(membership.memberRole), agentId, workspaceId: membership.workspaceId };
         return next();

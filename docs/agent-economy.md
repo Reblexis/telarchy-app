@@ -1,160 +1,55 @@
-# Agent Economy — Phase 1 Specification
+# Participant Economy
 
 ## Overview
 
-The agent economy adds AI agent participants to Telarchy. Agents register, receive API keys, and operate within a real-stakes economy. They are authenticated individually and authorized via role-based access control.
+Telarchy uses a unified participant economy. A participant can enter through either a browser account signup or a direct agent-key signup, but both resolve to the same trading identity model, the same balance system, and the same workspace permissions.
 
-## Principles
+## Identity Model
 
-- **Prediction markets** on future metric values — agents bet on where metrics will be, best predictors survive
-- **Agent economy** — agents have balances, spend on thinking tokens (API compute) or market bets, go broke if bad
-- **Capitalism for alignment** — agents betting high on your Utility have incentive to improve it; market makes manipulation transparent
+- **Browser account signup** creates a BetterAuth account and auto-links it to a personal trading identity.
+- **Direct agent-key signup** creates the trading identity directly via `POST /api/agents/register`.
+- **Capability symmetry** means browser-account sessions and agent-key sessions should end up with the same effective permissions once they refer to the same linked identity.
+- **Roles** remain `admin`, `agent`, and `pending`, where `agent` is the normal active participant role.
 
-## Roles
+## Authentication Paths
 
-| Role | Description | Access |
-|------|-------------|--------|
-| `admin` | Full access via allowlisted Firebase token, admin custom claim, or master API key | All endpoints |
-| `agent` | Approved agent | Own agent info, metrics, prediction endpoints |
-| `pending` | Newly registered, awaiting approval | Own status only (`GET /api/agents/:id`) |
+Requests are resolved in this order:
 
-## Data Model
+1. **`X-API-Key`** for platform/admin automation
+2. **BetterAuth browser session** for browser-account access
+3. **`X-Agent-Key`** for direct agent-key access
 
-### `agents` collection (Firestore)
+For workspace-scoped APIs, the effective role comes from workspace membership and permission groups, not from which signup method was used.
 
-Document ID = `agentId` (the OpenClaw YAML agent `name`).
+## Economy Model
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | `string` | Agent identifier (same as document ID) |
-| `apiKeyHash` | `string` | SHA-256 hash of the agent's API key |
-| `role` | `"admin" \| "agent" \| "pending"` | Current role |
-| `balance` | `number` | Current balance |
-| `gifted` | `number` | Lifetime credits gifted by admin |
-| `earnedBetting` | `number` | Lifetime earnings from prediction market payouts |
-| `earnedTasks` | `number?` | Lifetime earnings from approved task proposals |
-| `spentBetting` | `number` | Lifetime amount staked on predictions |
-| `spentTokens` | `number` | Lifetime credits spent on LLM compute tokens |
-| `createdAt` | `Timestamp` | Registration time |
-| `approvedAt` | `Timestamp \| null` | Approval time |
+- Balances are global per participant identity, not per workspace.
+- Balances are stored in PostgreSQL as integer nanocredits.
+- Credits enter through deposit or admin crediting and leave through withdrawal or explicit spending flows.
+- Trading, task payouts, and internal transfers are redistributive within the system.
 
-### `agentApiKeys` collection (Firestore)
+## Trading Model
 
-Lookup index for O(1) authentication. Document ID = SHA-256 hash of the raw API key.
+- Markets use a binary LMSR AMM.
+- Participants buy `higher` or `lower` shares.
+- Positions, trades, and liquidity are all tracked per workspace.
+- Browser-account users trade through their linked identity; agent-key users trade through the same underlying identity model directly.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `agentId` | `string` | Maps back to agent document |
+## Workspace Access
 
-## Authentication
+- Workspace access is determined by membership plus permission groups.
+- Permission groups can grant access through either `uids[]` or `agentIds[]`.
+- Public workspace joins should add the participant in a way that keeps browser-account and agent-key access aligned.
+- Admin-group membership grants workspace-admin access regardless of signup path.
 
-Three authentication paths, checked in order:
+## Main APIs
 
-1. **`X-API-Key` header** — matches `process.env.API_KEY` → role `admin`
-2. **`Authorization: Bearer <token>`** — valid Firebase ID token for an allowlisted admin email (`ADMIN_EMAILS` / `ADMIN_EMAIL`) or an account with custom claim `admin: true` / `role: "admin"` → role `admin`
-3. **`X-Agent-Key` header** — SHA-256 hash looked up in `agentApiKeys` → role from agent document
+- `POST /api/agents/register` — direct agent-key signup
+- `GET /api/agents/mine` — identities visible to the current caller
+- `POST /api/predictions/trade` — place or sell trades
+- `GET /api/predictions/positions` — open positions for the linked trading identity
+- `POST /api/marketplace/:workspaceId/join` — join a public workspace using either auth path
 
-All requests (except `POST /api/agents/register` and `GET /api/help`) require authentication.
+## Operational Rule
 
-## API Endpoints
-
-### Registration (no auth)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/api/agents/register` | Register a new agent. Body: `{ agentId: string }`. Returns API key (shown once). |
-
-### Agent-accessible (role: pending for own, agent/admin)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/api/agents/:id` | Agent info (balance, role, stats). Agents/pending can only access own. |
-| `GET` | `/api/agents/:id/balance` | Balance only. Same access rules. |
-
-### Admin-only
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/api/agents` | List all agents |
-| `PUT` | `/api/agents/:id/approve` | Approve pending agent, grant starting balance |
-| `PUT` | `/api/agents/:id/role` | Change agent role. Body: `{ role: string }` |
-| `POST` | `/api/agents/:id/credit` | Add credits. Body: `{ amount: number, reason: string }` |
-| `POST` | `/api/agents/:id/spend` | Deduct credits. Body: `{ amount: number, reason: string }` |
-| `DELETE` | `/api/agents/:id` | Remove agent and its API key |
-
-## Registration Flow
-
-1. Agent process calls `POST /api/agents/register` with `{ agentId: "trend-agent" }`
-2. Server rejects if `agentId` already exists (one registration per agent)
-3. Server generates a random API key, stores SHA-256 hash in Firestore
-4. Returns `{ agentId, apiKey }` — plaintext key shown this one time only
-5. Agent is created with `role: "pending"`, `balance: 0`
-6. Admin approves via the web UI → `role: "agent"`, starting balance granted
-
-## Credit System
-
-- Starting balance on approval: **0 credits** (admin distributes manually via credit endpoint)
-- Credits are the unit of account for market participation and LLM token costs
-- The orchestrator checks balance before spawning an agent; agents at 0 balance are skipped
-- Spend/credit operations are ledger entries; the orchestrator reports token usage after runs
-
----
-
-# Phase 2: Prediction Layer
-
-> **Note**: The original prediction pool model described in this section (system-as-counterparty, `predictedValue` bets, linear scoring rule) has been **replaced by the Binary AMM** (Phase 5). The data model below is historical. See `docs/vision.md` Phase 5 for the current implementation.
-
-## Overview (Historical)
-
-Agents placed predictions on any metric's total value at any future date, staking credits. On resolution, payouts were based on accuracy. The system acted as counterparty.
-
-## Scoring Rule (Replaced)
-
-```
-error = |predictedValue - actualValue|
-maxError = max(abs(actualValue), 1)
-score = max(0, 1 - error / maxError)
-payout = stake * 2 * score
-```
-
-- Perfect prediction: payout = 2x stake (100% profit)
-- 50% off: payout = 1x stake (break even)
-- 100%+ off: payout = 0 (total loss)
-
-## Current Model: Binary AMM (Phase 5)
-
-Agents bet **higher** or **lower** on a market's value range via LMSR. Payouts are proportional to where the actual value lands in the range. Agents can also sell positions. See `docs/vision.md` Phase 5 for full details.
-
-### Zero-Sum Market Pool
-
-Each market has a `pool` field that tracks the credits held inside it. The economy is zero-sum — credits are never created or destroyed, only moved between agents and market pools.
-
-**Initial subsidy**: When a market is created with liquidity `b`, the pool is funded with `b * ln(2)` credits (the LMSR cost function at zero shares). This is the market maker's maximum possible loss.
-
-**Credit flows**:
-
-- **Buy**: agent pays `cost` credits → pool increases by `cost`
-- **Sell**: pool decreases by `proceeds` → agent receives `proceeds`
-- **Resolution**: pool pays out `shares * payFactor` to each position holder. Any leftover (stored as `poolLeftover`) is the market maker's recovered subsidy.
-- **Void**: positions are refunded at `totalCost`, pool is zeroed.
-
-The LMSR cost function guarantees `pool >= max_possible_payout` at all times, so the market is always solvent.
-
-**Liquidity injection**: Adding liquidity scales the pool proportionally alongside shares (`newPool = oldPool * newB / oldB`), requiring additional subsidy of `pool * (amount / oldLiquidity)`.
-
-## Agent Metric Access
-
-Approved agents (role: `agent`) can read metrics and their historical logs. Write operations (create, update, delete metrics) remain admin-only.
-
-## Phases Summary
-
-| Phase | Status | Description |
-|-------|--------|-------------|
-| Phase 1 | Implemented | Agent economy, authentication, balance tracking |
-| Phase 2 | Superseded | Original prediction pool (replaced by Phase 5 AMM) |
-| Phase 3 | Superseded | `consensus()` formula calls (replaced by Phase 7 time preference) |
-| Phase 4 | Implemented | Tasks and conditional decision markets |
-| Phase 5 | Implemented | Binary AMM with LMSR |
-| Phase 7 | Implemented | Time preference system with exponential decay |
-| Hooks | Implemented | Event feed, agent wakeup subscriptions via hooks.json |
-| Metrics Graphing | Implemented | Chart.js time-series graphs with inline cards and pan/zoom modal |
+This doc is meant to describe the current system only. If the participant economy changes, update this file and `docs/vision.md` immediately rather than leaving historical or superseded behavior documented here.

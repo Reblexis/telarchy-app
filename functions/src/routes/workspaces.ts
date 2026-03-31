@@ -5,8 +5,17 @@ import { eq, and, inArray } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { requireRole, requireIdentity } from '../middleware/roles';
+import { getAuthWorkspaceMemberships } from '../middleware/auth';
 
 export const workspacesRouter = Router();
+
+async function getMembershipRoleForWorkspace(
+  auth: { uid?: string; agentId?: string },
+  workspaceId: string,
+): Promise<string | null> {
+  const memberships = await getAuthWorkspaceMemberships(auth);
+  return memberships.find(membership => membership.workspaceId === workspaceId)?.memberRole ?? null;
+}
 
 workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
   const { uid, agentId, role } = req.auth!;
@@ -78,13 +87,12 @@ workspacesRouter.get('/', requireIdentity, wrap(async (req, res) => {
     res.json(all.map(ws => ({ ...ws, memberRole: 'owner' }))); return;
   }
 
-  const identity = uid ?? agentId!;
-  const memberships = await db.select().from(userWorkspaces).where(eq(userWorkspaces.userId, identity));
+  const memberships = await getAuthWorkspaceMemberships({ uid, agentId });
   if (memberships.length === 0) { res.json([]); return; }
 
   const wsIds = memberships.map(m => m.workspaceId);
   const wsRows = await db.select().from(workspaces).where(inArray(workspaces.id, wsIds));
-  const roleMap = Object.fromEntries(memberships.map(m => [m.workspaceId, m.role]));
+  const roleMap = Object.fromEntries(memberships.map(m => [m.workspaceId, m.memberRole]));
 
   res.json(wsRows.map(ws => ({ ...ws, memberRole: roleMap[ws.id] })));
 }));
@@ -111,11 +119,9 @@ workspacesRouter.put('/:id/settings', requireRole('admin'), wrap(async (req, res
   if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
 
   // Verify workspace-level admin membership (if not using master key)
-  const identity = uid ?? agentId;
-  if (identity) {
-    const [membership] = await db.select().from(userWorkspaces)
-      .where(and(eq(userWorkspaces.userId, identity), eq(userWorkspaces.workspaceId, wsId)));
-    if (!membership || !['owner', 'admin'].includes(membership.role)) {
+  if (uid || agentId) {
+    const memberRole = await getMembershipRoleForWorkspace({ uid, agentId }, wsId);
+    if (!memberRole || !['owner', 'admin'].includes(memberRole)) {
       res.status(403).json({ error: 'Only workspace owner or admin can update settings' }); return;
     }
   }
@@ -161,11 +167,9 @@ workspacesRouter.post('/:id/members', requireRole('admin'), wrap(async (req, res
   if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
 
   // If not using master key, require workspace-level owner/admin
-  const identity = uid ?? agentId;
-  if (identity) {
-    const [membership] = await db.select().from(userWorkspaces)
-      .where(and(eq(userWorkspaces.userId, identity), eq(userWorkspaces.workspaceId, wsId)));
-    if (!membership || !['owner', 'admin'].includes(membership.role)) {
+  if (uid || agentId) {
+    const memberRole = await getMembershipRoleForWorkspace({ uid, agentId }, wsId);
+    if (!memberRole || !['owner', 'admin'].includes(memberRole)) {
       res.status(403).json({ error: 'Only workspace owner or admin can add members' }); return;
     }
   }

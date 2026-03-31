@@ -57,7 +57,7 @@ function canTradeMetric(
 predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const agentId = req.auth!.agentId;
-  if (!agentId) { res.status(403).json({ error: 'Only agents can trade' }); return; }
+  if (!agentId) { res.status(403).json({ error: 'A linked trading identity is required to trade' }); return; }
 
   const { marketId } = req.body;
   if (!marketId || typeof marketId !== 'string') { res.status(400).json({ error: 'marketId is required' }); return; }
@@ -98,7 +98,7 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
     if (market?.metricId) {
       const groups = await getTradePermissionGroups(workspaceId);
       if (!canTradeMetric(market.metricId, groups, req.auth!)) {
-        res.status(403).json({ error: 'Agent not authorized to trade this metric' }); return;
+        res.status(403).json({ error: 'Identity not authorized to trade this metric' }); return;
       }
     }
   }
@@ -227,7 +227,7 @@ predictionsRouter.get('/positions', requireRole('agent', 'admin'), wrap(async (r
   const agentId = req.auth!.role === 'admin' && typeof req.query.agentId === 'string'
     ? req.query.agentId
     : req.auth!.agentId;
-  if (!agentId) { res.status(403).json({ error: 'Only agents can list positions' }); return; }
+  if (!agentId) { res.status(403).json({ error: 'A linked trading identity is required to list positions' }); return; }
 
   let rows = await db.select().from(positions)
     .where(and(eq(positions.workspaceId, workspaceId), eq(positions.agentId, agentId)));

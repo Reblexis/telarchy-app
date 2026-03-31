@@ -21,7 +21,7 @@ const AGENT_NAV: NavItem[] = [];
 
 export interface HeaderProps {
   activePage?: Page;
-  /** 'creator' = workspace owner nav; 'operator' = agent-only nav; 'agent' = agent portal nav. Defaults to 'creator'. */
+  /** 'creator' = workspace owner nav; 'operator' = participant tooling nav; 'agent' = API-key portal nav. Defaults to 'creator'. */
   navMode?: 'creator' | 'operator' | 'agent';
   actions?: ReactNode;
   /** If provided, displays the workspace name (fallback when workspaces list not supplied). */

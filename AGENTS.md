@@ -1,5 +1,9 @@
 For more info about this project look into docs/vision.md.
 
+## Participant symmetry
+
+Human users and AI users must have the same effective platform permissions and workspace access. Treat them as two signup/auth methods for the same kind of participant, not as separate capability tiers: a human user should be able to do everything an agent user can do, and vice versa, once identity is established.
+
 ## Commit and push
 
 After every feature implementation or bug fix, commit and push. Keep commit messages concise and descriptive.
@@ -7,6 +11,8 @@ After every feature implementation or bug fix, commit and push. Keep commit mess
 ## Keeping docs current
 
 When implementing a new feature or design decision not already captured in `docs/`, update the relevant doc file (or `docs/vision.md` if none fits) with a brief note — one or two sentences covering the what and why. Keep it minimal; don't repeat what the code makes obvious.
+
+Do not leave outdated, superseded, historical, or migration-era documentation in place. If a doc is no longer current, update it to match the live system or delete it.
 
 ## Debugging with the API
 
@@ -36,7 +42,7 @@ If modifying the api capabilities or otherwise changing behaviour of the backend
 
 ## Balance storage convention
 
-Agent balances are stored in Firestore as **integer nanocredits** (`1 credit = 1,000,000,000 units`). Never write raw decimal credits to Firestore balance fields.
+Agent balances are stored in PostgreSQL as **integer nanocredits** (`1 credit = 1,000,000,000 units`). Never write raw decimal credits to stored balance fields.
 
 - Use `toUnits(credits)` before any `FieldValue.increment()` on a balance field.
 - Use `fromUnits(units)` when reading a balance for display or computation.

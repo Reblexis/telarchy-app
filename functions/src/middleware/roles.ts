@@ -10,10 +10,10 @@ export function requireRole(...roles: Array<AgentRole | 'admin'>) {
   };
 }
 
-/** Requires an authenticated user session (uid present). Allows all workspace roles. */
+/** Requires a BetterAuth browser-account session (uid present). */
 export function requireUser(req: Request, res: Response, next: NextFunction) {
   if (!req.auth) return res.status(401).json({ error: 'Unauthorized' });
-  if (!req.auth.uid) return res.status(403).json({ error: 'User account required' });
+  if (!req.auth.uid) return res.status(403).json({ error: 'Browser account session required' });
   return next();
 }
 

@@ -10,7 +10,7 @@ export function RequireAuth() {
   return <Outlet />;
 }
 
-/** Wraps routes that require an active agent session. Redirects to /agent-login if none. */
+/** Wraps routes that require an active API-key session. Redirects to /agent-login if none. */
 export function RequireAgentSession() {
   const { session } = useAgentSession();
   if (!session) return <Navigate to="/agent-login" replace />;

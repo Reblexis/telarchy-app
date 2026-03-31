@@ -30,16 +30,16 @@ Orgs/individuals who define goals and want prediction insights.
 3. **Billing** — No payment integration. Options: subscription, transaction fees, credit spread, or free tier + premium.
 4. **Creator dashboard** — Current admin UI works but lacks analytics, "getting started" state for empty workspaces, and market performance summaries.
 
-### Segment B: Traders / Agent Builders
+### Segment B: Traders / Automation Builders
 
-People who bet on markets or build automated agents.
+People who bet on markets or build automated trading flows.
 
 **Value prop:** "Find markets, bet on outcomes, earn real money. Build agents that trade for you."
 
 **What's missing:**
 
 1. **Public market discovery** — No way to browse markets without auth. Need a public marketplace page.
-2. **Trader-facing UI** — Traders interact via the Agent Portal page and API. The admin web UI is for workspace owners. Needs clearer separation.
+2. **Trader-facing UI** — Traders can already interact via the in-app marketplace, the API-key portal, and the API, but the surfaces still feel fragmented. Needs clearer separation without splitting capabilities by signup method.
 3. **Self-service deposit UI** — Backend USDC APIs exist but no frontend. Need wallet-connect integration.
 4. **Agent developer experience** — Only one OpenClaw skill. Need: developer portal, API docs, SDK, example agents, sandbox.
 5. **Leaderboard / reputation** — No public ranking. Data exists but isn't surfaced.
@@ -75,7 +75,7 @@ People who bet on markets or build automated agents.
 ### Phase 4: Growth
 
 - **Leaderboard** — Top traders/agents by PnL. Public.
-- **Agent developer portal** — Docs, SDK, example agents, sandbox.
+- **Automation developer portal** — Docs, SDK, example agents, sandbox.
 - **Notifications** — Email/webhook alerts for key events.
 - **Billing** — Platform fees / subscriptions.
 
@@ -87,13 +87,13 @@ The full backend and frontend are MIT-licensed. Anyone can self-host from the pu
 
 Trust is built through security practices, compliance, and transparency:
 
-- **Encryption at rest** — GCP/Firestore default (AES-256). CMEK for enterprise tier.
-- **Encryption in transit** — TLS via Firebase Hosting + Cloud Functions.
+- **Encryption at rest** — managed database and infrastructure encryption. CMEK for enterprise tier where supported.
+- **Encryption in transit** — TLS on managed hosting and any self-hosted deployment.
 - **Access controls** — Strict internal policies, admin audit trail.
 - **DPAs** — Contractual commitments for enterprise customers.
 - **Privacy policy and ToS** — Transparent about data storage, location, retention.
 - **Data portability** — Self-service export (`GET /api/me/export`) and deletion (`DELETE /api/me`).
-- **Self-hosted option (future)** — Docker image, Firestore replaced by Postgres/SQLite. Escape hatch for full sovereignty.
+- **Self-hosted option** — Docker image and local PostgreSQL already provide the sovereignty escape hatch.
 
 ### Current Security Posture
 
@@ -157,7 +157,7 @@ All tables include a `workspaceId` column; all queries filter by it. Mitigations
 | Markets | World events | Anything | Forecasting Qs | Org metrics |
 | Who creates | Curated | Anyone | Community | Creators |
 | Mechanism | Order book | DPM/AMM | Continuous | LMSR AMM |
-| AI agents | Tolerated | Some | No | First-class |
+| Automated traders | Tolerated | Some | No | First-class |
 | Decision-making | No | No | No | Yes (futarchy) |
 | Metric composition | No | No | No | Yes (formulas) |
 | Forward-looking | No | No | No | Yes (time pref) |
@@ -166,7 +166,7 @@ All tables include a `workspaceId` column; all queries filter by it. Mitigations
 
 1. **Metric trees with formulas** — Markets compose into a Utility hierarchy, not standalone questions.
 2. **Futarchy** — Conditional markets for organizational decisions. No competitor offers this.
-3. **AI agents as first-class participants** — API keys, hooks, event feeds, economy designed around agents.
+3. **Automation as a first-class interface** — API keys, hooks, event feeds, and the economy are designed for automated participation without reducing browser-account capabilities.
 4. **Time preference** — Decay-weighted forward-looking evaluation. Unique.
 
 **Positioning:** Telarchy is a governance and decision-making tool, not a betting platform. "Capitalism for alignment."
@@ -176,7 +176,7 @@ All tables include a `workspaceId` column; all queries filter by it. Mitigations
 - **Workspace isolation model** — Global trader balance vs per-workspace? Global is simpler and more liquid.
 - **Creator business model** — Free tier + premium? Transaction fees? Subscription?
 - **Legal structure** — Regulatory posture for real-money prediction markets. Needs legal counsel.
-- **Agent vs human trader** — Separate user types or humans-as-agents-with-UI?
-- **Data architecture** — Top-level collections + `workspaceId` field vs Firestore subcollections. Subcollections safer for privacy; top-level easier for cross-workspace marketplace.
+- **Participant identity UX** — Keep browser-account and agent-key signup flows distinct while preserving the same permissions and market access?
+- **Data architecture** — how aggressively to partition or shard workspace-scoped PostgreSQL data as scale increases.
 - **Position visibility** — Per-workspace setting? Default private (prevent front-running) or public (social trading)?
 - **Market resolution trust** — Start with simple creator reputation score. Agents bet less on low-reputation creators. Future: dispute mechanism, third-party data sources, creator stakes.

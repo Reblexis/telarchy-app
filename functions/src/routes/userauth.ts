@@ -89,7 +89,7 @@ userauthRouter.get('/me', requireUser, wrap(async (req, res) => {
  */
 userauthRouter.post('/profile', requireUser, wrap(async (req, res) => {
   const { uid } = req.auth!;
-  if (!uid) { res.status(403).json({ error: 'User account required' }); return; }
+  if (!uid) { res.status(403).json({ error: 'Browser account session required' }); return; }
 
   const { intent } = req.body;
   if (intent !== undefined && !['creator', 'agent'].includes(intent)) {
@@ -114,7 +114,7 @@ userauthRouter.post('/profile', requireUser, wrap(async (req, res) => {
  */
 userauthRouter.delete('/me', requireUser, wrap(async (req, res) => {
   const { uid } = req.auth!;
-  if (!uid) { res.status(403).json({ error: 'User account required' }); return; }
+  if (!uid) { res.status(403).json({ error: 'Browser account session required' }); return; }
 
   await db.transaction(async tx => {
     await tx.delete(userWorkspaces).where(eq(userWorkspaces.userId, uid));
@@ -135,7 +135,7 @@ userauthRouter.delete('/me', requireUser, wrap(async (req, res) => {
  */
 userauthRouter.get('/me/export', requireUser, wrap(async (req, res) => {
   const { uid } = req.auth!;
-  if (!uid) { res.status(403).json({ error: 'User account required' }); return; }
+  if (!uid) { res.status(403).json({ error: 'Browser account session required' }); return; }
 
   const [profile, memberships] = await Promise.all([
     db.select().from(appUsers).where(eq(appUsers.userId, uid)).then(r => r[0] ?? null),
