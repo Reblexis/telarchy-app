@@ -2,10 +2,15 @@ import { Request, Response, NextFunction } from 'express';
 import { fromNodeHeaders } from 'better-auth/node';
 import { createHash, timingSafeEqual } from 'crypto';
 import { db } from '../db/client';
-import { appUsers, userWorkspaces, agents, agentApiKeys } from '../db/schema';
+import { appUsers, agents, agentApiKeys } from '../db/schema';
 import { auth } from '../auth';
-import { eq, and } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import type { AgentRole, AuthInfo, WorkspaceMemberRole } from '../types';
+import {
+  getParticipantWorkspaceMemberships,
+  getUserWorkspaceMemberships as getUserWorkspaceMembershipsForParticipant,
+  resolveParticipantIdForUser,
+} from '../lib/participants';
 
 declare global {
   namespace Express {
@@ -37,69 +42,39 @@ function isBootstrapAdmin(email: string | undefined | null): boolean {
   return listed.includes(lower);
 }
 
-const ROLE_PRIORITY: WorkspaceMemberRole[] = ['owner', 'admin', 'trader', 'viewer'];
-
 function memberRoleToAuthRole(memberRole: WorkspaceMemberRole | null): AgentRole {
   if (memberRole === 'owner' || memberRole === 'admin') return 'admin';
   if (memberRole === 'trader') return 'agent';
   return 'pending';
 }
 
+const ROLE_PRIORITY: WorkspaceMemberRole[] = ['owner', 'admin', 'trader', 'viewer'];
+
 export interface WorkspaceMembership {
   workspaceId: string;
   memberRole: WorkspaceMemberRole;
 }
 
-function upsertMembership(
-  memberships: Map<string, WorkspaceMemberRole>,
-  workspaceId: string,
-  memberRole: WorkspaceMemberRole,
-): void {
-  const current = memberships.get(workspaceId);
-  if (!current || ROLE_PRIORITY.indexOf(memberRole) < ROLE_PRIORITY.indexOf(current)) {
-    memberships.set(workspaceId, memberRole);
-  }
-}
-
 export async function getAgentWorkspaceMemberships(agentId: string): Promise<WorkspaceMembership[]> {
-  const { permissionGroups } = await import('../db/schema');
-  const groups = await db.select().from(permissionGroups);
-  const memberships = new Map<string, WorkspaceMemberRole>();
-
-  for (const group of groups) {
-    const agentIds = (group.agentIds as string[]) ?? [];
-    if (!agentIds.includes(agentId)) continue;
-    upsertMembership(memberships, group.workspaceId, group.type === 'admin' ? 'admin' : 'trader');
-  }
-
-  return Array.from(memberships.entries()).map(([workspaceId, memberRole]) => ({ workspaceId, memberRole }));
+  return getParticipantWorkspaceMemberships(agentId);
 }
 
 export async function getUserWorkspaceMemberships(userId: string, linkedAgentId?: string): Promise<WorkspaceMembership[]> {
-  const memberships = new Map<string, WorkspaceMemberRole>();
-  const rows = await db.select().from(userWorkspaces).where(eq(userWorkspaces.userId, userId));
-
-  for (const row of rows) {
-    upsertMembership(memberships, row.workspaceId, row.role as WorkspaceMemberRole);
-  }
-
-  if (linkedAgentId) {
-    const agentMemberships = await getAgentWorkspaceMemberships(linkedAgentId);
-    for (const membership of agentMemberships) {
-      upsertMembership(memberships, membership.workspaceId, membership.memberRole);
-    }
-  }
-
-  return Array.from(memberships.entries()).map(([workspaceId, memberRole]) => ({ workspaceId, memberRole }));
+  if (linkedAgentId) return getAgentWorkspaceMemberships(linkedAgentId);
+  return getUserWorkspaceMembershipsFromParticipant(userId);
 }
 
 export async function getAuthWorkspaceMemberships(authInfo: {
   uid?: string;
   agentId?: string;
 }): Promise<WorkspaceMembership[]> {
-  if (authInfo.uid) return getUserWorkspaceMemberships(authInfo.uid, authInfo.agentId);
+  if (authInfo.uid) return getUserWorkspaceMembershipsFromParticipant(authInfo.uid);
   if (authInfo.agentId) return getAgentWorkspaceMemberships(authInfo.agentId);
   return [];
+}
+
+async function getUserWorkspaceMembershipsFromParticipant(userId: string): Promise<WorkspaceMembership[]> {
+  return getUserWorkspaceMembershipsForParticipant(userId);
 }
 
 async function resolveUser(
@@ -108,7 +83,7 @@ async function resolveUser(
   requestedWorkspaceId?: string,
 ): Promise<{ workspaceId: string; memberRole: WorkspaceMemberRole | null; agentId?: string } | null> {
   const [profile] = await db.select().from(appUsers).where(eq(appUsers.userId, userId));
-  const agentId = profile?.agentId ?? undefined;
+  const agentId = await resolveParticipantIdForUser(userId) ?? undefined;
   const isPlatformAdmin = profile?.platformAdmin === true || isBootstrapAdmin(email);
 
   if (isPlatformAdmin) {

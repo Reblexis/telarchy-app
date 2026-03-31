@@ -573,7 +573,7 @@ export function LandingPage() {
               Marketplace
             </Link>
             <Link to="/agent-login" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>
-              Agent Portal
+              API Key Portal
             </Link>
             <Link to="/login" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>
               Log in
@@ -789,7 +789,7 @@ export function LandingPage() {
             <span>Telarchy — governance by purpose</span>
             <div style={{ display: 'flex', gap: '1.25rem' }}>
               <Link to="/marketplace" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>Marketplace</Link>
-              <Link to="/agent-login" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>Agent Portal</Link>
+              <Link to="/agent-login" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>API Key Portal</Link>
               <Link to="/login" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>Log in</Link>
               <Link to="/signup" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>Sign up</Link>
             </div>

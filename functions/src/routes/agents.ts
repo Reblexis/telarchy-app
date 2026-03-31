@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { db } from '../db/client';
 import { agents, agentApiKeys, deposits, withdrawals, systemConfig } from '../db/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
@@ -11,8 +11,14 @@ import { getMarkets } from '../services/predictions';
 import { sendUsdc, getTreasuryBalances, validateWalletAddress, verifyUsdcDeposit } from '../lib/usdc';
 import { AppError } from '../lib/errors';
 import { validateAgentId, validateTxHash, sufficientBalance, toUnits, fromUnits } from '../lib/validation';
+import { listParticipantsForWorkspace, resolveParticipantIdForUser } from '../lib/participants';
 
 export const agentsRouter = Router();
+
+function resolveRouteAgentId(req: Request): string | null {
+  if ((req.params.id as string) === 'me') return req.auth?.agentId ?? null;
+  return req.params.id as string;
+}
 
 agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => {
   const { agentId, workspaceId = 'default' } = req.body;
@@ -54,27 +60,26 @@ agentsRouter.get('/mine', authMiddleware, requireIdentity, wrap(async (req, res)
   const { uid, agentId: authAgentId } = req.auth!;
 
   if (uid) {
-    const [profile] = await db.select().from(
-      (await import('../db/schema')).appUsers
-    ).where(eq((await import('../db/schema')).appUsers.userId, uid));
-
-    const agentRows = await db.select().from(agents).where(eq(agents.ownerUid, uid))
-      .orderBy(desc(agents.createdAt));
-
     const seen = new Set<string>();
-    const result = agentRows.map(a => {
-      seen.add(a.id);
-      const { apiKeyHash: _, ...data } = a;
-      return { ...data, balance: fromUnits(data.balance as number) };
-    });
+    const participantId = authAgentId ?? await resolveParticipantIdForUser(uid);
+    const ownedRows = await db.select().from(agents).where(eq(agents.ownerUid, uid))
+      .orderBy(desc(agents.createdAt));
+    const result = [];
 
-    const linkedId = authAgentId ?? profile?.agentId;
-    if (linkedId && !seen.has(linkedId)) {
-      const [linked] = await db.select().from(agents).where(eq(agents.id, linkedId));
-      if (linked) {
-        const { apiKeyHash: _, ...data } = linked;
-        result.unshift({ ...data, balance: fromUnits(data.balance as number) });
+    if (participantId) {
+      const [participant] = await db.select().from(agents).where(eq(agents.id, participantId));
+      if (participant) {
+        const { apiKeyHash: _, ...data } = participant;
+        seen.add(participant.id);
+        result.push({ ...data, balance: fromUnits(data.balance as number) });
       }
+    }
+
+    for (const row of ownedRows) {
+      if (seen.has(row.id)) continue;
+      const { apiKeyHash: _, ...data } = row;
+      seen.add(row.id);
+      result.push({ ...data, balance: fromUnits(data.balance as number) });
     }
 
     res.json(result);
@@ -96,14 +101,18 @@ agentsRouter.get('/treasury', requireRole('admin'), wrap(async (req, res) => {
 }));
 
 agentsRouter.get('/:id', requireSelfOrAdmin, wrap(async (req, res) => {
-  const [agent] = await db.select().from(agents).where(eq(agents.id, req.params.id as string));
+  const id = resolveRouteAgentId(req);
+  if (!id) { res.status(403).json({ error: 'A participant identity is required' }); return; }
+  const [agent] = await db.select().from(agents).where(eq(agents.id, id));
   if (!agent) { res.status(404).json({ error: 'Agent not found' }); return; }
   const { apiKeyHash: _, ...data } = agent;
   res.json({ ...data, balance: fromUnits(data.balance as number) });
 }));
 
 agentsRouter.get('/:id/balance', requireSelfOrAdmin, wrap(async (req, res) => {
-  const [agent] = await db.select().from(agents).where(eq(agents.id, req.params.id as string));
+  const id = resolveRouteAgentId(req);
+  if (!id) { res.status(403).json({ error: 'A participant identity is required' }); return; }
+  const [agent] = await db.select().from(agents).where(eq(agents.id, id));
   if (!agent) { res.status(404).json({ error: 'Agent not found' }); return; }
   res.json({ balance: fromUnits(agent.balance as number) });
 }));
@@ -111,9 +120,11 @@ agentsRouter.get('/:id/balance', requireSelfOrAdmin, wrap(async (req, res) => {
 agentsRouter.get('/:id/dashboard', requireSelfOrAdmin, wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const limit = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : 10;
+  const id = resolveRouteAgentId(req);
+  if (!id) { res.status(403).json({ error: 'A participant identity is required' }); return; }
 
   const [agent, mkts] = await Promise.all([
-    db.select().from(agents).where(eq(agents.id, req.params.id as string)).then(r => r[0]),
+    db.select().from(agents).where(eq(agents.id, id)).then(r => r[0]),
     getMarkets({ active: true, minLiquidity: 0.01, limit }, undefined, workspaceId),
   ]);
 
@@ -122,16 +133,7 @@ agentsRouter.get('/:id/dashboard', requireSelfOrAdmin, wrap(async (req, res) => 
 }));
 
 agentsRouter.get('/', requireRole('admin'), wrap(async (_req, res) => {
-  // Ensure 'user' system agent exists
-  const [userAgent] = await db.select().from(agents).where(eq(agents.id, 'user'));
-  if (!userAgent) {
-    await db.insert(agents).values({
-      id: 'user', apiKeyHash: '__user__', role: 'admin', balance: 0,
-      createdAt: new Date(), approvedAt: new Date(),
-    }).onConflictDoNothing();
-  }
-
-  const rows = await db.select().from(agents).orderBy(desc(agents.createdAt));
+  const rows = await listParticipantsForWorkspace(_req.auth!.workspaceId);
   res.json(rows.map(a => {
     const { apiKeyHash: _, ...data } = a;
     return { ...data, balance: fromUnits(data.balance as number) };
@@ -170,7 +172,8 @@ agentsRouter.post('/:id/spend', requireSelfOrAdmin, wrap(async (req, res) => {
   if (type === 'betting' && req.auth!.role !== 'admin') {
     res.status(403).json({ error: 'type "betting" is reserved for admin use' }); return;
   }
-  const id = req.params.id as string;
+  const id = resolveRouteAgentId(req);
+  if (!id) { res.status(403).json({ error: 'A participant identity is required' }); return; }
   const [agent] = await db.select().from(agents).where(eq(agents.id, id));
   if (!agent) { res.status(404).json({ error: 'Agent not found' }); return; }
   if (!sufficientBalance(agent.balance as number, amount)) {
@@ -186,7 +189,8 @@ agentsRouter.post('/:id/spend', requireSelfOrAdmin, wrap(async (req, res) => {
 }));
 
 agentsRouter.post('/:id/credit', requireRole('admin'), wrap(async (req, res) => {
-  const id = req.params.id as string;
+  const id = resolveRouteAgentId(req);
+  if (!id) { res.status(400).json({ error: 'Agent not found' }); return; }
   const { amount, reason = 'admin credit' } = req.body;
   if (typeof amount !== 'number' || amount <= 0) {
     res.status(400).json({ error: 'amount must be a positive number' }); return;
@@ -201,7 +205,8 @@ agentsRouter.post('/:id/credit', requireRole('admin'), wrap(async (req, res) => 
 }));
 
 agentsRouter.post('/:id/deposit', requireSelfOrAdmin, wrap(async (req, res) => {
-  const id = req.params.id as string;
+  const id = resolveRouteAgentId(req);
+  if (!id) { res.status(403).json({ error: 'A participant identity is required' }); return; }
   const { txHash } = req.body;
   const txHashError = validateTxHash(txHash);
   if (txHashError) { res.status(400).json({ error: txHashError }); return; }
@@ -234,7 +239,8 @@ agentsRouter.post('/:id/deposit', requireSelfOrAdmin, wrap(async (req, res) => {
 }));
 
 agentsRouter.put('/:id/wallet', requireSelfOrAdmin, wrap(async (req, res) => {
-  const id = req.params.id as string;
+  const id = resolveRouteAgentId(req);
+  if (!id) { res.status(403).json({ error: 'A participant identity is required' }); return; }
   const { walletAddress } = req.body;
   if (!walletAddress || typeof walletAddress !== 'string') {
     res.status(400).json({ error: 'walletAddress is required' }); return;
@@ -247,7 +253,8 @@ agentsRouter.put('/:id/wallet', requireSelfOrAdmin, wrap(async (req, res) => {
 }));
 
 agentsRouter.post('/:id/withdraw', requireSelfOrAdmin, wrap(async (req, res) => {
-  const id = req.params.id as string;
+  const id = resolveRouteAgentId(req);
+  if (!id) { res.status(403).json({ error: 'A participant identity is required' }); return; }
   const { amount } = req.body;
   if (typeof amount !== 'number' || amount <= 0) {
     res.status(400).json({ error: 'amount must be a positive number' }); return;

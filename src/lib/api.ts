@@ -105,10 +105,10 @@ export const agentApi = {
     if (!res.ok) throw new Error(data.error || 'Registration failed');
     return data;
   },
-  getProfile: (agentId: string, apiKey: string) =>
-    agentRequest(`/api/agents/${agentId}`, apiKey),
-  getDashboard: (agentId: string, apiKey: string) =>
-    agentRequest(`/api/agents/${agentId}/dashboard`, apiKey),
+  getProfile: (_agentId: string, apiKey: string) =>
+    agentRequest('/api/agents/me', apiKey),
+  getDashboard: (_agentId: string, apiKey: string) =>
+    agentRequest('/api/agents/me/dashboard', apiKey),
   getMarkets: (agentId: string, apiKey: string) =>
     agentRequest('/api/predictions/markets', apiKey),
   getPositions: (agentId: string, apiKey: string, marketId?: string) => {
@@ -117,12 +117,12 @@ export const agentApi = {
   },
   trade: (agentId: string, apiKey: string, body: Record<string, unknown>) =>
     agentRequest('/api/predictions/trade', apiKey, { method: 'POST', body: JSON.stringify(body) }),
-  setWallet: (agentId: string, apiKey: string, walletAddress: string) =>
-    agentRequest(`/api/agents/${agentId}/wallet`, apiKey, { method: 'PUT', body: JSON.stringify({ walletAddress }) }),
-  deposit: (agentId: string, apiKey: string, txHash: string) =>
-    agentRequest(`/api/agents/${agentId}/deposit`, apiKey, { method: 'POST', body: JSON.stringify({ txHash }) }),
-  withdraw: (agentId: string, apiKey: string, amount: number) =>
-    agentRequest(`/api/agents/${agentId}/withdraw`, apiKey, { method: 'POST', body: JSON.stringify({ amount }) }),
+  setWallet: (_agentId: string, apiKey: string, walletAddress: string) =>
+    agentRequest('/api/agents/me/wallet', apiKey, { method: 'PUT', body: JSON.stringify({ walletAddress }) }),
+  deposit: (_agentId: string, apiKey: string, txHash: string) =>
+    agentRequest('/api/agents/me/deposit', apiKey, { method: 'POST', body: JSON.stringify({ txHash }) }),
+  withdraw: (_agentId: string, apiKey: string, amount: number) =>
+    agentRequest('/api/agents/me/withdraw', apiKey, { method: 'POST', body: JSON.stringify({ amount }) }),
 };
 
 export function setActiveWorkspace(id: string | null): void {
@@ -194,6 +194,7 @@ export const api = {
   getStatus: () => request('/api/status'),
 
   // Agents
+  getParticipant: () => request('/api/agents/me'),
   getAgents: () => request('/api/agents'),
   getMyAgents: () => request('/api/agents/mine'),
   registerAgent: (agentId: string) =>
@@ -205,10 +206,16 @@ export const api = {
   spendAgent: (id: string, amount: number, type: 'betting' | 'tokens', reason: string) =>
     request(`/api/agents/${id}/spend`, { method: 'POST', body: JSON.stringify({ amount, type, reason }) }),
   getTreasury: () => request('/api/agents/treasury', {}, true),
+  depositForMe: (txHash: string) =>
+    request('/api/agents/me/deposit', { method: 'POST', body: JSON.stringify({ txHash }) }),
   depositForAgent: (agentId: string, txHash: string) =>
     request(`/api/agents/${agentId}/deposit`, { method: 'POST', body: JSON.stringify({ txHash }) }),
+  withdrawFromMe: (amount: number) =>
+    request('/api/agents/me/withdraw', { method: 'POST', body: JSON.stringify({ amount }) }),
   withdrawFromAgent: (agentId: string, amount: number) =>
     request(`/api/agents/${agentId}/withdraw`, { method: 'POST', body: JSON.stringify({ amount }) }),
+  setMyWallet: (walletAddress: string) =>
+    request('/api/agents/me/wallet', { method: 'PUT', body: JSON.stringify({ walletAddress }) }),
   setAgentWallet: (agentId: string, walletAddress: string) =>
     request(`/api/agents/${agentId}/wallet`, { method: 'PUT', body: JSON.stringify({ walletAddress }) }),
 
@@ -318,7 +325,7 @@ export const api = {
   listGroups: () => request('/api/groups'),
   createGroup: (name: string) =>
     request('/api/groups', { method: 'POST', body: JSON.stringify({ name }) }),
-  updateGroup: (id: string, body: { name?: string; agentIds?: string[]; uids?: string[]; permissions?: Record<string, { read: boolean; trade: boolean }> }) =>
+  updateGroup: (id: string, body: { name?: string; memberIds?: string[]; agentIds?: string[]; uids?: string[]; permissions?: Record<string, { read: boolean; trade: boolean }> }) =>
     request(`/api/groups/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteGroup: (id: string) =>
     request(`/api/groups/${id}`, { method: 'DELETE' }),

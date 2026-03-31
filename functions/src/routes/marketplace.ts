@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/client';
-import { workspaces, markets, agents, trades, userWorkspaces, permissionGroups } from '../db/schema';
+import { workspaces, markets, agents, trades, permissionGroups } from '../db/schema';
 import { eq, and, gt, count } from 'drizzle-orm';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
@@ -8,24 +8,9 @@ import { requireIdentity } from '../middleware/roles';
 import { consensus, pHigher } from '../lib/amm';
 import { endOfPeriod } from '../lib/date-utils';
 import { ensureSystemGroups } from './groups';
+import { getGroupMemberIds, getWorkspaceRoleForParticipant, syncLegacyWorkspaceMemberships } from '../lib/participants';
 
 export const marketplaceRouter = Router();
-
-function includesId(ids: unknown, id: string | undefined): boolean {
-  if (!id) return false;
-  return ((ids as string[]) ?? []).includes(id);
-}
-
-function getWorkspaceRole(groups: Array<typeof permissionGroups.$inferSelect>, uid?: string, agentId?: string): 'admin' | 'trader' | null {
-  const adminGroup = groups.find(group => group.type === 'admin');
-  if (adminGroup && (includesId(adminGroup.uids, uid) || includesId(adminGroup.agentIds, agentId))) {
-    return 'admin';
-  }
-  const hasTraderMembership = groups.some(group =>
-    includesId(group.uids, uid) || includesId(group.agentIds, agentId),
-  );
-  return hasTraderMembership ? 'trader' : null;
-}
 
 marketplaceRouter.get('/', wrap(async (req, res) => {
   const limit = typeof req.query.limit === 'string'
@@ -152,29 +137,17 @@ marketplaceRouter.post('/:workspaceId/join', authMiddleware, requireIdentity, wr
     res.status(500).json({ error: 'Workspace public group is missing' }); return;
   }
 
-  const [existingMembership] = uid
-    ? await db.select().from(userWorkspaces)
-        .where(and(eq(userWorkspaces.userId, uid), eq(userWorkspaces.workspaceId, workspaceId)))
-    : [];
+  const publicMemberIds = getGroupMemberIds(publicGroup);
+  const nextMemberIds = agentId && !publicMemberIds.includes(agentId) ? [...publicMemberIds, agentId] : publicMemberIds;
+  const alreadyMember = await getWorkspaceRoleForParticipant(workspaceId, agentId, uid) !== null;
 
-  const publicUids = (publicGroup.uids as string[]) ?? [];
-  const publicAgentIds = (publicGroup.agentIds as string[]) ?? [];
-  const nextUids = uid && !publicUids.includes(uid) ? [...publicUids, uid] : publicUids;
-  const nextAgentIds = agentId && !publicAgentIds.includes(agentId) ? [...publicAgentIds, agentId] : publicAgentIds;
-  const alreadyMember = getWorkspaceRole(groups, uid, agentId) !== null || Boolean(existingMembership);
+  if (nextMemberIds !== publicMemberIds) {
+    await db.update(permissionGroups)
+      .set({ memberIds: nextMemberIds, agentIds: nextMemberIds, uids: [] })
+      .where(and(eq(permissionGroups.id, publicGroup.id), eq(permissionGroups.workspaceId, workspaceId)));
+    await syncLegacyWorkspaceMemberships(workspaceId);
+  }
 
-  await db.transaction(async tx => {
-    if (uid && !existingMembership) {
-      await tx.insert(userWorkspaces).values({ userId: uid, workspaceId, role: 'trader', joinedAt: new Date() });
-    }
-    if (nextUids !== publicUids || nextAgentIds !== publicAgentIds) {
-      await tx.update(permissionGroups)
-        .set({ uids: nextUids, agentIds: nextAgentIds })
-        .where(and(eq(permissionGroups.id, publicGroup.id), eq(permissionGroups.workspaceId, workspaceId)));
-    }
-  });
-
-  const refreshedGroups = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, workspaceId));
-  const role = existingMembership?.role ?? getWorkspaceRole(refreshedGroups, uid, agentId) ?? 'trader';
+  const role = await getWorkspaceRoleForParticipant(workspaceId, agentId, uid) ?? 'trader';
   res.status(alreadyMember ? 200 : 201).json({ ok: true, workspaceId, role, alreadyMember });
 }));

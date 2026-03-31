@@ -16,6 +16,7 @@ import { extractMetricReferences } from '../lib/metrics-engine';
 import { consensus, pHigher, directionTradeCost, sharesForBudget, betTowardsValue, directionSellProceeds, lmsrCost, initialPool, AMM_DEFAULTS } from '../lib/amm';
 import { emitEvent } from '../services/events';
 import { sufficientBalance, toUnits, fromUnits } from '../lib/validation';
+import { getGroupMemberIds, isLegacyUserMember } from '../lib/participants';
 
 export const predictionsRouter = Router();
 
@@ -23,6 +24,7 @@ predictionsRouter.use(authMiddleware);
 
 type MetricTradePermissionGroup = {
   type: string;
+  memberIds: string[] | null;
   agentIds: string[] | null;
   uids: string[] | null;
   permissions: Record<string, { read: boolean; trade: boolean }> | null;
@@ -33,6 +35,7 @@ async function getTradePermissionGroups(workspaceId: string): Promise<MetricTrad
   const rows = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, workspaceId));
   return rows.map(row => ({
     type: row.type,
+    memberIds: getGroupMemberIds(row),
     agentIds: (row.agentIds as string[]) ?? [],
     uids: (row.uids as string[]) ?? [],
     permissions: (row.permissions as Record<string, { read: boolean; trade: boolean }>) ?? {},
@@ -49,15 +52,15 @@ function canTradeMetric(
   if (restrictingGroups.length === 0) return true;
   if (restrictingGroups.some(group => group.type === 'public')) return true;
   return restrictingGroups.some(group =>
-    (auth.agentId ? group.agentIds?.includes(auth.agentId) : false) ||
-    (auth.uid ? group.uids?.includes(auth.uid) : false),
+    (auth.agentId ? group.memberIds?.includes(auth.agentId) || group.agentIds?.includes(auth.agentId) : false) ||
+    isLegacyUserMember(group, auth.uid),
   );
 }
 
 predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const agentId = req.auth!.agentId;
-  if (!agentId) { res.status(403).json({ error: 'A linked trading identity is required to trade' }); return; }
+  if (!agentId) { res.status(403).json({ error: 'A participant identity is required to trade' }); return; }
 
   const { marketId } = req.body;
   if (!marketId || typeof marketId !== 'string') { res.status(400).json({ error: 'marketId is required' }); return; }
@@ -227,7 +230,7 @@ predictionsRouter.get('/positions', requireRole('agent', 'admin'), wrap(async (r
   const agentId = req.auth!.role === 'admin' && typeof req.query.agentId === 'string'
     ? req.query.agentId
     : req.auth!.agentId;
-  if (!agentId) { res.status(403).json({ error: 'A linked trading identity is required to list positions' }); return; }
+  if (!agentId) { res.status(403).json({ error: 'A participant identity is required to list positions' }); return; }
 
   let rows = await db.select().from(positions)
     .where(and(eq(positions.workspaceId, workspaceId), eq(positions.agentId, agentId)));

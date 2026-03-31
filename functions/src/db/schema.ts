@@ -63,7 +63,7 @@ export const appUsers = pgTable('app_users', {
   platformAdmin: boolean('platform_admin').notNull().default(false),
   /** 'creator' | 'agent' | null — onboarding intent captured at signup */
   intent: text('intent'),
-  /** Linked agent ID (auto-created on signup or manually linked) */
+  /** Deprecated compatibility field from the old split identity model. */
   agentId: text('agent_id'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
@@ -101,6 +101,8 @@ export const agents = pgTable('agents', {
   apiKeyHash: text('api_key_hash').notNull(),
   /** 'admin' | 'agent' | 'pending' */
   role: text('role').notNull().default('agent'),
+  /** BetterAuth user ID for browser-authenticated participants. */
+  authUserId: text('auth_user_id').references(() => authUser.id, { onDelete: 'set null' }),
   /** Balance in nanocredits (1 credit = 1_000_000_000 units) */
   balance: bigint('balance', { mode: 'number' }).notNull().default(0),
   earnedBetting: doublePrecision('earned_betting').notNull().default(0),
@@ -110,11 +112,11 @@ export const agents = pgTable('agents', {
   /** Base network USDC withdrawal address (checksummed) */
   walletAddress: text('wallet_address'),
   withdrawnUsdc: doublePrecision('withdrawn_usdc').notNull().default(0),
-  /** Firebase / BetterAuth user ID of the owner */
+  /** Deprecated compatibility field from the old split identity model. */
   ownerUid: text('owner_uid'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   approvedAt: timestamp('approved_at'),
-});
+}, t => [uniqueIndex('agents_auth_user_id_idx').on(t.authUserId)]);
 
 export const agentApiKeys = pgTable('agent_api_keys', {
   hash: text('hash').primaryKey(),
@@ -299,9 +301,11 @@ export const permissionGroups = pgTable('permission_groups', {
   /** 'public' | 'admin' | 'custom' */
   type: text('type').notNull(),
   description: text('description').notNull().default(''),
-  /** Agent IDs in this group */
+  /** Canonical participant IDs in this group. */
+  memberIds: jsonb('member_ids').notNull().$type<string[]>().default([]),
+  /** Deprecated compatibility field from the old split identity model. */
   agentIds: jsonb('agent_ids').notNull().$type<string[]>().default([]),
-  /** User IDs in this group */
+  /** Deprecated compatibility field from the old split identity model. */
   uids: jsonb('uids').notNull().$type<string[]>().default([]),
   /** metricId → { read: boolean, trade: boolean } */
   permissions: jsonb('permissions').notNull().$type<Record<string, { read: boolean; trade: boolean }>>().default({}),

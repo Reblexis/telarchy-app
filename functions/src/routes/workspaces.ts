@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { requireRole, requireIdentity } from '../middleware/roles';
 import { getAuthWorkspaceMemberships } from '../middleware/auth';
+import { syncLegacyWorkspaceMemberships } from '../lib/participants';
 
 export const workspacesRouter = Router();
 
@@ -56,19 +57,22 @@ workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
       {
         id: randomUUID(), workspaceId: wsId,
         name: 'Public', type: 'public',
-        description: 'All agents are members of this group automatically.',
-        agentIds: [], uids: [], permissions: {}, createdAt: now,
+        description: 'Participants explicitly added to this workspace.',
+        memberIds: [], agentIds: [], uids: [], permissions: {}, createdAt: now,
       },
       {
         id: randomUUID(), workspaceId: wsId,
         name: 'Admin', type: 'admin',
-        description: 'Agents and users with full administrative access to this workspace.',
+        description: 'Participants with full administrative access to this workspace.',
+        memberIds: agentId ? [agentId] : [],
         agentIds: agentId ? [agentId] : [],
         uids: uid ? [uid] : [],
         permissions: {}, createdAt: now,
       },
     ]);
   });
+
+  await syncLegacyWorkspaceMemberships(wsId);
 
   res.status(201).json({ id: wsId, name: name.trim(), visibility: 'private' });
 }));
@@ -155,9 +159,9 @@ workspacesRouter.post('/:id/join', requireIdentity, wrap(async (_req, res) => {
 
 /**
  * POST /api/workspaces/:id/members
- * Admin-only: add a user to a workspace with a specified role.
+ * Admin-only: add a participant to a workspace with a specified role.
  * Requires master API key or workspace owner/admin session.
- * Body: { userId: string, role: 'owner'|'admin'|'trader'|'viewer' }
+ * Body: { participantId: string, role: 'owner'|'admin'|'trader'|'viewer' }
  */
 workspacesRouter.post('/:id/members', requireRole('admin'), wrap(async (req, res) => {
   const { uid, agentId } = req.auth!;
@@ -174,18 +178,26 @@ workspacesRouter.post('/:id/members', requireRole('admin'), wrap(async (req, res
     }
   }
 
-  const { userId, role } = req.body;
-  if (!userId || typeof userId !== 'string') {
-    res.status(400).json({ error: 'userId is required' }); return;
+  const { participantId, role } = req.body;
+  if (!participantId || typeof participantId !== 'string') {
+    res.status(400).json({ error: 'participantId is required' }); return;
   }
   const validRoles = ['owner', 'admin', 'trader', 'viewer'];
   if (!role || !validRoles.includes(role)) {
     res.status(400).json({ error: `role must be one of: ${validRoles.join(', ')}` }); return;
   }
 
-  await db.insert(userWorkspaces)
-    .values({ userId, workspaceId: wsId, role, joinedAt: new Date() })
-    .onConflictDoUpdate({ target: [userWorkspaces.userId, userWorkspaces.workspaceId], set: { role } });
+  const [existingAdmin] = await db.select().from(permissionGroups)
+    .where(and(eq(permissionGroups.workspaceId, wsId), eq(permissionGroups.type, role === 'owner' || role === 'admin' ? 'admin' : 'public')));
+  if (!existingAdmin) {
+    res.status(500).json({ error: 'Workspace system groups are missing' }); return;
+  }
 
-  res.status(201).json({ ok: true, workspaceId: wsId, userId, role });
+  const nextMemberIds = Array.from(new Set([...(existingAdmin.memberIds as string[] ?? []), participantId]));
+  await db.update(permissionGroups)
+    .set({ memberIds: nextMemberIds, agentIds: nextMemberIds })
+    .where(and(eq(permissionGroups.id, existingAdmin.id), eq(permissionGroups.workspaceId, wsId)));
+  await syncLegacyWorkspaceMemberships(wsId);
+
+  res.status(201).json({ ok: true, workspaceId: wsId, participantId, role });
 }));

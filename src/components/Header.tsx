@@ -14,7 +14,7 @@ const CREATOR_NAV: NavItem[] = [
 
 const OPERATOR_NAV: NavItem[] = [
   { to: '/agents',      label: 'My Agents',    page: 'agents' },
-  { to: '/agent-login', label: 'Agent Portal' },
+  { to: '/agent-login', label: 'API Key Portal' },
 ];
 
 const AGENT_NAV: NavItem[] = [];
@@ -205,7 +205,7 @@ export function Header({ activePage, navMode = 'creator', actions, workspaceName
         {agentArea && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 500 }}>
-              Agent
+              Participant
             </span>
             {agentArea}
           </div>

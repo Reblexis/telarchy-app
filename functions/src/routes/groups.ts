@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { db } from '../db/client';
-import { agents, permissionGroups, userWorkspaces } from '../db/schema';
+import { agents, permissionGroups } from '../db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { requireRole } from '../middleware/roles';
 import type { MetricPermission, PermissionGroupType } from '../types';
+import { getGroupMemberIds, syncLegacyWorkspaceMemberships } from '../lib/participants';
 
 export const groupsRouter = Router();
 
@@ -20,15 +21,15 @@ async function ensureSystemGroups(workspaceId: string): Promise<void> {
   if (!existingTypes.has('public')) {
     toInsert.push({
       id: randomUUID(), workspaceId, name: 'Public', type: 'public',
-      description: 'All agents are members of this group automatically.',
-      agentIds: [], uids: [], permissions: {}, createdAt: new Date(),
+      description: 'Participants explicitly added to this workspace.',
+      memberIds: [], agentIds: [], uids: [], permissions: {}, createdAt: new Date(),
     });
   }
   if (!existingTypes.has('admin')) {
     toInsert.push({
       id: randomUUID(), workspaceId, name: 'Admin', type: 'admin',
-      description: 'Agents and users with full administrative access to this workspace.',
-      agentIds: [], uids: [], permissions: {}, createdAt: new Date(),
+      description: 'Participants with full administrative access to this workspace.',
+      memberIds: [], agentIds: [], uids: [], permissions: {}, createdAt: new Date(),
     });
   }
   if (toInsert.length > 0) await db.insert(permissionGroups).values(toInsert);
@@ -40,7 +41,7 @@ groupsRouter.get('/', requireRole('agent', 'admin'), wrap(async (req, res) => {
   const rows = await db.select().from(permissionGroups)
     .where(eq(permissionGroups.workspaceId, workspaceId))
     .orderBy(permissionGroups.name);
-  res.json(rows);
+  res.json(rows.map(row => ({ ...row, memberIds: getGroupMemberIds(row) })));
 }));
 
 groupsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
@@ -56,9 +57,9 @@ groupsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
     name: name.trim(),
     type: 'custom',
     description: typeof description === 'string' ? description.trim() : '',
-    agentIds: [], uids: [], permissions: {}, createdAt: new Date(),
+    memberIds: [], agentIds: [], uids: [], permissions: {}, createdAt: new Date(),
   });
-  res.status(201).json({ id, name: name.trim(), type: 'custom', description, agentIds: [], uids: [], permissions: {} });
+  res.status(201).json({ id, name: name.trim(), type: 'custom', description, memberIds: [], agentIds: [], uids: [], permissions: {} });
 }));
 
 groupsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
@@ -69,7 +70,7 @@ groupsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
     .where(and(eq(permissionGroups.id, groupId), eq(permissionGroups.workspaceId, workspaceId)));
   if (!group) { res.status(404).json({ error: 'Group not found' }); return; }
 
-  const { name, description, agentIds, uids, permissions } = req.body;
+  const { name, description, memberIds, agentIds, uids, permissions } = req.body;
   const update: Partial<typeof permissionGroups.$inferInsert> = {};
 
   if (name !== undefined) {
@@ -89,84 +90,27 @@ groupsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
     update.description = description.trim();
   }
 
-  if (agentIds !== undefined) {
-    if (!Array.isArray(agentIds) || agentIds.some((a: unknown) => typeof a !== 'string')) {
-      res.status(400).json({ error: 'agentIds must be an array of strings' }); return;
+  const memberUpdateProvided = memberIds !== undefined || agentIds !== undefined || uids !== undefined;
+  if (memberUpdateProvided) {
+    const nextMemberIds = memberIds ?? agentIds ?? uids;
+    if (!Array.isArray(nextMemberIds) || nextMemberIds.some((id: unknown) => typeof id !== 'string')) {
+      res.status(400).json({ error: 'memberIds must be an array of strings' }); return;
     }
-    update.agentIds = agentIds;
+    update.memberIds = nextMemberIds;
+    update.agentIds = nextMemberIds;
+    update.uids = [];
 
     if (group.type === 'admin') {
-      const oldIds = new Set<string>((group.agentIds as string[]) ?? []);
-      const newIds = new Set<string>(agentIds);
-      const added = agentIds.filter((id: string) => !oldIds.has(id));
+      const oldIds = new Set<string>(getGroupMemberIds(group));
+      const newIds = new Set<string>(nextMemberIds);
+      const added = nextMemberIds.filter((id: string) => !oldIds.has(id));
       const removed = [...oldIds].filter(id => !newIds.has(id));
 
-      if (added.length) {
-        for (const id of added) {
-          await db.update(agents).set({ role: 'admin' }).where(eq(agents.id, id));
-        }
+      if (added.length > 0) {
+        await db.update(agents).set({ role: 'admin' }).where(inArray(agents.id, added));
       }
-      if (removed.length) {
-        for (const id of removed) {
-          await db.update(agents).set({ role: 'agent' }).where(eq(agents.id, id));
-        }
-      }
-    }
-  }
-
-  if (uids !== undefined) {
-    if (!Array.isArray(uids) || uids.some((u: unknown) => typeof u !== 'string')) {
-      res.status(400).json({ error: 'uids must be an array of strings' }); return;
-    }
-    update.uids = uids;
-
-    const oldUids = new Set<string>((group.uids as string[]) ?? []);
-    const newUids = new Set<string>(uids);
-    const addedUids = uids.filter((id: string) => !oldUids.has(id));
-    const removedUids = [...oldUids].filter(id => !newUids.has(id));
-
-    const allGroups = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, workspaceId));
-
-    if (group.type === 'admin') {
-      for (const uid of addedUids) {
-        await db.insert(userWorkspaces)
-          .values({ userId: uid, workspaceId, role: 'admin', joinedAt: new Date() })
-          .onConflictDoUpdate({ target: [userWorkspaces.userId, userWorkspaces.workspaceId], set: { role: 'admin' } });
-      }
-      for (const uid of removedUids) {
-        const isInOtherGroup = allGroups.some(g => {
-          if (g.id === groupId) return false;
-          return (g.uids as string[])?.includes(uid);
-        });
-        if (isInOtherGroup) {
-          await db.update(userWorkspaces).set({ role: 'trader' })
-            .where(and(eq(userWorkspaces.userId, uid), eq(userWorkspaces.workspaceId, workspaceId)));
-        } else {
-          await db.delete(userWorkspaces)
-            .where(and(eq(userWorkspaces.userId, uid), eq(userWorkspaces.workspaceId, workspaceId)));
-        }
-      }
-    } else {
-      for (const uid of addedUids) {
-        const [existing] = await db.select().from(userWorkspaces)
-          .where(and(eq(userWorkspaces.userId, uid), eq(userWorkspaces.workspaceId, workspaceId)));
-        if (existing?.role !== 'admin') {
-          await db.insert(userWorkspaces)
-            .values({ userId: uid, workspaceId, role: 'trader', joinedAt: new Date() })
-            .onConflictDoUpdate({ target: [userWorkspaces.userId, userWorkspaces.workspaceId], set: { role: 'trader' } });
-        }
-      }
-      for (const uid of removedUids) {
-        const adminGroup = allGroups.find(g => g.type === 'admin');
-        const isAdmin = (adminGroup?.uids as string[])?.includes(uid);
-        const isInOtherGroup = allGroups.some(g => {
-          if (g.id === groupId) return false;
-          return (g.uids as string[])?.includes(uid);
-        });
-        if (!isAdmin && !isInOtherGroup) {
-          await db.delete(userWorkspaces)
-            .where(and(eq(userWorkspaces.userId, uid), eq(userWorkspaces.workspaceId, workspaceId)));
-        }
+      if (removed.length > 0) {
+        await db.update(agents).set({ role: 'agent' }).where(inArray(agents.id, removed));
       }
     }
   }
@@ -190,6 +134,7 @@ groupsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
 
   await db.update(permissionGroups).set(update)
     .where(and(eq(permissionGroups.id, groupId), eq(permissionGroups.workspaceId, workspaceId)));
+  await syncLegacyWorkspaceMemberships(workspaceId);
   res.json({ ok: true });
 }));
 
@@ -206,6 +151,7 @@ groupsRouter.delete('/:id', requireRole('admin'), wrap(async (req, res) => {
 
   await db.delete(permissionGroups)
     .where(and(eq(permissionGroups.id, groupId), eq(permissionGroups.workspaceId, workspaceId)));
+  await syncLegacyWorkspaceMemberships(workspaceId);
   res.status(204).send();
 }));
 

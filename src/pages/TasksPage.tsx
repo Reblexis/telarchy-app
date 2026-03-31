@@ -376,7 +376,7 @@ export function TasksPage() {
               <thead>
                 <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
                   <th style={thStyle}>Title</th>
-                  <th style={thStyle}>Agent</th>
+                  <th style={thStyle}>Participant</th>
                   <th style={{ ...thStyle, textAlign: 'right' }}>Price ($)</th>
                   <th style={thStyle}>Markets</th>
                   <th style={thStyle}>Status</th>

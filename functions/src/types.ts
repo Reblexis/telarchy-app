@@ -39,6 +39,7 @@ export interface Agent {
   id: string;
   apiKeyHash: string;
   role: AgentRole;
+  authUserId?: string | null;
   balance: number;
   earnedBetting: number;
   earnedTasks?: number;
@@ -118,10 +119,11 @@ export interface Trade {
 
 export interface AuthInfo {
   role: AgentRole | 'admin';
+  /** Canonical participant identity, stored in the agents table. */
   agentId?: string;
   /** Always set — 'default' for master-key or existing Firebase admin users. */
   workspaceId: string;
-  /** Firebase Auth UID, set when authenticated via ID token. */
+  /** BetterAuth user ID, set when authenticated via browser session. */
   uid?: string;
 }
 
@@ -163,7 +165,9 @@ export interface PermissionGroup {
   type: PermissionGroupType;
   /** Shown to all agents */
   description: string;
-  /** Agent IDs that belong to this group. For 'public' type, all agents are implicitly members. */
+  /** Canonical participant IDs that belong to this group. */
+  memberIds: string[];
+  /** Deprecated compatibility field from the old split identity model. */
   agentIds: string[];
   /** metricId → permissions */
   permissions: Record<string, MetricPermission>;

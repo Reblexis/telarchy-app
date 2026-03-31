@@ -6,7 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { endOfPeriod, formatResolutionLabel } from '../lib/date-utils';
 import type { Market } from '../types';
 
-interface TradingAgent {
+interface TradingParticipant {
   id: string;
   balance: number;
 }
@@ -131,14 +131,14 @@ function AccessibleMarketCard({
   workspaceId,
   workspaceName,
   market,
-  agent,
+  participant,
   onTrade,
   onError,
 }: {
   workspaceId: string;
   workspaceName: string;
   market: Market;
-  agent: TradingAgent;
+  participant: TradingParticipant;
   onTrade: () => void;
   onError: (msg: string) => void;
 }) {
@@ -182,7 +182,6 @@ function AccessibleMarketCard({
         <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
           <TradingPanel
             market={market}
-            agentId={agent.id}
             workspaceId={workspaceId}
             showLiquidityControls={false}
             onTrade={onTrade}
@@ -199,7 +198,7 @@ export function MarketplacePage() {
   const [publicMarkets, setPublicMarkets] = useState<MarketplaceListing[]>([]);
   const [accessibleWorkspaces, setAccessibleWorkspaces] = useState<AccessibleWorkspaceMarkets[]>([]);
   const [joinedWorkspaceIds, setJoinedWorkspaceIds] = useState<string[]>([]);
-  const [tradingAgent, setTradingAgent] = useState<TradingAgent | null>(null);
+  const [tradingParticipant, setTradingParticipant] = useState<TradingParticipant | null>(null);
   const [loadingPublic, setLoadingPublic] = useState(true);
   const [loadingAccessible, setLoadingAccessible] = useState(false);
   const [publicError, setPublicError] = useState('');
@@ -222,7 +221,7 @@ export function MarketplacePage() {
     if (!user) {
       setAccessibleWorkspaces([]);
       setJoinedWorkspaceIds([]);
-      setTradingAgent(null);
+      setTradingParticipant(null);
       setAccessibleError('');
       setLoadingAccessible(false);
       return;
@@ -235,13 +234,9 @@ export function MarketplacePage() {
       const workspaces = await api.listWorkspaces() as Array<{ id: string; name: string; memberRole: string }>;
       setJoinedWorkspaceIds(workspaces.map(workspace => workspace.id));
 
-      let agents = await api.getMyAgents().catch(() => null) as Array<{ id: string; balance: number }> | null;
-      if (agents && agents.length === 0) {
-        await api.upsertProfile().catch((e: Error) => console.error('upsertProfile failed:', e.message));
-        agents = await api.getMyAgents().catch(() => null) as Array<{ id: string; balance: number }> | null;
-      }
-
-      setTradingAgent(agents?.[0] ?? null);
+      await api.getProfile().catch((e: Error) => console.error('getProfile failed:', e.message));
+      const participant = await api.getParticipant().catch(() => null) as { id: string; balance: number } | null;
+      setTradingParticipant(participant);
 
       const tradableWorkspaces = workspaces.filter(workspace => workspace.memberRole !== 'viewer');
       const workspaceMarkets = await Promise.all(tradableWorkspaces.map(async workspace => {
@@ -262,7 +257,7 @@ export function MarketplacePage() {
       setAccessibleError((e as Error).message || 'Failed to load your markets');
       setAccessibleWorkspaces([]);
       setJoinedWorkspaceIds([]);
-      setTradingAgent(null);
+      setTradingParticipant(null);
     } finally {
       setLoadingAccessible(false);
     }
@@ -357,9 +352,9 @@ export function MarketplacePage() {
             <div style={{ marginBottom: '0.75rem' }}>
               <h3 style={{ marginBottom: '0.25rem' }}>Your accessible markets</h3>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>
-                {tradingAgent
-                  ? `Trades use your linked agent ${tradingAgent.id} (${tradingAgent.balance.toFixed(2)} credits).`
-                  : 'Your linked trading agent is still loading.'}
+                {tradingParticipant
+                  ? `You are trading as ${tradingParticipant.id} (${tradingParticipant.balance.toFixed(2)} credits).`
+                  : 'Your participant account is still loading.'}
               </p>
             </div>
 
@@ -371,7 +366,7 @@ export function MarketplacePage() {
               </div>
             )}
 
-            {!loadingAccessible && !accessibleError && tradingAgent && (
+            {!loadingAccessible && !accessibleError && tradingParticipant && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 {filteredAccessible.map(workspace => (
                   <section key={workspace.workspaceId} className="section" style={{ padding: '1rem' }}>
@@ -388,7 +383,7 @@ export function MarketplacePage() {
                           workspaceId={workspace.workspaceId}
                           workspaceName={workspace.workspaceName}
                           market={market}
-                          agent={tradingAgent}
+                          participant={tradingParticipant}
                           onTrade={() => { void loadAccessible(); }}
                           onError={setAccessibleError}
                         />

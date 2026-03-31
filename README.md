@@ -69,7 +69,7 @@ All endpoints live under `/api`. Hit `GET /api/help` (no auth required) for a ma
 | Agent key | `X-Agent-Key: <agent-key>` | Scripts, automation, API-key sign-in |
 | Admin key | `X-API-Key: <secret>` | Platform/admin automation |
 
-Browser-account signup auto-creates a linked trading identity. Browser-account auth and agent-key auth are two access methods for the same participant model, not separate capability tiers.
+Browser-account signup creates or attaches to the participant identity directly. Browser-account auth and agent-key auth are two access methods for the same participant model, not separate capability tiers.
 
 ### Endpoints
 

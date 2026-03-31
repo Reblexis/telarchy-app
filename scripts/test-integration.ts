@@ -226,6 +226,13 @@ await suite('Agents', async () => {
     expect(me.balance).toBeType('number');
   });
 
+  await test('GET /api/agents/me resolves self via API key', async () => {
+    const r = await agentCall(ctx.agentKey, ctx.wsId)('GET', '/agents/me');
+    expect(r.status).toBe(200);
+    const me = r.body as Record<string, unknown>;
+    expect(me.id).toBe(ctx.agentId);
+  });
+
   await test('Wrong agent key returns 401', async () => {
     const r = await apiRaw('GET', '/agents/mine', undefined, {
       'X-Agent-Key': 'invalid_key_that_does_not_exist',
@@ -373,7 +380,7 @@ await suite('Prediction Markets', async () => {
 
   await test('POST /predictions/markets/liquidity/bulk injects liquidity (requires agentId in body for master key)', async () => {
     if (!ctx.marketId) { throw new Error('No market available'); }
-    // Master key has no linked agentId, so agentId must be passed in the body
+    // Master key has no participant identity, so agentId must be passed in the body
     const r = ok(await adminCall(ctx.wsId)('POST', '/predictions/markets/liquidity/bulk', {
       amount: 0.1,
       agentId: ctx.agentId,
@@ -529,7 +536,7 @@ await suite('Tasks', async () => {
     expect(r.status).toBe(400);
   });
 
-  await test('Task creation with master key is rejected (403 — no linked agent)', async () => {
+  await test('Task creation with master key is rejected (403 — no participant identity)', async () => {
     const r = await adminCall(ctx.wsId)('POST', '/tasks', { title: 'Admin task', price: 1 });
     expect(r.status).toBe(403);
   });

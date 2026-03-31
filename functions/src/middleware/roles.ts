@@ -28,6 +28,7 @@ export function requireIdentity(req: Request, res: Response, next: NextFunction)
 export function requireSelfOrAdmin(req: Request, res: Response, next: NextFunction) {
   if (!req.auth) return res.status(401).json({ error: 'Unauthorized' });
   if (req.auth.role === 'admin') return next();
+  if (req.params.id === 'me' && req.auth.agentId) return next();
   if (req.auth.agentId && req.auth.agentId === req.params.id) return next();
   return res.status(403).json({ error: 'Forbidden' });
 }

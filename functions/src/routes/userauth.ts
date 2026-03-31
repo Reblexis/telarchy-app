@@ -6,53 +6,66 @@ import { eq } from 'drizzle-orm';
 import { wrap } from '../lib/wrap';
 import { requireUser } from '../middleware/roles';
 import { hashKey } from '../middleware/auth';
+import { getAuthWorkspaceMemberships, getUserWorkspaceMemberships } from '../middleware/auth';
 
 export const userauthRouter = Router();
 
-/** Shared logic: ensure appUsers row + linked agent exist for a given uid. */
-async function ensureProfile(uid: string): Promise<{ agentId: string; apiKey?: string; isNew: boolean }> {
+/** Shared logic: ensure a browser-authenticated participant exists for a given uid. */
+async function ensureParticipant(uid: string): Promise<{ participantId: string; apiKey?: string; isNew: boolean }> {
+  const [direct] = await db.select().from(agents).where(eq(agents.authUserId, uid));
+  if (direct) return { participantId: direct.id, isNew: false };
+
   const [existing] = await db.select().from(appUsers).where(eq(appUsers.userId, uid));
-  if (existing?.agentId) return { agentId: existing.agentId, isNew: false };
+  if (existing?.agentId) {
+    await db.update(agents).set({ authUserId: uid }).where(eq(agents.id, existing.agentId));
+    return { participantId: existing.agentId, isNew: false };
+  }
 
-  const candidateId = uid.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 28) || `u${uid.slice(0, 20)}`;
-  const [existingAgent] = await db.select().from(agents).where(eq(agents.id, candidateId));
+  const [owned] = await db.select().from(agents).where(eq(agents.ownerUid, uid));
+  if (owned) {
+    await db.update(agents).set({ authUserId: uid }).where(eq(agents.id, owned.id));
+    return { participantId: owned.id, isNew: false };
+  }
 
-  let agentId: string;
+  const preferredId = uid;
+  const [existingAgent] = await db.select().from(agents).where(eq(agents.id, preferredId));
+
+  let participantId: string;
   let apiKey: string | undefined;
 
-  if (existingAgent?.ownerUid === uid) {
-    agentId = candidateId;
-  } else if (!existingAgent) {
-    agentId = candidateId;
-    const rawKey = randomBytes(32).toString('hex');
-    const keyHash = hashKey(rawKey);
-    apiKey = rawKey;
-    await db.transaction(async tx => {
-      await tx.insert(agents).values({ id: agentId, apiKeyHash: keyHash, role: 'agent', balance: 0, ownerUid: uid, createdAt: new Date(), approvedAt: new Date() });
-      await tx.insert(agentApiKeys).values({ hash: keyHash, agentId, workspaceId: 'default' });
-    });
+  if (existingAgent?.authUserId === uid || existingAgent?.ownerUid === uid) {
+    participantId = preferredId;
+    await db.update(agents).set({ authUserId: uid }).where(eq(agents.id, participantId));
   } else {
-    agentId = `${candidateId.slice(0, 20)}${uid.slice(-6).toLowerCase()}`;
+    participantId = existingAgent ? `${uid}-user` : preferredId;
     const rawKey = randomBytes(32).toString('hex');
-    const keyHash = hashKey(rawKey);
     apiKey = rawKey;
+    const keyHash = hashKey(rawKey);
     await db.transaction(async tx => {
-      await tx.insert(agents).values({ id: agentId, apiKeyHash: keyHash, role: 'agent', balance: 0, ownerUid: uid, createdAt: new Date(), approvedAt: new Date() });
-      await tx.insert(agentApiKeys).values({ hash: keyHash, agentId, workspaceId: 'default' });
+      await tx.insert(agents).values({
+        id: participantId,
+        apiKeyHash: keyHash,
+        role: 'agent',
+        authUserId: uid,
+        balance: 0,
+        createdAt: new Date(),
+        approvedAt: new Date(),
+      });
+      await tx.insert(agentApiKeys).values({ hash: keyHash, agentId: participantId, workspaceId: 'default' });
     });
   }
 
   await db.insert(appUsers)
-    .values({ userId: uid, agentId, platformAdmin: false, intent: null, createdAt: new Date() })
-    .onConflictDoUpdate({ target: appUsers.userId, set: { agentId } });
+    .values({ userId: uid, platformAdmin: false, intent: existing?.intent ?? null, createdAt: new Date() })
+    .onConflictDoNothing();
 
-  return { agentId, apiKey, isNew: true };
+  return { participantId, apiKey, isNew: true };
 }
 
 /**
  * GET /api/auth/me
  * Returns the current user's profile and workspace memberships.
- * Auto-creates the profile + agent on first call (handles OAuth users who skip upsertProfile).
+ * Auto-creates the participant on first call (handles OAuth users who skip profile setup).
  */
 userauthRouter.get('/me', requireUser, wrap(async (req, res) => {
   const { uid, workspaceId, role: authRole } = req.auth!;
@@ -62,19 +75,20 @@ userauthRouter.get('/me', requireUser, wrap(async (req, res) => {
     return;
   }
 
-  // Auto-create profile on first access (important for OAuth users who bypass signup page)
-  await ensureProfile(uid);
+  // Auto-create participant on first access (important for OAuth users who bypass signup page)
+  const { participantId } = await ensureParticipant(uid);
 
   const [profile] = await db.select().from(appUsers).where(eq(appUsers.userId, uid));
-  const memberships = await db.select().from(userWorkspaces).where(eq(userWorkspaces.userId, uid));
+  const memberships = await getUserWorkspaceMemberships(uid);
 
-  const workspaceMap = Object.fromEntries(memberships.map(m => [m.workspaceId, { role: m.role }]));
+  const workspaceMap = Object.fromEntries(memberships.map(m => [m.workspaceId, { role: m.memberRole }]));
   const memberRole = workspaceMap[workspaceId]?.role ?? null;
 
   res.json({
     uid,
     email: null, // BetterAuth session has the email — frontend reads from authClient.useSession()
     intent: profile?.intent ?? null,
+    participantId,
     workspaceId,
     authRole,
     memberRole,
@@ -84,7 +98,7 @@ userauthRouter.get('/me', requireUser, wrap(async (req, res) => {
 
 /**
  * POST /api/auth/profile
- * Upserts the user's app profile. Auto-creates a linked agent on first call.
+ * Upserts the user's app profile. Auto-creates a participant on first call.
  * Also used to update intent after signup.
  */
 userauthRouter.post('/profile', requireUser, wrap(async (req, res) => {
@@ -96,21 +110,21 @@ userauthRouter.post('/profile', requireUser, wrap(async (req, res) => {
     res.status(400).json({ error: 'intent must be "creator" or "agent"' }); return;
   }
 
-  const { agentId, apiKey } = await ensureProfile(uid);
+  const { participantId, apiKey } = await ensureParticipant(uid);
 
   // Update intent if provided
   if (intent !== undefined) {
     await db.insert(appUsers)
-      .values({ userId: uid, agentId, platformAdmin: false, intent, createdAt: new Date() })
+      .values({ userId: uid, platformAdmin: false, intent, createdAt: new Date() })
       .onConflictDoUpdate({ target: appUsers.userId, set: { intent } });
   }
 
-  res.json({ ok: true, agentId, ...(apiKey !== undefined && { apiKey }) });
+  res.json({ ok: true, participantId, agentId: participantId, ...(apiKey !== undefined && { apiKey }) });
 }));
 
 /**
  * DELETE /api/auth/me
- * GDPR: deletes the user's app profile. BetterAuth handles actual account deletion.
+ * GDPR: deletes the user's app profile and detaches browser auth from the participant.
  */
 userauthRouter.delete('/me', requireUser, wrap(async (req, res) => {
   const { uid } = req.auth!;
@@ -119,6 +133,7 @@ userauthRouter.delete('/me', requireUser, wrap(async (req, res) => {
   await db.transaction(async tx => {
     await tx.delete(userWorkspaces).where(eq(userWorkspaces.userId, uid));
     await tx.delete(appUsers).where(eq(appUsers.userId, uid));
+    await tx.update(agents).set({ authUserId: null }).where(eq(agents.authUserId, uid));
     // Delete BetterAuth session/account rows (cascade deletes auth tables)
     const { authAccount, authSession, authUser } = await import('../db/schema');
     await tx.delete(authAccount).where(eq(authAccount.userId, uid));
@@ -137,14 +152,16 @@ userauthRouter.get('/me/export', requireUser, wrap(async (req, res) => {
   const { uid } = req.auth!;
   if (!uid) { res.status(403).json({ error: 'Browser account session required' }); return; }
 
-  const [profile, memberships] = await Promise.all([
+  const [profile, memberships, participant] = await Promise.all([
     db.select().from(appUsers).where(eq(appUsers.userId, uid)).then(r => r[0] ?? null),
-    db.select().from(userWorkspaces).where(eq(userWorkspaces.userId, uid)),
+    getAuthWorkspaceMemberships({ uid }),
+    db.select().from(agents).where(eq(agents.authUserId, uid)).then(r => r[0] ?? null),
   ]);
 
   res.json({
     uid,
     profile,
+    participant,
     memberships,
     exportedAt: new Date().toISOString(),
   });

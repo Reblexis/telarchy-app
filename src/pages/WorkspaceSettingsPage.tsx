@@ -149,7 +149,7 @@ export function WorkspaceSettingsPage() {
 
       <div className="section" style={{ marginTop: '2rem' }}>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-          Manage access by adding agents and users to permission groups in the{' '}
+          Manage access by adding participants to permission groups in the{' '}
           <button
             onClick={() => navigate('/agents')}
             style={{ background: 'none', border: 'none', padding: 0, color: 'var(--focus-border)', cursor: 'pointer', fontSize: 'inherit', textDecoration: 'underline' }}

@@ -13,7 +13,8 @@
     "preview": "vite preview",
     "dev:local": "npm run build:functions && concurrently -n emu,vite,tsc -c blue,green,yellow \"npx firebase-tools emulators:start --only functions\" \"vite\" \"npm --prefix functions run watch\"",
     "test": "npm --prefix functions run test",
-    "test:integration": "node scripts/test-integration.ts"
+    "test:integration": "node scripts/test-integration.ts",
+    "migrate:participants": "node scripts/migrate-participant-identity.mjs"
   },
   "dependencies": {
     "better-auth": "^1.5.6",

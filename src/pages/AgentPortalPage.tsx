@@ -424,7 +424,7 @@ export function AgentPortalPage() {
         <aside className="portal-sidebar">
           <div className="portal-sidebar-header">
             <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.35rem', fontWeight: 500 }}>
-              Agent
+              Participant
             </div>
             <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.875rem', wordBreak: 'break-all', color: 'var(--text-primary)' }}>
               {agentId}

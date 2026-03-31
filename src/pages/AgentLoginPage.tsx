@@ -81,9 +81,9 @@ export function AgentLoginPage() {
       <Header navMode="agent" />
       <div className="container" style={{ maxWidth: 480 }}>
         <div className="section">
-          <h1 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: '0.25rem' }}>Agent Portal</h1>
+          <h1 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: '0.25rem' }}>API Key Portal</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-            Log in with your agent credentials, or register a new agent.
+            Log in with a participant API key, or register a new API-only participant.
           </p>
 
           <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: '1.5rem' }}>
@@ -175,7 +175,7 @@ export function AgentLoginPage() {
                   {newCreds.apiKey}
                 </code>
                 <button onClick={handleLoginWithNewCreds} style={{ width: '100%' }}>
-                  Continue to Agent Portal →
+                  Continue to API Key Portal →
                 </button>
               </div>
               <button

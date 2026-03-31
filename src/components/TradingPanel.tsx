@@ -18,8 +18,8 @@ function formatCompactNumber(value: number | null | undefined): string {
   return value.toFixed(9).replace(/\.?0+$/, '');
 }
 
-export function TradingPanel({ market, agentId, workspaceId, showLiquidityControls = true, onTrade, onError }: {
-  market: Market; agentId: string; workspaceId?: string; showLiquidityControls?: boolean;
+export function TradingPanel({ market, workspaceId, showLiquidityControls = true, onTrade, onError }: {
+  market: Market; workspaceId?: string; showLiquidityControls?: boolean;
   onTrade: () => void; onError: (msg: string) => void;
 }) {
   const [tradeAmount, setTradeAmount] = useState('');
@@ -35,7 +35,7 @@ export function TradingPanel({ market, agentId, workspaceId, showLiquidityContro
   useEffect(() => {
     const tKey = `trades:${market.id}`;
     const lKey = `liqEvents:${market.id}`;
-    const pKey = `positions:${market.id}:${agentId}`;
+    const pKey = `positions:${market.id}:me`;
 
     const cachedTrades = cacheGet<TradePoint[]>(tKey);
     const cachedLiquidityEvents = cacheGet<LiquidityEvent[]>(lKey);
@@ -53,10 +53,10 @@ export function TradingPanel({ market, agentId, workspaceId, showLiquidityContro
     api.getMarketLiquidityEvents(market.id, workspaceId)
       .then(data => { cacheSet(lKey, data); setLiquidityEvents(data); })
       .catch((e: Error) => onError(e.message));
-    api.getPositions(market.id, agentId, workspaceId)
+    api.getPositions(market.id, undefined, workspaceId)
       .then(data => { cacheSet(pKey, data); setPositions(data); })
       .catch((e: Error) => onError(e.message));
-  }, [market.id, agentId, workspaceId, onError]);
+  }, [market.id, workspaceId, onError]);
 
   const amount = parseFloat(tradeAmount);
   const preview = useMemo(() => {
@@ -66,22 +66,22 @@ export function TradingPanel({ market, agentId, workspaceId, showLiquidityContro
     return { higher, lower };
   }, [amount, market.probability, market.liquidity]);
 
-  const refreshPositions = () => api.getPositions(market.id, agentId, workspaceId).then(data => {
-    cacheSet(`positions:${market.id}:${agentId}`, data);
+  const refreshPositions = () => api.getPositions(market.id, undefined, workspaceId).then(data => {
+    cacheSet(`positions:${market.id}:me`, data);
     setPositions(data);
   }).catch((e: Error) => onError(`Failed to refresh positions: ${e.message}`));
 
   const handleBetDirection = async (direction: 'higher' | 'lower') => {
     if (isNaN(amount) || amount <= 0) return;
     setTrading(true);
-    const result = await api.trade({ marketId: market.id, direction, amount, agentId }, workspaceId)
+    const result = await api.trade({ marketId: market.id, direction, amount }, workspaceId)
       .catch((e: Error) => { onError(e.message); return null; });
     setTrading(false);
     if (result) {
       setLastResult({ direction, shares: result.shares, cost: result.cost, consensus: result.consensus });
       setTradeAmount('');
       setTrades(prev => {
-        const next = [...prev, { consensus: result.consensus, createdAt: { _seconds: Date.now() / 1000 }, agentId, direction, shares: result.shares, cost: result.cost }];
+        const next = [...prev, { consensus: result.consensus, createdAt: { _seconds: Date.now() / 1000 }, direction, shares: result.shares, cost: result.cost }];
         cacheSet(`trades:${market.id}`, next);
         return next;
       });
@@ -98,14 +98,14 @@ export function TradingPanel({ market, agentId, workspaceId, showLiquidityContro
     const sellShares = parseFloat(sellInputs[direction] || '');
     if (isNaN(sellShares) || sellShares <= 0) return;
     setTrading(true);
-    const result = await api.trade({ marketId: market.id, direction, sellShares, agentId }, workspaceId)
+    const result = await api.trade({ marketId: market.id, direction, sellShares }, workspaceId)
       .catch((e: Error) => { onError(e.message); return null; });
     setTrading(false);
     if (result) {
       setLastResult({ direction, shares: result.shares, cost: -result.proceeds, consensus: result.consensus });
       setSellInputs(prev => ({ ...prev, [direction]: '' }));
       setTrades(prev => {
-        const next = [...prev, { consensus: result.consensus, createdAt: { _seconds: Date.now() / 1000 }, agentId, direction, shares: result.shares, cost: -result.proceeds }];
+        const next = [...prev, { consensus: result.consensus, createdAt: { _seconds: Date.now() / 1000 }, direction, shares: result.shares, cost: -result.proceeds }];
         cacheSet(`trades:${market.id}`, next);
         return next;
       });

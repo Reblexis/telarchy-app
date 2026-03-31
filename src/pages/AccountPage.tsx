@@ -52,21 +52,16 @@ export function AccountPage() {
   const load = useCallback(async () => {
     if (!user) return;
     setError('');
-    const [agents, treas] = await Promise.all([
-      api.getMyAgents().catch((e: Error) => { setError(e.message); return null; }),
+    await api.getProfile().catch((e: Error) => {
+      setError(e.message);
+      return null;
+    });
+    const [participant, treas] = await Promise.all([
+      api.getParticipant().catch((e: Error) => { setError(e.message); return null; }),
       api.getTreasury().catch(() => null),
     ]);
-
-    let myAgent = agents?.[0] ?? null;
-
-    if (!myAgent && agents !== null) {
-      await api.upsertProfile().catch((e: Error) => console.error('upsertProfile failed:', e.message));
-      const refreshed = await api.getMyAgents().catch(() => null);
-      myAgent = refreshed?.[0] ?? null;
-    }
-
-    setAgent(myAgent);
-    if (myAgent) setWalletAddr(myAgent.walletAddress ?? '');
+    setAgent((participant as MyAgent | null) ?? null);
+    if (participant) setWalletAddr((participant as MyAgent).walletAddress ?? '');
     if (treas) setTreasury(treas as TreasuryInfo);
     setLoading(false);
   }, [user]);
@@ -78,7 +73,7 @@ export function AccountPage() {
     if (!agent) return;
     setDepositing(true);
     setDepositMsg(null);
-    const result = await api.depositForAgent(agent.id, txHash.trim())
+    const result = await api.depositForMe(txHash.trim())
       .catch((e: Error) => { setDepositMsg({ ok: false, text: e.message }); return null; });
     if (result) {
       setDepositMsg({ ok: true, text: `Deposited ${(result as { credits: number }).credits} credits.` });
@@ -95,7 +90,7 @@ export function AccountPage() {
     if (isNaN(amount) || amount <= 0) return;
     setWithdrawing(true);
     setWithdrawMsg(null);
-    const result = await api.withdrawFromAgent(agent.id, amount)
+    const result = await api.withdrawFromMe(amount)
       .catch((e: Error) => { setWithdrawMsg({ ok: false, text: e.message }); return null; });
     if (result) {
       const r = result as { usdcAmount: number; txHash: string };
@@ -111,7 +106,7 @@ export function AccountPage() {
     if (!agent) return;
     setSavingWallet(true);
     setWalletMsg(null);
-    const result = await api.setAgentWallet(agent.id, walletAddr.trim())
+    const result = await api.setMyWallet(walletAddr.trim())
       .catch((e: Error) => { setWalletMsg({ ok: false, text: e.message }); return null; });
     if (result) {
       setWalletMsg({ ok: true, text: 'Wallet address saved.' });
@@ -175,6 +170,12 @@ export function AccountPage() {
               </button>
             </div>
           </div>
+          {agent && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Participant ID</span>
+              <code style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{agent.id}</code>
+            </div>
+          )}
         </div>
       </div>
 
@@ -216,7 +217,7 @@ export function AccountPage() {
         <div className="loading">Loading…</div>
       ) : !agent ? (
         <div className="section">
-          <p style={{ color: 'var(--text-secondary)' }}>No account agent found. Contact support or register via the API.</p>
+          <p style={{ color: 'var(--text-secondary)' }}>No participant account found. Refresh the page or contact support if this persists.</p>
         </div>
       ) : (
         <>

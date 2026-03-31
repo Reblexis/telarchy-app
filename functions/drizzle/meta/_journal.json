@@ -8,6 +8,13 @@
       "when": 1774873076145,
       "tag": "0000_wooden_energizer",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1774938000000,
+      "tag": "0001_unify_participant_identity",
+      "breakpoints": true
     }
   ]
 }

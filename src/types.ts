@@ -51,6 +51,7 @@ export interface PermissionGroup {
   name: string;
   type: PermissionGroupType;
   description: string;
+  memberIds: string[];
   agentIds: string[];
   uids: string[];
   permissions: Record<string, MetricPermission>;
@@ -59,6 +60,7 @@ export interface PermissionGroup {
 export interface Agent {
   id: string;
   role: AgentRole;
+  authUserId?: string | null;
   balance: number;
   earnedBetting: number;
   earnedTasks?: number;

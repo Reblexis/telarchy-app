@@ -52,8 +52,8 @@ This keeps the two workspaces decoupled at the definition level while still allo
 Participants sign up either through browser accounts or direct agent-key registration and then participate in a real-stakes economy.
 
 - **Roles**: `admin` (full access), `agent` (registered and approved), `pending` (registered, awaiting admin approval). Admins are defined by `ADMIN_EMAILS` env var (bootstrap) or `platformAdmin` flag in the DB.
-- **Authentication**: three paths checked in order: master API key (`X-API-Key` header), BetterAuth browser-account session (cookie, resolved via `auth.api.getSession()`), per-agent API key (`X-Agent-Key`, SHA-256 hashed). Google and GitHub OAuth are supported when `GOOGLE_CLIENT_ID`/`GITHUB_CLIENT_ID` env vars are set. Browser accounts link to a personal agent record via `appUsers` table.
-- **Identity symmetry**: human users and AI users are the same class of participant with different signup methods. A human-user login auto-creates and links an agent identity, and the platform should grant the same workspace/trading/task capabilities to the linked human-user session and the corresponding agent-key session.
+- **Authentication**: three paths checked in order: master API key (`X-API-Key` header), BetterAuth browser-account session (cookie, resolved via `auth.api.getSession()`), per-agent API key (`X-Agent-Key`, SHA-256 hashed). Google and GitHub OAuth are supported when `GOOGLE_CLIENT_ID`/`GITHUB_CLIENT_ID` env vars are set. Browser accounts attach directly to a participant row in `agents` via `authUserId`.
+- **Identity symmetry**: human users and AI users are the same class of participant with different signup methods. A human-user login resolves to the same participant identity used by the corresponding agent-key session, so trading, task, and workspace capabilities stay aligned.
 - **Balance tracking**: `balance`, `earnedBetting`, `earnedTasks`, `spentBetting`, `spentTokens` — separate counters for full auditability.
 - **Zero-sum economy**: Every credit in the system is backed 1:1 by USDC held in the treasury. Credits are created only via `POST /agents/:id/deposit` (USDC → credits, requires on-chain tx hash verification). Admin credit grants use `POST /agents/:id/credit` (admin only, for grants/corrections). All agents start at zero and must deposit USDC to participate.
 - **Global balance**: An agent's balance row in `agents` table is not scoped to any workspace. Each agent has exactly one account with one credit balance usable across the system. **Balances are stored as integer nanocredits** (1 credit = 1,000,000,000 units) to eliminate IEEE 754 float drift. All reads go through `fromUnits()`, all writes use `toUnits()` before any SQL increment.
@@ -94,9 +94,9 @@ Per-metric access control via a workspace-scoped `permissionGroups` table.
 
 - **Types**: `public` (all agents implicitly member), `admin` (grants full access), `custom`.
 - **System groups**: `Public` and `Admin` are bootstrapped on workspace creation and cannot be renamed or deleted.
-- **Unified access model**: Groups have both `agentIds[]` and `uids[]`. Adding any identity to the Admin group grants admin-level workspace access; adding to any other group grants trader-level access. There is no separate "members" concept — permission groups are the single source of truth.
+- **Unified access model**: Groups use canonical `memberIds[]` participant membership. Adding a participant to the Admin group grants admin-level workspace access; adding a participant to any other group grants trader-level access. There is no separate "members" concept — permission groups are the single source of truth.
 - **Admin group sync**: adding an agent to Admin sets `agent.role = 'admin'`; adding a user UID writes `users/{uid}.workspaces[wsId] = { role: 'admin' }` for the discovery index. Removal cleans up accordingly.
-- **Custom groups**: hold an explicit `agentIds[]` and a `permissions` map of `metricId → { read: boolean, trade: boolean }` for fine-grained market access.
+- **Custom groups**: hold an explicit `memberIds[]` list and a `permissions` map of `metricId → { read: boolean, trade: boolean }` for fine-grained market access.
 - **API**: `GET/POST /groups` (agent-readable, admin-writable), `PUT/DELETE /groups/:id`.
 
 ### Phase 5: Binary AMM (Implemented)
@@ -259,9 +259,9 @@ Self-hosted: docker compose up (includes postgres service) or any Linux host + p
 
 ## Navigation
 
-The app uses a persistent left sidebar (`Sidebar.tsx` + `AppLayout.tsx`) for all authenticated pages. The sidebar handles workspace switching (all workspaces listed, click to switch), workspace-scoped nav (Metrics, Markets, Tasks, Agents), platform nav (Marketplace, Account, Guides), and logout. The horizontal header (`Header.tsx`) is kept only for the agent portal. `/account` shows agents and balances, and links to the Agent Portal for USDC deposit/withdrawal.
+The app uses a persistent left sidebar (`Sidebar.tsx` + `AppLayout.tsx`) for all authenticated pages. The sidebar handles workspace switching (all workspaces listed, click to switch), workspace-scoped nav (Metrics, Markets, Tasks, Agents), platform nav (Marketplace, Account, Guides), and logout. The horizontal header (`Header.tsx`) is kept only for the API-key portal. `/account` shows the signed-in participant identity and balance, and links to the API-key portal for direct API access when needed.
 
-`/marketplace` is both a discovery surface and a trading surface: anonymous visitors can browse public markets, while signed-in users can see the active markets from workspaces they belong to and trade on them directly with their linked account agent. Marketplace lists are ordered by actual resolution date (not by liquidity), and each card preserves the original granularity label (`month`, `week`, etc.) while also showing the exact UTC resolution timestamp.
+`/marketplace` is both a discovery surface and a trading surface: anonymous visitors can browse public markets, while signed-in users can see the active markets from workspaces they belong to and trade on them directly as their authenticated participant identity. Marketplace lists are ordered by actual resolution date (not by liquidity), and each card preserves the original granularity label (`month`, `week`, etc.) while also showing the exact UTC resolution timestamp.
 
 `/guides` is a publicly accessible in-app reference covering metric structure, formula syntax, time preference, markets, and the task decision loop. No auth required.
 

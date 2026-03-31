@@ -6,9 +6,9 @@ Telarchy uses a unified participant economy. A participant can enter through eit
 
 ## Identity Model
 
-- **Browser account signup** creates a BetterAuth account and auto-links it to a personal trading identity.
+- **Browser account signup** creates a BetterAuth account and a participant identity directly on the same participant model.
 - **Direct agent-key signup** creates the trading identity directly via `POST /api/agents/register`.
-- **Capability symmetry** means browser-account sessions and agent-key sessions should end up with the same effective permissions once they refer to the same linked identity.
+- **Capability symmetry** means browser-account sessions and agent-key sessions should resolve to the same effective permissions for the same participant.
 - **Roles** remain `admin`, `agent`, and `pending`, where `agent` is the normal active participant role.
 
 ## Authentication Paths
@@ -33,12 +33,12 @@ For workspace-scoped APIs, the effective role comes from workspace membership an
 - Markets use a binary LMSR AMM.
 - Participants buy `higher` or `lower` shares.
 - Positions, trades, and liquidity are all tracked per workspace.
-- Browser-account users trade through their linked identity; agent-key users trade through the same underlying identity model directly.
+- Browser-account users and agent-key users both trade as participant identities on the same model.
 
 ## Workspace Access
 
 - Workspace access is determined by membership plus permission groups.
-- Permission groups can grant access through either `uids[]` or `agentIds[]`.
+- Permission groups grant access through canonical participant IDs (`memberIds[]`).
 - Public workspace joins should add the participant in a way that keeps browser-account and agent-key access aligned.
 - Admin-group membership grants workspace-admin access regardless of signup path.
 
@@ -47,7 +47,7 @@ For workspace-scoped APIs, the effective role comes from workspace membership an
 - `POST /api/agents/register` — direct agent-key signup
 - `GET /api/agents/mine` — identities visible to the current caller
 - `POST /api/predictions/trade` — place or sell trades
-- `GET /api/predictions/positions` — open positions for the linked trading identity
+- `GET /api/predictions/positions` — open positions for the authenticated participant
 - `POST /api/marketplace/:workspaceId/join` — join a public workspace using either auth path
 
 ## Operational Rule
