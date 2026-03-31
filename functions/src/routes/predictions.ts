@@ -352,7 +352,7 @@ predictionsRouter.post('/markets', requireRole('admin'), wrap(async (req, res) =
   const rMax = typeof rangeMax === 'number' ? rangeMax : (metric.marketRangeMax ?? AMM_DEFAULTS.rangeMax);
   // `liquidity` in the request = credits (pool capital). b = pool / ln(2).
   const pool = typeof liquidity === 'number' ? liquidity : AMM_DEFAULTS.liquidity;
-  const liq = pool > 0 ? pool / Math.LOG2E : 0; // b parameter
+  const liq = pool > 0 ? pool / Math.LN2 : 0; // b parameter
 
   const marketId = randomUUID();
   const liqEventId = randomUUID();
@@ -408,7 +408,7 @@ predictionsRouter.post('/markets/liquidity/bulk', requireRole('admin'), wrap(asy
     const oldPool = hasLiquidity ? (m.pool ?? 0) : 0;
     const newPool = oldPool + amount;
     // b parameter derived from pool so that pool = b * ln(2) always holds.
-    const newLiquidity = newPool / Math.LOG2E; // newPool / ln(2) = newPool * log2(e)
+    const newLiquidity = newPool / Math.LN2; // newPool / ln(2) = newPool * log2(e)
     const bRatio = hasLiquidity ? newLiquidity / m.liquidity : 1;
     const newShares: [number, number] = hasLiquidity
       ? [oldShares[0] * bRatio, oldShares[1] * bRatio]
@@ -458,7 +458,7 @@ predictionsRouter.post('/markets/:id/liquidity', requireRole('admin'), wrap(asyn
   // `amount` = credits the agent spends. b parameter derived: b = pool / ln(2).
   const oldPool = hasLiquidity ? (market.pool ?? 0) : 0;
   const newPool = oldPool + amount;
-  const newLiquidity = newPool / Math.LOG2E; // b = pool / ln(2)
+  const newLiquidity = newPool / Math.LN2; // b = pool / ln(2)
   const bRatio = hasLiquidity ? newLiquidity / market.liquidity : 1;
   const newShares: [number, number] = hasLiquidity
     ? [oldShares[0] * bRatio, oldShares[1] * bRatio]
