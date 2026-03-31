@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Start the local Telarchy server (assumes setup has been run).
+# Build current assets and start the local Telarchy server.
 # Run from the repo root.
 
 set -euo pipefail
@@ -10,6 +10,20 @@ ENV_FILE="$REPO_DIR/.env"
 [[ -f "$ENV_FILE" ]] || { echo "Error: .env not found. Run scripts/setup.sh first."; exit 1; }
 
 source "$ENV_FILE"
+
+PUBLIC_DIR="$REPO_DIR/functions/lib/public"
+
+echo "Building frontend..."
+cd "$REPO_DIR"
+npm run build
+
+echo "Refreshing local static bundle..."
+rm -rf "$PUBLIC_DIR"
+mkdir -p "$PUBLIC_DIR"
+cp -r "$REPO_DIR/dist/." "$PUBLIC_DIR/"
+
+echo "Building backend..."
+npm run build:functions
 
 # Ensure the DB container is running
 DB_CONTAINER="metrics-tracker-db"
