@@ -117,7 +117,7 @@ export function MarketsPage() {
     const result = await api.injectLiquidityBulk(a, inspectTask?.id).catch((e: Error) => { setError(e.message); return null; });
     if (result) {
       setBulkLiqAmount('');
-      setBulkLiqResult(`Injected ${a} into ${result.markets} markets (total: ${result.totalCost} credits).`);
+      setBulkLiqResult(`Injected ${a} into ${result.markets} markets (total: ${result.totalCost.toFixed(6)} credits).`);
       load();
     }
   };

@@ -350,7 +350,9 @@ predictionsRouter.post('/markets', requireRole('admin'), wrap(async (req, res) =
 
   const rMin = typeof rangeMin === 'number' ? rangeMin : AMM_DEFAULTS.rangeMin;
   const rMax = typeof rangeMax === 'number' ? rangeMax : (metric.marketRangeMax ?? AMM_DEFAULTS.rangeMax);
-  const liq = typeof liquidity === 'number' ? liquidity : AMM_DEFAULTS.liquidity;
+  // `liquidity` in the request = credits (pool capital). b = pool / ln(2).
+  const pool = typeof liquidity === 'number' ? liquidity : AMM_DEFAULTS.liquidity;
+  const liq = pool > 0 ? pool / Math.LOG2E : 0; // b parameter
 
   const marketId = randomUUID();
   const liqEventId = randomUUID();
@@ -360,10 +362,10 @@ predictionsRouter.post('/markets', requireRole('admin'), wrap(async (req, res) =
       id: marketId, workspaceId, metricId, metricName: metric.name, targetDate,
       resolved: false, resolvedAt: null, actualValue: null, active: true,
       rangeMin: rMin, rangeMax: rMax, shares: [0, 0] as [number, number],
-      liquidity: liq, pool: initialPool(liq), createdAt: new Date(),
+      liquidity: liq, pool, createdAt: new Date(),
     });
     await tx.insert(liquidityEvents).values({
-      id: liqEventId, workspaceId, marketId, amount: liq, totalLiquidity: liq, type: 'initial', createdAt: new Date(),
+      id: liqEventId, workspaceId, marketId, amount: pool, totalLiquidity: liq, type: 'initial', createdAt: new Date(),
     });
   });
 
@@ -398,24 +400,23 @@ predictionsRouter.post('/markets/liquidity/bulk', requireRole('admin'), wrap(asy
   if (marketRows.length === 0) { res.status(400).json({ error: 'No active markets' }); return; }
 
   const balanceUnits = agent.balance as number;
+  // `amount` = credits the agent spends per market (pool contribution).
+  // The LMSR b parameter (liquidity) is derived from the pool: b = pool / ln(2).
   const marketUpdates = marketRows.map(m => {
     const oldShares = (m.shares as [number, number]) || [0, 0];
-    const newLiquidity = m.liquidity + amount;
     const hasLiquidity = m.liquidity > 0;
-    const newShares: [number, number] = hasLiquidity
-      ? [Math.round(oldShares[0] * newLiquidity / m.liquidity * 100) / 100, Math.round(oldShares[1] * newLiquidity / m.liquidity * 100) / 100]
-      : [0, 0];
-    // When a market has no existing liquidity it is treated as fresh, so oldPool = 0
-    // regardless of any stale pool value stored in the DB (e.g. from migration).
     const oldPool = hasLiquidity ? (m.pool ?? 0) : 0;
-    const newPool = hasLiquidity
-      ? Math.round(oldPool * newLiquidity / m.liquidity * 100) / 100
-      : initialPool(newLiquidity);
-    const poolContribution = Math.round((newPool - oldPool) * 100) / 100;
-    return { market: m, newLiquidity, newShares, newPool, poolContribution };
+    const newPool = oldPool + amount;
+    // b parameter derived from pool so that pool = b * ln(2) always holds.
+    const newLiquidity = newPool / Math.LOG2E; // newPool / ln(2) = newPool * log2(e)
+    const bRatio = hasLiquidity ? newLiquidity / m.liquidity : 1;
+    const newShares: [number, number] = hasLiquidity
+      ? [oldShares[0] * bRatio, oldShares[1] * bRatio]
+      : [0, 0];
+    return { market: m, newLiquidity, newShares, newPool, poolContribution: amount };
   });
 
-  const totalCost = Math.round(marketUpdates.reduce((s, u) => s + u.poolContribution, 0) * 100) / 100;
+  const totalCost = Math.round(amount * marketUpdates.length * 1e6) / 1e6;
   if (!sufficientBalance(balanceUnits, totalCost)) {
     res.status(400).json({ error: `Insufficient balance: need ${totalCost}, have ${fromUnits(balanceUnits)}` }); return;
   }
@@ -453,18 +454,16 @@ predictionsRouter.post('/markets/:id/liquidity', requireRole('admin'), wrap(asyn
   if (!agent) { res.status(404).json({ error: 'Agent not found' }); return; }
 
   const oldShares = (market.shares as [number, number]) || [0, 0];
-  const newLiquidity = market.liquidity + amount;
   const hasLiquidity = market.liquidity > 0;
-  const newShares: [number, number] = hasLiquidity
-    ? [Math.round(oldShares[0] * newLiquidity / market.liquidity * 100) / 100, Math.round(oldShares[1] * newLiquidity / market.liquidity * 100) / 100]
-    : [0, 0];
-  // When a market has no existing liquidity it is treated as fresh, so oldPool = 0
-  // regardless of any stale pool value stored in the DB (e.g. from migration).
+  // `amount` = credits the agent spends. b parameter derived: b = pool / ln(2).
   const oldPool = hasLiquidity ? (market.pool ?? 0) : 0;
-  const newPool = hasLiquidity
-    ? Math.round(oldPool * newLiquidity / market.liquidity * 100) / 100
-    : initialPool(newLiquidity);
-  const poolContribution = Math.round((newPool - oldPool) * 100) / 100;
+  const newPool = oldPool + amount;
+  const newLiquidity = newPool / Math.LOG2E; // b = pool / ln(2)
+  const bRatio = hasLiquidity ? newLiquidity / market.liquidity : 1;
+  const newShares: [number, number] = hasLiquidity
+    ? [oldShares[0] * bRatio, oldShares[1] * bRatio]
+    : [0, 0];
+  const poolContribution = amount;
 
   if (!sufficientBalance(agent.balance as number, poolContribution)) {
     res.status(400).json({ error: `Insufficient balance: need ${poolContribution}, have ${fromUnits(agent.balance as number)}` }); return;
