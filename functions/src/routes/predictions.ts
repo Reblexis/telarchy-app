@@ -271,19 +271,37 @@ predictionsRouter.get('/markets', requireRole('agent', 'admin'), wrap(async (req
 predictionsRouter.get('/markets/:id/trades', requireRole('agent', 'admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const last = typeof req.query.last === 'string' ? parseInt(req.query.last, 10) : undefined;
+  const marketId = req.params.id as string;
+
+  const [market] = await db.select().from(markets)
+    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.id, marketId)));
+  if (!market) { res.status(404).json({ error: 'Market not found' }); return; }
 
   let rows = await db.select().from(trades)
-    .where(and(eq(trades.workspaceId, workspaceId), eq(trades.marketId, req.params.id as string)))
-    .orderBy(last !== undefined ? desc(trades.createdAt) : asc(trades.createdAt));
+    .where(and(eq(trades.workspaceId, workspaceId), eq(trades.marketId, marketId)))
+    .orderBy(asc(trades.createdAt));
+
+  let runningShares: [number, number] = [0, 0];
+  const tradePoints = rows.map(t => {
+    const directionIndex = t.direction === 'higher' ? 1 : 0;
+    runningShares = [...runningShares] as [number, number];
+    runningShares[directionIndex] += t.shares;
+    return {
+      agentId: t.agentId,
+      direction: t.direction,
+      shares: Math.abs(t.shares),
+      cost: t.cost,
+      consensus: consensus(runningShares, market.liquidity, market.rangeMin, market.rangeMax) ?? null,
+      createdAt: t.createdAt,
+    };
+  });
+
   if (last !== undefined) {
-    rows = rows.slice(0, last).reverse();
+    rows = rows.slice(-last);
+    res.json(tradePoints.slice(-last));
+    return;
   }
-  res.json(rows.map(t => ({
-    direction: t.direction,
-    shares: t.shares,
-    cost: t.cost,
-    createdAt: t.createdAt,
-  })));
+  res.json(tradePoints);
 }));
 
 predictionsRouter.get('/markets/:id', requireRole('agent', 'admin'), wrap(async (req, res) => {
