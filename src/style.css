@@ -84,6 +84,7 @@ body:has(.app-layout) {
 .sidebar-nav-item {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   width: 100%;
   padding: 0.4rem 1rem;
   font-size: 0.875rem;
@@ -111,9 +112,45 @@ body:has(.app-layout) {
   background: var(--bg-primary);
 }
 
+.sidebar-nav-item.selected {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.5);
+}
+
 .sidebar-nav-muted {
   color: var(--text-tertiary);
   font-size: 0.8rem;
+}
+
+.sidebar-workspace-group + .sidebar-workspace-group {
+  margin-top: 0.15rem;
+}
+
+.sidebar-workspace-subnav {
+  padding-bottom: 0.35rem;
+}
+
+.sidebar-workspace-id {
+  padding: 0 1rem 0.35rem 1.65rem;
+  font-size: 0.7rem;
+  font-family: monospace;
+  color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-subnav-item {
+  padding-left: 1.65rem;
+  font-size: 0.82rem;
+  justify-content: flex-start;
+}
+
+.sidebar-workspace-toggle {
+  color: var(--text-tertiary);
+  font-size: 0.75rem;
+  margin-left: 0.75rem;
+  flex-shrink: 0;
 }
 
 .sidebar-spacer {

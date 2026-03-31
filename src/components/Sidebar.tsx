@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
@@ -7,10 +8,22 @@ export function Sidebar() {
   const { workspace, allWorkspaces, switchWorkspace, error } = useWorkspace(!!user);
   const location = useLocation();
   const navigate = useNavigate();
+  const [workspaceNavOpen, setWorkspaceNavOpen] = useState(true);
 
   const currentPath = location.pathname;
   const canAccessWorkspace = workspace?.tier && workspace.tier !== 'none';
   const isAdmin = workspace?.tier === 'admin';
+  const workspaceLinks = [
+    { to: '/metrics', label: 'Metrics' },
+    { to: '/markets', label: 'Markets' },
+    { to: '/tasks', label: 'Tasks' },
+    { to: '/agents', label: 'Agents' },
+    ...(isAdmin ? [{ to: '/settings', label: 'Settings' }] : []),
+  ];
+
+  useEffect(() => {
+    setWorkspaceNavOpen(true);
+  }, [workspace?.workspaceId]);
 
   const handleLogout = async () => {
     await logout();
@@ -33,18 +46,40 @@ export function Sidebar() {
         <div className="sidebar-section">
           <div className="sidebar-section-label">Workspaces</div>
           {allWorkspaces.map(ws => {
-            const isActive = ws.id === workspace?.workspaceId;
+            const isSelected = ws.id === workspace?.workspaceId;
+            const showSubnav = isSelected && workspaceNavOpen;
             return (
-              <div key={ws.id}>
+              <div key={ws.id} className="sidebar-workspace-group">
                 <button
-                  className={`sidebar-nav-item${isActive ? ' active' : ''}`}
-                  onClick={() => switchWorkspace(ws.id)}
+                  className={`sidebar-nav-item${isSelected ? ' selected' : ''}`}
+                  onClick={() => {
+                    if (isSelected) {
+                      setWorkspaceNavOpen(open => !open);
+                      return;
+                    }
+                    setWorkspaceNavOpen(true);
+                    switchWorkspace(ws.id);
+                  }}
                 >
-                  {ws.name}
+                  <span>{ws.name}</span>
+                  {isSelected && canAccessWorkspace && (
+                    <span className="sidebar-workspace-toggle" aria-hidden="true">
+                      {workspaceNavOpen ? '▾' : '▸'}
+                    </span>
+                  )}
                 </button>
-                {isActive && (
-                  <div style={{ padding: '0 1rem 0.35rem', fontSize: '0.7rem', fontFamily: 'monospace', color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {ws.id}
+                {showSubnav && (
+                  <div className="sidebar-workspace-subnav">
+                    <div className="sidebar-workspace-id">{ws.id}</div>
+                    {canAccessWorkspace && workspaceLinks.map(link => (
+                      <Link
+                        key={link.to}
+                        to={link.to}
+                        className={`sidebar-nav-item sidebar-subnav-item${currentPath === link.to ? ' active' : ''}`}
+                      >
+                        {link.label}
+                      </Link>
+                    ))}
                   </div>
                 )}
               </div>
@@ -52,24 +87,6 @@ export function Sidebar() {
           })}
           <Link to="/create-workspace" className="sidebar-nav-item sidebar-nav-muted">
             + Create workspace
-          </Link>
-        </div>
-      )}
-
-      {canAccessWorkspace && (
-        <div className="sidebar-section">
-          <div className="sidebar-section-label">Workspace</div>
-          <Link to="/metrics" className={`sidebar-nav-item${currentPath === '/metrics' ? ' active' : ''}`}>
-            Metrics
-          </Link>
-          <Link to="/markets" className={`sidebar-nav-item${currentPath === '/markets' ? ' active' : ''}`}>
-            Markets
-          </Link>
-          <Link to="/tasks" className={`sidebar-nav-item${currentPath === '/tasks' ? ' active' : ''}`}>
-            Tasks
-          </Link>
-          <Link to="/agents" className={`sidebar-nav-item${currentPath === '/agents' ? ' active' : ''}`}>
-            Agents
           </Link>
         </div>
       )}
@@ -90,11 +107,6 @@ export function Sidebar() {
       <div className="sidebar-spacer" />
 
       <div className="sidebar-bottom">
-        {canAccessWorkspace && isAdmin && (
-          <Link to="/settings" className={`sidebar-nav-item${currentPath === '/settings' ? ' active' : ''}`}>
-            Settings
-          </Link>
-        )}
         {user && (
           <>
             <Link

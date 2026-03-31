@@ -267,6 +267,8 @@ The app uses a persistent left sidebar (`Sidebar.tsx` + `AppLayout.tsx`) for all
 
 `/guides` is a publicly accessible in-app reference covering metric structure, formula syntax, time preference, markets, and the task decision loop. No auth required.
 
+The selected workspace now owns its workspace-scoped links directly in the sidebar. Metrics, Markets, Tasks, Agents, and workspace Settings render as a collapsible nested subsection under the active workspace rather than as a separate top-level "Workspace" section, which keeps workspace context and page context aligned.
+
 ## Design Principles
 
 1. **Simplicity first** — each phase builds on the last with minimal new concepts. No premature complexity.
