@@ -207,15 +207,10 @@ export async function refreshRelativeDateMarkets(workspaceId = 'default'): Promi
       deactivated++;
     }
 
-    const shares = m.shares as [number, number] | null;
-    const isUntraded = shares && shares[0] === 0 && shares[1] === 0;
-    if (isUntraded && m.liquidity !== AMM_DEFAULTS.liquidity) {
-      toLiquidityNormalize.push(m.id);
-    }
   }
 
   // Apply updates in a transaction
-  if (toActivate.length || toDeactivate.length || toLiquidityNormalize.length) {
+  if (toActivate.length || toDeactivate.length) {
     await db.transaction(async tx => {
       if (toActivate.length) {
         for (const id of toActivate) {
@@ -226,12 +221,6 @@ export async function refreshRelativeDateMarkets(workspaceId = 'default'): Promi
       if (toDeactivate.length) {
         for (const id of toDeactivate) {
           await tx.update(markets).set({ active: false })
-            .where(and(eq(markets.id, id), eq(markets.workspaceId, workspaceId)));
-        }
-      }
-      if (toLiquidityNormalize.length) {
-        for (const id of toLiquidityNormalize) {
-          await tx.update(markets).set({ liquidity: AMM_DEFAULTS.liquidity })
             .where(and(eq(markets.id, id), eq(markets.workspaceId, workspaceId)));
         }
       }
