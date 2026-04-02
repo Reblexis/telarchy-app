@@ -1,10 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '../lib/api';
 import { cacheGet, cacheSet } from '../lib/cache';
-import { fmtTime, getTimestampSeconds } from '../lib/date-utils';
 import { previewTrade } from '../lib/amm';
-import { ConsensusChart } from './charts/ConsensusChart';
-import type { Market, Position, TradePoint, LiquidityEvent } from '../types';
+import { MarketActivityPanel } from './MarketActivityPanel';
+import type { Market, Position, LiquidityEvent } from '../types';
 
 const inputStyle = { padding: '0.4rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', width: '80px' } as const;
 const labelStyle = { display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.15rem' } as const;
@@ -26,33 +25,16 @@ export function TradingPanel({ market, workspaceId, showLiquidityControls = true
   const [liqAmount, setLiqAmount] = useState('');
   const [trading, setTrading] = useState(false);
   const [lastResult, setLastResult] = useState<{ direction: string; shares: number; cost: number; consensus: number } | null>(null);
-  const [trades, setTrades] = useState<TradePoint[]>([]);
-  const [liquidityEvents, setLiquidityEvents] = useState<LiquidityEvent[]>([]);
-  const [tradesLoading, setTradesLoading] = useState(true);
   const [positions, setPositions] = useState<Position[]>([]);
   const [sellInputs, setSellInputs] = useState<Record<string, string>>({});
+  const [activityRefreshToken, setActivityRefreshToken] = useState(0);
 
   useEffect(() => {
-    const tKey = `trades:${market.id}`;
-    const lKey = `liqEvents:${market.id}`;
     const pKey = `positions:${market.id}:me`;
-
-    const cachedTrades = cacheGet<TradePoint[]>(tKey);
-    const cachedLiquidityEvents = cacheGet<LiquidityEvent[]>(lKey);
     const cachedPositions = cacheGet<Position[]>(pKey);
 
-    if (cachedTrades) setTrades(cachedTrades);
-    if (cachedLiquidityEvents) setLiquidityEvents(cachedLiquidityEvents);
     if (cachedPositions) setPositions(cachedPositions);
 
-    setTradesLoading(!cachedTrades);
-    api.getMarketTrades(market.id, workspaceId)
-      .then(data => { cacheSet(tKey, data); setTrades(data); })
-      .catch((e: Error) => onError(e.message))
-      .finally(() => setTradesLoading(false));
-    api.getMarketLiquidityEvents(market.id, workspaceId)
-      .then(data => { cacheSet(lKey, data); setLiquidityEvents(data); })
-      .catch((e: Error) => onError(e.message));
     api.getPositions(market.id, undefined, workspaceId)
       .then(data => { cacheSet(pKey, data); setPositions(data); })
       .catch((e: Error) => onError(e.message));
@@ -71,6 +53,16 @@ export function TradingPanel({ market, workspaceId, showLiquidityControls = true
     setPositions(data);
   }).catch((e: Error) => onError(`Failed to refresh positions: ${e.message}`));
 
+  const refreshTrades = () => api.getMarketTrades(market.id, workspaceId).then(data => {
+    cacheSet(`trades:${market.id}`, data);
+    setActivityRefreshToken(token => token + 1);
+  }).catch((e: Error) => onError(`Failed to refresh trades: ${e.message}`));
+
+  const refreshLiquidityEvents = () => api.getMarketLiquidityEvents(market.id, workspaceId).then(data => {
+    cacheSet(`liqEvents:${market.id}`, data);
+    setActivityRefreshToken(token => token + 1);
+  }).catch((e: Error) => onError(`Failed to refresh liquidity events: ${e.message}`));
+
   const handleBetDirection = async (direction: 'higher' | 'lower') => {
     if (isNaN(amount) || amount <= 0) return;
     setTrading(true);
@@ -80,15 +72,7 @@ export function TradingPanel({ market, workspaceId, showLiquidityControls = true
     if (result) {
       setLastResult({ direction, shares: result.shares, cost: result.cost, consensus: result.consensus });
       setTradeAmount('');
-      setTrades(prev => {
-        const next = [...prev, { consensus: result.consensus, createdAt: { _seconds: Date.now() / 1000 }, direction, shares: result.shares, cost: result.cost }];
-        cacheSet(`trades:${market.id}`, next);
-        return next;
-      });
-      api.getMarketTrades(market.id, workspaceId).then(data => {
-        cacheSet(`trades:${market.id}`, data);
-        setTrades(data);
-      }).catch((e: Error) => onError(`Failed to refresh trades: ${e.message}`));
+      void refreshTrades();
       refreshPositions();
       onTrade();
     }
@@ -104,11 +88,7 @@ export function TradingPanel({ market, workspaceId, showLiquidityControls = true
     if (result) {
       setLastResult({ direction, shares: result.shares, cost: -result.proceeds, consensus: result.consensus });
       setSellInputs(prev => ({ ...prev, [direction]: '' }));
-      setTrades(prev => {
-        const next = [...prev, { consensus: result.consensus, createdAt: { _seconds: Date.now() / 1000 }, direction, shares: result.shares, cost: -result.proceeds }];
-        cacheSet(`trades:${market.id}`, next);
-        return next;
-      });
+      void refreshTrades();
       refreshPositions();
       onTrade();
     }
@@ -127,15 +107,8 @@ export function TradingPanel({ market, workspaceId, showLiquidityControls = true
         type: 'injection',
         createdAt: { _seconds: Date.now() / 1000 },
       };
-      setLiquidityEvents(prev => {
-        const next = [...prev, optimistic];
-        cacheSet(`liqEvents:${market.id}`, next);
-        return next;
-      });
-      api.getMarketLiquidityEvents(market.id).then(data => {
-        cacheSet(`liqEvents:${market.id}`, data);
-        setLiquidityEvents(data);
-      }).catch((e: Error) => onError(`Failed to refresh liquidity events: ${e.message}`));
+      cacheSet(`liqEvents:${market.id}`, [...cacheGet<LiquidityEvent[]>(`liqEvents:${market.id}`) || [], optimistic]);
+      void refreshLiquidityEvents();
       onTrade();
     }
   };
@@ -149,61 +122,12 @@ export function TradingPanel({ market, workspaceId, showLiquidityControls = true
 
   return (
     <div style={{ padding: '0.75rem 0.5rem 0.5rem' }}>
-      {!tradesLoading && (
-        <div style={{ marginBottom: '0.75rem', background: 'var(--bg-secondary, #f8f9fa)', borderRadius: '0.375rem', padding: '0.5rem 0.5rem 0' }}>
-          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', paddingLeft: '0.25rem' }}>
-            Consensus history
-          </div>
-          <ConsensusChart trades={trades} rangeMin={market.rangeMin} rangeMax={market.rangeMax} />
-          {(trades.length > 0 || liquidityEvents.length > 0) && (() => {
-            type LogEntry =
-              | { kind: 'trade'; ts: number; data: TradePoint }
-              | { kind: 'liquidity'; ts: number; data: LiquidityEvent };
-            const entries: LogEntry[] = [
-              ...trades.filter(t => t.consensus != null).flatMap(t => { const ts = getTimestampSeconds(t.createdAt); return ts != null ? [{ kind: 'trade' as const, ts, data: t }] : []; }),
-              ...liquidityEvents.flatMap(e => { const ts = getTimestampSeconds(e.createdAt); return ts != null ? [{ kind: 'liquidity' as const, ts, data: e }] : []; }),
-            ].sort((a, b) => b.ts - a.ts);
-            return (
-              <div style={{ marginTop: '0.5rem', maxHeight: '160px', overflowY: 'auto', borderTop: '1px solid var(--border-color)' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' }}>
-                  <thead>
-                    <tr style={{ position: 'sticky', top: 0, background: 'var(--bg-secondary, #f8f9fa)' }}>
-                      {['Time', 'Actor', 'Type', 'Amount', 'Detail', 'Result'].map(h => (
-                        <th key={h} style={{ padding: '0.2rem 0.4rem', textAlign: h === 'Type' ? 'center' : ['Amount', 'Detail', 'Result'].includes(h) ? 'right' : 'left', color: 'var(--text-secondary)', fontWeight: 500, borderBottom: '1px solid var(--border-color)', whiteSpace: 'nowrap' }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {entries.map((entry, i) => entry.kind === 'trade' ? (
-                      <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <td style={{ padding: '0.2rem 0.4rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{fmtTime(entry.ts)}</td>
-                        <td style={{ padding: '0.2rem 0.4rem', fontFamily: 'monospace', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.data.agentId ?? '—'}</td>
-                        <td style={{ padding: '0.2rem 0.4rem', textAlign: 'center', color: entry.data.direction === 'higher' ? '#22c55e' : '#ef4444' }}>{entry.data.direction === 'higher' ? '▲' : '▼'}</td>
-                        <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>{formatCompactNumber(entry.data.shares)}</td>
-                        <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>
-                          {entry.data.cost == null ? '—' : entry.data.cost > 0 ? `cost ${formatCompactNumber(entry.data.cost)}` : `proceeds ${formatCompactNumber(-entry.data.cost)}`}
-                        </td>
-                        <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{formatCompactNumber(entry.data.consensus)}</td>
-                      </tr>
-                    ) : (
-                      <tr key={i} style={{ borderBottom: '1px solid var(--border-color)', opacity: 0.8 }}>
-                        <td style={{ padding: '0.2rem 0.4rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{fmtTime(entry.ts)}</td>
-                        <td style={{ padding: '0.2rem 0.4rem', color: 'var(--text-secondary)' }}>admin</td>
-                        <td style={{ padding: '0.2rem 0.4rem', textAlign: 'center', color: '#3b82f6' }}>{entry.data.type === 'initial' ? 'init' : '+liq'}</td>
-                        <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', color: '#3b82f6', fontFamily: 'monospace', fontWeight: 600 }}>+{formatCompactNumber(entry.data.amount)}</td>
-                        <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', color: 'var(--text-secondary)' }}>
-                          {entry.data.type === 'initial' ? 'initial liquidity' : 'liquidity injection'}
-                        </td>
-                        <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>b={formatCompactNumber(entry.data.totalLiquidity)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            );
-          })()}
-        </div>
-      )}
+      <MarketActivityPanel
+        market={market}
+        workspaceId={workspaceId}
+        onError={onError}
+        refreshToken={activityRefreshToken}
+      />
 
       <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div>

@@ -7,6 +7,7 @@ import { useInspectMode } from '../hooks/useInspectMode';
 import { previewTrade } from '../lib/amm';
 import { formatTargetDateDisplay, formatTimeRemaining, endOfPeriod } from '../lib/date-utils';
 import { HookStatus } from '../components/HookStatus';
+import { MarketActivityPanel } from '../components/MarketActivityPanel';
 import { ProbabilitySlider } from '../components/ProbabilitySlider';
 import type { Market, Metric } from '../types';
 
@@ -265,8 +266,12 @@ export function MarketsPage() {
                       <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
                         <td colSpan={6} style={{ padding: '0 0.5rem 0.75rem' }}>
                           <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
-                            {m.active ? 'Trading is performed by agents via API.' : 'Betting is disabled on inactive markets. This market will resolve at its target date.'}
+                            {m.active ? 'Trading is performed in the marketplace.' : 'Betting is disabled on inactive markets. This market will resolve at its target date.'}
                           </p>
+                          <MarketActivityPanel
+                            market={m}
+                            onError={setError}
+                          />
                         </td>
                       </tr>
                     )}
