@@ -10,6 +10,7 @@ import { onRequest } from 'firebase-functions/v2/https';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { app } from './app';
 import { assertTreasuryConfigured } from './lib/usdc';
+import { runBootstrap } from './lib/bootstrap';
 
 const SECRETS = ['TREASURY_PRIVATE_KEY', 'DATABASE_URL', 'BETTER_AUTH_SECRET'];
 /**
@@ -19,8 +20,16 @@ const SECRETS = ['TREASURY_PRIVATE_KEY', 'DATABASE_URL', 'BETTER_AUTH_SECRET'];
  */
 const OAUTH_SECRETS = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'];
 
-export const api = onRequest({ minInstances: 1, secrets: [...SECRETS, ...OAUTH_SECRETS] }, (req, res) => {
+// Run bootstrap exactly once per instance (idempotent — no-op after first boot).
+let bootstrapPromise: Promise<void> | null = null;
+function ensureBootstrapped(): Promise<void> {
+  if (!bootstrapPromise) bootstrapPromise = runBootstrap();
+  return bootstrapPromise;
+}
+
+export const api = onRequest({ minInstances: 1, secrets: [...SECRETS, ...OAUTH_SECRETS] }, async (req, res) => {
   assertTreasuryConfigured();
+  await ensureBootstrapped();
   return app(req, res);
 });
 

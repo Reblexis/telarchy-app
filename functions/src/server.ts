@@ -15,7 +15,8 @@
  *   BETTER_AUTH_URL     — public site origin (https://your-host) for OAuth redirects behind proxies
  *   AUTH_COOKIE_DOMAIN  — e.g. ".example.com" so apex + www share auth cookies (optional)
  *   ALLOW_LOCALHOST_CORS — "1" to allow localhost/127.0.0.1 when ALLOWED_ORIGIN is restricted (local dev)
- *   ADMIN_EMAILS        — comma-separated emails that get platform-admin access
+ *   INITIAL_ADMIN_EMAIL    — admin email created on first boot (default: admin@localhost)
+ *   INITIAL_ADMIN_PASSWORD — admin password on first boot (auto-generated + printed if not set)
  *   GOOGLE_CLIENT_ID    — Google OAuth client ID (for social sign-in)
  *   GOOGLE_CLIENT_SECRET
  *   GITHUB_CLIENT_ID    — GitHub OAuth client ID (for social sign-in)
@@ -30,9 +31,11 @@ import path from 'path';
 import fs from 'fs';
 import express from 'express';
 import { assertTreasuryConfigured } from './lib/usdc';
+import { runBootstrap } from './lib/bootstrap';
 
-import('./app').then(({ app }) => {
+import('./app').then(async ({ app }) => {
   assertTreasuryConfigured();
+  await runBootstrap();
 
   // Serve frontend static files when bundled in self-hosted mode
   const publicDir = path.join(__dirname, 'public');

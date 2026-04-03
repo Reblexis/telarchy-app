@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { randomBytes } from 'crypto';
 import { db } from '../db/client';
-import { appUsers, agents, agentApiKeys, userWorkspaces, permissionGroups, authUser } from '../db/schema';
+import { appUsers, agents, agentApiKeys, userWorkspaces } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { wrap } from '../lib/wrap';
 import { requireUser } from '../middleware/roles';
@@ -10,42 +10,10 @@ import { getAuthWorkspaceMemberships, getUserWorkspaceMemberships } from '../mid
 
 export const userauthRouter = Router();
 
-function isAdminEmail(email: string | null | undefined): boolean {
-  if (!email) return false;
-  const lower = email.trim().toLowerCase();
-  const listed = [
-    ...(process.env.ADMIN_EMAILS || '').split(','),
-    process.env.ADMIN_EMAIL || '',
-  ].map(e => e.trim().toLowerCase()).filter(Boolean);
-  return listed.includes(lower);
-}
-
-/** Add a participant to every workspace's Admin group if not already a member. */
-async function ensureAdminGroupMembership(participantId: string): Promise<void> {
-  const adminGroups = await db.select().from(permissionGroups).where(eq(permissionGroups.type, 'admin'));
-  for (const group of adminGroups) {
-    const current: string[] = group.memberIds ?? [];
-    if (current.includes(participantId)) continue;
-    const updated = [...current, participantId];
-    await db.update(permissionGroups)
-      .set({ memberIds: updated, agentIds: updated })
-      .where(eq(permissionGroups.id, group.id));
-  }
-}
-
 /** Shared logic: ensure a browser-authenticated participant exists for a given uid. */
 async function ensureParticipant(uid: string): Promise<{ participantId: string; apiKey?: string; isNew: boolean }> {
   const [direct] = await db.select().from(agents).where(eq(agents.authUserId, uid));
-  if (direct) {
-    const [user] = await db.select().from(authUser).where(eq(authUser.id, uid));
-    if (isAdminEmail(user?.email) && direct.role !== 'admin') {
-      await db.update(agents).set({ role: 'admin' }).where(eq(agents.id, direct.id));
-      await ensureAdminGroupMembership(direct.id);
-    } else if (isAdminEmail(user?.email)) {
-      await ensureAdminGroupMembership(direct.id);
-    }
-    return { participantId: direct.id, isNew: false };
-  }
+  if (direct) return { participantId: direct.id, isNew: false };
 
   const [existing] = await db.select().from(appUsers).where(eq(appUsers.userId, uid));
   if (existing?.agentId) {
@@ -65,12 +33,9 @@ async function ensureParticipant(uid: string): Promise<{ participantId: string; 
   let participantId: string;
   let apiKey: string | undefined;
 
-  const [user] = await db.select().from(authUser).where(eq(authUser.id, uid));
-  const isAdmin = isAdminEmail(user?.email);
-
   if (existingAgent?.authUserId === uid || existingAgent?.ownerUid === uid) {
     participantId = preferredId;
-    await db.update(agents).set({ authUserId: uid, ...(isAdmin && { role: 'admin' }) }).where(eq(agents.id, participantId));
+    await db.update(agents).set({ authUserId: uid }).where(eq(agents.id, participantId));
   } else {
     participantId = existingAgent ? `${uid}-user` : preferredId;
     const rawKey = randomBytes(32).toString('hex');
@@ -80,7 +45,7 @@ async function ensureParticipant(uid: string): Promise<{ participantId: string; 
       await tx.insert(agents).values({
         id: participantId,
         apiKeyHash: keyHash,
-        role: isAdmin ? 'admin' : 'agent',
+        role: 'agent',
         authUserId: uid,
         balance: 0,
         createdAt: new Date(),
@@ -91,10 +56,8 @@ async function ensureParticipant(uid: string): Promise<{ participantId: string; 
   }
 
   await db.insert(appUsers)
-    .values({ userId: uid, platformAdmin: isAdmin, intent: existing?.intent ?? null, createdAt: new Date() })
+    .values({ userId: uid, platformAdmin: false, intent: existing?.intent ?? null, createdAt: new Date() })
     .onConflictDoNothing();
-
-  if (isAdmin) await ensureAdminGroupMembership(participantId);
 
   return { participantId, apiKey, isNew: true };
 }

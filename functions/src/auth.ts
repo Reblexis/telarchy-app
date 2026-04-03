@@ -1,8 +1,23 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { randomBytes } from 'crypto';
 import { db } from './db/client';
 import * as schema from './db/schema';
 import { betterAuthTrustedOrigins } from './lib/origins';
+
+// Auto-generate BETTER_AUTH_SECRET if not set (self-hosted convenience).
+// Sessions signed with a generated secret are invalidated on every restart
+// until the secret is persisted — print a clear warning.
+if (!process.env.BETTER_AUTH_SECRET?.trim()) {
+  const generated = randomBytes(32).toString('hex');
+  process.env.BETTER_AUTH_SECRET = generated;
+  console.warn(
+    '\n[WARN] BETTER_AUTH_SECRET is not set. A temporary secret has been generated:\n' +
+    `       ${generated}\n` +
+    '       All sessions will be invalidated on every restart until you persist this.\n' +
+    '       Add BETTER_AUTH_SECRET=<value> to your environment configuration.\n',
+  );
+}
 
 /**
  * Public origin of this app as seen by the browser (scheme + host, no path).

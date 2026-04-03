@@ -32,16 +32,6 @@ function safeCompare(a: string, b: string): boolean {
   }
 }
 
-function isBootstrapAdmin(email: string | undefined | null): boolean {
-  if (!email) return false;
-  const lower = email.trim().toLowerCase();
-  const listed = [
-    ...(process.env.ADMIN_EMAILS || '').split(','),
-    process.env.ADMIN_EMAIL || '',
-  ].map(e => e.trim().toLowerCase()).filter(Boolean);
-  return listed.includes(lower);
-}
-
 function memberRoleToAuthRole(memberRole: WorkspaceMemberRole | null): AgentRole {
   if (memberRole === 'owner' || memberRole === 'admin') return 'admin';
   if (memberRole === 'trader') return 'agent';
@@ -79,12 +69,11 @@ async function getUserWorkspaceMembershipsFromParticipant(userId: string): Promi
 
 async function resolveUser(
   userId: string,
-  email: string | undefined | null,
   requestedWorkspaceId?: string,
 ): Promise<{ workspaceId: string; memberRole: WorkspaceMemberRole | null; agentId?: string } | null> {
   const [profile] = await db.select().from(appUsers).where(eq(appUsers.userId, userId));
   const agentId = await resolveParticipantIdForUser(userId) ?? undefined;
-  const isPlatformAdmin = profile?.platformAdmin === true || isBootstrapAdmin(email);
+  const isPlatformAdmin = profile?.platformAdmin === true;
 
   if (isPlatformAdmin) {
     const wsId = requestedWorkspaceId ?? 'default';
@@ -137,7 +126,7 @@ export async function optionalAuthMiddleware(req: Request, _res: Response, next:
   const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null);
   if (session?.user) {
     const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
-    const result = await resolveUser(session.user.id, session.user.email, requestedWorkspaceId);
+    const result = await resolveUser(session.user.id, requestedWorkspaceId);
     if (result !== null) {
       req.auth = {
         role: memberRoleToAuthRole(result.memberRole),
@@ -165,7 +154,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null);
   if (session?.user) {
     const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
-    const result = await resolveUser(session.user.id, session.user.email, requestedWorkspaceId);
+    const result = await resolveUser(session.user.id, requestedWorkspaceId);
     if (result === null) {
       return res.status(403).json({ error: 'Not a member of the specified workspace' });
     }
