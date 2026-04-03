@@ -206,6 +206,14 @@ export const api = {
   spendAgent: (id: string, amount: number, type: 'betting' | 'tokens', reason: string) =>
     request(`/api/agents/${id}/spend`, { method: 'POST', body: JSON.stringify({ amount, type, reason }) }),
   getTreasury: () => request('/api/agents/treasury', {}, true),
+  /** No auth — same treasury address as minted deposits use; 503 if server has no treasury key. */
+  getDepositAddress: () =>
+    request('/api/agents/deposit-address', {}, true) as Promise<{
+      address: string;
+      chain: string;
+      asset: string;
+      usdcContract: string;
+    }>,
   depositForMe: (txHash: string) =>
     request('/api/agents/me/deposit', { method: 'POST', body: JSON.stringify({ txHash }) }),
   depositForAgent: (agentId: string, txHash: string) =>

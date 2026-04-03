@@ -187,8 +187,8 @@ Credits are backed by real USDC. A treasury wallet on the Base L2 network holds 
 **Audit trail**: every withdrawal is recorded in the `withdrawals` collection with `{ agentId, credits, usdcAmount, toAddress, txHash, createdAt }`.
 
 **Credit purchase (open to anyone)**:
-- Admin publishes the treasury address via `GET /api/agents/treasury`.
-- Anyone sends USDC to the treasury on Base, then calls `POST /api/agents/:id/deposit` with the tx hash.
+- Treasury receive address: `GET /api/agents/deposit-address` (no auth). Admins can also use `GET /api/agents/treasury` for the address plus live balances.
+- Send USDC on Base to that address, then call `POST /api/agents/:id/deposit` with the tx hash.
 - Backend verifies the transfer on-chain (reads the Transfer event, checks recipient = treasury).
 - Credits issued: `floor(usdcAmount / (creditValueUsd * (1 + buyFeePercent/100)))`.
 - The fee surplus stays in the treasury — the system is self-sustaining: total USDC held ≥ credits outstanding × creditValueUsd at all times.

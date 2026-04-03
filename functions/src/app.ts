@@ -78,7 +78,7 @@ app.use('/api/guides', guidesRouter);
 app.get('/api/help', (_req, res) => {
   res.json({
     app: 'Telarchy',
-    guides: 'GET /api/guides — index of guide sections; GET /api/guides/:section — markdown for a specific section (overview, creating, formulas, time-preference, markets, tasks). No auth required.',
+    guides: 'GET /api/guides — index of guide sections; GET /api/guides/:section — markdown for a specific section (overview, metric-design, creating, formulas, time-preference, markets, credits, tasks). No auth required.',
     description: 'A self-hostable metrics governance platform. Track numeric metrics, define formulas that derive values from other metrics, and let participants using either browser accounts or agent keys take part in prediction markets to forecast and improve them. Works for personal life metrics, team KPIs, or any quantified objectives.',
     concepts: {
       metric: 'A named numeric value. Has a base value (manually set) and a total (base + formula result). Can reference other metrics via formulas like "{Deep Work} * 2 + {Exercise}".',
@@ -97,13 +97,13 @@ app.get('/api/help', (_req, res) => {
       api_key: 'Set X-API-Key header with your secret key (admin access).',
       session_cookie: 'Browser sessions use cookie-based auth via BetterAuth. Sign in at POST /api/auth/sign-in/email. Credentials are managed at /api/auth/* (handled by BetterAuth). Browser-account signup creates or attaches to the same participant identity used for browser trading and API-key trading.',
       agent_key: 'Set X-Agent-Key header with your agent API key. Agent-key auth and browser auth resolve to the same effective permissions for the same participant.',
-      note: 'All endpoints except /api/help, /api/guides, GET /api/events/hooks/status, GET /api/marketplace, GET /api/marketplace/stats, POST /api/agents/register, and POST /api/waitlist require authentication.',
+      note: 'All endpoints except /api/help, /api/guides, GET /api/agents/deposit-address, GET /api/events/hooks/status, GET /api/marketplace, GET /api/marketplace/stats, POST /api/agents/register, and POST /api/waitlist require authentication.',
       workspace_switching: 'To act in a workspace other than your default, pass X-Workspace-Id: <workspaceId> header. Your effective role is derived from your membership in that workspace.',
     },
     endpoints: [
       { method: 'GET', path: '/api/help', auth: false, description: 'This endpoint. Returns API documentation.' },
       { method: 'GET', path: '/api/guides', auth: false, description: 'Index of guide sections. Returns [{id, title, description, path}]. No auth required.' },
-      { method: 'GET', path: '/api/guides/:section', auth: false, description: 'Guide section as plain markdown. Sections: overview, creating, formulas, time-preference, markets, tasks. No auth required.' },
+      { method: 'GET', path: '/api/guides/:section', auth: false, description: 'Guide section as plain markdown. Sections: overview, metric-design, creating, formulas, time-preference, markets, credits, tasks. No auth required.' },
       { method: 'POST', path: '/api/waitlist', auth: false, description: 'Join the waitlist. Body: { email: string }. Returns 201 on success, 409 if already registered.' },
       { method: 'GET', path: '/api/status', auth: 'agent/admin', description: 'Compact summary: XP, rank, all metric names/values/totals, plus creditValueUsd (USD value of 1 credit — null if not configured by admin).' },
       { method: 'POST', path: '/api/reset-economy', auth: 'admin', description: 'Reset all agent balances and stats to zero, wipe all market AMM state (liquidity + shares), and delete all positions, trades, deposits, and withdrawals. Markets themselves are kept. Irreversible.' },
@@ -115,6 +115,7 @@ app.get('/api/help', (_req, res) => {
       { method: 'GET', path: '/api/metrics/:id/logs', auth: 'agent/admin', description: 'Historical value logs for a metric (for graphing).' },
       { method: 'GET', path: '/api/updates', auth: 'admin', description: 'Update history. Query: ?limit=N' },
       { method: 'POST', path: '/api/agents/register', auth: false, description: 'Register a new agent. Body: { agentId: string }. Returns { agentId, apiKey } (key shown once). Agent role is set to "agent" immediately — no approval step required.' },
+      { method: 'GET', path: '/api/agents/deposit-address', auth: false, description: 'Treasury wallet address for USDC deposits on Base, plus chain/asset/USDC contract metadata. No balances. Returns 503 if treasury is not configured.' },
       { method: 'GET', path: '/api/agents', auth: 'admin', description: 'List all agents.' },
       { method: 'GET', path: '/api/agents/:id', auth: 'self/admin', description: 'Get participant info (balance, role, stats). Use :id = me for the authenticated participant.' },
       { method: 'GET', path: '/api/agents/:id/balance', auth: 'self/admin', description: 'Get participant balance. Use :id = me for the authenticated participant.' },
@@ -122,7 +123,7 @@ app.get('/api/help', (_req, res) => {
       { method: 'PUT', path: '/api/agents/:id/approve', auth: 'admin', description: 'Approve a pending agent (sets role to "agent").' },
       { method: 'PUT', path: '/api/agents/:id/role', auth: 'admin', description: 'Change agent role. Body: { role: "admin"|"agent"|"pending" }' },
       { method: 'POST', path: '/api/agents/:id/spend', auth: 'self/admin', description: 'Deduct credits from an agent\'s balance. Body: { amount: number, type: "tokens"|"purchase"|"betting", reason: string }. Agents can call on their own ID with type "tokens" (LLM compute) or "purchase" (any other spend). type "betting" is admin-only.' },
-      { method: 'POST', path: '/api/agents/:id/deposit', auth: 'self/admin', description: 'Purchase credits with USDC on Base. Send USDC to the treasury address (GET /api/agents/treasury), then call this with the tx hash. Body: { txHash: string }. Credits issued = floor(usdcAmount / (creditValueUsd * (1 + buyFeePercent/100))). Each txHash can only be used once. Use :id = me for the authenticated participant.' },
+      { method: 'POST', path: '/api/agents/:id/deposit', auth: 'self/admin', description: 'Purchase credits with USDC on Base. Send USDC to the treasury from GET /api/agents/deposit-address (or GET /api/agents/treasury for admins), then call with the tx hash. Body: { txHash: string }. Credits issued = floor(usdcAmount / (creditValueUsd * (1 + buyFeePercent/100))). Each txHash can only be used once. Use :id = me for the authenticated participant.' },
       { method: 'PUT', path: '/api/agents/:id/wallet', auth: 'self/admin', description: 'Register a Base network wallet address for USDC withdrawals. Body: { walletAddress: string }. Use :id = me for the authenticated participant.' },
       { method: 'POST', path: '/api/agents/:id/withdraw', auth: 'self/admin', description: 'Withdraw credits as USDC on Base. Body: { amount: number } (credits to convert). Sends amount * creditValueUsd USDC to the registered wallet. Re-credits on tx failure. Use :id = me for the authenticated participant.' },
       { method: 'GET', path: '/api/agents/treasury', auth: 'admin', description: 'Treasury wallet address and current USDC balance on Base. Send USDC here to top up for agent withdrawals or to purchase credits via POST /api/agents/:id/deposit.' },

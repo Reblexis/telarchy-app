@@ -56,13 +56,17 @@ export function AccountPage() {
       setError(e.message);
       return null;
     });
-    const [participant, treas] = await Promise.all([
+    const [participant, depositMeta] = await Promise.all([
       api.getParticipant().catch((e: Error) => { setError(e.message); return null; }),
-      api.getTreasury().catch(() => null),
+      api.getDepositAddress().catch(() => null),
     ]);
     setAgent((participant as MyAgent | null) ?? null);
     if (participant) setWalletAddr((participant as MyAgent).walletAddress ?? '');
-    if (treas) setTreasury(treas as TreasuryInfo);
+    if (depositMeta?.address) {
+      setTreasury({ address: depositMeta.address, usdcBalance: 0 });
+    } else {
+      setTreasury(null);
+    }
     setLoading(false);
   }, [user]);
 

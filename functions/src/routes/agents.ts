@@ -8,8 +8,16 @@ import { wrap } from '../lib/wrap';
 import { hashKey, authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
 import { requireRole, requireSelfOrAdmin, requireIdentity } from '../middleware/roles';
 import { getMarkets } from '../services/predictions';
-import { sendUsdc, getTreasuryBalances, validateWalletAddress, verifyUsdcDeposit } from '../lib/usdc';
+import {
+  sendUsdc,
+  getTreasuryBalances,
+  getTreasuryAddress,
+  validateWalletAddress,
+  verifyUsdcDeposit,
+  USDC_ON_BASE_MAINNET,
+} from '../lib/usdc';
 import { AppError } from '../lib/errors';
+import { creditsIssuedForUsdcDeposit, depositBuyRateUsd } from '../lib/economy';
 import { validateAgentId, validateTxHash, sufficientBalance, toUnits, fromUnits } from '../lib/validation';
 import { listParticipantsForWorkspace, resolveParticipantIdForUser } from '../lib/participants';
 
@@ -90,6 +98,21 @@ agentsRouter.get('/mine', authMiddleware, requireIdentity, wrap(async (req, res)
     res.json([{ ...data, balance: fromUnits(data.balance as number) }]);
   }
 }));
+
+/** Public: treasury receive address for USDC deposits (no balances; does not require auth). */
+agentsRouter.get('/deposit-address', (_req, res) => {
+  try {
+    const address = getTreasuryAddress();
+    res.json({
+      address,
+      chain: 'base',
+      asset: 'USDC',
+      usdcContract: USDC_ON_BASE_MAINNET,
+    });
+  } catch {
+    res.status(503).json({ error: 'Treasury is not configured on this server' });
+  }
+});
 
 agentsRouter.use(authMiddleware);
 
@@ -221,10 +244,10 @@ agentsRouter.post('/:id/deposit', requireSelfOrAdmin, wrap(async (req, res) => {
   const economyData = (economy?.value as { creditValueUsd?: number; buyFeePercent?: number }) ?? {};
   const creditValueUsd = economyData.creditValueUsd ?? 1;
   const buyFeePercent = economyData.buyFeePercent ?? 0;
-  const buyRate = creditValueUsd * (1 + buyFeePercent / 100);
+  const buyRate = depositBuyRateUsd(creditValueUsd, buyFeePercent);
 
   const { usdcAmount, from } = await verifyUsdcDeposit(txHash);
-  const credits = Math.floor(usdcAmount / buyRate);
+  const credits = creditsIssuedForUsdcDeposit(usdcAmount, creditValueUsd, buyFeePercent);
 
   if (credits <= 0) {
     res.status(400).json({ error: `Deposit too small. Minimum: ${buyRate.toFixed(6)} USDC for 1 credit` }); return;

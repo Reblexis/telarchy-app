@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { agentApi } from '../lib/api';
+import { agentApi, api } from '../lib/api';
 import { useAgentSession } from '../hooks/useAgentSession';
 import { Header } from '../components/Header';
 
@@ -241,6 +241,15 @@ function SettingsSection({ agentId, apiKey, profile, onProfileRefresh }: {
   const [txHash, setTxHash] = useState('');
   const [depositing, setDepositing] = useState(false);
   const [depositMsg, setDepositMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [treasuryAddr, setTreasuryAddr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.getDepositAddress().then(d => {
+      if (!cancelled && d?.address) setTreasuryAddr(d.address);
+    }).catch(() => { /* unconfigured server or network */ });
+    return () => { cancelled = true; };
+  }, []);
 
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawing, setWithdrawing] = useState(false);
@@ -326,8 +335,14 @@ function SettingsSection({ agentId, apiKey, profile, onProfileRefresh }: {
       <div>
         <h3 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.5rem' }}>Deposit credits</h3>
         <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
-          Send USDC to the treasury on Base, then paste the transaction hash here to mint credits.
+          Send USDC on Base to the treasury address below, then paste the transaction hash here to mint credits.
         </p>
+        {treasuryAddr && (
+          <div style={{ marginBottom: '0.75rem', padding: '0.6rem 0.75rem', background: 'var(--bg-secondary)', borderRadius: '0.375rem', border: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Treasury address (Base)</div>
+            <code style={{ fontSize: '0.8rem', wordBreak: 'break-all' }}>{treasuryAddr}</code>
+          </div>
+        )}
         <form onSubmit={handleDeposit} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <input
             type="text"
