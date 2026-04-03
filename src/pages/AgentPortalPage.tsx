@@ -243,34 +243,28 @@ function SettingsSection({ agentId, apiKey, profile, onProfileRefresh }: {
   const [depositing, setDepositing] = useState(false);
   const [depositMsg, setDepositMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [depositMeta, setDepositMeta] = useState<DepositAddressInfo | null>(null);
-  const [creditValueUsd, setCreditValueUsd] = useState<number | null>(null);
-
-  const API_BASE = import.meta.env.VITE_API_URL || '';
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([
-      api.getDepositAddress().catch(() => null),
-      agentApi.getStatus(agentId, apiKey).catch(() => null),
-    ]).then(([dep, status]) => {
-      if (cancelled) return;
-      if (dep?.address && dep.usdcContract) {
-        setDepositMeta({
-          address: dep.address,
-          usdcContract: dep.usdcContract,
-          chain: dep.chain,
-          asset: dep.asset,
-        });
-      } else {
-        setDepositMeta(null);
-      }
-      const cv = status && typeof status === 'object' && 'creditValueUsd' in status
-        ? (status as { creditValueUsd?: number }).creditValueUsd
-        : undefined;
-      setCreditValueUsd(typeof cv === 'number' && cv > 0 ? cv : null);
-    });
+    api.getDepositAddress()
+      .then(dep => {
+        if (cancelled) return;
+        if (dep?.address && dep.usdcContract) {
+          setDepositMeta({
+            address: dep.address,
+            usdcContract: dep.usdcContract,
+            chain: dep.chain,
+            asset: dep.asset,
+          });
+        } else {
+          setDepositMeta(null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setDepositMeta(null);
+      });
     return () => { cancelled = true; };
-  }, [agentId, apiKey]);
+  }, []);
 
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawing, setWithdrawing] = useState(false);
@@ -355,11 +349,7 @@ function SettingsSection({ agentId, apiKey, profile, onProfileRefresh }: {
       {/* Deposit */}
       <div id="top-up-credits">
         <h3 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.5rem' }}>Top up credits (USDC on Base)</h3>
-        <TopUpCreditsInstructions
-          deposit={depositMeta}
-          creditValueUsd={creditValueUsd}
-          guidesUrl={`${API_BASE}/api/guides/credits`}
-        />
+        <TopUpCreditsInstructions deposit={depositMeta} />
         <form onSubmit={handleDeposit} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <input
             type="text"

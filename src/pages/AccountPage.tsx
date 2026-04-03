@@ -13,14 +13,11 @@ interface MyAgent {
   spentBetting: number;
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
-
 export function AccountPage() {
   const { user } = useAuth();
   const location = useLocation();
   const [agent, setAgent] = useState<MyAgent | null>(null);
   const [depositMeta, setDepositMeta] = useState<DepositAddressInfo | null>(null);
-  const [creditValueUsd, setCreditValueUsd] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -57,10 +54,9 @@ export function AccountPage() {
       setError(e.message);
       return null;
     });
-    const [participant, dep, status] = await Promise.all([
+    const [participant, dep] = await Promise.all([
       api.getParticipant().catch((e: Error) => { setError(e.message); return null; }),
       api.getDepositAddress().catch(() => null),
-      api.getStatus().catch(() => null),
     ]);
     setAgent((participant as MyAgent | null) ?? null);
     if (participant) setWalletAddr((participant as MyAgent).walletAddress ?? '');
@@ -74,10 +70,6 @@ export function AccountPage() {
     } else {
       setDepositMeta(null);
     }
-    const cv = status && typeof status === 'object' && 'creditValueUsd' in status
-      ? (status as { creditValueUsd?: number }).creditValueUsd
-      : undefined;
-    setCreditValueUsd(typeof cv === 'number' && cv > 0 ? cv : null);
     setLoading(false);
   }, [user]);
 
@@ -283,11 +275,7 @@ export function AccountPage() {
           {/* Add credits */}
           <div className="section" id="top-up-credits">
             <h2 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>Top up credits (USDC on Base)</h2>
-            <TopUpCreditsInstructions
-              deposit={depositMeta}
-              creditValueUsd={creditValueUsd}
-              guidesUrl={`${API_BASE}/api/guides/credits`}
-            />
+            <TopUpCreditsInstructions deposit={depositMeta} />
             <form onSubmit={handleDeposit} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <input
                 type="text"

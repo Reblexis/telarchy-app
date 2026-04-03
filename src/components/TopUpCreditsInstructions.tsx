@@ -1,4 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, type CSSProperties } from 'react';
+import { Link } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 export type DepositAddressInfo = {
   address: string;
@@ -43,18 +47,43 @@ function CopyRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+const mdBox: CSSProperties = {
+  fontSize: '0.875rem',
+  color: 'var(--text-secondary)',
+  lineHeight: 1.65,
+  marginBottom: '1rem',
+};
+
 /**
- * Explains USDC-on-Base → credits flow for Account and Agent portal.
+ * Top-up help: narrative from GET /api/guides/credits; live values only from GET /api/agents/deposit-address.
+ * No client-side rules beyond displaying those API responses.
  */
-export function TopUpCreditsInstructions({
-  deposit,
-  creditValueUsd,
-  guidesUrl,
-}: {
-  deposit: DepositAddressInfo | null;
-  creditValueUsd: number | null | undefined;
-  guidesUrl: string;
-}) {
+export function TopUpCreditsInstructions({ deposit }: { deposit: DepositAddressInfo | null }) {
+  const [guideMd, setGuideMd] = useState('');
+  const [guideLoading, setGuideLoading] = useState(true);
+  const [guideErr, setGuideErr] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setGuideLoading(true);
+    setGuideErr(false);
+    fetch(`${API_BASE}/api/guides/credits`)
+      .then(r => {
+        if (!r.ok) throw new Error(String(r.status));
+        return r.text();
+      })
+      .then(text => {
+        if (!cancelled) setGuideMd(text);
+      })
+      .catch(() => {
+        if (!cancelled) setGuideErr(true);
+      })
+      .finally(() => {
+        if (!cancelled) setGuideLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
   if (!deposit) {
     return (
       <div
@@ -68,15 +97,10 @@ export function TopUpCreditsInstructions({
           color: 'var(--text-secondary)',
         }}
       >
-        Top-ups are not available on this deployment yet (no treasury address). Ask your administrator to configure on-chain settlement, or use another environment.
+        Top-up is unavailable: <code style={{ fontSize: '0.78rem' }}>GET /api/agents/deposit-address</code> did not return a treasury (host not configured for on-chain deposits).
       </div>
     );
   }
-
-  const rateLine =
-    typeof creditValueUsd === 'number' && creditValueUsd > 0
-      ? `On this server, about ${creditValueUsd} USDC buys roughly one credit before any buy fee.`
-      : 'Credit pricing is set by this server; the exact USDC amount per credit appears after you submit a deposit or in the full guides.';
 
   return (
     <div
@@ -88,34 +112,53 @@ export function TopUpCreditsInstructions({
         border: '1px solid var(--border-color)',
       }}
     >
-      <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
-        How top-up works
+      <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '0.65rem' }}>
+        Instructions below are the same as <code style={{ fontSize: '0.72rem' }}>GET /api/guides/credits</code>
+        {' · '}
+        <Link to="/guides" style={{ color: 'var(--focus-border)' }}>Guides</Link>
       </div>
-      <ol style={{ margin: '0 0 0.75rem 1.1rem', padding: 0, fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
-        <li style={{ marginBottom: '0.35rem' }}>
-          In your wallet, switch to the <strong style={{ color: 'var(--text-primary)' }}>Base</strong> network and choose{' '}
-          <strong style={{ color: 'var(--text-primary)' }}>USDC</strong> using the official contract below (wrong token or chain will not credit).
-        </li>
-        <li style={{ marginBottom: '0.35rem' }}>
-          Send USDC to the <strong style={{ color: 'var(--text-primary)' }}>treasury address</strong> below (this is the only recipient that mints credits for this platform).
-        </li>
-        <li style={{ marginBottom: '0.35rem' }}>
-          Wait until the transfer is <strong style={{ color: 'var(--text-primary)' }}>confirmed</strong> on Base.
-        </li>
-        <li>
-          Paste the transaction hash (66-character <code style={{ fontSize: '0.78rem' }}>0x…</code>) into the field below and submit. Each hash can be used once; the server verifies the transfer and adds credits to <em>your</em> participant account.
-        </li>
-      </ol>
-      <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', margin: '0 0 0.75rem' }}>{rateLine}</p>
+
+      {guideLoading && <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0 0 0.75rem' }}>Loading instructions…</p>}
+      {guideErr && (
+        <p style={{ fontSize: '0.8rem', color: 'var(--error-text)', margin: '0 0 0.75rem' }}>
+          Could not load <code>GET /api/guides/credits</code>. Open <Link to="/guides">Guides</Link> or call the API directly.
+        </p>
+      )}
+      {!guideLoading && !guideErr && guideMd && (
+        <div style={mdBox}>
+          <ReactMarkdown
+            components={{
+              h1: ({ children }) => <h1 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 0.75rem' }}>{children}</h1>,
+              h2: ({ children }) => <h2 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', margin: '1rem 0 0.5rem' }}>{children}</h2>,
+              p: ({ children }) => <p style={{ margin: '0 0 0.6rem' }}>{children}</p>,
+              ol: ({ children }) => <ol style={{ margin: '0 0 0.6rem 1.1rem', padding: 0 }}>{children}</ol>,
+              ul: ({ children }) => <ul style={{ margin: '0 0 0.6rem 1.1rem', padding: 0 }}>{children}</ul>,
+              li: ({ children }) => <li style={{ marginBottom: '0.25rem' }}>{children}</li>,
+              pre: ({ children }) => (
+                <pre style={{ margin: '0 0 0.6rem', overflow: 'auto', padding: '0.5rem', background: 'var(--bg-primary)', borderRadius: 6, border: '1px solid var(--border-color)' }}>
+                  {children}
+                </pre>
+              ),
+              code: ({ className, children }) => {
+                const block = typeof className === 'string' && className.startsWith('language-');
+                if (block) {
+                  return <code className={className} style={{ fontSize: '0.78rem', display: 'block', whiteSpace: 'pre', fontFamily: 'monospace' }}>{children}</code>;
+                }
+                return <code style={{ fontSize: '0.82rem', background: 'var(--bg-primary)', padding: '0.1rem 0.25rem', borderRadius: 4 }}>{children}</code>;
+              },
+              a: ({ href, children }) => <a href={href} style={{ color: 'var(--focus-border)' }} target="_blank" rel="noreferrer">{children}</a>,
+            }}
+          >
+            {guideMd}
+          </ReactMarkdown>
+        </div>
+      )}
+
+      <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.4rem' }}>
+        This deployment (from <code style={{ fontSize: '0.7rem' }}>GET /api/agents/deposit-address</code>)
+      </div>
       <CopyRow label={`USDC contract (${deposit.chain})`} value={deposit.usdcContract} />
-      <CopyRow label="Treasury address (send USDC here)" value={deposit.address} />
-      <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', margin: 0 }}>
-        More detail:{' '}
-        <a href={guidesUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--focus-border)' }}>
-          Guides → Credits &amp; USDC
-        </a>
-        .
-      </p>
+      <CopyRow label="Treasury address" value={deposit.address} />
     </div>
   );
 }

@@ -194,7 +194,7 @@ Credits are backed by real USDC. A treasury wallet on the Base L2 network holds 
 - The fee surplus stays in the treasury — the system is self-sustaining: total USDC held ≥ credits outstanding × creditValueUsd at all times.
 - Each tx hash is stored in the `deposits` collection and rejected if reused (double-spend prevention).
 
-**Web UI**: signed-in users get **Top up with USDC** from Account (balance area and sidebar); the Account and API Key portal **Settings** deposit sections include step-by-step instructions, contract/treasury copy buttons, and a link to the in-app **Guides → Credits & USDC** content.
+**Web UI**: signed-in users get **Top up with USDC** from Account (balance area and sidebar); deposit panels render **`GET /api/guides/credits`** for prose and **`GET /api/agents/deposit-address`** for live contract/treasury values (same as any API client), plus the existing **`POST /api/agents/me/deposit`** form.
 
 **Economy parameters** (set in `_system/economy`):
 - `creditValueUsd` — USD value of 1 credit (also used for withdrawal conversion).
