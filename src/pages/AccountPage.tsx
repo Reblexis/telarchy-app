@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, type FormEvent } from 'react';
+import { useLocation } from 'react-router-dom';
 import { authClient } from '../lib/auth-client';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/api';
+import { TopUpCreditsInstructions, type DepositAddressInfo } from '../components/TopUpCreditsInstructions';
 
 interface MyAgent {
   id: string;
@@ -11,15 +13,14 @@ interface MyAgent {
   spentBetting: number;
 }
 
-interface TreasuryInfo {
-  address: string;
-  usdcBalance: number;
-}
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 export function AccountPage() {
   const { user } = useAuth();
+  const location = useLocation();
   const [agent, setAgent] = useState<MyAgent | null>(null);
-  const [treasury, setTreasury] = useState<TreasuryInfo | null>(null);
+  const [depositMeta, setDepositMeta] = useState<DepositAddressInfo | null>(null);
+  const [creditValueUsd, setCreditValueUsd] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -56,21 +57,37 @@ export function AccountPage() {
       setError(e.message);
       return null;
     });
-    const [participant, depositMeta] = await Promise.all([
+    const [participant, dep, status] = await Promise.all([
       api.getParticipant().catch((e: Error) => { setError(e.message); return null; }),
       api.getDepositAddress().catch(() => null),
+      api.getStatus().catch(() => null),
     ]);
     setAgent((participant as MyAgent | null) ?? null);
     if (participant) setWalletAddr((participant as MyAgent).walletAddress ?? '');
-    if (depositMeta?.address) {
-      setTreasury({ address: depositMeta.address, usdcBalance: 0 });
+    if (dep?.address && dep.usdcContract) {
+      setDepositMeta({
+        address: dep.address,
+        usdcContract: dep.usdcContract,
+        chain: dep.chain,
+        asset: dep.asset,
+      });
     } else {
-      setTreasury(null);
+      setDepositMeta(null);
     }
+    const cv = status && typeof status === 'object' && 'creditValueUsd' in status
+      ? (status as { creditValueUsd?: number }).creditValueUsd
+      : undefined;
+    setCreditValueUsd(typeof cv === 'number' && cv > 0 ? cv : null);
     setLoading(false);
   }, [user]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (loading || location.hash !== '#top-up-credits') return;
+    const el = document.getElementById('top-up-credits');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [loading, location.hash]);
 
   const handleDeposit = async (e: FormEvent) => {
     e.preventDefault();
@@ -227,12 +244,33 @@ export function AccountPage() {
         <>
           {/* Balance */}
           <div className="section">
-            <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.4rem' }}>
-              Credit balance
-            </div>
-            <div style={{ fontFamily: 'monospace', fontSize: '2.5rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
-              {agent.balance.toFixed(2)}
-              <span style={{ fontSize: '1rem', fontWeight: 400, color: 'var(--text-secondary)', marginLeft: '0.4rem' }}>credits</span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: '0.75rem' }}>
+              <div>
+                <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.4rem' }}>
+                  Credit balance
+                </div>
+                <div style={{ fontFamily: 'monospace', fontSize: '2.5rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
+                  {agent.balance.toFixed(2)}
+                  <span style={{ fontSize: '1rem', fontWeight: 400, color: 'var(--text-secondary)', marginLeft: '0.4rem' }}>credits</span>
+                </div>
+              </div>
+              <a
+                href="#top-up-credits"
+                style={{
+                  display: 'inline-block',
+                  padding: '0.45rem 0.85rem',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  color: 'var(--text-primary)',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '0.375rem',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Top up with USDC
+              </a>
             </div>
             {(agent.earnedBetting !== 0 || agent.spentBetting !== 0) && (
               <div style={{ marginTop: '0.5rem', display: 'flex', gap: '1.25rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
@@ -243,17 +281,13 @@ export function AccountPage() {
           </div>
 
           {/* Add credits */}
-          <div className="section">
-            <h2 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>Add credits</h2>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
-              Send USDC on Base to the treasury address, then paste your transaction hash below to mint credits.
-            </p>
-            {treasury && (
-              <div style={{ marginBottom: '0.75rem', padding: '0.6rem 0.75rem', background: 'var(--bg-secondary)', borderRadius: '0.375rem', border: '1px solid var(--border-color)' }}>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Treasury address (Base)</div>
-                <code style={{ fontSize: '0.8rem', wordBreak: 'break-all' }}>{treasury.address}</code>
-              </div>
-            )}
+          <div className="section" id="top-up-credits">
+            <h2 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>Top up credits (USDC on Base)</h2>
+            <TopUpCreditsInstructions
+              deposit={depositMeta}
+              creditValueUsd={creditValueUsd}
+              guidesUrl={`${API_BASE}/api/guides/credits`}
+            />
             <form onSubmit={handleDeposit} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <input
                 type="text"

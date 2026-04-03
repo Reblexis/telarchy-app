@@ -99,6 +99,13 @@ export function Sidebar() {
         <Link to="/account" className={`sidebar-nav-item${currentPath === '/account' ? ' active' : ''}`}>
           Account
         </Link>
+        <Link
+          to="/account#top-up-credits"
+          className="sidebar-nav-item sidebar-nav-muted"
+          style={{ fontSize: '0.8rem', paddingTop: '0.15rem', paddingBottom: '0.35rem' }}
+        >
+          Top up credits (USDC)
+        </Link>
         <Link to="/guides" className={`sidebar-nav-item${currentPath === '/guides' ? ' active' : ''}`}>
           Guides
         </Link>

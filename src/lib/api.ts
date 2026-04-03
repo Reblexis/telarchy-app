@@ -107,6 +107,8 @@ export const agentApi = {
   },
   getProfile: (_agentId: string, apiKey: string) =>
     agentRequest('/api/agents/me', apiKey),
+  getStatus: (_agentId: string, apiKey: string) =>
+    agentRequest('/api/status', apiKey),
   getDashboard: (_agentId: string, apiKey: string) =>
     agentRequest('/api/agents/me/dashboard', apiKey),
   getMarkets: (agentId: string, apiKey: string) =>

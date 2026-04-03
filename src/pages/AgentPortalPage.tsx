@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { agentApi, api } from '../lib/api';
+import { TopUpCreditsInstructions, type DepositAddressInfo } from '../components/TopUpCreditsInstructions';
 import { useAgentSession } from '../hooks/useAgentSession';
 import { Header } from '../components/Header';
 
@@ -25,7 +26,7 @@ function OverviewSection({ profile }: { profile: AgentProfile }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-        <StatCard label="Balance" value={`$${profile.balance.toFixed(2)}`} />
+        <StatCard label="Balance" value={`${profile.balance.toFixed(2)} credits`} />
         <StatCard
           label="Betting PnL"
           value={`${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`}
@@ -241,15 +242,35 @@ function SettingsSection({ agentId, apiKey, profile, onProfileRefresh }: {
   const [txHash, setTxHash] = useState('');
   const [depositing, setDepositing] = useState(false);
   const [depositMsg, setDepositMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [treasuryAddr, setTreasuryAddr] = useState<string | null>(null);
+  const [depositMeta, setDepositMeta] = useState<DepositAddressInfo | null>(null);
+  const [creditValueUsd, setCreditValueUsd] = useState<number | null>(null);
+
+  const API_BASE = import.meta.env.VITE_API_URL || '';
 
   useEffect(() => {
     let cancelled = false;
-    api.getDepositAddress().then(d => {
-      if (!cancelled && d?.address) setTreasuryAddr(d.address);
-    }).catch(() => { /* unconfigured server or network */ });
+    Promise.all([
+      api.getDepositAddress().catch(() => null),
+      agentApi.getStatus(agentId, apiKey).catch(() => null),
+    ]).then(([dep, status]) => {
+      if (cancelled) return;
+      if (dep?.address && dep.usdcContract) {
+        setDepositMeta({
+          address: dep.address,
+          usdcContract: dep.usdcContract,
+          chain: dep.chain,
+          asset: dep.asset,
+        });
+      } else {
+        setDepositMeta(null);
+      }
+      const cv = status && typeof status === 'object' && 'creditValueUsd' in status
+        ? (status as { creditValueUsd?: number }).creditValueUsd
+        : undefined;
+      setCreditValueUsd(typeof cv === 'number' && cv > 0 ? cv : null);
+    });
     return () => { cancelled = true; };
-  }, []);
+  }, [agentId, apiKey]);
 
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawing, setWithdrawing] = useState(false);
@@ -332,17 +353,13 @@ function SettingsSection({ agentId, apiKey, profile, onProfileRefresh }: {
       <div style={{ borderTop: '1px solid var(--border-color)' }} />
 
       {/* Deposit */}
-      <div>
-        <h3 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.5rem' }}>Deposit credits</h3>
-        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
-          Send USDC on Base to the treasury address below, then paste the transaction hash here to mint credits.
-        </p>
-        {treasuryAddr && (
-          <div style={{ marginBottom: '0.75rem', padding: '0.6rem 0.75rem', background: 'var(--bg-secondary)', borderRadius: '0.375rem', border: '1px solid var(--border-color)' }}>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Treasury address (Base)</div>
-            <code style={{ fontSize: '0.8rem', wordBreak: 'break-all' }}>{treasuryAddr}</code>
-          </div>
-        )}
+      <div id="top-up-credits">
+        <h3 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.5rem' }}>Top up credits (USDC on Base)</h3>
+        <TopUpCreditsInstructions
+          deposit={depositMeta}
+          creditValueUsd={creditValueUsd}
+          guidesUrl={`${API_BASE}/api/guides/credits`}
+        />
         <form onSubmit={handleDeposit} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <input
             type="text"
@@ -409,6 +426,13 @@ export function AgentPortalPage() {
 
   const { agentId, apiKey } = session!;
 
+  const goToTopUp = () => {
+    setSection('settings');
+    queueMicrotask(() => {
+      document.getElementById('top-up-credits')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
+
   const loadProfile = useCallback(async () => {
     setProfileError('');
     try {
@@ -445,9 +469,28 @@ export function AgentPortalPage() {
               {agentId}
             </div>
             {profile && (
-              <div style={{ marginTop: '0.6rem', display: 'flex', alignItems: 'baseline', gap: '0.3rem' }}>
-                <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '1rem' }}>${profile.balance.toFixed(2)}</span>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>credits</span>
+              <div style={{ marginTop: '0.6rem' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.3rem' }}>
+                  <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '1rem' }}>{profile.balance.toFixed(2)}</span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>credits</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={goToTopUp}
+                  style={{
+                    marginTop: '0.45rem',
+                    padding: '0.25rem 0.5rem',
+                    fontSize: '0.72rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '0.3rem',
+                    color: 'var(--text-primary)',
+                  }}
+                >
+                  Top up with USDC
+                </button>
               </div>
             )}
           </div>
