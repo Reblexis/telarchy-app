@@ -569,12 +569,6 @@ export function LandingPage() {
         }}>
           <img src="/logo_transparent_bg.png" alt="Telarchy" style={{ height: '3rem' }} />
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <Link to="/marketplace" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>
-              Marketplace
-            </Link>
-            <Link to="/agent-login" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>
-              API Key Portal
-            </Link>
             <Link to="/login" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>
               Log in
             </Link>
@@ -662,8 +656,6 @@ export function LandingPage() {
 
         {/* How it works */}
         <section
-          ref={revealHowItWorks as React.RefObject<HTMLElement>}
-          className="reveal"
           style={{ padding: '5rem 2rem', maxWidth: 1100, margin: '0 auto', width: '100%' }}
         >
           <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '3rem', textAlign: 'center' }}>
@@ -710,8 +702,6 @@ export function LandingPage() {
 
         {/* Interactive demo */}
         <section
-          ref={revealDemo as React.RefObject<HTMLElement>}
-          className="reveal"
           style={{ padding: '0 2rem 5rem', maxWidth: 1100, margin: '0 auto', width: '100%' }}
         >
           <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'center' }}>
