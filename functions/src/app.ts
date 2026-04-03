@@ -21,29 +21,12 @@ import { toNodeHandler } from 'better-auth/node';
 import { auth } from './auth';
 import type { Request, Response, NextFunction } from 'express';
 import { AppError } from './lib/errors';
-
-// ALLOWED_ORIGIN controls which browser origins can call this server.
-// Set to "*" to allow any origin (useful for self-hosted instances).
-// The production app always includes the Telarchy domains.
-const ALLOWED_ORIGIN_EXACT = [
-  process.env.ALLOWED_ORIGIN,
-  'https://telarchy.com',
-  'https://www.telarchy.com',
-].filter(Boolean) as string[];
-
-const ALLOWED_ORIGIN_PATTERNS = [
-  /^http:\/\/localhost(:\d+)?$/,
-];
-
-const allowAllOrigins = ALLOWED_ORIGIN_EXACT.includes('*');
+import { originAllowedForCors } from './lib/origins';
 
 export const app = express();
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin) return cb(null, true); // server-to-server
-    if (allowAllOrigins) return cb(null, true);
-    if (ALLOWED_ORIGIN_EXACT.includes(origin)) return cb(null, true);
-    if (ALLOWED_ORIGIN_PATTERNS.some(r => r.test(origin))) return cb(null, true);
+    if (originAllowedForCors(origin)) return cb(null, true);
     return cb(new Error('CORS: origin not allowed'));
   },
   credentials: true,

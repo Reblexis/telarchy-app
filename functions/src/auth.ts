@@ -2,25 +2,29 @@ import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { db } from './db/client';
 import * as schema from './db/schema';
+import { betterAuthTrustedOrigins } from './lib/origins';
 
-/** Public site origin for OAuth redirect_uri (Cloud Run otherwise uses *.run.app). */
-const explicitBaseURL =
-  process.env.BETTER_AUTH_URL ||
-  (process.env.GCLOUD_PROJECT === 'telarchy-e0043' ? 'https://telarchy.com' : undefined);
+/**
+ * Public origin of this app as seen by the browser (scheme + host, no path).
+ * Required for correct OAuth redirect_uri behind proxies / serverless unless the
+ * platform sets forwarded URL headers Better Auth can trust.
+ */
+const publicAuthBaseURL = process.env.BETTER_AUTH_URL?.trim() || undefined;
 
-/** OAuth callback is apex; www-only cookies are not sent → state_mismatch without shared domain. */
-const telarchySharedCookieDomain =
-  process.env.GCLOUD_PROJECT === 'telarchy-e0043' ||
-  (process.env.BETTER_AUTH_URL ?? '').includes('telarchy.com');
+/**
+ * Optional registrable domain for auth cookies, e.g. ".example.com" when users hit
+ * both apex and www so OAuth state cookies survive the callback host.
+ */
+const authCookieDomain = process.env.AUTH_COOKIE_DOMAIN?.trim();
 
 export const auth = betterAuth({
-  ...(explicitBaseURL ? { baseURL: explicitBaseURL } : {}),
-  ...(telarchySharedCookieDomain
+  ...(publicAuthBaseURL ? { baseURL: publicAuthBaseURL } : {}),
+  ...(authCookieDomain
     ? {
         advanced: {
           crossSubDomainCookies: {
             enabled: true,
-            domain: '.telarchy.com',
+            domain: authCookieDomain,
           },
         },
       }
@@ -49,14 +53,6 @@ export const auth = betterAuth({
       },
     } : {}),
   },
-  trustedOrigins: process.env.ALLOWED_ORIGIN === '*'
-    ? ['*']
-    : [
-      process.env.ALLOWED_ORIGIN ?? '',
-      'https://telarchy.com',
-      'https://www.telarchy.com',
-      'http://localhost:5173',
-      'http://localhost:4173',
-    ].filter(Boolean),
+  trustedOrigins: betterAuthTrustedOrigins(),
   basePath: '/api/auth',
 });

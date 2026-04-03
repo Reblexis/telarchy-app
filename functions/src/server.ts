@@ -10,7 +10,11 @@
  *
  * Optional env vars:
  *   PORT                — HTTP port (default 8080)
- *   ALLOWED_ORIGIN      — allowed browser origin, or "*" to allow all
+ *   ALLOWED_ORIGIN      — unset, empty, or "*" = any origin; else comma-separated exact origins (CORS + BetterAuth)
+ *   TRUSTED_ORIGINS     — optional comma-separated extra origins (merged with ALLOWED_ORIGIN for CORS and BetterAuth)
+ *   BETTER_AUTH_URL     — public site origin (https://your-host) for OAuth redirects behind proxies
+ *   AUTH_COOKIE_DOMAIN  — e.g. ".example.com" so apex + www share auth cookies (optional)
+ *   ALLOW_LOCALHOST_CORS — "1" to allow localhost/127.0.0.1 when ALLOWED_ORIGIN is restricted (local dev)
  *   ADMIN_EMAILS        — comma-separated emails that get platform-admin access
  *   GOOGLE_CLIENT_ID    — Google OAuth client ID (for social sign-in)
  *   GOOGLE_CLIENT_SECRET
