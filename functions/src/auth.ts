@@ -3,7 +3,13 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { db } from './db/client';
 import * as schema from './db/schema';
 
+/** Public site origin for OAuth redirect_uri (Cloud Run otherwise uses *.run.app). */
+const explicitBaseURL =
+  process.env.BETTER_AUTH_URL ||
+  (process.env.GCLOUD_PROJECT === 'telarchy-e0043' ? 'https://telarchy.com' : undefined);
+
 export const auth = betterAuth({
+  ...(explicitBaseURL ? { baseURL: explicitBaseURL } : {}),
   database: drizzleAdapter(db, {
     provider: 'pg',
     schema: {

@@ -12,13 +12,12 @@ import { app } from './app';
 import { assertTreasuryConfigured } from './lib/usdc';
 
 const SECRETS = ['TREASURY_PRIVATE_KEY', 'DATABASE_URL', 'BETTER_AUTH_SECRET'];
-/** OAuth client id/secret — same names as env vars; create in Secret Manager before deploy (`firebase functions:secrets:set`). */
-const OAUTH_SECRETS = [
-  'GOOGLE_CLIENT_ID',
-  'GOOGLE_CLIENT_SECRET',
-  'GITHUB_CLIENT_ID',
-  'GITHUB_CLIENT_SECRET',
-];
+/**
+ * OAuth — Secret Manager names must match env vars used in auth.ts.
+ * Google: required for telarchy.com social login. Add GitHub secrets to the project
+ * and append 'GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET' here when you want GitHub.
+ */
+const OAUTH_SECRETS = ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'];
 
 export const api = onRequest({ minInstances: 1, secrets: [...SECRETS, ...OAUTH_SECRETS] }, (req, res) => {
   assertTreasuryConfigured();

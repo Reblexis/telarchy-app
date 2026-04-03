@@ -34,8 +34,24 @@ get_val() {
   printf '%s' "$val"
 }
 
-for key in GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET GITHUB_CLIENT_ID GITHUB_CLIENT_SECRET; do
+push_if_present() {
+  local key="$1"
+  local line
+  line=$(grep -E "^${key}=" "$ENVFILE" | tail -1) || true
+  [[ -z "$line" ]] && return 0
+  local val="${line#*=}"
+  val="${val%$'\r'}"
+  if [[ "$val" == \"*\" ]]; then val="${val#\"}"; val="${val%\"}"; fi
+  [[ -z "$val" ]] && return 0
+  echo "Setting secret $key ..."
+  printf '%s' "$val" | firebase functions:secrets:set "$key" --data-file=-
+}
+
+for key in GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET; do
   echo "Setting secret $key ..."
   get_val "$key" | firebase functions:secrets:set "$key" --data-file=-
+done
+for key in GITHUB_CLIENT_ID GITHUB_CLIENT_SECRET; do
+  push_if_present "$key"
 done
 echo "Done. Run firebase deploy."
