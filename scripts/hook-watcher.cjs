@@ -26,14 +26,20 @@ function saveState(state) {
   fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
 }
 
+function resolveKeyFile(agentDir) {
+  const telarchy = path.join(agentDir, '.telarchy-key');
+  const legacy = path.join(agentDir, '.metrics-trader-key');
+  if (fs.existsSync(telarchy)) return telarchy;
+  if (fs.existsSync(legacy)) return legacy;
+  return null;
+}
+
 function findApiKey() {
   if (process.env.TELARCHY_KEY) return process.env.TELARCHY_KEY;
-  const agents = fs.readdirSync(WORKSPACES_DIR).filter(d => {
-    const keyFile = path.join(WORKSPACES_DIR, d, '.metrics-trader-key');
-    return fs.existsSync(keyFile);
-  });
-  if (agents.length === 0) { console.error('No agent key found. Set TELARCHY_KEY or register an agent.'); process.exit(1); }
-  return fs.readFileSync(path.join(WORKSPACES_DIR, agents[0], '.metrics-trader-key'), 'utf-8').trim();
+  const agents = fs.readdirSync(WORKSPACES_DIR).filter(d => resolveKeyFile(path.join(WORKSPACES_DIR, d)));
+  if (agents.length === 0) { console.error('No agent key found. Set TELARCHY_KEY or add .telarchy-key under ~/.openclaw/workspaces/<agentId>/.'); process.exit(1); }
+  const keyPath = resolveKeyFile(path.join(WORKSPACES_DIR, agents[0]));
+  return fs.readFileSync(keyPath, 'utf-8').trim();
 }
 
 // sub: string (event type, match all) or object with optional metricNames/metricIds filters.

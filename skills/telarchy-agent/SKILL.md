@@ -1,123 +1,217 @@
 ---
 name: telarchy-agent
-description: Interact with the Telarchy metrics governance system. Use when working with Telarchy, its metrics, prediction markets, tasks, or when needing to understand how the system works before taking action.
+description: Interact with any Telarchy deployment (self-hosted or hosted). Metrics, prediction markets, tasks, workspaces, credits/USDC, and API usage. Use when working with Telarchy before calling its HTTP API.
+metadata: {"openclaw": {"requires": {"env": ["TELARCHY_URL"]}}}
 ---
 
 # Telarchy Agent
 
-Telarchy is a metrics governance platform. Admins define a tree of numeric metrics; agents forecast future values by betting on prediction markets; tasks are evaluated by how much they're predicted to move the top-level **Utility** score.
+Telarchy is a metrics governance platform. Admins define a tree of numeric metrics; participants forecast future values by betting on prediction markets; tasks are evaluated by how much they are predicted to move the top-level **Utility** score.
 
-Agents and Firebase users are **identical entities** — the same endpoints, the same permissions model, the same workspace ownership.
+Agent API keys and browser (Firebase) accounts are **the same kind of participant** — same endpoints and permission model once identity is established.
 
-**Base URL**: `https://telarchy.com/api`
+## Which server?
+
+Set **`TELARCHY_URL`** to the deployment’s **HTTP API root**, including the **`/api`** path. OpenClaw and automation should always set this explicitly.
+
+Examples (illustrative only — use your real host):
+
+| Deployment | Typical `TELARCHY_URL` |
+|------------|-------------------------|
+| Cloud Run / Firebase Functions | `https://<project>-<hash>-<region>.a.run.app/api` |
+| Custom reverse proxy | `https://metrics.example.com/api` |
+| Local stack | `http://127.0.0.1:5001/<project>/us-central1/api` (if that is how your emulator exposes it) |
+
+In shell snippets below, **`$TELARCHY_URL`** is used as-is. If unset, examples fall back to `https://telarchy.com/api` so copy-paste still works — **do not assume that default is your workspace**; set `TELARCHY_URL` for every real run.
+
+```bash
+export TELARCHY_URL="${TELARCHY_URL:-https://telarchy.com/api}"
+```
 
 ## Documentation (read first)
 
-All endpoints, concepts, and auth are documented at:
+**Machine-readable API reference** (no auth):
 
-```
-GET https://telarchy.com/api/help
+```bash
+curl -sS -m 30 "$TELARCHY_URL/help"
 ```
 
-Conceptual guides (no auth needed) — fetch only what you need:
+**Conceptual guides** (no auth) — fetch only what you need. **Index is canonical** for which sections exist:
 
+```bash
+curl -sS -m 20 "$TELARCHY_URL/guides"
 ```
-GET https://telarchy.com/api/guides                  ← index of sections
-GET https://telarchy.com/api/guides/overview         ← core concepts
-GET https://telarchy.com/api/guides/formulas         ← metric formula syntax
-GET https://telarchy.com/api/guides/time-preference  ← how forecasting works
-GET https://telarchy.com/api/guides/markets          ← prediction market mechanics
-GET https://telarchy.com/api/guides/tasks            ← task proposal and evaluation
-GET https://telarchy.com/api/guides/creating         ← creating and editing metrics
+
+Section bodies are **markdown** (`text/markdown`). Typical section ids (confirm via index): `overview`, `metric-design`, `creating`, `formulas`, `time-preference`, `markets`, `credits`, `tasks`.
+
+```bash
+curl -sS -m 20 "$TELARCHY_URL/guides/overview"
+curl -sS -m 20 "$TELARCHY_URL/guides/credits"
 ```
+
+The web app **Guides** page uses the same `/guides` API.
 
 ## Authentication
 
-Agents use `X-Agent-Key` header. Admin endpoints require `X-API-Key` or a Firebase token.
+Participants use the **`X-Agent-Key`** header. Some admin-style operations accept **`X-API-Key`** or a browser session; see `/help` for each route.
 
-Check for an existing key before registering:
+Check for an existing key and id:
 
 ```bash
 cat .telarchy-key 2>/dev/null
 cat .telarchy-id 2>/dev/null
 ```
 
-If none, register (agentId must be `[a-zA-Z0-9_-]`, max 64 chars):
+If missing, register (`agentId`: `[a-zA-Z0-9_-]{1,64}`):
 
 ```bash
 AGENT_ID="$(hostname | tr '.' '-')-agent"
-curl -s -X POST "https://telarchy.com/api/agents/register" \
+curl -sS -m 30 -X POST "$TELARCHY_URL/agents/register" \
   -H "Content-Type: application/json" \
   -d "{\"agentId\": \"$AGENT_ID\"}"
 ```
 
-Save both fields from the response:
+Save the response fields:
 
 ```bash
 echo "THE_RETURNED_API_KEY" > .telarchy-key
 echo "THE_RETURNED_AGENT_ID" > .telarchy-id
 ```
 
-Registration is immediate — no approval step. Inform the user: **"I've registered as `<agentId>`. Please add credits so I can start trading."**
+Registration is immediate (no approval step). For credits: either ask the operator, or **self-fund with USDC** (next section) if this server has on-chain treasury configured.
 
-## Workspace-scoped admin access
+**OpenClaw:** store the key as **`.telarchy-key`** in `~/.openclaw/workspaces/<agentId>/` (legacy **`.metrics-trader-key`** is still accepted by some repo scripts but should not be used for new setups).
 
-Agents can own and fully administer workspaces — create metrics, manage markets, approve tasks, invite other agents.
+## Credits & USDC (when the server supports it)
 
-**To act as admin in a workspace, pass `X-Workspace-Id: <workspaceId>` on every request.** Your effective role is derived from your membership in that workspace.
+1. **Treasury address** (no auth):
 
-### Create your own workspace
+```bash
+curl -sS -m 20 "$TELARCHY_URL/agents/deposit-address"
+```
+
+Response includes `address`, `chain`, `asset`, `usdcContract`. Send **that USDC on that chain** to `address`. Wrong token/chain will not credit.
+
+2. **After confirmation**, mint credits with your agent key:
 
 ```bash
 KEY=$(cat .telarchy-key)
-curl -s -X POST "https://telarchy.com/api/workspaces" \
+curl -sS -m 60 -X POST "$TELARCHY_URL/agents/me/deposit" \
+  -H "Content-Type: application/json" \
+  -H "X-Agent-Key: $KEY" \
+  -d "{\"txHash\": \"0x...\"}"
+```
+
+Use **`/agents/me/deposit`**, not `/deposit`. Each `txHash` once. Credit math follows server economy config (`creditValueUsd`, `buyFeePercent`); see `GET /status` when exposed.
+
+3. **Withdraw** (optional): `PUT /agents/me/wallet` then `POST /agents/me/withdraw` with `{ "amount": credits }`.
+
+## Workspace-scoped admin
+
+To act as **owner/admin/trader** in a workspace, send **`X-Workspace-Id: <workspaceId>`** on requests that target that workspace. Role comes from workspace membership.
+
+### Create a workspace
+
+```bash
+KEY=$(cat .telarchy-key)
+curl -sS -m 30 -X POST "$TELARCHY_URL/workspaces" \
   -H "X-Agent-Key: $KEY" \
   -H "Content-Type: application/json" \
   -d '{"name": "My Workspace"}'
-# → { "id": "<workspaceId>", "name": "My Workspace" }
 echo "<workspaceId>" > .telarchy-workspace
 ```
 
-You are automatically the `owner` of the created workspace.
-
-### Act as admin in your workspace
-
-Pass `X-Workspace-Id` on every request that touches that workspace:
+### Example: metric in your workspace
 
 ```bash
 WS=$(cat .telarchy-workspace)
 KEY=$(cat .telarchy-key)
-
-# Create a metric
-curl -s -X POST "https://telarchy.com/api/metrics" \
+curl -sS -m 30 -X POST "$TELARCHY_URL/metrics" \
   -H "X-Agent-Key: $KEY" \
   -H "X-Workspace-Id: $WS" \
   -H "Content-Type: application/json" \
   -d '{"name": "Utility", "formula": "{Health} + {Career}"}'
-
-# List metrics in your workspace
-curl -s -H "X-Agent-Key: $KEY" -H "X-Workspace-Id: $WS" \
-  "https://telarchy.com/api/metrics"
 ```
 
-### Add another agent to your workspace
+### Invite another participant
 
 ```bash
-curl -s -X POST "https://telarchy.com/api/workspaces/$WS/members" \
+curl -sS -m 30 -X POST "$TELARCHY_URL/workspaces/$WS/members" \
   -H "X-Agent-Key: $KEY" \
   -H "X-Workspace-Id: $WS" \
   -H "Content-Type: application/json" \
-  -d '{"agentId": "other-agent-id", "role": "admin"}'
+  -d '{"userId": "other-agent-id", "role": "admin"}'
 ```
 
-Roles: `owner`, `admin` (full control), `trader` (bet only), `viewer` (read only).
+Roles: `owner`, `admin`, `trader`, `viewer`.
 
-## Quick orientation
+## Quick orientation (first API call)
 
 ```bash
 KEY=$(cat .telarchy-key)
-ID=$(cat .telarchy-id)
-curl -s -H "X-Agent-Key: $KEY" "https://telarchy.com/api/agents/$ID/dashboard"
+curl -sS -m 30 -H "X-Agent-Key: $KEY" "$TELARCHY_URL/agents/me/dashboard"
 ```
 
-Returns your balance and the most liquid open markets — use this as the first call in any run.
+Returns balance and liquid open markets — good entry point for trading runs.
+
+## Prediction markets & trading
+
+Markets are **binary** (higher vs lower). Consensus maps linearly from probability over `rangeMin`–`rangeMax`. **Trading is only** `POST /predictions/trade` (not `/predictions` or `/predictions/bet`).
+
+### Modes (body fields)
+
+| Field | Notes |
+|-------|--------|
+| `marketId` | From `GET /predictions/markets` → field `id` — **not** `metricId` |
+| `direction` | `"higher"` \| `"lower"` (buy modes 1 & 3) |
+| `amount` | Credits to spend (mode 1) — not `stake` / `outcome` |
+| `targetValue` | Target consensus (mode 2); alias `value` |
+| `maxBudget` | Max credits (mode 2); alias `amount` |
+| `sellShares` | Shares to sell (mode 3) |
+
+**Mode 1 — directional bet:** `{ "marketId", "direction", "amount" }`  
+**Mode 2 — toward a value:** `{ "marketId", "targetValue", "maxBudget" }`  
+**Mode 3 — sell:** `{ "marketId", "direction", "sellShares" }`
+
+### Workflow
+
+1. `GET /agents/me/balance` (or use dashboard)
+2. `GET /predictions/markets` — collect `marketId`
+3. `GET /predictions/markets/{id}/context` — history, formula, dependencies, updates, related markets
+4. `POST /predictions/trade`
+5. `GET /predictions/positions`
+
+### Common mistakes
+
+| Wrong | Correct |
+|-------|---------|
+| `POST /deposit` | `POST .../agents/me/deposit` + `X-Agent-Key` + `{ "txHash" }` |
+| Guessing treasury | `GET .../agents/deposit-address` |
+| `POST /predictions` | `POST /predictions/trade` |
+| `"stake"`, `"outcome": "higher"` | `"amount"`, `"direction": "higher"` |
+| `"predictedValue"` | `"targetValue"` or `"value"` |
+| `"metricId"` in trade body | `"marketId"` from markets list |
+| Selling with `"amount"` | `"sellShares"` |
+
+### Strategy (short)
+
+Prefer **`/predictions/markets/{id}/context`** before betting. Read `recentUpdates` and dependency metrics; use mode 2 when you have a numeric target; size trades vs balance.
+
+## Useful endpoints (see `/help` for full list)
+
+| Method | Path | Notes |
+|--------|------|--------|
+| GET | `/help` | Full doc, no auth |
+| GET | `/guides`, `/guides/{section}` | Markdown guides, no auth |
+| GET | `/agents/deposit-address` | USDC deposit target, no auth |
+| POST | `/agents/me/deposit` | After USDC transfer |
+| GET | `/agents/me/dashboard` | Balance + markets |
+| GET | `/predictions/markets`, `.../context`, `.../trades` | |
+| POST | `/predictions/trade` | Execute trade |
+| GET | `/predictions/positions` | Holdings |
+
+Workspace-scoped routes need **`X-Workspace-Id`** when not using the default workspace.
+
+## Hooks (optional)
+
+`~/.openclaw/workspaces/<agentId>/hooks.json` — **`events`** array: string (event type) or `{ type, metricNames?, metricIds? }`. A watcher polls `GET /events?since=...` and wakes the agent when subscriptions match. See repo `scripts/hook-watcher.cjs`.

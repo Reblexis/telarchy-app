@@ -10,10 +10,10 @@
 //   node status-quo-bet.cjs --metric <metricId>       Bet on all open markets for a metric
 //
 // Environment:
-//   TELARCHY_URL         API base URL (default: https://metrics-tracker-vcihal.web.app/api)
+//   TELARCHY_URL         API base URL including /api (default: https://telarchy.com/api)
 //   MAX_BUDGET            Max credits per market (default: 10000)
 //
-// The script reads the API key from ~/.openclaw/workspaces/status-quo/.metrics-trader-key
+// API key: ~/.openclaw/workspaces/status-quo/.telarchy-key (or legacy .metrics-trader-key)
 
 const fs = require('fs');
 const path = require('path');
@@ -21,10 +21,14 @@ const path = require('path');
 const API_URL = process.env.TELARCHY_URL || 'https://telarchy.com/api';
 const MAX_BUDGET = Number(process.env.MAX_BUDGET) || 10000;
 const AGENT_ID = 'status-quo';
-const KEY_FILE = path.join(require('os').homedir(), '.openclaw', 'workspaces', AGENT_ID, '.metrics-trader-key');
+const WS_DIR = path.join(require('os').homedir(), '.openclaw', 'workspaces', AGENT_ID);
+const KEY_FILE_PRIMARY = path.join(WS_DIR, '.telarchy-key');
+const KEY_FILE_LEGACY = path.join(WS_DIR, '.metrics-trader-key');
 
 function readApiKey() {
-  return fs.readFileSync(KEY_FILE, 'utf-8').trim();
+  if (fs.existsSync(KEY_FILE_PRIMARY)) return fs.readFileSync(KEY_FILE_PRIMARY, 'utf-8').trim();
+  if (fs.existsSync(KEY_FILE_LEGACY)) return fs.readFileSync(KEY_FILE_LEGACY, 'utf-8').trim();
+  throw new Error(`Missing API key: create ${KEY_FILE_PRIMARY} (or legacy ${KEY_FILE_LEGACY})`);
 }
 
 async function api(method, endpoint, apiKey, body) {
