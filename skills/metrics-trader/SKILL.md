@@ -87,7 +87,7 @@ curl -sS -m 20 "${TELARCHY_URL:-https://telarchy.com/api}/guides"
 curl -sS -m 20 "${TELARCHY_URL:-https://telarchy.com/api}/guides/credits"
 ```
 
-Section ids: `overview`, `metric-design`, `creating`, `formulas`, `time-preference`, `markets`, `credits`, `tasks`. Start with `overview` or `markets` for trading context; use `credits` for balances, USDC deposit/withdraw, and economy parameters.
+The index response is the **canonical** section list. The ids below match `functions/src/routes/guides.ts` in the Telarchy repo: `overview`, `metric-design`, `creating`, `formulas`, `time-preference`, `markets`, `credits`, `tasks`. Start with `overview` or `markets` for trading context; use `credits` for balances, USDC deposit/withdraw, and economy parameters.
 
 The human **Guides** page in the web app loads the same content from this API.
 
