@@ -12,8 +12,15 @@ import { app } from './app';
 import { assertTreasuryConfigured } from './lib/usdc';
 
 const SECRETS = ['TREASURY_PRIVATE_KEY', 'DATABASE_URL', 'BETTER_AUTH_SECRET'];
+/** OAuth client id/secret — same names as env vars; create in Secret Manager before deploy (`firebase functions:secrets:set`). */
+const OAUTH_SECRETS = [
+  'GOOGLE_CLIENT_ID',
+  'GOOGLE_CLIENT_SECRET',
+  'GITHUB_CLIENT_ID',
+  'GITHUB_CLIENT_SECRET',
+];
 
-export const api = onRequest({ minInstances: 1, secrets: SECRETS }, (req, res) => {
+export const api = onRequest({ minInstances: 1, secrets: [...SECRETS, ...OAUTH_SECRETS] }, (req, res) => {
   assertTreasuryConfigured();
   return app(req, res);
 });
