@@ -8,8 +8,23 @@ const explicitBaseURL =
   process.env.BETTER_AUTH_URL ||
   (process.env.GCLOUD_PROJECT === 'telarchy-e0043' ? 'https://telarchy.com' : undefined);
 
+/** OAuth callback is apex; www-only cookies are not sent → state_mismatch without shared domain. */
+const telarchySharedCookieDomain =
+  process.env.GCLOUD_PROJECT === 'telarchy-e0043' ||
+  (process.env.BETTER_AUTH_URL ?? '').includes('telarchy.com');
+
 export const auth = betterAuth({
   ...(explicitBaseURL ? { baseURL: explicitBaseURL } : {}),
+  ...(telarchySharedCookieDomain
+    ? {
+        advanced: {
+          crossSubDomainCookies: {
+            enabled: true,
+            domain: '.telarchy.com',
+          },
+        },
+      }
+    : {}),
   database: drizzleAdapter(db, {
     provider: 'pg',
     schema: {

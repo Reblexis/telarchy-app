@@ -293,7 +293,7 @@ Self-hosted workspaces that stay fully isolated remain free in perpetuity. The g
 
 **Database**: PostgreSQL with Drizzle ORM (single schema, no Firestore dependency). Both managed and self-hosted deployments use the same stack — the Docker image bundles the frontend and backend, and a PostgreSQL service is provided via `docker-compose.yml`.
 
-**Authentication**: BetterAuth replaces Firebase Auth. Email/password is always available; Google and GitHub OAuth are opt-in via environment variables. Sessions are cookie-based (works cross-origin with `credentials: 'include'`).
+**Authentication**: BetterAuth replaces Firebase Auth. Email/password is always available; Google and GitHub OAuth are opt-in via environment variables. Sessions are cookie-based (works cross-origin with `credentials: 'include'`). Managed telarchy.com uses `Domain=.telarchy.com` on auth cookies so Google OAuth state matches when the callback is apex and the user started on `www`.
 
 **Self-hosting**: `docker compose up` spins up a complete instance (backend + frontend + PostgreSQL) with no external dependencies. Run `npm run db:migrate` (in `functions/`) once after first boot to create the schema. Cron jobs must be triggered externally (see `.env.example`).
 
