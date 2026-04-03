@@ -15,66 +15,6 @@ const API_BASE = import.meta.env.VITE_API_URL || '';
 
 let activeWorkspaceId: string | null = localStorage.getItem('activeWorkspaceId');
 
-// Custom server state — URL is cached in localStorage for resilience across page loads.
-let customApiUrl: string | null = activeWorkspaceId
-  ? localStorage.getItem(`customApiUrl_${activeWorkspaceId}`)
-  : null;
-
-const CUSTOM_SERVER_PATHS = ['/api/metrics', '/api/predictions', '/api/tasks', '/api/events', '/api/groups', '/api/updates'];
-
-function isWorkspaceScopedPath(path: string): boolean {
-  return CUSTOM_SERVER_PATHS.some(prefix => path.startsWith(prefix));
-}
-
-export function setCustomApiUrl(url: string | null): void {
-  customApiUrl = url;
-  if (!activeWorkspaceId) return;
-  if (url) {
-    localStorage.setItem(`customApiUrl_${activeWorkspaceId}`, url);
-  } else {
-    localStorage.removeItem(`customApiUrl_${activeWorkspaceId}`);
-  }
-}
-
-export function getCustomApiKey(workspaceId: string): string | null {
-  return localStorage.getItem(`customApiKey_${workspaceId}`);
-}
-
-export function setCustomApiKey(workspaceId: string, key: string | null): void {
-  if (key) {
-    localStorage.setItem(`customApiKey_${workspaceId}`, key);
-  } else {
-    localStorage.removeItem(`customApiKey_${workspaceId}`);
-  }
-}
-
-async function customRequest(
-  path: string,
-  options: RequestInit = {},
-  workspaceId = activeWorkspaceId,
-  apiUrl = customApiUrl,
-) {
-  const apiKey = workspaceId ? getCustomApiKey(workspaceId) : null;
-  const res = await fetch(`${apiUrl}${path}`, {
-    ...options,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(apiKey ? { 'X-API-Key': apiKey } : {}),
-      ...(workspaceId ? { 'X-Workspace-Id': workspaceId } : {}),
-      ...(options.headers as Record<string, string>),
-    },
-  });
-  if (res.status === 204) return null;
-  const contentType = res.headers.get('content-type') || '';
-  if (!contentType.includes('application/json')) {
-    throw new Error(`Custom server unavailable (${res.status}).`);
-  }
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Custom server error');
-  return data;
-}
-
 async function agentRequest(path: string, apiKey: string, options: RequestInit = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -129,10 +69,8 @@ export function setActiveWorkspace(id: string | null): void {
   activeWorkspaceId = id;
   if (id === null) {
     localStorage.removeItem('activeWorkspaceId');
-    customApiUrl = null;
   } else {
     localStorage.setItem('activeWorkspaceId', id);
-    customApiUrl = localStorage.getItem(`customApiUrl_${id}`);
   }
 }
 
@@ -152,13 +90,6 @@ async function requestWithWorkspace(
 ) {
   const { skipWorkspaceHeader = false, workspaceId } = requestOptions;
   const effectiveWorkspaceId = skipWorkspaceHeader ? null : (workspaceId ?? activeWorkspaceId);
-  const effectiveCustomApiUrl = effectiveWorkspaceId
-    ? localStorage.getItem(`customApiUrl_${effectiveWorkspaceId}`)
-    : null;
-
-  if (effectiveWorkspaceId && effectiveCustomApiUrl && isWorkspaceScopedPath(path)) {
-    return customRequest(path, options, effectiveWorkspaceId, effectiveCustomApiUrl);
-  }
   const wsHeader: Record<string, string> = effectiveWorkspaceId ? { 'X-Workspace-Id': effectiveWorkspaceId } : {};
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -327,7 +258,7 @@ export const api = {
   listWorkspaces: () => request('/api/workspaces'),
   getWorkspace: (id: string) => request(`/api/workspaces/${id}`),
   getWorkspaceStats: (id: string) => request(`/api/workspaces/${id}/stats`),
-  updateWorkspaceSettings: (id: string, body: { name?: string; customApiUrl?: string | null }) =>
+  updateWorkspaceSettings: (id: string, body: { name?: string }) =>
     request(`/api/workspaces/${id}/settings`, { method: 'PUT', body: JSON.stringify(body) }),
   // Permission groups
   listGroups: () => request('/api/groups'),

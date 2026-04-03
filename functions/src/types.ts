@@ -137,7 +137,6 @@ export interface Workspace {
   createdAt: Date;
   visibility: WorkspaceVisibility;
   tradedVolume?: number;
-  customApiUrl?: string;
 }
 
 export interface WorkspaceMember {

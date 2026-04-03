@@ -89,7 +89,6 @@ export const workspaces = pgTable('workspaces', {
   /** 'public' | 'unlisted' | 'private' */
   visibility: text('visibility').notNull().default('private'),
   tradedVolume: doublePrecision('traded_volume').notNull().default(0),
-  customApiUrl: text('custom_api_url'),
 });
 
 // ---------------------------------------------------------------------------

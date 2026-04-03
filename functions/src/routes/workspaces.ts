@@ -130,7 +130,7 @@ workspacesRouter.put('/:id/settings', requireRole('admin'), wrap(async (req, res
     }
   }
 
-  const { name, customApiUrl } = req.body;
+  const { name } = req.body;
   const update: Partial<typeof workspaces.$inferInsert> = {};
 
   if (name !== undefined) {
@@ -138,12 +138,6 @@ workspacesRouter.put('/:id/settings', requireRole('admin'), wrap(async (req, res
       res.status(400).json({ error: 'name must be a non-empty string' }); return;
     }
     update.name = name.trim();
-  }
-  if (customApiUrl !== undefined) {
-    if (customApiUrl !== null && (typeof customApiUrl !== 'string' || customApiUrl.length === 0)) {
-      res.status(400).json({ error: 'customApiUrl must be a non-empty string or null' }); return;
-    }
-    update.customApiUrl = customApiUrl ?? null;
   }
   if (Object.keys(update).length === 0) {
     res.status(400).json({ error: 'No fields to update' }); return;

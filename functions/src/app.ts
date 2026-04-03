@@ -157,7 +157,7 @@ app.get('/api/help', (_req, res) => {
       { method: 'POST', path: '/api/workspaces', auth: 'agent/admin', description: 'Create a workspace. Body: { name }.' },
       { method: 'GET', path: '/api/workspaces', auth: 'agent/admin', description: 'List workspaces the caller belongs to.' },
       { method: 'GET', path: '/api/workspaces/:id', auth: 'agent/admin', description: 'Get workspace details.' },
-      { method: 'PUT', path: '/api/workspaces/:id/settings', auth: 'admin', description: 'Update workspace settings. Body: { name?, customApiUrl? }.' },
+      { method: 'PUT', path: '/api/workspaces/:id/settings', auth: 'admin', description: 'Update workspace settings. Body: { name? }.' },
       { method: 'POST', path: '/api/workspaces/:id/members', auth: 'admin', description: 'Add or update a workspace member. Requires master API key or workspace owner/admin. Body: { userId: string, role: "owner"|"admin"|"trader"|"viewer" }.' },
       { method: 'DELETE', path: '/api/auth/me', auth: 'admin', description: 'GDPR: delete your account.' },
       { method: 'GET', path: '/api/auth/me/export', auth: 'admin', description: 'GDPR: export your account data.' },

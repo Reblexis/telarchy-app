@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api, setActiveWorkspace, setCustomApiUrl } from '../lib/api';
+import { api, setActiveWorkspace } from '../lib/api';
 
 export type WorkspaceMemberRole = 'owner' | 'admin' | 'trader' | 'viewer';
 
@@ -16,7 +16,6 @@ export interface WorkspaceListItem {
   id: string;
   name: string;
   memberRole: string;
-  customApiUrl?: string;
 }
 
 export function useWorkspace(authenticated: boolean = true): {
@@ -47,7 +46,7 @@ export function useWorkspace(authenticated: boolean = true): {
     ])
       .then(([profile, wsList]: [
         { workspaceId?: string; authRole?: string; memberRole?: WorkspaceMemberRole | null; intent?: 'creator' | 'agent' | null },
-        Array<{ id: string; name: string; memberRole: string; customApiUrl?: string }>,
+        Array<{ id: string; name: string; memberRole: string }>,
       ]) => {
         if (cancelled) return;
         const workspaceId = profile.workspaceId ?? 'default';
@@ -67,13 +66,10 @@ export function useWorkspace(authenticated: boolean = true): {
           return 'viewer';
         })();
 
-        const activeWs = wsList.find(w => w.id === workspaceId);
-        setCustomApiUrl(activeWs?.customApiUrl ?? null);
-
         setError(null);
         setWorkspace({ workspaceId, memberRole, authRole, intent, tier, needsWorkspace });
 
-        const mapped = wsList.map(w => ({ id: w.id, name: w.name, memberRole: w.memberRole, customApiUrl: w.customApiUrl }));
+        const mapped = wsList.map(w => ({ id: w.id, name: w.name, memberRole: w.memberRole }));
         setAllWorkspaces(mapped);
       })
       .catch((e: Error) => {

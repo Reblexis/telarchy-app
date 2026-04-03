@@ -45,6 +45,8 @@ This keeps the two workspaces decoupled at the definition level while still allo
 2. **Privacy** — the personal utility workspace may contain sensitive self-assessments. The startup workspace can be shared with employees, investors, or the public without exposing personal data.
 3. **Multi-stakeholder** — multiple shareholders can co-own a startup workspace and independently evaluate its impact on their respective personal utilities. The exact coordination mechanism for this is an open design question.
 
+Workspace admin settings only change the display name; the browser client always talks to the deployment API (`VITE_API_URL` / hosted URL). Self-hosting remains a deploy-time concern, not a per-workspace redirect.
+
 ## Current State
 
 ### Phase 1: Participant Economy (Implemented)
