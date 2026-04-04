@@ -134,7 +134,7 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
   if (update.description !== undefined) dbUpdate.description = update.description as string;
   if (update.value !== undefined) dbUpdate.value = update.value as number;
   if (update.formula !== undefined) dbUpdate.formula = update.formula as string;
-  if (update.marketRangeMax !== undefined) dbUpdate.marketRangeMax = update.marketRangeMax as number | null;
+  if (update.marketRangeMax !== undefined) dbUpdate.marketRangeMax = (update.marketRangeMax as number | null) ?? 1000;
   if (update.timePreference !== undefined) dbUpdate.timePreference = update.timePreference as TimePreference | null;
   dbUpdate.updatedAt = new Date();
 
