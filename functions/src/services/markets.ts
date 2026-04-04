@@ -1,11 +1,13 @@
 import { db } from '../db/client';
-import { agents, markets, metrics as metricsTable, positions, liquidityEvents, systemConfig } from '../db/schema';
+import { agents, markets, metrics as metricsTable, positions, liquidityEvents, systemConfig, workspaces } from '../db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { sampleTimePoints, getLeafDescendantNames } from '../lib/time-preference';
 import { AMM_DEFAULTS, initialPool } from '../lib/amm';
 import { emitEvent } from './events';
-import { toUnits } from '../lib/validation';
+import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
+import { applyAgentLiquidityInjectionTx } from './marketLiquidity';
+import { sufficientBalance, toUnits } from '../lib/validation';
 
 type MarketRow = typeof markets.$inferSelect;
 
@@ -229,33 +231,90 @@ export async function refreshRelativeDateMarkets(workspaceId = 'default'): Promi
   }
 
   // Create missing markets
-  let created = 0;
-  const newMarkets: typeof markets.$inferInsert[] = [];
-  const newLiqEvents: typeof liquidityEvents.$inferInsert[] = [];
+  type PendingCreate = {
+    marketId: string;
+    metricId: string;
+    metricName: string;
+    targetDate: string;
+    rMax: number;
+  };
+  const pending: PendingCreate[] = [];
 
-  for (const [key, { metricId, metricName, targetDate }] of desiredRefs) {
+  for (const [, { metricId, metricName, targetDate }] of desiredRefs) {
+    const key = `${metricId}:${targetDate}`;
     if (openKeys.has(key)) continue;
     const rMax = idToRangeMax.get(metricId) ?? AMM_DEFAULTS.rangeMax;
-    const marketId = randomUUID();
-    newMarkets.push({
-      id: marketId, workspaceId, metricId, metricName, targetDate,
-      resolved: false, resolvedAt: null, actualValue: null, active: true,
-      rangeMin: AMM_DEFAULTS.rangeMin, rangeMax: rMax,
-      shares: [0, 0] as [number, number], liquidity: AMM_DEFAULTS.liquidity,
-      pool: initialPool(AMM_DEFAULTS.liquidity), createdAt: new Date(),
+    pending.push({
+      marketId: randomUUID(),
+      metricId,
+      metricName,
+      targetDate,
+      rMax,
     });
-    newLiqEvents.push({
-      id: randomUUID(), workspaceId, marketId, amount: AMM_DEFAULTS.liquidity,
-      totalLiquidity: AMM_DEFAULTS.liquidity, type: 'initial', createdAt: new Date(),
-    });
-    created++;
   }
 
-  if (newMarkets.length > 0) {
-    await db.transaction(async tx => {
-      await tx.insert(markets).values(newMarkets);
-      await tx.insert(liquidityEvents).values(newLiqEvents);
-    });
+  let created = 0;
+  if (pending.length > 0) {
+    const [wsRow] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId));
+    const credits = wsRow?.newMarketLiquidityCredits ?? 0;
+    const useAutoFund = Boolean(wsRow?.autoFundNewMarkets) && credits > 0;
+
+    const insertLegacy = async (): Promise<number> => {
+      const newMarkets = pending.map(p => ({
+        id: p.marketId, workspaceId, metricId: p.metricId, metricName: p.metricName, targetDate: p.targetDate,
+        resolved: false, resolvedAt: null, actualValue: null, active: true,
+        rangeMin: AMM_DEFAULTS.rangeMin, rangeMax: p.rMax,
+        shares: [0, 0] as [number, number], liquidity: AMM_DEFAULTS.liquidity,
+        pool: initialPool(AMM_DEFAULTS.liquidity), createdAt: new Date(),
+      }));
+      const newLiqEvents = pending.map(p => ({
+        id: randomUUID(), workspaceId, marketId: p.marketId, amount: AMM_DEFAULTS.liquidity,
+        totalLiquidity: AMM_DEFAULTS.liquidity, type: 'initial' as const, createdAt: new Date(),
+      }));
+      await db.transaction(async tx => {
+        await tx.insert(markets).values(newMarkets);
+        await tx.insert(liquidityEvents).values(newLiqEvents);
+      });
+      return pending.length;
+    };
+
+    if (!useAutoFund) {
+      created = await insertLegacy();
+    } else {
+      const ownerAgentId = await resolveWorkspaceOwnerAgentId(workspaceId);
+      if (!ownerAgentId) {
+        console.error('refreshRelativeDateMarkets: auto-fund on but workspace has no owner agent', workspaceId);
+        created = await insertLegacy();
+      } else {
+        const totalCost = Math.round(credits * pending.length * 1e6) / 1e6;
+        const [ag] = await db.select().from(agents).where(eq(agents.id, ownerAgentId));
+        if (!ag || !sufficientBalance(ag.balance as number, totalCost)) {
+          console.error(
+            'refreshRelativeDateMarkets: insufficient balance for auto-fund batch',
+            { workspaceId, markets: pending.length, needCredits: totalCost },
+          );
+          created = 0;
+        } else {
+          await db.transaction(async tx => {
+            for (const p of pending) {
+              await tx.insert(markets).values({
+                id: p.marketId, workspaceId, metricId: p.metricId, metricName: p.metricName, targetDate: p.targetDate,
+                resolved: false, resolvedAt: null, actualValue: null, active: true,
+                rangeMin: AMM_DEFAULTS.rangeMin, rangeMax: p.rMax,
+                shares: [0, 0] as [number, number], liquidity: 0, pool: 0, createdAt: new Date(),
+              });
+              await applyAgentLiquidityInjectionTx(tx, {
+                workspaceId,
+                marketId: p.marketId,
+                agentId: ownerAgentId,
+                poolContribution: credits,
+              });
+            }
+          });
+          created = pending.length;
+        }
+      }
+    }
   }
 
   // Void duplicates

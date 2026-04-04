@@ -89,6 +89,10 @@ export const workspaces = pgTable('workspaces', {
   /** 'public' | 'unlisted' | 'private' */
   visibility: text('visibility').notNull().default('private'),
   tradedVolume: doublePrecision('traded_volume').notNull().default(0),
+  /** When true, new non-task markets debit the workspace owner's agent balance per newMarketLiquidityCredits. */
+  autoFundNewMarkets: boolean('auto_fund_new_markets').notNull().default(false),
+  /** Pool contribution (credits) per new market when auto-fund is on. */
+  newMarketLiquidityCredits: doublePrecision('new_market_liquidity_credits').notNull().default(0),
 });
 
 // ---------------------------------------------------------------------------

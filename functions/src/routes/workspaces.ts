@@ -6,7 +6,7 @@ import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { requireRole, requireIdentity } from '../middleware/roles';
 import { getAuthWorkspaceMemberships } from '../middleware/auth';
-import { syncLegacyWorkspaceMemberships } from '../lib/participants';
+import { syncLegacyWorkspaceMemberships, resolveWorkspaceOwnerAgentId } from '../lib/participants';
 
 export const workspacesRouter = Router();
 
@@ -122,6 +122,20 @@ workspacesRouter.put('/:id/settings', requireRole('admin'), wrap(async (req, res
   const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, wsId));
   if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
 
+  const hasAutoFundKey = Object.prototype.hasOwnProperty.call(req.body, 'autoFundNewMarkets');
+  const hasCreditsKey = Object.prototype.hasOwnProperty.call(req.body, 'newMarketLiquidityCredits');
+  const touchesAutoFund = hasAutoFundKey || hasCreditsKey;
+
+  if (touchesAutoFund) {
+    if (!uid && !agentId) {
+      res.status(403).json({ error: 'Auto-fund settings require a signed-in workspace owner' }); return;
+    }
+    const memberRole = await getMembershipRoleForWorkspace({ uid, agentId }, wsId);
+    if (memberRole !== 'owner') {
+      res.status(403).json({ error: 'Only the workspace owner can change auto-fund settings' }); return;
+    }
+  }
+
   // Verify workspace-level admin membership (if not using master key)
   if (uid || agentId) {
     const memberRole = await getMembershipRoleForWorkspace({ uid, agentId }, wsId);
@@ -130,7 +144,7 @@ workspacesRouter.put('/:id/settings', requireRole('admin'), wrap(async (req, res
     }
   }
 
-  const { name } = req.body;
+  const { name, autoFundNewMarkets, newMarketLiquidityCredits } = req.body;
   const update: Partial<typeof workspaces.$inferInsert> = {};
 
   if (name !== undefined) {
@@ -139,6 +153,36 @@ workspacesRouter.put('/:id/settings', requireRole('admin'), wrap(async (req, res
     }
     update.name = name.trim();
   }
+
+  let nextAuto = ws.autoFundNewMarkets;
+  let nextCredits = ws.newMarketLiquidityCredits ?? 0;
+  if (hasAutoFundKey) {
+    if (typeof autoFundNewMarkets !== 'boolean') {
+      res.status(400).json({ error: 'autoFundNewMarkets must be a boolean' }); return;
+    }
+    nextAuto = autoFundNewMarkets;
+  }
+  if (hasCreditsKey) {
+    if (typeof newMarketLiquidityCredits !== 'number' || newMarketLiquidityCredits <= 0) {
+      res.status(400).json({ error: 'newMarketLiquidityCredits must be a positive number' }); return;
+    }
+    nextCredits = newMarketLiquidityCredits;
+  }
+
+  if (hasAutoFundKey) update.autoFundNewMarkets = nextAuto;
+  if (hasCreditsKey) update.newMarketLiquidityCredits = nextCredits;
+
+  if (nextAuto && nextCredits <= 0) {
+    res.status(400).json({ error: 'newMarketLiquidityCredits must be positive when auto-fund is enabled' }); return;
+  }
+
+  if (nextAuto) {
+    const ownerAgentId = await resolveWorkspaceOwnerAgentId(wsId);
+    if (!ownerAgentId) {
+      res.status(400).json({ error: 'Workspace owner must have an agent record to enable auto-fund' }); return;
+    }
+  }
+
   if (Object.keys(update).length === 0) {
     res.status(400).json({ error: 'No fields to update' }); return;
   }

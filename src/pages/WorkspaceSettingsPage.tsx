@@ -4,7 +4,12 @@ import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
 
-interface WorkspaceDetail { id: string; name: string }
+interface WorkspaceDetail {
+  id: string;
+  name: string;
+  autoFundNewMarkets?: boolean;
+  newMarketLiquidityCredits?: number;
+}
 
 export function WorkspaceSettingsPage() {
   const navigate = useNavigate();
@@ -13,12 +18,15 @@ export function WorkspaceSettingsPage() {
 
   const [ws, setWs] = useState<WorkspaceDetail | null>(null);
   const [name, setName] = useState('');
+  const [autoFund, setAutoFund] = useState(false);
+  const [liquidityCredits, setLiquidityCredits] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
   const [error, setError] = useState('');
   const [wsLoading, setWsLoading] = useState(true);
 
   const wsId = workspace?.workspaceId;
+  const isOwner = workspace?.memberRole === 'owner';
 
   useEffect(() => {
     if (!user || !wsId || wsId === 'default') { setWsLoading(false); return; }
@@ -28,6 +36,9 @@ export function WorkspaceSettingsPage() {
         const d = detail as WorkspaceDetail;
         setWs(d);
         setName(d.name);
+        setAutoFund(Boolean(d.autoFundNewMarkets));
+        const c = d.newMarketLiquidityCredits;
+        setLiquidityCredits(typeof c === 'number' && c > 0 ? String(c) : '');
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setWsLoading(false));
@@ -48,6 +59,37 @@ export function WorkspaceSettingsPage() {
     }
   };
 
+  const handleSaveMarkets = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!user || !wsId || wsId === 'default' || !isOwner) return;
+    const credits = parseFloat(liquidityCredits);
+    if (autoFund && (!Number.isFinite(credits) || credits <= 0)) {
+      setError('Enter a positive credit amount per new market when auto-fund is on.');
+      return;
+    }
+    setError(''); setSaveMsg(''); setSaving(true);
+    try {
+      const body: { autoFundNewMarkets?: boolean; newMarketLiquidityCredits?: number } = {};
+      if (!autoFund) {
+        body.autoFundNewMarkets = false;
+      } else {
+        body.autoFundNewMarkets = true;
+        body.newMarketLiquidityCredits = credits;
+      }
+      await api.updateWorkspaceSettings(wsId, body);
+      setSaveMsg('Saved.');
+      setWs(prev => prev ? {
+        ...prev,
+        autoFundNewMarkets: autoFund,
+        newMarketLiquidityCredits: autoFund ? credits : (prev.newMarketLiquidityCredits ?? 0),
+      } : prev);
+    } catch (e: unknown) {
+      setError((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (wsLoading) return <div className="loading">Loading…</div>;
 
   if (!workspace || wsId === 'default') {
@@ -57,7 +99,7 @@ export function WorkspaceSettingsPage() {
         <p style={{ color: 'var(--text-secondary)' }}>
           You are using the default workspace. Create a named workspace to access settings.
         </p>
-        <button onClick={() => navigate('/create-workspace')}>Create workspace</button>
+        <button type="button" onClick={() => navigate('/create-workspace')}>Create workspace</button>
       </div>
     );
   }
@@ -67,7 +109,7 @@ export function WorkspaceSettingsPage() {
       <div className="container" style={{ maxWidth: 600 }}>
         <h1>Workspace Settings</h1>
         <p style={{ color: 'var(--text-secondary)' }}>Only workspace admins can manage settings.</p>
-        <button onClick={() => navigate('/metrics')}>Back to metrics</button>
+        <button type="button" onClick={() => navigate('/metrics')}>Back to metrics</button>
       </div>
     );
   }
@@ -102,10 +144,55 @@ export function WorkspaceSettingsPage() {
         </form>
       </div>
 
+      {isOwner && (
+        <div className="section" style={{ marginTop: '2rem' }}>
+          <h3 style={{ marginBottom: '0.5rem' }}>Markets</h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+            When enabled, each new non-task market debits your agent balance by the amount below (same as manual liquidity injection).
+            Background market creation uses the same rule.
+          </p>
+          <form onSubmit={handleSaveMarkets}>
+            <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input
+                id="auto-fund"
+                type="checkbox"
+                checked={autoFund}
+                onChange={e => setAutoFund(e.target.checked)}
+              />
+              <label htmlFor="auto-fund" style={{ margin: 0 }}>Auto-fund new markets from my agent balance</label>
+            </div>
+            <div className="form-group">
+              <label htmlFor="liq-credits">Credits per new market (pool contribution)</label>
+              <input
+                id="liq-credits"
+                type="number"
+                min={0.01}
+                step="any"
+                value={liquidityCredits}
+                onChange={e => setLiquidityCredits(e.target.value)}
+                disabled={!autoFund}
+              />
+            </div>
+            <button type="submit" disabled={saving}>
+              {saving ? 'Saving...' : 'Save market funding'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {!isOwner && (
+        <div className="section" style={{ marginTop: '2rem' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+            Only the workspace owner can configure automatic market funding.
+          </p>
+        </div>
+      )}
+
       <div className="section" style={{ marginTop: '2rem' }}>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
           Manage access by adding participants to permission groups in the{' '}
           <button
+            type="button"
             onClick={() => navigate('/agents')}
             style={{ background: 'none', border: 'none', padding: 0, color: 'var(--focus-border)', cursor: 'pointer', fontSize: 'inherit', textDecoration: 'underline' }}
           >

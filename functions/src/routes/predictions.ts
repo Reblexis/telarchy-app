@@ -15,8 +15,9 @@ import { isValidDateFormat, endOfPeriod } from '../lib/date-utils';
 import { extractMetricReferences } from '../lib/metrics-engine';
 import { consensus, pHigher, directionTradeCost, sharesForBudget, betTowardsValue, directionSellProceeds, lmsrCost, initialPool, AMM_DEFAULTS } from '../lib/amm';
 import { emitEvent } from '../services/events';
+import { applyAgentLiquidityInjectionTx } from '../services/marketLiquidity';
 import { sufficientBalance, toUnits, fromUnits } from '../lib/validation';
-import { getGroupMemberIds, isLegacyUserMember } from '../lib/participants';
+import { getGroupMemberIds, isLegacyUserMember, resolveWorkspaceOwnerAgentId } from '../lib/participants';
 
 export const predictionsRouter = Router();
 
@@ -381,7 +382,7 @@ predictionsRouter.get('/markets/:id/context', requireRole('agent', 'admin'), wra
 
 predictionsRouter.post('/markets', requireRole('admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
-  const { metricId, targetDate, rangeMin, rangeMax, liquidity } = req.body;
+  const { metricId, targetDate, rangeMin, rangeMax, liquidity, skipAutoLiquidity } = req.body;
   if (!metricId || typeof metricId !== 'string') { res.status(400).json({ error: 'metricId is required' }); return; }
   if (!targetDate || !isValidDateFormat(targetDate)) { res.status(400).json({ error: 'targetDate must be YYYY, YYYY-MM, YYYY-Www, or YYYY-MM-DD' }); return; }
 
@@ -398,24 +399,51 @@ predictionsRouter.post('/markets', requireRole('admin'), wrap(async (req, res) =
 
   const rMin = typeof rangeMin === 'number' ? rangeMin : AMM_DEFAULTS.rangeMin;
   const rMax = typeof rangeMax === 'number' ? rangeMax : (metric.marketRangeMax ?? AMM_DEFAULTS.rangeMax);
-  // `liquidity` in the request = credits (pool capital). b = pool / ln(2).
-  const pool = typeof liquidity === 'number' ? liquidity : AMM_DEFAULTS.liquidity;
-  const liq = pool > 0 ? pool / Math.LN2 : 0; // b parameter
+
+  const [wsRow] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId));
+  const credits = wsRow?.newMarketLiquidityCredits ?? 0;
+  const useAutoFund = Boolean(wsRow?.autoFundNewMarkets) && credits > 0 && skipAutoLiquidity !== true;
 
   const marketId = randomUUID();
-  const liqEventId = randomUUID();
 
-  await db.transaction(async tx => {
-    await tx.insert(markets).values({
-      id: marketId, workspaceId, metricId, metricName: metric.name, targetDate,
-      resolved: false, resolvedAt: null, actualValue: null, active: true,
-      rangeMin: rMin, rangeMax: rMax, shares: [0, 0] as [number, number],
-      liquidity: liq, pool, createdAt: new Date(),
+  if (useAutoFund) {
+    const ownerAgentId = await resolveWorkspaceOwnerAgentId(workspaceId);
+    if (!ownerAgentId) {
+      res.status(500).json({ error: 'Workspace owner has no agent record' }); return;
+    }
+    try {
+      await db.transaction(async tx => {
+        await tx.insert(markets).values({
+          id: marketId, workspaceId, metricId, metricName: metric.name, targetDate,
+          resolved: false, resolvedAt: null, actualValue: null, active: true,
+          rangeMin: rMin, rangeMax: rMax, shares: [0, 0] as [number, number],
+          liquidity: 0, pool: 0, createdAt: new Date(),
+        });
+        await applyAgentLiquidityInjectionTx(tx, {
+          workspaceId, marketId, agentId: ownerAgentId, poolContribution: credits,
+        });
+      });
+    } catch (e) {
+      if (e instanceof AppError) { res.status(e.status).json({ error: e.message }); return; }
+      throw e;
+    }
+  } else {
+    // `liquidity` in the request = credits (pool capital). b = pool / ln(2).
+    const pool = typeof liquidity === 'number' ? liquidity : AMM_DEFAULTS.liquidity;
+    const liq = pool > 0 ? pool / Math.LN2 : 0; // b parameter
+    const liqEventId = randomUUID();
+    await db.transaction(async tx => {
+      await tx.insert(markets).values({
+        id: marketId, workspaceId, metricId, metricName: metric.name, targetDate,
+        resolved: false, resolvedAt: null, actualValue: null, active: true,
+        rangeMin: rMin, rangeMax: rMax, shares: [0, 0] as [number, number],
+        liquidity: liq, pool, createdAt: new Date(),
+      });
+      await tx.insert(liquidityEvents).values({
+        id: liqEventId, workspaceId, marketId, amount: pool, totalLiquidity: liq, type: 'initial', createdAt: new Date(),
+      });
     });
-    await tx.insert(liquidityEvents).values({
-      id: liqEventId, workspaceId, marketId, amount: pool, totalLiquidity: liq, type: 'initial', createdAt: new Date(),
-    });
-  });
+  }
 
   res.status(201).json({ id: marketId, metricId, metricName: metric.name, targetDate });
   emitEvent('market:created', { marketId, metricName: metric.name, targetDate }, workspaceId).catch(e => console.error('emitEvent failed:', e));
@@ -494,43 +522,30 @@ predictionsRouter.post('/markets/:id/liquidity', requireRole('admin'), wrap(asyn
   if (typeof amount !== 'number' || amount <= 0) { res.status(400).json({ error: 'amount must be a positive number' }); return; }
   if (typeof agentId !== 'string' || !agentId) { res.status(400).json({ error: 'agentId is required' }); return; }
 
-  const [market] = await db.select().from(markets)
+  const [preMarket] = await db.select().from(markets)
     .where(and(eq(markets.id, req.params.id as string), eq(markets.workspaceId, workspaceId)));
-  if (!market) { res.status(404).json({ error: 'Market not found' }); return; }
+  if (!preMarket) { res.status(404).json({ error: 'Market not found' }); return; }
 
-  const [agent] = await db.select().from(agents).where(eq(agents.id, agentId));
-  if (!agent) { res.status(404).json({ error: 'Agent not found' }); return; }
+  const [preAgent] = await db.select().from(agents).where(eq(agents.id, agentId));
+  if (!preAgent) { res.status(404).json({ error: 'Agent not found' }); return; }
 
-  const oldShares = (market.shares as [number, number]) || [0, 0];
-  const hasLiquidity = market.liquidity > 0;
-  // `amount` = credits the agent spends. b parameter derived: b = pool / ln(2).
-  const oldPool = hasLiquidity ? (market.pool ?? 0) : 0;
-  const newPool = oldPool + amount;
-  const newLiquidity = newPool / Math.LN2; // b = pool / ln(2)
-  const bRatio = hasLiquidity ? newLiquidity / market.liquidity : 1;
-  const newShares: [number, number] = hasLiquidity
-    ? [oldShares[0] * bRatio, oldShares[1] * bRatio]
-    : [0, 0];
-  const poolContribution = amount;
-
-  if (!sufficientBalance(agent.balance as number, poolContribution)) {
-    res.status(400).json({ error: `Insufficient balance: need ${poolContribution}, have ${fromUnits(agent.balance as number)}` }); return;
-  }
-
-  await db.transaction(async tx => {
-    await tx.update(markets).set({ liquidity: newLiquidity, shares: newShares, pool: newPool })
-      .where(and(eq(markets.id, market.id), eq(markets.workspaceId, workspaceId)));
-    await tx.update(agents).set({
-      balance: sql`${agents.balance} - ${toUnits(poolContribution)}`,
-      spentBetting: sql`${agents.spentBetting} + ${poolContribution}`,
-    }).where(eq(agents.id, agentId));
-    await tx.insert(liquidityEvents).values({
-      id: randomUUID(), workspaceId, marketId: market.id, agentId, amount, poolContribution,
-      totalLiquidity: newLiquidity, type: 'injection', createdAt: new Date(),
+  try {
+    await db.transaction(async tx => {
+      await applyAgentLiquidityInjectionTx(tx, {
+        workspaceId,
+        marketId: preMarket.id,
+        agentId,
+        poolContribution: amount,
+      });
     });
-  });
-
-  res.json({ liquidity: newLiquidity, poolContribution });
+    const [updated] = await db.select().from(markets)
+      .where(and(eq(markets.id, preMarket.id), eq(markets.workspaceId, workspaceId)));
+    const newLiq = updated?.liquidity ?? 0;
+    res.json({ liquidity: newLiq, poolContribution: amount });
+  } catch (e) {
+    if (e instanceof AppError) { res.status(e.status).json({ error: e.message }); return; }
+    throw e;
+  }
 }));
 
 predictionsRouter.post('/markets/:id/void', requireRole('admin'), wrap(async (req, res) => {

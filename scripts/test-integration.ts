@@ -180,6 +180,20 @@ await suite('Workspaces', async () => {
     });
     expect(r.status).toBeStatus(200, 204);
   });
+
+  await test('GET /api/workspaces/:id includes auto-fund fields', async () => {
+    const r = ok(await adminCall(ctx.wsId)('GET', `/workspaces/${ctx.wsId}`));
+    expect(typeof r.autoFundNewMarkets).toBeType('boolean');
+    expect(typeof r.newMarketLiquidityCredits).toBeType('number');
+  });
+
+  await test('Master API key cannot set auto-fund workspace fields (403)', async () => {
+    const r = await adminCall(ctx.wsId)('PUT', `/workspaces/${ctx.wsId}/settings`, {
+      autoFundNewMarkets: true,
+      newMarketLiquidityCredits: 10,
+    });
+    expect(r.status).toBe(403);
+  });
 });
 
 await suite('Agents', async () => {

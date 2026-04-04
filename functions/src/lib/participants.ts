@@ -1,4 +1,4 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray } from 'drizzle-orm';
 import { db } from '../db/client';
 import { agents, appUsers, permissionGroups, userWorkspaces, workspaces } from '../db/schema';
 import type { WorkspaceMemberRole } from '../types';
@@ -55,6 +55,19 @@ export async function resolveParticipantIdForUser(userId: string): Promise<strin
 
   const [owned] = await db.select({ id: agents.id }).from(agents).where(eq(agents.ownerUid, userId));
   return owned?.id ?? null;
+}
+
+/** Workspace owner's BetterAuth user id → agents.id (same as browser session agent for that user). */
+export async function resolveWorkspaceOwnerAgentId(workspaceId: string): Promise<string | null> {
+  const rows = await db
+    .select({ userId: userWorkspaces.userId })
+    .from(userWorkspaces)
+    .where(and(eq(userWorkspaces.workspaceId, workspaceId), eq(userWorkspaces.role, 'owner')))
+    .orderBy(asc(userWorkspaces.joinedAt))
+    .limit(1);
+  const userId = rows[0]?.userId;
+  if (!userId) return null;
+  return resolveParticipantIdForUser(userId);
 }
 
 export async function getParticipantWorkspaceMemberships(participantId: string): Promise<WorkspaceMembership[]> {

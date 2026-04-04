@@ -306,6 +306,8 @@ Markets are created in two ways:
 - **Manually** — admin creates a market for a specific leaf metric at a chosen date from the Markets page.
 - **Automatically** — when a time-preferenced ancestor is enabled (or on the daily refresh cron at 00:10 UTC), markets are auto-created for each leaf at the 10 sampled time points.
 
+The **workspace owner** can enable auto-funding in workspace settings so each new non-task market debits their agent balance by a fixed credit amount (same as liquidity injection). Task-scoped conditional markets are not auto-funded this way.
+
 ## Target date formats
 
 \`\`\`
