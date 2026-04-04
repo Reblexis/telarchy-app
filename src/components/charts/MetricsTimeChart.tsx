@@ -138,7 +138,16 @@ export function MetricsTimeChart({
         },
       },
       y: {
-        ...(rangeMin !== undefined && rangeMax !== undefined ? { min: rangeMin, max: rangeMax } : {}),
+        ...(rangeMin !== undefined && rangeMax !== undefined ? (() => {
+          const allY = [...sorted, ...condSorted].map(p => p.y);
+          const minSpan = (rangeMax - rangeMin) * 0.1;
+          const dataCenter = (Math.min(...allY) + Math.max(...allY)) / 2;
+          const dataHalf = Math.max((Math.max(...allY) - Math.min(...allY)) / 2, minSpan / 2);
+          return {
+            min: Math.max(rangeMin, dataCenter - dataHalf - minSpan * 0.5),
+            max: Math.min(rangeMax, dataCenter + dataHalf + minSpan * 0.5),
+          };
+        })() : {}),
         grid: { color: gridColor },
         ticks: {
           color: textColor,
