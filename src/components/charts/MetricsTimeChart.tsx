@@ -140,12 +140,14 @@ export function MetricsTimeChart({
       y: {
         ...(rangeMin !== undefined && rangeMax !== undefined ? (() => {
           const allY = [...sorted, ...condSorted].map(p => p.y);
-          const minSpan = (rangeMax - rangeMin) * 0.1;
+          const minSpan = rangeMax !== rangeMin ? (rangeMax - rangeMin) * 0.1 : Math.abs(rangeMax) * 0.1 || 1;
           const dataCenter = (Math.min(...allY) + Math.max(...allY)) / 2;
           const dataHalf = Math.max((Math.max(...allY) - Math.min(...allY)) / 2, minSpan / 2);
+          const yLo = dataCenter - dataHalf - minSpan * 0.5;
+          const yHi = dataCenter + dataHalf + minSpan * 0.5;
           return {
-            min: Math.max(rangeMin, dataCenter - dataHalf - minSpan * 0.5),
-            max: Math.min(rangeMax, dataCenter + dataHalf + minSpan * 0.5),
+            min: rangeMin !== rangeMax ? Math.max(rangeMin, yLo) : yLo,
+            max: rangeMin !== rangeMax ? Math.min(rangeMax, yHi) : yHi,
           };
         })() : {}),
         grid: { color: gridColor },
