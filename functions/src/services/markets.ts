@@ -274,6 +274,7 @@ export async function refreshRelativeDateMarkets(workspaceId = 'default'): Promi
   const toLiquidityNormalize: string[] = [];
   const seenNonTask = new Map<string, { id: string; createdAt: Date }>();
   const toVoid: MarketRow[] = [];
+  const toFund: string[] = [];
 
   for (const m of openMarkets) {
     const key = `${m.metricId}:${m.targetDate}`;
@@ -309,6 +310,8 @@ export async function refreshRelativeDateMarkets(workspaceId = 'default'): Promi
       toDeactivate.push(m.id);
       deactivated++;
     }
+
+    if (m.active && (m.pool ?? 0) === 0) toFund.push(m.id);
 
   }
 
@@ -346,6 +349,26 @@ export async function refreshRelativeDateMarkets(workspaceId = 'default'): Promi
   }
 
   const created = await insertPendingMarkets(pending, workspaceId);
+
+  // Fund existing active markets that have no liquidity
+  if (toFund.length > 0) {
+    const [wsRow] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId));
+    const credits = wsRow?.newMarketLiquidityCredits ?? 0;
+    if (wsRow?.autoFundNewMarkets && credits > 0) {
+      const ownerAgentId = await resolveWorkspaceOwnerAgentId(workspaceId);
+      if (ownerAgentId) {
+        const totalCost = Math.round(credits * toFund.length * 1e6) / 1e6;
+        const [ag] = await db.select().from(agents).where(eq(agents.id, ownerAgentId));
+        if (ag && sufficientBalance(ag.balance as number, totalCost)) {
+          await db.transaction(async tx => {
+            for (const marketId of toFund) {
+              await applyAgentLiquidityInjectionTx(tx, { workspaceId, marketId, agentId: ownerAgentId, poolContribution: credits });
+            }
+          });
+        }
+      }
+    }
+  }
 
   // Void duplicates
   for (const m of toVoid) await voidMarket(m, workspaceId);
