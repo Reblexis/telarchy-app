@@ -138,18 +138,24 @@ export function MetricsTimeChart({
         },
       },
       y: {
-        ...(rangeMin !== undefined && rangeMax !== undefined ? (() => {
+        ...(() => {
           const allY = [...sorted, ...condSorted].map(p => p.y);
-          const minSpan = rangeMax !== rangeMin ? (rangeMax - rangeMin) * 0.1 : Math.abs(rangeMax) * 0.1 || 1;
-          const dataCenter = (Math.min(...allY) + Math.max(...allY)) / 2;
-          const dataHalf = Math.max((Math.max(...allY) - Math.min(...allY)) / 2, minSpan / 2);
-          const yLo = dataCenter - dataHalf - minSpan * 0.5;
-          const yHi = dataCenter + dataHalf + minSpan * 0.5;
-          return {
-            min: rangeMin !== rangeMax ? Math.max(rangeMin, yLo) : yLo,
-            max: rangeMin !== rangeMax ? Math.min(rangeMax, yHi) : yHi,
-          };
-        })() : {}),
+          const dataMin = Math.min(...allY);
+          const dataMax = Math.max(...allY);
+          const dataSpan = dataMax - dataMin;
+          if (dataSpan > 0) return rangeMin !== undefined && rangeMax !== undefined ? { min: rangeMin, max: rangeMax } : {};
+          // All points are the same value — enforce a minimum visible span
+          const center = dataMin;
+          const minSpan = rangeMin !== undefined && rangeMax !== undefined
+            ? (rangeMax !== rangeMin ? (rangeMax - rangeMin) * 0.1 : Math.abs(rangeMax) * 0.1 || 1)
+            : Math.abs(center) * 0.1 || 1;
+          const yLo = center - minSpan / 2;
+          const yHi = center + minSpan / 2;
+          if (rangeMin !== undefined && rangeMax !== undefined) {
+            return { min: Math.max(rangeMin, yLo), max: Math.min(rangeMax, yHi) };
+          }
+          return { min: yLo, max: yHi };
+        })(),
         grid: { color: gridColor },
         ticks: {
           color: textColor,
