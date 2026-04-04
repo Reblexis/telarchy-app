@@ -184,7 +184,7 @@ export const metrics = pgTable('metrics', {
   order: integer('order').notNull().default(0),
   /** { enabled: boolean, halfLife: number } | null */
   timePreference: jsonb('time_preference'),
-  marketRangeMax: doublePrecision('market_range_max'),
+  marketRangeMax: doublePrecision('market_range_max').notNull().default(1000),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);

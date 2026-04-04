@@ -15,7 +15,7 @@ export function AddMetricForm({ onAdd }: AddMetricFormProps) {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    const rmx = marketRangeMax ? Math.max(1, Number(marketRangeMax)) : undefined;
+    const rmx = Math.max(1, Number(marketRangeMax) || 1000);
     await onAdd(name, description, isLeaf ? Number(value) : 0, formula || '0', rmx);
     setName('');
     setDescription('');
