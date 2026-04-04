@@ -11,7 +11,7 @@ import {
 } from '../lib/metrics-engine';
 import { sampleTimePoints, getLeafDescendantNames } from '../lib/time-preference';
 import * as svc from '../services/metrics';
-import { voidOpenMarketsForMetrics } from '../services/markets';
+import { voidOpenMarketsForMetrics, recreateMarketsForMetric } from '../services/markets';
 import { emitEvent } from '../services/events';
 import type { TimePreference } from '../types';
 
@@ -169,18 +169,30 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
     }
   }
 
+  let voidedTargetDates: string[] = [];
   if (update.marketRangeMax !== undefined && update.marketRangeMax !== oldRow.marketRangeMax) {
+    const openForMetric = await db.select({ targetDate: markets.targetDate })
+      .from(markets)
+      .where(and(eq(markets.workspaceId, workspaceId), eq(markets.metricId, id), eq(markets.resolved, false)));
+    voidedTargetDates = openForMetric.map(m => m.targetDate);
     await voidOpenMarketsForMetrics(new Set([id]), workspaceId);
   }
 
   const definitionChanged = isDefinitionChange(oldRow, update, effectiveFormula);
   if (definitionChanged && !isTPEnabled) {
     const tpAncestorIds = await findTPAncestors(id, workspaceId);
-    for (const tpId of tpAncestorIds) {
-      const [tpRow] = await db.select({ timePreference: metrics.timePreference }).from(metrics)
-        .where(and(eq(metrics.id, tpId), eq(metrics.workspaceId, workspaceId)));
-      const tpHalfLife = (tpRow?.timePreference as TimePreference | null)?.halfLife;
-      if (tpHalfLife) await svc.respawnMarketsForTimePreference(tpId, tpHalfLife, workspaceId);
+    if (tpAncestorIds.length > 0) {
+      for (const tpId of tpAncestorIds) {
+        const [tpRow] = await db.select({ timePreference: metrics.timePreference }).from(metrics)
+          .where(and(eq(metrics.id, tpId), eq(metrics.workspaceId, workspaceId)));
+        const tpHalfLife = (tpRow?.timePreference as TimePreference | null)?.halfLife;
+        if (tpHalfLife) await svc.respawnMarketsForTimePreference(tpId, tpHalfLife, workspaceId);
+      }
+    } else if (voidedTargetDates.length > 0) {
+      // Standalone leaf metric with no TP ancestors: recreate voided markets with new rangeMax.
+      const newRangeMax = update.marketRangeMax as number;
+      const metricName = (update.name as string | undefined) ?? oldRow.name;
+      await recreateMarketsForMetric(id, metricName, voidedTargetDates, newRangeMax, workspaceId);
     }
   }
 

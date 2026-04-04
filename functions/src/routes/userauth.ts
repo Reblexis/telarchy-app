@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { randomBytes } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
 import { db } from '../db/client';
 import { appUsers, agents, agentApiKeys, userWorkspaces } from '../db/schema';
 import { eq } from 'drizzle-orm';
@@ -7,6 +7,7 @@ import { wrap } from '../lib/wrap';
 import { requireUser } from '../middleware/roles';
 import { hashKey } from '../middleware/auth';
 import { getAuthWorkspaceMemberships, getUserWorkspaceMemberships } from '../middleware/auth';
+import { syncLegacyWorkspaceMemberships, provisionWorkspace } from '../lib/participants';
 
 export const userauthRouter = Router();
 
@@ -41,6 +42,8 @@ async function ensureParticipant(uid: string): Promise<{ participantId: string; 
     const rawKey = randomBytes(32).toString('hex');
     apiKey = rawKey;
     const keyHash = hashKey(rawKey);
+    const wsId = randomUUID();
+    const now = new Date();
     await db.transaction(async tx => {
       await tx.insert(agents).values({
         id: participantId,
@@ -48,11 +51,16 @@ async function ensureParticipant(uid: string): Promise<{ participantId: string; 
         role: 'agent',
         authUserId: uid,
         balance: 0,
-        createdAt: new Date(),
-        approvedAt: new Date(),
+        createdAt: now,
+        approvedAt: now,
       });
-      await tx.insert(agentApiKeys).values({ hash: keyHash, agentId: participantId, workspaceId: 'default' });
+      await provisionWorkspace(tx, {
+        wsId, name: 'My Workspace', createdBy: uid,
+        ownerUid: uid, ownerAgentId: participantId,
+      });
+      await tx.insert(agentApiKeys).values({ hash: keyHash, agentId: participantId, workspaceId: wsId });
     });
+    await syncLegacyWorkspaceMemberships(wsId);
   }
 
   await db.insert(appUsers)

@@ -6,7 +6,7 @@ import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { requireRole, requireIdentity } from '../middleware/roles';
 import { getAuthWorkspaceMemberships } from '../middleware/auth';
-import { syncLegacyWorkspaceMemberships, resolveWorkspaceOwnerAgentId } from '../lib/participants';
+import { syncLegacyWorkspaceMemberships, resolveWorkspaceOwnerAgentId, provisionWorkspace } from '../lib/participants';
 
 export const workspacesRouter = Router();
 
@@ -30,46 +30,12 @@ workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
   }
 
   const wsId = randomUUID();
-  const now = new Date();
 
   await db.transaction(async tx => {
-    await tx.insert(workspaces).values({
-      id: wsId,
-      name: name.trim(),
-      createdBy: identity,
-      createdAt: now,
-      visibility: 'private',
+    await provisionWorkspace(tx, {
+      wsId, name: name.trim(), createdBy: identity,
+      ownerUid: uid, ownerAgentId: agentId,
     });
-
-    // Only insert a user_workspaces row when the creator is a real BetterAuth user.
-    // Master API key (uid=undefined) has no authUser row and cannot be a member.
-    if (uid) {
-      await tx.insert(userWorkspaces).values({
-        userId: uid,
-        workspaceId: wsId,
-        role: 'owner',
-        joinedAt: now,
-      });
-    }
-
-    // Bootstrap Public and Admin permission groups
-    await tx.insert(permissionGroups).values([
-      {
-        id: randomUUID(), workspaceId: wsId,
-        name: 'Public', type: 'public',
-        description: 'Participants explicitly added to this workspace.',
-        memberIds: [], agentIds: [], uids: [], permissions: {}, createdAt: now,
-      },
-      {
-        id: randomUUID(), workspaceId: wsId,
-        name: 'Admin', type: 'admin',
-        description: 'Participants with full administrative access to this workspace.',
-        memberIds: agentId ? [agentId] : [],
-        agentIds: agentId ? [agentId] : [],
-        uids: uid ? [uid] : [],
-        permissions: {}, createdAt: now,
-      },
-    ]);
   });
 
   await syncLegacyWorkspaceMemberships(wsId);

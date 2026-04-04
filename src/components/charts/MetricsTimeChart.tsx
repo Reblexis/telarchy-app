@@ -22,10 +22,12 @@ export interface MetricsTimeChartProps {
   conditionalPoints?: ChartPoint[];
   mode: 'normal' | 'inspect';
   variant: 'inline' | 'modal';
+  rangeMin?: number;
+  rangeMax?: number;
 }
 
 export function MetricsTimeChart({
-  points, conditionalPoints, mode, variant,
+  points, conditionalPoints, mode, variant, rangeMin, rangeMax,
 }: MetricsTimeChartProps) {
   const currentColor = '#3b82f6';
   const conditionalColor = '#f59e0b';
@@ -136,6 +138,7 @@ export function MetricsTimeChart({
         },
       },
       y: {
+        ...(rangeMin !== undefined && rangeMax !== undefined ? { min: rangeMin, max: rangeMax } : {}),
         grid: { color: gridColor },
         ticks: {
           color: textColor,

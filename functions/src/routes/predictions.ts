@@ -203,7 +203,7 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
         });
       }
 
-      if (workspaceId !== 'default' && cost > 0) {
+      if (cost > 0) {
         await tx.update(workspaces).set({ tradedVolume: sql`${workspaces.tradedVolume} + ${cost}` })
           .where(eq(workspaces.id, workspaceId));
       }

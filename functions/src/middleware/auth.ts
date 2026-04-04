@@ -93,13 +93,11 @@ async function resolveUser(
     return { workspaceId: requestedWorkspaceId, memberRole: membership.memberRole, agentId };
   }
 
-  const nonDefault = memberships.filter(m => m.workspaceId !== 'default');
-  if (nonDefault.length === 0) return { workspaceId: 'default', memberRole: null, agentId };
-  nonDefault.sort((a, b) =>
+  memberships.sort((a, b) =>
     ROLE_PRIORITY.indexOf(a.memberRole) -
     ROLE_PRIORITY.indexOf(b.memberRole),
   );
-  return { workspaceId: nonDefault[0].workspaceId, memberRole: nonDefault[0].memberRole, agentId };
+  return { workspaceId: memberships[0].workspaceId, memberRole: memberships[0].memberRole, agentId };
 }
 
 async function resolveAgentWorkspace(

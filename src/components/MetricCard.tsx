@@ -122,6 +122,8 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
               conditionalPoints={conditionalPoints}
               mode={isInspectMode ? 'inspect' : 'normal'}
               variant="inline"
+              rangeMin={metric.marketRangeMax !== undefined ? 0 : undefined}
+              rangeMax={metric.marketRangeMax}
             />
           </div>
         )}

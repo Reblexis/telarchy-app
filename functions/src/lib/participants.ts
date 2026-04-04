@@ -1,6 +1,9 @@
 import { and, asc, eq, inArray } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
 import { db } from '../db/client';
 import { agents, appUsers, permissionGroups, userWorkspaces, workspaces } from '../db/schema';
+
+type DbOrTx = Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db;
 import type { WorkspaceMemberRole } from '../types';
 
 const ROLE_PRIORITY: WorkspaceMemberRole[] = ['owner', 'admin', 'trader', 'viewer'];
@@ -84,13 +87,31 @@ export async function getParticipantWorkspaceMemberships(participantId: string):
 
 export async function getUserWorkspaceMemberships(userId: string): Promise<WorkspaceMembership[]> {
   const participantId = await resolveParticipantIdForUser(userId);
+
+  let memberships: WorkspaceMembership[] = [];
   if (participantId) {
-    const memberships = await getParticipantWorkspaceMemberships(participantId);
-    if (memberships.length > 0) return memberships;
+    memberships = await getParticipantWorkspaceMemberships(participantId);
   }
 
-  const rows = await db.select().from(userWorkspaces).where(eq(userWorkspaces.userId, userId));
-  return rows.map(row => ({ workspaceId: row.workspaceId, memberRole: row.role as WorkspaceMemberRole }));
+  if (memberships.length === 0) {
+    const rows = await db.select().from(userWorkspaces).where(eq(userWorkspaces.userId, userId));
+    return rows.map(row => ({ workspaceId: row.workspaceId, memberRole: row.role as WorkspaceMemberRole }));
+  }
+
+  // Permission groups cap at 'admin'. Upgrade to 'owner' for any workspace where
+  // the user has an explicit owner row in userWorkspaces.
+  const ownerRows = await db.select({ workspaceId: userWorkspaces.workspaceId })
+    .from(userWorkspaces)
+    .where(and(eq(userWorkspaces.userId, userId), eq(userWorkspaces.role, 'owner')));
+
+  if (ownerRows.length > 0) {
+    const ownerSet = new Set(ownerRows.map(r => r.workspaceId));
+    return memberships.map(m =>
+      ownerSet.has(m.workspaceId) ? { ...m, memberRole: 'owner' as WorkspaceMemberRole } : m,
+    );
+  }
+
+  return memberships;
 }
 
 export async function getWorkspaceRoleForParticipant(
@@ -121,6 +142,68 @@ export async function listAccessibleWorkspaceIdsForParticipant(
   }
   if (userId) return getUserWorkspaceMemberships(userId);
   return [];
+}
+
+/**
+ * Create a workspace and guarantee the owner has both a userWorkspaces row
+ * (role='owner') and is a member of the Admin permission group.
+ * Must be called inside a transaction or standalone — handles both.
+ *
+ * @param tx  Drizzle transaction (or the db client itself for standalone use)
+ * @param opts.wsId         Workspace UUID to use (caller generates it)
+ * @param opts.name         Display name
+ * @param opts.createdBy    Identity string stored on the workspace row
+ * @param opts.ownerUid     BetterAuth user id of the owner (if a real user)
+ * @param opts.ownerAgentId Agent id of the owner (if known at creation time)
+ */
+export async function provisionWorkspace(
+  tx: DbOrTx,
+  opts: {
+    wsId: string;
+    name: string;
+    createdBy: string;
+    ownerUid?: string;
+    ownerAgentId?: string;
+  },
+): Promise<void> {
+  const { wsId, name, createdBy, ownerUid, ownerAgentId } = opts;
+  const now = new Date();
+
+  await tx.insert(workspaces).values({
+    id: wsId,
+    name,
+    createdBy,
+    createdAt: now,
+    visibility: 'private',
+  });
+
+  if (ownerUid) {
+    await tx.insert(userWorkspaces).values({
+      userId: ownerUid,
+      workspaceId: wsId,
+      role: 'owner',
+      joinedAt: now,
+    });
+  }
+
+  const adminMemberIds = ownerAgentId ? [ownerAgentId] : [];
+  const adminUids = ownerUid ? [ownerUid] : [];
+
+  await tx.insert(permissionGroups).values([
+    {
+      id: randomUUID(), workspaceId: wsId,
+      name: 'Public', type: 'public',
+      description: 'Participants explicitly added to this workspace.',
+      memberIds: [], agentIds: [], uids: [], permissions: {}, createdAt: now,
+    },
+    {
+      id: randomUUID(), workspaceId: wsId,
+      name: 'Admin', type: 'admin',
+      description: 'Participants with full administrative access to this workspace.',
+      memberIds: adminMemberIds, agentIds: adminMemberIds, uids: adminUids,
+      permissions: {}, createdAt: now,
+    },
+  ]);
 }
 
 export async function listParticipantsForWorkspace(workspaceId: string) {

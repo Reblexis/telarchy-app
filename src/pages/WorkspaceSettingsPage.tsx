@@ -29,7 +29,7 @@ export function WorkspaceSettingsPage() {
   const isOwner = workspace?.memberRole === 'owner';
 
   useEffect(() => {
-    if (!user || !wsId || wsId === 'default') { setWsLoading(false); return; }
+    if (!user || !wsId) { setWsLoading(false); return; }
     setWsLoading(true);
     api.getWorkspace(wsId)
       .then(detail => {
@@ -46,7 +46,7 @@ export function WorkspaceSettingsPage() {
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
-    if (!user || !wsId || wsId === 'default') return;
+    if (!user || !wsId) return;
     setError(''); setSaveMsg(''); setSaving(true);
     try {
       await api.updateWorkspaceSettings(wsId, { name: name.trim() });
@@ -61,7 +61,7 @@ export function WorkspaceSettingsPage() {
 
   const handleSaveMarkets = async (e: FormEvent) => {
     e.preventDefault();
-    if (!user || !wsId || wsId === 'default' || !isOwner) return;
+    if (!user || !wsId || !isOwner) return;
     const credits = parseFloat(liquidityCredits);
     if (autoFund && (!Number.isFinite(credits) || credits <= 0)) {
       setError('Enter a positive credit amount per new market when auto-fund is on.');
@@ -92,14 +92,11 @@ export function WorkspaceSettingsPage() {
 
   if (wsLoading) return <div className="loading">Loading…</div>;
 
-  if (!workspace || wsId === 'default') {
+  if (!workspace) {
     return (
       <div className="container" style={{ maxWidth: 600 }}>
         <h1>Workspace Settings</h1>
-        <p style={{ color: 'var(--text-secondary)' }}>
-          You are using the default workspace. Create a named workspace to access settings.
-        </p>
-        <button type="button" onClick={() => navigate('/create-workspace')}>Create workspace</button>
+        <p style={{ color: 'var(--text-secondary)' }}>No workspace found.</p>
       </div>
     );
   }
@@ -144,49 +141,46 @@ export function WorkspaceSettingsPage() {
         </form>
       </div>
 
-      {isOwner && (
-        <div className="section" style={{ marginTop: '2rem' }}>
-          <h3 style={{ marginBottom: '0.5rem' }}>Markets</h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
-            When enabled, each new non-task market debits your agent balance by the amount below (same as manual liquidity injection).
-            Background market creation uses the same rule.
-          </p>
-          <form onSubmit={handleSaveMarkets}>
-            <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <input
-                id="auto-fund"
-                type="checkbox"
-                checked={autoFund}
-                onChange={e => setAutoFund(e.target.checked)}
-              />
-              <label htmlFor="auto-fund" style={{ margin: 0 }}>Auto-fund new markets from my agent balance</label>
-            </div>
-            <div className="form-group">
-              <label htmlFor="liq-credits">Credits per new market (pool contribution)</label>
-              <input
-                id="liq-credits"
-                type="number"
-                min={0.01}
-                step="any"
-                value={liquidityCredits}
-                onChange={e => setLiquidityCredits(e.target.value)}
-                disabled={!autoFund}
-              />
-            </div>
-            <button type="submit" disabled={saving}>
-              {saving ? 'Saving...' : 'Save market funding'}
-            </button>
-          </form>
-        </div>
-      )}
-
-      {!isOwner && (
-        <div className="section" style={{ marginTop: '2rem' }}>
+      <div className="section" style={{ marginTop: '2rem' }}>
+        <h3 style={{ marginBottom: '0.5rem' }}>Markets</h3>
+        {isOwner ? (
+          <>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+              Automatically fund new markets from your agent balance. Each new non-task market will debit the amount below.
+            </p>
+            <form onSubmit={handleSaveMarkets}>
+              <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <input
+                  id="auto-fund"
+                  type="checkbox"
+                  checked={autoFund}
+                  onChange={e => setAutoFund(e.target.checked)}
+                />
+                <label htmlFor="auto-fund" style={{ margin: 0 }}>Auto-fund new markets</label>
+              </div>
+              {autoFund && (
+                <div className="form-group">
+                  <label htmlFor="liq-credits">Credits per market</label>
+                  <input
+                    id="liq-credits"
+                    type="number"
+                    step="any"
+                    value={liquidityCredits}
+                    onChange={e => setLiquidityCredits(e.target.value)}
+                  />
+                </div>
+              )}
+              <button type="submit" disabled={saving}>
+                {saving ? 'Saving...' : 'Save'}
+              </button>
+            </form>
+          </>
+        ) : (
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            Only the workspace owner can configure automatic market funding.
+            Only the workspace owner can configure market funding.
           </p>
-        </div>
-      )}
+        )}
+      </div>
 
       <div className="section" style={{ marginTop: '2rem' }}>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>

@@ -8,10 +8,11 @@
  *
  * Idempotent: does nothing once any user row exists.
  */
-import { randomBytes } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
 import { db } from '../db/client';
 import { authUser, authAccount, appUsers, agents, agentApiKeys } from '../db/schema';
 import { hashKey } from '../middleware/auth';
+import { provisionWorkspace } from './participants';
 
 async function hashAuthPassword(password: string): Promise<string> {
   const { hashPassword } = await import('better-auth/crypto');
@@ -96,10 +97,15 @@ export async function runBootstrap(): Promise<void> {
       approvedAt: new Date(),
     });
 
+    const wsId = randomUUID();
+    await provisionWorkspace(tx, {
+      wsId, name: 'My Workspace', createdBy: userId,
+      ownerUid: userId, ownerAgentId: agentId,
+    });
     await tx.insert(agentApiKeys).values({
       hash: agentKeyHash,
       agentId,
-      workspaceId: 'default',
+      workspaceId: wsId,
     });
   });
 

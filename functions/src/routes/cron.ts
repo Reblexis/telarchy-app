@@ -34,7 +34,7 @@ function validateApiKey(req: Request, res: Response): boolean {
 
 async function allWorkspaceIds(): Promise<string[]> {
   const rows = await db.select({ id: workspaces.id }).from(workspaces);
-  return ['default', ...rows.map(r => r.id)];
+  return rows.map(r => r.id);
 }
 
 cronRouter.post('/resolve', wrap(async (req, res) => {

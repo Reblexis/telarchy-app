@@ -104,6 +104,78 @@ export async function voidOpenMarketsForMetrics(metricIds: Set<string>, workspac
   }
 }
 
+/**
+ * Recreate markets for a standalone (non-TP-managed) metric at specific target dates.
+ * Uses workspace auto-fund settings if available, otherwise falls back to AMM defaults.
+ */
+export async function recreateMarketsForMetric(
+  metricId: string,
+  metricName: string,
+  targetDates: string[],
+  rangeMax: number,
+  workspaceId: string,
+): Promise<void> {
+  if (targetDates.length === 0) return;
+
+  const [wsRow] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId));
+  const credits = wsRow?.newMarketLiquidityCredits ?? 0;
+  const useAutoFund = Boolean(wsRow?.autoFundNewMarkets) && credits > 0;
+
+  const now = new Date();
+  const pending = targetDates.map(targetDate => ({ marketId: randomUUID(), targetDate }));
+
+  const insertWithDefaults = async () => {
+    const newMarkets = pending.map(p => ({
+      id: p.marketId, workspaceId, metricId, metricName, targetDate: p.targetDate,
+      resolved: false, resolvedAt: null, actualValue: null, active: true,
+      rangeMin: AMM_DEFAULTS.rangeMin, rangeMax,
+      shares: [0, 0] as [number, number], liquidity: AMM_DEFAULTS.liquidity,
+      pool: initialPool(AMM_DEFAULTS.liquidity), createdAt: now,
+    }));
+    const newLiqEvents = pending.map(p => ({
+      id: randomUUID(), workspaceId, marketId: p.marketId, amount: AMM_DEFAULTS.liquidity,
+      totalLiquidity: AMM_DEFAULTS.liquidity, type: 'initial' as const, createdAt: now,
+    }));
+    await db.transaction(async tx => {
+      await tx.insert(markets).values(newMarkets);
+      await tx.insert(liquidityEvents).values(newLiqEvents);
+    });
+  };
+
+  if (!useAutoFund) {
+    await insertWithDefaults();
+  } else {
+    const ownerAgentId = await resolveWorkspaceOwnerAgentId(workspaceId);
+    if (!ownerAgentId) {
+      await insertWithDefaults();
+    } else {
+      const totalCost = Math.round(credits * pending.length * 1e6) / 1e6;
+      const [ag] = await db.select().from(agents).where(eq(agents.id, ownerAgentId));
+      if (!ag || !sufficientBalance(ag.balance as number, totalCost)) {
+        console.error('recreateMarketsForMetric: insufficient balance for auto-fund, falling back to defaults', { workspaceId, needed: totalCost });
+        await insertWithDefaults();
+      } else {
+        await db.transaction(async tx => {
+          for (const p of pending) {
+            await tx.insert(markets).values({
+              id: p.marketId, workspaceId, metricId, metricName, targetDate: p.targetDate,
+              resolved: false, resolvedAt: null, actualValue: null, active: true,
+              rangeMin: AMM_DEFAULTS.rangeMin, rangeMax,
+              shares: [0, 0] as [number, number], liquidity: 0, pool: 0, createdAt: now,
+            });
+            await applyAgentLiquidityInjectionTx(tx, { workspaceId, marketId: p.marketId, agentId: ownerAgentId, poolContribution: credits });
+          }
+        });
+      }
+    }
+  }
+
+  for (const p of pending) {
+    emitEvent('market:created', { marketId: p.marketId, metricName, targetDate: p.targetDate }, workspaceId)
+      .catch(e => console.error('emitEvent failed:', e));
+  }
+}
+
 /** Acquire a named lock using systemConfig as a lock table. Returns true if acquired. */
 async function acquireLock(lockKey: string, ttlMs: number): Promise<boolean> {
   return db.transaction(async tx => {
@@ -188,6 +260,17 @@ export async function refreshRelativeDateMarkets(workspaceId = 'default'): Promi
 
   for (const m of openMarkets) {
     const key = `${m.metricId}:${m.targetDate}`;
+
+    // Void markets whose rangeMax is stale (metric's marketRangeMax has changed).
+    // Skip adding to openKeys so the pending step recreates them with the correct rangeMax.
+    if (!m.taskId) {
+      const expectedRangeMax = idToRangeMax.get(m.metricId);
+      if (expectedRangeMax !== undefined && m.rangeMax !== expectedRangeMax) {
+        toVoid.push(m);
+        continue;
+      }
+    }
+
     openKeys.add(key);
     if (m.taskId) continue;
 
