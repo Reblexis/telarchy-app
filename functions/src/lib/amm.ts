@@ -74,8 +74,16 @@ export function betTowardsValue(
   if (Math.abs(targetValue - current) < 0.01) return { direction: 1, amount: 0, cost: 0 };
 
   const direction: 0 | 1 = targetValue >= current ? 1 : 0;
-  const clampedP = Math.max(0.001, Math.min(0.999, (targetValue - rangeMin) / (rangeMax - rangeMin)));
-  const targetDiff = -b * Math.log(1 / clampedP - 1);
+  const p = (targetValue - rangeMin) / (rangeMax - rangeMin);
+  if (p <= 0) {
+    const { amount, cost } = sharesForBudget(shares, 0, maxBudget, b);
+    return { direction: 0, amount, cost };
+  }
+  if (p >= 1) {
+    const { amount, cost } = sharesForBudget(shares, 1, maxBudget, b);
+    return { direction: 1, amount, cost };
+  }
+  const targetDiff = -b * Math.log(1 / p - 1);
   const currentDiff = shares[1] - shares[0];
   const neededAmount = Math.max(0, direction === 1 ? targetDiff - currentDiff : currentDiff - targetDiff);
   const neededCost = directionTradeCost(shares, direction, neededAmount, b);
