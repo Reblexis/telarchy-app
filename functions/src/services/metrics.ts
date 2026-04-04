@@ -1,5 +1,5 @@
 import { db } from '../db/client';
-import { metrics, markets, liquidityEvents, metricLogs, updates } from '../db/schema';
+import { metrics, markets, metricLogs, updates } from '../db/schema';
 import { eq, and, asc, desc } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import type { Metric, MetricLog, UpdateEntry } from '../types';
@@ -8,6 +8,7 @@ import { sampleTimePoints, getLeafDescendantNames } from '../lib/time-preference
 import { consensus as ammConsensus, AMM_DEFAULTS } from '../lib/amm';
 import { toISOWeekString } from '../lib/date-utils';
 import { emitEvent } from './events';
+import { insertPendingMarkets, type PendingMarket } from './markets';
 
 function enrichMetrics(rawMetrics: Metric[], consensusMap: Record<string, number> = {}, untradedLeaves: Set<string> = new Set()): Metric[] {
   const nameToFormula: Record<string, string> = {};
@@ -178,44 +179,24 @@ export async function ensureMarketsForTimePreference(
 
   const existingMarkets = new Set(openMarkets.map(m => `${m.metricId}:${m.targetDate}`));
 
-  const newMarkets: typeof markets.$inferInsert[] = [];
-  const newLiqEvents: typeof liquidityEvents.$inferInsert[] = [];
-  const created: Array<{ marketId: string; metricName: string; targetDate: string }> = [];
+  const pending: PendingMarket[] = [];
 
   for (const leafName of leafNames) {
     const leafId = nameToId.get(leafName);
     if (!leafId) continue;
-    const rMax = idToRangeMax.get(leafId) ?? AMM_DEFAULTS.rangeMax;
+    const rangeMax = idToRangeMax.get(leafId) ?? AMM_DEFAULTS.rangeMax;
 
     for (const { date } of timePoints) {
       const key = `${leafId}:${date}`;
       if (existingMarkets.has(key)) continue;
       existingMarkets.add(key);
-
-      const marketId = randomUUID();
-      newMarkets.push({
-        id: marketId, workspaceId, metricId: leafId, metricName: leafName, targetDate: date,
-        resolved: false, resolvedAt: null, actualValue: null, active: true,
-        rangeMin: AMM_DEFAULTS.rangeMin, rangeMax: rMax,
-        shares: [0, 0] as [number, number], liquidity: AMM_DEFAULTS.liquidity,
-        pool: AMM_DEFAULTS.liquidity, createdAt: new Date(),
-      });
-      newLiqEvents.push({
-        id: randomUUID(), workspaceId, marketId, amount: AMM_DEFAULTS.liquidity,
-        totalLiquidity: AMM_DEFAULTS.liquidity, type: 'initial', createdAt: new Date(),
-      });
-      created.push({ marketId, metricName: leafName, targetDate: date });
+      pending.push({ marketId: randomUUID(), metricId: leafId, metricName: leafName, targetDate: date, rangeMax });
     }
   }
 
-  if (newMarkets.length > 0) {
-    await db.transaction(async tx => {
-      await tx.insert(markets).values(newMarkets);
-      await tx.insert(liquidityEvents).values(newLiqEvents);
-    });
-    for (const { marketId, metricName, targetDate } of created) {
-      await emitEvent('market:created', { marketId, metricName, targetDate }, workspaceId);
-    }
+  await insertPendingMarkets(pending, workspaceId);
+  for (const p of pending) {
+    await emitEvent('market:created', { marketId: p.marketId, metricName: p.metricName, targetDate: p.targetDate }, workspaceId);
   }
 }
 
