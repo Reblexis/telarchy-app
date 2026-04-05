@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import type { Metric } from '../types';
 import type { FormulaWarning } from '../lib/metrics-engine';
 import { MetricsTimeChart } from './charts/MetricsTimeChart';
@@ -45,10 +45,14 @@ interface MetricCardProps {
   onGraph: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
+  onValueChange?: (newValue: number) => void;
 }
 
-export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus, onGraph, onEdit, onDelete }: MetricCardProps) {
+export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus, onGraph, onEdit, onDelete, onValueChange }: MetricCardProps) {
   const isLeaf = !metric.formula || metric.formula.trim() === '0';
+  const [isEditingValue, setIsEditingValue] = useState(false);
+  const [editValueStr, setEditValueStr] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
   const points = useMemo(
     () => (metric.timeSeries ? buildPointsFromTimeSeries(metric.timeSeries) : []),
     [metric.timeSeries],
@@ -76,9 +80,44 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
           </div>
         )}
         <div className="metric-stats">
-          {isLeaf
-            ? `Value: ${metric.value.toFixed(2)}`
-            : metric.total === null
+          {isLeaf ? (
+            isEditingValue ? (
+              <span>
+                Value:{' '}
+                <input
+                  ref={inputRef}
+                  type="number"
+                  step="any"
+                  value={editValueStr}
+                  onChange={e => setEditValueStr(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      const v = parseFloat(editValueStr);
+                      if (!isNaN(v) && onValueChange) onValueChange(v);
+                      setIsEditingValue(false);
+                    } else if (e.key === 'Escape') {
+                      setIsEditingValue(false);
+                    }
+                  }}
+                  onBlur={() => {
+                    const v = parseFloat(editValueStr);
+                    if (!isNaN(v) && onValueChange) onValueChange(v);
+                    setIsEditingValue(false);
+                  }}
+                  style={{ width: '6rem', fontSize: 'inherit', padding: '0 0.25rem' }}
+                  autoFocus
+                />
+              </span>
+            ) : (
+              <span
+                onClick={onValueChange ? () => { setEditValueStr(String(metric.value)); setIsEditingValue(true); } : undefined}
+                style={onValueChange ? { cursor: 'text', borderBottom: '1px dashed currentColor' } : undefined}
+                title={onValueChange ? 'Click to edit value' : undefined}
+              >
+                Value: {metric.value.toFixed(2)}
+              </span>
+            )
+          ) : metric.total === null
               ? `Total: —`
               : `Total: ${metric.total.toFixed(2)}`
           }

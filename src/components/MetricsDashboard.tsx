@@ -13,10 +13,11 @@ interface MetricsDashboardProps {
   onGraph: (metric: Metric) => void;
   onEdit?: (metric: Metric) => void;
   onDelete?: (id: string) => void;
+  onValueChange?: (metric: Metric, newValue: number) => void;
 }
 
 export function MetricsDashboard({
-  metrics, isInspectMode, formulaWarnings, focusedMetricId, onToggleFocus, onGraph, onEdit, onDelete,
+  metrics, isInspectMode, formulaWarnings, focusedMetricId, onToggleFocus, onGraph, onEdit, onDelete, onValueChange,
 }: MetricsDashboardProps) {
   let metricsToRender = metrics;
   let focusedMetric: Metric | undefined;
@@ -60,6 +61,7 @@ export function MetricsDashboard({
                   onGraph={() => onGraph(metric)}
                   onEdit={onEdit ? () => onEdit(metric) : undefined}
                   onDelete={onDelete ? () => onDelete(metric.id) : undefined}
+                  onValueChange={onValueChange ? (v) => onValueChange(metric, v) : undefined}
                 />
               ))}
             </div>

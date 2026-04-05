@@ -56,6 +56,8 @@ export function evaluateFormula(
 
   expression = expression.replace(/sqrt\(/g, 'Math.sqrt(');
   expression = expression.replace(/abs\(/g, 'Math.abs(');
+  expression = expression.replace(/log10\(/g, 'Math.log10(');
+  expression = expression.replace(/log\(/g, 'Math.log(');
   expression = expression.replace(/min\(/g, 'Math.min(');
   expression = expression.replace(/max\(/g, 'Math.max(');
   expression = expression.replace(/pow\(/g, 'Math.pow(');
@@ -109,6 +111,8 @@ export function evaluateFormulaAtTime(
 
   expression = expression.replace(/sqrt\(/g, 'Math.sqrt(');
   expression = expression.replace(/abs\(/g, 'Math.abs(');
+  expression = expression.replace(/log10\(/g, 'Math.log10(');
+  expression = expression.replace(/log\(/g, 'Math.log(');
   expression = expression.replace(/min\(/g, 'Math.min(');
   expression = expression.replace(/max\(/g, 'Math.max(');
   expression = expression.replace(/pow\(/g, 'Math.pow(');
@@ -178,6 +182,8 @@ export function validateFormula(formula: string, metricNames: Set<string>): Form
   testExpr = testExpr.replace(/\{([^}]+)\}/g, '0');
   testExpr = testExpr.replace(/sqrt\(/g, 'Math.sqrt(');
   testExpr = testExpr.replace(/abs\(/g, 'Math.abs(');
+  testExpr = testExpr.replace(/log10\(/g, 'Math.log10(');
+  testExpr = testExpr.replace(/log\(/g, 'Math.log(');
   testExpr = testExpr.replace(/min\(/g, 'Math.min(');
   testExpr = testExpr.replace(/max\(/g, 'Math.max(');
   testExpr = testExpr.replace(/pow\(/g, 'Math.pow(');

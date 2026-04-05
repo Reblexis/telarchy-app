@@ -51,6 +51,10 @@ export function MetricsPage() {
     await editMetric(id, name, description, value, formula, oldValue, updateNote, timePreference, marketRangeMax);
   };
 
+  const handleInlineValueChange = async (metric: import('../types').Metric, newValue: number) => {
+    await editMetric(metric.id, metric.name, metric.description || '', newValue, metric.formula || '0', metric.value, '', metric.timePreference ?? null, metric.marketRangeMax);
+  };
+
   if (!user || metricsLoading) {
     return <div className="loading">Loading...</div>;
   }
@@ -98,6 +102,7 @@ export function MetricsPage() {
           onGraph={setGraphMetric}
           onEdit={isAdmin ? setEditingMetric : undefined}
           onDelete={isAdmin ? handleDelete : undefined}
+          onValueChange={isAdmin ? handleInlineValueChange : undefined}
         />
         {isAdmin && <AddMetricForm onAdd={handleAddMetric} />}
       </div>
