@@ -42,7 +42,12 @@ metricsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
   const tp = parseTimePreference(timePreference);
   if (tp instanceof Error) { res.status(400).json({ error: tp.message }); return; }
 
-  if (tp?.enabled && (!formula || formula.trim() === '0')) {
+  const isLeaf = !formula || formula.trim() === '0';
+  if (marketRangeMax !== undefined && !isLeaf) {
+    res.status(400).json({ error: 'marketRangeMax can only be set on leaf metrics (no formula)' }); return;
+  }
+
+  if (tp?.enabled && isLeaf) {
     res.status(400).json({ error: 'Time preference can only be enabled on non-leaf metrics (with a formula)' });
     return;
   }
@@ -79,6 +84,7 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
   if (fields.marketRangeMax !== undefined && (typeof fields.marketRangeMax !== 'number' || fields.marketRangeMax <= 0)) {
     res.status(400).json({ error: 'marketRangeMax must be a positive number' }); return;
   }
+  // marketRangeMax leaf-only check happens after oldRow is fetched (effectiveFormula needed)
 
   const allowed = ['name', 'description', 'value', 'formula', 'marketRangeMax'] as const;
   const update: Record<string, unknown> = {};
@@ -100,7 +106,12 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
   const effectiveFormula = (update.formula as string | undefined) ?? oldRow.formula ?? '0';
   const effectiveName = (update.name as string | undefined) ?? oldRow.name;
 
-  if (newTP?.enabled && (!effectiveFormula || effectiveFormula.trim() === '0')) {
+  const effectiveIsLeaf = !effectiveFormula || effectiveFormula.trim() === '0';
+  if (update.marketRangeMax !== undefined && !effectiveIsLeaf) {
+    res.status(400).json({ error: 'marketRangeMax can only be set on leaf metrics (no formula)' }); return;
+  }
+
+  if (newTP?.enabled && effectiveIsLeaf) {
     res.status(400).json({ error: 'Time preference can only be enabled on non-leaf metrics (with a formula)' });
     return;
   }

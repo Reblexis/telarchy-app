@@ -679,7 +679,7 @@ await suite('Metrics — edge cases', async () => {
     expect(detail.marketRangeMax as number).toBeGreaterThan(0);
   });
 
-  await test('Metric created with explicit marketRangeMax stores it correctly', async () => {
+  await test('Leaf metric created with explicit marketRangeMax stores it correctly', async () => {
     const r = ok(await adminCall(ctx.wsId)('POST', '/metrics', {
       name: `EdgeMetricRange_${Date.now()}`,
       value: 10,
@@ -688,6 +688,31 @@ await suite('Metrics — edge cases', async () => {
     const detail = ok(await adminCall(ctx.wsId)('GET', `/metrics/${r.id as string}`));
     expect(detail.marketRangeMax as number).toBe(500);
     await adminCall(ctx.wsId)('DELETE', `/metrics/${r.id as string}`);
+  });
+
+  await test('Composite metric with marketRangeMax is rejected (400 — only leaf metrics)', async () => {
+    const leafR = ok(await adminCall(ctx.wsId)('POST', '/metrics', { name: `RangeLeaf_${Date.now()}`, value: 1 }));
+    const leafName = (ok(await adminCall(ctx.wsId)('GET', `/metrics/${leafR.id as string}`))).name as string;
+    const r = await adminCall(ctx.wsId)('POST', '/metrics', {
+      name: `RangeComp_${Date.now()}`,
+      formula: `{${leafName}}`,
+      marketRangeMax: 500,
+    });
+    expect(r.status).toBe(400);
+    await adminCall(ctx.wsId)('DELETE', `/metrics/${leafR.id as string}`);
+  });
+
+  await test('Setting marketRangeMax on an existing composite via PUT is rejected (400)', async () => {
+    // Use the composite created in the edge-cases suite (compositeId may be gone — create fresh)
+    const leafR = ok(await adminCall(ctx.wsId)('POST', '/metrics', { name: `RLeaf2_${Date.now()}`, value: 5 }));
+    const leafName = (ok(await adminCall(ctx.wsId)('GET', `/metrics/${leafR.id as string}`))).name as string;
+    const compR = ok(await adminCall(ctx.wsId)('POST', '/metrics', {
+      name: `RComp2_${Date.now()}`, formula: `{${leafName}}`,
+    }));
+    const r = await adminCall(ctx.wsId)('PUT', `/metrics/${compR.id as string}`, { marketRangeMax: 200 });
+    expect(r.status).toBe(400);
+    await adminCall(ctx.wsId)('DELETE', `/metrics/${compR.id as string}`);
+    await adminCall(ctx.wsId)('DELETE', `/metrics/${leafR.id as string}`);
   });
 
   await test('marketRangeMax of 0 is rejected (400)', async () => {
