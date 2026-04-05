@@ -1671,7 +1671,20 @@ await suite('Cleanup', async () => {
 
 } // end main()
 
-main().then(() => {
+async function cleanupWorkspaces() {
+  const wsIds = [ctx.wsId, ctx.wsId2].filter(Boolean) as string[];
+  for (const wsId of wsIds) {
+    try {
+      await apiRaw('DELETE', `/workspaces/${wsId}`, undefined, {
+        'X-API-Key': ADMIN_KEY, 'X-Workspace-Id': wsId,
+      });
+    } catch { /* best-effort */ }
+  }
+  if (wsIds.length) console.log(`  Cleaned up ${wsIds.length} test workspace(s).`);
+}
+
+main().then(async () => {
+  await cleanupWorkspaces();
   const passed = results.filter(r => r.passed).length;
   const failed = results.filter(r => !r.passed).length;
   console.log(`\n${'─'.repeat(60)}`);
@@ -1686,4 +1699,4 @@ main().then(() => {
   } else {
     console.log('  All tests passed.\n');
   }
-}).catch(e => { console.error('Fatal:', e); process.exit(1); });
+}).catch(async e => { await cleanupWorkspaces().catch(() => {}); console.error('Fatal:', e); process.exit(1); });
