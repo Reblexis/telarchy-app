@@ -17,6 +17,11 @@ RUN npm ci
 COPY tsconfig*.json vite.config.ts index.html ./
 COPY src ./src
 COPY public ./public
+# Frontend re-exports shared modules from the backend source
+COPY functions/src/lib/metrics-engine.ts ./functions/src/lib/metrics-engine.ts
+COPY functions/src/lib/time-preference.ts ./functions/src/lib/time-preference.ts
+COPY functions/src/lib/date-utils.ts ./functions/src/lib/date-utils.ts
+COPY functions/src/types.ts ./functions/src/types.ts
 # Empty VITE_API_URL means frontend calls the same origin (self-hosted mode)
 ARG VITE_API_URL=""
 ENV VITE_API_URL=$VITE_API_URL
@@ -29,8 +34,8 @@ WORKDIR /app
 COPY functions/package*.json ./
 RUN npm ci --omit=dev
 COPY --from=backend-builder /app/functions/lib ./lib
-# Serve frontend static files from /app/public
-COPY --from=frontend-builder /app/dist ./public
+# Serve frontend static files — server.ts expects them at __dirname/public = lib/public
+COPY --from=frontend-builder /app/dist ./lib/public
 
 ENV PORT=8080
 EXPOSE 8080

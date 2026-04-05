@@ -1,10 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 
-const firebaseRc = JSON.parse(readFileSync('.firebaserc', 'utf8')) as {
-  projects?: { default?: string };
-};
+const firebaseRc = existsSync('.firebaserc')
+  ? (JSON.parse(readFileSync('.firebaserc', 'utf8')) as { projects?: { default?: string } })
+  : {};
 const emulatorProjectId = firebaseRc.projects?.default || 'telarchy-e0043';
 
 export default defineConfig({
