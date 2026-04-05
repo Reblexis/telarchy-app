@@ -21,6 +21,8 @@ export function evaluateFormula(
 
   expression = expression.replace(/sqrt\(/g, 'Math.sqrt(');
   expression = expression.replace(/abs\(/g, 'Math.abs(');
+  expression = expression.replace(/log10\(/g, 'Math.log10(');
+  expression = expression.replace(/log\(/g, 'Math.log(');
   expression = expression.replace(/min\(/g, 'Math.min(');
   expression = expression.replace(/max\(/g, 'Math.max(');
   expression = expression.replace(/pow\(/g, 'Math.pow(');
@@ -79,6 +81,8 @@ export function evaluateFormulaAtTime(
 
   expression = expression.replace(/sqrt\(/g, 'Math.sqrt(');
   expression = expression.replace(/abs\(/g, 'Math.abs(');
+  expression = expression.replace(/log10\(/g, 'Math.log10(');
+  expression = expression.replace(/log\(/g, 'Math.log(');
   expression = expression.replace(/min\(/g, 'Math.min(');
   expression = expression.replace(/max\(/g, 'Math.max(');
   expression = expression.replace(/pow\(/g, 'Math.pow(');
