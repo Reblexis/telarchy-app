@@ -61,7 +61,8 @@ DB_PASSWORD=$DB_PASSWORD
 DATABASE_URL=postgres://telarchy:${DB_PASSWORD}@localhost:5432/telarchy
 API_KEY=$API_KEY
 BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
-ADMIN_EMAILS=$ADMIN_EMAIL
+INITIAL_ADMIN_EMAIL=$ADMIN_EMAIL
+BETTER_AUTH_URL=http://localhost:8080
 ALLOWED_ORIGIN=*
 PORT=8080
 EOF
@@ -134,7 +135,8 @@ cat > /tmp/telarchy-run.env <<EOF
 DATABASE_URL=postgres://telarchy:${DB_PASSWORD}@localhost:5432/telarchy
 API_KEY=${API_KEY}
 BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
-ADMIN_EMAILS=${ADMIN_EMAIL}
+INITIAL_ADMIN_EMAIL=${ADMIN_EMAIL}
+BETTER_AUTH_URL=http://localhost:8080
 ALLOWED_ORIGIN=*
 PORT=8080
 EOF
@@ -165,9 +167,8 @@ echo -e "  ${B}App URL:${NC}     http://localhost:8080"
 echo -e "  ${B}API Key:${NC}     ${API_KEY}"
 echo ""
 echo -e "  ${Y}Next steps:${NC}"
-echo "  1. Go to http://localhost:8080/signup"
-echo "  2. Sign up with: $ADMIN_EMAIL"
-echo "  3. You'll automatically have platform-admin access to all your data."
+echo "  1. Go to http://localhost:8080/login"
+echo "  2. Sign in with: $ADMIN_EMAIL (password printed in server output above)"
 echo ""
 echo -e "  ${Y}To restart later:${NC}"
 echo "  cd $REPO_DIR/functions"

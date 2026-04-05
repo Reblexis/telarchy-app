@@ -159,6 +159,7 @@ app.get('/api/help', (_req, res) => {
       { method: 'GET', path: '/api/workspaces/:id', auth: 'agent/admin', description: 'Get workspace details.' },
       { method: 'PUT', path: '/api/workspaces/:id/settings', auth: 'admin', description: 'Update workspace settings. Body: { name?, autoFundNewMarkets?, newMarketLiquidityCredits? }. Auto-fund fields: workspace owner only (session); master API key cannot set them.' },
       { method: 'POST', path: '/api/workspaces/:id/members', auth: 'admin', description: 'Add or update a workspace member. Requires master API key or workspace owner/admin. Body: { userId: string, role: "owner"|"admin"|"trader"|"viewer" }.' },
+      { method: 'DELETE', path: '/api/workspaces/:id', auth: 'admin', description: 'Delete a workspace. Owner only. Voids all open markets (refunds stakes), then permanently deletes all workspace data.' },
       { method: 'DELETE', path: '/api/auth/me', auth: 'admin', description: 'GDPR: delete your account.' },
       { method: 'GET', path: '/api/auth/me/export', auth: 'admin', description: 'GDPR: export your account data.' },
       { method: 'GET', path: '/api/marketplace', auth: false, description: 'List active markets from all public workspaces.' },

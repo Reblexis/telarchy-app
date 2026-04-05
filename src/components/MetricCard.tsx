@@ -63,6 +63,9 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
       <div className="metric-info">
         <div className="metric-name">
           {metric.name}
+          {isLeaf && (
+            <span className="leaf-badge">leaf</span>
+          )}
           {warnings.length > 0 && (
             <span title={warnings.map(w => w.message).join('\n')} style={{ marginLeft: '0.5rem', color: 'var(--error-text)', cursor: 'help' }}>!</span>
           )}

@@ -260,6 +260,8 @@ export const api = {
   getWorkspaceStats: (id: string) => request(`/api/workspaces/${id}/stats`),
   updateWorkspaceSettings: (id: string, body: { name?: string; autoFundNewMarkets?: boolean; newMarketLiquidityCredits?: number }) =>
     request(`/api/workspaces/${id}/settings`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteWorkspace: (id: string) =>
+    request(`/api/workspaces/${id}`, { method: 'DELETE' }),
   // Permission groups
   listGroups: () => request('/api/groups'),
   createGroup: (name: string) =>

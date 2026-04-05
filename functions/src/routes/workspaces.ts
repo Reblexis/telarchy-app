@@ -1,12 +1,18 @@
 import { Router } from 'express';
 import { db } from '../db/client';
-import { workspaces, userWorkspaces, permissionGroups } from '../db/schema';
+import {
+  workspaces, userWorkspaces, permissionGroups,
+  markets, positions, trades, liquidityEvents,
+  metrics, tasks, taskMessages, updates, metricLogs, events,
+  hookWatcher, agentApiKeys,
+} from '../db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { requireRole, requireIdentity } from '../middleware/roles';
 import { getAuthWorkspaceMemberships } from '../middleware/auth';
 import { syncLegacyWorkspaceMemberships, resolveWorkspaceOwnerAgentId, provisionWorkspace } from '../lib/participants';
+import { voidMarket } from '../services/markets';
 
 export const workspacesRouter = Router();
 
@@ -204,4 +210,53 @@ workspacesRouter.post('/:id/members', requireRole('admin'), wrap(async (req, res
   await syncLegacyWorkspaceMemberships(wsId);
 
   res.status(201).json({ ok: true, workspaceId: wsId, participantId, role });
+}));
+
+/**
+ * DELETE /api/workspaces/:id
+ * Owner-only: void all open markets (refund participants), then delete all workspace data.
+ */
+workspacesRouter.delete('/:id', requireRole('admin'), wrap(async (req, res) => {
+  const { uid, agentId } = req.auth!;
+  const wsId = req.params.id as string;
+
+  const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, wsId));
+  if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
+
+  if (uid || agentId) {
+    const memberRole = await getMembershipRoleForWorkspace({ uid, agentId }, wsId);
+    if (memberRole !== 'owner') {
+      res.status(403).json({ error: 'Only the workspace owner can delete a workspace' }); return;
+    }
+  }
+
+  // Void all unresolved markets (refunds positions to participants)
+  const openMarkets = await db.select().from(markets)
+    .where(and(eq(markets.workspaceId, wsId), eq(markets.resolved, false)));
+  let voided = 0;
+  for (const m of openMarkets) {
+    await voidMarket(m, wsId);
+    voided++;
+  }
+
+  // Delete all workspace-scoped data
+  await db.transaction(async tx => {
+    await tx.delete(liquidityEvents).where(eq(liquidityEvents.workspaceId, wsId));
+    await tx.delete(positions).where(eq(positions.workspaceId, wsId));
+    await tx.delete(trades).where(eq(trades.workspaceId, wsId));
+    await tx.delete(markets).where(eq(markets.workspaceId, wsId));
+    await tx.delete(taskMessages).where(eq(taskMessages.workspaceId, wsId));
+    await tx.delete(tasks).where(eq(tasks.workspaceId, wsId));
+    await tx.delete(updates).where(eq(updates.workspaceId, wsId));
+    await tx.delete(metricLogs).where(eq(metricLogs.workspaceId, wsId));
+    await tx.delete(events).where(eq(events.workspaceId, wsId));
+    await tx.delete(metrics).where(eq(metrics.workspaceId, wsId));
+    await tx.delete(permissionGroups).where(eq(permissionGroups.workspaceId, wsId));
+    await tx.delete(agentApiKeys).where(eq(agentApiKeys.workspaceId, wsId));
+    await tx.delete(hookWatcher).where(eq(hookWatcher.workspaceId, wsId));
+    await tx.delete(userWorkspaces).where(eq(userWorkspaces.workspaceId, wsId));
+    await tx.delete(workspaces).where(eq(workspaces.id, wsId));
+  });
+
+  res.json({ ok: true, voided });
 }));

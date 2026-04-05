@@ -478,6 +478,20 @@ h1 {
   color: var(--text-primary);
 }
 
+.leaf-badge {
+  margin-left: 0.4rem;
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+  background: var(--accent-color, #3b82f6);
+  color: #fff;
+  opacity: 0.7;
+  vertical-align: middle;
+}
+
 .metric-stats {
   font-size: 0.875rem;
   color: var(--text-secondary);

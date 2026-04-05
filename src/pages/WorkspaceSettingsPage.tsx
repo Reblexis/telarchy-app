@@ -196,11 +196,34 @@ export function WorkspaceSettingsPage() {
         </p>
       </div>
 
-      {ws && (
-        <div className="section" style={{ marginTop: '2rem' }}>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
-            Workspace ID: {ws.id}
+      {isOwner && (
+        <div className="section" style={{ marginTop: '3rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
+          <h3 style={{ marginBottom: '0.5rem', color: 'var(--error-text)' }}>Danger zone</h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+            Permanently delete this workspace and all its data. All open markets will be voided and stakes refunded.
           </p>
+          <button
+            type="button"
+            className="btn-delete"
+            disabled={saving}
+            onClick={async () => {
+              if (!wsId) return;
+              const confirmed = window.confirm(
+                `Delete workspace "${ws?.name ?? wsId}"?\n\nAll markets will be voided (stakes refunded), and all metrics, trades, and history will be permanently deleted. This cannot be undone.`
+              );
+              if (!confirmed) return;
+              setSaving(true); setError('');
+              try {
+                await api.deleteWorkspace(wsId);
+                navigate('/');
+              } catch (e: unknown) {
+                setError((e as Error).message);
+                setSaving(false);
+              }
+            }}
+          >
+            {saving ? 'Deleting...' : 'Delete workspace'}
+          </button>
         </div>
       )}
     </div>
