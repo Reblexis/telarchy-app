@@ -101,6 +101,92 @@ export function evaluateFormulaAtTime(
   }
 }
 
+export interface FormulaWarning {
+  type: 'syntax_error';
+  message: string;
+}
+
+export function validateFormula(formula: string, metricNames: Set<string>): FormulaWarning[] {
+  if (!formula || formula.trim() === '0' || formula.trim() === '') return [];
+
+  const warnings: FormulaWarning[] = [];
+
+  for (const name of extractMetricReferences(formula)) {
+    if (!metricNames.has(name)) {
+      warnings.push({ type: 'syntax_error', message: `Unknown metric: {${name}}` });
+    }
+  }
+
+  const stripCalls = (s: string): string => {
+    const fns = ['min', 'max', 'pow', 'sqrt', 'abs', 'clamp', 'log10', 'log'];
+    let r = s;
+    for (const fn of fns) {
+      const re = new RegExp(fn + '\\s*\\(', 'g');
+      const m = re.exec(r);
+      if (m) {
+        let d = 1;
+        let i = m.index + m[0].length;
+        while (i < r.length && d > 0) {
+          if (r[i] === '(') d++;
+          else if (r[i] === ')') d--;
+          i++;
+        }
+        r = r.slice(0, m.index) + '0' + r.slice(i);
+        return stripCalls(r);
+      }
+    }
+    return r;
+  };
+  if (stripCalls(formula).includes(',')) {
+    warnings.push({ type: 'syntax_error', message: 'Comma in formula discards left side (use + to add terms)' });
+  }
+
+  let testExpr = formula;
+  testExpr = testExpr.replace(/\{([^}]+)\}/g, '0');
+  testExpr = testExpr.replace(/sqrt\(/g, 'Math.sqrt(');
+  testExpr = testExpr.replace(/abs\(/g, 'Math.abs(');
+  testExpr = testExpr.replace(/log10\(/g, 'Math.log10(');
+  testExpr = testExpr.replace(/log\(/g, 'Math.log(');
+  testExpr = testExpr.replace(/min\(/g, 'Math.min(');
+  testExpr = testExpr.replace(/max\(/g, 'Math.max(');
+  testExpr = testExpr.replace(/pow\(/g, 'Math.pow(');
+  const clampFn = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
+  try {
+    const result = Function('clamp', 'return (' + testExpr + ')')(clampFn);
+    if (typeof result !== 'number' || isNaN(result)) {
+      warnings.push({ type: 'syntax_error', message: 'Formula evaluates to NaN' });
+    }
+  } catch (e) {
+    warnings.push({ type: 'syntax_error', message: `Invalid formula syntax: ${(e as Error).message}` });
+  }
+
+  return warnings;
+}
+
+export function getDependencyChain(metricId: string, metrics: Metric[]): string[] {
+  const nameToId: Record<string, string> = {};
+  const idToMetric: Record<string, Metric> = {};
+  metrics.forEach(m => { nameToId[m.name] = m.id; idToMetric[m.id] = m; });
+
+  const chain = new Set([metricId]);
+  getAffectedMetrics([metricId], metrics).forEach(id => chain.add(id));
+
+  const visited = new Set<string>();
+  function addParents(currentId: string) {
+    if (visited.has(currentId)) return;
+    visited.add(currentId);
+    const metric = idToMetric[currentId];
+    if (metric && metric.formula) {
+      for (const depName of extractMetricReferences(metric.formula)) {
+        const depId = nameToId[depName];
+        if (depId) { chain.add(depId); addParents(depId); }
+      }
+    }
+  }
+  addParents(metricId);
+  return Array.from(chain);
+}
+
 export function extractMetricReferences(formula: string): string[] {
   if (!formula) return [];
   const matches = formula.match(/\{([^}]+)\}/g);
