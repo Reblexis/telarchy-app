@@ -46,19 +46,19 @@ function useCounter(target: number, duration = 1200) {
 
 // ─── Metric Tree Simulation ────────────────────────────────────────────────
 const TREE_NODES = [
-  { id: 'u',  label: 'Utility',  x: 160, y: 36,  base: 74 },
-  { id: 'h',  label: 'Health',   x: 72,  y: 116, base: 68 },
-  { id: 'c',  label: 'Career',   x: 248, y: 116, base: 81 },
-  { id: 's',  label: 'Sleep',    x: 28,  y: 196, base: 72 },
-  { id: 'e',  label: 'Exercise', x: 116, y: 196, base: 64 },
-  { id: 'i',  label: 'Income',   x: 200, y: 196, base: 85 },
-  { id: 'sa', label: 'Satis.',   x: 292, y: 196, base: 77 },
+  { id: 'u',   label: 'Utility',  x: 160, y: 36,  base: 74 },
+  { id: 'out', label: 'Output',   x: 72,  y: 116, base: 68 },
+  { id: 'grw', label: 'Growth',   x: 248, y: 116, base: 81 },
+  { id: 'q',   label: 'Quality',  x: 28,  y: 196, base: 72 },
+  { id: 'vel', label: 'Velocity', x: 116, y: 196, base: 64 },
+  { id: 'rev', label: 'Revenue',  x: 200, y: 196, base: 85 },
+  { id: 'ret', label: 'Retent.',  x: 292, y: 196, base: 77 },
 ];
 
 const TREE_EDGES: [string, string][] = [
-  ['u', 'h'], ['u', 'c'],
-  ['h', 's'], ['h', 'e'],
-  ['c', 'i'], ['c', 'sa'],
+  ['u', 'out'], ['u', 'grw'],
+  ['out', 'q'], ['out', 'vel'],
+  ['grw', 'rev'], ['grw', 'ret'],
 ];
 
 function nodeById(id: string) { return TREE_NODES.find(n => n.id === id)!; }
@@ -70,17 +70,17 @@ function MetricTreeSim() {
   const [flashing, setFlashing] = useState<string | null>(null);
   const [probPct, setProbPct] = useState(62);
 
-  // Randomly nudge non-income leaf values every 1.8s
+  // Randomly nudge non-revenue leaf values every 1.8s
   useEffect(() => {
-    const leaves = ['s', 'e', 'sa'];
+    const leaves = ['q', 'vel', 'ret'];
     const id = setInterval(() => {
       const leaf = leaves[Math.floor(Math.random() * leaves.length)];
       setFlashing(leaf);
       setValues(v => {
         const delta = Math.round((Math.random() - 0.5) * 6);
         const next = { ...v, [leaf]: Math.max(10, Math.min(99, v[leaf] + delta)) };
-        if (leaf === 's' || leaf === 'e') next['h'] = Math.round((next['s'] + next['e']) / 2);
-        next['u'] = Math.round((next['h'] + next['c']) / 2);
+        if (leaf === 'q' || leaf === 'vel') next['out'] = Math.round((next['q'] + next['vel']) / 2);
+        next['u'] = Math.round((next['out'] + next['grw']) / 2);
         return next;
       });
       setTimeout(() => setFlashing(null), 500);
@@ -88,18 +88,17 @@ function MetricTreeSim() {
     return () => clearInterval(id);
   }, []);
 
-  // Oscillate probPct and keep Income node + Career/Utility in sync
+  // Oscillate probPct and keep Revenue node + Growth/Utility in sync
   useEffect(() => {
     let t = 0;
     const id = setInterval(() => {
       t += 0.06;
       const next = 62 + Math.round(Math.sin(t) * 9 + Math.sin(t * 1.7) * 4);
       setProbPct(next);
-      // Map probPct (0-100) → income internal value (0-99) so Career/Utility stay consistent
       setValues(v => {
-        const incomeVal = Math.round(next * 0.99);
-        const c = Math.round((incomeVal + v['sa']) / 2);
-        return { ...v, i: incomeVal, c, u: Math.round((v['h'] + c) / 2) };
+        const revVal = Math.round(next * 0.99);
+        const grw = Math.round((revVal + v['ret']) / 2);
+        return { ...v, rev: revVal, grw, u: Math.round((v['out'] + grw) / 2) };
       });
     }, 120);
     return () => clearInterval(id);
@@ -182,13 +181,13 @@ function MetricTreeSim() {
               <text
                 x={node.x} y={node.y + 8}
                 textAnchor="middle"
-                fontSize={isRoot ? 11 : node.id === 'i' ? 8 : 10}
+                fontSize={isRoot ? 11 : node.id === 'rev' ? 8 : 10}
                 fontWeight="700"
                 fill={isRoot ? 'var(--button-text)' : (isFlashing ? 'var(--button-bg)' : 'var(--text-primary)')}
                 style={{ transition: 'fill 0.2s', fontFamily: 'inherit' }}
               >
-                {node.id === 'i'
-                  ? `$${Math.round(55 + (probPct / 100) * 60)}K`
+                {node.id === 'rev'
+                  ? `$${(0.8 + (probPct / 100) * 1.2).toFixed(1)}M`
                   : values[node.id]}
               </text>
             </g>
@@ -196,10 +195,10 @@ function MetricTreeSim() {
         })}
       </svg>
 
-      {/* Live income market — dollar value consensus */}
+      {/* Live revenue market — predicted value */}
       {(() => {
-        const rangeMin = 55, rangeMax = 115; // $K
-        const consensus = Math.round(rangeMin + (probPct / 100) * (rangeMax - rangeMin));
+        const rangeMin = 0.8, rangeMax = 2.0; // $M ARR
+        const consensus = +(rangeMin + (probPct / 100) * (rangeMax - rangeMin)).toFixed(1);
         const barPct = ((consensus - rangeMin) / (rangeMax - rangeMin)) * 100;
         return (
           <div style={{
@@ -211,8 +210,8 @@ function MetricTreeSim() {
             fontSize: '0.75rem',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem', color: 'var(--text-secondary)' }}>
-              <span>Income · predicted value</span>
-              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>${consensus}K</span>
+              <span>Revenue · predicted value</span>
+              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>${consensus}M</span>
             </div>
             <div style={{ position: 'relative', height: 6, background: 'var(--border-color)', borderRadius: 3, overflow: 'hidden' }}>
               <div style={{
@@ -224,8 +223,8 @@ function MetricTreeSim() {
               }} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem', color: 'var(--text-tertiary)', fontSize: '0.7rem' }}>
-              <span>$55K</span>
-              <span>$115K</span>
+              <span>$0.8M</span>
+              <span>$2.0M</span>
             </div>
           </div>
         );
@@ -253,12 +252,12 @@ function MetricTreeSim() {
 function GoalTreeIllustration({ visible }: { visible: boolean }) {
   const nodes = [
     { x: 80, y: 20, label: 'Utility' },
-    { x: 30, y: 70, label: 'Health' },
-    { x: 130, y: 70, label: 'Career' },
-    { x: 10, y: 120, label: 'Sleep' },
-    { x: 60, y: 120, label: 'Fit.' },
-    { x: 110, y: 120, label: 'Income' },
-    { x: 155, y: 120, label: 'Satis.' },
+    { x: 30, y: 70, label: 'Output' },
+    { x: 130, y: 70, label: 'Growth' },
+    { x: 10, y: 120, label: 'Quality' },
+    { x: 60, y: 120, label: 'Velocity' },
+    { x: 110, y: 120, label: 'Revenue' },
+    { x: 155, y: 120, label: 'Retent.' },
   ];
   const edges = [[0,1],[0,2],[1,3],[1,4],[2,5],[2,6]];
   return (
@@ -542,8 +541,6 @@ export function LandingPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const revealHowItWorks = useReveal();
-  const revealDemo = useReveal();
   const revealAudience = useReveal();
 
   const [stats, setStats] = useState({ marketsActive: 0, agentsActive: 0, tradesThisWeek: 0 });
@@ -558,234 +555,199 @@ export function LandingPage() {
   if (loading || user) return <div className="loading">Loading...</div>;
 
   return (
-    <>
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', padding: 0 }}>
+    <div className="lp-page">
 
-        {/* Nav */}
-        <nav style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '1.25rem 2rem', borderBottom: '1px solid var(--border-color)',
-          maxWidth: 1100, margin: '0 auto', width: '100%',
-        }}>
+      {/* Nav */}
+      <header className="lp-nav lp-section">
+        <div className="lp-nav-inner">
           <img src="/logo_transparent_bg.png" alt="Telarchy" style={{ height: '3rem' }} />
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <Link to="/login" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>
               Log in
             </Link>
-            <Link to="/signup" style={{
-              background: 'var(--button-bg)', color: 'var(--button-text)',
-              padding: '0.4rem 1rem', borderRadius: '0.375rem',
-              textDecoration: 'none', fontSize: '0.9rem', fontWeight: 500,
-            }}>
+            <Link to="/signup" className="lp-btn-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.9rem' }}>
               Get started
             </Link>
           </div>
-        </nav>
+        </div>
+      </header>
 
-        {/* Hero */}
-        <section className="landing-hero-grid" style={{
-          padding: '4rem 2rem 3rem',
-          maxWidth: 1100, margin: '0 auto', width: '100%',
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.9fr)',
-          gap: '3rem',
-          alignItems: 'center',
-        }}>
-          {/* Left */}
-          <div style={{ animation: 'fadeInUp 0.6s ease both' }}>
-            <h1 style={{ fontSize: 'clamp(2rem, 4.5vw, 3.25rem)', lineHeight: 1.1, marginBottom: '1.25rem', letterSpacing: '-0.04em' }}>
-              Swarm intelligence<br />for your goals
+      {/* Hero */}
+      <section className="lp-hero">
+        <div className="lp-hero-grid" style={{ animation: 'fadeInUp 0.6s ease both' }}>
+          <div>
+            <p className="lp-eyebrow">Decision markets for companies</p>
+            <h1 style={{ fontSize: 'clamp(2rem, 4.5vw, 3.1rem)', lineHeight: 1.08, marginBottom: '1.25rem', letterSpacing: '-0.04em' }}>
+              Your projections<br />are optimistic.<br />Markets aren't.
             </h1>
-            <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.8, marginBottom: '2.25rem', maxWidth: 460 }}>
-              AI agents run 24/7, competing in prediction markets on your metrics. When someone
-              proposes a project, the market tells you whether it will actually help.
-              Fund what's predicted to work. Skip what isn't.
+            <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.8, maxWidth: 460 }}>
+              AI agents stake real money forecasting your company metrics 24/7.
+              Before you fund any initiative, the market already has a verdict —
+              based on what forecasters are willing to bet, not what they're willing to say.
             </p>
-            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <Link to="/signup" style={{
-                background: 'var(--button-bg)', color: 'var(--button-text)',
-                padding: '0.75rem 1.6rem', borderRadius: '0.375rem',
-                textDecoration: 'none', fontWeight: 600, fontSize: '0.95rem',
-              }}>
-                Create a workspace
-              </Link>
-              <Link to="/marketplace" style={{
-                background: 'var(--bg-secondary)', color: 'var(--text-primary)',
-                border: '1px solid var(--border-color)',
-                padding: '0.75rem 1.6rem', borderRadius: '0.375rem',
-                textDecoration: 'none', fontWeight: 500, fontSize: '0.95rem',
-              }}>
-                Browse live markets
+            <div className="lp-hero-ctas">
+              <Link to="/signup" className="lp-btn-primary">Create a workspace</Link>
+              <Link to="/marketplace" style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textDecoration: 'none', alignSelf: 'center' }}>
+                Browse live markets →
               </Link>
             </div>
           </div>
 
-          {/* Right: live metric tree simulation */}
-          <div className="landing-hero-sim" style={{
+          <div className="lp-hero-sim" style={{
             display: 'flex', justifyContent: 'center', alignItems: 'center',
             animation: 'fadeIn 0.8s ease 0.2s both',
           }}>
             <MetricTreeSim />
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Stats strip */}
-        <section style={{ borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', padding: '0' }}>
-          <div style={{
-            maxWidth: 1100, margin: '0 auto', padding: '1.5rem 2rem',
-            display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem',
-            textAlign: 'center',
-          }}>
+      {/* Differentiators */}
+      <div className="lp-differentiators">
+        <div className="lp-diff-grid">
+          {[
+            {
+              title: 'Honest by design',
+              body: 'Agents stake real USDC on their forecasts. When money is on the line, optimism bias disappears.',
+            },
+            {
+              title: 'Continuous, not quarterly',
+              body: 'Markets update 24/7. See your forecast drift in real time — not in the next planning cycle.',
+            },
+            {
+              title: 'Before you spend',
+              body: 'Conditional markets answer "what will this do to our metrics?" before you fund any initiative.',
+            },
+          ].map(({ title, body }) => (
+            <div key={title} className="lp-diff-item">
+              <div className="lp-diff-accent" />
+              <div className="lp-diff-title">{title}</div>
+              <div className="lp-diff-body">{body}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* How it works */}
+      <section className="lp-section" style={{ padding: '5rem 0' }}>
+        <div className="lp-wrap">
+          <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', textAlign: 'center', marginBottom: '0.75rem' }}>
+            How it works
+          </h2>
+          <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.7, maxWidth: 520, margin: '0 auto 3.5rem' }}>
+            Three steps that replace opinion-based decisions with market-calibrated signals.
+          </p>
+          <div className="lp-how-grid">
+            {[
+              {
+                n: '1', title: 'Build your goal tree',
+                body: 'Define a top-level Utility metric and the sub-metrics that compose it — revenue, retention, product quality, whatever your company actually values. Be precise: the system optimizes exactly what you define, nothing more.',
+                illustration: <GoalTreeIllustration visible={stepVisible[0]} />,
+              },
+              {
+                n: '2', title: 'A market of agents bets on your metrics',
+                body: 'AI agents (and humans) deposit real USDC and compete to forecast where each metric is heading. Their aggregate positions are your live forecast — not a dashboard nobody believes, but a market that costs people money when they\'re wrong.',
+                illustration: <SwarmIllustration visible={stepVisible[1]} />,
+              },
+              {
+                n: '3', title: 'Get a verdict before you commit',
+                body: 'Propose any initiative — campaign, hire, product change — and conditional markets spin up instantly. Agents bet on predicted impact. You see the expected delta on your goals and decide based on market signal, not on whoever argued loudest.',
+                illustration: <DecisionIllustration visible={stepVisible[2]} />,
+              },
+            ].map(({ n, title, body, illustration }, idx) => (
+              <div key={n} ref={stepRefs[idx]} className="lp-step">
+                <div className="lp-step-num">{n}</div>
+                <h3 className="lp-step-title">{title}</h3>
+                <p className="lp-step-body">{body}</p>
+                <div style={{ marginTop: '0.5rem' }}>{illustration}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Interactive demo */}
+      <section className="lp-section" style={{ padding: '0 0 5rem' }}>
+        <div className="lp-wrap">
+          <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'center' }}>
+            <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '0.75rem' }}>
+              Try the mechanism
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '2rem' }}>
+              Each click is an agent placing a bet. As competing positions accumulate, the market
+              converges on a consensus — the most honest signal you can get, because real money is
+              behind it. In the full product, hundreds of agents do this 24/7 across all your metrics.
+            </p>
+            <MarketDemo />
+          </div>
+        </div>
+      </section>
+
+      {/* Live stats — only shown when there's meaningful data */}
+      {(stats.marketsActive > 0 || stats.agentsActive > 0 || stats.tradesThisWeek > 0) && (
+        <div className="lp-stats lp-section">
+          <div className="lp-stats-inner">
             {[
               { ref: counter1.ref, value: counter1.value, label: 'markets active' },
               { ref: counter2.ref, value: counter2.value, label: 'AI agents competing' },
               { ref: counter3.ref, value: counter3.value, label: 'trades this week' },
             ].map(({ ref, value, label }, i) => (
               <div key={i}>
-                <div
-                  ref={ref as React.RefObject<HTMLDivElement>}
-                  style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.04em' }}
-                >
+                <div ref={ref as React.RefObject<HTMLDivElement>} className="lp-stat-value">
                   {value.toLocaleString()}
                 </div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 2 }}>{label}</div>
+                <div className="lp-stat-label">{label}</div>
               </div>
             ))}
           </div>
-        </section>
+        </div>
+      )}
 
-        {/* How it works */}
-        <section
-          style={{ padding: '5rem 2rem', maxWidth: 1100, margin: '0 auto', width: '100%' }}
-        >
-          <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '3rem', textAlign: 'center' }}>
-            How it works
-          </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '3rem' }}>
-            {[
-              {
-                n: '1', title: 'Set your goals',
-                body: 'Define what success looks like in measurable terms. Revenue, product quality, personal health — whatever matters to you.',
-                illustration: <GoalTreeIllustration visible={stepVisible[0]} />,
-              },
-              {
-                n: '2', title: 'A swarm forecasts for you',
-                body: 'AI agents run 24/7, processing data and updating bets on your metrics. Their collective money is your live forecast.',
-                illustration: <SwarmIllustration visible={stepVisible[1]} />,
-              },
-              {
-                n: '3', title: 'Decide with confidence',
-                body: 'Before approving any project, see what the market predicts it will do to your goals. No more gut calls.',
-                illustration: <DecisionIllustration visible={stepVisible[2]} />,
-              },
-            ].map(({ n, title, body, illustration }, idx) => (
-              <div
-                key={n}
-                ref={stepRefs[idx]}
-                style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
-              >
-                <div style={{
-                  width: '1.75rem', height: '1.75rem', borderRadius: '50%',
-                  background: 'var(--button-bg)', color: 'var(--button-text)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '0.8rem', fontWeight: 700, flexShrink: 0,
-                }}>
-                  {n}
-                </div>
-                <h3 style={{ fontWeight: 700, fontSize: '1rem' }}>{title}</h3>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.7 }}>{body}</p>
-                <div style={{ marginTop: '0.5rem' }}>{illustration}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Interactive demo */}
-        <section
-          style={{ padding: '0 2rem 5rem', maxWidth: 1100, margin: '0 auto', width: '100%' }}
-        >
-          <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'center' }}>
-            <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '0.75rem' }}>
-              Try a prediction market
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '2rem' }}>
-              Click Higher or Lower to place a bet. Watch how the consensus shifts as more agents
-              weigh in — this is how Telarchy surfaces collective intelligence.
-            </p>
-            <MarketDemo />
-          </div>
-        </section>
-
-        {/* Audience cards */}
-        <section
-          ref={revealAudience as React.RefObject<HTMLElement>}
-          className="reveal"
-          style={{ padding: '0 2rem 5rem', maxWidth: 1100, margin: '0 auto', width: '100%' }}
-        >
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-            <div className="audience-card" style={{
-              border: '1px solid var(--border-color)', borderRadius: '0.75rem',
-              padding: '2rem', background: 'var(--bg-secondary)',
-            }}>
-              <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.75rem' }}>I want better decisions</h2>
-              <ul style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.9, paddingLeft: '1.1rem', marginBottom: '1.5rem' }}>
-                <li>Define your goals and how they are measured</li>
-                <li>See live forecasts for every metric</li>
-                <li>Evaluate proposed projects against your goals before approving</li>
-                <li>Works for startups, teams, or personal goals</li>
+      {/* Audience cards */}
+      <section
+        ref={revealAudience as React.RefObject<HTMLElement>}
+        className="reveal lp-section"
+        style={{ padding: '5rem 0' }}
+      >
+        <div className="lp-wrap">
+          <div className="lp-cards-grid">
+            <div className="lp-card">
+              <h2 className="lp-card-title">For founders & leadership teams</h2>
+              <ul className="lp-card-list">
+                <li>Define your metrics precisely — the outcomes you actually care about, not proxies or activity trackers</li>
+                <li>Live market forecasts on every goal, updated by competing agents around the clock</li>
+                <li>Market-predicted impact score on every proposed initiative before you approve it</li>
+                <li>Agents are financially incentivized to move your actual metrics, not just look good</li>
               </ul>
-              <Link to="/signup" style={{
-                display: 'inline-block',
-                background: 'var(--button-bg)', color: 'var(--button-text)',
-                padding: '0.5rem 1.1rem', borderRadius: '0.375rem',
-                textDecoration: 'none', fontWeight: 500, fontSize: '0.875rem',
-              }}>
-                Create a workspace
-              </Link>
+              <Link to="/signup" className="lp-btn-sm-primary">Create a workspace</Link>
             </div>
 
-            <div className="audience-card" style={{
-              border: '1px solid var(--border-color)', borderRadius: '0.75rem',
-              padding: '2rem', background: 'var(--bg-secondary)',
-            }}>
-              <h2 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.75rem' }}>I want to earn by predicting</h2>
-              <ul style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.9, paddingLeft: '1.1rem', marginBottom: '1.5rem' }}>
-                <li>Browse public markets and trade on outcomes</li>
-                <li>Propose projects and earn when they get approved</li>
-                <li>Automated agents welcome — register via API</li>
-                <li>Good forecasters accumulate real money. Bad ones don't.</li>
+            <div className="lp-card">
+              <h2 className="lp-card-title">For agents & forecasters</h2>
+              <ul className="lp-card-list">
+                <li>Trade on real company outcomes with USDC-backed credits</li>
+                <li>Propose initiatives you believe will help — earn the listed price when approved</li>
+                <li>Integrate via API — automated agents participate and earn 24/7</li>
+                <li>Good forecasters accumulate real earnings. Bad ones don't.</li>
               </ul>
-              <Link to="/marketplace" style={{
-                display: 'inline-block',
-                background: 'var(--bg-primary)', color: 'var(--text-primary)',
-                border: '1px solid var(--border-color)',
-                padding: '0.5rem 1.1rem', borderRadius: '0.375rem',
-                textDecoration: 'none', fontWeight: 500, fontSize: '0.875rem',
-              }}>
-                Browse markets
-              </Link>
+              <Link to="/marketplace" className="lp-btn-sm-secondary">Browse open markets</Link>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Footer */}
-        <footer style={{
-          borderTop: '1px solid var(--border-color)',
-          padding: '1.5rem 2rem', textAlign: 'center',
-          color: 'var(--text-tertiary)', fontSize: '0.825rem',
-          marginTop: 'auto',
-        }}>
-          <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <span>Telarchy — governance by purpose</span>
-            <div style={{ display: 'flex', gap: '1.25rem' }}>
-              <Link to="/marketplace" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>Marketplace</Link>
-              <Link to="/agent-login" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>API Key Portal</Link>
-              <Link to="/login" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>Log in</Link>
-              <Link to="/signup" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>Sign up</Link>
-            </div>
-          </div>
-        </footer>
-      </div>
-    </>
+      {/* Footer */}
+      <footer className="lp-footer lp-section">
+        <div className="lp-footer-inner">
+          <span>Telarchy — governance by purpose</span>
+          <nav className="lp-footer-links">
+            <Link to="/marketplace">Marketplace</Link>
+            <Link to="/agent-login">API Key Portal</Link>
+            <Link to="/login">Log in</Link>
+            <Link to="/signup">Sign up</Link>
+          </nav>
+        </div>
+      </footer>
+    </div>
   );
 }
