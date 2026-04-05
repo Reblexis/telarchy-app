@@ -85,37 +85,10 @@ Common examples of activity/outcome confusion:
 - *Hours of exercise* vs *physical fitness* — a perfect optimizer maximizes workout time, not health
 - *Lines of code committed* vs *product output* — a perfect optimizer maximizes commits, not quality
 - *Hours studied* vs *knowledge retained* — a perfect optimizer maximizes sessions, not understanding
-- *Nutrition tracked* vs *metabolic health* — a perfect optimizer maximizes logging, not wellbeing
 
 The correct approach: define the **outcome** as the metric, then test causal links via tasks. If you believe a certain activity will improve an outcome metric, create a task — *"Will doing X improve metric Y?"* — and let conditional markets evaluate the hypothesis. The metric stays at the level you actually care about.
 
 This also keeps the metric tree legible: a tree of outcomes shows what you value. A tree of activities shows a to-do list dressed up as a goal hierarchy.
-
-## Proxy placement affects incentives
-
-Where a metric sits in the tree determines what behavior optimizing it drives. A proxy placed in the wrong structural location produces wrong incentives even if the proxy itself is reasonable.
-
-Example: physical attractiveness is a real factor in first-impression social dynamics. Placing it inside a "Reputation" metric (which captures earned respect and long-term trust) makes the formula optimize appearance and deep trust as if they were the same thing — with attractiveness dragging the definition of reputation toward looks. The correct placement is as a distinct input to the broader social metric, separated from earned respect, weighted for its actual role (initial dynamics, first impressions).
-
-The test to apply: does the structural position of this metric accurately describe *how* it contributes to its parent? Or does it inherit a description that distorts its meaning?
-
-## Formula dimensionality
-
-Formulas combine metrics by assuming they are on comparable scales. When they are not, the arithmetic is broken.
-
-Common dimensionality errors:
-
-- Mixing a raw count (e.g. number of connections = 50) with a normalized 0–1000 score in a weighted average — the count will be swamped or distorted relative to the scores
-- Mixing raw currency (dollars) with normalized scores — \`sqrt($300,000) ≈ 548\` appears comparable to a 0–1000 metric today, but grows past 1000 as wealth increases, breaking the scale
-- Using a constant multiplied by another metric as a proxy — \`body_weight × 0.44 × 20\` looks like muscle mass but optimizes toward gaining any kind of weight
-
-Before combining two metrics in a formula, ask: are these on the same scale? If not, normalize first — via a clamp, a log scale, or division by a reference value that defines what "1000" means for that quantity.
-
-## Passthrough nodes add noise
-
-A computed metric whose formula is exactly \`{ChildMetric}\` adds nothing structurally — unless it applies a **time preference**. Without TP, a passthrough node just adds a layer of indirection with no informational value. Remove it and reference the child directly.
-
-The only valid reason to keep a single-child computed metric is to attach a time preference at a specific point in the tree.
 
 ## On double-counting
 
@@ -141,14 +114,6 @@ This separation prevents over-specification:
 - Task proposal: *will doing this improve what I care about?*
 
 Tasks can also be used to evaluate metric structure changes. If an agent suspects that tracking a new quantity would improve the system's ability to optimise utility, it can propose a task — *"Add metric X and observe its relationship to Utility"* — and let conditional markets judge whether that structural addition is worthwhile before committing to it.
-
-## Terminal vs instrumental metrics
-
-Most metrics are **instrumental** — they matter because they enable other things. But some are **terminal** — they matter in themselves, independent of what they enable.
-
-This distinction has a practical consequence for tree design. Instrumental metrics should ultimately feed into their terminal beneficiaries. Terminal metrics stand on their own.
-
-A subtler case: some metrics are terminal precisely because of their **optionality value**. A capability or resource that is generally useful across many possible future goals — regardless of what those goals turn out to be — has value that is not captured by any specific instrumental path. If your desires might change, having high general capacity is valuable because it positions you to pursue whatever goals emerge. This is a legitimate reason to include a metric in Utility even if its current instrumental paths are already represented elsewhere in the tree.
 
 ## Connecting multiple workspaces
 
