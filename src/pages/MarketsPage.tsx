@@ -9,7 +9,7 @@ import { formatTargetDateDisplay, formatTimeRemaining, endOfPeriod } from '../li
 import { HookStatus } from '../components/HookStatus';
 import { MarketActivityPanel } from '../components/MarketActivityPanel';
 import { ProbabilitySlider } from '../components/ProbabilitySlider';
-import type { Market, Metric } from '../types';
+import type { Market } from '../types';
 
 export function MarketsPage() {
   const { user } = useAuth();
@@ -17,7 +17,6 @@ export function MarketsPage() {
   const { workspace } = useWorkspace(!!user);
   const isAdmin = workspace?.tier === 'admin';
   const [markets, setMarkets] = useState<Market[]>([]);
-  const [metrics, setMetrics] = useState<Metric[]>([]);
   const [mainMarketsMap, setMainMarketsMap] = useState<Map<string, Market>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -40,23 +39,14 @@ export function MarketsPage() {
     return [...result].sort((a, b) => endOfPeriod(a.targetDate).localeCompare(endOfPeriod(b.targetDate)));
   }, [markets, filterText, showInactive]);
 
-  const [metricId, setMetricId] = useState('');
-  const [targetDate, setTargetDate] = useState('');
-  const [creating, setCreating] = useState(false);
-
   const load = useCallback(async () => {
     if (!user) return;
     setError('');
     if (!inspectTask) {
       const cachedMkts = cacheGet<Market[]>('markets');
-      const cachedMets = cacheGet<Metric[]>('metrics:markets');
       if (cachedMkts) { setMarkets(cachedMkts); setLoading(false); }
-      if (cachedMets) setMetrics(cachedMets);
     }
-    const [mkts, mets] = await Promise.all([
-      api.getMarkets(inspectTask?.id).catch((e: Error) => { setError(e.message); return null; }),
-      api.getMetrics().catch((e: Error) => { setError(e.message); return null; }),
-    ]);
+    const mkts = await api.getMarkets(inspectTask?.id).catch((e: Error) => { setError(e.message); return null; });
     if (inspectTask) {
       api.getMarkets().then((mains: Market[]) => {
         const map = new Map<string, Market>();
@@ -70,23 +60,10 @@ export function MarketsPage() {
       setMarkets(mkts);
       if (!inspectTask) cacheSet('markets', mkts);
     }
-    if (mets) {
-      setMetrics(mets);
-      if (!inspectTask) cacheSet('metrics:markets', mets);
-    }
     setLoading(false);
   }, [user, inspectTask]);
 
   useEffect(() => { load(); }, [load]);
-
-  const handleCreate = async () => {
-    if (!user || !metricId || !targetDate) return;
-    setCreating(true);
-    setError('');
-    const result = await api.createMarket(metricId, targetDate).catch((e: Error) => { setError(e.message); return null; });
-    setCreating(false);
-    if (result) { setMetricId(''); setTargetDate(''); load(); }
-  };
 
   const handleDelete = async (id: string) => {
     if (!user) return;
@@ -125,7 +102,6 @@ export function MarketsPage() {
 
   if (!user) return null;
 
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
   const thStyle = { padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' } as const;
 
   return (
@@ -138,27 +114,6 @@ export function MarketsPage() {
         {error && <div className="message error show">{error}</div>}
         {resolveResult && <div className="message success show">{resolveResult}</div>}
         {bulkLiqResult && <div className="message success show">{bulkLiqResult}</div>}
-
-        {isAdmin && (
-          <div className="section" style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Metric</label>
-              <select value={metricId} onChange={e => setMetricId(e.target.value)}
-                style={{ padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)' }}>
-                <option value="">Select metric...</option>
-                {metrics.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Target Date</label>
-              <input type="date" value={targetDate} min={tomorrow} onChange={e => setTargetDate(e.target.value)}
-                style={{ padding: '0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)' }} />
-            </div>
-            <button className="btn" onClick={handleCreate} disabled={creating || !metricId || !targetDate}>
-              {creating ? 'Creating...' : 'Create Market'}
-            </button>
-          </div>
-        )}
 
         {loading ? (
           <div className="loading">Loading markets...</div>
