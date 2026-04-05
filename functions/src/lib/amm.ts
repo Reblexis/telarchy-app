@@ -32,10 +32,11 @@ export function pHigher(shares: [number, number], b: number): number {
 
 /**
  * Consensus value = rangeMin + p(higher) * (rangeMax - rangeMin).
- * Returns undefined when b = 0 (no liquidity) or when no one has traded yet (shares = [0, 0]).
+ * Returns undefined when b = 0 (no liquidity). Untraded markets (shares = [0, 0])
+ * return the midpoint (50/50 prior), which is the correct LMSR prior.
  */
 export function consensus(shares: [number, number], b: number, rangeMin: number, rangeMax: number): number | undefined {
-  if (b <= 0 || (shares[0] === 0 && shares[1] === 0)) return undefined;
+  if (b <= 0) return undefined;
   return Math.round((rangeMin + pHigher(shares, b) * (rangeMax - rangeMin)) * 100) / 100;
 }
 
