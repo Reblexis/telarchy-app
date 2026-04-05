@@ -56,6 +56,28 @@ When you update \`Sleep\`, \`Health\` and \`Utility\` both recompute automatical
     description: 'How to define metrics correctly: commitments vs hypotheses, avoiding over-specification, and connecting multiple workspaces.',
     content: `# Metric Design
 
+## The genie principle
+
+**Assume the system is a perfect optimizer. Your only task is to define Utility correctly.**
+
+The system will optimize exactly what is defined. Treat it as a genie that grants your wish with perfect competence — and, like a genie, it will deliver precisely what you asked for, not what you meant. If the definition has holes, a perfect optimizer will find and exploit them. The failure is always in the definition, never in the optimizer.
+
+The design question is therefore not *"will the system actually achieve this?"* but *"if this were perfectly achieved, would I actually want that outcome?"*
+
+Apply this test to every metric and to the tree as a whole:
+
+> Imagine Utility is maximized perfectly — every sub-metric at its optimal value, every leaf at the number the formula rewards most. Walk through the real-world state that corresponds to. Is that genuinely the outcome you want? Is anything important missing or distorted?
+
+If the answer is no, there is a hole in the definition. Common failure modes:
+
+- **Missing a dimension** — Utility is maximized but something you deeply care about (health, relationships, integrity) is not represented anywhere in the tree. The optimizer ignores it entirely because it has no incentive to protect it.
+- **Wrong proxy** — a leaf metric is a proxy for the real thing, and the proxy can be gamed. Revenue is up; the business is hollowed out. Sleep hours are logged; sleep quality is not tracked. The metric is satisfied; the goal is not.
+- **Perverse trade-off** — two sub-metrics can be traded against each other in ways the formula allows but you would never endorse. Maximizing their sum permits one to collapse entirely as long as the other overcompensates.
+
+The fix in every case is the same: adjust the definition until a perfect optimizer achieving it gives you exactly the outcome you want — no more, no less.
+
+This principle applies to any workspace. A startup workspace defining company Utility, a team workspace defining project success, or a personal workspace defining individual well-being — all carry the same obligation: define the target so precisely that you would be genuinely satisfied if it were hit perfectly.
+
 ## Metrics are commitments
 
 A metric declares that some quantity *certainly* affects your utility in a known way. This is a strong claim — and it should be. The system will optimize exactly what you measure, so defining the wrong metric is a definition error, not a system failure, that the system cannot correct for you.
