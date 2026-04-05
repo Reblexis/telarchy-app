@@ -92,9 +92,9 @@ Activities are how you achieve outcomes. They are not the outcome itself. Tracki
 
 Common examples of activity/outcome confusion:
 
-- *Hours of exercise* vs *physical fitness* — a perfect optimizer maximizes workout time, not health
 - *Lines of code committed* vs *product output* — a perfect optimizer maximizes commits, not quality
-- *Hours studied* vs *knowledge retained* — a perfect optimizer maximizes sessions, not understanding
+- *Support tickets closed* vs *customer satisfaction* — a perfect optimizer closes tickets fast, not well
+- *Features shipped* vs *user retention* — a perfect optimizer ships continuously, not usefully
 
 The correct approach: define the **outcome** as the metric, then test causal links via tasks. If you believe a certain activity will improve an outcome metric, create a task — *"Will doing X improve metric Y?"* — and let conditional markets evaluate the hypothesis. The metric stays at the level you actually care about.
 
