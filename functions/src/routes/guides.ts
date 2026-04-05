@@ -315,10 +315,10 @@ The blend is a simple average across t=0 and the 10 sampled future points (equal
 A common and recommended pattern is to separate the TP node from the current-state calculation using an intermediate "Current X" metric:
 
 \`\`\`
-Attractiveness        (TP node, formula: {Current attractiveness})
-└── Current attractiveness  (computed, formula: ({Physical attractiveness} + {Social attractiveness}) / 2)
-    ├── Physical attractiveness  (leaf)
-    └── Social attractiveness    (leaf)
+Product quality       (TP node, formula: {Current product quality})
+└── Current product quality  (computed, formula: ({Reliability} + {Performance}) / 2)
+    ├── Reliability  (leaf)
+    └── Performance  (leaf)
 \`\`\`
 
 The TP node's only job is temporal blending — it delegates all composition logic to its "Current" child. This keeps the two concerns separate:
