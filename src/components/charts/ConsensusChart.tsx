@@ -49,9 +49,11 @@ export function ConsensusChart({ trades, rangeMin, rangeMax }: {
   const tickColor = '#666';
 
   const minSpan = (rangeMax - rangeMin) * 0.1;
-  const dataVals = withT.map(t => t.consensus!);
-  const dataCenter = (Math.min(...dataVals) + Math.max(...dataVals)) / 2;
-  const dataHalf = Math.max((Math.max(...dataVals) - Math.min(...dataVals)) / 2, minSpan / 2);
+  const allYVals = pts.map(p => p.y);
+  const dataMin = Math.min(...allYVals);
+  const dataMax = Math.max(...allYVals);
+  const dataCenter = (dataMin + dataMax) / 2;
+  const dataHalf = Math.max((dataMax - dataMin) / 2, minSpan / 2);
   const yMin = Math.max(rangeMin, dataCenter - dataHalf - minSpan * 0.5);
   const yMax = Math.min(rangeMax, dataCenter + dataHalf + minSpan * 0.5);
 
