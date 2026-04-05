@@ -33,9 +33,50 @@ import express from 'express';
 import { assertTreasuryConfigured } from './lib/usdc';
 import { runBootstrap } from './lib/bootstrap';
 
+/** Schedule a daily job at a fixed UTC time. Fires once at the next occurrence, then every 24 h. */
+function scheduleDailyUTC(hourUTC: number, minuteUTC: number, label: string, fn: () => Promise<void>): void {
+  function msUntilNext(): number {
+    const now = new Date();
+    const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), hourUTC, minuteUTC, 0, 0));
+    if (next.getTime() <= now.getTime()) next.setUTCDate(next.getUTCDate() + 1);
+    return next.getTime() - now.getTime();
+  }
+  const tick = () => fn().catch(e => console.error(`Scheduled job "${label}" failed:`, e));
+  const arm = () => setTimeout(() => { tick(); setInterval(tick, 24 * 60 * 60 * 1000); }, msUntilNext());
+  arm();
+  console.log(`Scheduled "${label}" daily at ${String(hourUTC).padStart(2, '0')}:${String(minuteUTC).padStart(2, '0')} UTC`);
+}
+
+async function runDailyResolve(): Promise<void> {
+  const { resolvePredictions } = await import('./services/predictions');
+  const { cleanupOldEvents } = await import('./services/events');
+  const { db } = await import('./db/client');
+  const { workspaces } = await import('./db/schema');
+  const wsIds = (await db.select({ id: workspaces.id }).from(workspaces)).map((r: { id: string }) => r.id);
+  for (const wsId of wsIds) {
+    const result = await resolvePredictions(undefined, wsId);
+    const cleaned = await cleanupOldEvents(wsId);
+    console.log(`Daily resolve [${wsId}]:`, result, 'events cleaned:', cleaned);
+  }
+}
+
+async function runDailyRefresh(): Promise<void> {
+  const { refreshRelativeDateMarkets } = await import('./services/markets');
+  const { db } = await import('./db/client');
+  const { workspaces } = await import('./db/schema');
+  const wsIds = (await db.select({ id: workspaces.id }).from(workspaces)).map((r: { id: string }) => r.id);
+  for (const wsId of wsIds) {
+    const result = await refreshRelativeDateMarkets(wsId);
+    console.log(`Daily market refresh [${wsId}]:`, result);
+  }
+}
+
 import('./app').then(async ({ app }) => {
   assertTreasuryConfigured();
   await runBootstrap();
+
+  scheduleDailyUTC(0, 0, 'dailyResolve', runDailyResolve);
+  scheduleDailyUTC(0, 10, 'dailyMarketRefresh', runDailyRefresh);
 
   // Serve frontend static files when bundled in self-hosted mode
   const publicDir = path.join(__dirname, 'public');
