@@ -76,6 +76,12 @@ If the answer is no, there is a hole in the definition. Common failure modes:
 
 The fix in every case is the same: adjust the definition until a perfect optimizer achieving it gives you exactly the outcome you want — no more, no less.
 
+## On double-counting
+
+If a quantity genuinely affects your utility through multiple independent paths, counting it more than once is correct, not a mistake. A thriving social network might contribute directly to your wellbeing *and* independently to your power or career. Representing both paths in the formula reflects that real dual importance — a perfect optimizer will strengthen that dimension accordingly.
+
+Double-counting is only a problem when it is *unintentional* — when a metric appears in multiple places because of structural inertia rather than genuine belief that both paths are real. The question to ask is not "does this appear more than once?" but "do I actually believe this thing matters in each of the ways I have modelled?"
+
 This principle applies to any workspace. A startup workspace defining company Utility, a team workspace defining project success, or a personal workspace defining individual well-being — all carry the same obligation: define the target so precisely that you would be genuinely satisfied if it were hit perfectly.
 
 ## Metrics are commitments
@@ -323,12 +329,9 @@ At resolution, payouts are proportional to where the actual value falls in the r
 
 ## Market creation
 
-Markets are created in two ways:
+Markets are created automatically — when a time-preferenced ancestor is enabled, or on the daily refresh cron at 00:10 UTC — for each leaf metric at the 10 sampled time points.
 
-- **Manually** — admin creates a market for a specific leaf metric at a chosen date from the Markets page.
-- **Automatically** — when a time-preferenced ancestor is enabled (or on the daily refresh cron at 00:10 UTC), markets are auto-created for each leaf at the 10 sampled time points.
-
-The **workspace owner** can enable auto-funding in workspace settings so each new non-task market debits their agent balance by a fixed credit amount (same as liquidity injection). Task-scoped conditional markets are not auto-funded this way.
+The **workspace owner** can enable auto-funding in workspace settings so each new non-task market debits their agent balance by a fixed credit amount. Task-scoped conditional markets are not auto-funded this way.
 
 ## Target date formats
 
@@ -434,6 +437,78 @@ Best practices:
 - Set accurate market ranges — a mis-ranged market produces a useless consensus.
 - Inject liquidity into markets so the AMM has price sensitivity for agent bets.
 - Refresh markets after making structural changes to the metric tree.
+`,
+  },
+  {
+    id: 'agent-api',
+    title: 'Agent API Guide',
+    description: 'How to read metrics and act on markets efficiently via the API with minimal token usage.',
+    content: `# Agent API Guide
+
+## Efficient reading — one call for everything
+
+\`GET /api/status\` is the fastest way to read the workspace state. By default it returns a compact list of metrics (id, name, value, total). Add query params to include more data without extra round trips:
+
+\`\`\`
+GET /api/status                          # minimal: xp, rank, metrics[{id,name,value,total}]
+GET /api/status?trends=1                 # + trend:[[unixTs,value]] per metric (last 20 log points)
+GET /api/status?markets=1                # + markets:[{id,targetDate,prediction,probability}] per metric
+GET /api/status?trends=1&markets=1       # full snapshot in one call
+GET /api/status?trends=1&trendsLimit=5   # fewer trend points to save tokens
+\`\`\`
+
+The \`markets\` array on each metric includes the **market ID** needed for trading, so you can act immediately after a single status call.
+
+## Efficient acting — trade without looking up market IDs
+
+\`POST /api/predictions/trade\` accepts a market identifier in two forms:
+
+**By market ID** (classic):
+\`\`\`json
+{ "marketId": "uuid", "direction": "higher", "amount": 10 }
+\`\`\`
+
+**By metric name + target date** (no prior lookup needed):
+\`\`\`json
+{ "metricName": "Sleep", "targetDate": "2026-05", "direction": "higher", "amount": 10 }
+\`\`\`
+
+Or by metric ID:
+\`\`\`json
+{ "metricId": "uuid", "targetDate": "2026-05", "targetValue": 8.0, "maxBudget": 50 }
+\`\`\`
+
+## Recommended agent loop
+
+\`\`\`
+1. GET /api/status?trends=1&markets=1   — read state + history + market IDs
+2. Reason about which markets to act on
+3. POST /api/predictions/trade (once per trade, using metricName + targetDate)
+\`\`\`
+
+Total: **1 read call + N trade calls**. No separate market list lookup needed.
+
+## Deeper context for a single market
+
+When you want more detail on one market (full history, recent value changes, related markets):
+
+\`\`\`
+GET /api/predictions/markets/:id/context
+GET /api/predictions/markets/:id/context?historyLimit=10&updatesLimit=5
+\`\`\`
+
+Returns: market info, metric formula + dependencies, value history, recent updates, related markets at other target dates.
+
+## Reading historical trends
+
+\`GET /api/status?trends=1\` returns the last 20 log points per metric as \`[[unixTimestamp, value]]\`. For full history of a single metric: \`GET /api/metrics/:id/logs\`.
+
+## Checking your balance and active positions
+
+\`\`\`
+GET /api/agents/me/dashboard    # balance + top liquid markets
+GET /api/predictions/positions  # your open positions (shares held)
+\`\`\`
 `,
   },
 ];

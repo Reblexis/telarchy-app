@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import { db } from '../db/client';
 import { agentApiKeys, agents, markets, positions, trades, deposits, withdrawals, systemConfig } from '../db/schema';
-import { eq, inArray, sql } from 'drizzle-orm';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 import { wrap } from '../lib/wrap';
 import { requireRole } from '../middleware/roles';
-import { getAllMetrics, getStatus } from '../services/metrics';
+import { getAllMetrics, getStatus, getAllMetricLogsGrouped } from '../services/metrics';
+import { consensus, pHigher } from '../lib/amm';
 
 export const systemRouter = Router();
 
@@ -17,8 +18,66 @@ async function getEconomy() {
 
 systemRouter.get('/status', requireRole('agent', 'admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
+  const includeTrends = req.query.trends === '1';
+  const includeMarkets = req.query.markets === '1';
+  const trendsLimit = typeof req.query.trendsLimit === 'string'
+    ? Math.min(Math.max(1, parseInt(req.query.trendsLimit, 10) || 20), 90)
+    : 20;
+
   const [allMetrics, economy] = await Promise.all([getAllMetrics(workspaceId), getEconomy()]);
-  res.json({ ...getStatus(allMetrics), ...economy });
+  const base = { ...getStatus(allMetrics), ...economy };
+
+  if (!includeTrends && !includeMarkets) {
+    res.json(base);
+    return;
+  }
+
+  const [logsGrouped, openMarketRows] = await Promise.all([
+    includeTrends ? getAllMetricLogsGrouped(workspaceId) : Promise.resolve(null),
+    includeMarkets
+      ? db.select().from(markets).where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)))
+      : Promise.resolve(null),
+  ]);
+
+  type MarketRow = { id: string; metricId: string; targetDate: string; shares: unknown; liquidity: number; rangeMin: number; rangeMax: number; taskId: string | null; active: boolean };
+
+  // Group open markets by metricId (exclude task-scoped and inactive)
+  const marketsByMetricId: Record<string, MarketRow[]> = {};
+  if (openMarketRows) {
+    for (const m of openMarketRows as MarketRow[]) {
+      if (m.taskId || !m.active) continue;
+      if (!marketsByMetricId[m.metricId]) marketsByMetricId[m.metricId] = [];
+      marketsByMetricId[m.metricId].push(m);
+    }
+  }
+
+  const augmented = base.metrics.map(m => {
+    const result: Record<string, unknown> = { ...m };
+
+    if (includeTrends && logsGrouped) {
+      const logs = (logsGrouped[m.id] ?? []).slice(-trendsLimit);
+      result.trend = logs.map(l => [Math.floor(new Date(l.timestamp).getTime() / 1000), l.value] as [number, number]);
+    }
+
+    if (includeMarkets) {
+      const mrkts = (marketsByMetricId[m.id] ?? [])
+        .sort((a, b) => a.targetDate.localeCompare(b.targetDate))
+        .map(mk => {
+          const s = (mk.shares as [number, number]) || [0, 0];
+          return {
+            id: mk.id,
+            targetDate: mk.targetDate,
+            prediction: consensus(s, mk.liquidity, mk.rangeMin, mk.rangeMax) ?? null,
+            probability: Math.round(pHigher(s, mk.liquidity) * 10000) / 10000,
+          };
+        });
+      result.markets = mrkts;
+    }
+
+    return result;
+  });
+
+  res.json({ ...base, metrics: augmented });
 }));
 
 systemRouter.post('/reset-economy', requireRole('admin'), wrap(async (req, res) => {

@@ -257,6 +257,19 @@ export function getStatus(allMetrics: Metric[]) {
   return {
     xp,
     rank: calculateRank(xp),
-    metrics: allMetrics.map(m => ({ name: m.name, value: m.value, total: m.total })),
+    metrics: allMetrics.map(m => ({ id: m.id, name: m.name, value: m.value, total: m.total })),
   };
+}
+
+/** Fetch all metric logs for a workspace in one query, grouped by metricId. */
+export async function getAllMetricLogsGrouped(workspaceId: string): Promise<Record<string, Array<{ value: number; timestamp: Date }>>> {
+  const rows = await db.select().from(metricLogs)
+    .where(eq(metricLogs.workspaceId, workspaceId))
+    .orderBy(asc(metricLogs.timestamp));
+  const grouped: Record<string, Array<{ value: number; timestamp: Date }>> = {};
+  for (const r of rows) {
+    if (!grouped[r.metricId]) grouped[r.metricId] = [];
+    grouped[r.metricId].push({ value: r.value, timestamp: r.timestamp });
+  }
+  return grouped;
 }

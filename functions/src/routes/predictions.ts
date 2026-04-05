@@ -63,8 +63,23 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
   const agentId = req.auth!.agentId;
   if (!agentId) { res.status(403).json({ error: 'A participant identity is required to trade' }); return; }
 
-  const { marketId } = req.body;
-  if (!marketId || typeof marketId !== 'string') { res.status(400).json({ error: 'marketId is required' }); return; }
+  let marketId = typeof req.body.marketId === 'string' ? req.body.marketId : undefined;
+
+  // Allow targeting by metricName/metricId + targetDate instead of marketId
+  if (!marketId) {
+    const { metricName, metricId: reqMetricId, targetDate: reqTargetDate } = req.body;
+    if ((!metricName && !reqMetricId) || !reqTargetDate) {
+      res.status(400).json({ error: 'Provide marketId, or (metricName or metricId) + targetDate' }); return;
+    }
+    const [found] = await db.select({ id: markets.id }).from(markets).where(and(
+      eq(markets.workspaceId, workspaceId),
+      eq(markets.resolved, false),
+      eq(markets.targetDate, reqTargetDate as string),
+      reqMetricId ? eq(markets.metricId, reqMetricId as string) : eq(markets.metricName, metricName as string),
+    ));
+    if (!found) { res.status(404).json({ error: 'No open market found for that metric + targetDate' }); return; }
+    marketId = found.id;
+  }
 
   type TradeMode =
     | { type: 'targetValue'; targetValue: number; maxBudget: number }
