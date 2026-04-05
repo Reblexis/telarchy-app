@@ -47,7 +47,7 @@ export function AddMetricForm({ onAdd }: AddMetricFormProps) {
           </div>
         )}
         <div className="form-group">
-          <label htmlFor="metricMarketRangeMax">Market Range Max (default 1000)</label>
+          <label htmlFor="metricMarketRangeMax" title="The highest value this metric could realistically reach. Used to scale the prediction market.">Max expected value (default 1000)</label>
           <input type="number" id="metricMarketRangeMax" step="any" min="1" placeholder="1000" value={marketRangeMax} onChange={e => setMarketRangeMax(e.target.value)} />
         </div>
         <button type="submit" className="btn">Add Metric</button>

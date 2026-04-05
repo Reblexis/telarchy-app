@@ -58,7 +58,7 @@ function UtilitySummaryCard({ summary, loading }: { summary?: TaskUtilitySummary
       background: 'var(--bg-secondary, #f8f9fa)',
     }}>
       <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-        Expected Current Utility
+        Expected Impact
       </div>
       {loading ? (
         <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
@@ -66,7 +66,7 @@ function UtilitySummaryCard({ summary, loading }: { summary?: TaskUtilitySummary
         </div>
       ) : expectedUtility === null ? (
         <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-          Unavailable until conditional markets exist for this task.
+          Unavailable until impact predictions exist for this task.
         </div>
       ) : (
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -79,7 +79,7 @@ function UtilitySummaryCard({ summary, loading }: { summary?: TaskUtilitySummary
 }
 
 function MarketSummaryTable({ markets }: { markets: TaskMarketSummary[] }) {
-  if (markets.length === 0) return <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>No conditional markets yet. Click &quot;Inspect&quot; to view them in Markets.</p>;
+  if (markets.length === 0) return <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>No impact predictions yet. Click &quot;Inspect&quot; to view them in Markets.</p>;
   const thStyle = { padding: '0.4rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.8rem', textAlign: 'left' as const };
   return (
     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
@@ -87,10 +87,7 @@ function MarketSummaryTable({ markets }: { markets: TaskMarketSummary[] }) {
         <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
           <th style={thStyle}>Metric</th>
           <th style={thStyle}>Resolution Date</th>
-          <th style={thStyle}>Consensus</th>
-          <th style={thStyle}>Liquidity</th>
-          <th style={thStyle}>Trades</th>
-          <th style={thStyle}>Range</th>
+          <th style={thStyle}>Prediction</th>
         </tr>
       </thead>
       <tbody>
@@ -106,11 +103,6 @@ function MarketSummaryTable({ markets }: { markets: TaskMarketSummary[] }) {
                 <span>{formatNumber(m.consensus)}</span>
                 <DeltaBadge current={m.consensus} baseline={m.baselineConsensus} />
               </div>
-            </td>
-            <td style={{ padding: '0.4rem 0.5rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>{formatNumber(m.liquidity)}</td>
-            <td style={{ padding: '0.4rem 0.5rem', color: 'var(--text-secondary)' }}>{m.tradeCount}</td>
-            <td style={{ padding: '0.4rem 0.5rem', color: 'var(--text-secondary)', fontFamily: 'monospace', fontSize: '0.75rem' }}>
-              {formatNumber(m.rangeMin)}–{formatNumber(m.rangeMax)}
             </td>
           </tr>
         ))}
@@ -261,7 +253,7 @@ function TaskDetailPanel({ task, onAction, onError }: TaskDetailProps) {
 
       <div>
         <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-          Conditional Markets
+          Impact Predictions
         </div>
         <MarketSummaryTable markets={task.markets ?? []} />
       </div>
@@ -376,9 +368,8 @@ export function TasksPage() {
               <thead>
                 <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
                   <th style={thStyle}>Title</th>
-                  <th style={thStyle}>Participant</th>
+                  <th style={thStyle}>Proposed by</th>
                   <th style={{ ...thStyle, textAlign: 'right' }}>Price ($)</th>
-                  <th style={thStyle}>Markets</th>
                   <th style={thStyle}>Status</th>
                 </tr>
               </thead>
@@ -392,14 +383,11 @@ export function TasksPage() {
                       <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600 }}>{task.title}</td>
                       <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{task.proposedBy}</td>
                       <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{formatCurrency(task.price)}</td>
-                      <td style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                        {task.conditionalMarketIds?.length > 0 ? task.conditionalMarketIds.length : '—'}
-                      </td>
                       <td style={{ padding: '0.75rem 0.5rem' }}><StatusBadge status={task.status} /></td>
                     </tr>
                     {expandedId === task.id && (
                       <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <td colSpan={5} style={{ padding: '0 0.5rem 0.75rem' }}>
+                        <td colSpan={4} style={{ padding: '0 0.5rem 0.75rem' }}>
                           <TaskDetailPanel
                             task={expandedData[task.id] ?? task}
                             onAction={() => handleAction(task.id)}

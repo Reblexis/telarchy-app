@@ -103,7 +103,7 @@ export function MarketActivityPanel({
   return (
     <div style={{ marginTop: '0.75rem', background: 'var(--bg-secondary, #f8f9fa)', borderRadius: '0.375rem', padding: '0.5rem 0.5rem 0' }}>
       <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', paddingLeft: '0.25rem' }}>
-        Consensus history
+        Prediction history
       </div>
 
       {loading ? (
@@ -144,7 +144,7 @@ export function MarketActivityPanel({
                   <td style={{ padding: '0.2rem 0.4rem', textAlign: 'center', color: entry.data.direction === 'higher' ? '#22c55e' : '#ef4444' }}>{entry.data.direction === 'higher' ? '▲' : '▼'}</td>
                   <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>{formatCompactNumber(entry.data.shares)}</td>
                   <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>
-                    {entry.data.cost == null ? '—' : entry.data.cost > 0 ? `cost ${formatCompactNumber(entry.data.cost)}` : `proceeds ${formatCompactNumber(-entry.data.cost)}`}
+                    {entry.data.cost == null ? '—' : entry.data.cost > 0 ? `paid ${formatCompactNumber(entry.data.cost)}` : `received ${formatCompactNumber(-entry.data.cost)}`}
                   </td>
                   <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{formatCompactNumber(entry.data.consensus)}</td>
                 </tr>
@@ -152,12 +152,12 @@ export function MarketActivityPanel({
                 <tr key={`${entry.kind}:${entry.data.id}:${index}`} style={{ borderBottom: '1px solid var(--border-color)', opacity: 0.8 }}>
                   <td style={{ padding: '0.2rem 0.4rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{fmtTime(entry.ts)}</td>
                   <td style={{ padding: '0.2rem 0.4rem', color: 'var(--text-secondary)' }}>admin</td>
-                  <td style={{ padding: '0.2rem 0.4rem', textAlign: 'center', color: '#3b82f6' }}>{entry.data.type === 'initial' ? 'init' : '+liq'}</td>
+                  <td style={{ padding: '0.2rem 0.4rem', textAlign: 'center', color: '#3b82f6' }}>{entry.data.type === 'initial' ? 'funded' : '+funds'}</td>
                   <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', color: '#3b82f6', fontFamily: 'monospace', fontWeight: 600 }}>+{formatCompactNumber(entry.data.amount)}</td>
                   <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', color: 'var(--text-secondary)' }}>
-                    {entry.data.type === 'initial' ? 'initial liquidity' : 'liquidity injection'}
+                    {entry.data.type === 'initial' ? 'initial funding' : 'added funds'}
                   </td>
-                  <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>b={formatCompactNumber(entry.data.totalLiquidity)}</td>
+                  <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', color: 'var(--text-secondary)', fontFamily: 'monospace' }}></td>
                 </tr>
               ))}
             </tbody>

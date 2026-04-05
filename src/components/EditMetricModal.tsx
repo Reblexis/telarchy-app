@@ -87,7 +87,7 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
             <textarea id="editFormula" placeholder="e.g., {Deep Work} + {Exercise} * 2" value={formula} onChange={e => setFormula(e.target.value)} />
           </div>
           <div className="form-group">
-            <label htmlFor="editMarketRangeMax">Market Range Max</label>
+            <label htmlFor="editMarketRangeMax" title="The highest value this metric could realistically reach. Used to scale the prediction market.">Max expected value</label>
             <input type="number" id="editMarketRangeMax" step="any" min="1" value={marketRangeMax} onChange={e => setMarketRangeMax(e.target.value)} />
           </div>
           <div className="form-group tp-row">

@@ -76,14 +76,14 @@ export function MarketsPage() {
     if (!user) return;
     setError('');
     const result = await api.voidMarket(id).catch((e: Error) => { setError(e.message); return null; });
-    if (result) { setResolveResult(`Market voided. Refunded $${result.refunded}.`); load(); }
+    if (result) { setResolveResult(`Market cancelled. Refunded $${result.refunded}.`); load(); }
   };
 
   const handleResolveOne = async (id: string) => {
     if (!user) return;
     setError('');
     const result = await api.resolveMarket(id).catch((e: Error) => { setError(e.message); return null; });
-    if (result?.resolved) { setResolveResult(`Market resolved. Total payout: $${result.totalPayout}.`); load(); }
+    if (result?.resolved) { setResolveResult(`Market closed. Total payout: $${result.totalPayout}.`); load(); }
   };
 
   const handleBulkLiquidity = async () => {
@@ -95,7 +95,7 @@ export function MarketsPage() {
     const result = await api.injectLiquidityBulk(a, inspectTask?.id).catch((e: Error) => { setError(e.message); return null; });
     if (result) {
       setBulkLiqAmount('');
-      setBulkLiqResult(`Injected ${a} into ${result.markets} markets (total: ${result.totalCost.toFixed(6)} credits).`);
+      setBulkLiqResult(`Funded ${a} into ${result.markets} markets (total: ${result.totalCost.toFixed(6)} credits).`);
       load();
     }
   };
@@ -136,12 +136,12 @@ export function MarketsPage() {
                     const total = !isNaN(a) && a > 0 ? a * activeCount : null;
                     return <>
                       <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                        Inject to all ({activeCount}):
+                        Fund all ({activeCount}):
                       </label>
                       <input type="number" value={bulkLiqAmount} onChange={e => setBulkLiqAmount(e.target.value)} placeholder="amount"
                         style={{ padding: '0.35rem 0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', fontSize: '0.85rem', width: '80px' }} />
                       <button className="btn-small" onClick={handleBulkLiquidity} disabled={!bulkLiqAmount || parseFloat(bulkLiqAmount) <= 0}>
-                        {total !== null ? `Inject (${total} credits)` : 'Inject'}
+                        {total !== null ? `Fund (${total} credits)` : 'Fund'}
                       </button>
                     </>;
                   })()}
@@ -153,9 +153,7 @@ export function MarketsPage() {
                 <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
                   <th style={thStyle}>Metric</th>
                   <th style={thStyle}>Target Date</th>
-                  <th style={thStyle}>Consensus</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }}>Range</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }}>Trades</th>
+                  <th style={thStyle}>Prediction</th>
                   <th style={thStyle}></th>
                 </tr>
               </thead>
@@ -199,29 +197,25 @@ export function MarketsPage() {
                           })()}
                         </div>
                       </td>
-                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                        {m.rangeMin}–{m.rangeMax}
-                      </td>
-                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{m.tradeCount}</td>
                       <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
                         {isAdmin && <>
                           <button className="btn-small" style={{ color: 'var(--accent-color, #3b82f6)', marginRight: '0.25rem' }}
-                            onClick={(e) => { e.stopPropagation(); handleResolveOne(m.id); }}>Resolve</button>
+                            onClick={(e) => { e.stopPropagation(); handleResolveOne(m.id); }}>Close</button>
                           {m.tradeCount === 0 ? (
                             <button className="btn-small" style={{ color: 'var(--delete-color, #ef4444)' }}
                               onClick={(e) => { e.stopPropagation(); handleDelete(m.id); }}>Delete</button>
                           ) : (
                             <button className="btn-small" style={{ color: 'var(--text-secondary)' }}
-                              onClick={(e) => { e.stopPropagation(); handleVoid(m.id); }}>Void</button>
+                              onClick={(e) => { e.stopPropagation(); handleVoid(m.id); }}>Cancel</button>
                           )}
                         </>}
                       </td>
                     </tr>
                     {expandedIds.includes(m.id) && (
                       <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <td colSpan={6} style={{ padding: '0 0.5rem 0.75rem' }}>
+                        <td colSpan={4} style={{ padding: '0 0.5rem 0.75rem' }}>
                           <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
-                            {m.active ? 'Trading is performed in the marketplace.' : 'Betting is disabled on inactive markets. This market will resolve at its target date.'}
+                            {m.active ? 'Trading is performed in the marketplace.' : 'Trading is paused on inactive markets. This market will close at its target date.'}
                           </p>
                           <MarketActivityPanel
                             market={m}

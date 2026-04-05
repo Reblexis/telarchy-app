@@ -114,13 +114,12 @@ function PublicMarketCard({ market, joined, onJoined }: {
           </div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Consensus</div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Prediction</div>
           <div style={{ fontWeight: 600 }}>{consensusDisplay}</div>
         </div>
       </div>
       <ProbabilityBar probability={market.probability} />
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
-        <span>Liquidity: {formatCompactNumber(market.liquidity)}</span>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '0.75rem' }}>
         <JoinButton workspaceId={market.workspaceId} joined={joined} onJoined={onJoined} />
       </div>
     </div>
@@ -159,17 +158,14 @@ function AccessibleMarketCard({
           </div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Consensus</div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Prediction</div>
           <div style={{ fontWeight: 600 }}>
             {market.consensus !== null ? market.consensus.toFixed(2) : '—'}
           </div>
         </div>
       </div>
       <ProbabilityBar probability={market.probability} />
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', gap: '0.75rem', flexWrap: 'wrap' }}>
-        <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
-          Liquidity: {formatCompactNumber(market.liquidity)} · Range: {market.rangeMin}–{market.rangeMax}
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '0.75rem', gap: '0.75rem' }}>
         <button
           className="btn-small"
           onClick={() => setExpanded(open => !open)}

@@ -30,7 +30,7 @@ function InspectBanner() {
       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem',
       padding: '0.5rem 1rem', fontSize: '0.875rem',
     }}>
-      <span>Inspecting: <strong>{inspectTask.title}</strong> — Metrics and Markets show conditional predictions</span>
+      <span>Inspecting: <strong>{inspectTask.title}</strong> — showing impact predictions</span>
       <Link to="/tasks" style={{ color: '#e9d5ff', textDecoration: 'underline', fontSize: '0.8rem' }}>Back to Tasks</Link>
       <button
         onClick={() => setInspectTask(null)}
