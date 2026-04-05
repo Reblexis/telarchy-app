@@ -32,6 +32,18 @@ Use a browser or a headless tool to navigate the app as this user. This account 
 
 When debugging a UI bug or feature, always reproduce it at this URL with these credentials before drawing conclusions from code alone.
 
+**API access as this user** (for backend debugging):
+```bash
+# Sign in and save session cookie
+curl -s -c /tmp/cookies.txt -X POST http://localhost:8080/api/auth/sign-in/email \
+  -H "Content-Type: application/json" \
+  -d '{"email":"viktor.cihal@gmail.com","password":"TestAdmin99!"}'
+
+# Then use the cookie for subsequent requests
+curl -s -b /tmp/cookies.txt http://localhost:8080/api/auth/me
+curl -s -b /tmp/cookies.txt http://localhost:8080/api/status
+```
+
 ## Debugging with the API
 
 When uncertain about a bug or data state, use the live API directly before making code changes. Do not guess — verify.
