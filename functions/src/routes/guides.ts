@@ -213,6 +213,8 @@ Wrap any metric name in curly braces. Whitespace inside the braces is trimmed:
 \`\`\`
 sqrt(x)          square root
 abs(x)           absolute value
+log(x)           natural logarithm
+log10(x)         base-10 logarithm
 min(x, y)        smaller of x and y
 max(x, y)        larger of x and y
 pow(x, n)        x to the power n
@@ -307,6 +309,24 @@ The only parameter is **half-life** (in years). It sets the timescale of your co
 - **Long half-life (e.g. 5y)** — long-horizon; samples spread across years. Good for strategic or structural goals.
 
 The blend is a simple average across t=0 and the 10 sampled future points (equal weights). The half-life shapes *where* those 10 samples fall, not how much each one counts.
+
+## The "Current X" structural pattern
+
+A common and recommended pattern is to separate the TP node from the current-state calculation using an intermediate "Current X" metric:
+
+\`\`\`
+Attractiveness        (TP node, formula: {Current attractiveness})
+└── Current attractiveness  (computed, formula: ({Physical attractiveness} + {Social attractiveness}) / 2)
+    ├── Physical attractiveness  (leaf)
+    └── Social attractiveness    (leaf)
+\`\`\`
+
+The TP node's only job is temporal blending — it delegates all composition logic to its "Current" child. This keeps the two concerns separate:
+
+- **TP node** — declares the timescale and drives market creation; formula is always just \`{Current X}\`
+- **Current X node** — computes what the metric actually is right now from its leaves; no TP, no markets
+
+Avoid collapsing these two levels into one. A single TP node with a complex formula works mechanically, but it obscures the structure and makes it harder to reason about what "current" means vs what the market forecast means.
 
 ## How to enable it
 
