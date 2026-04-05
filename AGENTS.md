@@ -14,6 +14,24 @@ When implementing a new feature or design decision not already captured in `docs
 
 Do not leave outdated, superseded, historical, or migration-era documentation in place. If a doc is no longer current, update it to match the live system or delete it.
 
+## Testing features locally (user perspective)
+
+To verify features or debug UI/UX issues as the primary user would experience them, use the local dev server:
+
+**Start the local server** (if not already running):
+```bash
+cd /home/cihalvi/src/metrics-tracker && npm run dev
+```
+The app runs at `http://localhost:5173` (or whichever port Vite picks — check the terminal output).
+
+**Login credentials**:
+- Email: `viktor.cihal@gmail.com`
+- Password: `TestAdmin99!`
+
+Use a browser or a headless tool to navigate the app as this user. This account has admin/owner access to the primary workspace, so all features should be accessible.
+
+When debugging a UI bug or feature, always reproduce it at this URL with these credentials before drawing conclusions from code alone.
+
 ## Debugging with the API
 
 When uncertain about a bug or data state, use the live API directly before making code changes. Do not guess — verify.
