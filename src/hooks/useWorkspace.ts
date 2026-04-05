@@ -40,10 +40,23 @@ export function useWorkspace(authenticated: boolean = true): {
     setLoading(true);
     let cancelled = false;
 
-    Promise.all([
+    const isBadWorkspaceError = (msg: string) =>
+      msg.toLowerCase().includes('not a member') || msg.toLowerCase().includes('unauthorized');
+
+    const fetchAll = () => Promise.all([
       api.getProfile(),
       api.listWorkspaces().catch((e: Error) => { console.error('listWorkspaces failed:', e.message); return []; }),
-    ])
+    ]);
+
+    fetchAll()
+      .catch(async (e: Error) => {
+        // Stored workspace ID may be stale — clear it and retry once
+        if (isBadWorkspaceError(e.message)) {
+          setActiveWorkspace(null);
+          return fetchAll();
+        }
+        throw e;
+      })
       .then(([profile, wsList]: [
         { workspaceId?: string; authRole?: string; memberRole?: WorkspaceMemberRole | null; intent?: 'creator' | 'agent' | null },
         Array<{ id: string; name: string; memberRole: string }>,
@@ -74,8 +87,6 @@ export function useWorkspace(authenticated: boolean = true): {
       })
       .catch((e: Error) => {
         if (cancelled) return;
-        console.error('useWorkspace: failed to fetch profile', e.message);
-        setActiveWorkspace(null);
         setError(e.message);
         setWorkspace(null);
         setAllWorkspaces([]);
