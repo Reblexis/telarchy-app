@@ -399,6 +399,7 @@ predictionsRouter.post('/markets', requireRole('admin'), wrap(async (req, res) =
 
   const rMin = typeof rangeMin === 'number' ? rangeMin : AMM_DEFAULTS.rangeMin;
   const rMax = typeof rangeMax === 'number' ? rangeMax : (metric.marketRangeMax ?? AMM_DEFAULTS.rangeMax);
+  if (rMax <= rMin) { res.status(400).json({ error: 'rangeMax must be greater than rangeMin' }); return; }
 
   const [wsRow] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId));
   const credits = wsRow?.newMarketLiquidityCredits ?? 0;

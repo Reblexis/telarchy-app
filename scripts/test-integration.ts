@@ -183,8 +183,8 @@ await suite('Workspaces', async () => {
 
   await test('GET /api/workspaces/:id includes auto-fund fields', async () => {
     const r = ok(await adminCall(ctx.wsId)('GET', `/workspaces/${ctx.wsId}`));
-    expect(typeof r.autoFundNewMarkets).toBeType('boolean');
-    expect(typeof r.newMarketLiquidityCredits).toBeType('number');
+    expect(r.autoFundNewMarkets).toBeType('boolean');
+    expect(r.newMarketLiquidityCredits).toBeType('number');
   });
 
   await test('Master API key cannot set auto-fund workspace fields (403)', async () => {
@@ -659,6 +659,434 @@ await suite('Auth', async () => {
     // /auth/me is a custom BetterAuth route; with master key it may return 200 or fall through
     const r = await adminCall(ctx.wsId)('GET', '/auth/me');
     expect(r.status).toBeStatus(200, 401, 403, 404);
+  });
+});
+
+// ─── Extended edge-case suites ────────────────────────────────────────────────
+
+await suite('Metrics — edge cases', async () => {
+  let edgeMetricId = '';
+  let compositeId = '';
+
+  await test('Metric created without marketRangeMax defaults to 1000', async () => {
+    const r = ok(await adminCall(ctx.wsId)('POST', '/metrics', {
+      name: `EdgeMetric_${Date.now()}`,
+      description: 'No rangeMax supplied',
+      value: 42,
+    }));
+    edgeMetricId = r.id as string;
+    const detail = ok(await adminCall(ctx.wsId)('GET', `/metrics/${edgeMetricId}`));
+    expect(detail.marketRangeMax as number).toBeGreaterThan(0);
+  });
+
+  await test('Metric created with explicit marketRangeMax stores it correctly', async () => {
+    const r = ok(await adminCall(ctx.wsId)('POST', '/metrics', {
+      name: `EdgeMetricRange_${Date.now()}`,
+      value: 10,
+      marketRangeMax: 500,
+    }));
+    const detail = ok(await adminCall(ctx.wsId)('GET', `/metrics/${r.id as string}`));
+    expect(detail.marketRangeMax as number).toBe(500);
+    await adminCall(ctx.wsId)('DELETE', `/metrics/${r.id as string}`);
+  });
+
+  await test('marketRangeMax of 0 is rejected (400)', async () => {
+    const r = await adminCall(ctx.wsId)('POST', '/metrics', { name: `Bad_${Date.now()}`, marketRangeMax: 0 });
+    expect(r.status).toBe(400);
+  });
+
+  await test('marketRangeMax of negative value is rejected (400)', async () => {
+    const r = await adminCall(ctx.wsId)('POST', '/metrics', { name: `Bad2_${Date.now()}`, marketRangeMax: -10 });
+    expect(r.status).toBe(400);
+  });
+
+  await test('Composite metric formula evaluation references correct value', async () => {
+    // Set leaf to known value then create composite
+    if (edgeMetricId) {
+      await adminCall(ctx.wsId)('PUT', `/metrics/${edgeMetricId}`, { value: 10 });
+      const r = ok(await adminCall(ctx.wsId)('POST', '/metrics', {
+        name: `EdgeComposite_${Date.now()}`,
+        formula: `{${(ok(await adminCall(ctx.wsId)('GET', `/metrics/${edgeMetricId}`))).name}} * 3`,
+      }));
+      compositeId = r.id as string;
+      const detail = ok(await adminCall(ctx.wsId)('GET', `/metrics/${compositeId}`));
+      // Composite stores value=0 (definition metric), total is the computed formula result
+      expect(detail.total as number).toBe(30);
+    }
+  });
+
+  await test('Updating a leaf metric value triggers composite recalculation', async () => {
+    if (!compositeId || !edgeMetricId) return;
+    await adminCall(ctx.wsId)('PUT', `/metrics/${edgeMetricId}`, { value: 20 });
+    const detail = ok(await adminCall(ctx.wsId)('GET', `/metrics/${compositeId}`));
+    // total is always computed live from formula — expects 20 * 3 = 60
+    expect(detail.total as number).toBe(60);
+  });
+
+  await test('Deleting a composite metric does not delete its leaf dependencies', async () => {
+    if (!compositeId || !edgeMetricId) return;
+    const r = await adminCall(ctx.wsId)('DELETE', `/metrics/${compositeId}`);
+    expect(r.status).toBeStatus(200, 204);
+    const leaf = await adminCall(ctx.wsId)('GET', `/metrics/${edgeMetricId}`);
+    expect(leaf.status).toBe(200);
+    compositeId = '';
+  });
+
+  await test('Deleting a metric referenced by a formula is rejected or cascades cleanly (not 500)', async () => {
+    if (!edgeMetricId) return;
+    // Create composite that references edgeMetric
+    const comp = ok(await adminCall(ctx.wsId)('POST', '/metrics', {
+      name: `DepComp_${Date.now()}`,
+      formula: `{${(ok(await adminCall(ctx.wsId)('GET', `/metrics/${edgeMetricId}`))).name}}`,
+    }));
+    // Delete the leaf — should either succeed (cascade) or return a client error, never 500
+    const r = await adminCall(ctx.wsId)('DELETE', `/metrics/${edgeMetricId}`);
+    expect(r.status).toBeStatus(200, 204, 400, 409);
+    await adminCall(ctx.wsId)('DELETE', `/metrics/${comp.id as string}`);
+    if (r.status === 200 || r.status === 204) edgeMetricId = '';
+  });
+
+  await test('Metric log is appended on value update', async () => {
+    if (!ctx.metricId) return;
+    const before = (ok(await adminCall(ctx.wsId)('GET', `/metrics/${ctx.metricId}`))).value as number;
+    await adminCall(ctx.wsId)('PUT', `/metrics/${ctx.metricId}`, { value: before + 1 });
+    const logs = await adminCall(ctx.wsId)('GET', `/metrics/${ctx.metricId}/logs`);
+    expect(logs.status).toBe(200);
+    expect((logs.body as Array<unknown>).length).toBeGreaterThan(0);
+  });
+
+  await test('Cleanup edge metrics', async () => {
+    if (compositeId) await adminCall(ctx.wsId)('DELETE', `/metrics/${compositeId}`);
+    if (edgeMetricId) await adminCall(ctx.wsId)('DELETE', `/metrics/${edgeMetricId}`);
+  });
+});
+
+await suite('Markets — edge cases', async () => {
+  let edgeMarketId = '';
+  let voidedMarketId = '';
+  let edgeMetricId2 = '';
+
+  await test('Setup: create a standalone metric for market edge tests', async () => {
+    const r = ok(await adminCall(ctx.wsId)('POST', '/metrics', {
+      name: `MarketEdgeMetric_${Date.now()}`,
+      value: 50,
+    }));
+    edgeMetricId2 = r.id as string;
+    expect(edgeMetricId2).toBeTruthy();
+  });
+
+  await test('Market created with custom rangeMin/rangeMax stores them', async () => {
+    if (!edgeMetricId2) return;
+    const year = new Date().getFullYear() + 3;
+    const r = ok(await adminCall(ctx.wsId)('POST', '/predictions/markets', {
+      metricId: edgeMetricId2,
+      targetDate: `${year}`,
+      rangeMin: 10,
+      rangeMax: 200,
+      liquidity: 1,
+    }));
+    edgeMarketId = r.id as string;
+    const detail = ok(await adminCall(ctx.wsId)('GET', `/predictions/markets/${edgeMarketId}`));
+    expect(parseFloat(String(detail.rangeMin))).toBe(10);
+    expect(parseFloat(String(detail.rangeMax))).toBe(200);
+  });
+
+  await test('Market liquidity-events endpoint returns initial liquidity event', async () => {
+    if (!edgeMarketId) return;
+    const r = await adminCall(ctx.wsId)('GET', `/predictions/markets/${edgeMarketId}/liquidity-events`);
+    expect(r.status).toBe(200);
+    expect((r.body as Array<unknown>).length).toBeGreaterThan(0);
+  });
+
+  await test('Market context endpoint returns consensus data', async () => {
+    if (!edgeMarketId) return;
+    const r = await adminCall(ctx.wsId)('GET', `/predictions/markets/${edgeMarketId}/context`);
+    expect(r.status).toBe(200);
+  });
+
+  await test('Creating a second market for same metric+year is rejected (409)', async () => {
+    if (!edgeMetricId2) return;
+    const year = new Date().getFullYear() + 3;
+    const r = await adminCall(ctx.wsId)('POST', '/predictions/markets', {
+      metricId: edgeMetricId2,
+      targetDate: `${year}`,
+    });
+    expect(r.status).toBe(409);
+  });
+
+  await test('rangeMax <= rangeMin is rejected (400)', async () => {
+    if (!edgeMetricId2) return;
+    const r = await adminCall(ctx.wsId)('POST', '/predictions/markets', {
+      metricId: edgeMetricId2,
+      targetDate: `${new Date().getFullYear() + 4}`,
+      rangeMin: 100,
+      rangeMax: 50,
+    });
+    expect(r.status).toBe(400);
+  });
+
+  await test('Voiding a market marks it inactive and returns payout info', async () => {
+    if (!edgeMetricId2) return;
+    const r = ok(await adminCall(ctx.wsId)('POST', '/predictions/markets', {
+      metricId: edgeMetricId2,
+      targetDate: `${new Date().getFullYear() + 5}`,
+      liquidity: 0.5,
+    }));
+    voidedMarketId = r.id as string;
+    const voidR = await adminCall(ctx.wsId)('POST', `/predictions/markets/${voidedMarketId}/void`);
+    expect(voidR.status).toBe(200);
+    const detail = ok(await adminCall(ctx.wsId)('GET', `/predictions/markets/${voidedMarketId}`));
+    expect(detail.resolved).toBe(true);
+  });
+
+  await test('Trading on a voided market is rejected (400)', async () => {
+    if (!voidedMarketId || !ctx.agentKey) return;
+    const r = await agentCall(ctx.agentKey, ctx.wsId)('POST', '/predictions/trade', {
+      marketId: voidedMarketId,
+      direction: 'higher',
+      amount: 1,
+    });
+    expect(r.status).toBe(400);
+  });
+
+  await test('targetValue trade mode: bet towards a specific value', async () => {
+    if (!edgeMarketId || !ctx.agentKey) return;
+    const r = ok(await agentCall(ctx.agentKey, ctx.wsId)('POST', '/predictions/trade', {
+      marketId: edgeMarketId,
+      targetValue: 100,
+      maxBudget: 1,
+    }));
+    expect(r.tradeId).toBeTruthy();
+    expect(r.cost as number).toBeGreaterThan(0);
+  });
+
+  await test('targetValue outside rangeMin/rangeMax is rejected (400)', async () => {
+    if (!edgeMarketId || !ctx.agentKey) return;
+    const r = await agentCall(ctx.agentKey, ctx.wsId)('POST', '/predictions/trade', {
+      marketId: edgeMarketId,
+      targetValue: 9999,
+      maxBudget: 1,
+    });
+    expect(r.status).toBe(400);
+  });
+
+  await test('sellShares of 0 is rejected (400)', async () => {
+    if (!edgeMarketId || !ctx.agentKey) return;
+    const r = await agentCall(ctx.agentKey, ctx.wsId)('POST', '/predictions/trade', {
+      marketId: edgeMarketId,
+      direction: 'higher',
+      sellShares: 0,
+    });
+    expect(r.status).toBe(400);
+  });
+
+  await test('amount of 0 is rejected (400)', async () => {
+    if (!edgeMarketId || !ctx.agentKey) return;
+    const r = await agentCall(ctx.agentKey, ctx.wsId)('POST', '/predictions/trade', {
+      marketId: edgeMarketId,
+      direction: 'higher',
+      amount: 0,
+    });
+    expect(r.status).toBe(400);
+  });
+
+  await test('Cleanup edge markets and metric', async () => {
+    if (edgeMarketId) await adminCall(ctx.wsId)('DELETE', `/predictions/markets/${edgeMarketId}`);
+    if (voidedMarketId) await adminCall(ctx.wsId)('DELETE', `/predictions/markets/${voidedMarketId}`);
+    if (edgeMetricId2) await adminCall(ctx.wsId)('DELETE', `/metrics/${edgeMetricId2}`);
+  });
+});
+
+await suite('Task messages', async () => {
+  let msgTaskId = '';
+
+  await test('Setup: create a task for message tests', async () => {
+    const r = ok(await agentCall(ctx.agentKey, ctx.wsId)('POST', '/tasks', {
+      title: 'Message test task',
+      description: 'Used to verify task message threading',
+      price: 1,
+    }));
+    msgTaskId = r.id as string;
+    expect(msgTaskId).toBeTruthy();
+  });
+
+  await test('GET /tasks/:id/messages returns empty array initially', async () => {
+    if (!msgTaskId) return;
+    const r = await agentCall(ctx.agentKey, ctx.wsId)('GET', `/tasks/${msgTaskId}/messages`);
+    expect(r.status).toBe(200);
+    expect(Array.isArray(r.body)).toBeTruthy();
+    expect((r.body as Array<unknown>).length).toBe(0);
+  });
+
+  await test('POST /tasks/:id/messages agent can send a message', async () => {
+    if (!msgTaskId) return;
+    const r = await agentCall(ctx.agentKey, ctx.wsId)('POST', `/tasks/${msgTaskId}/messages`, {
+      content: 'Hello from agent',
+    });
+    expect(r.status).toBe(201);
+    expect((r.body as Record<string, unknown>).content).toBe('Hello from agent');
+  });
+
+  await test('POST /tasks/:id/messages admin can send a message', async () => {
+    if (!msgTaskId) return;
+    const r = await adminCall(ctx.wsId)('POST', `/tasks/${msgTaskId}/messages`, {
+      content: 'Reply from admin',
+    });
+    expect(r.status).toBe(201);
+  });
+
+  await test('GET /tasks/:id/messages returns both messages in order', async () => {
+    if (!msgTaskId) return;
+    const r = await agentCall(ctx.agentKey, ctx.wsId)('GET', `/tasks/${msgTaskId}/messages`);
+    expect(r.status).toBe(200);
+    expect((r.body as Array<unknown>).length).toBe(2);
+  });
+
+  await test('Message with empty content is rejected (400)', async () => {
+    if (!msgTaskId) return;
+    const r = await agentCall(ctx.agentKey, ctx.wsId)('POST', `/tasks/${msgTaskId}/messages`, { content: '' });
+    expect(r.status).toBe(400);
+  });
+
+  await test('Message with content exceeding 5000 chars is rejected (400)', async () => {
+    if (!msgTaskId) return;
+    const r = await agentCall(ctx.agentKey, ctx.wsId)('POST', `/tasks/${msgTaskId}/messages`, {
+      content: 'x'.repeat(5001),
+    });
+    expect(r.status).toBe(400);
+  });
+
+  await test('Approving the task succeeds', async () => {
+    if (!msgTaskId) return;
+    const r = await adminCall(ctx.wsId)('POST', `/tasks/${msgTaskId}/approve`, {});
+    expect(r.status).toBe(200);
+  });
+
+  await test('Declining an already-approved task is rejected (400)', async () => {
+    if (!msgTaskId) return;
+    const r = await adminCall(ctx.wsId)('POST', `/tasks/${msgTaskId}/decline`, {});
+    expect(r.status).toBe(400);
+  });
+
+  await test('Approving an already-approved task is idempotent or rejected gracefully (not 500)', async () => {
+    if (!msgTaskId) return;
+    const r = await adminCall(ctx.wsId)('POST', `/tasks/${msgTaskId}/approve`, {});
+    expect(r.status).toBeStatus(200, 400, 409);
+  });
+
+  await test('Cleanup: message test task', async () => {
+    // Tasks have no delete endpoint — this is expected; they persist
+  });
+});
+
+await suite('Agent — edge cases', async () => {
+  await test('Agent ID with special chars beyond underscore/dash is rejected', async () => {
+    const r = await apiRaw('POST', '/agents/register', {
+      agentId: 'bad agent!@#',
+      workspaceId: ctx.wsId,
+    });
+    expect(r.status).toBe(400);
+  });
+
+  await test('Agent ID over 64 chars is rejected', async () => {
+    const r = await apiRaw('POST', '/agents/register', {
+      agentId: 'a'.repeat(65),
+      workspaceId: ctx.wsId,
+    });
+    expect(r.status).toBe(400);
+  });
+
+  await test('Registering agent in non-existent workspace is rejected (400 or 404)', async () => {
+    const r = await apiRaw('POST', '/agents/register', {
+      agentId: `orphan_${Date.now().toString(36)}`,
+      workspaceId: '00000000-0000-0000-0000-000000000000',
+    });
+    expect(r.status).toBeStatus(400, 404);
+  });
+
+  await test('Credit with zero amount is rejected (400)', async () => {
+    const r = await adminCall(ctx.wsId)('POST', `/agents/${ctx.agentId}/credit`, { amount: 0 });
+    expect(r.status).toBe(400);
+  });
+
+  await test('Credit with string amount is rejected (400)', async () => {
+    const r = await adminCall(ctx.wsId)('POST', `/agents/${ctx.agentId}/credit`, { amount: 'lots' });
+    expect(r.status).toBe(400);
+  });
+
+  await test('GET /agents/:id returns agent details', async () => {
+    const r = ok(await adminCall(ctx.wsId)('GET', `/agents/${ctx.agentId}`));
+    expect(r.id).toBe(ctx.agentId);
+  });
+});
+
+await suite('Workspace settings — edge cases', async () => {
+  await test('Updating workspace name to empty string is rejected (400)', async () => {
+    const r = await adminCall(ctx.wsId)('PUT', `/workspaces/${ctx.wsId}/settings`, { name: '' });
+    expect(r.status).toBe(400);
+  });
+
+  await test('Updating workspace with no fields is rejected (400)', async () => {
+    const r = await adminCall(ctx.wsId)('PUT', `/workspaces/${ctx.wsId}/settings`, {});
+    expect(r.status).toBe(400);
+  });
+
+  await test('Non-existent workspace returns 404', async () => {
+    const r = await adminCall(ctx.wsId)('GET', '/workspaces/00000000-0000-0000-0000-000000000000');
+    expect(r.status).toBe(404);
+  });
+
+  await test('Workspace stats endpoint returns tradedVolume', async () => {
+    const r = ok(await adminCall(ctx.wsId)('GET', `/workspaces/${ctx.wsId}/stats`));
+    expect(r.tradedVolume).toBeType('number');
+  });
+});
+
+await suite('Auth — browser session', async () => {
+  let sessionCookie = '';
+
+  await test('Sign in with email/password returns session token and user', async () => {
+    const r = await fetch(`${BASE_URL}/api/auth/sign-in/email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Origin': BASE_URL },
+      body: JSON.stringify({ email: 'viktor.cihal@gmail.com', password: 'TestAdmin99!' }),
+    });
+    expect(r.status).toBe(200);
+    const body = await r.json() as Record<string, unknown>;
+    expect(body.token).toBeTruthy();
+    expect((body.user as Record<string, unknown>).email).toBe('viktor.cihal@gmail.com');
+    // Capture cookie for subsequent session tests
+    sessionCookie = r.headers.get('set-cookie') ?? '';
+  });
+
+  await test('Sign in with wrong password returns 401 or 403', async () => {
+    const r = await fetch(`${BASE_URL}/api/auth/sign-in/email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Origin': BASE_URL },
+      body: JSON.stringify({ email: 'viktor.cihal@gmail.com', password: 'WrongPassword!' }),
+    });
+    expect(r.status).toBeStatus(401, 403);
+  });
+
+  await test('Sign in with non-existent email returns 401 or 403', async () => {
+    const r = await fetch(`${BASE_URL}/api/auth/sign-in/email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Origin': BASE_URL },
+      body: JSON.stringify({ email: 'nobody@example.com', password: 'anything' }),
+    });
+    expect(r.status).toBeStatus(401, 403);
+  });
+
+  await test('GET /api/auth/me via session cookie returns user profile', async () => {
+    if (!sessionCookie) return;
+    const r = await fetch(`${BASE_URL}/api/auth/me`, {
+      headers: { 'Cookie': sessionCookie, 'X-Workspace-Id': 'default' },
+    });
+    expect(r.status).toBe(200);
+    const body = await r.json() as Record<string, unknown>;
+    expect(body.email).toBeFalsy(); // /auth/me returns uid, not raw email
+    expect(body.uid).toBeTruthy();
+    expect(body.authRole).toBe('admin');
   });
 });
 

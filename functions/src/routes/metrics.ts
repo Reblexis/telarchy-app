@@ -55,17 +55,17 @@ metricsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
     value: isDefinition ? 0 : (value || 0),
     formula, description, order: 999,
     timePreference: tp?.enabled ? tp : null,
-    marketRangeMax: marketRangeMax ?? null,
+    marketRangeMax: marketRangeMax ?? 1000,
     createdAt: new Date(), updatedAt: new Date(),
   });
-
-  res.status(201).json({ ok: true, id });
 
   if (tp?.enabled) {
     await svc.ensureMarketsForTimePreference(id, tp.halfLife, workspaceId);
   }
   const allMetrics = await svc.getAllMetrics(workspaceId);
   await svc.logSpecificMetrics(getAffectedMetrics([id], allMetrics), allMetrics, workspaceId);
+
+  res.status(201).json({ ok: true, id });
 }));
 
 metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {

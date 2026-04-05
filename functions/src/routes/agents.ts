@@ -1,6 +1,6 @@
 import { Router, type Request } from 'express';
 import { db } from '../db/client';
-import { agents, agentApiKeys, deposits, withdrawals, systemConfig } from '../db/schema';
+import { agents, agentApiKeys, deposits, withdrawals, systemConfig, workspaces } from '../db/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { randomBytes } from 'crypto';
 import { randomUUID } from 'crypto';
@@ -32,6 +32,11 @@ agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => 
   const { agentId, workspaceId = 'default' } = req.body;
   const agentIdError = validateAgentId(agentId);
   if (agentIdError) { res.status(400).json({ error: agentIdError }); return; }
+
+  if (workspaceId !== 'default') {
+    const [ws] = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.id, workspaceId));
+    if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
+  }
 
   const [existing] = await db.select().from(agents).where(eq(agents.id, agentId));
   if (existing) { res.status(409).json({ error: 'Agent already registered' }); return; }
