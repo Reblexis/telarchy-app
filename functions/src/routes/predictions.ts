@@ -318,6 +318,8 @@ predictionsRouter.get('/markets/:id', requireRole('agent', 'admin'), wrap(async 
   res.json({
     id: market.id, metricId: market.metricId, metricName: market.metricName,
     targetDate: market.targetDate, resolved: market.resolved,
+    resolvedAt: market.resolvedAt ?? null,
+    actualValue: market.actualValue ?? null,
     rangeMin: market.rangeMin, rangeMax: market.rangeMax, liquidity: market.liquidity,
     probability: Math.round(prob * 10000) / 10000,
     consensus: consensus(shares, market.liquidity, market.rangeMin, market.rangeMax) ?? null,

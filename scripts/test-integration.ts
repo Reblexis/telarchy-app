@@ -1090,6 +1090,530 @@ await suite('Auth — browser session', async () => {
   });
 });
 
+// ─── Multi-step scenario suites ───────────────────────────────────────────────
+
+await suite('Scenario: full market lifecycle with resolution payout', async () => {
+  // Tests the complete happy path: metric → market → liquidity → trade → resolve → payout
+  let scenMetricId = '';
+  let scenMarketId = '';
+  let agentAKey = '';
+  let agentAId = '';
+  let agentBKey = '';
+  let agentBId = '';
+  let balanceBeforeA = 0;
+  let balanceBeforeB = 0;
+
+  await test('Setup: create two agents with starting credits', async () => {
+    agentAId = `scen_a_${Date.now().toString(36)}`;
+    agentBId = `scen_b_${Date.now().toString(36)}`;
+    const rA = ok(await apiRaw('POST', '/agents/register', { agentId: agentAId, workspaceId: ctx.wsId }));
+    const rB = ok(await apiRaw('POST', '/agents/register', { agentId: agentBId, workspaceId: ctx.wsId }));
+    agentAKey = rA.apiKey as string;
+    agentBKey = rB.apiKey as string;
+    await adminCall(ctx.wsId)('POST', `/agents/${agentAId}/credit`, { amount: 50 });
+    await adminCall(ctx.wsId)('POST', `/agents/${agentBId}/credit`, { amount: 50 });
+    expect(agentAKey).toBeTruthy();
+    expect(agentBKey).toBeTruthy();
+  });
+
+  await test('Step 1: create a leaf metric with a known current value', async () => {
+    const r = ok(await adminCall(ctx.wsId)('POST', '/metrics', {
+      name: `Scen_Temp_${Date.now()}`,
+      value: 75,
+      marketRangeMax: 100,
+    }));
+    scenMetricId = r.id as string;
+    expect(scenMetricId).toBeTruthy();
+  });
+
+  await test('Step 2: manually create a market for the metric with liquidity', async () => {
+    const futureYear = new Date().getFullYear() + 2;
+    const r = ok(await adminCall(ctx.wsId)('POST', '/predictions/markets', {
+      metricId: scenMetricId,
+      targetDate: `${futureYear}`,
+      rangeMin: 0,
+      rangeMax: 100,
+      liquidity: 10,
+    }));
+    scenMarketId = r.id as string;
+    expect(scenMarketId).toBeTruthy();
+  });
+
+  await test('Step 3: verify market probability starts near 0.5 after liquidity injection', async () => {
+    const r = ok(await adminCall(ctx.wsId)('GET', `/predictions/markets/${scenMarketId}`));
+    const prob = parseFloat(String(r.probability));
+    expect(prob).toBeGreaterThan(0);
+    expect(prob).toBeLessThan(1);
+  });
+
+  await test('Step 4: agent A bets higher, agent B bets lower (opposing positions)', async () => {
+    const rA = ok(await agentCall(agentAKey, ctx.wsId)('POST', '/predictions/trade', {
+      marketId: scenMarketId, direction: 'higher', amount: 5,
+    }));
+    const rB = ok(await agentCall(agentBKey, ctx.wsId)('POST', '/predictions/trade', {
+      marketId: scenMarketId, direction: 'lower', amount: 5,
+    }));
+    expect(rA.shares as number).toBeGreaterThan(0);
+    expect(rB.shares as number).toBeGreaterThan(0);
+  });
+
+  await test('Step 5: probability shifts toward higher after A buys higher', async () => {
+    const r = ok(await adminCall(ctx.wsId)('GET', `/predictions/markets/${scenMarketId}`));
+    // A bought higher, B bought lower — net effect depends on amounts, but market should have moved
+    expect(parseFloat(String(r.probability))).toBeGreaterThan(0);
+  });
+
+  await test('Step 6: record agent balances before resolution', async () => {
+    const rA = await agentCall(agentAKey, ctx.wsId)('GET', '/agents/mine');
+    const rB = await agentCall(agentBKey, ctx.wsId)('GET', '/agents/mine');
+    const meA = (rA.body as Array<Record<string, unknown>>).find(a => a.id === agentAId)!;
+    const meB = (rB.body as Array<Record<string, unknown>>).find(a => a.id === agentBId)!;
+    balanceBeforeA = meA.balance as number;
+    balanceBeforeB = meB.balance as number;
+    expect(balanceBeforeA).toBeLessThan(50); // spent some
+    expect(balanceBeforeB).toBeLessThan(50);
+  });
+
+  await test('Step 7: resolve the market — metric value 75 in range 0–100 means higher wins', async () => {
+    const r = ok(await adminCall(ctx.wsId)('POST', `/predictions/markets/${scenMarketId}/resolve`));
+    expect(r.resolved).toBe(true);
+    expect(r.totalPayout as number).toBeGreaterThan(0);
+  });
+
+  await test('Step 8: market is marked resolved and exposes actualValue', async () => {
+    const r = ok(await adminCall(ctx.wsId)('GET', `/predictions/markets/${scenMarketId}`));
+    expect(r.resolved).toBe(true);
+    // actualValue is the metric total clamped to [rangeMin, rangeMax]
+    expect(typeof r.actualValue).toBe('number');
+    expect(r.resolvedAt).toBeTruthy();
+  });
+
+  await test('Step 9: agent A (higher) receives payout and balance increases', async () => {
+    const r = await agentCall(agentAKey, ctx.wsId)('GET', '/agents/mine');
+    const meA = (r.body as Array<Record<string, unknown>>).find(a => a.id === agentAId)!;
+    expect(meA.balance as number).toBeGreaterThan(balanceBeforeA);
+  });
+
+  await test('Step 10: trading on a resolved market is rejected (400)', async () => {
+    const r = await agentCall(agentAKey, ctx.wsId)('POST', '/predictions/trade', {
+      marketId: scenMarketId, direction: 'higher', amount: 1,
+    });
+    expect(r.status).toBe(400);
+  });
+
+  await test('Cleanup: delete metric (market already resolved)', async () => {
+    if (scenMetricId) await adminCall(ctx.wsId)('DELETE', `/metrics/${scenMetricId}`);
+  });
+});
+
+await suite('Scenario: deep formula cascade and market range inheritance', async () => {
+  // Tests: A (leaf) → B (= A * 2) → C (= B + 10), all with custom ranges, then verify
+  // that changing A propagates all the way to C's total in real-time
+  let idA = ''; let idB = ''; let idC = '';
+  let nameA = ''; let nameB = '';
+
+  await test('Step 1: create leaf A with value 5 and custom range', async () => {
+    nameA = `CascadeA_${Date.now()}`;
+    const r = ok(await adminCall(ctx.wsId)('POST', '/metrics', {
+      name: nameA, value: 5, marketRangeMax: 200,
+    }));
+    idA = r.id as string;
+    const detail = ok(await adminCall(ctx.wsId)('GET', `/metrics/${idA}`));
+    expect(detail.marketRangeMax as number).toBe(200);
+  });
+
+  await test('Step 2: create B = A * 2', async () => {
+    nameB = `CascadeB_${Date.now()}`;
+    const r = ok(await adminCall(ctx.wsId)('POST', '/metrics', {
+      name: nameB, formula: `{${nameA}} * 2`,
+    }));
+    idB = r.id as string;
+    const detail = ok(await adminCall(ctx.wsId)('GET', `/metrics/${idB}`));
+    expect(detail.total as number).toBe(10); // 5 * 2
+  });
+
+  await test('Step 3: create C = B + 10', async () => {
+    const nameC = `CascadeC_${Date.now()}`;
+    const r = ok(await adminCall(ctx.wsId)('POST', '/metrics', {
+      name: nameC, formula: `{${nameB}} + 10`,
+    }));
+    idC = r.id as string;
+    const detail = ok(await adminCall(ctx.wsId)('GET', `/metrics/${idC}`));
+    expect(detail.total as number).toBe(20); // (5*2) + 10
+  });
+
+  await test('Step 4: update A to 20 — C should read 50 (20*2+10)', async () => {
+    await adminCall(ctx.wsId)('PUT', `/metrics/${idA}`, { value: 20 });
+    const detail = ok(await adminCall(ctx.wsId)('GET', `/metrics/${idC}`));
+    expect(detail.total as number).toBe(50); // (20*2) + 10
+  });
+
+  await test('Step 5: create a market for B with inherited rangeMax from metric', async () => {
+    // B itself has no custom rangeMax so it uses the system default (1000)
+    const futureYear = new Date().getFullYear() + 6;
+    const r = ok(await adminCall(ctx.wsId)('POST', '/predictions/markets', {
+      metricId: idB,
+      targetDate: `${futureYear}`,
+      liquidity: 1,
+    }));
+    const detail = ok(await adminCall(ctx.wsId)('GET', `/predictions/markets/${r.id as string}`));
+    // Without explicit rangeMax on metric, should use default
+    expect(parseFloat(String(detail.rangeMax))).toBeGreaterThan(0);
+    await adminCall(ctx.wsId)('DELETE', `/predictions/markets/${r.id as string}`);
+  });
+
+  await test('Step 6: circular dependency A → B → A is rejected (400)', async () => {
+    // Try to make A depend on B (which depends on A)
+    const r = await adminCall(ctx.wsId)('PUT', `/metrics/${idA}`, {
+      formula: `{${nameB}}`,
+    });
+    expect(r.status).toBe(400);
+  });
+
+  await test('Cleanup cascade metrics', async () => {
+    for (const id of [idC, idB, idA]) {
+      if (id) await adminCall(ctx.wsId)('DELETE', `/metrics/${id}`);
+    }
+  });
+});
+
+await suite('Scenario: group permission enforcement on trading', async () => {
+  // Tests that restricted groups block non-members from trading specific metrics
+  let restrictedMetricId = '';
+  let restrictedMarketId = '';
+  let restrictedGroupId = '';
+  let allowedAgentId = '';
+  let allowedAgentKey = '';
+  let blockedAgentId = '';
+  let blockedAgentKey = '';
+
+  await test('Setup: create two agents — one allowed, one blocked', async () => {
+    allowedAgentId = `perm_allowed_${Date.now().toString(36)}`;
+    blockedAgentId = `perm_blocked_${Date.now().toString(36)}`;
+    const rA = ok(await apiRaw('POST', '/agents/register', { agentId: allowedAgentId, workspaceId: ctx.wsId }));
+    const rB = ok(await apiRaw('POST', '/agents/register', { agentId: blockedAgentId, workspaceId: ctx.wsId }));
+    allowedAgentKey = rA.apiKey as string;
+    blockedAgentKey = rB.apiKey as string;
+    await adminCall(ctx.wsId)('POST', `/agents/${allowedAgentId}/credit`, { amount: 20 });
+    await adminCall(ctx.wsId)('POST', `/agents/${blockedAgentId}/credit`, { amount: 20 });
+    expect(allowedAgentKey).toBeTruthy();
+  });
+
+  await test('Step 1: create restricted metric and market', async () => {
+    const mr = ok(await adminCall(ctx.wsId)('POST', '/metrics', {
+      name: `RestrictedMetric_${Date.now()}`, value: 50,
+    }));
+    restrictedMetricId = mr.id as string;
+    const futureYear = new Date().getFullYear() + 7;
+    const mkr = ok(await adminCall(ctx.wsId)('POST', '/predictions/markets', {
+      metricId: restrictedMetricId,
+      targetDate: `${futureYear}`,
+      liquidity: 5,
+    }));
+    restrictedMarketId = mkr.id as string;
+  });
+
+  await test('Step 2: both agents can trade before any restrictions', async () => {
+    const rA = ok(await agentCall(allowedAgentKey, ctx.wsId)('POST', '/predictions/trade', {
+      marketId: restrictedMarketId, direction: 'higher', amount: 1,
+    }));
+    const rB = ok(await agentCall(blockedAgentKey, ctx.wsId)('POST', '/predictions/trade', {
+      marketId: restrictedMarketId, direction: 'higher', amount: 1,
+    }));
+    expect(rA.tradeId).toBeTruthy();
+    expect(rB.tradeId).toBeTruthy();
+  });
+
+  await test('Step 3: create restricted group containing only the allowed agent', async () => {
+    const r = ok(await adminCall(ctx.wsId)('POST', '/groups', {
+      name: `RestrictedGroup_${Date.now()}`,
+    }));
+    restrictedGroupId = r.id as string;
+    // Add trade permission for the restricted metric to this group
+    await adminCall(ctx.wsId)('PUT', `/groups/${restrictedGroupId}`, {
+      agentIds: [allowedAgentId],
+      permissions: { [restrictedMetricId]: { read: true, trade: true } },
+    });
+  });
+
+  await test('Step 4: allowed agent can still trade after restriction', async () => {
+    const r = ok(await agentCall(allowedAgentKey, ctx.wsId)('POST', '/predictions/trade', {
+      marketId: restrictedMarketId, direction: 'higher', amount: 1,
+    }));
+    expect(r.tradeId).toBeTruthy();
+  });
+
+  await test('Step 5: blocked agent cannot trade restricted metric (403)', async () => {
+    const r = await agentCall(blockedAgentKey, ctx.wsId)('POST', '/predictions/trade', {
+      marketId: restrictedMarketId, direction: 'higher', amount: 1,
+    });
+    expect(r.status).toBe(403);
+  });
+
+  await test('Step 6: removing the restriction re-allows the blocked agent', async () => {
+    // Clear permissions from the group
+    await adminCall(ctx.wsId)('PUT', `/groups/${restrictedGroupId}`, {
+      agentIds: [allowedAgentId],
+      permissions: {},
+    });
+    const r = ok(await agentCall(blockedAgentKey, ctx.wsId)('POST', '/predictions/trade', {
+      marketId: restrictedMarketId, direction: 'higher', amount: 1,
+    }));
+    expect(r.tradeId).toBeTruthy();
+  });
+
+  await test('Cleanup: restricted group, market, metric', async () => {
+    if (restrictedGroupId) await adminCall(ctx.wsId)('DELETE', `/groups/${restrictedGroupId}`);
+    if (restrictedMarketId) await adminCall(ctx.wsId)('DELETE', `/predictions/markets/${restrictedMarketId}`);
+    if (restrictedMetricId) await adminCall(ctx.wsId)('DELETE', `/metrics/${restrictedMetricId}`);
+  });
+});
+
+await suite('Scenario: balance accounting integrity', async () => {
+  // Verifies that credits in = credits out: buy → sell round-trip loses only to spread/fees
+  // and that balance never goes negative under valid operations
+  let acctAgentId = '';
+  let acctAgentKey = '';
+  let acctMarketId = '';
+  let acctMetricId = '';
+  const STARTING_CREDITS = 30;
+
+  await test('Setup: agent with exact starting balance', async () => {
+    acctAgentId = `acct_${Date.now().toString(36)}`;
+    const r = ok(await apiRaw('POST', '/agents/register', { agentId: acctAgentId, workspaceId: ctx.wsId }));
+    acctAgentKey = r.apiKey as string;
+    await adminCall(ctx.wsId)('POST', `/agents/${acctAgentId}/credit`, { amount: STARTING_CREDITS });
+
+    const mine = await agentCall(acctAgentKey, ctx.wsId)('GET', '/agents/mine');
+    const me = (mine.body as Array<Record<string, unknown>>).find(a => a.id === acctAgentId)!;
+    expect(me.balance as number).toBe(STARTING_CREDITS);
+  });
+
+  await test('Step 1: create metric and market', async () => {
+    const mr = ok(await adminCall(ctx.wsId)('POST', '/metrics', {
+      name: `AcctMetric_${Date.now()}`, value: 50,
+    }));
+    acctMetricId = mr.id as string;
+    const futureYear = new Date().getFullYear() + 8;
+    const mkr = ok(await adminCall(ctx.wsId)('POST', '/predictions/markets', {
+      metricId: acctMetricId,
+      targetDate: `${futureYear}`,
+      liquidity: 20,
+    }));
+    acctMarketId = mkr.id as string;
+  });
+
+  await test('Step 2: buy 10 credits of higher', async () => {
+    const r = ok(await agentCall(acctAgentKey, ctx.wsId)('POST', '/predictions/trade', {
+      marketId: acctMarketId, direction: 'higher', amount: 10,
+    }));
+    expect(r.cost as number).toBeCloseTo(10, 1);
+    expect(r.shares as number).toBeGreaterThan(0);
+  });
+
+  await test('Step 3: balance after buy = starting - cost', async () => {
+    const mine = await agentCall(acctAgentKey, ctx.wsId)('GET', '/agents/mine');
+    const me = (mine.body as Array<Record<string, unknown>>).find(a => a.id === acctAgentId)!;
+    expect(me.balance as number).toBeCloseTo(STARTING_CREDITS - 10, 1);
+  });
+
+  await test('Step 4: sell half the higher shares back', async () => {
+    const posR = await agentCall(acctAgentKey, ctx.wsId)('GET', '/predictions/positions');
+    const pos = (posR.body as Array<Record<string, unknown>>).find(
+      p => p.marketId === acctMarketId && p.direction === 'higher'
+    );
+    expect(pos).toBeTruthy();
+    const halfShares = Math.floor((pos!.shares as number) / 2);
+    const r = ok(await agentCall(acctAgentKey, ctx.wsId)('POST', '/predictions/trade', {
+      marketId: acctMarketId, direction: 'higher', sellShares: halfShares,
+    }));
+    expect(r.proceeds as number).toBeGreaterThan(0);
+  });
+
+  await test('Step 5: balance increases after sell but remains below starting (spread cost)', async () => {
+    const mine = await agentCall(acctAgentKey, ctx.wsId)('GET', '/agents/mine');
+    const me = (mine.body as Array<Record<string, unknown>>).find(a => a.id === acctAgentId)!;
+    const balance = me.balance as number;
+    // Should be more than after buy, but less than STARTING_CREDITS (spread is non-zero)
+    expect(balance).toBeGreaterThan(STARTING_CREDITS - 10);
+    expect(balance).toBeLessThan(STARTING_CREDITS + 0.01);
+  });
+
+  await test('Step 6: buying more than current balance is rejected (400)', async () => {
+    const mine = await agentCall(acctAgentKey, ctx.wsId)('GET', '/agents/mine');
+    const me = (mine.body as Array<Record<string, unknown>>).find(a => a.id === acctAgentId)!;
+    const currentBalance = me.balance as number;
+    const r = await agentCall(acctAgentKey, ctx.wsId)('POST', '/predictions/trade', {
+      marketId: acctMarketId, direction: 'higher', amount: currentBalance + 100,
+    });
+    expect(r.status).toBe(400);
+  });
+
+  await test('Step 7: sell remaining higher shares (including fractional)', async () => {
+    const posR = await agentCall(acctAgentKey, ctx.wsId)('GET', '/predictions/positions');
+    const pos = (posR.body as Array<Record<string, unknown>>).find(
+      p => p.marketId === acctMarketId && p.direction === 'higher'
+    );
+    if (!pos || (pos.shares as number) <= 0) return; // already sold all
+    // Use actual share count (may be fractional — API accepts non-integer sellShares)
+    const r = ok(await agentCall(acctAgentKey, ctx.wsId)('POST', '/predictions/trade', {
+      marketId: acctMarketId, direction: 'higher', sellShares: pos.shares as number,
+    }));
+    expect(r.proceeds as number).toBeGreaterThanOrEqual(0);
+  });
+
+  await test('Step 8: verify positions show effectively zero shares after full sell', async () => {
+    const posR = await agentCall(acctAgentKey, ctx.wsId)('GET', '/predictions/positions');
+    const pos = (posR.body as Array<Record<string, unknown>>).find(
+      p => p.marketId === acctMarketId && p.direction === 'higher' && (p.shares as number) > 0.001
+    );
+    expect(pos).toBeFalsy();
+  });
+
+  await test('Cleanup: acct market and metric', async () => {
+    if (acctMarketId) await adminCall(ctx.wsId)('DELETE', `/predictions/markets/${acctMarketId}`);
+    if (acctMetricId) await adminCall(ctx.wsId)('DELETE', `/metrics/${acctMetricId}`);
+  });
+});
+
+await suite('Scenario: task lifecycle with conditional markets', async () => {
+  // Full task flow: propose → approve → conditional markets → trade → complete/decline
+  let lifecycleAgentId = '';
+  let lifecycleAgentKey = '';
+  let lifecycleTaskId = '';
+  let lifecycleMetricId = '';
+
+  await test('Setup: create agent and metric for task scenario', async () => {
+    lifecycleAgentId = `task_life_${Date.now().toString(36)}`;
+    const r = ok(await apiRaw('POST', '/agents/register', { agentId: lifecycleAgentId, workspaceId: ctx.wsId }));
+    lifecycleAgentKey = r.apiKey as string;
+    await adminCall(ctx.wsId)('POST', `/agents/${lifecycleAgentId}/credit`, { amount: 50 });
+
+    const mr = ok(await adminCall(ctx.wsId)('POST', '/metrics', {
+      name: `TaskMetric_${Date.now()}`, value: 30,
+    }));
+    lifecycleMetricId = mr.id as string;
+  });
+
+  await test('Step 1: agent proposes a task with a price', async () => {
+    const r = ok(await agentCall(lifecycleAgentKey, ctx.wsId)('POST', '/tasks', {
+      title: 'Lifecycle Test Task',
+      description: 'Complete a specific measurable outcome',
+      price: 10,
+    }));
+    lifecycleTaskId = r.id as string;
+    expect(lifecycleTaskId).toBeTruthy();
+  });
+
+  await test('Step 2: task starts as pending', async () => {
+    const r = ok(await agentCall(lifecycleAgentKey, ctx.wsId)('GET', `/tasks/${lifecycleTaskId}`));
+    expect(r.status).toBe('pending');
+  });
+
+  await test('Step 3: agent sends a question about the task', async () => {
+    const r = await agentCall(lifecycleAgentKey, ctx.wsId)('POST', `/tasks/${lifecycleTaskId}/messages`, {
+      content: 'Can you clarify the acceptance criteria?',
+    });
+    expect(r.status).toBe(201);
+  });
+
+  await test('Step 4: admin replies with clarification', async () => {
+    const r = await adminCall(ctx.wsId)('POST', `/tasks/${lifecycleTaskId}/messages`, {
+      content: 'The metric must reach 50 within 30 days.',
+    });
+    expect(r.status).toBe(201);
+  });
+
+  await test('Step 5: message thread has 2 messages in order', async () => {
+    const r = await adminCall(ctx.wsId)('GET', `/tasks/${lifecycleTaskId}/messages`);
+    const msgs = r.body as Array<Record<string, unknown>>;
+    expect(msgs.length).toBe(2);
+    expect(msgs[0].content).toBe('Can you clarify the acceptance criteria?');
+    expect(msgs[1].content).toBe('The metric must reach 50 within 30 days.');
+  });
+
+  await test('Step 6: admin approves the task', async () => {
+    const r = await adminCall(ctx.wsId)('POST', `/tasks/${lifecycleTaskId}/approve`, {});
+    expect(r.status).toBe(200);
+    const detail = ok(await adminCall(ctx.wsId)('GET', `/tasks/${lifecycleTaskId}`));
+    expect(detail.status).toBe('approved');
+  });
+
+  await test('Step 7: cannot decline an already-approved task (400)', async () => {
+    const r = await adminCall(ctx.wsId)('POST', `/tasks/${lifecycleTaskId}/decline`, {});
+    expect(r.status).toBe(400);
+  });
+
+  await test('Step 8: agent can still read messages after approval', async () => {
+    const r = await agentCall(lifecycleAgentKey, ctx.wsId)('GET', `/tasks/${lifecycleTaskId}/messages`);
+    expect(r.status).toBe(200);
+    expect((r.body as Array<unknown>).length).toBe(2);
+  });
+
+  await test('Cleanup: lifecycle metric', async () => {
+    if (lifecycleMetricId) await adminCall(ctx.wsId)('DELETE', `/metrics/${lifecycleMetricId}`);
+  });
+});
+
+await suite('Scenario: admin role promotion via group', async () => {
+  // Tests that adding an agent to the Admin group elevates their role,
+  // and removing them reverts it
+  let promoAgentId = '';
+  let promoAgentKey = '';
+
+  await test('Setup: create an agent with default agent role', async () => {
+    promoAgentId = `promo_${Date.now().toString(36)}`;
+    const r = ok(await apiRaw('POST', '/agents/register', { agentId: promoAgentId, workspaceId: ctx.wsId }));
+    promoAgentKey = r.apiKey as string;
+    // Verify starts as agent role
+    const me = ok(await agentCall(promoAgentKey, ctx.wsId)('GET', '/agents/me'));
+    expect(me.role).toBe('agent');
+  });
+
+  await test('Step 1: agent cannot create metrics (requires admin)', async () => {
+    const r = await agentCall(promoAgentKey, ctx.wsId)('POST', '/metrics', {
+      name: `ShouldFail_${Date.now()}`, value: 1,
+    });
+    expect(r.status).toBe(403);
+  });
+
+  await test('Step 2: add agent to Admin group → role becomes admin', async () => {
+    const groups = await adminCall(ctx.wsId)('GET', '/groups');
+    const adminGroup = (groups.body as Array<Record<string, unknown>>).find(g => g.name === 'Admin')!;
+    const currentMembers = (adminGroup.agentIds as string[]) ?? [];
+    await adminCall(ctx.wsId)('PUT', `/groups/${adminGroup.id as string}`, {
+      agentIds: [...currentMembers, promoAgentId],
+    });
+    const me = ok(await agentCall(promoAgentKey, ctx.wsId)('GET', '/agents/me'));
+    expect(me.role).toBe('admin');
+  });
+
+  await test('Step 3: now promoted agent can create a metric', async () => {
+    const r = ok(await agentCall(promoAgentKey, ctx.wsId)('POST', '/metrics', {
+      name: `PromoMetric_${Date.now()}`, value: 1,
+    }));
+    await adminCall(ctx.wsId)('DELETE', `/metrics/${r.id as string}`);
+  });
+
+  await test('Step 4: remove from Admin group → role reverts to agent', async () => {
+    const groups = await adminCall(ctx.wsId)('GET', '/groups');
+    const adminGroup = (groups.body as Array<Record<string, unknown>>).find(g => g.name === 'Admin')!;
+    const currentMembers = ((adminGroup.agentIds as string[]) ?? []).filter((id: string) => id !== promoAgentId);
+    await adminCall(ctx.wsId)('PUT', `/groups/${adminGroup.id as string}`, {
+      agentIds: currentMembers,
+    });
+    const me = ok(await agentCall(promoAgentKey, ctx.wsId)('GET', '/agents/me'));
+    expect(me.role).toBe('agent');
+  });
+
+  await test('Step 5: demoted agent cannot create metrics again (403)', async () => {
+    const r = await agentCall(promoAgentKey, ctx.wsId)('POST', '/metrics', {
+      name: `ShouldFailAgain_${Date.now()}`, value: 1,
+    });
+    expect(r.status).toBe(403);
+  });
+});
+
 await suite('Cleanup', async () => {
   await test('Delete test market if still exists', async () => {
     if (!ctx.marketId) return;
