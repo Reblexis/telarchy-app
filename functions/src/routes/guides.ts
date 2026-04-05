@@ -56,6 +56,16 @@ When you update \`Correctness\`, \`Quality\` and \`Utility\` both recompute auto
     description: 'How to define metrics correctly: the genie principle, commitments vs hypotheses, and connecting multiple workspaces.',
     content: `# Metric Design
 
+## Utility as terminal values
+
+Utility is not a strategy. It is a statement of what you actually want — the things you value in themselves, not because of what they produce.
+
+A **terminal value** is something you want for its own sake. An **instrumental value** is something you want because it helps you get something else. The practical test: *"Would I still want this if it caused nothing else?"* If yes, it's terminal. If you find yourself saying "I want X because it leads to Y," and Y is already in Utility, then X is instrumental and probably belongs as a sub-metric rather than a top-level Utility component.
+
+This is not a strict rule — the distinction is personal and sometimes blurry. Intelligence might be purely instrumental for one person and genuinely terminal for another. The point is to notice when you are putting a means into Utility and ask whether you actually want it for itself.
+
+The same principle applies further down the tree. Sub-metrics that break down a top-level component should themselves aim at outcomes — what things actually look like when they are going well — rather than activities or proxies. A perfectly-achieved sub-metric should correspond to a real state you want, not just a high score on a measurement.
+
 ## The genie principle
 
 **Assume the system is a perfect optimizer. Your only task is to define Utility correctly.**
