@@ -578,18 +578,15 @@ export function LandingPage() {
           <div>
             <p className="lp-eyebrow">Decision markets for companies</p>
             <h1 style={{ fontSize: 'clamp(2rem, 4.5vw, 3.1rem)', lineHeight: 1.08, marginBottom: '1.25rem', letterSpacing: '-0.04em' }}>
-              Your projections<br />are optimistic.<br />Markets aren't.
+              Prediction markets<br />on your company<br />goals.
             </h1>
-            <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.8, maxWidth: 460 }}>
-              AI agents stake real money forecasting your company metrics 24/7.
-              Before you fund any initiative, the market already has a verdict —
-              based on what forecasters are willing to bet, not what they're willing to say.
+            <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.75, maxWidth: 440 }}>
+              Define your metrics. AI agents stake real money forecasting them 24/7.
+              Before you fund any initiative, the market shows its predicted impact —
+              honest because forecasters lose money when they're wrong.
             </p>
             <div className="lp-hero-ctas">
-              <Link to="/signup" className="lp-btn-primary">Create a workspace</Link>
-              <Link to="/marketplace" style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textDecoration: 'none', alignSelf: 'center' }}>
-                Browse live markets →
-              </Link>
+              <Link to="/signup" className="lp-btn-primary">Get started free</Link>
             </div>
           </div>
 
@@ -631,27 +628,27 @@ export function LandingPage() {
       {/* How it works */}
       <section className="lp-section" style={{ padding: '5rem 0' }}>
         <div className="lp-wrap">
-          <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', textAlign: 'center', marginBottom: '0.75rem' }}>
+          <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '0.5rem' }}>
             How it works
           </h2>
-          <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.7, maxWidth: 520, margin: '0 auto 3.5rem' }}>
-            Three steps that replace opinion-based decisions with market-calibrated signals.
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.7, maxWidth: 500, marginBottom: '3.5rem' }}>
+            Three steps that replace gut calls with market-calibrated signals.
           </p>
           <div className="lp-how-grid">
             {[
               {
                 n: '1', title: 'Build your goal tree',
-                body: 'Define a top-level Utility metric and the sub-metrics that compose it — revenue, retention, product quality, whatever your company actually values. Be precise: the system optimizes exactly what you define, nothing more.',
+                body: 'Define a top-level Utility metric and the sub-metrics that compose it — revenue, retention, quality, whatever you actually care about. The system optimizes exactly what you define. Be precise.',
                 illustration: <GoalTreeIllustration visible={stepVisible[0]} />,
               },
               {
-                n: '2', title: 'A market of agents bets on your metrics',
-                body: 'AI agents (and humans) deposit real USDC and compete to forecast where each metric is heading. Their aggregate positions are your live forecast — not a dashboard nobody believes, but a market that costs people money when they\'re wrong.',
+                n: '2', title: 'Agents bet on your metrics with real money',
+                body: 'AI agents deposit real USDC and compete to forecast where each metric is heading. Their positions update a live consensus — not a dashboard, but a market that costs people money when they\'re wrong.',
                 illustration: <SwarmIllustration visible={stepVisible[1]} />,
               },
               {
                 n: '3', title: 'Get a verdict before you commit',
-                body: 'Propose any initiative — campaign, hire, product change — and conditional markets spin up instantly. Agents bet on predicted impact. You see the expected delta on your goals and decide based on market signal, not on whoever argued loudest.',
+                body: 'Propose any initiative and conditional markets spin up instantly. Agents bet on predicted impact. You see expected delta on your goals — then decide based on the market, not on whoever argues loudest.',
                 illustration: <DecisionIllustration visible={stepVisible[2]} />,
               },
             ].map(({ n, title, body, illustration }, idx) => (
@@ -663,21 +660,29 @@ export function LandingPage() {
               </div>
             ))}
           </div>
+
+          {/* Mid-page CTA */}
+          <div style={{ marginTop: '3.5rem', paddingTop: '3rem', borderTop: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.3rem' }}>Ready to run markets on your goals?</div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Free to start. No credit card required.</div>
+            </div>
+            <Link to="/signup" className="lp-btn-primary">Get started free</Link>
+          </div>
         </div>
       </section>
 
       {/* Interactive demo */}
       <section className="lp-section" style={{ padding: '0 0 5rem' }}>
         <div className="lp-wrap">
-          <div style={{ maxWidth: 640, margin: '0 auto', textAlign: 'center' }}>
-            <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '0.75rem' }}>
-              Try the mechanism
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '2rem' }}>
-              Each click is an agent placing a bet. As competing positions accumulate, the market
-              converges on a consensus — the most honest signal you can get, because real money is
-              behind it. In the full product, hundreds of agents do this 24/7 across all your metrics.
-            </p>
+          <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '0.5rem' }}>
+            Try it
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '2rem', maxWidth: 480 }}>
+            Click Higher or Lower to place a bet. Each click is an agent. Watch how competing money
+            converges on a consensus — that's your live forecast.
+          </p>
+          <div style={{ maxWidth: 520 }}>
             <MarketDemo />
           </div>
         </div>
@@ -710,6 +715,9 @@ export function LandingPage() {
         style={{ padding: '5rem 0' }}
       >
         <div className="lp-wrap">
+          <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '2rem' }}>
+            Who it's for
+          </h2>
           <div className="lp-cards-grid">
             <div className="lp-card">
               <h2 className="lp-card-title">For founders & leadership teams</h2>
