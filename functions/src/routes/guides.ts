@@ -18,7 +18,7 @@ const sections: GuideSection[] = [
 
 ## What are metrics?
 
-Metrics are the core of Telarchy. They represent quantities you care about — goals, health indicators, business KPIs, or any measurable thing. Every workspace is built around a metric called **Utility**, the single top-level score everything else rolls up into.
+Metrics are the core of Telarchy. They represent quantities you care about — goals, performance indicators, KPIs, or any measurable thing. Every workspace is built around a metric called **Utility**, the single top-level score everything else rolls up into.
 
 Metrics form a **directed tree**. At the top is Utility; below it are sub-metrics that compose it; below those are further sub-metrics. The leaves are raw numbers you update directly. Everything above them is computed automatically from a formula you define.
 
@@ -29,31 +29,31 @@ Metrics form a **directed tree**. At the top is Utility; below it are sub-metric
 
 ## The Utility metric
 
-The metric named exactly \`Utility\` is special. It is the root of the tree, used to calculate XP and rank. Create it first, then build downward. Its formula typically sums top-level sub-categories:
+The metric named exactly \`Utility\` is special. It is the root of the tree, used to calculate XP and rank. Create it first, then build downward. Its formula typically combines top-level sub-categories:
 
 \`\`\`
-Utility  →  formula: {Health} + {Career} + {Finance}
+Utility  →  formula: {Output} + {Sustainability} + {Growth}
 \`\`\`
 
 ## Example tree
 
 \`\`\`
-Utility  (formula: {Health} + {Career})
-├── Health  (formula: {Sleep} + {Exercise})
-│   ├── Sleep      (leaf, value set manually)
-│   └── Exercise   (leaf, value set manually)
-└── Career  (formula: {Income} + {Satisfaction})
-    ├── Income       (leaf)
-    └── Satisfaction (leaf)
+Utility  (formula: {Quality} + {Velocity})
+├── Quality   (formula: {Correctness} + {Reliability})
+│   ├── Correctness   (leaf, value set manually)
+│   └── Reliability   (leaf, value set manually)
+└── Velocity  (formula: {Throughput} + {Responsiveness})
+    ├── Throughput     (leaf)
+    └── Responsiveness (leaf)
 \`\`\`
 
-When you update \`Sleep\`, \`Health\` and \`Utility\` both recompute automatically. If \`Health\` has **time preference** enabled, it blends present and predicted future values using market consensus at sampled future dates — see the *Time Preference* guide for a full explanation.
+When you update \`Correctness\`, \`Quality\` and \`Utility\` both recompute automatically. If \`Quality\` has **time preference** enabled, it blends present and predicted future values using market consensus at sampled future dates — see the *Time Preference* guide for a full explanation.
 `,
   },
   {
     id: 'metric-design',
     title: 'Metric Design',
-    description: 'How to define metrics correctly: commitments vs hypotheses, avoiding over-specification, and connecting multiple workspaces.',
+    description: 'How to define metrics correctly: the genie principle, commitments vs hypotheses, and connecting multiple workspaces.',
     content: `# Metric Design
 
 ## The genie principle
@@ -70,27 +70,25 @@ Apply this test to every metric and to the tree as a whole:
 
 If the answer is no, there is a hole in the definition. Common failure modes:
 
-- **Missing a dimension** — Utility is maximized but something you deeply care about (health, relationships, integrity) is not represented anywhere in the tree. The optimizer ignores it entirely because it has no incentive to protect it.
-- **Wrong proxy** — a leaf metric is a proxy for the real thing, and the proxy can be gamed. Revenue is up; the business is hollowed out. Sleep hours are logged; sleep quality is not tracked. The metric is satisfied; the goal is not.
+- **Missing a dimension** — Utility is maximized but something that genuinely matters is not represented anywhere in the tree. The optimizer ignores it entirely because it has no incentive to protect it.
+- **Wrong proxy** — a leaf metric is a proxy for the real thing, and the proxy can be satisfied without satisfying the underlying goal. Revenue is up; the business is hollowed out. A rate metric is high; the denominator was gamed. The metric is satisfied; the goal is not.
 - **Perverse trade-off** — two sub-metrics can be traded against each other in ways the formula allows but you would never endorse. Maximizing their sum permits one to collapse entirely as long as the other overcompensates.
 
 The fix in every case is the same: adjust the definition until a perfect optimizer achieving it gives you exactly the outcome you want — no more, no less.
 
 ## On double-counting
 
-If a quantity genuinely affects your utility through multiple independent paths, counting it more than once is correct, not a mistake. A thriving social network might contribute directly to your wellbeing *and* independently to your power or career. Representing both paths in the formula reflects that real dual importance — a perfect optimizer will strengthen that dimension accordingly.
+If a quantity genuinely affects utility through multiple independent paths, counting it more than once is correct, not a mistake. A strong capability might contribute directly to output *and* independently to resilience or reputation. Representing both paths in the formula reflects that real dual importance — a perfect optimizer will strengthen that dimension accordingly.
 
 Double-counting is only a problem when it is *unintentional* — when a metric appears in multiple places because of structural inertia rather than genuine belief that both paths are real. The question to ask is not "does this appear more than once?" but "do I actually believe this thing matters in each of the ways I have modelled?"
 
-This principle applies to any workspace. A startup workspace defining company Utility, a team workspace defining project success, or a personal workspace defining individual well-being — all carry the same obligation: define the target so precisely that you would be genuinely satisfied if it were hit perfectly.
-
 ## Metrics are commitments
 
-A metric declares that some quantity *certainly* affects your utility in a known way. This is a strong claim — and it should be. The system will optimize exactly what you measure, so defining the wrong metric is a definition error, not a system failure, that the system cannot correct for you.
+A metric declares that some quantity *certainly* affects utility in a known way. This is a strong claim — and it should be. The system will optimize exactly what you measure, so defining the wrong metric is a definition error, not a system failure.
 
-**Define metrics at the level of abstraction you are genuinely certain about.** When in doubt, keep the definition more subjective rather than more specific. A self-reported *Happiness* score is often a better leaf metric than *Dopamine level*, because the causal link between dopamine and subjective happiness is an open empirical question.
+**Define metrics at the level of abstraction you are genuinely certain about.** When in doubt, keep the definition closer to the outcome you actually care about rather than a speculative upstream cause. If the causal link between a candidate metric and your real goal is uncertain, that uncertainty belongs in a **task**, not in the metric definition.
 
-> **Example — the dopamine trap.** You define Happiness as dopamine level, then start taking drugs. Dopamine rises; you are still unhappy. The system did nothing wrong — it optimized exactly what you asked. The fix: keep *Happiness* as a self-reported leaf metric and create a **task** — *"Will increasing dopamine improve my subjective happiness?"* — evaluated by conditional prediction markets before committing to that path.
+> **Example.** You want to improve team output, so you define a metric tracking lines of code committed per week. A perfect optimizer produces more commits. Actual output may stay flat or decline. The causal link was assumed, not verified. The correct approach: keep *Output* as a direct assessment metric, then create a task — *"Will increasing commit frequency improve Output?"* — and let conditional markets evaluate that hypothesis.
 
 ## Tasks are hypothesis tests
 
@@ -101,24 +99,24 @@ This separation prevents over-specification:
 - Metric definition: *what do I actually care about?*
 - Task proposal: *will doing this improve what I care about?*
 
-Tasks can also be used to evaluate metric structure changes. If an agent suspects that tracking a new quantity would improve the system's ability to optimise your utility, it can propose a task — *"Add metric X and observe its relationship to Utility"* — and let conditional markets judge whether that structural addition is worthwhile before you commit to it.
+Tasks can also be used to evaluate metric structure changes. If an agent suspects that tracking a new quantity would improve the system's ability to optimise utility, it can propose a task — *"Add metric X and observe its relationship to Utility"* — and let conditional markets judge whether that structural addition is worthwhile before committing to it.
 
-## Connecting domain workspaces to personal utility
+## Connecting multiple workspaces
 
-A common pattern is one personal workspace (defining personal Utility) plus one or more domain workspaces (a startup, a project, a team). The link between domain metrics and personal utility is usually uncertain — how exactly does startup MAU correspond to personal wealth or happiness? — and should not be hardwired into the personal Utility formula.
+A common pattern is one primary workspace (defining top-level Utility) plus one or more domain workspaces (a project, a team, a product). The link between domain metrics and primary utility is usually uncertain and should not be hardwired into the primary Utility formula.
 
 **Instead:**
 
-- Keep the domain workspace as an **information source**. Agents observing both workspaces can use startup metrics as signal when proposing tasks and placing bets in your personal workspace.
-- Use **tasks** to test the connection. A task like *"Will growing MAU by 20% improve my personal Utility?"* lets conditional markets evaluate the hypothesis before you commit resources.
+- Keep the domain workspace as an **information source**. Agents observing both workspaces can use domain metrics as signal when proposing tasks and placing bets in the primary workspace.
+- Use **tasks** to test the connection. A task like *"Will achieving milestone X improve primary Utility?"* lets conditional markets evaluate the hypothesis before committing resources.
 
-This keeps the two workspaces decoupled at the definition level while still allowing agents to reason across them.
+This keeps workspaces decoupled at the definition level while still allowing agents to reason across them.
 
 ### Why maintain a separate domain workspace at all?
 
-1. **Agent information** — domain metrics give agents richer signal to reason about your personal utility, without being hardcoded as direct formula inputs.
-2. **Privacy** — your personal utility workspace may contain sensitive self-assessments. A startup workspace can be shared with collaborators or investors without exposing personal data.
-3. **Multi-stakeholder** — multiple shareholders can co-own a startup workspace and independently evaluate its impact on their respective personal utilities.
+1. **Agent information** — domain metrics give agents richer signal to reason about primary utility, without being hardcoded as direct formula inputs.
+2. **Privacy and access control** — different workspaces can have different participant sets. Sensitive assessments in one workspace are not exposed to collaborators in another.
+3. **Multi-stakeholder** — multiple owners can share a domain workspace and independently evaluate its impact on their respective primary utilities.
 `,
   },
   {
@@ -135,13 +133,13 @@ Open the **Metrics** page and use the form at the top. Only admins can create or
 - **Description** — optional. Helps agents understand what the metric measures.
 - **Formula** — leave blank for a leaf metric. Provide a formula to make it computed. See the *Formulas* guide for syntax.
 - **Value** — only editable for leaf metrics. Computed metrics always have value 0 (their total comes from the formula).
-- **Market range max** — optional. Sets the upper bound for this metric's AMM markets. Defaults to 1000. Match the realistic range of the metric (e.g. a 0–100 percentage metric → set to 100).
+- **Market range max** — only available on leaf metrics. Sets the upper bound for this metric's AMM markets. Defaults to 1000. Match the realistic range of the metric (e.g. a 0–100 score → set to 100, a metric that peaks around 500 → set to 500).
 
 > **Note:** Time preference (half-life) is only available when *editing* an existing computed metric, not at creation time. Create the metric first, then edit it to enable time preference.
 
 ## Recommended creation order
 
-1. Create leaf metrics and computed metrics in any order.
+1. Create leaf metrics first so computed metrics can reference them immediately.
 2. Create **Utility** once its direct sub-metrics exist so the formula resolves immediately — though you can always edit it later.
 
 ## Editing a metric
@@ -172,8 +170,8 @@ Formulas are simple arithmetic expressions that can reference other metrics by n
 Wrap any metric name in curly braces. Whitespace inside the braces is trimmed:
 
 \`\`\`
-{Sleep} + {Exercise}
-{ Income } * 0.5 + { Satisfaction } * 0.5
+{Throughput} + {Reliability}
+{ Revenue } * 0.6 + { Margin } * 0.4
 \`\`\`
 
 ## Operators
@@ -200,17 +198,20 @@ clamp(x, lo, hi) clamp x between lo and hi
 ## Examples
 
 \`\`\`
-# Weighted average
-{Income} * 0.6 + {Satisfaction} * 0.4
+# Weighted average of two dimensions
+{Throughput} * 0.6 + {Quality} * 0.4
 
-# Geometric mean of two metrics
-sqrt({Sleep} * {Exercise})
+# Geometric mean (rewards balance between two metrics)
+sqrt({Adoption} * {Retention})
 
-# Clamp Utility to a 0–100 range
-clamp({Health} + {Career}, 0, 100)
+# Clamp a score to a fixed range
+clamp({RawScore} / {MaxPossible} * 1000, 0, 1000)
 
-# Power scaling
-pow({Progress}, 1.5)
+# Diminishing returns on a resource metric
+pow({Capital}, 0.6)
+
+# Penalise below a threshold, reward above
+max({Output} - 500, 0)
 \`\`\`
 
 ## Validation
@@ -263,23 +264,23 @@ If you want sub-goals with different timescales, make them **siblings**, each wi
 
 \`\`\`
 # Correct: sibling TP nodes with different half-lives
-Utility  (formula: {Health} + {Career})
-├── Health  (TP: half-life=2y)   ← short-horizon concerns
-└── Career  (TP: half-life=5y)   ← long-horizon concerns
+Utility  (formula: {ShortTerm} + {LongTerm})
+├── ShortTerm  (TP: half-life=0.5y)  ← near-horizon concerns
+└── LongTerm   (TP: half-life=5y)   ← far-horizon concerns
 
 # Wrong: nested TP nodes
 Utility
-└── Health  (TP: half-life=2y)
-    └── PhysicalHealth  (TP: half-life=1y)  ← not allowed
-        └── Sleep  (leaf)
+└── ShortTerm  (TP: half-life=0.5y)
+    └── SubGoal  (TP: half-life=0.25y)  ← not allowed
+        └── LeafMetric  (leaf)
 \`\`\`
 
 ## Half-life
 
 The only parameter is **half-life** (in years). It sets the timescale of your concern — the median sampled time point falls exactly at the half-life:
 
-- **Short half-life (e.g. 0.5y)** — near-term dominated; most weight on the next few months. Good for fast-moving metrics like sleep or weekly revenue.
-- **Long half-life (e.g. 5y)** — long-horizon; samples spread across years. Good for slow-moving goals like career trajectory or savings.
+- **Short half-life (e.g. 0.5y)** — near-term dominated; most weight on the next few months. Good for fast-moving or tactical metrics.
+- **Long half-life (e.g. 5y)** — long-horizon; samples spread across years. Good for strategic or structural goals.
 
 The blend is a simple average across t=0 and the 10 sampled future points (equal weights). The half-life shapes *where* those 10 samples fall, not how much each one counts.
 
@@ -293,17 +294,17 @@ The blend is a simple average across t=0 and the 10 sampled future points (equal
 ## Example
 
 \`\`\`
-Utility  (formula: {Health} + {Career})          ← ABOVE: aggregates TP nodes
+Utility  (formula: {ShortTerm} + {LongTerm})     ← ABOVE: aggregates TP nodes
 │
-├── Health  (TIME PREFERENCE: half-life=2y)        ← TP NODE: temporal bridge
-│   formula: {Sleep} + {Exercise}
-│   ├── Sleep    (leaf, current value only)         ← BELOW: markets created here
-│   └── Exercise (leaf, current value only)         ← BELOW: markets created here
+├── ShortTerm  (TIME PREFERENCE: half-life=0.5y)  ← TP NODE: temporal bridge
+│   formula: {MetricA} + {MetricB}
+│   ├── MetricA  (leaf, current value only)        ← BELOW: markets created here
+│   └── MetricB  (leaf, current value only)        ← BELOW: markets created here
 │
-└── Career  (TIME PREFERENCE: half-life=5y)        ← TP NODE: separate timescale
-    formula: {Income} + {Satisfaction}
-    ├── Income       (leaf, current value only)
-    └── Satisfaction (leaf, current value only)
+└── LongTerm   (TIME PREFERENCE: half-life=5y)    ← TP NODE: separate timescale
+    formula: {MetricC} + {MetricD}
+    ├── MetricC  (leaf, current value only)
+    └── MetricD  (leaf, current value only)
 \`\`\`
 `,
   },
@@ -353,7 +354,7 @@ A market resolves when its target date period has ended. The admin sets the actu
 
 ## Setting market range max
 
-The default range is 0–1000. If your metric represents a percentage (0–100), a 5-star rating (0–5), or any bounded quantity, set \`marketRangeMax\` when creating or editing the metric. This ensures the AMM price range matches the actual possible values and bets are meaningful.
+The default range is 0–1000. Match \`marketRangeMax\` to the realistic upper bound of the metric — a percentage metric capped at 100, a count metric that realistically peaks at 500, and so on. A mis-ranged market produces a distorted consensus and less informative bets.
 `,
   },
   {
@@ -368,7 +369,7 @@ Telarchy credits are the in-platform unit for markets, tasks, and spending. On d
 
 Call **\`GET /api/agents/deposit-address\`** (no authentication). The response includes \`address\` (send USDC here), \`chain\` (\`base\`), \`asset\` (\`USDC\`), and \`usdcContract\` (the canonical USDC token on Base). If the server has no treasury configured, you get **503**.
 
-Admins can still use **\`GET /api/agents/treasury\`** for the same address plus live USDC and ETH balances.
+Admins can use **\`GET /api/agents/treasury\`** for the same address plus live USDC and ETH balances.
 
 ## Buying credits
 
@@ -433,7 +434,7 @@ Well-structured metrics make the task loop more informative. If your metrics are
 
 Best practices:
 
-- Keep leaf metrics measurable and specific (e.g. \`Hours slept per night\`, not just \`Sleep\`).
+- Keep leaf metrics specific and directly measurable rather than broad and vague.
 - Set accurate market ranges — a mis-ranged market produces a useless consensus.
 - Inject liquidity into markets so the AMM has price sensitivity for agent bets.
 - Refresh markets after making structural changes to the metric tree.
@@ -470,12 +471,12 @@ The \`markets\` array on each metric includes the **market ID** needed for tradi
 
 **By metric name + target date** (no prior lookup needed):
 \`\`\`json
-{ "metricName": "Sleep", "targetDate": "2026-05", "direction": "higher", "amount": 10 }
+{ "metricName": "Throughput", "targetDate": "2026-Q3", "direction": "higher", "amount": 10 }
 \`\`\`
 
-Or by metric ID:
+Or by metric ID + target value:
 \`\`\`json
-{ "metricId": "uuid", "targetDate": "2026-05", "targetValue": 8.0, "maxBudget": 50 }
+{ "metricId": "uuid", "targetDate": "2026-06", "targetValue": 750, "maxBudget": 50 }
 \`\`\`
 
 ## Recommended agent loop
