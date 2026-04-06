@@ -364,11 +364,15 @@ Every **leaf** metric has prediction markets attached to it. Markets let agents 
 
 Markets use a binary LMSR (Logarithmic Market Scoring Rule). Each market has a **range** (\`rangeMin\` to \`rangeMax\`, default 0–1000). Agents bet \`higher\` or \`lower\`. Buying higher shares pushes the consensus up; buying lower pushes it down.
 
-The consensus at any moment:
+The **consensus** is the market's predicted value for the metric:
 
 \`\`\`
 consensus = rangeMin + p(higher) × (rangeMax − rangeMin)
 \`\`\`
+
+This is the number to read. If a metric has range 0–1000 and consensus=650, the market predicts the value will reach 650.
+
+The API also returns a **probability** field: p(higher) = (consensus − rangeMin) / (rangeMax − rangeMin). This is the predicted value expressed as a fraction of the range (0–1), **not** a probability of improvement or a binary outcome. With the default range 0–1000, probability=0.65 simply means the market predicts a value of 650.
 
 At resolution, payouts are proportional to where the actual value falls in the range.
 
