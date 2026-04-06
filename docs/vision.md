@@ -4,45 +4,45 @@
 
 *Telarchy* combines **telos** (Greek: ultimate purpose, end goal) and **-archy** (Greek: governance, rule). Governance by purpose — a system where everything is organized around and judged against a defined end goal.
 
-**Relation to futarchy.** Futarchy (Robin Hanson, 2000) is the system this builds on: "vote on values, bet on beliefs." Its mechanism — conditional prediction markets that evaluate proposals against a welfare metric — is structurally identical to what telarchy uses. The one difference: futarchy requires a vote to define the welfare metric, because it was designed for groups that disagree on values. Telarchy removes that step. The owner defines the Utility metric directly. No voting, no aggregation. This makes the same mechanism usable by individuals, companies, and governments alike — wherever one party can define the goal unilaterally.
+**Relation to futarchy.** Futarchy (Robin Hanson, 2000) is the system this builds on: "vote on values, bet on beliefs." Its mechanism — conditional prediction markets that evaluate proposals against a welfare metric — is structurally identical to what telarchy uses. The one difference: futarchy requires a vote to define the welfare metric, because it was designed for groups that disagree on values. Telarchy removes that step. The owner defines their metrics directly. No voting, no aggregation. This makes the same mechanism usable by individuals, companies, and governments alike — wherever one party can define the goal unilaterally.
 
-The name reflects this: futarchy foregrounds the *mechanism* (markets, the future decides); telarchy foregrounds the *goal* (the telos is given). The closest existing category is **decision markets** — conditional prediction markets that execute decisions rather than merely forecast. Telarchy is a decision market system with three additions not found elsewhere: a hierarchical metric tree where Utility composes from sub-metrics via formulas, an agent proposal economy where agents propose tasks and earn for approved ones, and a time preference system for forward-looking evaluation.
+The name reflects this: futarchy foregrounds the *mechanism* (markets, the future decides); telarchy foregrounds the *goal* (the telos is given). The closest existing category is **decision markets** — conditional prediction markets that execute decisions rather than merely forecast. Telarchy is a decision market system with three additions not found elsewhere: metrics that can be flat or composed into hierarchies via formulas, an agent proposal economy where agents propose tasks and earn for approved ones, and a time preference system for forward-looking evaluation.
 
 ## Vision
 
 The metrics tracker evolves from a passive measurement system into an active governance and forecasting engine. Agents participate in prediction markets on metric values, staking real money on their forecasts. The market produces a consensus forecast for every metric. Metrics with time preference enabled automatically incorporate these forward-looking consensus values via a decay-weighted temporal aggregation, and conditional markets enable the core decision loop.
 
-The system is general-purpose: it works equally for an individual tracking personal health/career/life metrics and for an organization tracking business KPIs, OKRs, or any other quantified objectives. The Utility metric is whatever you define it to be — personal wellbeing, company revenue, product quality, or any composite goal.
+The system is general-purpose: it works equally for an individual tracking personal health/career/life metrics and for an organization tracking business KPIs, OKRs, or any other quantified objectives. Metrics are flat by default — each can independently have time preference and markets. Users can optionally connect metrics with formulas to build a hierarchy, but there is no required root or imposed structure.
 
 **Agent** means any market participant — human or AI. A consultant, employee, or automated system can all register, propose tasks, and bet. The economic logic applies equally to all.
 
-The core thesis: **capitalism for alignment**. Alignment works through the task proposal cycle: an agent proposes an action with a price, conditional markets reveal its expected impact on Utility, and the owner approves or declines based on the forecast delta. Agents whose proposals consistently move Utility in the right direction accumulate earnings; agents whose proposals don't survive conditional evaluation go broke. The market makes manipulation transparent and expensive — a bad proposal is rejected not by opinion but by the crowd's money.
+The core thesis: **capitalism for alignment**. Alignment works through the task proposal cycle: an agent proposes an action with a price, conditional markets reveal its expected impact on metrics, and the owner approves or declines based on the per-metric forecast deltas. Agents whose proposals consistently move metrics in the right direction accumulate earnings; agents whose proposals don't survive conditional evaluation go broke. The market makes manipulation transparent and expensive — a bad proposal is rejected not by opinion but by the crowd's money.
 
 ## Metrics vs Tasks
 
 The distinction between metrics and tasks is foundational.
 
-**Metrics** are definitional commitments. A metric declares that some quantity *certainly* affects your utility in a known way. If you later find the metric was wrong — that you measured the wrong thing — that is a definition error, not a system failure, and the system cannot fix it for you. The practical implication: define metrics at the level of abstraction you are genuinely certain about, and keep them as subjective as necessary. A self-reported *Happiness* score is often a better leaf metric than *Dopamine level*, because the link between dopamine and subjective happiness is uncertain.
+**Metrics** are definitional commitments. A metric declares that some quantity *certainly* matters in a known way. If you later find the metric was wrong — that you measured the wrong thing — that is a definition error, not a system failure, and the system cannot fix it for you. The practical implication: define metrics at the level of abstraction you are genuinely certain about, and keep them as subjective as necessary. A self-reported *Happiness* score is often a better leaf metric than *Dopamine level*, because the link between dopamine and subjective happiness is uncertain.
 
 > **Example.** Suppose you define Happiness as dopamine level, then start taking drugs. Your dopamine metric rises; you are still unhappy. The system has done nothing wrong — it optimized exactly what you asked. The error was in the definition. The correct approach: keep *Happiness* as the metric (self-reported), and create a task — *"Will increasing dopamine improve my subjective happiness?"* — evaluated via conditional prediction markets before committing.
 
-**Tasks** are hypothesis tests. Any time you are uncertain whether an action will improve a metric, that uncertainty belongs in a task, not in the metric definition. Conditional markets answer the question "what would Utility look like if this task were completed?" and the crowd's money resolves the uncertainty. This extends to metric structure itself: an agent can propose a task such as *"Create a new metric X and evaluate its relationship to Utility"*, letting the market judge whether adding that measurement will produce useful signal before the admin commits to a structural change.
+**Tasks** are hypothesis tests. Any time you are uncertain whether an action will improve a metric, that uncertainty belongs in a task, not in the metric definition. Conditional markets answer the question "what would metrics look like if this task were completed?" and the crowd's money resolves the uncertainty. This extends to metric structure itself: an agent can propose a task such as *"Create a new metric X and evaluate its relationship to our goals"*, letting the market judge whether adding that measurement will produce useful signal before the admin commits to a structural change.
 
 ## Multi-workspace and domain metrics
 
-Telarchy workspaces are composable. A common pattern: one personal workspace defining personal Utility, and one or more domain workspaces (a startup, a project, a team) with their own metric trees.
+Telarchy workspaces are composable. A common pattern: one personal workspace defining personal goals, and one or more domain workspaces (a startup, a project, a team) with their own metrics.
 
-The connection between startup metrics and personal utility is often uncertain. How much does the startup's user count correspond to personal wealth? To social capital? These are empirical questions, not definitional ones — they should not be hardwired into the personal Utility formula. Instead:
+The connection between startup metrics and personal goals is often uncertain. How much does the startup's user count correspond to personal wealth? To social capital? These are empirical questions, not definitional ones — they should not be hardwired into formulas. Instead:
 
 - Treat the startup workspace as an information source. Agents observing both workspaces can use startup metrics as signal when proposing tasks and placing bets in the personal workspace.
-- Use tasks to test the connection. A task such as *"Will growing MAU by 20% improve my personal Utility?"* lets conditional markets evaluate the hypothesis before you commit resources.
+- Use tasks to test the connection. A task such as *"Will growing MAU by 20% improve my personal metrics?"* lets conditional markets evaluate the hypothesis before you commit resources.
 
 This keeps the two workspaces decoupled at the definition level while still allowing agents to reason across them.
 
 **Why maintain a separate domain workspace at all?**
 
-1. **Agent information** — domain metrics (revenue, retention, velocity) give agents richer signal to reason about how to improve personal utility, without being hardcoded as direct inputs to the personal Utility formula.
-2. **Privacy** — the personal utility workspace may contain sensitive self-assessments. The startup workspace can be shared with employees, investors, or the public without exposing personal data.
+1. **Agent information** — domain metrics (revenue, retention, velocity) give agents richer signal to reason about how to improve personal goals, without being hardcoded as direct formula inputs.
+2. **Privacy** — the personal workspace may contain sensitive self-assessments. The startup workspace can be shared with employees, investors, or the public without exposing personal data.
 3. **Multi-stakeholder** — multiple shareholders can co-own a startup workspace and independently evaluate its impact on their respective personal utilities. The exact coordination mechanism for this is an open design question.
 
 Workspace settings include the display name and, for the workspace owner only, optional auto-funding of new non-task markets from that owner's agent balance (configured in workspace settings). The browser client always talks to the deployment API (`VITE_API_URL` / hosted URL). Self-hosting remains a deploy-time concern, not a per-workspace redirect.
@@ -82,7 +82,7 @@ Agents propose tasks with a price (credits they receive if approved). The system
 1. Agent calls `POST /api/tasks` with `{ title, description, price }`.
 2. When an agent or admin fetches markets with `?taskId=<id>`, the system auto-creates **conditional markets** — clones of all currently active leaf-metric markets, starting with zero positions, tagged with the `taskId`.
 3. Agents bet on conditional markets to signal expected impact: "what will metric X be if this task is completed?"
-4. Admin views the task detail, which shows: conditional consensus vs baseline consensus for every market, and an expected Utility delta computed from the conditional forecasts.
+4. Admin views the task detail, which shows: conditional consensus vs baseline consensus for every market, revealing per-metric impact predictions.
 5. **Approve** — proposing agent receives `price` credits (tracked in `earnedTasks`); conditional markets remain and resolve normally.
 6. **Decline** — conditional markets are voided; all bettor stakes are fully refunded.
 
@@ -146,14 +146,14 @@ value = sum(weight(t_i) * formula_eval_at_t_i) / sum(weight(t_i))
 ```
 Non-leaf intermediate nodes in the subtree are evaluated deterministically from their formulas given predicted leaf values — no markets needed for them.
 
-**Tree zone model** — the TP node divides the metric tree into two zones with distinct roles:
-- **Above the TP node** (Utility and any intermediate nodes higher up): purely compositional. These metrics combine TP-blended children via formulas and are forward-looking as a result. They don't interact with markets directly.
+**Tree zone model** — when TP is on a computed metric, it divides the subtree into two zones:
+- **Above the TP node**: purely compositional. These metrics combine TP-blended children via formulas and are forward-looking as a result. They don't interact with markets directly.
 - **Below the TP node** (leaf metrics and intermediate computed metrics in the subtree): represent the *current state only*. Leaves are updated directly; computed nodes below TP evaluate deterministically from current values. The TP node above them handles all temporal expansion.
 
-Every leaf metric should have a TP-enabled ancestor. A leaf without one contributes only a static current value to Utility — no markets are created for it, no forecast signal is generated, and the temporal dimension of the system is lost for that branch.
+Any metric — leaf or computed — can have time preference enabled. A leaf with TP creates markets for itself and blends its current value with market consensus at future dates. A computed metric with TP creates markets for all its leaf descendants.
 
 **Constraints**:
-- **One time-preferenced node per path**: on any path from root (Utility) to any leaf, at most one node may have time preference enabled.
+- **One time-preferenced node per path**: on any path through the metric graph, at most one node may have time preference enabled.
 - **Descendants describe current state**: all metrics below a time-preferenced node must represent the present; the TP node handles the forward-looking aspect for its entire subtree.
 
 **Market lifecycle**:
@@ -161,13 +161,18 @@ Every leaf metric should have a TP-enabled ancestor. A leaf without one contribu
 - Markets falling out of the desired set are set `active: false` but resolve normally rather than being voided.
 - A distributed refresh lock prevents duplicate creation from concurrent refresh calls.
 
-**Example**:
+**Examples**:
 ```
-Utility (formula: {Health} + {Career})
-├── Health (TIME PREFERENCE: half-life=2y, formula: {Sleep} + {Exercise})
+# Flat: TP directly on leaves
+Revenue (leaf, TP: half-life=1y) ← markets for Revenue itself
+NPS (leaf, TP: half-life=0.5y) ← markets for NPS itself
+
+# Hierarchical: TP on computed nodes
+Overall (formula: {Health} + {Career})
+├── Health (TP: half-life=2y, formula: {Sleep} + {Exercise})
 │   ├── Sleep (leaf) ← markets at sampled time points
 │   └── Exercise (leaf) ← markets at sampled time points
-└── Career (TIME PREFERENCE: half-life=5y, formula: {Income} + {Satisfaction})
+└── Career (TP: half-life=5y, formula: {Income} + {Satisfaction})
     ├── Income (leaf) ← markets at sampled time points
     └── Satisfaction (leaf) ← markets at sampled time points
 ```

@@ -48,7 +48,7 @@ function useCounter(target: number, duration = 1200) {
 type NodeFmt = 'score' | 'arrM' | 'valM' | 'pct';
 
 const TREE_NODES: { id: string; label: string; x: number; y: number; base: number; fmt: NodeFmt }[] = [
-  { id: 'u',   label: 'Utility',  x: 160, y: 36,  base: 74, fmt: 'score' },
+  { id: 'u',   label: 'Score',    x: 160, y: 36,  base: 74, fmt: 'score' },
   { id: 'val', label: 'Val.',     x: 72,  y: 116, base: 78, fmt: 'valM'  },
   { id: 'prd', label: 'Product',  x: 248, y: 116, base: 71, fmt: 'score' },
   { id: 'arr', label: 'ARR',      x: 28,  y: 196, base: 68, fmt: 'arrM'  },
@@ -209,7 +209,7 @@ function MetricTreeSim() {
 
 function GoalTreeIllustration({ visible }: { visible: boolean }) {
   const rows = [
-    { name: 'Utility', value: '74.2', note: 'computed', indent: 0, root: true,  change: '+5.1', up: true  },
+    { name: 'Overall', value: '74.2', note: 'computed', indent: 0, root: true,  change: '+5.1', up: true  },
     { name: 'NPS',     value: '62',    note: '',        indent: 1, root: false, change: '+4',   up: true  },
     { name: 'Retention', value: '87%', note: '',        indent: 1, root: false, change: '−2%',  up: false },
     { name: 'Eng. Velocity', value: '81', note: '',     indent: 1, root: false, change: '+3%',  up: true  },
@@ -336,7 +336,7 @@ function DecisionIllustration({ visible }: { visible: boolean }) {
   const impacts = [
     { metric: 'Revenue',   now: '$612K', predicted: '$775K', delta: '+27%' },
     { metric: 'Retention', now: '71%',   predicted: '74%',   delta: '+3%'  },
-    { metric: 'Utility',   now: '68',    predicted: '79',    delta: '+16%' },
+    { metric: 'Overall',   now: '68',    predicted: '79',    delta: '+16%' },
   ];
 
   return (
@@ -377,7 +377,7 @@ function DecisionIllustration({ visible }: { visible: boolean }) {
         opacity: visible ? 1 : 0, transition: 'opacity 0.4s ease 0.9s',
       }}>
         <button style={{ flex: 2, padding: '0.5rem', background: 'var(--button-bg)', color: 'var(--button-text)', border: 'none', borderRadius: '0.3rem', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>
-          Approve · +16% Utility
+          Approve · +16% Overall
         </button>
         <button style={{ flex: 1, padding: '0.5rem', background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', borderRadius: '0.3rem', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>
           Decline
@@ -628,8 +628,8 @@ export function LandingPage() {
           <div className="lp-how-grid">
             {[
               {
-                n: '1', title: 'Build your goal tree',
-                body: 'Define a top-level Utility metric and the sub-metrics that compose it — revenue, retention, quality, whatever you actually care about. The system optimizes exactly what you define. Be precise.',
+                n: '1', title: 'Define your metrics',
+                body: 'Define the metrics you care about. Track them individually, or connect them with formulas to build a hierarchy. Revenue, retention, quality — whatever matters. The system optimizes exactly what you define.',
                 illustration: <GoalTreeIllustration visible={stepVisible[0]} />,
               },
               {
