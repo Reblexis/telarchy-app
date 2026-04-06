@@ -341,6 +341,15 @@ async function findTPAncestors(metricId: string, workspaceId: string): Promise<s
   return tpAncestors;
 }
 
+/** Check if any ancestor already has TP (returns ancestor name, or null). */
+async function findTPAncestorConflict(metricId: string, workspaceId: string): Promise<string | null> {
+  const ancestorIds = await findTPAncestors(metricId, workspaceId);
+  if (ancestorIds.length === 0) return null;
+  const rows = await getAllMetricRows(workspaceId);
+  const row = rows.find(r => r.id === ancestorIds[0]);
+  return row?.name ?? null;
+}
+
 /** Find TP-enabled descendants and remove their TP (parent overrides). Returns removed metric names. */
 async function removeTPFromDescendants(metricName: string, workspaceId: string): Promise<string[]> {
   const rows = await getAllMetricRows(workspaceId);
@@ -362,15 +371,6 @@ async function removeTPFromDescendants(metricName: string, workspaceId: string):
   }
 
   return removed;
-}
-
-/** Check if any ancestor already has TP (returns ancestor name, or null). */
-async function findTPAncestorConflict(metricId: string, workspaceId: string): Promise<string | null> {
-  const ancestorIds = await findTPAncestors(metricId, workspaceId);
-  if (ancestorIds.length === 0) return null;
-  const rows = await getAllMetricRows(workspaceId);
-  const row = rows.find(r => r.id === ancestorIds[0]);
-  return row?.name ?? null;
 }
 
 async function deactivateLeafMarketsForTPMetric(tpMetricId: string, oldHalfLife: number, workspaceId: string): Promise<void> {
