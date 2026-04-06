@@ -315,7 +315,22 @@ export function recalculateMetrics(metrics: Metric[], consensusMap: Record<strin
 
   sorted.forEach(metric => {
     const isLeaf = !metric.formula || metric.formula.trim() === '0';
-    if (isLeaf) {
+    if (isLeaf && metric.timePreference?.enabled) {
+      // Leaf with TP: blend current value with market consensus at future dates
+      if (metric.missingMarkets?.length) {
+        metric.total = null;
+      } else {
+        const { halfLife } = metric.timePreference;
+        let weightedSum = WEIGHT_T0 * metric.value;
+        let totalWeight = WEIGHT_T0;
+        for (const { date, weight } of sampleTimePoints(halfLife)) {
+          const consensusAtT = consensusMap[`${metric.name}:${date}`] ?? metric.value;
+          weightedSum += weight * consensusAtT;
+          totalWeight += weight;
+        }
+        metric.total = totalWeight > 0 ? weightedSum / totalWeight : metric.value;
+      }
+    } else if (isLeaf) {
       metric.total = metric.value;
     } else if (metric.timePreference?.enabled) {
       if (metric.missingMarkets?.length) {

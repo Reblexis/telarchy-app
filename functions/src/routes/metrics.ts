@@ -47,11 +47,6 @@ metricsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
     res.status(400).json({ error: 'marketRangeMax can only be set on leaf metrics (no formula)' }); return;
   }
 
-  if (tp?.enabled && isLeaf) {
-    res.status(400).json({ error: 'Time preference can only be enabled on non-leaf metrics (with a formula)' });
-    return;
-  }
-
   const isDefinition = formula && formula.trim() !== '0';
   const id = randomUUID();
 
@@ -109,11 +104,6 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
   const effectiveIsLeaf = !effectiveFormula || effectiveFormula.trim() === '0';
   if (update.marketRangeMax !== undefined && !effectiveIsLeaf) {
     res.status(400).json({ error: 'marketRangeMax can only be set on leaf metrics (no formula)' }); return;
-  }
-
-  if (newTP?.enabled && effectiveIsLeaf) {
-    res.status(400).json({ error: 'Time preference can only be enabled on non-leaf metrics (with a formula)' });
-    return;
   }
 
   if (update.formula) {
@@ -376,8 +366,13 @@ async function deactivateLeafMarketsForTPMetric(tpMetricId: string, oldHalfLife:
 
   if (!tpMetricName) return;
 
-  const leafNames = getLeafDescendantNames(tpMetricName, nameToFormula);
-  if (leafNames.length === 0) return;
+  let leafNames = getLeafDescendantNames(tpMetricName, nameToFormula);
+  const tpIsLeaf = !nameToFormula[tpMetricName] || nameToFormula[tpMetricName].trim() === '0';
+  if (tpIsLeaf) {
+    leafNames = [tpMetricName];
+  } else if (leafNames.length === 0) {
+    return;
+  }
 
   const leafIds = new Set(leafNames.map(n => nameToId.get(n)).filter(Boolean) as string[]);
   const oldDates = new Set(sampleTimePoints(oldHalfLife).map(p => p.date));

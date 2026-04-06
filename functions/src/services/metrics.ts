@@ -40,14 +40,20 @@ function enrichMetrics(rawMetrics: Metric[], consensusMap: Record<string, number
     const timePoints = sampleTimePoints(tpMetric.timePreference.halfLife);
 
     const descendants = new Set<string>();
-    const queue = [tpMetric.name];
-    const visited = new Set([tpMetric.name]);
-    while (queue.length > 0) {
-      const current = queue.shift()!;
-      const refs = (nameToFormulaLocal[current] || '').match(/\{([^}]+)\}/g) ?? [];
-      for (const ref of refs) {
-        const name = ref.slice(1, -1).trim();
-        if (!visited.has(name)) { visited.add(name); descendants.add(name); queue.push(name); }
+    const tpIsLeaf = !nameToFormulaLocal[tpMetric.name] || nameToFormulaLocal[tpMetric.name].trim() === '0';
+    if (tpIsLeaf) {
+      // Leaf with TP: the metric itself needs a time series
+      descendants.add(tpMetric.name);
+    } else {
+      const queue = [tpMetric.name];
+      const visited = new Set([tpMetric.name]);
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        const refs = (nameToFormulaLocal[current] || '').match(/\{([^}]+)\}/g) ?? [];
+        for (const ref of refs) {
+          const name = ref.slice(1, -1).trim();
+          if (!visited.has(name)) { visited.add(name); descendants.add(name); queue.push(name); }
+        }
       }
     }
 
@@ -168,8 +174,14 @@ export async function ensureMarketsForTimePreference(
 
   if (!tpMetricName) return;
 
-  const leafNames = getLeafDescendantNames(tpMetricName, nameToFormula);
-  if (leafNames.length === 0) return;
+  let leafNames = getLeafDescendantNames(tpMetricName, nameToFormula);
+  // If the TP metric is itself a leaf, create markets for it directly
+  const tpIsLeaf = !nameToFormula[tpMetricName] || nameToFormula[tpMetricName].trim() === '0';
+  if (tpIsLeaf) {
+    leafNames = [tpMetricName];
+  } else if (leafNames.length === 0) {
+    return;
+  }
 
   const timePoints = sampleTimePoints(halfLife);
 
