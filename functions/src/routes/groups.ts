@@ -6,7 +6,7 @@ import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { requireRole } from '../middleware/roles';
 import type { MetricPermission, PermissionGroupType } from '../types';
-import { getGroupMemberIds, syncLegacyWorkspaceMemberships } from '../lib/participants';
+import { getGroupMemberIds } from '../lib/participants';
 
 export const groupsRouter = Router();
 
@@ -22,14 +22,14 @@ async function ensureSystemGroups(workspaceId: string): Promise<void> {
     toInsert.push({
       id: randomUUID(), workspaceId, name: 'Public', type: 'public',
       description: 'Participants explicitly added to this workspace.',
-      memberIds: [], agentIds: [], uids: [], permissions: {}, createdAt: new Date(),
+      memberIds: [], permissions: {}, createdAt: new Date(),
     });
   }
   if (!existingTypes.has('admin')) {
     toInsert.push({
       id: randomUUID(), workspaceId, name: 'Admin', type: 'admin',
       description: 'Participants with full administrative access to this workspace.',
-      memberIds: [], agentIds: [], uids: [], permissions: {}, createdAt: new Date(),
+      memberIds: [], permissions: {}, createdAt: new Date(),
     });
   }
   if (toInsert.length > 0) await db.insert(permissionGroups).values(toInsert);
@@ -57,9 +57,9 @@ groupsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
     name: name.trim(),
     type: 'custom',
     description: typeof description === 'string' ? description.trim() : '',
-    memberIds: [], agentIds: [], uids: [], permissions: {}, createdAt: new Date(),
+    memberIds: [], permissions: {}, createdAt: new Date(),
   });
-  res.status(201).json({ id, name: name.trim(), type: 'custom', description, memberIds: [], agentIds: [], uids: [], permissions: {} });
+  res.status(201).json({ id, name: name.trim(), type: 'custom', description, memberIds: [], permissions: {} });
 }));
 
 groupsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
@@ -70,7 +70,7 @@ groupsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
     .where(and(eq(permissionGroups.id, groupId), eq(permissionGroups.workspaceId, workspaceId)));
   if (!group) { res.status(404).json({ error: 'Group not found' }); return; }
 
-  const { name, description, memberIds, agentIds, uids, permissions } = req.body;
+  const { name, description, memberIds, permissions } = req.body;
   const update: Partial<typeof permissionGroups.$inferInsert> = {};
 
   if (name !== undefined) {
@@ -90,15 +90,12 @@ groupsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
     update.description = description.trim();
   }
 
-  const memberUpdateProvided = memberIds !== undefined || agentIds !== undefined || uids !== undefined;
-  if (memberUpdateProvided) {
-    const nextMemberIds = memberIds ?? agentIds ?? uids;
+  if (memberIds !== undefined) {
+    const nextMemberIds = memberIds;
     if (!Array.isArray(nextMemberIds) || nextMemberIds.some((id: unknown) => typeof id !== 'string')) {
       res.status(400).json({ error: 'memberIds must be an array of strings' }); return;
     }
     update.memberIds = nextMemberIds;
-    update.agentIds = nextMemberIds;
-    update.uids = [];
 
     if (group.type === 'admin') {
       const oldIds = new Set<string>(getGroupMemberIds(group));
@@ -134,7 +131,6 @@ groupsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
 
   await db.update(permissionGroups).set(update)
     .where(and(eq(permissionGroups.id, groupId), eq(permissionGroups.workspaceId, workspaceId)));
-  await syncLegacyWorkspaceMemberships(workspaceId);
   res.json({ ok: true });
 }));
 
@@ -151,7 +147,6 @@ groupsRouter.delete('/:id', requireRole('admin'), wrap(async (req, res) => {
 
   await db.delete(permissionGroups)
     .where(and(eq(permissionGroups.id, groupId), eq(permissionGroups.workspaceId, workspaceId)));
-  await syncLegacyWorkspaceMemberships(workspaceId);
   res.status(204).send();
 }));
 

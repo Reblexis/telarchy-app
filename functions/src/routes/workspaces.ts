@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/client';
 import {
-  workspaces, userWorkspaces, permissionGroups,
+  workspaces, permissionGroups,
   markets, positions, trades, liquidityEvents,
   metrics, tasks, taskMessages, updates, metricLogs, events,
   hookWatcher, agentApiKeys,
@@ -11,7 +11,7 @@ import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { requireRole, requireIdentity } from '../middleware/roles';
 import { getAuthWorkspaceMemberships } from '../middleware/auth';
-import { syncLegacyWorkspaceMemberships, resolveWorkspaceOwnerAgentId, provisionWorkspace } from '../lib/participants';
+import { resolveWorkspaceOwnerAgentId, provisionWorkspace } from '../lib/participants';
 import { voidMarket } from '../services/markets';
 
 export const workspacesRouter = Router();
@@ -40,11 +40,9 @@ workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
   await db.transaction(async tx => {
     await provisionWorkspace(tx, {
       wsId, name: name.trim(), createdBy: identity,
-      ownerUid: uid, ownerAgentId: agentId,
+      ownerAgentId: agentId,
     });
   });
-
-  await syncLegacyWorkspaceMemberships(wsId);
 
   res.status(201).json({ id: wsId, name: name.trim(), visibility: 'private' });
 }));
@@ -205,9 +203,8 @@ workspacesRouter.post('/:id/members', requireRole('admin'), wrap(async (req, res
 
   const nextMemberIds = Array.from(new Set([...(existingAdmin.memberIds as string[] ?? []), participantId]));
   await db.update(permissionGroups)
-    .set({ memberIds: nextMemberIds, agentIds: nextMemberIds })
+    .set({ memberIds: nextMemberIds })
     .where(and(eq(permissionGroups.id, existingAdmin.id), eq(permissionGroups.workspaceId, wsId)));
-  await syncLegacyWorkspaceMemberships(wsId);
 
   res.status(201).json({ ok: true, workspaceId: wsId, participantId, role });
 }));
@@ -254,7 +251,6 @@ workspacesRouter.delete('/:id', requireRole('admin'), wrap(async (req, res) => {
     await tx.delete(permissionGroups).where(eq(permissionGroups.workspaceId, wsId));
     await tx.delete(agentApiKeys).where(eq(agentApiKeys.workspaceId, wsId));
     await tx.delete(hookWatcher).where(eq(hookWatcher.workspaceId, wsId));
-    await tx.delete(userWorkspaces).where(eq(userWorkspaces.workspaceId, wsId));
     await tx.delete(workspaces).where(eq(workspaces.id, wsId));
   });
 

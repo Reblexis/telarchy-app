@@ -17,7 +17,7 @@ import { consensus, pHigher, directionTradeCost, sharesForBudget, betTowardsValu
 import { emitEvent } from '../services/events';
 import { applyAgentLiquidityInjectionTx } from '../services/marketLiquidity';
 import { sufficientBalance, toUnits, fromUnits } from '../lib/validation';
-import { getGroupMemberIds, isLegacyUserMember, resolveWorkspaceOwnerAgentId } from '../lib/participants';
+import { getGroupMemberIds, resolveWorkspaceOwnerAgentId } from '../lib/participants';
 
 export const predictionsRouter = Router();
 
@@ -26,8 +26,6 @@ predictionsRouter.use(authMiddleware);
 type MetricTradePermissionGroup = {
   type: string;
   memberIds: string[] | null;
-  agentIds: string[] | null;
-  uids: string[] | null;
   permissions: Record<string, { read: boolean; trade: boolean }> | null;
 };
 
@@ -37,8 +35,6 @@ async function getTradePermissionGroups(workspaceId: string): Promise<MetricTrad
   return rows.map(row => ({
     type: row.type,
     memberIds: getGroupMemberIds(row),
-    agentIds: (row.agentIds as string[]) ?? [],
-    uids: (row.uids as string[]) ?? [],
     permissions: (row.permissions as Record<string, { read: boolean; trade: boolean }>) ?? {},
   }));
 }
@@ -53,8 +49,7 @@ function canTradeMetric(
   if (restrictingGroups.length === 0) return true;
   if (restrictingGroups.some(group => group.type === 'public')) return true;
   return restrictingGroups.some(group =>
-    (auth.agentId ? group.memberIds?.includes(auth.agentId) || group.agentIds?.includes(auth.agentId) : false) ||
-    isLegacyUserMember(group, auth.uid),
+    auth.agentId ? getGroupMemberIds(group).includes(auth.agentId) : false,
   );
 }
 

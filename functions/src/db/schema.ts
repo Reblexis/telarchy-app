@@ -115,6 +115,10 @@ export const agents = pgTable('agents', {
   /** Base network USDC withdrawal address (checksummed) */
   walletAddress: text('wallet_address'),
   withdrawnUsdc: doublePrecision('withdrawn_usdc').notNull().default(0),
+  /** Whether this participant has platform-wide admin privileges. */
+  platformAdmin: boolean('platform_admin').notNull().default(false),
+  /** 'creator' | 'agent' | null - onboarding intent captured at signup */
+  intent: text('intent'),
   /** Deprecated compatibility field from the old split identity model. */
   ownerUid: text('owner_uid'),
   createdAt: timestamp('created_at').notNull().defaultNow(),

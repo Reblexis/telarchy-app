@@ -2,14 +2,13 @@ import { Request, Response, NextFunction } from 'express';
 import { fromNodeHeaders } from 'better-auth/node';
 import { createHash, timingSafeEqual } from 'crypto';
 import { db } from '../db/client';
-import { appUsers, agents, agentApiKeys } from '../db/schema';
+import { agents, agentApiKeys } from '../db/schema';
 import { auth } from '../auth';
 import { eq } from 'drizzle-orm';
 import type { AgentRole, AuthInfo, WorkspaceMemberRole } from '../types';
 import {
   getParticipantWorkspaceMemberships,
   getUserWorkspaceMemberships as getUserWorkspaceMembershipsForParticipant,
-  resolveParticipantIdForUser,
 } from '../lib/participants';
 
 declare global {
@@ -71,9 +70,10 @@ async function resolveUser(
   userId: string,
   requestedWorkspaceId?: string,
 ): Promise<{ workspaceId: string; memberRole: WorkspaceMemberRole | null; agentId?: string } | null> {
-  const [profile] = await db.select().from(appUsers).where(eq(appUsers.userId, userId));
-  const agentId = await resolveParticipantIdForUser(userId) ?? undefined;
-  const isPlatformAdmin = profile?.platformAdmin === true;
+  const [agentRow] = await db.select({ id: agents.id, platformAdmin: agents.platformAdmin })
+    .from(agents).where(eq(agents.authUserId, userId));
+  const agentId = agentRow?.id ?? undefined;
+  const isPlatformAdmin = agentRow?.platformAdmin === true;
 
   if (isPlatformAdmin) {
     const wsId = requestedWorkspaceId ?? 'default';

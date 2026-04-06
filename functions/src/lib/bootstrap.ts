@@ -10,7 +10,7 @@
  */
 import { randomBytes, randomUUID } from 'crypto';
 import { db } from '../db/client';
-import { authUser, authAccount, appUsers, agents, agentApiKeys } from '../db/schema';
+import { authUser, authAccount, agents, agentApiKeys } from '../db/schema';
 import { hashKey } from '../middleware/auth';
 import { provisionWorkspace } from './participants';
 
@@ -81,17 +81,12 @@ export async function runBootstrap(): Promise<void> {
       updatedAt: new Date(),
     });
 
-    await tx.insert(appUsers).values({
-      userId,
-      platformAdmin: true,
-      createdAt: new Date(),
-    });
-
     await tx.insert(agents).values({
       id: agentId,
       apiKeyHash: agentKeyHash,
       role: 'admin',
       authUserId: userId,
+      platformAdmin: true,
       balance: 0,
       createdAt: new Date(),
       approvedAt: new Date(),
@@ -100,7 +95,7 @@ export async function runBootstrap(): Promise<void> {
     const wsId = randomUUID();
     await provisionWorkspace(tx, {
       wsId, name: 'My Workspace', createdBy: userId,
-      ownerUid: userId, ownerAgentId: agentId,
+      ownerAgentId: agentId,
     });
     await tx.insert(agentApiKeys).values({
       hash: agentKeyHash,

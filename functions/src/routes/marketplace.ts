@@ -8,7 +8,7 @@ import { requireIdentity } from '../middleware/roles';
 import { consensus, pHigher } from '../lib/amm';
 import { endOfPeriod } from '../lib/date-utils';
 import { ensureSystemGroups } from './groups';
-import { getGroupMemberIds, getWorkspaceRoleForParticipant, syncLegacyWorkspaceMemberships } from '../lib/participants';
+import { getGroupMemberIds, getWorkspaceRoleForParticipant } from '../lib/participants';
 
 export const marketplaceRouter = Router();
 
@@ -143,9 +143,8 @@ marketplaceRouter.post('/:workspaceId/join', authMiddleware, requireIdentity, wr
 
   if (nextMemberIds !== publicMemberIds) {
     await db.update(permissionGroups)
-      .set({ memberIds: nextMemberIds, agentIds: nextMemberIds, uids: [] })
+      .set({ memberIds: nextMemberIds })
       .where(and(eq(permissionGroups.id, publicGroup.id), eq(permissionGroups.workspaceId, workspaceId)));
-    await syncLegacyWorkspaceMemberships(workspaceId);
   }
 
   const role = await getWorkspaceRoleForParticipant(workspaceId, agentId, uid) ?? 'trader';

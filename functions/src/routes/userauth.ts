@@ -1,73 +1,47 @@
 import { Router } from 'express';
 import { randomBytes, randomUUID } from 'crypto';
 import { db } from '../db/client';
-import { appUsers, agents, agentApiKeys, userWorkspaces } from '../db/schema';
+import { agents, agentApiKeys } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { wrap } from '../lib/wrap';
 import { requireUser } from '../middleware/roles';
 import { hashKey } from '../middleware/auth';
 import { getAuthWorkspaceMemberships, getUserWorkspaceMemberships } from '../middleware/auth';
-import { syncLegacyWorkspaceMemberships, provisionWorkspace } from '../lib/participants';
+import { provisionWorkspace } from '../lib/participants';
 
 export const userauthRouter = Router();
 
 /** Shared logic: ensure a browser-authenticated participant exists for a given uid. */
 async function ensureParticipant(uid: string): Promise<{ participantId: string; apiKey?: string; isNew: boolean }> {
-  const [direct] = await db.select().from(agents).where(eq(agents.authUserId, uid));
-  if (direct) return { participantId: direct.id, isNew: false };
+  const [existing] = await db.select().from(agents).where(eq(agents.authUserId, uid));
+  if (existing) return { participantId: existing.id, isNew: false };
 
-  const [existing] = await db.select().from(appUsers).where(eq(appUsers.userId, uid));
-  if (existing?.agentId) {
-    await db.update(agents).set({ authUserId: uid }).where(eq(agents.id, existing.agentId));
-    return { participantId: existing.agentId, isNew: false };
-  }
+  const participantId = uid;
+  const rawKey = randomBytes(32).toString('hex');
+  const keyHash = hashKey(rawKey);
+  const wsId = randomUUID();
+  const now = new Date();
 
-  const [owned] = await db.select().from(agents).where(eq(agents.ownerUid, uid));
-  if (owned) {
-    await db.update(agents).set({ authUserId: uid }).where(eq(agents.id, owned.id));
-    return { participantId: owned.id, isNew: false };
-  }
-
-  const preferredId = uid;
-  const [existingAgent] = await db.select().from(agents).where(eq(agents.id, preferredId));
-
-  let participantId: string;
-  let apiKey: string | undefined;
-
-  if (existingAgent?.authUserId === uid || existingAgent?.ownerUid === uid) {
-    participantId = preferredId;
-    await db.update(agents).set({ authUserId: uid }).where(eq(agents.id, participantId));
-  } else {
-    participantId = existingAgent ? `${uid}-user` : preferredId;
-    const rawKey = randomBytes(32).toString('hex');
-    apiKey = rawKey;
-    const keyHash = hashKey(rawKey);
-    const wsId = randomUUID();
-    const now = new Date();
-    await db.transaction(async tx => {
-      await tx.insert(agents).values({
-        id: participantId,
-        apiKeyHash: keyHash,
-        role: 'agent',
-        authUserId: uid,
-        balance: 0,
-        createdAt: now,
-        approvedAt: now,
-      });
-      await provisionWorkspace(tx, {
-        wsId, name: 'My Workspace', createdBy: uid,
-        ownerUid: uid, ownerAgentId: participantId,
-      });
-      await tx.insert(agentApiKeys).values({ hash: keyHash, agentId: participantId, workspaceId: wsId });
+  await db.transaction(async tx => {
+    await tx.insert(agents).values({
+      id: participantId,
+      apiKeyHash: keyHash,
+      role: 'agent',
+      authUserId: uid,
+      platformAdmin: false,
+      intent: null,
+      balance: 0,
+      createdAt: now,
+      approvedAt: now,
     });
-    await syncLegacyWorkspaceMemberships(wsId);
-  }
+    await provisionWorkspace(tx, {
+      wsId, name: 'My Workspace', createdBy: uid,
+      ownerAgentId: participantId,
+    });
+    await tx.insert(agentApiKeys).values({ hash: keyHash, agentId: participantId, workspaceId: wsId });
+  });
 
-  await db.insert(appUsers)
-    .values({ userId: uid, platformAdmin: false, intent: existing?.intent ?? null, createdAt: new Date() })
-    .onConflictDoNothing();
-
-  return { participantId, apiKey, isNew: true };
+  return { participantId, apiKey: rawKey, isNew: true };
 }
 
 /**
@@ -86,7 +60,7 @@ userauthRouter.get('/me', requireUser, wrap(async (req, res) => {
   // Auto-create participant on first access (important for OAuth users who bypass signup page)
   const { participantId } = await ensureParticipant(uid);
 
-  const [profile] = await db.select().from(appUsers).where(eq(appUsers.userId, uid));
+  const [agent] = await db.select().from(agents).where(eq(agents.authUserId, uid));
   const memberships = await getUserWorkspaceMemberships(uid);
 
   const workspaceMap = Object.fromEntries(memberships.map(m => [m.workspaceId, { role: m.memberRole }]));
@@ -95,7 +69,7 @@ userauthRouter.get('/me', requireUser, wrap(async (req, res) => {
   res.json({
     uid,
     email: null, // BetterAuth session has the email; frontend reads from authClient.useSession()
-    intent: profile?.intent ?? null,
+    intent: agent?.intent ?? null,
     participantId,
     workspaceId,
     authRole,
@@ -122,9 +96,7 @@ userauthRouter.post('/profile', requireUser, wrap(async (req, res) => {
 
   // Update intent if provided
   if (intent !== undefined) {
-    await db.insert(appUsers)
-      .values({ userId: uid, platformAdmin: false, intent, createdAt: new Date() })
-      .onConflictDoUpdate({ target: appUsers.userId, set: { intent } });
+    await db.update(agents).set({ intent }).where(eq(agents.authUserId, uid));
   }
 
   res.json({ ok: true, participantId, agentId: participantId, ...(apiKey !== undefined && { apiKey }) });
@@ -139,8 +111,6 @@ userauthRouter.delete('/me', requireUser, wrap(async (req, res) => {
   if (!uid) { res.status(403).json({ error: 'Browser account session required' }); return; }
 
   await db.transaction(async tx => {
-    await tx.delete(userWorkspaces).where(eq(userWorkspaces.userId, uid));
-    await tx.delete(appUsers).where(eq(appUsers.userId, uid));
     await tx.update(agents).set({ authUserId: null }).where(eq(agents.authUserId, uid));
     // Delete BetterAuth session/account rows (cascade deletes auth tables)
     const { authAccount, authSession, authUser } = await import('../db/schema');
@@ -160,15 +130,13 @@ userauthRouter.get('/me/export', requireUser, wrap(async (req, res) => {
   const { uid } = req.auth!;
   if (!uid) { res.status(403).json({ error: 'Browser account session required' }); return; }
 
-  const [profile, memberships, participant] = await Promise.all([
-    db.select().from(appUsers).where(eq(appUsers.userId, uid)).then(r => r[0] ?? null),
-    getAuthWorkspaceMemberships({ uid }),
+  const [participant, memberships] = await Promise.all([
     db.select().from(agents).where(eq(agents.authUserId, uid)).then(r => r[0] ?? null),
+    getAuthWorkspaceMemberships({ uid }),
   ]);
 
   res.json({
     uid,
-    profile,
     participant,
     memberships,
     exportedAt: new Date().toISOString(),

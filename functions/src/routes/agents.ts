@@ -1,7 +1,7 @@
 import { Router, type Request } from 'express';
 import { db } from '../db/client';
 import { agents, agentApiKeys, deposits, withdrawals, systemConfig, workspaces } from '../db/schema';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { randomBytes } from 'crypto';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
@@ -19,7 +19,7 @@ import {
 import { AppError } from '../lib/errors';
 import { creditsIssuedForUsdcDeposit, depositBuyRateUsd } from '../lib/economy';
 import { validateAgentId, validateTxHash, sufficientBalance, toUnits, fromUnits } from '../lib/validation';
-import { listParticipantsForWorkspace, resolveParticipantIdForUser } from '../lib/participants';
+import { listParticipantsForWorkspace } from '../lib/participants';
 
 export const agentsRouter = Router();
 
@@ -43,12 +43,11 @@ agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => 
 
   const rawKey = randomBytes(32).toString('hex');
   const keyHash = hashKey(rawKey);
-  const ownerUid = req.auth?.uid ?? null;
 
   await db.transaction(async tx => {
     await tx.insert(agents).values({
       id: agentId, apiKeyHash: keyHash, role: 'agent', balance: 0,
-      ownerUid, createdAt: new Date(), approvedAt: new Date(),
+      authUserId: req.auth?.uid ?? null, createdAt: new Date(), approvedAt: new Date(),
     });
     await tx.insert(agentApiKeys).values({ hash: keyHash, agentId, workspaceId });
   });
@@ -58,10 +57,10 @@ agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => 
   const [pubGroup] = await db.select().from(permissionGroups)
     .where(and(eq(permissionGroups.workspaceId, workspaceId), eq(permissionGroups.type, 'public')));
   if (pubGroup) {
-    const currentIds = (pubGroup.agentIds as string[]) ?? [];
+    const currentIds = (pubGroup.memberIds as string[]) ?? [];
     if (!currentIds.includes(agentId)) {
       await db.update(permissionGroups)
-        .set({ agentIds: [...currentIds, agentId] })
+        .set({ memberIds: [...currentIds, agentId] })
         .where(and(eq(permissionGroups.id, pubGroup.id), eq(permissionGroups.workspaceId, workspaceId)));
     }
   }
@@ -73,29 +72,11 @@ agentsRouter.get('/mine', authMiddleware, requireIdentity, wrap(async (req, res)
   const { uid, agentId: authAgentId } = req.auth!;
 
   if (uid) {
-    const seen = new Set<string>();
-    const participantId = authAgentId ?? await resolveParticipantIdForUser(uid);
-    const ownedRows = await db.select().from(agents).where(eq(agents.ownerUid, uid))
-      .orderBy(desc(agents.createdAt));
-    const result = [];
-
-    if (participantId) {
-      const [participant] = await db.select().from(agents).where(eq(agents.id, participantId));
-      if (participant) {
-        const { apiKeyHash: _, ...data } = participant;
-        seen.add(participant.id);
-        result.push({ ...data, balance: fromUnits(data.balance as number) });
-      }
-    }
-
-    for (const row of ownedRows) {
-      if (seen.has(row.id)) continue;
+    const rows = await db.select().from(agents).where(eq(agents.authUserId, uid));
+    res.json(rows.map(row => {
       const { apiKeyHash: _, ...data } = row;
-      seen.add(row.id);
-      result.push({ ...data, balance: fromUnits(data.balance as number) });
-    }
-
-    res.json(result);
+      return { ...data, balance: fromUnits(data.balance as number) };
+    }));
   } else {
     const [agent] = await db.select().from(agents).where(eq(agents.id, authAgentId!));
     if (!agent) { res.status(404).json({ error: 'Agent not found' }); return; }

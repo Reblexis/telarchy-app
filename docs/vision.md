@@ -97,7 +97,7 @@ Per-metric access control via a workspace-scoped `permissionGroups` table.
 - **Types**: `public` (all agents implicitly member), `admin` (grants full access), `custom`.
 - **System groups**: `Public` and `Admin` are bootstrapped on workspace creation and cannot be renamed or deleted.
 - **Unified access model**: Groups use canonical `memberIds[]` participant membership. Adding a participant to the Admin group grants admin-level workspace access; adding a participant to any other group grants trader-level access. There is no separate "members" concept; permission groups are the single source of truth.
-- **Admin group sync**: adding an agent to Admin sets `agent.role = 'admin'`; adding a user UID writes `users/{uid}.workspaces[wsId] = { role: 'admin' }` for the discovery index. Removal cleans up accordingly.
+- **Admin group sync**: adding a participant to Admin sets `agent.role = 'admin'`; removal resets it to `'agent'`.
 - **Custom groups**: hold an explicit `memberIds[]` list and a `permissions` map of `metricId → { read: boolean, trade: boolean }` for fine-grained market access.
 - **API**: `GET/POST /groups` (agent-readable, admin-writable), `PUT/DELETE /groups/:id`.
 
@@ -259,7 +259,7 @@ The Metrics tab uses a single Chart.js graph engine for both inline card charts 
                                               │  updates         │
                                               │  tasks           │
                                               │  workspaces      │
-                                              │  userWorkspaces  │
+                                              │  permGroups      │
                                               └──────────────────┘
 
 Managed (telarchy.com): Cloud Run + managed PostgreSQL (same code, different env)
