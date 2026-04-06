@@ -468,6 +468,122 @@ h1 {
   border-color: var(--border-hover);
 }
 
+/* Ghost card: add metric placeholder */
+.add-metric-ghost {
+  border: 2px dashed var(--border-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+  padding-right: 1rem;
+  background: transparent;
+}
+
+.add-metric-ghost:hover {
+  border-color: var(--border-hover);
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+}
+
+.add-metric-ghost .ghost-icon {
+  font-size: 2rem;
+  font-weight: 300;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+.add-metric-ghost .ghost-label {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.add-metric-ghost.expanded {
+  cursor: default;
+  border-style: solid;
+  border-color: var(--border-hover);
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 1rem;
+  animation: fadeInUp 0.15s ease-out;
+}
+
+.add-metric-ghost.expanded:hover {
+  background: transparent;
+}
+
+.add-metric-ghost .metric-name-input {
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-bottom: 2px solid var(--border-color);
+  border-radius: 0;
+  padding: 0.25rem 0;
+  width: 100%;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+}
+
+.add-metric-ghost .metric-name-input:focus {
+  border-bottom-color: var(--border-hover);
+  outline: none;
+}
+
+.add-metric-toggle {
+  background: none;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0.25rem 0;
+  margin-top: 0.5rem;
+  font-family: inherit;
+}
+
+.add-metric-toggle:hover {
+  color: var(--text-secondary);
+}
+
+.add-metric-advanced .form-group {
+  margin-bottom: 0.5rem;
+}
+
+.add-metric-advanced textarea {
+  min-height: 40px;
+}
+
+.add-metric-advanced input,
+.add-metric-advanced textarea {
+  font-size: 0.8rem;
+  padding: 0.4rem 0.5rem;
+}
+
+.add-metric-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.add-metric-cancel {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  font-family: inherit;
+}
+
+.add-metric-cancel:hover {
+  color: var(--text-primary);
+}
+
 .metric-info {
   width: 100%;
 }

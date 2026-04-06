@@ -3,6 +3,7 @@ import type { FormulaWarning } from '../lib/metrics-engine';
 import { getDependencyChain } from '../lib/metrics-engine';
 import { MetricCard } from './MetricCard';
 import { FocusBanner } from './FocusBanner';
+import { AddMetricGhostCard } from './AddMetricGhostCard';
 
 interface MetricsDashboardProps {
   metrics: Metric[];
@@ -14,10 +15,11 @@ interface MetricsDashboardProps {
   onEdit?: (metric: Metric) => void;
   onDelete?: (id: string) => void;
   onValueChange?: (metric: Metric, newValue: number) => void;
+  onAddMetric?: (name: string, description: string, value: number, formula: string, marketRangeMax?: number) => Promise<void>;
 }
 
 export function MetricsDashboard({
-  metrics, isInspectMode, formulaWarnings, focusedMetricId, onToggleFocus, onGraph, onEdit, onDelete, onValueChange,
+  metrics, isInspectMode, formulaWarnings, focusedMetricId, onToggleFocus, onGraph, onEdit, onDelete, onValueChange, onAddMetric,
 }: MetricsDashboardProps) {
   let metricsToRender = metrics;
   let focusedMetric: Metric | undefined;
@@ -66,6 +68,9 @@ export function MetricsDashboard({
                   onValueChange={onValueChange ? (v) => onValueChange(metric, v) : undefined}
                 />
               ))}
+              {depth === depths[depths.length - 1] && onAddMetric && (
+                <AddMetricGhostCard onAdd={onAddMetric} />
+              )}
             </div>
           </div>
         ))}

@@ -6,7 +6,7 @@ import { useWorkspace } from '../hooks/useWorkspace';
 import type { Metric } from '../types';
 import { useInspectMode } from '../hooks/useInspectMode';
 import { MetricsDashboard } from '../components/MetricsDashboard';
-import { AddMetricForm } from '../components/AddMetricForm';
+import { AddMetricGhostCard } from '../components/AddMetricGhostCard';
 import { EditMetricModal } from '../components/EditMetricModal';
 import { GraphModal } from '../components/GraphModal';
 
@@ -86,9 +86,11 @@ export function MetricsPage() {
           }}>
             <h3 style={{ marginBottom: '0.5rem' }}>Your workspace is empty</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1rem' }}>
-              Add your first metric below — what do you want to track?
-              Enable time preference to get market predictions. Optionally connect metrics with formulas to build a hierarchy.
+              What do you want to track? Enable time preference to get market predictions.
             </p>
+            <div style={{ maxWidth: '400px', margin: '0 auto', textAlign: 'left' }}>
+              <AddMetricGhostCard onAdd={handleAddMetric} autoFocus />
+            </div>
           </div>
         )}
         <MetricsDashboard
@@ -101,8 +103,8 @@ export function MetricsPage() {
           onEdit={isAdmin ? setEditingMetric : undefined}
           onDelete={isAdmin ? handleDelete : undefined}
           onValueChange={isAdmin ? handleInlineValueChange : undefined}
+          onAddMetric={isAdmin ? handleAddMetric : undefined}
         />
-        {isAdmin && <AddMetricForm onAdd={handleAddMetric} />}
       </div>
       <EditMetricModal
         metric={editingMetric}
