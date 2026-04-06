@@ -45,21 +45,31 @@ function useCounter(target: number, duration = 1200) {
 }
 
 // ─── Metric Tree Simulation ────────────────────────────────────────────────
-const TREE_NODES = [
-  { id: 'u',   label: 'Utility',  x: 160, y: 36,  base: 74 },
-  { id: 'out', label: 'Output',   x: 72,  y: 116, base: 68 },
-  { id: 'grw', label: 'Growth',   x: 248, y: 116, base: 81 },
-  { id: 'q',   label: 'Quality',  x: 28,  y: 196, base: 72 },
-  { id: 'vel', label: 'Velocity', x: 116, y: 196, base: 64 },
-  { id: 'nps', label: 'NPS',      x: 200, y: 196, base: 71 },
-  { id: 'ret', label: 'Retent.',  x: 292, y: 196, base: 77 },
+type NodeFmt = 'score' | 'arrM' | 'valM' | 'pct';
+
+const TREE_NODES: { id: string; label: string; x: number; y: number; base: number; fmt: NodeFmt }[] = [
+  { id: 'u',   label: 'Utility',  x: 160, y: 36,  base: 74, fmt: 'score' },
+  { id: 'val', label: 'Val.',     x: 72,  y: 116, base: 78, fmt: 'valM'  },
+  { id: 'prd', label: 'Product',  x: 248, y: 116, base: 71, fmt: 'score' },
+  { id: 'arr', label: 'ARR',      x: 28,  y: 196, base: 68, fmt: 'arrM'  },
+  { id: 'ret', label: 'Retent.',  x: 116, y: 196, base: 87, fmt: 'pct'   },
+  { id: 'nps', label: 'NPS',      x: 200, y: 196, base: 62, fmt: 'score' },
+  { id: 'vel', label: 'Velocity', x: 292, y: 196, base: 81, fmt: 'score' },
 ];
 
 const TREE_EDGES: [string, string][] = [
-  ['u', 'out'], ['u', 'grw'],
-  ['out', 'q'], ['out', 'vel'],
-  ['grw', 'nps'], ['grw', 'ret'],
+  ['u', 'val'], ['u', 'prd'],
+  ['val', 'arr'], ['val', 'ret'],
+  ['prd', 'nps'], ['prd', 'vel'],
 ];
+
+// ARR raw 0-99 → $0.5M-$2.7M; Val raw 0-99 → $1M-$21M (≈8x ARR multiple)
+function fmtNode(fmt: NodeFmt, v: number): string {
+  if (fmt === 'arrM') return `$${(0.5 + v / 100 * 2.2).toFixed(1)}M`;
+  if (fmt === 'valM') return `$${Math.round(1 + v / 100 * 20)}M`;
+  if (fmt === 'pct')  return `${v}%`;
+  return String(v);
+}
 
 function nodeById(id: string) { return TREE_NODES.find(n => n.id === id)!; }
 
@@ -71,16 +81,16 @@ function MetricTreeSim() {
 
   // Randomly nudge leaf values every 1.8s, propagate up the tree
   useEffect(() => {
-    const leaves = ['q', 'vel', 'nps', 'ret'];
+    const leaves = ['arr', 'ret', 'nps', 'vel'];
     const id = setInterval(() => {
       const leaf = leaves[Math.floor(Math.random() * leaves.length)];
       setFlashing(leaf);
       setValues(v => {
         const delta = Math.round((Math.random() - 0.5) * 6);
         const next = { ...v, [leaf]: Math.max(10, Math.min(99, v[leaf] + delta)) };
-        next['out'] = Math.round((next['q'] + next['vel']) / 2);
-        next['grw'] = Math.round((next['nps'] + next['ret']) / 2);
-        next['u'] = Math.round((next['out'] + next['grw']) / 2);
+        next['val'] = Math.round((next['arr'] + next['ret']) / 2);
+        next['prd'] = Math.round((next['nps'] + next['vel']) / 2);
+        next['u']   = Math.round((next['val'] + next['prd']) / 2);
         return next;
       });
       setTimeout(() => setFlashing(null), 500);
@@ -165,12 +175,12 @@ function MetricTreeSim() {
               <text
                 x={node.x} y={node.y + 8}
                 textAnchor="middle"
-                fontSize={isRoot ? 11 : 10}
+                fontSize={isRoot ? 11 : node.fmt !== 'score' ? 8 : 10}
                 fontWeight="700"
                 fill={isRoot ? 'var(--button-text)' : (isFlashing ? 'var(--button-bg)' : 'var(--text-primary)')}
                 style={{ transition: 'fill 0.2s', fontFamily: 'inherit' }}
               >
-                {values[node.id]}
+                {fmtNode(node.fmt, values[node.id])}
               </text>
             </g>
           );
