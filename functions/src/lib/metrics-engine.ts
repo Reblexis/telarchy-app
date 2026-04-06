@@ -390,22 +390,6 @@ export function calculateMetricDepths(metrics: Metric[]): Record<string, number>
   return depths;
 }
 
-export function calculateXP(metrics: Metric[]): number | null {
-  const utilityMetric = metrics.find(m => m.name === 'Utility');
-  return utilityMetric ? utilityMetric.total : 0;
-}
-
-export function calculateRank(xp: number | null): string {
-  if (xp === null) return '—';
-  if (xp >= 900) return 'S';
-  if (xp >= 800) return 'A';
-  if (xp >= 700) return 'B';
-  if (xp >= 600) return 'C';
-  if (xp >= 500) return 'D';
-  if (xp >= 400) return 'E';
-  return '-';
-}
-
 export function calculateDaysPassed(lastDate: string, currentDate: Date): number {
   const last = new Date(lastDate);
   const current = new Date(currentDate);

@@ -5,7 +5,6 @@ import { useMetrics } from '../hooks/useMetrics';
 import { useWorkspace } from '../hooks/useWorkspace';
 import type { Metric } from '../types';
 import { useInspectMode } from '../hooks/useInspectMode';
-import { XPDisplay } from '../components/XPDisplay';
 import { MetricsDashboard } from '../components/MetricsDashboard';
 import { AddMetricForm } from '../components/AddMetricForm';
 import { EditMetricModal } from '../components/EditMetricModal';
@@ -18,7 +17,7 @@ export function MetricsPage() {
   const { workspace } = useWorkspace(!!user);
   const isAdmin = workspace?.tier === 'admin';
   const {
-    metrics, xp, rank, loading: metricsLoading, error,
+    metrics, loading: metricsLoading, error,
     formulaWarnings,
     focusedMetricId, toggleFocus,
     addMetric, editMetric, removeMetric,
@@ -76,7 +75,6 @@ export function MetricsPage() {
   return (
     <>
       <div className="container">
-        {isAdmin && <XPDisplay xp={xp} rank={rank} />}
         {metrics.length === 0 && isAdmin && (
           <div style={{
             padding: '2rem',

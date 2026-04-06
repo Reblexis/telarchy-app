@@ -4,7 +4,6 @@ import { api } from '../lib/api';
 import { cacheGet, cacheSet, cacheDelete } from '../lib/cache';
 import { buildConsensusMap, buildInspectMetrics, enrichMetrics } from '../lib/inspect-metrics';
 import {
-  calculateXP, calculateRank,
   detectCircularDependency,
   validateFormula,
 } from '../lib/metrics-engine';
@@ -32,9 +31,6 @@ export function useMetrics(authenticated: boolean, inspectTaskId?: string | null
   const [error, setError] = useState('');
 
   const consensusMapRef = useRef<Record<string, number>>({});
-
-  const xp = calculateXP(metrics);
-  const rank = calculateRank(xp);
 
   const loadData = useCallback(async () => {
     if (!authenticated) return [];
@@ -158,7 +154,7 @@ export function useMetrics(authenticated: boolean, inspectTaskId?: string | null
   }, [authenticated]);
 
   return {
-    metrics, updates, xp, rank, loading, error,
+    metrics, updates, loading, error,
     formulaWarnings,
     focusedMetricId, toggleFocus,
     addMetric, editMetric, removeMetric,

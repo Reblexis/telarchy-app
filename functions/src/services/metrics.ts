@@ -3,7 +3,7 @@ import { metrics, markets, metricLogs, updates } from '../db/schema';
 import { eq, and, asc, desc } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import type { Metric, MetricLog, UpdateEntry } from '../types';
-import { recalculateMetrics, calculateMetricDepths, calculateXP, calculateRank, evaluateFormulaAtTime } from '../lib/metrics-engine';
+import { recalculateMetrics, calculateMetricDepths, evaluateFormulaAtTime } from '../lib/metrics-engine';
 import { sampleTimePoints, getLeafDescendantNames } from '../lib/time-preference';
 import { consensus as ammConsensus, AMM_DEFAULTS } from '../lib/amm';
 import { toISOWeekString } from '../lib/date-utils';
@@ -253,10 +253,7 @@ export async function logSpecificMetrics(metricIds: string[], allMetrics: Metric
 }
 
 export function getStatus(allMetrics: Metric[]) {
-  const xp = calculateXP(allMetrics);
   return {
-    xp,
-    rank: calculateRank(xp),
     metrics: allMetrics.map(m => ({ id: m.id, name: m.name, value: m.value, total: m.total })),
   };
 }
