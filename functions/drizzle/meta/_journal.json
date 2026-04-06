@@ -43,6 +43,13 @@
       "when": 1775300000000,
       "tag": "0005_merge_participant_identity",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1775400000000,
+      "tag": "0006_drop_legacy_identity_tables",
+      "breakpoints": true
     }
   ]
 }

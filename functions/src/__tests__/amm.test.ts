@@ -55,8 +55,8 @@ describe('consensus', () => {
   const rangeMin = 0;
   const rangeMax = 1000;
 
-  test('returns undefined at [0,0] shares (untraded)', () => {
-    expect(consensus([0, 0], B, rangeMin, rangeMax)).toBeUndefined();
+  test('returns midpoint at [0,0] shares (untraded LMSR prior)', () => {
+    expect(consensus([0, 0], B, rangeMin, rangeMax)).toBe(500);
   });
 
   test('returns undefined when b = 0', () => {

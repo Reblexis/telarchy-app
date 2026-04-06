@@ -26,8 +26,6 @@ export interface WorkspaceMembership {
 
 type GroupLike = {
   memberIds?: unknown;
-  agentIds?: unknown;
-  uids?: unknown;
   type?: unknown;
   workspaceId?: unknown;
 };

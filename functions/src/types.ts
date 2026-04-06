@@ -166,8 +166,6 @@ export interface PermissionGroup {
   description: string;
   /** Canonical participant IDs that belong to this group. */
   memberIds: string[];
-  /** Deprecated compatibility field from the old split identity model. */
-  agentIds: string[];
   /** metricId → permissions */
   permissions: Record<string, MetricPermission>;
 }

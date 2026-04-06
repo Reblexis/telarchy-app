@@ -281,10 +281,10 @@ function AgentAdminPage({ user, workspace }: {
   };
 
   const handleAddMemberToGroup = async (group: PermissionGroup, memberId: string) => {
-    const next = [...new Set([...(group.memberIds ?? group.agentIds), memberId])];
+    const next = [...new Set([...group.memberIds, memberId])];
     try {
       await api.updateGroup(group.id, { memberIds: next });
-      setGroups(prev => prev.map(g => g.id === group.id ? { ...g, memberIds: next, agentIds: next, uids: [] } : g));
+      setGroups(prev => prev.map(g => g.id === group.id ? { ...g, memberIds: next } : g));
       if (group.type === 'admin') loadAgents();
     } catch (e: unknown) {
       setGroupError((e as Error).message);
@@ -292,10 +292,10 @@ function AgentAdminPage({ user, workspace }: {
   };
 
   const handleRemoveMemberFromGroup = async (group: PermissionGroup, memberId: string) => {
-    const next = (group.memberIds ?? group.agentIds).filter(a => a !== memberId);
+    const next = group.memberIds.filter(a => a !== memberId);
     try {
       await api.updateGroup(group.id, { memberIds: next });
-      setGroups(prev => prev.map(g => g.id === group.id ? { ...g, memberIds: next, agentIds: next, uids: [] } : g));
+      setGroups(prev => prev.map(g => g.id === group.id ? { ...g, memberIds: next } : g));
       if (group.type === 'admin') loadAgents();
     } catch (e: unknown) {
       setGroupError((e as Error).message);
@@ -397,7 +397,7 @@ function AgentAdminPage({ user, workspace }: {
                 const systemGroup = isSystemGroup(group.type);
                 const restrictedMetrics = Object.keys(group.permissions).length;
                 const query = agentSearch[group.id] ?? '';
-                const groupMemberIds = group.memberIds ?? group.agentIds;
+                const groupMemberIds = group.memberIds;
                 const memberSet = new Set(groupMemberIds);
                 const nonMembers = agents.filter(a => !memberSet.has(a.id) && a.id.toLowerCase().includes(query.toLowerCase()));
                 const members = agents.filter(a => memberSet.has(a.id));

@@ -54,30 +54,6 @@ export const authVerification = pgTable('verification', {
 });
 
 // ---------------------------------------------------------------------------
-// App-level user profile (extends BetterAuth's user table)
-// ---------------------------------------------------------------------------
-
-/** App-specific fields not managed by BetterAuth. One row per auth user. */
-export const appUsers = pgTable('app_users', {
-  userId: text('user_id').primaryKey().references(() => authUser.id, { onDelete: 'cascade' }),
-  platformAdmin: boolean('platform_admin').notNull().default(false),
-  /** 'creator' | 'agent' | null - onboarding intent captured at signup */
-  intent: text('intent'),
-  /** Deprecated compatibility field from the old split identity model. */
-  agentId: text('agent_id'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-});
-
-/** Workspace membership (replaces the embedded map in Firestore users doc) */
-export const userWorkspaces = pgTable('user_workspaces', {
-  userId: text('user_id').notNull().references(() => authUser.id, { onDelete: 'cascade' }),
-  workspaceId: text('workspace_id').notNull(),
-  /** 'owner' | 'admin' | 'trader' | 'viewer' */
-  role: text('role').notNull(),
-  joinedAt: timestamp('joined_at').notNull().defaultNow(),
-}, t => [primaryKey({ columns: [t.userId, t.workspaceId] })]);
-
-// ---------------------------------------------------------------------------
 // Workspaces
 // ---------------------------------------------------------------------------
 
@@ -119,8 +95,6 @@ export const agents = pgTable('agents', {
   platformAdmin: boolean('platform_admin').notNull().default(false),
   /** 'creator' | 'agent' | null - onboarding intent captured at signup */
   intent: text('intent'),
-  /** Deprecated compatibility field from the old split identity model. */
-  ownerUid: text('owner_uid'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   approvedAt: timestamp('approved_at'),
 }, t => [uniqueIndex('agents_auth_user_id_idx').on(t.authUserId)]);
@@ -310,10 +284,6 @@ export const permissionGroups = pgTable('permission_groups', {
   description: text('description').notNull().default(''),
   /** Canonical participant IDs in this group. */
   memberIds: jsonb('member_ids').notNull().$type<string[]>().default([]),
-  /** Deprecated compatibility field from the old split identity model. */
-  agentIds: jsonb('agent_ids').notNull().$type<string[]>().default([]),
-  /** Deprecated compatibility field from the old split identity model. */
-  uids: jsonb('uids').notNull().$type<string[]>().default([]),
   /** metricId → { read: boolean, trade: boolean } */
   permissions: jsonb('permissions').notNull().$type<Record<string, { read: boolean; trade: boolean }>>().default({}),
   createdAt: timestamp('created_at').notNull().defaultNow(),
