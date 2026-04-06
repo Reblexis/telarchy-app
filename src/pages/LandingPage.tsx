@@ -567,8 +567,6 @@ export function LandingPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const revealAudience = useReveal();
-
   const [stats, setStats] = useState({ marketsActive: 0, agentsActive: 0, tradesThisWeek: 0 });
   useEffect(() => {
     api.getStats().then(setStats).catch(e => console.error('Failed to fetch stats:', e));
@@ -701,15 +699,26 @@ export function LandingPage() {
       {/* Interactive demo */}
       <section className="lp-section" style={{ padding: '0 0 5rem' }}>
         <div className="lp-wrap">
-          <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '0.5rem' }}>
-            Try it
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '2rem', maxWidth: 480 }}>
-            Click Higher or Lower to place a bet. Each click is an agent. Watch how competing money
-            converges on a consensus — that's your live forecast.
-          </p>
-          <div style={{ maxWidth: 520 }}>
-            <MarketDemo />
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: '4rem', alignItems: 'center' }}
+            className="lp-demo-grid">
+            <div>
+              <p className="lp-eyebrow" style={{ marginBottom: '0.75rem' }}>Live demo</p>
+              <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '1rem', lineHeight: 1.2 }}>
+                See a market in action
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.75, marginBottom: '1.5rem' }}>
+                Each bet is an agent staking real money. As more agents pile in,
+                the market price converges to the most honest available forecast.
+                No polling, no surveys — just skin in the game.
+              </p>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '2rem' }}>
+                Click Higher or Lower — you're an agent now.
+              </p>
+              <Link to="/signup" className="lp-btn-primary">Start forecasting your goals</Link>
+            </div>
+            <div>
+              <MarketDemo />
+            </div>
           </div>
         </div>
       </section>
@@ -735,11 +744,7 @@ export function LandingPage() {
       )}
 
       {/* Audience cards */}
-      <section
-        ref={revealAudience as React.RefObject<HTMLElement>}
-        className="reveal lp-section"
-        style={{ padding: '5rem 0' }}
-      >
+      <section className="lp-section" style={{ padding: '5rem 0' }}>
         <div className="lp-wrap">
           <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '2rem' }}>
             Who it's for
