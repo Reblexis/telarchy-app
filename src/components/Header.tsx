@@ -50,7 +50,7 @@ function WorkspaceSwitcher({ workspaces, activeId, onSwitch }: {
   const navigate = useNavigate();
   const isOperatorMode = activeId === OPERATOR_ID;
   const active = isOperatorMode ? null : (workspaces.find(w => w.id === activeId) ?? workspaces[0]);
-  const label = isOperatorMode ? 'My Agents' : (active?.name ?? '—');
+  const label = isOperatorMode ? 'My Agents' : (active?.name ?? '-');
 
   useEffect(() => {
     if (!open) return;

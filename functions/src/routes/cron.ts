@@ -5,8 +5,8 @@
  *   curl -X POST https://your-server/api/cron/resolve \
  *     -H "X-API-Key: $API_KEY" -H "Content-Type: application/json" -d '{}'
  *
- * Auth: X-API-Key only (no X-Workspace-Id required — these are platform-wide).
- * Body: { workspaceId?: string } — if omitted, runs for all workspaces.
+ * Auth: X-API-Key only (no X-Workspace-Id required; these are platform-wide).
+ * Body: { workspaceId?: string } - if omitted, runs for all workspaces.
  */
 
 import { Router } from 'express';

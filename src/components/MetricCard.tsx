@@ -118,7 +118,7 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
               </span>
             )
           ) : metric.total === null
-              ? `Total: —`
+              ? `Total: -`
               : `Total: ${metric.total.toFixed(2)}`
           }
           {!isLeaf && metric.baselineTotal != null && metric.total !== null && (() => {
@@ -155,7 +155,7 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
         {metric.missingMarkets?.length ? (
           <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}
             title={`Awaiting first trade on: ${metric.missingMarkets.join(', ')}`}>
-            No forecast chart — awaiting {metric.missingMarkets.length === 1 ? metric.missingMarkets[0] : `${metric.missingMarkets.length} markets`}
+            No forecast chart - awaiting {metric.missingMarkets.length === 1 ? metric.missingMarkets[0] : `${metric.missingMarkets.length} markets`}
           </div>
         ) : metric.timeSeries && metric.timeSeries.length > 0 && (
           <div style={{ marginTop: '0.75rem', height: 220 }}>

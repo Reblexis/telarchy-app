@@ -48,7 +48,7 @@ export function CreateWorkspacePage() {
           <h1>Create your workspace</h1>
           <p className="subtitle" style={{ marginBottom: '1.5rem' }}>
             A workspace holds your goals, markets, and forecasting activity.
-            Workspaces are private — you control who has access.
+            Workspaces are private - you control who has access.
           </p>
 
           <form onSubmit={handleSubmit}>

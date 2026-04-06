@@ -68,7 +68,7 @@ async function main() {
       `);
 
       if (adminResult.rows.length === 0) {
-        // No membership at all — find the platform admin user
+        // No membership at all: find the platform admin user
         const platformAdminResult = await client.query(`
           SELECT user_id FROM app_users WHERE platform_admin = true LIMIT 1
         `);

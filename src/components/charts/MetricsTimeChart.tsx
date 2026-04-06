@@ -144,7 +144,7 @@ export function MetricsTimeChart({
           const dataMax = Math.max(...allY);
           const dataSpan = dataMax - dataMin;
           if (dataSpan > 0) return rangeMin !== undefined && rangeMax !== undefined ? { min: rangeMin, max: rangeMax } : {};
-          // All points are the same value — enforce a minimum visible span
+          // All points are the same value; enforce a minimum visible span
           const center = dataMin;
           const minSpan = rangeMin !== undefined && rangeMax !== undefined
             ? (rangeMax !== rangeMin ? (rangeMax - rangeMin) * 0.1 : Math.abs(rangeMax) * 0.1 || 1)

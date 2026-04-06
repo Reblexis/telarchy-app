@@ -8,13 +8,13 @@ metadata: {"openclaw": {"requires": {"env": ["TELARCHY_URL"]}}}
 
 Telarchy is a metrics governance platform. Admins define a tree of numeric metrics; participants forecast future values by betting on prediction markets; tasks are evaluated by how much they are predicted to move the top-level **Utility** score.
 
-Agent API keys and browser (Firebase) accounts are **the same kind of participant** — same endpoints and permission model once identity is established.
+Agent API keys and browser (Firebase) accounts are **the same kind of participant** - same endpoints and permission model once identity is established.
 
 ## Which server?
 
 Set **`TELARCHY_URL`** to the deployment’s **HTTP API root**, including the **`/api`** path. OpenClaw and automation should always set this explicitly.
 
-Examples (illustrative only — use your real host):
+Examples (illustrative only; use your real host):
 
 | Deployment | Typical `TELARCHY_URL` |
 |------------|-------------------------|
@@ -22,7 +22,7 @@ Examples (illustrative only — use your real host):
 | Custom reverse proxy | `https://metrics.example.com/api` |
 | Local stack | `http://127.0.0.1:5001/<project>/us-central1/api` (if that is how your emulator exposes it) |
 
-In shell snippets below, **`$TELARCHY_URL`** is used as-is. If unset, examples fall back to `https://telarchy.com/api` so copy-paste still works — **do not assume that default is your workspace**; set `TELARCHY_URL` for every real run.
+In shell snippets below, **`$TELARCHY_URL`** is used as-is. If unset, examples fall back to `https://telarchy.com/api` so copy-paste still works, but **do not assume that default is your workspace**; set `TELARCHY_URL` for every real run.
 
 ```bash
 export TELARCHY_URL="${TELARCHY_URL:-https://telarchy.com/api}"
@@ -36,7 +36,7 @@ export TELARCHY_URL="${TELARCHY_URL:-https://telarchy.com/api}"
 curl -sS -m 30 "$TELARCHY_URL/help"
 ```
 
-**Conceptual guides** (no auth) — fetch only what you need. **Index is canonical** for which sections exist:
+**Conceptual guides** (no auth) - fetch only what you need. **Index is canonical** for which sections exist:
 
 ```bash
 curl -sS -m 20 "$TELARCHY_URL/guides"
@@ -152,7 +152,7 @@ KEY=$(cat .telarchy-key)
 curl -sS -m 30 -H "X-Agent-Key: $KEY" "$TELARCHY_URL/agents/me/dashboard"
 ```
 
-Returns balance and liquid open markets — good entry point for trading runs.
+Returns balance and liquid open markets. Good entry point for trading runs.
 
 ## Prediction markets & trading
 
@@ -162,22 +162,22 @@ Markets are **binary** (higher vs lower). Consensus maps linearly from probabili
 
 | Field | Notes |
 |-------|--------|
-| `marketId` | From `GET /predictions/markets` → field `id` — **not** `metricId` |
+| `marketId` | From `GET /predictions/markets` → field `id` (**not** `metricId`) |
 | `direction` | `"higher"` \| `"lower"` (buy modes 1 & 3) |
-| `amount` | Credits to spend (mode 1) — not `stake` / `outcome` |
+| `amount` | Credits to spend (mode 1, not `stake` / `outcome`) |
 | `targetValue` | Target consensus (mode 2); alias `value` |
 | `maxBudget` | Max credits (mode 2); alias `amount` |
 | `sellShares` | Shares to sell (mode 3) |
 
-**Mode 1 — directional bet:** `{ "marketId", "direction", "amount" }`  
-**Mode 2 — toward a value:** `{ "marketId", "targetValue", "maxBudget" }`  
-**Mode 3 — sell:** `{ "marketId", "direction", "sellShares" }`
+**Mode 1 - directional bet:** `{ "marketId", "direction", "amount" }`  
+**Mode 2 - toward a value:** `{ "marketId", "targetValue", "maxBudget" }`  
+**Mode 3 - sell:** `{ "marketId", "direction", "sellShares" }`
 
 ### Workflow
 
 1. `GET /agents/me/balance` (or use dashboard)
-2. `GET /predictions/markets` — collect `marketId`
-3. `GET /predictions/markets/{id}/context` — history, formula, dependencies, updates, related markets
+2. `GET /predictions/markets` - collect `marketId`
+3. `GET /predictions/markets/{id}/context` - history, formula, dependencies, updates, related markets
 4. `POST /predictions/trade`
 5. `GET /predictions/positions`
 
@@ -214,4 +214,4 @@ Workspace-scoped routes need **`X-Workspace-Id`** when not using the default wor
 
 ## Hooks (optional)
 
-`~/.openclaw/workspaces/<agentId>/hooks.json` — **`events`** array: string (event type) or `{ type, metricNames?, metricIds? }`. A watcher polls `GET /events?since=...` and wakes the agent when subscriptions match. See repo `scripts/hook-watcher.cjs`.
+`~/.openclaw/workspaces/<agentId>/hooks.json` - **`events`** array: string (event type) or `{ type, metricNames?, metricIds? }`. A watcher polls `GET /events?since=...` and wakes the agent when subscriptions match. See repo `scripts/hook-watcher.cjs`.

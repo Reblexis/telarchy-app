@@ -5,7 +5,7 @@
  * PostgreSQL database that has been migrated via `npm run db:migrate`.
  *
  * This script migrates workspace DATA only (metrics, markets, agents, etc.).
- * User authentication records are NOT migrated — users must sign up fresh
+ * User authentication records are NOT migrated. Users must sign up fresh
  * via BetterAuth. After running this script, add yourself as workspace owner
  * using the instructions printed at the end.
  *
@@ -61,7 +61,7 @@ function toSharesTuple(shares: unknown): [number, number] {
   return [0, 0];
 }
 
-/** Get collection reference — handles both default (top-level) and other workspaces. */
+/** Get collection reference: handles both default (top-level) and other workspaces. */
 function wsCollection(workspaceId: string, collName: string) {
   return workspaceId === 'default'
     ? firestore.collection(collName)
@@ -223,16 +223,16 @@ async function migrateAgents() {
     const d = doc.data();
     const keyHash = d.apiKeyHash ?? d.apiKey;
     if (!keyHash) {
-      console.warn(`  ⚠ agent ${doc.id} has no API key hash — skipping`);
+      console.warn(`  ⚠ agent ${doc.id} has no API key hash; skipping`);
       continue;
     }
     await db.insert(schema.agents).values({
       id: doc.id,
       apiKeyHash: keyHash,
       role: d.role ?? 'agent',
-      // balance is bigint nanocredits — old Firestore stored as decimal credits
+      // balance is bigint nanocredits; old Firestore stored as decimal credits
       balance: toUnits(d.balance ?? 0),
-      // These stats are doublePrecision floats — stored as raw credits
+      // These stats are doublePrecision floats, stored as raw credits
       earnedBetting: d.earnedBetting ?? 0,
       spentBetting: d.spentBetting ?? 0,
       spentTokens: d.spentTokens ?? 0,

@@ -246,7 +246,7 @@ describe('recalculateMetrics', () => {
       metric({ id: '2', name: 'Parent', formula: '{Forecast}', value: 0, total: 0 }),
     ];
     recalculateMetrics(metrics, {});
-    // When a leaf is a TP metric, it may end up with missingMarkets — the engine
+    // When a leaf is a TP metric, it may end up with missingMarkets. The engine
     // populates this only for TP nodes; for plain leaves it stays empty.
     // The key invariant: composite total equals evaluated formula.
     const parent = metrics.find(m => m.name === 'Parent')!;

@@ -114,7 +114,7 @@ function MarketsSection({ agentId, apiKey }: { agentId: string; apiKey: string }
               <ProbabilityBar prob={prob} />
               <div style={{ textAlign: 'right', minWidth: 80 }}>
                 <div style={{ fontFamily: 'monospace', fontSize: '0.85rem', fontWeight: 600 }}>
-                  {m.consensus !== null && m.consensus !== undefined ? m.consensus.toFixed(2) : '—'}
+                  {m.consensus !== null && m.consensus !== undefined ? m.consensus.toFixed(2) : '-'}
                 </div>
                 <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>consensus</div>
               </div>
@@ -291,7 +291,7 @@ function SettingsSection({ agentId, apiKey, profile, onProfileRefresh }: {
     setDepositMsg(null);
     try {
       const result = await agentApi.deposit(agentId, apiKey, txHash.trim()) as { credits: number };
-      setDepositMsg({ ok: true, text: `Deposit verified — ${result.credits} credits added.` });
+      setDepositMsg({ ok: true, text: `Deposit verified - ${result.credits} credits added.` });
       setTxHash('');
       onProfileRefresh();
     } catch (err: unknown) {

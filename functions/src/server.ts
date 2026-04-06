@@ -1,25 +1,25 @@
 /**
- * Standalone server entry point — runs the same Express app on any platform
+ * Standalone server entry point - runs the same Express app on any platform
  * (Docker, Railway, Fly.io, Cloud Run, bare VPS, etc.).
  *
  * Required env vars:
- *   DATABASE_URL   — PostgreSQL connection string
+ *   DATABASE_URL   - PostgreSQL connection string
  *                    e.g. postgresql://user:password@localhost:5432/telarchy
- *   API_KEY        — master API key (keep secret)
- *   TREASURY_PRIVATE_KEY — Base treasury wallet private key for the backed economy
+ *   API_KEY        - master API key (keep secret)
+ *   TREASURY_PRIVATE_KEY - Base treasury wallet private key for the backed economy
  *
  * Optional env vars:
- *   PORT                — HTTP port (default 8080)
- *   ALLOWED_ORIGIN      — unset, empty, or "*" = any origin; else comma-separated exact origins (CORS + BetterAuth)
- *   TRUSTED_ORIGINS     — optional comma-separated extra origins (merged with ALLOWED_ORIGIN for CORS and BetterAuth)
- *   BETTER_AUTH_URL     — public site origin (https://your-host) for OAuth redirects behind proxies
- *   AUTH_COOKIE_DOMAIN  — e.g. ".example.com" so apex + www share auth cookies (optional)
- *   ALLOW_LOCALHOST_CORS — "1" to allow localhost/127.0.0.1 when ALLOWED_ORIGIN is restricted (local dev)
- *   INITIAL_ADMIN_EMAIL    — admin email created on first boot (default: admin@localhost)
- *   INITIAL_ADMIN_PASSWORD — admin password on first boot (auto-generated + printed if not set)
- *   GOOGLE_CLIENT_ID    — Google OAuth client ID (for social sign-in)
+ *   PORT                - HTTP port (default 8080)
+ *   ALLOWED_ORIGIN      - unset, empty, or "*" = any origin; else comma-separated exact origins (CORS + BetterAuth)
+ *   TRUSTED_ORIGINS     - optional comma-separated extra origins (merged with ALLOWED_ORIGIN for CORS and BetterAuth)
+ *   BETTER_AUTH_URL     - public site origin (https://your-host) for OAuth redirects behind proxies
+ *   AUTH_COOKIE_DOMAIN  - e.g. ".example.com" so apex + www share auth cookies (optional)
+ *   ALLOW_LOCALHOST_CORS - "1" to allow localhost/127.0.0.1 when ALLOWED_ORIGIN is restricted (local dev)
+ *   INITIAL_ADMIN_EMAIL    - admin email created on first boot (default: admin@localhost)
+ *   INITIAL_ADMIN_PASSWORD - admin password on first boot (auto-generated + printed if not set)
+ *   GOOGLE_CLIENT_ID    - Google OAuth client ID (for social sign-in)
  *   GOOGLE_CLIENT_SECRET
- *   GITHUB_CLIENT_ID    — GitHub OAuth client ID (for social sign-in)
+ *   GITHUB_CLIENT_ID    - GitHub OAuth client ID (for social sign-in)
  *   GITHUB_CLIENT_SECRET
  *
  * Quick start:
@@ -82,7 +82,7 @@ import('./app').then(async ({ app }) => {
   const publicDir = path.join(__dirname, 'public');
   if (fs.existsSync(publicDir)) {
     app.use(express.static(publicDir));
-    // SPA fallback — serve index.html for all non-API routes
+    // SPA fallback: serve index.html for all non-API routes
     app.get('*', (req, res) => {
       if (!req.path.startsWith('/api')) {
         res.sendFile(path.join(publicDir, 'index.html'));

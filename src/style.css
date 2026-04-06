@@ -1315,7 +1315,7 @@ details > div {
   50% { opacity: 0.4; }
 }
 
-/* Landing page needs full-width layout — remove body padding */
+/* Landing page needs full-width layout; remove body padding */
 body.landing-page {
   padding: 0;
 }
@@ -1328,7 +1328,7 @@ body.landing-page {
   flex-direction: column;
 }
 
-/* Full-width section wrapper — content stays max-width centered */
+/* Full-width section wrapper; content stays max-width centered */
 .lp-section {
   width: 100%;
 }

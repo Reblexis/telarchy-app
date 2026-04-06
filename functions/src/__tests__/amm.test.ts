@@ -23,7 +23,7 @@ describe('lmsrCost', () => {
     expect(c2).toBeGreaterThan(c1);
   });
 
-  test('is symmetric — swapping shares gives same cost', () => {
+  test('is symmetric - swapping shares gives same cost', () => {
     expect(lmsrCost([30, 10], B)).toBeCloseTo(lmsrCost([10, 30], B));
   });
 });
@@ -76,7 +76,7 @@ describe('consensus', () => {
 
   test('buying higher shares increases consensus', () => {
     const before = consensus([0, 0], B, rangeMin, rangeMax);
-    // [0,0] is untraded so returns undefined — use a tiny seed
+    // [0,0] is untraded so returns undefined; use a tiny seed
     const c1 = consensus([1, 1], B, rangeMin, rangeMax)!;
     const c2 = consensus([1, 50], B, rangeMin, rangeMax)!;
     expect(c2).toBeGreaterThan(c1);
@@ -102,7 +102,7 @@ describe('directionTradeCost', () => {
     expect(pHigher(sharesAfterLower, B)).toBeLessThan(0.5);
   });
 
-  test('is symmetric — same cost to buy lower or higher from neutral position', () => {
+  test('is symmetric - same cost to buy lower or higher from neutral position', () => {
     const costHigher = directionTradeCost([0, 0], 1, 10, B);
     const costLower = directionTradeCost([0, 0], 0, 10, B);
     expect(costHigher).toBeCloseTo(costLower);

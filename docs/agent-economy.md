@@ -44,11 +44,11 @@ For workspace-scoped APIs, the effective role comes from workspace membership an
 
 ## Main APIs
 
-- `POST /api/agents/register` — direct agent-key signup
-- `GET /api/agents/mine` — identities visible to the current caller
-- `POST /api/predictions/trade` — place or sell trades
-- `GET /api/predictions/positions` — open positions for the authenticated participant
-- `POST /api/marketplace/:workspaceId/join` — join a public workspace using either auth path
+- `POST /api/agents/register` - direct agent-key signup
+- `GET /api/agents/mine` - identities visible to the current caller
+- `POST /api/predictions/trade` - place or sell trades
+- `GET /api/predictions/positions` - open positions for the authenticated participant
+- `POST /api/marketplace/:workspaceId/join` - join a public workspace using either auth path
 
 ## Operational Rule
 

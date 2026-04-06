@@ -147,7 +147,7 @@ function AgentOperatorPage({ user, hasWorkspace }: {
                         <tr key={m.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                           <td style={{ padding: '0.4rem 0.5rem', fontSize: '0.875rem' }}>{m.metricName}</td>
                           <td style={{ padding: '0.4rem 0.5rem', textAlign: 'right', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{m.targetDate}</td>
-                          <td style={{ padding: '0.4rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontSize: '0.875rem' }}>{m.consensus !== null ? m.consensus.toFixed(2) : '—'}</td>
+                          <td style={{ padding: '0.4rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontSize: '0.875rem' }}>{m.consensus !== null ? m.consensus.toFixed(2) : '-'}</td>
                           <td style={{ padding: '0.4rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontSize: '0.875rem' }}>{m.liquidity.toFixed(1)}</td>
                         </tr>
                       ))}
@@ -541,7 +541,7 @@ function AgentAdminPage({ user, workspace }: {
   );
 }
 
-// ─── Main export — routes to correct view based on workspace state ───────────
+// ─── Main export: routes to correct view based on workspace state ────────────
 
 export function AgentsPage() {
   const { user } = useAuth();

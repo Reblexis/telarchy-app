@@ -94,7 +94,7 @@ userauthRouter.get('/me', requireUser, wrap(async (req, res) => {
 
   res.json({
     uid,
-    email: null, // BetterAuth session has the email — frontend reads from authClient.useSession()
+    email: null, // BetterAuth session has the email; frontend reads from authClient.useSession()
     intent: profile?.intent ?? null,
     participantId,
     workspaceId,

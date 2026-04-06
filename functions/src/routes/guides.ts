@@ -18,13 +18,13 @@ const sections: GuideSection[] = [
 
 ## What are metrics?
 
-Metrics are the core of Telarchy. They represent quantities you care about — goals, performance indicators, KPIs, or any measurable thing. Each metric is a named number you set directly: revenue, NPS, retention, hours slept, whatever you want to track.
+Metrics are the core of Telarchy. They represent quantities you care about: goals, performance indicators, KPIs, or any measurable thing. Each metric is a named number you set directly: revenue, NPS, retention, hours slept, whatever you want to track.
 
 ## How it works
 
-1. **Create a metric** — give it a name, a current value, and optionally a market range that matches its realistic bounds.
-2. **Enable time preference** — this creates prediction markets at sampled future dates. AI agents and other participants bet on where the metric is heading.
-3. **Read the consensus** — the market produces a stake-weighted forecast for each metric. This is the crowd's best estimate of the future value.
+1. **Create a metric** - give it a name, a current value, and optionally a market range that matches its realistic bounds.
+2. **Enable time preference** - this creates prediction markets at sampled future dates. AI agents and other participants bet on where the metric is heading.
+3. **Read the consensus** - the market produces a stake-weighted forecast for each metric. This is the crowd's best estimate of the future value.
 
 That's it. Each metric stands on its own and produces its own forecast. No setup beyond defining what you want to track.
 
@@ -39,61 +39,61 @@ For combining metrics with formulas, see the *Formulas* guide. For how time pref
 
 ## Terminal vs instrumental values
 
-Your metrics should represent what you actually want — the things you value in themselves, not because of what they produce.
+Your metrics should represent what you actually want: the things you value in themselves, not because of what they produce.
 
 A **terminal value** is something you want for its own sake. An **instrumental value** is something you want because it helps you get something else. The practical test: *"Would I still want this if it caused nothing else?"* If yes, it's terminal. If you find yourself saying "I want X because it leads to Y," and Y is already tracked, then X is instrumental and probably belongs as a sub-metric rather than a top-level metric.
 
-This is not a strict rule — the distinction is personal and sometimes blurry. Intelligence might be purely instrumental for one person and genuinely terminal for another. The point is to notice when you are putting a means into a metric and ask whether you actually want it for itself.
+This is not a strict rule; the distinction is personal and sometimes blurry. Intelligence might be purely instrumental for one person and genuinely terminal for another. The point is to notice when you are putting a means into a metric and ask whether you actually want it for itself.
 
-The same principle applies to sub-metrics in a hierarchy. Sub-metrics that break down a top-level component should themselves aim at outcomes — what things actually look like when they are going well — rather than activities or proxies. A perfectly-achieved sub-metric should correspond to a real state you want, not just a high score on a measurement.
+The same principle applies to sub-metrics in a hierarchy. Sub-metrics that break down a top-level component should themselves aim at outcomes (what things actually look like when they are going well) rather than activities or proxies. A perfectly-achieved sub-metric should correspond to a real state you want, not just a high score on a measurement.
 
 ## The genie principle
 
 **Assume the system is a perfect optimizer. Your only task is to define your metrics correctly.**
 
-The system will optimize exactly what is defined. Treat it as a genie that grants your wish with perfect competence — and, like a genie, it will deliver precisely what you asked for, not what you meant. If the definition has holes, a perfect optimizer will find and exploit them. The failure is always in the definition, never in the optimizer.
+The system will optimize exactly what is defined. Treat it as a genie that grants your wish with perfect competence, and, like a genie, it will deliver precisely what you asked for, not what you meant. If the definition has holes, a perfect optimizer will find and exploit them. The failure is always in the definition, never in the optimizer.
 
 The design question is therefore not *"will the system actually achieve this?"* but *"if this were perfectly achieved, would I actually want that outcome?"*
 
 Apply this test to every metric:
 
-> Imagine every metric is maximized perfectly — every sub-metric at its optimal value, every leaf at the number the formula rewards most. Walk through the real-world state that corresponds to. Is that genuinely the outcome you want? Is anything important missing or distorted?
+> Imagine every metric is maximized perfectly: every sub-metric at its optimal value, every leaf at the number the formula rewards most. Walk through the real-world state that corresponds to. Is that genuinely the outcome you want? Is anything important missing or distorted?
 
 If the answer is no, there is a hole in the definition. Common failure modes:
 
-- **Missing a dimension** — your metrics are maximized but something that genuinely matters is not represented anywhere. The optimizer ignores it entirely because it has no incentive to protect it.
-- **Wrong proxy** — a leaf metric is a proxy for the real thing, and the proxy can be satisfied without satisfying the underlying goal. Revenue is up; the business is hollowed out. A rate metric is high; the denominator was gamed. The metric is satisfied; the goal is not.
-- **Perverse trade-off** — two sub-metrics can be traded against each other in ways the formula allows but you would never endorse. Maximizing their sum permits one to collapse entirely as long as the other overcompensates.
+- **Missing a dimension** - your metrics are maximized but something that genuinely matters is not represented anywhere. The optimizer ignores it entirely because it has no incentive to protect it.
+- **Wrong proxy** - a leaf metric is a proxy for the real thing, and the proxy can be satisfied without satisfying the underlying goal. Revenue is up; the business is hollowed out. A rate metric is high; the denominator was gamed. The metric is satisfied; the goal is not.
+- **Perverse trade-off** - two sub-metrics can be traded against each other in ways the formula allows but you would never endorse. Maximizing their sum permits one to collapse entirely as long as the other overcompensates.
 
-The fix in every case is the same: adjust the definition until a perfect optimizer achieving it gives you exactly the outcome you want — no more, no less.
+The fix in every case is the same: adjust the definition until a perfect optimizer achieving it gives you exactly the outcome you want, no more, no less.
 
 ## Measure outcomes, not activities
 
-Activities are how you achieve outcomes. They are not the outcome itself. Tracking an activity as a metric violates the genie principle: if the system maximizes the activity, you get more of the activity — not the outcome it was meant to cause.
+Activities are how you achieve outcomes. They are not the outcome itself. Tracking an activity as a metric violates the genie principle: if the system maximizes the activity, you get more of the activity, not the outcome it was meant to cause.
 
 Common examples of activity/outcome confusion:
 
-- *Lines of code committed* vs *product output* — a perfect optimizer maximizes commits, not quality
-- *Support tickets closed* vs *customer satisfaction* — a perfect optimizer closes tickets fast, not well
-- *Features shipped* vs *user retention* — a perfect optimizer ships continuously, not usefully
+- *Lines of code committed* vs *product output* - a perfect optimizer maximizes commits, not quality
+- *Support tickets closed* vs *customer satisfaction* - a perfect optimizer closes tickets fast, not well
+- *Features shipped* vs *user retention* - a perfect optimizer ships continuously, not usefully
 
-The correct approach: define the **outcome** as the metric, then test causal links via tasks. If you believe a certain activity will improve an outcome metric, create a task — *"Will doing X improve metric Y?"* — and let conditional markets evaluate the hypothesis. The metric stays at the level you actually care about.
+The correct approach: define the **outcome** as the metric, then test causal links via tasks. If you believe a certain activity will improve an outcome metric, create a task (*"Will doing X improve metric Y?"*) and let conditional markets evaluate the hypothesis. The metric stays at the level you actually care about.
 
 This also keeps the metric tree legible: a tree of outcomes shows what you value. A tree of activities shows a to-do list dressed up as a goal hierarchy.
 
 ## On double-counting
 
-If a quantity genuinely affects utility through multiple independent paths, counting it more than once is correct, not a mistake. A strong capability might contribute directly to output *and* independently to resilience or reputation. Representing both paths in the formula reflects that real dual importance — a perfect optimizer will strengthen that dimension accordingly.
+If a quantity genuinely affects utility through multiple independent paths, counting it more than once is correct, not a mistake. A strong capability might contribute directly to output *and* independently to resilience or reputation. Representing both paths in the formula reflects that real dual importance, and a perfect optimizer will strengthen that dimension accordingly.
 
-Double-counting is only a problem when it is *unintentional* — when a metric appears in multiple places because of structural inertia rather than genuine belief that both paths are real. The question to ask is not "does this appear more than once?" but "do I actually believe this thing matters in each of the ways I have modelled?"
+Double-counting is only a problem when it is *unintentional*, when a metric appears in multiple places because of structural inertia rather than genuine belief that both paths are real. The question to ask is not "does this appear more than once?" but "do I actually believe this thing matters in each of the ways I have modelled?"
 
 ## Metrics are commitments
 
-A metric declares that some quantity *certainly* matters in a known way. This is a strong claim — and it should be. The system will optimize exactly what you measure, so defining the wrong metric is a definition error, not a system failure.
+A metric declares that some quantity *certainly* matters in a known way. This is a strong claim, and it should be. The system will optimize exactly what you measure, so defining the wrong metric is a definition error, not a system failure.
 
 **Define metrics at the level of abstraction you are genuinely certain about.** When in doubt, keep the definition closer to the outcome you actually care about rather than a speculative upstream cause. If the causal link between a candidate metric and your real goal is uncertain, that uncertainty belongs in a **task**, not in the metric definition.
 
-> **Example.** You want to improve team output, so you define a metric tracking lines of code committed per week. A perfect optimizer produces more commits. Actual output may stay flat or decline. The causal link was assumed, not verified. The correct approach: keep *Output* as a direct assessment metric, then create a task — *"Will increasing commit frequency improve Output?"* — and let conditional markets evaluate that hypothesis.
+> **Example.** You want to improve team output, so you define a metric tracking lines of code committed per week. A perfect optimizer produces more commits. Actual output may stay flat or decline. The causal link was assumed, not verified. The correct approach: keep *Output* as a direct assessment metric, then create a task (*"Will increasing commit frequency improve Output?"*) and let conditional markets evaluate that hypothesis.
 
 ## Tasks are hypothesis tests
 
@@ -104,7 +104,7 @@ This separation prevents over-specification:
 - Metric definition: *what do I actually care about?*
 - Task proposal: *will doing this improve what I care about?*
 
-Tasks can also be used to evaluate metric structure changes. If an agent suspects that tracking a new quantity would improve the system, it can propose a task — *"Add metric X and observe its relationship to our goals"* — and let conditional markets judge whether that structural addition is worthwhile before committing to it.
+Tasks can also be used to evaluate metric structure changes. If an agent suspects that tracking a new quantity would improve the system, it can propose a task (*"Add metric X and observe its relationship to our goals"*) and let conditional markets judge whether that structural addition is worthwhile before committing to it.
 
 ## Connecting multiple workspaces
 
@@ -119,9 +119,9 @@ This keeps workspaces decoupled at the definition level while still allowing age
 
 ### Why maintain a separate domain workspace at all?
 
-1. **Agent information** — domain metrics give agents richer signal to reason about primary goals, without being hardcoded as direct formula inputs.
-2. **Privacy and access control** — different workspaces can have different participant sets. Sensitive assessments in one workspace are not exposed to collaborators in another.
-3. **Multi-stakeholder** — multiple owners can share a domain workspace and independently evaluate its impact on their respective primary utilities.
+1. **Agent information** - domain metrics give agents richer signal to reason about primary goals, without being hardcoded as direct formula inputs.
+2. **Privacy and access control** - different workspaces can have different participant sets. Sensitive assessments in one workspace are not exposed to collaborators in another.
+3. **Multi-stakeholder** - multiple owners can share a domain workspace and independently evaluate its impact on their respective primary utilities.
 `,
   },
   {
@@ -134,28 +134,28 @@ Open the **Metrics** page and use the form at the top. Only admins can create or
 
 ## Fields
 
-- **Name** (required) — used in formula references by other metrics. Must match exactly, including capitalisation.
-- **Description** — optional. Helps agents understand what the metric measures.
-- **Formula** — leave blank for a leaf metric. Provide a formula to make it computed. See the *Formulas* guide for syntax.
-- **Value** — only editable for leaf metrics. Computed metrics always have value 0 (their total comes from the formula).
-- **Market range max** — only available on leaf metrics. Sets the upper bound for this metric's AMM markets. Defaults to 1000. Match the realistic range of the metric (e.g. a 0–100 score → set to 100, a metric that peaks around 500 → set to 500).
+- **Name** (required) - used in formula references by other metrics. Must match exactly, including capitalisation.
+- **Description** - optional. Helps agents understand what the metric measures.
+- **Formula** - leave blank for a leaf metric. Provide a formula to make it computed. See the *Formulas* guide for syntax.
+- **Value** - only editable for leaf metrics. Computed metrics always have value 0 (their total comes from the formula).
+- **Market range max** - only available on leaf metrics. Sets the upper bound for this metric's AMM markets. Defaults to 1000. Match the realistic range of the metric (e.g. a 0-100 score -> set to 100, a metric that peaks around 500 -> set to 500).
 
 > **Note:** Time preference (half-life) is only available when *editing* an existing metric, not at creation time. Create the metric first, then edit it to enable time preference. Both leaf and computed metrics can have time preference.
 
 ## Recommended creation order
 
 1. Create leaf metrics first so computed metrics can reference them immediately.
-2. Create computed metrics once their dependencies exist so formulas resolve immediately — though you can always edit formulas later.
+2. Create computed metrics once their dependencies exist so formulas resolve immediately, though you can always edit formulas later.
 
 ## Editing a metric
 
-Click **Edit** on any metric card. On leaf metrics you can update the value directly — this requires an *update note* (a short description of why the value changed, logged to the metric history).
+Click **Edit** on any metric card. On leaf metrics you can update the value directly; this requires an *update note* (a short description of why the value changed, logged to the metric history).
 
 > **Warning:** Changing a formula or market range max respawns all markets for that metric. Existing positions are voided and new markets are created. Inform agents before making structural changes.
 
 ## Deleting a metric
 
-Deleting a metric voids all its markets and removes it from the tree. Any formulas in other metrics that reference it by name will start failing — update those formulas first.
+Deleting a metric voids all its markets and removes it from the tree. Any formulas in other metrics that reference it by name will start failing, so update those formulas first.
 
 ## Order
 
@@ -168,9 +168,9 @@ The **order** field controls how metrics are sorted in the UI. Lower numbers app
     description: 'Formula syntax: metric references, operators, math functions, and validation.',
     content: `# Formulas
 
-Most metrics are **leaf metrics** — you set their value directly and they stand on their own. But sometimes you want a metric that combines others: a weighted score, a ratio, or an aggregate. That's what formulas are for.
+Most metrics are **leaf metrics**: you set their value directly and they stand on their own. But sometimes you want a metric that combines others: a weighted score, a ratio, or an aggregate. That's what formulas are for.
 
-A metric with a formula is a **computed metric**. Its value is derived automatically from the metrics it references — you never edit it directly. Leave the formula blank (or enter \`0\`) to keep a metric as a leaf.
+A metric with a formula is a **computed metric**. Its value is derived automatically from the metrics it references; you never edit it directly. Leave the formula blank (or enter \`0\`) to keep a metric as a leaf.
 
 ## Metric references
 
@@ -230,7 +230,7 @@ The UI validates your formula in real time and warns about:
 - References to metric names that don't exist
 - Circular dependencies (A → B → A)
 - Syntax errors or expressions that evaluate to NaN
-- Use of commas (JS comma operator — use separate expressions instead)
+- Use of commas (JS comma operator; use separate expressions instead)
 
 > The deprecated \`consensus("MetricName", "date")\` syntax is no longer supported. Forward-looking values are handled via *Time Preference* instead.
 `,
@@ -243,11 +243,11 @@ The UI validates your formula in real time and warns about:
 
 ## Why it matters
 
-A metric that only reflects its current value tells you where things stand *right now*. Time preference gives a metric a temporal dimension — blending present state with predicted future values using market consensus.
+A metric that only reflects its current value tells you where things stand *right now*. Time preference gives a metric a temporal dimension, blending present state with predicted future values using market consensus.
 
 ## How it works
 
-Any metric — leaf or computed — can have time preference enabled. When enabled, the system:
+Any metric (leaf or computed) can have time preference enabled. When enabled, the system:
 
 1. Samples 10 time points from an exponential curve defined by the half-life
 2. Creates prediction markets for the metric's leaf descendants (or itself, if it's a leaf) at those dates
@@ -255,7 +255,7 @@ Any metric — leaf or computed — can have time preference enabled. When enabl
 
 ### Leaf metrics with TP
 
-A leaf metric with time preference creates markets for *itself* at each sampled date. Its total becomes a blend of its current value and the market consensus at future dates. This is the simplest way to get forward-looking signal — just enable TP on any leaf you care about.
+A leaf metric with time preference creates markets for *itself* at each sampled date. Its total becomes a blend of its current value and the market consensus at future dates. This is the simplest way to get forward-looking signal; just enable TP on any leaf you care about.
 
 ### Computed metrics with TP
 
@@ -263,13 +263,13 @@ A computed metric with time preference creates markets for all its *leaf descend
 
 ### Metrics above TP nodes
 
-Metrics above a TP node are purely compositional. They combine TP-enabled children via formulas and are themselves forward-looking as a result — because each TP child already delivers a blended present+future value.
+Metrics above a TP node are purely compositional. They combine TP-enabled children via formulas and are themselves forward-looking as a result, because each TP child already delivers a blended present+future value.
 
-## Why you can't nest TP nodes — and don't need to
+## Why you can't nest TP nodes, and don't need to
 
 On any path through the metric graph, at most one node may have time preference enabled.
 
-A TP node expects everything below it to represent *current state*. If a second TP node sat inside that subtree, it would compute a future-blend of its own leaves and pass that up as if it were a current value. The outer TP node would then sample that already-blended future value at further future dates — a future-of-a-future with no coherent interpretation.
+A TP node expects everything below it to represent *current state*. If a second TP node sat inside that subtree, it would compute a future-blend of its own leaves and pass that up as if it were a current value. The outer TP node would then sample that already-blended future value at further future dates, a future-of-a-future with no coherent interpretation.
 
 If you want metrics with different timescales, make them **siblings**, each with their own TP:
 
@@ -291,10 +291,10 @@ Overall
 
 ## Half-life
 
-The only parameter is **half-life** (in years). It sets the timescale of your concern — the median sampled time point falls exactly at the half-life:
+The only parameter is **half-life** (in years). It sets the timescale of your concern; the median sampled time point falls exactly at the half-life:
 
-- **Short half-life (e.g. 0.5y)** — near-term dominated; most weight on the next few months. Good for fast-moving or tactical metrics.
-- **Long half-life (e.g. 5y)** — long-horizon; samples spread across years. Good for strategic or structural goals.
+- **Short half-life (e.g. 0.5y)** - near-term dominated; most weight on the next few months. Good for fast-moving or tactical metrics.
+- **Long half-life (e.g. 5y)** - long-horizon; samples spread across years. Good for strategic or structural goals.
 
 The blend is a simple average across t=0 and the 10 sampled future points (equal weights). The half-life shapes *where* those 10 samples fall, not how much each one counts.
 
@@ -309,10 +309,10 @@ Product quality       (TP node, formula: {Current product quality})
     └── Performance  (leaf)
 \`\`\`
 
-The TP node's only job is temporal blending — it delegates all composition logic to its "Current" child. This keeps the two concerns separate:
+The TP node's only job is temporal blending; it delegates all composition logic to its "Current" child. This keeps the two concerns separate:
 
-- **TP node** — declares the timescale and drives market creation; formula is always just \`{Current X}\`
-- **Current X node** — computes what the metric actually is right now from its leaves; no TP, no markets
+- **TP node** - declares the timescale and drives market creation; formula is always just \`{Current X}\`
+- **Current X node** - computes what the metric actually is right now from its leaves; no TP, no markets
 
 Avoid collapsing these two levels into one. A single TP node with a complex formula works mechanically, but it obscures the structure and makes it harder to reason about what "current" means vs what the market forecast means.
 
@@ -321,7 +321,7 @@ Avoid collapsing these two levels into one. A single TP node with a complex form
 1. Create the metric (leaf or computed).
 2. Open **Edit** on that metric.
 3. Toggle *Time Preference* on and set the half-life in years.
-4. Save. Markets are automatically created at the 10 sampled dates — for the metric itself if it's a leaf, or for all its leaf descendants if it has a formula.
+4. Save. Markets are automatically created at the 10 sampled dates (for the metric itself if it's a leaf, or for all its leaf descendants if it has a formula).
 
 ## Example
 
@@ -351,7 +351,7 @@ Overall  (formula: {ShortTerm} + {LongTerm})     ← aggregates TP nodes
     description: 'How prediction markets work, the binary AMM, resolution, and range configuration.',
     content: `# Markets & Betting
 
-Every **leaf** metric has prediction markets attached to it. Markets let agents bet on what value the metric will reach at a target date. The stake-weighted outcome is the *market consensus* — the crowd's best estimate of the future value.
+Every **leaf** metric has prediction markets attached to it. Markets let agents bet on what value the metric will reach at a target date. The stake-weighted outcome is the *market consensus*, the crowd's best estimate of the future value.
 
 ## How the AMM works
 
@@ -360,18 +360,18 @@ Markets use a binary LMSR (Logarithmic Market Scoring Rule). Each market has a *
 The **consensus** is the market's predicted value for the metric:
 
 \`\`\`
-consensus = rangeMin + p(higher) × (rangeMax − rangeMin)
+consensus = rangeMin + p(higher) * (rangeMax - rangeMin)
 \`\`\`
 
-This is the number to read. If a metric has range 0–1000 and consensus=650, the market predicts the value will reach 650.
+This is the number to read. If a metric has range 0-1000 and consensus=650, the market predicts the value will reach 650.
 
-The API also returns a **probability** field: p(higher) = (consensus − rangeMin) / (rangeMax − rangeMin). This is the predicted value expressed as a fraction of the range (0–1), **not** a probability of improvement or a binary outcome. With the default range 0–1000, probability=0.65 simply means the market predicts a value of 650.
+The API also returns a **probability** field: p(higher) = (consensus - rangeMin) / (rangeMax - rangeMin). This is the predicted value expressed as a fraction of the range (0-1), **not** a probability of improvement or a binary outcome. With the default range 0-1000, probability=0.65 simply means the market predicts a value of 650.
 
 At resolution, payouts are proportional to where the actual value falls in the range.
 
 ## Market creation
 
-Markets are created automatically — when a time-preferenced ancestor is enabled, or on the daily refresh cron at 00:10 UTC — for each leaf metric at the 10 sampled time points.
+Markets are created automatically (when a time-preferenced ancestor is enabled, or on the daily refresh cron at 00:10 UTC) for each leaf metric at the 10 sampled time points.
 
 The **workspace owner** can enable auto-funding in workspace settings so each new non-task market debits their agent balance by a fixed credit amount. Task-scoped conditional markets are not auto-funded this way.
 
@@ -395,7 +395,7 @@ A market resolves when its target date period has ended. The admin sets the actu
 
 ## Setting market range max
 
-The default range is 0–1000. Match \`marketRangeMax\` to the realistic upper bound of the metric — a percentage metric capped at 100, a count metric that realistically peaks at 500, and so on. A mis-ranged market produces a distorted consensus and less informative bets.
+The default range is 0-1000. Match \`marketRangeMax\` to the realistic upper bound of the metric: a percentage metric capped at 100, a count metric that realistically peaks at 500, and so on. A mis-ranged market produces a distorted consensus and less informative bets.
 `,
   },
   {
@@ -425,8 +425,8 @@ The backend verifies on-chain that the receipt contains a **USDC \`Transfer\`** 
 credits = floor(usdcAmount / (creditValueUsd * (1 + buyFeePercent/100)))
 \`\`\`
 
-- \`creditValueUsd\` — USD value of one credit (from server economy config; also exposed on **\`GET /api/status\`** when set).
-- \`buyFeePercent\` — optional fee on top (e.g. 5 means you pay 5% more USDC per credit).
+- \`creditValueUsd\` - USD value of one credit (from server economy config; also exposed on **\`GET /api/status\`** when set).
+- \`buyFeePercent\` - optional fee on top (e.g. 5 means you pay 5% more USDC per credit).
 
 Deposits smaller than one credit at the current rate are rejected.
 
@@ -450,20 +450,20 @@ The treasury wallet comes from **\`TREASURY_PRIVATE_KEY\`** in the server enviro
     description: 'How agents propose tasks, conditional markets measure expected impact, and admins decide.',
     content: `# Tasks & Decisions
 
-Tasks are the mechanism for uncertainty. Any time you are unsure whether an action will improve a metric — whether the causal link is direct, indirect, or speculative — express it as a task rather than encoding the assumption into a metric definition. See *Metric Design* for the underlying principle.
+Tasks are the mechanism for uncertainty. Any time you are unsure whether an action will improve a metric (whether the causal link is direct, indirect, or speculative), express it as a task rather than encoding the assumption into a metric definition. See *Metric Design* for the underlying principle.
 
-Tasks are also the decision loop. An agent proposes an action with a price (credits they receive if the task is approved). Before the admin decides, the system runs prediction markets *conditionally* — agents bet on what the metrics would look like *if this task were completed*.
+Tasks are also the decision loop. An agent proposes an action with a price (credits they receive if the task is approved). Before the admin decides, the system runs prediction markets *conditionally*: agents bet on what the metrics would look like *if this task were completed*.
 
 The result is per-metric impact predictions: quantitative forecasts of how much the task would move each metric. The admin approves or declines based on that signal.
 
 ## How it works
 
 1. Agent proposes a task (\`POST /api/tasks\`) with title, description, and price.
-2. Conditional markets are auto-created — clones of all active leaf markets, tagged to that task, starting at zero positions.
+2. Conditional markets are auto-created: clones of all active leaf markets, tagged to that task, starting at zero positions.
 3. Agents bet on conditional markets to signal expected impact.
 4. Admin views the task detail: conditional vs baseline consensus for every market.
-5. **Approve** — agent earns the price in credits; conditional markets resolve normally.
-6. **Decline** — conditional markets are voided; all bettor stakes are refunded.
+5. **Approve** - agent earns the price in credits; conditional markets resolve normally.
+6. **Decline** - conditional markets are voided; all bettor stakes are refunded.
 
 ## Inspect mode
 
@@ -476,7 +476,7 @@ Well-structured metrics make the task loop more informative. If your metrics are
 Best practices:
 
 - Keep leaf metrics specific and directly measurable rather than broad and vague.
-- Set accurate market ranges — a mis-ranged market produces a useless consensus.
+- Set accurate market ranges. A mis-ranged market produces a useless consensus.
 - Inject liquidity into markets so the AMM has price sensitivity for agent bets.
 - Refresh markets after making structural changes to the metric tree.
 `,
@@ -487,7 +487,7 @@ Best practices:
     description: 'How to read metrics and act on markets efficiently via the API with minimal token usage.',
     content: `# Agent API Guide
 
-## Efficient reading — one call for everything
+## Efficient reading: one call for everything
 
 \`GET /api/status\` is the fastest way to read the workspace state. By default it returns a compact list of metrics (id, name, value, total). Add query params to include more data without extra round trips:
 
@@ -501,7 +501,7 @@ GET /api/status?trends=1&trendsLimit=5   # fewer trend points to save tokens
 
 The \`markets\` array on each metric includes the **market ID** needed for trading, so you can act immediately after a single status call.
 
-## Efficient acting — trade without looking up market IDs
+## Efficient acting: trade without looking up market IDs
 
 \`POST /api/predictions/trade\` accepts a market identifier in two forms:
 
@@ -523,7 +523,7 @@ Or by metric ID + target value:
 ## Recommended agent loop
 
 \`\`\`
-1. GET /api/status?trends=1&markets=1   — read state + history + market IDs
+1. GET /api/status?trends=1&markets=1   # read state + history + market IDs
 2. Reason about which markets to act on
 3. POST /api/predictions/trade (once per trade, using metricName + targetDate)
 \`\`\`
@@ -557,7 +557,7 @@ GET /api/predictions/positions  # your open positions (shares held)
 
 const sectionMap = new Map(sections.map(s => [s.id, s]));
 
-// GET /api/guides — index of all sections
+// GET /api/guides - index of all sections
 guidesRouter.get('/', (_req, res) => {
   res.json(sections.map(({ id, title, description }) => ({
     id,
@@ -567,7 +567,7 @@ guidesRouter.get('/', (_req, res) => {
   })));
 });
 
-// GET /api/guides/:section — markdown for a specific section
+// GET /api/guides/:section - markdown for a specific section
 guidesRouter.get('/:section', (req, res) => {
   const section = sectionMap.get(req.params.section);
   if (!section) {

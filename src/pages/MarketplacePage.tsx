@@ -97,7 +97,7 @@ function PublicMarketCard({ market, joined, onJoined }: {
 }) {
   const consensusDisplay = market.consensus !== null
     ? `${market.consensus.toFixed(2)} (of ${market.rangeMin}–${market.rangeMax})`
-    : '—';
+    : '-';
 
   return (
     <div className="metric-card" style={{ padding: '1rem' }}>
@@ -160,7 +160,7 @@ function AccessibleMarketCard({
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Prediction</div>
           <div style={{ fontWeight: 600 }}>
-            {market.consensus !== null ? market.consensus.toFixed(2) : '—'}
+            {market.consensus !== null ? market.consensus.toFixed(2) : '-'}
           </div>
         </div>
       </div>

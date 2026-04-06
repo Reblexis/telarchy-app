@@ -24,7 +24,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function formatNumber(value: number | null | undefined): string {
-  if (value == null) return '—';
+  if (value == null) return '-';
   const rounded = Math.round(value);
   return Math.abs(value - rounded) < 0.005 ? String(rounded) : value.toFixed(2);
 }

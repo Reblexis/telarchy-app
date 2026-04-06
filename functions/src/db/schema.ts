@@ -61,14 +61,14 @@ export const authVerification = pgTable('verification', {
 export const appUsers = pgTable('app_users', {
   userId: text('user_id').primaryKey().references(() => authUser.id, { onDelete: 'cascade' }),
   platformAdmin: boolean('platform_admin').notNull().default(false),
-  /** 'creator' | 'agent' | null — onboarding intent captured at signup */
+  /** 'creator' | 'agent' | null - onboarding intent captured at signup */
   intent: text('intent'),
   /** Deprecated compatibility field from the old split identity model. */
   agentId: text('agent_id'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
-/** Workspace membership — replaces the embedded map in Firestore users doc */
+/** Workspace membership (replaces the embedded map in Firestore users doc) */
 export const userWorkspaces = pgTable('user_workspaces', {
   userId: text('user_id').notNull().references(() => authUser.id, { onDelete: 'cascade' }),
   workspaceId: text('workspace_id').notNull(),
@@ -203,7 +203,7 @@ export const markets = pgTable('markets', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
   rangeMin: doublePrecision('range_min').notNull(),
   rangeMax: doublePrecision('range_max').notNull(),
-  /** [lowerShares, higherShares] — LMSR state */
+  /** [lowerShares, higherShares] - LMSR state */
   shares: jsonb('shares').notNull().$type<[number, number]>(),
   liquidity: doublePrecision('liquidity').notNull(),
   /** LMSR pool (liquidity parameter b) */

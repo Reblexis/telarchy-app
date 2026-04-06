@@ -34,7 +34,7 @@ describe('validateAgentId', () => {
 describe('validateContent', () => {
   test('accepts normal strings', () => {
     expect(validateContent('hello world')).toBeUndefined();
-    expect(validateContent('')).toBeUndefined(); // empty is ok — required check is upstream
+    expect(validateContent('')).toBeUndefined(); // empty is ok; required check is upstream
     expect(validateContent('a'.repeat(10_000))).toBeUndefined();
   });
 

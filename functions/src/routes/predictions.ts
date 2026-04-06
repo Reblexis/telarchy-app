@@ -136,7 +136,7 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
 
     const shares = (market.shares as [number, number]) || [0, 0];
     const b = market.liquidity;
-    if (b <= 0) throw new AppError('Market has no liquidity — admin must inject liquidity before trading', 400);
+    if (b <= 0) throw new AppError('Market has no liquidity. Admin must inject liquidity before trading.', 400);
 
     const [agentRow] = await tx.select().from(agents).where(eq(agents.id, agentId)).for('update');
     if (!agentRow) throw new AppError('Agent not found', 404);

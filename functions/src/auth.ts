@@ -7,7 +7,7 @@ import { betterAuthTrustedOrigins } from './lib/origins';
 
 // Auto-generate BETTER_AUTH_SECRET if not set (self-hosted convenience).
 // Sessions signed with a generated secret are invalidated on every restart
-// until the secret is persisted — print a clear warning.
+// until the secret is persisted. Print a clear warning.
 if (!process.env.BETTER_AUTH_SECRET?.trim()) {
   const generated = randomBytes(32).toString('hex');
   process.env.BETTER_AUTH_SECRET = generated;

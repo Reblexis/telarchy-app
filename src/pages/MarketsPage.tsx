@@ -182,7 +182,7 @@ export function MarketsPage() {
                             rangeMax={m.rangeMax}
                             previewProb={hoverDir[m.id] ? previewTrade(m.probability, m.liquidity, hoverDir[m.id]!, 50).newProb : undefined}
                           />
-                          <span style={{ fontFamily: 'monospace', fontWeight: 600, minWidth: '42px' }}>{m.consensus ?? '—'}</span>
+                          <span style={{ fontFamily: 'monospace', fontWeight: 600, minWidth: '42px' }}>{m.consensus ?? '-'}</span>
                           {inspectTask && (() => {
                             const main = mainMarketsMap.get(`${m.metricId}:${m.targetDate}`);
                             if (!main || m.consensus === null || main.consensus === null) return null;

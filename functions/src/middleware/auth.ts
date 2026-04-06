@@ -110,7 +110,7 @@ async function resolveAgentWorkspace(
   return membership;
 }
 
-/** Like authMiddleware but never rejects — unauthenticated requests pass through with req.auth unset. */
+/** Like authMiddleware but never rejects. Unauthenticated requests pass through with req.auth unset. */
 export async function optionalAuthMiddleware(req: Request, _res: Response, next: NextFunction) {
   const apiKey = req.headers['x-api-key'] as string | undefined;
   const masterKey = process.env.API_KEY;

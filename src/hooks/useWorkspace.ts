@@ -50,7 +50,7 @@ export function useWorkspace(authenticated: boolean = true): {
 
     fetchAll()
       .catch(async (e: Error) => {
-        // Stored workspace ID may be stale — clear it and retry once
+        // Stored workspace ID may be stale; clear it and retry once
         if (isBadWorkspaceError(e.message)) {
           setActiveWorkspace(null);
           return fetchAll();

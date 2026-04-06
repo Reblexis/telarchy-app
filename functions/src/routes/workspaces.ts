@@ -52,7 +52,7 @@ workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
 workspacesRouter.get('/', requireIdentity, wrap(async (req, res) => {
   const { uid, agentId, role } = req.auth!;
 
-  // Master API key or platform admin via session — return all workspaces.
+  // Master API key or platform admin via session: return all workspaces.
   if (!uid && !agentId) {
     const all = await db.select().from(workspaces);
     res.json(all); return;

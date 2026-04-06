@@ -10,7 +10,7 @@ export function OAuthButtons({ onError }: Props) {
 
   const signIn = async (provider: 'google' | 'github') => {
     setLoading(provider);
-    // OAuth is a full-page redirect — the callbackURL is where the browser lands after auth.
+    // OAuth is a full-page redirect. The callbackURL is where the browser lands after auth.
     // LandingPage (at "/") auto-redirects logged-in users via postLoginPath.
     const { error } = await authClient.signIn.social({
       provider,
@@ -20,7 +20,7 @@ export function OAuthButtons({ onError }: Props) {
       onError(error.message || `Failed to sign in with ${provider}`);
       setLoading(null);
     }
-    // No code after this — the browser will have redirected to the OAuth provider.
+    // No code after this. The browser will have redirected to the OAuth provider.
   };
 
   const btnStyle = (disabled: boolean): React.CSSProperties => ({

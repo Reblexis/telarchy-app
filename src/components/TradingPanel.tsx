@@ -9,7 +9,7 @@ const inputStyle = { padding: '0.4rem', borderRadius: '0.375rem', border: '1px s
 const labelStyle = { display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.15rem' } as const;
 
 function formatCompactNumber(value: number | null | undefined): string {
-  if (value == null || Number.isNaN(value)) return '—';
+  if (value == null || Number.isNaN(value)) return '-';
   const abs = Math.abs(value);
   if (abs >= 100) return value.toFixed(2);
   if (abs >= 1) return value.toFixed(4).replace(/\.?0+$/, '');

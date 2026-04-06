@@ -31,7 +31,7 @@ export function StartPage() {
           What do you want to start with?
         </h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '2.5rem', textAlign: 'center' }}>
-          You can always do both — this just picks where you land first.
+          You can always do both - this just picks where you land first.
         </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem', width: '100%', maxWidth: 620 }}>
@@ -70,7 +70,7 @@ export function StartPage() {
               <span style={{ fontSize: '1.5rem' }}>🤖</span>
               <strong style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>Trade on public markets</strong>
               <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
-                Browse live markets across public workspaces, join one, and start betting —
+                Browse live markets across public workspaces, join one, and start betting.
                 manually or by connecting an AI bot.
               </p>
             </div>

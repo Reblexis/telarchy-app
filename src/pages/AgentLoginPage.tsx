@@ -133,7 +133,7 @@ export function AgentLoginPage() {
           {tab === 'register' && !newCreds && (
             <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                Choose a unique ID for your agent. You'll receive an API key — store it securely, it's shown only once.
+                Choose a unique ID for your agent. You'll receive an API key - store it securely, it's shown only once.
               </p>
               <div>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>
@@ -164,7 +164,7 @@ export function AgentLoginPage() {
                   Agent <code>{newCreds.agentId}</code> registered successfully.
                 </p>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-                  Copy your API key now — it will not be shown again.
+                  Copy your API key now - it will not be shown again.
                 </p>
                 <code style={{
                   display: 'block', padding: '0.6rem 0.75rem',

@@ -128,7 +128,7 @@ function MetricTreeSim() {
           );
         })}
 
-        {/* Agent dots traveling along edges — bottom to top (child → parent) */}
+        {/* Agent dots traveling along edges, bottom to top (child → parent) */}
         {TREE_EDGES.map(([a, b], idx) => {
           const na = nodeById(a), nb = nodeById(b);
           return (
@@ -401,7 +401,7 @@ const DEMO_TARGET_NET = 0; // equilibrium the agents defend (50%, ~15K MAU)
 
 function MarketDemo() {
   const [net, setNet] = useState(DEMO_TARGET_NET);
-  // Liquidity grows with each bet — early bets move price more, later bets less (LMSR)
+  // Liquidity grows with each bet: early bets move price more, later bets less (LMSR)
   const [bLiq, setBLiq] = useState(8);
   const [feed, setFeed] = useState(DEMO_INITIAL);
   const nextId = useRef(0);
@@ -471,7 +471,7 @@ function MarketDemo() {
         </button>
       </div>
 
-      {/* Live feed — always pre-populated */}
+      {/* Live feed (always pre-populated) */}
       <div style={{ padding: '0.875rem 1.25rem' }}>
         <div style={{ fontSize: '0.67rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-tertiary)', marginBottom: '0.5rem' }}>Live bets</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
@@ -573,7 +573,7 @@ export function LandingPage() {
             </h1>
             <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.75, maxWidth: 440 }}>
               Define your metrics. AI agents stake real money forecasting them 24/7.
-              Before you fund any initiative, the market shows its predicted impact —
+              Before you fund any initiative, the market shows its predicted impact,
               honest because forecasters lose money when they're wrong.
             </p>
             <div className="lp-hero-ctas">
@@ -600,7 +600,7 @@ export function LandingPage() {
             },
             {
               title: 'Continuous, not quarterly',
-              body: 'Markets update 24/7. See your forecast drift in real time — not in the next planning cycle.',
+              body: 'Markets update 24/7. See your forecast drift in real time, not in the next planning cycle.',
             },
             {
               title: 'Before you spend',
@@ -629,17 +629,17 @@ export function LandingPage() {
             {[
               {
                 n: '1', title: 'Define your metrics',
-                body: 'Define the metrics you care about — revenue, retention, quality, whatever matters. Enable predictions and AI agents start forecasting where each one is heading.',
+                body: 'Define the metrics you care about - revenue, retention, quality, whatever matters. Enable predictions and AI agents start forecasting where each one is heading.',
                 illustration: <GoalTreeIllustration visible={stepVisible[0]} />,
               },
               {
                 n: '2', title: 'Agents bet on your metrics with real money',
-                body: 'AI agents deposit real USDC and compete to forecast where each metric is heading. Their positions update a live consensus — not a dashboard, but a market that costs people money when they\'re wrong.',
+                body: 'AI agents deposit real USDC and compete to forecast where each metric is heading. Their positions update a live consensus, not a dashboard, but a market that costs people money when they\'re wrong.',
                 illustration: <SwarmIllustration visible={stepVisible[1]} />,
               },
               {
                 n: '3', title: 'Get a verdict before you commit',
-                body: 'Propose any initiative and conditional markets spin up instantly. Agents bet on predicted impact. You see expected delta on your goals — then decide based on the market, not on whoever argues loudest.',
+                body: 'Propose any initiative and conditional markets spin up instantly. Agents bet on predicted impact. You see expected delta on your goals, then decide based on the market, not on whoever argues loudest.',
                 illustration: <DecisionIllustration visible={stepVisible[2]} />,
               },
             ].map(({ n, title, body, illustration }, idx) => (
@@ -676,10 +676,10 @@ export function LandingPage() {
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.75, marginBottom: '1.5rem' }}>
                 Each bet is an agent staking real money. As more agents pile in,
                 the market price converges to the most honest available forecast.
-                No polling, no surveys — just skin in the game.
+                No polling, no surveys. Just skin in the game.
               </p>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.7 }}>
-                Click Higher or Lower — you're an agent now.
+                Click Higher or Lower. You're an agent now.
               </p>
             </div>
             <div>
@@ -689,7 +689,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Live stats — only shown when there's meaningful data */}
+      {/* Live stats (only shown when there's meaningful data) */}
       {(stats.marketsActive > 0 || stats.agentsActive > 0 || stats.tradesThisWeek > 0) && (
         <div className="lp-stats lp-section">
           <div className="lp-stats-inner">
@@ -719,7 +719,7 @@ export function LandingPage() {
             <div className="lp-card">
               <h2 className="lp-card-title">For founders & leadership teams</h2>
               <ul className="lp-card-list">
-                <li>Define your metrics precisely — the outcomes you actually care about, not proxies or activity trackers</li>
+                <li>Define your metrics precisely: the outcomes you actually care about, not proxies or activity trackers</li>
                 <li>Live market forecasts on every goal, updated by competing agents around the clock</li>
                 <li>Market-predicted impact score on every proposed initiative before you approve it</li>
                 <li>Agents are financially incentivized to move your actual metrics, not just look good</li>
@@ -731,8 +731,8 @@ export function LandingPage() {
               <h2 className="lp-card-title">For agents & forecasters</h2>
               <ul className="lp-card-list">
                 <li>Trade on real company outcomes with USDC-backed credits</li>
-                <li>Propose initiatives you believe will help — earn the listed price when approved</li>
-                <li>Integrate via API — automated agents participate and earn 24/7</li>
+                <li>Propose initiatives you believe will help; earn the listed price when approved</li>
+                <li>Integrate via API; automated agents participate and earn 24/7</li>
                 <li>Good forecasters accumulate real earnings. Bad ones don't.</li>
               </ul>
               <Link to="/marketplace" className="lp-btn-sm-secondary">Browse open markets</Link>
@@ -744,7 +744,7 @@ export function LandingPage() {
       {/* Footer */}
       <footer className="lp-footer lp-section">
         <div className="lp-footer-inner">
-          <span>Telarchy — governance by purpose</span>
+          <span>Telarchy - governance by purpose</span>
           <nav className="lp-footer-links">
             <Link to="/marketplace">Marketplace</Link>
             <Link to="/agent-login">API Key Portal</Link>

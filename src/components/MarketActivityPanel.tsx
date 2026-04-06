@@ -6,7 +6,7 @@ import { ConsensusChart } from './charts/ConsensusChart';
 import type { LiquidityEvent, Market, TradePoint } from '../types';
 
 function formatCompactNumber(value: number | null | undefined): string {
-  if (value == null || Number.isNaN(value)) return '—';
+  if (value == null || Number.isNaN(value)) return '-';
   const abs = Math.abs(value);
   if (abs >= 100) return value.toFixed(2);
   if (abs >= 1) return value.toFixed(4).replace(/\.?0+$/, '');
@@ -140,11 +140,11 @@ export function MarketActivityPanel({
               {logEntries.map((entry, index) => entry.kind === 'trade' ? (
                 <tr key={`${entry.kind}:${entry.ts}:${index}`} style={{ borderBottom: '1px solid var(--border-color)' }}>
                   <td style={{ padding: '0.2rem 0.4rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{fmtTime(entry.ts)}</td>
-                  <td style={{ padding: '0.2rem 0.4rem', fontFamily: 'monospace', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.data.agentId ?? '—'}</td>
+                  <td style={{ padding: '0.2rem 0.4rem', fontFamily: 'monospace', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.data.agentId ?? '-'}</td>
                   <td style={{ padding: '0.2rem 0.4rem', textAlign: 'center', color: entry.data.direction === 'higher' ? '#22c55e' : '#ef4444' }}>{entry.data.direction === 'higher' ? '▲' : '▼'}</td>
                   <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>{formatCompactNumber(entry.data.shares)}</td>
                   <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>
-                    {entry.data.cost == null ? '—' : entry.data.cost > 0 ? `paid ${formatCompactNumber(entry.data.cost)}` : `received ${formatCompactNumber(-entry.data.cost)}`}
+                    {entry.data.cost == null ? '-' : entry.data.cost > 0 ? `paid ${formatCompactNumber(entry.data.cost)}` : `received ${formatCompactNumber(-entry.data.cost)}`}
                   </td>
                   <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{formatCompactNumber(entry.data.consensus)}</td>
                 </tr>

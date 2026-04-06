@@ -41,7 +41,7 @@ async function test(name: string, fn: () => Promise<void>): Promise<void> {
   }
 }
 
-/** Assertion builder — all helpers throw on failure. */
+/** Assertion builder: all helpers throw on failure. */
 function expect(actual: unknown) {
   const fail = (msg: string) => { throw new Error(msg); };
   return {
@@ -106,7 +106,7 @@ function agentCall(agentKey: string, wsId: string) {
 /** Assert 2xx, return parsed body as object. Throws with HTTP status on failure. */
 function ok(r: { status: number; body: unknown }, label = ''): Record<string, unknown> {
   if (r.status < 200 || r.status >= 300)
-    throw new Error(`${label ? label + ': ' : ''}HTTP ${r.status} — ${JSON.stringify(r.body)}`);
+    throw new Error(`${label ? label + ': ' : ''}HTTP ${r.status} - ${JSON.stringify(r.body)}`);
   return r.body as Record<string, unknown>;
 }
 
@@ -144,7 +144,7 @@ await suite('Health', async () => {
   });
 
   await test('GET /api/status returns workspace summary when authenticated', async () => {
-    // Returns { xp, rank, metrics, creditValueUsd } — not a generic { ok: true }
+    // Returns { xp, rank, metrics, creditValueUsd } (not a generic { ok: true })
     const r = await apiRaw('GET', '/status', undefined, { 'X-API-Key': ADMIN_KEY, 'X-Workspace-Id': PLACEHOLDER_WS });
     expect(r.status).toBe(200);
     expect(typeof (r.body as Record<string, unknown>).rank).toBeType('string');
@@ -201,7 +201,7 @@ await suite('Agents', async () => {
   ctx.agentId = `inttest${Date.now().toString(36)}`;
 
   await test('POST /api/agents/register creates an agent (no auth needed)', async () => {
-    // optionalAuthMiddleware — no X-Workspace-Id header required
+    // optionalAuthMiddleware: no X-Workspace-Id header required
     const r = ok(await apiRaw('POST', '/agents/register', {
       agentId: ctx.agentId,
       workspaceId: ctx.wsId,
@@ -376,7 +376,7 @@ await suite('Prediction Markets', async () => {
   });
 
   await test('GET /api/predictions/markets/:id returns market with required fields', async () => {
-    if (!ctx.marketId) { throw new Error('No active market for leaf metric — TP refresh may have failed'); }
+    if (!ctx.marketId) { throw new Error('No active market for leaf metric; TP refresh may have failed'); }
     const r = ok(await adminCall(ctx.wsId)('GET', `/predictions/markets/${ctx.marketId}`));
     // GET /markets/:id returns { id, metricId, liquidity, probability, rangeMin, rangeMax, ... }
     // A freshly created market has liquidity=0 (no initial pool) and probability=0 (no consensus yet).
@@ -421,7 +421,7 @@ await suite('Prediction Markets', async () => {
     // Use an existing TP-generated market's date
     const r = await adminCall(ctx.wsId)('POST', '/predictions/markets', {
       metricId: ctx.metricId,
-      targetDate: '2000', // past date — gets rejected for a different reason
+      targetDate: '2000', // past date (gets rejected for a different reason)
     });
     expect(r.status).toBe(400);
   });
@@ -521,7 +521,7 @@ await suite('Trading', async () => {
 
 await suite('Tasks', async () => {
   await test('POST /api/tasks creates a task (requires agent key)', async () => {
-    // proposedBy is set from req.auth.agentId — requires X-Agent-Key auth
+    // proposedBy is set from req.auth.agentId; requires X-Agent-Key auth
     const r = ok(await agentCall(ctx.agentKey, ctx.wsId)('POST', '/tasks', {
       title: 'Integration test task',
       description: 'Verify task flow works end-to-end',
@@ -550,7 +550,7 @@ await suite('Tasks', async () => {
     expect(r.status).toBe(400);
   });
 
-  await test('Task creation with master key is rejected (403 — no participant identity)', async () => {
+  await test('Task creation with master key is rejected (403, no participant identity)', async () => {
     const r = await adminCall(ctx.wsId)('POST', '/tasks', { title: 'Admin task', price: 1 });
     expect(r.status).toBe(403);
   });
@@ -664,7 +664,7 @@ await suite('Auth', async () => {
 
 // ─── Extended edge-case suites ────────────────────────────────────────────────
 
-await suite('Metrics — edge cases', async () => {
+await suite('Metrics - edge cases', async () => {
   let edgeMetricId = '';
   let compositeId = '';
 
@@ -690,7 +690,7 @@ await suite('Metrics — edge cases', async () => {
     await adminCall(ctx.wsId)('DELETE', `/metrics/${r.id as string}`);
   });
 
-  await test('Composite metric with marketRangeMax is rejected (400 — only leaf metrics)', async () => {
+  await test('Composite metric with marketRangeMax is rejected (400, only leaf metrics)', async () => {
     const leafR = ok(await adminCall(ctx.wsId)('POST', '/metrics', { name: `RangeLeaf_${Date.now()}`, value: 1 }));
     const leafName = (ok(await adminCall(ctx.wsId)('GET', `/metrics/${leafR.id as string}`))).name as string;
     const r = await adminCall(ctx.wsId)('POST', '/metrics', {
@@ -703,7 +703,7 @@ await suite('Metrics — edge cases', async () => {
   });
 
   await test('Setting marketRangeMax on an existing composite via PUT is rejected (400)', async () => {
-    // Use the composite created in the edge-cases suite (compositeId may be gone — create fresh)
+    // Use the composite created in the edge-cases suite (compositeId may be gone; create fresh)
     const leafR = ok(await adminCall(ctx.wsId)('POST', '/metrics', { name: `RLeaf2_${Date.now()}`, value: 5 }));
     const leafName = (ok(await adminCall(ctx.wsId)('GET', `/metrics/${leafR.id as string}`))).name as string;
     const compR = ok(await adminCall(ctx.wsId)('POST', '/metrics', {
@@ -744,7 +744,7 @@ await suite('Metrics — edge cases', async () => {
     if (!compositeId || !edgeMetricId) return;
     await adminCall(ctx.wsId)('PUT', `/metrics/${edgeMetricId}`, { value: 20 });
     const detail = ok(await adminCall(ctx.wsId)('GET', `/metrics/${compositeId}`));
-    // total is always computed live from formula — expects 20 * 3 = 60
+    // total is always computed live from formula; expects 20 * 3 = 60
     expect(detail.total as number).toBe(60);
   });
 
@@ -764,7 +764,7 @@ await suite('Metrics — edge cases', async () => {
       name: `DepComp_${Date.now()}`,
       formula: `{${(ok(await adminCall(ctx.wsId)('GET', `/metrics/${edgeMetricId}`))).name}}`,
     }));
-    // Delete the leaf — should either succeed (cascade) or return a client error, never 500
+    // Delete the leaf: should either succeed (cascade) or return a client error, never 500
     const r = await adminCall(ctx.wsId)('DELETE', `/metrics/${edgeMetricId}`);
     expect(r.status).toBeStatus(200, 204, 400, 409);
     await adminCall(ctx.wsId)('DELETE', `/metrics/${comp.id as string}`);
@@ -786,7 +786,7 @@ await suite('Metrics — edge cases', async () => {
   });
 });
 
-await suite('Markets — edge cases', async () => {
+await suite('Markets - edge cases', async () => {
   let edgeMarketId = '';
   let voidedMarketId = '';
   let edgeMetricId2 = '';
@@ -1000,11 +1000,11 @@ await suite('Task messages', async () => {
   });
 
   await test('Cleanup: message test task', async () => {
-    // Tasks have no delete endpoint — this is expected; they persist
+    // Tasks have no delete endpoint. This is expected; they persist.
   });
 });
 
-await suite('Agent — edge cases', async () => {
+await suite('Agent - edge cases', async () => {
   await test('Agent ID with special chars beyond underscore/dash is rejected', async () => {
     const r = await apiRaw('POST', '/agents/register', {
       agentId: 'bad agent!@#',
@@ -1045,7 +1045,7 @@ await suite('Agent — edge cases', async () => {
   });
 });
 
-await suite('Workspace settings — edge cases', async () => {
+await suite('Workspace settings - edge cases', async () => {
   await test('Updating workspace name to empty string is rejected (400)', async () => {
     const r = await adminCall(ctx.wsId)('PUT', `/workspaces/${ctx.wsId}/settings`, { name: '' });
     expect(r.status).toBe(400);
@@ -1067,7 +1067,7 @@ await suite('Workspace settings — edge cases', async () => {
   });
 });
 
-await suite('Auth — browser session', async () => {
+await suite('Auth - browser session', async () => {
   let sessionCookie = '';
 
   await test('Sign in with email/password returns session token and user', async () => {
@@ -1184,7 +1184,7 @@ await suite('Scenario: full market lifecycle with resolution payout', async () =
 
   await test('Step 5: probability shifts toward higher after A buys higher', async () => {
     const r = ok(await adminCall(ctx.wsId)('GET', `/predictions/markets/${scenMarketId}`));
-    // A bought higher, B bought lower — net effect depends on amounts, but market should have moved
+    // A bought higher, B bought lower; net effect depends on amounts, but market should have moved
     expect(parseFloat(String(r.probability))).toBeGreaterThan(0);
   });
 
@@ -1199,7 +1199,7 @@ await suite('Scenario: full market lifecycle with resolution payout', async () =
     expect(balanceBeforeB).toBeLessThan(50);
   });
 
-  await test('Step 7: resolve the market — metric value 75 in range 0–100 means higher wins', async () => {
+  await test('Step 7: resolve the market; metric value 75 in range 0-100 means higher wins', async () => {
     const r = ok(await adminCall(ctx.wsId)('POST', `/predictions/markets/${scenMarketId}/resolve`));
     expect(r.resolved).toBe(true);
     expect(r.totalPayout as number).toBeGreaterThan(0);
@@ -1267,7 +1267,7 @@ await suite('Scenario: deep formula cascade and market range inheritance', async
     expect(detail.total as number).toBe(20); // (5*2) + 10
   });
 
-  await test('Step 4: update A to 20 — C should read 50 (20*2+10)', async () => {
+  await test('Step 4: update A to 20; C should read 50 (20*2+10)', async () => {
     await adminCall(ctx.wsId)('PUT', `/metrics/${idA}`, { value: 20 });
     const detail = ok(await adminCall(ctx.wsId)('GET', `/metrics/${idC}`));
     expect(detail.total as number).toBe(50); // (20*2) + 10
@@ -1312,7 +1312,7 @@ await suite('Scenario: group permission enforcement on trading', async () => {
   let blockedAgentId = '';
   let blockedAgentKey = '';
 
-  await test('Setup: create two agents — one allowed, one blocked', async () => {
+  await test('Setup: create two agents, one allowed and one blocked', async () => {
     allowedAgentId = `perm_allowed_${Date.now().toString(36)}`;
     blockedAgentId = `perm_blocked_${Date.now().toString(36)}`;
     const rA = ok(await apiRaw('POST', '/agents/register', { agentId: allowedAgentId, workspaceId: ctx.wsId }));
@@ -1480,7 +1480,7 @@ await suite('Scenario: balance accounting integrity', async () => {
       p => p.marketId === acctMarketId && p.direction === 'higher'
     );
     if (!pos || (pos.shares as number) <= 0) return; // already sold all
-    // Use actual share count (may be fractional — API accepts non-integer sellShares)
+    // Use actual share count (may be fractional; API accepts non-integer sellShares)
     const r = ok(await agentCall(acctAgentKey, ctx.wsId)('POST', '/predictions/trade', {
       marketId: acctMarketId, direction: 'higher', sellShares: pos.shares as number,
     }));
@@ -1643,7 +1643,7 @@ await suite('Cleanup', async () => {
   await test('Delete test market if still exists', async () => {
     if (!ctx.marketId) return;
     const r = await adminCall(ctx.wsId)('DELETE', `/predictions/markets/${ctx.marketId}`);
-    // Market may already have been voided/resolved during tests — 404 is fine
+    // Market may already have been voided/resolved during tests; 404 is fine
     expect(r.status).toBeStatus(200, 204, 404);
   });
 
@@ -1661,7 +1661,7 @@ await suite('Cleanup', async () => {
   });
 
   // Note: DELETE /api/workspaces/:id does not exist as an endpoint.
-  // Test workspaces created here will persist — they are small and harmless.
+  // Test workspaces created here will persist. They are small and harmless.
   await test('Workspace delete endpoint is not implemented (expected 404)', async () => {
     if (!ctx.wsId) return;
     const r = await adminCall(ctx.wsId)('DELETE', `/workspaces/${ctx.wsId}`);

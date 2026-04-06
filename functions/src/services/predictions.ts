@@ -54,7 +54,7 @@ async function resolveMarketRow(
     }
 
     if (totalPayout > pool + 0.01) {
-      console.error(`Market ${market.id}: totalPayout ${totalPayout} exceeds pool ${pool} — LMSR invariant violated`);
+      console.error(`Market ${market.id}: totalPayout ${totalPayout} exceeds pool ${pool} - LMSR invariant violated`);
     }
 
     // Cap leftover at 0 so a violated invariant can never subtract from LPs.
