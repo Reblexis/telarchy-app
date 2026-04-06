@@ -12,7 +12,7 @@ The name reflects this: futarchy foregrounds the *mechanism* (markets, the futur
 
 The metrics tracker evolves from a passive measurement system into an active governance and forecasting engine. Agents participate in prediction markets on metric values, staking real money on their forecasts. The market produces a consensus forecast for every metric. Metrics with time preference enabled automatically incorporate these forward-looking consensus values via a decay-weighted temporal aggregation, and conditional markets enable the core decision loop.
 
-The system is general-purpose: it works equally for an individual tracking personal health/career/life metrics and for an organization tracking business KPIs, OKRs, or any other quantified objectives. Metrics are flat by default — each can independently have time preference and markets. Users can optionally connect metrics with formulas to build a hierarchy, but there is no required root or imposed structure.
+The system is general-purpose: it works equally for an individual tracking personal health/career/life metrics and for an organization tracking business KPIs, OKRs, or any other quantified objectives. Metrics are standalone by default — each can independently have time preference and prediction markets. Users can later connect metrics with formulas if they want derived values, but there is no required structure.
 
 **Agent** means any market participant — human or AI. A consultant, employee, or automated system can all register, propose tasks, and bet. The economic logic applies equally to all.
 

@@ -13,45 +13,22 @@ const sections: GuideSection[] = [
   {
     id: 'overview',
     title: 'Overview',
-    description: 'Core concepts: metrics, formulas, and optional hierarchy.',
+    description: 'Core concepts: what metrics are and how to track them.',
     content: `# Overview
 
 ## What are metrics?
 
-Metrics are the core of Telarchy. They represent quantities you care about — goals, performance indicators, KPIs, or any measurable thing. Each metric stands on its own by default. You can optionally connect metrics with formulas to build a hierarchy, but there is no required root or imposed structure.
+Metrics are the core of Telarchy. They represent quantities you care about — goals, performance indicators, KPIs, or any measurable thing. Each metric is a named number you set directly: revenue, NPS, retention, hours slept, whatever you want to track.
 
-## Leaf vs. computed metrics
+## How it works
 
-- **Leaf metric** — has no formula (or formula is \`0\`). You set its value directly. These are the ground-truth data points agents bet on.
-- **Computed metric** — has a formula referencing other metrics. Its value is derived automatically; you never edit it directly.
+1. **Create a metric** — give it a name, a current value, and optionally a market range that matches its realistic bounds.
+2. **Enable time preference** — this creates prediction markets at sampled future dates. AI agents and other participants bet on where the metric is heading.
+3. **Read the consensus** — the market produces a stake-weighted forecast for each metric. This is the crowd's best estimate of the future value.
 
-## Flat by default, hierarchy when you need it
+That's it. Each metric stands on its own and produces its own forecast. No setup beyond defining what you want to track.
 
-You can start with standalone metrics and get value immediately — enable time preference on any leaf to get market predictions for it. If you later want to combine metrics, add a formula and the hierarchy emerges naturally:
-
-\`\`\`
-# Standalone leaf metrics (no hierarchy needed)
-Revenue    (leaf, value set manually)
-NPS        (leaf, value set manually)
-Retention  (leaf, value set manually)
-
-# Optional: combine them with a formula
-Overall    (formula: {Revenue} * 0.5 + {NPS} * 0.3 + {Retention} * 0.2)
-\`\`\`
-
-## Example hierarchy
-
-\`\`\`
-Overall  (formula: {Quality} + {Velocity})
-├── Quality   (formula: {Correctness} + {Reliability})
-│   ├── Correctness   (leaf, value set manually)
-│   └── Reliability   (leaf, value set manually)
-└── Velocity  (formula: {Throughput} + {Responsiveness})
-    ├── Throughput     (leaf)
-    └── Responsiveness (leaf)
-\`\`\`
-
-When you update \`Correctness\`, \`Quality\` and \`Overall\` both recompute automatically. If a metric has **time preference** enabled, it blends present and predicted future values using market consensus at sampled future dates — see the *Time Preference* guide for a full explanation.
+For combining metrics with formulas, see the *Formulas* guide. For how time preference and market creation work in detail, see the *Time Preference* guide.
 `,
   },
   {
@@ -191,7 +168,9 @@ The **order** field controls how metrics are sorted in the UI. Lower numbers app
     description: 'Formula syntax: metric references, operators, math functions, and validation.',
     content: `# Formulas
 
-Formulas are simple arithmetic expressions that can reference other metrics by name. Leave the formula blank (or enter \`0\`) to create a leaf metric.
+Most metrics are **leaf metrics** — you set their value directly and they stand on their own. But sometimes you want a metric that combines others: a weighted score, a ratio, or an aggregate. That's what formulas are for.
+
+A metric with a formula is a **computed metric**. Its value is derived automatically from the metrics it references — you never edit it directly. Leave the formula blank (or enter \`0\`) to keep a metric as a leaf.
 
 ## Metric references
 

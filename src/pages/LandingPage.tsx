@@ -629,7 +629,7 @@ export function LandingPage() {
             {[
               {
                 n: '1', title: 'Define your metrics',
-                body: 'Define the metrics you care about. Track them individually, or connect them with formulas to build a hierarchy. Revenue, retention, quality — whatever matters. The system optimizes exactly what you define.',
+                body: 'Define the metrics you care about — revenue, retention, quality, whatever matters. Enable predictions and AI agents start forecasting where each one is heading.',
                 illustration: <GoalTreeIllustration visible={stepVisible[0]} />,
               },
               {
