@@ -89,15 +89,16 @@ export function useMetrics(authenticated: boolean, inspectTaskId?: string | null
     })();
   }, [authenticated, loadData]);
 
-  const addMetric = async (name: string, description: string, value: number, formula: string, marketRangeMax?: number) => {
+  const addMetric = async (name: string, description: string, value: number, formula: string, marketRangeMax?: number): Promise<string[]> => {
     if (detectCircularDependency(null, formula, metrics)) {
       throw new Error('This formula would create a circular dependency');
     }
-    const { id } = await api.createMetric({ name, description, value, formula, marketRangeMax });
+    const { id, warnings = [] } = await api.createMetric({ name, description, value, formula, marketRangeMax });
     const updated = [...metrics.map(m => ({ ...m })), { id, name, description, value, total: value, formula, order: 999, depth: 0, marketRangeMax }];
     setMetrics(enrichMetrics(updated, consensusMapRef.current));
     setFormulaWarnings(buildWarnings(updated));
     loadData();
+    return warnings;
   };
 
   const editMetric = async (
@@ -118,7 +119,7 @@ export function useMetrics(authenticated: boolean, inspectTaskId?: string | null
     setMetrics(enrichMetrics(updated, consensusMapRef.current));
     setFormulaWarnings(buildWarnings(updated));
     return api.updateMetric(id, { name, description, value, formula, oldValue, updateNote, timePreference: timePreference === undefined ? undefined : timePreference, marketRangeMax })
-      .then(() => { delete logsCache.current[id]; cacheDelete('metrics'); loadData(); })
+      .then((resp: { warnings?: string[] }) => { delete logsCache.current[id]; cacheDelete('metrics'); loadData(); return resp.warnings || []; })
       .catch((err: Error) => { setMetrics(prev); throw err; });
   };
 

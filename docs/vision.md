@@ -133,7 +133,7 @@ p(higher) = 1 / (1 + exp(-(q_higher - q_lower) / b))
 Replaces `consensus()` formula calls with a per-node **time preference** property that automatically handles forward-looking evaluation and market creation.
 
 **Core model**:
-- `timePreference: { enabled: boolean, halfLife: number }` is an optional field on any metric.
+- `timePreference: { enabled: boolean, halfLife: number }` — **enabled by default** on new metrics (half-life 1 year). Without TP, a metric has no markets and cannot be tracked over time.
 - When enabled, the node's value is a decay-weighted blend of: the current value (at t=0) plus market consensus values at 10 sampled future time points.
 - **Formulas stay simple**: only `{MetricName}` references and math. No `consensus()` calls.
 - **Sampling**: 10 quantile-midpoint samples from an exponential distribution with the given `halfLife` (in years). Each sample covers equal probability mass; weights are uniform. The median sample falls at `t = halfLife`.
@@ -153,7 +153,7 @@ Non-leaf intermediate nodes in the subtree are evaluated deterministically from 
 Any metric — leaf or computed — can have time preference enabled. A leaf with TP creates markets for itself and blends its current value with market consensus at future dates. A computed metric with TP creates markets for all its leaf descendants.
 
 **Constraints**:
-- **One time-preferenced node per path**: on any path through the metric graph, at most one node may have time preference enabled.
+- **One time-preferenced node per path**: on any path through the metric graph, at most one node may have time preference enabled. Parent TP overrides children — enabling TP on a parent automatically removes TP from its descendants (with a warning). Enabling TP on a child when an ancestor already has TP is rejected.
 - **Descendants describe current state**: all metrics below a time-preferenced node must represent the present; the TP node handles the forward-looking aspect for its entire subtree.
 
 **Market lifecycle**:

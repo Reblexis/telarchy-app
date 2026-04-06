@@ -37,8 +37,13 @@ export function MetricsPage() {
     }
   };
 
+  const showWarnings = (warnings: string[]) => {
+    if (warnings.length > 0) alert(warnings.join('\n'));
+  };
+
   const handleAddMetric = async (name: string, description: string, value: number, formula: string, marketRangeMax?: number) => {
-    await addMetric(name, description, value, formula, marketRangeMax);
+    const warnings = await addMetric(name, description, value, formula, marketRangeMax);
+    showWarnings(warnings);
   };
 
   const handleSaveEdit = async (
@@ -47,7 +52,8 @@ export function MetricsPage() {
     timePreference: import('../types').TimePreference | null,
     marketRangeMax?: number,
   ) => {
-    await editMetric(id, name, description, value, formula, oldValue, updateNote, timePreference, marketRangeMax);
+    const warnings = await editMetric(id, name, description, value, formula, oldValue, updateNote, timePreference, marketRangeMax);
+    if (warnings) showWarnings(warnings);
   };
 
   const handleInlineValueChange = async (metric: import('../types').Metric, newValue: number) => {

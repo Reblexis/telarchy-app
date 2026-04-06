@@ -41,6 +41,10 @@ metricsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
 
   const tp = parseTimePreference(timePreference);
   if (tp instanceof Error) { res.status(400).json({ error: tp.message }); return; }
+  // Default TP to enabled (half-life 1 year) unless explicitly provided
+  const effectiveTP: TimePreference | null = tp !== undefined
+    ? (tp?.enabled ? tp : null)
+    : { enabled: true, halfLife: 1 };
 
   const isLeaf = !formula || formula.trim() === '0';
   if (marketRangeMax !== undefined && !isLeaf) {
@@ -54,18 +58,33 @@ metricsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
     id, workspaceId, name,
     value: isDefinition ? 0 : (value || 0),
     formula, description, order: 999,
-    timePreference: tp?.enabled ? tp : null,
+    timePreference: effectiveTP,
     marketRangeMax: marketRangeMax ?? 1000,
     createdAt: new Date(), updatedAt: new Date(),
   });
 
-  if (tp?.enabled) {
-    await svc.ensureMarketsForTimePreference(id, tp.halfLife, workspaceId);
+  const warnings: string[] = [];
+
+  // If ancestor already has TP, suppress this metric's TP (parent overrides)
+  if (effectiveTP?.enabled) {
+    const ancestorConflict = await findTPAncestorConflict(id, workspaceId);
+    if (ancestorConflict) {
+      await db.update(metrics).set({ timePreference: null, updatedAt: new Date() })
+        .where(and(eq(metrics.id, id), eq(metrics.workspaceId, workspaceId)));
+    } else {
+      // Parent overrides: remove TP from descendants
+      const removed = await removeTPFromDescendants(name, workspaceId);
+      if (removed.length > 0) {
+        warnings.push(`Time preference removed from ${removed.join(', ')} (now covered by ${name})`);
+      }
+      await svc.ensureMarketsForTimePreference(id, effectiveTP.halfLife, workspaceId);
+    }
   }
+
   const allMetrics = await svc.getAllMetrics(workspaceId);
   await svc.logSpecificMetrics(getAffectedMetrics([id], allMetrics), allMetrics, workspaceId);
 
-  res.status(201).json({ ok: true, id });
+  res.status(201).json({ ok: true, id, warnings });
 }));
 
 metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
@@ -116,9 +135,9 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
   const wasTPEnabled = oldTP?.enabled ?? false;
   const isTPEnabled = newTP !== undefined ? (newTP?.enabled ?? false) : wasTPEnabled;
   if (isTPEnabled && !wasTPEnabled) {
-    const conflict = await findTPConflict(id, effectiveName, workspaceId);
-    if (conflict) {
-      res.status(400).json({ error: `Time preference conflict: ${conflict} already has time preference on this path` });
+    const ancestorConflict = await findTPAncestorConflict(id, workspaceId);
+    if (ancestorConflict) {
+      res.status(400).json({ error: `Cannot enable time preference: ancestor "${ancestorConflict}" already has time preference on this path` });
       return;
     }
   }
@@ -156,7 +175,17 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
 
   const [updated] = await db.select().from(metrics)
     .where(and(eq(metrics.id, id), eq(metrics.workspaceId, workspaceId)));
-  res.json(updated);
+
+  // Parent overrides: remove TP from descendants when enabling TP
+  const warnings: string[] = [];
+  if (isTPEnabled && !wasTPEnabled) {
+    const removed = await removeTPFromDescendants(effectiveName, workspaceId);
+    if (removed.length > 0) {
+      warnings.push(`Time preference removed from ${removed.join(', ')} (now covered by ${effectiveName})`);
+    }
+  }
+
+  res.json({ ...updated, warnings });
 
   const effectiveHalfLife = newTP?.halfLife ?? oldTP?.halfLife ?? 1;
 
@@ -312,44 +341,36 @@ async function findTPAncestors(metricId: string, workspaceId: string): Promise<s
   return tpAncestors;
 }
 
-async function findTPConflict(metricId: string, metricName: string, workspaceId: string): Promise<string | null> {
+/** Find TP-enabled descendants and remove their TP (parent overrides). Returns removed metric names. */
+async function removeTPFromDescendants(metricName: string, workspaceId: string): Promise<string[]> {
   const rows = await getAllMetricRows(workspaceId);
-  const nameToId: Record<string, string> = {};
-  const referencedBy: Record<string, string[]> = {};
   const nameToFormula: Record<string, string> = {};
-
-  for (const row of rows) {
-    nameToId[row.name] = row.id;
-    referencedBy[row.id] = [];
-    nameToFormula[row.name] = row.formula || '0';
-  }
-  for (const row of rows) {
-    for (const refName of extractMetricReferences(row.formula || '0')) {
-      const refId = nameToId[refName];
-      if (refId) referencedBy[refId].push(row.id);
-    }
-  }
-
-  const visitedAncestors = new Set<string>();
-  const ancestorQueue = [...(referencedBy[metricId] || [])];
-  while (ancestorQueue.length > 0) {
-    const id = ancestorQueue.shift()!;
-    if (visitedAncestors.has(id)) continue;
-    visitedAncestors.add(id);
-    const row = rows.find(r => r.id === id);
-    const tp = row?.timePreference as TimePreference | null;
-    if (tp?.enabled) return row!.name;
-    ancestorQueue.push(...(referencedBy[id] || []));
-  }
+  for (const row of rows) nameToFormula[row.name] = row.formula || '0';
 
   const descNames = getTransitiveDependencyNames(metricName, nameToFormula);
+  const removed: string[] = [];
+
   for (const name of descNames) {
     const row = rows.find(r => r.name === name);
     const tp = row?.timePreference as TimePreference | null;
-    if (tp?.enabled) return name;
+    if (tp?.enabled) {
+      await db.update(metrics).set({ timePreference: null, updatedAt: new Date() })
+        .where(and(eq(metrics.id, row!.id), eq(metrics.workspaceId, workspaceId)));
+      await deactivateLeafMarketsForTPMetric(row!.id, tp.halfLife, workspaceId);
+      removed.push(name);
+    }
   }
 
-  return null;
+  return removed;
+}
+
+/** Check if any ancestor already has TP (returns ancestor name, or null). */
+async function findTPAncestorConflict(metricId: string, workspaceId: string): Promise<string | null> {
+  const ancestorIds = await findTPAncestors(metricId, workspaceId);
+  if (ancestorIds.length === 0) return null;
+  const rows = await getAllMetricRows(workspaceId);
+  const row = rows.find(r => r.id === ancestorIds[0]);
+  return row?.name ?? null;
 }
 
 async function deactivateLeafMarketsForTPMetric(tpMetricId: string, oldHalfLife: number, workspaceId: string): Promise<void> {
