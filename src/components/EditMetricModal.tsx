@@ -44,7 +44,7 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
-    const tp: TimePreference | null = tpEnabled && !isLeaf
+    const tp: TimePreference | null = tpEnabled
       ? { enabled: true, halfLife: Math.max(0.01, Number(tpHalfLife)) }
       : null;
     try {
@@ -94,19 +94,17 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
             <div className="tp-toggle">
               <span className="tp-label">
                 Time Preference
-                {isLeaf && <span className="tp-note">(requires a formula)</span>}
               </span>
-              <label className={`tp-switch${isLeaf ? ' tp-switch--disabled' : ''}`}>
+              <label className="tp-switch">
                 <input
                   type="checkbox"
-                  checked={tpEnabled && !isLeaf}
-                  disabled={isLeaf}
+                  checked={tpEnabled}
                   onChange={e => setTpEnabled(e.target.checked)}
                 />
                 <span className="tp-slider" />
               </label>
             </div>
-            {tpEnabled && !isLeaf && (
+            {tpEnabled && (
               <div className="tp-halflife">
                 <label htmlFor="editHalfLife">Half-life (years)</label>
                 <input
@@ -117,7 +115,7 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
                 />
               </div>
             )}
-            {tpEnabled && !isLeaf && (() => {
+            {tpEnabled && (() => {
               const hl = Math.max(0.01, Number(tpHalfLife) || 1);
               const lambda = Math.LN2 / hl;
               const offsets = Array.from({ length: 10 }, (_, i) => {
