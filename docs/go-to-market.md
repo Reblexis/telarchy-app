@@ -164,7 +164,7 @@ All tables include a `workspaceId` column; all queries filter by it. Mitigations
 
 ### Telarchy's Unique Positioning
 
-1. **Metric trees with formulas** — Markets compose into a Utility hierarchy, not standalone questions.
+1. **Metric composition with formulas** — Markets can compose into derived metrics via formulas, not just standalone questions.
 2. **Futarchy** — Conditional markets for organizational decisions. No competitor offers this.
 3. **Automation as a first-class interface** — API keys, hooks, event feeds, and the economy are designed for automated participation without reducing browser-account capabilities.
 4. **Time preference** — Decay-weighted forward-looking evaluation. Unique.
