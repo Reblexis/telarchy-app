@@ -441,14 +441,13 @@ const DEMO_INITIAL: Array<{ id: number; name: string; dir: string }> = [
 ];
 
 function MarketDemo() {
-  // Start with slight higher bias from pre-seeded bets
-  const [shares, setShares] = useState([15, 30]);
+  // Track net (hi - lo) so it never saturates: clamp between -60 and +60
+  const [net, setNet] = useState(15); // slight higher bias from pre-seeded bets
   const b = 15;
   const [feed, setFeed] = useState(DEMO_INITIAL);
   const nextId = useRef(0);
 
-  const [lo, hi] = shares;
-  const p = 1 / (1 + Math.exp(-(hi - lo) / b));
+  const p = 1 / (1 + Math.exp(-net / b));
   const prediction = Math.round(400 + p * 500);
 
   // Background agents betting continuously
@@ -457,13 +456,13 @@ function MarketDemo() {
       const dir = Math.random() > 0.38 ? 'HIGHER' : 'LOWER';
       const name = DEMO_AGENTS[Math.floor(Math.random() * DEMO_AGENTS.length)];
       setFeed(prev => [{ id: nextId.current++, name, dir }, ...prev].slice(0, 5));
-      setShares(([l, h]) => dir === 'HIGHER' ? [l, Math.min(h + 4, 150)] : [Math.min(l + 4, 150), h]);
+      setNet(n => Math.max(-60, Math.min(60, n + (dir === 'HIGHER' ? 4 : -4))));
     }, 1600);
     return () => clearInterval(id);
   }, []);
 
   const bet = (dir: 'higher' | 'lower') => {
-    setShares(([l, h]) => dir === 'higher' ? [l, Math.min(h + 15, 150)] : [Math.min(l + 15, 150), h]);
+    setNet(n => Math.max(-60, Math.min(60, n + (dir === 'higher' ? 15 : -15))));
     setFeed(prev => [{ id: nextId.current++, name: 'You', dir: dir.toUpperCase() }, ...prev].slice(0, 5));
   };
 
@@ -711,10 +710,9 @@ export function LandingPage() {
                 the market price converges to the most honest available forecast.
                 No polling, no surveys — just skin in the game.
               </p>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.7, marginBottom: '2rem' }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.7 }}>
                 Click Higher or Lower — you're an agent now.
               </p>
-              <Link to="/signup" className="lp-btn-primary">Start forecasting your goals</Link>
             </div>
             <div>
               <MarketDemo />
