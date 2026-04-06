@@ -185,11 +185,28 @@ export async function ensureMarketsForTimePreference(
 
   const timePoints = sampleTimePoints(halfLife);
 
-  const openMarkets = await db.select({ metricId: markets.metricId, targetDate: markets.targetDate })
+  const openMarkets = await db.select({ id: markets.id, metricId: markets.metricId, targetDate: markets.targetDate, active: markets.active })
     .from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
 
   const existingMarkets = new Set(openMarkets.map(m => `${m.metricId}:${m.targetDate}`));
+
+  // Reactivate any inactive markets that should be active
+  const inactiveToReactivate = openMarkets.filter(m => m.active === false);
+  const desiredKeys = new Set<string>();
+  for (const leafName of leafNames) {
+    const leafId = nameToId.get(leafName);
+    if (!leafId) continue;
+    for (const { date } of timePoints) {
+      desiredKeys.add(`${leafId}:${date}`);
+    }
+  }
+  for (const m of inactiveToReactivate) {
+    if (desiredKeys.has(`${m.metricId}:${m.targetDate}`)) {
+      await db.update(markets).set({ active: true })
+        .where(and(eq(markets.id, m.id), eq(markets.workspaceId, workspaceId)));
+    }
+  }
 
   const pending: PendingMarket[] = [];
 

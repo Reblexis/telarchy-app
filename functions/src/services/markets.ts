@@ -253,7 +253,10 @@ export async function refreshRelativeDateMarkets(workspaceId = 'default'): Promi
 
   const desiredRefs = new Map<string, { metricId: string; metricName: string; targetDate: string }>();
   for (const tp of tpMetrics) {
-    const leafNames = getLeafDescendantNames(tp.name, nameToFormula);
+    let leafNames = getLeafDescendantNames(tp.name, nameToFormula);
+    // If the TP metric is itself a leaf, it needs markets for itself
+    const tpIsLeaf = !nameToFormula[tp.name] || nameToFormula[tp.name].trim() === '0';
+    if (tpIsLeaf) leafNames = [tp.name];
     const timePoints = sampleTimePoints(tp.halfLife);
     for (const leafName of leafNames) {
       const leafId = nameToId.get(leafName);
