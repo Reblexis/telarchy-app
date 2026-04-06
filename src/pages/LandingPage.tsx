@@ -550,7 +550,7 @@ export function LandingPage() {
 
   // Step visibility for how-it-works illustrations
   const stepRefs = [useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null), useRef<HTMLDivElement>(null)];
-  const [stepVisible, setStepVisible] = useState([false, false, false]);
+  const [stepVisible, setStepVisible] = useState([true, true, true]);
 
   useEffect(() => {
     const obs = new IntersectionObserver(entries => {
@@ -561,7 +561,7 @@ export function LandingPage() {
           obs.unobserve(entry.target);
         }
       });
-    }, { threshold: 0.3 });
+    }, { threshold: 0.05 });
     stepRefs.forEach(r => { if (r.current) obs.observe(r.current); });
     return () => obs.disconnect();
   // eslint-disable-next-line react-hooks/exhaustive-deps
