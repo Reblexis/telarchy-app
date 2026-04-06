@@ -400,36 +400,37 @@ const DEMO_INITIAL: Array<{ id: number; name: string; dir: string }> = [
 const DEMO_TARGET_NET = 0; // equilibrium the agents defend (50%, ~15K MAU)
 
 function MarketDemo() {
-  // Track net (hi - lo) so it never saturates: clamp between -60 and +60
   const [net, setNet] = useState(DEMO_TARGET_NET);
-  const b = 15;
+  // Liquidity grows with each bet — early bets move price more, later bets less (LMSR)
+  const [bLiq, setBLiq] = useState(8);
   const [feed, setFeed] = useState(DEMO_INITIAL);
   const nextId = useRef(0);
   const netRef = useRef(net);
+  const bLiqRef = useRef(bLiq);
 
-  // Keep ref in sync so the interval closure always sees current net
   useEffect(() => { netRef.current = net; }, [net]);
+  useEffect(() => { bLiqRef.current = bLiq; }, [bLiq]);
 
-  const p = 1 / (1 + Math.exp(-net / b));
+  const p = 1 / (1 + Math.exp(-net / bLiq));
   const prediction = Math.round(8000 + p * 14000); // MAU range 8K–22K
 
   // Background agents mean-revert toward DEMO_TARGET_NET
-  // The further net is from target, the more strongly they push back
   useEffect(() => {
     const id = setInterval(() => {
       const deviation = netRef.current - DEMO_TARGET_NET;
-      // pHigher increases when below target, decreases when above
       const pHigher = Math.min(0.95, Math.max(0.05, 0.5 - deviation / 50));
       const dir = Math.random() < pHigher ? 'HIGHER' : 'LOWER';
       const name = DEMO_AGENTS[Math.floor(Math.random() * DEMO_AGENTS.length)];
       setFeed(prev => [{ id: nextId.current++, name, dir }, ...prev].slice(0, 5));
       setNet(n => Math.max(-60, Math.min(60, n + (dir === 'HIGHER' ? 5 : -5))));
+      setBLiq(b => Math.min(b + 0.6, 40)); // each agent bet adds a little liquidity
     }, 1600);
     return () => clearInterval(id);
   }, []);
 
   const bet = (dir: 'higher' | 'lower') => {
     setNet(n => Math.max(-60, Math.min(60, n + (dir === 'higher' ? 15 : -15))));
+    setBLiq(b => Math.min(b + 2, 40)); // user bets add more liquidity (larger stake)
     setFeed(prev => [{ id: nextId.current++, name: 'You', dir: dir.toUpperCase() }, ...prev].slice(0, 5));
   };
 
