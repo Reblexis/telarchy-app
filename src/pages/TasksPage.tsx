@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useInspectMode } from '../hooks/useInspectMode';
-import { useTaskUtilitySummary } from '../hooks/useTaskUtilitySummary';
 import { api } from '../lib/api';
 import { formatTargetDateDisplay } from '../lib/date-utils';
-import type { TaskProposal, TaskMessage, TaskMarketSummary, TaskDetailData, TaskUtilitySummary } from '../types';
+import type { TaskProposal, TaskMessage, TaskMarketSummary, TaskDetailData } from '../types';
 
 const STATUS_COLORS: Record<string, string> = {
   pending: '#f59e0b',
@@ -43,38 +42,6 @@ function DeltaBadge({ current, baseline }: { current: number | null | undefined;
       {delta > 0 ? '▲' : '▼'}{Math.abs(delta).toFixed(2)}
       <span style={{ color: 'var(--text-secondary)', marginLeft: '0.2rem' }}>({formatNumber(baseline)})</span>
     </span>
-  );
-}
-
-function UtilitySummaryCard({ summary, loading }: { summary?: TaskUtilitySummary; loading: boolean }) {
-  const expectedUtility = summary?.expectedCurrentUtility ?? null;
-  const baselineUtility = summary?.baselineUtility ?? null;
-
-  return (
-    <div style={{
-      border: '1px solid var(--border-color)',
-      borderRadius: '0.5rem',
-      padding: '0.75rem',
-      background: 'var(--bg-secondary, #f8f9fa)',
-    }}>
-      <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.35rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-        Expected Impact
-      </div>
-      {loading ? (
-        <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-          Loading...
-        </div>
-      ) : expectedUtility === null ? (
-        <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-          Unavailable until impact predictions exist for this task.
-        </div>
-      ) : (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <span style={{ fontFamily: 'monospace', fontSize: '1rem', fontWeight: 600 }}>{formatNumber(expectedUtility)}</span>
-          <DeltaBadge current={expectedUtility} baseline={baselineUtility} />
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -198,8 +165,6 @@ interface TaskDetailProps {
 function TaskDetailPanel({ task, onAction, onError }: TaskDetailProps) {
   const { inspectTask, setInspectTask } = useInspectMode();
   const [acting, setActing] = useState(false);
-  const { summary: utilitySummary, loading: utilitySummaryLoading } = useTaskUtilitySummary(true, task.id);
-
   const isInspecting = inspectTask?.id === task.id;
 
   const handle = async (action: () => Promise<unknown>) => {
@@ -249,8 +214,6 @@ function TaskDetailPanel({ task, onAction, onError }: TaskDetailProps) {
       )}
 
       {/* Conditional markets */}
-      <UtilitySummaryCard summary={utilitySummary} loading={utilitySummaryLoading} />
-
       <div>
         <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
           Impact Predictions

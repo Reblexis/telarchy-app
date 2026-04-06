@@ -1,5 +1,5 @@
 import { calculateMetricDepths, recalculateMetrics, evaluateFormulaAtTime } from './metrics-engine';
-import type { Market, Metric, TaskUtilitySummary } from '../types';
+import type { Market, Metric } from '../types';
 
 export function enrichMetrics(metrics: Metric[], consensusMap: Record<string, number> = {}): Metric[] {
   recalculateMetrics(metrics, consensusMap);
@@ -87,13 +87,3 @@ export function buildInspectMetrics(metricsData: Metric[], marketsData: Market[]
   return enriched;
 }
 
-export function getInspectUtilitySummary(metricsData: Metric[], marketsData: Market[]): TaskUtilitySummary {
-  const baselineUtility = metricsData.find(metric => metric.name === 'Utility')?.total ?? null;
-  // Only compute expected utility when at least one conditional market has trades.
-  if (!marketsData.some(m => m.tradeCount > 0)) {
-    return { expectedCurrentUtility: null, baselineUtility };
-  }
-  const inspectMetrics = buildInspectMetrics(metricsData, marketsData);
-  const expectedCurrentUtility = inspectMetrics.find(metric => metric.name === 'Utility')?.total ?? null;
-  return { expectedCurrentUtility, baselineUtility };
-}

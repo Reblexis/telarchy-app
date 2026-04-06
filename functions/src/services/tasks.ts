@@ -3,8 +3,6 @@ import { agents, markets, metrics as metricsTable, positions, tasks, trades, sys
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { consensus, initialPool } from '../lib/amm';
-import { recalculateMetrics } from '../lib/metrics-engine';
-import { getAllMetrics, buildConsensusMap } from './metrics';
 import { voidMarket } from './markets';
 import { toUnits } from '../lib/validation';
 import { AppError } from '../lib/errors';
@@ -42,29 +40,6 @@ async function getBaselineConsensusMap(marketRows: MarketRow[], workspaceId: str
     if (c !== undefined) map.set(key, c);
   }
   return map;
-}
-
-export async function getTaskUtilitySummary(
-  taskMarkets: Array<{ metricName: string; targetDate: string; consensus: number | null; tradeCount: number }>,
-  workspaceId = 'default',
-) {
-  const [baselineMetrics, { map: baselineConsensus }] = await Promise.all([
-    getAllMetrics(workspaceId),
-    buildConsensusMap(workspaceId),
-  ]);
-  const baselineUtility = baselineMetrics.find(m => m.name === 'Utility')?.total ?? null;
-  if (taskMarkets.length === 0) return { expectedCurrentUtility: null, baselineUtility };
-
-  const conditionalConsensusMap: Record<string, number> = { ...baselineConsensus };
-  for (const market of taskMarkets) {
-    if (market.consensus === null || market.tradeCount === 0) continue;
-    conditionalConsensusMap[`${market.metricName}:${market.targetDate}`] = market.consensus;
-  }
-
-  const conditionalMetrics = baselineMetrics.map(m => ({ ...m, missingMarkets: undefined }));
-  recalculateMetrics(conditionalMetrics, conditionalConsensusMap);
-  const expectedCurrentUtility = conditionalMetrics.find(m => m.name === 'Utility')?.total ?? null;
-  return { expectedCurrentUtility, baselineUtility };
 }
 
 export async function createConditionalMarkets(taskId: string, workspaceId = 'default'): Promise<string[]> {

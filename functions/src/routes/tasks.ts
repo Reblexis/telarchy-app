@@ -6,7 +6,7 @@ import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/roles';
-import { voidTaskMarkets, approveTask, getTaskMarketSummariesForTask, getTaskUtilitySummary } from '../services/tasks';
+import { voidTaskMarkets, approveTask, getTaskMarketSummariesForTask } from '../services/tasks';
 import { validateContent } from '../lib/validation';
 
 export const tasksRouter = Router();
@@ -76,8 +76,7 @@ tasksRouter.get('/:taskId', requireRole('agent', 'admin'), wrap(async (req, res)
   if (!isAdmin && task.proposedBy !== agentId) { res.status(403).json({ error: 'Forbidden' }); return; }
 
   const taskMarkets = await getTaskMarketSummariesForTask(task.id, workspaceId);
-  const utilitySummary = await getTaskUtilitySummary(taskMarkets, workspaceId);
-  res.json({ ...task, markets: taskMarkets, utilitySummary });
+  res.json({ ...task, markets: taskMarkets });
 }));
 
 tasksRouter.post('/:taskId/approve', requireRole('admin'), wrap(async (req, res) => {

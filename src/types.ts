@@ -124,14 +124,8 @@ export interface TaskMarketSummary {
   tradeCount: number;
 }
 
-export interface TaskUtilitySummary {
-  expectedCurrentUtility: number | null;
-  baselineUtility: number | null;
-}
-
 export interface TaskDetailData extends TaskProposal {
   markets?: TaskMarketSummary[];
-  utilitySummary?: TaskUtilitySummary;
 }
 
 export interface Position {
