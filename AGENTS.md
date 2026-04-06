@@ -48,17 +48,42 @@ curl -s -b /tmp/cookies.txt http://localhost:8080/api/auth/me
 curl -s -b /tmp/cookies.txt http://localhost:8080/api/status
 ```
 
+## Production deployment
+
+The backend runs on **Google Cloud Run** (service: `api`, region: `us-central1`, project: `telarchy-e0043`). The frontend is served from the same origin (`telarchy.com`).
+
+**Database**: Cloud SQL PostgreSQL (instance: `telarchy-pg`). Migrations are managed by Drizzle Kit.
+
+**Running migrations against production**:
+```bash
+# Start the Cloud SQL Auth Proxy (pick an unused port)
+cloud-sql-proxy telarchy-e0043:us-central1:telarchy-pg --port=5435 &
+
+# Run migrations
+cd functions && DATABASE_URL="postgresql://telarchy:BhNaKo6sLsEdzyyMDko794lFc0rb9D28@127.0.0.1:5435/telarchy" npx drizzle-kit migrate
+
+# Kill the proxy when done
+kill %1
+```
+
+Schema changes that add/remove columns will break the running service if the deployed code expects them. Always run migrations immediately after pushing code that depends on new columns. If production returns 503, check `gcloud run services logs read api --region us-central1 --limit 20` first.
+
+**Checking production logs**:
+```bash
+gcloud run services logs read api --region us-central1 --limit 20
+```
+
 ## Debugging with the API
 
 When uncertain about a bug or data state, use the live API directly before making code changes. Do not guess; verify.
 
-**Base URL**: `https://api-ksc7usrtbq-uc.a.run.app/api`
+**Base URL**: `https://telarchy.com/api`
 **Auth header**: `X-API-Key: mtrk_a7f3x9kL2pQw8vNdR4jY6mBs`
 
 Example:
 ```bash
 curl -s -H "X-API-Key: mtrk_a7f3x9kL2pQw8vNdR4jY6mBs" \
-  "https://api-ksc7usrtbq-uc.a.run.app/api/predictions/markets?limit=5"
+  "https://telarchy.com/api/predictions/markets?limit=5"
 ```
 
 Known working endpoints for debugging:
