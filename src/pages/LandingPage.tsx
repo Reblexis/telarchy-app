@@ -393,11 +393,11 @@ const DEMO_AGENTS = ['Agent_042', 'Agent_107', 'Agent_231', 'Agent_089', 'Agent_
 // Pre-seed with 3 bets so the demo never shows "Waiting..."
 const DEMO_INITIAL: Array<{ id: number; name: string; dir: string }> = [
   { id: -3, name: 'Agent_231', dir: 'HIGHER' },
-  { id: -2, name: 'Agent_042', dir: 'HIGHER' },
-  { id: -1, name: 'Agent_107', dir: 'LOWER'  },
+  { id: -2, name: 'Agent_107', dir: 'LOWER'  },
+  { id: -1, name: 'Agent_042', dir: 'HIGHER' },
 ];
 
-const DEMO_TARGET_NET = 15; // equilibrium the agents defend (~65% higher)
+const DEMO_TARGET_NET = 0; // equilibrium the agents defend (50%, ~15K MAU)
 
 function MarketDemo() {
   // Track net (hi - lo) so it never saturates: clamp between -60 and +60
@@ -405,7 +405,7 @@ function MarketDemo() {
   const b = 15;
   const [feed, setFeed] = useState(DEMO_INITIAL);
   const nextId = useRef(0);
-  const netRef = useRef(DEMO_TARGET_NET);
+  const netRef = useRef(net);
 
   // Keep ref in sync so the interval closure always sees current net
   useEffect(() => { netRef.current = net; }, [net]);
@@ -419,11 +419,11 @@ function MarketDemo() {
     const id = setInterval(() => {
       const deviation = netRef.current - DEMO_TARGET_NET;
       // pHigher increases when below target, decreases when above
-      const pHigher = Math.min(0.95, Math.max(0.05, 0.5 - deviation / 90));
+      const pHigher = Math.min(0.95, Math.max(0.05, 0.5 - deviation / 50));
       const dir = Math.random() < pHigher ? 'HIGHER' : 'LOWER';
       const name = DEMO_AGENTS[Math.floor(Math.random() * DEMO_AGENTS.length)];
       setFeed(prev => [{ id: nextId.current++, name, dir }, ...prev].slice(0, 5));
-      setNet(n => Math.max(-60, Math.min(60, n + (dir === 'HIGHER' ? 4 : -4))));
+      setNet(n => Math.max(-60, Math.min(60, n + (dir === 'HIGHER' ? 5 : -5))));
     }, 1600);
     return () => clearInterval(id);
   }, []);
