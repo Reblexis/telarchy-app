@@ -51,14 +51,14 @@ const TREE_NODES = [
   { id: 'grw', label: 'Growth',   x: 248, y: 116, base: 81 },
   { id: 'q',   label: 'Quality',  x: 28,  y: 196, base: 72 },
   { id: 'vel', label: 'Velocity', x: 116, y: 196, base: 64 },
-  { id: 'rev', label: 'Revenue',  x: 200, y: 196, base: 85 },
+  { id: 'nps', label: 'NPS',      x: 200, y: 196, base: 71 },
   { id: 'ret', label: 'Retent.',  x: 292, y: 196, base: 77 },
 ];
 
 const TREE_EDGES: [string, string][] = [
   ['u', 'out'], ['u', 'grw'],
   ['out', 'q'], ['out', 'vel'],
-  ['grw', 'rev'], ['grw', 'ret'],
+  ['grw', 'nps'], ['grw', 'ret'],
 ];
 
 function nodeById(id: string) { return TREE_NODES.find(n => n.id === id)!; }
@@ -68,39 +68,23 @@ function MetricTreeSim() {
     () => Object.fromEntries(TREE_NODES.map(n => [n.id, n.base]))
   );
   const [flashing, setFlashing] = useState<string | null>(null);
-  const [probPct, setProbPct] = useState(62);
 
-  // Randomly nudge non-revenue leaf values every 1.8s
+  // Randomly nudge leaf values every 1.8s, propagate up the tree
   useEffect(() => {
-    const leaves = ['q', 'vel', 'ret'];
+    const leaves = ['q', 'vel', 'nps', 'ret'];
     const id = setInterval(() => {
       const leaf = leaves[Math.floor(Math.random() * leaves.length)];
       setFlashing(leaf);
       setValues(v => {
         const delta = Math.round((Math.random() - 0.5) * 6);
         const next = { ...v, [leaf]: Math.max(10, Math.min(99, v[leaf] + delta)) };
-        if (leaf === 'q' || leaf === 'vel') next['out'] = Math.round((next['q'] + next['vel']) / 2);
+        next['out'] = Math.round((next['q'] + next['vel']) / 2);
+        next['grw'] = Math.round((next['nps'] + next['ret']) / 2);
         next['u'] = Math.round((next['out'] + next['grw']) / 2);
         return next;
       });
       setTimeout(() => setFlashing(null), 500);
     }, 1800);
-    return () => clearInterval(id);
-  }, []);
-
-  // Oscillate probPct and keep Revenue node + Growth/Utility in sync
-  useEffect(() => {
-    let t = 0;
-    const id = setInterval(() => {
-      t += 0.06;
-      const next = 62 + Math.round(Math.sin(t) * 9 + Math.sin(t * 1.7) * 4);
-      setProbPct(next);
-      setValues(v => {
-        const revVal = Math.round(next * 0.99);
-        const grw = Math.round((revVal + v['ret']) / 2);
-        return { ...v, rev: revVal, grw, u: Math.round((v['out'] + grw) / 2) };
-      });
-    }, 120);
     return () => clearInterval(id);
   }, []);
 
@@ -181,54 +165,17 @@ function MetricTreeSim() {
               <text
                 x={node.x} y={node.y + 8}
                 textAnchor="middle"
-                fontSize={isRoot ? 11 : node.id === 'rev' ? 8 : 10}
+                fontSize={isRoot ? 11 : 10}
                 fontWeight="700"
                 fill={isRoot ? 'var(--button-text)' : (isFlashing ? 'var(--button-bg)' : 'var(--text-primary)')}
                 style={{ transition: 'fill 0.2s', fontFamily: 'inherit' }}
               >
-                {node.id === 'rev'
-                  ? `$${(0.8 + (probPct / 100) * 1.2).toFixed(1)}M`
-                  : values[node.id]}
+                {values[node.id]}
               </text>
             </g>
           );
         })}
       </svg>
-
-      {/* Live revenue market — predicted value */}
-      {(() => {
-        const rangeMin = 0.8, rangeMax = 2.0; // $M ARR
-        const consensus = +(rangeMin + (probPct / 100) * (rangeMax - rangeMin)).toFixed(1);
-        const barPct = ((consensus - rangeMin) / (rangeMax - rangeMin)) * 100;
-        return (
-          <div style={{
-            marginTop: '0.75rem',
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '0.5rem',
-            padding: '0.65rem 0.85rem',
-            fontSize: '0.75rem',
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem', color: 'var(--text-secondary)' }}>
-              <span>Revenue · predicted value</span>
-              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>${consensus}M</span>
-            </div>
-            <div style={{ position: 'relative', height: 6, background: 'var(--border-color)', borderRadius: 3, overflow: 'hidden' }}>
-              <div style={{
-                position: 'absolute', left: 0, top: 0, height: '100%',
-                width: `${barPct}%`,
-                background: 'var(--button-bg)',
-                borderRadius: 3,
-                transition: 'width 0.3s ease',
-              }} />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem', color: 'var(--text-tertiary)', fontSize: '0.7rem' }}>
-              <span>$0.8M</span>
-              <span>$2.0M</span>
-            </div>
-          </div>
-        );
-      })()}
 
       {/* Live badge */}
       <div style={{
@@ -253,7 +200,7 @@ function MetricTreeSim() {
 function GoalTreeIllustration({ visible }: { visible: boolean }) {
   const rows = [
     { name: 'Utility', value: '74.2', note: 'computed', indent: 0, root: true,  change: '+5.1', up: true  },
-    { name: 'ARR',     value: '$1.4M', note: '',        indent: 1, root: false, change: '+12%', up: true  },
+    { name: 'NPS',     value: '62',    note: '',        indent: 1, root: false, change: '+4',   up: true  },
     { name: 'Retention', value: '87%', note: '',        indent: 1, root: false, change: '−2%',  up: false },
     { name: 'Eng. Velocity', value: '81', note: '',     indent: 1, root: false, change: '+3%',  up: true  },
   ];
@@ -322,14 +269,14 @@ function SwarmIllustration({ visible }: { visible: boolean }) {
   const higherTotal = higherBets.reduce((s, b) => s + b.amount, 0);
   const total = lowerTotal + higherTotal || 1;
   const pct = Math.round((higherTotal / total) * 100);
-  const prediction = Math.round(400 + (pct / 100) * 500);
+  const prediction = Math.round(50 + (pct / 100) * 40); // score 50–90
 
   return (
     <div style={{ border: '1px solid var(--border-color)', borderRadius: '0.625rem', overflow: 'hidden', fontSize: '0.8rem' }}>
       {/* Header */}
       <div style={{ padding: '0.65rem 1rem', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>Revenue · Q4</span>
-        <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '1rem' }}>${prediction}K</span>
+        <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>Eng. Output · Q4</span>
+        <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '1rem' }}>{prediction}</span>
       </div>
 
       {/* Two-column competition */}
@@ -448,7 +395,7 @@ function MarketDemo() {
   const nextId = useRef(0);
 
   const p = 1 / (1 + Math.exp(-net / b));
-  const prediction = Math.round(400 + p * 500);
+  const prediction = Math.round(8000 + p * 14000); // MAU range 8K–22K
 
   // Background agents betting continuously
   useEffect(() => {
@@ -472,8 +419,8 @@ function MarketDemo() {
       <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-color)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
           <div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Revenue · Q4 2025</div>
-            <div style={{ fontSize: '2.25rem', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1 }}>${prediction}K</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Monthly Active Users · Q4</div>
+            <div style={{ fontSize: '2.25rem', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1 }}>{(prediction / 1000).toFixed(1)}K</div>
             <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: '0.2rem' }}>market prediction</div>
           </div>
           <div style={{ textAlign: 'right' }}>
@@ -487,7 +434,7 @@ function MarketDemo() {
           <div style={{ height: '100%', width: `${p * 100}%`, background: '#22c55e', borderRadius: 4, transition: 'width 0.4s cubic-bezier(0.4,0,0.2,1)' }} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.3rem', fontSize: '0.68rem', color: 'var(--text-tertiary)' }}>
-          <span>← lower  $400K</span><span>$900K  higher →</span>
+          <span>← lower  8K</span><span>22K  higher →</span>
         </div>
       </div>
 
