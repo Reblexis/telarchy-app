@@ -248,177 +248,181 @@ function MetricTreeSim() {
 }
 
 // ─── How-it-works step illustrations ──────────────────────────────────────
+// Step 1: product-like metrics workspace panel
 
 function GoalTreeIllustration({ visible }: { visible: boolean }) {
-  const nodes = [
-    { id: 'u',   label: 'Utility',  value: '74', x: 150, y: 32,  root: true  },
-    { id: 'out', label: 'Output',   value: '68', x: 72,  y: 108, root: false },
-    { id: 'grw', label: 'Growth',   value: '81', x: 228, y: 108, root: false },
-    { id: 'q',   label: 'Quality',  value: '72', x: 28,  y: 188, root: false },
-    { id: 'vel', label: 'Velocity', value: '64', x: 112, y: 188, root: false },
-    { id: 'rev', label: 'Revenue',  value: '85', x: 188, y: 188, root: false },
-    { id: 'ret', label: 'Retent.',  value: '77', x: 272, y: 188, root: false },
+  const rows = [
+    { name: 'Utility', value: '74.2', note: 'computed', indent: 0, root: true,  change: '+5.1', up: true  },
+    { name: 'ARR',     value: '$1.4M', note: '',        indent: 1, root: false, change: '+12%', up: true  },
+    { name: 'Retention', value: '87%', note: '',        indent: 1, root: false, change: '−2%',  up: false },
+    { name: 'Eng. Velocity', value: '81', note: '',     indent: 1, root: false, change: '+3%',  up: true  },
   ];
-  const edges: [string, string][] = [
-    ['u','out'],['u','grw'],['out','q'],['out','vel'],['grw','rev'],['grw','ret'],
-  ];
-  const byId = (id: string) => nodes.find(n => n.id === id)!;
-
   return (
-    <svg viewBox="0 0 300 212" width="100%" aria-hidden="true">
-      {edges.map(([a, b], i) => {
-        const na = byId(a), nb = byId(b);
-        const len = Math.hypot(nb.x - na.x, nb.y - na.y);
-        return (
-          <line key={`${a}-${b}`}
-            x1={na.x} y1={na.y} x2={nb.x} y2={nb.y}
-            stroke="var(--border-color)" strokeWidth="1.5"
-            strokeDasharray={len}
-            strokeDashoffset={visible ? 0 : len}
-            style={{ transition: `stroke-dashoffset 0.5s ease ${0.05 + i * 0.07}s` }}
-          />
-        );
-      })}
-      {nodes.map((node, i) => {
-        const r = node.root ? 26 : 21;
-        return (
-          <g key={node.id} style={{ opacity: visible ? 1 : 0, transition: `opacity 0.4s ease ${0.15 + i * 0.07}s` }}>
-            <circle cx={node.x} cy={node.y} r={r}
-              fill={node.root ? 'var(--button-bg)' : 'var(--bg-secondary)'}
-              stroke={node.root ? 'transparent' : 'var(--border-color)'}
-              strokeWidth="1.5"
-            />
-            <text x={node.x} y={node.y - 5} textAnchor="middle"
-              fontSize={node.root ? 9 : 8} fontWeight="600"
-              fill={node.root ? 'var(--button-text)' : 'var(--text-secondary)'}
-              style={{ fontFamily: 'inherit' }}
-            >{node.label}</text>
-            <text x={node.x} y={node.y + 9} textAnchor="middle"
-              fontSize={node.root ? 12 : 11} fontWeight="800"
-              fill={node.root ? 'var(--button-text)' : 'var(--text-primary)'}
-              style={{ fontFamily: 'inherit' }}
-            >{node.value}</text>
-          </g>
-        );
-      })}
-    </svg>
+    <div style={{ border: '1px solid var(--border-color)', borderRadius: '0.625rem', overflow: 'hidden', fontSize: '0.83rem' }}>
+      <div style={{
+        padding: '0.65rem 1rem', background: 'var(--bg-secondary)',
+        borderBottom: '1px solid var(--border-color)',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      }}>
+        <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>Acme Inc.</span>
+        <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#22c55e', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block', animation: 'pulse 2s ease infinite' }} />
+          LIVE
+        </span>
+      </div>
+      {rows.map((row, i) => (
+        <div key={row.name} style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: `0.6rem 1rem 0.6rem ${1 + row.indent * 1.1}rem`,
+          borderBottom: i < rows.length - 1 ? '1px solid var(--border-color)' : 'none',
+          background: row.root ? 'color-mix(in srgb, var(--button-bg) 5%, transparent)' : 'transparent',
+          opacity: visible ? 1 : 0,
+          transform: visible ? 'none' : 'translateY(6px)',
+          transition: `opacity 0.4s ease ${0.08 + i * 0.11}s, transform 0.4s ease ${0.08 + i * 0.11}s`,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {row.indent > 0 && <span style={{ color: 'var(--text-tertiary)', fontSize: '0.78rem' }}>└</span>}
+            <span style={{ fontWeight: row.root ? 700 : 500 }}>{row.name}</span>
+            {row.note && <span style={{ fontSize: '0.62rem', color: 'var(--text-tertiary)', background: 'var(--bg-tertiary)', padding: '0.1rem 0.35rem', borderRadius: '0.2rem' }}>{row.note}</span>}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '0.9rem' }}>{row.value}</span>
+            <span style={{ fontSize: '0.73rem', fontWeight: 600, color: row.up ? '#22c55e' : '#ef4444', minWidth: 34, textAlign: 'right' }}>{row.change}</span>
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 
-const SWARM_BETS = [
-  { name: 'Agent_042', dir: 'HIGHER' as const, amount: '$18' },
-  { name: 'Agent_107', dir: 'LOWER'  as const, amount: '$9'  },
-  { name: 'Agent_231', dir: 'HIGHER' as const, amount: '$25' },
-  { name: 'Agent_089', dir: 'HIGHER' as const, amount: '$12' },
-  { name: 'Agent_315', dir: 'LOWER'  as const, amount: '$7'  },
+// Step 2: Higher vs Lower competition board
+
+const MARKET_BETS: { name: string; side: 'lower' | 'higher'; amount: number }[] = [
+  { name: 'Agent_042', side: 'higher', amount: 25 },
+  { name: 'Agent_107', side: 'lower',  amount: 12 },
+  { name: 'Agent_231', side: 'higher', amount: 40 },
+  { name: 'Agent_089', side: 'higher', amount: 18 },
+  { name: 'Agent_315', side: 'lower',  amount: 9  },
+  { name: 'Agent_178', side: 'higher', amount: 31 },
 ];
 
 function SwarmIllustration({ visible }: { visible: boolean }) {
-  const [tick, setTick] = useState(0);
+  const [count, setCount] = useState(0);
 
   useEffect(() => {
-    if (!visible) return;
-    setTick(0);
-    const id = setInterval(() => setTick(t => (t + 1) % (SWARM_BETS.length + 2)), 850);
+    if (!visible) { setCount(0); return; }
+    const id = setInterval(() => setCount(c => c < MARKET_BETS.length ? c + 1 : 1), 800);
     return () => clearInterval(id);
   }, [visible]);
 
-  const shown = SWARM_BETS.slice(0, tick);
-  const higherCount = shown.filter(b => b.dir === 'HIGHER').length;
-  const pct = shown.length === 0 ? 55 : Math.round(50 + (higherCount / shown.length - 0.5) * 50);
-  const val = Math.round(400 + (pct / 100) * 500);
+  const shown = MARKET_BETS.slice(0, count);
+  const lowerBets  = shown.filter(b => b.side === 'lower');
+  const higherBets = shown.filter(b => b.side === 'higher');
+  const lowerTotal  = lowerBets.reduce((s, b) => s + b.amount, 0);
+  const higherTotal = higherBets.reduce((s, b) => s + b.amount, 0);
+  const total = lowerTotal + higherTotal || 1;
+  const pct = Math.round((higherTotal / total) * 100);
+  const prediction = Math.round(400 + (pct / 100) * 500);
 
   return (
-    <div style={{ fontSize: '0.82rem' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '0.85rem', minHeight: 148 }}>
-        {SWARM_BETS.map((bet, i) => (
-          <div key={i} style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
-            borderRadius: '0.375rem', padding: '0.45rem 0.75rem',
-            opacity: shown.length > i ? 1 : 0,
-            transform: shown.length > i ? 'translateX(0)' : 'translateX(-10px)',
-            transition: 'opacity 0.3s ease, transform 0.3s ease',
-          }}>
-            <span style={{ fontFamily: 'monospace', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{bet.name}</span>
-            <span style={{ fontWeight: 700, color: bet.dir === 'HIGHER' ? '#22c55e' : '#ef4444' }}>
-              {bet.dir === 'HIGHER' ? '↑' : '↓'} {bet.dir}
-            </span>
-            <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>{bet.amount}</span>
-          </div>
-        ))}
+    <div style={{ border: '1px solid var(--border-color)', borderRadius: '0.625rem', overflow: 'hidden', fontSize: '0.8rem' }}>
+      {/* Header */}
+      <div style={{ padding: '0.65rem 1rem', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>Revenue · Q4</span>
+        <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '1rem' }}>${prediction}K</span>
       </div>
-      <div style={{
-        background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
-        borderRadius: '0.375rem', padding: '0.65rem 0.85rem',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.45rem' }}>
-          <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Revenue · live prediction</span>
-          <span style={{ fontWeight: 800, fontSize: '0.95rem' }}>${val}K</span>
+
+      {/* Two-column competition */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+        {/* Lower */}
+        <div style={{ padding: '0.75rem 0.875rem', borderRight: '1px solid var(--border-color)', background: 'color-mix(in srgb, #ef4444 4%, transparent)' }}>
+          <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.5rem' }}>↓ Lower</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.28rem', minHeight: 88 }}>
+            {MARKET_BETS.filter(b => b.side === 'lower').map((bet, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', opacity: shown.includes(bet) ? 1 : 0, transition: 'opacity 0.3s ease' }}>
+                <span style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>{bet.name.replace('Agent_', '')}</span>
+                <span style={{ fontWeight: 700, color: '#ef4444', fontSize: '0.78rem' }}>${bet.amount}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#ef4444', borderTop: '1px solid var(--border-color)', paddingTop: '0.4rem', marginTop: '0.3rem' }}>${lowerTotal} staked</div>
         </div>
-        <div style={{ height: 7, background: 'var(--border-color)', borderRadius: 4, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${pct}%`, background: 'var(--button-bg)', borderRadius: 4, transition: 'width 0.5s ease' }} />
+
+        {/* Higher */}
+        <div style={{ padding: '0.75rem 0.875rem', background: 'color-mix(in srgb, #22c55e 4%, transparent)' }}>
+          <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.5rem', textAlign: 'right' }}>↑ Higher</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.28rem', alignItems: 'flex-end', minHeight: 88 }}>
+            {MARKET_BETS.filter(b => b.side === 'higher').map((bet, i) => (
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', width: '100%', opacity: shown.includes(bet) ? 1 : 0, transition: 'opacity 0.3s ease' }}>
+                <span style={{ fontWeight: 700, color: '#22c55e', fontSize: '0.78rem' }}>${bet.amount}</span>
+                <span style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>{bet.name.replace('Agent_', '')}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#22c55e', borderTop: '1px solid var(--border-color)', paddingTop: '0.4rem', marginTop: '0.3rem', textAlign: 'right' }}>${higherTotal} staked</div>
+        </div>
+      </div>
+
+      {/* Prediction bar */}
+      <div style={{ padding: '0.6rem 1rem', borderTop: '1px solid var(--border-color)' }}>
+        <div style={{ height: 7, background: 'color-mix(in srgb, #ef4444 30%, transparent)', borderRadius: 4, overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${pct}%`, background: '#22c55e', borderRadius: 4, transition: 'width 0.5s ease' }} />
         </div>
       </div>
     </div>
   );
 }
 
+// Step 3: Proposal verdict with impact breakdown
+
 function DecisionIllustration({ visible }: { visible: boolean }) {
-  const rows = [
-    { label: 'Revenue',   baseline: '$612K', predicted: '$775K', delta: '+27%' },
-    { label: 'Retention', baseline: '71%',   predicted: '74%',   delta: '+3%'  },
-    { label: 'Utility',   baseline: '68',    predicted: '79',    delta: '+16%' },
+  const impacts = [
+    { metric: 'Revenue',   now: '$612K', predicted: '$775K', delta: '+27%' },
+    { metric: 'Retention', now: '71%',   predicted: '74%',   delta: '+3%'  },
+    { metric: 'Utility',   now: '68',    predicted: '79',    delta: '+16%' },
   ];
 
   return (
     <div style={{
-      border: '1px solid var(--border-color)', borderRadius: '0.5rem', overflow: 'hidden',
-      fontSize: '0.82rem',
-      opacity: visible ? 1 : 0,
-      transform: visible ? 'translateY(0)' : 'translateY(12px)',
+      border: '1px solid var(--border-color)', borderRadius: '0.625rem', overflow: 'hidden', fontSize: '0.82rem',
+      opacity: visible ? 1 : 0, transform: visible ? 'translateY(0)' : 'translateY(12px)',
       transition: 'opacity 0.5s ease 0.1s, transform 0.5s ease 0.1s',
     }}>
-      <div style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', padding: '0.75rem 1rem' }}>
-        <div style={{ fontWeight: 700, marginBottom: '0.2rem' }}>Hire 2 sales reps</div>
-        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>Proposed · 1,200 credits</div>
+      {/* Proposal header */}
+      <div style={{ padding: '0.75rem 1rem', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+        <div style={{ fontWeight: 700, marginBottom: '0.15rem' }}>Hire 2 sales reps</div>
+        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Proposed · 1,200 credits</div>
       </div>
 
-      <div style={{ padding: '0.5rem 1rem 0.65rem' }}>
-        <div style={{
-          display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
-          fontSize: '0.68rem', color: 'var(--text-tertiary)', fontWeight: 600,
-          textTransform: 'uppercase', letterSpacing: '0.05em',
-          paddingBottom: '0.35rem',
-        }}>
-          <span>Metric</span><span style={{ textAlign: 'center' }}>Now</span><span style={{ textAlign: 'right' }}>If approved</span>
+      {/* Impact table */}
+      <div style={{ padding: '0.6rem 1rem 0.5rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: '0.5rem 0.75rem', fontSize: '0.67rem', color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', paddingBottom: '0.35rem' }}>
+          <span>Metric</span><span>Now</span><span>Predicted</span><span>Δ</span>
         </div>
-        {rows.map(({ label, baseline, predicted, delta }, i) => (
-          <div key={label} style={{
-            display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
-            padding: '0.4rem 0', borderTop: '1px solid var(--border-color)', alignItems: 'center',
-            opacity: visible ? 1 : 0,
-            transition: `opacity 0.4s ease ${0.35 + i * 0.15}s`,
+        {impacts.map(({ metric, now, predicted, delta }, i) => (
+          <div key={metric} style={{
+            display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: '0.5rem 0.75rem',
+            padding: '0.38rem 0', borderTop: '1px solid var(--border-color)', alignItems: 'center',
+            opacity: visible ? 1 : 0, transition: `opacity 0.4s ease ${0.3 + i * 0.14}s`,
           }}>
-            <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
-            <span style={{ textAlign: 'center', color: 'var(--text-tertiary)', fontFamily: 'monospace', fontSize: '0.8rem' }}>{baseline}</span>
-            <span style={{ textAlign: 'right' }}>
-              <span style={{ fontWeight: 700, color: '#22c55e', fontFamily: 'monospace', fontSize: '0.8rem' }}>{predicted}</span>
-              <span style={{ color: '#22c55e', fontSize: '0.7rem', marginLeft: 3 }}>{delta}</span>
-            </span>
+            <span style={{ color: 'var(--text-secondary)' }}>{metric}</span>
+            <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: 'var(--text-tertiary)' }}>{now}</span>
+            <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', fontWeight: 700 }}>{predicted}</span>
+            <span style={{ fontWeight: 700, fontSize: '0.75rem', color: '#22c55e' }}>{delta}</span>
           </div>
         ))}
       </div>
 
+      {/* Decision buttons */}
       <div style={{
         display: 'flex', gap: '0.5rem', padding: '0.65rem 1rem',
         borderTop: '1px solid var(--border-color)',
-        opacity: visible ? 1 : 0, transition: 'opacity 0.4s ease 0.95s',
+        opacity: visible ? 1 : 0, transition: 'opacity 0.4s ease 0.9s',
       }}>
-        <button style={{ flex: 1, padding: '0.5rem', background: 'var(--button-bg)', color: 'var(--button-text)', border: 'none', borderRadius: '0.3rem', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>
-          Approve
+        <button style={{ flex: 2, padding: '0.5rem', background: 'var(--button-bg)', color: 'var(--button-text)', border: 'none', borderRadius: '0.3rem', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+          Approve · +16% Utility
         </button>
-        <button style={{ flex: 1, padding: '0.5rem', background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', borderRadius: '0.3rem', fontWeight: 500, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+        <button style={{ flex: 1, padding: '0.5rem', background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', borderRadius: '0.3rem', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>
           Decline
         </button>
       </div>
@@ -428,90 +432,96 @@ function DecisionIllustration({ visible }: { visible: boolean }) {
 
 // ─── Interactive Market Demo ───────────────────────────────────────────────
 
-const AGENT_NAMES = ['Agent_042', 'Agent_107', 'Agent_231', 'Agent_089', 'Agent_315', 'Agent_178'];
+const DEMO_AGENTS = ['Agent_042', 'Agent_107', 'Agent_231', 'Agent_089', 'Agent_315', 'Agent_178'];
+// Pre-seed with 3 bets so the demo never shows "Waiting..."
+const DEMO_INITIAL: Array<{ id: number; name: string; dir: string }> = [
+  { id: -3, name: 'Agent_231', dir: 'HIGHER' },
+  { id: -2, name: 'Agent_042', dir: 'HIGHER' },
+  { id: -1, name: 'Agent_107', dir: 'LOWER'  },
+];
 
 function MarketDemo() {
-  const [shares, setShares] = useState([0, 0]);
+  // Start with slight higher bias from pre-seeded bets
+  const [shares, setShares] = useState([15, 30]);
   const b = 15;
-  const [activity, setActivity] = useState<Array<{ id: number; name: string; dir: string }>>([]);
-  const actId = useRef(0);
+  const [feed, setFeed] = useState(DEMO_INITIAL);
+  const nextId = useRef(0);
 
   const [lo, hi] = shares;
   const p = 1 / (1 + Math.exp(-(hi - lo) / b));
-  const consensusVal = Math.round(400 + p * 500);
+  const prediction = Math.round(400 + p * 500);
 
-  // Simulate other agents betting in the background
+  // Background agents betting continuously
   useEffect(() => {
     const id = setInterval(() => {
       const dir = Math.random() > 0.38 ? 'HIGHER' : 'LOWER';
-      const name = AGENT_NAMES[Math.floor(Math.random() * AGENT_NAMES.length)];
-      setActivity(prev => [{ id: actId.current++, name, dir }, ...prev].slice(0, 4));
+      const name = DEMO_AGENTS[Math.floor(Math.random() * DEMO_AGENTS.length)];
+      setFeed(prev => [{ id: nextId.current++, name, dir }, ...prev].slice(0, 5));
       setShares(([l, h]) => dir === 'HIGHER' ? [l, Math.min(h + 4, 150)] : [Math.min(l + 4, 150), h]);
-    }, 1700);
+    }, 1600);
     return () => clearInterval(id);
   }, []);
 
-  const trade = (dir: 'higher' | 'lower') => {
+  const bet = (dir: 'higher' | 'lower') => {
     setShares(([l, h]) => dir === 'higher' ? [l, Math.min(h + 15, 150)] : [Math.min(l + 15, 150), h]);
-    setActivity(prev => [{ id: actId.current++, name: 'You', dir: dir.toUpperCase() }, ...prev].slice(0, 4));
+    setFeed(prev => [{ id: nextId.current++, name: 'You', dir: dir.toUpperCase() }, ...prev].slice(0, 5));
   };
 
   return (
     <div style={{ border: '1px solid var(--border-color)', borderRadius: '0.75rem', overflow: 'hidden' }}>
-      {/* Market header */}
+      {/* Market stats */}
       <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-color)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
           <div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>Revenue · Q4 2025</div>
-            <div style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1 }}>${consensusVal}K</div>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: '0.25rem' }}>market prediction</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Revenue · Q4 2025</div>
+            <div style={{ fontSize: '2.25rem', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1 }}>${prediction}K</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: '0.2rem' }}>market prediction</div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>higher probability</div>
-            <div style={{ fontSize: '1.6rem', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1 }}>{Math.round(p * 100)}%</div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>higher</div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1, color: p > 0.55 ? '#22c55e' : p < 0.45 ? '#ef4444' : 'var(--text-primary)' }}>
+              {Math.round(p * 100)}%
+            </div>
           </div>
         </div>
-        <div style={{ height: 8, background: 'var(--border-color)', borderRadius: 4, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${p * 100}%`, background: 'var(--button-bg)', borderRadius: 4, transition: 'width 0.4s cubic-bezier(0.4,0,0.2,1)' }} />
+        <div style={{ height: 8, borderRadius: 4, overflow: 'hidden', background: 'color-mix(in srgb, #ef4444 25%, transparent)' }}>
+          <div style={{ height: '100%', width: `${p * 100}%`, background: '#22c55e', borderRadius: 4, transition: 'width 0.4s cubic-bezier(0.4,0,0.2,1)' }} />
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.35rem', fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>
-          <span>$400K</span><span>$900K</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.3rem', fontSize: '0.68rem', color: 'var(--text-tertiary)' }}>
+          <span>← lower  $400K</span><span>$900K  higher →</span>
         </div>
       </div>
 
-      {/* Bet buttons — full bleed, no padding */}
+      {/* Bet buttons */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid var(--border-color)' }}>
-        <button onClick={() => trade('lower')} className="demo-btn demo-btn--secondary"
+        <button onClick={() => bet('lower')} className="demo-btn demo-btn--secondary"
           style={{ borderRadius: 0, borderRight: '1px solid var(--border-color)', padding: '0.9rem', fontSize: '0.95rem' }}>
           ↓ Bet Lower
         </button>
-        <button onClick={() => trade('higher')} className="demo-btn demo-btn--primary"
+        <button onClick={() => bet('higher')} className="demo-btn demo-btn--primary"
           style={{ borderRadius: 0, padding: '0.9rem', fontSize: '0.95rem' }}>
           ↑ Bet Higher
         </button>
       </div>
 
-      {/* Live activity feed */}
-      <div style={{ padding: '0.85rem 1.25rem' }}>
-        <div style={{ fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-tertiary)', marginBottom: '0.5rem' }}>
-          Live bets
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', minHeight: 80 }}>
-          {activity.length === 0
-            ? <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', paddingTop: '0.25rem' }}>Waiting for agents...</div>
-            : activity.map(item => (
-              <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', animation: 'fadeIn 0.2s ease both' }}>
-                <span style={{
-                  fontFamily: 'monospace', fontSize: '0.75rem',
-                  color: item.name === 'You' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  fontWeight: item.name === 'You' ? 700 : 400,
-                }}>{item.name}</span>
-                <span style={{ fontWeight: 700, color: item.dir === 'HIGHER' ? '#22c55e' : '#ef4444' }}>
-                  {item.dir === 'HIGHER' ? '↑' : '↓'} {item.dir}
-                </span>
-              </div>
-            ))
-          }
+      {/* Live feed — always pre-populated */}
+      <div style={{ padding: '0.875rem 1.25rem' }}>
+        <div style={{ fontSize: '0.67rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-tertiary)', marginBottom: '0.5rem' }}>Live bets</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+          {feed.slice(0, 4).map((item, i) => (
+            <div key={item.id} style={{
+              display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem',
+              opacity: 1 - i * 0.18,
+              animation: i === 0 && item.id >= 0 ? 'fadeIn 0.25s ease both' : undefined,
+            }}>
+              <span style={{ fontFamily: 'monospace', fontSize: '0.73rem', fontWeight: item.name === 'You' ? 700 : 400, color: item.name === 'You' ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                {item.name}
+              </span>
+              <span style={{ fontWeight: 700, color: item.dir === 'HIGHER' ? '#22c55e' : '#ef4444' }}>
+                {item.dir === 'HIGHER' ? '↑' : '↓'} {item.dir}
+              </span>
+            </div>
+          ))}
         </div>
       </div>
     </div>
