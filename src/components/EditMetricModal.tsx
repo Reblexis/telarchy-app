@@ -21,6 +21,7 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
   const [tpEnabled, setTpEnabled] = useState(false);
   const [tpHalfLife, setTpHalfLife] = useState('1');
   const [marketRangeMax, setMarketRangeMax] = useState('1000');
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -33,6 +34,7 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
       setTpEnabled(metric.timePreference?.enabled ?? false);
       setTpHalfLife(String(metric.timePreference?.halfLife ?? 1));
       setMarketRangeMax(String(metric.marketRangeMax ?? 1000));
+      setShowAdvanced(false);
       setError('');
     }
   }, [metric]);
@@ -72,10 +74,6 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
             <label htmlFor="editName">Name</label>
             <input type="text" id="editName" required value={name} onChange={e => setName(e.target.value)} />
           </div>
-          <div className="form-group">
-            <label htmlFor="editDescription">Description</label>
-            <textarea id="editDescription" placeholder="What does this metric represent?" value={description} onChange={e => setDescription(e.target.value)} />
-          </div>
           {isLeaf && (
             <div className="form-group">
               <label htmlFor="editValue">Value</label>
@@ -83,63 +81,81 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
             </div>
           )}
           <div className="form-group">
-            <label htmlFor="editFormula">Formula</label>
-            <textarea id="editFormula" placeholder="e.g., {Deep Work} + {Exercise} * 2" value={formula} onChange={e => setFormula(e.target.value)} />
+            <label htmlFor="editDescription">Description</label>
+            <textarea id="editDescription" placeholder="What does this metric represent?" value={description} onChange={e => setDescription(e.target.value)} />
           </div>
-          <div className="form-group">
-            <label htmlFor="editMarketRangeMax" title="The highest value this metric could realistically reach. Used to scale the prediction market.">Max expected value</label>
-            <input type="number" id="editMarketRangeMax" step="any" min="1" value={marketRangeMax} onChange={e => setMarketRangeMax(e.target.value)} />
-          </div>
-          <div className="form-group tp-row">
-            <div className="tp-toggle">
-              <span className="tp-label">
-                Time Preference
-              </span>
-              <label className="tp-switch">
-                <input
-                  type="checkbox"
-                  checked={tpEnabled}
-                  onChange={e => setTpEnabled(e.target.checked)}
-                />
-                <span className="tp-slider" />
-              </label>
-            </div>
-            {tpEnabled && (
-              <div className="tp-halflife">
-                <label htmlFor="editHalfLife">Half-life (years)</label>
-                <input
-                  type="number" id="editHalfLife" step="0.01" min="0.01"
-                  value={tpHalfLife}
-                  onChange={e => setTpHalfLife(e.target.value)}
-                  className="tp-halflife-input"
-                />
+
+          <button
+            type="button"
+            className="add-metric-toggle"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+          >
+            {showAdvanced ? '- Less options' : '+ More options'}
+          </button>
+
+          {showAdvanced && (
+            <div className="add-metric-advanced" style={{ marginTop: '0.75rem' }}>
+              <div className="form-group">
+                <label htmlFor="editFormula">Formula</label>
+                <textarea id="editFormula" placeholder="e.g., {Deep Work} + {Exercise} * 2" value={formula} onChange={e => setFormula(e.target.value)} />
               </div>
-            )}
-            {tpEnabled && (() => {
-              const hl = Math.max(0.01, Number(tpHalfLife) || 1);
-              const lambda = Math.LN2 / hl;
-              const offsets = Array.from({ length: 10 }, (_, i) => {
-                const p = (2 * i + 1) / 20;
-                const days = Math.max(1, Math.round((-Math.log(1 - p)) / lambda * 365));
-                if (days < 14) return `${days}d`;
-                if (days < 60) return `${Math.round(days / 7)}w`;
-                if (days < 730) return `${Math.round(days / 30)}mo`;
-                return `${Math.round(days / 365)}y`;
-              });
-              return (
-                <div className="tp-preview">
-                  <span className="tp-preview-label">Market offsets</span>
-                  <span className="tp-preview-dates">{offsets.join(', ')}</span>
+              <div className="form-group">
+                <label htmlFor="editMarketRangeMax" title="The highest value this metric could realistically reach. Used to scale the prediction market.">Max expected value</label>
+                <input type="number" id="editMarketRangeMax" step="any" min="1" value={marketRangeMax} onChange={e => setMarketRangeMax(e.target.value)} />
+              </div>
+              <div className="form-group tp-row">
+                <div className="tp-toggle">
+                  <span className="tp-label">
+                    Time Preference
+                  </span>
+                  <label className="tp-switch">
+                    <input
+                      type="checkbox"
+                      checked={tpEnabled}
+                      onChange={e => setTpEnabled(e.target.checked)}
+                    />
+                    <span className="tp-slider" />
+                  </label>
                 </div>
-              );
-            })()}
-          </div>
-          <div className="form-group">
-            <label htmlFor="editUpdateNote">Update Note (optional)</label>
-            <textarea id="editUpdateNote" placeholder="Describe what changed and why..." value={updateNote} onChange={e => setUpdateNote(e.target.value)} />
-          </div>
+                {tpEnabled && (
+                  <div className="tp-halflife">
+                    <label htmlFor="editHalfLife">Half-life (years)</label>
+                    <input
+                      type="number" id="editHalfLife" step="0.01" min="0.01"
+                      value={tpHalfLife}
+                      onChange={e => setTpHalfLife(e.target.value)}
+                      className="tp-halflife-input"
+                    />
+                  </div>
+                )}
+                {tpEnabled && (() => {
+                  const hl = Math.max(0.01, Number(tpHalfLife) || 1);
+                  const lambda = Math.LN2 / hl;
+                  const offsets = Array.from({ length: 10 }, (_, i) => {
+                    const p = (2 * i + 1) / 20;
+                    const days = Math.max(1, Math.round((-Math.log(1 - p)) / lambda * 365));
+                    if (days < 14) return `${days}d`;
+                    if (days < 60) return `${Math.round(days / 7)}w`;
+                    if (days < 730) return `${Math.round(days / 30)}mo`;
+                    return `${Math.round(days / 365)}y`;
+                  });
+                  return (
+                    <div className="tp-preview">
+                      <span className="tp-preview-label">Market offsets</span>
+                      <span className="tp-preview-dates">{offsets.join(', ')}</span>
+                    </div>
+                  );
+                })()}
+              </div>
+              <div className="form-group">
+                <label htmlFor="editUpdateNote">Update Note</label>
+                <textarea id="editUpdateNote" placeholder="Describe what changed and why..." value={updateNote} onChange={e => setUpdateNote(e.target.value)} />
+              </div>
+            </div>
+          )}
+
           {error && <div className="message error show" style={{ marginBottom: '0.75rem' }}>{error}</div>}
-          <button type="submit" className="btn">Save Changes</button>
+          <button type="submit" className="btn" style={{ marginTop: '0.75rem' }}>Save Changes</button>
         </form>
       </div>
     </div>
