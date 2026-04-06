@@ -397,20 +397,30 @@ const DEMO_INITIAL: Array<{ id: number; name: string; dir: string }> = [
   { id: -1, name: 'Agent_107', dir: 'LOWER'  },
 ];
 
+const DEMO_TARGET_NET = 15; // equilibrium the agents defend (~65% higher)
+
 function MarketDemo() {
   // Track net (hi - lo) so it never saturates: clamp between -60 and +60
-  const [net, setNet] = useState(15); // slight higher bias from pre-seeded bets
+  const [net, setNet] = useState(DEMO_TARGET_NET);
   const b = 15;
   const [feed, setFeed] = useState(DEMO_INITIAL);
   const nextId = useRef(0);
+  const netRef = useRef(DEMO_TARGET_NET);
+
+  // Keep ref in sync so the interval closure always sees current net
+  useEffect(() => { netRef.current = net; }, [net]);
 
   const p = 1 / (1 + Math.exp(-net / b));
   const prediction = Math.round(8000 + p * 14000); // MAU range 8K–22K
 
-  // Background agents betting continuously
+  // Background agents mean-revert toward DEMO_TARGET_NET
+  // The further net is from target, the more strongly they push back
   useEffect(() => {
     const id = setInterval(() => {
-      const dir = Math.random() > 0.38 ? 'HIGHER' : 'LOWER';
+      const deviation = netRef.current - DEMO_TARGET_NET;
+      // pHigher increases when below target, decreases when above
+      const pHigher = Math.min(0.95, Math.max(0.05, 0.5 - deviation / 90));
+      const dir = Math.random() < pHigher ? 'HIGHER' : 'LOWER';
       const name = DEMO_AGENTS[Math.floor(Math.random() * DEMO_AGENTS.length)];
       setFeed(prev => [{ id: nextId.current++, name, dir }, ...prev].slice(0, 5));
       setNet(n => Math.max(-60, Math.min(60, n + (dir === 'HIGHER' ? 4 : -4))));
