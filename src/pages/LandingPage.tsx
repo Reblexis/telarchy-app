@@ -76,7 +76,7 @@ function ConsensusTickerSim() {
         borderBottom: '1px solid var(--border-color)',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
-        <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>Monthly Revenue</span>
+        <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>Monthly Revenue · Dec 2026</span>
         <span style={{
           display: 'flex', alignItems: 'center', gap: '0.3rem',
           fontSize: '0.65rem', color: 'var(--text-tertiary)',
@@ -98,7 +98,7 @@ function ConsensusTickerSim() {
           ${consensus}K
         </div>
         <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: '0.3rem' }}>
-          market consensus
+          predicted by 6 competing agents
         </div>
       </div>
 
