@@ -1620,10 +1620,7 @@ body.landing-page {
     grid-template-columns: 1fr;
   }
   .lp-hero-sim {
-    display: none;
-  }
-  .lp-demo-grid {
-    grid-template-columns: 1fr !important;
+    justify-content: center;
   }
   .lp-stats-inner {
     grid-template-columns: 1fr;

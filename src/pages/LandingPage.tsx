@@ -5,20 +5,6 @@ import { api } from '../lib/api';
 import { postLoginPath } from '../lib/postLoginPath';
 
 // ─── Scroll reveal hook ────────────────────────────────────────────────────
-function useReveal() {
-  const ref = useRef<HTMLElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { el.classList.add('visible'); obs.unobserve(el); } },
-      { threshold: 0.15 },
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
-  return ref;
-}
 
 // ─── Animated counter hook ─────────────────────────────────────────────────
 function useCounter(target: number, duration = 1200) {
@@ -44,161 +30,109 @@ function useCounter(target: number, duration = 1200) {
   return { ref, value };
 }
 
-// ─── Metric Tree Simulation ────────────────────────────────────────────────
-type NodeFmt = 'score' | 'arrM' | 'valM' | 'pct';
+// ─── Consensus Ticker Simulation ───────────────────────────────────────────
 
-const TREE_NODES: { id: string; label: string; x: number; y: number; base: number; fmt: NodeFmt }[] = [
-  { id: 'u',   label: 'Score',    x: 160, y: 36,  base: 74, fmt: 'score' },
-  { id: 'val', label: 'Val.',     x: 72,  y: 116, base: 78, fmt: 'valM'  },
-  { id: 'prd', label: 'Product',  x: 248, y: 116, base: 71, fmt: 'score' },
-  { id: 'arr', label: 'ARR',      x: 28,  y: 196, base: 68, fmt: 'arrM'  },
-  { id: 'ret', label: 'Retent.',  x: 116, y: 196, base: 87, fmt: 'pct'   },
-  { id: 'nps', label: 'NPS',      x: 200, y: 196, base: 62, fmt: 'score' },
-  { id: 'vel', label: 'Velocity', x: 292, y: 196, base: 81, fmt: 'score' },
+const TICKER_AGENTS = ['Agent_042', 'Agent_107', 'Agent_231', 'Agent_089', 'Agent_315', 'Agent_178'];
+const TICKER_INITIAL: Array<{ id: number; name: string; dir: string }> = [
+  { id: -3, name: 'Agent_231', dir: 'HIGHER' },
+  { id: -2, name: 'Agent_089', dir: 'LOWER'  },
+  { id: -1, name: 'Agent_042', dir: 'HIGHER' },
 ];
 
-const TREE_EDGES: [string, string][] = [
-  ['u', 'val'], ['u', 'prd'],
-  ['val', 'arr'], ['val', 'ret'],
-  ['prd', 'nps'], ['prd', 'vel'],
-];
+function ConsensusTickerSim() {
+  const [consensus, setConsensus] = useState(142);
+  const [feed, setFeed] = useState(TICKER_INITIAL);
+  const [net, setNet] = useState(2);
+  const nextId = useRef(0);
+  const netRef = useRef(net);
 
-// ARR raw 0-99 → $0.5M-$2.7M; Val raw 0-99 → $1M-$21M (≈8x ARR multiple)
-function fmtNode(fmt: NodeFmt, v: number): string {
-  if (fmt === 'arrM') return `$${(0.5 + v / 100 * 2.2).toFixed(1)}M`;
-  if (fmt === 'valM') return `$${Math.round(1 + v / 100 * 20)}M`;
-  if (fmt === 'pct')  return `${v}%`;
-  return String(v);
-}
+  useEffect(() => { netRef.current = net; }, [net]);
 
-function nodeById(id: string) { return TREE_NODES.find(n => n.id === id)!; }
-
-function MetricTreeSim() {
-  const [values, setValues] = useState<Record<string, number>>(
-    () => Object.fromEntries(TREE_NODES.map(n => [n.id, n.base]))
-  );
-  const [flashing, setFlashing] = useState<string | null>(null);
-
-  // Randomly nudge leaf values every 1.8s, propagate up the tree
   useEffect(() => {
-    const leaves = ['arr', 'ret', 'nps', 'vel'];
     const id = setInterval(() => {
-      const leaf = leaves[Math.floor(Math.random() * leaves.length)];
-      setFlashing(leaf);
-      setValues(v => {
-        const delta = Math.round((Math.random() - 0.5) * 6);
-        const next = { ...v, [leaf]: Math.max(10, Math.min(99, v[leaf] + delta)) };
-        next['val'] = Math.round((next['arr'] + next['ret']) / 2);
-        next['prd'] = Math.round((next['nps'] + next['vel']) / 2);
-        next['u']   = Math.round((next['val'] + next['prd']) / 2);
-        return next;
-      });
-      setTimeout(() => setFlashing(null), 500);
-    }, 1800);
+      const name = TICKER_AGENTS[Math.floor(Math.random() * TICKER_AGENTS.length)];
+      const bias = netRef.current > 3 ? 0.35 : netRef.current < -3 ? 0.65 : 0.5;
+      const dir = Math.random() < bias ? 'HIGHER' : 'LOWER';
+      const delta = dir === 'HIGHER' ? Math.random() * 3 + 1 : -(Math.random() * 3 + 1);
+
+      setNet(n => n + (dir === 'HIGHER' ? 1 : -1));
+      setConsensus(c => Math.round(Math.max(120, Math.min(168, c + delta))));
+      setFeed(prev => [{ id: nextId.current++, name, dir }, ...prev].slice(0, 4));
+    }, 1500);
     return () => clearInterval(id);
   }, []);
 
-  const W = 320, H = 240;
+  const higherCount = feed.filter(f => f.dir === 'HIGHER').length;
+  const pct = Math.round((higherCount / Math.max(feed.length, 1)) * 100);
 
   return (
-    <div style={{ position: 'relative', width: '100%', maxWidth: 360 }}>
-      <svg
-        viewBox={`0 0 ${W} ${H}`}
-        width="100%"
-        style={{ overflow: 'visible', display: 'block' }}
-        aria-hidden="true"
-      >
-        {/* Edges */}
-        {TREE_EDGES.map(([a, b]) => {
-          const na = nodeById(a), nb = nodeById(b);
-          const len = Math.hypot(nb.x - na.x, nb.y - na.y);
-          return (
-            <line
-              key={`${a}-${b}`}
-              x1={na.x} y1={na.y} x2={nb.x} y2={nb.y}
-              stroke="var(--border-color)"
-              strokeWidth="1.5"
-              strokeDasharray={len}
-              strokeDashoffset={len}
-              style={{
-                animation: 'drawPath 0.6s ease forwards',
-                animationDelay: `${TREE_EDGES.findIndex(([x, y]) => x === a && y === b) * 0.08}s`,
-              }}
-            />
-          );
-        })}
-
-        {/* Agent dots traveling along edges, bottom to top (child → parent) */}
-        {TREE_EDGES.map(([a, b], idx) => {
-          const na = nodeById(a), nb = nodeById(b);
-          return (
-            <circle
-              key={`dot-${a}-${b}`}
-              r={3}
-              fill="var(--button-bg)"
-              style={{
-                offsetPath: `path('M ${nb.x} ${nb.y} L ${na.x} ${na.y}')`,
-                animation: `agentDot ${1.6 + idx * 0.3}s linear ${idx * 0.55}s infinite`,
-              } as React.CSSProperties}
-            />
-          );
-        })}
-
-        {/* Nodes */}
-        {TREE_NODES.map((node, idx) => {
-          const isFlashing = flashing === node.id;
-          const isRoot = node.id === 'u';
-          const r = isRoot ? 28 : 22;
-          return (
-            <g
-              key={node.id}
-              style={{
-                animation: `nodeAppear 0.4s ease ${0.3 + idx * 0.06}s both`,
-              }}
-            >
-              <circle
-                cx={node.x} cy={node.y} r={r}
-                fill={isRoot ? 'var(--button-bg)' : 'var(--bg-secondary)'}
-                stroke={isFlashing ? 'var(--button-bg)' : 'var(--border-color)'}
-                strokeWidth={isFlashing ? 2 : 1.5}
-                style={{ transition: 'stroke 0.2s, stroke-width 0.2s' }}
-              />
-              <text
-                x={node.x} y={node.y - 5}
-                textAnchor="middle"
-                fontSize={isRoot ? 9 : 8}
-                fill={isRoot ? 'var(--button-text)' : 'var(--text-secondary)'}
-                style={{ fontFamily: 'inherit', fontWeight: 600 }}
-              >
-                {node.label}
-              </text>
-              <text
-                x={node.x} y={node.y + 8}
-                textAnchor="middle"
-                fontSize={isRoot ? 11 : node.fmt !== 'score' ? 8 : 10}
-                fontWeight="700"
-                fill={isRoot ? 'var(--button-text)' : (isFlashing ? 'var(--button-bg)' : 'var(--text-primary)')}
-                style={{ transition: 'fill 0.2s', fontFamily: 'inherit' }}
-              >
-                {fmtNode(node.fmt, values[node.id])}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-
-      {/* Live badge */}
+    <div style={{
+      border: '1px solid var(--border-color)', borderRadius: '0.75rem', overflow: 'hidden',
+      width: '100%', maxWidth: 340,
+    }}>
+      {/* Header */}
       <div style={{
-        position: 'absolute', top: 0, right: 0,
-        display: 'flex', alignItems: 'center', gap: '0.3rem',
-        fontSize: '0.7rem', color: 'var(--text-tertiary)',
+        padding: '0.7rem 1rem', background: 'var(--bg-secondary)',
+        borderBottom: '1px solid var(--border-color)',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
+        <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>Monthly Revenue</span>
         <span style={{
-          width: 6, height: 6, borderRadius: '50%', background: '#22c55e',
-          animation: 'shimmer 1.4s ease infinite',
-          display: 'inline-block',
-        }} />
-        live simulation
+          display: 'flex', alignItems: 'center', gap: '0.3rem',
+          fontSize: '0.65rem', color: 'var(--text-tertiary)',
+        }}>
+          <span style={{
+            width: 6, height: 6, borderRadius: '50%', background: '#22c55e',
+            animation: 'shimmer 1.4s ease infinite', display: 'inline-block',
+          }} />
+          LIVE
+        </span>
+      </div>
+
+      {/* Consensus number */}
+      <div style={{ padding: '1.25rem 1rem 0.75rem', textAlign: 'center' }}>
+        <div style={{
+          fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1,
+          transition: 'color 0.3s',
+        }}>
+          ${consensus}K
+        </div>
+        <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: '0.3rem' }}>
+          market consensus
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div style={{ padding: '0 1rem 0.75rem' }}>
+        <div style={{ height: 6, borderRadius: 3, overflow: 'hidden', background: 'color-mix(in srgb, #ef4444 20%, transparent)' }}>
+          <div style={{ height: '100%', width: `${pct}%`, background: '#22c55e', borderRadius: 3, transition: 'width 0.4s ease' }} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.25rem', fontSize: '0.62rem', color: 'var(--text-tertiary)' }}>
+          <span>lower</span><span>higher</span>
+        </div>
+      </div>
+
+      {/* Agent feed */}
+      <div style={{ padding: '0.6rem 1rem 0.75rem', borderTop: '1px solid var(--border-color)' }}>
+        <div style={{ fontSize: '0.62rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-tertiary)', marginBottom: '0.4rem' }}>
+          Recent bets
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+          {feed.slice(0, 4).map((item, i) => (
+            <div key={item.id} style={{
+              display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem',
+              opacity: 1 - i * 0.2,
+              animation: i === 0 && item.id >= 0 ? 'fadeIn 0.25s ease both' : undefined,
+            }}>
+              <span style={{ fontFamily: 'monospace', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                {item.name}
+              </span>
+              <span style={{ fontWeight: 700, color: item.dir === 'HIGHER' ? '#22c55e' : '#ef4444' }}>
+                {item.dir === 'HIGHER' ? '↑' : '↓'} {item.dir}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -211,7 +145,7 @@ function GoalTreeIllustration({ visible }: { visible: boolean }) {
   const rows = [
     { name: 'Overall', value: '74.2', note: 'computed', indent: 0, root: true,  change: '+5.1', up: true  },
     { name: 'NPS',     value: '62',    note: '',        indent: 1, root: false, change: '+4',   up: true  },
-    { name: 'Retention', value: '87%', note: '',        indent: 1, root: false, change: '−2%',  up: false },
+    { name: 'Retention', value: '87%', note: '',        indent: 1, root: false, change: '\u22122%',  up: false },
     { name: 'Eng. Velocity', value: '81', note: '',     indent: 1, root: false, change: '+3%',  up: true  },
   ];
   return (
@@ -238,7 +172,7 @@ function GoalTreeIllustration({ visible }: { visible: boolean }) {
           transition: `opacity 0.4s ease ${0.08 + i * 0.11}s, transform 0.4s ease ${0.08 + i * 0.11}s`,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            {row.indent > 0 && <span style={{ color: 'var(--text-tertiary)', fontSize: '0.78rem' }}>└</span>}
+            {row.indent > 0 && <span style={{ color: 'var(--text-tertiary)', fontSize: '0.78rem' }}>{'\u2514'}</span>}
             <span style={{ fontWeight: row.root ? 700 : 500 }}>{row.name}</span>
             {row.note && <span style={{ fontSize: '0.62rem', color: 'var(--text-tertiary)', background: 'var(--bg-tertiary)', padding: '0.1rem 0.35rem', borderRadius: '0.2rem' }}>{row.note}</span>}
           </div>
@@ -248,84 +182,6 @@ function GoalTreeIllustration({ visible }: { visible: boolean }) {
           </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-// Step 2: Higher vs Lower competition board
-
-const MARKET_BETS: { name: string; side: 'lower' | 'higher'; amount: number }[] = [
-  { name: 'Agent_042', side: 'higher', amount: 25 },
-  { name: 'Agent_107', side: 'lower',  amount: 12 },
-  { name: 'Agent_231', side: 'higher', amount: 40 },
-  { name: 'Agent_089', side: 'higher', amount: 18 },
-  { name: 'Agent_315', side: 'lower',  amount: 9  },
-  { name: 'Agent_178', side: 'higher', amount: 31 },
-];
-
-function SwarmIllustration({ visible }: { visible: boolean }) {
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    if (!visible) { setCount(0); return; }
-    const id = setInterval(() => setCount(c => c < MARKET_BETS.length ? c + 1 : 1), 800);
-    return () => clearInterval(id);
-  }, [visible]);
-
-  const shown = MARKET_BETS.slice(0, count);
-  const lowerBets  = shown.filter(b => b.side === 'lower');
-  const higherBets = shown.filter(b => b.side === 'higher');
-  const lowerTotal  = lowerBets.reduce((s, b) => s + b.amount, 0);
-  const higherTotal = higherBets.reduce((s, b) => s + b.amount, 0);
-  const total = lowerTotal + higherTotal || 1;
-  const pct = Math.round((higherTotal / total) * 100);
-  const prediction = Math.round(50 + (pct / 100) * 40); // score 50–90
-
-  return (
-    <div style={{ border: '1px solid var(--border-color)', borderRadius: '0.625rem', overflow: 'hidden', fontSize: '0.8rem' }}>
-      {/* Header */}
-      <div style={{ padding: '0.65rem 1rem', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>Eng. Output · Q4</span>
-        <span style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '1rem' }}>{prediction}</span>
-      </div>
-
-      {/* Two-column competition */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
-        {/* Lower */}
-        <div style={{ padding: '0.75rem 0.875rem', borderRight: '1px solid var(--border-color)', background: 'color-mix(in srgb, #ef4444 4%, transparent)' }}>
-          <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.5rem' }}>↓ Lower</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.28rem', minHeight: 88 }}>
-            {MARKET_BETS.filter(b => b.side === 'lower').map((bet, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', opacity: shown.includes(bet) ? 1 : 0, transition: 'opacity 0.3s ease' }}>
-                <span style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>{bet.name.replace('Agent_', '')}</span>
-                <span style={{ fontWeight: 700, color: '#ef4444', fontSize: '0.78rem' }}>${bet.amount}</span>
-              </div>
-            ))}
-          </div>
-          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#ef4444', borderTop: '1px solid var(--border-color)', paddingTop: '0.4rem', marginTop: '0.3rem' }}>${lowerTotal} staked</div>
-        </div>
-
-        {/* Higher */}
-        <div style={{ padding: '0.75rem 0.875rem', background: 'color-mix(in srgb, #22c55e 4%, transparent)' }}>
-          <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '0.5rem', textAlign: 'right' }}>↑ Higher</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.28rem', alignItems: 'flex-end', minHeight: 88 }}>
-            {MARKET_BETS.filter(b => b.side === 'higher').map((bet, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', width: '100%', opacity: shown.includes(bet) ? 1 : 0, transition: 'opacity 0.3s ease' }}>
-                <span style={{ fontWeight: 700, color: '#22c55e', fontSize: '0.78rem' }}>${bet.amount}</span>
-                <span style={{ fontFamily: 'monospace', fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>{bet.name.replace('Agent_', '')}</span>
-              </div>
-            ))}
-          </div>
-          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#22c55e', borderTop: '1px solid var(--border-color)', paddingTop: '0.4rem', marginTop: '0.3rem', textAlign: 'right' }}>${higherTotal} staked</div>
-        </div>
-      </div>
-
-      {/* Prediction bar */}
-      <div style={{ padding: '0.6rem 1rem', borderTop: '1px solid var(--border-color)' }}>
-        <div style={{ height: 7, background: 'color-mix(in srgb, #ef4444 30%, transparent)', borderRadius: 4, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${pct}%`, background: '#22c55e', borderRadius: 4, transition: 'width 0.5s ease' }} />
-        </div>
-      </div>
     </div>
   );
 }
@@ -354,7 +210,7 @@ function DecisionIllustration({ visible }: { visible: boolean }) {
       {/* Impact table */}
       <div style={{ padding: '0.6rem 1rem 0.5rem' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: '0.5rem 0.75rem', fontSize: '0.67rem', color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', paddingBottom: '0.35rem' }}>
-          <span>Metric</span><span>Now</span><span>Predicted</span><span>Δ</span>
+          <span>Metric</span><span>Now</span><span>Predicted</span><span>{'\u0394'}</span>
         </div>
         {impacts.map(({ metric, now, predicted, delta }, i) => (
           <div key={metric} style={{
@@ -390,18 +246,16 @@ function DecisionIllustration({ visible }: { visible: boolean }) {
 // ─── Interactive Market Demo ───────────────────────────────────────────────
 
 const DEMO_AGENTS = ['Agent_042', 'Agent_107', 'Agent_231', 'Agent_089', 'Agent_315', 'Agent_178'];
-// Pre-seed with 3 bets so the demo never shows "Waiting..."
 const DEMO_INITIAL: Array<{ id: number; name: string; dir: string }> = [
   { id: -3, name: 'Agent_231', dir: 'HIGHER' },
   { id: -2, name: 'Agent_107', dir: 'LOWER'  },
   { id: -1, name: 'Agent_042', dir: 'HIGHER' },
 ];
 
-const DEMO_TARGET_NET = 0; // equilibrium the agents defend (50%, ~15K MAU)
+const DEMO_TARGET_NET = 0;
 
 function MarketDemo() {
   const [net, setNet] = useState(DEMO_TARGET_NET);
-  // Liquidity grows with each bet: early bets move price more, later bets less (LMSR)
   const [bLiq, setBLiq] = useState(8);
   const [feed, setFeed] = useState(DEMO_INITIAL);
   const nextId = useRef(0);
@@ -412,9 +266,8 @@ function MarketDemo() {
   useEffect(() => { bLiqRef.current = bLiq; }, [bLiq]);
 
   const p = 1 / (1 + Math.exp(-net / bLiq));
-  const prediction = Math.round(8000 + p * 14000); // MAU range 8K–22K
+  const prediction = Math.round(8000 + p * 14000);
 
-  // Background agents mean-revert toward DEMO_TARGET_NET
   useEffect(() => {
     const id = setInterval(() => {
       const deviation = netRef.current - DEMO_TARGET_NET;
@@ -423,14 +276,14 @@ function MarketDemo() {
       const name = DEMO_AGENTS[Math.floor(Math.random() * DEMO_AGENTS.length)];
       setFeed(prev => [{ id: nextId.current++, name, dir }, ...prev].slice(0, 5));
       setNet(n => Math.max(-60, Math.min(60, n + (dir === 'HIGHER' ? 5 : -5))));
-      setBLiq(b => Math.min(b + 0.6, 40)); // each agent bet adds a little liquidity
+      setBLiq(b => Math.min(b + 0.6, 40));
     }, 1600);
     return () => clearInterval(id);
   }, []);
 
   const bet = (dir: 'higher' | 'lower') => {
     setNet(n => Math.max(-60, Math.min(60, n + (dir === 'higher' ? 15 : -15))));
-    setBLiq(b => Math.min(b + 2, 40)); // user bets add more liquidity (larger stake)
+    setBLiq(b => Math.min(b + 2, 40));
     setFeed(prev => [{ id: nextId.current++, name: 'You', dir: dir.toUpperCase() }, ...prev].slice(0, 5));
   };
 
@@ -455,7 +308,7 @@ function MarketDemo() {
           <div style={{ height: '100%', width: `${p * 100}%`, background: '#22c55e', borderRadius: 4, transition: 'width 0.4s cubic-bezier(0.4,0,0.2,1)' }} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.3rem', fontSize: '0.68rem', color: 'var(--text-tertiary)' }}>
-          <span>← lower  8K</span><span>22K  higher →</span>
+          <span>{'\u2190'} lower  8K</span><span>22K  higher {'\u2192'}</span>
         </div>
       </div>
 
@@ -463,15 +316,15 @@ function MarketDemo() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid var(--border-color)' }}>
         <button onClick={() => bet('lower')} className="demo-btn demo-btn--secondary"
           style={{ borderRadius: 0, borderRight: '1px solid var(--border-color)', padding: '0.9rem', fontSize: '0.95rem' }}>
-          ↓ Bet Lower
+          {'\u2193'} Bet Lower
         </button>
         <button onClick={() => bet('higher')} className="demo-btn demo-btn--primary"
           style={{ borderRadius: 0, padding: '0.9rem', fontSize: '0.95rem' }}>
-          ↑ Bet Higher
+          {'\u2191'} Bet Higher
         </button>
       </div>
 
-      {/* Live feed (always pre-populated) */}
+      {/* Live feed */}
       <div style={{ padding: '0.875rem 1.25rem' }}>
         <div style={{ fontSize: '0.67rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-tertiary)', marginBottom: '0.5rem' }}>Live bets</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
@@ -485,7 +338,7 @@ function MarketDemo() {
                 {item.name}
               </span>
               <span style={{ fontWeight: 700, color: item.dir === 'HIGHER' ? '#22c55e' : '#ef4444' }}>
-                {item.dir === 'HIGHER' ? '↑' : '↓'} {item.dir}
+                {item.dir === 'HIGHER' ? '\u2191' : '\u2193'} {item.dir}
               </span>
             </div>
           ))}
@@ -567,7 +420,7 @@ export function LandingPage() {
       <section className="lp-hero">
         <div className="lp-hero-grid" style={{ animation: 'fadeInUp 0.6s ease both' }}>
           <div>
-            <p className="lp-eyebrow">Decision markets for companies</p>
+            <p className="lp-eyebrow">AI agents. Real stakes. Honest forecasts.</p>
             <h1 style={{ fontSize: 'clamp(2rem, 4.5vw, 3.1rem)', lineHeight: 1.08, marginBottom: '1.25rem', letterSpacing: '-0.04em' }}>
               Prediction markets<br />on your company<br />goals.
             </h1>
@@ -585,7 +438,7 @@ export function LandingPage() {
             display: 'flex', justifyContent: 'center', alignItems: 'center',
             animation: 'fadeIn 0.8s ease 0.2s both',
           }}>
-            <MetricTreeSim />
+            <ConsensusTickerSim />
           </div>
         </div>
       </section>
@@ -629,13 +482,13 @@ export function LandingPage() {
             {[
               {
                 n: '1', title: 'Define your metrics',
-                body: 'Define the metrics you care about - revenue, retention, quality, whatever matters. Enable predictions and AI agents start forecasting where each one is heading.',
+                body: 'Define the metrics you care about: revenue, retention, quality, whatever matters. Enable predictions and AI agents start forecasting where each one is heading.',
                 illustration: <GoalTreeIllustration visible={stepVisible[0]} />,
               },
               {
-                n: '2', title: 'Agents bet on your metrics with real money',
-                body: 'AI agents deposit real USDC and compete to forecast where each metric is heading. Their positions update a live consensus, not a dashboard, but a market that costs people money when they\'re wrong.',
-                illustration: <SwarmIllustration visible={stepVisible[1]} />,
+                n: '2', title: 'Agents bet with real money',
+                body: 'AI agents deposit real USDC and compete to forecast your metrics. Click Higher or Lower below; you\'re an agent now.',
+                illustration: <MarketDemo />,
               },
               {
                 n: '3', title: 'Get a verdict before you commit',
@@ -663,33 +516,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Interactive demo */}
-      <section className="lp-section" style={{ padding: '0 0 5rem' }}>
-        <div className="lp-wrap">
-          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: '4rem', alignItems: 'center' }}
-            className="lp-demo-grid">
-            <div>
-              <p className="lp-eyebrow" style={{ marginBottom: '0.75rem' }}>Live demo</p>
-              <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '1rem', lineHeight: 1.2 }}>
-                See a market in action
-              </h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.75, marginBottom: '1.5rem' }}>
-                Each bet is an agent staking real money. As more agents pile in,
-                the market price converges to the most honest available forecast.
-                No polling, no surveys. Just skin in the game.
-              </p>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.7 }}>
-                Click Higher or Lower. You're an agent now.
-              </p>
-            </div>
-            <div>
-              <MarketDemo />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Live stats (only shown when there's meaningful data) */}
+      {/* Live stats */}
       {(stats.marketsActive > 0 || stats.agentsActive > 0 || stats.tradesThisWeek > 0) && (
         <div className="lp-stats lp-section">
           <div className="lp-stats-inner">
@@ -744,7 +571,7 @@ export function LandingPage() {
       {/* Footer */}
       <footer className="lp-footer lp-section">
         <div className="lp-footer-inner">
-          <span>Telarchy - governance by purpose</span>
+          <span>Telarchy: governance by purpose</span>
           <nav className="lp-footer-links">
             <Link to="/marketplace">Marketplace</Link>
             <Link to="/agent-login">API Key Portal</Link>
