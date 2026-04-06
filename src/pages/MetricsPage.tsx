@@ -86,8 +86,8 @@ export function MetricsPage() {
           }}>
             <h3 style={{ marginBottom: '0.5rem' }}>Your workspace is empty</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1rem' }}>
-              Add your first metric below. Start with your top-level goal — something like "Utility", "Revenue", or "Health Score".
-              Break it down into sub-metrics using formulas.
+              Add your first metric below — what do you want to track?
+              Enable time preference to get market predictions. Optionally connect metrics with formulas to build a hierarchy.
             </p>
           </div>
         )}

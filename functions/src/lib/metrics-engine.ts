@@ -348,44 +348,46 @@ export function recalculateMetrics(metrics: Metric[], consensusMap: Record<strin
   return metrics;
 }
 
-export const UNASSIGNED_DEPTH = 9999;
-
 export function calculateMetricDepths(metrics: Metric[]): Record<string, number> {
   const nameToMetric: Record<string, Metric> = {};
   metrics.forEach(m => { nameToMetric[m.name] = m; });
 
+  // Build parent→children map (formula references)
   const children: Record<string, string[]> = {};
+  const referencedIds = new Set<string>();
   metrics.forEach(metric => {
     const deps: string[] = [];
     for (const depName of extractMetricReferences(metric.formula || '0')) {
       const dep = nameToMetric[depName];
-      if (dep) deps.push(dep.id);
+      if (dep) { deps.push(dep.id); referencedIds.add(dep.id); }
     }
     children[metric.id] = deps;
   });
 
+  // Roots = metrics not referenced by any other metric's formula
+  const roots = metrics.filter(m => !referencedIds.has(m.id));
+
+  // Multi-root BFS
   const depths: Record<string, number> = {};
-  const utility = metrics.find(m => m.name === 'Utility');
+  const queue: Array<{ id: string; depth: number }> = [];
+  for (const root of roots) {
+    depths[root.id] = 0;
+    queue.push({ id: root.id, depth: 0 });
+  }
 
-  if (utility) {
-    const queue: Array<{ id: string; depth: number }> = [{ id: utility.id, depth: 0 }];
-    depths[utility.id] = 0;
-
-    while (queue.length > 0) {
-      const { id, depth } = queue.shift()!;
-      for (const childId of (children[id] || [])) {
-        const newDepth = depth + 1;
-        if (depths[childId] === undefined || newDepth < depths[childId]) {
-          depths[childId] = newDepth;
-          queue.push({ id: childId, depth: newDepth });
-        }
+  while (queue.length > 0) {
+    const { id, depth } = queue.shift()!;
+    for (const childId of (children[id] || [])) {
+      const newDepth = depth + 1;
+      if (depths[childId] === undefined || newDepth < depths[childId]) {
+        depths[childId] = newDepth;
+        queue.push({ id: childId, depth: newDepth });
       }
     }
   }
 
-  metrics.forEach(metric => {
-    if (depths[metric.id] === undefined) depths[metric.id] = UNASSIGNED_DEPTH;
-  });
+  // Any metric still unassigned (e.g. circular refs) gets depth 0
+  metrics.forEach(m => { if (depths[m.id] === undefined) depths[m.id] = 0; });
 
   return depths;
 }

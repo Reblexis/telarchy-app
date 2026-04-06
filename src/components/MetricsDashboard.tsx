@@ -1,6 +1,6 @@
 import type { Metric } from '../types';
 import type { FormulaWarning } from '../lib/metrics-engine';
-import { getDependencyChain, UNASSIGNED_DEPTH } from '../lib/metrics-engine';
+import { getDependencyChain } from '../lib/metrics-engine';
 import { MetricCard } from './MetricCard';
 import { FocusBanner } from './FocusBanner';
 
@@ -46,9 +46,11 @@ export function MetricsDashboard({
         )}
         {depths.map(depth => (
           <div className="depth-group" key={depth} style={{ marginBottom: '2rem' }}>
-            <div style={{ fontSize: '0.75rem', color: '#999', marginBottom: '0.5rem', fontWeight: 500 }}>
-              {depth >= UNASSIGNED_DEPTH ? 'Unassigned' : `Level ${depth}`}
-            </div>
+            {depths.length > 1 && (
+              <div style={{ fontSize: '0.75rem', color: '#999', marginBottom: '0.5rem', fontWeight: 500 }}>
+                Level {depth}
+              </div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
               {groupedByDepth[depth].map(metric => (
                 <MetricCard

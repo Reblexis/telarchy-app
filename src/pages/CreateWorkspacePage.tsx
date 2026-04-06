@@ -21,15 +21,6 @@ export function CreateWorkspacePage() {
     try {
       const ws = await api.createWorkspace(name.trim());
       setActiveWorkspace(ws.id);
-
-      // Seed a "Utility" metric so the dashboard isn't empty
-      await api.createMetric({
-        name: 'Utility',
-        description: 'Top-level score — your metrics roll up here via formulas',
-        value: 0,
-        formula: '0',
-      });
-
       clearCache();
       navigate('/metrics', { state: { workspaceId: ws.id, fresh: true } });
     } catch (err: unknown) {
