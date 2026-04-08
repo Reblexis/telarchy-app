@@ -93,12 +93,30 @@ export async function getUserWorkspaceMemberships(userId: string): Promise<Works
     ownerSet.has(m.workspaceId) ? { ...m, memberRole: 'owner' as WorkspaceMemberRole } : m,
   );
 
-  // Add owned workspaces that aren't in any permission group
+  // Self-heal: if the creator isn't in the admin group, add them.
+  // This repairs state left by migrations or bugs without manual DB fixes.
   const existingWsIds = new Set(memberships.map(m => m.workspaceId));
-  for (const row of ownedRows) {
-    if (!existingWsIds.has(row.id)) {
-      result.push({ workspaceId: row.id, memberRole: 'owner' });
+  const missingWsIds = ownedRows.filter(r => !existingWsIds.has(r.id)).map(r => r.id);
+
+  if (missingWsIds.length > 0) {
+    for (const wsId of missingWsIds) {
+      result.push({ workspaceId: wsId, memberRole: 'owner' });
     }
+    // Fire-and-forget: add to admin groups so future lookups work directly
+    db.select().from(permissionGroups)
+      .where(and(inArray(permissionGroups.workspaceId, missingWsIds), eq(permissionGroups.type, 'admin')))
+      .then(groups => {
+        for (const group of groups) {
+          const ids = (group.memberIds as string[] ?? []);
+          if (!ids.includes(participantId)) {
+            db.update(permissionGroups)
+              .set({ memberIds: [...ids, participantId] })
+              .where(eq(permissionGroups.id, group.id))
+              .catch(e => console.error('Failed to self-heal admin group membership:', e));
+          }
+        }
+      })
+      .catch(e => console.error('Failed to self-heal admin group lookup:', e));
   }
 
   return result;
