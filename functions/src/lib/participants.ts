@@ -80,27 +80,28 @@ export async function getUserWorkspaceMemberships(userId: string): Promise<Works
 
   // Permission groups cap at 'admin'. Upgrade to 'owner' for any workspace where
   // the user (or their participantId) is the workspace creator.
-  const wsIds = memberships.map(m => m.workspaceId);
-  if (wsIds.length === 0) return memberships;
-
+  // Also include workspaces the user created but isn't in any permission group for.
   const ownedRows = await db
     .select({ id: workspaces.id })
     .from(workspaces)
-    .where(
-      and(
-        inArray(workspaces.id, wsIds),
-        or(eq(workspaces.createdBy, userId), eq(workspaces.createdBy, participantId)),
-      ),
-    );
+    .where(or(eq(workspaces.createdBy, userId), eq(workspaces.createdBy, participantId)));
 
-  if (ownedRows.length > 0) {
-    const ownerSet = new Set(ownedRows.map(r => r.id));
-    return memberships.map(m =>
-      ownerSet.has(m.workspaceId) ? { ...m, memberRole: 'owner' as WorkspaceMemberRole } : m,
-    );
+  if (ownedRows.length === 0) return memberships;
+
+  const ownerSet = new Set(ownedRows.map(r => r.id));
+  const result = memberships.map(m =>
+    ownerSet.has(m.workspaceId) ? { ...m, memberRole: 'owner' as WorkspaceMemberRole } : m,
+  );
+
+  // Add owned workspaces that aren't in any permission group
+  const existingWsIds = new Set(memberships.map(m => m.workspaceId));
+  for (const row of ownedRows) {
+    if (!existingWsIds.has(row.id)) {
+      result.push({ workspaceId: row.id, memberRole: 'owner' });
+    }
   }
 
-  return memberships;
+  return result;
 }
 
 export async function getWorkspaceRoleForParticipant(
