@@ -255,7 +255,7 @@ export const api = {
   // Workspaces
   createWorkspace: (name: string) =>
     request('/api/workspaces', { method: 'POST', body: JSON.stringify({ name }) }),
-  listWorkspaces: () => request('/api/workspaces'),
+  listWorkspaces: () => request('/api/workspaces', {}, true),
   getWorkspace: (id: string) => request(`/api/workspaces/${id}`),
   getWorkspaceStats: (id: string) => request(`/api/workspaces/${id}/stats`),
   updateWorkspaceSettings: (id: string, body: { name?: string; autoFundNewMarkets?: boolean; newMarketLiquidityCredits?: number }) =>
