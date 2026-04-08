@@ -179,24 +179,12 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     const [agent] = await db.select().from(agents).where(eq(agents.id, agentId));
     if (!agent) return res.status(401).json({ error: 'Agent not found' });
 
-    const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
-    if (requestedWorkspaceId && requestedWorkspaceId !== keyWorkspaceId) {
-      const membership = await resolveAgentWorkspace(agentId, requestedWorkspaceId);
-      if (membership) {
-        req.auth = { role: memberRoleToAuthRole(membership.memberRole), agentId, workspaceId: membership.workspaceId };
-        return next();
-      }
+    const effectiveWorkspaceId = (req.headers['x-workspace-id'] as string | undefined) ?? keyWorkspaceId;
+    const membership = await resolveAgentWorkspace(agentId, effectiveWorkspaceId);
+    if (!membership) {
+      return res.status(403).json({ error: 'Agent is not a member of the specified workspace' });
     }
-
-    if (keyWorkspaceId !== 'default') {
-      const membership = await resolveAgentWorkspace(agentId, keyWorkspaceId);
-      if (membership) {
-        req.auth = { role: memberRoleToAuthRole(membership.memberRole), agentId, workspaceId: membership.workspaceId };
-        return next();
-      }
-    }
-
-    req.auth = { role: agent.role as AgentRole, agentId, workspaceId: keyWorkspaceId };
+    req.auth = { role: memberRoleToAuthRole(membership.memberRole), agentId, workspaceId: membership.workspaceId };
     return next();
   }
 
