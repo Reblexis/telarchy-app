@@ -48,8 +48,9 @@ export async function getAgentWorkspaceMemberships(agentId: string): Promise<Wor
   return getParticipantWorkspaceMemberships(agentId);
 }
 
-export async function getUserWorkspaceMemberships(userId: string, linkedAgentId?: string): Promise<WorkspaceMembership[]> {
-  if (linkedAgentId) return getAgentWorkspaceMemberships(linkedAgentId);
+export async function getUserWorkspaceMemberships(userId: string, _linkedAgentId?: string): Promise<WorkspaceMembership[]> {
+  // Always use the participant-based lookup which resolves the agent internally
+  // and includes ownership-based memberships (workspaces where createdBy matches).
   return getUserWorkspaceMembershipsFromParticipant(userId);
 }
 
