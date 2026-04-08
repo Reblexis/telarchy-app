@@ -64,7 +64,8 @@ userauthRouter.get('/me', requireUser, wrap(async (req, res) => {
   const memberships = await getUserWorkspaceMemberships(uid);
 
   const workspaceMap = Object.fromEntries(memberships.map(m => [m.workspaceId, { role: m.memberRole }]));
-  const memberRole = workspaceMap[workspaceId]?.role ?? null;
+  // Platform admins are always owners of every workspace
+  const memberRole = agent?.platformAdmin ? 'owner' : (workspaceMap[workspaceId]?.role ?? null);
 
   res.json({
     uid,
