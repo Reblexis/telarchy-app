@@ -213,12 +213,8 @@ export const api = {
   sendTaskMessage: (id: string, content: string) =>
     request(`/api/tasks/${id}/messages`, { method: 'POST', body: JSON.stringify({ content }) }),
 
-  // Hooks (public, no auth)
-  getHooksStatus: async (): Promise<{ active: boolean; lastPolledAt?: string; intervalMs?: number; nextPollAt?: string }> => {
-    const res = await fetch(`${API_BASE}/api/events/hooks/status`);
-    if (!res.ok) throw new Error(`Hooks status request failed: ${res.status}`);
-    return res.json();
-  },
+  getHooksStatus: (): Promise<{ active: boolean; lastPolledAt?: string; intervalMs?: number; nextPollAt?: string }> =>
+    request('/api/events/hooks/status'),
 
   // Marketplace (public, no auth)
   getStats: async (): Promise<{ marketsActive: number; agentsActive: number; tradesThisWeek: number }> => {
