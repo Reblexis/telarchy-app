@@ -102,7 +102,7 @@ export const agents = pgTable('agents', {
 export const agentApiKeys = pgTable('agent_api_keys', {
   hash: text('hash').primaryKey(),
   agentId: text('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
-  workspaceId: text('workspace_id').notNull().default('default'),
+  workspaceId: text('workspace_id').notNull(),
 });
 
 // ---------------------------------------------------------------------------

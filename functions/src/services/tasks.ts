@@ -42,7 +42,7 @@ async function getBaselineConsensusMap(marketRows: MarketRow[], workspaceId: str
   return map;
 }
 
-export async function createConditionalMarkets(taskId: string, workspaceId = 'default'): Promise<string[]> {
+export async function createConditionalMarkets(taskId: string, workspaceId: string): Promise<string[]> {
   const lockKey = `lock:taskMarket:${taskId}`;
 
   const acquired = await db.transaction(async tx => {
@@ -119,7 +119,7 @@ export async function createConditionalMarkets(taskId: string, workspaceId = 'de
   }
 }
 
-export async function voidTaskMarkets(taskId: string, workspaceId = 'default'): Promise<void> {
+export async function voidTaskMarkets(taskId: string, workspaceId: string): Promise<void> {
   const openMarkets = await db.select().from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.taskId, taskId), eq(markets.resolved, false)));
 
@@ -128,7 +128,7 @@ export async function voidTaskMarkets(taskId: string, workspaceId = 'default'): 
   }
 }
 
-export async function approveTask(taskId: string, workspaceId = 'default'): Promise<void> {
+export async function approveTask(taskId: string, workspaceId: string): Promise<void> {
   const [task] = await db.select().from(tasks)
     .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
 
@@ -154,14 +154,14 @@ export async function approveTask(taskId: string, workspaceId = 'default'): Prom
   });
 }
 
-export async function getTaskMarketSummaries(marketIds: string[], workspaceId = 'default') {
+export async function getTaskMarketSummaries(marketIds: string[], workspaceId: string) {
   if (marketIds.length === 0) return [];
   const rows = await db.select().from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), inArray(markets.id, marketIds)));
   return buildTaskMarketSummariesFromRows(rows, workspaceId);
 }
 
-export async function getTaskMarketSummariesForTask(taskId: string, workspaceId = 'default') {
+export async function getTaskMarketSummariesForTask(taskId: string, workspaceId: string) {
   const rows = await db.select().from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.taskId, taskId), eq(markets.resolved, false)));
   return buildTaskMarketSummariesFromRows(rows, workspaceId);

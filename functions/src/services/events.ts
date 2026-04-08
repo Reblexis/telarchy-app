@@ -8,14 +8,14 @@ export type EventType = 'market:created' | 'market:resolved' | 'metric:updated' 
 export async function emitEvent(
   type: EventType,
   data: Record<string, unknown>,
-  workspaceId = 'default',
+  workspaceId: string,
 ): Promise<void> {
   await db.insert(events).values({ id: randomUUID(), workspaceId, type, data, timestamp: new Date() });
 }
 
 export async function getEventsSince(
   since: string,
-  workspaceId = 'default',
+  workspaceId: string,
 ): Promise<Array<{ id: string; type: string; data: Record<string, unknown>; timestamp: string }>> {
   const sinceDate = new Date(since);
   const rows = await db.select().from(events)
@@ -31,7 +31,7 @@ export async function getEventsSince(
   }));
 }
 
-export async function cleanupOldEvents(workspaceId = 'default'): Promise<number> {
+export async function cleanupOldEvents(workspaceId: string): Promise<number> {
   const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
   const deleted = await db.delete(events)
     .where(and(eq(events.workspaceId, workspaceId), lt(events.timestamp, cutoff)))

@@ -76,16 +76,14 @@ async function resolveUser(
   const agentId = agentRow?.id ?? undefined;
   const isPlatformAdmin = agentRow?.platformAdmin === true;
 
-  if (isPlatformAdmin) {
-    const wsId = requestedWorkspaceId ?? 'default';
-    return { workspaceId: wsId, memberRole: 'owner', agentId };
+  if (isPlatformAdmin && requestedWorkspaceId) {
+    return { workspaceId: requestedWorkspaceId, memberRole: 'owner', agentId };
   }
 
   const memberships = await getUserWorkspaceMemberships(userId, agentId);
 
   if (memberships.length === 0) {
-    if (requestedWorkspaceId && requestedWorkspaceId !== 'default') return null;
-    return { workspaceId: 'default', memberRole: null, agentId };
+    return null;
   }
 
   if (requestedWorkspaceId) {
@@ -174,7 +172,10 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     if (!keyRecord) return res.status(401).json({ error: 'Invalid agent key' });
 
     const { agentId } = keyRecord;
-    const keyWorkspaceId = keyRecord.workspaceId ?? 'default';
+    const keyWorkspaceId = keyRecord.workspaceId;
+    if (!keyWorkspaceId) {
+      return res.status(403).json({ error: 'Agent API key has no workspace assigned' });
+    }
 
     const [agent] = await db.select().from(agents).where(eq(agents.id, agentId));
     if (!agent) return res.status(401).json({ error: 'Agent not found' });

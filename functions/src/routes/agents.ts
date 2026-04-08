@@ -29,14 +29,16 @@ function resolveRouteAgentId(req: Request): string | null {
 }
 
 agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => {
-  const { agentId, workspaceId = 'default' } = req.body;
+  const { agentId, workspaceId } = req.body;
   const agentIdError = validateAgentId(agentId);
   if (agentIdError) { res.status(400).json({ error: agentIdError }); return; }
 
-  if (workspaceId !== 'default') {
-    const [ws] = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.id, workspaceId));
-    if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
+  if (!workspaceId || typeof workspaceId !== 'string') {
+    res.status(400).json({ error: 'workspaceId is required' }); return;
   }
+
+  const [ws] = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.id, workspaceId));
+  if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
 
   const [existing] = await db.select().from(agents).where(eq(agents.id, agentId));
   if (existing) { res.status(409).json({ error: 'Agent already registered' }); return; }
@@ -103,9 +105,7 @@ agentsRouter.get('/deposit-address', (_req, res) => {
 agentsRouter.use(authMiddleware);
 
 agentsRouter.get('/treasury', requireRole('admin'), wrap(async (req, res) => {
-  if (req.auth!.workspaceId !== 'default') {
-    res.status(403).json({ error: 'Treasury is only accessible to platform admin' }); return;
-  }
+  // Treasury access is gated by requireRole('admin') above
   res.json(await getTreasuryBalances());
 }));
 

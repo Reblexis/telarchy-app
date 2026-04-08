@@ -207,8 +207,6 @@ function AgentAdminPage({ user, workspace }: {
   user: NonNullable<ReturnType<typeof useAuth>['user']>;
   workspace: WorkspaceInfo | null;
 }) {
-  const isPlatformAdmin = workspace?.workspaceId === 'default';
-
   const [agents, setAgents] = useState<Agent[]>(() => cacheGet<Agent[]>('agents') || []);
   const [loading, setLoading] = useState(!cacheGet('agents'));
   const [error, setError] = useState('');
@@ -231,14 +229,14 @@ function AgentAdminPage({ user, workspace }: {
     const wsId = workspace?.workspaceId;
     const [data, stats] = await Promise.all([
       api.getAgents().catch((e: Error) => { setError(e.message); return null; }),
-      !isPlatformAdmin && wsId && wsId !== 'default'
+      wsId
         ? api.getWorkspaceStats(wsId).catch(() => null)
         : Promise.resolve(null),
     ]);
     if (data) { setAgents(data); cacheSet('agents', data); }
     setWorkspaceStats(stats as { tradedVolume: number } | null);
     setLoading(false);
-  }, [workspace, isPlatformAdmin]);
+  }, [workspace]);
 
   const loadGroups = useCallback(async () => {
     const [groupData, metricData] = await Promise.all([
@@ -321,7 +319,7 @@ function AgentAdminPage({ user, workspace }: {
       <div className="container">
         {error && <div className="message error show">{error}</div>}
 
-        {!isPlatformAdmin && workspaceStats !== null && (
+        {workspaceStats !== null && (
           <div className="section" style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>Traded Volume</div>

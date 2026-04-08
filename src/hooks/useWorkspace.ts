@@ -62,12 +62,12 @@ export function useWorkspace(authenticated: boolean = true): {
         Array<{ id: string; name: string; memberRole: string }>,
       ]) => {
         if (cancelled) return;
-        const workspaceId = profile.workspaceId ?? 'default';
+        const workspaceId = profile.workspaceId;
         const memberRole = profile.memberRole ?? null;
         const authRole = profile.authRole ?? 'pending';
         const intent = profile.intent ?? null;
 
-        const needsWorkspace = authRole === 'pending';
+        const needsWorkspace = authRole === 'pending' || !workspaceId;
 
         const tier: WorkspaceInfo['tier'] = (() => {
           if (needsWorkspace) return 'none';
@@ -80,7 +80,7 @@ export function useWorkspace(authenticated: boolean = true): {
         })();
 
         setError(null);
-        setWorkspace({ workspaceId, memberRole, authRole, intent, tier, needsWorkspace });
+        setWorkspace({ workspaceId: workspaceId ?? '', memberRole, authRole, intent, tier, needsWorkspace });
 
         const mapped = wsList.map(w => ({ id: w.id, name: w.name, memberRole: w.memberRole }));
         setAllWorkspaces(mapped);

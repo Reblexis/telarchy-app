@@ -72,7 +72,7 @@ async function resolveMarketRow(
   return { positions: positionCount, totalPayout };
 }
 
-export async function resolveMarket(marketId: string, workspaceId = 'default'): Promise<{ resolved: boolean; totalPayout: number }> {
+export async function resolveMarket(marketId: string, workspaceId: string): Promise<{ resolved: boolean; totalPayout: number }> {
   const [market] = await db.select().from(markets)
     .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
 
@@ -85,7 +85,7 @@ export async function resolveMarket(marketId: string, workspaceId = 'default'): 
   return { resolved: true, totalPayout: result.totalPayout };
 }
 
-export async function resolvePredictions(targetDate?: string, workspaceId = 'default'): Promise<{ resolved: number; totalPayout: number }> {
+export async function resolvePredictions(targetDate: string | undefined, workspaceId: string): Promise<{ resolved: number; totalPayout: number }> {
   const today = targetDate || new Date().toISOString().slice(0, 10);
 
   const openMarkets = await db.select().from(markets)
@@ -133,7 +133,7 @@ export interface GetMarketsOptions {
   limit?: number;
 }
 
-export async function getMarkets(options: GetMarketsOptions | boolean = false, taskId?: string, workspaceId = 'default') {
+export async function getMarkets(options: GetMarketsOptions | boolean = false, taskId: string | undefined, workspaceId: string) {
   const opts: GetMarketsOptions = typeof options === 'boolean'
     ? { includeResolved: options, taskId }
     : options;

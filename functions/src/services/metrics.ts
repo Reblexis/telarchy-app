@@ -82,7 +82,7 @@ function enrichMetrics(rawMetrics: Metric[], consensusMap: Record<string, number
   return rawMetrics;
 }
 
-export async function buildConsensusMap(workspaceId = 'default'): Promise<{ map: Record<string, number>; untradedLeaves: Set<string> }> {
+export async function buildConsensusMap(workspaceId: string): Promise<{ map: Record<string, number>; untradedLeaves: Set<string> }> {
   const openMarkets = await db.select().from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
 
@@ -126,7 +126,7 @@ export async function buildConsensusMap(workspaceId = 'default'): Promise<{ map:
   return { map, untradedLeaves };
 }
 
-export async function getAllMetrics(workspaceId = 'default'): Promise<Metric[]> {
+export async function getAllMetrics(workspaceId: string): Promise<Metric[]> {
   const [rows, { map, untradedLeaves }] = await Promise.all([
     db.select().from(metrics).where(eq(metrics.workspaceId, workspaceId)),
     buildConsensusMap(workspaceId),
@@ -147,7 +147,7 @@ export async function getAllMetrics(workspaceId = 'default'): Promise<Metric[]> 
   })), map, untradedLeaves);
 }
 
-export async function getMetricById(id: string, workspaceId = 'default'): Promise<Metric | null> {
+export async function getMetricById(id: string, workspaceId: string): Promise<Metric | null> {
   const all = await getAllMetrics(workspaceId);
   return all.find(m => m.id === id) ?? null;
 }
@@ -155,7 +155,7 @@ export async function getMetricById(id: string, workspaceId = 'default'): Promis
 export async function ensureMarketsForTimePreference(
   tpMetricId: string,
   halfLife: number,
-  workspaceId = 'default',
+  workspaceId: string,
 ): Promise<void> {
   const metricRows = await db.select().from(metrics).where(eq(metrics.workspaceId, workspaceId));
   const nameToFormula: Record<string, string> = {};
@@ -232,16 +232,16 @@ export async function ensureMarketsForTimePreference(
 export async function respawnMarketsForTimePreference(
   tpMetricId: string,
   halfLife: number,
-  workspaceId = 'default',
+  workspaceId: string,
 ): Promise<void> {
   await ensureMarketsForTimePreference(tpMetricId, halfLife, workspaceId);
 }
 
-export async function deleteMetric(id: string, workspaceId = 'default'): Promise<void> {
+export async function deleteMetric(id: string, workspaceId: string): Promise<void> {
   await db.delete(metrics).where(and(eq(metrics.id, id), eq(metrics.workspaceId, workspaceId)));
 }
 
-export async function getMetricLogs(metricId: string, workspaceId = 'default'): Promise<MetricLog[]> {
+export async function getMetricLogs(metricId: string, workspaceId: string): Promise<MetricLog[]> {
   const rows = await db.select().from(metricLogs)
     .where(and(eq(metricLogs.workspaceId, workspaceId), eq(metricLogs.metricId, metricId)))
     .orderBy(asc(metricLogs.timestamp));
@@ -253,7 +253,7 @@ export async function getMetricLogs(metricId: string, workspaceId = 'default'): 
   }));
 }
 
-export async function getUpdates(limit?: number, workspaceId = 'default'): Promise<UpdateEntry[]> {
+export async function getUpdates(limit: number | undefined, workspaceId: string): Promise<UpdateEntry[]> {
   const query = db.select().from(updates)
     .where(eq(updates.workspaceId, workspaceId))
     .orderBy(desc(updates.timestamp));
@@ -267,7 +267,7 @@ export async function getUpdates(limit?: number, workspaceId = 'default'): Promi
   }));
 }
 
-export async function logSpecificMetrics(metricIds: string[], allMetrics: Metric[], workspaceId = 'default'): Promise<void> {
+export async function logSpecificMetrics(metricIds: string[], allMetrics: Metric[], workspaceId: string): Promise<void> {
   const toInsert = metricIds
     .map(id => allMetrics.find(m => m.id === id))
     .filter((m): m is Metric => m !== undefined && m.total !== null)

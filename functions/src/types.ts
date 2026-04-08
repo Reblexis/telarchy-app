@@ -121,7 +121,7 @@ export interface AuthInfo {
   role: AgentRole | 'admin';
   /** Canonical participant identity, stored in the agents table. */
   agentId?: string;
-  /** Always set. 'default' for master-key or existing Firebase admin users. */
+  /** Always set. Determined by auth context (session, API key, or agent key). */
   workspaceId: string;
   /** BetterAuth user ID, set when authenticated via browser session. */
   uid?: string;

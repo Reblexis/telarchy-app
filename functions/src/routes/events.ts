@@ -36,7 +36,7 @@ eventsRouter.post('/hooks/heartbeat', authMiddleware, requireRole('agent', 'admi
 }));
 
 eventsRouter.get('/hooks/status', wrap(async (req, res) => {
-  const workspaceId = (req.headers['x-workspace-id'] as string) || 'default';
+  const workspaceId = req.auth!.workspaceId;
   const [row] = await db.select().from(hookWatcher).where(eq(hookWatcher.workspaceId, workspaceId));
   if (!row?.lastHeartbeat) { res.json({ active: false }); return; }
 

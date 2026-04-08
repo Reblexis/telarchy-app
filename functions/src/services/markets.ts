@@ -52,7 +52,7 @@ export async function distributeLPLeftover(
 /** Void a single open market: refund all positions at cost, mark resolved+voided. */
 export async function voidMarket(
   marketOrId: MarketRow | string,
-  workspaceId = 'default',
+  workspaceId: string,
 ): Promise<{ refunded: number }> {
   const market = typeof marketOrId === 'string'
     ? await db.select().from(markets)
@@ -95,7 +95,7 @@ export async function voidMarket(
 }
 
 /** Void all open markets whose metricId is in the provided set. */
-export async function voidOpenMarketsForMetrics(metricIds: Set<string>, workspaceId = 'default'): Promise<void> {
+export async function voidOpenMarketsForMetrics(metricIds: Set<string>, workspaceId: string): Promise<void> {
   const openMarkets = await db.select().from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
 
@@ -229,7 +229,7 @@ async function releaseLock(lockKey: string): Promise<void> {
     });
 }
 
-export async function refreshRelativeDateMarkets(workspaceId = 'default'): Promise<{ created: number; deactivated: number; deduplicated: number }> {
+export async function refreshRelativeDateMarkets(workspaceId: string): Promise<{ created: number; deactivated: number; deduplicated: number }> {
   const lockKey = `lock:marketRefresh:${workspaceId}`;
   const acquired = await acquireLock(lockKey, 120_000);
   if (!acquired) return { created: 0, deactivated: 0, deduplicated: 0 };
