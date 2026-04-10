@@ -314,9 +314,9 @@ function AgentAdminPage({ user, workspace }: {
 
   const isSystemGroup = (type: string) => type === 'public' || type === 'admin' || type === 'trader';
 
-  // Build a lookup: agentId -> list of groups the agent belongs to (excluding public)
+  // Build a lookup: agentId -> list of groups the agent belongs to
   const agentGroups = (agentId: string) =>
-    groups.filter(g => g.type !== 'public' && g.memberIds.includes(agentId));
+    groups.filter(g => g.memberIds.includes(agentId));
 
   // Groups available to assign (non-public, since public is auto)
   const assignableGroups = groups.filter(g => g.type !== 'public');
@@ -373,12 +373,14 @@ function AgentAdminPage({ user, workspace }: {
                               }}
                             >
                               {g.name}
-                              <span
-                                role="button"
-                                style={{ cursor: 'pointer', opacity: 0.6, marginLeft: '0.1rem', fontSize: '0.65rem' }}
-                                title={`Remove from ${g.name}`}
-                                onClick={() => handleRemoveMemberFromGroup(g, agent.id)}
-                              >x</span>
+                              {g.type !== 'public' && (
+                                <span
+                                  role="button"
+                                  style={{ cursor: 'pointer', opacity: 0.6, marginLeft: '0.1rem', fontSize: '0.65rem' }}
+                                  title={`Remove from ${g.name}`}
+                                  onClick={() => handleRemoveMemberFromGroup(g, agent.id)}
+                                >x</span>
+                              )}
                             </span>
                           ))}
                           {notMemberOf.length > 0 && (
@@ -444,7 +446,7 @@ function AgentAdminPage({ user, workspace }: {
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No groups yet.</p>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {groups.filter(g => g.type !== 'public').map(group => {
+              {groups.map(group => {
                 const isExpanded = expandedGroupId === group.id;
                 const systemGroup = isSystemGroup(group.type);
                 const restrictedMetrics = Object.keys(group.permissions).length;
