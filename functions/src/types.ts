@@ -33,7 +33,7 @@ export interface UpdateEntry {
   timestamp: Date;
 }
 
-export type AgentRole = 'admin' | 'agent' | 'pending';
+export type AgentRole = 'admin' | 'agent' | 'member' | 'pending';
 
 export interface Agent {
   id: string;

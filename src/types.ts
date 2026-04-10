@@ -37,7 +37,7 @@ export interface UpdateEntry {
 
 export type GraphInterval = 'day' | 'week' | 'month' | 'year';
 
-export type AgentRole = 'admin' | 'agent' | 'pending';
+export type AgentRole = 'admin' | 'agent' | 'member' | 'pending';
 
 export interface MetricPermission {
   read: boolean;

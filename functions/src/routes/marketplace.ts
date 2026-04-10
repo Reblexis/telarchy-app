@@ -8,7 +8,7 @@ import { requireIdentity } from '../middleware/roles';
 import { consensus, pHigher } from '../lib/amm';
 import { endOfPeriod } from '../lib/date-utils';
 import { ensureSystemGroups } from './groups';
-import { getGroupMemberIds, getWorkspaceRoleForParticipant } from '../lib/participants';
+import { getGroupMemberIds } from '../lib/participants';
 
 export const marketplaceRouter = Router();
 
@@ -128,7 +128,6 @@ marketplaceRouter.post('/:workspaceId/join', authMiddleware, requireIdentity, wr
   const { workspaceId } = req.params as { workspaceId: string };
   const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId));
   if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
-  if (ws.visibility === 'private') { res.status(403).json({ error: 'This workspace is invite-only' }); return; }
 
   await ensureSystemGroups(workspaceId);
   const groups = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, workspaceId));
@@ -137,16 +136,17 @@ marketplaceRouter.post('/:workspaceId/join', authMiddleware, requireIdentity, wr
     res.status(500).json({ error: 'Workspace public group is missing' }); return;
   }
 
-  const publicMemberIds = getGroupMemberIds(publicGroup);
-  const nextMemberIds = agentId && !publicMemberIds.includes(agentId) ? [...publicMemberIds, agentId] : publicMemberIds;
-  const alreadyMember = await getWorkspaceRoleForParticipant(workspaceId, agentId, uid) !== null;
+  const participantId = agentId ?? uid;
+  if (!participantId) { res.status(400).json({ error: 'No participant identity' }); return; }
 
-  if (nextMemberIds !== publicMemberIds) {
+  const publicMemberIds = getGroupMemberIds(publicGroup);
+  const alreadyMember = publicMemberIds.includes(participantId);
+
+  if (!alreadyMember) {
     await db.update(permissionGroups)
-      .set({ memberIds: nextMemberIds })
+      .set({ memberIds: [...publicMemberIds, participantId] })
       .where(and(eq(permissionGroups.id, publicGroup.id), eq(permissionGroups.workspaceId, workspaceId)));
   }
 
-  const role = await getWorkspaceRoleForParticipant(workspaceId, agentId, uid) ?? 'trader';
-  res.status(alreadyMember ? 200 : 201).json({ ok: true, workspaceId, role, alreadyMember });
+  res.status(alreadyMember ? 200 : 201).json({ ok: true, workspaceId, role: 'member', alreadyMember });
 }));

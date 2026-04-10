@@ -34,6 +34,7 @@ function safeCompare(a: string, b: string): boolean {
 function memberRoleToAuthRole(memberRole: WorkspaceMemberRole | null): AgentRole {
   if (memberRole === 'owner' || memberRole === 'admin') return 'admin';
   if (memberRole === 'trader') return 'agent';
+  if (memberRole === 'viewer') return 'member';
   return 'pending';
 }
 

@@ -66,7 +66,7 @@ export async function getParticipantWorkspaceMemberships(participantId: string):
 
   for (const group of groups) {
     if (!isParticipantMember(group, participantId)) continue;
-    upsertMembership(memberships, group.workspaceId, group.type === 'admin' ? 'admin' : 'trader');
+    upsertMembership(memberships, group.workspaceId, group.type === 'admin' ? 'admin' : group.type === 'public' ? 'viewer' : 'trader');
   }
 
   return Array.from(memberships.entries()).map(([workspaceId, memberRole]) => ({ workspaceId, memberRole }));

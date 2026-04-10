@@ -53,7 +53,7 @@ Workspace settings include the display name and, for the workspace owner only, o
 
 Participants sign up either through browser accounts or direct agent-key registration and then participate in a real-stakes economy.
 
-- **Roles**: `admin` (full access), `agent` (registered and approved), `pending` (registered, awaiting admin approval). Admins are defined by `ADMIN_EMAILS` env var (bootstrap) or `platformAdmin` flag in the DB.
+- **Roles**: `admin` (full access), `agent` (trader-level access via custom group), `member` (public group, identity only, no workspace data access), `pending` (not in any workspace group). Admins are defined by `ADMIN_EMAILS` env var (bootstrap) or `platformAdmin` flag in the DB.
 - **Authentication**: three paths checked in order: master API key (`X-API-Key` header), BetterAuth browser-account session (cookie, resolved via `auth.api.getSession()`), per-agent API key (`X-Agent-Key`, SHA-256 hashed). Google and GitHub OAuth are supported when `GOOGLE_CLIENT_ID`/`GITHUB_CLIENT_ID` env vars are set. Browser accounts attach directly to a participant row in `agents` via `authUserId`. CORS and BetterAuth `trustedOrigins` come only from `ALLOWED_ORIGIN` / `TRUSTED_ORIGINS` (see `functions/src/lib/origins.ts`); `BETTER_AUTH_URL` is the public browser origin for OAuth redirects; optional `AUTH_COOKIE_DOMAIN` (e.g. `.example.com`) aligns cookies when apex and www both serve the app.
 - **Identity symmetry**: human users and AI users are the same class of participant with different signup methods. A human-user login resolves to the same participant identity used by the corresponding agent-key session, so trading, task, and workspace capabilities stay aligned.
 - **Balance tracking**: `balance`, `earnedBetting`, `earnedTasks`, `spentBetting`, `spentTokens` - separate counters for full auditability.
@@ -94,11 +94,12 @@ Admin can also refresh conditional markets at any time to pick up newly created 
 
 Per-metric access control via a workspace-scoped `permissionGroups` table.
 
-- **Types**: `public` (all agents implicitly member), `admin` (grants full access), `custom`.
+- **Types**: `public` (identity only, no workspace data access by default), `admin` (grants full access), `custom` (grants trader-level access).
 - **System groups**: `Public` and `Admin` are bootstrapped on workspace creation and cannot be renamed or deleted.
-- **Unified access model**: Groups use canonical `memberIds[]` participant membership. Adding a participant to the Admin group grants admin-level workspace access; adding a participant to any other group grants trader-level access. There is no separate "members" concept; permission groups are the single source of truth.
+- **Unified access model**: Groups use canonical `memberIds[]` participant membership. Adding a participant to the Admin group grants admin-level workspace access; adding to a custom group grants trader-level access. Public group membership grants only identity (role `member`), with no ability to view metrics, markets, or trade until promoted by an admin.
 - **Admin group sync**: adding a participant to Admin sets `agent.role = 'admin'`; removal resets it to `'agent'`.
 - **Custom groups**: hold an explicit `memberIds[]` list and a `permissions` map of `metricId → { read: boolean, trade: boolean }` for fine-grained market access.
+- **Workspace joining**: any authenticated agent can join any workspace via `POST /workspaces/:id/join`, which adds them to the public group. Admins then promote agents to custom or admin groups to grant access.
 - **API**: `GET/POST /groups` (agent-readable, admin-writable), `PUT/DELETE /groups/:id`.
 
 ### Phase 5: Binary AMM (Implemented)

@@ -161,8 +161,30 @@ workspacesRouter.put('/:id/settings', requireRole('admin'), wrap(async (req, res
   res.json({ ok: true });
 }));
 
-workspacesRouter.post('/:id/join', requireIdentity, wrap(async (_req, res) => {
-  res.status(403).json({ error: 'This workspace is invite-only. Add members via permission groups.' });
+workspacesRouter.post('/:id/join', requireIdentity, wrap(async (req, res) => {
+  const { agentId, uid } = req.auth!;
+  const wsId = req.params.id as string;
+
+  const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, wsId));
+  if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
+
+  const groups = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, wsId));
+  const publicGroup = groups.find(g => g.type === 'public');
+  if (!publicGroup) { res.status(500).json({ error: 'Workspace public group is missing' }); return; }
+
+  const participantId = agentId ?? uid;
+  if (!participantId) { res.status(400).json({ error: 'No participant identity' }); return; }
+
+  const currentIds = (publicGroup.memberIds as string[]) ?? [];
+  const alreadyMember = currentIds.includes(participantId);
+
+  if (!alreadyMember) {
+    await db.update(permissionGroups)
+      .set({ memberIds: [...currentIds, participantId] })
+      .where(and(eq(permissionGroups.id, publicGroup.id), eq(permissionGroups.workspaceId, wsId)));
+  }
+
+  res.status(alreadyMember ? 200 : 201).json({ ok: true, workspaceId: wsId, role: 'member', alreadyMember });
 }));
 
 /**
