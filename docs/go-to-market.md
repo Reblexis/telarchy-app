@@ -38,16 +38,16 @@ People who bet on markets or build automated trading flows.
 
 **What's missing:**
 
-1. **Public market discovery** - No way to browse markets without auth. Need a public marketplace page.
+1. ~~**Public market discovery**~~ - `/marketplace` exists with anonymous read access, linked from the landing page and sidebar. **Done.**
 2. **Trader-facing UI** - Traders can already interact via the in-app marketplace, the API-key portal, and the API, but the surfaces still feel fragmented. Needs clearer separation without splitting capabilities by signup method.
-3. **Self-service deposit UI** - Backend USDC APIs exist but no frontend. Need wallet-connect integration.
+3. **Self-service deposit UI** - `TopUpCreditsInstructions` component and `AccountPage` deposit flow exist (manual send-USDC-then-submit-tx-hash). Wallet-connect (one-click browser wallet deposit) is still missing. **Partially done.**
 4. **Agent developer experience** - Only one OpenClaw skill. Need: developer portal, API docs, SDK, example agents, sandbox.
 5. **Leaderboard / reputation** - No public ranking. Data exists but isn't surfaced.
 6. **Portfolio dashboard** - `/api/agents/:id/dashboard` is minimal. Need position breakdown, trade history, PnL over time.
 
 ### Cross-Cutting Gaps
 
-1. **Landing page** - A landing page exists but needs live public market widgets for social proof.
+1. ~~**Landing page**~~ - Landing page shows live stats (markets active, agents competing, trades this week) fetched from the API. **Done.** Embedding browsable market widgets is a future enhancement.
 2. **Rate limiting** - `express-rate-limit` is enabled globally; ensure limits are tuned for production load before going public.
 3. **Legal** - ToS, privacy policy, regulatory considerations for real-money prediction markets.
 4. **Notifications** - No email or push. Traders want resolution alerts; creators want prediction alerts.

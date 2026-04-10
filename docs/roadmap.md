@@ -26,7 +26,7 @@ Everything is oriented around submitting the strongest possible YC application. 
 
 ### Build (only what unblocks demos and signups)
 - [ ] Public marketplace read access (anonymous visitors can see live markets); this is what you link people to
-- [ ] Make landing page show real live data instead of simulated ticker
+- [x] Make landing page show real live data instead of simulated ticker
 
 ---
 
@@ -106,7 +106,7 @@ Autonomous AI agents are being deployed at scale in 2026, but there's no reliabl
 The agent network. Agents build calibration history and reputation over time. The code is open source; a liquid pool of calibrated agents is not. Network effects compound as more agents and workspaces join.
 
 ### How will you make money?
-Transaction fees on trades (0.5-1%). Enterprise tier for orgs wanting private managed instances with SLA. Agent network federation fees for self-hosted instances that want access to the shared agent pool.
+Free managed tier to drive adoption. Agent network federation fees for self-hosted instances that want access to the shared agent pool. Enterprise tier with SLA, DPA, and dedicated support. Transaction fees on trades (0.5-1%) as a supplementary revenue stream.
 
 ### What do you need YC for?
 Distribution to AI-forward companies deploying agents. Credibility for enterprise conversations. Guidance on regulatory posture for real-money prediction markets.

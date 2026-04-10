@@ -12,7 +12,7 @@ The name reflects this: futarchy foregrounds the *mechanism* (markets, the futur
 
 The metrics tracker evolves from a passive measurement system into an active governance and forecasting engine. Agents participate in prediction markets on metric values, staking real money on their forecasts. The market produces a consensus forecast for every metric. Metrics with time preference enabled automatically incorporate these forward-looking consensus values via a decay-weighted temporal aggregation, and conditional markets enable the core decision loop.
 
-The system is general-purpose: it works equally for an individual tracking personal health/career/life metrics and for an organization tracking business KPIs, OKRs, or any other quantified objectives. Metrics are standalone by default; each can independently have time preference and prediction markets. Users can later connect metrics with formulas if they want derived values, but there is no required structure.
+The primary use case is company governance: founders and leadership teams define their KPIs, OKRs, or any quantified business objectives and let the market forecast and evaluate decisions against them. The system also supports personal use (health, career, life metrics) and any other domain where a single owner defines the goals. Metrics are standalone by default; each can independently have time preference and prediction markets. Users can later connect metrics with formulas if they want derived values, but there is no required structure.
 
 **Agent** means any market participant, human or AI. A consultant, employee, or automated system can all register, propose tasks, and bet. The economic logic applies equally to all.
 
@@ -185,14 +185,14 @@ Credits are backed by real USDC. A treasury wallet on the Base L2 network holds 
 **Settlement model**:
 - Internal credit transfers (betting, task payouts, gifting) remain purely off-chain, with no gas fees.
 - On-chain settlement only happens at withdrawal time, keeping fees negligible (~$0.001/tx on Base).
-- Conversion rate: `creditValueUsd` from `_system/economy` determines how many USDC a credit is worth.
+- Conversion rate: `creditValueUsd` from the `systemConfig` table (key: `economy`) determines how many USDC a credit is worth.
 
 **API**:
 - `PUT /api/agents/:id/wallet` - register or update a Base wallet address (self or admin).
 - `POST /api/agents/:id/withdraw` - body `{ amount }`: deducts `amount` credits, sends `amount * creditValueUsd` USDC on-chain. Atomically re-credits on tx failure.
 - `GET /api/agents/treasury` - admin only: returns treasury address and current USDC balance.
 
-**Audit trail**: every withdrawal is recorded in the `withdrawals` collection with `{ agentId, credits, usdcAmount, toAddress, txHash, createdAt }`.
+**Audit trail**: every withdrawal is recorded in the `withdrawals` table with `{ agentId, credits, usdcAmount, toAddress, txHash, createdAt }`.
 
 **Credit purchase (open to anyone)**:
 - Treasury receive address: `GET /api/agents/deposit-address` (no auth). Admins can also use `GET /api/agents/treasury` for the address plus live balances.
@@ -200,11 +200,11 @@ Credits are backed by real USDC. A treasury wallet on the Base L2 network holds 
 - Backend verifies the transfer on-chain (reads the Transfer event, checks recipient = treasury).
 - Credits issued: `floor(usdcAmount / (creditValueUsd * (1 + buyFeePercent/100)))`.
 - The fee surplus stays in the treasury. The system is self-sustaining: total USDC held ≥ credits outstanding × creditValueUsd at all times.
-- Each tx hash is stored in the `deposits` collection and rejected if reused (double-spend prevention).
+- Each tx hash is stored in the `deposits` table and rejected if reused (double-spend prevention).
 
 **Web UI**: signed-in users get **Top up with USDC** from Account (balance area and sidebar); deposit panels render **`GET /api/guides/credits`** for prose and **`GET /api/agents/deposit-address`** for live contract/treasury values (same as any API client), plus the existing **`POST /api/agents/me/deposit`** form.
 
-**Economy parameters** (set in `_system/economy`):
+**Economy parameters** (stored in the `systemConfig` table, key: `economy`):
 - `creditValueUsd` - USD value of 1 credit (also used for withdrawal conversion).
 - `buyFeePercent` - fee percentage added on top when buying credits (default 0). E.g. 5 means 105 USDC -> 100 credits.
 
@@ -296,6 +296,7 @@ The selected workspace now owns its workspace-scoped links directly in the sideb
 - **Free managed tier** - workspaces hosted on the central platform, access to the shared agent pool; free to drive adoption and grow the network flywheel.
 - **Agent network federation (paid)** - self-hosted instances that want to use the central agent pool pay a federation fee; without federation their agents are fully local and isolated. Federation pricing reflects API calls to the shared agent economy, not hosting costs.
 - **Enterprise** - SLA, DPA, custom agent training pipelines, dedicated support; not competing on hosting price but on accountability and integration depth.
+- **Transaction fees** - a percentage fee on trades (configurable via `buyFeePercent`), applied as a supplementary revenue stream.
 
 Self-hosted workspaces that stay fully isolated remain free in perpetuity. The goal is not to lock users in but to make the managed network valuable enough that most users prefer it.
 
