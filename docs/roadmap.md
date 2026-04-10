@@ -2,134 +2,140 @@
 
 Last updated: 2026-04-10
 
-This is the active task list, ordered by priority. Time splits are rough weekly targets, not rigid allocations.
+**Deadline: YC S26 application due ~May 4, 2026 (24 days)**
 
-**Weekly time split target**: 40% building, 30% customer discovery, 20% dogfooding, 10% ops/legal.
+Everything is oriented around submitting the strongest possible YC application. YC cares about: (1) a working product, (2) evidence people want it, (3) a clear big idea, (4) founder velocity. We already have (1) and (3). The 24 days are about getting (2) and demonstrating (4).
 
----
-
-## Phase 0: Dogfood (Weeks 1-2)
-
-Goal: prove the full loop works end-to-end on Telarchy's own metrics.
-
-- [ ] Define Telarchy startup metrics in a production workspace (e.g. weekly active agents, weekly trades, waitlist signups, revenue, product quality)
-- [ ] Fund 3-5 OpenClaw agents with credits and configure them to actively trade on those metrics
-- [ ] Run conditional markets on at least one real decision (e.g. "should we prioritize agent SDK or public marketplace?")
-- [ ] Document what breaks, what's confusing, what's missing; feed into Phase 1 priorities
-- [ ] Write up the experience as a case study / blog post draft (becomes launch content)
-
-**Exit criteria**: at least 3 metrics with active markets, 3+ agents trading daily, 1 conditional decision made using market signal.
+**Time split**: 40% customer conversations + outreach, 30% dogfooding + demo polish, 20% building what unblocks adoption, 10% application writing.
 
 ---
 
-## Phase 1: Remove Onboarding Friction (Weeks 2-4)
+## Week 1 (Apr 10-16): Dogfood + Start Talking to People
 
-Goal: a new user can go from landing page to seeing value in under 5 minutes.
+### Dogfood (prove the loop)
+- [ ] Define Telarchy startup metrics in a production workspace (weekly active agents, weekly trades, signups, product quality)
+- [ ] Fund 3-5 OpenClaw agents, configure them to trade daily
+- [ ] Run at least 1 conditional market on a real decision (e.g. "should we prioritize agent SDK or public marketplace?")
+- [ ] Record a short screen capture of the full loop working (metrics, agents trading, consensus moving, conditional market revealing signal); this becomes the YC demo video backbone
 
-- [ ] Public marketplace: anonymous visitors can browse live markets and consensus values (no auth required for read)
-- [ ] Workspace templates: "Startup KPIs", "Personal Goals", "Team OKRs" with pre-loaded metrics and sensible time-preference defaults
-- [ ] Streamline /start flow: template selection, auto-create metrics, auto-inject liquidity from owner balance
-- [ ] Demo workspace: read-only pre-populated workspace visitors can explore without signup
-- [ ] Landing page: replace simulated ticker with live public market data
+### Customer discovery (start immediately)
+- [ ] List 30 targets: AI agent builders (check GitHub agent framework repos, Twitter/X, LessWrong), startup founders deploying agents, quantified-self people
+- [ ] Send 15 cold DMs/emails this week; goal is 5 scheduled conversations
+- [ ] Core question: "How do you currently evaluate whether your agents are doing the right thing?" and "Would you pay for a system that made agents financially accountable to your metrics?"
+- [ ] Track every conversation: who, what they said, objections, interest level
 
----
-
-## Phase 2: Agent Developer Experience (Weeks 3-6)
-
-Goal: an external developer can build and deploy a trading agent in an afternoon.
-
-- [ ] Agent SDK (Python package, `pip install telarchy`): wraps auth, trading, market listing, event polling
-- [ ] 3 reference agents (open source): trend-follower, mean-reversion, fundamentals-based
-- [ ] Agent quickstart guide in /guides (in-app, not just README)
-- [ ] Sandbox mode: test agents against historical or paper markets without real USDC
-- [ ] Developer-facing landing section or /developers page with SDK docs and examples
+### Build (only what unblocks demos and signups)
+- [ ] Public marketplace read access (anonymous visitors can see live markets); this is what you link people to
+- [ ] Make landing page show real live data instead of simulated ticker
 
 ---
 
-## Phase 3: Public Launch Prep (Weeks 4-6)
+## Week 2 (Apr 17-23): Conversations + First Users
 
-Goal: everything needed to open signups publicly.
+### Customer discovery (this is the priority)
+- [ ] Run 5+ conversations (video call or voice, not just text)
+- [ ] Demo using your own dogfood workspace as the live demo
+- [ ] Send 10 more outreach messages
+- [ ] Ask interested people: "Want to try it? I'll set up your workspace with you right now."
+- [ ] Goal: 2-3 people actively using Telarchy by end of week (even if you hand-hold them through setup)
 
-- [ ] Legal: consult counsel on regulatory posture for real-money metric markets (CFTC event contracts, state-by-state)
-- [ ] Terms of Service and Privacy Policy (publish on site)
-- [ ] Email verification: configure BetterAuth email sending (blocks public signup)
-- [ ] Rate limiting audit: tune per-endpoint limits for public traffic
-- [ ] Master API key rotation: move from static .env to secrets manager
-- [ ] Input validation sweep: length caps on all free-text fields
-- [ ] CORS lockdown: restrict ALLOWED_ORIGIN on managed deployment
+### Dogfood
+- [ ] Keep agents running; update metric values daily
+- [ ] Note every friction point and bug you hit; fix the ones that would embarrass you in a demo
 
----
-
-## Phase 4: Growth Mechanics (Weeks 6-10)
-
-Goal: network effects that make the platform more valuable as it grows.
-
-- [ ] Leaderboard: public ranking of agents/traders by PnL and calibration score
-- [ ] Portfolio dashboard: position breakdown, trade history, PnL over time per agent
-- [ ] Workspace discovery: public workspaces listed on marketplace with join button
-- [ ] Notifications: webhook callbacks for market resolution, new markets, task decisions (agents first, email later)
+### Build (only if it unblocks a real user)
+- [ ] Workspace templates if onboarding friction is losing people (otherwise skip)
+- [ ] Fix any bugs surfaced by dogfooding or user sessions
 
 ---
 
-## Phase 5: Revenue (Weeks 8-12)
+## Week 3 (Apr 24-30): Traction Numbers + Application Draft
 
-Goal: sustainable unit economics before scaling.
+### Customer discovery (keep pushing)
+- [ ] 5 more conversations (cumulative 10+)
+- [ ] Goal: 5+ external people who have signed up or actively used the platform
+- [ ] Ask early users for a one-line quote you can use in the application ("Telarchy helped me X")
+- [ ] If anyone says "I'd pay for this," write it down verbatim
 
-- [ ] Transaction fee on trades (0.5-1% spread); configurable per workspace for self-hosted
-- [ ] Analytics on fee revenue, treasury health, credit circulation
-- [ ] Enterprise inquiry form / sales page for organizations wanting private managed workspaces
+### YC application draft
+- [ ] Write first draft of all application fields (see structure below)
+- [ ] Record demo video: 60-90 seconds showing the full loop (define metrics, agents trade, consensus forms, conditional market evaluates a decision, USDC settlement)
+- [ ] Have 1-2 people review the application draft and give feedback
 
----
-
-## Customer Discovery (Ongoing, 30% of time)
-
-These run in parallel with building, not after.
-
-### Week 1-2: Identify early adopters
-- [ ] List 20 AI agent builders/researchers (Twitter, GitHub, LessWrong, agent framework Discord servers)
-- [ ] List 10 quantified-self / personal-metrics people (Beeminder community, QS forums)
-- [ ] List 5 startup founders who talk publicly about data-driven decisions
-
-### Week 2-4: Outreach and conversations
-- [ ] Cold DM / email 15+ people from the lists above; goal is 5+ conversations
-- [ ] Demo Telarchy live (using your own dogfood workspace as the demo)
-- [ ] Ask: "What would make you try this?" and "What's your current process for evaluating agent performance / making metric-driven decisions?"
-- [ ] Track objections and requests; feed into Phase 1-2 priorities
-
-### Week 4-6: Early access cohort
-- [ ] Invite 5-10 people from conversations to use Telarchy with real workspaces
-- [ ] Offer to set up their first workspace with them (white-glove onboarding)
-- [ ] Weekly check-in with each early user for 3 weeks
-- [ ] Identify 1-2 users willing to be public case studies
-
-### Week 6+: Content and distribution
-- [ ] Publish case study from dogfooding (blog, Twitter thread, LessWrong post)
-- [ ] Publish "capitalism for alignment" thesis piece (use press release as starting material)
-- [ ] Post reference agents to GitHub with good READMEs (distribution channel)
-- [ ] Submit to HN, Product Hunt when public launch is ready
+### Build (only demo-critical)
+- [ ] Polish anything that looks broken in the demo video flow
+- [ ] If you have user requests that take < 2 hours and make the product clearly better, do them
 
 ---
 
-## Deprioritized (Do Later)
+## Week 4 (May 1-4): Polish and Submit
 
-These are real features but have lower ROI than adoption work right now.
-
-- Time preference curve extensions (additional curve types, adaptive sampling)
-- Wallet connect UI (manual USDC deposit works fine)
-- Email/push notifications for browser users
-- Billing/subscription infrastructure
-- Cross-workspace agent federation
-- Real-time SSE for browser UI (polling is fine at current scale)
-- Position visibility settings (social trading)
+- [ ] Finalize application text
+- [ ] Re-record demo video if needed (tighter, clearer)
+- [ ] Update traction numbers with latest data
+- [ ] Get one more review pass from someone who's done YC or applied
+- [ ] Submit by May 3 (one day buffer)
 
 ---
 
-## Key Metrics to Track
+## YC Application: Key Points to Hit
 
-| Metric | Target (Week 6) | Target (Week 12) |
+### One-line description
+"Prediction markets that make AI agents financially accountable to your goals."
+
+### What do you make?
+Telarchy lets you define the metrics you care about, then AI agents compete in real-money prediction markets to forecast and improve those metrics. Conditional markets enable futarchy: before approving an action, you see what the market predicts will happen to your metrics if you do it.
+
+### Why now?
+Autonomous AI agents are being deployed at scale in 2026, but there's no reliable way to evaluate whether they're actually working toward your goals. Dashboards and human review don't scale. Financial accountability does. Agents with money on the line have genuine incentives to help your metrics go up.
+
+### What's unique?
+- Only platform combining metric composition, conditional decision markets (futarchy), and time-preference forecasting
+- Real money (USDC), not play tokens
+- Agents are first-class participants, not an afterthought
+- Open core (MIT), self-hostable, same stack managed and self-hosted
+
+### Traction (fill in with real numbers)
+- X agents actively trading
+- X workspaces with live markets
+- X weekly trades
+- X customer conversations completed
+- X people who said they'd pay / signed up after a conversation
+
+### What's your moat?
+The agent network. Agents build calibration history and reputation over time. The code is open source; a liquid pool of calibrated agents is not. Network effects compound as more agents and workspaces join.
+
+### How will you make money?
+Transaction fees on trades (0.5-1%). Enterprise tier for orgs wanting private managed instances with SLA. Agent network federation fees for self-hosted instances that want access to the shared agent pool.
+
+### What do you need YC for?
+Distribution to AI-forward companies deploying agents. Credibility for enterprise conversations. Guidance on regulatory posture for real-money prediction markets.
+
+---
+
+## What NOT to Build Before Application
+
+Everything below has lower ROI than one more customer conversation.
+
+- Agent SDK / Python package (do after acceptance, not before)
+- Sandbox mode
+- Wallet connect UI
+- Email verification (manual approval is fine for early users)
+- Billing infrastructure
+- Leaderboard
+- Notifications
+- Time preference extensions
+- Any feature nobody has asked for yet
+
+---
+
+## Numbers to Have Ready by May 4
+
+| Metric | Minimum | Stretch |
 |---|---|---|
-| Active agents (trading weekly) | 10 | 50 |
-| Active workspaces | 3 | 15 |
-| Weekly trades | 100 | 1,000 |
-| Customer conversations completed | 10 | 25 |
-| Early access users onboarded | 5 | 15 |
+| Customer conversations | 10 | 20 |
+| External users who signed up | 3 | 10 |
+| Agents actively trading | 5 | 15 |
+| Workspaces with live markets | 2 | 5 |
+| Quotes from users | 2 | 5 |
+| Conditional decisions made via market | 1 | 3 |
