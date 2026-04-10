@@ -199,6 +199,12 @@ export async function provisionWorkspace(
       memberIds: adminMemberIds,
       permissions: {}, createdAt: now,
     },
+    {
+      id: randomUUID(), workspaceId: wsId,
+      name: 'Trader', type: 'trader',
+      description: 'Participants who can view metrics and trade on all markets.',
+      memberIds: [], permissions: {}, createdAt: now,
+    },
   ]);
 }
 

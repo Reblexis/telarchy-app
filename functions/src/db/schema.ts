@@ -279,7 +279,7 @@ export const permissionGroups = pgTable('permission_groups', {
   id: text('id').notNull(),
   workspaceId: text('workspace_id').notNull(),
   name: text('name').notNull(),
-  /** 'public' | 'admin' | 'custom' */
+  /** 'public' | 'admin' | 'trader' | 'custom' */
   type: text('type').notNull(),
   description: text('description').notNull().default(''),
   /** Canonical participant IDs in this group. */

@@ -10,11 +10,11 @@ import { getGroupMemberIds } from '../lib/participants';
 
 export const groupsRouter = Router();
 
-const SYSTEM_GROUP_TYPES: PermissionGroupType[] = ['public', 'admin'];
+const SYSTEM_GROUP_TYPES: PermissionGroupType[] = ['public', 'admin', 'trader'];
 
 async function ensureSystemGroups(workspaceId: string): Promise<void> {
   const existing = await db.select({ type: permissionGroups.type }).from(permissionGroups)
-    .where(and(eq(permissionGroups.workspaceId, workspaceId), inArray(permissionGroups.type, ['public', 'admin'])));
+    .where(and(eq(permissionGroups.workspaceId, workspaceId), inArray(permissionGroups.type, SYSTEM_GROUP_TYPES)));
   const existingTypes = new Set(existing.map(r => r.type));
 
   const toInsert: typeof permissionGroups.$inferInsert[] = [];
@@ -29,6 +29,13 @@ async function ensureSystemGroups(workspaceId: string): Promise<void> {
     toInsert.push({
       id: randomUUID(), workspaceId, name: 'Admin', type: 'admin',
       description: 'Participants with full administrative access to this workspace.',
+      memberIds: [], permissions: {}, createdAt: new Date(),
+    });
+  }
+  if (!existingTypes.has('trader')) {
+    toInsert.push({
+      id: randomUUID(), workspaceId, name: 'Trader', type: 'trader',
+      description: 'Participants who can view metrics and trade on all markets.',
       memberIds: [], permissions: {}, createdAt: new Date(),
     });
   }

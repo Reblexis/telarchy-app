@@ -156,7 +156,7 @@ export interface MetricPermission {
   trade: boolean;
 }
 
-export type PermissionGroupType = 'public' | 'admin' | 'custom';
+export type PermissionGroupType = 'public' | 'admin' | 'trader' | 'custom';
 
 export interface PermissionGroup {
   id: string;
