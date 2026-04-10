@@ -573,10 +573,16 @@ predictionsRouter.post('/markets/:id/resolve', requireRole('admin'), wrap(async 
 
 predictionsRouter.delete('/markets/:id', requireRole('admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
+  const marketId = req.params.id as string;
   const [market] = await db.select({ id: markets.id }).from(markets)
-    .where(and(eq(markets.id, req.params.id as string), eq(markets.workspaceId, workspaceId)));
+    .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
   if (!market) { res.status(404).json({ error: 'Market not found' }); return; }
-  await db.delete(markets).where(and(eq(markets.id, market.id), eq(markets.workspaceId, workspaceId)));
+  await db.transaction(async tx => {
+    await tx.delete(positions).where(and(eq(positions.marketId, marketId), eq(positions.workspaceId, workspaceId)));
+    await tx.delete(trades).where(and(eq(trades.marketId, marketId), eq(trades.workspaceId, workspaceId)));
+    await tx.delete(liquidityEvents).where(and(eq(liquidityEvents.marketId, marketId), eq(liquidityEvents.workspaceId, workspaceId)));
+    await tx.delete(markets).where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
+  });
   res.status(204).send();
 }));
 

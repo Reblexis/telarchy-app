@@ -70,7 +70,7 @@ export async function voidMarket(
 
   await db.transaction(async tx => {
     await tx.update(markets)
-      .set({ resolved: true, resolvedAt: new Date(), actualValue: null, voided: true, pool: 0 })
+      .set({ resolved: true, resolvedAt: new Date(), actualValue: null, voided: true, active: false, pool: 0 })
       .where(and(eq(markets.id, market.id), eq(markets.workspaceId, workspaceId)));
 
     for (const pos of posRows) {
@@ -79,7 +79,6 @@ export async function voidMarket(
       await tx.update(agents)
         .set({
           balance: sql`${agents.balance} + ${toUnits(pos.totalCost)}`,
-          earnedBetting: sql`${agents.earnedBetting} + ${pos.totalCost}`,
           spentBetting: sql`${agents.spentBetting} - ${pos.totalCost}`,
         })
         .where(eq(agents.id, pos.agentId));

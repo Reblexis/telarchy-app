@@ -60,7 +60,7 @@ async function resolveMarketRow(
     // Cap leftover at 0 so a violated invariant can never subtract from LPs.
     const poolLeftover = Math.max(0, Math.round((pool - totalPayout) * 100) / 100);
     await tx.update(markets)
-      .set({ resolved: true, resolvedAt: new Date(), actualValue, pool: 0 })
+      .set({ resolved: true, resolvedAt: new Date(), actualValue, active: false, pool: 0 })
       .where(and(eq(markets.id, market.id), eq(markets.workspaceId, workspaceId)));
 
     await distributeLPLeftover(tx, market.id, poolLeftover, workspaceId);
