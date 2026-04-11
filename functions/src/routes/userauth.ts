@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import { randomBytes, randomUUID } from 'crypto';
 import { db } from '../db/client';
-import { agents, agentApiKeys } from '../db/schema';
+import { agents, agentApiKeys, authUser } from '../db/schema';
 import { eq } from 'drizzle-orm';
+import { CURRENT_CONSENT_VERSION } from './legal';
 import { wrap } from '../lib/wrap';
 import { requireUser } from '../middleware/roles';
 import { hashKey } from '../middleware/auth';
@@ -76,6 +77,29 @@ userauthRouter.get('/me', requireUser, wrap(async (req, res) => {
     memberRole,
     workspaces: workspaceMap,
   });
+}));
+
+/**
+ * POST /api/auth/consent
+ * Records that the authenticated user accepted the current Terms and Privacy
+ * Policy. Called by the signup flow immediately after sign-up (email/password
+ * or OAuth) and before the user is allowed to use the app.
+ */
+userauthRouter.post('/consent', requireUser, wrap(async (req, res) => {
+  const { uid } = req.auth!;
+  if (!uid) { res.status(403).json({ error: 'Browser account session required' }); return; }
+
+  const { accepted } = req.body ?? {};
+  if (accepted !== true) {
+    res.status(400).json({ error: 'Consent to Terms and Privacy Policy is required' });
+    return;
+  }
+
+  await db.update(authUser)
+    .set({ consentedAt: new Date(), consentedVersion: CURRENT_CONSENT_VERSION })
+    .where(eq(authUser.id, uid));
+
+  res.json({ ok: true, version: CURRENT_CONSENT_VERSION });
 }));
 
 /**

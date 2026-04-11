@@ -19,6 +19,7 @@ import { AccountPage } from './pages/AccountPage';
 import { AgentLoginPage } from './pages/AgentLoginPage';
 import { AgentPortalPage } from './pages/AgentPortalPage';
 import { GuidesPage } from './pages/GuidesPage';
+import { LegalPage } from './pages/LegalPage';
 
 function InspectBanner() {
   const { inspectTask, setInspectTask } = useInspectMode();
@@ -52,6 +53,8 @@ export function App() {
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/waitlist" element={<WaitlistPage />} />
           <Route path="/agent-login" element={<AgentLoginPage />} />
+          <Route path="/terms" element={<LegalPage document="terms" />} />
+          <Route path="/privacy" element={<LegalPage document="privacy" />} />
           {/* Agent portal: requires agent session (agent ID + API key), not Firebase */}
           <Route element={<RequireAgentSession />}>
             <Route path="/agent" element={<AgentPortalPage />} />

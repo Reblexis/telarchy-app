@@ -20,8 +20,18 @@ import { AppError } from '../lib/errors';
 import { creditsIssuedForUsdcDeposit, depositBuyRateUsd } from '../lib/economy';
 import { validateAgentId, validateTxHash, sufficientBalance, toUnits, fromUnits } from '../lib/validation';
 import { listParticipantsForWorkspace } from '../lib/participants';
+import { isUsdcSettlementEnabled } from '../lib/settlement';
 
 export const agentsRouter = Router();
+
+const USDC_DISABLED_MESSAGE =
+  'USDC settlement is disabled on this instance. Credits on this instance are for simulation and have no redemption value.';
+
+function requireUsdcEnabled(res: import('express').Response): boolean {
+  if (isUsdcSettlementEnabled()) return true;
+  res.status(503).json({ error: USDC_DISABLED_MESSAGE });
+  return false;
+}
 
 function resolveRouteAgentId(req: Request): string | null {
   if ((req.params.id as string) === 'me') return req.auth?.agentId ?? null;
@@ -89,6 +99,7 @@ agentsRouter.get('/mine', authMiddleware, requireIdentity, wrap(async (req, res)
 
 /** Public: treasury receive address for USDC deposits (no balances; does not require auth). */
 agentsRouter.get('/deposit-address', (_req, res) => {
+  if (!requireUsdcEnabled(res)) return;
   try {
     const address = getTreasuryAddress();
     res.json({
@@ -105,7 +116,7 @@ agentsRouter.get('/deposit-address', (_req, res) => {
 agentsRouter.use(authMiddleware);
 
 agentsRouter.get('/treasury', requireRole('admin'), wrap(async (req, res) => {
-  // Treasury access is gated by requireRole('admin') above
+  if (!requireUsdcEnabled(res)) return;
   res.json(await getTreasuryBalances());
 }));
 
@@ -214,6 +225,7 @@ agentsRouter.post('/:id/credit', requireRole('admin'), wrap(async (req, res) => 
 }));
 
 agentsRouter.post('/:id/deposit', requireSelfOrAdmin, wrap(async (req, res) => {
+  if (!requireUsdcEnabled(res)) return;
   const id = resolveRouteAgentId(req);
   if (!id) { res.status(403).json({ error: 'A participant identity is required' }); return; }
   const { txHash } = req.body;
@@ -248,6 +260,7 @@ agentsRouter.post('/:id/deposit', requireSelfOrAdmin, wrap(async (req, res) => {
 }));
 
 agentsRouter.put('/:id/wallet', requireSelfOrAdmin, wrap(async (req, res) => {
+  if (!requireUsdcEnabled(res)) return;
   const id = resolveRouteAgentId(req);
   if (!id) { res.status(403).json({ error: 'A participant identity is required' }); return; }
   const { walletAddress } = req.body;
@@ -262,6 +275,7 @@ agentsRouter.put('/:id/wallet', requireSelfOrAdmin, wrap(async (req, res) => {
 }));
 
 agentsRouter.post('/:id/withdraw', requireSelfOrAdmin, wrap(async (req, res) => {
+  if (!requireUsdcEnabled(res)) return;
   const id = resolveRouteAgentId(req);
   if (!id) { res.status(403).json({ error: 'A participant identity is required' }); return; }
   const { amount } = req.body;

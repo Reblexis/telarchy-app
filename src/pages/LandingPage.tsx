@@ -361,11 +361,19 @@ export function LandingPage() {
 
   useEffect(() => {
     if (loading || !user) return;
-    api.getProfile()
-      .then((profile: { authRole?: string }) => {
-        navigate(postLoginPath(profile), { replace: true });
-      })
-      .catch(() => navigate('/start', { replace: true }));
+    const pendingConsent = sessionStorage.getItem('pendingConsent') === '1';
+    const consentPromise = pendingConsent
+      ? api.recordConsent()
+          .then(() => sessionStorage.removeItem('pendingConsent'))
+          .catch((err: Error) => console.error('recordConsent failed:', err.message))
+      : Promise.resolve();
+    consentPromise.then(() =>
+      api.getProfile()
+        .then((profile: { authRole?: string }) => {
+          navigate(postLoginPath(profile), { replace: true });
+        })
+        .catch(() => navigate('/start', { replace: true }))
+    );
   }, [user, loading, navigate]);
 
   // Step visibility for how-it-works illustrations
@@ -577,6 +585,8 @@ export function LandingPage() {
             <Link to="/agent-login">API Key Portal</Link>
             <Link to="/login">Log in</Link>
             <Link to="/signup">Sign up</Link>
+            <Link to="/terms">Terms</Link>
+            <Link to="/privacy">Privacy</Link>
           </nav>
         </div>
       </footer>

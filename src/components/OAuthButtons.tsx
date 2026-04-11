@@ -3,12 +3,16 @@ import { authClient } from '../lib/auth-client';
 
 interface Props {
   onError: (msg: string) => void;
+  /** Called before any OAuth redirect. Return false to cancel (e.g. consent not checked). */
+  beforeSignIn?: () => boolean;
+  disabled?: boolean;
 }
 
-export function OAuthButtons({ onError }: Props) {
+export function OAuthButtons({ onError, beforeSignIn, disabled: disabledProp }: Props) {
   const [loading, setLoading] = useState<'google' | 'github' | null>(null);
 
   const signIn = async (provider: 'google' | 'github') => {
+    if (beforeSignIn && !beforeSignIn()) return;
     setLoading(provider);
     // OAuth is a full-page redirect. The callbackURL is where the browser lands after auth.
     // LandingPage (at "/") auto-redirects logged-in users via postLoginPath.
@@ -36,8 +40,8 @@ export function OAuthButtons({ onError }: Props) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
       <button
         type="button"
-        style={btnStyle(loading !== null)}
-        disabled={loading !== null}
+        style={btnStyle(loading !== null || Boolean(disabledProp))}
+        disabled={loading !== null || Boolean(disabledProp)}
         onClick={() => signIn('google')}
       >
         <GoogleIcon />
@@ -45,8 +49,8 @@ export function OAuthButtons({ onError }: Props) {
       </button>
       <button
         type="button"
-        style={btnStyle(loading !== null)}
-        disabled={loading !== null}
+        style={btnStyle(loading !== null || Boolean(disabledProp))}
+        disabled={loading !== null || Boolean(disabledProp)}
         onClick={() => signIn('github')}
       >
         <GitHubIcon />

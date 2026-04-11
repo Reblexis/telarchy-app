@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
+import { api } from '../lib/api';
 
 export function Sidebar() {
   const { user, logout } = useAuth();
@@ -9,6 +10,14 @@ export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const [workspaceNavOpen, setWorkspaceNavOpen] = useState(true);
+  const [usdcEnabled, setUsdcEnabled] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    api.getStatus()
+      .then(s => setUsdcEnabled(Boolean((s as { usdcSettlementEnabled?: boolean }).usdcSettlementEnabled)))
+      .catch(err => console.error('Failed to load status for settlement flag', err));
+  }, [user]);
 
   const currentPath = location.pathname;
   const canAccessWorkspace = workspace?.tier && workspace.tier !== 'none';
@@ -99,13 +108,15 @@ export function Sidebar() {
         <Link to="/account" className={`sidebar-nav-item${currentPath === '/account' ? ' active' : ''}`}>
           Account
         </Link>
-        <Link
-          to="/account#top-up-credits"
-          className="sidebar-nav-item sidebar-nav-muted"
-          style={{ fontSize: '0.8rem', paddingTop: '0.15rem', paddingBottom: '0.35rem' }}
-        >
-          Top up credits (USDC)
-        </Link>
+        {usdcEnabled && (
+          <Link
+            to="/account#top-up-credits"
+            className="sidebar-nav-item sidebar-nav-muted"
+            style={{ fontSize: '0.8rem', paddingTop: '0.15rem', paddingBottom: '0.35rem' }}
+          >
+            Top up credits (USDC)
+          </Link>
+        )}
         <Link to="/guides" className={`sidebar-nav-item${currentPath === '/guides' ? ' active' : ''}`}>
           Guides
         </Link>
@@ -114,6 +125,10 @@ export function Sidebar() {
       <div className="sidebar-spacer" />
 
       <div className="sidebar-bottom">
+        <div style={{ display: 'flex', gap: '0.75rem', padding: '0.5rem 1rem', fontSize: '0.7rem' }}>
+          <Link to="/terms" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>Terms</Link>
+          <Link to="/privacy" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>Privacy</Link>
+        </div>
         {user && (
           <>
             <Link

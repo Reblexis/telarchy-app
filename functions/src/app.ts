@@ -16,6 +16,7 @@ import { userauthRouter } from './routes/userauth';
 import { marketplaceRouter } from './routes/marketplace';
 import { groupsRouter } from './routes/groups';
 import { guidesRouter } from './routes/guides';
+import { legalRouter } from './routes/legal';
 import { cronRouter } from './routes/cron';
 import { toNodeHandler } from 'better-auth/node';
 import { auth } from './auth';
@@ -74,6 +75,7 @@ app.use('/api/auth', optionalAuthMiddleware, userauthRouter);
 app.all('/api/auth/*', toNodeHandler(auth));
 
 app.use('/api/guides', guidesRouter);
+app.use('/api/legal', legalRouter);
 
 app.get('/api/help', (_req, res) => {
   res.json({

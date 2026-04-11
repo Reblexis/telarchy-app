@@ -15,6 +15,8 @@ export const authUser = pgTable('user', {
   image: text('image'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  consentedAt: timestamp('consented_at'),
+  consentedVersion: text('consented_version'),
 });
 
 export const authSession = pgTable('session', {

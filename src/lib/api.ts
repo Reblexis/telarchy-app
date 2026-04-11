@@ -244,6 +244,8 @@ export const api = {
   getProfile: () => request('/api/auth/me'),
   upsertProfile: (email?: string) =>
     request('/api/auth/profile', { method: 'POST', body: JSON.stringify({ email }) }),
+  recordConsent: () =>
+    request('/api/auth/consent', { method: 'POST', body: JSON.stringify({ accepted: true }) }),
   deleteAccount: () =>
     request('/api/auth/me', { method: 'DELETE' }),
   exportAccount: () => request('/api/auth/me/export'),

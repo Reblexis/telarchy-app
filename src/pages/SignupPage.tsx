@@ -12,6 +12,7 @@ export function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [consented, setConsented] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -25,6 +26,7 @@ export function SignupPage() {
     e.preventDefault();
     setError('');
 
+    if (!consented) { setError('You must confirm you are 18+ and accept the Terms and Privacy Policy'); return; }
     if (password !== confirm) { setError('Passwords do not match'); return; }
     if (password.length < 8) { setError('Password must be at least 8 characters'); return; }
 
@@ -37,6 +39,10 @@ export function SignupPage() {
       return;
     }
 
+    await api.recordConsent().catch((e: Error) => {
+      console.error('recordConsent failed:', e.message);
+    });
+
     const result = await api.upsertProfile(email).catch((e: Error) => {
       console.error('upsertProfile failed:', e.message);
       return {};
@@ -46,12 +52,25 @@ export function SignupPage() {
     navigate('/start');
   };
 
+  const handleOAuthConsentGate = () => {
+    if (!consented) {
+      setError('Check the box below to confirm you are 18+ and accept the Terms and Privacy Policy');
+      return false;
+    }
+    sessionStorage.setItem('pendingConsent', '1');
+    return true;
+  };
+
   return (
     <div className="login-page">
       <div className="container" style={{ maxWidth: 400 }}>
         <h1>Create account</h1>
 
-        <OAuthButtons onError={setError} />
+        <OAuthButtons
+          onError={setError}
+          disabled={!consented}
+          beforeSignIn={handleOAuthConsentGate}
+        />
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: '1rem 0' }}>
           <div style={{ flex: 1, height: 1, background: 'var(--border-color)' }} />
@@ -75,7 +94,21 @@ export function SignupPage() {
             <input type="password" id="confirm" required autoComplete="new-password"
               value={confirm} onChange={e => setConfirm(e.target.value)} />
           </div>
-          <button type="submit" disabled={submitting}>
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0.5rem 0 0.75rem', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={consented}
+              onChange={e => setConsented(e.target.checked)}
+              style={{ marginTop: '0.2rem' }}
+            />
+            <span>
+              I am 18 or older and I agree to the{' '}
+              <Link to="/terms" target="_blank" rel="noreferrer">Terms of Service</Link>
+              {' '}and{' '}
+              <Link to="/privacy" target="_blank" rel="noreferrer">Privacy Policy</Link>.
+            </span>
+          </label>
+          <button type="submit" disabled={submitting || !consented}>
             {submitting ? 'Creating account...' : 'Create account'}
           </button>
           {error && <div className="error show">{error}</div>}

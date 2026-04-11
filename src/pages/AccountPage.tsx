@@ -18,6 +18,7 @@ export function AccountPage() {
   const location = useLocation();
   const [agent, setAgent] = useState<MyAgent | null>(null);
   const [depositMeta, setDepositMeta] = useState<DepositAddressInfo | null>(null);
+  const [usdcEnabled, setUsdcEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -54,12 +55,14 @@ export function AccountPage() {
       setError(e.message);
       return null;
     });
-    const [participant, dep] = await Promise.all([
+    const [participant, dep, status] = await Promise.all([
       api.getParticipant().catch((e: Error) => { setError(e.message); return null; }),
       api.getDepositAddress().catch(() => null),
+      api.getStatus().catch(() => null),
     ]);
     setAgent((participant as MyAgent | null) ?? null);
     if (participant) setWalletAddr((participant as MyAgent).walletAddress ?? '');
+    setUsdcEnabled(Boolean((status as { usdcSettlementEnabled?: boolean } | null)?.usdcSettlementEnabled));
     if (dep?.address && dep.usdcContract) {
       setDepositMeta({
         address: dep.address,
@@ -246,24 +249,31 @@ export function AccountPage() {
                   <span style={{ fontSize: '1rem', fontWeight: 400, color: 'var(--text-secondary)', marginLeft: '0.4rem' }}>credits</span>
                 </div>
               </div>
-              <a
-                href="#top-up-credits"
-                style={{
-                  display: 'inline-block',
-                  padding: '0.45rem 0.85rem',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  textDecoration: 'none',
-                  color: 'var(--text-primary)',
-                  background: 'var(--bg-secondary)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '0.375rem',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                Top up with USDC
-              </a>
+              {usdcEnabled && (
+                <a
+                  href="#top-up-credits"
+                  style={{
+                    display: 'inline-block',
+                    padding: '0.45rem 0.85rem',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    color: 'var(--text-primary)',
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '0.375rem',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Top up with USDC
+                </a>
+              )}
             </div>
+            {!usdcEnabled && (
+              <p style={{ marginTop: '0.75rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                Credits on this instance are for simulation and have no redemption value.
+              </p>
+            )}
             {(agent.earnedBetting !== 0 || agent.spentBetting !== 0) && (
               <div style={{ marginTop: '0.5rem', display: 'flex', gap: '1.25rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                 <span>Earned: <span style={{ color: 'var(--success-text)', fontFamily: 'monospace' }}>+{agent.earnedBetting.toFixed(2)}</span></span>
@@ -273,6 +283,7 @@ export function AccountPage() {
           </div>
 
           {/* Add credits */}
+          {usdcEnabled && (
           <div className="section" id="top-up-credits">
             <h2 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>Top up credits (USDC on Base)</h2>
             <TopUpCreditsInstructions deposit={depositMeta} />
@@ -295,8 +306,10 @@ export function AccountPage() {
               </div>
             )}
           </div>
+          )}
 
           {/* Withdraw */}
+          {usdcEnabled && (
           <div className="section">
             <h2 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>Withdraw credits</h2>
 
@@ -349,6 +362,7 @@ export function AccountPage() {
               </div>
             )}
           </div>
+          )}
         </>
       )}
     </div>

@@ -6,6 +6,7 @@ import { wrap } from '../lib/wrap';
 import { requireRole } from '../middleware/roles';
 import { getAllMetrics, getStatus, getAllMetricLogsGrouped } from '../services/metrics';
 import { consensus, pHigher } from '../lib/amm';
+import { isUsdcSettlementEnabled } from '../lib/settlement';
 
 export const systemRouter = Router();
 
@@ -25,7 +26,7 @@ systemRouter.get('/status', requireRole('agent', 'admin'), wrap(async (req, res)
     : 20;
 
   const [allMetrics, economy] = await Promise.all([getAllMetrics(workspaceId), getEconomy()]);
-  const base = { ...getStatus(allMetrics), ...economy };
+  const base = { ...getStatus(allMetrics), ...economy, usdcSettlementEnabled: isUsdcSettlementEnabled() };
 
   if (!includeTrends && !includeMarkets) {
     res.json(base);

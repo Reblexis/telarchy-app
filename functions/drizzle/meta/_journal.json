@@ -50,6 +50,20 @@
       "when": 1775400000000,
       "tag": "0006_drop_legacy_identity_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1775500000000,
+      "tag": "0007_cleanup_stale_data_and_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1776000000000,
+      "tag": "0008_user_consent",
+      "breakpoints": true
     }
   ]
 }
