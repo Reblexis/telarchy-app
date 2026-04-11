@@ -46,7 +46,7 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
       ? { enabled: true, halfLife: Math.max(0.01, Number(tpHalfLife)) }
       : null;
     try {
-      const rmx = Math.max(1, Number(marketRangeMax) || 1000);
+      const rmx = isLeaf ? Math.max(1, Number(marketRangeMax) || 1000) : undefined;
       await onSave(metric.id, name, description, Number(value), formula, metric.value, '', tp, rmx);
       onClose();
     } catch (err) {
@@ -84,10 +84,12 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
             <label htmlFor="editFormula">Formula</label>
             <textarea id="editFormula" placeholder="e.g., {Deep Work} + {Exercise} * 2" value={formula} onChange={e => setFormula(e.target.value)} />
           </div>
-          <div className="form-group">
-            <label htmlFor="editMarketRangeMax" title="The highest value this metric could realistically reach. Used to scale the prediction market.">Max expected value</label>
-            <input type="number" id="editMarketRangeMax" step="any" min="1" value={marketRangeMax} onChange={e => setMarketRangeMax(e.target.value)} />
-          </div>
+          {isLeaf && (
+            <div className="form-group">
+              <label htmlFor="editMarketRangeMax" title="The highest value this metric could realistically reach. Used to scale the prediction market.">Max expected value</label>
+              <input type="number" id="editMarketRangeMax" step="any" min="1" value={marketRangeMax} onChange={e => setMarketRangeMax(e.target.value)} />
+            </div>
+          )}
           <div className="form-group tp-row">
             <div className="tp-toggle">
               <span className="tp-label">
