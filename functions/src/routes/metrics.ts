@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/client';
 import { metrics, markets, updates } from '../db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, asc } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { requireRole } from '../middleware/roles';
@@ -307,7 +307,7 @@ function isDefinitionChange(
 }
 
 async function getAllMetricRows(workspaceId: string) {
-  return db.select().from(metrics).where(eq(metrics.workspaceId, workspaceId));
+  return db.select().from(metrics).where(eq(metrics.workspaceId, workspaceId)).orderBy(asc(metrics.order), asc(metrics.createdAt));
 }
 
 async function findTPAncestors(metricId: string, workspaceId: string): Promise<string[]> {

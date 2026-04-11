@@ -128,7 +128,7 @@ export async function buildConsensusMap(workspaceId: string): Promise<{ map: Rec
 
 export async function getAllMetrics(workspaceId: string): Promise<Metric[]> {
   const [rows, { map, untradedLeaves }] = await Promise.all([
-    db.select().from(metrics).where(eq(metrics.workspaceId, workspaceId)),
+    db.select().from(metrics).where(eq(metrics.workspaceId, workspaceId)).orderBy(asc(metrics.order), asc(metrics.createdAt)),
     buildConsensusMap(workspaceId),
   ]);
   return enrichMetrics(rows.map(row => ({
