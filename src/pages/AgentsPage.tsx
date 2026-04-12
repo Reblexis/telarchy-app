@@ -509,10 +509,10 @@ function AgentAdminPage({ user, workspace }: {
                                   <tr key={m.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                                     <td style={{ padding: '0.3rem 0.5rem' }}>{m.name}</td>
                                     <td style={{ padding: '0.3rem 0.5rem', textAlign: 'center' }}>
-                                      <input type="checkbox" checked={perms.read} onChange={() => handleTogglePermission(group, m.id, 'read')} style={{ width: 'auto' }} />
+                                      <input type="checkbox" checked={perms.read} onChange={() => handleTogglePermission(group, m.id, 'read')} />
                                     </td>
                                     <td style={{ padding: '0.3rem 0.5rem', textAlign: 'center' }}>
-                                      <input type="checkbox" checked={perms.trade} onChange={() => handleTogglePermission(group, m.id, 'trade')} style={{ width: 'auto' }} />
+                                      <input type="checkbox" checked={perms.trade} onChange={() => handleTogglePermission(group, m.id, 'trade')} />
                                     </td>
                                   </tr>
                                 );
@@ -539,7 +539,7 @@ function AgentAdminPage({ user, workspace }: {
                                     <tr key={v.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                                       <td style={{ padding: '0.3rem 0.5rem' }}>{v.name}</td>
                                       <td style={{ padding: '0.3rem 0.5rem', textAlign: 'center' }}>
-                                        <input type="checkbox" checked={hasAccess} onChange={() => handleToggleVaultPermission(group, v.id)} style={{ width: 'auto' }} />
+                                        <input type="checkbox" checked={hasAccess} onChange={() => handleToggleVaultPermission(group, v.id)} />
                                       </td>
                                     </tr>
                                   );

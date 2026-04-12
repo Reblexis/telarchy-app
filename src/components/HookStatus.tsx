@@ -23,7 +23,7 @@ export function HookStatus() {
   }, [status?.active]);
 
   if (fetchError) return (
-    <span style={{ fontSize: '0.75rem', color: '#ef4444' }}>Hooks: error</span>
+    <span style={{ fontSize: '0.75rem', color: 'var(--error-text)' }}>Hooks: error</span>
   );
   if (!status) return null;
 
@@ -34,7 +34,7 @@ export function HookStatus() {
     <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
       <span style={{
         width: '6px', height: '6px', borderRadius: '50%',
-        background: status.active ? '#22c55e' : '#ef4444',
+        background: status.active ? 'var(--success-text)' : 'var(--error-text)',
         display: 'inline-block',
         animation: status.active ? 'pulse 2s infinite' : 'none',
       }} />

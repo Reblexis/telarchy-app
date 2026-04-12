@@ -644,17 +644,21 @@ h1 {
 }
 
 .btn-small {
-  padding: 0.35rem 0.6rem;
-  font-size: 0.7rem;
+  padding: 0.35rem 0.65rem;
+  height: 30px;
+  font-size: 0.75rem;
   background: none;
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: all var(--transition-fast);
   text-align: center;
   white-space: nowrap;
   color: var(--text-primary);
   font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-small:hover {
@@ -711,9 +715,10 @@ label {
 
 input, select, textarea {
   width: 100%;
-  padding: 0.5rem 0.75rem;
+  padding: 0.55rem 0.75rem;
+  height: 36px;
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   font-size: 0.875rem;
   font-family: inherit;
   background: var(--bg-primary);
@@ -738,10 +743,11 @@ input::placeholder, textarea::placeholder {
 
 .btn {
   padding: 0.5rem 1rem;
+  height: 36px;
   background: var(--button-bg);
   color: var(--button-text);
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
@@ -766,10 +772,11 @@ input::placeholder, textarea::placeholder {
 
 .btn-secondary {
   padding: 0.5rem 1rem;
+  height: 36px;
   background: none;
   color: var(--text-secondary);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
@@ -780,6 +787,49 @@ input::placeholder, textarea::placeholder {
   color: var(--text-primary);
   border-color: var(--border-hover);
   box-shadow: var(--shadow-sm);
+}
+
+/* ===== Filter / Toolbar rows ===== */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.filter-bar input[type="text"],
+.filter-bar input[type="number"],
+.filter-bar select {
+  width: auto;
+  min-width: 0;
+}
+
+.filter-bar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+  margin: 0;
 }
 
 /* ===== Timeline ===== */
@@ -926,12 +976,14 @@ input::placeholder, textarea::placeholder {
 .tp-switch {
   position: relative;
   display: inline-block;
-  width: 36px;
-  height: 20px;
+  width: 40px;
+  height: 22px;
   flex-shrink: 0;
 }
 
 .tp-switch input {
+  appearance: none;
+  -webkit-appearance: none;
   opacity: 0;
   width: 0;
   height: 0;
@@ -941,30 +993,37 @@ input::placeholder, textarea::placeholder {
 .tp-slider {
   position: absolute;
   inset: 0;
-  background: var(--border-color);
-  border-radius: 20px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 22px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background var(--transition-base), border-color var(--transition-base);
 }
 
 .tp-slider::before {
   content: '';
   position: absolute;
-  width: 14px;
-  height: 14px;
-  left: 3px;
-  top: 3px;
+  width: 16px;
+  height: 16px;
+  left: 2px;
+  top: 2px;
   background: #fff;
   border-radius: 50%;
-  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: transform var(--transition-base);
 }
 
 .tp-switch input:checked + .tp-slider {
-  background: var(--accent-color, #3b82f6);
+  background: var(--focus-border);
+  border-color: var(--focus-border);
 }
 
 .tp-switch input:checked + .tp-slider::before {
-  transform: translateX(16px);
+  transform: translateX(18px);
+}
+
+.tp-switch input:focus-visible + .tp-slider {
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
 }
 
 .tp-switch--disabled .tp-slider {
@@ -1351,10 +1410,11 @@ details > div {
 /* ===== Unstyled buttons (bare <button> in forms) ===== */
 button:not([class]) {
   padding: 0.5rem 1rem;
+  height: 36px;
   background: var(--button-bg);
   color: var(--button-text);
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
@@ -1404,9 +1464,43 @@ th {
 
 /* ===== Checkboxes ===== */
 input[type="checkbox"] {
-  width: auto;
-  accent-color: var(--focus-border);
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border: 1.5px solid var(--border-color);
+  border-radius: 5px;
+  background: var(--bg-primary);
   cursor: pointer;
+  position: relative;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+input[type="checkbox"]:checked {
+  background: var(--focus-border);
+  border-color: var(--focus-border);
+}
+
+input[type="checkbox"]:checked::after {
+  content: '';
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translate(-0.5px, -0.5px);
+}
+
+input[type="checkbox"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+input[type="checkbox"]:hover:not(:disabled) {
+  border-color: var(--focus-border);
 }
 
 /* ===== Status badges ===== */

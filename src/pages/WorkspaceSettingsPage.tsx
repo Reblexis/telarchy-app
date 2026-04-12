@@ -149,15 +149,16 @@ export function WorkspaceSettingsPage() {
               Automatically fund new markets from your agent balance. Each new non-task market will debit the amount below.
             </p>
             <form onSubmit={handleSaveMarkets}>
-              <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <input
-                  id="auto-fund"
-                  type="checkbox"
-                  checked={autoFund}
-                  onChange={e => setAutoFund(e.target.checked)}
-                  style={{ width: 'auto' }}
-                />
-                <label htmlFor="auto-fund" style={{ margin: 0, cursor: 'pointer' }}>Auto-fund new markets</label>
+              <div className="form-group">
+                <label htmlFor="auto-fund" className="checkbox-label">
+                  <input
+                    id="auto-fund"
+                    type="checkbox"
+                    checked={autoFund}
+                    onChange={e => setAutoFund(e.target.checked)}
+                  />
+                  Auto-fund new markets
+                </label>
               </div>
               {autoFund && (
                 <div className="form-group">

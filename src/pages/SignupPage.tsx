@@ -94,12 +94,12 @@ export function SignupPage() {
             <input type="password" id="confirm" required autoComplete="new-password"
               value={confirm} onChange={e => setConfirm(e.target.value)} />
           </div>
-          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0.5rem 0 0.75rem', cursor: 'pointer' }}>
+          <label className="checkbox-label" style={{ alignItems: 'flex-start', fontSize: '0.8rem', margin: '0.5rem 0 0.75rem' }}>
             <input
               type="checkbox"
               checked={consented}
               onChange={e => setConsented(e.target.checked)}
-              style={{ marginTop: '0.2rem' }}
+              style={{ marginTop: '2px' }}
             />
             <span>
               I am 18 or older and I agree to the{' '}

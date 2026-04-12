@@ -5,7 +5,7 @@ import { previewTrade } from '../lib/amm';
 import { MarketActivityPanel } from './MarketActivityPanel';
 import type { Market, Position, LiquidityEvent } from '../types';
 
-const inputStyle = { padding: '0.4rem 0.5rem', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', width: '80px' } as const;
+const inputStyle = { width: '80px', height: '30px', fontSize: '0.85rem' } as const;
 const labelStyle = { display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.15rem' } as const;
 
 function formatCompactNumber(value: number | null | undefined): string {
@@ -129,44 +129,44 @@ export function TradingPanel({ market, workspaceId, showLiquidityControls = true
         refreshToken={activityRefreshToken}
       />
 
-      <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div>
           <label style={labelStyle}>Amount ($)</label>
           <input type="number" value={tradeAmount} onChange={e => setTradeAmount(e.target.value)} placeholder="0.01" style={{ ...inputStyle, width: '90px' }} min="0.000001" step="any" />
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '0.15rem' }}>
+            <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>
               {preview ? `~${formatCompactNumber(previewShares('lower'))} shares → ${formatCompactNumber(previewConsensus('lower'))}` : '\u00a0'}
             </div>
             <button className="btn-small" disabled={trading || !tradeAmount} onClick={() => handleBetDirection('lower')}
-              style={{ background: '#ef4444', color: '#fff', borderColor: '#ef4444', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 600, borderRadius: 'var(--radius-sm)' }}>
+              style={{ background: 'var(--error-text)', color: '#fff', borderColor: 'var(--error-text)', height: '30px', padding: '0 0.85rem', fontSize: '0.8rem', fontWeight: 600 }}>
               {trading ? '…' : '▼ Lower'}
             </button>
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '0.15rem' }}>
+            <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>
               {preview ? `~${formatCompactNumber(previewShares('higher'))} shares → ${formatCompactNumber(previewConsensus('higher'))}` : '\u00a0'}
             </div>
             <button className="btn-small" disabled={trading || !tradeAmount} onClick={() => handleBetDirection('higher')}
-              style={{ background: '#22c55e', color: '#fff', borderColor: '#22c55e', padding: '0.5rem 1rem', fontSize: '0.875rem', fontWeight: 600, borderRadius: 'var(--radius-sm)' }}>
+              style={{ background: 'var(--success-text)', color: '#fff', borderColor: 'var(--success-text)', height: '30px', padding: '0 0.85rem', fontSize: '0.8rem', fontWeight: 600 }}>
               {trading ? '…' : '▲ Higher'}
             </button>
           </div>
         </div>
         {lastResult && (
-          <div style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem', background: 'var(--bg-secondary)', borderRadius: '8px', borderLeft: `3px solid ${lastResult.direction === 'higher' ? '#22c55e' : '#ef4444'}` }}>
+          <div style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', borderLeft: `3px solid ${lastResult.direction === 'higher' ? 'var(--success-text)' : 'var(--error-text)'}` }}>
             <strong>{lastResult.direction === 'higher' ? '▲' : '▼'} {formatCompactNumber(lastResult.shares)} shares</strong>
             {' '}{lastResult.cost < 0 ? `sold for $${formatCompactNumber(-lastResult.cost)}` : `for $${formatCompactNumber(lastResult.cost)}`} → consensus <strong>{formatCompactNumber(lastResult.consensus)}</strong>
           </div>
         )}
         {showLiquidityControls && (
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.25rem', alignItems: 'flex-end' }}>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.4rem', alignItems: 'flex-end' }}>
             <div>
               <label style={labelStyle}>Add liquidity (b={market.liquidity})</label>
               <input type="number" value={liqAmount} onChange={e => setLiqAmount(e.target.value)} placeholder="+" style={{ ...inputStyle, width: '60px' }} min="0.000001" step="any" />
             </div>
-            <button className="btn-small" onClick={handleLiquidity} style={{ padding: '0.4rem 0.6rem' }}>Inject</button>
+            <button className="btn-small" onClick={handleLiquidity}>Inject</button>
           </div>
         )}
       </div>
@@ -182,7 +182,7 @@ export function TradingPanel({ market, workspaceId, showLiquidityControls = true
                   placeholder="shares" style={{ ...inputStyle, width: '70px' }} min="0.000001" max={pos.shares} step="any" />
               </div>
               <button className="btn-small" disabled={trading || !sellInputs[pos.direction]} onClick={() => handleSell(pos.direction)}
-                style={{ padding: '0.5rem 0.75rem', background: 'var(--text-secondary)', color: '#fff', borderColor: 'var(--text-secondary)' }}>
+                style={{ background: 'var(--text-secondary)', color: '#fff', borderColor: 'var(--text-secondary)' }}>
                 {trading ? '…' : 'Sell'}
               </button>
             </div>

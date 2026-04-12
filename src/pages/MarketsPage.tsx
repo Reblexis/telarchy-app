@@ -121,25 +121,25 @@ export function MarketsPage() {
           <div className="section"><p style={{ color: 'var(--text-secondary)' }}>No markets.</p></div>
         ) : (
           <div className="section">
-            <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div className="filter-bar">
               <input type="text" value={filterText} onChange={e => setFilterText(e.target.value)} placeholder="Search metrics..."
-                style={{ padding: '0.4rem 0.6rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', fontSize: '0.85rem', width: '200px' }} />
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', color: 'var(--text-secondary)', cursor: 'pointer', userSelect: 'none' }}>
+                style={{ width: '200px', height: '30px', fontSize: '0.85rem' }} />
+              <label className="checkbox-label">
                 <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
                 Show inactive
               </label>
               {isAdmin && (
-                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   {(() => {
                     const activeCount = markets.filter(m => m.active).length;
                     const a = parseFloat(bulkLiqAmount);
                     const total = !isNaN(a) && a > 0 ? a * activeCount : null;
                     return <>
-                      <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                      <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', margin: 0 }}>
                         Fund all ({activeCount}):
                       </label>
                       <input type="number" value={bulkLiqAmount} onChange={e => setBulkLiqAmount(e.target.value)} placeholder="amount"
-                        style={{ padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', fontSize: '0.85rem', width: '80px' }} />
+                        style={{ width: '80px', height: '30px', fontSize: '0.85rem' }} />
                       <button className="btn-small" onClick={handleBulkLiquidity} disabled={!bulkLiqAmount || parseFloat(bulkLiqAmount) <= 0}>
                         {total !== null ? `Fund (${total} credits)` : 'Fund'}
                       </button>

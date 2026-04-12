@@ -281,7 +281,7 @@ export function VaultsPage() {
                                         <tr key={g.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
                                           <td style={{ padding: '0.3rem 0.5rem' }}>{g.name}</td>
                                           <td style={{ padding: '0.3rem 0.5rem', textAlign: 'center' }}>
-                                            <input type="checkbox" checked={hasAccess} onChange={() => handleToggleVaultPermission(g, vault.id)} style={{ width: 'auto' }} />
+                                            <input type="checkbox" checked={hasAccess} onChange={() => handleToggleVaultPermission(g, vault.id)}  />
                                           </td>
                                         </tr>
                                       );
