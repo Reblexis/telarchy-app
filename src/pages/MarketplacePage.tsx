@@ -317,7 +317,7 @@ export function MarketplacePage() {
             <Link to="/login" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>Log in</Link>
             <Link to="/signup" style={{
               background: 'var(--button-bg)', color: 'var(--button-text)',
-              padding: '0.4rem 1rem', borderRadius: '0.375rem',
+              padding: '0.4rem 1rem', borderRadius: 'var(--radius-md)',
               textDecoration: 'none', fontSize: '0.9rem', fontWeight: 500,
             }}>
               Sign up
@@ -434,13 +434,13 @@ export function MarketplacePage() {
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
               <Link to="/signup" style={{
                 background: 'var(--button-bg)', color: 'var(--button-text)',
-                padding: '0.5rem 1.1rem', borderRadius: '0.375rem',
+                padding: '0.5rem 1.1rem', borderRadius: 'var(--radius-md)',
                 textDecoration: 'none', fontWeight: 500, fontSize: '0.875rem',
               }}>Create account</Link>
               <Link to="/login" style={{
                 background: 'var(--bg-secondary)', color: 'var(--text-primary)',
                 border: '1px solid var(--border-color)',
-                padding: '0.5rem 1.1rem', borderRadius: '0.375rem',
+                padding: '0.5rem 1.1rem', borderRadius: 'var(--radius-md)',
                 textDecoration: 'none', fontWeight: 500, fontSize: '0.875rem',
               }}>Log in</Link>
             </div>

@@ -29,16 +29,8 @@ function CopyRow({ label, value }: { label: string; value: string }) {
         <button
           type="button"
           onClick={copy}
-          style={{
-            flexShrink: 0,
-            padding: '0.2rem 0.5rem',
-            fontSize: '0.72rem',
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '0.25rem',
-            cursor: 'pointer',
-            color: 'var(--text-secondary)',
-          }}
+          className="btn-copy"
+          style={{ flexShrink: 0 }}
         >
           {copied ? 'Copied' : 'Copy'}
         </button>
@@ -91,7 +83,7 @@ export function TopUpCreditsInstructions({ deposit }: { deposit: DepositAddressI
           marginBottom: '1rem',
           padding: '0.75rem',
           background: 'var(--bg-secondary)',
-          borderRadius: '0.375rem',
+          borderRadius: 'var(--radius-md)',
           border: '1px solid var(--border-color)',
           fontSize: '0.8rem',
           color: 'var(--text-secondary)',
@@ -108,7 +100,7 @@ export function TopUpCreditsInstructions({ deposit }: { deposit: DepositAddressI
         marginBottom: '1rem',
         padding: '0.85rem 1rem',
         background: 'var(--bg-secondary)',
-        borderRadius: '0.375rem',
+        borderRadius: 'var(--radius-md)',
         border: '1px solid var(--border-color)',
       }}
     >
@@ -135,7 +127,7 @@ export function TopUpCreditsInstructions({ deposit }: { deposit: DepositAddressI
               ul: ({ children }) => <ul style={{ margin: '0 0 0.6rem 1.1rem', padding: 0 }}>{children}</ul>,
               li: ({ children }) => <li style={{ marginBottom: '0.25rem' }}>{children}</li>,
               pre: ({ children }) => (
-                <pre style={{ margin: '0 0 0.6rem', overflow: 'auto', padding: '0.5rem', background: 'var(--bg-primary)', borderRadius: 6, border: '1px solid var(--border-color)' }}>
+                <pre style={{ margin: '0 0 0.6rem', overflow: 'auto', padding: '0.5rem', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
                   {children}
                 </pre>
               ),
@@ -144,7 +136,7 @@ export function TopUpCreditsInstructions({ deposit }: { deposit: DepositAddressI
                 if (block) {
                   return <code className={className} style={{ fontSize: '0.78rem', display: 'block', whiteSpace: 'pre', fontFamily: 'monospace' }}>{children}</code>;
                 }
-                return <code style={{ fontSize: '0.82rem', background: 'var(--bg-primary)', padding: '0.1rem 0.25rem', borderRadius: 4 }}>{children}</code>;
+                return <code style={{ fontSize: '0.82rem', background: 'var(--bg-primary)', padding: '0.1rem 0.25rem', borderRadius: '4px' }}>{children}</code>;
               },
               a: ({ href, children }) => <a href={href} style={{ color: 'var(--focus-border)' }} target="_blank" rel="noreferrer">{children}</a>,
             }}

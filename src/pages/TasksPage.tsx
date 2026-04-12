@@ -13,10 +13,9 @@ const STATUS_COLORS: Record<string, string> = {
 
 function StatusBadge({ status }: { status: string }) {
   return (
-    <span style={{
-      fontSize: '0.7rem', fontWeight: 600, padding: '0.15rem 0.5rem',
-      borderRadius: '0.25rem', background: `${STATUS_COLORS[status] ?? '#888'}22`,
-      color: STATUS_COLORS[status] ?? '#888', textTransform: 'uppercase', letterSpacing: '0.05em',
+    <span className="status-badge" style={{
+      background: `${STATUS_COLORS[status] ?? '#888'}18`,
+      color: STATUS_COLORS[status] ?? '#888',
     }}>
       {status}
     </span>
@@ -38,7 +37,7 @@ function DeltaBadge({ current, baseline }: { current: number | null | undefined;
   const delta = current - baseline;
   if (Math.abs(delta) < 0.005) return null;
   return (
-    <span style={{ fontSize: '0.72rem', color: delta > 0 ? '#22c55e' : '#ef4444', fontFamily: 'monospace' }}>
+    <span style={{ fontSize: '0.72rem', color: delta > 0 ? 'var(--success-text)' : 'var(--error-text)', fontFamily: 'monospace' }}>
       {delta > 0 ? '▲' : '▼'}{Math.abs(delta).toFixed(2)}
       <span style={{ color: 'var(--text-secondary)', marginLeft: '0.2rem' }}>({formatNumber(baseline)})</span>
     </span>
@@ -117,14 +116,14 @@ function ChatPanel({ taskId }: { taskId: string }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
       <div style={{
         maxHeight: '220px', overflowY: 'auto', border: '1px solid var(--border-color)',
-        borderRadius: '0.375rem', padding: '0.5rem', background: 'var(--bg-secondary, #f8f9fa)',
+        borderRadius: 'var(--radius-md)', padding: '0.5rem 0.75rem', background: 'var(--bg-secondary)',
         display: 'flex', flexDirection: 'column', gap: '0.4rem',
       }}>
         {messages.length === 0 && <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>No messages yet.</span>}
         {messages.map(msg => (
           <div key={msg.id} style={{ display: 'flex', gap: '0.4rem', alignItems: 'flex-start' }}>
             <span style={{
-              fontSize: '0.7rem', fontWeight: 600, color: msg.from === 'admin' ? 'var(--accent-color, #3b82f6)' : '#a855f7',
+              fontSize: '0.7rem', fontWeight: 600, color: msg.from === 'admin' ? 'var(--focus-border)' : '#8b5cf6',
               minWidth: '70px', paddingTop: '0.05rem',
             }}>
               {msg.from === 'admin' ? 'admin' : msg.from}
@@ -134,7 +133,7 @@ function ChatPanel({ taskId }: { taskId: string }) {
         ))}
         <div ref={bottomRef} />
       </div>
-      {(loadError || sendError) && <div style={{ color: '#ef4444', fontSize: '0.8rem' }}>{loadError || sendError}</div>}
+      {(loadError || sendError) && <div style={{ color: 'var(--error-text)', fontSize: '0.8rem' }}>{loadError || sendError}</div>}
       <div style={{ display: 'flex', gap: '0.5rem' }}>
         <textarea
           value={input}
@@ -143,9 +142,7 @@ function ChatPanel({ taskId }: { taskId: string }) {
           placeholder="Type a message… (Enter to send)"
           rows={2}
           style={{
-            flex: 1, padding: '0.4rem', borderRadius: '0.375rem',
-            border: '1px solid var(--border-color)', background: 'var(--bg-color)',
-            color: 'var(--text-color)', resize: 'vertical', fontSize: '0.85rem',
+            flex: 1, resize: 'vertical', fontSize: '0.85rem',
           }}
         />
         <button className="btn-small" onClick={handleSend} disabled={sending || !input.trim()} style={{ alignSelf: 'flex-end', padding: '0.5rem 0.75rem' }}>
@@ -190,7 +187,7 @@ function TaskDetailPanel({ task, onAction, onError }: TaskDetailProps) {
           <button
             className="btn-small"
             onClick={handleInspect}
-            style={{ background: isInspecting ? '#7c3aed' : 'var(--accent-color, #3b82f6)', color: '#fff', padding: '0.45rem 0.9rem' }}
+            style={{ background: isInspecting ? '#7c3aed' : 'var(--focus-border)', color: '#fff', borderColor: isInspecting ? '#7c3aed' : 'var(--focus-border)', padding: '0.45rem 0.9rem' }}
           >
             {isInspecting ? 'Exit Inspect' : 'Inspect'}
           </button>
@@ -198,7 +195,7 @@ function TaskDetailPanel({ task, onAction, onError }: TaskDetailProps) {
             className="btn-small"
             disabled={acting}
             onClick={() => handle(() => api.approveTask(task.id))}
-            style={{ background: '#22c55e', color: '#fff', padding: '0.45rem 0.9rem' }}
+            style={{ background: '#22c55e', color: '#fff', borderColor: '#22c55e', padding: '0.45rem 0.9rem' }}
           >
             {acting ? '…' : 'Approve'}
           </button>
@@ -206,7 +203,7 @@ function TaskDetailPanel({ task, onAction, onError }: TaskDetailProps) {
             className="btn-small"
             disabled={acting}
             onClick={() => handle(() => api.declineTask(task.id))}
-            style={{ background: '#ef4444', color: '#fff', padding: '0.45rem 0.9rem' }}
+            style={{ background: '#ef4444', color: '#fff', borderColor: '#ef4444', padding: '0.45rem 0.9rem' }}
           >
             {acting ? '…' : 'Decline'}
           </button>
@@ -290,7 +287,7 @@ export function TasksPage() {
 
   if (!user) return null;
 
-  const inputStyle = { padding: '0.4rem 0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)' } as const;
+  const inputStyle = { marginBottom: 0 } as const;
   const labelStyle = { display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' } as const;
   const thStyle = { padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem', textAlign: 'left' as const };
 

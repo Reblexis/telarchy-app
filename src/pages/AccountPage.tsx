@@ -151,14 +151,7 @@ export function AccountPage() {
 
   if (!user) return null;
 
-  const inputStyle = {
-    padding: '0.45rem 0.6rem',
-    borderRadius: '0.375rem',
-    border: '1px solid var(--border-color)',
-    background: 'var(--bg-primary)',
-    color: 'var(--text-primary)',
-    fontSize: '0.875rem',
-  } as const;
+  const inputStyle = { marginBottom: 0 } as const;
 
   return (
     <div className="container" style={{ maxWidth: 640 }}>
@@ -180,7 +173,7 @@ export function AccountPage() {
               <code style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{user.id}</code>
               <button
                 onClick={copyUid}
-                style={{ padding: '0.15rem 0.5rem', fontSize: '0.75rem', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '0.25rem', cursor: 'pointer', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}
+                className="btn-copy"
               >
                 {copied ? 'Copied!' : 'Copy'}
               </button>
@@ -252,18 +245,8 @@ export function AccountPage() {
               {usdcEnabled && (
                 <a
                   href="#top-up-credits"
-                  style={{
-                    display: 'inline-block',
-                    padding: '0.45rem 0.85rem',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    textDecoration: 'none',
-                    color: 'var(--text-primary)',
-                    background: 'var(--bg-secondary)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '0.375rem',
-                    whiteSpace: 'nowrap',
-                  }}
+                  className="btn-secondary"
+                  style={{ display: 'inline-block', textDecoration: 'none', fontSize: '0.8rem', fontWeight: 600 }}
                 >
                   Top up with USDC
                 </a>

@@ -135,8 +135,8 @@ export function ConsensusChart({ trades, rangeMin, rangeMax }: {
         <Line key={`${withT.length}-${tFirst}-${tLast}`} data={chartData} options={options} redraw />
       </div>
       {clickedTrade && (
-        <div style={{ margin: '0.35rem 0', padding: '0.35rem 0.6rem', background: 'var(--bg-color)', border: `2px solid ${clickedTrade.direction === 'higher' ? '#22c55e' : '#ef4444'}`, borderRadius: '0.375rem', fontSize: '0.75rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
-          <span style={{ color: clickedTrade.direction === 'higher' ? '#22c55e' : '#ef4444', fontWeight: 700 }}>
+        <div style={{ margin: '0.35rem 0', padding: '0.35rem 0.6rem', background: 'var(--bg-color)', border: `2px solid ${clickedTrade.direction === 'higher' ? '#22c55e' : '#ef4444'}`, borderRadius: 'var(--radius-md)', fontSize: '0.75rem', display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ color: clickedTrade.direction === 'higher' ? 'var(--success-text)' : 'var(--error-text)', fontWeight: 700 }}>
             {clickedTrade.direction === 'higher' ? '▲ Higher' : '▼ Lower'}
           </span>
           <span style={{ fontFamily: 'monospace' }}>{clickedTrade.agentId}</span>

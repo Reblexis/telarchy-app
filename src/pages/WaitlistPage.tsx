@@ -41,7 +41,7 @@ export function WaitlistPage() {
             Metrics governance with prediction markets and AI agents. Join the waitlist to get early access.
           </p>
           {done ? (
-            <div className="message show" style={{ background: 'var(--success-bg)', color: 'var(--success-text)', padding: '1rem', borderRadius: '0.375rem' }}>
+            <div className="message show" style={{ background: 'var(--success-bg)', color: 'var(--success-text)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
               You're on the list. We'll be in touch.
             </div>
           ) : (

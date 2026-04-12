@@ -155,7 +155,7 @@ export function VaultsPage() {
 
         {/* Create form */}
         {showCreate && (
-          <form onSubmit={handleCreate} style={{ marginBottom: '1.25rem', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: '0.375rem', background: 'var(--bg-secondary)' }}>
+          <form onSubmit={handleCreate} style={{ marginBottom: '1.25rem', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: 'var(--bg-secondary)' }}>
             <div className="form-group" style={{ marginBottom: '0.75rem' }}>
               <label htmlFor="vault-name" style={{ fontSize: '0.8rem' }}>Name</label>
               <input id="vault-name" type="text" placeholder="e.g. Linear API Key" value={newName} onChange={e => setNewName(e.target.value)} required style={{ marginBottom: 0 }} />
@@ -193,7 +193,7 @@ export function VaultsPage() {
               const accessGroups = vaultGroups(vault.id);
 
               return (
-                <div key={vault.id} style={{ border: '1px solid var(--border-color)', borderRadius: '0.375rem', overflow: 'hidden' }}>
+                <div key={vault.id} style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
                   {/* Header row */}
                   <div
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 0.75rem', cursor: 'pointer', background: isExpanded ? 'var(--bg-secondary)' : undefined }}
@@ -297,7 +297,7 @@ export function VaultsPage() {
                                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.75rem' }}>{expandedVault.description}</p>
                               )}
                               <pre style={{
-                                background: 'var(--bg-secondary)', padding: '0.75rem 1rem', borderRadius: '0.375rem',
+                                background: 'var(--bg-secondary)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)',
                                 fontSize: '0.85rem', overflowX: 'auto', border: '1px solid var(--border-color)',
                                 margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all',
                               }}>

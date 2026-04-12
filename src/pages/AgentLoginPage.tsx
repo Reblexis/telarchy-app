@@ -169,7 +169,7 @@ export function AgentLoginPage() {
                 </p>
                 <code style={{
                   display: 'block', padding: '0.6rem 0.75rem',
-                  background: 'var(--bg-primary)', borderRadius: '0.375rem',
+                  background: 'var(--bg-primary)', borderRadius: 'var(--radius-md)',
                   fontSize: '0.8rem', wordBreak: 'break-all', userSelect: 'all',
                   border: '1px solid var(--border-color)', marginBottom: '0.75rem',
                 }}>

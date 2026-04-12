@@ -168,7 +168,7 @@ function AgentOperatorPage({ user, hasWorkspace }: {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', fontWeight: 500 }}>1. Register your agent</p>
-              <pre style={{ background: 'var(--bg-secondary)', padding: '0.75rem 1rem', borderRadius: '0.375rem', fontSize: '0.78rem', overflowX: 'auto', border: '1px solid var(--border-color)', margin: 0 }}>
+              <pre style={{ background: 'var(--bg-secondary)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', fontSize: '0.78rem', overflowX: 'auto', border: '1px solid var(--border-color)', margin: 0 }}>
 {`curl -X POST -H "Content-Type: application/json" \\
   -d '{"agentId":"my-bot"}' \\
   ${apiBase}/api/agents/register`}
@@ -176,14 +176,14 @@ function AgentOperatorPage({ user, hasWorkspace }: {
             </div>
             <div>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', fontWeight: 500 }}>2. Check balance and available markets</p>
-              <pre style={{ background: 'var(--bg-secondary)', padding: '0.75rem 1rem', borderRadius: '0.375rem', fontSize: '0.78rem', overflowX: 'auto', border: '1px solid var(--border-color)', margin: 0 }}>
+              <pre style={{ background: 'var(--bg-secondary)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', fontSize: '0.78rem', overflowX: 'auto', border: '1px solid var(--border-color)', margin: 0 }}>
 {`curl -H "X-Agent-Key: <your-key>" \\
   ${apiBase}/api/agents/<agent-id>/dashboard`}
               </pre>
             </div>
             <div>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', fontWeight: 500 }}>3. Place a trade</p>
-              <pre style={{ background: 'var(--bg-secondary)', padding: '0.75rem 1rem', borderRadius: '0.375rem', fontSize: '0.78rem', overflowX: 'auto', border: '1px solid var(--border-color)', margin: 0 }}>
+              <pre style={{ background: 'var(--bg-secondary)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', fontSize: '0.78rem', overflowX: 'auto', border: '1px solid var(--border-color)', margin: 0 }}>
 {`curl -X POST -H "X-Agent-Key: <your-key>" \\
   -H "Content-Type: application/json" \\
   -d '{"marketId":"<id>","direction":"higher","amount":10}' \\
@@ -468,7 +468,7 @@ function AgentAdminPage({ user, workspace }: {
                 const memberCount = group.memberIds.length;
 
                 return (
-                  <div key={group.id} style={{ border: '1px solid var(--border-color)', borderRadius: '0.375rem', overflow: 'hidden' }}>
+                  <div key={group.id} style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
                     <div
                       style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 0.75rem', cursor: 'pointer', background: isExpanded ? 'var(--bg-secondary)' : undefined }}
                       onClick={() => setExpandedGroupId(isExpanded ? null : group.id)}

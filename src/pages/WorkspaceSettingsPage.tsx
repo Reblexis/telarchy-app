@@ -155,8 +155,9 @@ export function WorkspaceSettingsPage() {
                   type="checkbox"
                   checked={autoFund}
                   onChange={e => setAutoFund(e.target.checked)}
+                  style={{ width: 'auto' }}
                 />
-                <label htmlFor="auto-fund" style={{ margin: 0 }}>Auto-fund new markets</label>
+                <label htmlFor="auto-fund" style={{ margin: 0, cursor: 'pointer' }}>Auto-fund new markets</label>
               </div>
               {autoFund && (
                 <div className="form-group">

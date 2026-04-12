@@ -101,7 +101,7 @@ export function MarketActivityPanel({
   }, [liquidityEvents, trades]);
 
   return (
-    <div style={{ marginTop: '0.75rem', background: 'var(--bg-secondary, #f8f9fa)', borderRadius: '0.375rem', padding: '0.5rem 0.5rem 0' }}>
+    <div style={{ marginTop: '0.75rem', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', padding: '0.5rem 0.5rem 0' }}>
       <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', paddingLeft: '0.25rem' }}>
         Prediction history
       </div>
@@ -118,7 +118,7 @@ export function MarketActivityPanel({
         <div style={{ marginTop: '0.5rem', maxHeight: '160px', overflowY: 'auto', borderTop: '1px solid var(--border-color)' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' }}>
             <thead>
-              <tr style={{ position: 'sticky', top: 0, background: 'var(--bg-secondary, #f8f9fa)' }}>
+              <tr style={{ position: 'sticky', top: 0, background: 'var(--bg-secondary)' }}>
                 {['Time', 'Actor', 'Type', 'Amount', 'Detail', 'Result'].map(header => (
                   <th
                     key={header}
@@ -141,7 +141,7 @@ export function MarketActivityPanel({
                 <tr key={`${entry.kind}:${entry.ts}:${index}`} style={{ borderBottom: '1px solid var(--border-color)' }}>
                   <td style={{ padding: '0.2rem 0.4rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{fmtTime(entry.ts)}</td>
                   <td style={{ padding: '0.2rem 0.4rem', fontFamily: 'monospace', maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{entry.data.agentId ?? '-'}</td>
-                  <td style={{ padding: '0.2rem 0.4rem', textAlign: 'center', color: entry.data.direction === 'higher' ? '#22c55e' : '#ef4444' }}>{entry.data.direction === 'higher' ? '▲' : '▼'}</td>
+                  <td style={{ padding: '0.2rem 0.4rem', textAlign: 'center', color: entry.data.direction === 'higher' ? 'var(--success-text)' : 'var(--error-text)' }}>{entry.data.direction === 'higher' ? '▲' : '▼'}</td>
                   <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>{formatCompactNumber(entry.data.shares)}</td>
                   <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>
                     {entry.data.cost == null ? '-' : entry.data.cost > 0 ? `paid ${formatCompactNumber(entry.data.cost)}` : `received ${formatCompactNumber(-entry.data.cost)}`}
@@ -152,8 +152,8 @@ export function MarketActivityPanel({
                 <tr key={`${entry.kind}:${entry.data.id}:${index}`} style={{ borderBottom: '1px solid var(--border-color)', opacity: 0.8 }}>
                   <td style={{ padding: '0.2rem 0.4rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{fmtTime(entry.ts)}</td>
                   <td style={{ padding: '0.2rem 0.4rem', color: 'var(--text-secondary)' }}>admin</td>
-                  <td style={{ padding: '0.2rem 0.4rem', textAlign: 'center', color: '#3b82f6' }}>{entry.data.type === 'initial' ? 'funded' : '+funds'}</td>
-                  <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', color: '#3b82f6', fontFamily: 'monospace', fontWeight: 600 }}>+{formatCompactNumber(entry.data.amount)}</td>
+                  <td style={{ padding: '0.2rem 0.4rem', textAlign: 'center', color: 'var(--focus-border)' }}>{entry.data.type === 'initial' ? 'funded' : '+funds'}</td>
+                  <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', color: 'var(--focus-border)', fontFamily: 'monospace', fontWeight: 600 }}>+{formatCompactNumber(entry.data.amount)}</td>
                   <td style={{ padding: '0.2rem 0.4rem', textAlign: 'right', color: 'var(--text-secondary)' }}>
                     {entry.data.type === 'initial' ? 'initial funding' : 'added funds'}
                   </td>

@@ -36,7 +36,7 @@ function InspectBanner() {
       <Link to="/tasks" style={{ color: '#e9d5ff', textDecoration: 'underline', fontSize: '0.8rem' }}>Back to Tasks</Link>
       <button
         onClick={() => setInspectTask(null)}
-        style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: '0.25rem', padding: '0.2rem 0.6rem', cursor: 'pointer', fontSize: '0.8rem' }}
+        style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: '6px', padding: '0.2rem 0.6rem', cursor: 'pointer', fontSize: '0.8rem' }}
       >
         Exit Inspect
       </button>

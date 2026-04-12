@@ -40,12 +40,12 @@ export function StartPage() {
             <div style={{
               border: '1px solid var(--border-color)', borderRadius: '0.75rem',
               padding: '1.75rem', background: 'var(--bg-secondary)',
-              cursor: 'pointer', transition: 'border-color 0.15s',
+              cursor: 'pointer', transition: 'border-color 0.15s, box-shadow 0.15s, transform 0.15s',
               display: 'flex', flexDirection: 'column', gap: '0.6rem',
               height: '100%',
             }}
-              onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--focus-border)')}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-color)')}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--focus-border)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}
             >
               <span style={{ fontSize: '1.5rem' }}>📊</span>
               <strong style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>Make better decisions</strong>
@@ -60,12 +60,12 @@ export function StartPage() {
             <div style={{
               border: '1px solid var(--border-color)', borderRadius: '0.75rem',
               padding: '1.75rem', background: 'var(--bg-secondary)',
-              cursor: 'pointer', transition: 'border-color 0.15s',
+              cursor: 'pointer', transition: 'border-color 0.15s, box-shadow 0.15s, transform 0.15s',
               display: 'flex', flexDirection: 'column', gap: '0.6rem',
               height: '100%',
             }}
-              onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--focus-border)')}
-              onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-color)')}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--focus-border)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'none'; }}
             >
               <span style={{ fontSize: '1.5rem' }}>🤖</span>
               <strong style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>Forecast on public markets</strong>

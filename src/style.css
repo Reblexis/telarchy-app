@@ -1348,6 +1348,148 @@ details > div {
   line-height: 1.4;
 }
 
+/* ===== Unstyled buttons (bare <button> in forms) ===== */
+button:not([class]) {
+  padding: 0.5rem 1rem;
+  background: var(--button-bg);
+  color: var(--button-text);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+button:not([class]):hover {
+  background: #333;
+  box-shadow: var(--shadow-sm);
+}
+
+button:not([class]):active {
+  transform: scale(0.97);
+}
+
+button:not([class]):disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+/* ===== Expandable panels (vaults, groups, markets) ===== */
+.expandable-panel {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color var(--transition-base);
+}
+
+.expandable-panel:hover {
+  border-color: color-mix(in srgb, var(--border-hover) 40%, var(--border-color));
+}
+
+/* ===== Tables ===== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+/* ===== Checkboxes ===== */
+input[type="checkbox"] {
+  width: auto;
+  accent-color: var(--focus-border);
+  cursor: pointer;
+}
+
+/* ===== Status badges ===== */
+.status-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ===== Inline code ===== */
+code {
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Code', monospace;
+}
+
+/* ===== Copy button ===== */
+.btn-copy {
+  padding: 0.15rem 0.5rem;
+  font-size: 0.72rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: border-color var(--transition-fast), color var(--transition-fast);
+  font-family: inherit;
+}
+
+.btn-copy:hover {
+  border-color: var(--border-hover);
+  color: var(--text-primary);
+}
+
+/* ===== Code blocks ===== */
+pre {
+  background: var(--bg-secondary);
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.8125rem;
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ===== Section headings ===== */
+.section-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 0.4rem;
+}
+
+/* ===== Stat card ===== */
+.stat-card {
+  min-width: 120px;
+}
+
+.stat-card-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.2rem;
+}
+
+.stat-card-value {
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+/* ===== Trade direction colors ===== */
+.color-higher { color: #22c55e; }
+.color-lower { color: #ef4444; }
+.color-info { color: var(--focus-border); }
+
+.bg-higher { background: rgba(34, 197, 94, 0.1); color: #15803d; }
+.bg-lower { background: rgba(239, 68, 68, 0.1); color: #b91c1c; }
+
 /* ===== OAuth Buttons ===== */
 .oauth-buttons {
   display: flex;

@@ -102,7 +102,7 @@ function MarketsSection({ agentId, apiKey }: { agentId: string; apiKey: string }
         const isTrading = trading[m.id] ?? false;
 
         return (
-          <div key={m.id} style={{ border: '1px solid var(--border-color)', borderRadius: '0.375rem', overflow: 'hidden' }}>
+          <div key={m.id} style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
             <div
               onClick={() => setExpandedId(isExpanded ? null : m.id)}
               style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.65rem 0.75rem', cursor: 'pointer', background: isExpanded ? 'var(--bg-secondary)' : undefined }}
@@ -139,14 +139,14 @@ function MarketsSection({ agentId, apiKey }: { agentId: string; apiKey: string }
                   <button
                     onClick={() => handleTrade(m, 'higher')}
                     disabled={isTrading || !tradeAmount[m.id]}
-                    style={{ background: 'var(--success-bg)', color: 'var(--success-text)', border: '1px solid var(--success-text)', borderRadius: '0.375rem', padding: '0.4rem 0.8rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}
+                    style={{ background: 'var(--success-bg)', color: 'var(--success-text)', border: '1px solid var(--success-text)', borderRadius: 'var(--radius-md)', padding: '0.4rem 0.8rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}
                   >
                     Higher ↑
                   </button>
                   <button
                     onClick={() => handleTrade(m, 'lower')}
                     disabled={isTrading || !tradeAmount[m.id]}
-                    style={{ background: 'var(--error-bg, var(--bg-tertiary))', color: 'var(--error-text)', border: '1px solid var(--error-text)', borderRadius: '0.375rem', padding: '0.4rem 0.8rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}
+                    style={{ background: 'var(--error-bg, var(--bg-tertiary))', color: 'var(--error-text)', border: '1px solid var(--error-text)', borderRadius: 'var(--radius-md)', padding: '0.4rem 0.8rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}
                   >
                     Lower ↓
                   </button>
@@ -475,7 +475,7 @@ export function AgentPortalPage() {
                     cursor: 'pointer',
                     background: 'var(--bg-secondary)',
                     border: '1px solid var(--border-color)',
-                    borderRadius: '0.3rem',
+                    borderRadius: 'var(--radius-sm)',
                     color: 'var(--text-primary)',
                   }}
                 >

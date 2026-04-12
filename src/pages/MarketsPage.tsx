@@ -123,7 +123,7 @@ export function MarketsPage() {
           <div className="section">
             <div style={{ marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
               <input type="text" value={filterText} onChange={e => setFilterText(e.target.value)} placeholder="Search metrics..."
-                style={{ padding: '0.4rem 0.6rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', fontSize: '0.85rem', width: '200px' }} />
+                style={{ padding: '0.4rem 0.6rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', fontSize: '0.85rem', width: '200px' }} />
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem', color: 'var(--text-secondary)', cursor: 'pointer', userSelect: 'none' }}>
                 <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
                 Show inactive
@@ -139,7 +139,7 @@ export function MarketsPage() {
                         Fund all ({activeCount}):
                       </label>
                       <input type="number" value={bulkLiqAmount} onChange={e => setBulkLiqAmount(e.target.value)} placeholder="amount"
-                        style={{ padding: '0.35rem 0.5rem', borderRadius: '0.375rem', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', fontSize: '0.85rem', width: '80px' }} />
+                        style={{ padding: '0.35rem 0.5rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', background: 'var(--bg-color)', color: 'var(--text-color)', fontSize: '0.85rem', width: '80px' }} />
                       <button className="btn-small" onClick={handleBulkLiquidity} disabled={!bulkLiqAmount || parseFloat(bulkLiqAmount) <= 0}>
                         {total !== null ? `Fund (${total} credits)` : 'Fund'}
                       </button>
@@ -166,7 +166,7 @@ export function MarketsPage() {
                     >
                       <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600 }}>
                         {m.metricName}
-                        {!m.active && <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', fontWeight: 500, color: 'var(--text-secondary)', background: 'var(--border-color)', borderRadius: '0.25rem', padding: '0.1rem 0.35rem', verticalAlign: 'middle' }}>inactive</span>}
+                        {!m.active && <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', fontWeight: 500, color: 'var(--text-secondary)', background: 'var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '0.1rem 0.35rem', verticalAlign: 'middle' }}>inactive</span>}
                       </td>
                       <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'monospace' }}>
                         {formatTargetDateDisplay(m.targetDate)}
@@ -189,7 +189,7 @@ export function MarketsPage() {
                             const delta = m.consensus - main.consensus;
                             if (Math.abs(delta) < 0.005) return null;
                             return (
-                              <span style={{ fontSize: '0.72rem', color: delta > 0 ? '#22c55e' : '#ef4444', fontFamily: 'monospace' }}>
+                              <span style={{ fontSize: '0.72rem', color: delta > 0 ? 'var(--success-text)' : 'var(--error-text)', fontFamily: 'monospace' }}>
                                 {delta > 0 ? '▲' : '▼'}{Math.abs(delta).toFixed(2)}
                                 <span style={{ color: 'var(--text-secondary)', marginLeft: '0.2rem' }}>({main.consensus})</span>
                               </span>

@@ -69,7 +69,7 @@ function WorkspaceSwitcher({ workspaces, activeId, onSwitch }: {
           display: 'flex', alignItems: 'center', gap: '0.5rem',
           background: 'var(--bg-secondary)',
           border: '1px solid var(--border-color)',
-          borderRadius: '8px',
+          borderRadius: 'var(--radius-md)',
           padding: '0.45rem 0.75rem',
           cursor: 'pointer',
           color: 'var(--text-primary)',
@@ -92,7 +92,7 @@ function WorkspaceSwitcher({ workspaces, activeId, onSwitch }: {
           left: 0,
           background: 'var(--bg-primary)',
           border: '1px solid var(--border-color)',
-          borderRadius: '10px',
+          borderRadius: 'var(--radius-lg)',
           boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
           minWidth: 220,
           zIndex: 100,
@@ -154,7 +154,7 @@ export function Header({ activePage, navMode = 'creator', actions, workspaceName
     <span style={{
       fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)',
       background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
-      borderRadius: '8px', padding: '0.45rem 0.75rem',
+      borderRadius: 'var(--radius-md)', padding: '0.45rem 0.75rem',
       fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
     }}>
       {agentId}
@@ -172,7 +172,7 @@ export function Header({ activePage, navMode = 'creator', actions, workspaceName
         <span style={{
           fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)',
           background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
-          borderRadius: '8px', padding: '0.45rem 0.75rem',
+          borderRadius: 'var(--radius-md)', padding: '0.45rem 0.75rem',
           maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
           {workspaces[0].name}
@@ -190,7 +190,7 @@ export function Header({ activePage, navMode = 'creator', actions, workspaceName
       <span style={{
         fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)',
         background: 'var(--bg-secondary)', border: '1px solid var(--border-color)',
-        borderRadius: '8px', padding: '0.45rem 0.75rem',
+        borderRadius: 'var(--radius-md)', padding: '0.45rem 0.75rem',
         maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
       }}>
         {workspaceName}

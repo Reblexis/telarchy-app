@@ -76,10 +76,10 @@ export function GuidesPage() {
                   background: active === s.id ? 'var(--bg-secondary)' : 'none',
                   border: 'none',
                   borderLeft: `2px solid ${active === s.id ? 'var(--focus-border)' : 'transparent'}`,
-                  borderRadius: '0 4px 4px 0',
+                  borderRadius: '0 var(--radius-sm) var(--radius-sm) 0',
                   cursor: 'pointer',
                   marginBottom: '0.1rem',
-                  transition: 'all 0.12s',
+                  transition: 'all var(--transition-fast)',
                 }}
               >
                 {s.title}
@@ -113,13 +113,13 @@ export function GuidesPage() {
                   const isBlock = className?.startsWith('language-') || String(children).includes('\n');
                   if (isBlock) {
                     return (
-                      <pre style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '0.75rem 1rem', fontFamily: 'monospace', fontSize: '0.8125rem', color: 'var(--text-primary)', overflowX: 'auto', margin: '0.75rem 0', lineHeight: 1.6 }}>
+                      <pre style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '0.75rem 1rem', fontFamily: 'monospace', fontSize: '0.8125rem', color: 'var(--text-primary)', overflowX: 'auto', margin: '0.75rem 0', lineHeight: 1.6 }}>
                         <code>{children}</code>
                       </pre>
                     );
                   }
                   return (
-                    <code style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '3px', padding: '0.1em 0.35em', fontFamily: 'monospace', fontSize: '0.85em', color: 'var(--text-primary)' }}>
+                    <code style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '4px', padding: '0.1em 0.35em', fontFamily: 'monospace', fontSize: '0.85em', color: 'var(--text-primary)' }}>
                       {children}
                     </code>
                   );
