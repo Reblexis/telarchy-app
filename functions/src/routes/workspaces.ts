@@ -50,15 +50,10 @@ workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
 workspacesRouter.get('/', requireIdentity, wrap(async (req, res) => {
   const { uid, agentId, role } = req.auth!;
 
-  // Master API key or platform admin via session: return all workspaces.
+  // Master API key (no uid/agentId): return all workspaces.
   if (!uid && !agentId) {
     const all = await db.select().from(workspaces);
     res.json(all); return;
-  }
-
-  if (role === 'admin') {
-    const all = await db.select().from(workspaces);
-    res.json(all.map(ws => ({ ...ws, memberRole: 'owner' }))); return;
   }
 
   const memberships = await getAuthWorkspaceMemberships({ uid, agentId });
