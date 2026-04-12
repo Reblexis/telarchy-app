@@ -71,13 +71,21 @@ userauthRouter.get('/me', requireUser, wrap(async (req, res) => {
   const workspaceId = req.auth!.workspaceId || memberships[0]?.workspaceId || '';
   const memberRole = workspaceMap[workspaceId]?.role ?? null;
 
+  // Recompute authRole from actual membership; the middleware value may be stale
+  // (e.g. 'pending' when ensureParticipant just created the first workspace).
+  const effectiveAuthRole = memberRole === 'owner' || memberRole === 'admin' ? 'admin'
+    : memberRole === 'trader' ? 'agent'
+    : memberRole === 'viewer' ? 'member'
+    : memberships.length > 0 ? 'agent'
+    : authRole;
+
   res.json({
     uid,
     email: null, // BetterAuth session has the email; frontend reads from authClient.useSession()
     intent: agent?.intent ?? null,
     participantId,
     workspaceId,
-    authRole,
+    authRole: effectiveAuthRole,
     memberRole,
     workspaces: workspaceMap,
   });

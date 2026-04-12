@@ -158,14 +158,18 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
     const result = await resolveUser(session.user.id, requestedWorkspaceId);
     if (result === null) {
-      return res.status(403).json({ error: 'Not a member of the specified workspace' });
+      // New user with no workspaces yet; set minimal auth so workspace creation
+      // and profile endpoints can run. Route-level guards (requireRole, etc.)
+      // still enforce actual permissions.
+      req.auth = { role: 'pending', workspaceId: '', uid: session.user.id };
+    } else {
+      req.auth = {
+        role: memberRoleToAuthRole(result.memberRole),
+        workspaceId: result.workspaceId,
+        uid: session.user.id,
+        agentId: result.agentId,
+      };
     }
-    req.auth = {
-      role: memberRoleToAuthRole(result.memberRole),
-      workspaceId: result.workspaceId,
-      uid: session.user.id,
-      agentId: result.agentId,
-    };
     return next();
   }
 
