@@ -132,6 +132,10 @@ export async function optionalAuthMiddleware(req: Request, _res: Response, next:
         uid: session.user.id,
         agentId: result.agentId,
       };
+    } else {
+      // New user with no workspaces yet; set minimal auth so ensureParticipant
+      // can run on /me and provision the first workspace.
+      req.auth = { role: 'pending', workspaceId: '', uid: session.user.id };
     }
   }
   return next();

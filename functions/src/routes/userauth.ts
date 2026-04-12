@@ -51,10 +51,10 @@ async function ensureParticipant(uid: string): Promise<{ participantId: string; 
  * Auto-creates the participant on first call (handles OAuth users who skip profile setup).
  */
 userauthRouter.get('/me', requireUser, wrap(async (req, res) => {
-  const { uid, workspaceId, role: authRole } = req.auth!;
+  const { uid, role: authRole } = req.auth!;
 
   if (!uid) {
-    res.json({ uid: null, email: null, workspaceId, authRole, workspaces: {} });
+    res.json({ uid: null, email: null, workspaceId: req.auth!.workspaceId, authRole, workspaces: {} });
     return;
   }
 
@@ -65,6 +65,10 @@ userauthRouter.get('/me', requireUser, wrap(async (req, res) => {
   const memberships = await getUserWorkspaceMemberships(uid);
 
   const workspaceMap = Object.fromEntries(memberships.map(m => [m.workspaceId, { role: m.memberRole }]));
+
+  // Use the workspace from auth context, or fall back to the first membership
+  // (covers new users whose workspace was just created by ensureParticipant).
+  const workspaceId = req.auth!.workspaceId || memberships[0]?.workspaceId || '';
   const memberRole = workspaceMap[workspaceId]?.role ?? null;
 
   res.json({
