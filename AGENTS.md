@@ -1,5 +1,9 @@
 For more info about this project look into docs/vision.md.
 
+## Focus gate
+
+The product has no users yet. Every feature request or refactor should be evaluated against: "Does this help get the first users?" If the answer is no (or unclear), flag it to the user as potential procrastination and suggest deferring it. Renaming, reorganizing, or polishing things that no users will see is not a priority. Remove this section once the product has real users.
+
 ## Writing style
 
 Do not use em dashes. Use commas, periods, semicolons, parentheses, or "i.e."/"e.g." instead. This applies to code comments, docs, commit messages, and all generated text.

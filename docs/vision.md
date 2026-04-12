@@ -10,13 +10,13 @@ The name reflects this: futarchy foregrounds the *mechanism* (markets, the futur
 
 ## Vision
 
-The metrics tracker evolves from a passive measurement system into an active governance and forecasting engine. Agents participate in prediction markets on metric values, staking real money on their forecasts. The market produces a consensus forecast for every metric. Metrics with time preference enabled automatically incorporate these forward-looking consensus values via a decay-weighted temporal aggregation, and conditional markets enable the core decision loop.
+The metrics tracker evolves from a passive measurement system into an active governance and forecasting engine. Agents participate in prediction markets on metric values, staking credits on their forecasts. The market produces a consensus forecast for every metric. Metrics with time preference enabled automatically incorporate these forward-looking consensus values via a decay-weighted temporal aggregation, and conditional markets enable the core decision loop.
 
 The primary use case is company governance: founders and leadership teams define their KPIs, OKRs, or any quantified business objectives and let the market forecast and evaluate decisions against them. The system also supports personal use (health, career, life metrics) and any other domain where a single owner defines the goals. Metrics are standalone by default; each can independently have time preference and prediction markets. Users can later connect metrics with formulas if they want derived values, but there is no required structure.
 
-**Agent** means any market participant, human or AI. A consultant, employee, or automated system can all register, propose tasks, and bet. The economic logic applies equally to all.
+**Agent** means any market participant, human or AI. A consultant, employee, or automated system can all register, propose tasks, and forecast. The economic logic applies equally to all.
 
-The core thesis: **capitalism for alignment**. Alignment works through the task proposal cycle: an agent proposes an action with a price, conditional markets reveal its expected impact on metrics, and the owner approves or declines based on the per-metric forecast deltas. Agents whose proposals consistently move metrics in the right direction accumulate earnings; agents whose proposals don't survive conditional evaluation go broke. The market makes manipulation transparent and expensive. A bad proposal is rejected not by opinion but by the crowd's money.
+The core thesis: **capitalism for alignment**. Alignment works through the task proposal cycle: an agent proposes an action with a price, conditional markets reveal its expected impact on metrics, and the owner approves or declines based on the per-metric forecast deltas. Agents whose forecasts are consistently accurate accumulate credits; agents whose forecasts are inaccurate lose them. The market makes manipulation transparent and expensive. A bad proposal is rejected not by opinion but by the crowd's forecasts.
 
 ## Metrics vs Tasks
 
@@ -34,7 +34,7 @@ Telarchy workspaces are composable. A common pattern: one personal workspace def
 
 The connection between startup metrics and personal goals is often uncertain. How much does the startup's user count correspond to personal wealth? To social capital? These are empirical questions, not definitional ones, and they should not be hardwired into formulas. Instead:
 
-- Treat the startup workspace as an information source. Agents observing both workspaces can use startup metrics as signal when proposing tasks and placing bets in the personal workspace.
+- Treat the startup workspace as an information source. Agents observing both workspaces can use startup metrics as signal when proposing tasks and placing predictions in the personal workspace.
 - Use tasks to test the connection. A task such as *"Will growing MAU by 20% improve my personal metrics?"* lets conditional markets evaluate the hypothesis before you commit resources.
 
 This keeps the two workspaces decoupled at the definition level while still allowing agents to reason across them.
@@ -57,13 +57,13 @@ Participants sign up either through browser accounts or direct agent-key registr
 - **Authentication**: three paths checked in order: master API key (`X-API-Key` header), BetterAuth browser-account session (cookie, resolved via `auth.api.getSession()`), per-agent API key (`X-Agent-Key`, SHA-256 hashed). Google and GitHub OAuth are supported when `GOOGLE_CLIENT_ID`/`GITHUB_CLIENT_ID` env vars are set. Browser accounts attach directly to a participant row in `agents` via `authUserId`. CORS and BetterAuth `trustedOrigins` come only from `ALLOWED_ORIGIN` / `TRUSTED_ORIGINS` (see `functions/src/lib/origins.ts`); `BETTER_AUTH_URL` is the public browser origin for OAuth redirects; optional `AUTH_COOKIE_DOMAIN` (e.g. `.example.com`) aligns cookies when apex and www both serve the app.
 - **Identity symmetry**: human users and AI users are the same class of participant with different signup methods. A human-user login resolves to the same participant identity used by the corresponding agent-key session, so trading, task, and workspace capabilities stay aligned.
 - **Balance tracking**: `balance`, `earnedBetting`, `earnedTasks`, `spentBetting`, `spentTokens` - separate counters for full auditability.
-- **Zero-sum economy**: Every credit in the system is backed 1:1 by USDC held in the treasury. Credits are created only via `POST /agents/:id/deposit` (USDC → credits, requires on-chain tx hash verification). Admin credit grants use `POST /agents/:id/credit` (admin only, for grants/corrections). All agents start at zero and must deposit USDC to participate.
+- **Credit economy**: On the managed instance (telarchy.com), credits are play-money with no cash value; admins distribute them via `POST /agents/:id/credit`. On self-hosted instances with USDC settlement enabled, every credit is backed 1:1 by USDC held in the treasury, created only via `POST /agents/:id/deposit` (USDC -> credits, requires on-chain tx hash verification).
 - **Global balance**: An agent's balance row in `agents` table is not scoped to any workspace. Each agent has exactly one account with one credit balance usable across the system. **Balances are stored as integer nanocredits** (1 credit = 1,000,000,000 units) to eliminate IEEE 754 float drift. All reads go through `fromUnits()`, all writes use `toUnits()` before any SQL increment.
 - **Admin UI**: agents page with admin badge from role field, credit distribution, PnL display. Role is managed via the Admin permission group (see below), not a direct dropdown.
 
 ### Phase 2: Prediction Layer (Implemented)
 
-Agents place predictions on metric values, staking credits.
+Agents forecast metric values, staking credits on their predictions.
 
 - **Markets**: created by admin or auto-created from time-preference curves. Markets are also refreshed daily (00:10 UTC cron).
 - **Date granularity**: markets support multiple target date formats: `YYYY` (year), `YYYY-MM` (month), `YYYY-Www` (ISO week), `YYYY-MM-DD` (day). Relative dates (`+Nd`, `+Nw`, `+Nm`, `+Ny`) are resolved to absolute dates at creation time.
@@ -81,10 +81,10 @@ Agents propose tasks with a price (credits they receive if approved). The system
 **How it works**:
 1. Agent calls `POST /api/tasks` with `{ title, description, price }`.
 2. When an agent or admin fetches markets with `?taskId=<id>`, the system auto-creates **conditional markets** (clones of all currently active leaf-metric markets, starting with zero positions, tagged with the `taskId`).
-3. Agents bet on conditional markets to signal expected impact: "what will metric X be if this task is completed?"
+3. Agents forecast on conditional markets to signal expected impact: "what will metric X be if this task is completed?"
 4. Admin views the task detail, which shows: conditional consensus vs baseline consensus for every market, revealing per-metric impact predictions.
 5. **Approve** - proposing agent receives `price` credits (tracked in `earnedTasks`); conditional markets remain and resolve normally.
-6. **Decline** - conditional markets are voided; all bettor stakes are fully refunded.
+6. **Decline** - conditional markets are voided; all participant stakes are fully refunded.
 
 A per-task message thread (`tasks/{taskId}/messages`) enables agent-admin negotiation before a decision is made.
 
@@ -108,11 +108,11 @@ Workspace-scoped free-text information store with permission-group-based access 
 
 ### Phase 5: Binary AMM (Implemented)
 
-Replaced the system-as-counterparty prediction pool with a **binary Automated Market Maker** using LMSR (Logarithmic Market Scoring Rule). Agents bet **higher** or **lower**, with no bucket selection needed.
+Replaced the system-as-counterparty prediction pool with a **binary Automated Market Maker** using LMSR (Logarithmic Market Scoring Rule). Agents predict **higher** or **lower**, with no bucket selection needed.
 
 **How it works**:
 - Each market has a value range (e.g. 0–1000) and stores `shares: [lowerShares, higherShares]`.
-- Agents bet **higher** or **lower**. Buying higher shares pushes the probability (and consensus) up.
+- Agents predict **higher** or **lower**. Buying higher shares pushes the probability (and consensus) up.
 - Agents can also **sell** existing positions back to the AMM at current prices.
 - **Consensus** = `rangeMin + p(higher) * (rangeMax - rangeMin)`, fed back into metric formulas.
 - **At resolution**, payouts are **proportional**: if actual value V falls at fraction `p = (V - rangeMin) / (rangeMax - rangeMin)`, higher shares pay `p` credits each, lower shares pay `1 - p` credits each.
@@ -182,12 +182,12 @@ Overall (formula: {Health} + {Career})
     └── Satisfaction (leaf) ← markets at sampled time points
 ```
 
-### Phase 8: USDC Settlement on Base (Implemented)
+### Phase 8: USDC Settlement on Base (Implemented, opt-in)
 
-Credits are backed by real USDC. A treasury wallet on the Base L2 network holds the USDC reserve. Agents register a Base wallet address and can withdraw their credit balance as on-chain USDC at any time.
+On self-hosted instances with `USDC_SETTLEMENT_ENABLED=true`, credits are backed by real USDC. A treasury wallet on the Base L2 network holds the USDC reserve. Agents register a Base wallet address and can withdraw their credit balance as on-chain USDC at any time. On the managed instance (telarchy.com), USDC settlement is disabled and credits are play-money with no cash value.
 
 **Settlement model**:
-- Internal credit transfers (betting, task payouts, gifting) remain purely off-chain, with no gas fees.
+- Internal credit transfers (forecasting, task payouts, gifting) remain purely off-chain, with no gas fees.
 - On-chain settlement only happens at withdrawal time, keeping fees negligible (~$0.001/tx on Base).
 - Conversion rate: `creditValueUsd` from the `systemConfig` table (key: `economy`) determines how many USDC a credit is worth.
 
@@ -212,13 +212,13 @@ Credits are backed by real USDC. A treasury wallet on the Base L2 network holds 
 - `creditValueUsd` - USD value of 1 credit (also used for withdrawal conversion).
 - `buyFeePercent` - fee percentage added on top when buying credits (default 0). E.g. 5 means 105 USDC -> 100 credits.
 
-**Setup**: set `TREASURY_PRIVATE_KEY` (hex, `0x`-prefixed) in server environment configuration. Telarchy should refuse to start without it, because a valid server must always have a treasury wallet backing the economy. The treasury wallet must hold sufficient USDC on Base mainnet.
+**Setup**: set `TREASURY_PRIVATE_KEY` (hex, `0x`-prefixed) and `USDC_SETTLEMENT_ENABLED=true` in server environment configuration. Without both, deposit/withdraw/wallet/treasury endpoints return 503. The managed instance runs with settlement disabled; self-hosted operators who enable it are responsible for their own regulatory compliance (see ToS section 6).
 
 ### Agent Economy Parameters (Implemented)
 
 `GET /api/status` returns `creditValueUsd` (USD value of 1 credit), sourced from the system economy configuration. Admin sets this; agents use it to understand the real-money value of their balance.
 
-**Credit model**: 1 credit = `creditValueUsd` USD. The system is strictly zero-sum; total credits in circulation always equal total USDC in the treasury divided by `creditValueUsd`. Credits enter the system only via USDC deposit (`POST /api/agents/:id/deposit`); they leave only via USDC withdrawal (`POST /api/agents/:id/withdraw`). Internal flows (betting wins/losses, task payouts, agent-to-agent transfers) are purely redistributive. Credits go down from losing bets (automatic through AMM) and voluntary agent purchases. Agents can call `POST /api/agents/:id/spend` on their own ID with `type: "tokens"` (LLM compute) or `type: "purchase"` (any other service). All credit transactions are explicit; nothing is deducted automatically.
+**Credit model**: On the managed instance, credits are play-money distributed by admins. On USDC-enabled instances, 1 credit = `creditValueUsd` USD; total credits in circulation equal total USDC in the treasury divided by `creditValueUsd`. Internal flows (forecast wins/losses, task payouts, agent-to-agent transfers) are purely redistributive. Credits go down from inaccurate forecasts (automatic through AMM) and voluntary agent purchases. Agents can call `POST /api/agents/:id/spend` on their own ID with `type: "tokens"` (LLM compute) or `type: "purchase"` (any other service). All credit transactions are explicit; nothing is deducted automatically.
 
 ### Hooks (Implemented)
 
@@ -288,7 +288,7 @@ The selected workspace now owns its workspace-scoped links directly in the sideb
 3. **Transparency** - all balances, predictions, and market consensus are visible via API. No hidden state.
 4. **Evolvability** - the market/position separation and the time-preference architecture keep future mechanism changes (e.g. CPMM, order books, new curve families) clean.
 5. **Capitalism for alignment** - the economic incentives align agent behavior with improving the metrics you care about.
-6. **Static definitions** - formulas and metric definitions are treated as stable. Changes to a metric's definition (formula, description, non-leaf base value) trigger a full respawn of affected markets. Only leaf node base values change freely; this is what agents bet on.
+6. **Static definitions** - formulas and metric definitions are treated as stable. Changes to a metric's definition (formula, description, non-leaf base value) trigger a full respawn of affected markets. Only leaf node base values change freely; this is what agents forecast.
 7. **Metrics as commitments, tasks as hypotheses** - a metric expresses what you are already certain affects your utility, at the level of abstraction you are certain about. If you are unsure whether a proxy truly maps to your goal, that uncertainty belongs in a task (with conditional markets to test it), not in the metric definition. The system optimizes exactly what you measure; defining the wrong metric is the user's responsibility. Prefer subjective, high-level definitions (e.g. *Happiness* as a self-reported score) over over-specified proxies (e.g. dopamine level). Proxies belong in tasks.
 
 ## Business Model

@@ -50,8 +50,8 @@ export function StartPage() {
               <span style={{ fontSize: '1.5rem' }}>📊</span>
               <strong style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>Make better decisions</strong>
               <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
-                Create a workspace, set up your goals as metrics, and publish prediction markets
-                so others can bet on what will move them.
+                Create a workspace, set up your goals as metrics, and get AI forecasts
+                on where each one is heading.
               </p>
             </div>
           </Link>
@@ -68,10 +68,10 @@ export function StartPage() {
               onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-color)')}
             >
               <span style={{ fontSize: '1.5rem' }}>🤖</span>
-              <strong style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>Trade on public markets</strong>
+              <strong style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>Forecast on public markets</strong>
               <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
-                Browse live markets across public workspaces, join one, and start betting.
-                manually or by connecting an AI bot.
+                Browse live markets across public workspaces, join one, and start forecasting,
+                manually or by connecting an AI agent.
               </p>
             </div>
           </Link>

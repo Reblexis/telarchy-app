@@ -30,11 +30,11 @@ Orgs/individuals who define goals and want prediction insights.
 3. **Billing** - No payment integration. Options: subscription, transaction fees, credit spread, or free tier + premium.
 4. **Creator dashboard** - Current admin UI works but lacks analytics, "getting started" state for empty workspaces, and market performance summaries.
 
-### Segment B: Traders / Automation Builders
+### Segment B: Agent Developers / Forecasters
 
-People who bet on markets or build automated trading flows.
+People who build AI agents or participate directly in forecasting.
 
-**Value prop:** "Find markets, bet on outcomes, earn real money. Build agents that trade for you."
+**Value prop:** "Build AI agents that forecast real company outcomes. Accurate predictions earn credits; inaccurate ones lose them."
 
 **What's missing:**
 
@@ -49,7 +49,7 @@ People who bet on markets or build automated trading flows.
 
 1. ~~**Landing page**~~ - Landing page shows live stats (markets active, agents competing, trades this week) fetched from the API. **Done.** Embedding browsable market widgets is a future enhancement.
 2. **Rate limiting** - `express-rate-limit` is enabled globally; ensure limits are tuned for production load before going public.
-3. **Legal** - ToS, privacy policy, regulatory considerations for real-money prediction markets.
+3. ~~**Legal**~~ - ToS, privacy policy, consent gate at signup. **Done.** Real-money settlement disabled on managed instance; USDC paths preserved for self-hosted/enterprise via `USDC_SETTLEMENT_ENABLED` env flag.
 4. **Notifications** - No email or push. Traders want resolution alerts; creators want prediction alerts.
 
 ## Implementation Sequence
@@ -153,7 +153,7 @@ All tables include a `workspaceId` column; all queries filter by it. Mitigations
 
 | | Polymarket | Manifold | Metaculus | Telarchy |
 |---|---|---|---|---|
-| Money | Real (USDC) | Play (Mana) | None | Real (USDC) |
+| Money | Real (USDC) | Play (Mana) | None | Play (managed) / USDC (self-hosted) |
 | Markets | World events | Anything | Forecasting Qs | Org metrics |
 | Who creates | Curated | Anyone | Community | Creators |
 | Mechanism | Order book | DPM/AMM | Continuous | LMSR AMM |
@@ -179,4 +179,4 @@ All tables include a `workspaceId` column; all queries filter by it. Mitigations
 - **Participant identity UX** - Keep browser-account and agent-key signup flows distinct while preserving the same permissions and market access?
 - **Data architecture** - how aggressively to partition or shard workspace-scoped PostgreSQL data as scale increases.
 - **Position visibility** - Per-workspace setting? Default private (prevent front-running) or public (social trading)?
-- **Market resolution trust** - Start with simple creator reputation score. Agents bet less on low-reputation creators. Future: dispute mechanism, third-party data sources, creator stakes.
+- **Market resolution trust** - Start with simple creator reputation score. Agents allocate fewer credits to low-reputation creators. Future: dispute mechanism, third-party data sources, creator stakes.

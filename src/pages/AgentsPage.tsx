@@ -361,7 +361,7 @@ function AgentAdminPage({ user, workspace }: {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
-                  {['Participant', 'Groups', 'Balance', 'Bet Won', 'Bet Spent', 'PnL'].map((h, i) => (
+                  {['Participant', 'Groups', 'Balance', 'Earned', 'Spent', 'PnL'].map((h, i) => (
                     <th key={h} style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem', textAlign: i >= 2 ? 'right' : 'left' }}>{h}</th>
                   ))}
                 </tr>

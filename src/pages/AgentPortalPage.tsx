@@ -28,12 +28,12 @@ function OverviewSection({ profile }: { profile: AgentProfile }) {
       <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
         <StatCard label="Balance" value={`${profile.balance.toFixed(2)} credits`} />
         <StatCard
-          label="Betting PnL"
+          label="Forecasting PnL"
           value={`${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}`}
           valueColor={pnl >= 0 ? 'var(--success-text)' : 'var(--error-text)'}
         />
-        <StatCard label="Won" value={`$${profile.earnedBetting.toFixed(2)}`} valueColor="var(--success-text)" />
-        <StatCard label="Spent on bets" value={`$${profile.spentBetting.toFixed(2)}`} valueColor="var(--error-text)" />
+        <StatCard label="Earned" value={`$${profile.earnedBetting.toFixed(2)}`} valueColor="var(--success-text)" />
+        <StatCard label="Spent on predictions" value={`$${profile.spentBetting.toFixed(2)}`} valueColor="var(--error-text)" />
       </div>
       <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
         Role: <strong style={{ color: 'var(--text-primary)' }}>{profile.role}</strong>
@@ -80,7 +80,7 @@ function MarketsSection({ agentId, apiKey }: { agentId: string; apiKey: string }
     setTradeStatus(prev => ({ ...prev, [market.id]: { ok: false, msg: '' } }));
     try {
       await agentApi.trade(agentId, apiKey, { marketId: market.id, direction, amount });
-      setTradeStatus(prev => ({ ...prev, [market.id]: { ok: true, msg: `${direction === 'higher' ? 'Higher' : 'Lower'} bet placed for $${amount}` } }));
+      setTradeStatus(prev => ({ ...prev, [market.id]: { ok: true, msg: `${direction === 'higher' ? 'Higher' : 'Lower'} prediction placed for $${amount}` } }));
       setTradeAmount(prev => ({ ...prev, [market.id]: '' }));
       load();
     } catch (err: unknown) {
