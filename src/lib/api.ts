@@ -260,11 +260,21 @@ export const api = {
     request(`/api/workspaces/${id}/settings`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteWorkspace: (id: string) =>
     request(`/api/workspaces/${id}`, { method: 'DELETE' }),
+  // Vaults
+  listVaults: () => request('/api/vaults'),
+  getVault: (id: string) => request(`/api/vaults/${id}`),
+  createVault: (body: { name: string; description?: string; content?: string }) =>
+    request('/api/vaults', { method: 'POST', body: JSON.stringify(body) }),
+  updateVault: (id: string, body: { name?: string; description?: string; content?: string }) =>
+    request(`/api/vaults/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteVault: (id: string) =>
+    request(`/api/vaults/${id}`, { method: 'DELETE' }),
+
   // Permission groups
   listGroups: () => request('/api/groups'),
   createGroup: (name: string) =>
     request('/api/groups', { method: 'POST', body: JSON.stringify({ name }) }),
-  updateGroup: (id: string, body: { name?: string; memberIds?: string[]; permissions?: Record<string, { read: boolean; trade: boolean }> }) =>
+  updateGroup: (id: string, body: { name?: string; memberIds?: string[]; permissions?: Record<string, { read: boolean; trade: boolean }>; vaultPermissions?: Record<string, { read: boolean }> }) =>
     request(`/api/groups/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteGroup: (id: string) =>
     request(`/api/groups/${id}`, { method: 'DELETE' }),

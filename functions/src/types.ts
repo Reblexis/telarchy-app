@@ -158,6 +158,10 @@ export interface MetricPermission {
 
 export type PermissionGroupType = 'public' | 'admin' | 'trader' | 'custom';
 
+export interface VaultPermission {
+  read: boolean;
+}
+
 export interface PermissionGroup {
   id: string;
   name: string;
@@ -168,4 +172,15 @@ export interface PermissionGroup {
   memberIds: string[];
   /** metricId → permissions */
   permissions: Record<string, MetricPermission>;
+  /** vaultId → permissions */
+  vaultPermissions: Record<string, VaultPermission>;
+}
+
+export interface Vault {
+  id: string;
+  name: string;
+  description: string;
+  content: string;
+  createdAt: Date;
+  updatedAt: Date;
 }

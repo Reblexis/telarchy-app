@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useWorkspace, type WorkspaceInfo } from '../hooks/useWorkspace';
 import { api, agentApi } from '../lib/api';
 import { cacheGet, cacheSet } from '../lib/cache';
-import type { Agent, PermissionGroup, Metric } from '../types';
+import type { Agent, PermissionGroup, Metric, Vault } from '../types';
 
 // ─── Operator view ───────────────────────────────────────────────────────────
 
@@ -215,6 +215,7 @@ function AgentAdminPage({ user, workspace }: {
   // Groups state
   const [groups, setGroups] = useState<PermissionGroup[]>([]);
   const [metrics, setMetrics] = useState<Metric[]>([]);
+  const [vaultsList, setVaultsList] = useState<Vault[]>([]);
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
   const [newGroupName, setNewGroupName] = useState('');
   const [creatingGroup, setCreatingGroup] = useState(false);
@@ -239,12 +240,14 @@ function AgentAdminPage({ user, workspace }: {
   }, [workspace]);
 
   const loadGroups = useCallback(async () => {
-    const [groupData, metricData] = await Promise.all([
+    const [groupData, metricData, vaultData] = await Promise.all([
       api.listGroups().catch((e: Error) => { console.error('listGroups:', e); return []; }),
       api.getMetrics().catch((e: Error) => { console.error('getMetrics:', e); return []; }),
+      api.listVaults().catch((e: Error) => { console.error('listVaults:', e); return []; }),
     ]);
     setGroups(groupData);
     setMetrics((metricData as Metric[]).filter((m: Metric) => !m.formula || m.formula.trim() === '0'));
+    setVaultsList(vaultData ?? []);
   }, []);
 
   useEffect(() => { loadAgents(); }, [loadAgents]);
@@ -307,6 +310,18 @@ function AgentAdminPage({ user, workspace }: {
     try {
       await api.updateGroup(group.id, { permissions: next });
       setGroups(prev => prev.map(g => g.id === group.id ? { ...g, permissions: next } : g));
+    } catch (e: unknown) {
+      setGroupError((e as Error).message);
+    }
+  };
+
+  const handleToggleVaultPermission = async (group: PermissionGroup, vaultId: string) => {
+    const current = group.vaultPermissions?.[vaultId]?.read ?? false;
+    const next = { ...group.vaultPermissions, [vaultId]: { read: !current } };
+    if (!next[vaultId].read) delete next[vaultId];
+    try {
+      await api.updateGroup(group.id, { vaultPermissions: next });
+      setGroups(prev => prev.map(g => g.id === group.id ? { ...g, vaultPermissions: next } : g));
     } catch (e: unknown) {
       setGroupError((e as Error).message);
     }
@@ -504,6 +519,34 @@ function AgentAdminPage({ user, workspace }: {
                               })}
                             </tbody>
                           </table>
+                        )}
+
+                        {/* Vault Permissions */}
+                        {vaultsList.length > 0 && (
+                          <>
+                            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', marginTop: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Vault Permissions</div>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                              <thead>
+                                <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                  <th style={{ textAlign: 'left', padding: '0.3rem 0.5rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Vault</th>
+                                  <th style={{ textAlign: 'center', padding: '0.3rem 0.5rem', color: 'var(--text-secondary)', fontWeight: 500, width: 60 }}>Read</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {vaultsList.map(v => {
+                                  const hasAccess = group.vaultPermissions?.[v.id]?.read ?? false;
+                                  return (
+                                    <tr key={v.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                      <td style={{ padding: '0.3rem 0.5rem' }}>{v.name}</td>
+                                      <td style={{ padding: '0.3rem 0.5rem', textAlign: 'center' }}>
+                                        <input type="checkbox" checked={hasAccess} onChange={() => handleToggleVaultPermission(group, v.id)} style={{ width: 'auto' }} />
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </>
                         )}
                       </div>
                     )}

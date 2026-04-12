@@ -20,6 +20,7 @@ import { AgentLoginPage } from './pages/AgentLoginPage';
 import { AgentPortalPage } from './pages/AgentPortalPage';
 import { GuidesPage } from './pages/GuidesPage';
 import { LegalPage } from './pages/LegalPage';
+import { VaultsPage } from './pages/VaultsPage';
 
 function InspectBanner() {
   const { inspectTask, setInspectTask } = useInspectMode();
@@ -75,6 +76,7 @@ export function App() {
               <Route path="/metrics" element={<MetricsPage />} />
               <Route path="/markets" element={<MarketsPage />} />
               <Route path="/tasks" element={<TasksPage />} />
+              <Route path="/vaults" element={<VaultsPage />} />
             </Route>
           </Route>
         </Routes>

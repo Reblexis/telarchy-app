@@ -5,7 +5,7 @@ import { eq, and, inArray } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { requireRole } from '../middleware/roles';
-import type { MetricPermission, PermissionGroupType } from '../types';
+import type { MetricPermission, VaultPermission, PermissionGroupType } from '../types';
 import { getGroupMemberIds } from '../lib/participants';
 
 export const groupsRouter = Router();
@@ -66,7 +66,7 @@ groupsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
     description: typeof description === 'string' ? description.trim() : '',
     memberIds: [], permissions: {}, createdAt: new Date(),
   });
-  res.status(201).json({ id, name: name.trim(), type: 'custom', description, memberIds: [], permissions: {} });
+  res.status(201).json({ id, name: name.trim(), type: 'custom', description, memberIds: [], permissions: {}, vaultPermissions: {} });
 }));
 
 groupsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
@@ -77,7 +77,7 @@ groupsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
     .where(and(eq(permissionGroups.id, groupId), eq(permissionGroups.workspaceId, workspaceId)));
   if (!group) { res.status(404).json({ error: 'Group not found' }); return; }
 
-  const { name, description, memberIds, permissions } = req.body;
+  const { name, description, memberIds, permissions, vaultPermissions } = req.body;
   const update: Partial<typeof permissionGroups.$inferInsert> = {};
 
   if (name !== undefined) {
@@ -130,6 +130,19 @@ groupsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
       }
     }
     update.permissions = permissions;
+  }
+
+  if (vaultPermissions !== undefined) {
+    if (typeof vaultPermissions !== 'object' || vaultPermissions === null || Array.isArray(vaultPermissions)) {
+      res.status(400).json({ error: 'vaultPermissions must be an object' }); return;
+    }
+    for (const [vaultId, perms] of Object.entries(vaultPermissions)) {
+      const p = perms as VaultPermission;
+      if (typeof p.read !== 'boolean') {
+        res.status(400).json({ error: `vaultPermissions["${vaultId}"] must have boolean read` }); return;
+      }
+    }
+    update.vaultPermissions = vaultPermissions;
   }
 
   if (Object.keys(update).length === 0) {

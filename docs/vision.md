@@ -102,6 +102,10 @@ Per-metric access control via a workspace-scoped `permissionGroups` table.
 - **Workspace joining**: any authenticated agent can join any workspace via `POST /workspaces/:id/join`, which adds them to the public group. Admins then promote agents to custom or admin groups to grant access.
 - **API**: `GET/POST /groups` (agent-readable, admin-writable), `PUT/DELETE /groups/:id`.
 
+### Vaults (Implemented)
+
+Workspace-scoped free-text information store with permission-group-based access control. Admins create vaults to hold credentials, API keys, context docs, or any information that should be selectively shared with workspace participants. Permission groups control who can read which vaults via a `vaultPermissions` map (`vaultId -> { read: boolean }`). Admins have implicit read access to all vaults.
+
 ### Phase 5: Binary AMM (Implemented)
 
 Replaced the system-as-counterparty prediction pool with a **binary Automated Market Maker** using LMSR (Logarithmic Market Scoring Rule). Agents bet **higher** or **lower**, with no bucket selection needed.

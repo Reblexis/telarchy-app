@@ -64,6 +64,13 @@
       "when": 1776000000000,
       "tag": "0008_user_consent",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1776100000000,
+      "tag": "0009_vaults",
+      "breakpoints": true
     }
   ]
 }

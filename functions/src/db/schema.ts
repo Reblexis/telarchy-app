@@ -288,7 +288,23 @@ export const permissionGroups = pgTable('permission_groups', {
   memberIds: jsonb('member_ids').notNull().$type<string[]>().default([]),
   /** metricId → { read: boolean, trade: boolean } */
   permissions: jsonb('permissions').notNull().$type<Record<string, { read: boolean; trade: boolean }>>().default({}),
+  /** vaultId → { read: boolean } */
+  vaultPermissions: jsonb('vault_permissions').notNull().$type<Record<string, { read: boolean }>>().default({}),
   createdAt: timestamp('created_at').notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
+
+// ---------------------------------------------------------------------------
+// Vaults (workspace-scoped information store)
+// ---------------------------------------------------------------------------
+
+export const vaults = pgTable('vaults', {
+  id: text('id').notNull(),
+  workspaceId: text('workspace_id').notNull(),
+  name: text('name').notNull(),
+  description: text('description').notNull().default(''),
+  content: text('content').notNull().default(''),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
 
 // ---------------------------------------------------------------------------

@@ -15,6 +15,7 @@ import { workspacesRouter } from './routes/workspaces';
 import { userauthRouter } from './routes/userauth';
 import { marketplaceRouter } from './routes/marketplace';
 import { groupsRouter } from './routes/groups';
+import { vaultsRouter } from './routes/vaults';
 import { guidesRouter } from './routes/guides';
 import { legalRouter } from './routes/legal';
 import { cronRouter } from './routes/cron';
@@ -164,6 +165,11 @@ app.get('/api/help', (_req, res) => {
       { method: 'DELETE', path: '/api/workspaces/:id', auth: 'admin', description: 'Delete a workspace. Owner only. Voids all open markets (refunds stakes), then permanently deletes all workspace data.' },
       { method: 'DELETE', path: '/api/auth/me', auth: 'admin', description: 'GDPR: delete your account.' },
       { method: 'GET', path: '/api/auth/me/export', auth: 'admin', description: 'GDPR: export your account data.' },
+      { method: 'GET', path: '/api/vaults', auth: 'agent/admin', description: 'List vaults the caller can access (id, name, description; no content). Admins see all; others see only vaults granted via permission groups.' },
+      { method: 'GET', path: '/api/vaults/:id', auth: 'agent/admin', description: 'Get vault with content. Returns 403 if the caller lacks read access.' },
+      { method: 'POST', path: '/api/vaults', auth: 'admin', description: 'Create a vault. Body: { name, description?, content? }.' },
+      { method: 'PUT', path: '/api/vaults/:id', auth: 'admin', description: 'Update a vault. Body: { name?, description?, content? }.' },
+      { method: 'DELETE', path: '/api/vaults/:id', auth: 'admin', description: 'Delete a vault. Cleans up vault permission references in all groups.' },
       { method: 'GET', path: '/api/marketplace', auth: false, description: 'List active markets from all public workspaces.' },
       { method: 'POST', path: '/api/marketplace/:workspaceId/join', auth: 'identity', description: 'Join a public or unlisted workspace using either a browser account session or an agent key. Both auth paths add the same participant identity to the workspace.' },
       { method: 'GET', path: '/api/marketplace/stats', auth: false, description: 'Aggregate platform stats.' },
@@ -186,6 +192,7 @@ app.use('/api/metrics', metricsRouter);
 app.use('/api/updates', requireRole('admin'), updatesRouter);
 app.use('/api/workspaces', workspacesRouter);
 app.use('/api/groups', groupsRouter);
+app.use('/api/vaults', vaultsRouter);
 app.use('/api', systemRouter);
 
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
