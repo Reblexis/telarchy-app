@@ -76,11 +76,11 @@ function WorkspaceSwitcher({ workspaces, activeId, onSwitch }: {
           fontSize: '0.9rem',
           fontWeight: 600,
           whiteSpace: 'nowrap',
-          transition: 'border-color 0.15s',
+          transition: 'border-color 0.15s, box-shadow 0.15s',
           maxWidth: 220,
         }}
-        onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--border-hover)')}
-        onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-color)')}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-hover)'; e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.05)'; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.boxShadow = 'none'; }}
       >
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
         <span style={{ fontSize: '0.6rem', color: 'var(--text-tertiary)', flexShrink: 0 }}>{open ? '▲' : '▼'}</span>
@@ -88,12 +88,12 @@ function WorkspaceSwitcher({ workspaces, activeId, onSwitch }: {
       {open && (
         <div style={{
           position: 'absolute',
-          top: 'calc(100% + 4px)',
+          top: 'calc(100% + 6px)',
           left: 0,
           background: 'var(--bg-primary)',
           border: '1px solid var(--border-color)',
-          borderRadius: '8px',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+          borderRadius: '10px',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
           minWidth: 220,
           zIndex: 100,
           overflow: 'hidden',
@@ -228,7 +228,7 @@ export function Header({ activePage, navMode = 'creator', actions, workspaceName
       </nav>
       <div className="header-actions">
         {showSettings && (
-          <button className="btn" style={{ padding: '0.3rem 0.6rem', fontSize: '1rem' }} title="Workspace settings" onClick={() => navigate('/settings')}>⚙</button>
+          <button className="dark-mode-toggle" title="Workspace settings" onClick={() => navigate('/settings')}>⚙</button>
         )}
         {actions}
       </div>

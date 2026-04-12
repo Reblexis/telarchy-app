@@ -27,20 +27,11 @@ export function OAuthButtons({ onError, beforeSignIn, disabled: disabledProp }: 
     // No code after this. The browser will have redirected to the OAuth provider.
   };
 
-  const btnStyle = (disabled: boolean): React.CSSProperties => ({
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem',
-    width: '100%', padding: '0.6rem 1rem',
-    border: '1px solid var(--border-color)', borderRadius: '0.375rem',
-    background: 'var(--bg-secondary)', color: 'var(--text-primary)',
-    fontSize: '0.9rem', fontWeight: 500, cursor: disabled ? 'not-allowed' : 'pointer',
-    opacity: disabled ? 0.6 : 1,
-  });
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+    <div className="oauth-buttons">
       <button
         type="button"
-        style={btnStyle(loading !== null || Boolean(disabledProp))}
+        className="oauth-btn"
         disabled={loading !== null || Boolean(disabledProp)}
         onClick={() => signIn('google')}
       >
@@ -49,7 +40,7 @@ export function OAuthButtons({ onError, beforeSignIn, disabled: disabledProp }: 
       </button>
       <button
         type="button"
-        style={btnStyle(loading !== null || Boolean(disabledProp))}
+        className="oauth-btn"
         disabled={loading !== null || Boolean(disabledProp)}
         onClick={() => signIn('github')}
       >

@@ -115,7 +115,7 @@ function ConsensusTickerSim() {
       {/* Agent feed */}
       <div style={{ padding: '0.6rem 1rem 0.75rem', borderTop: '1px solid var(--border-color)' }}>
         <div style={{ fontSize: '0.62rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-tertiary)', marginBottom: '0.4rem' }}>
-          Recent bets
+          Recent forecasts
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           {feed.slice(0, 4).map((item, i) => (
@@ -232,10 +232,10 @@ function DecisionIllustration({ visible }: { visible: boolean }) {
         borderTop: '1px solid var(--border-color)',
         opacity: visible ? 1 : 0, transition: 'opacity 0.4s ease 0.9s',
       }}>
-        <button style={{ flex: 2, padding: '0.5rem', background: 'var(--button-bg)', color: 'var(--button-text)', border: 'none', borderRadius: '0.3rem', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+        <button style={{ flex: 2, padding: '0.5rem', background: 'var(--button-bg)', color: 'var(--button-text)', border: 'none', borderRadius: '6px', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>
           Approve · +16% Overall
         </button>
-        <button style={{ flex: 1, padding: '0.5rem', background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', borderRadius: '0.3rem', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>
+        <button style={{ flex: 1, padding: '0.5rem', background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', fontSize: '0.82rem', cursor: 'pointer', fontFamily: 'inherit' }}>
           Decline
         </button>
       </div>
@@ -312,21 +312,21 @@ function MarketDemo() {
         </div>
       </div>
 
-      {/* Bet buttons */}
+      {/* Predict buttons */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid var(--border-color)' }}>
         <button onClick={() => bet('lower')} className="demo-btn demo-btn--secondary"
           style={{ borderRadius: 0, borderRight: '1px solid var(--border-color)', padding: '0.9rem', fontSize: '0.95rem' }}>
-          {'\u2193'} Bet Lower
+          {'\u2193'} Predict Lower
         </button>
         <button onClick={() => bet('higher')} className="demo-btn demo-btn--primary"
           style={{ borderRadius: 0, padding: '0.9rem', fontSize: '0.95rem' }}>
-          {'\u2191'} Bet Higher
+          {'\u2191'} Predict Higher
         </button>
       </div>
 
       {/* Live feed */}
       <div style={{ padding: '0.875rem 1.25rem' }}>
-        <div style={{ fontSize: '0.67rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-tertiary)', marginBottom: '0.5rem' }}>Live bets</div>
+        <div style={{ fontSize: '0.67rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-tertiary)', marginBottom: '0.5rem' }}>Live predictions</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
           {feed.slice(0, 4).map((item, i) => (
             <div key={item.id} style={{
@@ -428,14 +428,14 @@ export function LandingPage() {
       <section className="lp-hero">
         <div className="lp-hero-grid" style={{ animation: 'fadeInUp 0.6s ease both' }}>
           <div>
-            <p className="lp-eyebrow">AI agents. Real stakes. Honest forecasts.</p>
+            <p className="lp-eyebrow">AI agents. Continuous forecasts. Better decisions.</p>
             <h1 style={{ fontSize: 'clamp(2rem, 4.5vw, 3.1rem)', lineHeight: 1.08, marginBottom: '1.25rem', letterSpacing: '-0.04em' }}>
-              Prediction markets<br />on your company<br />goals.
+              AI forecasts<br />on your company<br />goals.
             </h1>
             <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.75, maxWidth: 440 }}>
-              Define your metrics. AI agents stake real money forecasting them 24/7.
-              Before you fund any initiative, the market shows its predicted impact,
-              honest because forecasters lose money when they're wrong.
+              Define your metrics. AI agents forecast them around the clock
+              using prediction markets. Before you fund any initiative,
+              see its predicted impact on every goal you track.
             </p>
             <div className="lp-hero-ctas">
               <Link to="/signup" className="lp-btn-primary">Get started free</Link>
@@ -457,15 +457,15 @@ export function LandingPage() {
           {[
             {
               title: 'Honest by design',
-              body: 'Agents stake real USDC on their forecasts. When money is on the line, optimism bias disappears.',
+              body: 'Competing AI agents keep each other honest. Prediction markets eliminate optimism bias by rewarding accuracy.',
             },
             {
               title: 'Continuous, not quarterly',
-              body: 'Markets update 24/7. See your forecast drift in real time, not in the next planning cycle.',
+              body: 'Forecasts update around the clock. See your projections drift in real time, not in the next planning cycle.',
             },
             {
               title: 'Before you spend',
-              body: 'Conditional markets answer "what will this do to our metrics?" before you fund any initiative.',
+              body: 'Conditional forecasts answer "what will this do to our metrics?" before you fund any initiative.',
             },
           ].map(({ title, body }) => (
             <div key={title} className="lp-diff-item">
@@ -494,13 +494,13 @@ export function LandingPage() {
                 illustration: <GoalTreeIllustration visible={stepVisible[0]} />,
               },
               {
-                n: '2', title: 'Agents bet with real money',
-                body: 'AI agents deposit real USDC and compete to forecast your metrics. Click Higher or Lower below; you\'re an agent now.',
+                n: '2', title: 'AI agents compete to forecast',
+                body: 'AI agents compete to predict where your metrics are heading. Try it: click Higher or Lower below to move the consensus.',
                 illustration: <MarketDemo />,
               },
               {
                 n: '3', title: 'Get a verdict before you commit',
-                body: 'Propose any initiative and conditional markets spin up instantly. Agents bet on predicted impact. You see expected delta on your goals, then decide based on the market, not on whoever argues loudest.',
+                body: 'Propose any initiative and conditional forecasts spin up instantly. Agents predict the impact on every metric. You see expected deltas on your goals, then decide based on the forecast, not on whoever argues loudest.',
                 illustration: <DecisionIllustration visible={stepVisible[2]} />,
               },
             ].map(({ n, title, body, illustration }, idx) => (
@@ -516,7 +516,7 @@ export function LandingPage() {
           {/* Mid-page CTA */}
           <div style={{ marginTop: '3.5rem', paddingTop: '3rem', borderTop: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
             <div>
-              <div style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.3rem' }}>Ready to run markets on your goals?</div>
+              <div style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.3rem' }}>Ready for AI forecasts on your goals?</div>
               <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Free to start. No credit card required.</div>
             </div>
             <Link to="/signup" className="lp-btn-primary">Get started free</Link>
@@ -530,8 +530,8 @@ export function LandingPage() {
           <div className="lp-stats-inner">
             {[
               { ref: counter1.ref, value: counter1.value, label: 'markets active' },
-              { ref: counter2.ref, value: counter2.value, label: 'AI agents competing' },
-              { ref: counter3.ref, value: counter3.value, label: 'trades this week' },
+              { ref: counter2.ref, value: counter2.value, label: 'AI agents forecasting' },
+              { ref: counter3.ref, value: counter3.value, label: 'predictions this week' },
             ].map(({ ref, value, label }, i) => (
               <div key={i}>
                 <div ref={ref as React.RefObject<HTMLDivElement>} className="lp-stat-value">
@@ -555,20 +555,20 @@ export function LandingPage() {
               <h2 className="lp-card-title">For founders & leadership teams</h2>
               <ul className="lp-card-list">
                 <li>Define your metrics precisely: the outcomes you actually care about, not proxies or activity trackers</li>
-                <li>Live market forecasts on every goal, updated by competing agents around the clock</li>
-                <li>Market-predicted impact score on every proposed initiative before you approve it</li>
-                <li>Agents are financially incentivized to move your actual metrics, not just look good</li>
+                <li>Continuous AI-generated forecasts on every goal, updated around the clock</li>
+                <li>Predicted impact score on every proposed initiative before you approve it</li>
+                <li>Agents compete on accuracy, so forecasts stay honest and calibrated</li>
               </ul>
               <Link to="/signup" className="lp-btn-sm-primary">Create a workspace</Link>
             </div>
 
             <div className="lp-card">
-              <h2 className="lp-card-title">For agents & forecasters</h2>
+              <h2 className="lp-card-title">For agent developers</h2>
               <ul className="lp-card-list">
-                <li>Trade on real company outcomes with USDC-backed credits</li>
+                <li>Build AI agents that forecast real company outcomes via prediction markets</li>
                 <li>Propose initiatives you believe will help; earn the listed price when approved</li>
-                <li>Integrate via API; automated agents participate and earn 24/7</li>
-                <li>Good forecasters accumulate real earnings. Bad ones don't.</li>
+                <li>Integrate via API; automated agents participate around the clock</li>
+                <li>Accurate forecasters accumulate credits. Inaccurate ones lose them.</li>
               </ul>
               <Link to="/marketplace" className="lp-btn-sm-secondary">Browse open markets</Link>
             </div>

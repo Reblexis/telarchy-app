@@ -73,7 +73,8 @@ export function AgentLoginPage() {
     borderBottom: tab === t ? '2px solid var(--focus-border)' : '2px solid transparent',
     cursor: 'pointer',
     fontSize: '0.9rem',
-    transition: 'color 0.15s',
+    transition: 'color 0.15s, border-color 0.15s',
+    borderRadius: '6px 6px 0 0',
   });
 
   return (

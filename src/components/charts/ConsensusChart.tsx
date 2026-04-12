@@ -144,7 +144,7 @@ export function ConsensusChart({ trades, rangeMin, rangeMax }: {
           <span>{(clickedTrade.cost ?? 0) > 0 ? `cost $${clickedTrade.cost}` : `proceeds $${-(clickedTrade.cost ?? 0)}`}</span>
           <span>→ <strong>{clickedTrade.consensus}</strong></span>
           <span style={{ color: 'var(--text-secondary)' }}>{(() => { const s = getTimestampSeconds(clickedTrade.createdAt); return s != null ? fmtTime(s) : ''; })()}</span>
-          <button onClick={() => setClickedTrade(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '1rem', lineHeight: 1 }}>×</button>
+          <button onClick={() => setClickedTrade(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '1rem', lineHeight: 1, borderRadius: '6px', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
         </div>
       )}
     </div>
