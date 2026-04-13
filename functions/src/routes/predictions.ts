@@ -17,7 +17,7 @@ import { consensus, pHigher, directionTradeCost, sharesForBudget, betTowardsValu
 import { emitEvent } from '../services/events';
 import { applyAgentLiquidityInjectionTx } from '../services/marketLiquidity';
 import { sufficientBalance, toUnits, fromUnits } from '../lib/validation';
-import { getGroupMemberIds, resolveWorkspaceOwnerAgentId } from '../lib/participants';
+import { getGroupMemberIds, resolveWorkspaceOwnerAgentId, listParticipantsForWorkspace } from '../lib/participants';
 
 export const predictionsRouter = Router();
 
@@ -481,6 +481,8 @@ predictionsRouter.post('/markets/liquidity/bulk', requireRole('admin'), wrap(asy
 
   const [agent] = await db.select().from(agents).where(eq(agents.id, agentId));
   if (!agent) { res.status(404).json({ error: 'Agent not found' }); return; }
+  const wsMembers = await listParticipantsForWorkspace(workspaceId);
+  if (!wsMembers.some(m => m.id === agentId)) { res.status(403).json({ error: 'Agent is not in your workspace' }); return; }
 
   let marketRows = await db.select().from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.active, true), eq(markets.resolved, false)));
@@ -541,6 +543,8 @@ predictionsRouter.post('/markets/:id/liquidity', requireRole('admin'), wrap(asyn
 
   const [preAgent] = await db.select().from(agents).where(eq(agents.id, agentId));
   if (!preAgent) { res.status(404).json({ error: 'Agent not found' }); return; }
+  const wsMembers = await listParticipantsForWorkspace(workspaceId);
+  if (!wsMembers.some(m => m.id === agentId)) { res.status(403).json({ error: 'Agent is not in your workspace' }); return; }
 
   try {
     await db.transaction(async tx => {
