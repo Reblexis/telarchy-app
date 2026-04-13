@@ -25,10 +25,20 @@ export function requireIdentity(req: Request, res: Response, next: NextFunction)
   return next();
 }
 
-export function requireSelfOrAdmin(req: Request, res: Response, next: NextFunction) {
+/** Allows access if the caller IS the target agent (by ID or "me"), or if the
+ *  caller is a workspace admin AND the target agent belongs to their workspace.
+ *  This prevents cross-workspace privilege escalation. */
+export async function requireSelfOrAdmin(req: Request, res: Response, next: NextFunction) {
   if (!req.auth) return res.status(401).json({ error: 'Unauthorized' });
-  if (req.auth.role === 'admin') return next();
+  // Self-access: agent accessing their own record
   if (req.params.id === 'me' && req.auth.agentId) return next();
   if (req.auth.agentId && req.auth.agentId === req.params.id) return next();
+  // Admin access: must verify target agent is in the same workspace
+  if (req.auth.role === 'admin') {
+    const { listParticipantsForWorkspace } = await import('../lib/participants');
+    const members = await listParticipantsForWorkspace(req.auth.workspaceId);
+    const targetId = req.params.id as string;
+    if (members.some(m => m.id === targetId)) return next();
+  }
   return res.status(403).json({ error: 'Forbidden' });
 }

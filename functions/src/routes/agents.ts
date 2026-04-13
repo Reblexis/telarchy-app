@@ -162,6 +162,8 @@ agentsRouter.get('/', requireRole('admin'), wrap(async (_req, res) => {
 
 agentsRouter.put('/:id/approve', requireRole('admin'), wrap(async (req, res) => {
   const id = req.params.id as string;
+  const members = await listParticipantsForWorkspace(req.auth!.workspaceId);
+  if (!members.some(m => m.id === id)) { res.status(403).json({ error: 'Agent is not in your workspace' }); return; }
   const [agent] = await db.select().from(agents).where(eq(agents.id, id));
   if (!agent) { res.status(404).json({ error: 'Agent not found' }); return; }
   await db.update(agents).set({ role: 'agent', approvedAt: new Date() }).where(eq(agents.id, id));
@@ -174,6 +176,8 @@ agentsRouter.put('/:id/role', requireRole('admin'), wrap(async (req, res) => {
     res.status(400).json({ error: 'Invalid role' }); return;
   }
   const id = req.params.id as string;
+  const members = await listParticipantsForWorkspace(req.auth!.workspaceId);
+  if (!members.some(m => m.id === id)) { res.status(403).json({ error: 'Agent is not in your workspace' }); return; }
   const [agent] = await db.select().from(agents).where(eq(agents.id, id));
   if (!agent) { res.status(404).json({ error: 'Agent not found' }); return; }
   await db.update(agents).set({ role }).where(eq(agents.id, id));
@@ -211,6 +215,8 @@ agentsRouter.post('/:id/spend', requireSelfOrAdmin, wrap(async (req, res) => {
 agentsRouter.post('/:id/credit', requireRole('admin'), wrap(async (req, res) => {
   const id = resolveRouteAgentId(req);
   if (!id) { res.status(400).json({ error: 'Agent not found' }); return; }
+  const members = await listParticipantsForWorkspace(req.auth!.workspaceId);
+  if (!members.some(m => m.id === id)) { res.status(403).json({ error: 'Agent is not in your workspace' }); return; }
   const { amount, reason = 'admin credit' } = req.body;
   if (typeof amount !== 'number' || amount <= 0) {
     res.status(400).json({ error: 'amount must be a positive number' }); return;
@@ -325,6 +331,8 @@ agentsRouter.post('/:id/withdraw', requireSelfOrAdmin, wrap(async (req, res) => 
 
 agentsRouter.delete('/:id', requireRole('admin'), wrap(async (req, res) => {
   const id = req.params.id as string;
+  const members = await listParticipantsForWorkspace(req.auth!.workspaceId);
+  if (!members.some(m => m.id === id)) { res.status(403).json({ error: 'Agent is not in your workspace' }); return; }
   const [agent] = await db.select().from(agents).where(eq(agents.id, id));
   if (!agent) { res.status(404).json({ error: 'Agent not found' }); return; }
 
