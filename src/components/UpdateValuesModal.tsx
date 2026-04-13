@@ -58,7 +58,8 @@ export function UpdateValuesModal({ open, metrics, onClose, onSave }: UpdateValu
           <h3>Update values</h3>
           <button className="modal-close" onClick={onClose}>&times;</button>
         </div>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ overflowY: 'auto', maxHeight: '60vh', paddingRight: '0.25rem' }}>
           {leaves.map((m, i) => (
             <div key={m.id} className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <label style={{ flex: 1, margin: 0 }}>{m.name}</label>
@@ -72,6 +73,7 @@ export function UpdateValuesModal({ open, metrics, onClose, onSave }: UpdateValu
               />
             </div>
           ))}
+          </div>
           {error && <div className="message error show" style={{ marginBottom: '0.75rem' }}>{error}</div>}
           <button type="submit" className="btn" disabled={saving}>
             {saving ? 'Saving...' : 'Save'}
