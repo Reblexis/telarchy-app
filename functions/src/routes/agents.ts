@@ -1,6 +1,6 @@
 import { Router, type Request } from 'express';
 import { db } from '../db/client';
-import { agents, agentApiKeys, deposits, withdrawals, systemConfig, workspaces } from '../db/schema';
+import { agents, agentApiKeys, deposits, withdrawals, systemConfig, workspaces, positions, trades } from '../db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { randomBytes } from 'crypto';
 import { randomUUID } from 'crypto';
@@ -58,7 +58,7 @@ agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => 
 
   await db.transaction(async tx => {
     await tx.insert(agents).values({
-      id: agentId, apiKeyHash: keyHash, role: 'agent', balance: 0,
+      id: agentId, apiKeyHash: keyHash, balance: 0,
       authUserId: req.auth?.uid ?? null, createdAt: new Date(), approvedAt: new Date(),
     });
     await tx.insert(agentApiKeys).values({ hash: keyHash, agentId, workspaceId });
@@ -160,29 +160,6 @@ agentsRouter.get('/', requireRole('admin'), wrap(async (_req, res) => {
   }));
 }));
 
-agentsRouter.put('/:id/approve', requireRole('admin'), wrap(async (req, res) => {
-  const id = req.params.id as string;
-  const members = await listParticipantsForWorkspace(req.auth!.workspaceId);
-  if (!members.some(m => m.id === id)) { res.status(403).json({ error: 'Agent is not in your workspace' }); return; }
-  const [agent] = await db.select().from(agents).where(eq(agents.id, id));
-  if (!agent) { res.status(404).json({ error: 'Agent not found' }); return; }
-  await db.update(agents).set({ role: 'agent', approvedAt: new Date() }).where(eq(agents.id, id));
-  res.json({ ok: true });
-}));
-
-agentsRouter.put('/:id/role', requireRole('admin'), wrap(async (req, res) => {
-  const { role } = req.body;
-  if (!role || !['admin', 'agent', 'pending'].includes(role)) {
-    res.status(400).json({ error: 'Invalid role' }); return;
-  }
-  const id = req.params.id as string;
-  const members = await listParticipantsForWorkspace(req.auth!.workspaceId);
-  if (!members.some(m => m.id === id)) { res.status(403).json({ error: 'Agent is not in your workspace' }); return; }
-  const [agent] = await db.select().from(agents).where(eq(agents.id, id));
-  if (!agent) { res.status(404).json({ error: 'Agent not found' }); return; }
-  await db.update(agents).set({ role }).where(eq(agents.id, id));
-  res.json({ ok: true });
-}));
 
 agentsRouter.post('/:id/spend', requireSelfOrAdmin, wrap(async (req, res) => {
   const { amount, reason, type } = req.body;
@@ -337,6 +314,10 @@ agentsRouter.delete('/:id', requireRole('admin'), wrap(async (req, res) => {
   if (!agent) { res.status(404).json({ error: 'Agent not found' }); return; }
 
   await db.transaction(async tx => {
+    await tx.delete(trades).where(eq(trades.agentId, id));
+    await tx.delete(positions).where(eq(positions.agentId, id));
+    await tx.delete(deposits).where(eq(deposits.agentId, id));
+    await tx.delete(withdrawals).where(eq(withdrawals.agentId, id));
     await tx.delete(agentApiKeys).where(eq(agentApiKeys.agentId, id));
     await tx.delete(agents).where(eq(agents.id, id));
   });

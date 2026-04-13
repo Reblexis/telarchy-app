@@ -27,7 +27,6 @@ async function ensureParticipant(uid: string): Promise<{ participantId: string; 
     await tx.insert(agents).values({
       id: participantId,
       apiKeyHash: keyHash,
-      role: 'agent',
       authUserId: uid,
       platformAdmin: false,
       intent: null,

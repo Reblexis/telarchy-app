@@ -84,7 +84,6 @@ export async function runBootstrap(): Promise<void> {
     await tx.insert(agents).values({
       id: agentId,
       apiKeyHash: agentKeyHash,
-      role: 'admin',
       authUserId: userId,
       platformAdmin: true,
       balance: 0,

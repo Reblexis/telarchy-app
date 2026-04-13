@@ -71,6 +71,13 @@
       "when": 1776100000000,
       "tag": "0009_vaults",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1776200000000,
+      "tag": "0010_drop_agents_role",
+      "breakpoints": true
     }
   ]
 }

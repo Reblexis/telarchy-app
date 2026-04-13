@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/client';
-import { agents, permissionGroups } from '../db/schema';
+import { permissionGroups } from '../db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
@@ -104,19 +104,6 @@ groupsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
     }
     update.memberIds = nextMemberIds;
 
-    if (group.type === 'admin') {
-      const oldIds = new Set<string>(getGroupMemberIds(group));
-      const newIds = new Set<string>(nextMemberIds);
-      const added = nextMemberIds.filter((id: string) => !oldIds.has(id));
-      const removed = [...oldIds].filter(id => !newIds.has(id));
-
-      if (added.length > 0) {
-        await db.update(agents).set({ role: 'admin' }).where(inArray(agents.id, added));
-      }
-      if (removed.length > 0) {
-        await db.update(agents).set({ role: 'agent' }).where(inArray(agents.id, removed));
-      }
-    }
   }
 
   if (permissions !== undefined) {

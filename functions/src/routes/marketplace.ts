@@ -63,7 +63,7 @@ marketplaceRouter.get('/stats', wrap(async (_req, res) => {
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const allWs = await db.select({ id: workspaces.id }).from(workspaces);
 
-  const [agentCount] = await db.select({ count: count() }).from(agents).where(eq(agents.role, 'agent'));
+  const [agentCount] = await db.select({ count: count() }).from(agents);
 
   let marketsActive = 0;
   let tradesThisWeek = 0;

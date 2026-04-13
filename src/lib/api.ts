@@ -130,10 +130,6 @@ export const api = {
   getMyAgents: () => request('/api/agents/mine'),
   registerAgent: (agentId: string) =>
     request('/api/agents/register', { method: 'POST', body: JSON.stringify({ agentId }) }),
-  approveAgent: (id: string) =>
-    request(`/api/agents/${id}/approve`, { method: 'PUT' }),
-  setAgentRole: (id: string, role: string) =>
-    request(`/api/agents/${id}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
   spendAgent: (id: string, amount: number, type: 'betting' | 'tokens', reason: string) =>
     request(`/api/agents/${id}/spend`, { method: 'POST', body: JSON.stringify({ amount, type, reason }) }),
   getTreasury: () => request('/api/agents/treasury', {}, true),

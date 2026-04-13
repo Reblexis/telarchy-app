@@ -80,8 +80,6 @@ export const workspaces = pgTable('workspaces', {
 export const agents = pgTable('agents', {
   id: text('id').primaryKey(),
   apiKeyHash: text('api_key_hash').notNull(),
-  /** 'admin' | 'agent' | 'pending' */
-  role: text('role').notNull().default('agent'),
   /** BetterAuth user ID for browser-authenticated participants. */
   authUserId: text('auth_user_id').references(() => authUser.id, { onDelete: 'set null' }),
   /** Balance in nanocredits (1 credit = 1_000_000_000 units) */
