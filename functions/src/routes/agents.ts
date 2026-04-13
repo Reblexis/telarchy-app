@@ -1,6 +1,6 @@
 import { Router, type Request } from 'express';
 import { db } from '../db/client';
-import { agents, agentApiKeys, deposits, withdrawals, systemConfig, workspaces, positions, trades } from '../db/schema';
+import { agents, agentApiKeys, deposits, withdrawals, systemConfig, workspaces, positions, trades, markets, permissionGroups } from '../db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { randomBytes } from 'crypto';
 import { randomUUID } from 'crypto';
@@ -21,6 +21,7 @@ import { creditsIssuedForUsdcDeposit, depositBuyRateUsd } from '../lib/economy';
 import { validateAgentId, validateTxHash, sufficientBalance, toUnits, fromUnits } from '../lib/validation';
 import { listParticipantsForWorkspace } from '../lib/participants';
 import { isUsdcSettlementEnabled } from '../lib/settlement';
+import { directionSellProceeds } from '../lib/amm';
 
 export const agentsRouter = Router();
 
@@ -308,12 +309,50 @@ agentsRouter.post('/:id/withdraw', requireSelfOrAdmin, wrap(async (req, res) => 
 
 agentsRouter.delete('/:id', requireRole('admin'), wrap(async (req, res) => {
   const id = req.params.id as string;
-  const members = await listParticipantsForWorkspace(req.auth!.workspaceId);
-  if (!members.some(m => m.id === id)) { res.status(403).json({ error: 'Agent is not in your workspace' }); return; }
+  const workspaceId = req.auth!.workspaceId;
   const [agent] = await db.select().from(agents).where(eq(agents.id, id));
   if (!agent) { res.status(404).json({ error: 'Agent not found' }); return; }
 
+  // Unwind positions: sell all shares at current market rates to restore LMSR state
+  const agentPositions = await db.select().from(positions)
+    .where(and(eq(positions.agentId, id), eq(positions.workspaceId, workspaceId)));
+
+  let positionsUnwound = 0;
   await db.transaction(async tx => {
+    for (const pos of agentPositions) {
+      if (pos.shares <= 0) continue;
+      const [market] = await tx.select().from(markets)
+        .where(and(eq(markets.id, pos.marketId), eq(markets.workspaceId, workspaceId)));
+      if (!market) continue;
+
+      const mktShares = market.shares as [number, number];
+      const dirIdx: 0 | 1 = pos.direction === 'higher' ? 1 : 0;
+      const proceeds = directionSellProceeds(mktShares, dirIdx, pos.shares, market.liquidity);
+
+      // Update market shares (remove this agent's shares)
+      const newShares: [number, number] = [mktShares[0], mktShares[1]];
+      newShares[dirIdx] -= pos.shares;
+      await tx.update(markets).set({
+        shares: newShares,
+        pool: sql`${markets.pool} - ${proceeds}`,
+      }).where(and(eq(markets.id, pos.marketId), eq(markets.workspaceId, workspaceId)));
+
+      positionsUnwound++;
+    }
+
+    // Remove from permission groups
+    const groups = await tx.select().from(permissionGroups)
+      .where(eq(permissionGroups.workspaceId, workspaceId));
+    for (const group of groups) {
+      const memberIds = (group.memberIds as string[]) ?? [];
+      if (memberIds.includes(id)) {
+        await tx.update(permissionGroups)
+          .set({ memberIds: memberIds.filter(m => m !== id) })
+          .where(and(eq(permissionGroups.id, group.id), eq(permissionGroups.workspaceId, workspaceId)));
+      }
+    }
+
+    // Delete all agent data
     await tx.delete(trades).where(eq(trades.agentId, id));
     await tx.delete(positions).where(eq(positions.agentId, id));
     await tx.delete(deposits).where(eq(deposits.agentId, id));
@@ -322,5 +361,6 @@ agentsRouter.delete('/:id', requireRole('admin'), wrap(async (req, res) => {
     await tx.delete(agents).where(eq(agents.id, id));
   });
 
-  res.status(204).send();
+  console.log(`[agent delete] ${id}: unwound ${positionsUnwound} positions, removed from groups, deleted`);
+  res.json({ ok: true, positionsUnwound });
 }));
