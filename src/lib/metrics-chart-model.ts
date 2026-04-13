@@ -26,10 +26,11 @@ function parseTargetDateToMs(date: string): number {
     return monday.getTime();
   }
   if (/^\d{4}-\d{2}$/.test(date)) {
-    return new Date(`${date}-15T00:00:00Z`).getTime();
+    const [y, m] = date.split('-').map(Number);
+    return new Date(y, m - 1, 1).getTime();
   }
   if (/^\d{4}$/.test(date)) {
-    return new Date(`${date}-07-01T00:00:00Z`).getTime();
+    return new Date(parseInt(date, 10), 0, 1).getTime();
   }
   return Date.parse(date);
 }
