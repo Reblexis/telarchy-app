@@ -82,6 +82,8 @@ export interface Agent {
   approvedAt: string | null;
 }
 
+export type MarketStatus = 'open' | 'resolved' | 'voided' | 'closed';
+
 export interface Market {
   id: string;
   metricId: string;
@@ -91,6 +93,7 @@ export interface Market {
   resolvedAt: string | null;
   actualValue: number | null;
   active: boolean;
+  status: MarketStatus;
   createdAt: string;
   consensus: number | null;
   probability: number;

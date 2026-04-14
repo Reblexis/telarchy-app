@@ -9,7 +9,7 @@ import { formatTargetDateDisplay, formatTimeRemaining, endOfPeriod } from '../li
 import { HookStatus } from '../components/HookStatus';
 import { MarketActivityPanel } from '../components/MarketActivityPanel';
 import { ProbabilitySlider } from '../components/ProbabilitySlider';
-import type { Market } from '../types';
+import type { Market, MarketStatus } from '../types';
 
 export function MarketsPage() {
   const { user } = useAuth();
@@ -27,17 +27,22 @@ export function MarketsPage() {
   const [hoverDir, setHoverDir] = useState<Record<string, 'higher' | 'lower' | undefined>>({});
 
   const [filterText, setFilterText] = useState('');
-  const [showInactive, setShowInactive] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<MarketStatus | 'all'>('open');
   const [bulkLiqAmount, setBulkLiqAmount] = useState('');
   const [bulkLiqResult, setBulkLiqResult] = useState('');
+  const statusCounts = useMemo(() => {
+    const counts: Record<MarketStatus | 'all', number> = { all: markets.length, open: 0, resolved: 0, voided: 0, closed: 0 };
+    for (const m of markets) counts[m.status]++;
+    return counts;
+  }, [markets]);
   const filteredMarkets = useMemo(() => {
-    let result = showInactive ? markets : markets.filter(m => m.active);
+    let result = statusFilter === 'all' ? markets : markets.filter(m => m.status === statusFilter);
     if (filterText) {
       const q = filterText.toLowerCase();
       result = result.filter(m => m.metricName.toLowerCase().includes(q));
     }
     return [...result].sort((a, b) => endOfPeriod(a.targetDate).localeCompare(endOfPeriod(b.targetDate)));
-  }, [markets, filterText, showInactive]);
+  }, [markets, filterText, statusFilter]);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -46,7 +51,7 @@ export function MarketsPage() {
       const cachedMkts = cacheGet<Market[]>('markets');
       if (cachedMkts) { setMarkets(cachedMkts); setLoading(false); }
     }
-    const mkts = await api.getMarkets(inspectTask?.id).catch((e: Error) => { setError(e.message); return null; });
+    const mkts = await api.getMarkets(inspectTask?.id, undefined, { includeResolved: true }).catch((e: Error) => { setError(e.message); return null; });
     if (inspectTask) {
       api.getMarkets().then((mains: Market[]) => {
         const map = new Map<string, Market>();
@@ -124,10 +129,15 @@ export function MarketsPage() {
             <div className="filter-bar">
               <input type="text" value={filterText} onChange={e => setFilterText(e.target.value)} placeholder="Search metrics..."
                 style={{ width: '200px', height: '30px', fontSize: '0.85rem' }} />
-              <label className="checkbox-label">
-                <input type="checkbox" checked={showInactive} onChange={e => setShowInactive(e.target.checked)} />
-                Show inactive
-              </label>
+              <div style={{ display: 'flex', gap: '0.25rem' }}>
+                {(['open', 'resolved', 'voided', 'closed', 'all'] as const).map(s => (
+                  <button key={s} className="btn-small"
+                    style={{ fontWeight: statusFilter === s ? 600 : 400, opacity: statusFilter === s ? 1 : 0.6, textTransform: 'capitalize' }}
+                    onClick={() => setStatusFilter(s)}>
+                    {s} ({statusCounts[s]})
+                  </button>
+                ))}
+              </div>
               {isAdmin && (
                 <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   {(() => {
@@ -161,12 +171,12 @@ export function MarketsPage() {
                 {filteredMarkets.map(m => (
                   <React.Fragment key={m.id}>
                     <tr
-                      style={{ borderBottom: expandedIds.includes(m.id) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', opacity: m.active ? 1 : 0.5 }}
+                      style={{ borderBottom: expandedIds.includes(m.id) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', opacity: m.status === 'open' ? 1 : 0.5 }}
                       onClick={() => setExpandedIds(prev => prev.includes(m.id) ? prev.filter(id => id !== m.id) : [...prev, m.id])}
                     >
                       <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600 }}>
                         {m.metricName}
-                        {!m.active && <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', fontWeight: 500, color: 'var(--text-secondary)', background: 'var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '0.1rem 0.35rem', verticalAlign: 'middle' }}>inactive</span>}
+                        {m.status !== 'open' && <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', fontWeight: 500, color: m.status === 'resolved' ? 'var(--success-text, #22c55e)' : m.status === 'voided' ? 'var(--warning-text, #f59e0b)' : 'var(--text-secondary)', background: 'var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '0.1rem 0.35rem', verticalAlign: 'middle' }}>{m.status}</span>}
                       </td>
                       <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'monospace' }}>
                         {formatTargetDateDisplay(m.targetDate)}
@@ -215,7 +225,10 @@ export function MarketsPage() {
                       <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
                         <td colSpan={4} style={{ padding: '0 0.5rem 0.75rem' }}>
                           <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
-                            {m.active ? 'Trading is performed in the marketplace.' : 'Trading is paused on inactive markets. This market will close at its target date.'}
+                            {m.status === 'open' ? 'Trading is performed in the marketplace.' :
+                             m.status === 'resolved' ? `Resolved at ${m.actualValue?.toFixed(2) ?? 'N/A'} on ${m.resolvedAt ? new Date(m.resolvedAt).toLocaleDateString() : 'unknown'}.` :
+                             m.status === 'voided' ? 'This market was cancelled. All positions were refunded at cost.' :
+                             'This market was deactivated (superseded by a newer market).'}
                           </p>
                           <MarketActivityPanel
                             market={m}

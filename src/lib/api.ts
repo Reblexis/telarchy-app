@@ -155,8 +155,11 @@ export const api = {
     request(`/api/agents/${agentId}/wallet`, { method: 'PUT', body: JSON.stringify({ walletAddress }) }),
 
   // Markets & Trading
-  getMarkets: (taskId?: string, workspaceId?: string) => {
-    const qs = taskId ? `?taskId=${taskId}` : '';
+  getMarkets: (taskId?: string, workspaceId?: string, opts?: { includeResolved?: boolean }) => {
+    const params = new URLSearchParams();
+    if (taskId) params.set('taskId', taskId);
+    if (opts?.includeResolved) params.set('includeResolved', 'true');
+    const qs = params.toString() ? `?${params}` : '';
     return requestWithWorkspace(`/api/predictions/markets${qs}`, {}, { workspaceId });
   },
   getMarketDetail: (id: string, workspaceId?: string) =>

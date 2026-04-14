@@ -182,6 +182,11 @@ export async function getMarkets(options: GetMarketsOptions | boolean = false, t
 
   return rows.map(m => {
     const shares = (m.shares as [number, number]) || [0, 0];
+    const status: 'open' | 'resolved' | 'voided' | 'closed' =
+      m.voided ? 'voided' :
+      m.resolved ? 'resolved' :
+      m.active === false ? 'closed' :
+      'open';
     return {
       id: m.id,
       metricId: m.metricId,
@@ -192,6 +197,7 @@ export async function getMarkets(options: GetMarketsOptions | boolean = false, t
       resolvedAt: m.resolvedAt ?? null,
       actualValue: m.actualValue ?? null,
       voided: m.voided,
+      status,
       createdAt: m.createdAt,
       taskId: m.taskId ?? undefined,
       consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,

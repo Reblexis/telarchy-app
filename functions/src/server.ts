@@ -75,6 +75,10 @@ import('./app').then(async ({ app }) => {
   assertTreasuryConfigured();
   await runBootstrap();
 
+  // Catch-up: resolve any markets whose target date passed while the server was down.
+  runDailyResolve().catch(e => console.error('Startup catch-up resolve failed:', e));
+  runDailyRefresh().catch(e => console.error('Startup catch-up refresh failed:', e));
+
   scheduleDailyUTC(0, 0, 'dailyResolve', runDailyResolve);
   scheduleDailyUTC(0, 10, 'dailyMarketRefresh', runDailyRefresh);
 

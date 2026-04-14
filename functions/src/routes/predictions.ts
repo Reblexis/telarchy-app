@@ -271,9 +271,10 @@ predictionsRouter.get('/markets', requireRole('agent', 'admin'), wrap(async (req
   }
 
   const active = req.query.active === 'true' ? true : req.query.active === 'false' ? false : undefined;
+  const includeResolved = req.query.includeResolved === 'true';
   const minLiquidity = typeof req.query.minLiquidity === 'string' ? parseFloat(req.query.minLiquidity) : undefined;
   const limit = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : undefined;
-  const marketRows = await getMarkets({ taskId, active, minLiquidity, limit }, undefined, workspaceId);
+  const marketRows = await getMarkets({ taskId, active, includeResolved, minLiquidity, limit }, undefined, workspaceId);
   if (req.auth!.role === 'admin') {
     res.json(marketRows);
     return;
