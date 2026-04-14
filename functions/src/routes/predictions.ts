@@ -184,6 +184,7 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
       await tx.update(markets).set({
         shares: newShares,
         pool: sql`${markets.pool} - ${proceeds}`,
+        tradedVolume: sql`${markets.tradedVolume} + ${proceeds}`,
       }).where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
       await tx.update(agents).set({
         balance: sql`${agents.balance} + ${toUnits(proceeds)}`,
@@ -195,6 +196,7 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
       await tx.update(markets).set({
         shares: newShares,
         pool: sql`${markets.pool} + ${cost}`,
+        tradedVolume: sql`${markets.tradedVolume} + ${cost}`,
       }).where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
       await tx.update(agents).set({
         balance: sql`${agents.balance} - ${toUnits(cost)}`,
@@ -332,6 +334,7 @@ predictionsRouter.get('/markets/:id', requireRole('agent', 'admin'), wrap(async 
     resolvedAt: market.resolvedAt ?? null,
     actualValue: market.actualValue ?? null,
     rangeMin: market.rangeMin, rangeMax: market.rangeMax, liquidity: market.liquidity,
+    tradedVolume: market.tradedVolume ?? 0,
     probability: Math.round(prob * 10000) / 10000,
     consensus: consensus(shares, market.liquidity, market.rangeMin, market.rangeMax) ?? null,
     costToMoveUp1pct: directionTradeCost(shares, 1, market.liquidity * 0.01, market.liquidity),

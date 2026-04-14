@@ -207,6 +207,7 @@ export async function getMarkets(options: GetMarketsOptions | boolean = false, t
       liquidity: m.liquidity,
       totalStake: m.liquidity,
       tradeCount: tradeCountMap[m.id] ?? 0,
+      tradedVolume: m.tradedVolume ?? 0,
     };
   });
 }
