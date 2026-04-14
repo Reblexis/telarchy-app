@@ -168,6 +168,8 @@ export const api = {
     requestWithWorkspace(`/api/predictions/markets/${id}/trades`, {}, { workspaceId }),
   getMarketLiquidityEvents: (id: string, workspaceId?: string) =>
     requestWithWorkspace(`/api/predictions/markets/${id}/liquidity-events`, {}, { workspaceId }),
+  getMarketPositions: (id: string, workspaceId?: string) =>
+    requestWithWorkspace(`/api/predictions/markets/${id}/positions`, {}, { workspaceId }),
   createMarket: (metricId: string, targetDate: string) =>
     request('/api/predictions/markets', { method: 'POST', body: JSON.stringify({ metricId, targetDate }) }),
   deleteMarket: (id: string) =>

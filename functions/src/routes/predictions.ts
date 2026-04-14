@@ -338,6 +338,19 @@ predictionsRouter.get('/markets/:id', requireRole('agent', 'admin'), wrap(async 
   });
 }));
 
+predictionsRouter.get('/markets/:id/positions', requireRole('admin'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
+  const marketId = req.params.id as string;
+  const rows = await db.select().from(positions)
+    .where(and(eq(positions.workspaceId, workspaceId), eq(positions.marketId, marketId)));
+  res.json(rows.filter(p => p.shares > 0).map(p => ({
+    agentId: p.agentId,
+    direction: p.direction,
+    shares: p.shares,
+    totalCost: p.totalCost,
+  })));
+}));
+
 predictionsRouter.get('/markets/:id/context', requireRole('agent', 'admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const [market] = await db.select().from(markets)

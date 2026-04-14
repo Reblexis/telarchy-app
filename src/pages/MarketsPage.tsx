@@ -9,7 +9,7 @@ import { formatTargetDateDisplay, formatTimeRemaining, endOfPeriod } from '../li
 import { HookStatus } from '../components/HookStatus';
 import { MarketActivityPanel } from '../components/MarketActivityPanel';
 import { ProbabilitySlider } from '../components/ProbabilitySlider';
-import type { Market, MarketStatus } from '../types';
+import type { Market, MarketStatus, Metric } from '../types';
 
 export function MarketsPage() {
   const { user } = useAuth();
@@ -17,6 +17,7 @@ export function MarketsPage() {
   const { workspace } = useWorkspace(!!user);
   const isAdmin = workspace?.tier === 'admin';
   const [markets, setMarkets] = useState<Market[]>([]);
+  const [metricsMap, setMetricsMap] = useState<Map<string, Metric>>(new Map());
   const [mainMarketsMap, setMainMarketsMap] = useState<Map<string, Market>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -65,6 +66,11 @@ export function MarketsPage() {
       setMarkets(mkts);
       if (!inspectTask) cacheSet('markets', mkts);
     }
+    api.getStatus().then((status: { metrics: Metric[] }) => {
+      const map = new Map<string, Metric>();
+      for (const m of status.metrics) map.set(m.id, m);
+      setMetricsMap(map);
+    }).catch(() => {});
     setLoading(false);
   }, [user, inspectTask]);
 
@@ -233,6 +239,8 @@ export function MarketsPage() {
                           <MarketActivityPanel
                             market={m}
                             onError={setError}
+                            metricValue={metricsMap.get(m.metricId)?.total}
+                            isAdmin={isAdmin}
                           />
                         </td>
                       </tr>

@@ -2,8 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api';
 import { cacheGet, cacheSet } from '../lib/cache';
 import { fmtTime, getTimestampSeconds } from '../lib/date-utils';
+import { resolutionPayouts } from '../lib/amm';
 import { ConsensusChart } from './charts/ConsensusChart';
 import type { LiquidityEvent, Market, TradePoint } from '../types';
+
+interface MarketPosition {
+  agentId: string;
+  direction: 'higher' | 'lower';
+  shares: number;
+  totalCost: number;
+}
 
 function formatCompactNumber(value: number | null | undefined): string {
   if (value == null || Number.isNaN(value)) return '-';
@@ -19,14 +27,19 @@ export function MarketActivityPanel({
   workspaceId,
   onError,
   refreshToken = 0,
+  metricValue,
+  isAdmin,
 }: {
   market: Market;
   workspaceId?: string;
   onError: (msg: string) => void;
   refreshToken?: number;
+  metricValue?: number | null;
+  isAdmin?: boolean;
 }) {
   const [trades, setTrades] = useState<TradePoint[]>([]);
   const [liquidityEvents, setLiquidityEvents] = useState<LiquidityEvent[]>([]);
+  const [marketPositions, setMarketPositions] = useState<MarketPosition[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -76,10 +89,16 @@ export function MarketActivityPanel({
         onError(e.message);
       });
 
+    if (isAdmin) {
+      api.getMarketPositions(market.id, workspaceId)
+        .then(data => { if (!cancelled) setMarketPositions(data); })
+        .catch((e: Error) => { if (!cancelled) console.error('Failed to load positions:', e.message); });
+    }
+
     return () => {
       cancelled = true;
     };
-  }, [market.id, onError, refreshToken, workspaceId]);
+  }, [market.id, onError, refreshToken, workspaceId, isAdmin]);
 
   const logEntries = useMemo(() => {
     type LogEntry =
@@ -164,6 +183,92 @@ export function MarketActivityPanel({
           </table>
         </div>
       )}
+
+      {isAdmin && marketPositions.length > 0 && (
+        <PositionsBreakdown
+          positions={marketPositions}
+          market={market}
+          metricValue={metricValue}
+        />
+      )}
+    </div>
+  );
+}
+
+function PositionsBreakdown({ positions, market, metricValue }: {
+  positions: MarketPosition[];
+  market: Market;
+  metricValue?: number | null;
+}) {
+  const consensusValue = market.consensus;
+  const clampedMetric = metricValue != null ? Math.max(market.rangeMin, Math.min(market.rangeMax, metricValue)) : null;
+
+  const rows = useMemo(() => {
+    return positions.map(pos => {
+      const payAtConsensus = consensusValue != null
+        ? (() => {
+            const [lp, hp] = resolutionPayouts(consensusValue, market.rangeMin, market.rangeMax);
+            return pos.shares * (pos.direction === 'higher' ? hp : lp);
+          })()
+        : null;
+
+      const payAtMetric = clampedMetric != null
+        ? (() => {
+            const [lp, hp] = resolutionPayouts(clampedMetric, market.rangeMin, market.rangeMax);
+            return pos.shares * (pos.direction === 'higher' ? hp : lp);
+          })()
+        : null;
+
+      return { ...pos, payAtConsensus, payAtMetric };
+    });
+  }, [positions, consensusValue, clampedMetric, market.rangeMin, market.rangeMax]);
+
+  const thStyle = { padding: '0.2rem 0.4rem', color: 'var(--text-secondary)', fontWeight: 500 as const, borderBottom: '1px solid var(--border-color)', whiteSpace: 'nowrap' as const, fontSize: '0.72rem' };
+  const tdStyle = { padding: '0.2rem 0.4rem', fontFamily: 'monospace', fontSize: '0.72rem' };
+
+  return (
+    <div style={{ marginTop: '0.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.25rem' }}>
+      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', paddingLeft: '0.25rem' }}>
+        Positions
+      </div>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            <th style={{ ...thStyle, textAlign: 'left' }}>Agent</th>
+            <th style={{ ...thStyle, textAlign: 'center' }}>Side</th>
+            <th style={{ ...thStyle, textAlign: 'right' }}>Shares</th>
+            <th style={{ ...thStyle, textAlign: 'right' }}>Cost</th>
+            <th style={{ ...thStyle, textAlign: 'right' }}>
+              {consensusValue != null ? `@ consensus (${Math.round(consensusValue)})` : '@ consensus'}
+            </th>
+            <th style={{ ...thStyle, textAlign: 'right' }}>
+              {clampedMetric != null ? `@ current (${Math.round(clampedMetric)})` : '@ current'}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => {
+            const plConsensus = r.payAtConsensus != null ? r.payAtConsensus - r.totalCost : null;
+            const plMetric = r.payAtMetric != null ? r.payAtMetric - r.totalCost : null;
+            return (
+              <tr key={`${r.agentId}-${r.direction}-${i}`} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                <td style={{ ...tdStyle, maxWidth: '100px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.agentId}</td>
+                <td style={{ ...tdStyle, textAlign: 'center', color: r.direction === 'higher' ? 'var(--success-text)' : 'var(--error-text)' }}>
+                  {r.direction === 'higher' ? '▲' : '▼'}
+                </td>
+                <td style={{ ...tdStyle, textAlign: 'right' }}>{formatCompactNumber(r.shares)}</td>
+                <td style={{ ...tdStyle, textAlign: 'right' }}>{formatCompactNumber(r.totalCost)}</td>
+                <td style={{ ...tdStyle, textAlign: 'right', color: plConsensus != null ? (plConsensus >= 0 ? 'var(--success-text)' : 'var(--error-text)') : undefined }}>
+                  {r.payAtConsensus != null ? `${formatCompactNumber(r.payAtConsensus)} (${plConsensus! >= 0 ? '+' : ''}${formatCompactNumber(plConsensus)})` : '-'}
+                </td>
+                <td style={{ ...tdStyle, textAlign: 'right', color: plMetric != null ? (plMetric >= 0 ? 'var(--success-text)' : 'var(--error-text)') : undefined }}>
+                  {r.payAtMetric != null ? `${formatCompactNumber(r.payAtMetric)} (${plMetric! >= 0 ? '+' : ''}${formatCompactNumber(plMetric)})` : '-'}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }

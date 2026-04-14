@@ -26,3 +26,9 @@ export function previewTrade(prob: number, liquidity: number, direction: 'higher
 
   return { shares, newProb };
 }
+
+/** Map actual value to proportional payout factors [lowerPayout, higherPayout]. */
+export function resolutionPayouts(actualValue: number, rangeMin: number, rangeMax: number): [number, number] {
+  const p = Math.max(0, Math.min(1, (actualValue - rangeMin) / (rangeMax - rangeMin)));
+  return [Math.round((1 - p) * 10000) / 10000, Math.round(p * 10000) / 10000];
+}
