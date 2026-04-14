@@ -177,7 +177,7 @@ export function MarketsPage() {
                 {filteredMarkets.map(m => (
                   <React.Fragment key={m.id}>
                     <tr
-                      style={{ borderBottom: expandedIds.includes(m.id) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer', opacity: m.status === 'open' ? 1 : 0.5 }}
+                      style={{ borderBottom: expandedIds.includes(m.id) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer' }}
                       onClick={() => setExpandedIds(prev => prev.includes(m.id) ? prev.filter(id => id !== m.id) : [...prev, m.id])}
                     >
                       <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600 }}>
