@@ -284,7 +284,7 @@ function AgentAdminPage({ user, workspace }: {
 
   const fmt9 = (n: number | null | undefined) => n === null || n === undefined ? '-' : n.toFixed(9);
 
-  type PnlSortKey = 'metric' | 'target' | 'status' | 'shares' | 'netCash' | 'consensus' | 'pnlConsensus' | 'metricValue' | 'pnlMetric';
+  type PnlSortKey = 'metric' | 'target' | 'status' | 'shares' | 'netCash' | 'consensus' | 'pnlConsensus' | 'metricValue' | 'payout' | 'pnlMetric';
   const [pnlSort, setPnlSort] = useState<SortState<PnlSortKey>>({ key: 'target', dir: 'asc' });
   const togglePnlSort = (key: PnlSortKey) =>
     setPnlSort(s => s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' });
@@ -298,6 +298,7 @@ function AgentAdminPage({ user, workspace }: {
       consensus: r => r.consensus ?? -Infinity,
       pnlConsensus: r => r.pnlConsensus,
       metricValue: r => r.metricValue ?? -Infinity,
+      payout: r => r.metricPayoutValue ?? -Infinity,
       pnlMetric: r => r.pnlMetric ?? -Infinity,
     };
     const fn = keyFn[pnlSort.key];
@@ -564,7 +565,8 @@ function AgentAdminPage({ user, workspace }: {
                                       ['consensus', 'right', 'Consensus', 'Current market consensus (AMM); open markets only'],
                                       ['pnlConsensus', 'right', 'PnL @ consensus', 'Unrealized P&L at current AMM prices; open markets only'],
                                       ['metricValue', 'right', 'Metric', 'Current metric total (for resolved markets: actualValue)'],
-                                      ['pnlMetric', 'right', 'PnL @ metric / Final', 'Open: P&L if the market resolved at the current metric value. Resolved: final realized earnings for this market.'],
+                                      ['payout', 'right', 'Payout', 'Gross payout from shares held: shares * payFactor. Uses actualValue for resolved markets, current metric total otherwise.'],
+                                      ['pnlMetric', 'right', 'PnL @ metric / Final', 'Open: P&L if the market resolved at the current metric value (net cash + payout). Resolved: final realized earnings for this market.'],
                                     ] as [PnlSortKey, 'left' | 'right', string, string | undefined][]).map(([k, align, label, tt]) => (
                                       <th key={k} style={{ textAlign: align, padding: '0.3rem 0.4rem', fontWeight: 500, cursor: 'pointer', userSelect: 'none' }} onClick={() => togglePnlSort(k)} title={tt}>
                                         {label}{sortArrow(pnlSort.key === k, pnlSort.dir)}
@@ -603,6 +605,7 @@ function AgentAdminPage({ user, workspace }: {
                                         {isOpen ? `${r.pnlConsensus >= 0 ? '+' : ''}${fmt9(r.pnlConsensus)}` : dash}
                                       </td>
                                       <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>{r.metricValue !== null ? r.metricValue.toFixed(9) : dash}</td>
+                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>{r.status === 'voided' ? dash : (r.metricPayoutValue === null ? dash : fmt9(r.metricPayoutValue))}</td>
                                       <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: isOpen
                                         ? (r.pnlMetric === null ? 'var(--text-secondary)' : r.pnlMetric >= 0 ? 'var(--success-text)' : 'var(--error-text)')
                                         : (finalValue === null ? undefined : finalValue >= 0 ? 'var(--success-text)' : 'var(--error-text)') }}>
