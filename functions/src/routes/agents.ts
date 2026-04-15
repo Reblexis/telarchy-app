@@ -1,7 +1,7 @@
 import { Router, type Request } from 'express';
 import { db } from '../db/client';
 import { agents, agentApiKeys, deposits, withdrawals, systemConfig, workspaces, positions, trades, markets, permissionGroups } from '../db/schema';
-import { eq, and, sql, inArray } from 'drizzle-orm';
+import { eq, and, sql, inArray, desc } from 'drizzle-orm';
 import { randomBytes } from 'crypto';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
@@ -151,6 +151,45 @@ agentsRouter.get('/:id/dashboard', requireSelfOrAdmin, wrap(async (req, res) => 
 
   if (!agent) { res.status(404).json({ error: 'Agent not found' }); return; }
   res.json({ balance: fromUnits(agent.balance as number), markets: mkts });
+}));
+
+agentsRouter.get('/:id/trades', requireSelfOrAdmin, wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
+  const id = resolveRouteAgentId(req);
+  if (!id) { res.status(403).json({ error: 'A participant identity is required' }); return; }
+  const limit = typeof req.query.limit === 'string' ? Math.min(parseInt(req.query.limit, 10) || 100, 500) : 100;
+
+  const rows = await db.select({
+    id: trades.id,
+    marketId: trades.marketId,
+    direction: trades.direction,
+    shares: trades.shares,
+    cost: trades.cost,
+    createdAt: trades.createdAt,
+    metricName: markets.metricName,
+    targetDate: markets.targetDate,
+    resolved: markets.resolved,
+    voided: markets.voided,
+  })
+    .from(trades)
+    .leftJoin(markets, and(eq(markets.id, trades.marketId), eq(markets.workspaceId, workspaceId)))
+    .where(and(eq(trades.workspaceId, workspaceId), eq(trades.agentId, id)))
+    .orderBy(desc(trades.createdAt))
+    .limit(limit);
+
+  res.json(rows.map(r => ({
+    id: r.id,
+    marketId: r.marketId,
+    metricName: r.metricName,
+    targetDate: r.targetDate,
+    direction: r.direction,
+    // trades.shares is negative for sells; surface sign + absolute amount.
+    kind: r.shares < 0 ? 'sell' : 'buy',
+    shares: Math.abs(r.shares),
+    cost: r.cost,
+    marketStatus: r.voided ? 'voided' : r.resolved ? 'resolved' : 'open',
+    createdAt: r.createdAt,
+  })));
 }));
 
 agentsRouter.get('/', requireCapability('manage'), wrap(async (_req, res) => {

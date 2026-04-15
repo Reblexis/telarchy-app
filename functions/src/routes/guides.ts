@@ -552,6 +552,7 @@ Returns: market info, metric formula + dependencies, value history, recent updat
 \`\`\`
 GET /api/agents/me/dashboard    # balance + top liquid markets
 GET /api/predictions/positions  # your open positions (shares held)
+GET /api/agents/me/trades       # your trade log (newest first; ?limit=N, max 500)
 \`\`\`
 `,
   },

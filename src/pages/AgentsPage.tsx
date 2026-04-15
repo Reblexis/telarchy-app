@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, FormEvent } from 'react';
+import { useState, useEffect, useCallback, FormEvent, Fragment } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace, type WorkspaceInfo } from '../hooks/useWorkspace';
@@ -225,6 +225,38 @@ function AgentAdminPage({ user, workspace }: {
   // Per-group manual participant ID input
   const [memberInput, setMemberInput] = useState<Record<string, string>>({});
 
+  // Per-agent trade log state (lazy-loaded on row expand)
+  interface AgentTrade {
+    id: string;
+    marketId: string;
+    metricName: string | null;
+    targetDate: string | null;
+    direction: 'higher' | 'lower';
+    kind: 'buy' | 'sell';
+    shares: number;
+    cost: number;
+    marketStatus: 'open' | 'resolved' | 'voided';
+    createdAt: string;
+  }
+  const [expandedAgentId, setExpandedAgentId] = useState<string | null>(null);
+  const [agentTrades, setAgentTrades] = useState<Record<string, AgentTrade[]>>({});
+  const [agentTradesLoading, setAgentTradesLoading] = useState<string | null>(null);
+
+  const toggleAgentTrades = async (agentId: string) => {
+    if (expandedAgentId === agentId) { setExpandedAgentId(null); return; }
+    setExpandedAgentId(agentId);
+    if (agentTrades[agentId]) return;
+    setAgentTradesLoading(agentId);
+    try {
+      const trades = await api.getAgentTrades(agentId) as AgentTrade[];
+      setAgentTrades(prev => ({ ...prev, [agentId]: trades }));
+    } catch (e) {
+      console.error('getAgentTrades:', e);
+    } finally {
+      setAgentTradesLoading(null);
+    }
+  };
+
   const loadAgents = useCallback(async () => {
     setError('');
     const wsId = workspace?.workspaceId;
@@ -374,10 +406,17 @@ function AgentAdminPage({ user, workspace }: {
                 {agents.map(agent => {
                   const memberOf = agentGroups(agent.id);
                   const notMemberOf = assignableGroups.filter(g => !g.memberIds.includes(agent.id));
+                  const isExpanded = expandedAgentId === agent.id;
+                  const trades = agentTrades[agent.id];
                   return (
-                    <tr key={agent.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                    <Fragment key={agent.id}>
+                    <tr style={{ borderBottom: isExpanded ? 'none' : '1px solid var(--border-color)' }}>
                       <td style={{ padding: '0.75rem 0.5rem' }}>
-                        <span style={{ fontWeight: 600 }}>{agent.id}</span>
+                        <span
+                          style={{ fontWeight: 600, cursor: 'pointer' }}
+                          onClick={() => toggleAgentTrades(agent.id)}
+                          title="Show trade log"
+                        >{isExpanded ? '▼ ' : '▶ '}{agent.id}</span>
                       </td>
                       <td style={{ padding: '0.75rem 0.5rem' }}>
                         <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -437,8 +476,57 @@ function AgentAdminPage({ user, workspace }: {
                         {(agent.realizedPnl ?? 0) >= 0 ? '+$' : '-$'}{Math.abs(agent.realizedPnl ?? 0).toFixed(2)}
                       </td>
                     </tr>
+                    {isExpanded && (
+                      <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
+                        <td colSpan={7} style={{ padding: '0.5rem 1rem 1rem' }}>
+                          {agentTradesLoading === agent.id && !trades ? (
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Loading trades…</div>
+                          ) : !trades || trades.length === 0 ? (
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>No trades.</div>
+                          ) : (
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                              <thead>
+                                <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                                  <th style={{ textAlign: 'left', padding: '0.3rem 0.4rem', fontWeight: 500 }}>When</th>
+                                  <th style={{ textAlign: 'left', padding: '0.3rem 0.4rem', fontWeight: 500 }}>Market</th>
+                                  <th style={{ textAlign: 'left', padding: '0.3rem 0.4rem', fontWeight: 500 }}>Target</th>
+                                  <th style={{ textAlign: 'left', padding: '0.3rem 0.4rem', fontWeight: 500 }}>Side</th>
+                                  <th style={{ textAlign: 'right', padding: '0.3rem 0.4rem', fontWeight: 500 }}>Shares</th>
+                                  <th style={{ textAlign: 'right', padding: '0.3rem 0.4rem', fontWeight: 500 }}>Cash</th>
+                                  <th style={{ textAlign: 'left', padding: '0.3rem 0.4rem', fontWeight: 500 }}>Status</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {trades.map(t => {
+                                  const cash = -t.cost;
+                                  return (
+                                    <tr key={t.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                      <td style={{ padding: '0.3rem 0.4rem', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{new Date(t.createdAt).toLocaleString()}</td>
+                                      <td style={{ padding: '0.3rem 0.4rem' }}>{t.metricName ?? t.marketId}</td>
+                                      <td style={{ padding: '0.3rem 0.4rem', fontFamily: 'monospace' }}>{t.targetDate ?? '-'}</td>
+                                      <td style={{ padding: '0.3rem 0.4rem' }}>
+                                        <span style={{ color: t.direction === 'higher' ? 'var(--success-text)' : 'var(--error-text)' }}>{t.direction}</span>
+                                        <span style={{ marginLeft: '0.35rem', color: 'var(--text-secondary)' }}>({t.kind})</span>
+                                      </td>
+                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>{t.shares.toFixed(3)}</td>
+                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace', color: cash >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>
+                                        {cash >= 0 ? '+' : ''}{cash.toFixed(2)}
+                                      </td>
+                                      <td style={{ padding: '0.3rem 0.4rem', color: 'var(--text-secondary)' }}>{t.marketStatus}</td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
+
+
               </tbody>
             </table>
           </div>
