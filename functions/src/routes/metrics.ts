@@ -199,16 +199,22 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
     }
   }
 
+  // Invariant: a market may only exist while its metric's definition (name, description,
+  // formula, marketRangeMax) is unchanged from when the market was created. Any change to
+  // those fields voids all open markets for this metric (refunding positions at cost), and
+  // new markets are respawned with the updated definition via the TP/ensure logic below.
+  const definitionChanged = isDefinitionChange(oldRow, update, effectiveFormula);
   let voidedTargetDates: string[] = [];
-  if (update.marketRangeMax !== undefined && update.marketRangeMax !== oldRow.marketRangeMax) {
+  if (definitionChanged) {
     const openForMetric = await db.select({ targetDate: markets.targetDate })
       .from(markets)
       .where(and(eq(markets.workspaceId, workspaceId), eq(markets.metricId, id), eq(markets.resolved, false)));
     voidedTargetDates = openForMetric.map(m => m.targetDate);
-    await voidOpenMarketsForMetrics(new Set([id]), workspaceId);
+    if (voidedTargetDates.length > 0) {
+      await voidOpenMarketsForMetrics(new Set([id]), workspaceId);
+    }
   }
 
-  const definitionChanged = isDefinitionChange(oldRow, update, effectiveFormula);
   if (definitionChanged && !isTPEnabled) {
     const tpAncestorIds = await findTPAncestors(id, workspaceId);
     if (tpAncestorIds.length > 0) {
@@ -219,8 +225,8 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
         if (tpHalfLife) await svc.respawnMarketsForTimePreference(tpId, tpHalfLife, workspaceId);
       }
     } else if (voidedTargetDates.length > 0) {
-      // Standalone leaf metric with no TP ancestors: recreate voided markets with new rangeMax.
-      const newRangeMax = update.marketRangeMax as number;
+      // Standalone leaf metric with no TP ancestors: recreate voided markets with the new definition.
+      const newRangeMax = (update.marketRangeMax as number | undefined) ?? oldRow.marketRangeMax ?? 1000;
       const metricName = (update.name as string | undefined) ?? oldRow.name;
       await recreateMarketsForMetric(id, metricName, voidedTargetDates, newRangeMax, workspaceId);
     }
@@ -251,11 +257,14 @@ metricsRouter.delete('/:id', requireRole('admin'), wrap(async (req, res) => {
   await svc.deleteMetric(id, workspaceId);
   res.status(204).send();
 
+  // The deleted metric's definition no longer exists, so any open markets for it must be
+  // voided (refund at cost). Descendant markets under a deleted non-leaf TP metric are
+  // handled separately: their own definitions are unchanged, so they stay open and close
+  // naturally via the daily refresh, resolving against the descendant's live value.
+  await voidOpenMarketsForMetrics(new Set([id]), workspaceId);
+
   const tp = row.timePreference as TimePreference | null;
-  if (tp?.enabled) {
-    await deactivateLeafMarketsForTPMetric(id, tp.halfLife, workspaceId);
-  } else {
-    await voidOpenMarketsForMetrics(new Set([id]), workspaceId);
+  if (!tp?.enabled) {
     for (const tpId of tpAncestorIds) {
       const [tpRow] = await db.select({ timePreference: metrics.timePreference }).from(metrics)
         .where(and(eq(metrics.id, tpId), eq(metrics.workspaceId, workspaceId)));

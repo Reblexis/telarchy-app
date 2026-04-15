@@ -234,7 +234,7 @@ export function MarketsPage() {
                             {m.status === 'open' ? 'Trading is performed in the marketplace.' :
                              m.status === 'resolved' ? `Resolved at ${m.actualValue?.toFixed(2) ?? 'N/A'} on ${m.resolvedAt ? new Date(m.resolvedAt).toLocaleDateString() : 'unknown'}.` :
                              m.status === 'voided' ? 'This market was cancelled. All positions were refunded at cost.' :
-                             'This market was deactivated (superseded by a newer market).'}
+                             'Trading is halted (metric no longer schedules this target date), but positions are retained and will resolve normally when the target date passes.'}
                           </p>
                           <MarketActivityPanel
                             market={m}

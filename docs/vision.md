@@ -162,8 +162,13 @@ Any metric, leaf or computed, can have time preference enabled. A leaf with TP c
 - **Descendants describe current state**: all metrics below a time-preferenced node must represent the present; the TP node handles the forward-looking aspect for its entire subtree.
 
 **Market lifecycle**:
-- The daily cron (00:10 UTC) and "Refresh Markets" button compute the desired `(leafId, targetDate)` set and create missing markets.
-- Markets falling out of the desired set are set `active: false` but resolve normally rather than being voided.
+- **Invariant**: a market may only exist while its metric's **definition** (name, description, formula, `marketRangeMax`) is unchanged from when the market was created. The set of valid statuses is:
+  - **open**: trading allowed, will resolve on `targetDate`.
+  - **closed** (`active: false`, not resolved, not voided): trading halted because the metric no longer references that `(metricId, targetDate)` pair (e.g. half-life change, or calendar time progressed past the sampled dates). The definition is still valid, so the market resolves normally on `targetDate` against the metric's live value. Existing positions are retained.
+  - **resolved**: `targetDate` has passed, positions paid out against the metric's actual value.
+  - **voided**: market was cancelled and all positions refunded at cost. This is the only correct outcome whenever the metric's definition would change or disappear out from under a market.
+- **Closure happens when and only when** the trading window expires with the definition unchanged. Any edit that changes the definition (name, description, formula, `marketRangeMax`) voids all open markets for that metric and respawns fresh ones under the new definition. Deleting a metric voids all its open markets (refunds at cost); descendant markets under a deleted non-leaf TP ancestor keep their own unchanged definitions and close naturally.
+- The daily cron (00:10 UTC) and "Refresh Markets" button compute the desired `(leafId, targetDate)` set and create missing markets. Markets falling out of the desired set are set `active: false` (closed).
 - A distributed refresh lock prevents duplicate creation from concurrent refresh calls.
 
 **Examples**:

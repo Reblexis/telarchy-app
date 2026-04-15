@@ -151,11 +151,13 @@ Open the **Metrics** page and use the form at the top. Only admins can create or
 
 Click **Edit** on any metric card. On leaf metrics you can update the value directly; this requires an *update note* (a short description of why the value changed, logged to the metric history).
 
-> **Warning:** Changing a formula or market range max respawns all markets for that metric. Existing positions are voided and new markets are created. Inform agents before making structural changes.
+> **Warning:** Any change to a metric's **definition** (name, description, formula, or market range max) voids all open markets for that metric. Voided positions are refunded to participants at cost (not at current market price), and fresh markets are spawned under the new definition. Inform agents before making structural changes so they can close positions first if they prefer.
+
+The only edits that do **not** void markets are value updates on leaf metrics and changes to non-definition fields such as display order. Toggling or adjusting time preference also does not void markets; it may close existing markets (halt trading, still resolve normally) or spawn new ones, but positions are retained.
 
 ## Deleting a metric
 
-Deleting a metric voids all its markets and removes it from the tree. Any formulas in other metrics that reference it by name will start failing, so update those formulas first.
+Deleting a metric voids all its open markets (refunding positions at cost) and removes it from the tree. Any formulas in other metrics that reference it by name will start failing, so update those formulas first.
 
 ## Order
 
