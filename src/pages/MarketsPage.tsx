@@ -240,7 +240,6 @@ export function MarketsPage() {
                             market={m}
                             onError={setError}
                             metricValue={metricsMap.get(m.metricId)?.total}
-                            isAdmin={isAdmin}
                           />
                         </td>
                       </tr>

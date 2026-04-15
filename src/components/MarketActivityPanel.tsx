@@ -28,14 +28,12 @@ export function MarketActivityPanel({
   onError,
   refreshToken = 0,
   metricValue,
-  isAdmin,
 }: {
   market: Market;
   workspaceId?: string;
   onError: (msg: string) => void;
   refreshToken?: number;
   metricValue?: number | null;
-  isAdmin?: boolean;
 }) {
   const [trades, setTrades] = useState<TradePoint[]>([]);
   const [liquidityEvents, setLiquidityEvents] = useState<LiquidityEvent[]>([]);
@@ -89,19 +87,14 @@ export function MarketActivityPanel({
         onError(e.message);
       });
 
-    // Admins see all participants' positions (competitive info, hence admin-gated
-     // on the backend). Non-admins see only their own rows via the self-scoped endpoint.
-    const positionsPromise = isAdmin
-      ? api.getMarketPositions(market.id, workspaceId)
-      : api.getPositions(market.id, undefined, workspaceId);
-    positionsPromise
+    api.getMarketPositions(market.id, workspaceId)
       .then((data: MarketPosition[]) => { if (!cancelled) setMarketPositions(data); })
       .catch((e: Error) => { if (!cancelled) console.error('Failed to load positions:', e.message); });
 
     return () => {
       cancelled = true;
     };
-  }, [market.id, onError, refreshToken, workspaceId, isAdmin]);
+  }, [market.id, onError, refreshToken, workspaceId]);
 
   const logEntries = useMemo(() => {
     type LogEntry =
@@ -192,18 +185,16 @@ export function MarketActivityPanel({
           positions={marketPositions}
           market={market}
           metricValue={metricValue}
-          scope={isAdmin ? 'all' : 'self'}
         />
       )}
     </div>
   );
 }
 
-function PositionsBreakdown({ positions, market, metricValue, scope }: {
+function PositionsBreakdown({ positions, market, metricValue }: {
   positions: MarketPosition[];
   market: Market;
   metricValue?: number | null;
-  scope: 'all' | 'self';
 }) {
   const isResolved = market.status === 'resolved';
   const consensusValue = market.consensus;
@@ -239,7 +230,7 @@ function PositionsBreakdown({ positions, market, metricValue, scope }: {
   return (
     <div style={{ marginTop: '0.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.25rem' }}>
       <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', paddingLeft: '0.25rem' }}>
-        {scope === 'self' ? 'Your positions' : 'Positions'}
+        Positions
         {isResolved && resolvedValue != null && (
           <span style={{ marginLeft: '0.5rem' }}>(resolved at {formatCompactNumber(market.actualValue)})</span>
         )}

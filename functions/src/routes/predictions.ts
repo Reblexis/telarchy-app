@@ -341,7 +341,7 @@ predictionsRouter.get('/markets/:id', requireRole('agent', 'admin'), wrap(async 
   });
 }));
 
-predictionsRouter.get('/markets/:id/positions', requireRole('admin'), wrap(async (req, res) => {
+predictionsRouter.get('/markets/:id/positions', requireRole('agent', 'admin'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const marketId = req.params.id as string;
   const rows = await db.select().from(positions)
