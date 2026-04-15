@@ -1231,6 +1231,180 @@ await suite('Scenario: full market lifecycle with resolution payout', async () =
   });
 });
 
+await suite('Scenario: closed market lifecycle (TP shift -> closed -> resolve)', async () => {
+  // A closed market is one that was active and then deactivated because the metric's
+  // time-preference schedule no longer references its (metricId, targetDate) pair, while
+  // the metric definition itself is unchanged. Closed markets must:
+  //   (a) get created properly when the schedule shifts (we simulate "time passing" by
+  //       shrinking the metric's halfLife so far-future sample dates fall out),
+  //   (b) retain their AMM state and positions (no refunds, no zeroed shares),
+  //   (c) reject new trades, and
+  //   (d) resolve correctly against the metric's actual value when their targetDate is
+  //       reached. We use the admin force-resolve endpoint to stand in for the daily
+  //       resolution cron, which behaves identically (filters on resolved=false, ignores
+  //       active flag).
+  //
+  // Uses a dedicated workspace so the per-workspace refresh cooldown lock doesn't
+  // collide with refreshes triggered by earlier suites.
+  let cmWsId = '';
+  let cmAgentId = '';
+  let cmAgentKey = '';
+  let cmMetricId = '';
+  let closedMarketId = '';
+  let closedTargetDate = '';
+  let preCloseAgentShares = 0;
+  let preCloseLiquidity = 0;
+  let preCloseConsensus = 0;
+
+  await test('Setup: dedicated workspace + agent with credits', async () => {
+    const ws = ok(await apiRaw('POST', '/workspaces', { name: `Closed Market Lifecycle ${Date.now()}` }, {
+      'X-API-Key': ADMIN_KEY, 'X-Workspace-Id': PLACEHOLDER_WS,
+    }));
+    cmWsId = ws.id as string;
+    cmAgentId = `cmtest_${Date.now().toString(36)}`;
+    const ar = ok(await apiRaw('POST', '/agents/register', { agentId: cmAgentId, workspaceId: cmWsId }));
+    cmAgentKey = ar.apiKey as string;
+    ok(await adminCall(cmWsId)('POST', `/agents/${cmAgentId}/credit`, { amount: 200 }));
+    // Promote agent to 'trader' role so it can actually trade. /agents/register only
+    // adds to the Public group (viewer/member role), which can't trade.
+    const groups = ok(await adminCall(cmWsId)('GET', '/groups')) as Array<Record<string, unknown>>;
+    const traderGroup = groups.find(g => g.type === 'trader');
+    expect(traderGroup).toBeTruthy();
+    const currentMembers = (traderGroup!.memberIds as string[]) ?? [];
+    ok(await adminCall(cmWsId)('PUT', `/groups/${traderGroup!.id}`, {
+      memberIds: [...currentMembers, cmAgentId],
+    }));
+    expect(cmWsId).toBeTruthy();
+    expect(cmAgentKey).toBeTruthy();
+  });
+
+  await test('Step 1: creating a leaf metric (TP defaults to halfLife=1y) spawns markets across the schedule', async () => {
+    const r = ok(await adminCall(cmWsId)('POST', '/metrics', {
+      name: `ClosedML_${Date.now()}`, value: 80, marketRangeMax: 100,
+    }));
+    cmMetricId = r.id as string;
+    const lr = await adminCall(cmWsId)('GET', '/predictions/markets');
+    const mine = (lr.body as Array<Record<string, unknown>>)
+      .filter(m => m.metricId === cmMetricId && !m.taskId);
+    expect(mine.length).toBeGreaterThan(0);
+    // halfLife=1y produces some year-granular sample dates (e.g. "2030"); pick one so
+    // it's guaranteed to fall out when we later shrink halfLife to ~weeks.
+    const yearGranular = mine.find(m => /^\d{4}$/.test(String(m.targetDate)));
+    expect(yearGranular).toBeTruthy();
+    closedMarketId = yearGranular!.id as string;
+    closedTargetDate = yearGranular!.targetDate as string;
+  });
+
+  await test('Step 2: inject liquidity, agent trades higher; consensus moves above midpoint', async () => {
+    ok(await adminCall(cmWsId)('POST', `/predictions/markets/${closedMarketId}/liquidity`, {
+      amount: 50, agentId: cmAgentId,
+    }));
+    ok(await agentCall(cmAgentKey, cmWsId)('POST', '/predictions/trade', {
+      marketId: closedMarketId, direction: 'higher', amount: 5,
+    }));
+    const lr = ok(await adminCall(cmWsId)('GET', '/predictions/markets')) as Array<Record<string, unknown>>;
+    const m = lr.find(x => x.id === closedMarketId)!;
+    expect(m).toBeTruthy();
+    const positionsResp = ok(await adminCall(cmWsId)('GET', `/predictions/markets/${closedMarketId}/positions`)) as Array<Record<string, unknown>>;
+    const myPos = positionsResp.find(p => p.agentId === cmAgentId && p.direction === 'higher');
+    preCloseAgentShares = (myPos?.shares as number) ?? 0;
+    preCloseLiquidity = m.liquidity as number;
+    preCloseConsensus = m.consensus as number;
+    expect(preCloseAgentShares).toBeGreaterThan(0);
+    expect(preCloseLiquidity).toBeGreaterThan(0);
+    expect(preCloseConsensus).toBeGreaterThan(50); // pushed above midpoint by buying higher
+  });
+
+  await test('Step 3: shrinking TP halfLife to ~weeks shifts the schedule (simulates time passing)', async () => {
+    // halfLife=0.05y (~2.6 weeks) -> all sample dates are within ~3 months -> all
+    // year-granular dates from the previous schedule fall out.
+    ok(await adminCall(cmWsId)('PUT', `/metrics/${cmMetricId}`, {
+      timePreference: { enabled: true, halfLife: 0.05 },
+    }));
+    const lr = await adminCall(cmWsId)('GET', '/predictions/markets');
+    const mine = (lr.body as Array<Record<string, unknown>>)
+      .filter(m => m.metricId === cmMetricId && !m.taskId);
+    const weekly = mine.filter(m => /^\d{4}-W\d{2}$/.test(String(m.targetDate)) && m.status === 'open');
+    expect(weekly.length).toBeGreaterThan(0); // new week-granular schedule was spawned
+  });
+
+  await test('Step 4: refresh marks markets outside the new schedule as closed (status = "closed")', async () => {
+    // GET /predictions/markets implicitly triggered refreshRelativeDateMarkets above,
+    // which deactivates markets not in the desired set. Hit it again to be deterministic.
+    await adminCall(cmWsId)('POST', '/predictions/markets/refresh', { force: true });
+    const lr = await adminCall(cmWsId)('GET', '/predictions/markets');
+    const mine = (lr.body as Array<Record<string, unknown>>)
+      .filter(m => m.metricId === cmMetricId && !m.taskId);
+    const closedOnes = mine.filter(m => m.status === 'closed');
+    expect(closedOnes.length).toBeGreaterThan(0);
+    expect(closedOnes.some(m => m.id === closedMarketId)).toBeTruthy();
+    // Sanity: every closed market here is for our metric and matches an old (year/month)
+    // sample date that's no longer in the week-granular schedule.
+    const okGranularity = closedOnes.every(m => /^\d{4}(-\d{2})?$/.test(String(m.targetDate)));
+    expect(okGranularity).toBeTruthy();
+  });
+
+  await test('Step 5: closed market retains shares, liquidity, and AMM consensus (no refund, not voided)', async () => {
+    const lr = ok(await adminCall(cmWsId)('GET', '/predictions/markets', undefined)) as Array<Record<string, unknown>>;
+    const m = lr.find(x => x.id === closedMarketId)!;
+    expect(m).toBeTruthy();
+    expect(m.status).toBe('closed');
+    expect(m.active).toBe(false);
+    expect(m.resolved).toBe(false);
+    expect(m.voided).toBeFalsy();
+    expect(m.liquidity as number).toBe(preCloseLiquidity);
+    expect(m.consensus as number).toBe(preCloseConsensus);
+    expect(m.targetDate).toBe(closedTargetDate);
+    const positionsResp = ok(await adminCall(cmWsId)('GET', `/predictions/markets/${closedMarketId}/positions`)) as Array<Record<string, unknown>>;
+    const myPos = positionsResp.find(p => p.agentId === cmAgentId && p.direction === 'higher');
+    expect((myPos?.shares as number) ?? 0).toBe(preCloseAgentShares);
+  });
+
+  await test('Step 6: agent position on the closed market is retained', async () => {
+    const r = await agentCall(cmAgentKey, cmWsId)('GET', `/predictions/positions?marketId=${closedMarketId}`);
+    expect(r.status).toBe(200);
+    const positions = r.body as Array<Record<string, unknown>>;
+    expect(positions.length).toBeGreaterThan(0);
+    expect(positions.some(p => (p.shares as number) > 0 && p.direction === 'higher')).toBeTruthy();
+  });
+
+  await test('Step 7: closed market rejects new trades (400 "Market is inactive")', async () => {
+    const r = await agentCall(cmAgentKey, cmWsId)('POST', '/predictions/trade', {
+      marketId: closedMarketId, direction: 'higher', amount: 1,
+    });
+    expect(r.status).toBe(400);
+  });
+
+  await test('Step 8: closed market resolves correctly when target date is reached (admin force-resolve)', async () => {
+    // Disable TP first: a leaf with TP and any untraded current-schedule markets has
+    // total=null (resolution would be skipped). This isn't relevant to the closed-market
+    // invariant we're testing, just a side effect of the per-leaf consensus blending.
+    ok(await adminCall(cmWsId)('PUT', `/metrics/${cmMetricId}`, {
+      timePreference: { enabled: false },
+    }));
+    // Stand-in for the daily cron firing once endOfPeriod(targetDate) <= today; both
+    // call the same resolveMarket() service.
+    const balBefore = (ok(await adminCall(cmWsId)('GET', `/agents/${cmAgentId}`)).balance as number);
+    const r = ok(await adminCall(cmWsId)('POST', `/predictions/markets/${closedMarketId}/resolve`));
+    expect(r.resolved).toBe(true);
+    expect(r.totalPayout as number).toBeGreaterThan(0);
+    const lr = ok(await adminCall(cmWsId)('GET', '/predictions/markets?includeResolved=true')) as Array<Record<string, unknown>>;
+    const detail = lr.find(x => x.id === closedMarketId)!;
+    expect(detail).toBeTruthy();
+    expect(detail.status).toBe('resolved');
+    expect(detail.resolved).toBe(true);
+    // metric value=80, range 0..100 -> actualValue clamped to 80
+    expect(detail.actualValue as number).toBe(80);
+    // Higher payout factor = 0.8; agent bought 'higher', so balance must increase.
+    const balAfter = (ok(await adminCall(cmWsId)('GET', `/agents/${cmAgentId}`)).balance as number);
+    expect(balAfter).toBeGreaterThan(balBefore);
+  });
+
+  await test('Cleanup', async () => {
+    if (cmMetricId) await adminCall(cmWsId)('DELETE', `/metrics/${cmMetricId}`);
+  });
+});
+
 await suite('Scenario: deep formula cascade and market range inheritance', async () => {
   // Tests: A (leaf) → B (= A * 2) → C (= B + 10), all with custom ranges, then verify
   // that changing A propagates all the way to C's total in real-time

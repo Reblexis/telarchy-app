@@ -228,10 +228,12 @@ async function releaseLock(lockKey: string): Promise<void> {
     });
 }
 
-export async function refreshRelativeDateMarkets(workspaceId: string): Promise<{ created: number; deactivated: number; deduplicated: number }> {
+export async function refreshRelativeDateMarkets(workspaceId: string, opts: { force?: boolean } = {}): Promise<{ created: number; deactivated: number; deduplicated: number }> {
   const lockKey = `lock:marketRefresh:${workspaceId}`;
-  const acquired = await acquireLock(lockKey, 120_000);
-  if (!acquired) return { created: 0, deactivated: 0, deduplicated: 0 };
+  if (!opts.force) {
+    const acquired = await acquireLock(lockKey, 120_000);
+    if (!acquired) return { created: 0, deactivated: 0, deduplicated: 0 };
+  }
 
   const metricRows = await db.select().from(metricsTable).where(eq(metricsTable.workspaceId, workspaceId));
 
@@ -377,7 +379,7 @@ export async function refreshRelativeDateMarkets(workspaceId: string): Promise<{
   const deduplicated = toVoid.length;
 
   // Hold lock as cooldown for 5 minutes
-  await setLockCooldown(lockKey, 5 * 60 * 1000);
+  if (!opts.force) await setLockCooldown(lockKey, 5 * 60 * 1000);
 
   return { created, deactivated, deduplicated };
 }

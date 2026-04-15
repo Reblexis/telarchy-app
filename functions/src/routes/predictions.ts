@@ -628,7 +628,8 @@ predictionsRouter.post('/markets/refresh', requireRole('admin'), wrap(async (req
     res.json({ created: reused ? 0 : marketIds.length, deactivated: 0, deduplicated: 0 });
     return;
   }
-  res.json(await refreshRelativeDateMarkets(workspaceId));
+  const force = req.body?.force === true;
+  res.json(await refreshRelativeDateMarkets(workspaceId, { force }));
 }));
 
 predictionsRouter.post('/markets/notify', requireRole('admin'), wrap(async (req, res) => {
