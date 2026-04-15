@@ -194,6 +194,81 @@ await suite('Workspaces', async () => {
     });
     expect(r.status).toBe(403);
   });
+
+  await test('POST /api/workspaces with template=startup provisions 3 metrics and their markets', async () => {
+    const create = ok(await apiRaw('POST', '/workspaces', {
+      name: `Template Startup ${Date.now()}`,
+      template: 'startup',
+      templateParams: { revenueRangeMax: 50000 },
+    }, { 'X-API-Key': ADMIN_KEY, 'X-Workspace-Id': PLACEHOLDER_WS }));
+    expect(create.metricsCreated).toBe(3);
+    expect(create.template).toBe('startup');
+    const wsId = create.id as string;
+
+    const call = adminCall(wsId);
+    const metricsList = ok(await call('GET', '/metrics')) as Array<Record<string, unknown>>;
+    expect(metricsList.length).toBe(3);
+    const revenue = metricsList.find(m => m.name === 'Weekly revenue')!;
+    expect(revenue).toBeTruthy();
+    expect(revenue.marketRangeMax).toBe(50000);
+    const tp = revenue.timePreference as { enabled: boolean; halfLife: number } | null;
+    expect(tp?.enabled).toBe(true);
+    expect(tp?.halfLife).toBe(1);
+    const quality = metricsList.find(m => m.name === 'Product quality')!;
+    expect((quality.timePreference as { halfLife: number }).halfLife).toBe(3);
+    expect(quality.marketRangeMax).toBe(10);
+
+    const marketsRes = ok(await call('GET', '/predictions/markets')) as Array<Record<string, unknown>>;
+    // 3 TP leaves x 10 sampled dates, but the adaptive date granularity can
+    // collapse neighbouring samples onto the same calendar key, so count may
+    // be slightly under 30. Require at least 3 per metric, no duplicates per metric.
+    expect(marketsRes.length).toBeGreaterThanOrEqual(24);
+    const perMetric = new Map<string, number>();
+    for (const m of marketsRes) {
+      const mid = m.metricId as string;
+      perMetric.set(mid, (perMetric.get(mid) ?? 0) + 1);
+    }
+    expect(perMetric.size).toBe(3);
+
+    // cleanup
+    ok(await call('DELETE', `/workspaces/${wsId}`));
+  });
+
+  await test('POST /api/workspaces with template=personal provisions 3 self-report metrics', async () => {
+    const create = ok(await apiRaw('POST', '/workspaces', {
+      name: `Template Personal ${Date.now()}`,
+      template: 'personal',
+    }, { 'X-API-Key': ADMIN_KEY, 'X-Workspace-Id': PLACEHOLDER_WS }));
+    expect(create.metricsCreated).toBe(3);
+    const wsId = create.id as string;
+    const call = adminCall(wsId);
+    const metricsList = ok(await call('GET', '/metrics')) as Array<Record<string, unknown>>;
+    const names = metricsList.map(m => m.name).sort();
+    expect(JSON.stringify(names)).toBe(JSON.stringify(['Career satisfaction', 'Happiness', 'Health']));
+    for (const m of metricsList) {
+      expect(m.marketRangeMax).toBe(10);
+    }
+    ok(await call('DELETE', `/workspaces/${wsId}`));
+  });
+
+  await test('POST /api/workspaces with unknown template returns 400', async () => {
+    const r = await apiRaw('POST', '/workspaces', { name: 'Bad template', template: 'bogus' }, {
+      'X-API-Key': ADMIN_KEY, 'X-Workspace-Id': PLACEHOLDER_WS,
+    });
+    expect(r.status).toBe(400);
+  });
+
+  await test('POST /api/workspaces without template creates a blank workspace', async () => {
+    const create = ok(await apiRaw('POST', '/workspaces', { name: `Blank ${Date.now()}` }, {
+      'X-API-Key': ADMIN_KEY, 'X-Workspace-Id': PLACEHOLDER_WS,
+    }));
+    expect(create.metricsCreated ?? 0).toBe(0);
+    const wsId = create.id as string;
+    const call = adminCall(wsId);
+    const metricsList = ok(await call('GET', '/metrics')) as Array<Record<string, unknown>>;
+    expect(metricsList.length).toBe(0);
+    ok(await call('DELETE', `/workspaces/${wsId}`));
+  });
 });
 
 await suite('Agents', async () => {

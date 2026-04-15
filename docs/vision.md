@@ -49,6 +49,10 @@ Workspace settings include the display name and, for the workspace owner only, o
 
 ## Current State
 
+### Onboarding templates (Implemented)
+
+`POST /api/workspaces` accepts an optional `template` field (`startup`, `personal`, or `blank`) plus `templateParams`. Non-blank templates provision a small, opinionated set of leaf metrics with time preference enabled, each with a `marketRangeMax` matched to the metric's realistic bounds and sibling TP half-lives chosen to reflect each metric's timescale. Templates encode the `metric-design` guide principles directly (outcomes not activities, subjective self-reports over speculative proxies). Users edit freely after creation. Template definitions live in `functions/src/lib/templates.ts`; the `/create-workspace` UI picks a template before asking for a name.
+
 ### Phase 1: Participant Economy (Implemented)
 
 Participants sign up either through browser accounts or direct agent-key registration and then participate in a real-stakes economy.

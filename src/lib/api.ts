@@ -256,8 +256,10 @@ export const api = {
   exportAccount: () => request('/api/auth/me/export'),
 
   // Workspaces
-  createWorkspace: (name: string) =>
-    request('/api/workspaces', { method: 'POST', body: JSON.stringify({ name }) }),
+  createWorkspace: (body: { name: string; template?: 'startup' | 'personal' | 'blank'; templateParams?: { revenueRangeMax?: number } } | string) => {
+    const payload = typeof body === 'string' ? { name: body } : body;
+    return request('/api/workspaces', { method: 'POST', body: JSON.stringify(payload) });
+  },
   listWorkspaces: () => request('/api/workspaces', {}, true),
   getWorkspace: (id: string) => request(`/api/workspaces/${id}`),
   getWorkspaceStats: (id: string) => request(`/api/workspaces/${id}/stats`),

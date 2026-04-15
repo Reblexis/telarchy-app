@@ -13,6 +13,8 @@ import { requireCapability, requireIdentity } from '../middleware/roles';
 import { getAuthWorkspaceMemberships } from '../middleware/auth';
 import { resolveWorkspaceOwnerAgentId, provisionWorkspace } from '../lib/participants';
 import { voidMarket } from '../services/markets';
+import { ensureMarketsForTimePreference } from '../services/metrics';
+import { getTemplate, type TemplateParams } from '../lib/templates';
 
 export const workspacesRouter = Router();
 
@@ -30,21 +32,64 @@ workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
   const identity = uid ?? agentId ?? (isMasterKey ? 'admin' : undefined);
   if (!identity) { res.status(403).json({ error: 'Identity required to create a workspace' }); return; }
 
-  const { name } = req.body;
+  const { name, template: templateId, templateParams } = req.body;
   if (!name || typeof name !== 'string' || name.trim().length === 0) {
     res.status(400).json({ error: 'name is required' }); return;
   }
 
+  let template;
+  try {
+    template = getTemplate(templateId);
+  } catch (err) {
+    res.status(400).json({ error: (err as Error).message });
+    return;
+  }
+
+  const params: TemplateParams = templateParams && typeof templateParams === 'object' ? templateParams : {};
+  const templateMetrics = template.metrics(params);
+
   const wsId = randomUUID();
+  const metricIdsWithTP: Array<{ id: string; halfLife: number }> = [];
 
   await db.transaction(async tx => {
     await provisionWorkspace(tx, {
       wsId, name: name.trim(), createdBy: identity,
       ownerAgentId: agentId,
     });
+
+    const now = new Date();
+    for (let i = 0; i < templateMetrics.length; i++) {
+      const spec = templateMetrics[i];
+      const id = randomUUID();
+      await tx.insert(metrics).values({
+        id,
+        workspaceId: wsId,
+        name: spec.name,
+        value: spec.initialValue,
+        formula: '0',
+        description: spec.description,
+        order: i,
+        timePreference: { enabled: true, halfLife: spec.timePreferenceHalfLifeYears },
+        marketRangeMax: spec.marketRangeMax,
+        createdAt: now,
+        updatedAt: now,
+      });
+      metricIdsWithTP.push({ id, halfLife: spec.timePreferenceHalfLifeYears });
+    }
   });
 
-  res.status(201).json({ id: wsId, name: name.trim(), visibility: 'private' });
+  // Market creation touches multiple tables and emits events; keep it outside the provisioning transaction.
+  for (const { id, halfLife } of metricIdsWithTP) {
+    await ensureMarketsForTimePreference(id, halfLife, wsId);
+  }
+
+  res.status(201).json({
+    id: wsId,
+    name: name.trim(),
+    visibility: 'private',
+    template: template.id,
+    metricsCreated: templateMetrics.length,
+  });
 }));
 
 workspacesRouter.get('/', requireIdentity, wrap(async (req, res) => {
