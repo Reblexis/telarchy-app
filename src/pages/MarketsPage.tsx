@@ -6,6 +6,7 @@ import { cacheGet, cacheSet } from '../lib/cache';
 import { useInspectMode } from '../hooks/useInspectMode';
 import { previewTrade } from '../lib/amm';
 import { formatTargetDateDisplay, formatTimeRemaining, endOfPeriod } from '../lib/date-utils';
+import { useSortableRows, sortArrow } from '../lib/sort';
 import { HookStatus } from '../components/HookStatus';
 import { MarketActivityPanel } from '../components/MarketActivityPanel';
 import { ProbabilitySlider } from '../components/ProbabilitySlider';
@@ -42,8 +43,18 @@ export function MarketsPage() {
       const q = filterText.toLowerCase();
       result = result.filter(m => m.metricName.toLowerCase().includes(q));
     }
-    return [...result].sort((a, b) => endOfPeriod(a.targetDate).localeCompare(endOfPeriod(b.targetDate)));
+    return result;
   }, [markets, filterText, statusFilter]);
+
+  const { sorted: sortedMarkets, sort: marketSort, toggle: toggleMarketSort } = useSortableRows<Market, 'metric' | 'target' | 'prediction'>(
+    filteredMarkets,
+    {
+      metric: m => m.metricName.toLowerCase(),
+      target: m => endOfPeriod(m.targetDate),
+      prediction: m => m.consensus ?? -Infinity,
+    },
+    { key: 'target', dir: 'asc' },
+  );
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -167,14 +178,14 @@ export function MarketsPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
-                  <th style={thStyle}>Metric</th>
-                  <th style={thStyle}>Target Date</th>
-                  <th style={thStyle}>Prediction</th>
+                  <th style={{ ...thStyle, cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleMarketSort('metric')}>Metric{sortArrow(marketSort.key === 'metric', marketSort.dir)}</th>
+                  <th style={{ ...thStyle, cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleMarketSort('target')}>Target Date{sortArrow(marketSort.key === 'target', marketSort.dir)}</th>
+                  <th style={{ ...thStyle, cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleMarketSort('prediction')}>Prediction{sortArrow(marketSort.key === 'prediction', marketSort.dir)}</th>
                   <th style={thStyle}></th>
                 </tr>
               </thead>
               <tbody>
-                {filteredMarkets.map(m => (
+                {sortedMarkets.map(m => (
                   <React.Fragment key={m.id}>
                     <tr
                       style={{ borderBottom: expandedIds.includes(m.id) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer' }}

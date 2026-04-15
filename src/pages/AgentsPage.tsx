@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, FormEvent, Fragment } from 'react';
+import { compare, sortArrow, type SortState } from '../lib/sort';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace, type WorkspaceInfo } from '../hooks/useWorkspace';
@@ -283,6 +284,27 @@ function AgentAdminPage({ user, workspace }: {
 
   const fmt9 = (n: number | null | undefined) => n === null || n === undefined ? '-' : n.toFixed(9);
 
+  type PnlSortKey = 'metric' | 'target' | 'status' | 'shares' | 'netCash' | 'consensus' | 'pnlConsensus' | 'metricValue' | 'pnlMetric';
+  const [pnlSort, setPnlSort] = useState<SortState<PnlSortKey>>({ key: 'target', dir: 'asc' });
+  const togglePnlSort = (key: PnlSortKey) =>
+    setPnlSort(s => s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' });
+  const sortPnlRows = (rows: AgentMarketPnl[]): AgentMarketPnl[] => {
+    const keyFn: Record<PnlSortKey, (r: AgentMarketPnl) => unknown> = {
+      metric: r => r.metricName.toLowerCase(),
+      target: r => r.targetDate,
+      status: r => r.status,
+      shares: r => r.higherShares + r.lowerShares,
+      netCash: r => r.netCash,
+      consensus: r => r.consensus ?? -Infinity,
+      pnlConsensus: r => r.pnlConsensus,
+      metricValue: r => r.metricValue ?? -Infinity,
+      pnlMetric: r => r.pnlMetric ?? -Infinity,
+    };
+    const fn = keyFn[pnlSort.key];
+    const out = [...rows].sort((a, b) => compare(fn(a), fn(b)));
+    return pnlSort.dir === 'asc' ? out : out.reverse();
+  };
+
   const loadAgents = useCallback(async () => {
     setError('');
     const wsId = workspace?.workspaceId;
@@ -517,19 +539,25 @@ function AgentAdminPage({ user, workspace }: {
                               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
                                 <thead>
                                   <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
-                                    <th style={{ textAlign: 'left', padding: '0.3rem 0.4rem', fontWeight: 500 }}>Market</th>
-                                    <th style={{ textAlign: 'left', padding: '0.3rem 0.4rem', fontWeight: 500 }}>Target</th>
-                                    <th style={{ textAlign: 'left', padding: '0.3rem 0.4rem', fontWeight: 500 }}>Status</th>
-                                    <th style={{ textAlign: 'right', padding: '0.3rem 0.4rem', fontWeight: 500 }} title="Shares held (higher / lower)">Shares H/L</th>
-                                    <th style={{ textAlign: 'right', padding: '0.3rem 0.4rem', fontWeight: 500 }} title="Net cash invested in this market; sum of trade cash flows">Net cash</th>
-                                    <th style={{ textAlign: 'right', padding: '0.3rem 0.4rem', fontWeight: 500 }} title="Current market consensus (AMM)">Consensus</th>
-                                    <th style={{ textAlign: 'right', padding: '0.3rem 0.4rem', fontWeight: 500 }} title="Unrealized P&L if position were unwound at current market prices (LMSR sell proceeds + net cash)">PnL @ consensus</th>
-                                    <th style={{ textAlign: 'right', padding: '0.3rem 0.4rem', fontWeight: 500 }} title="Current metric total (for resolved markets: actualValue)">Metric</th>
-                                    <th style={{ textAlign: 'right', padding: '0.3rem 0.4rem', fontWeight: 500 }} title="P&L if market resolved at the current metric value">PnL @ metric</th>
+                                    {([
+                                      ['metric', 'left', 'Market', undefined],
+                                      ['target', 'left', 'Target', undefined],
+                                      ['status', 'left', 'Status', undefined],
+                                      ['shares', 'right', 'Shares H/L', 'Shares held (higher / lower)'],
+                                      ['netCash', 'right', 'Net cash', 'Net cash invested in this market; sum of trade cash flows'],
+                                      ['consensus', 'right', 'Consensus', 'Current market consensus (AMM)'],
+                                      ['pnlConsensus', 'right', 'PnL @ consensus', 'Unrealized P&L if position were unwound at current market prices (LMSR sell proceeds + net cash)'],
+                                      ['metricValue', 'right', 'Metric', 'Current metric total (for resolved markets: actualValue)'],
+                                      ['pnlMetric', 'right', 'PnL @ metric', 'P&L if market resolved at the current metric value'],
+                                    ] as [PnlSortKey, 'left' | 'right', string, string | undefined][]).map(([k, align, label, tt]) => (
+                                      <th key={k} style={{ textAlign: align, padding: '0.3rem 0.4rem', fontWeight: 500, cursor: 'pointer', userSelect: 'none' }} onClick={() => togglePnlSort(k)} title={tt}>
+                                        {label}{sortArrow(pnlSort.key === k, pnlSort.dir)}
+                                      </th>
+                                    ))}
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {agentMarketPnl[agent.id].map(r => (
+                                  {sortPnlRows(agentMarketPnl[agent.id]).map(r => (
                                     <tr key={r.marketId} style={{ borderBottom: '1px solid var(--border-color)' }}>
                                       <td style={{ padding: '0.3rem 0.4rem' }}>{r.metricName}</td>
                                       <td style={{ padding: '0.3rem 0.4rem', fontFamily: 'monospace' }}>{r.targetDate}</td>
