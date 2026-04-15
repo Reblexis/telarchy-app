@@ -441,11 +441,21 @@ function AgentAdminPage({ user, workspace }: {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
-                  {['Participant', 'Groups', 'Balance', 'Earned', 'Spent', 'PnL', 'Realized'].map((h, i) => (
+                  {([
+                    ['Participant', undefined],
+                    ['Groups', undefined],
+                    ['Balance', undefined],
+                    ['Earned', undefined],
+                    ['Spent', undefined],
+                    ['PnL', 'Earned - Spent across all trades (does not mark open positions)'],
+                    ['Realized', 'Net P&L on resolved markets only (excludes open and voided markets)'],
+                    ['PnL @ consensus', 'Sum over all markets: net cash + current LMSR sell proceeds. Marks open positions to market.'],
+                    ['PnL @ metric', 'Sum over all markets: net cash + payout if each market settled at the current metric value (or actualValue for resolved markets).'],
+                  ] as [string, string | undefined][]).map(([h, tt], i) => (
                     <th
                       key={h}
                       style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem', textAlign: i >= 2 ? 'right' : 'left' }}
-                      title={h === 'Realized' ? 'Net P&L on resolved markets only (excludes open and voided markets)' : undefined}
+                      title={tt}
                     >{h}</th>
                   ))}
                 </tr>
@@ -523,10 +533,16 @@ function AgentAdminPage({ user, workspace }: {
                       <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: (agent.realizedPnl ?? 0) >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>
                         {(agent.realizedPnl ?? 0) >= 0 ? '+$' : '-$'}{fmt9(Math.abs(agent.realizedPnl ?? 0))}
                       </td>
+                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: (agent.pnlConsensus ?? 0) >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>
+                        {(agent.pnlConsensus ?? 0) >= 0 ? '+$' : '-$'}{fmt9(Math.abs(agent.pnlConsensus ?? 0))}
+                      </td>
+                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: (agent.pnlMetric ?? 0) >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>
+                        {(agent.pnlMetric ?? 0) >= 0 ? '+$' : '-$'}{fmt9(Math.abs(agent.pnlMetric ?? 0))}
+                      </td>
                     </tr>
                     {isExpanded && (
                       <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
-                        <td colSpan={7} style={{ padding: '0.5rem 1rem 1rem' }}>
+                        <td colSpan={9} style={{ padding: '0.5rem 1rem 1rem' }}>
                           {agentExpansionLoading === agent.id && !trades ? (
                             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Loading…</div>
                           ) : !trades || trades.length === 0 ? (

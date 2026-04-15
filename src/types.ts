@@ -79,6 +79,8 @@ export interface Agent {
   spentBetting: number;
   spentTokens: number;
   realizedPnl?: number;
+  pnlConsensus?: number;
+  pnlMetric?: number;
   createdAt: string;
   approvedAt: string | null;
 }

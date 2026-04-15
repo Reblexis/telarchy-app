@@ -334,12 +334,81 @@ agentsRouter.get('/', requireCapability('manage'), wrap(async (_req, res) => {
     }
   }
 
+  // Aggregate per-agent PnL @ consensus and PnL @ metric across every market
+  // the agent has traded or still holds a position on (open + resolved +
+  // voided). Mirrors the per-market endpoint.
+  const pnlConsensusByAgent = new Map<string, number>();
+  const pnlMetricByAgent = new Map<string, number>();
+  const [allMarkets, allMetricsList, allTrades, allPositions] = await Promise.all([
+    db.select().from(markets).where(eq(markets.workspaceId, workspaceId)),
+    getAllMetrics(workspaceId),
+    db.select({ agentId: trades.agentId, marketId: trades.marketId, cost: trades.cost }).from(trades)
+      .where(eq(trades.workspaceId, workspaceId)),
+    db.select({ agentId: positions.agentId, marketId: positions.marketId, direction: positions.direction, shares: positions.shares }).from(positions)
+      .where(eq(positions.workspaceId, workspaceId)),
+  ]);
+  const marketById = new Map(allMarkets.map(m => [m.id, m]));
+  const metricById = new Map(allMetricsList.map(m => [m.id, m]));
+
+  // Net cash per (agent, market). Voided markets still net to zero (trades +
+  // refund), so leaving them in is safe and avoids a refund lookup.
+  const cashKey = (a: string, mId: string) => `${a}\u0000${mId}`;
+  const netCashBy = new Map<string, number>();
+  for (const t of allTrades) {
+    const k = cashKey(t.agentId, t.marketId);
+    netCashBy.set(k, (netCashBy.get(k) ?? 0) - t.cost);
+  }
+
+  // Mark-to-market + metric-payout per (agent, market) from position rows.
+  const touched = new Set<string>();
+  const markByAgentMarket = new Map<string, number>();
+  const metricPayByAgentMarket = new Map<string, number>();
+  for (const p of allPositions) {
+    if (p.shares <= 0) continue;
+    const m = marketById.get(p.marketId);
+    if (!m) continue;
+    const mktShares = (m.shares as [number, number]) || [0, 0];
+    const dirIdx: 0 | 1 = p.direction === 'higher' ? 1 : 0;
+    const sell = directionSellProceeds(mktShares, dirIdx, p.shares, m.liquidity);
+    const k = cashKey(p.agentId, p.marketId);
+    markByAgentMarket.set(k, (markByAgentMarket.get(k) ?? 0) + sell);
+    touched.add(k);
+
+    let settleValue: number | null = null;
+    if (m.resolved && m.actualValue !== null) {
+      const [lo, hi] = resolutionPayouts(Math.min(m.actualValue, m.rangeMax), m.rangeMin, m.rangeMax);
+      settleValue = p.direction === 'higher' ? p.shares * hi : p.shares * lo;
+    } else {
+      const metric = metricById.get(m.metricId);
+      if (metric?.total !== null && metric?.total !== undefined) {
+        const clamped = Math.min(Math.max(metric.total, m.rangeMin), m.rangeMax);
+        const [lo, hi] = resolutionPayouts(clamped, m.rangeMin, m.rangeMax);
+        settleValue = p.direction === 'higher' ? p.shares * hi : p.shares * lo;
+      }
+    }
+    if (settleValue !== null) {
+      metricPayByAgentMarket.set(k, (metricPayByAgentMarket.get(k) ?? 0) + settleValue);
+    }
+  }
+  for (const [k] of netCashBy) touched.add(k);
+
+  for (const k of touched) {
+    const [agentId] = k.split('\u0000');
+    const cash = netCashBy.get(k) ?? 0;
+    const mark = markByAgentMarket.get(k) ?? 0;
+    const metricPay = metricPayByAgentMarket.get(k) ?? 0;
+    pnlConsensusByAgent.set(agentId, (pnlConsensusByAgent.get(agentId) ?? 0) + cash + mark);
+    pnlMetricByAgent.set(agentId, (pnlMetricByAgent.get(agentId) ?? 0) + cash + metricPay);
+  }
+
   res.json(rows.map(a => {
     const { apiKeyHash: _, ...data } = a;
     return {
       ...data,
       balance: fromUnits(data.balance as number),
       realizedPnl: realizedPnl.get(a.id) ?? 0,
+      pnlConsensus: pnlConsensusByAgent.get(a.id) ?? 0,
+      pnlMetric: pnlMetricByAgent.get(a.id) ?? 0,
     };
   }));
 }));
