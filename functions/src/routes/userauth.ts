@@ -50,9 +50,10 @@ async function ensureParticipant(uid: string): Promise<{ participantId: string; 
  * Auto-creates the participant on first call (handles OAuth users who skip profile setup).
  */
 userauthRouter.get('/me', requireUser, wrap(async (req, res) => {
-  const { uid, role: authRole } = req.auth!;
+  const { uid, capabilities } = req.auth!;
 
   if (!uid) {
+    const authRole = capabilities.has('manage') ? 'admin' : capabilities.has('trade') ? 'agent' : capabilities.has('read') ? 'member' : 'pending';
     res.json({ uid: null, email: null, workspaceId: req.auth!.workspaceId, authRole, workspaces: {} });
     return;
   }
@@ -72,11 +73,12 @@ userauthRouter.get('/me', requireUser, wrap(async (req, res) => {
 
   // Recompute authRole from actual membership; the middleware value may be stale
   // (e.g. 'pending' when ensureParticipant just created the first workspace).
+  // This is a legacy label for frontend consumers; capabilities are authoritative.
   const effectiveAuthRole = memberRole === 'owner' || memberRole === 'admin' ? 'admin'
     : memberRole === 'trader' ? 'agent'
     : memberRole === 'viewer' ? 'member'
     : memberships.length > 0 ? 'agent'
-    : authRole;
+    : 'pending';
 
   res.json({
     uid,

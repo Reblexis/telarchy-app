@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { authMiddleware, optionalAuthMiddleware } from './middleware/auth';
-import { requireRole } from './middleware/roles';
+import { requireCapability } from './middleware/roles';
 import { metricsRouter } from './routes/metrics';
 import { updatesRouter } from './routes/updates';
 import { systemRouter } from './routes/system';
@@ -88,6 +88,8 @@ app.get('/api/help', (_req, res) => {
       formula: 'A math expression using {MetricName} references, operators (+, -, *, /), and functions (sqrt, abs, min, max, pow). Metrics are recalculated in dependency order. Date formats for market target dates: absolute (YYYY, YYYY-MM, YYYY-Www, YYYY-MM-DD) or relative (+10d, +2w, +3m, +1y). Granularity determines resolution: year=end of year, month=end of month, week=end of ISO week, day=that day.',
       depth: 'How many layers of dependents a metric has. Depth 0 = root metric or standalone leaf, higher depth = deeper in the formula dependency graph.',
       agent: 'A market participant identity used across both signup methods. Browser-account signup creates or attaches to the participant directly; agent-style signup can also happen directly via POST /api/agents/register. Trading, task, and workspace capabilities are symmetric once identity is established.',
+      capabilities: 'Authorization is a flat set of three capabilities: read (view data), trade (place trades, propose tasks, send task messages), manage (admin operations). Each permission group carries a capabilities[] array; a caller\'s effective capabilities are the union across every group they belong to in the current workspace. Legacy role labels (admin, agent, member) seen in responses are derived for display and are not authoritative.',
+      permission_groups: 'Workspace-scoped groups combine membership with a capability preset. System groups bootstrapped on workspace creation: Public (capabilities=[read]), Trader (capabilities=[read,trade]), Admin (capabilities=[read,trade,manage]). Group names are labels and may be freely edited (except system-group names); capabilities can be edited on any group. Groups also carry optional per-metric permissions (metricId -> {read,trade}) and per-vault permissions (vaultId -> {read}). The master API key and the workspace owner have all capabilities implicitly.',
       market: 'A prediction market created by admin for a specific metric and target date. Agents forecast what the metric\'s total value will be at that date.',
       prediction: 'A forecast placed by an agent on a market. Specifies predictedValue and stake (credits allocated). Multiple predictions per agent per market are allowed.',
       consensus: 'The market\'s predicted value for the metric at resolution: rangeMin + probability * (rangeMax - rangeMin). This is the primary signal to read; e.g. consensus=650 on a 0-1000 metric means the market expects the value to reach 650. Available via API. Markets with no trades and zero liquidity report consensus as 0.',
@@ -101,7 +103,8 @@ app.get('/api/help', (_req, res) => {
       session_cookie: 'Browser sessions use cookie-based auth via BetterAuth. Sign in at POST /api/auth/sign-in/email. Credentials are managed at /api/auth/* (handled by BetterAuth). Browser-account signup creates or attaches to the same participant identity used for browser trading and API-key trading.',
       agent_key: 'Set X-Agent-Key header with your agent API key. Agent-key auth and browser auth resolve to the same effective permissions for the same participant.',
       note: 'All endpoints except /api/help, /api/guides, GET /api/agents/deposit-address, GET /api/marketplace, GET /api/marketplace/stats, POST /api/agents/register, and POST /api/waitlist require authentication.',
-      workspace_switching: 'Pass X-Workspace-Id: <workspaceId> header on all workspace-scoped requests. Your effective role is derived from your membership in that workspace. There is no default workspace; omitting the header uses your highest-priority membership.',
+      workspace_switching: 'Pass X-Workspace-Id: <workspaceId> header on all workspace-scoped requests. Your effective capabilities are the union of the capabilities[] arrays on every permission group you belong to in that workspace. There is no default workspace; omitting the header uses your highest-priority membership.',
+      auth_field_legend: 'The "auth" field on each endpoint below is a shorthand for the capabilities required: "agent/admin" = requires the read capability, "agent" = requires the trade capability, "admin" = requires the manage capability, "self/admin" = the caller may target their own ID with trade, or anyone\'s ID with manage, "identity" = any authenticated participant, false = no auth required.',
     },
     endpoints: [
       { method: 'GET', path: '/api/help', auth: false, description: 'This endpoint. Returns API documentation.' },
@@ -163,7 +166,11 @@ app.get('/api/help', (_req, res) => {
       { method: 'DELETE', path: '/api/workspaces/:id', auth: 'admin', description: 'Delete a workspace. Owner only. Voids all open markets (refunds stakes), then permanently deletes all workspace data.' },
       { method: 'DELETE', path: '/api/auth/me', auth: 'admin', description: 'GDPR: delete your account.' },
       { method: 'GET', path: '/api/auth/me/export', auth: 'admin', description: 'GDPR: export your account data.' },
-      { method: 'GET', path: '/api/vaults', auth: 'agent/admin', description: 'List vaults the caller can access (id, name, description; no content). Admins see all; others see only vaults granted via permission groups.' },
+      { method: 'GET', path: '/api/groups', auth: 'agent/admin', description: 'List permission groups for the active workspace. Each group includes { id, name, type, description, memberIds, permissions (metricId -> {read,trade}), vaultPermissions (vaultId -> {read}), capabilities (subset of ["read","trade","manage"]) }. System groups (Public/Trader/Admin) are seeded on workspace creation.' },
+      { method: 'POST', path: '/api/groups', auth: 'admin', description: 'Create a custom permission group. Body: { name, description?, capabilities?: string[] }. capabilities may be any subset of ["read","trade","manage"].' },
+      { method: 'PUT', path: '/api/groups/:id', auth: 'admin', description: 'Update a group. Body accepts any of: { name?, description?, memberIds?, permissions?, vaultPermissions?, capabilities? }. System groups cannot be renamed but their capabilities can be edited.' },
+      { method: 'DELETE', path: '/api/groups/:id', auth: 'admin', description: 'Delete a custom permission group. System groups (Public/Trader/Admin) cannot be deleted.' },
+      { method: 'GET', path: '/api/vaults', auth: 'agent/admin', description: 'List vaults the caller can access (id, name, description; no content). Participants with the manage capability see all; others see only vaults granted via permission groups.' },
       { method: 'GET', path: '/api/vaults/:id', auth: 'agent/admin', description: 'Get vault with content. Returns 403 if the caller lacks read access.' },
       { method: 'POST', path: '/api/vaults', auth: 'admin', description: 'Create a vault. Body: { name, description?, content? }.' },
       { method: 'PUT', path: '/api/vaults/:id', auth: 'admin', description: 'Update a vault. Body: { name?, description?, content? }.' },
@@ -187,7 +194,7 @@ app.use('/api/marketplace', marketplaceRouter);
 app.use('/api', authMiddleware);
 
 app.use('/api/metrics', metricsRouter);
-app.use('/api/updates', requireRole('admin'), updatesRouter);
+app.use('/api/updates', requireCapability('manage'), updatesRouter);
 app.use('/api/workspaces', workspacesRouter);
 app.use('/api/groups', groupsRouter);
 app.use('/api/vaults', vaultsRouter);

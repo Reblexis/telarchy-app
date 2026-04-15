@@ -85,6 +85,13 @@
       "when": 1776300000000,
       "tag": "0011_markets_traded_volume",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1776400000000,
+      "tag": "0012_permission_group_capabilities",
+      "breakpoints": true
     }
   ]
 }

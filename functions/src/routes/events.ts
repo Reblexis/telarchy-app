@@ -4,19 +4,19 @@ import { hookWatcher } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
-import { requireRole } from '../middleware/roles';
+import { requireCapability } from '../middleware/roles';
 import { getEventsSince } from '../services/events';
 
 export const eventsRouter = Router();
 
-eventsRouter.get('/', authMiddleware, requireRole('agent', 'admin'), wrap(async (req, res) => {
+eventsRouter.get('/', authMiddleware, requireCapability('read'), wrap(async (req, res) => {
   const since = req.query.since as string;
   if (!since) { res.status(400).json({ error: 'since query parameter is required (ISO timestamp)' }); return; }
   const { workspaceId } = req.auth!;
   res.json(await getEventsSince(since, workspaceId));
 }));
 
-eventsRouter.post('/hooks/heartbeat', authMiddleware, requireRole('agent', 'admin'), wrap(async (req, res) => {
+eventsRouter.post('/hooks/heartbeat', authMiddleware, requireCapability('trade'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const { lastPolledAt, intervalMs } = req.body;
   await db.insert(hookWatcher)

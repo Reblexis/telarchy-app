@@ -9,7 +9,7 @@ import {
 import { eq, and, inArray } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
-import { requireRole, requireIdentity } from '../middleware/roles';
+import { requireCapability, requireIdentity } from '../middleware/roles';
 import { getAuthWorkspaceMemberships } from '../middleware/auth';
 import { resolveWorkspaceOwnerAgentId, provisionWorkspace } from '../lib/participants';
 import { voidMarket } from '../services/markets';
@@ -25,9 +25,9 @@ async function getMembershipRoleForWorkspace(
 }
 
 workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
-  const { uid, agentId, role } = req.auth!;
-  // Master API key (role=admin, no uid/agentId) gets a synthetic identity.
-  const identity = uid ?? agentId ?? (role === 'admin' ? 'admin' : undefined);
+  const { uid, agentId, isMasterKey } = req.auth!;
+  // Master API key has no real identity; use a synthetic one.
+  const identity = uid ?? agentId ?? (isMasterKey ? 'admin' : undefined);
   if (!identity) { res.status(403).json({ error: 'Identity required to create a workspace' }); return; }
 
   const { name } = req.body;
@@ -48,7 +48,7 @@ workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
 }));
 
 workspacesRouter.get('/', requireIdentity, wrap(async (req, res) => {
-  const { uid, agentId, role } = req.auth!;
+  const { uid, agentId } = req.auth!;
 
   // Master API key (no uid/agentId): return all workspaces.
   if (!uid && !agentId) {
@@ -88,7 +88,7 @@ workspacesRouter.get('/:id', requireIdentity, wrap(async (req, res) => {
   res.json(ws);
 }));
 
-workspacesRouter.put('/:id/settings', requireRole('admin'), wrap(async (req, res) => {
+workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (req, res) => {
   const { uid, agentId } = req.auth!;
   const wsId = req.params.id as string;
 
@@ -196,7 +196,7 @@ workspacesRouter.post('/:id/join', requireIdentity, wrap(async (req, res) => {
  * Requires master API key or workspace owner/admin session.
  * Body: { participantId: string, role: 'owner'|'admin'|'trader'|'viewer' }
  */
-workspacesRouter.post('/:id/members', requireRole('admin'), wrap(async (req, res) => {
+workspacesRouter.post('/:id/members', requireCapability('manage'), wrap(async (req, res) => {
   const { uid, agentId } = req.auth!;
   const wsId = req.params.id as string;
 
@@ -238,7 +238,7 @@ workspacesRouter.post('/:id/members', requireRole('admin'), wrap(async (req, res
  * DELETE /api/workspaces/:id
  * Owner-only: void all open markets (refund participants), then delete all workspace data.
  */
-workspacesRouter.delete('/:id', requireRole('admin'), wrap(async (req, res) => {
+workspacesRouter.delete('/:id', requireCapability('manage'), wrap(async (req, res) => {
   const { uid, agentId } = req.auth!;
   const wsId = req.params.id as string;
 

@@ -6,7 +6,7 @@ import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { AppError } from '../lib/errors';
 import { authMiddleware } from '../middleware/auth';
-import { requireRole } from '../middleware/roles';
+import { requireCapability } from '../middleware/roles';
 import { getAllMetrics, getMetricLogs, getUpdates } from '../services/metrics';
 import { resolvePredictions, resolveMarket, getMarkets, voidMarket } from '../services/predictions';
 import { refreshRelativeDateMarkets } from '../services/markets';
@@ -42,9 +42,9 @@ async function getTradePermissionGroups(workspaceId: string): Promise<MetricTrad
 function canTradeMetric(
   metricId: string,
   groups: MetricTradePermissionGroup[],
-  auth: { role: string; agentId?: string; uid?: string },
+  auth: { capabilities: Set<string>; agentId?: string; uid?: string },
 ): boolean {
-  if (auth.role === 'admin') return true;
+  if (auth.capabilities.has('manage')) return true;
   const restrictingGroups = groups.filter(group => group.permissions?.[metricId]?.trade === true);
   if (restrictingGroups.length === 0) return true;
   if (restrictingGroups.some(group => group.type === 'public')) return true;
@@ -53,7 +53,7 @@ function canTradeMetric(
   );
 }
 
-predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req, res) => {
+predictionsRouter.post('/trade', requireCapability('trade'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const agentId = req.auth!.agentId;
   if (!agentId) { res.status(403).json({ error: 'A participant identity is required to trade' }); return; }
@@ -238,9 +238,9 @@ predictionsRouter.post('/trade', requireRole('agent', 'admin'), wrap(async (req,
   emitEvent('trade:executed', eventPayload, workspaceId).catch(e => console.error('emitEvent failed:', e));
 }));
 
-predictionsRouter.get('/positions', requireRole('agent', 'admin'), wrap(async (req, res) => {
+predictionsRouter.get('/positions', requireCapability('read'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
-  const agentId = req.auth!.role === 'admin' && typeof req.query.agentId === 'string'
+  const agentId = req.auth!.capabilities.has('manage') && typeof req.query.agentId === 'string'
     ? req.query.agentId
     : req.auth!.agentId;
   if (!agentId) { res.status(403).json({ error: 'A participant identity is required to list positions' }); return; }
@@ -253,7 +253,7 @@ predictionsRouter.get('/positions', requireRole('agent', 'admin'), wrap(async (r
   res.json(rows.filter(p => p.shares > 0));
 }));
 
-predictionsRouter.get('/markets', requireRole('agent', 'admin'), wrap(async (req, res) => {
+predictionsRouter.get('/markets', requireCapability('read'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const taskId = typeof req.query.taskId === 'string' ? req.query.taskId : undefined;
 
@@ -277,7 +277,7 @@ predictionsRouter.get('/markets', requireRole('agent', 'admin'), wrap(async (req
   const minLiquidity = typeof req.query.minLiquidity === 'string' ? parseFloat(req.query.minLiquidity) : undefined;
   const limit = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : undefined;
   const marketRows = await getMarkets({ taskId, active, includeResolved, minLiquidity, limit }, undefined, workspaceId);
-  if (req.auth!.role === 'admin') {
+  if (req.auth!.capabilities.has('manage')) {
     res.json(marketRows);
     return;
   }
@@ -285,7 +285,7 @@ predictionsRouter.get('/markets', requireRole('agent', 'admin'), wrap(async (req
   res.json(marketRows.filter(market => canTradeMetric(market.metricId, groups, req.auth!)));
 }));
 
-predictionsRouter.get('/markets/:id/trades', requireRole('agent', 'admin'), wrap(async (req, res) => {
+predictionsRouter.get('/markets/:id/trades', requireCapability('read'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const last = typeof req.query.last === 'string' ? parseInt(req.query.last, 10) : undefined;
   const marketId = req.params.id as string;
@@ -321,7 +321,7 @@ predictionsRouter.get('/markets/:id/trades', requireRole('agent', 'admin'), wrap
   res.json(tradePoints);
 }));
 
-predictionsRouter.get('/markets/:id', requireRole('agent', 'admin'), wrap(async (req, res) => {
+predictionsRouter.get('/markets/:id', requireCapability('read'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const [market] = await db.select().from(markets)
     .where(and(eq(markets.id, req.params.id as string), eq(markets.workspaceId, workspaceId)));
@@ -341,7 +341,7 @@ predictionsRouter.get('/markets/:id', requireRole('agent', 'admin'), wrap(async 
   });
 }));
 
-predictionsRouter.get('/markets/:id/positions', requireRole('agent', 'admin'), wrap(async (req, res) => {
+predictionsRouter.get('/markets/:id/positions', requireCapability('read'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const marketId = req.params.id as string;
   const rows = await db.select().from(positions)
@@ -354,7 +354,7 @@ predictionsRouter.get('/markets/:id/positions', requireRole('agent', 'admin'), w
   })));
 }));
 
-predictionsRouter.get('/markets/:id/context', requireRole('agent', 'admin'), wrap(async (req, res) => {
+predictionsRouter.get('/markets/:id/context', requireCapability('read'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const [market] = await db.select().from(markets)
     .where(and(eq(markets.id, req.params.id as string), eq(markets.workspaceId, workspaceId)));
@@ -409,7 +409,7 @@ predictionsRouter.get('/markets/:id/context', requireRole('agent', 'admin'), wra
   });
 }));
 
-predictionsRouter.post('/markets', requireRole('admin'), wrap(async (req, res) => {
+predictionsRouter.post('/markets', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const { metricId, targetDate, rangeMin, rangeMax, liquidity, skipAutoLiquidity } = req.body;
   if (!metricId || typeof metricId !== 'string') { res.status(400).json({ error: 'metricId is required' }); return; }
@@ -479,7 +479,7 @@ predictionsRouter.post('/markets', requireRole('admin'), wrap(async (req, res) =
   emitEvent('market:created', { marketId, metricName: metric.name, targetDate }, workspaceId).catch(e => console.error('emitEvent failed:', e));
 }));
 
-predictionsRouter.get('/markets/:id/liquidity-events', requireRole('agent', 'admin'), wrap(async (req, res) => {
+predictionsRouter.get('/markets/:id/liquidity-events', requireCapability('read'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const rows = await db.select().from(liquidityEvents)
     .where(and(eq(liquidityEvents.workspaceId, workspaceId), eq(liquidityEvents.marketId, req.params.id as string)));
@@ -489,7 +489,7 @@ predictionsRouter.get('/markets/:id/liquidity-events', requireRole('agent', 'adm
   })));
 }));
 
-predictionsRouter.post('/markets/liquidity/bulk', requireRole('admin'), wrap(async (req, res) => {
+predictionsRouter.post('/markets/liquidity/bulk', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId, agentId: callerAgentId } = req.auth!;
   const { amount, agentId: bodyAgentId, taskId } = req.body;
   if (typeof amount !== 'number' || amount <= 0) { res.status(400).json({ error: 'amount must be a positive number' }); return; }
@@ -548,7 +548,7 @@ predictionsRouter.post('/markets/liquidity/bulk', requireRole('admin'), wrap(asy
   res.json({ markets: marketRows.length, totalCost, amountPerMarket: amount });
 }));
 
-predictionsRouter.post('/markets/:id/liquidity', requireRole('admin'), wrap(async (req, res) => {
+predictionsRouter.post('/markets/:id/liquidity', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const { amount, agentId } = req.body;
   if (typeof amount !== 'number' || amount <= 0) { res.status(400).json({ error: 'amount must be a positive number' }); return; }
@@ -582,17 +582,17 @@ predictionsRouter.post('/markets/:id/liquidity', requireRole('admin'), wrap(asyn
   }
 }));
 
-predictionsRouter.post('/markets/:id/void', requireRole('admin'), wrap(async (req, res) => {
+predictionsRouter.post('/markets/:id/void', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   res.json(await voidMarket(req.params.id as string, workspaceId));
 }));
 
-predictionsRouter.post('/markets/:id/resolve', requireRole('admin'), wrap(async (req, res) => {
+predictionsRouter.post('/markets/:id/resolve', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   res.json(await resolveMarket(req.params.id as string, workspaceId));
 }));
 
-predictionsRouter.delete('/markets/:id', requireRole('admin'), wrap(async (req, res) => {
+predictionsRouter.delete('/markets/:id', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const marketId = req.params.id as string;
   const [market] = await db.select({ id: markets.id }).from(markets)
@@ -607,12 +607,12 @@ predictionsRouter.delete('/markets/:id', requireRole('admin'), wrap(async (req, 
   res.status(204).send();
 }));
 
-predictionsRouter.post('/resolve', requireRole('admin'), wrap(async (req, res) => {
+predictionsRouter.post('/resolve', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   res.json(await resolvePredictions(req.body?.targetDate, workspaceId));
 }));
 
-predictionsRouter.post('/markets/refresh', requireRole('admin'), wrap(async (req, res) => {
+predictionsRouter.post('/markets/refresh', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const taskId = typeof req.body?.taskId === 'string' ? req.body.taskId : undefined;
   if (taskId) {
@@ -632,7 +632,7 @@ predictionsRouter.post('/markets/refresh', requireRole('admin'), wrap(async (req
   res.json(await refreshRelativeDateMarkets(workspaceId, { force }));
 }));
 
-predictionsRouter.post('/markets/notify', requireRole('admin'), wrap(async (req, res) => {
+predictionsRouter.post('/markets/notify', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const { metricId, metricName } = req.body || {};
   if (!metricId && !metricName) {

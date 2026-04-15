@@ -4,7 +4,7 @@ import { vaults, permissionGroups } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
-import { requireRole } from '../middleware/roles';
+import { requireCapability } from '../middleware/roles';
 import { getGroupMemberIds } from '../lib/participants';
 
 export const vaultsRouter = Router();
@@ -14,9 +14,9 @@ async function canReadVault(
   agentId: string | undefined,
   vaultId: string,
   workspaceId: string,
-  role: string,
+  isManager: boolean,
 ): Promise<boolean> {
-  if (role === 'admin') return true;
+  if (isManager) return true;
   if (!agentId) return false;
 
   const groups = await db.select().from(permissionGroups)
@@ -34,9 +34,9 @@ async function canReadVault(
 async function readableVaultIds(
   agentId: string | undefined,
   workspaceId: string,
-  role: string,
+  isManager: boolean,
 ): Promise<Set<string> | 'all'> {
-  if (role === 'admin') return 'all';
+  if (isManager) return 'all';
   if (!agentId) return new Set();
 
   const groups = await db.select().from(permissionGroups)
@@ -54,14 +54,14 @@ async function readableVaultIds(
 }
 
 // GET /api/vaults - list vaults (id, name, description only; no content)
-vaultsRouter.get('/', requireRole('agent', 'admin'), wrap(async (req, res) => {
-  const { workspaceId, agentId, role } = req.auth!;
+vaultsRouter.get('/', requireCapability('read'), wrap(async (req, res) => {
+  const { workspaceId, agentId, capabilities } = req.auth!;
 
   const rows = await db.select().from(vaults)
     .where(eq(vaults.workspaceId, workspaceId))
     .orderBy(vaults.name);
 
-  const allowed = await readableVaultIds(agentId, workspaceId, role);
+  const allowed = await readableVaultIds(agentId, workspaceId, capabilities.has('manage'));
   const filtered = allowed === 'all'
     ? rows
     : rows.filter(r => allowed.has(r.id));
@@ -76,15 +76,15 @@ vaultsRouter.get('/', requireRole('agent', 'admin'), wrap(async (req, res) => {
 }));
 
 // GET /api/vaults/:id - get vault with content
-vaultsRouter.get('/:id', requireRole('agent', 'admin'), wrap(async (req, res) => {
-  const { workspaceId, agentId, role } = req.auth!;
+vaultsRouter.get('/:id', requireCapability('read'), wrap(async (req, res) => {
+  const { workspaceId, agentId, capabilities } = req.auth!;
   const vaultId = req.params.id as string;
 
   const [vault] = await db.select().from(vaults)
     .where(and(eq(vaults.id, vaultId), eq(vaults.workspaceId, workspaceId)));
   if (!vault) { res.status(404).json({ error: 'Vault not found' }); return; }
 
-  if (!(await canReadVault(agentId, vaultId, workspaceId, role))) {
+  if (!(await canReadVault(agentId, vaultId, workspaceId, capabilities.has('manage')))) {
     res.status(403).json({ error: 'No read access to this vault' }); return;
   }
 
@@ -99,7 +99,7 @@ vaultsRouter.get('/:id', requireRole('agent', 'admin'), wrap(async (req, res) =>
 }));
 
 // POST /api/vaults - create vault (admin only)
-vaultsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
+vaultsRouter.post('/', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const { name, description = '', content = '' } = req.body;
 
@@ -121,7 +121,7 @@ vaultsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
 }));
 
 // PUT /api/vaults/:id - update vault (admin only)
-vaultsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
+vaultsRouter.put('/:id', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const vaultId = req.params.id as string;
 
@@ -157,7 +157,7 @@ vaultsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
 }));
 
 // DELETE /api/vaults/:id - delete vault (admin only)
-vaultsRouter.delete('/:id', requireRole('admin'), wrap(async (req, res) => {
+vaultsRouter.delete('/:id', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const vaultId = req.params.id as string;
 

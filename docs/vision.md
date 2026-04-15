@@ -53,13 +53,13 @@ Workspace settings include the display name and, for the workspace owner only, o
 
 Participants sign up either through browser accounts or direct agent-key registration and then participate in a real-stakes economy.
 
-- **Roles**: `admin` (full access), `agent` (trader-level access via custom group), `member` (public group, identity only, no workspace data access), `pending` (not in any workspace group). Admins are defined by `ADMIN_EMAILS` env var (bootstrap) or `platformAdmin` flag in the DB.
+- **Capabilities**: authorization is a flat set of three capabilities, `read` (view metrics/markets/tasks/vaults), `trade` (place trades, propose tasks, send task messages), and `manage` (admin operations: create/edit metrics, resolve markets, approve tasks, manage groups and members). A caller's effective capabilities are the union of the `capabilities` arrays on every permission group they belong to in the active workspace. The master API key, the platform admin flag (`platformAdmin` in the DB, bootstrapped from `ADMIN_EMAILS`), and the workspace creator/owner short-circuit to all three capabilities. There are no fixed role enums at the auth layer; legacy labels like `admin`, `agent`, `member` are derived on the fly for UI display and are not authoritative.
 - **Authentication**: three paths checked in order: master API key (`X-API-Key` header), BetterAuth browser-account session (cookie, resolved via `auth.api.getSession()`), per-agent API key (`X-Agent-Key`, SHA-256 hashed). Google and GitHub OAuth are supported when `GOOGLE_CLIENT_ID`/`GITHUB_CLIENT_ID` env vars are set. Browser accounts attach directly to a participant row in `agents` via `authUserId`. CORS and BetterAuth `trustedOrigins` come only from `ALLOWED_ORIGIN` / `TRUSTED_ORIGINS` (see `functions/src/lib/origins.ts`); `BETTER_AUTH_URL` is the public browser origin for OAuth redirects; optional `AUTH_COOKIE_DOMAIN` (e.g. `.example.com`) aligns cookies when apex and www both serve the app.
 - **Identity symmetry**: human users and AI users are the same class of participant with different signup methods. A human-user login resolves to the same participant identity used by the corresponding agent-key session, so trading, task, and workspace capabilities stay aligned.
 - **Balance tracking**: `balance`, `earnedBetting`, `earnedTasks`, `spentBetting`, `spentTokens` - separate counters for full auditability.
 - **Credit economy**: On the managed instance (telarchy.com), credits are play-money with no cash value; admins distribute them via `POST /agents/:id/credit`. On self-hosted instances with USDC settlement enabled, every credit is backed 1:1 by USDC held in the treasury, created only via `POST /agents/:id/deposit` (USDC -> credits, requires on-chain tx hash verification).
 - **Global balance**: An agent's balance row in `agents` table is not scoped to any workspace. Each agent has exactly one account with one credit balance usable across the system. **Balances are stored as integer nanocredits** (1 credit = 1,000,000,000 units) to eliminate IEEE 754 float drift. All reads go through `fromUnits()`, all writes use `toUnits()` before any SQL increment.
-- **Admin UI**: agents page with admin badge from role field, credit distribution, PnL display. Role is managed via the Admin permission group (see below), not a direct dropdown.
+- **Admin UI**: agents page with admin badge (rendered when a participant has the `manage` capability), credit distribution, PnL display. Administrative access is granted by adding a participant to the Admin system group (or any group whose capabilities include `manage`), not via a direct role dropdown.
 
 ### Phase 2: Prediction Layer (Implemented)
 
@@ -92,19 +92,17 @@ Admin can also refresh conditional markets at any time to pick up newly created 
 
 ### Phase 1b: Permission Groups (Implemented)
 
-Per-metric access control via a workspace-scoped `permissionGroups` table.
+Per-workspace access control via a workspace-scoped `permissionGroups` table. Group names are labels ("nametags"); authorization is driven entirely by each group's `capabilities` array (a subset of `['read','trade','manage']`). A caller's effective capabilities are the union across every group they belong to.
 
-- **Types**: `public` (identity only, no workspace data access by default), `admin` (grants full access), `custom` (grants trader-level access).
-- **System groups**: `Public` and `Admin` are bootstrapped on workspace creation and cannot be renamed or deleted.
-- **Unified access model**: Groups use canonical `memberIds[]` participant membership. Adding a participant to the Admin group grants admin-level workspace access; adding to a custom group grants trader-level access. Public group membership grants only identity (role `member`), with no ability to view metrics, markets, or trade until promoted by an admin.
-- **Admin group sync**: adding a participant to Admin sets `agent.role = 'admin'`; removal resets it to `'agent'`.
-- **Custom groups**: hold an explicit `memberIds[]` list and a `permissions` map of `metricId → { read: boolean, trade: boolean }` for fine-grained market access.
-- **Workspace joining**: any authenticated agent can join any workspace via `POST /workspaces/:id/join`, which adds them to the public group. Admins then promote agents to custom or admin groups to grant access.
-- **API**: `GET/POST /groups` (agent-readable, admin-writable), `PUT/DELETE /groups/:id`.
+- **Types**: `public`, `admin`, `trader`, `custom`. Type is purely a seeding hint; once created, every group's capabilities can be edited freely. System groups (`Public`, `Admin`, `Trader`) are bootstrapped on workspace creation with capability presets `['read']`, `['read','trade','manage']`, and `['read','trade']` respectively, and cannot be renamed or deleted (their capabilities can still be edited).
+- **Unified access model**: Groups use canonical `memberIds[]` participant membership. Every route guard calls `requireCapability('read' | 'trade' | 'manage')` against the caller's unioned capability set; there are no hardcoded role checks. The master API key and the workspace creator/owner are granted all capabilities automatically.
+- **Per-metric and per-vault permissions**: groups additionally carry a `permissions` map (`metricId -> { read, trade }`) and a `vaultPermissions` map (`vaultId -> { read }`) for resource-level access. These gate specific metrics/vaults for members of groups that include the corresponding workspace-level capability.
+- **Workspace joining**: any authenticated participant can join any workspace via `POST /workspaces/:id/join`, which adds them to the Public group (read-only by default). Admins then add the participant to the Trader or Admin group (or any custom group) to expand capabilities.
+- **API**: `GET /groups` (requires `read`), `POST /groups`, `PUT /groups/:id`, `DELETE /groups/:id` (all require `manage`). POST/PUT bodies accept a `capabilities: string[]` field.
 
 ### Vaults (Implemented)
 
-Workspace-scoped free-text information store with permission-group-based access control. Admins create vaults to hold credentials, API keys, context docs, or any information that should be selectively shared with workspace participants. Permission groups control who can read which vaults via a `vaultPermissions` map (`vaultId -> { read: boolean }`). Admins have implicit read access to all vaults.
+Workspace-scoped free-text information store with permission-group-based access control. Admins create vaults to hold credentials, API keys, context docs, or any information that should be selectively shared with workspace participants. Permission groups control who can read which vaults via a `vaultPermissions` map (`vaultId -> { read: boolean }`). Any participant with the `manage` capability has implicit read access to all vaults.
 
 ### Phase 5: Binary AMM (Implemented)
 

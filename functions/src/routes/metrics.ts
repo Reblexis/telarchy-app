@@ -4,7 +4,7 @@ import { metrics, markets, updates } from '../db/schema';
 import { eq, and, sql, asc } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
-import { requireRole } from '../middleware/roles';
+import { requireCapability } from '../middleware/roles';
 import {
   getAffectedMetrics, extractMetricReferences, getTransitiveDependencyNames,
   detectCircularDependency,
@@ -17,21 +17,21 @@ import type { TimePreference } from '../types';
 
 export const metricsRouter = Router();
 
-metricsRouter.get('/', requireRole('agent', 'admin'), wrap(async (req, res) => {
+metricsRouter.get('/', requireCapability('read'), wrap(async (req, res) => {
   res.json(await svc.getAllMetrics(req.auth!.workspaceId));
 }));
 
-metricsRouter.get('/:id', requireRole('agent', 'admin'), wrap(async (req, res) => {
+metricsRouter.get('/:id', requireCapability('read'), wrap(async (req, res) => {
   const metric = await svc.getMetricById(req.params.id as string, req.auth!.workspaceId);
   if (!metric) { res.status(404).json({ error: 'Metric not found' }); return; }
   res.json(metric);
 }));
 
-metricsRouter.get('/:id/logs', requireRole('agent', 'admin'), wrap(async (req, res) => {
+metricsRouter.get('/:id/logs', requireCapability('read'), wrap(async (req, res) => {
   res.json(await svc.getMetricLogs(req.params.id as string, req.auth!.workspaceId));
 }));
 
-metricsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
+metricsRouter.post('/', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const { name, description = '', value = 0, formula = '0', timePreference, marketRangeMax } = req.body;
   if (!name) { res.status(400).json({ error: 'name is required' }); return; }
@@ -87,7 +87,7 @@ metricsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
   res.status(201).json({ ok: true, id, warnings });
 }));
 
-metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
+metricsRouter.put('/:id', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const id = req.params.id as string;
   const { oldValue, updateNote = '', timePreference: rawTP, ...fields } = req.body;
@@ -246,7 +246,7 @@ metricsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
   }
 }));
 
-metricsRouter.delete('/:id', requireRole('admin'), wrap(async (req, res) => {
+metricsRouter.delete('/:id', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const id = req.params.id as string;
   const [row] = await db.select().from(metrics)
@@ -274,7 +274,7 @@ metricsRouter.delete('/:id', requireRole('admin'), wrap(async (req, res) => {
   }
 }));
 
-metricsRouter.post('/migrate-leaf-types', requireRole('admin'), wrap(async (req, res) => {
+metricsRouter.post('/migrate-leaf-types', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const rows = await db.select().from(metrics).where(eq(metrics.workspaceId, workspaceId));
   let updated = 0;

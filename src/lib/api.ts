@@ -129,6 +129,8 @@ export const api = {
   getAgents: () => request('/api/agents'),
   getAgentTrades: (agentId: string, limit = 100) =>
     request(`/api/agents/${encodeURIComponent(agentId)}/trades?limit=${limit}`),
+  getAgentMarketPnl: (agentId: string) =>
+    request(`/api/agents/${encodeURIComponent(agentId)}/market-pnl`),
   getMyAgents: () => request('/api/agents/mine'),
   registerAgent: (agentId: string) =>
     request('/api/agents/register', { method: 'POST', body: JSON.stringify({ agentId }) }),

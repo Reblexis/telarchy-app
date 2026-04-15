@@ -5,7 +5,7 @@ import { eq, and, desc, asc } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
-import { requireRole } from '../middleware/roles';
+import { requireCapability } from '../middleware/roles';
 import { voidTaskMarkets, approveTask, getTaskMarketSummariesForTask } from '../services/tasks';
 import { validateContent } from '../lib/validation';
 
@@ -13,7 +13,7 @@ export const tasksRouter = Router();
 
 tasksRouter.use(authMiddleware);
 
-tasksRouter.post('/', requireRole('agent', 'admin'), wrap(async (req, res) => {
+tasksRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const { title, description, price } = req.body;
   if (!title || typeof title !== 'string') { res.status(400).json({ error: 'title is required' }); return; }
@@ -38,9 +38,9 @@ tasksRouter.post('/', requireRole('agent', 'admin'), wrap(async (req, res) => {
   res.status(201).json({ id });
 }));
 
-tasksRouter.get('/', requireRole('agent', 'admin'), wrap(async (req, res) => {
+tasksRouter.get('/', requireCapability('read'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
-  const isAdmin = req.auth!.role === 'admin';
+  const isAdmin = req.auth!.capabilities.has('manage');
   const agentId = req.auth!.agentId;
   const { status } = req.query as Record<string, string>;
 
@@ -64,14 +64,14 @@ tasksRouter.get('/', requireRole('agent', 'admin'), wrap(async (req, res) => {
   })));
 }));
 
-tasksRouter.get('/:taskId', requireRole('agent', 'admin'), wrap(async (req, res) => {
+tasksRouter.get('/:taskId', requireCapability('read'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const taskId = req.params.taskId as string;
   const [task] = await db.select().from(tasks)
     .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
   if (!task) { res.status(404).json({ error: 'Task not found' }); return; }
 
-  const isAdmin = req.auth!.role === 'admin';
+  const isAdmin = req.auth!.capabilities.has('manage');
   const agentId = req.auth!.agentId;
   if (!isAdmin && task.proposedBy !== agentId) { res.status(403).json({ error: 'Forbidden' }); return; }
 
@@ -79,13 +79,13 @@ tasksRouter.get('/:taskId', requireRole('agent', 'admin'), wrap(async (req, res)
   res.json({ ...task, markets: taskMarkets });
 }));
 
-tasksRouter.post('/:taskId/approve', requireRole('admin'), wrap(async (req, res) => {
+tasksRouter.post('/:taskId/approve', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   await approveTask(req.params.taskId as string, workspaceId);
   res.json({ ok: true });
 }));
 
-tasksRouter.post('/:taskId/decline', requireRole('admin'), wrap(async (req, res) => {
+tasksRouter.post('/:taskId/decline', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const taskId = req.params.taskId as string;
   const [task] = await db.select().from(tasks)
@@ -100,14 +100,14 @@ tasksRouter.post('/:taskId/decline', requireRole('admin'), wrap(async (req, res)
   res.json({ ok: true });
 }));
 
-tasksRouter.get('/:taskId/messages', requireRole('agent', 'admin'), wrap(async (req, res) => {
+tasksRouter.get('/:taskId/messages', requireCapability('read'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const taskId = req.params.taskId as string;
   const [task] = await db.select().from(tasks)
     .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
   if (!task) { res.status(404).json({ error: 'Task not found' }); return; }
 
-  const isAdmin = req.auth!.role === 'admin';
+  const isAdmin = req.auth!.capabilities.has('manage');
   const agentId = req.auth!.agentId;
   if (!isAdmin && task.proposedBy !== agentId) { res.status(403).json({ error: 'Forbidden' }); return; }
 
@@ -118,7 +118,7 @@ tasksRouter.get('/:taskId/messages', requireRole('agent', 'admin'), wrap(async (
   res.json(messages);
 }));
 
-tasksRouter.post('/:taskId/messages', requireRole('agent', 'admin'), wrap(async (req, res) => {
+tasksRouter.post('/:taskId/messages', requireCapability('trade'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const taskId = req.params.taskId as string;
   const { content } = req.body;
@@ -130,7 +130,7 @@ tasksRouter.post('/:taskId/messages', requireRole('agent', 'admin'), wrap(async 
     .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
   if (!task) { res.status(404).json({ error: 'Task not found' }); return; }
 
-  const isAdmin = req.auth!.role === 'admin';
+  const isAdmin = req.auth!.capabilities.has('manage');
   const agentId = req.auth!.agentId;
   if (!isAdmin && task.proposedBy !== agentId) { res.status(403).json({ error: 'Forbidden' }); return; }
 

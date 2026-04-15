@@ -105,7 +105,7 @@ groupsRouter.put('/:id', requireCapability('manage'), wrap(async (req, res) => {
     .where(and(eq(permissionGroups.id, groupId), eq(permissionGroups.workspaceId, workspaceId)));
   if (!group) { res.status(404).json({ error: 'Group not found' }); return; }
 
-  const { name, description, memberIds, permissions, vaultPermissions } = req.body;
+  const { name, description, memberIds, permissions, vaultPermissions, capabilities } = req.body;
   const update: Partial<typeof permissionGroups.$inferInsert> = {};
 
   if (name !== undefined) {
@@ -158,6 +158,12 @@ groupsRouter.put('/:id', requireCapability('manage'), wrap(async (req, res) => {
       }
     }
     update.vaultPermissions = vaultPermissions;
+  }
+
+  if (capabilities !== undefined) {
+    const parsed = parseCapabilities(capabilities);
+    if (!parsed.ok) { res.status(400).json({ error: parsed.error }); return; }
+    update.capabilities = parsed.value;
   }
 
   if (Object.keys(update).length === 0) {

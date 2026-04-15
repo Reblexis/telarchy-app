@@ -21,7 +21,8 @@ import { creditsIssuedForUsdcDeposit, depositBuyRateUsd } from '../lib/economy';
 import { validateAgentId, validateTxHash, sufficientBalance, toUnits, fromUnits } from '../lib/validation';
 import { listParticipantsForWorkspace } from '../lib/participants';
 import { isUsdcSettlementEnabled } from '../lib/settlement';
-import { directionSellProceeds, resolutionPayouts } from '../lib/amm';
+import { directionSellProceeds, resolutionPayouts, pHigher, consensus } from '../lib/amm';
+import { getAllMetrics } from '../services/metrics';
 
 export const agentsRouter = Router();
 
@@ -151,6 +152,96 @@ agentsRouter.get('/:id/dashboard', requireSelfOrAdmin, wrap(async (req, res) => 
 
   if (!agent) { res.status(404).json({ error: 'Agent not found' }); return; }
   res.json({ balance: fromUnits(agent.balance as number), markets: mkts });
+}));
+
+agentsRouter.get('/:id/market-pnl', requireSelfOrAdmin, wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
+  const id = resolveRouteAgentId(req);
+  if (!id) { res.status(403).json({ error: 'A participant identity is required' }); return; }
+
+  const [tradeRows, posRows] = await Promise.all([
+    db.select({ marketId: trades.marketId, cost: trades.cost, shares: trades.shares, direction: trades.direction })
+      .from(trades).where(and(eq(trades.workspaceId, workspaceId), eq(trades.agentId, id))),
+    db.select().from(positions).where(and(eq(positions.workspaceId, workspaceId), eq(positions.agentId, id))),
+  ]);
+
+  const marketIds = [...new Set([...tradeRows.map(t => t.marketId), ...posRows.map(p => p.marketId)])];
+  if (marketIds.length === 0) { res.json([]); return; }
+
+  const [marketRows, allMetrics] = await Promise.all([
+    db.select().from(markets).where(and(eq(markets.workspaceId, workspaceId), inArray(markets.id, marketIds))),
+    getAllMetrics(workspaceId),
+  ]);
+  const metricMap = new Map(allMetrics.map(m => [m.id, m]));
+
+  const cashByMarket = new Map<string, number>();
+  for (const t of tradeRows) {
+    cashByMarket.set(t.marketId, (cashByMarket.get(t.marketId) ?? 0) - t.cost);
+  }
+
+  const result = marketRows.map(m => {
+    const netCash = cashByMarket.get(m.id) ?? 0;
+    const mktShares = (m.shares as [number, number]) || [0, 0];
+    const b = m.liquidity;
+    const agentPos = posRows.filter(p => p.marketId === m.id);
+    const higherShares = agentPos.find(p => p.direction === 'higher')?.shares ?? 0;
+    const lowerShares = agentPos.find(p => p.direction === 'lower')?.shares ?? 0;
+
+    // Mark-to-market via LMSR sell proceeds (what you'd get if you unwound now).
+    const sellHi = higherShares > 0 ? directionSellProceeds(mktShares, 1, higherShares, b) : 0;
+    const sellLo = lowerShares > 0 ? directionSellProceeds(mktShares, 0, lowerShares, b) : 0;
+    const markValueConsensus = sellHi + sellLo;
+    const pnlConsensus = netCash + markValueConsensus;
+
+    let pnlMetric: number | null = null;
+    let metricValue: number | null = null;
+    let metricPayoutValue: number | null = null;
+    if (m.resolved && m.actualValue !== null) {
+      const [lowerPay, higherPay] = resolutionPayouts(Math.min(m.actualValue, m.rangeMax), m.rangeMin, m.rangeMax);
+      metricPayoutValue = higherShares * higherPay + lowerShares * lowerPay;
+      pnlMetric = netCash + metricPayoutValue;
+      metricValue = m.actualValue;
+    } else {
+      const metric = metricMap.get(m.metricId);
+      if (metric?.total !== null && metric?.total !== undefined) {
+        metricValue = metric.total;
+        const clamped = Math.min(Math.max(metric.total, m.rangeMin), m.rangeMax);
+        const [lowerPay, higherPay] = resolutionPayouts(clamped, m.rangeMin, m.rangeMax);
+        metricPayoutValue = higherShares * higherPay + lowerShares * lowerPay;
+        pnlMetric = netCash + metricPayoutValue;
+      }
+    }
+
+    return {
+      marketId: m.id,
+      metricId: m.metricId,
+      metricName: m.metricName,
+      targetDate: m.targetDate,
+      status: m.voided ? 'voided' : m.resolved ? 'resolved' : (m.active === false ? 'closed' : 'open'),
+      rangeMin: m.rangeMin,
+      rangeMax: m.rangeMax,
+      consensus: consensus(mktShares, b, m.rangeMin, m.rangeMax) ?? null,
+      probabilityHigher: pHigher(mktShares, b),
+      metricValue,
+      higherShares,
+      lowerShares,
+      netCash,
+      markValueConsensus,
+      metricPayoutValue,
+      pnlConsensus,
+      pnlMetric,
+    };
+  });
+
+  // Sort: open first, then by absolute PnL magnitude desc.
+  result.sort((a, b) => {
+    const rank = (s: string) => s === 'open' ? 0 : s === 'closed' ? 1 : 2;
+    const rd = rank(a.status) - rank(b.status);
+    if (rd !== 0) return rd;
+    return Math.abs(b.pnlConsensus) - Math.abs(a.pnlConsensus);
+  });
+
+  res.json(result);
 }));
 
 agentsRouter.get('/:id/trades', requireSelfOrAdmin, wrap(async (req, res) => {

@@ -190,20 +190,20 @@ export async function provisionWorkspace(
       id: randomUUID(), workspaceId: wsId,
       name: 'Public', type: 'public',
       description: 'Participants explicitly added to this workspace.',
-      memberIds: [], permissions: {}, createdAt: now,
+      memberIds: [], permissions: {}, capabilities: ['read'], createdAt: now,
     },
     {
       id: randomUUID(), workspaceId: wsId,
       name: 'Admin', type: 'admin',
       description: 'Participants with full administrative access to this workspace.',
       memberIds: adminMemberIds,
-      permissions: {}, createdAt: now,
+      permissions: {}, capabilities: ['read', 'trade', 'manage'], createdAt: now,
     },
     {
       id: randomUUID(), workspaceId: wsId,
       name: 'Trader', type: 'trader',
       description: 'Participants who can view metrics and trade on all markets.',
-      memberIds: [], permissions: {}, createdAt: now,
+      memberIds: [], permissions: {}, capabilities: ['read', 'trade'], createdAt: now,
     },
   ]);
 }

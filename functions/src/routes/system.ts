@@ -3,7 +3,7 @@ import { db } from '../db/client';
 import { agentApiKeys, agents, markets, positions, trades, deposits, withdrawals, systemConfig } from '../db/schema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { wrap } from '../lib/wrap';
-import { requireRole } from '../middleware/roles';
+import { requireCapability } from '../middleware/roles';
 import { getAllMetrics, getStatus, getAllMetricLogsGrouped } from '../services/metrics';
 import { consensus, pHigher } from '../lib/amm';
 import { isUsdcSettlementEnabled } from '../lib/settlement';
@@ -17,7 +17,7 @@ async function getEconomy() {
   return { creditValueUsd: val.creditValueUsd ?? null };
 }
 
-systemRouter.get('/status', requireRole('agent', 'admin'), wrap(async (req, res) => {
+systemRouter.get('/status', requireCapability('read'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const includeTrends = req.query.trends === '1';
   const includeMarkets = req.query.markets === '1';
@@ -81,7 +81,7 @@ systemRouter.get('/status', requireRole('agent', 'admin'), wrap(async (req, res)
   res.json({ ...base, metrics: augmented });
 }));
 
-systemRouter.post('/reset-economy', requireRole('admin'), wrap(async (req, res) => {
+systemRouter.post('/reset-economy', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
 
   await db.transaction(async tx => {

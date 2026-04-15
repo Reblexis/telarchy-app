@@ -238,24 +238,50 @@ function AgentAdminPage({ user, workspace }: {
     marketStatus: 'open' | 'resolved' | 'voided';
     createdAt: string;
   }
+  interface AgentMarketPnl {
+    marketId: string;
+    metricId: string;
+    metricName: string;
+    targetDate: string;
+    status: 'open' | 'resolved' | 'voided' | 'closed';
+    rangeMin: number;
+    rangeMax: number;
+    consensus: number | null;
+    probabilityHigher: number;
+    metricValue: number | null;
+    higherShares: number;
+    lowerShares: number;
+    netCash: number;
+    markValueConsensus: number;
+    metricPayoutValue: number | null;
+    pnlConsensus: number;
+    pnlMetric: number | null;
+  }
   const [expandedAgentId, setExpandedAgentId] = useState<string | null>(null);
   const [agentTrades, setAgentTrades] = useState<Record<string, AgentTrade[]>>({});
-  const [agentTradesLoading, setAgentTradesLoading] = useState<string | null>(null);
+  const [agentMarketPnl, setAgentMarketPnl] = useState<Record<string, AgentMarketPnl[]>>({});
+  const [agentExpansionLoading, setAgentExpansionLoading] = useState<string | null>(null);
 
   const toggleAgentTrades = async (agentId: string) => {
     if (expandedAgentId === agentId) { setExpandedAgentId(null); return; }
     setExpandedAgentId(agentId);
-    if (agentTrades[agentId]) return;
-    setAgentTradesLoading(agentId);
+    if (agentTrades[agentId] && agentMarketPnl[agentId]) return;
+    setAgentExpansionLoading(agentId);
     try {
-      const trades = await api.getAgentTrades(agentId) as AgentTrade[];
+      const [trades, pnl] = await Promise.all([
+        api.getAgentTrades(agentId) as Promise<AgentTrade[]>,
+        api.getAgentMarketPnl(agentId) as Promise<AgentMarketPnl[]>,
+      ]);
       setAgentTrades(prev => ({ ...prev, [agentId]: trades }));
+      setAgentMarketPnl(prev => ({ ...prev, [agentId]: pnl }));
     } catch (e) {
-      console.error('getAgentTrades:', e);
+      console.error('agent expansion:', e);
     } finally {
-      setAgentTradesLoading(null);
+      setAgentExpansionLoading(null);
     }
   };
+
+  const fmt9 = (n: number | null | undefined) => n === null || n === undefined ? '-' : n.toFixed(9);
 
   const loadAgents = useCallback(async () => {
     setError('');
@@ -479,11 +505,52 @@ function AgentAdminPage({ user, workspace }: {
                     {isExpanded && (
                       <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
                         <td colSpan={7} style={{ padding: '0.5rem 1rem 1rem' }}>
-                          {agentTradesLoading === agent.id && !trades ? (
-                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Loading trades…</div>
+                          {agentExpansionLoading === agent.id && !trades ? (
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Loading…</div>
                           ) : !trades || trades.length === 0 ? (
                             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>No trades.</div>
                           ) : (
+                          <>
+                          {agentMarketPnl[agent.id] && agentMarketPnl[agent.id].length > 0 && (
+                            <div style={{ marginBottom: '1rem' }}>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Per-market P&amp;L</div>
+                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                                <thead>
+                                  <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                                    <th style={{ textAlign: 'left', padding: '0.3rem 0.4rem', fontWeight: 500 }}>Market</th>
+                                    <th style={{ textAlign: 'left', padding: '0.3rem 0.4rem', fontWeight: 500 }}>Target</th>
+                                    <th style={{ textAlign: 'left', padding: '0.3rem 0.4rem', fontWeight: 500 }}>Status</th>
+                                    <th style={{ textAlign: 'right', padding: '0.3rem 0.4rem', fontWeight: 500 }} title="Shares held (higher / lower)">Shares H/L</th>
+                                    <th style={{ textAlign: 'right', padding: '0.3rem 0.4rem', fontWeight: 500 }} title="Net cash invested in this market; sum of trade cash flows">Net cash</th>
+                                    <th style={{ textAlign: 'right', padding: '0.3rem 0.4rem', fontWeight: 500 }} title="Current market consensus (AMM)">Consensus</th>
+                                    <th style={{ textAlign: 'right', padding: '0.3rem 0.4rem', fontWeight: 500 }} title="Unrealized P&L if position were unwound at current market prices (LMSR sell proceeds + net cash)">PnL @ consensus</th>
+                                    <th style={{ textAlign: 'right', padding: '0.3rem 0.4rem', fontWeight: 500 }} title="Current metric total (for resolved markets: actualValue)">Metric</th>
+                                    <th style={{ textAlign: 'right', padding: '0.3rem 0.4rem', fontWeight: 500 }} title="P&L if market resolved at the current metric value">PnL @ metric</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {agentMarketPnl[agent.id].map(r => (
+                                    <tr key={r.marketId} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                      <td style={{ padding: '0.3rem 0.4rem' }}>{r.metricName}</td>
+                                      <td style={{ padding: '0.3rem 0.4rem', fontFamily: 'monospace' }}>{r.targetDate}</td>
+                                      <td style={{ padding: '0.3rem 0.4rem', color: 'var(--text-secondary)' }}>{r.status}</td>
+                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>
+                                        <span style={{ color: 'var(--success-text)' }}>{fmt9(r.higherShares)}</span>
+                                        {' / '}
+                                        <span style={{ color: 'var(--error-text)' }}>{fmt9(r.lowerShares)}</span>
+                                      </td>
+                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace', color: r.netCash >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>{r.netCash >= 0 ? '+' : ''}{fmt9(r.netCash)}</td>
+                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>{r.consensus !== null ? r.consensus.toFixed(9) : '-'}</td>
+                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: r.pnlConsensus >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>{r.pnlConsensus >= 0 ? '+' : ''}{fmt9(r.pnlConsensus)}</td>
+                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>{r.metricValue !== null ? r.metricValue.toFixed(9) : '-'}</td>
+                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: r.pnlMetric === null ? 'var(--text-secondary)' : r.pnlMetric >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>{r.pnlMetric === null ? '-' : (r.pnlMetric >= 0 ? '+' : '') + fmt9(r.pnlMetric)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Trades</div>
                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
                               <thead>
                                 <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
@@ -508,9 +575,9 @@ function AgentAdminPage({ user, workspace }: {
                                         <span style={{ color: t.direction === 'higher' ? 'var(--success-text)' : 'var(--error-text)' }}>{t.direction}</span>
                                         <span style={{ marginLeft: '0.35rem', color: 'var(--text-secondary)' }}>({t.kind})</span>
                                       </td>
-                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>{t.shares.toFixed(3)}</td>
+                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>{fmt9(t.shares)}</td>
                                       <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace', color: cash >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>
-                                        {cash >= 0 ? '+' : ''}{cash.toFixed(2)}
+                                        {cash >= 0 ? '+' : ''}{fmt9(cash)}
                                       </td>
                                       <td style={{ padding: '0.3rem 0.4rem', color: 'var(--text-secondary)' }}>{t.marketStatus}</td>
                                     </tr>
@@ -518,6 +585,7 @@ function AgentAdminPage({ user, workspace }: {
                                 })}
                               </tbody>
                             </table>
+                          </>
                           )}
                         </td>
                       </tr>
