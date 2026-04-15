@@ -361,8 +361,12 @@ function AgentAdminPage({ user, workspace }: {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
-                  {['Participant', 'Groups', 'Balance', 'Earned', 'Spent', 'PnL'].map((h, i) => (
-                    <th key={h} style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem', textAlign: i >= 2 ? 'right' : 'left' }}>{h}</th>
+                  {['Participant', 'Groups', 'Balance', 'Earned', 'Spent', 'PnL', 'Realized'].map((h, i) => (
+                    <th
+                      key={h}
+                      style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem', textAlign: i >= 2 ? 'right' : 'left' }}
+                      title={h === 'Realized' ? 'Net P&L on resolved markets only (excludes open and voided markets)' : undefined}
+                    >{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -428,6 +432,9 @@ function AgentAdminPage({ user, workspace }: {
                       <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--error-text)' }}>${agent.spentBetting}</td>
                       <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: agent.earnedBetting - agent.spentBetting >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>
                         {agent.earnedBetting - agent.spentBetting >= 0 ? '+$' : '-$'}{Math.abs(agent.earnedBetting - agent.spentBetting)}
+                      </td>
+                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: (agent.realizedPnl ?? 0) >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>
+                        {(agent.realizedPnl ?? 0) >= 0 ? '+$' : '-$'}{Math.abs(agent.realizedPnl ?? 0).toFixed(2)}
                       </td>
                     </tr>
                   );

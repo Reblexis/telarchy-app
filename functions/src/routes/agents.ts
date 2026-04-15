@@ -1,12 +1,12 @@
 import { Router, type Request } from 'express';
 import { db } from '../db/client';
 import { agents, agentApiKeys, deposits, withdrawals, systemConfig, workspaces, positions, trades, markets, permissionGroups } from '../db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, inArray } from 'drizzle-orm';
 import { randomBytes } from 'crypto';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { hashKey, authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
-import { requireRole, requireSelfOrAdmin, requireIdentity } from '../middleware/roles';
+import { requireCapability, requireSelfOrAdmin, requireIdentity } from '../middleware/roles';
 import { getMarkets } from '../services/predictions';
 import {
   sendUsdc,
@@ -21,7 +21,7 @@ import { creditsIssuedForUsdcDeposit, depositBuyRateUsd } from '../lib/economy';
 import { validateAgentId, validateTxHash, sufficientBalance, toUnits, fromUnits } from '../lib/validation';
 import { listParticipantsForWorkspace } from '../lib/participants';
 import { isUsdcSettlementEnabled } from '../lib/settlement';
-import { directionSellProceeds } from '../lib/amm';
+import { directionSellProceeds, resolutionPayouts } from '../lib/amm';
 
 export const agentsRouter = Router();
 
@@ -116,7 +116,7 @@ agentsRouter.get('/deposit-address', (_req, res) => {
 
 agentsRouter.use(authMiddleware);
 
-agentsRouter.get('/treasury', requireRole('admin'), wrap(async (req, res) => {
+agentsRouter.get('/treasury', requireCapability('manage'), wrap(async (req, res) => {
   if (!requireUsdcEnabled(res)) return;
   res.json(await getTreasuryBalances());
 }));
@@ -153,11 +153,60 @@ agentsRouter.get('/:id/dashboard', requireSelfOrAdmin, wrap(async (req, res) => 
   res.json({ balance: fromUnits(agent.balance as number), markets: mkts });
 }));
 
-agentsRouter.get('/', requireRole('admin'), wrap(async (_req, res) => {
-  const rows = await listParticipantsForWorkspace(_req.auth!.workspaceId);
+agentsRouter.get('/', requireCapability('manage'), wrap(async (_req, res) => {
+  const workspaceId = _req.auth!.workspaceId;
+  const rows = await listParticipantsForWorkspace(workspaceId);
+
+  // Realized PnL per agent = net cash flow from trades on resolved (non-voided)
+  // markets + resolution payouts received. Open/voided markets don't count.
+  const resolvedMarkets = await db.select({
+    id: markets.id,
+    rangeMin: markets.rangeMin,
+    rangeMax: markets.rangeMax,
+    actualValue: markets.actualValue,
+  }).from(markets).where(and(
+    eq(markets.workspaceId, workspaceId),
+    eq(markets.resolved, true),
+    eq(markets.voided, false),
+  ));
+
+  const realizedPnl = new Map<string, number>();
+  if (resolvedMarkets.length > 0) {
+    const marketIds = resolvedMarkets.map(m => m.id);
+    const payFactorsById = new Map<string, [number, number]>();
+    for (const m of resolvedMarkets) {
+      if (m.actualValue === null) continue;
+      const actual = Math.min(m.actualValue, m.rangeMax);
+      payFactorsById.set(m.id, resolutionPayouts(actual, m.rangeMin, m.rangeMax));
+    }
+
+    const [tradeRows, posRows] = await Promise.all([
+      db.select({ agentId: trades.agentId, cost: trades.cost }).from(trades)
+        .where(and(eq(trades.workspaceId, workspaceId), inArray(trades.marketId, marketIds))),
+      db.select({ agentId: positions.agentId, marketId: positions.marketId, direction: positions.direction, shares: positions.shares }).from(positions)
+        .where(and(eq(positions.workspaceId, workspaceId), inArray(positions.marketId, marketIds))),
+    ]);
+
+    for (const t of tradeRows) {
+      realizedPnl.set(t.agentId, (realizedPnl.get(t.agentId) ?? 0) - t.cost);
+    }
+    for (const p of posRows) {
+      if (p.shares <= 0) continue;
+      const pay = payFactorsById.get(p.marketId);
+      if (!pay) continue;
+      const factor = p.direction === 'higher' ? pay[1] : pay[0];
+      const payout = p.shares * factor;
+      realizedPnl.set(p.agentId, (realizedPnl.get(p.agentId) ?? 0) + payout);
+    }
+  }
+
   res.json(rows.map(a => {
     const { apiKeyHash: _, ...data } = a;
-    return { ...data, balance: fromUnits(data.balance as number) };
+    return {
+      ...data,
+      balance: fromUnits(data.balance as number),
+      realizedPnl: Math.round((realizedPnl.get(a.id) ?? 0) * 100) / 100,
+    };
   }));
 }));
 
@@ -171,7 +220,7 @@ agentsRouter.post('/:id/spend', requireSelfOrAdmin, wrap(async (req, res) => {
   if (!type || !validTypes.includes(type)) {
     res.status(400).json({ error: `type must be one of: ${validTypes.join(', ')}` }); return;
   }
-  if (type === 'betting' && req.auth!.role !== 'admin') {
+  if (type === 'betting' && !req.auth!.capabilities.has('manage')) {
     res.status(403).json({ error: 'type "betting" is reserved for admin use' }); return;
   }
   const id = resolveRouteAgentId(req);
@@ -190,7 +239,7 @@ agentsRouter.post('/:id/spend', requireSelfOrAdmin, wrap(async (req, res) => {
   res.json({ ok: true, spent: amount, type, reason: reason || '' });
 }));
 
-agentsRouter.post('/:id/credit', requireRole('admin'), wrap(async (req, res) => {
+agentsRouter.post('/:id/credit', requireCapability('manage'), wrap(async (req, res) => {
   const id = resolveRouteAgentId(req);
   if (!id) { res.status(400).json({ error: 'Agent not found' }); return; }
   const members = await listParticipantsForWorkspace(req.auth!.workspaceId);
@@ -307,7 +356,7 @@ agentsRouter.post('/:id/withdraw', requireSelfOrAdmin, wrap(async (req, res) => 
   res.json({ ok: true, credits: amount, usdcAmount, txHash, toAddress: walletAddress });
 }));
 
-agentsRouter.delete('/:id', requireRole('admin'), wrap(async (req, res) => {
+agentsRouter.delete('/:id', requireCapability('manage'), wrap(async (req, res) => {
   const id = req.params.id as string;
   const workspaceId = req.auth!.workspaceId;
   const [agent] = await db.select().from(agents).where(eq(agents.id, id));

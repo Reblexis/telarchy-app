@@ -78,6 +78,7 @@ export interface Agent {
   earnedTasks?: number;
   spentBetting: number;
   spentTokens: number;
+  realizedPnl?: number;
   createdAt: string;
   approvedAt: string | null;
 }
