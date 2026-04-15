@@ -953,6 +953,30 @@ input[type="number"] {
   background: var(--bg-secondary);
 }
 
+/* ===== Update Values Modal Tooltip ===== */
+.uv-label-tip {
+  position: relative;
+}
+.uv-label-tip:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  z-index: 10;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 400;
+  white-space: normal;
+  max-width: 320px;
+  width: max-content;
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+}
+
 /* ===== Time Preference Toggle ===== */
 .tp-row {
   border: 1px solid var(--border-color);

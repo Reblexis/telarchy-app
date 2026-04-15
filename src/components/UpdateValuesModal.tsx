@@ -62,11 +62,12 @@ export function UpdateValuesModal({ open, metrics, onClose, onSave }: UpdateValu
           <div style={{ overflowY: 'auto', maxHeight: '60vh', paddingRight: '0.25rem' }}>
           {leaves.map((m, i) => (
             <div key={m.id} className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <label style={{ flex: 1, margin: 0 }}>
+              <label
+                style={{ flex: 1, margin: 0, position: 'relative', cursor: m.description ? 'help' : undefined }}
+                className={m.description ? 'uv-label-tip' : undefined}
+                data-tip={m.description || undefined}
+              >
                 {m.name}
-                {m.description && (
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 400, marginTop: '0.1rem' }}>{m.description}</div>
-                )}
               </label>
               <input
                 ref={i === 0 ? firstInputRef : undefined}
