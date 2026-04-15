@@ -566,7 +566,7 @@ function AgentAdminPage({ user, workspace }: {
                                       ['pnlConsensus', 'right', 'PnL @ consensus', 'Unrealized P&L at current AMM prices; open markets only'],
                                       ['metricValue', 'right', 'Metric', 'Current metric total (for resolved markets: actualValue)'],
                                       ['payout', 'right', 'Payout', 'Gross payout from shares held: shares * payFactor. Uses actualValue for resolved markets, current metric total otherwise.'],
-                                      ['pnlMetric', 'right', 'PnL @ metric / Final', 'Open: P&L if the market resolved at the current metric value (net cash + payout). Resolved: final realized earnings for this market.'],
+                                      ['pnlMetric', 'right', 'Gain/Loss', 'Net profit or loss on this market = net cash + payout. For resolved markets this is the final realized gain/loss. For open markets it is the projected gain/loss if the market settled at the current metric value.'],
                                     ] as [PnlSortKey, 'left' | 'right', string, string | undefined][]).map(([k, align, label, tt]) => (
                                       <th key={k} style={{ textAlign: align, padding: '0.3rem 0.4rem', fontWeight: 500, cursor: 'pointer', userSelect: 'none' }} onClick={() => togglePnlSort(k)} title={tt}>
                                         {label}{sortArrow(pnlSort.key === k, pnlSort.dir)}
