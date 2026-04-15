@@ -560,11 +560,11 @@ function AgentAdminPage({ user, workspace }: {
                                       ['target', 'left', 'Target', undefined],
                                       ['status', 'left', 'Status', undefined],
                                       ['shares', 'right', 'Shares H/L', 'Shares held (higher / lower)'],
-                                      ['netCash', 'right', 'Net cash', 'Net cash invested in this market; sum of trade cash flows'],
-                                      ['consensus', 'right', 'Consensus', 'Current market consensus (AMM)'],
-                                      ['pnlConsensus', 'right', 'PnL @ consensus', 'Unrealized P&L if position were unwound at current market prices (LMSR sell proceeds + net cash)'],
+                                      ['netCash', 'right', 'Net cash', 'Net cash invested in this market; sum of trade cash flows (only meaningful for open markets)'],
+                                      ['consensus', 'right', 'Consensus', 'Current market consensus (AMM); open markets only'],
+                                      ['pnlConsensus', 'right', 'PnL @ consensus', 'Unrealized P&L at current AMM prices; open markets only'],
                                       ['metricValue', 'right', 'Metric', 'Current metric total (for resolved markets: actualValue)'],
-                                      ['pnlMetric', 'right', 'PnL @ metric', 'P&L if market resolved at the current metric value'],
+                                      ['pnlMetric', 'right', 'PnL @ metric / Final', 'Open: P&L if the market resolved at the current metric value. Resolved: final realized earnings for this market.'],
                                     ] as [PnlSortKey, 'left' | 'right', string, string | undefined][]).map(([k, align, label, tt]) => (
                                       <th key={k} style={{ textAlign: align, padding: '0.3rem 0.4rem', fontWeight: 500, cursor: 'pointer', userSelect: 'none' }} onClick={() => togglePnlSort(k)} title={tt}>
                                         {label}{sortArrow(pnlSort.key === k, pnlSort.dir)}
@@ -573,7 +573,17 @@ function AgentAdminPage({ user, workspace }: {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {sortPnlRows(agentMarketPnl[agent.id]).map(r => (
+                                  {sortPnlRows(agentMarketPnl[agent.id]).map(r => {
+                                    const isOpen = r.status === 'open';
+                                    const dash = <span style={{ color: 'var(--text-secondary)' }}>-</span>;
+                                    // For resolved markets pnlMetric is the realized earnings
+                                    // (net cash + payout at actualValue). Show that as Final.
+                                    // For voided markets the pool is refunded, so final is 0.
+                                    const finalValue =
+                                      r.status === 'resolved' ? r.pnlMetric
+                                      : r.status === 'voided' ? 0
+                                      : null;
+                                    return (
                                     <tr key={r.marketId} style={{ borderBottom: '1px solid var(--border-color)' }}>
                                       <td style={{ padding: '0.3rem 0.4rem' }}>{r.metricName}</td>
                                       <td style={{ padding: '0.3rem 0.4rem', fontFamily: 'monospace' }}>{r.targetDate}</td>
@@ -583,13 +593,26 @@ function AgentAdminPage({ user, workspace }: {
                                         {' / '}
                                         <span style={{ color: 'var(--error-text)' }}>{fmt9(r.lowerShares)}</span>
                                       </td>
-                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace', color: r.netCash >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>{r.netCash >= 0 ? '+' : ''}{fmt9(r.netCash)}</td>
-                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>{r.consensus !== null ? r.consensus.toFixed(9) : '-'}</td>
-                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: r.pnlConsensus >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>{r.pnlConsensus >= 0 ? '+' : ''}{fmt9(r.pnlConsensus)}</td>
-                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>{r.metricValue !== null ? r.metricValue.toFixed(9) : '-'}</td>
-                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: r.pnlMetric === null ? 'var(--text-secondary)' : r.pnlMetric >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>{r.pnlMetric === null ? '-' : (r.pnlMetric >= 0 ? '+' : '') + fmt9(r.pnlMetric)}</td>
+                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace', color: isOpen ? (r.netCash >= 0 ? 'var(--success-text)' : 'var(--error-text)') : undefined }}>
+                                        {isOpen ? `${r.netCash >= 0 ? '+' : ''}${fmt9(r.netCash)}` : dash}
+                                      </td>
+                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>
+                                        {isOpen && r.consensus !== null ? r.consensus.toFixed(9) : dash}
+                                      </td>
+                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: isOpen ? (r.pnlConsensus >= 0 ? 'var(--success-text)' : 'var(--error-text)') : undefined }}>
+                                        {isOpen ? `${r.pnlConsensus >= 0 ? '+' : ''}${fmt9(r.pnlConsensus)}` : dash}
+                                      </td>
+                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>{r.metricValue !== null ? r.metricValue.toFixed(9) : dash}</td>
+                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: isOpen
+                                        ? (r.pnlMetric === null ? 'var(--text-secondary)' : r.pnlMetric >= 0 ? 'var(--success-text)' : 'var(--error-text)')
+                                        : (finalValue === null ? undefined : finalValue >= 0 ? 'var(--success-text)' : 'var(--error-text)') }}>
+                                        {isOpen
+                                          ? (r.pnlMetric === null ? dash : `${r.pnlMetric >= 0 ? '+' : ''}${fmt9(r.pnlMetric)}`)
+                                          : (finalValue === null ? dash : `${finalValue >= 0 ? '+' : ''}${fmt9(finalValue)}`)}
+                                      </td>
                                     </tr>
-                                  ))}
+                                    );
+                                  })}
                                 </tbody>
                               </table>
                             </div>
