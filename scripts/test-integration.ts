@@ -221,7 +221,7 @@ await suite('Agents', async () => {
     const list = r.body as Array<Record<string, unknown>>;
     const found = list.find(a => a.id === ctx.agentId);
     expect(found).toBeTruthy();
-    expect(found!.role).toBe('agent');
+    expect(found!.approvedAt).toBeTruthy();
   });
 
   await test('GET /api/agents/mine returns agent list via X-Agent-Key', async () => {
@@ -577,25 +577,30 @@ await suite('Tasks', async () => {
 await suite('Groups', async () => {
   let groupId = '';
 
-  await test('GET /api/groups lists Admin + Public auto-created groups', async () => {
+  await test('GET /api/groups lists Public, Trader, Admin auto-created system groups with capability presets', async () => {
     const r = await adminCall(ctx.wsId)('GET', '/groups');
     expect(r.status).toBe(200);
     const groups = r.body as Array<Record<string, unknown>>;
     expect(groups.some(g => g.name === 'Admin')).toBeTruthy();
     expect(groups.some(g => g.name === 'Public')).toBeTruthy();
+    expect(groups.some(g => g.name === 'Trader')).toBeTruthy();
+    for (const g of groups) {
+      expect(Array.isArray(g.capabilities)).toBeTruthy();
+    }
   });
 
-  await test('POST /api/groups creates a custom group', async () => {
+  await test('POST /api/groups creates a custom group with capabilities', async () => {
     const r = ok(await adminCall(ctx.wsId)('POST', '/groups', {
-      name: 'IntegrationGroup', agentIds: [ctx.agentId],
+      name: 'IntegrationGroup', capabilities: ['read', 'trade'],
     }));
     groupId = r.id as string;
     expect(groupId).toBeTruthy();
+    expect((r.capabilities as string[]).sort().join(',')).toBe('read,trade');
   });
 
-  await test('PUT /api/groups/:id updates the group', async () => {
+  await test('PUT /api/groups/:id updates memberIds and capabilities', async () => {
     const r = await adminCall(ctx.wsId)('PUT', `/groups/${groupId}`, {
-      name: 'IntegrationGroup (updated)', agentIds: [ctx.agentId],
+      name: 'IntegrationGroup (updated)', memberIds: [ctx.agentId], capabilities: ['read'],
     });
     expect(r.status).toBeStatus(200, 204);
   });
@@ -1754,62 +1759,133 @@ await suite('Scenario: task lifecycle with conditional markets', async () => {
   });
 });
 
-await suite('Scenario: admin role promotion via group', async () => {
-  // Tests that adding an agent to the Admin group elevates their role,
-  // and removing them reverts it
+await suite('Scenario: manage capability granted via Admin group', async () => {
+  // Tests that adding a participant to the Admin group grants the `manage`
+  // capability (enforced behaviorally: can create metrics), and removal revokes it.
   let promoAgentId = '';
   let promoAgentKey = '';
 
-  await test('Setup: create an agent with default agent role', async () => {
+  await test('Setup: register a participant (no manage capability by default)', async () => {
     promoAgentId = `promo_${Date.now().toString(36)}`;
     const r = ok(await apiRaw('POST', '/agents/register', { agentId: promoAgentId, workspaceId: ctx.wsId }));
     promoAgentKey = r.apiKey as string;
-    // Verify starts as agent role
-    const me = ok(await agentCall(promoAgentKey, ctx.wsId)('GET', '/agents/me'));
-    expect(me.role).toBe('agent');
   });
 
-  await test('Step 1: agent cannot create metrics (requires admin)', async () => {
+  await test('Step 1: participant cannot create metrics (lacks manage capability)', async () => {
     const r = await agentCall(promoAgentKey, ctx.wsId)('POST', '/metrics', {
       name: `ShouldFail_${Date.now()}`, value: 1,
     });
     expect(r.status).toBe(403);
   });
 
-  await test('Step 2: add agent to Admin group → role becomes admin', async () => {
+  await test('Step 2: add participant to Admin group → gains manage capability', async () => {
     const groups = await adminCall(ctx.wsId)('GET', '/groups');
     const adminGroup = (groups.body as Array<Record<string, unknown>>).find(g => g.name === 'Admin')!;
-    const currentMembers = (adminGroup.agentIds as string[]) ?? [];
+    const currentMembers = (adminGroup.memberIds as string[]) ?? [];
     await adminCall(ctx.wsId)('PUT', `/groups/${adminGroup.id as string}`, {
-      agentIds: [...currentMembers, promoAgentId],
+      memberIds: [...currentMembers, promoAgentId],
     });
-    const me = ok(await agentCall(promoAgentKey, ctx.wsId)('GET', '/agents/me'));
-    expect(me.role).toBe('admin');
   });
 
-  await test('Step 3: now promoted agent can create a metric', async () => {
+  await test('Step 3: now promoted participant can create a metric', async () => {
     const r = ok(await agentCall(promoAgentKey, ctx.wsId)('POST', '/metrics', {
       name: `PromoMetric_${Date.now()}`, value: 1,
     }));
     await adminCall(ctx.wsId)('DELETE', `/metrics/${r.id as string}`);
   });
 
-  await test('Step 4: remove from Admin group → role reverts to agent', async () => {
+  await test('Step 4: remove from Admin group → manage capability revoked', async () => {
     const groups = await adminCall(ctx.wsId)('GET', '/groups');
     const adminGroup = (groups.body as Array<Record<string, unknown>>).find(g => g.name === 'Admin')!;
-    const currentMembers = ((adminGroup.agentIds as string[]) ?? []).filter((id: string) => id !== promoAgentId);
+    const currentMembers = ((adminGroup.memberIds as string[]) ?? []).filter((id: string) => id !== promoAgentId);
     await adminCall(ctx.wsId)('PUT', `/groups/${adminGroup.id as string}`, {
-      agentIds: currentMembers,
+      memberIds: currentMembers,
     });
-    const me = ok(await agentCall(promoAgentKey, ctx.wsId)('GET', '/agents/me'));
-    expect(me.role).toBe('agent');
   });
 
-  await test('Step 5: demoted agent cannot create metrics again (403)', async () => {
+  await test('Step 5: demoted participant cannot create metrics again (403)', async () => {
     const r = await agentCall(promoAgentKey, ctx.wsId)('POST', '/metrics', {
       name: `ShouldFailAgain_${Date.now()}`, value: 1,
     });
     expect(r.status).toBe(403);
+  });
+});
+
+await suite('Scenario: per-group capability editing', async () => {
+  // Verifies the refactored model: group names are labels; capabilities drive authorization.
+  // A custom group can be granted `manage` by editing its capabilities[] array.
+  let customGroupId = '';
+  let capAgentId = '';
+  let capAgentKey = '';
+
+  await test('Setup: register a participant', async () => {
+    capAgentId = `cap_${Date.now().toString(36)}`;
+    const r = ok(await apiRaw('POST', '/agents/register', { agentId: capAgentId, workspaceId: ctx.wsId }));
+    capAgentKey = r.apiKey as string;
+  });
+
+  await test('Create a custom group with no capabilities; member cannot trade or manage', async () => {
+    const g = ok(await adminCall(ctx.wsId)('POST', '/groups', {
+      name: `CapTest_${Date.now()}`, description: 'Capability test group', capabilities: [],
+    }));
+    customGroupId = g.id as string;
+    await adminCall(ctx.wsId)('PUT', `/groups/${customGroupId}`, { memberIds: [capAgentId] });
+
+    const metricR = await agentCall(capAgentKey, ctx.wsId)('POST', '/metrics', {
+      name: `NoCap_${Date.now()}`, value: 1,
+    });
+    expect(metricR.status).toBe(403);
+  });
+
+  await test('Grant manage capability to the custom group → member can now create metrics', async () => {
+    ok(await adminCall(ctx.wsId)('PUT', `/groups/${customGroupId}`, {
+      capabilities: ['read', 'trade', 'manage'],
+    }));
+    const r = ok(await agentCall(capAgentKey, ctx.wsId)('POST', '/metrics', {
+      name: `CapGranted_${Date.now()}`, value: 1,
+    }));
+    await adminCall(ctx.wsId)('DELETE', `/metrics/${r.id as string}`);
+  });
+
+  await test('Revoke manage; keep read+trade → member loses manage but retains read', async () => {
+    ok(await adminCall(ctx.wsId)('PUT', `/groups/${customGroupId}`, {
+      capabilities: ['read', 'trade'],
+    }));
+    const manageR = await agentCall(capAgentKey, ctx.wsId)('POST', '/metrics', {
+      name: `ShouldFail_${Date.now()}`, value: 1,
+    });
+    expect(manageR.status).toBe(403);
+    const readR = await agentCall(capAgentKey, ctx.wsId)('GET', '/metrics');
+    expect(readR.status).toBe(200);
+  });
+
+  await test('Reject invalid capability string', async () => {
+    const r = await adminCall(ctx.wsId)('PUT', `/groups/${customGroupId}`, {
+      capabilities: ['read', 'bogus'],
+    });
+    expect(r.status).toBe(400);
+  });
+
+  await test('System groups cannot be deleted', async () => {
+    const groups = ok(await adminCall(ctx.wsId)('GET', '/groups')) as Array<Record<string, unknown>>;
+    const adminGroup = groups.find(g => g.type === 'admin')!;
+    const r = await adminCall(ctx.wsId)('DELETE', `/groups/${adminGroup.id as string}`);
+    expect(r.status).toBe(400);
+  });
+
+  await test('System groups seed expected default capabilities', async () => {
+    const groups = ok(await adminCall(ctx.wsId)('GET', '/groups')) as Array<Record<string, unknown>>;
+    const pub = groups.find(g => g.type === 'public')!;
+    const trader = groups.find(g => g.type === 'trader')!;
+    const admin = groups.find(g => g.type === 'admin')!;
+    expect((pub.capabilities as string[]).sort().join(',')).toBe('read');
+    expect((trader.capabilities as string[]).sort().join(',')).toBe('read,trade');
+    expect((admin.capabilities as string[]).sort().join(',')).toBe('manage,read,trade');
+  });
+
+  await test('Cleanup: delete custom group', async () => {
+    const r = await adminCall(ctx.wsId)('DELETE', `/groups/${customGroupId}`);
+    expect(r.status).toBeStatus(200, 204);
   });
 });
 
