@@ -66,16 +66,20 @@ agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => 
     await tx.insert(agentApiKeys).values({ hash: keyHash, agentId, workspaceId });
   });
 
-  // Auto-add to workspace Public group (best-effort)
+  // Auto-add to workspace Public and Trader groups (participant symmetry:
+  // registered agents get read+trade by default, matching what a human
+  // user would have after creating their own workspace).
   const { permissionGroups } = await import('../db/schema');
-  const [pubGroup] = await db.select().from(permissionGroups)
-    .where(and(eq(permissionGroups.workspaceId, workspaceId), eq(permissionGroups.type, 'public')));
-  if (pubGroup) {
-    const currentIds = (pubGroup.memberIds as string[]) ?? [];
+  const sysGroups = await db.select().from(permissionGroups)
+    .where(eq(permissionGroups.workspaceId, workspaceId));
+  for (const targetType of ['public', 'trader'] as const) {
+    const group = sysGroups.find(g => g.type === targetType);
+    if (!group) continue;
+    const currentIds = (group.memberIds as string[]) ?? [];
     if (!currentIds.includes(agentId)) {
       await db.update(permissionGroups)
         .set({ memberIds: [...currentIds, agentId] })
-        .where(and(eq(permissionGroups.id, pubGroup.id), eq(permissionGroups.workspaceId, workspaceId)));
+        .where(and(eq(permissionGroups.id, group.id), eq(permissionGroups.workspaceId, workspaceId)));
     }
   }
 
@@ -372,14 +376,14 @@ agentsRouter.post('/:id/spend', requireSelfOrAdmin, wrap(async (req, res) => {
 agentsRouter.post('/:id/credit', requireCapability('manage'), wrap(async (req, res) => {
   const id = resolveRouteAgentId(req);
   if (!id) { res.status(400).json({ error: 'Agent not found' }); return; }
+  const [agent] = await db.select().from(agents).where(eq(agents.id, id));
+  if (!agent) { res.status(404).json({ error: 'Agent not found' }); return; }
   const members = await listParticipantsForWorkspace(req.auth!.workspaceId);
   if (!members.some(m => m.id === id)) { res.status(403).json({ error: 'Agent is not in your workspace' }); return; }
   const { amount, reason = 'admin credit' } = req.body;
   if (typeof amount !== 'number' || amount <= 0) {
     res.status(400).json({ error: 'amount must be a positive number' }); return;
   }
-  const [agent] = await db.select().from(agents).where(eq(agents.id, id));
-  if (!agent) { res.status(404).json({ error: 'Agent not found' }); return; }
   await db.update(agents).set({ balance: sql`${agents.balance} + ${toUnits(amount)}` }).where(eq(agents.id, id));
   const [updated] = await db.select({ balance: agents.balance }).from(agents).where(eq(agents.id, id));
   const newBalance = fromUnits(updated.balance as number);

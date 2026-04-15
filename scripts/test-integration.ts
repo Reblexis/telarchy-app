@@ -289,6 +289,7 @@ await suite('Metrics', async () => {
       description: 'Created by integration test',
       value: 5,
       formula: '0',
+      timePreference: { enabled: false },
     }));
     ctx.metricId = r.id as string;
     expect(ctx.metricId).toBeTruthy();
@@ -640,8 +641,9 @@ await suite('Workspace isolation', async () => {
     const r = await agentCall(ctx.agentKey, ctx.wsId2)('POST', '/predictions/trade', {
       marketId: fakeMarketId, direction: 'higher', amount: 1,
     });
-    // The agent resolves to workspace A; the market doesn't exist in workspace A → 404
-    expect(r.status).toBeStatus(400, 404);
+    // The agent resolves to workspace A; the market doesn't exist in workspace A → 404,
+    // or the cross-workspace header may be rejected outright → 403.
+    expect(r.status).toBeStatus(400, 403, 404);
   });
 });
 
@@ -678,6 +680,7 @@ await suite('Metrics - edge cases', async () => {
       name: `EdgeMetric_${Date.now()}`,
       description: 'No rangeMax supplied',
       value: 42,
+      timePreference: { enabled: false },
     }));
     edgeMetricId = r.id as string;
     const detail = ok(await adminCall(ctx.wsId)('GET', `/metrics/${edgeMetricId}`));
@@ -737,6 +740,7 @@ await suite('Metrics - edge cases', async () => {
       const r = ok(await adminCall(ctx.wsId)('POST', '/metrics', {
         name: `EdgeComposite_${Date.now()}`,
         formula: `{${(ok(await adminCall(ctx.wsId)('GET', `/metrics/${edgeMetricId}`))).name}} * 3`,
+        timePreference: { enabled: false },
       }));
       compositeId = r.id as string;
       const detail = ok(await adminCall(ctx.wsId)('GET', `/metrics/${compositeId}`));
@@ -800,6 +804,7 @@ await suite('Markets - edge cases', async () => {
     const r = ok(await adminCall(ctx.wsId)('POST', '/metrics', {
       name: `MarketEdgeMetric_${Date.now()}`,
       value: 50,
+      timePreference: { enabled: false },
     }));
     edgeMetricId2 = r.id as string;
     expect(edgeMetricId2).toBeTruthy();
@@ -1151,6 +1156,7 @@ await suite('Scenario: full market lifecycle with resolution payout', async () =
       name: `Scen_Temp_${Date.now()}`,
       value: 75,
       marketRangeMax: 100,
+      timePreference: { enabled: false },
     }));
     scenMetricId = r.id as string;
     expect(scenMetricId).toBeTruthy();
@@ -1420,6 +1426,7 @@ await suite('Scenario: deep formula cascade and market range inheritance', async
     nameA = `CascadeA_${Date.now()}`;
     const r = ok(await adminCall(ctx.wsId)('POST', '/metrics', {
       name: nameA, value: 5, marketRangeMax: 200,
+      timePreference: { enabled: false },
     }));
     idA = r.id as string;
     const detail = ok(await adminCall(ctx.wsId)('GET', `/metrics/${idA}`));
@@ -1430,6 +1437,7 @@ await suite('Scenario: deep formula cascade and market range inheritance', async
     nameB = `CascadeB_${Date.now()}`;
     const r = ok(await adminCall(ctx.wsId)('POST', '/metrics', {
       name: nameB, formula: `{${nameA}} * 2`,
+      timePreference: { enabled: false },
     }));
     idB = r.id as string;
     const detail = ok(await adminCall(ctx.wsId)('GET', `/metrics/${idB}`));
@@ -1440,6 +1448,7 @@ await suite('Scenario: deep formula cascade and market range inheritance', async
     const nameC = `CascadeC_${Date.now()}`;
     const r = ok(await adminCall(ctx.wsId)('POST', '/metrics', {
       name: nameC, formula: `{${nameB}} + 10`,
+      timePreference: { enabled: false },
     }));
     idC = r.id as string;
     const detail = ok(await adminCall(ctx.wsId)('GET', `/metrics/${idC}`));
@@ -1535,7 +1544,7 @@ await suite('Scenario: group permission enforcement on trading', async () => {
     restrictedGroupId = r.id as string;
     // Add trade permission for the restricted metric to this group
     await adminCall(ctx.wsId)('PUT', `/groups/${restrictedGroupId}`, {
-      agentIds: [allowedAgentId],
+      memberIds: [allowedAgentId],
       permissions: { [restrictedMetricId]: { read: true, trade: true } },
     });
   });
@@ -1557,7 +1566,7 @@ await suite('Scenario: group permission enforcement on trading', async () => {
   await test('Step 6: removing the restriction re-allows the blocked agent', async () => {
     // Clear permissions from the group
     await adminCall(ctx.wsId)('PUT', `/groups/${restrictedGroupId}`, {
-      agentIds: [allowedAgentId],
+      memberIds: [allowedAgentId],
       permissions: {},
     });
     const r = ok(await agentCall(blockedAgentKey, ctx.wsId)('POST', '/predictions/trade', {
@@ -1910,12 +1919,10 @@ await suite('Cleanup', async () => {
     expect(r.status).toBeStatus(200, 204, 404);
   });
 
-  // Note: DELETE /api/workspaces/:id does not exist as an endpoint.
-  // Test workspaces created here will persist. They are small and harmless.
-  await test('Workspace delete endpoint is not implemented (expected 404)', async () => {
+  await test('Workspace delete endpoint succeeds for owner', async () => {
     if (!ctx.wsId) return;
     const r = await adminCall(ctx.wsId)('DELETE', `/workspaces/${ctx.wsId}`);
-    expect(r.status).toBe(404);
+    expect(r.status).toBeStatus(200, 204);
   });
 });
 

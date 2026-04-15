@@ -68,23 +68,27 @@ workspacesRouter.get('/', requireIdentity, wrap(async (req, res) => {
 
 workspacesRouter.get('/:id/stats', requireIdentity, wrap(async (req, res) => {
   const wsId = req.params.id as string;
-  const memberships = await getAuthWorkspaceMemberships(req.auth!);
-  if (!memberships.some(m => m.workspaceId === wsId)) {
-    res.status(403).json({ error: 'Not a member of this workspace' }); return;
-  }
   const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, wsId));
   if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
+  if (!req.auth!.isMasterKey) {
+    const memberships = await getAuthWorkspaceMemberships(req.auth!);
+    if (!memberships.some(m => m.workspaceId === wsId)) {
+      res.status(403).json({ error: 'Not a member of this workspace' }); return;
+    }
+  }
   res.json({ tradedVolume: ws.tradedVolume ?? 0 });
 }));
 
 workspacesRouter.get('/:id', requireIdentity, wrap(async (req, res) => {
   const wsId = req.params.id as string;
-  const memberships = await getAuthWorkspaceMemberships(req.auth!);
-  if (!memberships.some(m => m.workspaceId === wsId)) {
-    res.status(403).json({ error: 'Not a member of this workspace' }); return;
-  }
   const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, wsId));
   if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
+  if (!req.auth!.isMasterKey) {
+    const memberships = await getAuthWorkspaceMemberships(req.auth!);
+    if (!memberships.some(m => m.workspaceId === wsId)) {
+      res.status(403).json({ error: 'Not a member of this workspace' }); return;
+    }
+  }
   res.json(ws);
 }));
 
