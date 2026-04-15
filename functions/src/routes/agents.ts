@@ -339,7 +339,7 @@ agentsRouter.get('/', requireCapability('manage'), wrap(async (_req, res) => {
     return {
       ...data,
       balance: fromUnits(data.balance as number),
-      realizedPnl: Math.round((realizedPnl.get(a.id) ?? 0) * 100) / 100,
+      realizedPnl: realizedPnl.get(a.id) ?? 0,
     };
   }));
 }));

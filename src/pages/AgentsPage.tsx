@@ -514,14 +514,14 @@ function AgentAdminPage({ user, workspace }: {
                           )}
                         </div>
                       </td>
-                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace' }}>${agent.balance}</td>
-                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--success-text)' }}>${agent.earnedBetting}</td>
-                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--error-text)' }}>${agent.spentBetting}</td>
+                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace' }}>${fmt9(agent.balance)}</td>
+                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--success-text)' }}>${fmt9(agent.earnedBetting)}</td>
+                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--error-text)' }}>${fmt9(agent.spentBetting)}</td>
                       <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: agent.earnedBetting - agent.spentBetting >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>
-                        {agent.earnedBetting - agent.spentBetting >= 0 ? '+$' : '-$'}{Math.abs(agent.earnedBetting - agent.spentBetting)}
+                        {agent.earnedBetting - agent.spentBetting >= 0 ? '+$' : '-$'}{fmt9(Math.abs(agent.earnedBetting - agent.spentBetting))}
                       </td>
                       <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: (agent.realizedPnl ?? 0) >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>
-                        {(agent.realizedPnl ?? 0) >= 0 ? '+$' : '-$'}{Math.abs(agent.realizedPnl ?? 0).toFixed(2)}
+                        {(agent.realizedPnl ?? 0) >= 0 ? '+$' : '-$'}{fmt9(Math.abs(agent.realizedPnl ?? 0))}
                       </td>
                     </tr>
                     {isExpanded && (
