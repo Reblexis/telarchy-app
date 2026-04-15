@@ -5,7 +5,8 @@ import { db } from '../db/client';
 import { agents, agentApiKeys } from '../db/schema';
 import { auth } from '../auth';
 import { eq } from 'drizzle-orm';
-import type { AgentRole, AuthInfo, WorkspaceMemberRole } from '../types';
+import type { AuthInfo, WorkspaceMemberRole } from '../types';
+import { computeCapabilities } from './capabilities';
 import {
   getParticipantWorkspaceMemberships,
   getUserWorkspaceMemberships as getUserWorkspaceMembershipsForParticipant,
@@ -31,13 +32,6 @@ function safeCompare(a: string, b: string): boolean {
   }
 }
 
-function memberRoleToAuthRole(memberRole: WorkspaceMemberRole | null): AgentRole {
-  if (memberRole === 'owner' || memberRole === 'admin') return 'admin';
-  if (memberRole === 'trader') return 'agent';
-  if (memberRole === 'viewer') return 'member';
-  return 'pending';
-}
-
 const ROLE_PRIORITY: WorkspaceMemberRole[] = ['owner', 'admin', 'trader', 'viewer'];
 
 export interface WorkspaceMembership {
@@ -50,8 +44,6 @@ export async function getAgentWorkspaceMemberships(agentId: string): Promise<Wor
 }
 
 export async function getUserWorkspaceMemberships(userId: string, _linkedAgentId?: string): Promise<WorkspaceMembership[]> {
-  // Always use the participant-based lookup which resolves the agent internally
-  // and includes ownership-based memberships (workspaces where createdBy matches).
   return getUserWorkspaceMembershipsFromParticipant(userId);
 }
 
@@ -71,33 +63,30 @@ async function getUserWorkspaceMembershipsFromParticipant(userId: string): Promi
 async function resolveUser(
   userId: string,
   requestedWorkspaceId?: string,
-): Promise<{ workspaceId: string; memberRole: WorkspaceMemberRole | null; agentId?: string } | null> {
+): Promise<{ workspaceId: string; agentId?: string } | null> {
   const [agentRow] = await db.select({ id: agents.id, platformAdmin: agents.platformAdmin })
     .from(agents).where(eq(agents.authUserId, userId));
   const agentId = agentRow?.id ?? undefined;
   const isPlatformAdmin = agentRow?.platformAdmin === true;
 
   if (isPlatformAdmin && requestedWorkspaceId) {
-    return { workspaceId: requestedWorkspaceId, memberRole: 'owner', agentId };
+    return { workspaceId: requestedWorkspaceId, agentId };
   }
 
   const memberships = await getUserWorkspaceMemberships(userId, agentId);
-
-  if (memberships.length === 0) {
-    return null;
-  }
+  if (memberships.length === 0) return null;
 
   if (requestedWorkspaceId) {
     const membership = memberships.find(m => m.workspaceId === requestedWorkspaceId);
     if (!membership) return null;
-    return { workspaceId: requestedWorkspaceId, memberRole: membership.memberRole, agentId };
+    return { workspaceId: requestedWorkspaceId, agentId };
   }
 
   memberships.sort((a, b) =>
     ROLE_PRIORITY.indexOf(a.memberRole) -
     ROLE_PRIORITY.indexOf(b.memberRole),
   );
-  return { workspaceId: memberships[0].workspaceId, memberRole: memberships[0].memberRole, agentId };
+  return { workspaceId: memberships[0].workspaceId, agentId };
 }
 
 async function resolveAgentWorkspace(
@@ -117,7 +106,11 @@ export async function optionalAuthMiddleware(req: Request, _res: Response, next:
   if (apiKey && masterKey && safeCompare(apiKey, masterKey)) {
     const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
     if (!requestedWorkspaceId) return next();
-    req.auth = { role: 'admin', workspaceId: requestedWorkspaceId };
+    req.auth = {
+      capabilities: await computeCapabilities({ workspaceId: requestedWorkspaceId, isMasterKey: true }),
+      workspaceId: requestedWorkspaceId,
+      isMasterKey: true,
+    };
     return next();
   }
 
@@ -127,7 +120,11 @@ export async function optionalAuthMiddleware(req: Request, _res: Response, next:
     const result = await resolveUser(session.user.id, requestedWorkspaceId);
     if (result !== null) {
       req.auth = {
-        role: memberRoleToAuthRole(result.memberRole),
+        capabilities: await computeCapabilities({
+          workspaceId: result.workspaceId,
+          uid: session.user.id,
+          agentId: result.agentId,
+        }),
         workspaceId: result.workspaceId,
         uid: session.user.id,
         agentId: result.agentId,
@@ -135,20 +132,24 @@ export async function optionalAuthMiddleware(req: Request, _res: Response, next:
     } else {
       // New user with no workspaces yet; set minimal auth so ensureParticipant
       // can run on /me and provision the first workspace.
-      req.auth = { role: 'pending', workspaceId: '', uid: session.user.id };
+      req.auth = { capabilities: new Set(), workspaceId: '', uid: session.user.id };
     }
   }
   return next();
 }
 
 export async function authMiddleware(req: Request, res: Response, next: NextFunction) {
-  // 1. Master API key → admin, requires X-Workspace-Id
+  // 1. Master API key → all capabilities, requires X-Workspace-Id
   const apiKey = req.headers['x-api-key'] as string | undefined;
   const masterKey = process.env.API_KEY;
   if (apiKey && masterKey && safeCompare(apiKey, masterKey)) {
     const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
     if (!requestedWorkspaceId) return res.status(400).json({ error: 'X-Workspace-Id header is required' });
-    req.auth = { role: 'admin', workspaceId: requestedWorkspaceId };
+    req.auth = {
+      capabilities: await computeCapabilities({ workspaceId: requestedWorkspaceId, isMasterKey: true }),
+      workspaceId: requestedWorkspaceId,
+      isMasterKey: true,
+    };
     return next();
   }
 
@@ -158,13 +159,14 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
     const result = await resolveUser(session.user.id, requestedWorkspaceId);
     if (result === null) {
-      // New user with no workspaces yet; set minimal auth so workspace creation
-      // and profile endpoints can run. Route-level guards (requireRole, etc.)
-      // still enforce actual permissions.
-      req.auth = { role: 'pending', workspaceId: '', uid: session.user.id };
+      req.auth = { capabilities: new Set(), workspaceId: '', uid: session.user.id };
     } else {
       req.auth = {
-        role: memberRoleToAuthRole(result.memberRole),
+        capabilities: await computeCapabilities({
+          workspaceId: result.workspaceId,
+          uid: session.user.id,
+          agentId: result.agentId,
+        }),
         workspaceId: result.workspaceId,
         uid: session.user.id,
         agentId: result.agentId,
@@ -194,7 +196,14 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     if (!membership) {
       return res.status(403).json({ error: 'Agent is not a member of the specified workspace' });
     }
-    req.auth = { role: memberRoleToAuthRole(membership.memberRole), agentId, workspaceId: membership.workspaceId };
+    req.auth = {
+      capabilities: await computeCapabilities({
+        workspaceId: membership.workspaceId,
+        agentId,
+      }),
+      agentId,
+      workspaceId: membership.workspaceId,
+    };
     return next();
   }
 

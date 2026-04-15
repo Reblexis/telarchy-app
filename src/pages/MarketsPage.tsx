@@ -186,9 +186,11 @@ export function MarketsPage() {
                       </td>
                       <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'monospace' }}>
                         {formatTargetDateDisplay(m.targetDate)}
-                        <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', color: formatTimeRemaining(m.targetDate) === 'expired' ? 'var(--delete-color, #ef4444)' : 'var(--text-secondary)', opacity: 0.8 }}>
-                          {formatTimeRemaining(m.targetDate)}
-                        </span>
+                        {m.status === 'open' && (
+                          <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', color: formatTimeRemaining(m.targetDate) === 'expired' ? 'var(--delete-color, #ef4444)' : 'var(--text-secondary)', opacity: 0.8 }}>
+                            {formatTimeRemaining(m.targetDate)}
+                          </span>
+                        )}
                       </td>
                       <td style={{ padding: '0.75rem 0.5rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

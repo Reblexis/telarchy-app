@@ -4,13 +4,21 @@ import { permissionGroups } from '../db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
-import { requireRole } from '../middleware/roles';
-import type { MetricPermission, VaultPermission, PermissionGroupType } from '../types';
+import { requireCapability } from '../middleware/roles';
+import type { Capability, MetricPermission, VaultPermission, PermissionGroupType } from '../types';
 import { getGroupMemberIds } from '../lib/participants';
 
 export const groupsRouter = Router();
 
 const SYSTEM_GROUP_TYPES: PermissionGroupType[] = ['public', 'admin', 'trader'];
+
+/** Default capability presets for the three system group types. Group names are only labels;
+ *  these presets are what actually grants access. Admins may edit Trader/Public/Custom capabilities. */
+export const SYSTEM_GROUP_CAPABILITIES: Record<'public' | 'admin' | 'trader', Capability[]> = {
+  public: ['read'],
+  admin: ['read', 'trade', 'manage'],
+  trader: ['read', 'trade'],
+};
 
 async function ensureSystemGroups(workspaceId: string): Promise<void> {
   const existing = await db.select({ type: permissionGroups.type }).from(permissionGroups)
@@ -22,27 +30,40 @@ async function ensureSystemGroups(workspaceId: string): Promise<void> {
     toInsert.push({
       id: randomUUID(), workspaceId, name: 'Public', type: 'public',
       description: 'Participants explicitly added to this workspace.',
-      memberIds: [], permissions: {}, createdAt: new Date(),
+      memberIds: [], permissions: {}, capabilities: SYSTEM_GROUP_CAPABILITIES.public, createdAt: new Date(),
     });
   }
   if (!existingTypes.has('admin')) {
     toInsert.push({
       id: randomUUID(), workspaceId, name: 'Admin', type: 'admin',
       description: 'Participants with full administrative access to this workspace.',
-      memberIds: [], permissions: {}, createdAt: new Date(),
+      memberIds: [], permissions: {}, capabilities: SYSTEM_GROUP_CAPABILITIES.admin, createdAt: new Date(),
     });
   }
   if (!existingTypes.has('trader')) {
     toInsert.push({
       id: randomUUID(), workspaceId, name: 'Trader', type: 'trader',
       description: 'Participants who can view metrics and trade on all markets.',
-      memberIds: [], permissions: {}, createdAt: new Date(),
+      memberIds: [], permissions: {}, capabilities: SYSTEM_GROUP_CAPABILITIES.trader, createdAt: new Date(),
     });
   }
   if (toInsert.length > 0) await db.insert(permissionGroups).values(toInsert);
 }
 
-groupsRouter.get('/', requireRole('agent', 'admin'), wrap(async (req, res) => {
+const VALID_CAPS = new Set<Capability>(['read', 'trade', 'manage']);
+function parseCapabilities(input: unknown): { ok: true; value: Capability[] } | { ok: false; error: string } {
+  if (!Array.isArray(input)) return { ok: false, error: 'capabilities must be an array of strings' };
+  const result: Capability[] = [];
+  for (const v of input) {
+    if (typeof v !== 'string' || !VALID_CAPS.has(v as Capability)) {
+      return { ok: false, error: `capabilities contains invalid entry "${String(v)}"; allowed: read, trade, manage` };
+    }
+    if (!result.includes(v as Capability)) result.push(v as Capability);
+  }
+  return { ok: true, value: result };
+}
+
+groupsRouter.get('/', requireCapability('read'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   await ensureSystemGroups(workspaceId);
   const rows = await db.select().from(permissionGroups)
@@ -51,11 +72,18 @@ groupsRouter.get('/', requireRole('agent', 'admin'), wrap(async (req, res) => {
   res.json(rows.map(row => ({ ...row, memberIds: getGroupMemberIds(row) })));
 }));
 
-groupsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
+groupsRouter.post('/', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const { name, description = '' } = req.body;
   if (!name || typeof name !== 'string' || !name.trim()) {
     res.status(400).json({ error: 'name is required' }); return;
+  }
+
+  let capabilities: Capability[] = [];
+  if (req.body.capabilities !== undefined) {
+    const parsed = parseCapabilities(req.body.capabilities);
+    if (!parsed.ok) { res.status(400).json({ error: parsed.error }); return; }
+    capabilities = parsed.value;
   }
 
   const id = randomUUID();
@@ -64,12 +92,12 @@ groupsRouter.post('/', requireRole('admin'), wrap(async (req, res) => {
     name: name.trim(),
     type: 'custom',
     description: typeof description === 'string' ? description.trim() : '',
-    memberIds: [], permissions: {}, createdAt: new Date(),
+    memberIds: [], permissions: {}, capabilities, createdAt: new Date(),
   });
-  res.status(201).json({ id, name: name.trim(), type: 'custom', description, memberIds: [], permissions: {}, vaultPermissions: {} });
+  res.status(201).json({ id, name: name.trim(), type: 'custom', description, memberIds: [], permissions: {}, vaultPermissions: {}, capabilities });
 }));
 
-groupsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
+groupsRouter.put('/:id', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const groupId = req.params.id as string;
 
@@ -141,7 +169,7 @@ groupsRouter.put('/:id', requireRole('admin'), wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
-groupsRouter.delete('/:id', requireRole('admin'), wrap(async (req, res) => {
+groupsRouter.delete('/:id', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const groupId = req.params.id as string;
 

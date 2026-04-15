@@ -290,6 +290,8 @@ export const permissionGroups = pgTable('permission_groups', {
   permissions: jsonb('permissions').notNull().$type<Record<string, { read: boolean; trade: boolean }>>().default({}),
   /** vaultId → { read: boolean } */
   vaultPermissions: jsonb('vault_permissions').notNull().$type<Record<string, { read: boolean }>>().default({}),
+  /** Capabilities granted to every member of this group: subset of 'read' | 'trade' | 'manage'. */
+  capabilities: jsonb('capabilities').notNull().$type<string[]>().default([]),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
 

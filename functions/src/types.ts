@@ -33,12 +33,16 @@ export interface UpdateEntry {
   timestamp: Date;
 }
 
-export type AgentRole = 'admin' | 'agent' | 'member' | 'pending';
+/**
+ * Atomic permissions granted to a participant (via union of their groups' capabilities).
+ * Group names/types are just labels — they do not directly grant access. Capabilities do.
+ */
+export type Capability = 'read' | 'trade' | 'manage';
+export const ALL_CAPABILITIES: Capability[] = ['read', 'trade', 'manage'];
 
 export interface Agent {
   id: string;
   apiKeyHash: string;
-  role: AgentRole;
   authUserId?: string | null;
   balance: number;
   earnedBetting: number;
@@ -118,13 +122,17 @@ export interface Trade {
 }
 
 export interface AuthInfo {
-  role: AgentRole | 'admin';
+  /** Union of capabilities granted by all permission groups the caller belongs to
+   *  in the active workspace. Master API key receives all capabilities. */
+  capabilities: Set<Capability>;
   /** Canonical participant identity, stored in the agents table. */
   agentId?: string;
   /** Always set. Determined by auth context (session, API key, or agent key). */
   workspaceId: string;
   /** BetterAuth user ID, set when authenticated via browser session. */
   uid?: string;
+  /** True when authenticated via the master API key (no real identity). */
+  isMasterKey?: boolean;
 }
 
 export type WorkspaceVisibility = 'public' | 'unlisted' | 'private';
@@ -174,6 +182,8 @@ export interface PermissionGroup {
   permissions: Record<string, MetricPermission>;
   /** vaultId → permissions */
   vaultPermissions: Record<string, VaultPermission>;
+  /** Capabilities granted to all members of this group. */
+  capabilities: Capability[];
 }
 
 export interface Vault {
