@@ -389,8 +389,8 @@ predictionsRouter.get('/markets/:id/context', requireCapability('read'), wrap(as
       consensus: consensus(shares, market.liquidity, market.rangeMin, market.rangeMax) ?? null,
     },
     metric: metric ? {
-      name: metric.name, formula: metric.formula, currentValue: metric.value, currentTotal: metric.total,
-      dependencies: depValues,
+      name: metric.name, description: metric.description || undefined, formula: metric.formula,
+      currentValue: metric.value, currentTotal: metric.total, dependencies: depValues,
     } : null,
     history: logs.slice(-historyLimit).map(l => ({ value: l.value, timestamp: l.timestamp })),
     recentUpdates: metricUpdates.slice(0, updatesLimit).map(u => ({
