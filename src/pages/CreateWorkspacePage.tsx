@@ -6,12 +6,6 @@ import { useAuth } from '../hooks/useAuth';
 
 type TemplateId = 'startup' | 'personal' | 'blank';
 
-const TEMPLATES: { id: TemplateId; label: string }[] = [
-  { id: 'startup', label: 'Startup' },
-  { id: 'personal', label: 'Personal' },
-  { id: 'blank', label: 'Blank' },
-];
-
 export function CreateWorkspacePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -56,20 +50,24 @@ export function CreateWorkspacePage() {
   );
 
   if (step === 'template') {
+    const pick = (id: TemplateId) => { setSelected(id); setStep('name'); };
     return (
       <>
         {nav}
         <div className="login-page">
           <div className="container" style={{ maxWidth: 360 }}>
-            <h1>What are you tracking?</h1>
+            <h1>What do you want to improve?</h1>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1.5rem' }}>
-              {TEMPLATES.map(t => (
+              {([
+                { id: 'startup' as const, label: 'My startup' },
+                { id: 'personal' as const, label: 'My life' },
+              ]).map(t => (
                 <div
                   key={t.id}
                   role="button"
                   tabIndex={0}
-                  onClick={() => { setSelected(t.id); setStep('name'); }}
-                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(t.id); setStep('name'); } }}
+                  onClick={() => pick(t.id)}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(t.id); } }}
                   style={{
                     padding: '0.75rem 1rem',
                     borderRadius: '0.5rem',
@@ -87,6 +85,17 @@ export function CreateWorkspacePage() {
                   {t.label}
                 </div>
               ))}
+            </div>
+            <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={() => pick('blank')}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick('blank'); } }}
+                style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                or start from scratch
+              </span>
             </div>
           </div>
         </div>
