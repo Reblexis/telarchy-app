@@ -134,6 +134,31 @@ export async function optionalAuthMiddleware(req: Request, _res: Response, next:
       // can run on /me and provision the first workspace.
       req.auth = { capabilities: new Set(), workspaceId: '', uid: session.user.id };
     }
+    return next();
+  }
+
+  // 3. Agent API key
+  const agentKey = req.headers['x-agent-key'] as string | undefined;
+  if (agentKey) {
+    const hash = hashKey(agentKey);
+    const [keyRecord] = await db.select().from(agentApiKeys).where(eq(agentApiKeys.hash, hash));
+    if (!keyRecord) return next(); // optional: don't reject, just pass through unauthenticated
+    const { agentId } = keyRecord;
+    const keyWorkspaceId = keyRecord.workspaceId;
+    if (agentId && keyWorkspaceId) {
+      const [agent] = await db.select().from(agents).where(eq(agents.id, agentId));
+      if (agent) {
+        const effectiveWorkspaceId = (req.headers['x-workspace-id'] as string | undefined) ?? keyWorkspaceId;
+        const membership = await resolveAgentWorkspace(agentId, effectiveWorkspaceId);
+        if (membership) {
+          req.auth = {
+            capabilities: await computeCapabilities({ workspaceId: membership.workspaceId, agentId }),
+            agentId,
+            workspaceId: membership.workspaceId,
+          };
+        }
+      }
+    }
   }
   return next();
 }

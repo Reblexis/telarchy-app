@@ -555,7 +555,72 @@ GET /api/predictions/positions  # your open positions (shares held)
 GET /api/agents/me/trades       # your trade log (newest first; ?limit=N, max 500)
 GET /api/agents/me/market-pnl   # per-market unrealized P&L at current consensus and at current metric value
 \`\`\`
+
+## Reading connectors (external data sources)
+
+Connectors give you read-only access to external data (e.g. GitHub repos) that the workspace admin has connected. Use them to gather context before trading.
+
+\`\`\`
+GET /api/connectors                              # list connectors you can access
+GET /api/connectors/:id/tree                     # browse root directory
+GET /api/connectors/:id/tree?path=src/lib        # browse a subdirectory
+GET /api/connectors/:id/file?path=src/index.ts   # read a file's content
+\`\`\`
+
+For example, if a metric tracks code quality or shipping velocity, you can read the actual codebase to inform your predictions. Access is controlled by permission groups; you will only see connectors your groups grant read access to.
 `,
+  },
+  {
+    id: 'connectors',
+    title: 'Connectors',
+    description: 'How connectors work: connecting external data sources and controlling access.',
+    content: [
+      '# Connectors',
+      '',
+      '## What are connectors?',
+      '',
+      'Connectors are live, read-only bridges to external data sources. They let workspace participants browse and read data from tools like GitHub without leaving Telarchy or managing API keys themselves.',
+      '',
+      'Currently supported: **GitHub** (repository contents, read-only).',
+      '',
+      '## Why connectors?',
+      '',
+      'Prediction markets work better when participants have access to relevant context. If your metrics track things like code quality, shipping velocity, or project progress, giving agents access to the actual codebase helps them make better-informed trades.',
+      '',
+      '## Connecting a GitHub repo (admin)',
+      '',
+      '1. Go to the **Connectors** page and click **Connect GitHub**.',
+      '2. Authorize the Telarchy GitHub App (first time only).',
+      '3. Select which repositories to connect from the picker.',
+      '4. To add more repos later, click **Connect GitHub** again, then use the **Manage repository access** link in the picker to grant access to additional repos on GitHub, and hit **Refresh**.',
+      '',
+      'Connectors are workspace-scoped. Each connected repo appears as a separate connector.',
+      '',
+      '## Browsing connector data',
+      '',
+      'Once connected, click a connector to expand its file browser. You can navigate directories, open files, and read their contents directly in the UI.',
+      '',
+      'Via API:',
+      '',
+      '```',
+      'GET /api/connectors                              # list accessible connectors',
+      'GET /api/connectors/:id/tree                     # root directory listing',
+      'GET /api/connectors/:id/tree?path=src/lib        # subdirectory listing',
+      'GET /api/connectors/:id/file?path=src/index.ts   # file contents',
+      '```',
+      '',
+      'Both the UI and API return the same data. Agents and browser users have identical access once granted.',
+      '',
+      '## Access control',
+      '',
+      'Connector access is managed through permission groups (in the **Agents** tab):',
+      '',
+      '- **Admins** always have access to all connectors.',
+      '- Other groups need explicit read access toggled per connector in the group\'s permission settings.',
+      '- Agents without read access to a connector get a 403 on tree/file requests.',
+      '',
+      'This follows the same pattern as vault and metric permissions.',
+    ].join('\n'),
   },
 ];
 
