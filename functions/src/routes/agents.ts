@@ -178,12 +178,16 @@ agentsRouter.get('/:id/market-pnl', requireSelfOrAdmin, wrap(async (req, res) =>
   ]);
   const metricMap = new Map(allMetrics.map(m => [m.id, m]));
 
+  // Exclude voided markets: their trade costs were refunded via position
+  // totalCost (not recorded as trades), so netCash from trades alone is wrong.
+  const nonVoidedMarkets = marketRows.filter(m => !m.voided);
+
   const cashByMarket = new Map<string, number>();
   for (const t of tradeRows) {
     cashByMarket.set(t.marketId, (cashByMarket.get(t.marketId) ?? 0) - t.cost);
   }
 
-  const result = marketRows.map(m => {
+  const result = nonVoidedMarkets.map(m => {
     const netCash = cashByMarket.get(m.id) ?? 0;
     const mktShares = (m.shares as [number, number]) || [0, 0];
     const b = m.liquidity;
@@ -334,13 +338,14 @@ agentsRouter.get('/', requireCapability('manage'), wrap(async (_req, res) => {
     }
   }
 
-  // Aggregate per-agent PnL @ consensus and PnL @ metric across every market
-  // the agent has traded or still holds a position on (open + resolved +
-  // voided). Mirrors the per-market endpoint.
+  // Aggregate per-agent PnL @ consensus and PnL @ metric across every
+  // non-voided market the agent has traded or holds positions on.
+  // Voided markets are excluded: their trade costs were refunded via position
+  // totalCost (not recorded as trades), so summing trades alone is incorrect.
   const pnlConsensusByAgent = new Map<string, number>();
   const pnlMetricByAgent = new Map<string, number>();
   const [allMarkets, allMetricsList, allTrades, allPositions] = await Promise.all([
-    db.select().from(markets).where(eq(markets.workspaceId, workspaceId)),
+    db.select().from(markets).where(and(eq(markets.workspaceId, workspaceId), eq(markets.voided, false))),
     getAllMetrics(workspaceId),
     db.select({ agentId: trades.agentId, marketId: trades.marketId, cost: trades.cost }).from(trades)
       .where(eq(trades.workspaceId, workspaceId)),
@@ -350,11 +355,12 @@ agentsRouter.get('/', requireCapability('manage'), wrap(async (_req, res) => {
   const marketById = new Map(allMarkets.map(m => [m.id, m]));
   const metricById = new Map(allMetricsList.map(m => [m.id, m]));
 
-  // Net cash per (agent, market). Voided markets still net to zero (trades +
-  // refund), so leaving them in is safe and avoids a refund lookup.
+  // Net cash per (agent, market), excluding voided markets.
+  const nonVoidedMarketIds = new Set(allMarkets.map(m => m.id));
   const cashKey = (a: string, mId: string) => `${a}\u0000${mId}`;
   const netCashBy = new Map<string, number>();
   for (const t of allTrades) {
+    if (!nonVoidedMarketIds.has(t.marketId)) continue;
     const k = cashKey(t.agentId, t.marketId);
     netCashBy.set(k, (netCashBy.get(k) ?? 0) - t.cost);
   }
