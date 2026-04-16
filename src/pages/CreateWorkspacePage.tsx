@@ -16,7 +16,8 @@ export function CreateWorkspacePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [selected, setSelected] = useState<TemplateId>('startup');
+  const [step, setStep] = useState<'template' | 'name'>('template');
+  const [selected, setSelected] = useState<TemplateId | null>(null);
   const [name, setName] = useState('');
   const [revenueRangeMax, setRevenueRangeMax] = useState<number>(100000);
   const [error, setError] = useState('');
@@ -24,7 +25,7 @@ export function CreateWorkspacePage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !selected) return;
     setError('');
     setSubmitting(true);
 
@@ -43,66 +44,85 @@ export function CreateWorkspacePage() {
     }
   };
 
+  const nav = (
+    <nav style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '1rem 2rem', borderBottom: '1px solid var(--border-color)',
+    }}>
+      <Link to="/" style={{ fontWeight: 700, fontSize: '1rem', textDecoration: 'none', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+        Telarchy
+      </Link>
+      <Link to="/" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textDecoration: 'none' }}>
+        ← Back
+      </Link>
+    </nav>
+  );
+
+  if (step === 'template') {
+    return (
+      <>
+        {nav}
+        <div className="login-page">
+          <div className="container" style={{ maxWidth: 360 }}>
+            <h1>What are you tracking?</h1>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1.5rem' }}>
+              {TEMPLATES.map(t => (
+                <div
+                  key={t.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => { setSelected(t.id); setStep('name'); }}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(t.id); setStep('name'); } }}
+                  style={{
+                    padding: '0.75rem 1rem',
+                    borderRadius: '0.5rem',
+                    fontSize: '0.95rem',
+                    cursor: 'pointer',
+                    border: '1px solid var(--border-color)',
+                    background: 'var(--bg-primary)',
+                    color: 'var(--text-primary)',
+                    textAlign: 'center',
+                    transition: 'border-color 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--focus-border)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-color)'; }}
+                >
+                  {t.label}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
-      <nav style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '1rem 2rem', borderBottom: '1px solid var(--border-color)',
-      }}>
-        <Link to="/" style={{ fontWeight: 700, fontSize: '1rem', textDecoration: 'none', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-          Telarchy
-        </Link>
-        <Link to="/" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textDecoration: 'none' }}>
-          ← Back
-        </Link>
-      </nav>
-
+      {nav}
       <div className="login-page">
-        <div className="container" style={{ maxWidth: 420 }}>
-          <h1>Create workspace</h1>
+        <div className="container" style={{ maxWidth: 400 }}>
+          <button
+            type="button"
+            onClick={() => setStep('template')}
+            style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.82rem', padding: 0, marginBottom: '1rem' }}
+          >
+            ← Back
+          </button>
+          <h1>Name your workspace</h1>
 
           <form onSubmit={handleSubmit}>
             <div className="form-group">
-              <label htmlFor="ws-name">Name</label>
               <input
                 type="text"
                 id="ws-name"
                 required
+                autoFocus
                 maxLength={80}
                 placeholder="e.g. Moonshot Labs"
                 value={name}
                 onChange={e => setName(e.target.value)}
               />
-            </div>
-
-            <div className="form-group">
-              <label>Template</label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                {TEMPLATES.map(t => (
-                  <div
-                    key={t.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setSelected(t.id)}
-                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(t.id); } }}
-                    style={{
-                      flex: 1,
-                      textAlign: 'center',
-                      padding: '0.5rem 0.75rem',
-                      borderRadius: '0.5rem',
-                      fontSize: '0.875rem',
-                      cursor: 'pointer',
-                      border: `1px solid ${selected === t.id ? 'var(--focus-border)' : 'var(--border-color)'}`,
-                      background: selected === t.id ? 'var(--bg-secondary)' : 'var(--bg-primary)',
-                      color: selected === t.id ? 'var(--text-primary)' : 'var(--text-secondary)',
-                      fontWeight: selected === t.id ? 600 : 400,
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    {t.label}
-                  </div>
-                ))}
-              </div>
             </div>
 
             {selected === 'startup' && (
