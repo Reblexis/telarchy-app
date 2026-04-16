@@ -1,5 +1,5 @@
 import { useState, FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { api, setActiveWorkspace } from '../lib/api';
 import { clearCache } from '../lib/cache';
 import { useAuth } from '../hooks/useAuth';
@@ -7,7 +7,6 @@ import { useAuth } from '../hooks/useAuth';
 type TemplateId = 'startup' | 'personal' | 'blank';
 
 export function CreateWorkspacePage() {
-  const navigate = useNavigate();
   const { user } = useAuth();
 
   const [step, setStep] = useState<'template' | 'name'>('template');
@@ -31,7 +30,9 @@ export function CreateWorkspacePage() {
       });
       setActiveWorkspace(ws.id);
       clearCache();
-      navigate('/metrics', { state: { workspaceId: ws.id, fresh: true, template: selected } });
+      // Full reload so useWorkspace re-fetches the workspace list and profile
+      // from scratch. A soft navigate leaves stale state in the sidebar.
+      window.location.href = '/metrics';
     } catch (err: unknown) {
       setError((err as Error).message || 'Failed to create workspace');
       setSubmitting(false);
