@@ -202,7 +202,7 @@ export function CreateWorkspacePage() {
 
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label htmlFor="ws-name">{selected === 'startup' ? 'Company name' : 'Workspace name'}</label>
+                <label htmlFor="ws-name">Workspace name</label>
                 <input
                   type="text"
                   id="ws-name"
