@@ -100,13 +100,17 @@ Per-workspace access control via a workspace-scoped `permissionGroups` table. Gr
 
 - **Types**: `public`, `admin`, `trader`, `custom`. Type is purely a seeding hint; once created, every group's capabilities can be edited freely. System groups (`Public`, `Admin`, `Trader`) are bootstrapped on workspace creation with capability presets `['read']`, `['read','trade','manage']`, and `['read','trade']` respectively, and cannot be renamed or deleted (their capabilities can still be edited).
 - **Unified access model**: Groups use canonical `memberIds[]` participant membership. Every route guard calls `requireCapability('read' | 'trade' | 'manage')` against the caller's unioned capability set; there are no hardcoded role checks. The master API key and the workspace creator/owner are granted all capabilities automatically.
-- **Per-metric and per-vault permissions**: groups additionally carry a `permissions` map (`metricId -> { read, trade }`) and a `vaultPermissions` map (`vaultId -> { read }`) for resource-level access. These gate specific metrics/vaults for members of groups that include the corresponding workspace-level capability.
+- **Per-metric, per-vault, and per-connector permissions**: groups additionally carry a `permissions` map (`metricId -> { read, trade }`), a `vaultPermissions` map (`vaultId -> { read }`), and a `connectorPermissions` map (`connectorId -> { read }`) for resource-level access. These gate specific metrics/vaults/connectors for members of groups that include the corresponding workspace-level capability.
 - **Workspace joining**: any authenticated participant can join any workspace via `POST /workspaces/:id/join`, which adds them to the Public group (read-only by default). Admins then add the participant to the Trader or Admin group (or any custom group) to expand capabilities.
 - **API**: `GET /groups` (requires `read`), `POST /groups`, `PUT /groups/:id`, `DELETE /groups/:id` (all require `manage`). POST/PUT bodies accept a `capabilities: string[]` field.
 
 ### Vaults (Implemented)
 
 Workspace-scoped free-text information store with permission-group-based access control. Admins create vaults to hold credentials, API keys, context docs, or any information that should be selectively shared with workspace participants. Permission groups control who can read which vaults via a `vaultPermissions` map (`vaultId -> { read: boolean }`). Any participant with the `manage` capability has implicit read access to all vaults.
+
+### Connectors (Implemented)
+
+Workspace-scoped live bridges to external data sources with permission-group-based access control. Currently supports GitHub (read-only repo access via OAuth). Admins connect a repo through the GitHub OAuth flow; participants with connector read access can browse the directory tree and read file contents via the API. Permission groups control access via a `connectorPermissions` map (`connectorId -> { read: boolean }`). Any participant with the `manage` capability has implicit read access to all connectors. Separate from vaults, which store static text/secrets.
 
 ### Phase 5: Binary AMM (Implemented)
 

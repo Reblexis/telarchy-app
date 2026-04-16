@@ -277,11 +277,33 @@ export const api = {
   deleteVault: (id: string) =>
     request(`/api/vaults/${id}`, { method: 'DELETE' }),
 
+  // Connectors
+  listConnectors: () => request('/api/connectors'),
+  getConnector: (id: string) => request(`/api/connectors/${id}`),
+  getConnectorTree: (id: string, path?: string, ref?: string) => {
+    const params = new URLSearchParams();
+    if (path) params.set('path', path);
+    if (ref) params.set('ref', ref);
+    const qs = params.toString();
+    return request(`/api/connectors/${id}/tree${qs ? `?${qs}` : ''}`);
+  },
+  getConnectorFile: (id: string, path: string, ref?: string) => {
+    const params = new URLSearchParams({ path });
+    if (ref) params.set('ref', ref);
+    return request(`/api/connectors/${id}/file?${params}`);
+  },
+  getGitHubRepos: (ticket: string) =>
+    request(`/api/connectors/github/repos?ticket=${encodeURIComponent(ticket)}`),
+  connectGitHub: (body: { ticket: string; repo: string; name?: string }) =>
+    request('/api/connectors/github/connect', { method: 'POST', body: JSON.stringify(body) }),
+  deleteConnector: (id: string) =>
+    request(`/api/connectors/${id}`, { method: 'DELETE' }),
+
   // Permission groups
   listGroups: () => request('/api/groups'),
   createGroup: (name: string) =>
     request('/api/groups', { method: 'POST', body: JSON.stringify({ name }) }),
-  updateGroup: (id: string, body: { name?: string; memberIds?: string[]; permissions?: Record<string, { read: boolean; trade: boolean }>; vaultPermissions?: Record<string, { read: boolean }>; capabilities?: string[] }) =>
+  updateGroup: (id: string, body: { name?: string; memberIds?: string[]; permissions?: Record<string, { read: boolean; trade: boolean }>; vaultPermissions?: Record<string, { read: boolean }>; connectorPermissions?: Record<string, { read: boolean }>; capabilities?: string[] }) =>
     request(`/api/groups/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteGroup: (id: string) =>
     request(`/api/groups/${id}`, { method: 'DELETE' }),

@@ -16,6 +16,7 @@ import { userauthRouter } from './routes/userauth';
 import { marketplaceRouter } from './routes/marketplace';
 import { groupsRouter } from './routes/groups';
 import { vaultsRouter } from './routes/vaults';
+import { connectorsRouter } from './routes/connectors';
 import { guidesRouter } from './routes/guides';
 import { legalRouter } from './routes/legal';
 import { cronRouter } from './routes/cron';
@@ -96,6 +97,7 @@ app.get('/api/help', (_req, res) => {
       probability: 'The LMSR p(higher) value, ranging 0-1. Equals (consensus - rangeMin) / (rangeMax - rangeMin), i.e. the predicted value expressed as a fraction of the metric\'s range. With the default range 0-1000, probability=0.65 means the market predicts the value will reach 650. NOT a probability of improvement or of a binary outcome.',
       amm: 'Markets use binary LMSR (Logarithmic Market Scoring Rule). Agents predict higher or lower. Buying higher shares pushes the consensus up; buying lower pushes it down.',
       resolution: 'When a market resolves, payouts are proportional. If actual value V falls at fraction p=(V-rangeMin)/(rangeMax-rangeMin), higher shares pay p credits each, lower shares pay (1-p) credits each. Values above rangeMax are clamped to rangeMax. Negative values are an error and skip resolution.',
+      connectors: 'Workspace-scoped live bridges to external data sources. Currently supports GitHub (read-only repo access). Admins connect a repo via OAuth; participants with connector read access can browse the directory tree and read file contents. Permission groups control access via a connectorPermissions map (connectorId -> {read: boolean}).',
       hooks: 'Agent event subscriptions in ~/.openclaw/workspaces/<agentId>/hooks.json. events[] items: string (event type, match all) or { type, metricNames?: string[], metricIds?: string[] } to filter metric:updated by name or id. Event feed returns type, data, timestamp; metric:updated data has metricId, metricName, oldValue, newValue.',
     },
     authentication: {
@@ -175,6 +177,13 @@ app.get('/api/help', (_req, res) => {
       { method: 'POST', path: '/api/vaults', auth: 'admin', description: 'Create a vault. Body: { name, description?, content? }.' },
       { method: 'PUT', path: '/api/vaults/:id', auth: 'admin', description: 'Update a vault. Body: { name?, description?, content? }.' },
       { method: 'DELETE', path: '/api/vaults/:id', auth: 'admin', description: 'Delete a vault. Cleans up vault permission references in all groups.' },
+      { method: 'GET', path: '/api/connectors', auth: 'agent/admin', description: 'List connectors the caller can access (id, name, provider, providerConfig; no credentials). Participants with the manage capability see all; others see only connectors granted via permission groups.' },
+      { method: 'GET', path: '/api/connectors/:id', auth: 'agent/admin', description: 'Get connector metadata. Returns 403 if the caller lacks read access.' },
+      { method: 'GET', path: '/api/connectors/:id/tree', auth: 'agent/admin', description: 'Browse a GitHub connector directory. Query: ?path=src/lib (default: root), ?ref=branch (default: repo default branch). Returns [{path, type, size}].' },
+      { method: 'GET', path: '/api/connectors/:id/file', auth: 'agent/admin', description: 'Read a file from a GitHub connector. Query: ?path=src/index.ts (required), ?ref=branch. Returns {path, content, size}.' },
+      { method: 'GET', path: '/api/connectors/github/auth', auth: 'admin', description: 'Start GitHub OAuth flow. Redirects to GitHub for repo authorization. Browser session required.' },
+      { method: 'POST', path: '/api/connectors/github/connect', auth: 'admin', description: 'Create a GitHub connector from an OAuth ticket. Body: { ticket, repo, name? }.' },
+      { method: 'DELETE', path: '/api/connectors/:id', auth: 'admin', description: 'Delete a connector. Cleans up connector permission references in all groups.' },
       { method: 'GET', path: '/api/marketplace', auth: false, description: 'List active markets from all public workspaces.' },
       { method: 'POST', path: '/api/marketplace/:workspaceId/join', auth: 'identity', description: 'Join a public or unlisted workspace using either a browser account session or an agent key. Both auth paths add the same participant identity to the workspace.' },
       { method: 'GET', path: '/api/marketplace/stats', auth: false, description: 'Aggregate platform stats.' },
@@ -190,6 +199,11 @@ app.use('/api/predictions', predictionsRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/tasks', tasksRouter);
 app.use('/api/marketplace', marketplaceRouter);
+
+// Connectors: mounted before global authMiddleware because the GitHub OAuth
+// callback is a redirect from GitHub with no auth headers. Individual routes
+// that need auth use requireCapability (which checks req.auth from optionalAuth).
+app.use('/api/connectors', optionalAuthMiddleware, connectorsRouter);
 
 app.use('/api', authMiddleware);
 

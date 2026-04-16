@@ -50,6 +50,10 @@ export interface VaultPermission {
   read: boolean;
 }
 
+export interface ConnectorPermission {
+  read: boolean;
+}
+
 export type Capability = 'read' | 'trade' | 'manage';
 
 export interface PermissionGroup {
@@ -60,6 +64,7 @@ export interface PermissionGroup {
   memberIds: string[];
   permissions: Record<string, MetricPermission>;
   vaultPermissions: Record<string, VaultPermission>;
+  connectorPermissions: Record<string, ConnectorPermission>;
   capabilities: Capability[];
 }
 
@@ -70,6 +75,32 @@ export interface Vault {
   content?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface Connector {
+  id: string;
+  name: string;
+  provider: string;
+  providerConfig: {
+    repo?: string;
+    defaultBranch?: string;
+    [key: string]: unknown;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GitHubTreeEntry {
+  path: string;
+  type: 'file' | 'dir';
+  size?: number;
+}
+
+export interface GitHubFileContent {
+  path: string;
+  content: string;
+  size: number;
+  encoding: string;
 }
 
 export interface Agent {

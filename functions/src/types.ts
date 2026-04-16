@@ -170,6 +170,19 @@ export interface VaultPermission {
   read: boolean;
 }
 
+export interface ConnectorPermission {
+  read: boolean;
+}
+
+export interface Connector {
+  id: string;
+  name: string;
+  provider: string;
+  providerConfig: Record<string, unknown>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface PermissionGroup {
   id: string;
   name: string;
@@ -182,6 +195,8 @@ export interface PermissionGroup {
   permissions: Record<string, MetricPermission>;
   /** vaultId → permissions */
   vaultPermissions: Record<string, VaultPermission>;
+  /** connectorId → permissions */
+  connectorPermissions: Record<string, ConnectorPermission>;
   /** Capabilities granted to all members of this group. */
   capabilities: Capability[];
 }
