@@ -10,6 +10,17 @@ import { AppError } from '../lib/errors';
 
 export const connectorsRouter = Router();
 
+/** Derive the public base URL for OAuth redirects. On localhost, use the
+ *  request origin so the callback comes back to the local server instead
+ *  of production (BETTER_AUTH_URL always points to the prod domain). */
+function publicBaseUrl(req: import('express').Request): string {
+  const host = req.get('host') || '';
+  if (host.startsWith('127.0.0.1') || host.startsWith('localhost')) {
+    return `${req.protocol}://${host}`;
+  }
+  return process.env.BETTER_AUTH_URL || `${req.protocol}://${host}`;
+}
+
 // In-memory state store for the installation flow (short-lived)
 const installStates = new Map<string, { workspaceId: string; expiresAt: number }>();
 
@@ -136,8 +147,7 @@ connectorsRouter.get('/github/install', requireCapability('manage'), wrap(async 
   const state = randomBytes(16).toString('hex');
   installStates.set(state, { workspaceId, expiresAt: Date.now() + 10 * 60 * 1000 });
 
-  const baseUrl = process.env.BETTER_AUTH_URL || `${req.protocol}://${req.get('host')}`;
-  const redirectUri = `${baseUrl}/api/connectors/github/callback`;
+  const redirectUri = `${publicBaseUrl(req)}/api/connectors/github/callback`;
 
   // Use GitHub App OAuth to identify the user and find their installations
   const params = new URLSearchParams({
@@ -180,7 +190,7 @@ connectorsRouter.get('/github/callback', wrap(async (req, res) => {
   const installData = await installRes.json() as { installations: Array<{ id: number; account: { login: string } }> };
   const installations = installData.installations || [];
 
-  const baseUrl = process.env.BETTER_AUTH_URL || `${req.protocol}://${req.get('host')}`;
+  const baseUrl = publicBaseUrl(req);
 
   if (installations.length === 0) {
     // App not installed yet, redirect to install page
