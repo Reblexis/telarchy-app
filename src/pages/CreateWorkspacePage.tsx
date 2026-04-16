@@ -191,7 +191,7 @@ export function CreateWorkspacePage() {
             >
               ← Back to templates
             </button>
-            <h1>{selected === 'startup' ? 'Name your company' : selected === 'personal' ? 'Name your workspace' : 'Name your workspace'}</h1>
+            <h1>{selected === 'startup' ? 'Name your startup workspace' : selected === 'personal' ? 'Name your personal workspace' : 'Name your workspace'}</h1>
             <p className="subtitle" style={{ marginBottom: '1.5rem' }}>
               {selected === 'startup'
                 ? 'Markets will forecast your revenue, customer satisfaction, and product quality.'
