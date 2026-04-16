@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
@@ -23,8 +23,8 @@ export function ConnectorsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Repo picker state
-  const [flowState, setFlowState] = useState<string | null>(null);
+  // Repo picker state - use sessionStorage to survive component remounts during auth resolution
+  const [flowState, setFlowState] = useState<string | null>(() => sessionStorage.getItem('gh_connector_state'));
   const [repos, setRepos] = useState<GitHubRepo[]>([]);
   const [selectedRepos, setSelectedRepos] = useState<Set<string>>(new Set());
   const [repoSearch, setRepoSearch] = useState('');
@@ -55,9 +55,12 @@ export function ConnectorsPage() {
   useEffect(() => { load(); }, [load]);
 
   // Handle callback from GitHub App OAuth flow (state in URL)
+  const handledStateRef = useRef<string | null>(null);
   useEffect(() => {
     const state = searchParams.get('state');
-    if (!state) return;
+    if (!state || handledStateRef.current === state) return;
+    handledStateRef.current = state;
+    sessionStorage.setItem('gh_connector_state', state);
     setFlowState(state);
     setSearchParams({}, { replace: true });
     setLoadingRepos(true);
@@ -66,6 +69,21 @@ export function ConnectorsPage() {
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoadingRepos(false));
   }, [searchParams, setSearchParams]);
+
+  // If we have a flowState from sessionStorage but no repos yet, fetch them
+  useEffect(() => {
+    if (!flowState || repos.length > 0 || loadingRepos) return;
+    if (handledStateRef.current === flowState) return; // already being handled above
+    setLoadingRepos(true);
+    api.getGitHubRepos(flowState)
+      .then(data => setRepos(data as GitHubRepo[]))
+      .catch(() => {
+        // State expired on the backend, clear it
+        sessionStorage.removeItem('gh_connector_state');
+        setFlowState(null);
+      })
+      .finally(() => setLoadingRepos(false));
+  }, [flowState, repos.length, loadingRepos]);
 
   const handleConnectGitHub = () => {
     const base = import.meta.env.VITE_API_URL || '';
@@ -87,6 +105,7 @@ export function ConnectorsPage() {
     setError('');
     try {
       await api.connectGitHub({ state: flowState, repos: [...selectedRepos] });
+      sessionStorage.removeItem('gh_connector_state');
       setFlowState(null);
       setRepos([]);
       setSelectedRepos(new Set());
@@ -99,6 +118,7 @@ export function ConnectorsPage() {
   };
 
   const handleCancelRepoPicker = () => {
+    sessionStorage.removeItem('gh_connector_state');
     setFlowState(null);
     setRepos([]);
     setSelectedRepos(new Set());
