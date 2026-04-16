@@ -191,20 +191,24 @@ export function CreateWorkspacePage() {
             >
               ← Back to templates
             </button>
-            <h1>Name your workspace</h1>
+            <h1>{selected === 'startup' ? 'Name your company' : selected === 'personal' ? 'Name your workspace' : 'Name your workspace'}</h1>
             <p className="subtitle" style={{ marginBottom: '1.5rem' }}>
-              Starting from the <strong>{template.name}</strong> template{template.metrics.length > 0 ? ` with ${template.metrics.length} metric${template.metrics.length === 1 ? '' : 's'}` : ''}. Workspaces are private by default.
+              {selected === 'startup'
+                ? 'Markets will forecast your revenue, customer satisfaction, and product quality.'
+                : selected === 'personal'
+                  ? 'Markets will forecast your happiness, health, and career satisfaction.'
+                  : 'You\'ll create your own metrics after setup.'}
             </p>
 
             <form onSubmit={handleSubmit}>
               <div className="form-group">
-                <label htmlFor="ws-name">Workspace name</label>
+                <label htmlFor="ws-name">{selected === 'startup' ? 'Company name' : 'Workspace name'}</label>
                 <input
                   type="text"
                   id="ws-name"
                   required
                   maxLength={80}
-                  placeholder="e.g. Acme Inc., My Life Metrics"
+                  placeholder={selected === 'startup' ? 'e.g. Acme Inc.' : selected === 'personal' ? 'e.g. My Life, Viktor\'s Goals' : 'e.g. Q2 Goals, Side Project'}
                   value={name}
                   onChange={e => setName(e.target.value)}
                 />
