@@ -5,7 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useWorkspace, type WorkspaceInfo } from '../hooks/useWorkspace';
 import { api, agentApi } from '../lib/api';
 import { cacheGet, cacheSet } from '../lib/cache';
-import type { Agent, PermissionGroup, Metric, Vault } from '../types';
+import type { Agent, PermissionGroup, Metric, Vault, Capability } from '../types';
 
 // ─── Operator view ───────────────────────────────────────────────────────────
 
@@ -408,6 +408,17 @@ function AgentAdminPage({ user, workspace }: {
     }
   };
 
+  const handleToggleCapability = async (group: PermissionGroup, cap: Capability) => {
+    const current = group.capabilities ?? [];
+    const next = current.includes(cap) ? current.filter(c => c !== cap) : [...current, cap];
+    try {
+      await api.updateGroup(group.id, { capabilities: next });
+      setGroups(prev => prev.map(g => g.id === group.id ? { ...g, capabilities: next } : g));
+    } catch (e: unknown) {
+      setGroupError((e as Error).message);
+    }
+  };
+
   const isSystemGroup = (type: string) => type === 'public' || type === 'admin' || type === 'trader';
 
   // Build a lookup: agentId -> list of groups the agent belongs to
@@ -709,7 +720,8 @@ function AgentAdminPage({ user, workspace }: {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
                         <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{group.name}</span>
                         <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                          {memberCount > 0 ? `${memberCount} participant${memberCount !== 1 ? 's' : ''}` : 'empty'}
+                          {(group.capabilities ?? []).join(', ') || 'no capabilities'}
+                          {' · '}{memberCount > 0 ? `${memberCount} participant${memberCount !== 1 ? 's' : ''}` : 'empty'}
                           {restrictedMetrics > 0 && ` · ${restrictedMetrics} metric rule${restrictedMetrics !== 1 ? 's' : ''}`}
                         </span>
                       </div>
@@ -723,6 +735,18 @@ function AgentAdminPage({ user, workspace }: {
 
                     {isExpanded && (
                       <div style={{ padding: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Capabilities</div>
+                        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
+                          {(['read', 'trade', 'manage'] as Capability[]).map(cap => {
+                            const checked = (group.capabilities ?? []).includes(cap);
+                            return (
+                              <label key={cap} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.875rem', cursor: 'pointer' }}>
+                                <input type="checkbox" checked={checked} onChange={() => handleToggleCapability(group, cap)} />
+                                {cap}
+                              </label>
+                            );
+                          })}
+                        </div>
                         <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Metric Permissions</div>
                         {metrics.length === 0 ? (
                           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>No leaf metrics.</p>

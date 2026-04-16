@@ -281,7 +281,7 @@ export const api = {
   listGroups: () => request('/api/groups'),
   createGroup: (name: string) =>
     request('/api/groups', { method: 'POST', body: JSON.stringify({ name }) }),
-  updateGroup: (id: string, body: { name?: string; memberIds?: string[]; permissions?: Record<string, { read: boolean; trade: boolean }>; vaultPermissions?: Record<string, { read: boolean }> }) =>
+  updateGroup: (id: string, body: { name?: string; memberIds?: string[]; permissions?: Record<string, { read: boolean; trade: boolean }>; vaultPermissions?: Record<string, { read: boolean }>; capabilities?: string[] }) =>
     request(`/api/groups/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteGroup: (id: string) =>
     request(`/api/groups/${id}`, { method: 'DELETE' }),

@@ -50,6 +50,8 @@ export interface VaultPermission {
   read: boolean;
 }
 
+export type Capability = 'read' | 'trade' | 'manage';
+
 export interface PermissionGroup {
   id: string;
   name: string;
@@ -58,6 +60,7 @@ export interface PermissionGroup {
   memberIds: string[];
   permissions: Record<string, MetricPermission>;
   vaultPermissions: Record<string, VaultPermission>;
+  capabilities: Capability[];
 }
 
 export interface Vault {
