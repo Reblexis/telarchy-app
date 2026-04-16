@@ -24,7 +24,7 @@ export function ConnectorsPage() {
   const [error, setError] = useState('');
 
   // Repo picker state
-  const [ticket, setTicket] = useState<string | null>(null);
+  const [installInfo, setInstallInfo] = useState<{ installationId: string; state: string } | null>(null);
   const [repos, setRepos] = useState<GitHubRepo[]>([]);
   const [selectedRepos, setSelectedRepos] = useState<Set<string>>(new Set());
   const [repoSearch, setRepoSearch] = useState('');
@@ -54,14 +54,15 @@ export function ConnectorsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Handle callback ticket from GitHub App installation
+  // Handle callback from GitHub App installation (installation_id + state in URL)
   useEffect(() => {
-    const t = searchParams.get('ticket');
-    if (!t) return;
-    setTicket(t);
+    const installationId = searchParams.get('installation_id');
+    const state = searchParams.get('state');
+    if (!installationId || !state) return;
+    setInstallInfo({ installationId, state });
     setSearchParams({}, { replace: true });
     setLoadingRepos(true);
-    api.getGitHubRepos(t)
+    api.getGitHubRepos(installationId, state)
       .then(data => setRepos(data as GitHubRepo[]))
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoadingRepos(false));
@@ -82,12 +83,16 @@ export function ConnectorsPage() {
   };
 
   const handleConnectSelected = async () => {
-    if (!ticket || selectedRepos.size === 0) return;
+    if (!installInfo || selectedRepos.size === 0) return;
     setConnecting(true);
     setError('');
     try {
-      await api.connectGitHub({ ticket, repos: [...selectedRepos] });
-      setTicket(null);
+      await api.connectGitHub({
+        installation_id: installInfo.installationId,
+        state: installInfo.state,
+        repos: [...selectedRepos],
+      });
+      setInstallInfo(null);
       setRepos([]);
       setSelectedRepos(new Set());
       await load();
@@ -99,7 +104,7 @@ export function ConnectorsPage() {
   };
 
   const handleCancelRepoPicker = () => {
-    setTicket(null);
+    setInstallInfo(null);
     setRepos([]);
     setSelectedRepos(new Set());
   };
@@ -212,7 +217,7 @@ export function ConnectorsPage() {
       {error && <div className="message error show">{error}</div>}
 
       {/* Repo picker modal */}
-      {ticket && (
+      {installInfo && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 100,
           background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
