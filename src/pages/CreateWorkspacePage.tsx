@@ -208,7 +208,7 @@ export function CreateWorkspacePage() {
                   id="ws-name"
                   required
                   maxLength={80}
-                  placeholder={selected === 'startup' ? 'e.g. Acme Inc.' : selected === 'personal' ? 'e.g. My Life, Viktor\'s Goals' : 'e.g. Q2 Goals, Side Project'}
+                  placeholder={selected === 'startup' ? 'e.g. Definitely Not a Pivot' : selected === 'personal' ? 'e.g. My Life, Viktor\'s Goals' : 'e.g. Q2 Goals, Side Project'}
                   value={name}
                   onChange={e => setName(e.target.value)}
                 />
