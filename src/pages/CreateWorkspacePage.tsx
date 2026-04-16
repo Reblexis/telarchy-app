@@ -25,33 +25,31 @@ const TEMPLATE_OPTIONS: TemplateOption[] = [
   {
     id: 'startup',
     name: 'Startup',
-    intent: 'Three outcomes a founder is certain they want to maximise, each with its own timescale.',
+    intent: 'Track the outcomes that matter most for your company.',
     metrics: [
-      { name: 'Weekly revenue', summary: 'Direct financial outcome.', halfLife: 'half-life 1y', range: 'you set the ceiling' },
-      { name: 'Customer satisfaction', summary: 'Your honest 0-10 read on customer happiness.', halfLife: 'half-life 1y', range: '0-10' },
-      { name: 'Product quality', summary: 'Internal compounding asset, 0-10.', halfLife: 'half-life 3y', range: '0-10' },
+      { name: 'Weekly revenue', summary: 'in your currency', halfLife: '1y', range: 'you set the ceiling' },
+      { name: 'Customer satisfaction', summary: '0-10', halfLife: '1y', range: '0-10' },
+      { name: 'Product quality', summary: '0-10', halfLife: '3y', range: '0-10' },
     ],
-    rationale:
-      'No signups, features shipped, or hours worked: those are activities, not outcomes. Propose them as tasks if you suspect they drive revenue.',
+    rationale: 'You can add, remove, or edit metrics after creation.',
   },
   {
     id: 'personal',
     name: 'Personal',
-    intent: 'Three self-reported outcomes. The guides prefer subjective scores here over upstream proxies.',
+    intent: 'Track what you value as self-reported scores.',
     metrics: [
-      { name: 'Happiness', summary: 'Self-reported weekly, 0-10.', halfLife: 'half-life 1y', range: '0-10' },
-      { name: 'Health', summary: 'Self-reported, 0-10. Compounds over years.', halfLife: 'half-life 5y', range: '0-10' },
-      { name: 'Career satisfaction', summary: 'Self-reported, 0-10.', halfLife: 'half-life 3y', range: '0-10' },
+      { name: 'Happiness', summary: '0-10', halfLife: '1y', range: '0-10' },
+      { name: 'Health', summary: '0-10', halfLife: '5y', range: '0-10' },
+      { name: 'Career satisfaction', summary: '0-10', halfLife: '3y', range: '0-10' },
     ],
-    rationale:
-      'No "hours slept" or "workouts per week": activities, not outcomes. If you suspect a specific habit helps, propose it as a task.',
+    rationale: 'You can add, remove, or edit metrics after creation.',
   },
   {
     id: 'blank',
     name: 'Blank',
-    intent: 'Start empty. Create your own metrics from the Metrics page.',
+    intent: 'Start empty. Create your own metrics later.',
     metrics: [],
-    rationale: 'Pick this if you already know exactly what you want to track.',
+    rationale: 'For users who know what they want to track.',
   },
 ];
 
@@ -114,10 +112,7 @@ export function CreateWorkspacePage() {
               Pick a starting point
             </h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '2rem' }}>
-              Templates create a small, opinionated set of outcome metrics. You can edit, remove, or add metrics freely after creation.{' '}
-              <Link to="/guides/metric-design" style={{ color: 'var(--text-secondary)', textDecoration: 'underline' }}>
-                How metrics should be designed
-              </Link>
+              Pick a template or start blank. You can change everything later.
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -152,17 +147,20 @@ export function CreateWorkspacePage() {
                       {t.intent}
                     </p>
                     {t.metrics.length > 0 && (
-                      <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 0.6rem 0', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', margin: '0.4rem 0' }}>
                         {t.metrics.map(m => (
-                          <li key={m.name} style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                          <span key={m.name} style={{
+                            fontSize: '0.8rem', color: 'var(--text-secondary)',
+                            background: 'var(--bg-primary)', border: '1px solid var(--border-color)',
+                            borderRadius: '0.375rem', padding: '0.2rem 0.5rem',
+                          }}>
                             <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{m.name}</span>
-                            {' '}- {m.summary}{' '}
-                            <span style={{ opacity: 0.7 }}>({m.halfLife}, {m.range})</span>
-                          </li>
+                            {' '}{m.summary}
+                          </span>
                         ))}
-                      </ul>
+                      </div>
                     )}
-                    <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', opacity: 0.85, margin: 0, fontStyle: 'italic' }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', margin: '0.4rem 0 0 0' }}>
                       {t.rationale}
                     </p>
                   </div>
