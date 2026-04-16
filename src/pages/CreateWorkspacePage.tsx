@@ -124,10 +124,12 @@ export function CreateWorkspacePage() {
               {TEMPLATE_OPTIONS.map(t => {
                 const isSelected = selected === t.id;
                 return (
-                  <button
+                  <div
                     key={t.id}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setSelected(t.id)}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelected(t.id); } }}
                     style={{
                       textAlign: 'left',
                       border: `1px solid ${isSelected ? 'var(--focus-border)' : 'var(--border-color)'}`,
@@ -154,7 +156,7 @@ export function CreateWorkspacePage() {
                         {t.metrics.map(m => (
                           <li key={m.name} style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
                             <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{m.name}</span>
-                            {' '}— {m.summary}{' '}
+                            {' '}- {m.summary}{' '}
                             <span style={{ opacity: 0.7 }}>({m.halfLife}, {m.range})</span>
                           </li>
                         ))}
@@ -163,7 +165,7 @@ export function CreateWorkspacePage() {
                     <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', opacity: 0.85, margin: 0, fontStyle: 'italic' }}>
                       {t.rationale}
                     </p>
-                  </button>
+                  </div>
                 );
               })}
             </div>
