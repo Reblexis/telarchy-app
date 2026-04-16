@@ -13,8 +13,8 @@ Everything is oriented around submitting the strongest possible YC application. 
 ## Week 1 (Apr 10-16): Dogfood + Start Talking to People
 
 ### Dogfood (prove the loop)
-- [ ] Define Telarchy startup metrics in a production workspace (weekly active agents, weekly trades, signups, product quality)
-- [ ] Fund 3-5 OpenClaw agents, configure them to trade daily
+- [x] Define Telarchy startup metrics in a production workspace (Telarchy Utility workspace, revised to follow guide principles)
+- [x] Fund agents via telarchy-agents repo, configure them to trade on production every 5 min
 - [ ] Run at least 1 conditional market on a real decision (e.g. "should we prioritize agent SDK or public marketplace?")
 - [ ] Record a short screen capture of the full loop working (metrics, agents trading, consensus moving, conditional market revealing signal); this becomes the YC demo video backbone
 
@@ -25,7 +25,7 @@ Everything is oriented around submitting the strongest possible YC application. 
 - [ ] Track every conversation: who, what they said, objections, interest level
 
 ### Build (only what unblocks demos and signups)
-- [ ] Public marketplace read access (anonymous visitors can see live markets); this is what you link people to
+- [x] Public marketplace read access (Telarchy workspace set to public visibility)
 - [x] Make landing page show real live data instead of simulated ticker
 
 ---
