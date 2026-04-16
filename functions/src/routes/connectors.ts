@@ -30,8 +30,10 @@ function getGitHubAppConfig() {
   const appId = process.env.GITHUB_APP_ID;
   const privateKey = process.env.GITHUB_APP_PRIVATE_KEY;
   const slug = process.env.GITHUB_APP_SLUG;
-  if (!appId || !privateKey || !slug) return null;
-  return { appId, privateKey: privateKey.replace(/\\n/g, '\n'), slug };
+  const clientId = process.env.GITHUB_APP_CLIENT_ID;
+  const clientSecret = process.env.GITHUB_APP_CLIENT_SECRET;
+  if (!appId || !privateKey || !slug || !clientId || !clientSecret) return null;
+  return { appId, privateKey: privateKey.replace(/\\n/g, '\n'), slug, clientId, clientSecret };
 }
 
 /** Create a short-lived JWT to authenticate as the GitHub App itself. */
@@ -117,29 +119,97 @@ async function readableConnectorIds(
 }
 
 // ---------------------------------------------------------------------------
-// GitHub App installation flow
+// GitHub App OAuth + installation flow
+//
+// 1. GET /github/install  - redirect to GitHub App OAuth (or install page if not installed)
+// 2. GET /github/callback - exchange code for user token, find installations, redirect to frontend
+// 3. GET /github/repos    - list repos from a specific installation (frontend calls this)
+// 4. POST /github/connect - create connectors from selected repos
 // ---------------------------------------------------------------------------
 
-// GET /api/connectors/github/install - redirect to GitHub App installation page
+// GET /api/connectors/github/install - start the flow
 connectorsRouter.get('/github/install', requireCapability('manage'), wrap(async (req, res) => {
   const app = getGitHubAppConfig();
-  if (!app) throw new AppError('GitHub App is not configured (set GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_SLUG)', 503);
+  if (!app) throw new AppError('GitHub App is not configured (set GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_SLUG, GITHUB_APP_CLIENT_ID, GITHUB_APP_CLIENT_SECRET)', 503);
 
   const { workspaceId } = req.auth!;
   const state = randomBytes(16).toString('hex');
   installStates.set(state, { workspaceId, expiresAt: Date.now() + 10 * 60 * 1000 });
 
-  res.redirect(`https://github.com/apps/${app.slug}/installations/new?state=${state}`);
+  const baseUrl = process.env.BETTER_AUTH_URL || `${req.protocol}://${req.get('host')}`;
+  const redirectUri = `${baseUrl}/api/connectors/github/callback`;
+
+  // Use GitHub App OAuth to identify the user and find their installations
+  const params = new URLSearchParams({
+    client_id: app.clientId,
+    redirect_uri: redirectUri,
+    state,
+  });
+
+  res.redirect(`https://github.com/login/oauth/authorize?${params}`);
 }));
 
-// GET /api/connectors/github/repos - list repos from an installation
-// Called by the frontend after GitHub redirects back with installation_id + state
-connectorsRouter.get('/github/repos', requireCapability('manage'), wrap(async (req, res) => {
-  const { installation_id, state } = req.query as { installation_id?: string; state?: string };
-  if (!installation_id || !state) throw new AppError('Missing installation_id or state', 400);
+// GET /api/connectors/github/callback - OAuth callback, find installations, redirect to frontend
+connectorsRouter.get('/github/callback', wrap(async (req, res) => {
+  const { code, state } = req.query as { code?: string; state?: string };
+  if (!code || !state) throw new AppError('Missing code or state', 400);
 
   const stateData = installStates.get(state);
-  if (!stateData || stateData.expiresAt < Date.now()) {
+  if (!stateData || stateData.expiresAt < Date.now()) throw new AppError('Invalid or expired state', 400);
+
+  const app = getGitHubAppConfig();
+  if (!app) throw new AppError('GitHub App is not configured', 503);
+
+  // Exchange code for user access token
+  const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({
+      client_id: app.clientId,
+      client_secret: app.clientSecret,
+      code,
+    }),
+  });
+  const tokenData = await tokenRes.json() as { access_token?: string; error?: string };
+  if (!tokenData.access_token) throw new AppError(`GitHub OAuth failed: ${tokenData.error || 'no token returned'}`, 400);
+
+  // Find this user's installations of our app
+  const installRes = await fetch(`${GH_API}/user/installations`, {
+    headers: { Authorization: `Bearer ${tokenData.access_token}`, Accept: 'application/vnd.github+json' },
+  });
+  const installData = await installRes.json() as { installations: Array<{ id: number; account: { login: string } }> };
+  const installations = installData.installations || [];
+
+  const baseUrl = process.env.BETTER_AUTH_URL || `${req.protocol}://${req.get('host')}`;
+
+  if (installations.length === 0) {
+    // App not installed yet, redirect to install page
+    res.redirect(`https://github.com/apps/${app.slug}/installations/new?state=${state}`);
+    return;
+  }
+
+  // Use the first installation (most common case: single account)
+  // For multi-account support, the frontend could present a picker
+  const installationId = String(installations[0].id);
+
+  // Keep the state alive for the frontend to use
+  // Store the installation_id alongside
+  installStates.set(`install:${state}`, {
+    workspaceId: installationId,
+    expiresAt: Date.now() + 5 * 60 * 1000,
+  });
+
+  res.redirect(`${baseUrl}/connectors?state=${state}`);
+}));
+
+// GET /api/connectors/github/repos?state=... - list repos from the installation
+connectorsRouter.get('/github/repos', requireCapability('manage'), wrap(async (req, res) => {
+  const { state } = req.query as { state?: string };
+  if (!state) throw new AppError('Missing state parameter', 400);
+
+  const stateData = installStates.get(state);
+  const installData = installStates.get(`install:${state}`);
+  if (!stateData || !installData || stateData.expiresAt < Date.now()) {
     throw new AppError('Invalid or expired state', 400);
   }
   if (stateData.workspaceId !== req.auth!.workspaceId) {
@@ -149,7 +219,8 @@ connectorsRouter.get('/github/repos', requireCapability('manage'), wrap(async (r
   const app = getGitHubAppConfig();
   if (!app) throw new AppError('GitHub App is not configured', 503);
 
-  const token = await getInstallationToken(installation_id, app.appId, app.privateKey);
+  const installationId = installData.workspaceId; // stored in workspaceId field
+  const token = await getInstallationToken(installationId, app.appId, app.privateKey);
 
   const repos: Array<{ full_name: string; private: boolean; default_branch: string; description: string | null }> = [];
   let page = 1;
@@ -172,15 +243,16 @@ connectorsRouter.get('/github/repos', requireCapability('manage'), wrap(async (r
   })));
 }));
 
-// POST /api/connectors/github/connect - create connector(s) from installation + selected repos
+// POST /api/connectors/github/connect - create connectors from selected repos
 connectorsRouter.post('/github/connect', requireCapability('manage'), wrap(async (req, res) => {
-  const { installation_id, state, repos } = req.body as { installation_id?: string; state?: string; repos?: string[] };
-  if (!installation_id || !state || !repos || !Array.isArray(repos) || repos.length === 0) {
-    throw new AppError('Missing installation_id, state, or repos', 400);
+  const { state, repos } = req.body as { state?: string; repos?: string[] };
+  if (!state || !repos || !Array.isArray(repos) || repos.length === 0) {
+    throw new AppError('Missing state or repos', 400);
   }
 
   const stateData = installStates.get(state);
-  if (!stateData || stateData.expiresAt < Date.now()) {
+  const installData = installStates.get(`install:${state}`);
+  if (!stateData || !installData || stateData.expiresAt < Date.now()) {
     throw new AppError('Invalid or expired state', 400);
   }
   if (stateData.workspaceId !== req.auth!.workspaceId) {
@@ -190,7 +262,8 @@ connectorsRouter.post('/github/connect', requireCapability('manage'), wrap(async
   const app = getGitHubAppConfig();
   if (!app) throw new AppError('GitHub App is not configured', 503);
 
-  const token = await getInstallationToken(installation_id, app.appId, app.privateKey);
+  const installationId = installData.workspaceId;
+  const token = await getInstallationToken(installationId, app.appId, app.privateKey);
 
   const created: Array<{ id: string; name: string; provider: string; providerConfig: Record<string, unknown> }> = [];
   const { workspaceId } = req.auth!;
@@ -200,7 +273,7 @@ connectorsRouter.post('/github/connect', requireCapability('manage'), wrap(async
       headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
     });
     if (!repoRes.ok) {
-      console.error(`Cannot access repo "${repo}" via installation ${installation_id}`);
+      console.error(`Cannot access repo "${repo}" via installation ${installationId}`);
       continue;
     }
     const repoData = await repoRes.json() as { default_branch: string; full_name: string };
@@ -210,7 +283,7 @@ connectorsRouter.post('/github/connect', requireCapability('manage'), wrap(async
     const config = {
       repo: repoData.full_name,
       defaultBranch: repoData.default_branch,
-      installationId: installation_id,
+      installationId,
     };
 
     await db.insert(connectors).values({
@@ -227,8 +300,9 @@ connectorsRouter.post('/github/connect', requireCapability('manage'), wrap(async
     created.push({ id, name: repoData.full_name, provider: 'github', providerConfig: config });
   }
 
-  // Clean up state (one-time use)
+  // Clean up state
   installStates.delete(state);
+  installStates.delete(`install:${state}`);
 
   res.status(201).json(created);
 }));

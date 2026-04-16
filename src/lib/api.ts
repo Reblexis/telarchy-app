@@ -292,11 +292,9 @@ export const api = {
     if (ref) params.set('ref', ref);
     return request(`/api/connectors/${id}/file?${params}`);
   },
-  getGitHubRepos: (installationId: string, state: string) => {
-    const params = new URLSearchParams({ installation_id: installationId, state });
-    return request(`/api/connectors/github/repos?${params}`);
-  },
-  connectGitHub: (body: { installation_id: string; state: string; repos: string[] }) =>
+  getGitHubRepos: (state: string) =>
+    request(`/api/connectors/github/repos?state=${encodeURIComponent(state)}`),
+  connectGitHub: (body: { state: string; repos: string[] }) =>
     request('/api/connectors/github/connect', { method: 'POST', body: JSON.stringify(body) }),
   deleteConnector: (id: string) =>
     request(`/api/connectors/${id}`, { method: 'DELETE' }),
