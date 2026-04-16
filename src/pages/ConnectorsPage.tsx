@@ -23,9 +23,10 @@ export function ConnectorsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // OAuth repo picker state
+  // Repo picker state
   const [ticket, setTicket] = useState<string | null>(null);
   const [repos, setRepos] = useState<GitHubRepo[]>([]);
+  const [selectedRepos, setSelectedRepos] = useState<Set<string>>(new Set());
   const [repoSearch, setRepoSearch] = useState('');
   const [loadingRepos, setLoadingRepos] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -53,12 +54,12 @@ export function ConnectorsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Handle OAuth callback ticket
+  // Handle callback ticket from GitHub App installation
   useEffect(() => {
     const t = searchParams.get('ticket');
     if (!t) return;
     setTicket(t);
-    setSearchParams({}, { replace: true }); // clean URL
+    setSearchParams({}, { replace: true });
     setLoadingRepos(true);
     api.getGitHubRepos(t)
       .then(data => setRepos(data as GitHubRepo[]))
@@ -67,19 +68,28 @@ export function ConnectorsPage() {
   }, [searchParams, setSearchParams]);
 
   const handleConnectGitHub = () => {
-    // Navigate to the OAuth endpoint (same origin)
     const base = import.meta.env.VITE_API_URL || '';
-    window.location.href = `${base}/api/connectors/github/auth`;
+    window.location.href = `${base}/api/connectors/github/install`;
   };
 
-  const handleSelectRepo = async (repo: GitHubRepo) => {
-    if (!ticket) return;
+  const handleToggleRepo = (fullName: string) => {
+    setSelectedRepos(prev => {
+      const next = new Set(prev);
+      if (next.has(fullName)) next.delete(fullName);
+      else next.add(fullName);
+      return next;
+    });
+  };
+
+  const handleConnectSelected = async () => {
+    if (!ticket || selectedRepos.size === 0) return;
     setConnecting(true);
     setError('');
     try {
-      await api.connectGitHub({ ticket, repo: repo.fullName });
+      await api.connectGitHub({ ticket, repos: [...selectedRepos] });
       setTicket(null);
       setRepos([]);
+      setSelectedRepos(new Set());
       await load();
     } catch (e: unknown) {
       setError((e as Error).message);
@@ -91,6 +101,7 @@ export function ConnectorsPage() {
   const handleCancelRepoPicker = () => {
     setTicket(null);
     setRepos([]);
+    setSelectedRepos(new Set());
   };
 
   const handleExpand = async (connectorId: string) => {
@@ -200,7 +211,7 @@ export function ConnectorsPage() {
     <div className="container">
       {error && <div className="message error show">{error}</div>}
 
-      {/* Repo picker modal (shown after GitHub OAuth callback) */}
+      {/* Repo picker modal */}
       {ticket && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 100,
@@ -212,7 +223,7 @@ export function ConnectorsPage() {
             width: '100%', maxWidth: 520, maxHeight: '80vh', display: 'flex', flexDirection: 'column',
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ margin: 0, fontSize: '1rem' }}>Select a repository</h3>
+              <h3 style={{ margin: 0, fontSize: '1rem' }}>Select repositories to connect</h3>
               <button onClick={handleCancelRepoPicker} style={{ fontSize: '0.8rem' }}>Cancel</button>
             </div>
             {loadingRepos ? (
@@ -226,42 +237,60 @@ export function ConnectorsPage() {
                   onChange={e => setRepoSearch(e.target.value)}
                   style={{ marginBottom: '0.75rem' }}
                 />
-                <div style={{ overflowY: 'auto', flex: 1 }}>
+                <div style={{ overflowY: 'auto', flex: 1, marginBottom: '0.75rem' }}>
                   {filteredRepos.length === 0 ? (
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No repositories found.</p>
                   ) : (
-                    filteredRepos.map(repo => (
-                      <button
-                        key={repo.fullName}
-                        onClick={() => handleSelectRepo(repo)}
-                        disabled={connecting}
-                        style={{
-                          display: 'block', width: '100%', textAlign: 'left',
-                          padding: '0.5rem 0.75rem', marginBottom: '0.25rem',
-                          border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)',
-                          background: 'var(--bg-secondary)', cursor: 'pointer',
-                        }}
-                      >
-                        <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>
-                          {repo.fullName}
-                          {repo.private && (
-                            <span style={{
-                              fontSize: '0.65rem', marginLeft: '0.5rem', padding: '0.1rem 0.3rem',
-                              borderRadius: '999px', background: 'rgba(234,179,8,0.15)', color: 'var(--warning-text, #ca8a04)',
-                            }}>
-                              private
-                            </span>
-                          )}
-                        </div>
-                        {repo.description && (
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
-                            {repo.description}
+                    filteredRepos.map(repo => {
+                      const isSelected = selectedRepos.has(repo.fullName);
+                      return (
+                        <div
+                          key={repo.fullName}
+                          onClick={() => handleToggleRepo(repo.fullName)}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: '0.5rem',
+                            padding: '0.5rem 0.75rem', marginBottom: '0.25rem',
+                            border: `1px solid ${isSelected ? 'var(--accent-color, #3b82f6)' : 'var(--border-color)'}`,
+                            borderRadius: 'var(--radius-md)',
+                            background: isSelected ? 'rgba(59,130,246,0.08)' : 'var(--bg-secondary)',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleRepo(repo.fullName)}
+                            onClick={e => e.stopPropagation()}
+                            style={{ flexShrink: 0 }}
+                          />
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontWeight: 500, fontSize: '0.875rem' }}>
+                              {repo.fullName}
+                              {repo.private && (
+                                <span style={{
+                                  fontSize: '0.65rem', marginLeft: '0.5rem', padding: '0.1rem 0.3rem',
+                                  borderRadius: '999px', background: 'rgba(234,179,8,0.15)', color: 'var(--warning-text, #ca8a04)',
+                                }}>
+                                  private
+                                </span>
+                              )}
+                            </div>
+                            {repo.description && (
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {repo.description}
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </button>
-                    ))
+                        </div>
+                      );
+                    })
                   )}
                 </div>
+                {selectedRepos.size > 0 && (
+                  <button onClick={handleConnectSelected} disabled={connecting}>
+                    {connecting ? 'Connecting...' : `Connect ${selectedRepos.size} repo${selectedRepos.size > 1 ? 's' : ''}`}
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -306,11 +335,6 @@ export function ConnectorsPage() {
                         {connector.provider === 'github' ? 'GH' : connector.provider}
                       </span>
                       <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{connector.name}</span>
-                      {connector.providerConfig?.repo && (
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
-                          {connector.providerConfig.repo as string}
-                        </span>
-                      )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
                       {isAdmin && accessGroups.length > 0 && (
@@ -339,10 +363,8 @@ export function ConnectorsPage() {
                   {/* Expanded: file browser + permissions */}
                   {isExpanded && (
                     <div style={{ borderTop: '1px solid var(--border-color)' }}>
-                      {/* File browser */}
                       <div style={{ padding: '0.75rem' }}>
                         {filePath && fileContent !== null ? (
-                          // File view
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                               <button onClick={handleBackToTree} style={{ fontSize: '0.8rem' }}>Back</button>
@@ -359,7 +381,6 @@ export function ConnectorsPage() {
                         ) : loadingFile ? (
                           <div className="loading" style={{ fontSize: '0.875rem' }}>Loading file...</div>
                         ) : (
-                          // Tree view
                           <div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                               {browsePath.length > 0 && (

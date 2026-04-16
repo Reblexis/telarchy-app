@@ -294,7 +294,7 @@ export const api = {
   },
   getGitHubRepos: (ticket: string) =>
     request(`/api/connectors/github/repos?ticket=${encodeURIComponent(ticket)}`),
-  connectGitHub: (body: { ticket: string; repo: string; name?: string }) =>
+  connectGitHub: (body: { ticket: string; repos: string[] }) =>
     request('/api/connectors/github/connect', { method: 'POST', body: JSON.stringify(body) }),
   deleteConnector: (id: string) =>
     request(`/api/connectors/${id}`, { method: 'DELETE' }),
