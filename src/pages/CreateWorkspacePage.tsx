@@ -46,12 +46,9 @@ export function CreateWorkspacePage() {
 
   const nav = (
     <nav style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
       padding: '1rem 2rem', borderBottom: '1px solid var(--border-color)',
     }}>
-      <Link to="/" style={{ fontWeight: 700, fontSize: '1rem', textDecoration: 'none', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-        Telarchy
-      </Link>
       <Link to="/" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textDecoration: 'none' }}>
         ← Back
       </Link>
