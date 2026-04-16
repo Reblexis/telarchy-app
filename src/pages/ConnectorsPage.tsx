@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { api } from '../lib/api';
-import type { Connector, PermissionGroup, GitHubTreeEntry } from '../types';
+import type { Connector, GitHubTreeEntry } from '../types';
 
 interface GitHubRepo {
   fullName: string;
@@ -19,7 +19,6 @@ export function ConnectorsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [connectors, setConnectors] = useState<Connector[]>([]);
-  const [groups, setGroups] = useState<PermissionGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -43,12 +42,8 @@ export function ConnectorsPage() {
   const load = useCallback(async () => {
     if (!user) return;
     setError('');
-    const [connectorData, groupData] = await Promise.all([
-      api.listConnectors().catch((e: Error) => { setError(e.message); return []; }),
-      isAdmin ? api.listGroups().catch(() => []) : Promise.resolve([]),
-    ]);
+    const connectorData = await api.listConnectors().catch((e: Error) => { setError(e.message); return []; });
     setConnectors((connectorData ?? []) as Connector[]);
-    setGroups((groupData ?? []) as PermissionGroup[]);
     setLoading(false);
   }, [user, isAdmin]);
 
@@ -206,21 +201,6 @@ export function ConnectorsPage() {
     }
   };
 
-  const handleToggleConnectorPermission = async (group: PermissionGroup, connectorId: string) => {
-    const current = group.connectorPermissions?.[connectorId]?.read ?? false;
-    const next = { ...group.connectorPermissions, [connectorId]: { read: !current } };
-    if (!next[connectorId].read) delete next[connectorId];
-    try {
-      await api.updateGroup(group.id, { connectorPermissions: next });
-      setGroups(prev => prev.map(g => g.id === group.id ? { ...g, connectorPermissions: next } : g));
-    } catch (e: unknown) {
-      setError((e as Error).message);
-    }
-  };
-
-  const connectorGroups = (connectorId: string) =>
-    groups.filter(g => g.type === 'admin' || g.connectorPermissions?.[connectorId]?.read);
-
   const filteredRepos = repoSearch
     ? repos.filter(r => r.fullName.toLowerCase().includes(repoSearch.toLowerCase()))
     : repos;
@@ -341,7 +321,6 @@ export function ConnectorsPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
             {connectors.map(connector => {
               const isExpanded = expandedId === connector.id;
-              const accessGroups = connectorGroups(connector.id);
 
               return (
                 <div key={connector.id} style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
@@ -357,22 +336,6 @@ export function ConnectorsPage() {
                       <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{connector.name}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-                      {isAdmin && accessGroups.length > 0 && (
-                        <div style={{ display: 'flex', gap: '0.2rem', flexWrap: 'wrap' }}>
-                          {accessGroups.map(g => (
-                            <span
-                              key={g.id}
-                              style={{
-                                fontSize: '0.65rem', padding: '0.1rem 0.35rem', borderRadius: '999px',
-                                background: g.type === 'admin' ? 'var(--bg-tertiary)' : 'rgba(34,197,94,0.12)',
-                                color: g.type === 'admin' ? 'var(--text-secondary)' : 'var(--success-text)',
-                              }}
-                            >
-                              {g.name}
-                            </span>
-                          ))}
-                        </div>
-                      )}
                       {isAdmin && (
                         <button className="btn-small btn-delete" onClick={e => { e.stopPropagation(); handleDelete(connector.id); }}>Disconnect</button>
                       )}
@@ -452,36 +415,6 @@ export function ConnectorsPage() {
                         )}
                       </div>
 
-                      {/* Permissions (admin only) */}
-                      {isAdmin && (
-                        <div style={{ padding: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
-                          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Group Access</div>
-                          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-                            Admins always have access. Toggle read access for other groups.
-                          </p>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-                            <thead>
-                              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                <th style={{ textAlign: 'left', padding: '0.3rem 0.5rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Group</th>
-                                <th style={{ textAlign: 'center', padding: '0.3rem 0.5rem', color: 'var(--text-secondary)', fontWeight: 500, width: 60 }}>Read</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {groups.filter(g => g.type !== 'admin').map(g => {
-                                const hasAccess = g.connectorPermissions?.[connector.id]?.read ?? false;
-                                return (
-                                  <tr key={g.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                    <td style={{ padding: '0.3rem 0.5rem' }}>{g.name}</td>
-                                    <td style={{ padding: '0.3rem 0.5rem', textAlign: 'center' }}>
-                                      <input type="checkbox" checked={hasAccess} onChange={() => handleToggleConnectorPermission(g, connector.id)} />
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
