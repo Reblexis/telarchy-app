@@ -133,7 +133,7 @@ export function CreateWorkspacePage() {
 
             {selected === 'startup' && (
               <div className="form-group">
-                <label htmlFor="rev-max">Weekly revenue ceiling</label>
+                <label htmlFor="rev-max">Weekly revenue target</label>
                 <input
                   type="number"
                   id="rev-max"
