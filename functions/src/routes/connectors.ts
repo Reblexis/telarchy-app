@@ -245,12 +245,15 @@ connectorsRouter.get('/github/repos', requireCapability('manage'), wrap(async (r
     page++;
   }
 
-  res.json(repos.map(r => ({
-    fullName: r.full_name,
-    private: r.private,
-    defaultBranch: r.default_branch,
-    description: r.description,
-  })));
+  res.json({
+    installationUrl: `https://github.com/settings/installations/${installationId}`,
+    repos: repos.map(r => ({
+      fullName: r.full_name,
+      private: r.private,
+      defaultBranch: r.default_branch,
+      description: r.description,
+    })),
+  });
 }));
 
 // POST /api/connectors/github/connect - create connectors from selected repos

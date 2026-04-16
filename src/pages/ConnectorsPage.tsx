@@ -25,6 +25,7 @@ export function ConnectorsPage() {
   // Repo picker state - use sessionStorage to survive component remounts during auth resolution
   const [flowState, setFlowState] = useState<string | null>(() => sessionStorage.getItem('gh_connector_state'));
   const [repos, setRepos] = useState<GitHubRepo[]>([]);
+  const [installationUrl, setInstallationUrl] = useState<string | null>(null);
   const [selectedRepos, setSelectedRepos] = useState<Set<string>>(new Set());
   const [repoSearch, setRepoSearch] = useState('');
   const [loadingRepos, setLoadingRepos] = useState(false);
@@ -49,6 +50,21 @@ export function ConnectorsPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  const fetchRepos = useCallback(async (state: string) => {
+    setLoadingRepos(true);
+    try {
+      const data = await api.getGitHubRepos(state) as { installationUrl: string; repos: GitHubRepo[] };
+      setRepos(data.repos);
+      setInstallationUrl(data.installationUrl);
+    } catch (e: unknown) {
+      setError((e as Error).message);
+      sessionStorage.removeItem('gh_connector_state');
+      setFlowState(null);
+    } finally {
+      setLoadingRepos(false);
+    }
+  }, []);
+
   // Handle callback from GitHub App OAuth flow (state in URL)
   const handledStateRef = useRef<string | null>(null);
   useEffect(() => {
@@ -58,27 +74,19 @@ export function ConnectorsPage() {
     sessionStorage.setItem('gh_connector_state', state);
     setFlowState(state);
     setSearchParams({}, { replace: true });
-    setLoadingRepos(true);
-    api.getGitHubRepos(state)
-      .then(data => setRepos(data as GitHubRepo[]))
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoadingRepos(false));
-  }, [searchParams, setSearchParams]);
+    fetchRepos(state);
+  }, [searchParams, setSearchParams, fetchRepos]);
 
   // If we have a flowState from sessionStorage but no repos yet, fetch them
   useEffect(() => {
     if (!flowState || repos.length > 0 || loadingRepos) return;
     if (handledStateRef.current === flowState) return; // already being handled above
-    setLoadingRepos(true);
-    api.getGitHubRepos(flowState)
-      .then(data => setRepos(data as GitHubRepo[]))
-      .catch(() => {
-        // State expired on the backend, clear it
-        sessionStorage.removeItem('gh_connector_state');
-        setFlowState(null);
-      })
-      .finally(() => setLoadingRepos(false));
-  }, [flowState, repos.length, loadingRepos]);
+    fetchRepos(flowState);
+  }, [flowState, repos.length, loadingRepos, fetchRepos]);
+
+  const handleRefreshRepos = () => {
+    if (flowState) fetchRepos(flowState);
+  };
 
   const handleConnectGitHub = () => {
     const base = import.meta.env.VITE_API_URL || '';
@@ -285,6 +293,18 @@ export function ConnectorsPage() {
                       );
                     })
                   )}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: selectedRepos.size > 0 ? '0.5rem' : 0 }}>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    {installationUrl && (
+                      <a href={installationUrl} target="_blank" rel="noopener noreferrer">
+                        Manage repository access
+                      </a>
+                    )}
+                  </div>
+                  <button onClick={handleRefreshRepos} disabled={loadingRepos} style={{ fontSize: '0.8rem' }}>
+                    {loadingRepos ? 'Refreshing...' : 'Refresh'}
+                  </button>
                 </div>
                 {selectedRepos.size > 0 && (
                   <button onClick={handleConnectSelected} disabled={connecting}>
