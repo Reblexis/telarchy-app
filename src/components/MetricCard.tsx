@@ -50,6 +50,7 @@ interface MetricCardProps {
 
 export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus, onGraph, onEdit, onDelete, onValueChange }: MetricCardProps) {
   const isLeaf = !metric.formula || metric.formula.trim() === '0';
+  const hasTP = metric.timePreference?.enabled === true;
   const [isEditingValue, setIsEditingValue] = useState(false);
   const [editValueStr, setEditValueStr] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -83,7 +84,7 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
           {isLeaf ? (
             isEditingValue ? (
               <span>
-                Value:{' '}
+                {hasTP ? 'Now' : 'Value'}:{' '}
                 <input
                   ref={inputRef}
                   type="number"
@@ -112,15 +113,20 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
               <span
                 onClick={onValueChange ? () => { setEditValueStr(String(metric.value)); setIsEditingValue(true); } : undefined}
                 style={onValueChange ? { cursor: 'text', borderBottom: '1px dashed currentColor' } : undefined}
-                title={onValueChange ? 'Click to edit value' : undefined}
+                title={onValueChange ? 'Update your current self-report' : undefined}
               >
-                Value: {metric.value.toFixed(2)}
+                {hasTP ? 'Now' : 'Value'}: {metric.value.toFixed(2)}
               </span>
             )
-          ) : metric.total === null
-              ? `Total: -`
-              : `Total: ${metric.total.toFixed(2)}`
+          ) : hasTP
+              ? (metric.total === null ? 'Outlook: -' : `Outlook: ${metric.total.toFixed(2)}`)
+              : (metric.total === null ? 'Value: -' : `Value: ${metric.total.toFixed(2)}`)
           }
+          {isLeaf && hasTP && (
+            <span style={{ marginLeft: '0.75rem', color: 'var(--text-secondary)' }}>
+              {metric.total === null ? 'Outlook: -' : `Outlook: ${metric.total.toFixed(2)}`}
+            </span>
+          )}
           {!isLeaf && metric.baselineTotal != null && metric.total !== null && (() => {
             const delta = metric.total - metric.baselineTotal;
             if (Math.abs(delta) < 0.005) return null;

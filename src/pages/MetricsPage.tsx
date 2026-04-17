@@ -143,7 +143,7 @@ export function MetricsPage() {
       <UpdateValuesModal
         open={updateValuesOpen}
         metrics={metrics}
-        message={!initialValuesDismissed ? 'Set your current values so forecasts start from where you actually are.' : undefined}
+        message={!initialValuesDismissed ? 'Enter your current values so forecasts have a starting point.' : undefined}
         onClose={() => {
           setUpdateValuesOpen(false);
           if (!initialValuesDismissed && wsId) {

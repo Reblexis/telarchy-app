@@ -56,7 +56,7 @@ export function UpdateValuesModal({ open, metrics, message, onClose, onSave }: U
     <div className="modal show" onClick={handleOverlayClick}>
       <div className="modal-content" style={{ maxWidth: 420 }}>
         <div className="modal-header">
-          <h3>Update values</h3>
+          <h3>Where are you now?</h3>
           <button className="modal-close" onClick={onClose}>&times;</button>
         </div>
         {message && (
@@ -76,6 +76,11 @@ export function UpdateValuesModal({ open, metrics, message, onClose, onSave }: U
                 >
                   {m.name}
                 </span>
+                {m.marketRangeMax != null && (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginLeft: '0.25rem' }}>
+                    (0–{m.marketRangeMax})
+                  </span>
+                )}
               </label>
               <input
                 ref={i === 0 ? firstInputRef : undefined}
