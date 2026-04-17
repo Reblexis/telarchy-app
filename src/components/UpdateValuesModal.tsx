@@ -67,30 +67,31 @@ export function UpdateValuesModal({ open, metrics, message, onClose, onSave }: U
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ overflowY: 'auto', maxHeight: '60vh', paddingRight: '0.25rem' }}>
           {leaves.map((m, i) => (
-            <div key={m.id} className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <label style={{ flex: 1, margin: 0 }}>
-                <span>
-                  {m.question || m.name}
-                </span>
-                {m.question && (
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', display: 'block' }}>
-                    {m.name}
-                  </span>
-                )}
-                {m.marketRangeMax != null && (
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginLeft: '0.25rem' }}>
-                    (0–{m.marketRangeMax})
-                  </span>
-                )}
+            <div key={m.id} className="form-group" style={{ marginBottom: '1rem' }}>
+              <label style={{ margin: 0, display: 'block', marginBottom: '0.35rem' }}>
+                {m.question || m.name}
               </label>
-              <input
-                ref={i === 0 ? firstInputRef : undefined}
-                type="number"
-                step="any"
-                value={values[m.id] ?? ''}
-                onChange={e => setValues(prev => ({ ...prev, [m.id]: e.target.value }))}
-                style={{ width: '7rem', textAlign: 'right' }}
-              />
+              {m.question && (
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '0.35rem' }}>
+                  {m.name}
+                </div>
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {m.marketRangeMax != null && (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', minWidth: '1rem', textAlign: 'right' }}>0</span>
+                )}
+                <input
+                  ref={i === 0 ? firstInputRef : undefined}
+                  type="number"
+                  step="any"
+                  value={values[m.id] ?? ''}
+                  onChange={e => setValues(prev => ({ ...prev, [m.id]: e.target.value }))}
+                  style={{ flex: 1, textAlign: 'center' }}
+                />
+                {m.marketRangeMax != null && (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', minWidth: '1rem' }}>{m.marketRangeMax}</span>
+                )}
+              </div>
             </div>
           ))}
           </div>

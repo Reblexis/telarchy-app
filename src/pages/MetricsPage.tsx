@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useMetrics } from '../hooks/useMetrics';
@@ -9,7 +9,6 @@ import { MetricsDashboard } from '../components/MetricsDashboard';
 import { AddMetricGhostCard } from '../components/AddMetricGhostCard';
 import { EditMetricModal } from '../components/EditMetricModal';
 import { GraphModal } from '../components/GraphModal';
-import { UpdateValuesModal } from '../components/UpdateValuesModal';
 
 export function MetricsPage() {
   const navigate = useNavigate();
@@ -27,22 +26,6 @@ export function MetricsPage() {
 
   const [editingMetric, setEditingMetric] = useState<Metric | null>(null);
   const [graphMetric, setGraphMetric] = useState<Metric | null>(null);
-  const [updateValuesOpen, setUpdateValuesOpen] = useState(false);
-  const [initialValuesDismissed, setInitialValuesDismissed] = useState(true);
-
-  // Auto-open the "set initial values" modal on first visit after workspace creation.
-  // Fires once per workspace; dismissal is persisted in localStorage.
-  const wsId = workspace?.workspaceId ?? '';
-  useEffect(() => {
-    if (!wsId || !isAdmin || metricsLoading) return;
-    const key = `initialValues_${wsId}`;
-    if (localStorage.getItem(key)) { setInitialValuesDismissed(true); return; }
-    const leaves = metrics.filter(m => !m.formula || m.formula.trim() === '0');
-    if (leaves.length > 0) {
-      setInitialValuesDismissed(false);
-      setUpdateValuesOpen(true);
-    }
-  }, [wsId, isAdmin, metricsLoading, metrics.length]);
   const handleLogout = async () => {
     await logout();
     navigate('/login');
@@ -77,11 +60,6 @@ export function MetricsPage() {
     await editMetric(metric.id, metric.name, metric.description || '', metric.question || '', newValue, metric.formula || '0', metric.value, '', metric.timePreference ?? null, metric.marketRangeMax);
   };
 
-  const handleBatchValueUpdate = async (updates: { metric: Metric; newValue: number }[]) => {
-    for (const { metric, newValue } of updates) {
-      await editMetric(metric.id, metric.name, metric.description || '', metric.question || '', newValue, metric.formula || '0', metric.value, '', metric.timePreference ?? null, metric.marketRangeMax);
-    }
-  };
 
   if (!user || metricsLoading) {
     return <div className="loading">Loading...</div>;
@@ -122,11 +100,6 @@ export function MetricsPage() {
             </div>
           </div>
         )}
-        {isAdmin && metrics.some(m => !m.formula || m.formula.trim() === '0') && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '0.75rem' }}>
-            <button className="btn-small" onClick={() => setUpdateValuesOpen(true)}>Update values</button>
-          </div>
-        )}
         <MetricsDashboard
           metrics={metrics}
           isInspectMode={!!inspectTask}
@@ -140,19 +113,6 @@ export function MetricsPage() {
           onAddMetric={isAdmin ? handleAddMetric : undefined}
         />
       </div>
-      <UpdateValuesModal
-        open={updateValuesOpen}
-        metrics={metrics}
-        message={!initialValuesDismissed ? 'Enter your current values so forecasts have a starting point.' : undefined}
-        onClose={() => {
-          setUpdateValuesOpen(false);
-          if (!initialValuesDismissed && wsId) {
-            localStorage.setItem(`initialValues_${wsId}`, '1');
-            setInitialValuesDismissed(true);
-          }
-        }}
-        onSave={handleBatchValueUpdate}
-      />
       <EditMetricModal
         metric={editingMetric}
         onClose={() => setEditingMetric(null)}

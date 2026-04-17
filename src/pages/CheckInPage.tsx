@@ -1,4 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Metric } from '../types';
 
@@ -18,7 +19,12 @@ function stalenessLabel(days: number): string {
   return `Updated ${Math.floor(days / 30)} months ago`;
 }
 
+function isLeaf(m: Metric): boolean {
+  return !m.formula || m.formula.trim() === '0';
+}
+
 export function CheckInPage() {
+  const navigate = useNavigate();
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -38,8 +44,11 @@ export function CheckInPage() {
   }, []);
 
   const leaves = metrics.filter(isLeaf);
+
+  // First visit: all leaves have value 0 and were never updated by the user
+  const isFirstVisit = leaves.length > 0 && leaves.every(m => !m.updatedAt || daysSince(m.updatedAt) === Infinity);
+
   const dueLeaves = leaves.filter(m => {
-    // updatedAt is a rough proxy; any leaf not updated in STALE_DAYS is due
     const days = daysSince(m.updatedAt ?? '');
     return days >= STALE_DAYS;
   });
@@ -65,8 +74,12 @@ export function CheckInPage() {
           marketRangeMax: m.marketRangeMax,
         });
       }
+      // First visit: redirect to metrics dashboard for the wow moment
+      if (isFirstVisit) {
+        navigate('/metrics');
+        return;
+      }
       setSaved(true);
-      // Reload to get fresh updatedAt
       const fresh = await api.getMetrics() as Metric[];
       setMetrics(fresh);
     } catch (err) {
@@ -87,6 +100,57 @@ export function CheckInPage() {
     );
   }
 
+  // First visit: clean, focused layout with no staleness noise
+  if (isFirstVisit) {
+    return (
+      <div className="container" style={{ maxWidth: 500, paddingTop: '2rem' }}>
+        <h1>Where are you right now?</h1>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+          Set your starting point. Forecasts and predictions will build from here.
+        </p>
+        <form onSubmit={handleSubmit}>
+          {leaves.map(m => (
+            <div key={m.id} className="checkin-card" style={{
+              border: '1px solid var(--border-color)',
+              borderRadius: '0.5rem',
+              padding: '1rem',
+              marginBottom: '0.75rem',
+            }}>
+              <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
+                {m.question || m.name}
+              </div>
+              {m.question && (
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '0.5rem' }}>
+                  {m.name}
+                </div>
+              )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {m.marketRangeMax != null && (
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', minWidth: '1.5rem', textAlign: 'right' }}>0</span>
+                )}
+                <input
+                  type="number"
+                  step="any"
+                  value={values[m.id] ?? ''}
+                  onChange={e => setValues(prev => ({ ...prev, [m.id]: e.target.value }))}
+                  style={{ flex: 1, fontSize: '1.1rem', padding: '0.5rem', textAlign: 'center' }}
+                />
+                {m.marketRangeMax != null && (
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', minWidth: '1.5rem' }}>{m.marketRangeMax}</span>
+                )}
+              </div>
+            </div>
+          ))}
+          {error && <div className="message error show" style={{ marginBottom: '0.75rem' }}>{error}</div>}
+          <button type="submit" className="btn" disabled={saving} style={{ width: '100%' }}>
+            {saving ? 'Saving...' : 'Continue'}
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  // Return visits: staleness-based check-in
   const metricsToShow = dueLeaves.length > 0 ? dueLeaves : leaves;
   const showingAll = dueLeaves.length === 0;
 
@@ -128,15 +192,22 @@ export function CheckInPage() {
               )}
               <div style={{ fontSize: '0.75rem', color: isDue ? 'var(--error-text)' : 'var(--text-tertiary)', marginBottom: '0.5rem' }}>
                 {isFinite(days) ? stalenessLabel(days) : 'Never updated'}
-                {m.marketRangeMax != null && ` · 0\u2013${m.marketRangeMax}`}
               </div>
-              <input
-                type="number"
-                step="any"
-                value={values[m.id] ?? ''}
-                onChange={e => { setSaved(false); setValues(prev => ({ ...prev, [m.id]: e.target.value })); }}
-                style={{ width: '100%', fontSize: '1.1rem', padding: '0.5rem' }}
-              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {m.marketRangeMax != null && (
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', minWidth: '1.5rem', textAlign: 'right' }}>0</span>
+                )}
+                <input
+                  type="number"
+                  step="any"
+                  value={values[m.id] ?? ''}
+                  onChange={e => { setSaved(false); setValues(prev => ({ ...prev, [m.id]: e.target.value })); }}
+                  style={{ flex: 1, fontSize: '1.1rem', padding: '0.5rem', textAlign: 'center' }}
+                />
+                {m.marketRangeMax != null && (
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', minWidth: '1.5rem' }}>{m.marketRangeMax}</span>
+                )}
+              </div>
             </div>
           );
         })}
@@ -163,15 +234,22 @@ export function CheckInPage() {
                   )}
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '0.5rem' }}>
                     {stalenessLabel(daysSince(m.updatedAt ?? ''))}
-                    {m.marketRangeMax != null && ` · 0\u2013${m.marketRangeMax}`}
                   </div>
-                  <input
-                    type="number"
-                    step="any"
-                    value={values[m.id] ?? ''}
-                    onChange={e => { setSaved(false); setValues(prev => ({ ...prev, [m.id]: e.target.value })); }}
-                    style={{ width: '100%', fontSize: '1.1rem', padding: '0.5rem' }}
-                  />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {m.marketRangeMax != null && (
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', minWidth: '1.5rem', textAlign: 'right' }}>0</span>
+                    )}
+                    <input
+                      type="number"
+                      step="any"
+                      value={values[m.id] ?? ''}
+                      onChange={e => { setSaved(false); setValues(prev => ({ ...prev, [m.id]: e.target.value })); }}
+                      style={{ flex: 1, fontSize: '1.1rem', padding: '0.5rem', textAlign: 'center' }}
+                    />
+                    {m.marketRangeMax != null && (
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', minWidth: '1.5rem' }}>{m.marketRangeMax}</span>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -184,8 +262,4 @@ export function CheckInPage() {
       </form>
     </div>
   );
-}
-
-function isLeaf(m: Metric): boolean {
-  return !m.formula || m.formula.trim() === '0';
 }
