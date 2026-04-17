@@ -69,11 +69,7 @@ export function UpdateValuesModal({ open, metrics, message, onClose, onSave }: U
           {leaves.map((m, i) => (
             <div key={m.id} className="form-group" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <label style={{ flex: 1, margin: 0 }}>
-                <span
-                  className={m.description ? 'uv-label-tip' : undefined}
-                  data-tip={m.description || undefined}
-                  style={m.description ? { cursor: 'help' } : undefined}
-                >
+                <span>
                   {m.question || m.name}
                 </span>
                 {m.question && (

@@ -72,14 +72,15 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
             <label htmlFor="editName">Name</label>
             <input type="text" id="editName" required value={name} onChange={e => setName(e.target.value)} />
           </div>
-          <div className="form-group">
-            <label htmlFor="editDescription">Description</label>
-            <textarea id="editDescription" placeholder="What does this metric represent?" value={description} onChange={e => setDescription(e.target.value)} />
-          </div>
-          {isLeaf && (
+          {isLeaf ? (
             <div className="form-group">
               <label htmlFor="editQuestion">Check-in question</label>
               <input type="text" id="editQuestion" placeholder="e.g., How happy are you feeling right now?" value={question} onChange={e => setQuestion(e.target.value)} />
+            </div>
+          ) : (
+            <div className="form-group">
+              <label htmlFor="editDescription">Description</label>
+              <textarea id="editDescription" placeholder="What does this metric represent?" value={description} onChange={e => setDescription(e.target.value)} />
             </div>
           )}
           {isLeaf && (
