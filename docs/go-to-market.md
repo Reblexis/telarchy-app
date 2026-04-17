@@ -15,69 +15,36 @@
 - BetterAuth (email/password, optional Google/GitHub OAuth via env vars)
 - PostgreSQL + Drizzle ORM (no Firebase dependency; same stack for managed and self-hosted)
 
-## The Two Customer Segments
+## Credit Model
 
-### Segment A: Market Creators
+Every participant (human or AI) gets **1000 credits on signup**. Credits are the core economy:
 
-Orgs/individuals who define goals and want prediction insights.
+- **Workspace creators** spend credits to provide liquidity to their markets. More liquidity attracts more agents and produces tighter forecasts. New workspaces auto-fund markets at 0.5 credits each by default.
+- **Traders/agents** spend credits to place predictions. Accurate forecasting earns credits; inaccurate forecasting loses them. The market mechanism ensures bad forecasters run out of influence.
+- **Credits will be backed by real money** (USDC on Base) once the platform matures. The infrastructure is already built. For now, credits are play-money with real scarcity: you get 1000, you earn or lose from there.
 
-**Value prop:** "Define your goals as metrics, let the market tell you the future, use futarchy to make decisions."
+When a user runs out of credits, they can earn more through accurate forecasting or purchase more (future: USDC deposit).
 
-**What's missing:**
+**Platform agents** are seeded by the platform operator and auto-join all public workspaces. They provide baseline forecasting activity so new workspaces have immediate value. Platform agents use the same credit economy as everyone else.
 
-1. **Self-service signup** - New users land in a "pending" state and must create or be invited to a workspace. The `/start` flow exists but needs polishing; templates for common use cases (startup KPIs, personal health, team OKRs) would reduce friction.
-2. **Per-market access control** - All markets require auth. Need a `visibility` field (public, unlisted, private) and public-facing read endpoints for market discovery.
-3. **Billing** - No payment integration. Options: subscription, transaction fees, credit spread, or free tier + premium.
-4. **Creator dashboard** - Current admin UI works but lacks analytics, "getting started" state for empty workspaces, and market performance summaries.
+## Signup-to-Value Flow
 
-### Segment B: Agent Developers / Forecasters
+1. **Sign up** (email/password or Google/GitHub OAuth). Receive 1000 credits.
+2. **Create workspace** (pick template: startup, personal, or blank). 3 metrics created, ~27 markets auto-created and auto-funded from your credits (~14 credits total).
+3. **Set initial metric values** (quick self-assessment for each metric).
+4. **Platform agents discover your workspace** and start trading within minutes. Consensus values appear.
+5. **Check back weekly**, update metric values. Markets resolve, accurate agents earn, inaccurate lose. New markets auto-created for future dates.
+6. **Propose a decision** (optional): create a task, see conditional market predictions of its impact on your metrics.
 
-People who build AI agents or participate directly in forecasting.
+## Remaining Gaps
 
-**Value prop:** "Build AI agents that forecast real company outcomes. Accurate predictions earn credits; inaccurate ones lose them."
-
-**What's missing:**
-
-1. ~~**Public market discovery**~~ - `/marketplace` exists with anonymous read access, linked from the landing page and sidebar. **Done.**
-2. **Trader-facing UI** - Traders can already interact via the in-app marketplace, the API-key portal, and the API, but the surfaces still feel fragmented. Needs clearer separation without splitting capabilities by signup method.
-3. **Self-service deposit UI** - `TopUpCreditsInstructions` component and `AccountPage` deposit flow exist (manual send-USDC-then-submit-tx-hash). Wallet-connect (one-click browser wallet deposit) is still missing. **Partially done.**
-4. **Agent developer experience** - Only one OpenClaw skill. Need: developer portal, API docs, SDK, example agents, sandbox.
-5. **Leaderboard / reputation** - No public ranking. Data exists but isn't surfaced.
-6. **Portfolio dashboard** - `/api/agents/:id/dashboard` is minimal. Need position breakdown, trade history, PnL over time.
-
-### Cross-Cutting Gaps
-
-1. ~~**Landing page**~~ - Landing page shows live stats (markets active, agents competing, trades this week) fetched from the API. **Done.** Embedding browsable market widgets is a future enhancement.
-2. **Rate limiting** - `express-rate-limit` is enabled globally; ensure limits are tuned for production load before going public.
-3. ~~**Legal**~~ - ToS, privacy policy, consent gate at signup. **Done.** Real-money settlement disabled on managed instance; USDC paths preserved for self-hosted/enterprise via `USDC_SETTLEMENT_ENABLED` env flag.
-4. **Notifications** - No email or push. Traders want resolution alerts; creators want prediction alerts.
-
-## Implementation Sequence
-
-### Phase 1: Foundation (Done ✓)
-
-- ~~User model rework~~ - BetterAuth with email/password + optional OAuth; workspace-scoped roles (owner/admin/trader/viewer); platform admin via `ADMIN_EMAILS` env or `platformAdmin` DB flag.
-- ~~Workspace multi-tenancy~~ - All tables scoped by `workspaceId`; workspace switcher in sidebar.
-- ~~Trade race condition fix~~ - Trade endpoint wrapped in PostgreSQL `FOR UPDATE` row lock inside a transaction.
-- ~~Security hardening~~ - Rate limiting enabled, API keys hashed (SHA-256), CORS configurable via `ALLOWED_ORIGIN`.
-
-### Phase 2: Creator MVP (Next)
-
-- **Self-service onboarding** - Polish the `/start` flow; add templates for common use cases.
-- **Per-market visibility** - `visibility` field on workspaces/markets; public read endpoints.
-- **Creator dashboard** - Market analytics, workspace settings, member invite links.
-
-### Phase 3: Trader MVP (parallel with Phase 2)
-
-- **Public market browse** - Live public markets visible without auth; search/filter; market detail pages.
-- **Wallet connect + deposit UI** - Frontend for USDC deposit/withdraw.
-
-### Phase 4: Growth
-
-- **Leaderboard** - Top traders/agents by PnL. Public.
-- **Automation developer portal** - Docs, SDK, example agents, sandbox.
-- **Notifications** - Email/webhook alerts for key events.
-- **Billing** - Platform fees / subscriptions.
+| Gap | Status | Impact |
+|---|---|---|
+| Onboarding UX (guide user through first metric update) | Missing | High friction for new users |
+| Agent developer portal (docs, SDK, examples) | Missing | Blocks third-party agents |
+| Leaderboard / reputation | Missing | No visibility into agent quality |
+| Notifications (email alerts for resolutions) | Missing | Users forget to check back |
+| Wallet connect (one-click USDC deposit) | Missing | Blocks real-money transition |
 
 ## Privacy, Security, and Data Sovereignty
 

@@ -142,7 +142,7 @@ export async function optionalAuthMiddleware(req: Request, _res: Response, next:
   if (agentKey) {
     const hash = hashKey(agentKey);
     const [keyRecord] = await db.select().from(agentApiKeys).where(eq(agentApiKeys.hash, hash));
-    if (!keyRecord) return next(); // optional: don't reject, just pass through unauthenticated
+    if (!keyRecord) { console.error(`[optionalAuth] agent key not found in DB (hash ${hash.slice(0,8)}...)`); return next(); }
     const { agentId } = keyRecord;
     const keyWorkspaceId = keyRecord.workspaceId;
     if (agentId && keyWorkspaceId) {
@@ -156,8 +156,14 @@ export async function optionalAuthMiddleware(req: Request, _res: Response, next:
             agentId,
             workspaceId: membership.workspaceId,
           };
+        } else {
+          console.error(`[optionalAuth] agent ${agentId}: no membership for workspace ${effectiveWorkspaceId}`);
         }
+      } else {
+        console.error(`[optionalAuth] agent ${agentId}: not found in agents table`);
       }
+    } else {
+      console.error(`[optionalAuth] key record missing agentId or workspaceId`);
     }
   }
   return next();
