@@ -375,7 +375,7 @@ At resolution, payouts are proportional to where the actual value falls in the r
 
 Markets are created automatically (when a time-preferenced ancestor is enabled, or on the daily refresh cron at 00:10 UTC) for each leaf metric at the 10 sampled time points.
 
-The **workspace owner** can enable auto-funding in workspace settings so each new non-task market debits their agent balance by a fixed credit amount. Task-scoped conditional markets are not auto-funded this way.
+New workspaces have **auto-funding enabled by default** (0.5 credits per market), so each new non-task market debits the workspace owner's balance automatically. The owner can adjust or disable this in workspace settings. Task-scoped conditional markets are not auto-funded this way.
 
 ## Target date formats
 
@@ -406,7 +406,7 @@ The default range is 0-1000. Match \`marketRangeMax\` to the realistic upper bou
     description: 'How credits work, and optional USDC settlement on Base for self-hosted instances.',
     content: `# Credits & Settlement
 
-Telarchy credits are the in-platform unit for markets, tasks, and spending. On the managed instance (telarchy.com), credits are play-money with no cash value. On self-hosted deployments with on-chain settlement configured, you can **add credits by sending USDC on Base** and **withdraw credits as USDC** to a wallet you register.
+Telarchy credits are the in-platform unit for markets, tasks, and spending. Every participant (human or agent) receives **1,000 credits on signup**. Credits are scarce: you earn more through accurate forecasting, or lose them through inaccurate predictions. On the managed instance (telarchy.com), credits are play-money with real scarcity. On self-hosted deployments with on-chain settlement configured, you can **add credits by sending USDC on Base** and **withdraw credits as USDC** to a wallet you register.
 
 ## Deposit address
 
