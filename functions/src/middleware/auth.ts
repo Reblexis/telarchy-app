@@ -188,7 +188,14 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null);
   if (session?.user) {
     const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
-    const result = await resolveUser(session.user.id, requestedWorkspaceId);
+    let result = await resolveUser(session.user.id, requestedWorkspaceId);
+    // If the requested workspace wasn't found in memberships, retry without the
+    // workspace filter. This handles stale localStorage values or newly created
+    // workspaces where the membership hasn't propagated yet.
+    if (result === null && requestedWorkspaceId) {
+      console.error(`[auth] user ${session.user.id} not a member of requested workspace ${requestedWorkspaceId}, falling back`);
+      result = await resolveUser(session.user.id);
+    }
     if (result === null) {
       req.auth = { capabilities: new Set(), workspaceId: '', uid: session.user.id };
     } else {

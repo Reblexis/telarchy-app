@@ -1973,6 +1973,110 @@ await suite('Scenario: per-group capability editing', async () => {
   });
 });
 
+await suite('Scenario: new account signup-to-value flow', async () => {
+  // Tests the end-to-end signup flow: create account -> ensureParticipant -> create workspace -> access it
+  const testEmail = `test-signup-${Date.now()}@integration.test`;
+  const testPassword = 'IntegrationTest123!';
+  let signupCookie = '';
+  let newUserId = '';
+  let signupWsId = ''; // auto-created "My Workspace"
+  let templateWsId = ''; // workspace created from template
+
+  await test('Sign up creates a new account', async () => {
+    // Brief pause to avoid rate-limit from earlier auth tests
+    await new Promise(r => setTimeout(r, 1000));
+    const r = await fetch(`${BASE_URL}/api/auth/sign-up/email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Origin': BASE_URL },
+      body: JSON.stringify({ email: testEmail, password: testPassword, name: 'Test Signup' }),
+    });
+    expect(r.status).toBe(200);
+    const body = await r.json() as Record<string, unknown>;
+    expect(body.token).toBeTruthy();
+    newUserId = (body.user as Record<string, unknown>).id as string;
+    expect(newUserId).toBeTruthy();
+    signupCookie = r.headers.get('set-cookie') ?? '';
+    expect(signupCookie).toBeTruthy();
+  });
+
+  await test('GET /auth/me triggers ensureParticipant and returns profile with workspace', async () => {
+    if (!signupCookie) return;
+    const r = await fetch(`${BASE_URL}/api/auth/me`, {
+      headers: { 'Cookie': signupCookie },
+    });
+    expect(r.status).toBe(200);
+    const body = await r.json() as Record<string, unknown>;
+    expect(body.uid).toBe(newUserId);
+    expect(body.workspaceId).toBeTruthy();
+    expect(body.authRole).toBe('admin');
+    expect(body.memberRole).toBe('owner');
+    signupWsId = body.workspaceId as string;
+  });
+
+  await test('New user has 1000 credits', async () => {
+    if (!signupCookie || !signupWsId) return;
+    const r = await fetch(`${BASE_URL}/api/agents/me`, {
+      headers: { 'Cookie': signupCookie, 'X-Workspace-Id': signupWsId },
+    });
+    expect(r.status).toBe(200);
+    const body = await r.json() as Record<string, unknown>;
+    expect(body.balance).toBe(1000);
+  });
+
+  await test('Create workspace from startup template', async () => {
+    if (!signupCookie) return;
+    const r = await fetch(`${BASE_URL}/api/workspaces`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': signupCookie,
+        'X-Workspace-Id': signupWsId,
+      },
+      body: JSON.stringify({ name: 'Signup Test Startup', template: 'startup' }),
+    });
+    expect(r.status).toBe(201);
+    const body = await r.json() as Record<string, unknown>;
+    templateWsId = body.id as string;
+    expect(templateWsId).toBeTruthy();
+    expect(body.metricsCreated).toBe(3);
+  });
+
+  await test('New workspace is accessible (GET /status returns metrics)', async () => {
+    if (!signupCookie || !templateWsId) return;
+    const r = await fetch(`${BASE_URL}/api/status`, {
+      headers: { 'Cookie': signupCookie, 'X-Workspace-Id': templateWsId },
+    });
+    expect(r.status).toBe(200);
+    const body = await r.json() as Record<string, unknown>;
+    const metrics = body.metrics as unknown[];
+    expect(metrics.length).toBe(3);
+  });
+
+  await test('New workspace has markets (auto-created by time preference)', async () => {
+    if (!signupCookie || !templateWsId) return;
+    const r = await fetch(`${BASE_URL}/api/predictions/markets`, {
+      headers: { 'Cookie': signupCookie, 'X-Workspace-Id': templateWsId },
+    });
+    expect(r.status).toBe(200);
+    const markets = await r.json() as unknown[];
+    expect(markets.length).toBeGreaterThan(0);
+  });
+
+  await test('New workspace has auto-fund enabled', async () => {
+    if (!templateWsId) return;
+    const r = await adminCall(templateWsId)('GET', `/workspaces/${templateWsId}`);
+    const ws = ok(r, 'get workspace');
+    expect(ws.autoFundNewMarkets).toBe(true);
+    expect(ws.newMarketLiquidityCredits).toBe(0.5);
+  });
+
+  await test('Cleanup: delete signup test workspaces', async () => {
+    for (const wsId of [templateWsId, signupWsId].filter(Boolean)) {
+      await adminCall(wsId)('DELETE', `/workspaces/${wsId}`);
+    }
+  });
+});
+
 await suite('Cleanup', async () => {
   await test('Delete test market if still exists', async () => {
     if (!ctx.marketId) return;

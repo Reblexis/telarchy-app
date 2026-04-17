@@ -51,10 +51,15 @@ workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
   const wsId = randomUUID();
   const metricIdsWithTP: Array<{ id: string; halfLife: number }> = [];
 
+  // For browser users, agentId may not be on req.auth if resolveUser returned null
+  // (e.g. timing edge case). The identity string (uid) is the same as the agent ID
+  // since ensureParticipant sets id = uid. Use it as fallback.
+  const ownerAgentId = agentId ?? (uid ? uid : undefined);
+
   await db.transaction(async tx => {
     await provisionWorkspace(tx, {
       wsId, name: name.trim(), createdBy: identity,
-      ownerAgentId: agentId,
+      ownerAgentId,
     });
 
     const now = new Date();
