@@ -9,6 +9,7 @@ import { requireUser } from '../middleware/roles';
 import { hashKey } from '../middleware/auth';
 import { getAuthWorkspaceMemberships, getUserWorkspaceMemberships } from '../middleware/auth';
 import { provisionWorkspace } from '../lib/participants';
+import { toUnits } from '../lib/validation';
 
 export const userauthRouter = Router();
 
@@ -30,7 +31,7 @@ async function ensureParticipant(uid: string): Promise<{ participantId: string; 
       authUserId: uid,
       platformAdmin: false,
       intent: null,
-      balance: 0,
+      balance: toUnits(1000),
       createdAt: now,
       approvedAt: now,
     });

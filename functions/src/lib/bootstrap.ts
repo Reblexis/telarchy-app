@@ -13,6 +13,7 @@ import { db } from '../db/client';
 import { authUser, authAccount, agents, agentApiKeys } from '../db/schema';
 import { hashKey } from '../middleware/auth';
 import { provisionWorkspace } from './participants';
+import { toUnits } from './validation';
 
 async function hashAuthPassword(password: string): Promise<string> {
   const { hashPassword } = await import('better-auth/crypto');
@@ -86,7 +87,7 @@ export async function runBootstrap(): Promise<void> {
       apiKeyHash: agentKeyHash,
       authUserId: userId,
       platformAdmin: true,
-      balance: 0,
+      balance: toUnits(1000),
       createdAt: new Date(),
       approvedAt: new Date(),
     });

@@ -181,6 +181,8 @@ export async function provisionWorkspace(
     createdBy,
     createdAt: now,
     visibility: 'private',
+    autoFundNewMarkets: true,
+    newMarketLiquidityCredits: 0.5,
   });
 
   const adminMemberIds = ownerAgentId ? [ownerAgentId] : [];

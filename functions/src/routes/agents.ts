@@ -60,7 +60,7 @@ agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => 
 
   await db.transaction(async tx => {
     await tx.insert(agents).values({
-      id: agentId, apiKeyHash: keyHash, balance: 0,
+      id: agentId, apiKeyHash: keyHash, balance: toUnits(1000),
       authUserId: req.auth?.uid ?? null, createdAt: new Date(), approvedAt: new Date(),
     });
     await tx.insert(agentApiKeys).values({ hash: keyHash, agentId, workspaceId });
