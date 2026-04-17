@@ -24,10 +24,12 @@ export interface MetricsTimeChartProps {
   variant: 'inline' | 'modal';
   rangeMin?: number;
   rangeMax?: number;
+  /** Time preference half-life in years. When set, overlays a subtle decay weight curve. */
+  halfLifeYears?: number;
 }
 
 export function MetricsTimeChart({
-  points, conditionalPoints, mode, variant, rangeMin, rangeMax,
+  points, conditionalPoints, mode, variant, rangeMin, rangeMax, halfLifeYears,
 }: MetricsTimeChartProps) {
   const currentColor = '#3b82f6';
   const conditionalColor = '#f59e0b';
@@ -84,6 +86,34 @@ export function MetricsTimeChart({
     });
   }
 
+  // Overlay TP decay weight curve on a hidden secondary y-axis
+  if (halfLifeYears && halfLifeYears > 0) {
+    const nowMs = Date.now();
+    const lambda = Math.LN2 / halfLifeYears;
+    const msPerYear = 365.25 * 24 * 60 * 60 * 1000;
+    const steps = 40;
+    const decayPoints = [];
+    for (let i = 0; i <= steps; i++) {
+      const x = xMin + (i / steps) * (xMax - xMin);
+      const yearsFromNow = (x - nowMs) / msPerYear;
+      // Weight is 1.0 at t=0, decays for future, clamps to 1.0 for past
+      const weight = yearsFromNow <= 0 ? 1.0 : Math.exp(-lambda * yearsFromNow);
+      decayPoints.push({ x, y: weight });
+    }
+    datasets.push({
+      label: 'Weight',
+      data: decayPoints,
+      borderColor: 'rgba(139,92,246,0.25)',
+      backgroundColor: 'rgba(139,92,246,0.05)',
+      borderWidth: 1,
+      fill: true,
+      tension: 0.4,
+      pointRadius: 0,
+      pointHoverRadius: 0,
+      yAxisID: 'yWeight',
+    });
+  }
+
   const data: ChartData<'line'> = { datasets };
 
   const options: ChartOptions<'line'> = {
@@ -102,6 +132,7 @@ export function MetricsTimeChart({
         bodyColor: tipBody,
         borderColor: tipBorder,
         borderWidth: 1,
+        filter: (item) => item.dataset.label !== 'Weight',
         callbacks: {
           title: (items) => {
             const item = items.find(i => i.dataset.label === 'Current');
@@ -162,6 +193,14 @@ export function MetricsTimeChart({
           callback: (v) => formatAxisValue(Number(v)),
         },
       },
+      ...(halfLifeYears ? {
+        yWeight: {
+          display: false,
+          min: 0,
+          max: 1,
+          position: 'right' as const,
+        },
+      } : {}),
     },
   };
 
