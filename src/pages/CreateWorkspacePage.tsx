@@ -32,7 +32,7 @@ export function CreateWorkspacePage() {
       clearCache();
       // Full reload so useWorkspace re-fetches the workspace list and profile
       // from scratch. A soft navigate leaves stale state in the sidebar.
-      window.location.href = '/check-in';
+      window.location.href = '/check-in?welcome=1';
     } catch (err: unknown) {
       setError((err as Error).message || 'Failed to create workspace');
       setSubmitting(false);

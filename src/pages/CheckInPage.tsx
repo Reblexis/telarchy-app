@@ -1,5 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Metric } from '../types';
 
@@ -25,6 +25,8 @@ function isLeaf(m: Metric): boolean {
 
 export function CheckInPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isWelcome = searchParams.get('welcome') === '1';
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -45,8 +47,6 @@ export function CheckInPage() {
 
   const leaves = metrics.filter(isLeaf);
 
-  // First visit: all leaves have value 0 and were never updated by the user
-  const isFirstVisit = leaves.length > 0 && leaves.every(m => !m.updatedAt || daysSince(m.updatedAt) === Infinity);
 
   const dueLeaves = leaves.filter(m => {
     const days = daysSince(m.updatedAt ?? '');
@@ -75,7 +75,7 @@ export function CheckInPage() {
         });
       }
       // First visit: redirect to metrics dashboard for the wow moment
-      if (isFirstVisit) {
+      if (isWelcome) {
         navigate('/metrics');
         return;
       }
@@ -101,7 +101,7 @@ export function CheckInPage() {
   }
 
   // First visit: clean, focused layout with no staleness noise
-  if (isFirstVisit) {
+  if (isWelcome) {
     return (
       <div className="container" style={{ maxWidth: 500, paddingTop: '2rem' }}>
         <h1>Where are you right now?</h1>
