@@ -3,24 +3,15 @@ import { Link, useNavigate } from 'react-router-dom';
 import { authClient } from '../lib/auth-client';
 import { api } from '../lib/api';
 import { OAuthButtons } from '../components/OAuthButtons';
-import { useAgentSession } from '../hooks/useAgentSession';
 
 export function SignupPage() {
   const navigate = useNavigate();
-  const { login: agentLogin } = useAgentSession();
-
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [consented, setConsented] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
-  const handleProfileResult = (result: { agentId?: string; apiKey?: string }) => {
-    if (result.agentId && result.apiKey) {
-      agentLogin(result.agentId, result.apiKey);
-    }
-  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -43,11 +34,12 @@ export function SignupPage() {
       console.error('recordConsent failed:', e.message);
     });
 
-    const result = await api.upsertProfile(email).catch((e: Error) => {
+    // Create the participant record (agent + credits). Workspace is created
+    // on the next page when the user picks a template.
+    await api.upsertProfile(email).catch((e: Error) => {
       console.error('upsertProfile failed:', e.message);
-      return {};
-    }) as { agentId?: string; apiKey?: string };
-    handleProfileResult(result);
+    });
+
     setSubmitting(false);
     navigate('/create-workspace');
   };

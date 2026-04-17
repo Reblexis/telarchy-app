@@ -1974,12 +1974,11 @@ await suite('Scenario: per-group capability editing', async () => {
 });
 
 await suite('Scenario: new account signup-to-value flow', async () => {
-  // Tests the end-to-end signup flow: create account -> ensureParticipant -> create workspace -> access it
+  // Tests the end-to-end signup flow: create account -> ensureParticipant (no workspace) -> create workspace -> access it
   const testEmail = `test-signup-${Date.now()}@integration.test`;
   const testPassword = 'IntegrationTest123!';
   let signupCookie = '';
   let newUserId = '';
-  let signupWsId = ''; // auto-created "My Workspace"
   let templateWsId = ''; // workspace created from template
 
   await test('Sign up creates a new account', async () => {
@@ -1999,7 +1998,7 @@ await suite('Scenario: new account signup-to-value flow', async () => {
     expect(signupCookie).toBeTruthy();
   });
 
-  await test('GET /auth/me triggers ensureParticipant and returns profile with workspace', async () => {
+  await test('GET /auth/me creates participant but no workspace (authRole=pending)', async () => {
     if (!signupCookie) return;
     const r = await fetch(`${BASE_URL}/api/auth/me`, {
       headers: { 'Cookie': signupCookie },
@@ -2007,31 +2006,15 @@ await suite('Scenario: new account signup-to-value flow', async () => {
     expect(r.status).toBe(200);
     const body = await r.json() as Record<string, unknown>;
     expect(body.uid).toBe(newUserId);
-    expect(body.workspaceId).toBeTruthy();
-    expect(body.authRole).toBe('admin');
-    expect(body.memberRole).toBe('owner');
-    signupWsId = body.workspaceId as string;
+    expect(body.authRole).toBe('pending');
+    expect(body.workspaceId).toBe('');
   });
 
-  await test('New user has 1000 credits', async () => {
-    if (!signupCookie || !signupWsId) return;
-    const r = await fetch(`${BASE_URL}/api/agents/me`, {
-      headers: { 'Cookie': signupCookie, 'X-Workspace-Id': signupWsId },
-    });
-    expect(r.status).toBe(200);
-    const body = await r.json() as Record<string, unknown>;
-    expect(body.balance).toBe(1000);
-  });
-
-  await test('Create workspace from startup template', async () => {
+  await test('Create workspace from startup template (no prior workspace needed)', async () => {
     if (!signupCookie) return;
     const r = await fetch(`${BASE_URL}/api/workspaces`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cookie': signupCookie,
-        'X-Workspace-Id': signupWsId,
-      },
+      headers: { 'Content-Type': 'application/json', 'Cookie': signupCookie },
       body: JSON.stringify({ name: 'Signup Test Startup', template: 'startup' }),
     });
     expect(r.status).toBe(201);
@@ -2039,6 +2022,30 @@ await suite('Scenario: new account signup-to-value flow', async () => {
     templateWsId = body.id as string;
     expect(templateWsId).toBeTruthy();
     expect(body.metricsCreated).toBe(3);
+  });
+
+  await test('After workspace creation, user is owner with admin authRole', async () => {
+    if (!signupCookie || !templateWsId) return;
+    const r = await fetch(`${BASE_URL}/api/auth/me`, {
+      headers: { 'Cookie': signupCookie, 'X-Workspace-Id': templateWsId },
+    });
+    expect(r.status).toBe(200);
+    const body = await r.json() as Record<string, unknown>;
+    expect(body.authRole).toBe('admin');
+    expect(body.memberRole).toBe('owner');
+    expect(body.workspaceId).toBe(templateWsId);
+  });
+
+  await test('New user has credits (1000 minus auto-fund deductions)', async () => {
+    if (!signupCookie || !templateWsId) return;
+    const r = await fetch(`${BASE_URL}/api/agents/me`, {
+      headers: { 'Cookie': signupCookie, 'X-Workspace-Id': templateWsId },
+    });
+    expect(r.status).toBe(200);
+    const body = await r.json() as Record<string, unknown>;
+    // Started with 1000, auto-fund deducts 0.5 * ~27 markets = ~13.5 credits
+    expect(body.balance as number).toBeGreaterThan(900);
+    expect(body.balance as number).toBeLessThan(1001);
   });
 
   await test('New workspace is accessible (GET /status returns metrics)', async () => {
@@ -2070,10 +2077,8 @@ await suite('Scenario: new account signup-to-value flow', async () => {
     expect(ws.newMarketLiquidityCredits).toBe(0.5);
   });
 
-  await test('Cleanup: delete signup test workspaces', async () => {
-    for (const wsId of [templateWsId, signupWsId].filter(Boolean)) {
-      await adminCall(wsId)('DELETE', `/workspaces/${wsId}`);
-    }
+  await test('Cleanup: delete signup test workspace', async () => {
+    if (templateWsId) await adminCall(templateWsId)('DELETE', `/workspaces/${templateWsId}`);
   });
 });
 

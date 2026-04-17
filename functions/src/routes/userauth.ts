@@ -1,48 +1,45 @@
 import { Router } from 'express';
-import { randomBytes, randomUUID } from 'crypto';
+import { randomBytes } from 'crypto';
 import { db } from '../db/client';
-import { agents, agentApiKeys, authUser } from '../db/schema';
+import { agents, authUser } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { CURRENT_CONSENT_VERSION } from './legal';
 import { wrap } from '../lib/wrap';
 import { requireUser } from '../middleware/roles';
 import { hashKey } from '../middleware/auth';
 import { getAuthWorkspaceMemberships, getUserWorkspaceMemberships } from '../middleware/auth';
-import { provisionWorkspace } from '../lib/participants';
 import { toUnits, SIGNUP_CREDITS } from '../lib/validation';
 
 export const userauthRouter = Router();
 
-/** Shared logic: ensure a browser-authenticated participant exists for a given uid. */
-async function ensureParticipant(uid: string): Promise<{ participantId: string; apiKey?: string; isNew: boolean }> {
+/**
+ * Ensure a participant (agent record) exists for a browser-authenticated user.
+ * Only creates the agent row with signup credits. Workspace creation is deferred
+ * to /create-workspace so the user can pick a template.
+ */
+async function ensureParticipant(uid: string): Promise<{ participantId: string; isNew: boolean }> {
   const [existing] = await db.select().from(agents).where(eq(agents.authUserId, uid));
   if (existing) return { participantId: existing.id, isNew: false };
 
   const participantId = uid;
-  const rawKey = randomBytes(32).toString('hex');
-  const keyHash = hashKey(rawKey);
-  const wsId = randomUUID();
   const now = new Date();
+  // Generate a key hash for the agents table (required not-null column).
+  // The actual agentApiKeys row linking this to a workspace is created later
+  // when the user creates their first workspace.
+  const keyHash = hashKey(randomBytes(32).toString('hex'));
 
-  await db.transaction(async tx => {
-    await tx.insert(agents).values({
-      id: participantId,
-      apiKeyHash: keyHash,
-      authUserId: uid,
-      platformAdmin: false,
-      intent: null,
-      balance: toUnits(SIGNUP_CREDITS),
-      createdAt: now,
-      approvedAt: now,
-    });
-    await provisionWorkspace(tx, {
-      wsId, name: 'My Workspace', createdBy: uid,
-      ownerAgentId: participantId,
-    });
-    await tx.insert(agentApiKeys).values({ hash: keyHash, agentId: participantId, workspaceId: wsId });
+  await db.insert(agents).values({
+    id: participantId,
+    apiKeyHash: keyHash,
+    authUserId: uid,
+    platformAdmin: false,
+    intent: null,
+    balance: toUnits(SIGNUP_CREDITS),
+    createdAt: now,
+    approvedAt: now,
   });
 
-  return { participantId, apiKey: rawKey, isNew: true };
+  return { participantId, isNew: true };
 }
 
 /**
@@ -67,8 +64,8 @@ userauthRouter.get('/me', requireUser, wrap(async (req, res) => {
 
   const workspaceMap = Object.fromEntries(memberships.map(m => [m.workspaceId, { role: m.memberRole }]));
 
-  // Use the workspace from auth context, or fall back to the first membership
-  // (covers new users whose workspace was just created by ensureParticipant).
+  // Use the workspace from auth context, or fall back to the first membership.
+  // New users with no workspace yet will have an empty workspaceId (authRole = 'pending').
   const workspaceId = req.auth!.workspaceId || memberships[0]?.workspaceId || '';
   const memberRole = workspaceMap[workspaceId]?.role ?? null;
 
@@ -130,14 +127,14 @@ userauthRouter.post('/profile', requireUser, wrap(async (req, res) => {
     res.status(400).json({ error: 'intent must be "creator" or "agent"' }); return;
   }
 
-  const { participantId, apiKey } = await ensureParticipant(uid);
+  const { participantId } = await ensureParticipant(uid);
 
   // Update intent if provided
   if (intent !== undefined) {
     await db.update(agents).set({ intent }).where(eq(agents.authUserId, uid));
   }
 
-  res.json({ ok: true, participantId, agentId: participantId, ...(apiKey !== undefined && { apiKey }) });
+  res.json({ ok: true, participantId, agentId: participantId });
 }));
 
 /**
