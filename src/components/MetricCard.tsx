@@ -84,7 +84,7 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
           {isLeaf ? (
             isEditingValue ? (
               <span>
-                {hasTP ? 'Now' : 'Value'}:{' '}
+                Now:{' '}
                 <input
                   ref={inputRef}
                   type="number"
@@ -115,12 +115,12 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
                 style={onValueChange ? { cursor: 'text', borderBottom: '1px dashed currentColor' } : undefined}
                 title={onValueChange ? 'Update your current self-report' : undefined}
               >
-                {hasTP ? 'Now' : 'Value'}: {metric.value.toFixed(2)}
+                Now: {metric.value.toFixed(2)}
               </span>
             )
           ) : hasTP
               ? (metric.total === null ? 'Outlook: -' : `Outlook: ${metric.total.toFixed(2)}`)
-              : (metric.total === null ? 'Value: -' : `Value: ${metric.total.toFixed(2)}`)
+              : (metric.total === null ? 'Now: -' : `Now: ${metric.total.toFixed(2)}`)
           }
           {isLeaf && hasTP && (
             <span style={{ marginLeft: '0.75rem', color: 'var(--text-secondary)' }}>

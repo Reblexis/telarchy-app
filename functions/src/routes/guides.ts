@@ -296,9 +296,9 @@ Overall
 The UI labels depend on whether time preference is enabled:
 
 - **Leaf + TP**: Shows **Now** (your current self-report, editable) and **Outlook** (the TP-blended total combining present value with market consensus at future dates).
-- **Plain leaf** (no TP): Shows **Value** (editable; total equals value, so no second number).
+- **Plain leaf** (no TP): Shows **Now** (editable; total equals value, so no second number).
 - **Formula + TP**: Shows **Outlook** (the TP-blended formula result). The "now" is computed from children and visible on their cards.
-- **Plain formula** (no TP): Shows **Value** (the formula result at current values).
+- **Plain formula** (no TP): Shows **Now** (the formula result computed from children's current values).
 
 In the API response, \`value\` is the self-report (leaves only), and \`total\` is the final number after TP blending or formula evaluation.
 
