@@ -33,28 +33,25 @@ export interface TemplateSpec {
 const STARTUP: TemplateSpec = {
   id: 'startup',
   name: 'Startup',
-  intent: 'Outcomes a founder is certain they want to maximise. Edit freely; this is a starter, not a prescription.',
+  intent: 'Revenue, customer satisfaction, and product quality.',
   metrics: (params) => [
     {
       name: 'Weekly revenue',
-      description:
-        'Direct financial outcome. Set the range max to a realistic ~2-year ceiling so the market has room to move. Activities like signups, features shipped, or hours worked are not metrics here; propose them as tasks if you suspect they drive revenue.',
+      description: 'Total revenue this week, in your currency.',
       marketRangeMax: params.revenueRangeMax && params.revenueRangeMax > 0 ? params.revenueRangeMax : 100000,
       timePreferenceHalfLifeYears: 1,
       initialValue: 0,
     },
     {
       name: 'Customer satisfaction',
-      description:
-        'Your honest aggregate read on customer happiness, scored 0-10 weekly. The guides recommend subjective self-assessment over upstream proxies (NPS, CSAT) unless you are certain the proxy captures what you mean.',
+      description: 'Your read on how happy customers are, 0-10.',
       marketRangeMax: 10,
       timePreferenceHalfLifeYears: 1,
       initialValue: 5,
     },
     {
       name: 'Product quality',
-      description:
-        'Your own assessment of the product as an internal compounding asset, scored 0-10. Not directly observable to customers week-to-week, but drives retention, velocity, and hiring long-term. Longer half-life reflects that.',
+      description: 'Your assessment of the product overall, 0-10.',
       marketRangeMax: 10,
       timePreferenceHalfLifeYears: 3,
       initialValue: 5,
@@ -65,28 +62,25 @@ const STARTUP: TemplateSpec = {
 const PERSONAL: TemplateSpec = {
   id: 'personal',
   name: 'Personal',
-  intent: 'A starter set of self-reported outcomes. The guides explicitly prefer subjective scores here over upstream proxies like "hours slept" or "income".',
+  intent: 'Happiness, health, and career satisfaction.',
   metrics: () => [
     {
       name: 'Happiness',
-      description:
-        'Self-reported weekly, 0-10. The guides explicitly recommend self-reported happiness over upstream proxies (dopamine, income, relationships). Anything you think drives happiness but are not certain about belongs in a task.',
+      description: 'How happy you are right now, 0-10.',
       marketRangeMax: 10,
       timePreferenceHalfLifeYears: 1,
       initialValue: 5,
     },
     {
       name: 'Health',
-      description:
-        'Self-reported, 0-10. Includes however you weight sleep, energy, fitness, mental state. Long half-life: the things that matter here compound over years. Do not track "hours slept" or "workouts per week" as metrics; those are activities. Propose them as tasks if you suspect they help.',
+      description: 'Overall physical and mental health, 0-10.',
       marketRangeMax: 10,
       timePreferenceHalfLifeYears: 5,
       initialValue: 5,
     },
     {
       name: 'Career satisfaction',
-      description:
-        'Self-reported, 0-10. Outcome, not activity (avoid "hours worked" or "projects shipped" as metrics).',
+      description: 'How satisfied you are with your career, 0-10.',
       marketRangeMax: 10,
       timePreferenceHalfLifeYears: 3,
       initialValue: 5,
