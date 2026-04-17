@@ -9,7 +9,7 @@ import { requireUser } from '../middleware/roles';
 import { hashKey } from '../middleware/auth';
 import { getAuthWorkspaceMemberships, getUserWorkspaceMemberships } from '../middleware/auth';
 import { provisionWorkspace } from '../lib/participants';
-import { toUnits } from '../lib/validation';
+import { toUnits, SIGNUP_CREDITS } from '../lib/validation';
 
 export const userauthRouter = Router();
 
@@ -31,7 +31,7 @@ async function ensureParticipant(uid: string): Promise<{ participantId: string; 
       authUserId: uid,
       platformAdmin: false,
       intent: null,
-      balance: toUnits(1000),
+      balance: toUnits(SIGNUP_CREDITS),
       createdAt: now,
       approvedAt: now,
     });

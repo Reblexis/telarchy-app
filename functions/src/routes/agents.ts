@@ -18,7 +18,7 @@ import {
 } from '../lib/usdc';
 import { AppError } from '../lib/errors';
 import { creditsIssuedForUsdcDeposit, depositBuyRateUsd } from '../lib/economy';
-import { validateAgentId, validateTxHash, sufficientBalance, toUnits, fromUnits } from '../lib/validation';
+import { validateAgentId, validateTxHash, sufficientBalance, toUnits, fromUnits, SIGNUP_CREDITS } from '../lib/validation';
 import { listParticipantsForWorkspace } from '../lib/participants';
 import { isUsdcSettlementEnabled } from '../lib/settlement';
 import { directionSellProceeds, resolutionPayouts, pHigher, consensus } from '../lib/amm';
@@ -60,7 +60,7 @@ agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => 
 
   await db.transaction(async tx => {
     await tx.insert(agents).values({
-      id: agentId, apiKeyHash: keyHash, balance: toUnits(1000),
+      id: agentId, apiKeyHash: keyHash, balance: toUnits(SIGNUP_CREDITS),
       authUserId: req.auth?.uid ?? null, createdAt: new Date(), approvedAt: new Date(),
     });
     await tx.insert(agentApiKeys).values({ hash: keyHash, agentId, workspaceId });

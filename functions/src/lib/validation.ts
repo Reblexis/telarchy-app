@@ -39,6 +39,12 @@ export function validateTxHash(hash: unknown): string | undefined {
  */
 export const CREDIT_PRECISION = 1_000_000_000;
 
+/** Credits granted to every new participant (human or agent) on signup. */
+export const SIGNUP_CREDITS = 1000;
+
+/** Default liquidity (in credits) auto-funded per new market on workspace creation. */
+export const DEFAULT_MARKET_LIQUIDITY_CREDITS = 0.5;
+
 /** Convert decimal credits → integer nanocredits for Firestore storage. */
 export function toUnits(credits: number): number {
   return Math.round(credits * CREDIT_PRECISION);

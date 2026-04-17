@@ -2,6 +2,7 @@ import { and, eq, inArray, or } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { db } from '../db/client';
 import { agents, permissionGroups, workspaces } from '../db/schema';
+import { DEFAULT_MARKET_LIQUIDITY_CREDITS } from './validation';
 
 type DbOrTx = Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db;
 import type { WorkspaceMemberRole } from '../types';
@@ -182,7 +183,7 @@ export async function provisionWorkspace(
     createdAt: now,
     visibility: 'private',
     autoFundNewMarkets: true,
-    newMarketLiquidityCredits: 0.5,
+    newMarketLiquidityCredits: DEFAULT_MARKET_LIQUIDITY_CREDITS,
   });
 
   const adminMemberIds = ownerAgentId ? [ownerAgentId] : [];
