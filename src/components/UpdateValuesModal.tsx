@@ -4,11 +4,12 @@ import type { Metric } from '../types';
 interface UpdateValuesModalProps {
   open: boolean;
   metrics: Metric[];
+  message?: string;
   onClose: () => void;
   onSave: (updates: { metric: Metric; newValue: number }[]) => Promise<void>;
 }
 
-export function UpdateValuesModal({ open, metrics, onClose, onSave }: UpdateValuesModalProps) {
+export function UpdateValuesModal({ open, metrics, message, onClose, onSave }: UpdateValuesModalProps) {
   const leaves = metrics.filter(m => !m.formula || m.formula.trim() === '0');
   const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -58,6 +59,11 @@ export function UpdateValuesModal({ open, metrics, onClose, onSave }: UpdateValu
           <h3>Update values</h3>
           <button className="modal-close" onClick={onClose}>&times;</button>
         </div>
+        {message && (
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: '0 0 1rem', lineHeight: 1.5 }}>
+            {message}
+          </p>
+        )}
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ overflowY: 'auto', maxHeight: '60vh', paddingRight: '0.25rem' }}>
           {leaves.map((m, i) => (

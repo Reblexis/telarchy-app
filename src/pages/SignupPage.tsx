@@ -49,7 +49,7 @@ export function SignupPage() {
     }) as { agentId?: string; apiKey?: string };
     handleProfileResult(result);
     setSubmitting(false);
-    navigate('/start');
+    navigate('/create-workspace');
   };
 
   const handleOAuthConsentGate = () => {

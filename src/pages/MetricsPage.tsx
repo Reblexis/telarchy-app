@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useMetrics } from '../hooks/useMetrics';
@@ -28,6 +28,21 @@ export function MetricsPage() {
   const [editingMetric, setEditingMetric] = useState<Metric | null>(null);
   const [graphMetric, setGraphMetric] = useState<Metric | null>(null);
   const [updateValuesOpen, setUpdateValuesOpen] = useState(false);
+  const [initialValuesDismissed, setInitialValuesDismissed] = useState(true);
+
+  // Auto-open the "set initial values" modal on first visit after workspace creation.
+  // Fires once per workspace; dismissal is persisted in localStorage.
+  const wsId = workspace?.workspaceId ?? '';
+  useEffect(() => {
+    if (!wsId || !isAdmin || metricsLoading) return;
+    const key = `initialValues_${wsId}`;
+    if (localStorage.getItem(key)) { setInitialValuesDismissed(true); return; }
+    const leaves = metrics.filter(m => !m.formula || m.formula.trim() === '0');
+    if (leaves.length > 0) {
+      setInitialValuesDismissed(false);
+      setUpdateValuesOpen(true);
+    }
+  }, [wsId, isAdmin, metricsLoading, metrics.length]);
   const handleLogout = async () => {
     await logout();
     navigate('/login');
@@ -128,7 +143,14 @@ export function MetricsPage() {
       <UpdateValuesModal
         open={updateValuesOpen}
         metrics={metrics}
-        onClose={() => setUpdateValuesOpen(false)}
+        message={!initialValuesDismissed ? 'Set your current values so forecasts start from where you actually are.' : undefined}
+        onClose={() => {
+          setUpdateValuesOpen(false);
+          if (!initialValuesDismissed && wsId) {
+            localStorage.setItem(`initialValues_${wsId}`, '1');
+            setInitialValuesDismissed(true);
+          }
+        }}
         onSave={handleBatchValueUpdate}
       />
       <EditMetricModal
