@@ -13,6 +13,7 @@ export type TemplateId = 'startup' | 'personal' | 'blank';
 export interface TemplateMetricSpec {
   name: string;
   description: string;
+  question: string;
   marketRangeMax: number;
   timePreferenceHalfLifeYears: number;
   initialValue: number;
@@ -38,6 +39,7 @@ const STARTUP: TemplateSpec = {
     {
       name: 'Weekly revenue',
       description: 'Total revenue this week, in your currency.',
+      question: 'What was your total revenue this week?',
       marketRangeMax: params.revenueRangeMax && params.revenueRangeMax > 0 ? params.revenueRangeMax : 100000,
       timePreferenceHalfLifeYears: 1,
       initialValue: 0,
@@ -45,6 +47,7 @@ const STARTUP: TemplateSpec = {
     {
       name: 'Customer satisfaction',
       description: 'Your read on how happy customers are, 0-10.',
+      question: 'How happy are your customers right now?',
       marketRangeMax: 10,
       timePreferenceHalfLifeYears: 1,
       initialValue: 5,
@@ -52,6 +55,7 @@ const STARTUP: TemplateSpec = {
     {
       name: 'Product quality',
       description: 'Your assessment of the product overall, 0-10.',
+      question: 'How would you rate your product right now?',
       marketRangeMax: 10,
       timePreferenceHalfLifeYears: 3,
       initialValue: 5,
@@ -67,6 +71,7 @@ const PERSONAL: TemplateSpec = {
     {
       name: 'Happiness',
       description: 'How happy you are right now, 0-10.',
+      question: 'How happy are you feeling right now?',
       marketRangeMax: 10,
       timePreferenceHalfLifeYears: 1,
       initialValue: 5,
@@ -74,6 +79,7 @@ const PERSONAL: TemplateSpec = {
     {
       name: 'Health',
       description: 'Overall physical and mental health, 0-10.',
+      question: 'How healthy are you feeling right now?',
       marketRangeMax: 10,
       timePreferenceHalfLifeYears: 5,
       initialValue: 5,
@@ -81,6 +87,7 @@ const PERSONAL: TemplateSpec = {
     {
       name: 'Career satisfaction',
       description: 'How satisfied you are with your career, 0-10.',
+      question: 'How satisfied are you with your career right now?',
       marketRangeMax: 10,
       timePreferenceHalfLifeYears: 3,
       initialValue: 5,

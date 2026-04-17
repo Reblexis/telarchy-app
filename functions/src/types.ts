@@ -7,11 +7,13 @@ export interface Metric {
   id: string;
   name: string;
   description: string;
+  question: string;
   value: number;
   total: number | null;
   formula: string;
   order: number;
   depth: number;
+  updatedAt?: string;
   timePreference?: TimePreference;
   marketRangeMax?: number;
   timeSeries?: Array<{ date: string; value: number }>;

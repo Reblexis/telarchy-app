@@ -156,6 +156,7 @@ export const metrics = pgTable('metrics', {
   workspaceId: text('workspace_id').notNull(),
   name: text('name').notNull(),
   description: text('description').notNull().default(''),
+  question: text('question').notNull().default(''),
   value: doublePrecision('value').notNull().default(0),
   formula: text('formula').notNull().default('0'),
   /** Display order within workspace */

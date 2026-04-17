@@ -64,22 +64,22 @@ export function MetricsPage() {
   };
 
   const handleSaveEdit = async (
-    id: string, name: string, description: string, value: number,
+    id: string, name: string, description: string, question: string, value: number,
     formula: string, oldValue: number, updateNote: string,
     timePreference: import('../types').TimePreference | null,
     marketRangeMax?: number,
   ) => {
-    const warnings = await editMetric(id, name, description, value, formula, oldValue, updateNote, timePreference, marketRangeMax);
+    const warnings = await editMetric(id, name, description, question, value, formula, oldValue, updateNote, timePreference, marketRangeMax);
     if (warnings) showWarnings(warnings);
   };
 
   const handleInlineValueChange = async (metric: import('../types').Metric, newValue: number) => {
-    await editMetric(metric.id, metric.name, metric.description || '', newValue, metric.formula || '0', metric.value, '', metric.timePreference ?? null, metric.marketRangeMax);
+    await editMetric(metric.id, metric.name, metric.description || '', metric.question || '', newValue, metric.formula || '0', metric.value, '', metric.timePreference ?? null, metric.marketRangeMax);
   };
 
   const handleBatchValueUpdate = async (updates: { metric: Metric; newValue: number }[]) => {
     for (const { metric, newValue } of updates) {
-      await editMetric(metric.id, metric.name, metric.description || '', newValue, metric.formula || '0', metric.value, '', metric.timePreference ?? null, metric.marketRangeMax);
+      await editMetric(metric.id, metric.name, metric.description || '', metric.question || '', newValue, metric.formula || '0', metric.value, '', metric.timePreference ?? null, metric.marketRangeMax);
     }
   };
 

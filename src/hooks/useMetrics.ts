@@ -94,7 +94,7 @@ export function useMetrics(authenticated: boolean, inspectTaskId?: string | null
       throw new Error('This formula would create a circular dependency');
     }
     const { id, warnings = [] } = await api.createMetric({ name, description, value, formula, marketRangeMax });
-    const updated = [...metrics.map(m => ({ ...m })), { id, name, description, value, total: value, formula, order: 999, depth: 0, marketRangeMax }];
+    const updated = [...metrics.map(m => ({ ...m })), { id, name, description, question: '', value, total: value, formula, order: 999, depth: 0, marketRangeMax }];
     setMetrics(enrichMetrics(updated, consensusMapRef.current));
     setFormulaWarnings(buildWarnings(updated));
     loadData();
@@ -102,7 +102,7 @@ export function useMetrics(authenticated: boolean, inspectTaskId?: string | null
   };
 
   const editMetric = async (
-    id: string, name: string, description: string, value: number,
+    id: string, name: string, description: string, question: string, value: number,
     formula: string, oldValue: number, updateNote: string,
     timePreference?: { enabled: boolean; halfLife: number } | null,
     marketRangeMax?: number,
@@ -113,12 +113,12 @@ export function useMetrics(authenticated: boolean, inspectTaskId?: string | null
     const prev = metrics;
     const updated = metrics.map(m =>
       m.id === id
-        ? { ...m, name, description, value, formula, marketRangeMax, timePreference: timePreference === null ? undefined : (timePreference ?? m.timePreference) }
+        ? { ...m, name, description, question, value, formula, marketRangeMax, timePreference: timePreference === null ? undefined : (timePreference ?? m.timePreference) }
         : { ...m }
     );
     setMetrics(enrichMetrics(updated, consensusMapRef.current));
     setFormulaWarnings(buildWarnings(updated));
-    return api.updateMetric(id, { name, description, value, formula, oldValue, updateNote, timePreference: timePreference === undefined ? undefined : timePreference, marketRangeMax })
+    return api.updateMetric(id, { name, description, question, value, formula, oldValue, updateNote, timePreference: timePreference === undefined ? undefined : timePreference, marketRangeMax })
       .then((resp: { warnings?: string[] }) => { delete logsCache.current[id]; cacheDelete('metrics'); loadData(); return resp.warnings || []; })
       .catch((err: Error) => { setMetrics(prev); throw err; });
   };

@@ -22,6 +22,7 @@ import { GuidesPage } from './pages/GuidesPage';
 import { LegalPage } from './pages/LegalPage';
 import { VaultsPage } from './pages/VaultsPage';
 import { ConnectorsPage } from './pages/ConnectorsPage';
+import { CheckInPage } from './pages/CheckInPage';
 
 function InspectBanner() {
   const { inspectTask, setInspectTask } = useInspectMode();
@@ -74,6 +75,7 @@ export function App() {
             </Route>
             <Route element={<RequireWorkspace />}>
               <Route path="/settings" element={<WorkspaceSettingsPage />} />
+              <Route path="/check-in" element={<CheckInPage />} />
               <Route path="/metrics" element={<MetricsPage />} />
               <Route path="/markets" element={<MarketsPage />} />
               <Route path="/tasks" element={<TasksPage />} />

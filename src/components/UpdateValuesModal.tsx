@@ -74,8 +74,13 @@ export function UpdateValuesModal({ open, metrics, message, onClose, onSave }: U
                   data-tip={m.description || undefined}
                   style={m.description ? { cursor: 'help' } : undefined}
                 >
-                  {m.name}
+                  {m.question || m.name}
                 </span>
+                {m.question && (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', display: 'block' }}>
+                    {m.name}
+                  </span>
+                )}
                 {m.marketRangeMax != null && (
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginLeft: '0.25rem' }}>
                     (0–{m.marketRangeMax})

@@ -73,6 +73,7 @@ workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
         value: spec.initialValue,
         formula: '0',
         description: spec.description,
+        question: spec.question,
         order: i,
         timePreference: { enabled: true, halfLife: spec.timePreferenceHalfLifeYears },
         marketRangeMax: spec.marketRangeMax,

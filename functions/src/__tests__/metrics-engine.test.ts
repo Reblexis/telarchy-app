@@ -19,6 +19,7 @@ function metric(overrides: Partial<Metric> & { id: string; name: string }): Metr
     order: 0,
     depth: 0,
     description: '',
+    question: '',
     missingMarkets: [],
     timeSeries: [],
     ...overrides,

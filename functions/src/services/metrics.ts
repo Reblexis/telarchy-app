@@ -135,11 +135,13 @@ export async function getAllMetrics(workspaceId: string): Promise<Metric[]> {
     id: row.id,
     name: row.name,
     description: row.description || '',
+    question: row.question || '',
     value: row.value,
     total: row.value,
     formula: row.formula || '0',
     order: row.order || 999,
     depth: 0,
+    updatedAt: row.updatedAt?.toISOString(),
     timePreference: (row.timePreference as { enabled: boolean; halfLife: number } | null)?.enabled
       ? row.timePreference as { enabled: boolean; halfLife: number }
       : undefined,
