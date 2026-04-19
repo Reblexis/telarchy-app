@@ -281,43 +281,37 @@ export const api = {
     request(`/api/workspaces/${id}/settings`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteWorkspace: (id: string) =>
     request(`/api/workspaces/${id}`, { method: 'DELETE' }),
-  // Vaults
-  listVaults: () => request('/api/vaults'),
-  getVault: (id: string) => request(`/api/vaults/${id}`),
-  createVault: (body: { name: string; description?: string; content?: string }) =>
-    request('/api/vaults', { method: 'POST', body: JSON.stringify(body) }),
-  updateVault: (id: string, body: { name?: string; description?: string; content?: string }) =>
-    request(`/api/vaults/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-  deleteVault: (id: string) =>
-    request(`/api/vaults/${id}`, { method: 'DELETE' }),
-
-  // Connectors
-  listConnectors: () => request('/api/connectors'),
-  getConnector: (id: string) => request(`/api/connectors/${id}`),
-  getConnectorTree: (id: string, path?: string, ref?: string) => {
+  // Sources (text + external bridges, unified)
+  listSources: () => request('/api/sources'),
+  getSource: (id: string) => request(`/api/sources/${id}`),
+  createTextSource: (body: { name: string; description?: string; content?: string }) =>
+    request('/api/sources', { method: 'POST', body: JSON.stringify({ ...body, type: 'text' }) }),
+  updateSource: (id: string, body: { name?: string; description?: string; content?: string }) =>
+    request(`/api/sources/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteSource: (id: string) =>
+    request(`/api/sources/${id}`, { method: 'DELETE' }),
+  getSourceTree: (id: string, path?: string, ref?: string) => {
     const params = new URLSearchParams();
     if (path) params.set('path', path);
     if (ref) params.set('ref', ref);
     const qs = params.toString();
-    return request(`/api/connectors/${id}/tree${qs ? `?${qs}` : ''}`);
+    return request(`/api/sources/${id}/tree${qs ? `?${qs}` : ''}`);
   },
-  getConnectorFile: (id: string, path: string, ref?: string) => {
+  getSourceFile: (id: string, path: string, ref?: string) => {
     const params = new URLSearchParams({ path });
     if (ref) params.set('ref', ref);
-    return request(`/api/connectors/${id}/file?${params}`);
+    return request(`/api/sources/${id}/file?${params}`);
   },
   getGitHubRepos: (state: string) =>
-    request(`/api/connectors/github/repos?state=${encodeURIComponent(state)}`),
+    request(`/api/sources/github/repos?state=${encodeURIComponent(state)}`),
   connectGitHub: (body: { state: string; repos: string[] }) =>
-    request('/api/connectors/github/connect', { method: 'POST', body: JSON.stringify(body) }),
-  deleteConnector: (id: string) =>
-    request(`/api/connectors/${id}`, { method: 'DELETE' }),
+    request('/api/sources/github/connect', { method: 'POST', body: JSON.stringify(body) }),
 
   // Permission groups
   listGroups: () => request('/api/groups'),
   createGroup: (name: string) =>
     request('/api/groups', { method: 'POST', body: JSON.stringify({ name }) }),
-  updateGroup: (id: string, body: { name?: string; memberIds?: string[]; permissions?: Record<string, { read: boolean; trade: boolean }>; vaultPermissions?: Record<string, { read: boolean }>; connectorPermissions?: Record<string, { read: boolean }>; capabilities?: string[] }) =>
+  updateGroup: (id: string, body: { name?: string; memberIds?: string[]; permissions?: Record<string, { read: boolean; trade: boolean }>; sourcePermissions?: Record<string, { read: boolean }>; capabilities?: string[] }) =>
     request(`/api/groups/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteGroup: (id: string) =>
     request(`/api/groups/${id}`, { method: 'DELETE' }),

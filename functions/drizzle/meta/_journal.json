@@ -120,6 +120,13 @@
       "when": 1776800000000,
       "tag": "0016_drop_metric_resolution_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1776900000000,
+      "tag": "0017_unify_sources",
+      "breakpoints": true
     }
   ]
 }

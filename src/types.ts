@@ -48,11 +48,7 @@ export interface MetricPermission {
 
 export type PermissionGroupType = 'public' | 'admin' | 'trader' | 'custom';
 
-export interface VaultPermission {
-  read: boolean;
-}
-
-export interface ConnectorPermission {
+export interface SourcePermission {
   read: boolean;
 }
 
@@ -65,25 +61,19 @@ export interface PermissionGroup {
   description: string;
   memberIds: string[];
   permissions: Record<string, MetricPermission>;
-  vaultPermissions: Record<string, VaultPermission>;
-  connectorPermissions: Record<string, ConnectorPermission>;
+  sourcePermissions: Record<string, SourcePermission>;
   capabilities: Capability[];
 }
 
-export interface Vault {
+export type SourceType = 'text' | 'github';
+
+export interface Source {
   id: string;
   name: string;
   description: string;
+  type: SourceType;
   content?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Connector {
-  id: string;
-  name: string;
-  provider: string;
-  providerConfig: {
+  config: {
     repo?: string;
     defaultBranch?: string;
     [key: string]: unknown;

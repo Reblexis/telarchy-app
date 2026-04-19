@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/client';
-import { connectors, permissionGroups } from '../db/schema';
+import { sources, permissionGroups } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { randomUUID, randomBytes, createPrivateKey, sign } from 'crypto';
 import { wrap } from '../lib/wrap';
@@ -8,7 +8,7 @@ import { requireCapability } from '../middleware/roles';
 import { getGroupMemberIds } from '../lib/participants';
 import { AppError } from '../lib/errors';
 
-export const connectorsRouter = Router();
+export const sourcesRouter = Router();
 
 /** Derive the public base URL for OAuth redirects. On localhost, use the
  *  request origin so the callback comes back to the local server instead
@@ -21,7 +21,6 @@ function publicBaseUrl(req: import('express').Request): string {
   return process.env.BETTER_AUTH_URL || `${req.protocol}://${host}`;
 }
 
-// In-memory state store for the installation flow (short-lived)
 const installStates = new Map<string, { workspaceId: string; expiresAt: number }>();
 
 setInterval(() => {
@@ -47,7 +46,6 @@ function getGitHubAppConfig() {
   return { appId, privateKey: privateKey.replace(/\\n/g, '\n'), slug, clientId, clientSecret };
 }
 
-/** Create a short-lived JWT to authenticate as the GitHub App itself. */
 function createAppJwt(appId: string, privateKey: string): string {
   const now = Math.floor(Date.now() / 1000);
   const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
@@ -61,7 +59,6 @@ function createAppJwt(appId: string, privateKey: string): string {
   return `${header}.${payload}.${signature}`;
 }
 
-/** Get an installation access token (short-lived, scoped to the repos the user granted). */
 async function getInstallationToken(installationId: string, appId: string, privateKey: string): Promise<string> {
   const jwt = createAppJwt(appId, privateKey);
   const res = await fetch(`${GH_API}/app/installations/${installationId}/access_tokens`, {
@@ -79,21 +76,20 @@ async function getInstallationToken(installationId: string, appId: string, priva
   return data.token;
 }
 
-/** Get an installation token for a connector. */
-async function getConnectorToken(connector: { providerConfig: unknown }): Promise<string> {
+async function getSourceToken(source: { config: unknown }): Promise<string> {
   const app = getGitHubAppConfig();
   if (!app) throw new AppError('GitHub App is not configured', 503);
-  const config = connector.providerConfig as { installationId: string };
+  const config = source.config as { installationId: string };
   return getInstallationToken(config.installationId, app.appId, app.privateKey);
 }
 
 // ---------------------------------------------------------------------------
-// Permission helpers (same pattern as vaults)
+// Permission helpers
 // ---------------------------------------------------------------------------
 
-async function canReadConnector(
+async function canReadSource(
   agentId: string | undefined,
-  connectorId: string,
+  sourceId: string,
   workspaceId: string,
   isManager: boolean,
 ): Promise<boolean> {
@@ -103,13 +99,13 @@ async function canReadConnector(
     .where(eq(permissionGroups.workspaceId, workspaceId));
   for (const group of groups) {
     if (!getGroupMemberIds(group).includes(agentId)) continue;
-    const cp = (group.connectorPermissions as Record<string, { read: boolean }>) ?? {};
-    if (cp[connectorId]?.read) return true;
+    const sp = (group.sourcePermissions as Record<string, { read: boolean }>) ?? {};
+    if (sp[sourceId]?.read) return true;
   }
   return false;
 }
 
-async function readableConnectorIds(
+async function readableSourceIds(
   agentId: string | undefined,
   workspaceId: string,
   isManager: boolean,
@@ -121,25 +117,19 @@ async function readableConnectorIds(
   const ids = new Set<string>();
   for (const group of groups) {
     if (!getGroupMemberIds(group).includes(agentId)) continue;
-    const cp = (group.connectorPermissions as Record<string, { read: boolean }>) ?? {};
-    for (const [connectorId, perm] of Object.entries(cp)) {
-      if (perm.read) ids.add(connectorId);
+    const sp = (group.sourcePermissions as Record<string, { read: boolean }>) ?? {};
+    for (const [sourceId, perm] of Object.entries(sp)) {
+      if (perm.read) ids.add(sourceId);
     }
   }
   return ids;
 }
 
 // ---------------------------------------------------------------------------
-// GitHub App OAuth + installation flow
-//
-// 1. GET /github/install  - redirect to GitHub App OAuth (or install page if not installed)
-// 2. GET /github/callback - exchange code for user token, find installations, redirect to frontend
-// 3. GET /github/repos    - list repos from a specific installation (frontend calls this)
-// 4. POST /github/connect - create connectors from selected repos
+// GitHub App OAuth + installation flow (type='github' sources)
 // ---------------------------------------------------------------------------
 
-// GET /api/connectors/github/install - start the flow
-connectorsRouter.get('/github/install', requireCapability('manage'), wrap(async (req, res) => {
+sourcesRouter.get('/github/install', requireCapability('manage'), wrap(async (req, res) => {
   const app = getGitHubAppConfig();
   if (!app) throw new AppError('GitHub App is not configured (set GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_SLUG, GITHUB_APP_CLIENT_ID, GITHUB_APP_CLIENT_SECRET)', 503);
 
@@ -147,9 +137,8 @@ connectorsRouter.get('/github/install', requireCapability('manage'), wrap(async 
   const state = randomBytes(16).toString('hex');
   installStates.set(state, { workspaceId, expiresAt: Date.now() + 10 * 60 * 1000 });
 
-  const redirectUri = `${publicBaseUrl(req)}/api/connectors/github/callback`;
+  const redirectUri = `${publicBaseUrl(req)}/api/sources/github/callback`;
 
-  // Use GitHub App OAuth to identify the user and find their installations
   const params = new URLSearchParams({
     client_id: app.clientId,
     redirect_uri: redirectUri,
@@ -159,8 +148,7 @@ connectorsRouter.get('/github/install', requireCapability('manage'), wrap(async 
   res.redirect(`https://github.com/login/oauth/authorize?${params}`);
 }));
 
-// GET /api/connectors/github/callback - OAuth callback, find installations, redirect to frontend
-connectorsRouter.get('/github/callback', wrap(async (req, res) => {
+sourcesRouter.get('/github/callback', wrap(async (req, res) => {
   const { code, state } = req.query as { code?: string; state?: string };
   if (!code || !state) throw new AppError('Missing code or state', 400);
 
@@ -170,7 +158,6 @@ connectorsRouter.get('/github/callback', wrap(async (req, res) => {
   const app = getGitHubAppConfig();
   if (!app) throw new AppError('GitHub App is not configured', 503);
 
-  // Exchange code for user access token
   const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -183,7 +170,6 @@ connectorsRouter.get('/github/callback', wrap(async (req, res) => {
   const tokenData = await tokenRes.json() as { access_token?: string; error?: string };
   if (!tokenData.access_token) throw new AppError(`GitHub OAuth failed: ${tokenData.error || 'no token returned'}`, 400);
 
-  // Find this user's installations of our app
   const installRes = await fetch(`${GH_API}/user/installations`, {
     headers: { Authorization: `Bearer ${tokenData.access_token}`, Accept: 'application/vnd.github+json' },
   });
@@ -193,27 +179,21 @@ connectorsRouter.get('/github/callback', wrap(async (req, res) => {
   const baseUrl = publicBaseUrl(req);
 
   if (installations.length === 0) {
-    // App not installed yet, redirect to install page
     res.redirect(`https://github.com/apps/${app.slug}/installations/new?state=${state}`);
     return;
   }
 
-  // Use the first installation (most common case: single account)
-  // For multi-account support, the frontend could present a picker
   const installationId = String(installations[0].id);
 
-  // Keep the state alive for the frontend to use
-  // Store the installation_id alongside
   installStates.set(`install:${state}`, {
     workspaceId: installationId,
     expiresAt: Date.now() + 5 * 60 * 1000,
   });
 
-  res.redirect(`${baseUrl}/connectors?state=${state}`);
+  res.redirect(`${baseUrl}/sources?state=${state}`);
 }));
 
-// GET /api/connectors/github/repos?state=... - list repos from the installation
-connectorsRouter.get('/github/repos', requireCapability('manage'), wrap(async (req, res) => {
+sourcesRouter.get('/github/repos', requireCapability('manage'), wrap(async (req, res) => {
   const { state } = req.query as { state?: string };
   if (!state) throw new AppError('Missing state parameter', 400);
 
@@ -229,7 +209,7 @@ connectorsRouter.get('/github/repos', requireCapability('manage'), wrap(async (r
   const app = getGitHubAppConfig();
   if (!app) throw new AppError('GitHub App is not configured', 503);
 
-  const installationId = installData.workspaceId; // stored in workspaceId field
+  const installationId = installData.workspaceId;
   const token = await getInstallationToken(installationId, app.appId, app.privateKey);
 
   const repos: Array<{ full_name: string; private: boolean; default_branch: string; description: string | null }> = [];
@@ -256,8 +236,7 @@ connectorsRouter.get('/github/repos', requireCapability('manage'), wrap(async (r
   });
 }));
 
-// POST /api/connectors/github/connect - create connectors from selected repos
-connectorsRouter.post('/github/connect', requireCapability('manage'), wrap(async (req, res) => {
+sourcesRouter.post('/github/connect', requireCapability('manage'), wrap(async (req, res) => {
   const { state, repos } = req.body as { state?: string; repos?: string[] };
   if (!state || !repos || !Array.isArray(repos) || repos.length === 0) {
     throw new AppError('Missing state or repos', 400);
@@ -278,7 +257,7 @@ connectorsRouter.post('/github/connect', requireCapability('manage'), wrap(async
   const installationId = installData.workspaceId;
   const token = await getInstallationToken(installationId, app.appId, app.privateKey);
 
-  const created: Array<{ id: string; name: string; provider: string; providerConfig: Record<string, unknown> }> = [];
+  const created: Array<{ id: string; name: string; type: string; config: Record<string, unknown> }> = [];
   const { workspaceId } = req.auth!;
 
   for (const repo of repos) {
@@ -299,21 +278,22 @@ connectorsRouter.post('/github/connect', requireCapability('manage'), wrap(async
       installationId,
     };
 
-    await db.insert(connectors).values({
+    await db.insert(sources).values({
       id,
       workspaceId,
       name: repoData.full_name,
-      provider: 'github',
-      providerConfig: config,
+      description: '',
+      type: 'github',
+      content: '',
+      config,
       credentials: '',
       createdAt: now,
       updatedAt: now,
     });
 
-    created.push({ id, name: repoData.full_name, provider: 'github', providerConfig: config });
+    created.push({ id, name: repoData.full_name, type: 'github', config });
   }
 
-  // Clean up state
   installStates.delete(state);
   installStates.delete(`install:${state}`);
 
@@ -324,15 +304,15 @@ connectorsRouter.post('/github/connect', requireCapability('manage'), wrap(async
 // CRUD + browsing
 // ---------------------------------------------------------------------------
 
-// GET /api/connectors - list connectors (no credentials)
-connectorsRouter.get('/', requireCapability('read'), wrap(async (req, res) => {
+// GET /api/sources - list sources (no content, no credentials)
+sourcesRouter.get('/', requireCapability('read'), wrap(async (req, res) => {
   const { workspaceId, agentId, capabilities } = req.auth!;
 
-  const rows = await db.select().from(connectors)
-    .where(eq(connectors.workspaceId, workspaceId))
-    .orderBy(connectors.name);
+  const rows = await db.select().from(sources)
+    .where(eq(sources.workspaceId, workspaceId))
+    .orderBy(sources.name);
 
-  const allowed = await readableConnectorIds(agentId, workspaceId, capabilities.has('manage'));
+  const allowed = await readableSourceIds(agentId, workspaceId, capabilities.has('manage'));
   const filtered = allowed === 'all'
     ? rows
     : rows.filter(r => allowed.has(r.id));
@@ -340,52 +320,123 @@ connectorsRouter.get('/', requireCapability('read'), wrap(async (req, res) => {
   res.json(filtered.map(r => ({
     id: r.id,
     name: r.name,
-    provider: r.provider,
-    providerConfig: r.providerConfig,
+    description: r.description,
+    type: r.type,
+    config: r.config,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
   })));
 }));
 
-// GET /api/connectors/:id - connector metadata (no credentials)
-connectorsRouter.get('/:id', requireCapability('read'), wrap(async (req, res) => {
+// GET /api/sources/:id - get source, including content for text sources
+sourcesRouter.get('/:id', requireCapability('read'), wrap(async (req, res) => {
   const { workspaceId, agentId, capabilities } = req.auth!;
-  const connectorId = req.params.id as string;
+  const sourceId = req.params.id as string;
 
-  const [connector] = await db.select().from(connectors)
-    .where(and(eq(connectors.id, connectorId), eq(connectors.workspaceId, workspaceId)));
-  if (!connector) { res.status(404).json({ error: 'Connector not found' }); return; }
+  const [source] = await db.select().from(sources)
+    .where(and(eq(sources.id, sourceId), eq(sources.workspaceId, workspaceId)));
+  if (!source) { res.status(404).json({ error: 'Source not found' }); return; }
 
-  if (!(await canReadConnector(agentId, connectorId, workspaceId, capabilities.has('manage')))) {
-    res.status(403).json({ error: 'No read access to this connector' }); return;
+  if (!(await canReadSource(agentId, sourceId, workspaceId, capabilities.has('manage')))) {
+    res.status(403).json({ error: 'No read access to this source' }); return;
   }
 
   res.json({
-    id: connector.id,
-    name: connector.name,
-    provider: connector.provider,
-    providerConfig: connector.providerConfig,
-    createdAt: connector.createdAt,
-    updatedAt: connector.updatedAt,
+    id: source.id,
+    name: source.name,
+    description: source.description,
+    type: source.type,
+    content: source.type === 'text' ? source.content : undefined,
+    config: source.config,
+    createdAt: source.createdAt,
+    updatedAt: source.updatedAt,
   });
 }));
 
-// GET /api/connectors/:id/tree?path=/ - browse repo directory
-connectorsRouter.get('/:id/tree', requireCapability('read'), wrap(async (req, res) => {
-  const { workspaceId, agentId, capabilities } = req.auth!;
-  const connectorId = req.params.id as string;
+// POST /api/sources - create a text source (GitHub sources are created via /github/connect).
+sourcesRouter.post('/', requireCapability('manage'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
+  const { name, description = '', content = '', type = 'text' } = req.body;
 
-  const [connector] = await db.select().from(connectors)
-    .where(and(eq(connectors.id, connectorId), eq(connectors.workspaceId, workspaceId)));
-  if (!connector) { res.status(404).json({ error: 'Connector not found' }); return; }
-  if (connector.provider !== 'github') { res.status(400).json({ error: 'Tree browsing only supported for GitHub connectors' }); return; }
-
-  if (!(await canReadConnector(agentId, connectorId, workspaceId, capabilities.has('manage')))) {
-    res.status(403).json({ error: 'No read access to this connector' }); return;
+  if (type !== 'text') {
+    res.status(400).json({ error: 'Only type="text" sources can be created via POST. Use /api/sources/github/* for GitHub sources.' });
+    return;
+  }
+  if (!name || typeof name !== 'string' || !name.trim()) {
+    res.status(400).json({ error: 'name is required' }); return;
   }
 
-  const token = await getConnectorToken(connector);
-  const config = connector.providerConfig as { repo: string; defaultBranch: string };
+  const id = randomUUID();
+  const now = new Date();
+  await db.insert(sources).values({
+    id, workspaceId,
+    name: name.trim(),
+    description: typeof description === 'string' ? description.trim() : '',
+    type: 'text',
+    content: typeof content === 'string' ? content : '',
+    config: {},
+    credentials: '',
+    createdAt: now, updatedAt: now,
+  });
+
+  res.status(201).json({ id, name: name.trim(), description, type: 'text', content });
+}));
+
+// PUT /api/sources/:id - update name/description (any type), content (text only).
+sourcesRouter.put('/:id', requireCapability('manage'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
+  const sourceId = req.params.id as string;
+
+  const [existing] = await db.select().from(sources)
+    .where(and(eq(sources.id, sourceId), eq(sources.workspaceId, workspaceId)));
+  if (!existing) { res.status(404).json({ error: 'Source not found' }); return; }
+
+  const { name, description, content } = req.body;
+  const update: Record<string, unknown> = { updatedAt: new Date() };
+
+  if (name !== undefined) {
+    if (typeof name !== 'string' || !name.trim()) {
+      res.status(400).json({ error: 'name must be a non-empty string' }); return;
+    }
+    update.name = name.trim();
+  }
+  if (description !== undefined) {
+    if (typeof description !== 'string') {
+      res.status(400).json({ error: 'description must be a string' }); return;
+    }
+    update.description = description.trim();
+  }
+  if (content !== undefined) {
+    if (existing.type !== 'text') {
+      res.status(400).json({ error: 'content can only be updated on text sources' }); return;
+    }
+    if (typeof content !== 'string') {
+      res.status(400).json({ error: 'content must be a string' }); return;
+    }
+    update.content = content;
+  }
+
+  await db.update(sources).set(update)
+    .where(and(eq(sources.id, sourceId), eq(sources.workspaceId, workspaceId)));
+  res.json({ ok: true });
+}));
+
+// GET /api/sources/:id/tree - browse a GitHub source (directory listing).
+sourcesRouter.get('/:id/tree', requireCapability('read'), wrap(async (req, res) => {
+  const { workspaceId, agentId, capabilities } = req.auth!;
+  const sourceId = req.params.id as string;
+
+  const [source] = await db.select().from(sources)
+    .where(and(eq(sources.id, sourceId), eq(sources.workspaceId, workspaceId)));
+  if (!source) { res.status(404).json({ error: 'Source not found' }); return; }
+  if (source.type !== 'github') { res.status(400).json({ error: 'Tree browsing only supported for GitHub sources' }); return; }
+
+  if (!(await canReadSource(agentId, sourceId, workspaceId, capabilities.has('manage')))) {
+    res.status(403).json({ error: 'No read access to this source' }); return;
+  }
+
+  const token = await getSourceToken(source);
+  const config = source.config as { repo: string; defaultBranch: string };
   const path = (req.query.path as string) || '';
   const ref = (req.query.ref as string) || config.defaultBranch;
 
@@ -417,22 +468,22 @@ connectorsRouter.get('/:id/tree', requireCapability('read'), wrap(async (req, re
   })));
 }));
 
-// GET /api/connectors/:id/file?path=src/index.ts - read file content
-connectorsRouter.get('/:id/file', requireCapability('read'), wrap(async (req, res) => {
+// GET /api/sources/:id/file - read a file from a GitHub source.
+sourcesRouter.get('/:id/file', requireCapability('read'), wrap(async (req, res) => {
   const { workspaceId, agentId, capabilities } = req.auth!;
-  const connectorId = req.params.id as string;
+  const sourceId = req.params.id as string;
 
-  const [connector] = await db.select().from(connectors)
-    .where(and(eq(connectors.id, connectorId), eq(connectors.workspaceId, workspaceId)));
-  if (!connector) { res.status(404).json({ error: 'Connector not found' }); return; }
-  if (connector.provider !== 'github') { res.status(400).json({ error: 'File reading only supported for GitHub connectors' }); return; }
+  const [source] = await db.select().from(sources)
+    .where(and(eq(sources.id, sourceId), eq(sources.workspaceId, workspaceId)));
+  if (!source) { res.status(404).json({ error: 'Source not found' }); return; }
+  if (source.type !== 'github') { res.status(400).json({ error: 'File reading only supported for GitHub sources' }); return; }
 
-  if (!(await canReadConnector(agentId, connectorId, workspaceId, capabilities.has('manage')))) {
-    res.status(403).json({ error: 'No read access to this connector' }); return;
+  if (!(await canReadSource(agentId, sourceId, workspaceId, capabilities.has('manage')))) {
+    res.status(403).json({ error: 'No read access to this source' }); return;
   }
 
-  const token = await getConnectorToken(connector);
-  const config = connector.providerConfig as { repo: string; defaultBranch: string };
+  const token = await getSourceToken(source);
+  const config = source.config as { repo: string; defaultBranch: string };
   const path = req.query.path as string;
   if (!path) { res.status(400).json({ error: 'path query parameter is required' }); return; }
   const ref = (req.query.ref as string) || config.defaultBranch;
@@ -462,28 +513,28 @@ connectorsRouter.get('/:id/file', requireCapability('read'), wrap(async (req, re
   });
 }));
 
-// DELETE /api/connectors/:id - delete connector (admin only)
-connectorsRouter.delete('/:id', requireCapability('manage'), wrap(async (req, res) => {
+// DELETE /api/sources/:id - delete any source + clean up permission references.
+sourcesRouter.delete('/:id', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
-  const connectorId = req.params.id as string;
+  const sourceId = req.params.id as string;
 
-  const [existing] = await db.select({ id: connectors.id }).from(connectors)
-    .where(and(eq(connectors.id, connectorId), eq(connectors.workspaceId, workspaceId)));
-  if (!existing) { res.status(404).json({ error: 'Connector not found' }); return; }
+  const [existing] = await db.select({ id: sources.id }).from(sources)
+    .where(and(eq(sources.id, sourceId), eq(sources.workspaceId, workspaceId)));
+  if (!existing) { res.status(404).json({ error: 'Source not found' }); return; }
 
   const groups = await db.select().from(permissionGroups)
     .where(eq(permissionGroups.workspaceId, workspaceId));
 
   for (const group of groups) {
-    const cp = (group.connectorPermissions as Record<string, { read: boolean }>) ?? {};
-    if (connectorId in cp) {
-      const { [connectorId]: _, ...rest } = cp;
-      await db.update(permissionGroups).set({ connectorPermissions: rest })
+    const sp = (group.sourcePermissions as Record<string, { read: boolean }>) ?? {};
+    if (sourceId in sp) {
+      const { [sourceId]: _, ...rest } = sp;
+      await db.update(permissionGroups).set({ sourcePermissions: rest })
         .where(and(eq(permissionGroups.id, group.id), eq(permissionGroups.workspaceId, workspaceId)));
     }
   }
 
-  await db.delete(connectors)
-    .where(and(eq(connectors.id, connectorId), eq(connectors.workspaceId, workspaceId)));
+  await db.delete(sources)
+    .where(and(eq(sources.id, sourceId), eq(sources.workspaceId, workspaceId)));
   res.status(204).send();
 }));

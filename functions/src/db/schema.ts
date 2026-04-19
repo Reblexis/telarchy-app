@@ -288,42 +288,29 @@ export const permissionGroups = pgTable('permission_groups', {
   memberIds: jsonb('member_ids').notNull().$type<string[]>().default([]),
   /** metricId → { read: boolean, trade: boolean } */
   permissions: jsonb('permissions').notNull().$type<Record<string, { read: boolean; trade: boolean }>>().default({}),
-  /** vaultId → { read: boolean } */
-  vaultPermissions: jsonb('vault_permissions').notNull().$type<Record<string, { read: boolean }>>().default({}),
-  /** connectorId → { read: boolean } */
-  connectorPermissions: jsonb('connector_permissions').notNull().$type<Record<string, { read: boolean }>>().default({}),
+  /** sourceId → { read: boolean } (covers both text and external-bridge sources) */
+  sourcePermissions: jsonb('source_permissions').notNull().$type<Record<string, { read: boolean }>>().default({}),
   /** Capabilities granted to every member of this group: subset of 'read' | 'trade' | 'manage'. */
   capabilities: jsonb('capabilities').notNull().$type<string[]>().default([]),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
 
 // ---------------------------------------------------------------------------
-// Vaults (workspace-scoped information store)
+// Sources (workspace-scoped information stores, static or live)
+// type='text': free-text content stored in `content`.
+// type='github' (etc.): external bridge, config in `config`, optional opaque
+//   credentials in `credentials` (never exposed via API).
 // ---------------------------------------------------------------------------
 
-export const vaults = pgTable('vaults', {
+export const sources = pgTable('sources', {
   id: text('id').notNull(),
   workspaceId: text('workspace_id').notNull(),
   name: text('name').notNull(),
   description: text('description').notNull().default(''),
+  /** 'text' | 'github' | ... */
+  type: text('type').notNull(),
   content: text('content').notNull().default(''),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-}, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
-
-// ---------------------------------------------------------------------------
-// Connectors (workspace-scoped external data source bridges)
-// ---------------------------------------------------------------------------
-
-export const connectors = pgTable('connectors', {
-  id: text('id').notNull(),
-  workspaceId: text('workspace_id').notNull(),
-  name: text('name').notNull(),
-  /** e.g. 'github' */
-  provider: text('provider').notNull(),
-  /** Provider-specific config: { repo, branch, installationId, ... } */
-  providerConfig: jsonb('provider_config').notNull().default({}),
-  /** Encrypted/opaque token, never exposed via API */
+  config: jsonb('config').notNull().default({}),
   credentials: text('credentials').notNull().default(''),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),

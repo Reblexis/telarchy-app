@@ -1483,7 +1483,7 @@ button:not([class]):disabled {
   transform: none;
 }
 
-/* ===== Expandable panels (vaults, groups, markets) ===== */
+/* ===== Expandable panels (sources, groups, markets) ===== */
 .expandable-panel {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);

@@ -5,7 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useWorkspace, type WorkspaceInfo } from '../hooks/useWorkspace';
 import { api, agentApi } from '../lib/api';
 import { cacheGet, cacheSet } from '../lib/cache';
-import type { Agent, PermissionGroup, Metric, Vault, Connector, Capability } from '../types';
+import type { Agent, PermissionGroup, Metric, Source, Capability } from '../types';
 
 // ─── Operator view ───────────────────────────────────────────────────────────
 
@@ -216,8 +216,7 @@ function AgentAdminPage({ user, workspace }: {
   // Groups state
   const [groups, setGroups] = useState<PermissionGroup[]>([]);
   const [metrics, setMetrics] = useState<Metric[]>([]);
-  const [vaultsList, setVaultsList] = useState<Vault[]>([]);
-  const [connectorsList, setConnectorsList] = useState<Connector[]>([]);
+  const [sourcesList, setSourcesList] = useState<Source[]>([]);
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
   const [newGroupName, setNewGroupName] = useState('');
   const [creatingGroup, setCreatingGroup] = useState(false);
@@ -322,16 +321,14 @@ function AgentAdminPage({ user, workspace }: {
   }, [workspace]);
 
   const loadGroups = useCallback(async () => {
-    const [groupData, metricData, vaultData, connectorData] = await Promise.all([
+    const [groupData, metricData, sourceData] = await Promise.all([
       api.listGroups().catch((e: Error) => { console.error('listGroups:', e); return []; }),
       api.getMetrics().catch((e: Error) => { console.error('getMetrics:', e); return []; }),
-      api.listVaults().catch((e: Error) => { console.error('listVaults:', e); return []; }),
-      api.listConnectors().catch((e: Error) => { console.error('listConnectors:', e); return []; }),
+      api.listSources().catch((e: Error) => { console.error('listSources:', e); return []; }),
     ]);
     setGroups(groupData);
     setMetrics((metricData as Metric[]).filter((m: Metric) => !m.formula || m.formula.trim() === '0'));
-    setVaultsList(vaultData ?? []);
-    setConnectorsList(connectorData ?? []);
+    setSourcesList((sourceData ?? []) as Source[]);
   }, []);
 
   useEffect(() => { loadAgents(); }, [loadAgents]);
@@ -399,25 +396,13 @@ function AgentAdminPage({ user, workspace }: {
     }
   };
 
-  const handleToggleVaultPermission = async (group: PermissionGroup, vaultId: string) => {
-    const current = group.vaultPermissions?.[vaultId]?.read ?? false;
-    const next = { ...group.vaultPermissions, [vaultId]: { read: !current } };
-    if (!next[vaultId].read) delete next[vaultId];
+  const handleToggleSourcePermission = async (group: PermissionGroup, sourceId: string) => {
+    const current = group.sourcePermissions?.[sourceId]?.read ?? false;
+    const next = { ...group.sourcePermissions, [sourceId]: { read: !current } };
+    if (!next[sourceId].read) delete next[sourceId];
     try {
-      await api.updateGroup(group.id, { vaultPermissions: next });
-      setGroups(prev => prev.map(g => g.id === group.id ? { ...g, vaultPermissions: next } : g));
-    } catch (e: unknown) {
-      setGroupError((e as Error).message);
-    }
-  };
-
-  const handleToggleConnectorPermission = async (group: PermissionGroup, connectorId: string) => {
-    const current = group.connectorPermissions?.[connectorId]?.read ?? false;
-    const next = { ...group.connectorPermissions, [connectorId]: { read: !current } };
-    if (!next[connectorId].read) delete next[connectorId];
-    try {
-      await api.updateGroup(group.id, { connectorPermissions: next });
-      setGroups(prev => prev.map(g => g.id === group.id ? { ...g, connectorPermissions: next } : g));
+      await api.updateGroup(group.id, { sourcePermissions: next });
+      setGroups(prev => prev.map(g => g.id === group.id ? { ...g, sourcePermissions: next } : g));
     } catch (e: unknown) {
       setGroupError((e as Error).message);
     }
@@ -793,53 +778,27 @@ function AgentAdminPage({ user, workspace }: {
                           </table>
                         )}
 
-                        {/* Vault Permissions */}
-                        {vaultsList.length > 0 && (
+                        {/* Source Permissions */}
+                        {sourcesList.length > 0 && (
                           <>
-                            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', marginTop: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Vault Permissions</div>
+                            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', marginTop: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Source Permissions</div>
                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                               <thead>
                                 <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                  <th style={{ textAlign: 'left', padding: '0.3rem 0.5rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Vault</th>
+                                  <th style={{ textAlign: 'left', padding: '0.3rem 0.5rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Source</th>
+                                  <th style={{ textAlign: 'left', padding: '0.3rem 0.5rem', color: 'var(--text-secondary)', fontWeight: 500, width: 60 }}>Type</th>
                                   <th style={{ textAlign: 'center', padding: '0.3rem 0.5rem', color: 'var(--text-secondary)', fontWeight: 500, width: 60 }}>Read</th>
                                 </tr>
                               </thead>
                               <tbody>
-                                {vaultsList.map(v => {
-                                  const hasAccess = group.vaultPermissions?.[v.id]?.read ?? false;
+                                {sourcesList.map(s => {
+                                  const hasAccess = group.sourcePermissions?.[s.id]?.read ?? false;
                                   return (
-                                    <tr key={v.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                      <td style={{ padding: '0.3rem 0.5rem' }}>{v.name}</td>
+                                    <tr key={s.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                      <td style={{ padding: '0.3rem 0.5rem' }}>{s.name}</td>
+                                      <td style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{s.type}</td>
                                       <td style={{ padding: '0.3rem 0.5rem', textAlign: 'center' }}>
-                                        <input type="checkbox" checked={hasAccess} onChange={() => handleToggleVaultPermission(group, v.id)} />
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </>
-                        )}
-
-                        {/* Connector Permissions */}
-                        {connectorsList.length > 0 && (
-                          <>
-                            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', marginTop: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Connector Permissions</div>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-                              <thead>
-                                <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                  <th style={{ textAlign: 'left', padding: '0.3rem 0.5rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Connector</th>
-                                  <th style={{ textAlign: 'center', padding: '0.3rem 0.5rem', color: 'var(--text-secondary)', fontWeight: 500, width: 60 }}>Read</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {connectorsList.map(c => {
-                                  const hasAccess = group.connectorPermissions?.[c.id]?.read ?? false;
-                                  return (
-                                    <tr key={c.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                      <td style={{ padding: '0.3rem 0.5rem' }}>{c.name}</td>
-                                      <td style={{ padding: '0.3rem 0.5rem', textAlign: 'center' }}>
-                                        <input type="checkbox" checked={hasAccess} onChange={() => handleToggleConnectorPermission(group, c.id)} />
+                                        <input type="checkbox" checked={hasAccess} onChange={() => handleToggleSourcePermission(group, s.id)} />
                                       </td>
                                     </tr>
                                   );

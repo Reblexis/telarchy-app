@@ -15,8 +15,7 @@ import { workspacesRouter } from './routes/workspaces';
 import { userauthRouter } from './routes/userauth';
 import { marketplaceRouter } from './routes/marketplace';
 import { groupsRouter } from './routes/groups';
-import { vaultsRouter } from './routes/vaults';
-import { connectorsRouter } from './routes/connectors';
+import { sourcesRouter } from './routes/sources';
 import { guidesRouter } from './routes/guides';
 import { legalRouter } from './routes/legal';
 import { cronRouter } from './routes/cron';
@@ -90,14 +89,14 @@ app.get('/api/help', (_req, res) => {
       depth: 'How many layers of dependents a metric has. Depth 0 = root metric or standalone leaf, higher depth = deeper in the formula dependency graph.',
       agent: 'A market participant identity used across both signup methods. Browser-account signup creates or attaches to the participant directly; agent-style signup can also happen directly via POST /api/agents/register. Trading, task, and workspace capabilities are symmetric once identity is established.',
       capabilities: 'Authorization is a flat set of three capabilities: read (view data), trade (place trades, propose tasks, send task messages), manage (admin operations). Each permission group carries a capabilities[] array; a caller\'s effective capabilities are the union across every group they belong to in the current workspace. Legacy role labels (admin, agent, member) seen in responses are derived for display and are not authoritative.',
-      permission_groups: 'Workspace-scoped groups combine membership with a capability preset. System groups bootstrapped on workspace creation: Public (capabilities=[read]), Trader (capabilities=[read,trade]), Admin (capabilities=[read,trade,manage]). Group names are labels and may be freely edited (except system-group names); capabilities can be edited on any group. Groups also carry optional per-metric permissions (metricId -> {read,trade}) and per-vault permissions (vaultId -> {read}). The master API key and the workspace owner have all capabilities implicitly.',
+      permission_groups: 'Workspace-scoped groups combine membership with a capability preset. System groups bootstrapped on workspace creation: Public (capabilities=[read]), Trader (capabilities=[read,trade]), Admin (capabilities=[read,trade,manage]). Group names are labels and may be freely edited (except system-group names); capabilities can be edited on any group. Groups also carry optional per-metric permissions (metricId -> {read,trade}) and per-source permissions (sourceId -> {read}). The master API key and the workspace owner have all capabilities implicitly.',
       market: 'A prediction market created by admin for a specific metric and target date. Agents forecast what the metric\'s total value will be at that date.',
       prediction: 'A forecast placed by an agent on a market. Specifies predictedValue and stake (credits allocated). Multiple predictions per agent per market are allowed.',
       consensus: 'The market\'s predicted value for the metric at resolution: rangeMin + probability * (rangeMax - rangeMin). This is the primary signal to read; e.g. consensus=650 on a 0-1000 metric means the market expects the value to reach 650. Available via API. Markets with no trades and zero liquidity report consensus as 0.',
       probability: 'The LMSR p(higher) value, ranging 0-1. Equals (consensus - rangeMin) / (rangeMax - rangeMin), i.e. the predicted value expressed as a fraction of the metric\'s range. With the default range 0-1000, probability=0.65 means the market predicts the value will reach 650. NOT a probability of improvement or of a binary outcome.',
       amm: 'Markets use binary LMSR (Logarithmic Market Scoring Rule). Agents predict higher or lower. Buying higher shares pushes the consensus up; buying lower pushes it down.',
       resolution: 'When a market resolves, payouts are proportional. If actual value V falls at fraction p=(V-rangeMin)/(rangeMax-rangeMin), higher shares pay p credits each, lower shares pay (1-p) credits each. Values above rangeMax are clamped to rangeMax. Negative values are an error and skip resolution.',
-      connectors: 'Workspace-scoped live bridges to external data sources. Currently supports GitHub (read-only repo access). Admins connect a repo via OAuth; participants with connector read access can browse the directory tree and read file contents. Permission groups control access via a connectorPermissions map (connectorId -> {read: boolean}).',
+      sources: 'Workspace-scoped information stores unifying static text (type="text") and live external bridges (type="github", read-only repo access; more providers to follow). Admins create text sources directly or connect a GitHub repo via OAuth; participants with read access can fetch text content or browse the directory tree and file contents for GitHub sources. Permission groups control access via a sourcePermissions map (sourceId -> {read: boolean}).',
       hooks: 'Agent event subscriptions in ~/.openclaw/workspaces/<agentId>/hooks.json. events[] items: string (event type, match all) or { type, metricNames?: string[], metricIds?: string[] } to filter metric:updated by name or id. Event feed returns type, data, timestamp; metric:updated data has metricId, metricName, oldValue, newValue.',
     },
     authentication: {
@@ -111,7 +110,7 @@ app.get('/api/help', (_req, res) => {
     endpoints: [
       { method: 'GET', path: '/api/help', auth: false, description: 'This endpoint. Returns API documentation.' },
       { method: 'GET', path: '/api/guides', auth: false, description: 'Index of guide sections. Returns [{id, title, description, path}]. No auth required.' },
-      { method: 'GET', path: '/api/guides/:section', auth: false, description: 'Guide section as plain markdown. Sections: overview, metric-design, creating, formulas, time-preference, markets, credits, tasks, agent-api, connectors. No auth required.' },
+      { method: 'GET', path: '/api/guides/:section', auth: false, description: 'Guide section as plain markdown. Sections: overview, metric-design, creating, formulas, time-preference, markets, credits, tasks, agent-api, sources. No auth required.' },
       { method: 'POST', path: '/api/waitlist', auth: false, description: 'Join the waitlist. Body: { email: string }. Returns 201 on success, 409 if already registered.' },
       { method: 'GET', path: '/api/status', auth: 'agent/admin', description: 'Compact workspace summary. Returns: creditValueUsd, metrics[{id, name, value, total}]. Optional query params: ?trends=1 adds trend:[[unixTs,value]] (last 20 log points, configurable via ?trendsLimit=N max 90); ?markets=1 adds markets:[{id,targetDate,prediction,probability}] per metric (open non-task active markets; prediction=consensus value, probability=(consensus-rangeMin)/(rangeMax-rangeMin)). Both can be combined. Use ?trends=1&markets=1 for a full one-call snapshot.' },
       { method: 'POST', path: '/api/reset-economy', auth: 'admin', description: 'Reset all agent balances and stats to zero, wipe all market AMM state (liquidity + shares), and delete all positions, trades, deposits, and withdrawals. Markets themselves are kept. Irreversible.' },
@@ -168,23 +167,20 @@ app.get('/api/help', (_req, res) => {
       { method: 'DELETE', path: '/api/workspaces/:id', auth: 'admin', description: 'Delete a workspace. Owner only. Voids all open markets (refunds stakes), then permanently deletes all workspace data.' },
       { method: 'DELETE', path: '/api/auth/me', auth: 'admin', description: 'GDPR: delete your account.' },
       { method: 'GET', path: '/api/auth/me/export', auth: 'admin', description: 'GDPR: export your account data.' },
-      { method: 'GET', path: '/api/groups', auth: 'agent/admin', description: 'List permission groups for the active workspace. Each group includes { id, name, type, description, memberIds, permissions (metricId -> {read,trade}), vaultPermissions (vaultId -> {read}), capabilities (subset of ["read","trade","manage"]) }. System groups (Public/Trader/Admin) are seeded on workspace creation.' },
+      { method: 'GET', path: '/api/groups', auth: 'agent/admin', description: 'List permission groups for the active workspace. Each group includes { id, name, type, description, memberIds, permissions (metricId -> {read,trade}), sourcePermissions (sourceId -> {read}), capabilities (subset of ["read","trade","manage"]) }. System groups (Public/Trader/Admin) are seeded on workspace creation.' },
       { method: 'POST', path: '/api/groups', auth: 'admin', description: 'Create a custom permission group. Body: { name, description?, capabilities?: string[] }. capabilities may be any subset of ["read","trade","manage"].' },
-      { method: 'PUT', path: '/api/groups/:id', auth: 'admin', description: 'Update a group. Body accepts any of: { name?, description?, memberIds?, permissions?, vaultPermissions?, capabilities? }. System groups cannot be renamed but their capabilities can be edited.' },
+      { method: 'PUT', path: '/api/groups/:id', auth: 'admin', description: 'Update a group. Body accepts any of: { name?, description?, memberIds?, permissions?, sourcePermissions?, capabilities? }. System groups cannot be renamed but their capabilities can be edited.' },
       { method: 'DELETE', path: '/api/groups/:id', auth: 'admin', description: 'Delete a custom permission group. System groups (Public/Trader/Admin) cannot be deleted.' },
-      { method: 'GET', path: '/api/vaults', auth: 'agent/admin', description: 'List vaults the caller can access (id, name, description; no content). Participants with the manage capability see all; others see only vaults granted via permission groups.' },
-      { method: 'GET', path: '/api/vaults/:id', auth: 'agent/admin', description: 'Get vault with content. Returns 403 if the caller lacks read access.' },
-      { method: 'POST', path: '/api/vaults', auth: 'admin', description: 'Create a vault. Body: { name, description?, content? }.' },
-      { method: 'PUT', path: '/api/vaults/:id', auth: 'admin', description: 'Update a vault. Body: { name?, description?, content? }.' },
-      { method: 'DELETE', path: '/api/vaults/:id', auth: 'admin', description: 'Delete a vault. Cleans up vault permission references in all groups.' },
-      { method: 'GET', path: '/api/connectors', auth: 'agent/admin', description: 'List connectors the caller can access (id, name, provider, providerConfig; no credentials). Participants with the manage capability see all; others see only connectors granted via permission groups.' },
-      { method: 'GET', path: '/api/connectors/:id', auth: 'agent/admin', description: 'Get connector metadata. Returns 403 if the caller lacks read access.' },
-      { method: 'GET', path: '/api/connectors/:id/tree', auth: 'agent/admin', description: 'Browse a GitHub connector directory. Query: ?path=src/lib (default: root), ?ref=branch (default: repo default branch). Returns [{path, type, size}].' },
-      { method: 'GET', path: '/api/connectors/:id/file', auth: 'agent/admin', description: 'Read a file from a GitHub connector. Query: ?path=src/index.ts (required), ?ref=branch. Returns {path, content, size}.' },
-      { method: 'GET', path: '/api/connectors/github/install', auth: 'admin', description: 'Start GitHub App installation flow. Redirects to GitHub to select repos (read-only access). Browser session required.' },
-      { method: 'GET', path: '/api/connectors/github/repos', auth: 'admin', description: 'List repos accessible from a GitHub App installation. Query: ?ticket=... (from callback).' },
-      { method: 'POST', path: '/api/connectors/github/connect', auth: 'admin', description: 'Create GitHub connectors from an installation ticket. Body: { ticket, repos: ["owner/repo", ...] }.' },
-      { method: 'DELETE', path: '/api/connectors/:id', auth: 'admin', description: 'Delete a connector. Cleans up connector permission references in all groups.' },
+      { method: 'GET', path: '/api/sources', auth: 'agent/admin', description: 'List sources the caller can access (id, name, description, type, config; no content, no credentials). Participants with the manage capability see all; others see only sources granted via permission groups.' },
+      { method: 'GET', path: '/api/sources/:id', auth: 'agent/admin', description: 'Get a source. Text sources include content; GitHub sources include config (repo, defaultBranch). Returns 403 if the caller lacks read access.' },
+      { method: 'POST', path: '/api/sources', auth: 'admin', description: 'Create a text source. Body: { name, description?, content?, type?: "text" }. GitHub sources must be created via /api/sources/github/*.' },
+      { method: 'PUT', path: '/api/sources/:id', auth: 'admin', description: 'Update a source. Body: { name?, description?, content? }. content is only valid on text sources.' },
+      { method: 'DELETE', path: '/api/sources/:id', auth: 'admin', description: 'Delete a source. Cleans up source permission references in all groups.' },
+      { method: 'GET', path: '/api/sources/:id/tree', auth: 'agent/admin', description: 'Browse a GitHub source directory. Query: ?path=src/lib (default: root), ?ref=branch (default: repo default branch). Returns [{path, type, size}].' },
+      { method: 'GET', path: '/api/sources/:id/file', auth: 'agent/admin', description: 'Read a file from a GitHub source. Query: ?path=src/index.ts (required), ?ref=branch. Returns {path, content, size}.' },
+      { method: 'GET', path: '/api/sources/github/install', auth: 'admin', description: 'Start GitHub App installation flow. Redirects to GitHub to select repos (read-only access). Browser session required.' },
+      { method: 'GET', path: '/api/sources/github/repos', auth: 'admin', description: 'List repos accessible from a GitHub App installation. Query: ?state=... (from callback).' },
+      { method: 'POST', path: '/api/sources/github/connect', auth: 'admin', description: 'Create GitHub sources from an installation. Body: { state, repos: ["owner/repo", ...] }.' },
       { method: 'GET', path: '/api/marketplace', auth: false, description: 'List active markets from all public workspaces.' },
       { method: 'POST', path: '/api/marketplace/:workspaceId/join', auth: 'identity', description: 'Join a public or unlisted workspace using either a browser account session or an agent key. Both auth paths add the same participant identity to the workspace.' },
       { method: 'GET', path: '/api/marketplace/stats', auth: false, description: 'Aggregate platform stats.' },
@@ -201,10 +197,10 @@ app.use('/api/events', eventsRouter);
 app.use('/api/tasks', tasksRouter);
 app.use('/api/marketplace', marketplaceRouter);
 
-// Connectors: mounted before global authMiddleware because the GitHub OAuth
+// Sources: mounted before global authMiddleware because the GitHub OAuth
 // callback is a redirect from GitHub with no auth headers. Individual routes
 // that need auth use requireCapability (which checks req.auth from optionalAuth).
-app.use('/api/connectors', optionalAuthMiddleware, connectorsRouter);
+app.use('/api/sources', optionalAuthMiddleware, sourcesRouter);
 
 app.use('/api', authMiddleware);
 
@@ -212,7 +208,6 @@ app.use('/api/metrics', metricsRouter);
 app.use('/api/updates', requireCapability('manage'), updatesRouter);
 app.use('/api/workspaces', workspacesRouter);
 app.use('/api/groups', groupsRouter);
-app.use('/api/vaults', vaultsRouter);
 app.use('/api', systemRouter);
 
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {

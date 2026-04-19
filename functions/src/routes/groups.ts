@@ -5,7 +5,7 @@ import { eq, and, inArray } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
-import type { Capability, MetricPermission, VaultPermission, ConnectorPermission, PermissionGroupType } from '../types';
+import type { Capability, MetricPermission, SourcePermission, PermissionGroupType } from '../types';
 import { getGroupMemberIds } from '../lib/participants';
 
 export const groupsRouter = Router();
@@ -94,7 +94,7 @@ groupsRouter.post('/', requireCapability('manage'), wrap(async (req, res) => {
     description: typeof description === 'string' ? description.trim() : '',
     memberIds: [], permissions: {}, capabilities, createdAt: new Date(),
   });
-  res.status(201).json({ id, name: name.trim(), type: 'custom', description, memberIds: [], permissions: {}, vaultPermissions: {}, capabilities });
+  res.status(201).json({ id, name: name.trim(), type: 'custom', description, memberIds: [], permissions: {}, sourcePermissions: {}, capabilities });
 }));
 
 groupsRouter.put('/:id', requireCapability('manage'), wrap(async (req, res) => {
@@ -105,7 +105,7 @@ groupsRouter.put('/:id', requireCapability('manage'), wrap(async (req, res) => {
     .where(and(eq(permissionGroups.id, groupId), eq(permissionGroups.workspaceId, workspaceId)));
   if (!group) { res.status(404).json({ error: 'Group not found' }); return; }
 
-  const { name, description, memberIds, permissions, vaultPermissions, connectorPermissions, capabilities } = req.body;
+  const { name, description, memberIds, permissions, sourcePermissions, capabilities } = req.body;
   const update: Partial<typeof permissionGroups.$inferInsert> = {};
 
   if (name !== undefined) {
@@ -147,30 +147,17 @@ groupsRouter.put('/:id', requireCapability('manage'), wrap(async (req, res) => {
     update.permissions = permissions;
   }
 
-  if (vaultPermissions !== undefined) {
-    if (typeof vaultPermissions !== 'object' || vaultPermissions === null || Array.isArray(vaultPermissions)) {
-      res.status(400).json({ error: 'vaultPermissions must be an object' }); return;
+  if (sourcePermissions !== undefined) {
+    if (typeof sourcePermissions !== 'object' || sourcePermissions === null || Array.isArray(sourcePermissions)) {
+      res.status(400).json({ error: 'sourcePermissions must be an object' }); return;
     }
-    for (const [vaultId, perms] of Object.entries(vaultPermissions)) {
-      const p = perms as VaultPermission;
+    for (const [sourceId, perms] of Object.entries(sourcePermissions)) {
+      const p = perms as SourcePermission;
       if (typeof p.read !== 'boolean') {
-        res.status(400).json({ error: `vaultPermissions["${vaultId}"] must have boolean read` }); return;
+        res.status(400).json({ error: `sourcePermissions["${sourceId}"] must have boolean read` }); return;
       }
     }
-    update.vaultPermissions = vaultPermissions;
-  }
-
-  if (connectorPermissions !== undefined) {
-    if (typeof connectorPermissions !== 'object' || connectorPermissions === null || Array.isArray(connectorPermissions)) {
-      res.status(400).json({ error: 'connectorPermissions must be an object' }); return;
-    }
-    for (const [connectorId, perms] of Object.entries(connectorPermissions)) {
-      const p = perms as ConnectorPermission;
-      if (typeof p.read !== 'boolean') {
-        res.status(400).json({ error: `connectorPermissions["${connectorId}"] must have boolean read` }); return;
-      }
-    }
-    update.connectorPermissions = connectorPermissions;
+    update.sourcePermissions = sourcePermissions;
   }
 
   if (capabilities !== undefined) {

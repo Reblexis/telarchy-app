@@ -28,8 +28,7 @@ export function Sidebar() {
     { to: '/markets', label: 'Markets' },
     { to: '/tasks', label: 'Tasks' },
     { to: '/agents', label: 'Agents' },
-    { to: '/vaults', label: 'Vaults' },
-    { to: '/connectors', label: 'Connectors' },
+    { to: '/sources', label: 'Sources' },
     ...(isAdmin ? [{ to: '/settings', label: 'Settings' }] : []),
   ];
 

@@ -171,22 +171,11 @@ export interface MetricPermission {
 
 export type PermissionGroupType = 'public' | 'admin' | 'trader' | 'custom';
 
-export interface VaultPermission {
+export interface SourcePermission {
   read: boolean;
 }
 
-export interface ConnectorPermission {
-  read: boolean;
-}
-
-export interface Connector {
-  id: string;
-  name: string;
-  provider: string;
-  providerConfig: Record<string, unknown>;
-  createdAt: Date;
-  updatedAt: Date;
-}
+export type SourceType = 'text' | 'github';
 
 export interface PermissionGroup {
   id: string;
@@ -198,19 +187,21 @@ export interface PermissionGroup {
   memberIds: string[];
   /** metricId → permissions */
   permissions: Record<string, MetricPermission>;
-  /** vaultId → permissions */
-  vaultPermissions: Record<string, VaultPermission>;
-  /** connectorId → permissions */
-  connectorPermissions: Record<string, ConnectorPermission>;
+  /** sourceId → permissions (covers text sources and external bridges uniformly) */
+  sourcePermissions: Record<string, SourcePermission>;
   /** Capabilities granted to all members of this group. */
   capabilities: Capability[];
 }
 
-export interface Vault {
+export interface Source {
   id: string;
   name: string;
   description: string;
+  type: SourceType;
+  /** Text content for type='text'; empty otherwise. */
   content: string;
+  /** Provider-specific config for external bridges (e.g. GitHub: repo, defaultBranch, installationId). */
+  config: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -20,8 +20,7 @@ import { AgentLoginPage } from './pages/AgentLoginPage';
 import { AgentPortalPage } from './pages/AgentPortalPage';
 import { GuidesPage } from './pages/GuidesPage';
 import { LegalPage } from './pages/LegalPage';
-import { VaultsPage } from './pages/VaultsPage';
-import { ConnectorsPage } from './pages/ConnectorsPage';
+import { SourcesPage } from './pages/SourcesPage';
 import { CheckInPage } from './pages/CheckInPage';
 
 function InspectBanner() {
@@ -79,8 +78,7 @@ export function App() {
               <Route path="/metrics" element={<MetricsPage />} />
               <Route path="/markets" element={<MarketsPage />} />
               <Route path="/tasks" element={<TasksPage />} />
-              <Route path="/vaults" element={<VaultsPage />} />
-              <Route path="/connectors" element={<ConnectorsPage />} />
+              <Route path="/sources" element={<SourcesPage />} />
             </Route>
           </Route>
         </Routes>
