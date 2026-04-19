@@ -25,6 +25,30 @@ export interface WorkspaceMembership {
   memberRole: WorkspaceMemberRole;
 }
 
+/**
+ * Choose which workspace to act on for a user, given their memberships and an
+ * optional requested workspace (typically from the X-Workspace-Id header).
+ *
+ * If the requested workspace is a membership match, use it. Otherwise fall back
+ * to the user's highest-priority membership. Returns null when the user has no
+ * memberships at all. The request header is advisory: a stale or unknown value
+ * must not cause the whole request to fail.
+ */
+export function selectEffectiveWorkspaceId(
+  memberships: WorkspaceMembership[],
+  requestedWorkspaceId?: string,
+): string | null {
+  if (memberships.length === 0) return null;
+  if (requestedWorkspaceId) {
+    const match = memberships.find(m => m.workspaceId === requestedWorkspaceId);
+    if (match) return requestedWorkspaceId;
+  }
+  const sorted = [...memberships].sort((a, b) =>
+    ROLE_PRIORITY.indexOf(a.memberRole) - ROLE_PRIORITY.indexOf(b.memberRole),
+  );
+  return sorted[0].workspaceId;
+}
+
 type GroupLike = {
   memberIds?: unknown;
   type?: unknown;

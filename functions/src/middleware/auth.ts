@@ -10,6 +10,7 @@ import { computeCapabilities } from './capabilities';
 import {
   getParticipantWorkspaceMemberships,
   getUserWorkspaceMemberships as getUserWorkspaceMembershipsForParticipant,
+  selectEffectiveWorkspaceId,
 } from '../lib/participants';
 
 declare global {
@@ -31,8 +32,6 @@ function safeCompare(a: string, b: string): boolean {
     return false;
   }
 }
-
-const ROLE_PRIORITY: WorkspaceMemberRole[] = ['owner', 'admin', 'trader', 'viewer'];
 
 export interface WorkspaceMembership {
   workspaceId: string;
@@ -74,19 +73,12 @@ async function resolveUser(
   }
 
   const memberships = await getUserWorkspaceMemberships(userId, agentId);
-  if (memberships.length === 0) return null;
-
-  if (requestedWorkspaceId) {
-    const membership = memberships.find(m => m.workspaceId === requestedWorkspaceId);
-    if (!membership) return null;
-    return { workspaceId: requestedWorkspaceId, agentId };
+  const effective = selectEffectiveWorkspaceId(memberships, requestedWorkspaceId);
+  if (!effective) return null;
+  if (requestedWorkspaceId && effective !== requestedWorkspaceId) {
+    console.warn(`[auth] user ${userId} sent X-Workspace-Id=${requestedWorkspaceId} (not a membership); using ${effective}`);
   }
-
-  memberships.sort((a, b) =>
-    ROLE_PRIORITY.indexOf(a.memberRole) -
-    ROLE_PRIORITY.indexOf(b.memberRole),
-  );
-  return { workspaceId: memberships[0].workspaceId, agentId };
+  return { workspaceId: effective, agentId };
 }
 
 async function resolveAgentWorkspace(
@@ -189,13 +181,10 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   if (session?.user) {
     const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
     const result = await resolveUser(session.user.id, requestedWorkspaceId);
-    if (result === null && requestedWorkspaceId) {
-      // User is authenticated but sent an X-Workspace-Id they aren't a member
-      // of. Signal the client (see isBadWorkspaceError in useWorkspace) so it
-      // can clear the stale localStorage value and retry without the header.
-      return res.status(403).json({ error: `Not a member of workspace ${requestedWorkspaceId}` });
-    }
     if (result === null) {
+      if (requestedWorkspaceId) {
+        console.warn(`[auth] user ${session.user.id} has no memberships; ignoring X-Workspace-Id=${requestedWorkspaceId}`);
+      }
       req.auth = { capabilities: new Set(), workspaceId: '', uid: session.user.id };
     } else {
       req.auth = {
