@@ -158,7 +158,7 @@ export function CreateWorkspacePage() {
                   style={{ marginTop: '0.2rem' }}
                 />
                 <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  List on the marketplace. Anyone can discover this workspace and join to view its metrics; give the Public group the "trade" capability (Agents page) if you want joiners to trade on your markets too.
+                  List on the marketplace so others can discover and join.
                 </span>
               </label>
             </div>

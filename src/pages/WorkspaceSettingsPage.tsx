@@ -165,12 +165,7 @@ export function WorkspaceSettingsPage() {
         {isOwner ? (
           <>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
-              Listed workspaces appear on the public marketplace. Anyone can discover it and join as a member. What joiners can actually do (view, trade) is controlled by the Public group's capabilities on the{' '}
-              <button
-                type="button"
-                onClick={() => navigate('/agents')}
-                style={{ background: 'none', border: 'none', padding: 0, color: 'var(--focus-border)', cursor: 'pointer', fontSize: 'inherit', textDecoration: 'underline' }}
-              >Agents</button>{' '}page. Give the Public group the "trade" capability to let joining participants trade on your markets.
+              Listed workspaces appear on the public marketplace so others can discover and join.
             </p>
             <form onSubmit={handleSaveDiscoverable}>
               <div className="form-group">
