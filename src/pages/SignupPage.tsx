@@ -7,8 +7,9 @@ import { OAuthButtons } from '../components/OAuthButtons';
 export function SignupPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
+  const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -16,12 +17,14 @@ export function SignupPage() {
     e.preventDefault();
     setError('');
 
-    if (password !== confirm) { setError('Passwords do not match'); return; }
+    if (!agreed) { setError('You must agree to the Terms and Privacy Policy.'); return; }
     if (password.length < 8) { setError('Password must be at least 8 characters'); return; }
+    const name = displayName.trim();
+    if (!name) { setError('Display name is required'); return; }
 
     setSubmitting(true);
 
-    const { error: signUpError } = await authClient.signUp.email({ email, password, name: email });
+    const { error: signUpError } = await authClient.signUp.email({ email, password, name });
     if (signUpError) {
       setError(signUpError.message || 'An error occurred');
       setSubmitting(false);
@@ -32,9 +35,7 @@ export function SignupPage() {
       console.error('recordConsent failed:', e.message);
     });
 
-    // Create the participant record (agent + credits). Workspace is created
-    // on the next page when the user picks a template.
-    await api.upsertProfile(email).catch((e: Error) => {
+    await api.upsertProfile(name).catch((e: Error) => {
       console.error('upsertProfile failed:', e.message);
     });
 
@@ -43,6 +44,10 @@ export function SignupPage() {
   };
 
   const handleOAuthConsentGate = () => {
+    if (!agreed) {
+      setError('Please agree to the Terms and Privacy Policy before continuing.');
+      return false;
+    }
     sessionStorage.setItem('pendingConsent', '1');
     return true;
   };
@@ -73,27 +78,30 @@ export function SignupPage() {
               value={email} onChange={e => setEmail(e.target.value)} />
           </div>
           <div className="form-group">
+            <label htmlFor="displayName">Display name</label>
+            <input type="text" id="displayName" required autoComplete="nickname"
+              value={displayName} onChange={e => setDisplayName(e.target.value)} />
+          </div>
+          <div className="form-group">
             <label htmlFor="password">Password</label>
             <input type="password" id="password" required autoComplete="new-password" minLength={8}
               value={password} onChange={e => setPassword(e.target.value)} />
           </div>
-          <div className="form-group">
-            <label htmlFor="confirm">Confirm password</label>
-            <input type="password" id="confirm" required autoComplete="new-password"
-              value={confirm} onChange={e => setConfirm(e.target.value)} />
-          </div>
-          <button type="submit" disabled={submitting}>
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', margin: '0.75rem 0 1rem', fontSize: '0.85rem', lineHeight: 1.4 }}>
+            <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)}
+              style={{ marginTop: '0.15rem' }} />
+            <span>
+              I am 18 or older and agree to the{' '}
+              <Link to="/terms" target="_blank" rel="noreferrer">Terms</Link>
+              {' '}and{' '}
+              <Link to="/privacy" target="_blank" rel="noreferrer">Privacy Policy</Link>.
+            </span>
+          </label>
+          <button type="submit" disabled={submitting || !agreed}>
             {submitting ? 'Creating account...' : 'Create account'}
           </button>
           {error && <div className="error show">{error}</div>}
         </form>
-
-        <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '1rem', textAlign: 'center', lineHeight: 1.5 }}>
-          By creating an account, you confirm you are 18+ and agree to the{' '}
-          <Link to="/terms" target="_blank" rel="noreferrer">Terms</Link>
-          {' '}and{' '}
-          <Link to="/privacy" target="_blank" rel="noreferrer">Privacy Policy</Link>.
-        </p>
 
         <div className="reconfigure-link">
           Already have an account? <Link to="/login">Log in</Link>

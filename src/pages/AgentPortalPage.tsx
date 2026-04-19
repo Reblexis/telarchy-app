@@ -226,11 +226,12 @@ function PositionsSection({ agentId, apiKey }: { agentId: string; apiKey: string
   );
 }
 
-function SettingsSection({ agentId, apiKey, profile, onProfileRefresh }: {
+function SettingsSection({ agentId, apiKey, profile, onProfileRefresh, usdcEnabled }: {
   agentId: string;
   apiKey: string;
   profile: AgentProfile;
   onProfileRefresh: () => void;
+  usdcEnabled: boolean;
 }) {
   const [walletAddr, setWalletAddr] = useState(profile.walletAddress ?? '');
   const [savingWallet, setSavingWallet] = useState(false);
@@ -318,6 +319,14 @@ function SettingsSection({ agentId, apiKey, profile, onProfileRefresh }: {
       setWithdrawing(false);
     }
   };
+
+  if (!usdcEnabled) {
+    return (
+      <div style={{ padding: '1rem 1.25rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+        USDC settlement is disabled on this instance. Credits are for simulation only.
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -413,8 +422,16 @@ export function AgentPortalPage() {
   const [section, setSection] = useState<Section>('overview');
   const [profile, setProfile] = useState<AgentProfile | null>(null);
   const [profileError, setProfileError] = useState('');
+  const [usdcEnabled, setUsdcEnabled] = useState(false);
 
   const { agentId, apiKey } = session!;
+
+  useEffect(() => {
+    fetch('/api/public-config')
+      .then(r => r.json())
+      .then(cfg => setUsdcEnabled(Boolean(cfg?.usdcSettlementEnabled)))
+      .catch((e: Error) => console.error('public-config failed:', e.message));
+  }, []);
 
   const goToTopUp = () => {
     setSection('settings');
@@ -512,7 +529,7 @@ export function AgentPortalPage() {
               <PositionsSection agentId={agentId} apiKey={apiKey} />
             )}
             {section === 'settings' && profile && (
-              <SettingsSection agentId={agentId} apiKey={apiKey} profile={profile} onProfileRefresh={loadProfile} />
+              <SettingsSection agentId={agentId} apiKey={apiKey} profile={profile} onProfileRefresh={loadProfile} usdcEnabled={usdcEnabled} />
             )}
             {section === 'settings' && !profile && (
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Loading…</p>

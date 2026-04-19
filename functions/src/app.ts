@@ -78,6 +78,10 @@ app.all('/api/auth/*', toNodeHandler(auth));
 app.use('/api/guides', guidesRouter);
 app.use('/api/legal', legalRouter);
 
+app.get('/api/public-config', (_req, res) => {
+  res.json({ usdcSettlementEnabled: process.env.USDC_SETTLEMENT_ENABLED === 'true' });
+});
+
 app.get('/api/help', (_req, res) => {
   res.json({
     app: 'Telarchy',
@@ -209,6 +213,10 @@ app.use('/api/updates', requireCapability('manage'), updatesRouter);
 app.use('/api/workspaces', workspacesRouter);
 app.use('/api/groups', groupsRouter);
 app.use('/api', systemRouter);
+
+app.use('/api', (req: Request, res: Response) => {
+  res.status(404).json({ error: 'Not found', path: req.originalUrl });
+});
 
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   const status = err instanceof AppError ? err.status : 500;
