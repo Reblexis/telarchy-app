@@ -69,13 +69,8 @@ export function UpdateValuesModal({ open, metrics, message, onClose, onSave }: U
           {leaves.map((m, i) => (
             <div key={m.id} className="form-group" style={{ marginBottom: '1rem' }}>
               <label style={{ margin: 0, display: 'block', marginBottom: '0.35rem' }}>
-                {m.question || m.name}
+                {m.name}
               </label>
-              {m.question && (
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '0.35rem' }}>
-                  {m.name}
-                </div>
-              )}
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 {m.marketRangeMax != null && (
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', minWidth: '1rem', textAlign: 'right' }}>0</span>

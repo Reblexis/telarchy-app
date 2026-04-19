@@ -113,6 +113,13 @@
       "when": 1776700000000,
       "tag": "0015_metrics_check_in_interval_days",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1776800000000,
+      "tag": "0016_drop_metric_resolution_fields",
+      "breakpoints": true
     }
   ]
 }

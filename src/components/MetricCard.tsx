@@ -44,9 +44,9 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
             <span title={warnings.map(w => w.message).join('\n')} style={{ marginLeft: '0.5rem', color: 'var(--error-text)', cursor: 'help' }}>!</span>
           )}
         </div>
-        {(isLeaf ? metric.question : metric.description) && (
+        {metric.description && (
           <div className="metric-stats" style={{ marginBottom: '0.25rem', fontStyle: 'italic' }}>
-            {isLeaf ? metric.question : metric.description}
+            {metric.description}
           </div>
         )}
         <div className="metric-stats">

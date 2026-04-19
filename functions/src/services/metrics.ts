@@ -144,7 +144,6 @@ export async function getAllMetrics(workspaceId: string): Promise<Metric[]> {
     id: row.id,
     name: row.name,
     description: row.description || '',
-    question: row.question || '',
     value: row.value,
     total: row.value,
     formula: row.formula || '0',
@@ -155,7 +154,6 @@ export async function getAllMetrics(workspaceId: string): Promise<Metric[]> {
       ? row.timePreference as { enabled: boolean; halfLife: number }
       : undefined,
     marketRangeMax: row.marketRangeMax ?? undefined,
-    checkInIntervalDays: row.checkInIntervalDays ?? undefined,
   })), map, untradedLeaves);
 }
 

@@ -5,37 +5,32 @@ interface EditMetricModalProps {
   metric: Metric | null;
   onClose: () => void;
   onSave: (
-    id: string, name: string, description: string, question: string, value: number,
+    id: string, name: string, description: string, value: number,
     formula: string, oldValue: number, updateNote: string,
     timePreference: TimePreference | null,
     marketRangeMax?: number,
-    checkInIntervalDays?: number,
   ) => Promise<void>;
 }
 
 export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [question, setQuestion] = useState('');
   const [value, setValue] = useState('');
   const [formula, setFormula] = useState('0');
   const [tpEnabled, setTpEnabled] = useState(false);
   const [tpHalfLife, setTpHalfLife] = useState('1');
   const [marketRangeMax, setMarketRangeMax] = useState('1000');
-  const [checkInIntervalDays, setCheckInIntervalDays] = useState('7');
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (metric) {
       setName(metric.name);
       setDescription(metric.description || '');
-      setQuestion(metric.question || '');
       setValue(String(metric.value));
       setFormula(metric.formula || '0');
       setTpEnabled(metric.timePreference?.enabled ?? false);
       setTpHalfLife(String(metric.timePreference?.halfLife ?? 1));
       setMarketRangeMax(String(metric.marketRangeMax ?? 1000));
-      setCheckInIntervalDays(String(metric.checkInIntervalDays ?? 7));
       setError('');
     }
   }, [metric]);
@@ -52,8 +47,7 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
       : null;
     try {
       const rmx = isLeaf ? Math.max(1, Number(marketRangeMax) || 1000) : undefined;
-      const interval = isLeaf ? Math.max(1, Math.round(Number(checkInIntervalDays) || 7)) : undefined;
-      await onSave(metric.id, name, description, question, Number(value), formula, metric.value, '', tp, rmx, interval);
+      await onSave(metric.id, name, description, Number(value), formula, metric.value, '', tp, rmx);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
@@ -76,12 +70,10 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
             <label htmlFor="editName">Name</label>
             <input type="text" id="editName" required value={name} onChange={e => setName(e.target.value)} />
           </div>
-          {!isLeaf && (
-            <div className="form-group">
-              <label htmlFor="editDescription">Description</label>
-              <textarea id="editDescription" placeholder="What does this metric represent?" value={description} onChange={e => setDescription(e.target.value)} />
-            </div>
-          )}
+          <div className="form-group">
+            <label htmlFor="editDescription">Description</label>
+            <textarea id="editDescription" placeholder="What does this metric represent?" value={description} onChange={e => setDescription(e.target.value)} />
+          </div>
           {isLeaf && (
             <div className="form-group">
               <label htmlFor="editValue">Value</label>
@@ -92,20 +84,6 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
             <label htmlFor="editFormula">Formula</label>
             <textarea id="editFormula" placeholder="e.g., {Deep Work} + {Exercise} * 2" value={formula} onChange={e => setFormula(e.target.value)} />
           </div>
-          {isLeaf && (
-            <fieldset className="resolution-section">
-              <legend>Resolution</legend>
-              <div className="form-group">
-                <label htmlFor="editQuestion">Check-in question</label>
-                <input type="text" id="editQuestion" placeholder="e.g., How happy are you feeling right now?" value={question} onChange={e => setQuestion(e.target.value)} />
-              </div>
-              <div className="form-group">
-                <label htmlFor="editCheckInInterval">Answer required every (days)</label>
-                <input type="number" id="editCheckInInterval" min="1" step="1" value={checkInIntervalDays} onChange={e => setCheckInIntervalDays(e.target.value)} />
-                <div className="form-hint">Markets that resolve after this many days without an answer are voided instead of settling.</div>
-              </div>
-            </fieldset>
-          )}
           {isLeaf && (
             <div className="form-group">
               <label htmlFor="editMarketRangeMax" title="The highest value this metric could realistically reach. Used to scale the prediction market.">Max expected value</label>

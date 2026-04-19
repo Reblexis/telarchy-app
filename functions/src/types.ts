@@ -7,7 +7,6 @@ export interface Metric {
   id: string;
   name: string;
   description: string;
-  question: string;
   value: number;
   total: number | null;
   formula: string;
@@ -16,7 +15,6 @@ export interface Metric {
   updatedAt?: string;
   timePreference?: TimePreference;
   marketRangeMax?: number;
-  checkInIntervalDays?: number;
   timeSeries?: Array<{ date: string; value: number }>;
   missingMarkets?: string[];
   /** Half-life inherited from the nearest TP-enabled ancestor. Set on descendants
