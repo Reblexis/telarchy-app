@@ -18,6 +18,16 @@ export function validateContent(value: unknown, fieldName = 'content', maxLength
   return undefined;
 }
 
+const VISIBILITY_VALUES = ['public', 'unlisted', 'private'] as const;
+export type WorkspaceVisibilityInput = (typeof VISIBILITY_VALUES)[number];
+
+export function parseVisibility(value: unknown): { ok: true; value: WorkspaceVisibilityInput } | { ok: false; error: string } {
+  if (typeof value !== 'string' || !(VISIBILITY_VALUES as readonly string[]).includes(value)) {
+    return { ok: false, error: `visibility must be one of: ${VISIBILITY_VALUES.join(', ')}` };
+  }
+  return { ok: true, value: value as WorkspaceVisibilityInput };
+}
+
 /** On-chain transaction hashes: 0x followed by 64 hex characters. */
 export function validateTxHash(hash: unknown): string | undefined {
   if (typeof hash !== 'string') return 'txHash must be a string';

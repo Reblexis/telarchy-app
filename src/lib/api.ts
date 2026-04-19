@@ -256,14 +256,14 @@ export const api = {
   exportAccount: () => request('/api/auth/me/export'),
 
   // Workspaces
-  createWorkspace: (body: { name: string; template?: 'startup' | 'personal' | 'blank'; templateParams?: { revenueRangeMax?: number } } | string) => {
+  createWorkspace: (body: { name: string; template?: 'startup' | 'personal' | 'blank'; templateParams?: { revenueRangeMax?: number }; visibility?: 'public' | 'unlisted' | 'private' } | string) => {
     const payload = typeof body === 'string' ? { name: body } : body;
     return request('/api/workspaces', { method: 'POST', body: JSON.stringify(payload) }, true);
   },
   listWorkspaces: () => request('/api/workspaces', {}, true),
   getWorkspace: (id: string) => request(`/api/workspaces/${id}`),
   getWorkspaceStats: (id: string) => request(`/api/workspaces/${id}/stats`),
-  updateWorkspaceSettings: (id: string, body: { name?: string; autoFundNewMarkets?: boolean; newMarketLiquidityCredits?: number }) =>
+  updateWorkspaceSettings: (id: string, body: { name?: string; autoFundNewMarkets?: boolean; newMarketLiquidityCredits?: number; visibility?: 'public' | 'unlisted' | 'private' }) =>
     request(`/api/workspaces/${id}/settings`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteWorkspace: (id: string) =>
     request(`/api/workspaces/${id}`, { method: 'DELETE' }),

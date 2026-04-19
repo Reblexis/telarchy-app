@@ -7,6 +7,7 @@ import { useWorkspace } from '../hooks/useWorkspace';
 interface WorkspaceDetail {
   id: string;
   name: string;
+  visibility?: 'public' | 'unlisted' | 'private';
   autoFundNewMarkets?: boolean;
   newMarketLiquidityCredits?: number;
 }
@@ -18,6 +19,7 @@ export function WorkspaceSettingsPage() {
 
   const [ws, setWs] = useState<WorkspaceDetail | null>(null);
   const [name, setName] = useState('');
+  const [discoverable, setDiscoverable] = useState(false);
   const [autoFund, setAutoFund] = useState(false);
   const [liquidityCredits, setLiquidityCredits] = useState('');
   const [saving, setSaving] = useState(false);
@@ -36,6 +38,7 @@ export function WorkspaceSettingsPage() {
         const d = detail as WorkspaceDetail;
         setWs(d);
         setName(d.name);
+        setDiscoverable(d.visibility === 'public');
         setAutoFund(Boolean(d.autoFundNewMarkets));
         const c = d.newMarketLiquidityCredits;
         setLiquidityCredits(typeof c === 'number' && c > 0 ? String(c) : '');
@@ -52,6 +55,22 @@ export function WorkspaceSettingsPage() {
       await api.updateWorkspaceSettings(wsId, { name: name.trim() });
       setSaveMsg('Saved.');
       setWs(prev => prev ? { ...prev, name: name.trim() } : prev);
+    } catch (e: unknown) {
+      setError((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveDiscoverable = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!user || !wsId || !isOwner) return;
+    setError(''); setSaveMsg(''); setSaving(true);
+    try {
+      const nextVisibility: 'public' | 'private' = discoverable ? 'public' : 'private';
+      await api.updateWorkspaceSettings(wsId, { visibility: nextVisibility });
+      setSaveMsg('Saved.');
+      setWs(prev => prev ? { ...prev, visibility: nextVisibility } : prev);
     } catch (e: unknown) {
       setError((e as Error).message);
     } finally {
@@ -139,6 +158,42 @@ export function WorkspaceSettingsPage() {
           </button>
           {saveMsg && <span style={{ marginLeft: '1rem', fontSize: '0.875rem', color: 'var(--success-text)' }}>{saveMsg}</span>}
         </form>
+      </div>
+
+      <div className="section" style={{ marginTop: '2rem' }}>
+        <h3 style={{ marginBottom: '0.5rem' }}>Marketplace listing</h3>
+        {isOwner ? (
+          <>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+              Listed workspaces appear on the public marketplace. Anyone can discover it and join as a member. What joiners can actually do (view, trade) is controlled by the Public group's capabilities on the{' '}
+              <button
+                type="button"
+                onClick={() => navigate('/agents')}
+                style={{ background: 'none', border: 'none', padding: 0, color: 'var(--focus-border)', cursor: 'pointer', fontSize: 'inherit', textDecoration: 'underline' }}
+              >Agents</button>{' '}page. Give the Public group the "trade" capability to let joining participants trade on your markets.
+            </p>
+            <form onSubmit={handleSaveDiscoverable}>
+              <div className="form-group">
+                <label htmlFor="ws-discoverable" className="checkbox-label">
+                  <input
+                    id="ws-discoverable"
+                    type="checkbox"
+                    checked={discoverable}
+                    onChange={e => setDiscoverable(e.target.checked)}
+                  />
+                  List on the marketplace
+                </label>
+              </div>
+              <button type="submit" disabled={saving}>
+                {saving ? 'Saving...' : 'Save'}
+              </button>
+            </form>
+          </>
+        ) : (
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+            Only the workspace owner can change marketplace listing.
+          </p>
+        )}
       </div>
 
       <div className="section" style={{ marginTop: '2rem' }}>

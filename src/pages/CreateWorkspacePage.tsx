@@ -13,6 +13,7 @@ export function CreateWorkspacePage() {
   const [selected, setSelected] = useState<TemplateId | null>(null);
   const [name, setName] = useState('');
   const [revenueRangeMax, setRevenueRangeMax] = useState<number>(100000);
+  const [discoverable, setDiscoverable] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -27,6 +28,7 @@ export function CreateWorkspacePage() {
         name: name.trim(),
         template: selected,
         templateParams: selected === 'startup' ? { revenueRangeMax } : undefined,
+        visibility: discoverable ? 'public' : 'private',
       });
       setActiveWorkspace(ws.id);
       clearCache();
@@ -145,6 +147,21 @@ export function CreateWorkspacePage() {
                 />
               </div>
             )}
+
+            <div className="form-group">
+              <label htmlFor="ws-discoverable" className="checkbox-label" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                <input
+                  id="ws-discoverable"
+                  type="checkbox"
+                  checked={discoverable}
+                  onChange={e => setDiscoverable(e.target.checked)}
+                  style={{ marginTop: '0.2rem' }}
+                />
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  List on the marketplace. Anyone can discover this workspace and join to view its metrics; give the Public group the "trade" capability (Agents page) if you want joiners to trade on your markets too.
+                </span>
+              </label>
+            </div>
 
             <button type="submit" disabled={submitting || !name.trim()}>
               {submitting ? 'Creating...' : 'Create workspace'}

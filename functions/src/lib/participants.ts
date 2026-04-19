@@ -171,9 +171,10 @@ export async function provisionWorkspace(
     name: string;
     createdBy: string;
     ownerAgentId?: string;
+    visibility?: 'public' | 'unlisted' | 'private';
   },
 ): Promise<void> {
-  const { wsId, name, createdBy, ownerAgentId } = opts;
+  const { wsId, name, createdBy, ownerAgentId, visibility } = opts;
   const now = new Date();
 
   await tx.insert(workspaces).values({
@@ -181,7 +182,7 @@ export async function provisionWorkspace(
     name,
     createdBy,
     createdAt: now,
-    visibility: 'private',
+    visibility: visibility ?? 'private',
     autoFundNewMarkets: true,
     newMarketLiquidityCredits: DEFAULT_MARKET_LIQUIDITY_CREDITS,
   });

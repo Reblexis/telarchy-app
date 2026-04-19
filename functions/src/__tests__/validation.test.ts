@@ -1,4 +1,4 @@
-import { validateAgentId, validateContent, validateTxHash } from '../lib/validation';
+import { validateAgentId, validateContent, validateTxHash, parseVisibility } from '../lib/validation';
 
 describe('validateAgentId', () => {
   test('accepts valid IDs', () => {
@@ -82,5 +82,36 @@ describe('validateTxHash', () => {
   test('rejects non-hex characters', () => {
     expect(validateTxHash('0x' + 'g'.repeat(64))).toBeDefined();
     expect(validateTxHash('0x' + 'z'.repeat(64))).toBeDefined();
+  });
+});
+
+describe('parseVisibility', () => {
+  test('accepts the three canonical values', () => {
+    for (const v of ['public', 'unlisted', 'private']) {
+      const result = parseVisibility(v);
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.value).toBe(v);
+    }
+  });
+
+  test('rejects unknown strings', () => {
+    for (const bad of ['PUBLIC', 'open', 'secret', '']) {
+      expect(parseVisibility(bad).ok).toBe(false);
+    }
+  });
+
+  test('rejects non-strings', () => {
+    expect(parseVisibility(undefined).ok).toBe(false);
+    expect(parseVisibility(null).ok).toBe(false);
+    expect(parseVisibility(1).ok).toBe(false);
+    expect(parseVisibility({}).ok).toBe(false);
+  });
+
+  test('lists all allowed values in the error message', () => {
+    const result = parseVisibility('???');
+    if (result.ok) throw new Error('should have failed');
+    for (const v of ['public', 'unlisted', 'private']) {
+      expect(result.error).toContain(v);
+    }
   });
 });

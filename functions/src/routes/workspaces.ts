@@ -15,6 +15,7 @@ import { resolveWorkspaceOwnerAgentId, provisionWorkspace } from '../lib/partici
 import { voidMarket } from '../services/markets';
 import { ensureMarketsForTimePreference } from '../services/metrics';
 import { getTemplate, type TemplateParams } from '../lib/templates';
+import { parseVisibility } from '../lib/validation';
 
 export const workspacesRouter = Router();
 
@@ -32,9 +33,16 @@ workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
   const identity = uid ?? agentId ?? (isMasterKey ? 'admin' : undefined);
   if (!identity) { res.status(403).json({ error: 'Identity required to create a workspace' }); return; }
 
-  const { name, template: templateId, templateParams } = req.body;
+  const { name, template: templateId, templateParams, visibility: visibilityInput } = req.body;
   if (!name || typeof name !== 'string' || name.trim().length === 0) {
     res.status(400).json({ error: 'name is required' }); return;
+  }
+
+  let visibility: 'public' | 'unlisted' | 'private' = 'private';
+  if (visibilityInput !== undefined) {
+    const parsed = parseVisibility(visibilityInput);
+    if (!parsed.ok) { res.status(400).json({ error: parsed.error }); return; }
+    visibility = parsed.value;
   }
 
   let template;
@@ -59,7 +67,7 @@ workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
   await db.transaction(async tx => {
     await provisionWorkspace(tx, {
       wsId, name: name.trim(), createdBy: identity,
-      ownerAgentId,
+      ownerAgentId, visibility,
     });
 
     const now = new Date();
@@ -91,7 +99,7 @@ workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
   res.status(201).json({
     id: wsId,
     name: name.trim(),
-    visibility: 'private',
+    visibility,
     template: template.id,
     metricsCreated: templateMetrics.length,
   });
@@ -151,15 +159,16 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
 
   const hasAutoFundKey = Object.prototype.hasOwnProperty.call(req.body, 'autoFundNewMarkets');
   const hasCreditsKey = Object.prototype.hasOwnProperty.call(req.body, 'newMarketLiquidityCredits');
-  const touchesAutoFund = hasAutoFundKey || hasCreditsKey;
+  const hasVisibilityKey = Object.prototype.hasOwnProperty.call(req.body, 'visibility');
+  const touchesOwnerOnly = hasAutoFundKey || hasCreditsKey || hasVisibilityKey;
 
-  if (touchesAutoFund) {
+  if (touchesOwnerOnly) {
     if (!uid && !agentId) {
-      res.status(403).json({ error: 'Auto-fund settings require a signed-in workspace owner' }); return;
+      res.status(403).json({ error: 'These settings require a signed-in workspace owner' }); return;
     }
     const memberRole = await getMembershipRoleForWorkspace({ uid, agentId }, wsId);
     if (memberRole !== 'owner') {
-      res.status(403).json({ error: 'Only the workspace owner can change auto-fund settings' }); return;
+      res.status(403).json({ error: 'Only the workspace owner can change these settings' }); return;
     }
   }
 
@@ -171,8 +180,14 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
     }
   }
 
-  const { name, autoFundNewMarkets, newMarketLiquidityCredits } = req.body;
+  const { name, autoFundNewMarkets, newMarketLiquidityCredits, visibility } = req.body;
   const update: Partial<typeof workspaces.$inferInsert> = {};
+
+  if (hasVisibilityKey) {
+    const parsed = parseVisibility(visibility);
+    if (!parsed.ok) { res.status(400).json({ error: parsed.error }); return; }
+    update.visibility = parsed.value;
+  }
 
   if (name !== undefined) {
     if (typeof name !== 'string' || name.trim().length === 0) {
