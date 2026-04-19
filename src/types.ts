@@ -20,6 +20,7 @@ export interface Metric {
   timeSeries?: Array<{ date: string; value: number }>;
   conditionalTimeSeries?: Array<{ date: string; value: number }>;
   missingMarkets?: string[];
+  inheritedHalfLife?: number;
 }
 
 export interface MetricLog {

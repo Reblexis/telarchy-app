@@ -32,12 +32,14 @@ function enrichMetrics(rawMetrics: Metric[], consensusMap: Record<string, number
   });
 
   const nameToTimeSeries: Record<string, Array<{ date: string; value: number }>> = {};
+  const nameToInheritedHalfLife: Record<string, number> = {};
   const nameToFormulaLocal: Record<string, string> = {};
   rawMetrics.forEach(m => { nameToFormulaLocal[m.name] = m.formula || '0'; });
 
   for (const tpMetric of rawMetrics) {
     if (!tpMetric.timePreference?.enabled) continue;
-    const timePoints = sampleTimePoints(tpMetric.timePreference.halfLife);
+    const halfLife = tpMetric.timePreference.halfLife;
+    const timePoints = sampleTimePoints(halfLife);
 
     const descendants = new Set<string>();
     const tpIsLeaf = !nameToFormulaLocal[tpMetric.name] || nameToFormulaLocal[tpMetric.name].trim() === '0';
@@ -73,11 +75,18 @@ function enrichMetrics(rawMetrics: Metric[], consensusMap: Record<string, number
         }
       }
 
-      if (series.length > 0) nameToTimeSeries[name] = series;
+      if (series.length > 0) {
+        nameToTimeSeries[name] = series;
+        // Skip the TP metric itself, its own timePreference already drives the overlay.
+        if (name !== tpMetric.name) nameToInheritedHalfLife[name] = halfLife;
+      }
     }
   }
 
-  rawMetrics.forEach(m => { if (nameToTimeSeries[m.name]) m.timeSeries = nameToTimeSeries[m.name]; });
+  rawMetrics.forEach(m => {
+    if (nameToTimeSeries[m.name]) m.timeSeries = nameToTimeSeries[m.name];
+    if (nameToInheritedHalfLife[m.name] !== undefined) m.inheritedHalfLife = nameToInheritedHalfLife[m.name];
+  });
   rawMetrics.sort((a, b) => a.depth !== b.depth ? a.depth - b.depth : (a.order || 999) - (b.order || 999));
   return rawMetrics;
 }

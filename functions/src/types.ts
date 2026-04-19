@@ -18,6 +18,10 @@ export interface Metric {
   marketRangeMax?: number;
   timeSeries?: Array<{ date: string; value: number }>;
   missingMarkets?: string[];
+  /** Half-life inherited from the nearest TP-enabled ancestor. Set on descendants
+   *  so the chart can render the decay overlay even though the descendant itself
+   *  has no time preference of its own. */
+  inheritedHalfLife?: number;
 }
 
 export interface MetricLog {

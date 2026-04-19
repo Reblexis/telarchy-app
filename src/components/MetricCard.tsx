@@ -19,6 +19,7 @@ interface MetricCardProps {
 export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus, onGraph, onEdit, onDelete, onValueChange }: MetricCardProps) {
   const isLeaf = !metric.formula || metric.formula.trim() === '0';
   const hasTP = metric.timePreference?.enabled === true;
+  const overlayHalfLife = hasTP ? metric.timePreference!.halfLife : metric.inheritedHalfLife;
   const [isEditingValue, setIsEditingValue] = useState(false);
   const [editValueStr, setEditValueStr] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -143,7 +144,7 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
               variant="inline"
               rangeMin={metric.marketRangeMax !== undefined ? 0 : undefined}
               rangeMax={metric.marketRangeMax}
-              halfLifeYears={hasTP ? metric.timePreference!.halfLife : undefined}
+              halfLifeYears={overlayHalfLife}
             />
           </div>
         )}
