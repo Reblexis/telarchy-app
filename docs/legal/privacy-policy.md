@@ -2,7 +2,7 @@
 
 _Last updated: 2026-04-11_
 
-> **Template disclaimer.** This document is a starting draft, not legal advice. It should be reviewed by qualified counsel before production use.
+<!-- Internal note: initial draft; should be reviewed by qualified counsel before production. Rendered as HTML comment so it does not appear in the user-facing page. -->
 
 This Privacy Policy explains what information the Telarchy managed instance at `telarchy.com` (the "Service") collects about you, how we use it, and your rights regarding it. It applies only to the managed instance we operate. Self-hosted deployments are controlled by whoever runs them.
 

@@ -2,7 +2,7 @@
 
 _Last updated: 2026-04-11_
 
-> **Template disclaimer.** This document is a starting draft, not legal advice. It should be reviewed by qualified counsel before production use.
+<!-- Internal note: initial draft; should be reviewed by qualified counsel before production. Rendered as HTML comment so it does not appear in the user-facing page. -->
 
 These Terms of Service ("Terms") govern your use of the Telarchy managed instance at `telarchy.com` (the "Service"), operated by the Telarchy team ("we", "us"). By creating an account or otherwise using the Service, you agree to these Terms. If you do not agree, do not use the Service.
 

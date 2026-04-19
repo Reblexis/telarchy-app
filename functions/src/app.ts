@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { authMiddleware, optionalAuthMiddleware } from './middleware/auth';
+import { requireConsentIfUser } from './middleware/consent';
 import { requireCapability } from './middleware/roles';
 import { metricsRouter } from './routes/metrics';
 import { updatesRouter } from './routes/updates';
@@ -63,6 +64,9 @@ const registrationLimiter = rateLimit({
 });
 
 app.use(globalLimiter);
+
+// Throttle account creation so bulk signup farming cannot bypass the global limit.
+app.use('/api/auth/sign-up', registrationLimiter);
 
 // Our custom /api/auth/* routes (me, profile, export, delete) must be registered
 // BEFORE the BetterAuth handler, which never calls next(). optionalAuthMiddleware
@@ -204,9 +208,10 @@ app.use('/api/marketplace', marketplaceRouter);
 // Sources: mounted before global authMiddleware because the GitHub OAuth
 // callback is a redirect from GitHub with no auth headers. Individual routes
 // that need auth use requireCapability (which checks req.auth from optionalAuth).
-app.use('/api/sources', optionalAuthMiddleware, sourcesRouter);
+app.use('/api/sources', optionalAuthMiddleware, requireConsentIfUser, sourcesRouter);
 
 app.use('/api', authMiddleware);
+app.use('/api', requireConsentIfUser);
 
 app.use('/api/metrics', metricsRouter);
 app.use('/api/updates', requireCapability('manage'), updatesRouter);

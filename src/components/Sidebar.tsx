@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
-import { api } from '../lib/api';
 
 export function Sidebar() {
   const { user, logout } = useAuth();
@@ -14,9 +13,10 @@ export function Sidebar() {
 
   useEffect(() => {
     if (!user) return;
-    api.getStatus()
+    fetch('/api/public-config')
+      .then(r => r.json())
       .then(s => setUsdcEnabled(Boolean((s as { usdcSettlementEnabled?: boolean }).usdcSettlementEnabled)))
-      .catch(err => console.error('Failed to load status for settlement flag', err));
+      .catch(err => console.error('Failed to load public config for settlement flag', err));
   }, [user]);
 
   const currentPath = location.pathname;
@@ -144,10 +144,10 @@ export function Sidebar() {
               }}
             >
               <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {user.email}
+                {user.name || user.email}
               </div>
-              <div style={{ fontSize: '0.7rem', fontFamily: 'monospace', color: 'var(--text-tertiary)', marginTop: '0.15rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {user.id}
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: '0.15rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {user.email}
               </div>
             </Link>
             <button className="sidebar-nav-item sidebar-nav-logout" onClick={handleLogout}>

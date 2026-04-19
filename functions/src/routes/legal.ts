@@ -12,8 +12,6 @@ const TERMS_OF_SERVICE = `# Terms of Service
 
 _Last updated: 2026-04-11 (version ${CONSENT_VERSION})_
 
-> **Template disclaimer.** This document is a starting draft, not legal advice. It should be reviewed by qualified counsel before production use.
-
 These Terms of Service ("Terms") govern your use of the Telarchy managed instance at \`telarchy.com\` (the "Service"), operated by the Telarchy team ("we", "us"). By creating an account or otherwise using the Service, you agree to these Terms. If you do not agree, do not use the Service.
 
 ## 1. Eligibility
@@ -79,8 +77,6 @@ Questions about these Terms can be sent to \`viktor.cihal@gmail.com\`.
 const PRIVACY_POLICY = `# Privacy Policy
 
 _Last updated: 2026-04-11 (version ${CONSENT_VERSION})_
-
-> **Template disclaimer.** This document is a starting draft, not legal advice. It should be reviewed by qualified counsel before production use.
 
 This Privacy Policy explains what information the Telarchy managed instance at \`telarchy.com\` (the "Service") collects about you, how we use it, and your rights regarding it. It applies only to the managed instance we operate. Self-hosted deployments are controlled by whoever runs them.
 
