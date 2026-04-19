@@ -117,14 +117,7 @@ export async function optionalAuthMiddleware(req: Request, _res: Response, next:
   const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null);
   if (session?.user) {
     const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
-    let result = await resolveUser(session.user.id, requestedWorkspaceId);
-    // If the requested workspace isn't a membership (e.g. stale localStorage,
-    // wrong env), fall back to the user's default workspace rather than leaving
-    // them with empty capabilities.
-    if (result === null && requestedWorkspaceId) {
-      console.error(`[optionalAuth] user ${session.user.id} not a member of requested workspace ${requestedWorkspaceId}, falling back`);
-      result = await resolveUser(session.user.id);
-    }
+    const result = await resolveUser(session.user.id, requestedWorkspaceId);
     if (result !== null) {
       req.auth = {
         capabilities: await computeCapabilities({
