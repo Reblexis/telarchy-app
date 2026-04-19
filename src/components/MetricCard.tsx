@@ -1,4 +1,5 @@
 import { useMemo, useState, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import type { Metric } from '../types';
 import type { FormulaWarning } from '../lib/metrics-engine';
 import { MetricsTimeChart } from './charts/MetricsTimeChart';
@@ -113,6 +114,15 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
               title={`Time preference: half-life ${metric.timePreference!.halfLife}y`}>
               TP {metric.timePreference!.halfLife}y
             </span>
+          )}
+          {isLeaf && (
+            <Link
+              to={`/markets?q=${encodeURIComponent(metric.name)}`}
+              style={{ marginLeft: '0.75rem', fontSize: '0.8rem', color: 'var(--text-secondary)', textDecoration: 'underline' }}
+              title="See the prediction markets forecasting this metric"
+            >
+              Markets →
+            </Link>
           )}
         </div>
         {!isLeaf && (

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { api } from '../lib/api';
@@ -28,7 +29,8 @@ export function MarketsPage() {
   useEffect(() => { const id = setInterval(() => setTick(t => t + 1), 60000); return () => clearInterval(id); }, []);
   const [hoverDir, setHoverDir] = useState<Record<string, 'higher' | 'lower' | undefined>>({});
 
-  const [filterText, setFilterText] = useState('');
+  const [searchParams] = useSearchParams();
+  const [filterText, setFilterText] = useState(() => searchParams.get('q') ?? '');
   const [statusFilter, setStatusFilter] = useState<MarketStatus | 'all'>('open');
   const [bulkLiqAmount, setBulkLiqAmount] = useState('');
   const [bulkLiqResult, setBulkLiqResult] = useState('');
