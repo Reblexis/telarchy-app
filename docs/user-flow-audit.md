@@ -114,3 +114,27 @@ After each run, append a brief dated entry below with: env, screenshot dir, fric
 ## Run log
 
 <!-- Append entries here, newest first -->
+
+### 2026-04-19, prod, `flow-audit-1776625883@integration.test`
+
+Walked all 10 steps via Playwright. Highlights:
+
+**Working well:**
+- OG/Twitter meta tags live on prod (title, description, image, card).
+- Share button on `/marketplace` accessible-workspace header copies `https://telarchy.com/marketplace?workspace=<id>` via `navigator.share` or clipboard fallback; query param pre-fills search.
+- Live-stats widget pulls real numbers (280 markets, 18 agents, 706 trades this week).
+- Closed bot loop confirmed end-to-end: signed up a fresh account, created the Audit Co workspace, and within ~4 minutes an anchor bot had already moved "Weekly revenue 2026-W20" from 50000 → 45500. Zero manual intervention.
+- Signup → workspace creation → check-in → metrics path has no dead ends.
+- Balance-visible hint: 986.50 credits = 13.5 credits silently spent seeding 27 markets (proves auto-fund is working, but the spend is invisible to the user).
+
+**Friction found, added to `mvp-launch-backlog.md`:**
+- Signup: password-confirm field, no 1000-credit hook, no display-name field.
+- Check-in welcome page: no credit-balance surface, no "bots will trade in ~5 min" banner, no "27 markets created" receipt.
+- Metrics page: Outlook values render but no drill-down to the per-period markets.
+- Markets page: "Hooks: offline" red dot reads as "your account is broken."
+- Marketplace cold-visitor view: no headline pitch explaining Telarchy above the market list.
+- Marketplace header shows 32-char trader id instead of a friendly name.
+
+**False alarm corrected:** initial screenshot showed stats at 0/0/0 but that was just `useCounter` frame-0 animation; real values appear within 1.6s.
+
+**Screenshots:** `flow-audit-20260419/` (gitignored).

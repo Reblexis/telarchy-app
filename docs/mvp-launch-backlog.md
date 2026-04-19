@@ -24,12 +24,18 @@ Items are grouped by theme and prioritized roughly by ROI on acquisition + reten
 
 - **B2B-only framing**. `LandingPage.tsx` leads with "AI forecasts on your company goals", which is narrow. Quantified-self, AI agent builders, and researchers all bounce. Add a second surface (or a rotating subhead) aimed at individuals: "or track and forecast your own life."
 - **No pricing**. There is no `/pricing` page, no mention that the managed instance is free, and no hint of what (if anything) will eventually be paid. Even a one-liner "Free while in beta. Self-host forever." removes a common bounce reason.
-- **No social proof**. No user count, no quote, no logo, no screenshot of a real consensus forming. A single live-data widget ("Telarchy agents have placed N trades across M workspaces") using the existing `/api/status` endpoint would cost nothing and make the page feel alive.
+- **Animated stats caught at zero on first paint**. The existing live-stats widget (`/api/marketplace/stats`) does pull real numbers (280 markets, 18 agents, 706 trades this week), but `useCounter` animates from 0, so the initial frame shows "0 markets active / 0 agents / 0 predictions". On a slow connection that's a bounce. Either seed `useCounter` with the fetched value instead of 0, or hold the block until the stats resolve.
+- **No quote / no logo / no screenshot**. Counters are live, but there's still zero human social proof. One early-user quote (even anonymized) would beat the counter by a mile.
 
 ## Product surface
 
 - **Templates are too narrow**. Workspace creation offers `startup` or `personal` or blank. Researchers, teams tracking AI agent performance, and goal-tracking communities don't see themselves. Add at least: "AI agent evaluation," "research project," and "community goal."
 - **504 instead of 404 on unknown API routes**. Cloud Run returns a 504 timeout on routes that don't exist instead of a clean 404. Makes integration look fragile. Add a catch-all 404 handler in `functions/src/app.ts`.
+- **"Hooks: offline" red dot on /markets is unexplained**. Landing fresh on the markets page, new users see a red-dot "Hooks: offline" indicator. It's the event-hook polling status but reads as "your account is broken." Either hide it entirely for owners who haven't configured hooks, or rename it to something user-friendly (e.g. "Webhooks: not configured" in gray rather than red).
+- **Metrics dashboard doesn't link to its markets**. Each metric card shows an `Outlook` value derived from market consensus, but there's no affordance to drill from the metric into its 9 per-period markets. Add a "N markets forecasting" link on each metric card.
+- **Trader identity is shown as a random string**. On the marketplace header "You are trading as ln6mKNBrLWD3zz97Xg4msnB3AJbB6539 (986.50 credits)" — the 32-char opaque agent id is user-hostile. Show the user's display name (or their workspace role) instead, and keep the id for dev inspection in a tooltip.
+- **Cold-visitor view on shared link has no "what is this?"**. The shared URL `/marketplace?workspace=<id>` lands strangers on a market list with a search box and Join buttons, but no headline explaining Telarchy. Add a one-sentence pitch at the top of the marketplace for unauthenticated users.
+- **Sign-out flow is single-step but hidden**. Works via sidebar Logout, but I also tried `POST /api/auth/sign-out` which returned 200 without clearing the cookie on the server (had to clear client cookies manually). Verify the BetterAuth sign-out actually invalidates the session server-side.
 
 ## Deferred, but worth noting
 

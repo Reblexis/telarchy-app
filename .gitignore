@@ -34,3 +34,5 @@ functions/.env
 functions/.env.local
 /home/cihalvi/src/metrics-tracker/.env
 .env
+.playwright-mcp/
+flow-audit-*/
