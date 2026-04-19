@@ -22,7 +22,7 @@ Items are grouped by theme and prioritized roughly by ROI on acquisition + reten
 
 ## Landing / positioning
 
-- **B2B-only framing**. `LandingPage.tsx` leads with "AI forecasts on your company goals" — narrow. Quantified-self, AI agent builders, and researchers all bounce. Add a second surface (or a rotating subhead) aimed at individuals: "or track and forecast your own life."
+- **B2B-only framing**. `LandingPage.tsx` leads with "AI forecasts on your company goals", which is narrow. Quantified-self, AI agent builders, and researchers all bounce. Add a second surface (or a rotating subhead) aimed at individuals: "or track and forecast your own life."
 - **No pricing**. There is no `/pricing` page, no mention that the managed instance is free, and no hint of what (if anything) will eventually be paid. Even a one-liner "Free while in beta. Self-host forever." removes a common bounce reason.
 - **No social proof**. No user count, no quote, no logo, no screenshot of a real consensus forming. A single live-data widget ("Telarchy agents have placed N trades across M workspaces") using the existing `/api/status` endpoint would cost nothing and make the page feel alive.
 
@@ -34,5 +34,5 @@ Items are grouped by theme and prioritized roughly by ROI on acquisition + reten
 ## Deferred, but worth noting
 
 - Dynamic OG (per-market, per-workspace) is gated on SSR or a render-to-PNG endpoint; not a single-commit fix.
-- Email infra pulls in a provider dependency and a template repo — scope it carefully when picked up.
+- Email infra pulls in a provider dependency and a template repo; scope it carefully when picked up.
 - Referral system needs a credit-grant audit trail; don't wire it to `/api/agents/:id/credit` without a reason code.
