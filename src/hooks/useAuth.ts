@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { authClient } from '../lib/auth-client';
+import { setActiveWorkspace } from '../lib/api';
 import { clearCache, clearSessionCache } from '../lib/cache';
 
 export interface AppUser {
@@ -27,6 +28,7 @@ export function useAuth() {
     const nextUid = user?.id ?? null;
     const prevUid = prevUidRef.current;
     if (prevUid && prevUid !== nextUid) {
+      setActiveWorkspace(null);
       clearCache();
       clearSessionCache();
     }
@@ -35,6 +37,7 @@ export function useAuth() {
 
   const logout = async () => {
     await authClient.signOut();
+    setActiveWorkspace(null);
   };
 
   return { user, loading: isPending, logout };

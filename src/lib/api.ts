@@ -106,21 +106,7 @@ async function requestWithWorkspace(
     throw new Error(`API unavailable (${res.status}). Ensure Cloud Functions are deployed.`);
   }
   const data = await res.json();
-  if (!res.ok) {
-    const errMsg: string = data.error || 'API error';
-    if (
-      res.status === 403 &&
-      typeof errMsg === 'string' &&
-      errMsg.toLowerCase().startsWith('not a member of workspace') &&
-      effectiveWorkspaceId &&
-      !workspaceId
-    ) {
-      console.error('Clearing stale activeWorkspaceId:', effectiveWorkspaceId, errMsg);
-      setActiveWorkspace(null);
-      return requestWithWorkspace(path, options, { ...requestOptions, skipWorkspaceHeader: true });
-    }
-    throw new Error(errMsg);
-  }
+  if (!res.ok) throw new Error(data.error || 'API error');
   return data;
 }
 
