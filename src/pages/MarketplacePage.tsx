@@ -32,6 +32,38 @@ function formatCompactNumber(value: number): string {
   return value.toFixed(9).replace(/\.?0+$/, '');
 }
 
+function ShareWorkspaceButton({ workspaceId, workspaceName }: { workspaceId: string; workspaceName: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleShare = async () => {
+    const url = `${window.location.origin}/marketplace?workspace=${encodeURIComponent(workspaceId)}`;
+    const shareData = { title: `${workspaceName} on Telarchy`, text: `Watch and trade on ${workspaceName}`, url };
+    try {
+      if (navigator.share && navigator.canShare?.(shareData)) {
+        await navigator.share(shareData);
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (e) {
+      console.error('share failed:', e);
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={handleShare}
+      style={{
+        background: 'none', border: '1px solid var(--border-color)',
+        color: 'var(--text-secondary)', fontSize: '0.75rem',
+        padding: '0.25rem 0.6rem', borderRadius: '0.35rem', cursor: 'pointer',
+      }}
+    >
+      {copied ? '✓ Link copied' : 'Share'}
+    </button>
+  );
+}
+
 function JoinButton({ workspaceId, joined, onJoined }: {
   workspaceId: string;
   joined?: boolean;
@@ -267,6 +299,13 @@ export function MarketplacePage() {
     void loadAccessible();
   }, [loadAccessible]);
 
+  useEffect(() => {
+    const wsId = new URLSearchParams(window.location.search).get('workspace');
+    if (!wsId || publicMarkets.length === 0) return;
+    const match = publicMarkets.find(m => m.workspaceId === wsId);
+    if (match) setSearch(match.workspaceName);
+  }, [publicMarkets]);
+
   const normalizedSearch = search.trim().toLowerCase();
   const filteredPublic = useMemo(() => {
     const filtered = !normalizedSearch
@@ -366,11 +405,14 @@ export function MarketplacePage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 {filteredAccessible.map(workspace => (
                   <section key={workspace.workspaceId} className="section" style={{ padding: '1rem' }}>
-                    <div style={{ marginBottom: '0.75rem' }}>
-                      <div style={{ fontWeight: 600 }}>{workspace.workspaceName}</div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                        {workspace.markets.length} active market{workspace.markets.length === 1 ? '' : 's'} · role: {workspace.memberRole}
+                    <div style={{ marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
+                      <div>
+                        <div style={{ fontWeight: 600 }}>{workspace.workspaceName}</div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          {workspace.markets.length} active market{workspace.markets.length === 1 ? '' : 's'} · role: {workspace.memberRole}
+                        </div>
                       </div>
+                      <ShareWorkspaceButton workspaceId={workspace.workspaceId} workspaceName={workspace.workspaceName} />
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                       {workspace.markets.map(market => (
