@@ -114,6 +114,15 @@ export function CheckInPage() {
           <button type="submit" className="btn" disabled={saving} style={{ width: '100%' }}>
             {saving ? 'Saving...' : 'Continue'}
           </button>
+          <p style={{
+            fontSize: '0.75rem',
+            color: 'var(--text-tertiary)',
+            marginTop: '1rem',
+            textAlign: 'center',
+          }}>
+            Your workspace is listed on the marketplace and open to participants. Change in{' '}
+            <a href="/settings" style={{ color: 'inherit', textDecoration: 'underline' }}>Settings</a>.
+          </p>
         </form>
       </div>
     );

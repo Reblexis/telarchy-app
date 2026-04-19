@@ -5,7 +5,6 @@ import { clearCache } from '../lib/cache';
 import { useAuth } from '../hooks/useAuth';
 
 type TemplateId = 'startup' | 'personal' | 'blank';
-type Access = 'private' | 'public' | 'open';
 
 export function CreateWorkspacePage() {
   const { user } = useAuth();
@@ -14,7 +13,6 @@ export function CreateWorkspacePage() {
   const [selected, setSelected] = useState<TemplateId | null>(null);
   const [name, setName] = useState('');
   const [revenueRangeMax, setRevenueRangeMax] = useState<number>(100000);
-  const [access, setAccess] = useState<Access>('private');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -25,20 +23,22 @@ export function CreateWorkspacePage() {
     setSubmitting(true);
 
     try {
+      // New workspaces default to "Open" access: listed on the marketplace and
+      // the Public group gets the 'trade' capability. Owners can flip this in
+      // Settings. Rationale: get first users to "agents trading on my metrics"
+      // with zero decisions at signup.
       const ws = await api.createWorkspace({
         name: name.trim(),
         template: selected,
         templateParams: selected === 'startup' ? { revenueRangeMax } : undefined,
-        visibility: access === 'private' ? 'private' : 'public',
+        visibility: 'public',
       });
       setActiveWorkspace(ws.id);
-      if (access === 'open') {
-        const groups = await api.listGroups() as Array<{ id: string; type: string; capabilities?: string[] }>;
-        const pub = groups.find(g => g.type === 'public');
-        if (pub) {
-          const caps = Array.from(new Set([...(pub.capabilities ?? []), 'read', 'trade']));
-          await api.updateGroup(pub.id, { capabilities: caps });
-        }
+      const groups = await api.listGroups() as Array<{ id: string; type: string; capabilities?: string[] }>;
+      const pub = groups.find(g => g.type === 'public');
+      if (pub) {
+        const caps = Array.from(new Set([...(pub.capabilities ?? []), 'read', 'trade']));
+        await api.updateGroup(pub.id, { capabilities: caps });
       }
       clearCache();
       // Full reload so useWorkspace re-fetches the workspace list and profile
@@ -156,32 +156,6 @@ export function CreateWorkspacePage() {
                 />
               </div>
             )}
-
-            <div className="form-group">
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Who can participate</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                {([
-                  { id: 'private' as const, label: 'Private', help: 'Invite-only.' },
-                  { id: 'public'  as const, label: 'Public',  help: 'Listed; anyone can join and view.' },
-                  { id: 'open'    as const, label: 'Open',    help: 'Listed; anyone can join and trade.' },
-                ]).map(opt => (
-                  <label key={opt.id} className="checkbox-label" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
-                    <input
-                      type="radio"
-                      name="ws-access"
-                      value={opt.id}
-                      checked={access === opt.id}
-                      onChange={() => setAccess(opt.id)}
-                      style={{ marginTop: '0.25rem' }}
-                    />
-                    <span style={{ fontSize: '0.85rem' }}>
-                      <span style={{ color: 'var(--text-primary)' }}>{opt.label}</span>
-                      <span style={{ color: 'var(--text-secondary)' }}> — {opt.help}</span>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </div>
 
             <button type="submit" disabled={submitting || !name.trim()}>
               {submitting ? 'Creating...' : 'Create workspace'}
