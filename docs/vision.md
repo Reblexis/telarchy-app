@@ -174,6 +174,7 @@ Any metric, leaf or computed, can have time preference enabled. A leaf with TP c
   - **resolved**: `targetDate` has passed, positions paid out against the metric's actual value.
   - **voided**: market was cancelled and all positions refunded at cost. This is the only correct outcome whenever the metric's definition would change or disappear out from under a market.
 - **Closure happens when and only when** the trading window expires with the definition unchanged. Any edit that changes the definition (name, description, formula, `marketRangeMax`) voids all open markets for that metric and respawns fresh ones under the new definition. Deleting a metric voids all its open markets (refunds at cost); descendant markets under a deleted non-leaf TP ancestor keep their own unchanged definitions and close naturally.
+- **Stale-answer void**: each leaf metric has a `checkInIntervalDays` (default 7). At resolution time, if the metric has not been updated within that window, the market is voided instead of settling (refund at cost). This keeps markets from resolving against abandoned ground truth. Changing the interval does not void existing markets (it only affects resolution), so users can tune it freely.
 - The daily cron (00:10 UTC) and "Refresh Markets" button compute the desired `(leafId, targetDate)` set and create missing markets. Markets falling out of the desired set are set `active: false` (closed).
 - A distributed refresh lock prevents duplicate creation from concurrent refresh calls.
 

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, FormEvent } from 'react';
 
 interface AddMetricGhostCardProps {
-  onAdd: (name: string, description: string, value: number, formula: string, marketRangeMax?: number) => Promise<void>;
+  onAdd: (name: string, description: string, question: string, value: number, formula: string, marketRangeMax?: number, checkInIntervalDays?: number) => Promise<void>;
   autoFocus?: boolean;
 }
 
@@ -10,6 +10,8 @@ export function AddMetricGhostCard({ onAdd, autoFocus }: AddMetricGhostCardProps
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [question, setQuestion] = useState('');
+  const [checkInIntervalDays, setCheckInIntervalDays] = useState('7');
   const [formula, setFormula] = useState('');
   const [value, setValue] = useState('');
   const [marketRangeMax, setMarketRangeMax] = useState('');
@@ -47,6 +49,8 @@ export function AddMetricGhostCard({ onAdd, autoFocus }: AddMetricGhostCardProps
   const resetForm = () => {
     setName('');
     setDescription('');
+    setQuestion('');
+    setCheckInIntervalDays('7');
     setFormula('');
     setValue('');
     setMarketRangeMax('');
@@ -60,7 +64,8 @@ export function AddMetricGhostCard({ onAdd, autoFocus }: AddMetricGhostCardProps
     setError('');
     try {
       const rmx = Math.max(1, Number(marketRangeMax) || 1000);
-      await onAdd(name, description, isLeaf ? Number(value) || 0 : 0, formula || '0', rmx);
+      const interval = isLeaf ? Math.max(1, Math.round(Number(checkInIntervalDays) || 7)) : undefined;
+      await onAdd(name, description, isLeaf ? question : '', isLeaf ? Number(value) || 0 : 0, formula || '0', rmx, interval);
       resetForm();
       setShowAdvanced(false);
       if (!autoFocus) setIsExpanded(false);
@@ -126,15 +131,6 @@ export function AddMetricGhostCard({ onAdd, autoFocus }: AddMetricGhostCardProps
         {showAdvanced && (
           <div className="add-metric-advanced">
             <div className="form-group">
-              <label htmlFor="ghostDescription">Description</label>
-              <textarea
-                id="ghostDescription"
-                placeholder="What does this metric represent?"
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-              />
-            </div>
-            <div className="form-group">
               <label htmlFor="ghostFormula">Formula</label>
               <input
                 type="text"
@@ -144,30 +140,68 @@ export function AddMetricGhostCard({ onAdd, autoFocus }: AddMetricGhostCardProps
                 onChange={e => setFormula(e.target.value)}
               />
             </div>
-            {isLeaf && (
+            {!isLeaf && (
               <div className="form-group">
-                <label htmlFor="ghostValue">Value</label>
-                <input
-                  type="number"
-                  id="ghostValue"
-                  step="any"
-                  value={value}
-                  onChange={e => setValue(e.target.value)}
+                <label htmlFor="ghostDescription">Description</label>
+                <textarea
+                  id="ghostDescription"
+                  placeholder="What does this metric represent?"
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
                 />
               </div>
             )}
-            <div className="form-group">
-              <label htmlFor="ghostMarketMax">Max expected value</label>
-              <input
-                type="number"
-                id="ghostMarketMax"
-                step="any"
-                min="1"
-                placeholder="1000"
-                value={marketRangeMax}
-                onChange={e => setMarketRangeMax(e.target.value)}
-              />
-            </div>
+            {isLeaf && (
+              <>
+                <div className="form-group">
+                  <label htmlFor="ghostValue">Value</label>
+                  <input
+                    type="number"
+                    id="ghostValue"
+                    step="any"
+                    value={value}
+                    onChange={e => setValue(e.target.value)}
+                  />
+                </div>
+                <fieldset className="resolution-section">
+                  <legend>Resolution</legend>
+                  <div className="form-group">
+                    <label htmlFor="ghostQuestion">Check-in question</label>
+                    <input
+                      type="text"
+                      id="ghostQuestion"
+                      placeholder="e.g., How happy are you feeling right now?"
+                      value={question}
+                      onChange={e => setQuestion(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="ghostInterval">Answer required every (days)</label>
+                    <input
+                      type="number"
+                      id="ghostInterval"
+                      min="1"
+                      step="1"
+                      value={checkInIntervalDays}
+                      onChange={e => setCheckInIntervalDays(e.target.value)}
+                    />
+                    <div className="form-hint">Markets that resolve after this many days without an answer are voided instead of settling.</div>
+                  </div>
+                </fieldset>
+                <div className="form-group">
+                  <label htmlFor="ghostMarketMax">Max expected value</label>
+                  <input
+                    type="number"
+                    id="ghostMarketMax"
+                    step="any"
+                    min="1"
+                    placeholder="1000"
+                    value={marketRangeMax}
+                    onChange={e => setMarketRangeMax(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
           </div>
         )}
 

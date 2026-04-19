@@ -15,7 +15,7 @@ interface MetricsDashboardProps {
   onEdit?: (metric: Metric) => void;
   onDelete?: (id: string) => void;
   onValueChange?: (metric: Metric, newValue: number) => void;
-  onAddMetric?: (name: string, description: string, value: number, formula: string, marketRangeMax?: number) => Promise<void>;
+  onAddMetric?: (name: string, description: string, question: string, value: number, formula: string, marketRangeMax?: number, checkInIntervalDays?: number) => Promise<void>;
 }
 
 export function MetricsDashboard({

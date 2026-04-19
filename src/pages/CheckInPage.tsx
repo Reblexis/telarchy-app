@@ -3,24 +3,36 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import type { Metric } from '../types';
 
-const STALE_DAYS = 7;
+const DEFAULT_INTERVAL_DAYS = 7;
 
-function daysSince(dateStr: string): number {
+function hoursSince(dateStr: string): number {
   const then = new Date(dateStr).getTime();
   if (isNaN(then)) return Infinity;
-  return Math.floor((Date.now() - then) / (1000 * 60 * 60 * 24));
+  return (Date.now() - then) / (1000 * 60 * 60);
 }
 
-function stalenessLabel(days: number): string {
-  if (days === 0) return 'Updated today';
-  if (days === 1) return 'Updated yesterday';
-  if (days < 7) return `Updated ${days} days ago`;
-  if (days < 30) return `Updated ${Math.floor(days / 7)} weeks ago`;
-  return `Updated ${Math.floor(days / 30)} months ago`;
+function urgencyLabel(hoursLeft: number): { text: string; overdue: boolean } {
+  if (!Number.isFinite(hoursLeft)) return { text: 'Never answered', overdue: true };
+  if (hoursLeft <= 0) {
+    const overdueH = -hoursLeft;
+    if (overdueH < 24) return { text: `Overdue by ${Math.max(1, Math.round(overdueH))}h`, overdue: true };
+    const days = Math.round(overdueH / 24);
+    return { text: `Overdue by ${days}d`, overdue: true };
+  }
+  if (hoursLeft < 24) return { text: `${Math.max(1, Math.round(hoursLeft))}h left`, overdue: false };
+  const days = Math.round(hoursLeft / 24);
+  return { text: `${days}d left`, overdue: false };
 }
 
 function isLeaf(m: Metric): boolean {
   return !m.formula || m.formula.trim() === '0';
+}
+
+function urgency(m: Metric): number {
+  const interval = (m.checkInIntervalDays ?? DEFAULT_INTERVAL_DAYS) * 24;
+  const elapsed = hoursSince(m.updatedAt ?? '');
+  if (!Number.isFinite(elapsed)) return -Infinity;
+  return interval - elapsed;
 }
 
 export function CheckInPage() {
@@ -46,13 +58,9 @@ export function CheckInPage() {
   }, []);
 
   const leaves = metrics.filter(isLeaf);
-
-
-  const dueLeaves = leaves.filter(m => {
-    const days = daysSince(m.updatedAt ?? '');
-    return days >= STALE_DAYS;
-  });
-  const freshLeaves = leaves.filter(m => !dueLeaves.includes(m));
+  const sortedLeaves = isWelcome
+    ? leaves
+    : [...leaves].sort((a, b) => urgency(a) - urgency(b));
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -72,9 +80,9 @@ export function CheckInPage() {
           updateNote: 'Check-in',
           timePreference: m.timePreference ?? null,
           marketRangeMax: m.marketRangeMax,
+          checkInIntervalDays: m.checkInIntervalDays,
         });
       }
-      // First visit: redirect to metrics dashboard for the wow moment
       if (isWelcome) {
         navigate('/metrics');
         return;
@@ -100,7 +108,6 @@ export function CheckInPage() {
     );
   }
 
-  // First visit: clean, focused layout with no staleness noise
   if (isWelcome) {
     return (
       <div className="container" style={{ maxWidth: 500, paddingTop: '2rem' }}>
@@ -109,7 +116,7 @@ export function CheckInPage() {
           Set your starting point. Forecasts and predictions will build from here.
         </p>
         <form onSubmit={handleSubmit}>
-          {leaves.map(m => (
+          {sortedLeaves.map(m => (
             <div key={m.id} className="checkin-card" style={{
               border: '1px solid var(--border-color)',
               borderRadius: '0.5rem',
@@ -150,9 +157,7 @@ export function CheckInPage() {
     );
   }
 
-  // Return visits: staleness-based check-in
-  const metricsToShow = dueLeaves.length > 0 ? dueLeaves : leaves;
-  const showingAll = dueLeaves.length === 0;
+  const overdueCount = sortedLeaves.filter(m => urgency(m) <= 0).length;
 
   return (
     <div className="container" style={{ maxWidth: 500, paddingTop: '2rem' }}>
@@ -160,39 +165,40 @@ export function CheckInPage() {
       {saved && (
         <div className="message success show" style={{ marginBottom: '1rem' }}>Values saved.</div>
       )}
-      {!saved && dueLeaves.length > 0 && (
+      {!saved && (
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-          {dueLeaves.length} metric{dueLeaves.length !== 1 ? 's' : ''} due for update.
-        </p>
-      )}
-      {!saved && showingAll && (
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-          All metrics are up to date. You can still update them.
+          {overdueCount > 0
+            ? `${overdueCount} metric${overdueCount !== 1 ? 's' : ''} overdue. Sorted by time remaining.`
+            : 'Answer any metric whenever you like. Sorted by time remaining.'}
         </p>
       )}
       <form onSubmit={handleSubmit}>
-        {metricsToShow.map(m => {
-          const days = daysSince(m.updatedAt ?? '');
-          const isDue = days >= STALE_DAYS;
+        {sortedLeaves.map(m => {
+          const intervalHours = (m.checkInIntervalDays ?? DEFAULT_INTERVAL_DAYS) * 24;
+          const elapsed = hoursSince(m.updatedAt ?? '');
+          const hoursLeft = Number.isFinite(elapsed) ? intervalHours - elapsed : -Infinity;
+          const { text: urgencyText, overdue } = urgencyLabel(hoursLeft);
           return (
             <div key={m.id} className="checkin-card" style={{
-              border: '1px solid var(--border-color)',
+              border: `1px solid ${overdue ? 'var(--error-text)' : 'var(--border-color)'}`,
               borderRadius: '0.5rem',
               padding: '1rem',
               marginBottom: '0.75rem',
-              background: isDue ? 'var(--bg-elevated, var(--bg-secondary))' : undefined,
+              background: overdue ? 'var(--bg-elevated, var(--bg-secondary))' : undefined,
             }}>
-              <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
-                {m.question || m.name}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                <div style={{ fontWeight: 600 }}>
+                  {m.question || m.name}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: overdue ? 'var(--error-text)' : 'var(--text-tertiary)', whiteSpace: 'nowrap' }}>
+                  {urgencyText}
+                </div>
               </div>
               {m.question && (
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '0.25rem' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '0.5rem' }}>
                   {m.name}
                 </div>
               )}
-              <div style={{ fontSize: '0.75rem', color: isDue ? 'var(--error-text)' : 'var(--text-tertiary)', marginBottom: '0.5rem' }}>
-                {isFinite(days) ? stalenessLabel(days) : 'Never updated'}
-              </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 {m.marketRangeMax != null && (
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', minWidth: '1.5rem', textAlign: 'right' }}>0</span>
@@ -211,50 +217,6 @@ export function CheckInPage() {
             </div>
           );
         })}
-        {!saved && freshLeaves.length > 0 && dueLeaves.length > 0 && (
-          <details style={{ marginBottom: '1rem' }}>
-            <summary style={{ cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              {freshLeaves.length} up-to-date metric{freshLeaves.length !== 1 ? 's' : ''}
-            </summary>
-            <div style={{ marginTop: '0.5rem' }}>
-              {freshLeaves.map(m => (
-                <div key={m.id} className="checkin-card" style={{
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '0.5rem',
-                  padding: '1rem',
-                  marginBottom: '0.75rem',
-                }}>
-                  <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
-                    {m.question || m.name}
-                  </div>
-                  {m.question && (
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '0.25rem' }}>
-                      {m.name}
-                    </div>
-                  )}
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '0.5rem' }}>
-                    {stalenessLabel(daysSince(m.updatedAt ?? ''))}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    {m.marketRangeMax != null && (
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', minWidth: '1.5rem', textAlign: 'right' }}>0</span>
-                    )}
-                    <input
-                      type="number"
-                      step="any"
-                      value={values[m.id] ?? ''}
-                      onChange={e => { setSaved(false); setValues(prev => ({ ...prev, [m.id]: e.target.value })); }}
-                      style={{ flex: 1, fontSize: '1.1rem', padding: '0.5rem', textAlign: 'center' }}
-                    />
-                    {m.marketRangeMax != null && (
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', minWidth: '1.5rem' }}>{m.marketRangeMax}</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </details>
-        )}
         {error && <div className="message error show" style={{ marginBottom: '0.75rem' }}>{error}</div>}
         <button type="submit" className="btn" disabled={saving} style={{ width: '100%' }}>
           {saving ? 'Saving...' : 'Save'}

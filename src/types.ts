@@ -16,6 +16,7 @@ export interface Metric {
   updatedAt?: string;
   timePreference?: TimePreference;
   marketRangeMax?: number;
+  checkInIntervalDays?: number;
   baselineTotal?: number;
   timeSeries?: Array<{ date: string; value: number }>;
   conditionalTimeSeries?: Array<{ date: string; value: number }>;

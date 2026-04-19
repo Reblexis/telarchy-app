@@ -41,8 +41,8 @@ export function MetricsPage() {
     if (warnings.length > 0) alert(warnings.join('\n'));
   };
 
-  const handleAddMetric = async (name: string, description: string, value: number, formula: string, marketRangeMax?: number) => {
-    const warnings = await addMetric(name, description, value, formula, marketRangeMax);
+  const handleAddMetric = async (name: string, description: string, question: string, value: number, formula: string, marketRangeMax?: number, checkInIntervalDays?: number) => {
+    const warnings = await addMetric(name, description, question, value, formula, marketRangeMax, checkInIntervalDays);
     showWarnings(warnings);
   };
 
@@ -51,13 +51,14 @@ export function MetricsPage() {
     formula: string, oldValue: number, updateNote: string,
     timePreference: import('../types').TimePreference | null,
     marketRangeMax?: number,
+    checkInIntervalDays?: number,
   ) => {
-    const warnings = await editMetric(id, name, description, question, value, formula, oldValue, updateNote, timePreference, marketRangeMax);
+    const warnings = await editMetric(id, name, description, question, value, formula, oldValue, updateNote, timePreference, marketRangeMax, checkInIntervalDays);
     if (warnings) showWarnings(warnings);
   };
 
   const handleInlineValueChange = async (metric: import('../types').Metric, newValue: number) => {
-    await editMetric(metric.id, metric.name, metric.description || '', metric.question || '', newValue, metric.formula || '0', metric.value, '', metric.timePreference ?? null, metric.marketRangeMax);
+    await editMetric(metric.id, metric.name, metric.description || '', metric.question || '', newValue, metric.formula || '0', metric.value, '', metric.timePreference ?? null, metric.marketRangeMax, metric.checkInIntervalDays);
   };
 
 

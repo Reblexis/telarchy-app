@@ -107,20 +107,36 @@ export async function resolvePredictions(targetDate: string | undefined, workspa
 
   let totalPayout = 0;
   let resolvedCount = 0;
+  const now = Date.now();
 
   for (const market of marketsToResolve) {
     if (market.taskId && taskStatusMap.get(market.taskId) !== 'approved') {
       await voidMarket(market, workspaceId);
-    } else {
-      const result = await resolveMarketRow(market, metricMap, workspaceId);
-      if (!result.skipped) {
-        totalPayout += result.totalPayout;
-        resolvedCount++;
-      }
+      continue;
+    }
+    if (isMetricCheckInStale(metricMap.get(market.metricId), now)) {
+      await voidMarket(market, workspaceId);
+      continue;
+    }
+    const result = await resolveMarketRow(market, metricMap, workspaceId);
+    if (!result.skipped) {
+      totalPayout += result.totalPayout;
+      resolvedCount++;
     }
   }
 
   return { resolved: resolvedCount, totalPayout };
+}
+
+function isMetricCheckInStale(metric: Metric | undefined, now: number): boolean {
+  if (!metric) return false;
+  const interval = metric.checkInIntervalDays;
+  if (!interval || interval <= 0) return false;
+  if (!metric.updatedAt) return true;
+  const updated = new Date(metric.updatedAt).getTime();
+  if (!Number.isFinite(updated)) return true;
+  const days = (now - updated) / 86400000;
+  return days > interval;
 }
 
 export { voidMarket } from './markets';

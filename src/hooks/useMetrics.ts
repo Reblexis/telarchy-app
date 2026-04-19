@@ -89,12 +89,15 @@ export function useMetrics(authenticated: boolean, inspectTaskId?: string | null
     })();
   }, [authenticated, loadData]);
 
-  const addMetric = async (name: string, description: string, value: number, formula: string, marketRangeMax?: number): Promise<string[]> => {
+  const addMetric = async (
+    name: string, description: string, question: string, value: number, formula: string,
+    marketRangeMax?: number, checkInIntervalDays?: number,
+  ): Promise<string[]> => {
     if (detectCircularDependency(null, formula, metrics)) {
       throw new Error('This formula would create a circular dependency');
     }
-    const { id, warnings = [] } = await api.createMetric({ name, description, value, formula, marketRangeMax });
-    const updated = [...metrics.map(m => ({ ...m })), { id, name, description, question: '', value, total: value, formula, order: 999, depth: 0, marketRangeMax }];
+    const { id, warnings = [] } = await api.createMetric({ name, description, question, value, formula, marketRangeMax, checkInIntervalDays });
+    const updated = [...metrics.map(m => ({ ...m })), { id, name, description, question, value, total: value, formula, order: 999, depth: 0, marketRangeMax, checkInIntervalDays }];
     setMetrics(enrichMetrics(updated, consensusMapRef.current));
     setFormulaWarnings(buildWarnings(updated));
     loadData();
@@ -106,6 +109,7 @@ export function useMetrics(authenticated: boolean, inspectTaskId?: string | null
     formula: string, oldValue: number, updateNote: string,
     timePreference?: { enabled: boolean; halfLife: number } | null,
     marketRangeMax?: number,
+    checkInIntervalDays?: number,
   ) => {
     if (detectCircularDependency(id, formula, metrics)) {
       throw new Error('This formula would create a circular dependency');
@@ -113,12 +117,12 @@ export function useMetrics(authenticated: boolean, inspectTaskId?: string | null
     const prev = metrics;
     const updated = metrics.map(m =>
       m.id === id
-        ? { ...m, name, description, question, value, formula, marketRangeMax, timePreference: timePreference === null ? undefined : (timePreference ?? m.timePreference) }
+        ? { ...m, name, description, question, value, formula, marketRangeMax, checkInIntervalDays: checkInIntervalDays ?? m.checkInIntervalDays, timePreference: timePreference === null ? undefined : (timePreference ?? m.timePreference) }
         : { ...m }
     );
     setMetrics(enrichMetrics(updated, consensusMapRef.current));
     setFormulaWarnings(buildWarnings(updated));
-    return api.updateMetric(id, { name, description, question, value, formula, oldValue, updateNote, timePreference: timePreference === undefined ? undefined : timePreference, marketRangeMax })
+    return api.updateMetric(id, { name, description, question, value, formula, oldValue, updateNote, timePreference: timePreference === undefined ? undefined : timePreference, marketRangeMax, checkInIntervalDays })
       .then((resp: { warnings?: string[] }) => { delete logsCache.current[id]; cacheDelete('metrics'); loadData(); return resp.warnings || []; })
       .catch((err: Error) => { setMetrics(prev); throw err; });
   };

@@ -164,6 +164,8 @@ export const metrics = pgTable('metrics', {
   /** { enabled: boolean, halfLife: number } | null */
   timePreference: jsonb('time_preference'),
   marketRangeMax: doublePrecision('market_range_max').notNull().default(1000),
+  /** Max days between value updates before open markets void at resolution instead of settling. */
+  checkInIntervalDays: integer('check_in_interval_days').notNull().default(7),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);

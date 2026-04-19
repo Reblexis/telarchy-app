@@ -33,10 +33,13 @@ metricsRouter.get('/:id/logs', requireCapability('read'), wrap(async (req, res) 
 
 metricsRouter.post('/', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
-  const { name, description = '', question = '', value = 0, formula = '0', timePreference, marketRangeMax } = req.body;
+  const { name, description = '', question = '', value = 0, formula = '0', timePreference, marketRangeMax, checkInIntervalDays } = req.body;
   if (!name) { res.status(400).json({ error: 'name is required' }); return; }
   if (marketRangeMax !== undefined && (typeof marketRangeMax !== 'number' || marketRangeMax <= 0)) {
     res.status(400).json({ error: 'marketRangeMax must be a positive number' }); return;
+  }
+  if (checkInIntervalDays !== undefined && (typeof checkInIntervalDays !== 'number' || !Number.isFinite(checkInIntervalDays) || checkInIntervalDays < 1)) {
+    res.status(400).json({ error: 'checkInIntervalDays must be an integer >= 1' }); return;
   }
 
   const tp = parseTimePreference(timePreference);
@@ -60,6 +63,7 @@ metricsRouter.post('/', requireCapability('manage'), wrap(async (req, res) => {
     formula, description, question, order: 999,
     timePreference: effectiveTP,
     marketRangeMax: marketRangeMax ?? 1000,
+    checkInIntervalDays: checkInIntervalDays !== undefined ? Math.max(1, Math.round(checkInIntervalDays)) : 7,
     createdAt: new Date(), updatedAt: new Date(),
   });
 
@@ -98,9 +102,12 @@ metricsRouter.put('/:id', requireCapability('manage'), wrap(async (req, res) => 
   if (fields.marketRangeMax !== undefined && (typeof fields.marketRangeMax !== 'number' || fields.marketRangeMax <= 0)) {
     res.status(400).json({ error: 'marketRangeMax must be a positive number' }); return;
   }
+  if (fields.checkInIntervalDays !== undefined && (typeof fields.checkInIntervalDays !== 'number' || !Number.isFinite(fields.checkInIntervalDays) || fields.checkInIntervalDays < 1)) {
+    res.status(400).json({ error: 'checkInIntervalDays must be an integer >= 1' }); return;
+  }
   // marketRangeMax leaf-only check happens after oldRow is fetched (effectiveFormula needed)
 
-  const allowed = ['name', 'description', 'question', 'value', 'formula', 'marketRangeMax'] as const;
+  const allowed = ['name', 'description', 'question', 'value', 'formula', 'marketRangeMax', 'checkInIntervalDays'] as const;
   const update: Record<string, unknown> = {};
   for (const key of allowed) {
     if (fields[key] !== undefined) update[key] = fields[key];
@@ -156,6 +163,7 @@ metricsRouter.put('/:id', requireCapability('manage'), wrap(async (req, res) => 
   if (update.value !== undefined) dbUpdate.value = update.value as number;
   if (update.formula !== undefined) dbUpdate.formula = update.formula as string;
   if (update.marketRangeMax !== undefined) dbUpdate.marketRangeMax = (update.marketRangeMax as number | null) ?? 1000;
+  if (update.checkInIntervalDays !== undefined) dbUpdate.checkInIntervalDays = Math.max(1, Math.round(update.checkInIntervalDays as number));
   if (update.timePreference !== undefined) dbUpdate.timePreference = update.timePreference as TimePreference | null;
   dbUpdate.updatedAt = new Date();
 
