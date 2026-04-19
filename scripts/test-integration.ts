@@ -2353,6 +2353,26 @@ await suite('Scenario: workspace visibility and marketplace discovery', async ()
     expect(arr.some(w => w.workspaceId === privateWsId)).toBeFalsy();
   });
 
+  await test('Owner granting Public group the trade capability models "Open" access', async () => {
+    if (!ownerCookie || !publicWsId) return;
+    // The UI picker composes "Open" as visibility=public + Public group capability includes trade.
+    // It drives this via existing endpoints, so the backend contract is: PUT group capabilities.
+    const groups = ok(await adminCall(publicWsId)('GET', '/groups')) as Array<Record<string, unknown>>;
+    const pub = groups.find(g => g.type === 'public');
+    expect(pub).toBeTruthy();
+    const existingCaps = (pub!.capabilities as string[]) ?? [];
+    const nextCaps = Array.from(new Set([...existingCaps, 'read', 'trade']));
+    const putRes = await fetch(`${BASE_URL}/api/groups/${pub!.id as string}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Cookie': ownerCookie, 'X-Workspace-Id': publicWsId },
+      body: JSON.stringify({ capabilities: nextCaps }),
+    });
+    expect(putRes.status).toBeStatus(200, 204);
+    const after = ok(await adminCall(publicWsId)('GET', '/groups')) as Array<Record<string, unknown>>;
+    const pub2 = after.find(g => g.type === 'public');
+    expect((pub2!.capabilities as string[]).includes('trade')).toBeTruthy();
+  });
+
   await test('Cleanup: delete visibility scenario workspaces', async () => {
     if (publicWsId)  await adminCall(publicWsId)('DELETE',  `/workspaces/${publicWsId}`);
     if (privateWsId) await adminCall(privateWsId)('DELETE', `/workspaces/${privateWsId}`);

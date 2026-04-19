@@ -12,6 +12,13 @@ interface WorkspaceDetail {
   newMarketLiquidityCredits?: number;
 }
 
+type Access = 'private' | 'public' | 'open';
+
+interface PublicGroupState {
+  id: string;
+  capabilities: string[];
+}
+
 export function WorkspaceSettingsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -19,7 +26,8 @@ export function WorkspaceSettingsPage() {
 
   const [ws, setWs] = useState<WorkspaceDetail | null>(null);
   const [name, setName] = useState('');
-  const [discoverable, setDiscoverable] = useState(false);
+  const [access, setAccess] = useState<Access>('private');
+  const [publicGroup, setPublicGroup] = useState<PublicGroupState | null>(null);
   const [autoFund, setAutoFund] = useState(false);
   const [liquidityCredits, setLiquidityCredits] = useState('');
   const [saving, setSaving] = useState(false);
@@ -33,12 +41,20 @@ export function WorkspaceSettingsPage() {
   useEffect(() => {
     if (!user || !wsId) { setWsLoading(false); return; }
     setWsLoading(true);
-    api.getWorkspace(wsId)
-      .then(detail => {
+    Promise.all([
+      api.getWorkspace(wsId),
+      api.listGroups().catch(() => []),
+    ])
+      .then(([detail, groups]) => {
         const d = detail as WorkspaceDetail;
         setWs(d);
         setName(d.name);
-        setDiscoverable(d.visibility === 'public');
+        const pub = (groups as Array<{ id: string; type: string; capabilities?: string[] }>)
+          .find(g => g.type === 'public');
+        const pubCaps = pub?.capabilities ?? [];
+        setPublicGroup(pub ? { id: pub.id, capabilities: pubCaps } : null);
+        const listed = d.visibility === 'public';
+        setAccess(!listed ? 'private' : (pubCaps.includes('trade') ? 'open' : 'public'));
         setAutoFund(Boolean(d.autoFundNewMarkets));
         const c = d.newMarketLiquidityCredits;
         setLiquidityCredits(typeof c === 'number' && c > 0 ? String(c) : '');
@@ -62,13 +78,25 @@ export function WorkspaceSettingsPage() {
     }
   };
 
-  const handleSaveDiscoverable = async (e: FormEvent) => {
+  const handleSaveAccess = async (e: FormEvent) => {
     e.preventDefault();
     if (!user || !wsId || !isOwner) return;
     setError(''); setSaveMsg(''); setSaving(true);
     try {
-      const nextVisibility: 'public' | 'private' = discoverable ? 'public' : 'private';
+      const nextVisibility: 'public' | 'private' = access === 'private' ? 'private' : 'public';
       await api.updateWorkspaceSettings(wsId, { visibility: nextVisibility });
+      if (publicGroup) {
+        const current = publicGroup.capabilities;
+        const hasTrade = current.includes('trade');
+        const shouldTrade = access === 'open';
+        if (hasTrade !== shouldTrade) {
+          const nextCaps = shouldTrade
+            ? Array.from(new Set([...current, 'read', 'trade']))
+            : current.filter(c => c !== 'trade');
+          await api.updateGroup(publicGroup.id, { capabilities: nextCaps });
+          setPublicGroup({ ...publicGroup, capabilities: nextCaps });
+        }
+      }
       setSaveMsg('Saved.');
       setWs(prev => prev ? { ...prev, visibility: nextVisibility } : prev);
     } catch (e: unknown) {
@@ -161,32 +189,40 @@ export function WorkspaceSettingsPage() {
       </div>
 
       <div className="section" style={{ marginTop: '2rem' }}>
-        <h3 style={{ marginBottom: '0.5rem' }}>Marketplace listing</h3>
+        <h3 style={{ marginBottom: '0.5rem' }}>Access</h3>
         {isOwner ? (
-          <>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
-              Listed workspaces appear on the public marketplace so others can discover and join.
-            </p>
-            <form onSubmit={handleSaveDiscoverable}>
-              <div className="form-group">
-                <label htmlFor="ws-discoverable" className="checkbox-label">
-                  <input
-                    id="ws-discoverable"
-                    type="checkbox"
-                    checked={discoverable}
-                    onChange={e => setDiscoverable(e.target.checked)}
-                  />
-                  List on the marketplace
-                </label>
+          <form onSubmit={handleSaveAccess}>
+            <div className="form-group">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                {([
+                  { id: 'private' as const, label: 'Private', help: 'Invite-only.' },
+                  { id: 'public'  as const, label: 'Public',  help: 'Listed; anyone can join and view.' },
+                  { id: 'open'    as const, label: 'Open',    help: 'Listed; anyone can join and trade.' },
+                ]).map(opt => (
+                  <label key={opt.id} className="checkbox-label" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                    <input
+                      type="radio"
+                      name="ws-access"
+                      value={opt.id}
+                      checked={access === opt.id}
+                      onChange={() => setAccess(opt.id)}
+                      style={{ marginTop: '0.25rem' }}
+                    />
+                    <span style={{ fontSize: '0.875rem' }}>
+                      <span style={{ color: 'var(--text-primary)' }}>{opt.label}</span>
+                      <span style={{ color: 'var(--text-secondary)' }}> — {opt.help}</span>
+                    </span>
+                  </label>
+                ))}
               </div>
-              <button type="submit" disabled={saving}>
-                {saving ? 'Saving...' : 'Save'}
-              </button>
-            </form>
-          </>
+            </div>
+            <button type="submit" disabled={saving}>
+              {saving ? 'Saving...' : 'Save'}
+            </button>
+          </form>
         ) : (
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            Only the workspace owner can change marketplace listing.
+            Only the workspace owner can change access.
           </p>
         )}
       </div>
