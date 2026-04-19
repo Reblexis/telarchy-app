@@ -404,7 +404,13 @@ export function MarketplacePage() {
               <h3 style={{ marginBottom: '0.25rem' }}>Your accessible markets</h3>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>
                 {tradingParticipant
-                  ? `You are trading as ${tradingParticipant.id} (${tradingParticipant.balance.toFixed(2)} credits).`
+                  ? (
+                    <>
+                      You are trading as{' '}
+                      <span title={tradingParticipant.id}>{user?.name && user.name !== user.email ? user.name : (user?.email ?? tradingParticipant.id)}</span>
+                      {' '}({tradingParticipant.balance.toFixed(2)} credits).
+                    </>
+                  )
                   : 'Your participant account is still loading.'}
               </p>
             </div>

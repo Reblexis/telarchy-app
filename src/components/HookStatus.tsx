@@ -22,10 +22,8 @@ export function HookStatus() {
     return () => clearInterval(id);
   }, [status?.active]);
 
-  if (fetchError) return (
-    <span style={{ fontSize: '0.75rem', color: 'var(--error-text)' }}>Hooks: error</span>
-  );
-  if (!status) return null;
+  if (fetchError) return null;
+  if (!status || !status.active) return null;
 
   const intervalSecs = (status.intervalMs || 60000) / 1000;
   const remaining = Math.max(0, intervalSecs - secsAgo);
@@ -34,11 +32,11 @@ export function HookStatus() {
     <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
       <span style={{
         width: '6px', height: '6px', borderRadius: '50%',
-        background: status.active ? 'var(--success-text)' : 'var(--error-text)',
+        background: 'var(--success-text)',
         display: 'inline-block',
-        animation: status.active ? 'pulse 2s infinite' : 'none',
+        animation: 'pulse 2s infinite',
       }} />
-      {status.active ? `Hooks: ${remaining}s` : 'Hooks: offline'}
+      Hooks: {remaining}s
     </span>
   );
 }
