@@ -9,7 +9,6 @@ export function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [consented, setConsented] = useState(false);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -17,7 +16,6 @@ export function SignupPage() {
     e.preventDefault();
     setError('');
 
-    if (!consented) { setError('You must confirm you are 18+ and accept the Terms and Privacy Policy'); return; }
     if (password !== confirm) { setError('Passwords do not match'); return; }
     if (password.length < 8) { setError('Password must be at least 8 characters'); return; }
 
@@ -45,10 +43,6 @@ export function SignupPage() {
   };
 
   const handleOAuthConsentGate = () => {
-    if (!consented) {
-      setError('Check the box below to confirm you are 18+ and accept the Terms and Privacy Policy');
-      return false;
-    }
     sessionStorage.setItem('pendingConsent', '1');
     return true;
   };
@@ -60,7 +54,6 @@ export function SignupPage() {
 
         <OAuthButtons
           onError={setError}
-          disabled={!consented}
           beforeSignIn={handleOAuthConsentGate}
         />
 
@@ -86,25 +79,18 @@ export function SignupPage() {
             <input type="password" id="confirm" required autoComplete="new-password"
               value={confirm} onChange={e => setConfirm(e.target.value)} />
           </div>
-          <label className="checkbox-label" style={{ alignItems: 'flex-start', fontSize: '0.8rem', margin: '0.5rem 0 0.75rem' }}>
-            <input
-              type="checkbox"
-              checked={consented}
-              onChange={e => setConsented(e.target.checked)}
-              style={{ marginTop: '2px' }}
-            />
-            <span>
-              I am 18 or older and I agree to the{' '}
-              <Link to="/terms" target="_blank" rel="noreferrer">Terms of Service</Link>
-              {' '}and{' '}
-              <Link to="/privacy" target="_blank" rel="noreferrer">Privacy Policy</Link>.
-            </span>
-          </label>
-          <button type="submit" disabled={submitting || !consented}>
+          <button type="submit" disabled={submitting}>
             {submitting ? 'Creating account...' : 'Create account'}
           </button>
           {error && <div className="error show">{error}</div>}
         </form>
+
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '1rem', textAlign: 'center', lineHeight: 1.5 }}>
+          By creating an account, you confirm you are 18+ and agree to the{' '}
+          <Link to="/terms" target="_blank" rel="noreferrer">Terms</Link>
+          {' '}and{' '}
+          <Link to="/privacy" target="_blank" rel="noreferrer">Privacy Policy</Link>.
+        </p>
 
         <div className="reconfigure-link">
           Already have an account? <Link to="/login">Log in</Link>

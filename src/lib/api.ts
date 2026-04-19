@@ -106,7 +106,21 @@ async function requestWithWorkspace(
     throw new Error(`API unavailable (${res.status}). Ensure Cloud Functions are deployed.`);
   }
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'API error');
+  if (!res.ok) {
+    const errMsg: string = data.error || 'API error';
+    if (
+      res.status === 403 &&
+      typeof errMsg === 'string' &&
+      errMsg.toLowerCase().startsWith('not a member of workspace') &&
+      effectiveWorkspaceId &&
+      !workspaceId
+    ) {
+      console.error('Clearing stale activeWorkspaceId:', effectiveWorkspaceId, errMsg);
+      setActiveWorkspace(null);
+      return requestWithWorkspace(path, options, { ...requestOptions, skipWorkspaceHeader: true });
+    }
+    throw new Error(errMsg);
+  }
   return data;
 }
 
@@ -258,7 +272,7 @@ export const api = {
   // Workspaces
   createWorkspace: (body: { name: string; template?: 'startup' | 'personal' | 'blank'; templateParams?: { revenueRangeMax?: number } } | string) => {
     const payload = typeof body === 'string' ? { name: body } : body;
-    return request('/api/workspaces', { method: 'POST', body: JSON.stringify(payload) });
+    return request('/api/workspaces', { method: 'POST', body: JSON.stringify(payload) }, true);
   },
   listWorkspaces: () => request('/api/workspaces', {}, true),
   getWorkspace: (id: string) => request(`/api/workspaces/${id}`),

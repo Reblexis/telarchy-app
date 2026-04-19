@@ -16,6 +16,19 @@ Human users and AI users must have the same effective platform permissions and w
 
 After every feature implementation or bug fix, commit and push. Keep commit messages concise and descriptive.
 
+## Keeping the test suite in sync
+
+Run the test suite (`npm test`) before committing anything non-trivial, and always after touching backend logic (metrics engine, auth, workspaces, markets, credits, formulas, templates). Fix failures before moving on; do not commit with a red suite.
+
+When you add or change a feature, update or add tests in the same commit. The rules:
+
+- New pure function or algorithm in `functions/src/lib/` or similar → add a unit test in `functions/src/__tests__/`.
+- Changed behavior of an existing function → update its test to match, and add a new case if the change introduces a new path.
+- New HTTP route or auth/workspace/permission flow → add a test that hits the path end-to-end against a real DB. Today most of those flows are untested, which is why bugs like "user creates workspace, next request says Not a member" can slip through. When you touch one, leave a test behind.
+- Removed or renamed a feature → delete its tests; do not leave a disabled `describe.skip` or dead file behind.
+
+If adding a test for a given change is genuinely impractical (e.g. a Firebase/OAuth callback with no good stubbing story), note that in the commit message so the gap is visible.
+
 ## Keeping docs current
 
 When implementing a new feature or design decision not already captured in `docs/`, update the relevant doc file (or `docs/vision.md` if none fits) with a brief note (one or two sentences covering the what and why). Keep it minimal; don't repeat what the code makes obvious.
