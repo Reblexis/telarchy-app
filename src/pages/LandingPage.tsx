@@ -438,7 +438,7 @@ export function LandingPage() {
               see its predicted impact on every goal you track.
             </p>
             <div className="lp-hero-ctas">
-              <Link to="/signup" className="lp-btn-primary">Get started free</Link>
+              <Link to="/signup" className="lp-btn-primary">Get started. 1000 free credits</Link>
             </div>
           </div>
 
@@ -517,9 +517,9 @@ export function LandingPage() {
           <div style={{ marginTop: '3.5rem', paddingTop: '3rem', borderTop: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
             <div>
               <div style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.3rem' }}>Ready for AI forecasts on your goals?</div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Free to start. No credit card required.</div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>1000 free credits on signup. No credit card required.</div>
             </div>
-            <Link to="/signup" className="lp-btn-primary">Get started free</Link>
+            <Link to="/signup" className="lp-btn-primary">Get started. 1000 free credits</Link>
           </div>
         </div>
       </section>

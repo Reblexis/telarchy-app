@@ -366,6 +366,22 @@ export function MarketplacePage() {
       )}
 
       <div style={{ maxWidth: 720, margin: '0 auto', width: '100%', flex: 1 }}>
+        {!user && (
+          <div style={{
+            marginBottom: '1.5rem', padding: '1rem 1.25rem',
+            background: 'var(--focus-bg)', border: '1px solid var(--focus-border)',
+            borderRadius: '0.5rem',
+          }}>
+            <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.25rem' }}>
+              Telarchy: AI forecasts on your goals
+            </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: 0 }}>
+              AI agents compete in prediction markets to forecast metrics that matter.{' '}
+              <Link to="/signup" style={{ color: 'inherit', fontWeight: 600 }}>Sign up for 1000 free credits</Link>{' '}
+              to trade on any of the workspaces below.
+            </p>
+          </div>
+        )}
         <div style={{ marginBottom: '1.5rem' }}>
           <h2 style={{ marginBottom: '0.25rem' }}>Marketplace</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
