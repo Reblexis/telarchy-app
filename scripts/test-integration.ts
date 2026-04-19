@@ -2154,6 +2154,213 @@ await suite('Scenario: new account signup-to-value flow', async () => {
   });
 });
 
+await suite('Scenario: workspace visibility and marketplace discovery', async () => {
+  // Covers the end-to-end discoverability flag: create with visibility, flip
+  // via settings (owner-only), listing endpoint, and self-service join.
+  const testEmail = `test-visibility-${Date.now()}@integration.test`;
+  const testPassword = 'IntegrationTest123!';
+  let ownerCookie = '';
+  let ownerUid = '';
+  let publicWsId = '';
+  let privateWsId = '';
+  let joinerEmail = '';
+  let joinerCookie = '';
+  let joinerUid = '';
+
+  await test('Sign up fresh owner account', async () => {
+    await new Promise(r => setTimeout(r, 1000));
+    const r = await fetch(`${BASE_URL}/api/auth/sign-up/email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Origin': BASE_URL },
+      body: JSON.stringify({ email: testEmail, password: testPassword, name: 'Visibility Owner' }),
+    });
+    expect(r.status).toBe(200);
+    const body = await r.json() as Record<string, unknown>;
+    ownerUid = (body.user as Record<string, unknown>).id as string;
+    ownerCookie = r.headers.get('set-cookie') ?? '';
+    expect(ownerCookie).toBeTruthy();
+    // Trigger ensureParticipant so subsequent workspace-owner flows find an agent row.
+    await fetch(`${BASE_URL}/api/auth/me`, { headers: { 'Cookie': ownerCookie } });
+  });
+
+  await test('POST /workspaces with visibility="public" returns visibility="public"', async () => {
+    if (!ownerCookie) return;
+    const r = await fetch(`${BASE_URL}/api/workspaces`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Cookie': ownerCookie },
+      body: JSON.stringify({ name: `Vis Public ${Date.now()}`, template: 'blank', visibility: 'public' }),
+    });
+    expect(r.status).toBe(201);
+    const body = await r.json() as Record<string, unknown>;
+    publicWsId = body.id as string;
+    expect(body.visibility).toBe('public');
+  });
+
+  await test('POST /workspaces without visibility defaults to "private"', async () => {
+    if (!ownerCookie) return;
+    const r = await fetch(`${BASE_URL}/api/workspaces`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Cookie': ownerCookie },
+      body: JSON.stringify({ name: `Vis Private ${Date.now()}`, template: 'blank' }),
+    });
+    expect(r.status).toBe(201);
+    const body = await r.json() as Record<string, unknown>;
+    privateWsId = body.id as string;
+    expect(body.visibility).toBe('private');
+  });
+
+  await test('POST /workspaces with invalid visibility is rejected (400)', async () => {
+    if (!ownerCookie) return;
+    const r = await fetch(`${BASE_URL}/api/workspaces`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Cookie': ownerCookie },
+      body: JSON.stringify({ name: 'Vis Bad', template: 'blank', visibility: 'OPEN' }),
+    });
+    expect(r.status).toBe(400);
+  });
+
+  await test('GET /marketplace/workspaces/public lists the public workspace', async () => {
+    const r = await apiRaw('GET', '/marketplace/workspaces/public');
+    expect(r.status).toBe(200);
+    const list = r.body as Array<Record<string, unknown>>;
+    expect(list.some(w => w.workspaceId === publicWsId)).toBeTruthy();
+  });
+
+  await test('GET /marketplace/workspaces/public does not list the private workspace', async () => {
+    const r = await apiRaw('GET', '/marketplace/workspaces/public');
+    const list = r.body as Array<Record<string, unknown>>;
+    expect(list.some(w => w.workspaceId === privateWsId)).toBeFalsy();
+  });
+
+  await test('Owner can flip private workspace to public via settings', async () => {
+    if (!ownerCookie || !privateWsId) return;
+    const r = await fetch(`${BASE_URL}/api/workspaces/${privateWsId}/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Cookie': ownerCookie, 'X-Workspace-Id': privateWsId },
+      body: JSON.stringify({ visibility: 'public' }),
+    });
+    expect(r.status).toBeStatus(200, 204);
+
+    const detail = await fetch(`${BASE_URL}/api/workspaces/${privateWsId}`, {
+      headers: { 'Cookie': ownerCookie, 'X-Workspace-Id': privateWsId },
+    });
+    const ws = await detail.json() as Record<string, unknown>;
+    expect(ws.visibility).toBe('public');
+  });
+
+  await test('Owner can flip back to private via settings', async () => {
+    if (!ownerCookie || !privateWsId) return;
+    const r = await fetch(`${BASE_URL}/api/workspaces/${privateWsId}/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Cookie': ownerCookie, 'X-Workspace-Id': privateWsId },
+      body: JSON.stringify({ visibility: 'private' }),
+    });
+    expect(r.status).toBeStatus(200, 204);
+
+    const list = await apiRaw('GET', '/marketplace/workspaces/public');
+    const arr = list.body as Array<Record<string, unknown>>;
+    expect(arr.some(w => w.workspaceId === privateWsId)).toBeFalsy();
+  });
+
+  await test('Master API key cannot set visibility (403)', async () => {
+    if (!publicWsId) return;
+    const r = await adminCall(publicWsId)('PUT', `/workspaces/${publicWsId}/settings`, {
+      visibility: 'private',
+    });
+    expect(r.status).toBe(403);
+  });
+
+  await test('Invalid visibility on settings PUT is rejected (400)', async () => {
+    if (!ownerCookie || !publicWsId) return;
+    const r = await fetch(`${BASE_URL}/api/workspaces/${publicWsId}/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Cookie': ownerCookie, 'X-Workspace-Id': publicWsId },
+      body: JSON.stringify({ visibility: 'semi-public' }),
+    });
+    expect(r.status).toBe(400);
+  });
+
+  await test('Sign up second account to act as a joiner', async () => {
+    await new Promise(r => setTimeout(r, 1000));
+    joinerEmail = `test-joiner-${Date.now()}@integration.test`;
+    const r = await fetch(`${BASE_URL}/api/auth/sign-up/email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Origin': BASE_URL },
+      body: JSON.stringify({ email: joinerEmail, password: testPassword, name: 'Marketplace Joiner' }),
+    });
+    expect(r.status).toBe(200);
+    const body = await r.json() as Record<string, unknown>;
+    joinerUid = (body.user as Record<string, unknown>).id as string;
+    joinerCookie = r.headers.get('set-cookie') ?? '';
+    expect(joinerCookie).toBeTruthy();
+    // Trigger ensureParticipant so joiner has an agent row for workspace-member resolution.
+    await fetch(`${BASE_URL}/api/auth/me`, { headers: { 'Cookie': joinerCookie } });
+  });
+
+  await test('Joiner is not a member of the public workspace yet (403 on detail)', async () => {
+    if (!joinerCookie || !publicWsId) return;
+    const r = await fetch(`${BASE_URL}/api/workspaces/${publicWsId}`, {
+      headers: { 'Cookie': joinerCookie, 'X-Workspace-Id': publicWsId },
+    });
+    expect(r.status).toBe(403);
+  });
+
+  await test('POST /marketplace/:id/join adds joiner to the Public group', async () => {
+    if (!joinerCookie || !publicWsId) return;
+    // Note: join endpoint intentionally omits X-Workspace-Id, because authMiddleware
+    // rejects with 403 when the header names a workspace the user is not yet a member of.
+    const r = await fetch(`${BASE_URL}/api/marketplace/${publicWsId}/join`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Cookie': joinerCookie },
+      body: JSON.stringify({}),
+    });
+    expect(r.status).toBeStatus(200, 201);
+    const body = await r.json() as Record<string, unknown>;
+    expect(body.workspaceId).toBe(publicWsId);
+    expect(body.role).toBe('member');
+  });
+
+  await test('Joined participant can now fetch workspace detail', async () => {
+    if (!joinerCookie || !publicWsId) return;
+    const r = await fetch(`${BASE_URL}/api/workspaces/${publicWsId}`, {
+      headers: { 'Cookie': joinerCookie, 'X-Workspace-Id': publicWsId },
+    });
+    expect(r.status).toBe(200);
+    const ws = await r.json() as Record<string, unknown>;
+    expect(ws.id).toBe(publicWsId);
+  });
+
+  await test('Joined participant appears in the Public group memberIds', async () => {
+    if (!publicWsId || !joinerUid) return;
+    const groups = ok(await adminCall(publicWsId)('GET', '/groups')) as Array<Record<string, unknown>>;
+    const pub = groups.find(g => g.type === 'public');
+    expect(pub).toBeTruthy();
+    const ids = (pub!.memberIds as string[]) ?? [];
+    expect(ids.includes(joinerUid)).toBeTruthy();
+  });
+
+  await test('Joining a private workspace still adds to Public group but workspace stays unlisted', async () => {
+    if (!joinerCookie || !privateWsId) return;
+    const r = await fetch(`${BASE_URL}/api/marketplace/${privateWsId}/join`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Cookie': joinerCookie },
+      body: JSON.stringify({}),
+    });
+    expect(r.status).toBeStatus(200, 201);
+    // Still absent from the public listing
+    const list = await apiRaw('GET', '/marketplace/workspaces/public');
+    const arr = list.body as Array<Record<string, unknown>>;
+    expect(arr.some(w => w.workspaceId === privateWsId)).toBeFalsy();
+  });
+
+  await test('Cleanup: delete visibility scenario workspaces', async () => {
+    if (publicWsId)  await adminCall(publicWsId)('DELETE',  `/workspaces/${publicWsId}`);
+    if (privateWsId) await adminCall(privateWsId)('DELETE', `/workspaces/${privateWsId}`);
+    // Suppress unused variable lint for ownerUid; kept for debugging clarity
+    void ownerUid;
+  });
+});
+
 await suite('Cleanup', async () => {
   await test('Delete test market if still exists', async () => {
     if (!ctx.marketId) return;
