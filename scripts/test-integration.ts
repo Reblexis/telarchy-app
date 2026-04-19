@@ -687,6 +687,78 @@ await suite('Groups', async () => {
   });
 });
 
+await suite('Sources', async () => {
+  let sourceId = '';
+  let groupId = '';
+
+  await test('POST /api/sources creates a text source', async () => {
+    const r = ok(await adminCall(ctx.wsId)('POST', '/sources', {
+      name: 'Integration Text Source',
+      description: 'test',
+      content: 'hello world',
+    }));
+    sourceId = r.id as string;
+    expect(sourceId).toBeTruthy();
+    expect(r.type).toBe('text');
+  });
+
+  await test('POST /api/sources rejects non-text types (only GitHub flow can create those)', async () => {
+    const r = await adminCall(ctx.wsId)('POST', '/sources', {
+      name: 'Bad', type: 'github',
+    });
+    expect(r.status).toBe(400);
+  });
+
+  await test('GET /api/sources lists sources without content payload', async () => {
+    const r = ok(await adminCall(ctx.wsId)('GET', '/sources'));
+    const list = r as unknown as Array<Record<string, unknown>>;
+    expect(Array.isArray(list)).toBeTruthy();
+    const mine = list.find(s => s.id === sourceId);
+    expect(mine).toBeTruthy();
+    expect(mine!.content === undefined).toBeTruthy();
+  });
+
+  await test('GET /api/sources/:id returns content for text sources', async () => {
+    const r = ok(await adminCall(ctx.wsId)('GET', `/sources/${sourceId}`));
+    expect(r.content).toBe('hello world');
+  });
+
+  await test('PUT /api/sources/:id updates name and content', async () => {
+    const r = await adminCall(ctx.wsId)('PUT', `/sources/${sourceId}`, {
+      name: 'Integration Text Source (updated)', content: 'new content',
+    });
+    expect(r.status).toBeStatus(200, 204);
+    const after = ok(await adminCall(ctx.wsId)('GET', `/sources/${sourceId}`));
+    expect(after.name).toBe('Integration Text Source (updated)');
+    expect(after.content).toBe('new content');
+  });
+
+  await test('sourcePermissions can be set on a group', async () => {
+    const g = ok(await adminCall(ctx.wsId)('POST', '/groups', {
+      name: 'SourceReaders', capabilities: ['read'],
+    }));
+    groupId = g.id as string;
+    const upd = await adminCall(ctx.wsId)('PUT', `/groups/${groupId}`, {
+      sourcePermissions: { [sourceId]: { read: true } },
+    });
+    expect(upd.status).toBeStatus(200, 204);
+    const check = ok(await adminCall(ctx.wsId)('GET', '/groups'));
+    const group = (check as unknown as Array<Record<string, unknown>>).find(x => x.id === groupId);
+    const sp = group?.sourcePermissions as Record<string, { read: boolean }>;
+    expect(sp?.[sourceId]?.read).toBe(true);
+  });
+
+  await test('DELETE /api/sources/:id removes the source and cleans group permissions', async () => {
+    const r = await adminCall(ctx.wsId)('DELETE', `/sources/${sourceId}`);
+    expect(r.status).toBeStatus(200, 204);
+    const check = ok(await adminCall(ctx.wsId)('GET', '/groups'));
+    const group = (check as unknown as Array<Record<string, unknown>>).find(x => x.id === groupId);
+    const sp = (group?.sourcePermissions ?? {}) as Record<string, { read: boolean }>;
+    expect(sp[sourceId] === undefined).toBeTruthy();
+    await adminCall(ctx.wsId)('DELETE', `/groups/${groupId}`);
+  });
+});
+
 await suite('Workspace isolation', async () => {
   await test('Create a second workspace for isolation checks', async () => {
     const r = ok(await apiRaw('POST', '/workspaces', { name: 'Isolation Test Workspace B' }, {
