@@ -1,7 +1,7 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
-import type { Metric } from '../types';
+import type { Metric, Market, Agent } from '../types';
 
 function isLeaf(m: Metric): boolean {
   return !m.formula || m.formula.trim() === '0';
@@ -17,6 +17,8 @@ export function CheckInPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [marketCount, setMarketCount] = useState<number | null>(null);
+  const [balance, setBalance] = useState<number | null>(null);
 
   useEffect(() => {
     api.getMetrics().then((data: Metric[]) => {
@@ -28,6 +30,18 @@ export function CheckInPage() {
       setValues(init);
     }).catch((e: Error) => setError(e.message)).finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (!isWelcome) return;
+    api.getMarkets().then((data) => {
+      const markets = data as Market[];
+      setMarketCount(markets.length);
+    }).catch((e: Error) => console.error('getMarkets failed:', e.message));
+    api.getParticipant().then((p) => {
+      const agent = p as Agent;
+      setBalance(agent.balance);
+    }).catch((e: Error) => console.error('getParticipant failed:', e.message));
+  }, [isWelcome]);
 
   const leaves = metrics.filter(isLeaf);
 
@@ -76,12 +90,48 @@ export function CheckInPage() {
   }
 
   if (isWelcome) {
+    const seedReserved = marketCount != null ? marketCount * 0.5 : null;
     return (
       <div className="container" style={{ maxWidth: 500, paddingTop: '2rem' }}>
         <h1>Where are you right now?</h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
           Set your starting point. Forecasts and predictions will build from here.
         </p>
+
+        {marketCount != null && marketCount > 0 && seedReserved != null && (
+          <div style={{
+            border: '1px solid var(--border-color)',
+            borderRadius: '0.5rem',
+            padding: '0.75rem 1rem',
+            marginBottom: '0.75rem',
+            fontSize: '0.85rem',
+            lineHeight: 1.5,
+          }}>
+            <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>Your credits</div>
+            <div style={{ color: 'var(--text-secondary)' }}>
+              {seedReserved.toFixed(1)} credits reserved as seed liquidity for {marketCount} market{marketCount === 1 ? '' : 's'}.
+              {balance != null && <> You have <strong>{balance.toFixed(2)}</strong> credits left to trade.</>}
+            </div>
+          </div>
+        )}
+
+        {marketCount != null && marketCount > 0 && (
+          <div style={{
+            background: 'var(--focus-bg)',
+            border: '1px solid var(--focus-border)',
+            borderRadius: '0.5rem',
+            padding: '0.75rem 1rem',
+            marginBottom: '1.5rem',
+            fontSize: '0.85rem',
+            lineHeight: 1.5,
+          }}>
+            <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>Bots arrive in about 5 minutes</div>
+            <div style={{ color: 'var(--text-secondary)' }}>
+              AI agents will start trading on your markets shortly. Watch consensus move on the Metrics page.
+            </div>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
           {leaves.map(m => (
             <div key={m.id} className="checkin-card" style={{
