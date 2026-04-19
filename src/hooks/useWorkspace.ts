@@ -63,6 +63,7 @@ export function useWorkspace(authenticated: boolean = true): {
       ]) => {
         if (cancelled) return;
         const workspaceId = profile.workspaceId;
+        if (workspaceId) setActiveWorkspace(workspaceId);
         const memberRole = profile.memberRole ?? null;
         const authRole = profile.authRole ?? 'pending';
         const intent = profile.intent ?? null;
