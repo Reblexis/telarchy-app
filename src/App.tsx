@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, Navigate, useParams } from 'react-router-dom';
 import { InspectModeProvider, useInspectMode } from './hooks/useInspectMode';
 import { RequireAuth, RequireWorkspace, RequireAgentSession } from './components/RequireAuth';
 import { AppLayout } from './components/AppLayout';
@@ -22,6 +22,11 @@ import { GuidesPage } from './pages/GuidesPage';
 import { LegalPage } from './pages/LegalPage';
 import { SourcesPage } from './pages/SourcesPage';
 import { CheckInPage } from './pages/CheckInPage';
+
+function MarketplaceWorkspaceRedirect() {
+  const { workspaceId } = useParams();
+  return <Navigate to={`/marketplace?workspace=${encodeURIComponent(workspaceId ?? '')}`} replace />;
+}
 
 function InspectBanner() {
   const { inspectTask, setInspectTask } = useInspectMode();
@@ -64,6 +69,7 @@ export function App() {
           {/* Authenticated routes, all wrapped in AppLayout (sidebar) */}
           <Route element={<AppLayout />}>
             <Route path="/marketplace" element={<MarketplacePage />} />
+            <Route path="/marketplace/:workspaceId" element={<MarketplaceWorkspaceRedirect />} />
             <Route path="/guides" element={<GuidesPage />} />
             <Route element={<RequireAuth />}>
               <Route path="/start" element={<StartPage />} />

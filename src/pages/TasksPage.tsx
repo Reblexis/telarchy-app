@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { useWorkspace } from '../hooks/useWorkspace';
 import { useInspectMode } from '../hooks/useInspectMode';
 import { api } from '../lib/api';
 import { formatTargetDateDisplay } from '../lib/date-utils';
@@ -32,48 +33,81 @@ function formatCurrency(value: number): string {
   return `$${value.toFixed(2)}`;
 }
 
-function DeltaBadge({ current, baseline }: { current: number | null | undefined; baseline: number | null | undefined }) {
-  if (current == null || baseline == null) return null;
+function DeltaCell({ current, baseline }: { current: number | null | undefined; baseline: number | null | undefined }) {
+  if (current == null || baseline == null) return <span style={{ color: 'var(--text-secondary)' }}>—</span>;
   const delta = current - baseline;
-  if (Math.abs(delta) < 0.005) return null;
+  if (Math.abs(delta) < 0.005) return <span style={{ color: 'var(--text-secondary)' }}>0</span>;
   return (
-    <span style={{ fontSize: '0.72rem', color: delta > 0 ? 'var(--success-text)' : 'var(--error-text)', fontFamily: 'monospace' }}>
+    <span style={{ color: delta > 0 ? 'var(--success-text)' : 'var(--error-text)', fontWeight: 600 }}>
       {delta > 0 ? '▲' : '▼'}{Math.abs(delta).toFixed(2)}
-      <span style={{ color: 'var(--text-secondary)', marginLeft: '0.2rem' }}>({formatNumber(baseline)})</span>
     </span>
   );
 }
 
 function MarketSummaryTable({ markets }: { markets: TaskMarketSummary[] }) {
-  if (markets.length === 0) return <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>No impact predictions yet. Click &quot;Inspect&quot; to view them in Markets.</p>;
+  const [showAll, setShowAll] = useState(false);
+
+  if (markets.length === 0) {
+    return <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>No impact predictions yet. Click &quot;Inspect&quot; to spawn conditional markets.</p>;
+  }
+
+  const nearHorizonCutoff = new Date();
+  nearHorizonCutoff.setFullYear(nearHorizonCutoff.getFullYear() + 1);
+  const isNear = (targetDate: string) => {
+    const year = parseInt(targetDate.slice(0, 4), 10);
+    return Number.isFinite(year) && year <= nearHorizonCutoff.getFullYear();
+  };
+  const visible = showAll ? markets : markets.filter(m => isNear(m.targetDate));
+  const hidden = markets.length - visible.length;
+
   const thStyle = { padding: '0.4rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.8rem', textAlign: 'left' as const };
+  const thRight = { ...thStyle, textAlign: 'right' as const };
+  const tdMono = { padding: '0.4rem 0.5rem', fontFamily: 'monospace', textAlign: 'right' as const };
+
   return (
-    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-      <thead>
-        <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-          <th style={thStyle}>Metric</th>
-          <th style={thStyle}>Resolution Date</th>
-          <th style={thStyle}>Prediction</th>
-        </tr>
-      </thead>
-      <tbody>
-        {markets.map(m => (
-          <tr key={m.marketId} style={{ borderBottom: '1px solid var(--border-color)' }}>
-            <td style={{ padding: '0.4rem 0.5rem', fontWeight: 500 }}>{m.metricName}</td>
-            <td style={{ padding: '0.4rem 0.5rem', fontFamily: 'monospace' }}>
-              <div>{formatTargetDateDisplay(m.targetDate)}</div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{m.targetDate}</div>
-            </td>
-            <td style={{ padding: '0.4rem 0.5rem', fontFamily: 'monospace' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
-                <span>{formatNumber(m.consensus)}</span>
-                <DeltaBadge current={m.consensus} baseline={m.baselineConsensus} />
-              </div>
-            </td>
+    <div>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+        <thead>
+          <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+            <th style={thStyle}>Metric</th>
+            <th style={thStyle}>Horizon</th>
+            <th style={thRight}>Baseline</th>
+            <th style={thRight}>If approved</th>
+            <th style={thRight}>Δ</th>
+            <th style={thRight}>Trades</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {visible.map(m => {
+            const noSignal = m.tradeCount === 0;
+            return (
+              <tr key={m.marketId} style={{ borderBottom: '1px solid var(--border-color)', opacity: noSignal ? 0.65 : 1 }}>
+                <td style={{ padding: '0.4rem 0.5rem', fontWeight: 500 }}>{m.metricName}</td>
+                <td style={{ padding: '0.4rem 0.5rem', fontFamily: 'monospace' }}>
+                  <div>{formatTargetDateDisplay(m.targetDate)}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{m.targetDate}</div>
+                </td>
+                <td style={tdMono}>{m.baselineConsensus != null ? formatNumber(m.baselineConsensus) : '—'}</td>
+                <td style={tdMono}>{formatNumber(m.consensus)}</td>
+                <td style={tdMono}><DeltaCell current={m.consensus} baseline={m.baselineConsensus} /></td>
+                <td style={{ ...tdMono, color: noSignal ? 'var(--text-secondary)' : undefined, fontStyle: noSignal ? 'italic' : undefined }}>
+                  {noSignal ? 'no signal' : m.tradeCount}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {hidden > 0 && (
+        <button
+          className="btn-small"
+          onClick={() => setShowAll(v => !v)}
+          style={{ marginTop: '0.5rem', background: 'transparent', color: 'var(--text-secondary)', borderColor: 'var(--border-color)' }}
+        >
+          {showAll ? 'Collapse long horizons' : `Show ${hidden} longer horizon${hidden === 1 ? '' : 's'}`}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -155,11 +189,12 @@ function ChatPanel({ taskId }: { taskId: string }) {
 
 interface TaskDetailProps {
   task: TaskDetailData;
+  isAdmin: boolean;
   onAction: () => void;
   onError: (msg: string) => void;
 }
 
-function TaskDetailPanel({ task, onAction, onError }: TaskDetailProps) {
+function TaskDetailPanel({ task, isAdmin, onAction, onError }: TaskDetailProps) {
   const { inspectTask, setInspectTask } = useInspectMode();
   const [acting, setActing] = useState(false);
   const isInspecting = inspectTask?.id === task.id;
@@ -183,30 +218,51 @@ function TaskDetailPanel({ task, onAction, onError }: TaskDetailProps) {
 
       {/* Actions */}
       {task.status === 'pending' && (
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <button
-            className="btn-small"
-            onClick={handleInspect}
-            style={{ background: isInspecting ? '#7c3aed' : 'var(--focus-border)', color: '#fff', borderColor: isInspecting ? '#7c3aed' : 'var(--focus-border)', padding: '0.45rem 0.9rem' }}
-          >
-            {isInspecting ? 'Exit Inspect' : 'Inspect'}
-          </button>
-          <button
-            className="btn-small"
-            disabled={acting}
-            onClick={() => handle(() => api.approveTask(task.id))}
-            style={{ background: '#22c55e', color: '#fff', borderColor: '#22c55e', padding: '0.45rem 0.9rem' }}
-          >
-            {acting ? '…' : 'Approve'}
-          </button>
-          <button
-            className="btn-small"
-            disabled={acting}
-            onClick={() => handle(() => api.declineTask(task.id))}
-            style={{ background: '#ef4444', color: '#fff', borderColor: '#ef4444', padding: '0.45rem 0.9rem' }}
-          >
-            {acting ? '…' : 'Decline'}
-          </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              className="btn-small"
+              onClick={handleInspect}
+              style={{ background: isInspecting ? '#7c3aed' : 'var(--focus-border)', color: '#fff', borderColor: isInspecting ? '#7c3aed' : 'var(--focus-border)', padding: '0.45rem 0.9rem' }}
+            >
+              {isInspecting ? 'Exit Inspect' : 'Inspect'}
+            </button>
+            {isAdmin && (
+              <>
+                <button
+                  className="btn-small"
+                  disabled={acting}
+                  onClick={() => {
+                    if (!window.confirm(`Approve "${task.title}"?\n\nThis will pay the proposer ${formatCurrency(task.price)} in credits and mark the task Done. Conditional markets stay open for post-decision tracking.`)) return;
+                    handle(() => api.approveTask(task.id));
+                  }}
+                  style={{ background: '#22c55e', color: '#fff', borderColor: '#22c55e', padding: '0.45rem 0.9rem' }}
+                >
+                  {acting ? '…' : 'Approve'}
+                </button>
+                <button
+                  className="btn-small"
+                  disabled={acting}
+                  onClick={() => {
+                    if (!window.confirm(`Decline "${task.title}"?\n\nThis voids the task's conditional markets and refunds any stakes. The proposer is not paid.`)) return;
+                    handle(() => api.declineTask(task.id));
+                  }}
+                  style={{ background: '#ef4444', color: '#fff', borderColor: '#ef4444', padding: '0.45rem 0.9rem' }}
+                >
+                  {acting ? '…' : 'Decline'}
+                </button>
+              </>
+            )}
+          </div>
+          {isAdmin ? (
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
+              Approving pays the proposer {formatCurrency(task.price)} in credits. Declining voids conditional markets and refunds stakes.
+            </p>
+          ) : (
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
+              Only workspace admins can approve or decline. Click Inspect to see how this task would shift each metric.
+            </p>
+          )}
         </div>
       )}
 
@@ -231,6 +287,8 @@ function TaskDetailPanel({ task, onAction, onError }: TaskDetailProps) {
 
 export function TasksPage() {
   const { user } = useAuth();
+  const { workspace } = useWorkspace();
+  const isAdmin = workspace?.tier === 'admin';
   const [tasks, setTasks] = useState<TaskProposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -296,27 +354,35 @@ export function TasksPage() {
       <div className="container">
         {error && <div className="message error show">{error}</div>}
 
-        {/* New task form */}
-        <div className="section" style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div>
-            <label style={labelStyle}>Title</label>
-            <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-              placeholder="e.g. Improve sleep routine" style={{ ...inputStyle, width: '200px' }} />
+        {/* New task form (admins only; traders cannot propose tasks) */}
+        {isAdmin && (
+          <div className="section" style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div>
+              <label style={labelStyle}>Title</label>
+              <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                placeholder="e.g. Improve sleep routine" style={{ ...inputStyle, width: '200px' }} />
+            </div>
+            <div>
+              <label style={labelStyle}>Description</label>
+              <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="Optional" style={{ ...inputStyle, width: '200px' }} />
+            </div>
+            <div>
+              <label style={labelStyle}>Price ($)</label>
+              <input type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
+                placeholder="500" min="1" style={{ ...inputStyle, width: '90px' }} />
+            </div>
+            <button className="btn" onClick={handleCreate} disabled={creating || !form.title || !form.price}>
+              {creating ? 'Proposing…' : 'Propose Task'}
+            </button>
           </div>
-          <div>
-            <label style={labelStyle}>Description</label>
-            <input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-              placeholder="Optional" style={{ ...inputStyle, width: '200px' }} />
+        )}
+        {workspace && !isAdmin && (
+          <div className="section" style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            You have trader access in this workspace. You can see proposed tasks and forecast on conditional markets,
+            but only admins can propose or approve tasks.
           </div>
-          <div>
-            <label style={labelStyle}>Price ($)</label>
-            <input type="number" value={form.price} onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
-              placeholder="500" min="1" style={{ ...inputStyle, width: '90px' }} />
-          </div>
-          <button className="btn" onClick={handleCreate} disabled={creating || !form.title || !form.price}>
-            {creating ? 'Proposing…' : 'Propose Task'}
-          </button>
-        </div>
+        )}
 
         {loading ? (
           <div className="loading">Loading tasks…</div>
@@ -350,6 +416,7 @@ export function TasksPage() {
                         <td colSpan={4} style={{ padding: '0 0.5rem 0.75rem' }}>
                           <TaskDetailPanel
                             task={expandedData[task.id] ?? task}
+                            isAdmin={isAdmin}
                             onAction={() => handleAction(task.id)}
                             onError={setError}
                           />

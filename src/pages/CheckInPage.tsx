@@ -1,6 +1,7 @@
 import { useState, useEffect, FormEvent } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
+import { useWorkspace } from '../hooks/useWorkspace';
 import type { Metric, Market, Agent } from '../types';
 
 function isLeaf(m: Metric): boolean {
@@ -11,6 +12,8 @@ export function CheckInPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isWelcome = searchParams.get('welcome') === '1';
+  const { workspace } = useWorkspace();
+  const isAdmin = workspace?.tier === 'admin';
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -79,6 +82,22 @@ export function CheckInPage() {
   };
 
   if (loading) return <div className="container"><p>Loading...</p></div>;
+
+  if (!isAdmin && workspace) {
+    return (
+      <div className="container" style={{ maxWidth: 500, paddingTop: '2rem' }}>
+        <h1>Check-in</h1>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+          Only workspace admins can update metric values. You have trader access:
+          you can forecast on the markets but not edit the underlying numbers.
+        </p>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
+          See the current values and forecasts on the{' '}
+          <Link to="/metrics" style={{ color: 'inherit', textDecoration: 'underline' }}>Metrics page</Link>.
+        </p>
+      </div>
+    );
+  }
 
   if (leaves.length === 0) {
     return (
