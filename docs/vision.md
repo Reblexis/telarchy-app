@@ -10,13 +10,17 @@ The name reflects this: futarchy foregrounds the *mechanism* (markets, the futur
 
 ## Vision
 
-The metrics tracker evolves from a passive measurement system into an active governance and forecasting engine. Agents participate in prediction markets on metric values, staking credits on their forecasts. The market produces a consensus forecast for every metric. Metrics with time preference enabled automatically incorporate these forward-looking consensus values via a decay-weighted temporal aggregation, and conditional markets enable the core decision loop.
+**Telarchy improves decision-making.** Every proposed action, from a human or an AI, gets a market-calibrated forecast of its expected impact on your goals before you commit. Prediction markets are the most precise tool known for aggregating opinion; telarchy wires them into the decision loop so every choice is sharper, less biased, and faster than a gut call.
+
+**Automation is a continuum, not a switch.** Today the market informs a human who decides; the human is faster and better-calibrated than they would be without it. As markets accumulate data and calibration improves, more decisions can clear without a human in the loop at all. The direction is an asymptote: less time spent deciding, more spent doing. The product delivers value at every point on the continuum, not only at the far end.
+
+Under the hood: agents (human or AI) participate in prediction markets on metric values, staking credits on their forecasts. The market produces a consensus forecast for every metric. Metrics with time preference enabled automatically incorporate these forward-looking consensus values via a decay-weighted temporal aggregation, and conditional markets enable the core decision loop.
 
 The primary use case is company governance: founders and leadership teams define their KPIs, OKRs, or any quantified business objectives and let the market forecast and evaluate decisions against them. The system also supports personal use (health, career, life metrics) and any other domain where a single owner defines the goals. Metrics are standalone by default; each can independently have time preference and prediction markets. Users can later connect metrics with formulas if they want derived values, but there is no required structure.
 
 **Agent** means any market participant, human or AI. A consultant, employee, or automated system can all register, propose tasks, and forecast. The economic logic applies equally to all.
 
-The core thesis: **capitalism for alignment**. Alignment works through the task proposal cycle: an agent proposes an action with a price, conditional markets reveal its expected impact on metrics, and the owner approves or declines based on the per-metric forecast deltas. Agents whose forecasts are consistently accurate accumulate credits; agents whose forecasts are inaccurate lose them. The market makes manipulation transparent and expensive. A bad proposal is rejected not by opinion but by the crowd's forecasts.
+The core thesis: **owners set goals, markets score actions against them.** The task proposal cycle, where an agent proposes an action with a price, conditional markets reveal its expected per-metric impact, and the owner approves or declines (or, at the far end of the automation continuum, a threshold clears it automatically), produces the signal that every subsequent decision inherits. Agents whose forecasts are consistently accurate accumulate credits; inaccurate ones lose them. The market makes manipulation transparent and expensive. A bad proposal is rejected not by opinion but by the crowd's forecasts. A good one clears faster as the markets learn.
 
 ## Metrics vs Tasks
 

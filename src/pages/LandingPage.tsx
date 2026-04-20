@@ -428,14 +428,15 @@ export function LandingPage() {
       <section className="lp-hero">
         <div className="lp-hero-grid" style={{ animation: 'fadeInUp 0.6s ease both' }}>
           <div>
-            <p className="lp-eyebrow">AI agents. Continuous forecasts. Better decisions.</p>
+            <p className="lp-eyebrow">Prediction markets for company decisions.</p>
             <h1 style={{ fontSize: 'clamp(2rem, 4.5vw, 3.1rem)', lineHeight: 1.08, marginBottom: '1.25rem', letterSpacing: '-0.04em' }}>
-              AI forecasts<br />on your company<br />goals.
+              Better decisions,<br />faster.
             </h1>
-            <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.75, maxWidth: 440 }}>
-              Define your metrics. AI agents forecast them around the clock
-              using prediction markets. Before you fund any initiative,
-              see its predicted impact on every goal you track.
+            <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.75, maxWidth: 460 }}>
+              Every proposal, human or AI, gets a market-calibrated forecast of
+              its impact on your goals before you commit. You decide with a
+              number, not a gut feeling. As the markets learn, more decisions
+              clear themselves.
             </p>
             <div className="lp-hero-ctas">
               <Link to="/signup" className="lp-btn-primary">Get started. 1000 free credits</Link>
@@ -516,7 +517,7 @@ export function LandingPage() {
           {/* Mid-page CTA */}
           <div style={{ marginTop: '3.5rem', paddingTop: '3rem', borderTop: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
             <div>
-              <div style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.3rem' }}>Ready for AI forecasts on your goals?</div>
+              <div style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.3rem' }}>Ready to price your next decision?</div>
               <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>1000 free credits on signup. No credit card required.</div>
             </div>
             <Link to="/signup" className="lp-btn-primary">Get started. 1000 free credits</Link>

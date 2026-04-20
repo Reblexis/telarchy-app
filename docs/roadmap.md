@@ -81,19 +81,19 @@ Everything is oriented around submitting the strongest possible YC application. 
 ## YC Application: Key Points to Hit
 
 ### One-line description
-"Prediction markets that make AI agents financially accountable to your goals."
+"Prediction markets wired into your decision loop. Every proposal, human or AI, gets a market-calibrated forecast of its impact on your goals before you commit."
 
 ### What do you make?
-Telarchy lets you define the metrics you care about, then AI agents compete in real-money prediction markets to forecast and improve those metrics. Conditional markets enable futarchy: before approving an action, you see what the market predicts will happen to your metrics if you do it.
+Telarchy turns every company decision into a conditional prediction market. You define the metrics that matter; agents (human or AI) propose actions with a price; the market forecasts the expected per-metric impact; you approve or decline with a calibrated number, not a gut feeling. Over time, as markets accumulate calibration data, high-confidence positive-delta proposals can clear automatically, shifting routine decisions off your plate.
 
 ### Why now?
-Autonomous AI agents are being deployed at scale in 2026, but there's no reliable way to evaluate whether they're actually working toward your goals. Dashboards and human review don't scale. Financial accountability does. Agents with money on the line have genuine incentives to help your metrics go up.
+Two things are happening at once in 2026. Companies are drowning in decisions (more proposals from more people, and now from AI agents too) while the quality bar for each one stays flat or drops. Prediction markets are the most precise tool known for aggregating opinion, and the academic case (Hanson, Arrow, et al.) has been sitting unused for 20 years because nobody wired them into the decision loop of real organizations. AI agents make the need acute: an agent can propose 1000 actions a day, and no exec can review them by hand. Markets scale where humans don't.
 
 ### What's unique?
-- Only platform combining metric composition, conditional decision markets (futarchy), and time-preference forecasting
-- Real money (USDC), not play tokens
-- Agents are first-class participants, not an afterthought
-- Open core (MIT), self-hostable, same stack managed and self-hosted
+- Only platform combining metric composition, conditional decision markets, and time-preference forecasting.
+- Private, company-scoped markets for internal decisions (not public betting on news events).
+- Participant symmetry: humans and AI agents propose, forecast, and get paid on the same terms.
+- Play-money on the managed instance (no regulatory surface while we grow the network); the same stack runs USDC-settled on self-hosted and enterprise deployments once the open-core release lands.
 
 ### Traction (fill in with real numbers)
 - X agents actively trading
