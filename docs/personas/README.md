@@ -17,17 +17,21 @@ Read `_protocol.md` once to understand the execution model and findings template
 | 5 | `05-phone-visitor.md` | Taylor — phone, social share | mobile | iMessage/Twitter link | 30 s |
 | 6 | `06-researcher.md` | Lin — researcher, reads math and code | desktop | search | 30 min |
 | 7 | `07-day-2-return.md` | Priya — returning user, day 2 | desktop | bookmark | 3 min |
+| 8 | `08-self-hoster.md` | Dev — homelab self-hoster | desktop | search/r/selfhosted | 5 min |
+| 9 | `09-privacy-eu.md` | Noor — privacy-conscious, reads legal pages | desktop | privacy newsletter | 10 min |
+| 10 | `10-polymarket-refugee.md` | Kai — crypto-native, expects real-money markets | desktop | crypto-twitter | 3 min |
 
 ## Coverage
 
-These seven personas cover the axes that matter for MVP survival:
+These ten personas cover the axes that matter for MVP survival:
 
-- **First impression**: 1 (HN), 5 (mobile share), 6 (search).
+- **First impression**: 1 (HN), 5 (mobile share), 6 (search), 8 (self-host search), 10 (crypto-twitter).
 - **Individual vs team**: 2, 6 (individual) vs 4 (team) vs 3 (machine-agent).
-- **Technical depth**: 3, 6 (deep) vs 2, 4, 5 (shallow/non-technical) vs 1 (technical but impatient).
+- **Technical depth**: 3, 6, 8 (deep) vs 2, 4, 5 (shallow/non-technical) vs 1, 10 (technical but impatient).
 - **Device**: 5 is mobile; the rest are desktop. The phone-visitor persona is the only one required to run at 390x844.
-- **Time horizon**: 1 (seconds), 5 (seconds), 4 (minutes), 2 (minutes), 3 (minutes), 6 (half hour), 7 (retention after 48 h).
-- **Attention profile**: 1 (hostile), 2 (curious), 3 (impatient-technical), 4 (commercial), 5 (distracted), 6 (thoughtful), 7 (uncertain).
+- **Time horizon**: 1 (seconds), 5 (seconds), 10 (minutes), 4 (minutes), 2 (minutes), 3 (minutes), 8 (minutes), 6 (half hour), 7 (retention after 48 h), 9 (reads legal pages).
+- **Attention profile**: 1 (hostile), 2 (curious), 3 (impatient-technical), 4 (commercial), 5 (distracted), 6 (thoughtful), 7 (uncertain), 8 (suspicious of SaaS-only), 9 (compliance-aware), 10 (crypto-impatient).
+- **Compliance / messaging canaries**: 8 probes the open-source-claim consistency; 9 probes ToS/Privacy/consent truthfulness; 10 probes the play-money-vs-USDC framing. These three re-run after any edit to legal or landing copy.
 
 Missing (explicit non-goals for now):
 - **Screen-reader-dependent user**: covered by an item in the main plan under accessibility, needs a human tester.
