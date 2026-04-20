@@ -139,6 +139,7 @@ export type TaskStatus = 'pending' | 'approved' | 'declined';
 export interface TaskProposal {
   id: string;
   proposedBy: string;
+  proposedByName?: string | null;
   title: string;
   description: string;
   price: number;
@@ -151,6 +152,7 @@ export interface TaskMessage {
   id: string;
   taskId: string;
   from: string;
+  fromName?: string | null;
   content: string;
   createdAt: string;
 }

@@ -64,6 +64,12 @@ function ShareWorkspaceButton({ workspaceId, workspaceName }: { workspaceId: str
   );
 }
 
+interface JoinResult {
+  workspaceName?: string;
+  role?: string;
+  alreadyMember?: boolean;
+}
+
 function JoinButton({ workspaceId, joined, onJoined }: {
   workspaceId: string;
   joined?: boolean;
@@ -73,12 +79,14 @@ function JoinButton({ workspaceId, joined, onJoined }: {
   const navigate = useNavigate();
   const [state, setState] = useState<'idle' | 'joining' | 'joined' | 'error'>('idle');
   const [errMsg, setErrMsg] = useState('');
+  const [result, setResult] = useState<JoinResult | null>(null);
 
   const handleJoin = async () => {
     if (!user) { navigate('/signup'); return; }
     setState('joining');
     try {
-      await api.joinWorkspace(workspaceId);
+      const data = await api.joinWorkspace(workspaceId) as JoinResult;
+      setResult(data);
       setState('joined');
       onJoined?.();
     } catch (e: unknown) {
@@ -88,7 +96,18 @@ function JoinButton({ workspaceId, joined, onJoined }: {
   };
 
   if (joined) return <span style={{ color: 'var(--success-text)', fontSize: '0.875rem' }}>Joined</span>;
-  if (state === 'joined') return <span style={{ color: 'var(--success-text)', fontSize: '0.875rem' }}>✓ Joined</span>;
+  if (state === 'joined') {
+    const roleLabel = result?.role ?? 'member';
+    const wsLabel = result?.workspaceName ?? 'workspace';
+    return (
+      <span
+        style={{ color: 'var(--success-text)', fontSize: '0.85rem', textAlign: 'right' }}
+        title={`You can ${roleLabel === 'trader' ? 'forecast on this workspace\'s markets' : 'read this workspace'}`}
+      >
+        ✓ Joined {wsLabel} as <strong>{roleLabel}</strong>
+      </span>
+    );
+  }
   if (state === 'error') return <span style={{ color: 'var(--error-text)', fontSize: '0.8rem' }}>{errMsg}</span>;
 
   return (

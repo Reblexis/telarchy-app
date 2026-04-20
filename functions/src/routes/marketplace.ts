@@ -148,5 +148,14 @@ marketplaceRouter.post('/:workspaceId/join', authMiddleware, requireIdentity, wr
       .where(and(eq(permissionGroups.id, publicGroup.id), eq(permissionGroups.workspaceId, workspaceId)));
   }
 
-  res.status(alreadyMember ? 200 : 201).json({ ok: true, workspaceId, role: 'member', alreadyMember });
+  const publicCaps = (publicGroup.capabilities as string[] | null) ?? [];
+  const role = publicCaps.includes('trade') ? 'trader' : 'viewer';
+
+  res.status(alreadyMember ? 200 : 201).json({
+    ok: true,
+    workspaceId,
+    workspaceName: ws.name,
+    role,
+    alreadyMember,
+  });
 }));

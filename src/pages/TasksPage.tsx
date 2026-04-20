@@ -154,17 +154,25 @@ function ChatPanel({ taskId }: { taskId: string }) {
         display: 'flex', flexDirection: 'column', gap: '0.4rem',
       }}>
         {messages.length === 0 && <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>No messages yet.</span>}
-        {messages.map(msg => (
-          <div key={msg.id} style={{ display: 'flex', gap: '0.4rem', alignItems: 'flex-start' }}>
-            <span style={{
-              fontSize: '0.7rem', fontWeight: 600, color: msg.from === 'admin' ? 'var(--focus-border)' : '#8b5cf6',
-              minWidth: '70px', paddingTop: '0.05rem',
-            }}>
-              {msg.from === 'admin' ? 'admin' : msg.from}
-            </span>
-            <span style={{ fontSize: '0.85rem', flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{msg.content}</span>
-          </div>
-        ))}
+        {messages.map(msg => {
+          const author = msg.from === 'admin'
+            ? 'admin'
+            : (msg.fromName ?? `${msg.from.slice(0, 6)}…`);
+          return (
+            <div key={msg.id} style={{ display: 'flex', gap: '0.4rem', alignItems: 'flex-start' }}>
+              <span
+                title={msg.from}
+                style={{
+                  fontSize: '0.7rem', fontWeight: 600, color: msg.from === 'admin' ? 'var(--focus-border)' : '#8b5cf6',
+                  minWidth: '70px', paddingTop: '0.05rem',
+                }}
+              >
+                {author}
+              </span>
+              <span style={{ fontSize: '0.85rem', flex: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{msg.content}</span>
+            </div>
+          );
+        })}
         <div ref={bottomRef} />
       </div>
       {(loadError || sendError) && <div style={{ color: 'var(--error-text)', fontSize: '0.8rem' }}>{loadError || sendError}</div>}
@@ -407,7 +415,14 @@ export function TasksPage() {
                       onClick={() => handleExpand(task.id)}
                     >
                       <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600 }}>{task.title}</td>
-                      <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{task.proposedBy}</td>
+                      <td
+                        style={{ padding: '0.75rem 0.5rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}
+                        title={task.proposedBy}
+                      >
+                        {task.proposedByName ?? (
+                          <span style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>{`${task.proposedBy.slice(0, 8)}…`}</span>
+                        )}
+                      </td>
                       <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{formatCurrency(task.price)}</td>
                       <td style={{ padding: '0.75rem 0.5rem' }}><StatusBadge status={task.status} /></td>
                     </tr>

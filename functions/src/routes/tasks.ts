@@ -8,6 +8,7 @@ import { authMiddleware } from '../middleware/auth';
 import { requireCapability } from '../middleware/roles';
 import { voidTaskMarkets, approveTask, getTaskMarketSummariesForTask } from '../services/tasks';
 import { validateContent } from '../lib/validation';
+import { getParticipantDisplayNames } from '../lib/participants';
 
 export const tasksRouter = Router();
 
@@ -40,8 +41,6 @@ tasksRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
 
 tasksRouter.get('/', requireCapability('read'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
-  const isAdmin = req.auth!.capabilities.has('manage');
-  const agentId = req.auth!.agentId;
   const { status } = req.query as Record<string, string>;
 
   let rows = await db.select().from(tasks)
@@ -49,7 +48,8 @@ tasksRouter.get('/', requireCapability('read'), wrap(async (req, res) => {
     .orderBy(desc(tasks.createdAt));
 
   if (status) rows = rows.filter(t => t.status === status);
-  if (!isAdmin && agentId) rows = rows.filter(t => t.proposedBy === agentId);
+
+  const names = await getParticipantDisplayNames(rows.map(t => t.proposedBy));
 
   res.json(rows.map(t => ({
     id: t.id,
@@ -60,6 +60,7 @@ tasksRouter.get('/', requireCapability('read'), wrap(async (req, res) => {
     price: t.price,
     status: t.status,
     proposedBy: t.proposedBy,
+    proposedByName: names.get(t.proposedBy) ?? null,
     createdAt: t.createdAt,
   })));
 }));
@@ -71,12 +72,13 @@ tasksRouter.get('/:taskId', requireCapability('read'), wrap(async (req, res) => 
     .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
   if (!task) { res.status(404).json({ error: 'Task not found' }); return; }
 
-  const isAdmin = req.auth!.capabilities.has('manage');
-  const agentId = req.auth!.agentId;
-  if (!isAdmin && task.proposedBy !== agentId) { res.status(403).json({ error: 'Forbidden' }); return; }
-
   const taskMarkets = await getTaskMarketSummariesForTask(task.id, workspaceId);
-  res.json({ ...task, markets: taskMarkets });
+  const names = await getParticipantDisplayNames([task.proposedBy]);
+  res.json({
+    ...task,
+    proposedByName: names.get(task.proposedBy) ?? null,
+    markets: taskMarkets,
+  });
 }));
 
 tasksRouter.post('/:taskId/approve', requireCapability('manage'), wrap(async (req, res) => {
@@ -107,15 +109,12 @@ tasksRouter.get('/:taskId/messages', requireCapability('read'), wrap(async (req,
     .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
   if (!task) { res.status(404).json({ error: 'Task not found' }); return; }
 
-  const isAdmin = req.auth!.capabilities.has('manage');
-  const agentId = req.auth!.agentId;
-  if (!isAdmin && task.proposedBy !== agentId) { res.status(403).json({ error: 'Forbidden' }); return; }
-
   const messages = await db.select().from(taskMessages)
     .where(and(eq(taskMessages.workspaceId, workspaceId), eq(taskMessages.taskId, taskId)))
     .orderBy(asc(taskMessages.createdAt));
 
-  res.json(messages);
+  const names = await getParticipantDisplayNames(messages.map(m => m.from));
+  res.json(messages.map(m => ({ ...m, fromName: names.get(m.from) ?? null })));
 }));
 
 tasksRouter.post('/:taskId/messages', requireCapability('trade'), wrap(async (req, res) => {
@@ -130,13 +129,11 @@ tasksRouter.post('/:taskId/messages', requireCapability('trade'), wrap(async (re
     .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
   if (!task) { res.status(404).json({ error: 'Task not found' }); return; }
 
-  const isAdmin = req.auth!.capabilities.has('manage');
   const agentId = req.auth!.agentId;
-  if (!isAdmin && task.proposedBy !== agentId) { res.status(403).json({ error: 'Forbidden' }); return; }
-
   const from = agentId || 'admin';
   const id = randomUUID();
   await db.insert(taskMessages).values({ id, workspaceId, taskId, from, content, createdAt: new Date() });
 
-  res.status(201).json({ id, from, content });
+  const names = await getParticipantDisplayNames([from]);
+  res.status(201).json({ id, from, fromName: names.get(from) ?? null, content });
 }));

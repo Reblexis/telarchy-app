@@ -1,7 +1,7 @@
 import { and, eq, inArray, or } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { db } from '../db/client';
-import { agents, permissionGroups, workspaces } from '../db/schema';
+import { agents, authUser, permissionGroups, workspaces } from '../db/schema';
 import { DEFAULT_MARKET_LIQUIDITY_CREDITS } from './validation';
 
 type DbOrTx = Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db;
@@ -246,6 +246,31 @@ export async function listParticipantsForWorkspace(workspaceId: string) {
   const memberIds = [...new Set(groups.flatMap(group => getGroupMemberIds(group)))];
   if (memberIds.length === 0) return [];
   return db.select().from(agents).where(inArray(agents.id, memberIds));
+}
+
+/**
+ * Resolve participant IDs (agents.id) to human-readable display names via
+ * agents.authUserId → authUser.name. Returns a Map keyed by participant ID.
+ * Participants without a linked auth user (pure agents) are absent from the map;
+ * callers should fall back to a truncated ID.
+ */
+export async function getParticipantDisplayNames(
+  participantIds: string[],
+): Promise<Map<string, string>> {
+  const names = new Map<string, string>();
+  const unique = [...new Set(participantIds.filter(Boolean))];
+  if (unique.length === 0) return names;
+
+  const rows = await db
+    .select({ agentId: agents.id, name: authUser.name })
+    .from(agents)
+    .leftJoin(authUser, eq(agents.authUserId, authUser.id))
+    .where(inArray(agents.id, unique));
+
+  for (const row of rows) {
+    if (row.name) names.set(row.agentId, row.name);
+  }
+  return names;
 }
 
 export async function workspaceExists(workspaceId: string): Promise<boolean> {
