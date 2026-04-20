@@ -95,7 +95,6 @@ function JoinButton({ workspaceId, joined, onJoined }: {
     }
   };
 
-  if (joined) return <span style={{ color: 'var(--success-text)', fontSize: '0.875rem' }}>Joined</span>;
   if (state === 'joined') {
     const roleLabel = result?.role ?? 'member';
     const wsLabel = result?.workspaceName ?? 'workspace';
@@ -108,6 +107,7 @@ function JoinButton({ workspaceId, joined, onJoined }: {
       </span>
     );
   }
+  if (joined) return <span style={{ color: 'var(--success-text)', fontSize: '0.875rem' }}>Joined</span>;
   if (state === 'error') return <span style={{ color: 'var(--error-text)', fontSize: '0.8rem' }}>{errMsg}</span>;
 
   return (
