@@ -23,7 +23,7 @@ export function Sidebar() {
   const canAccessWorkspace = workspace?.tier && workspace.tier !== 'none';
   const isAdmin = workspace?.tier === 'admin';
   const workspaceLinks = [
-    { to: '/check-in', label: 'Check-in' },
+    ...(isAdmin ? [{ to: '/check-in', label: 'Check-in' }] : []),
     { to: '/metrics', label: 'Metrics' },
     { to: '/markets', label: 'Markets' },
     { to: '/tasks', label: 'Tasks' },
