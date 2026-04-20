@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { randomBytes } from 'crypto';
 import { db } from '../db/client';
-import { agents, authUser } from '../db/schema';
+import { agents, authUser, trades, positions, tasks, taskMessages } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { CURRENT_CONSENT_VERSION } from './legal';
 import { wrap } from '../lib/wrap';
@@ -159,21 +159,67 @@ userauthRouter.delete('/me', requireUser, wrap(async (req, res) => {
 
 /**
  * GET /api/auth/me/export
- * GDPR: exports all data associated with the current user.
+ * GDPR Article 15: returns all personal data associated with the current user.
+ * Mirrors the categories listed in docs/legal/privacy-policy.md §1.
  */
 userauthRouter.get('/me/export', requireUser, wrap(async (req, res) => {
   const { uid } = req.auth!;
   if (!uid) { res.status(403).json({ error: 'Browser account session required' }); return; }
 
-  const [participant, memberships] = await Promise.all([
+  const [authRow, participantRow, memberships] = await Promise.all([
+    db.select().from(authUser).where(eq(authUser.id, uid)).then(r => r[0] ?? null),
     db.select().from(agents).where(eq(agents.authUserId, uid)).then(r => r[0] ?? null),
     getAuthWorkspaceMemberships({ uid }),
   ]);
 
+  const account = authRow ? {
+    id: authRow.id,
+    email: authRow.email,
+    emailVerified: authRow.emailVerified,
+    name: authRow.name,
+    image: authRow.image,
+    createdAt: authRow.createdAt,
+    updatedAt: authRow.updatedAt,
+    consentedAt: authRow.consentedAt,
+    consentedVersion: authRow.consentedVersion,
+  } : null;
+
+  const participantId = participantRow?.id ?? null;
+  const participant = participantRow ? {
+    id: participantRow.id,
+    authUserId: participantRow.authUserId,
+    balance: participantRow.balance,
+    earnedBetting: participantRow.earnedBetting,
+    spentBetting: participantRow.spentBetting,
+    spentTokens: participantRow.spentTokens,
+    earnedTasks: participantRow.earnedTasks,
+    walletAddress: participantRow.walletAddress,
+    withdrawnUsdc: participantRow.withdrawnUsdc,
+    platformAdmin: participantRow.platformAdmin,
+    intent: participantRow.intent,
+    createdAt: participantRow.createdAt,
+    approvedAt: participantRow.approvedAt,
+  } : null;
+
+  const [userTrades, userPositions, userTasks, userTaskMessages] = participantId
+    ? await Promise.all([
+        db.select().from(trades).where(eq(trades.agentId, participantId)),
+        db.select().from(positions).where(eq(positions.agentId, participantId)),
+        db.select().from(tasks).where(eq(tasks.proposedBy, participantId)),
+        db.select().from(taskMessages).where(eq(taskMessages.from, participantId)),
+      ])
+    : [[], [], [], []];
+
   res.json({
     uid,
+    account,
     participant,
     memberships,
+    trades: userTrades,
+    positions: userPositions,
+    tasksProposed: userTasks,
+    taskMessages: userTaskMessages,
     exportedAt: new Date().toISOString(),
+    notes: 'Request logs (IP, user-agent, short-TTL) are not included; see Privacy Policy §5.',
   });
 }));

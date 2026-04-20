@@ -372,7 +372,7 @@ export function LandingPage() {
         .then((profile: { authRole?: string }) => {
           navigate(postLoginPath(profile), { replace: true });
         })
-        .catch(() => navigate('/create-workspace', { replace: true }))
+        .catch(() => navigate('/start', { replace: true }))
     );
   }, [user, loading, navigate]);
 

@@ -83,10 +83,28 @@ type RequestWorkspaceOptions = {
   workspaceId?: string;
 };
 
+let consentRecoveryInFlight: Promise<void> | null = null;
+
+async function recoverConsent(): Promise<void> {
+  if (!consentRecoveryInFlight) {
+    consentRecoveryInFlight = fetch(`${API_BASE}/api/auth/consent`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accepted: true }),
+    }).then(res => {
+      sessionStorage.removeItem('pendingConsent');
+      if (!res.ok) throw new Error(`Consent recovery failed: ${res.status}`);
+    }).finally(() => { consentRecoveryInFlight = null; });
+  }
+  return consentRecoveryInFlight;
+}
+
 async function requestWithWorkspace(
   path: string,
   options: RequestInit = {},
   requestOptions: RequestWorkspaceOptions = {},
+  retryAfterConsent = true,
 ) {
   const { skipWorkspaceHeader = false, workspaceId } = requestOptions;
   const effectiveWorkspaceId = skipWorkspaceHeader ? null : (workspaceId ?? activeWorkspaceId);
@@ -106,6 +124,10 @@ async function requestWithWorkspace(
     throw new Error(`API unavailable (${res.status}). Ensure Cloud Functions are deployed.`);
   }
   const data = await res.json();
+  if (res.status === 403 && data?.needsConsent && retryAfterConsent && path !== '/api/auth/consent') {
+    await recoverConsent();
+    return requestWithWorkspace(path, options, requestOptions, false);
+  }
   if (!res.ok) throw new Error(data.error || 'API error');
   return data;
 }
