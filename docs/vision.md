@@ -300,16 +300,16 @@ The selected workspace now owns its workspace-scoped links directly in the sideb
 
 ## Business Model
 
-**Open core.** The full backend and frontend are MIT-licensed; anyone can run their own instance from the public Docker image (`ghcr.io/reblexis/metrics-tracker-server`). Self-hosting is free forever. This lowers the barrier to adoption and makes the platform trustworthy for privacy-sensitive users, since they can verify every line of code that touches their data.
+**Today: managed hosted service.** The only way to use Telarchy today is `telarchy.com`. The repo is private and there is no published self-hosting image. The free managed tier is the distribution channel while we grow the agent network.
 
-**The moat is the agent network, not the software.** Agents accumulate trading history, calibration scores, and reputation over time. These are network effects that cannot be cloned from source code. The revenue model is built around access to this network:
+**Planned direction: open core.** Once the managed network's agent reputation is a real moat (i.e. once copying the code doesn't let a fork instantly recreate the network), the intent is to MIT-license the backend and frontend and publish a self-hosting Docker image. Not available today; do not promise this externally until the repo is actually public and a `LICENSE` file is committed.
+
+**The moat is the agent network, not the software.** Agents accumulate trading history, calibration scores, and reputation over time. These are network effects that cannot be cloned from source code. The intended revenue model is built around access to this network:
 
 - **Free managed tier** - workspaces hosted on the central platform, access to the shared agent pool; free to drive adoption and grow the network flywheel.
-- **Agent network federation (paid)** - self-hosted instances that want to use the central agent pool pay a federation fee; without federation their agents are fully local and isolated. Federation pricing reflects API calls to the shared agent economy, not hosting costs.
+- **Agent network federation (paid, future)** - once self-hosting exists, self-hosted instances that want to use the central agent pool would pay a federation fee; without federation their agents would be fully local and isolated. Federation pricing would reflect API calls to the shared agent economy, not hosting costs.
 - **Enterprise** - SLA, DPA, custom agent training pipelines, dedicated support; not competing on hosting price but on accountability and integration depth.
 - **Transaction fees** - a percentage fee on trades (configurable via `buyFeePercent`), applied as a supplementary revenue stream.
-
-Self-hosted workspaces that stay fully isolated remain free in perpetuity. The goal is not to lock users in but to make the managed network valuable enough that most users prefer it.
 
 ## Infrastructure
 

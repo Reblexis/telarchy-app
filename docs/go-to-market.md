@@ -48,9 +48,9 @@ When a user runs out of credits, they can earn more through accurate forecasting
 
 ## Privacy, Security, and Data Sovereignty
 
-### Approach: Open Core (GitLab Model)
+### Approach: Managed Service Today, Open Core Later (GitLab Model)
 
-The full backend and frontend are MIT-licensed. Anyone can self-host from the public Docker image. True E2E encryption is incompatible with prediction markets; the server must compute on the data (AMM, resolution, payouts). Same constraint GitLab faces with CI and code search.
+Today the only way to use Telarchy is the managed `telarchy.com` instance. The repo is private. The intent is to MIT-license the backend and frontend and publish a self-hosting Docker image once the managed agent network is established; until then, do not make open-source claims externally. True E2E encryption is incompatible with prediction markets regardless; the server must compute on the data (AMM, resolution, payouts). Same constraint GitLab faces with CI and code search.
 
 Trust is built through security practices, compliance, and transparency:
 

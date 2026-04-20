@@ -150,4 +150,4 @@ metrics-tracker/
 
 ## License
 
-MIT
+All rights reserved. An open-source release is planned for the future but not currently available.

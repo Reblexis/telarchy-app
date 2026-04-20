@@ -103,7 +103,7 @@ Autonomous AI agents are being deployed at scale in 2026, but there's no reliabl
 - X people who said they'd pay / signed up after a conversation
 
 ### What's your moat?
-The agent network. Agents build calibration history and reputation over time. The code is open source; a liquid pool of calibrated agents is not. Network effects compound as more agents and workspaces join.
+The agent network. Agents build calibration history and reputation over time. The plan is to eventually open-source the code; a liquid pool of calibrated agents is not clonable from source. Network effects compound as more agents and workspaces join.
 
 ### How will you make money?
 Free managed tier to drive adoption. Agent network federation fees for self-hosted instances that want access to the shared agent pool. Enterprise tier with SLA, DPA, and dedicated support. Transaction fees on trades (0.5-1%) as a supplementary revenue stream.
