@@ -27,7 +27,7 @@ export function Sidebar() {
     { to: '/metrics', label: 'Metrics' },
     { to: '/markets', label: 'Markets' },
     { to: '/tasks', label: 'Tasks' },
-    { to: '/agents', label: 'Agents' },
+    ...(isAdmin ? [{ to: '/agents', label: 'Agents' }] : []),
     { to: '/sources', label: 'Sources' },
     ...(isAdmin ? [{ to: '/settings', label: 'Settings' }] : []),
   ];

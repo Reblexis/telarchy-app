@@ -22,7 +22,7 @@ function buildWarnings(
   return result;
 }
 
-export function useMetrics(authenticated: boolean, inspectTaskId?: string | null) {
+export function useMetrics(authenticated: boolean, inspectTaskId?: string | null, canViewUpdates = true) {
   const [metrics, setMetrics] = useState<Metric[]>(() => cacheGet<Metric[]>('metrics') || []);
   const [updates, setUpdates] = useState<UpdateEntry[]>(() => cacheGet<UpdateEntry[]>('updates') || []);
   const [formulaWarnings, setFormulaWarnings] = useState<Record<string, FormulaWarning[]>>({});
@@ -39,11 +39,13 @@ export function useMetrics(authenticated: boolean, inspectTaskId?: string | null
     const [metricsData, marketsData] = await Promise.all([
       api.getMetrics() as Promise<Metric[]>,
       api.getMarkets(inspectTaskId || undefined).catch((e: Error) => { console.error('Failed to load markets for metrics page:', e.message); return [] as Market[]; }),
-      api.getUpdates().then((list: UpdateEntry[]) => {
-        const parsed = list.map(u => ({ ...u, timestamp: new Date(u.timestamp) }));
-        setUpdates(parsed);
-        cacheSet('updates', parsed);
-      }).catch((e: Error) => console.error('Failed to load updates:', e.message)),
+      canViewUpdates
+        ? api.getUpdates().then((list: UpdateEntry[]) => {
+            const parsed = list.map(u => ({ ...u, timestamp: new Date(u.timestamp) }));
+            setUpdates(parsed);
+            cacheSet('updates', parsed);
+          }).catch((e: Error) => console.error('Failed to load updates:', e.message))
+        : Promise.resolve(),
     ]);
 
     consensusMapRef.current = buildConsensusMap(marketsData);
@@ -57,7 +59,7 @@ export function useMetrics(authenticated: boolean, inspectTaskId?: string | null
     setFormulaWarnings(buildWarnings(metricsData));
 
     return metricsData;
-  }, [authenticated, inspectTaskId]);
+  }, [authenticated, inspectTaskId, canViewUpdates]);
 
   useEffect(() => {
     if (!authenticated) { setLoading(false); return; }
