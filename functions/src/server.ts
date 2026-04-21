@@ -28,9 +28,19 @@
  */
 
 import 'dotenv/config';
+import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import express from 'express';
+
+// Overlay machine-local overrides from .env.local (ignored by git).
+// Matches the Next.js / Vite convention: .env is shared defaults, .env.local
+// is per-machine secrets (DATABASE_URL pointing at a proxy port, treasury key
+// for the dev chain, persisted BETTER_AUTH_SECRET so sessions survive restarts).
+const envLocalPath = path.resolve(process.cwd(), '.env.local');
+if (fs.existsSync(envLocalPath)) {
+  dotenv.config({ path: envLocalPath, override: true });
+}
 import { assertTreasuryConfigured } from './lib/usdc';
 import { runBootstrap } from './lib/bootstrap';
 
