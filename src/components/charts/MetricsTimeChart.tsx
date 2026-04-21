@@ -21,6 +21,8 @@ ChartJS.register(LinearScale, PointElement, LineElement, Filler, Tooltip, Legend
 export interface MetricsTimeChartProps {
   points: ChartPoint[];
   conditionalPoints?: ChartPoint[];
+  /** Forecast points to overlay on top of the main series (rendered as a dashed line with a "now" divider). */
+  futurePoints?: ChartPoint[];
   mode: 'normal' | 'inspect';
   variant: 'inline' | 'modal';
   rangeMin?: number;
@@ -32,7 +34,7 @@ export interface MetricsTimeChartProps {
 }
 
 export function MetricsTimeChart({
-  points, conditionalPoints, mode, variant, rangeMin, rangeMax, halfLifeYears, onPointClick,
+  points, conditionalPoints, futurePoints, mode, variant, rangeMin, rangeMax, halfLifeYears, onPointClick,
 }: MetricsTimeChartProps) {
   const currentColor = '#b45309';
   const conditionalColor = '#0f766e';
@@ -49,36 +51,39 @@ export function MetricsTimeChart({
   const tipBody = cssVar('--text-secondary', '#4a4a4a');
   const tipBorder = cssVar('--border-color', '#e0e0e0');
 
-  if (points.length === 0) {
-    return <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>No time-series points</div>;
-  }
-
   const sorted = [...points].sort((a, b) => a.x - b.x);
   const isInspect = mode === 'inspect';
   const condSorted = isInspect && conditionalPoints ? [...conditionalPoints].sort((a, b) => a.x - b.x) : [];
+  const futureSorted = futurePoints ? [...futurePoints].sort((a, b) => a.x - b.x) : [];
 
-  const allX = [...sorted.map(p => p.x), ...condSorted.map(p => p.x)];
+  if (sorted.length === 0 && condSorted.length === 0 && futureSorted.length === 0) {
+    return <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>No time-series points</div>;
+  }
+
+  const allX = [...sorted.map(p => p.x), ...condSorted.map(p => p.x), ...futureSorted.map(p => p.x)];
   const xMin = Math.min(...allX);
   const xMax = Math.max(...allX);
-  const spanMs = inferSpanMs(sorted);
+  const spanMs = inferSpanMs(sorted.length > 0 ? sorted : futureSorted);
 
   const pr = variant === 'modal' ? 4 : 3;
   const phr = variant === 'modal' ? 7 : 6;
 
-  const currentDataset = {
-    label: 'Current',
-    data: sorted.map(p => ({ x: p.x, y: p.y })),
-    borderColor: currentColor,
-    backgroundColor: currentFill,
-    borderWidth: 2,
-    fill: true,
-    tension: 0.25,
-    pointRadius: pr,
-    pointHoverRadius: phr,
-    pointBackgroundColor: currentColor,
-  };
+  const datasets: ChartData<'line'>['datasets'] = [];
 
-  const datasets: ChartData<'line'>['datasets'] = [currentDataset];
+  if (sorted.length > 0) {
+    datasets.push({
+      label: 'Current',
+      data: sorted.map(p => ({ x: p.x, y: p.y })),
+      borderColor: currentColor,
+      backgroundColor: currentFill,
+      borderWidth: 2,
+      fill: true,
+      tension: 0.25,
+      pointRadius: pr,
+      pointHoverRadius: phr,
+      pointBackgroundColor: currentColor,
+    });
+  }
 
   if (isInspect && condSorted.length > 0) {
     datasets.push({
@@ -86,6 +91,22 @@ export function MetricsTimeChart({
       data: condSorted.map(p => ({ x: p.x, y: p.y })),
       borderColor: conditionalColor,
       borderWidth: 2,
+      fill: false,
+      tension: 0.25,
+      pointRadius: pr,
+      pointHoverRadius: phr,
+      pointBackgroundColor: conditionalColor,
+    });
+  }
+
+  if (futureSorted.length > 0) {
+    datasets.push({
+      label: 'Forecast',
+      data: futureSorted.map(p => ({ x: p.x, y: p.y })),
+      borderColor: conditionalColor,
+      backgroundColor: 'rgba(15,118,110,0.06)',
+      borderWidth: 2,
+      borderDash: [6, 4],
       fill: false,
       tension: 0.25,
       pointRadius: pr,
@@ -141,6 +162,29 @@ export function MetricsTimeChart({
       }
       ctx.strokeStyle = 'rgba(139,92,246,0.25)';
       ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+    },
+  } : null;
+
+  // "Now" divider is drawn when a future forecast overlay is shown, so the user
+  // can tell at a glance where past logs end and projections begin.
+  const nowDivider: Plugin<'line'> | null = futureSorted.length > 0 ? {
+    id: 'nowDivider',
+    afterDatasetsDraw(chart) {
+      const xScale = chart.scales.x;
+      if (!xScale) return;
+      const nowMs = Date.now();
+      if (nowMs < xMin || nowMs > xMax) return;
+      const { ctx, chartArea } = chart;
+      const px = xScale.getPixelForValue(nowMs);
+      ctx.save();
+      ctx.beginPath();
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = 'rgba(127,127,127,0.45)';
+      ctx.lineWidth = 1;
+      ctx.moveTo(px, chartArea.top);
+      ctx.lineTo(px, chartArea.bottom);
       ctx.stroke();
       ctx.restore();
     },
@@ -210,7 +254,11 @@ export function MetricsTimeChart({
           title: (items) => {
             const item = items[0];
             if (!item) return '';
-            const source = item.dataset.label === 'Conditional' ? condSorted : sorted;
+            const source = item.dataset.label === 'Conditional'
+              ? condSorted
+              : item.dataset.label === 'Forecast'
+                ? futureSorted
+                : sorted;
             const p = source[item.dataIndex];
             return p ? formatTooltipTitle(p) : '';
           },
@@ -270,7 +318,7 @@ export function MetricsTimeChart({
     },
   };
 
-  const plugins = decayOverlay ? [decayOverlay] : undefined;
+  const plugins = [decayOverlay, nowDivider].filter((p): p is Plugin<'line'> => p !== null);
 
-  return <Line data={data} options={options} plugins={plugins} />;
+  return <Line data={data} options={options} plugins={plugins.length > 0 ? plugins : undefined} />;
 }
