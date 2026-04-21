@@ -20,6 +20,7 @@ import { sourcesRouter } from './routes/sources';
 import { guidesRouter } from './routes/guides';
 import { legalRouter } from './routes/legal';
 import { cronRouter } from './routes/cron';
+import { adminRouter } from './routes/admin';
 import { toNodeHandler } from 'better-auth/node';
 import { auth } from './auth';
 import type { Request, Response, NextFunction } from 'express';
@@ -158,6 +159,7 @@ app.get('/api/help', (_req, res) => {
       { method: 'POST', path: '/api/predictions/resolve', auth: 'admin', description: 'Resolve due markets. Proportional payout based on actual value position in range.' },
       { method: 'GET', path: '/api/events', auth: 'agent/admin', description: 'Event feed. Query: ?since=ISO_TIMESTAMP.' },
       { method: 'GET', path: '/api/events/hooks/status', auth: 'agent/admin', description: 'Hook watcher status: active, lastPolledAt, intervalMs, nextPollAt.' },
+      { method: 'GET', path: '/api/admin/activity', auth: 'admin', description: 'Unified realtime activity feed for the workspace: trades, deposits, withdrawals, market_created, market_resolved, metric_update, task_created, task_message, liquidity. Query: ?since=ISO (default 24h ago), ?until=ISO, ?limit=200 (max 500), ?types=trade,deposit (comma-separated), ?participantId, ?marketId, ?metricId, ?taskId. Returns { activities:[{id,type,timestamp,actor:{id,label}|null,marketId?,metricId?,taskId?,data}], supportedTypes, nextCursor }. Sorted newest-first. Poll with nextCursor as the next since.' },
       { method: 'POST', path: '/api/tasks', auth: 'agent/admin', description: 'Propose a task. Body: { title, description?, price }.' },
       { method: 'GET', path: '/api/tasks', auth: 'agent/admin', description: 'List tasks (compact). Query: ?status=pending|approved|declined.' },
       { method: 'GET', path: '/api/tasks/:id', auth: 'agent/admin', description: 'Task detail including conditional market summaries.' },
@@ -217,6 +219,7 @@ app.use('/api/metrics', metricsRouter);
 app.use('/api/updates', requireCapability('manage'), updatesRouter);
 app.use('/api/workspaces', workspacesRouter);
 app.use('/api/groups', groupsRouter);
+app.use('/api/admin', adminRouter);
 app.use('/api', systemRouter);
 
 app.use('/api', (req: Request, res: Response) => {

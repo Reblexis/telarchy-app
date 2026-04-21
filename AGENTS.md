@@ -112,7 +112,16 @@ Known working endpoints for debugging:
 
 Important: always rebuild functions before checking compiled output (`npm run build:functions`). The deploy script does this automatically but if you edit `.ts` files and check `lib/*.js` directly, recompile first or the compiled output will be stale.
 
-Currently we are using openclaw agents for betting, all openclaw configuration is in ~/.openclaw . 
+## Bot trading agents
+
+The market-making / forecasting bots live in a separate repo: **`~/src/telarchy-agents`**. It is a small Node/TypeScript service (systemd units under `~/src/telarchy-agents/systemd/`) that polls the Telarchy API, auto-discovers public workspaces, joins them as bot participants, and runs deterministic + LLM strategies (`anchor`, `momentum`, `stabilizer`, `blended`, `ai-analyst`, `ai-researcher`).
+
+- Service runs under the user's systemd session: `telarchy-agents-prod.service` targets `https://telarchy.com`; `telarchy-agents.service` targets local dev. Check status with `systemctl --user status telarchy-agents-prod.service` and logs at `/tmp/telarchy-agents-prod.log`.
+- Config via `.env.production` / `.env` in that repo (`TELARCHY_URL`, `TELARCHY_ADMIN_KEY`, `MULTI_WORKSPACE=1`, `POLL_INTERVAL_SECONDS`, etc.).
+- Multi-workspace mode discovers public workspaces via `GET /api/marketplace/workspaces/public` and joins each one via `POST /api/marketplace/:id/join` using each bot's own `X-Agent-Key`, the same flow any third-party agent uses. Trading rights come from the workspace's Public-group capabilities (Open workspaces grant Trader inherently); bots do not self-promote via admin key.
+
+There is no openclaw-based bot trading (the `~/.openclaw` scaffolding is unrelated; the earlier hook-watcher / skill references point at a deprecated integration path). If you need to change bot behaviour, edit `~/src/telarchy-agents/src/strategies/*.ts` and restart the service: `systemctl --user restart telarchy-agents-prod.service`.
+
 
 If modifying the api capabilities or otherwise changing behaviour of the backend relevant to api communication, always update the documentation and api help endpoint correspondingly as well as the skill description.
 
