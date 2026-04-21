@@ -9,6 +9,7 @@ import {
   Legend,
   type ChartData,
   type ChartOptions,
+  type Plugin,
 } from 'chart.js';
 import zoomPlugin from 'chartjs-plugin-zoom';
 import { Line } from 'react-chartjs-2';
@@ -88,43 +89,65 @@ export function MetricsTimeChart({
     });
   }
 
-  // Overlay TP decay weight curve on a hidden secondary y-axis
-  if (halfLifeYears && halfLifeYears > 0) {
-    const nowMs = Date.now();
-    const lambda = Math.LN2 / halfLifeYears;
-    const msPerYear = 365.25 * 24 * 60 * 60 * 1000;
-    const steps = 40;
-    const decayPoints = [];
-    for (let i = 0; i <= steps; i++) {
-      const x = xMin + (i / steps) * (xMax - xMin);
-      const yearsFromNow = (x - nowMs) / msPerYear;
-      // Weight is 1.0 at t=0, decays for future, clamps to 1.0 for past
-      const weight = yearsFromNow <= 0 ? 1.0 : Math.exp(-lambda * yearsFromNow);
-      decayPoints.push({ x, y: weight });
-    }
-    datasets.push({
-      label: 'Weight',
-      data: decayPoints,
-      borderColor: 'rgba(139,92,246,0.25)',
-      backgroundColor: 'rgba(139,92,246,0.05)',
-      borderWidth: 1,
-      fill: true,
-      tension: 0.4,
-      pointRadius: 0,
-      pointHoverRadius: 0,
-      pointHitRadius: 0,
-      yAxisID: 'yWeight',
-    });
-  }
-
   const data: ChartData<'line'> = { datasets };
+
+  // TP decay weight overlay is drawn as a chart plugin rather than a dataset so
+  // it does not participate in hit detection or tooltip resolution. Using a
+  // dataset caused index/nearest interaction modes to pick its 41 dense points
+  // as the nearest element, breaking point highlight and tooltip positioning.
+  const decayOverlay: Plugin<'line'> | null = halfLifeYears && halfLifeYears > 0 ? {
+    id: 'decayOverlay',
+    afterDatasetsDraw(chart) {
+      const xScale = chart.scales.x;
+      if (!xScale) return;
+      const { ctx, chartArea } = chart;
+      const nowMs = Date.now();
+      const lambda = Math.LN2 / halfLifeYears;
+      const msPerYear = 365.25 * 24 * 60 * 60 * 1000;
+      const steps = 40;
+      const top = chartArea.top;
+      const bottom = chartArea.bottom;
+      const height = bottom - top;
+      const weightAt = (x: number) => {
+        const yearsFromNow = (x - nowMs) / msPerYear;
+        return yearsFromNow <= 0 ? 1.0 : Math.exp(-lambda * yearsFromNow);
+      };
+      ctx.save();
+      ctx.beginPath();
+      for (let i = 0; i <= steps; i++) {
+        const x = xMin + (i / steps) * (xMax - xMin);
+        const px = xScale.getPixelForValue(x);
+        const py = bottom - weightAt(x) * height;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.lineTo(xScale.getPixelForValue(xMax), bottom);
+      ctx.lineTo(xScale.getPixelForValue(xMin), bottom);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(139,92,246,0.05)';
+      ctx.fill();
+      ctx.beginPath();
+      for (let i = 0; i <= steps; i++) {
+        const x = xMin + (i / steps) * (xMax - xMin);
+        const px = xScale.getPixelForValue(x);
+        const py = bottom - weightAt(x) * height;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.strokeStyle = 'rgba(139,92,246,0.25)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.restore();
+    },
+  } : null;
 
   const options: ChartOptions<'line'> = {
     responsive: true,
     maintainAspectRatio: false,
     animation: false,
     interaction: {
-      mode: 'index',
+      mode: 'nearest',
+      axis: 'x',
       intersect: false,
     },
     onHover: onPointClick
@@ -176,12 +199,12 @@ export function MetricsTimeChart({
         borderColor: tipBorder,
         borderWidth: 1,
         position: 'nearest',
-        filter: (item) => item.dataset.label !== 'Weight',
         callbacks: {
           title: (items) => {
-            const item = items.find(i => i.dataset.label === 'Current');
+            const item = items[0];
             if (!item) return '';
-            const p = sorted[item.dataIndex];
+            const source = item.dataset.label === 'Conditional' ? condSorted : sorted;
+            const p = source[item.dataIndex];
             return p ? formatTooltipTitle(p) : '';
           },
           label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y != null ? formatAxisValue(ctx.parsed.y) : ''}`,
@@ -237,16 +260,10 @@ export function MetricsTimeChart({
           callback: (v) => formatAxisValue(Number(v)),
         },
       },
-      ...(halfLifeYears ? {
-        yWeight: {
-          display: false,
-          min: 0,
-          max: 1,
-          position: 'right' as const,
-        },
-      } : {}),
     },
   };
 
-  return <Line data={data} options={options} />;
+  const plugins = decayOverlay ? [decayOverlay] : undefined;
+
+  return <Line data={data} options={options} plugins={plugins} />;
 }
