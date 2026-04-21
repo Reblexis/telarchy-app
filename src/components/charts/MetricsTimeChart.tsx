@@ -199,6 +199,8 @@ export function MetricsTimeChart({
         borderColor: tipBorder,
         borderWidth: 1,
         position: 'nearest',
+        yAlign: 'bottom',
+        caretPadding: 10,
         callbacks: {
           title: (items) => {
             const item = items[0];
