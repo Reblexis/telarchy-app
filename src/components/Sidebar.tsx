@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { useTheme } from '../hooks/useTheme';
+import { api } from '../lib/api';
 import { Logo } from './Logo';
 
 export function Sidebar({ className = '' }: { className?: string }) {
@@ -13,6 +14,7 @@ export function Sidebar({ className = '' }: { className?: string }) {
   const { theme, cycleTheme } = useTheme();
   const [workspaceNavOpen, setWorkspaceNavOpen] = useState(true);
   const [usdcEnabled, setUsdcEnabled] = useState(false);
+  const [balance, setBalance] = useState<number | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -21,6 +23,15 @@ export function Sidebar({ className = '' }: { className?: string }) {
       .then(s => setUsdcEnabled(Boolean((s as { usdcSettlementEnabled?: boolean }).usdcSettlementEnabled)))
       .catch(err => console.error('Failed to load public config for settlement flag', err));
   }, [user]);
+
+  useEffect(() => {
+    if (!user) { setBalance(null); return; }
+    let cancelled = false;
+    api.getParticipant()
+      .then(p => { if (!cancelled) setBalance((p as { balance?: number }).balance ?? null); })
+      .catch(err => console.error('Failed to load participant balance', err));
+    return () => { cancelled = true; };
+  }, [user, location.pathname]);
 
   const currentPath = location.pathname;
   const canAccessWorkspace = workspace?.tier && workspace.tier !== 'none';
@@ -157,8 +168,14 @@ export function Sidebar({ className = '' }: { className?: string }) {
                 marginTop: '0.25rem',
               }}
             >
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {user.name || user.email}
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '0.5rem' }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>
+                  {user.name || user.email}
+                </div>
+                <div style={{ fontFamily: 'monospace', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                  {balance == null ? '…' : balance.toFixed(2)}
+                  <span style={{ fontSize: '0.65rem', fontWeight: 400, color: 'var(--text-tertiary)', marginLeft: '0.25rem' }}>cr</span>
+                </div>
               </div>
               <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: '0.15rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {user.email}
