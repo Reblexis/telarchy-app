@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
@@ -7,11 +7,19 @@ import { cacheGet, cacheSet } from '../lib/cache';
 import { useInspectMode } from '../hooks/useInspectMode';
 import { previewTrade } from '../lib/amm';
 import { formatTargetDateDisplay, formatTimeRemaining, endOfPeriod } from '../lib/date-utils';
-import { useSortableRows, sortArrow } from '../lib/sort';
+import { useSortableRows } from '../lib/sort';
 import { HookStatus } from '../components/HookStatus';
 import { MarketActivityPanel } from '../components/MarketActivityPanel';
 import { ProbabilitySlider } from '../components/ProbabilitySlider';
 import type { Market, MarketStatus, Metric } from '../types';
+
+type SortKey = 'metric' | 'target' | 'prediction';
+
+const SORT_LABELS: Record<SortKey, string> = {
+  target: 'Target date',
+  metric: 'Metric',
+  prediction: 'Prediction',
+};
 
 export function MarketsPage() {
   const { user } = useAuth();
@@ -27,7 +35,7 @@ export function MarketsPage() {
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const [, setTick] = useState(0);
   useEffect(() => { const id = setInterval(() => setTick(t => t + 1), 60000); return () => clearInterval(id); }, []);
-  const [hoverDir, setHoverDir] = useState<Record<string, 'higher' | 'lower' | undefined>>({});
+  const [hoverDir] = useState<Record<string, 'higher' | 'lower' | undefined>>({});
 
   const [searchParams] = useSearchParams();
   const [filterText, setFilterText] = useState(() => searchParams.get('q') ?? '');
@@ -42,11 +50,13 @@ export function MarketsPage() {
   }, [searchParams]);
   const [bulkLiqAmount, setBulkLiqAmount] = useState('');
   const [bulkLiqResult, setBulkLiqResult] = useState('');
+
   const statusCounts = useMemo(() => {
     const counts: Record<MarketStatus | 'all', number> = { all: markets.length, open: 0, resolved: 0, voided: 0, closed: 0 };
     for (const m of markets) counts[m.status]++;
     return counts;
   }, [markets]);
+
   const filteredMarkets = useMemo(() => {
     let result = statusFilter === 'all' ? markets : markets.filter(m => m.status === statusFilter);
     if (filterText) {
@@ -59,7 +69,7 @@ export function MarketsPage() {
     return result;
   }, [markets, filterText, targetFilter, statusFilter]);
 
-  const { sorted: sortedMarkets, sort: marketSort, toggle: toggleMarketSort } = useSortableRows<Market, 'metric' | 'target' | 'prediction'>(
+  const { sorted: sortedMarkets, sort: marketSort, toggle: toggleMarketSort } = useSortableRows<Market, SortKey>(
     filteredMarkets,
     {
       metric: m => m.metricName.toLowerCase(),
@@ -94,7 +104,7 @@ export function MarketsPage() {
       const map = new Map<string, Metric>();
       for (const m of status.metrics) map.set(m.id, m);
       setMetricsMap(map);
-    }).catch(() => {});
+    }).catch((e: Error) => { console.error('Failed to load metric status', e); });
     setLoading(false);
   }, [user, inspectTask]);
 
@@ -148,159 +158,191 @@ export function MarketsPage() {
 
   if (!user) return null;
 
-  const thStyle = { padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' } as const;
+  const activeCount = markets.filter(m => m.active).length;
+  const bulkAmountParsed = parseFloat(bulkLiqAmount);
+  const bulkTotal = !isNaN(bulkAmountParsed) && bulkAmountParsed > 0 ? bulkAmountParsed * activeCount : null;
 
   return (
     <div className="container">
-        {isAdmin && (
-          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
-            <HookStatus />
-          </div>
-        )}
-        {error && <div className="message error show">{error}</div>}
-        {resolveResult && <div className="message success show">{resolveResult}</div>}
-        {bulkLiqResult && <div className="message success show">{bulkLiqResult}</div>}
+      {isAdmin && <div style={{ marginBottom: '1rem' }}><HookStatus /></div>}
+      {error && <div className="message error show">{error}</div>}
+      {resolveResult && <div className="message success show">{resolveResult}</div>}
+      {bulkLiqResult && <div className="message success show">{bulkLiqResult}</div>}
 
-        {loading ? (
-          <div className="loading">Loading markets...</div>
-        ) : markets.length === 0 ? (
-          <div className="section"><p style={{ color: 'var(--text-secondary)' }}>No markets.</p></div>
-        ) : (
-          <div className="section">
-            <div className="filter-bar">
-              <input type="text" value={filterText} onChange={e => setFilterText(e.target.value)} placeholder="Search metrics..."
-                style={{ width: '200px', height: '30px', fontSize: '0.85rem' }} />
+      {loading ? (
+        <div className="loading">Loading markets...</div>
+      ) : markets.length === 0 ? (
+        <div className="section">
+          <div className="section-header">
+            <h2>Markets</h2>
+            <p className="section-subtitle">No markets yet. Markets appear here once metrics have target dates to forecast.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="section">
+          <div className="section-header">
+            <h2>Markets</h2>
+            <p className="section-subtitle">
+              Prediction markets for this workspace's metrics. Tap a market to view its trade history and place orders.
+            </p>
+          </div>
+
+          <div className="markets-toolbar">
+            <div className="markets-filter-row">
+              <input
+                type="text"
+                value={filterText}
+                onChange={e => setFilterText(e.target.value)}
+                placeholder="Search metrics..."
+                className="markets-search"
+              />
               {targetFilter && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.2rem 0.5rem', fontSize: '0.8rem', background: 'var(--focus-bg)', border: '1px solid var(--focus-border)', borderRadius: 'var(--radius-sm)' }}>
+                <span className="markets-target-pill">
                   Target: {formatTargetDateDisplay(targetFilter)}
-                  <button
-                    type="button"
-                    onClick={() => setTargetFilter('')}
-                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '1rem', lineHeight: 1 }}
-                    title="Clear target filter"
-                    aria-label="Clear target filter"
-                  >
-                    ×
-                  </button>
+                  <button type="button" onClick={() => setTargetFilter('')} aria-label="Clear target filter">×</button>
                 </span>
               )}
-              <div style={{ display: 'flex', gap: '0.25rem' }}>
+              <div className="markets-chips">
                 {(['open', 'resolved', 'voided', 'closed', 'all'] as const).map(s => (
-                  <button key={s} className="btn-small"
-                    style={{ fontWeight: statusFilter === s ? 600 : 400, opacity: statusFilter === s ? 1 : 0.6, textTransform: 'capitalize' }}
-                    onClick={() => setStatusFilter(s)}>
-                    {s} ({statusCounts[s]})
+                  <button
+                    key={s}
+                    type="button"
+                    className={`markets-chip${statusFilter === s ? ' active' : ''}`}
+                    onClick={() => setStatusFilter(s)}
+                  >
+                    <span style={{ textTransform: 'capitalize' }}>{s}</span>
+                    <span className="markets-chip-count">{statusCounts[s]}</span>
                   </button>
                 ))}
               </div>
-              {isAdmin && (
-                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  {(() => {
-                    const activeCount = markets.filter(m => m.active).length;
-                    const a = parseFloat(bulkLiqAmount);
-                    const total = !isNaN(a) && a > 0 ? a * activeCount : null;
-                    return <>
-                      <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', margin: 0 }}>
-                        Fund all ({activeCount}):
-                      </label>
-                      <input type="number" value={bulkLiqAmount} onChange={e => setBulkLiqAmount(e.target.value)} placeholder="amount"
-                        style={{ width: '80px', height: '30px', fontSize: '0.85rem' }} />
-                      <button className="btn-small" onClick={handleBulkLiquidity} disabled={!bulkLiqAmount || parseFloat(bulkLiqAmount) <= 0}>
-                        {total !== null ? `Fund (${total} credits)` : 'Fund'}
-                      </button>
-                    </>;
-                  })()}
-                </div>
-              )}
             </div>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
-                  <th style={{ ...thStyle, cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleMarketSort('metric')}>Metric{sortArrow(marketSort.key === 'metric', marketSort.dir)}</th>
-                  <th style={{ ...thStyle, cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleMarketSort('target')}>Target Date{sortArrow(marketSort.key === 'target', marketSort.dir)}</th>
-                  <th style={{ ...thStyle, cursor: 'pointer', userSelect: 'none' }} onClick={() => toggleMarketSort('prediction')}>Prediction{sortArrow(marketSort.key === 'prediction', marketSort.dir)}</th>
-                  <th style={thStyle}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedMarkets.map(m => (
-                  <React.Fragment key={m.id}>
-                    <tr
-                      style={{ borderBottom: expandedIds.includes(m.id) ? 'none' : '1px solid var(--border-color)', cursor: 'pointer' }}
-                      onClick={() => setExpandedIds(prev => prev.includes(m.id) ? prev.filter(id => id !== m.id) : [...prev, m.id])}
+
+            <div className="markets-filter-row">
+              <div className="markets-sort">
+                <span className="markets-sort-label">Sort</span>
+                {(Object.keys(SORT_LABELS) as SortKey[]).map(key => {
+                  const isActive = marketSort.key === key;
+                  const arrow = isActive ? (marketSort.dir === 'asc' ? ' ↑' : ' ↓') : '';
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      className={`markets-sort-btn${isActive ? ' active' : ''}`}
+                      onClick={() => toggleMarketSort(key)}
                     >
-                      <td style={{ padding: '0.75rem 0.5rem', fontWeight: 600 }}>
-                        {m.metricName}
-                        {m.status !== 'open' && <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', fontWeight: 500, color: m.status === 'resolved' ? 'var(--success-text, #22c55e)' : m.status === 'voided' ? 'var(--warning-text, #f59e0b)' : 'var(--text-secondary)', background: 'var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '0.1rem 0.35rem', verticalAlign: 'middle' }}>{m.status}</span>}
-                      </td>
-                      <td style={{ padding: '0.75rem 0.5rem', fontFamily: 'monospace' }}>
-                        {formatTargetDateDisplay(m.targetDate)}
-                        {m.status === 'open' && (
-                          <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', color: formatTimeRemaining(m.targetDate) === 'expired' ? 'var(--delete-color, #ef4444)' : 'var(--text-secondary)', opacity: 0.8 }}>
-                            {formatTimeRemaining(m.targetDate)}
-                          </span>
-                        )}
-                      </td>
-                      <td style={{ padding: '0.75rem 0.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <ProbabilitySlider
-                            probability={m.probability}
-                            rangeMin={m.rangeMin}
-                            rangeMax={m.rangeMax}
-                            previewProb={hoverDir[m.id] ? previewTrade(m.probability, m.liquidity, hoverDir[m.id]!, 50).newProb : undefined}
-                          />
-                          <span style={{ fontFamily: 'monospace', fontWeight: 600, minWidth: '42px' }}>{m.consensus ?? '-'}</span>
-                          {inspectTask && (() => {
-                            const main = mainMarketsMap.get(`${m.metricId}:${m.targetDate}`);
-                            if (!main || m.consensus === null || main.consensus === null) return null;
-                            const delta = m.consensus - main.consensus;
-                            if (Math.abs(delta) < 0.005) return null;
-                            return (
-                              <span style={{ fontSize: '0.72rem', color: delta > 0 ? 'var(--success-text)' : 'var(--error-text)', fontFamily: 'monospace' }}>
-                                {delta > 0 ? '▲' : '▼'}{Math.abs(delta).toFixed(2)}
-                                <span style={{ color: 'var(--text-secondary)', marginLeft: '0.2rem' }}>({main.consensus})</span>
-                              </span>
-                            );
-                          })()}
-                        </div>
-                      </td>
-                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        {isAdmin && <>
-                          <button className="btn-small" style={{ color: 'var(--accent-color, #3b82f6)', marginRight: '0.25rem' }}
-                            onClick={(e) => { e.stopPropagation(); handleResolveOne(m.id); }}>Close</button>
-                          {m.tradeCount === 0 ? (
-                            <button className="btn-small" style={{ color: 'var(--delete-color, #ef4444)' }}
-                              onClick={(e) => { e.stopPropagation(); handleDelete(m.id); }}>Delete</button>
-                          ) : (
-                            <button className="btn-small" style={{ color: 'var(--text-secondary)' }}
-                              onClick={(e) => { e.stopPropagation(); handleVoid(m.id); }}>Cancel</button>
-                          )}
-                        </>}
-                      </td>
-                    </tr>
-                    {expandedIds.includes(m.id) && (
-                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        <td colSpan={4} style={{ padding: '0 0.5rem 0.75rem' }}>
-                          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
-                            {m.status === 'open' ? 'Trading is performed in the marketplace.' :
-                             m.status === 'resolved' ? `Resolved at ${m.actualValue?.toFixed(2) ?? 'N/A'} on ${m.resolvedAt ? new Date(m.resolvedAt).toLocaleDateString() : 'unknown'}.` :
-                             m.status === 'voided' ? 'This market was cancelled. All positions were refunded at cost.' :
-                             'Trading is halted (metric no longer schedules this target date), but positions are retained and will resolve normally when the target date passes.'}
-                          </p>
-                          <MarketActivityPanel
-                            market={m}
-                            onError={setError}
-                            metricValue={metricsMap.get(m.metricId)?.total}
-                          />
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                ))}
-              </tbody>
-            </table>
+                      {SORT_LABELS[key]}{arrow}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {isAdmin && (
+              <div className="markets-admin-row">
+                <label>Fund all open markets ({activeCount}):</label>
+                <input
+                  type="number"
+                  value={bulkLiqAmount}
+                  onChange={e => setBulkLiqAmount(e.target.value)}
+                  placeholder="amount"
+                />
+                <button
+                  className="btn-small"
+                  onClick={handleBulkLiquidity}
+                  disabled={!bulkLiqAmount || bulkAmountParsed <= 0}
+                >
+                  {bulkTotal !== null ? `Fund (${bulkTotal} credits)` : 'Fund'}
+                </button>
+              </div>
+            )}
           </div>
-        )}
+
+          {sortedMarkets.length === 0 ? (
+            <div className="markets-empty">No markets match the current filters.</div>
+          ) : (
+            <div className="markets-list">
+              {sortedMarkets.map(m => {
+                const expanded = expandedIds.includes(m.id);
+                const timeRemaining = m.status === 'open' ? formatTimeRemaining(m.targetDate) : null;
+                const expired = timeRemaining === 'expired';
+                const main = inspectTask ? mainMarketsMap.get(`${m.metricId}:${m.targetDate}`) : null;
+                const delta = main && m.consensus !== null && main.consensus !== null && Math.abs(m.consensus - main.consensus) >= 0.005
+                  ? m.consensus - main.consensus
+                  : null;
+
+                return (
+                  <div
+                    key={m.id}
+                    className={`market-card${expanded ? ' expanded' : ''}`}
+                    onClick={() => setExpandedIds(prev => prev.includes(m.id) ? prev.filter(id => id !== m.id) : [...prev, m.id])}
+                  >
+                    <div className="market-card-head">
+                      <span className="market-metric-name">{m.metricName}</span>
+                      <span className={`market-status-badge market-status-${m.status}`}>{m.status}</span>
+                    </div>
+
+                    <div className="market-card-meta">
+                      <span>{formatTargetDateDisplay(m.targetDate)}</span>
+                      {timeRemaining && (
+                        <>
+                          <span className="dot">·</span>
+                          <span className={`time-remaining${expired ? ' expired' : ''}`}>{timeRemaining}</span>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="market-card-prediction">
+                      <div className="slider-wrap">
+                        <ProbabilitySlider
+                          probability={m.probability}
+                          rangeMin={m.rangeMin}
+                          rangeMax={m.rangeMax}
+                          previewProb={hoverDir[m.id] ? previewTrade(m.probability, m.liquidity, hoverDir[m.id]!, 50).newProb : undefined}
+                          fullWidth
+                        />
+                      </div>
+                      <span className="market-consensus">{m.consensus ?? '-'}</span>
+                      {delta !== null && main && main.consensus !== null && (
+                        <span className={`market-delta ${delta > 0 ? 'pos' : 'neg'}`}>
+                          {delta > 0 ? '▲' : '▼'}{Math.abs(delta).toFixed(2)}
+                          <span className="market-delta-baseline">({main.consensus})</span>
+                        </span>
+                      )}
+                    </div>
+
+                    {isAdmin && (
+                      <div className="market-card-actions" onClick={e => e.stopPropagation()}>
+                        <button className="btn-small" onClick={() => handleResolveOne(m.id)}>Close</button>
+                        {m.tradeCount === 0 ? (
+                          <button className="btn-small" onClick={() => handleDelete(m.id)}>Delete</button>
+                        ) : (
+                          <button className="btn-small" onClick={() => handleVoid(m.id)}>Cancel</button>
+                        )}
+                      </div>
+                    )}
+
+                    {expanded && (
+                      <div className="market-card-expanded" onClick={e => e.stopPropagation()}>
+                        <p>
+                          {m.status === 'open' ? 'Trading is performed in the marketplace.' :
+                           m.status === 'resolved' ? `Resolved at ${m.actualValue?.toFixed(2) ?? 'N/A'} on ${m.resolvedAt ? new Date(m.resolvedAt).toLocaleDateString() : 'unknown'}.` :
+                           m.status === 'voided' ? 'This market was cancelled. All positions were refunded at cost.' :
+                           'Trading is halted (metric no longer schedules this target date), but positions are retained and will resolve normally when the target date passes.'}
+                        </p>
+                        <MarketActivityPanel
+                          market={m}
+                          onError={setError}
+                          metricValue={metricsMap.get(m.metricId)?.total}
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

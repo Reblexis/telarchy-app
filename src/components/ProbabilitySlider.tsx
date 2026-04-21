@@ -1,10 +1,10 @@
-export function ProbabilitySlider({ probability, rangeMin, rangeMax, previewProb }: {
-  probability: number; rangeMin: number; rangeMax: number; previewProb?: number;
+export function ProbabilitySlider({ probability, rangeMin, rangeMax, previewProb, fullWidth }: {
+  probability: number; rangeMin: number; rangeMax: number; previewProb?: number; fullWidth?: boolean;
 }) {
   const pct = probability * 100;
   const prevPct = previewProb !== undefined ? previewProb * 100 : undefined;
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: '120px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', width: fullWidth ? '100%' : '120px', minWidth: fullWidth ? 0 : undefined }}>
       <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', minWidth: '28px', textAlign: 'right' }}>{rangeMin}</span>
       <div style={{ flex: 1, height: '8px', background: 'var(--border-color)', borderRadius: 'var(--radius-sm)', position: 'relative' }}>
         {prevPct !== undefined && (
