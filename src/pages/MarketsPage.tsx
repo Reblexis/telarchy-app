@@ -277,49 +277,51 @@ export function MarketsPage() {
                     onClick={() => setExpandedIds(prev => prev.includes(m.id) ? prev.filter(id => id !== m.id) : [...prev, m.id])}
                   >
                     <div className="market-card-head">
-                      <span className="market-metric-name">{m.metricName}</span>
-                      <span className={`market-status-badge market-status-${m.status}`}>{m.status}</span>
-                    </div>
-
-                    <div className="market-card-meta">
-                      <span>{formatTargetDateDisplay(m.targetDate)}</span>
-                      {timeRemaining && (
-                        <>
-                          <span className="dot">·</span>
-                          <span className={`time-remaining${expired ? ' expired' : ''}`}>{timeRemaining}</span>
-                        </>
-                      )}
-                    </div>
-
-                    <div className="market-card-prediction">
-                      <div className="slider-wrap">
-                        <ProbabilitySlider
-                          probability={m.probability}
-                          rangeMin={m.rangeMin}
-                          rangeMax={m.rangeMax}
-                          previewProb={hoverDir[m.id] ? previewTrade(m.probability, m.liquidity, hoverDir[m.id]!, 50).newProb : undefined}
-                          fullWidth
-                        />
+                      <div className="market-head-name">
+                        <span className="market-metric-name">{m.metricName}</span>
+                        <span className={`market-status-badge market-status-${m.status}`}>{m.status}</span>
                       </div>
-                      <span className="market-consensus">{m.consensus ?? '-'}</span>
-                      {delta !== null && main && main.consensus !== null && (
-                        <span className={`market-delta ${delta > 0 ? 'pos' : 'neg'}`}>
-                          {delta > 0 ? '▲' : '▼'}{Math.abs(delta).toFixed(2)}
-                          <span className="market-delta-baseline">({main.consensus})</span>
-                        </span>
-                      )}
-                    </div>
 
-                    {isAdmin && (
-                      <div className="market-card-actions" onClick={e => e.stopPropagation()}>
-                        <button className="btn-small" onClick={() => handleResolveOne(m.id)}>Close</button>
-                        {m.tradeCount === 0 ? (
-                          <button className="btn-small" onClick={() => handleDelete(m.id)}>Delete</button>
-                        ) : (
-                          <button className="btn-small" onClick={() => handleVoid(m.id)}>Cancel</button>
+                      <div className="market-head-target">
+                        <span>{formatTargetDateDisplay(m.targetDate)}</span>
+                        {timeRemaining && (
+                          <>
+                            <span className="dot">·</span>
+                            <span className={`time-remaining${expired ? ' expired' : ''}`}>{timeRemaining}</span>
+                          </>
                         )}
                       </div>
-                    )}
+
+                      <div className="market-head-prediction">
+                        <div className="slider-wrap">
+                          <ProbabilitySlider
+                            probability={m.probability}
+                            rangeMin={m.rangeMin}
+                            rangeMax={m.rangeMax}
+                            previewProb={hoverDir[m.id] ? previewTrade(m.probability, m.liquidity, hoverDir[m.id]!, 50).newProb : undefined}
+                            fullWidth
+                          />
+                        </div>
+                        <span className="market-consensus">{m.consensus ?? '-'}</span>
+                        {delta !== null && main && main.consensus !== null && (
+                          <span className={`market-delta ${delta > 0 ? 'pos' : 'neg'}`}>
+                            {delta > 0 ? '▲' : '▼'}{Math.abs(delta).toFixed(2)}
+                            <span className="market-delta-baseline">({main.consensus})</span>
+                          </span>
+                        )}
+                      </div>
+
+                      {isAdmin && (
+                        <div className="market-head-actions" onClick={e => e.stopPropagation()}>
+                          <button className="btn-small" onClick={() => handleResolveOne(m.id)}>Close</button>
+                          {m.tradeCount === 0 ? (
+                            <button className="btn-small" onClick={() => handleDelete(m.id)}>Delete</button>
+                          ) : (
+                            <button className="btn-small" onClick={() => handleVoid(m.id)}>Cancel</button>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
                     {expanded && (
                       <div className="market-card-expanded" onClick={e => e.stopPropagation()}>
