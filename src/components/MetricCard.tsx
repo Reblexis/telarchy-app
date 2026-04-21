@@ -1,5 +1,5 @@
 import { useMemo, useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import type { Metric } from '../types';
 import type { FormulaWarning } from '../lib/metrics-engine';
 import { MetricsTimeChart } from './charts/MetricsTimeChart';
@@ -18,6 +18,7 @@ interface MetricCardProps {
 }
 
 export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus, onGraph, onEdit, onDelete, onValueChange }: MetricCardProps) {
+  const navigate = useNavigate();
   const isLeaf = !metric.formula || metric.formula.trim() === '0';
   const hasTP = metric.timePreference?.enabled === true;
   const overlayHalfLife = hasTP ? metric.timePreference!.halfLife : metric.inheritedHalfLife;
@@ -155,6 +156,12 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
               rangeMin={metric.marketRangeMax !== undefined ? 0 : undefined}
               rangeMax={metric.marketRangeMax}
               halfLifeYears={overlayHalfLife}
+              onPointClick={(point) => {
+                const params = new URLSearchParams();
+                if (isLeaf) params.set('q', metric.name);
+                params.set('target', point.label);
+                navigate(`/markets?${params.toString()}`);
+              }}
             />
           </div>
         )}

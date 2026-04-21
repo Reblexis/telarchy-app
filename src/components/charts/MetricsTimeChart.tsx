@@ -26,10 +26,12 @@ export interface MetricsTimeChartProps {
   rangeMax?: number;
   /** Time preference half-life in years. When set, overlays a subtle decay weight curve. */
   halfLifeYears?: number;
+  /** Invoked when the user clicks a data point. Receives the underlying ChartPoint. */
+  onPointClick?: (point: ChartPoint) => void;
 }
 
 export function MetricsTimeChart({
-  points, conditionalPoints, mode, variant, rangeMin, rangeMax, halfLifeYears,
+  points, conditionalPoints, mode, variant, rangeMin, rangeMax, halfLifeYears, onPointClick,
 }: MetricsTimeChartProps) {
   const currentColor = '#3b82f6';
   const conditionalColor = '#f59e0b';
@@ -124,6 +126,30 @@ export function MetricsTimeChart({
       mode: 'index',
       intersect: false,
     },
+    onHover: onPointClick
+      ? (event, elements) => {
+          const target = event.native?.target as HTMLElement | undefined;
+          if (!target) return;
+          const hit = elements.find(el => {
+            const label = data.datasets[el.datasetIndex]?.label;
+            return label === 'Current' || label === 'Conditional';
+          });
+          target.style.cursor = hit ? 'pointer' : 'default';
+        }
+      : undefined,
+    onClick: onPointClick
+      ? (_event, elements) => {
+          const hit = elements.find(el => {
+            const label = data.datasets[el.datasetIndex]?.label;
+            return label === 'Current' || label === 'Conditional';
+          });
+          if (!hit) return;
+          const label = data.datasets[hit.datasetIndex]?.label;
+          const src = label === 'Conditional' ? condSorted : sorted;
+          const point = src[hit.index];
+          if (point) onPointClick(point);
+        }
+      : undefined,
     plugins: {
       legend: { display: false },
       tooltip: {

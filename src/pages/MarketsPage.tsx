@@ -31,7 +31,15 @@ export function MarketsPage() {
 
   const [searchParams] = useSearchParams();
   const [filterText, setFilterText] = useState(() => searchParams.get('q') ?? '');
-  const [statusFilter, setStatusFilter] = useState<MarketStatus | 'all'>('open');
+  const [targetFilter, setTargetFilter] = useState(() => searchParams.get('target') ?? '');
+  const [statusFilter, setStatusFilter] = useState<MarketStatus | 'all'>(() => searchParams.get('target') ? 'all' : 'open');
+  useEffect(() => {
+    const q = searchParams.get('q') ?? '';
+    const t = searchParams.get('target') ?? '';
+    setFilterText(q);
+    setTargetFilter(t);
+    if (t) setStatusFilter('all');
+  }, [searchParams]);
   const [bulkLiqAmount, setBulkLiqAmount] = useState('');
   const [bulkLiqResult, setBulkLiqResult] = useState('');
   const statusCounts = useMemo(() => {
@@ -45,8 +53,11 @@ export function MarketsPage() {
       const q = filterText.toLowerCase();
       result = result.filter(m => m.metricName.toLowerCase().includes(q));
     }
+    if (targetFilter) {
+      result = result.filter(m => m.targetDate === targetFilter);
+    }
     return result;
-  }, [markets, filterText, statusFilter]);
+  }, [markets, filterText, targetFilter, statusFilter]);
 
   const { sorted: sortedMarkets, sort: marketSort, toggle: toggleMarketSort } = useSortableRows<Market, 'metric' | 'target' | 'prediction'>(
     filteredMarkets,
@@ -88,6 +99,17 @@ export function MarketsPage() {
   }, [user, inspectTask]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!targetFilter || markets.length === 0) return;
+    const matches = markets.filter(m => m.targetDate === targetFilter && (!filterText || m.metricName.toLowerCase().includes(filterText.toLowerCase())));
+    if (matches.length === 0) return;
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      for (const m of matches) next.add(m.id);
+      return Array.from(next);
+    });
+  }, [targetFilter, filterText, markets]);
 
   const handleDelete = async (id: string) => {
     if (!user) return;
@@ -148,6 +170,20 @@ export function MarketsPage() {
             <div className="filter-bar">
               <input type="text" value={filterText} onChange={e => setFilterText(e.target.value)} placeholder="Search metrics..."
                 style={{ width: '200px', height: '30px', fontSize: '0.85rem' }} />
+              {targetFilter && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.2rem 0.5rem', fontSize: '0.8rem', background: 'var(--focus-bg)', border: '1px solid var(--focus-border)', borderRadius: 'var(--radius-sm)' }}>
+                  Target: {formatTargetDateDisplay(targetFilter)}
+                  <button
+                    type="button"
+                    onClick={() => setTargetFilter('')}
+                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-secondary)', fontSize: '1rem', lineHeight: 1 }}
+                    title="Clear target filter"
+                    aria-label="Clear target filter"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
               <div style={{ display: 'flex', gap: '0.25rem' }}>
                 {(['open', 'resolved', 'voided', 'closed', 'all'] as const).map(s => (
                   <button key={s} className="btn-small"
