@@ -127,26 +127,42 @@ export function MetricsTimeChart({
       intersect: false,
     },
     onHover: onPointClick
-      ? (event, elements) => {
+      ? (event, _elements, chart) => {
           const target = event.native?.target as HTMLElement | undefined;
           if (!target) return;
-          const hit = elements.find(el => {
-            const label = data.datasets[el.datasetIndex]?.label;
-            return label === 'Current' || label === 'Conditional';
-          });
-          target.style.cursor = hit ? 'pointer' : 'default';
+          const canvas = chart.canvas;
+          const rect = canvas.getBoundingClientRect();
+          const native = event.native as MouseEvent | undefined;
+          if (!native) { target.style.cursor = 'default'; return; }
+          const px = native.clientX - rect.left;
+          const py = native.clientY - rect.top;
+          const inArea = px >= chart.chartArea.left && px <= chart.chartArea.right
+            && py >= chart.chartArea.top && py <= chart.chartArea.bottom;
+          target.style.cursor = inArea ? 'pointer' : 'default';
         }
       : undefined,
     onClick: onPointClick
-      ? (_event, elements) => {
-          const hit = elements.find(el => {
-            const label = data.datasets[el.datasetIndex]?.label;
-            return label === 'Current' || label === 'Conditional';
-          });
-          if (!hit) return;
-          const label = data.datasets[hit.datasetIndex]?.label;
-          const src = label === 'Conditional' ? condSorted : sorted;
-          const point = src[hit.index];
+      ? (event, _elements, chart) => {
+          const native = event.native as MouseEvent | undefined;
+          if (!native) return;
+          const rect = chart.canvas.getBoundingClientRect();
+          const px = native.clientX - rect.left;
+          if (px < chart.chartArea.left || px > chart.chartArea.right) return;
+          const xScale = chart.scales.x;
+          if (!xScale) return;
+          const xValue = xScale.getValueForPixel(px);
+          if (xValue === undefined) return;
+          const pickNearest = (pts: ChartPoint[]) => {
+            if (pts.length === 0) return null;
+            let best = pts[0];
+            let bestDist = Math.abs(pts[0].x - xValue);
+            for (let i = 1; i < pts.length; i++) {
+              const d = Math.abs(pts[i].x - xValue);
+              if (d < bestDist) { best = pts[i]; bestDist = d; }
+            }
+            return best;
+          };
+          const point = pickNearest(sorted);
           if (point) onPointClick(point);
         }
       : undefined,
