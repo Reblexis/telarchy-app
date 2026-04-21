@@ -53,10 +53,10 @@ export function formatXAxisTick(ms: number, spanMs: number): string {
   if (spanMs <= dayMs * 45) {
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   }
-  if (spanMs <= dayMs * 540) {
-    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short' });
-  }
-  return d.toLocaleDateString(undefined, { year: 'numeric' });
+  // Always include both year and month once the span crosses ~45 days. Using
+  // year-only at multi-year spans caused adjacent sub-year ticks to collapse to
+  // duplicate year labels.
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short' });
 }
 
 export function buildPointsFromTimeSeries(series: Array<{ date: string; value: number }>): ChartPoint[] {

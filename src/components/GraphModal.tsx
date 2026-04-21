@@ -87,8 +87,6 @@ export function GraphModal({ metric, interval, isInspectMode, loadLogs, onClose 
                 futurePoints={effectiveFuture}
                 mode={isInspectMode ? 'inspect' : 'normal'}
                 variant="modal"
-                rangeMin={metric.marketRangeMax !== undefined ? 0 : undefined}
-                rangeMax={metric.marketRangeMax}
               />
             </div>
           )}

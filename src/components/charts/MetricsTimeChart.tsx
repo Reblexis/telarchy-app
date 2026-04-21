@@ -63,7 +63,7 @@ export function MetricsTimeChart({
   const allX = [...sorted.map(p => p.x), ...condSorted.map(p => p.x), ...futureSorted.map(p => p.x)];
   const xMin = Math.min(...allX);
   const xMax = Math.max(...allX);
-  const spanMs = inferSpanMs(sorted.length > 0 ? sorted : futureSorted);
+  const spanMs = Math.max(1, xMax - xMin);
 
   const pr = variant === 'modal' ? 4 : 3;
   const phr = variant === 'modal' ? 7 : 6;
@@ -292,7 +292,7 @@ export function MetricsTimeChart({
       },
       y: {
         ...(() => {
-          const allY = [...sorted, ...condSorted].map(p => p.y);
+          const allY = [...sorted, ...condSorted, ...futureSorted].map(p => p.y);
           const dataMin = Math.min(...allY);
           const dataMax = Math.max(...allY);
           const dataSpan = dataMax - dataMin;
