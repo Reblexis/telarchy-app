@@ -1,33 +1,177 @@
-/* ===== CSS Variables ===== */
+@import "tailwindcss";
+
+/* ===== Design tokens =====
+   Palette: "ink on bone with an ember accent."
+   Ink = near-black for primary text and solid buttons.
+   Bone = warm off-white surface, softer than pure white.
+   Ember = amber accent for CTAs, active states, and focus rings.
+   Mono for numerics (calibrated, precise), serif display for headings
+   (telos, governance, craft), Inter for all UI text.
+*/
 :root {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f7f7f8;
-  --bg-tertiary: #ededf0;
-  --text-primary: #18181b;
-  --text-secondary: #52525b;
-  --text-tertiary: #a1a1aa;
-  --border-color: #e4e4e7;
-  --border-hover: #18181b;
-  --button-bg: #18181b;
-  --button-text: #ffffff;
-  --button-secondary-bg: #f7f7f8;
-  --error-bg: #fef2f2;
-  --error-text: #b91c1c;
-  --success-bg: #f0fdf4;
-  --success-text: #15803d;
-  --focus-bg: #eff6ff;
-  --focus-border: #2563eb;
-  --delete-color: #dc2626;
-  --modal-overlay: rgba(0, 0, 0, 0.4);
-  --graph-bg: #f7f7f8;
+  /* Surfaces */
+  --bg-primary: #fbf9f4;        /* bone */
+  --bg-secondary: #f3efe6;      /* darker bone */
+  --bg-tertiary: #e8e3d6;       /* deepest bone */
+  --bg-elevated: #ffffff;       /* elevated cards */
+
+  /* Text */
+  --text-primary: #17171c;      /* ink */
+  --text-secondary: #4a4a55;    /* slate */
+  --text-tertiary: #8a8a96;     /* muted slate */
+
+  /* Borders */
+  --border-color: #e3ddcd;
+  --border-strong: #cfc7b3;
+  --border-hover: #17171c;
+
+  /* Primary (ink button) */
+  --button-bg: #17171c;
+  --button-bg-hover: #2a2a33;
+  --button-text: #fbf9f4;
+  --button-secondary-bg: #f3efe6;
+
+  /* Accent (ember) */
+  --accent: #b45309;            /* amber-700 */
+  --accent-hover: #92400e;      /* amber-800 */
+  --accent-soft: #fef3c7;       /* amber-100 */
+  --accent-ring: rgba(180, 83, 9, 0.18);
+  --accent-text: #78350f;       /* amber-900 */
+
+  /* Semantic */
+  --error-bg: #fdecec;
+  --error-text: #a5192c;
+  --success-bg: #e9f6ee;
+  --success-text: #12693d;
+  --focus-bg: var(--accent-soft);
+  --focus-border: var(--accent);
+  --delete-color: #a5192c;
+
+  /* Market directions */
+  --higher: #12693d;
+  --lower: #a5192c;
+  --higher-soft: rgba(18, 105, 61, 0.10);
+  --lower-soft: rgba(165, 25, 44, 0.09);
+
+  /* Modals + graphs */
+  --modal-overlay: rgba(17, 17, 22, 0.45);
+  --graph-bg: #f3efe6;
+
+  /* Radii (slightly softer than before) */
+  --radius-xs: 4px;
   --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
-  --transition-fast: 0.15s ease;
-  --transition-base: 0.2s ease;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  /* Shadows (layered, subtle) */
+  --shadow-sm: 0 1px 2px rgba(17, 17, 22, 0.05);
+  --shadow-md: 0 6px 18px -6px rgba(17, 17, 22, 0.12), 0 2px 4px -2px rgba(17, 17, 22, 0.06);
+  --shadow-lg: 0 16px 40px -12px rgba(17, 17, 22, 0.22), 0 4px 8px -4px rgba(17, 17, 22, 0.08);
+
+  /* Motion */
+  --transition-fast: 0.14s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Typography */
+  --font-display: "Fraunces", ui-serif, Georgia, Cambria, "Times New Roman", serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace;
+}
+
+/* Dark theme (auto + opt-in). Inverts ink/bone but keeps ember readable. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg-primary: #101013;
+    --bg-secondary: #17171c;
+    --bg-tertiary: #1f1f26;
+    --bg-elevated: #1a1a20;
+
+    --text-primary: #f2ecdc;
+    --text-secondary: #b5b1a3;
+    --text-tertiary: #7b7873;
+
+    --border-color: #2a2a32;
+    --border-strong: #3a3a43;
+    --border-hover: #f2ecdc;
+
+    --button-bg: #f2ecdc;
+    --button-bg-hover: #e4ddc8;
+    --button-text: #101013;
+    --button-secondary-bg: #17171c;
+
+    --accent: #f59e0b;          /* amber-500, brighter on dark */
+    --accent-hover: #fbbf24;
+    --accent-soft: rgba(245, 158, 11, 0.14);
+    --accent-ring: rgba(245, 158, 11, 0.28);
+    --accent-text: #fcd34d;
+
+    --error-bg: rgba(165, 25, 44, 0.14);
+    --error-text: #fda4af;
+    --success-bg: rgba(18, 105, 61, 0.14);
+    --success-text: #86efac;
+
+    --higher: #4ade80;
+    --lower: #f87171;
+    --higher-soft: rgba(74, 222, 128, 0.12);
+    --lower-soft: rgba(248, 113, 113, 0.12);
+
+    --modal-overlay: rgba(0, 0, 0, 0.6);
+    --graph-bg: #17171c;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 6px 18px -6px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 16px 40px -12px rgba(0, 0, 0, 0.7), 0 4px 8px -4px rgba(0, 0, 0, 0.4);
+  }
+}
+
+[data-theme="dark"] {
+  --bg-primary: #101013;
+  --bg-secondary: #17171c;
+  --bg-tertiary: #1f1f26;
+  --bg-elevated: #1a1a20;
+  --text-primary: #f2ecdc;
+  --text-secondary: #b5b1a3;
+  --text-tertiary: #7b7873;
+  --border-color: #2a2a32;
+  --border-strong: #3a3a43;
+  --border-hover: #f2ecdc;
+  --button-bg: #f2ecdc;
+  --button-bg-hover: #e4ddc8;
+  --button-text: #101013;
+  --button-secondary-bg: #17171c;
+  --accent: #f59e0b;
+  --accent-hover: #fbbf24;
+  --accent-soft: rgba(245, 158, 11, 0.14);
+  --accent-ring: rgba(245, 158, 11, 0.28);
+  --accent-text: #fcd34d;
+  --error-bg: rgba(165, 25, 44, 0.14);
+  --error-text: #fda4af;
+  --success-bg: rgba(18, 105, 61, 0.14);
+  --success-text: #86efac;
+  --higher: #4ade80;
+  --lower: #f87171;
+  --higher-soft: rgba(74, 222, 128, 0.12);
+  --lower-soft: rgba(248, 113, 113, 0.12);
+  --modal-overlay: rgba(0, 0, 0, 0.6);
+  --graph-bg: #17171c;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 6px 18px -6px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 16px 40px -12px rgba(0, 0, 0, 0.7), 0 4px 8px -4px rgba(0, 0, 0, 0.4);
+}
+
+/* Expose tokens to Tailwind v4 so utilities like bg-ink, text-ember work. */
+@theme {
+  --color-ink: #17171c;
+  --color-bone: #fbf9f4;
+  --color-ember: #b45309;
+  --color-ember-soft: #fef3c7;
+  --color-slate-muted: #4a4a55;
+  --color-higher: #12693d;
+  --color-lower: #a5192c;
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 
@@ -38,13 +182,38 @@
   box-sizing: border-box;
 }
 
+*::selection {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  line-height: 1.6;
+  font-family: var(--font-sans);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  line-height: 1.55;
   color: var(--text-primary);
   background: var(--bg-primary);
   min-height: 100vh;
   padding: 2rem;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (max-width: 768px) {
+  body {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    padding: 0.75rem;
+  }
 }
 
 body:has(.app-layout) {
@@ -193,12 +362,38 @@ body:has(.app-layout) {
   gap: 1rem;
 }
 
-h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  letter-spacing: -0.03em;
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
   color: var(--text-primary);
-  white-space: nowrap;
+}
+
+h1 {
+  font-size: clamp(1.5rem, 2.5vw + 0.5rem, 2rem);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+}
+
+h2 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+h3 {
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+
+/* Mono-numeric helper for everywhere a metric value appears */
+.num,
+.metric-value,
+.stat-card-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 .header-nav {
@@ -734,7 +929,7 @@ textarea {
 input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--focus-border);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px var(--accent-ring);
 }
 
 input::placeholder, textarea::placeholder {
@@ -765,7 +960,7 @@ input[type="number"] {
 }
 
 .btn:hover {
-  background: #333;
+  background: var(--button-bg-hover);
   box-shadow: var(--shadow-sm);
 }
 
@@ -1065,7 +1260,7 @@ input[type="number"] {
 }
 
 .tp-switch input:focus-visible + .tp-slider {
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 0 0 3px var(--accent-ring);
 }
 
 .tp-switch--disabled .tp-slider {
@@ -1135,7 +1330,7 @@ input[type="number"] {
   background: var(--focus-bg);
   border: 1px solid var(--focus-border);
   border-radius: var(--radius-md);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+  box-shadow: 0 0 0 3px var(--accent-ring);
 }
 
 .focus-banner-text {
@@ -1156,7 +1351,7 @@ input[type="number"] {
 }
 
 .focus-exit-btn:hover {
-  background: #333;
+  background: var(--button-bg-hover);
   box-shadow: var(--shadow-sm);
 }
 
@@ -1266,7 +1461,7 @@ details > div {
 }
 
 .login-page button[type="submit"]:hover {
-  background: #333;
+  background: var(--button-bg-hover);
   box-shadow: var(--shadow-md);
 }
 
@@ -1290,7 +1485,7 @@ details > div {
 
 .login-page input:focus {
   border-color: var(--focus-border);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px var(--accent-ring);
 }
 
 .error {
@@ -1372,7 +1567,7 @@ details > div {
 }
 
 .setup-page button[type="submit"]:hover {
-  background: #333;
+  background: var(--button-bg-hover);
   box-shadow: var(--shadow-md);
 }
 
@@ -1468,7 +1663,7 @@ button:not([class]) {
 }
 
 button:not([class]):hover {
-  background: #333;
+  background: var(--button-bg-hover);
   box-shadow: var(--shadow-sm);
 }
 
@@ -1541,7 +1736,7 @@ input[type="checkbox"]:checked::after {
 
 input[type="checkbox"]:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 0 0 3px var(--accent-ring);
 }
 
 input[type="checkbox"]:hover:not(:disabled) {
@@ -1936,7 +2131,7 @@ body.landing-page {
 }
 
 .lp-btn-primary:hover {
-  background: #333;
+  background: var(--button-bg-hover);
   box-shadow: var(--shadow-md);
   transform: translateY(-1px);
 }
@@ -1973,7 +2168,7 @@ body.landing-page {
 }
 
 .lp-btn-sm-primary:hover {
-  background: #333;
+  background: var(--button-bg-hover);
   box-shadow: var(--shadow-sm);
 }
 
@@ -2177,5 +2372,338 @@ body.landing-page {
   border: none;
   background: var(--button-bg);
   color: var(--button-text);
+}
+
+/* ========================================================================
+   Mobile sidebar (drawer pattern) + broad mobile polish
+   ======================================================================== */
+
+/* Hamburger / top-bar: only visible on narrow viewports */
+.mobile-topbar {
+  display: none;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.65rem 1rem;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+  backdrop-filter: saturate(140%) blur(6px);
+}
+
+.mobile-topbar-logo {
+  height: 2rem;
+}
+
+.mobile-topbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.mobile-topbar-btn:hover,
+.mobile-topbar-btn:focus-visible {
+  border-color: var(--border-hover);
+  outline: none;
+}
+
+/* Burger icon (CSS-only, three bars) */
+.mobile-topbar-burger {
+  position: relative;
+  width: 18px;
+  height: 14px;
+}
+
+.mobile-topbar-burger::before,
+.mobile-topbar-burger::after,
+.mobile-topbar-burger > span {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: currentColor;
+  border-radius: 2px;
+  transition: transform var(--transition-base), opacity var(--transition-base), top var(--transition-base);
+}
+
+.mobile-topbar-burger::before { top: 0; }
+.mobile-topbar-burger > span  { top: 6px; }
+.mobile-topbar-burger::after  { top: 12px; }
+
+.mobile-topbar-btn[aria-expanded="true"] .mobile-topbar-burger::before {
+  top: 6px;
+  transform: rotate(45deg);
+}
+.mobile-topbar-btn[aria-expanded="true"] .mobile-topbar-burger > span {
+  opacity: 0;
+}
+.mobile-topbar-btn[aria-expanded="true"] .mobile-topbar-burger::after {
+  top: 6px;
+  transform: rotate(-45deg);
+}
+
+/* Scrim behind mobile sidebar */
+.sidebar-scrim {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: var(--modal-overlay);
+  z-index: 49;
+  animation: fadeIn 0.18s ease both;
+}
+
+/* Sidebar: below 900px it becomes a slide-in drawer */
+@media (max-width: 900px) {
+  .app-layout {
+    flex-direction: column;
+  }
+
+  .mobile-topbar {
+    display: flex;
+  }
+
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(82vw, 320px);
+    height: 100vh;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-scrim.show {
+    display: block;
+  }
+
+  .page-content {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-content {
+    padding: 0.75rem;
+  }
+}
+
+/* ========================================================================
+   Polish + mobile fixes for existing components
+   ======================================================================== */
+
+/* Slightly elevate card surfaces in light mode */
+.section,
+.lp-card,
+.modal-content,
+.expandable-panel,
+.metric-card {
+  background: var(--bg-elevated);
+}
+[data-theme="dark"] .section,
+[data-theme="dark"] .lp-card,
+[data-theme="dark"] .modal-content,
+[data-theme="dark"] .expandable-panel,
+[data-theme="dark"] .metric-card {
+  background: var(--bg-secondary);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .section,
+  :root:not([data-theme="light"]) .lp-card,
+  :root:not([data-theme="light"]) .modal-content,
+  :root:not([data-theme="light"]) .expandable-panel,
+  :root:not([data-theme="light"]) .metric-card {
+    background: var(--bg-secondary);
+  }
+}
+
+/* Section heading gets a display serif for editorial feel */
+.section h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+/* Focus ring (visible, accessible) */
+:focus-visible {
+  outline: 2px solid transparent;
+  box-shadow: 0 0 0 3px var(--accent-ring);
+  border-radius: var(--radius-sm);
+}
+
+/* Links use ember accent */
+a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+  transition: color var(--transition-fast);
+}
+a:hover {
+  color: var(--accent-hover);
+}
+a.sidebar-nav-item,
+.lp-footer-links a,
+.sidebar-nav-item,
+.nav-link,
+.portal-nav-item,
+.lp-btn-primary,
+.lp-btn-secondary,
+.lp-btn-sm-primary,
+.lp-btn-sm-secondary {
+  text-decoration: none;
+}
+
+/* Render an ember hairline on primary CTAs to give them a distinctive look */
+.lp-btn-primary,
+.lp-btn-sm-primary {
+  position: relative;
+  box-shadow: 0 0 0 0 transparent, inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.lp-btn-primary:hover,
+.lp-btn-sm-primary:hover {
+  box-shadow: 0 0 0 4px var(--accent-ring), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Landing: differentiator accent uses ember */
+.lp-diff-accent {
+  background: var(--accent);
+  height: 3px;
+  width: 2rem;
+  border-radius: 2px;
+}
+
+/* Landing: display-serif large headings */
+.lp-hero h1,
+.lp-page h2 {
+  font-family: var(--font-display);
+}
+
+/* Landing: eyebrow gets ember */
+.lp-eyebrow {
+  color: var(--accent);
+}
+
+/* Mobile: allow tables to scroll instead of overflow awkwardly */
+@media (max-width: 768px) {
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+
+  .metric-card {
+    padding-right: 1rem;
+  }
+  .metric-actions {
+    position: static;
+    width: auto;
+    margin-top: 0.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  }
+
+  .section {
+    padding: 1rem;
+  }
+
+  h1 {
+    font-size: 1.4rem;
+  }
+
+  .header {
+    grid-template-columns: 1fr;
+    justify-items: stretch;
+  }
+  .header-nav {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+  }
+
+  /* Login / Setup: full width on mobile */
+  .login-page,
+  .setup-page {
+    padding: 1.5rem 1rem;
+    align-items: flex-start;
+    padding-top: 3rem;
+  }
+}
+
+/* Extra-small phones: tighten landing hero */
+@media (max-width: 480px) {
+  .lp-nav-inner,
+  .lp-footer-inner {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .lp-hero {
+    padding: 2.5rem 1rem 2rem;
+  }
+  .lp-wrap {
+    padding: 0 1rem;
+  }
+  .lp-hero h1 {
+    font-size: clamp(1.75rem, 7vw, 2.5rem) !important;
+  }
+}
+
+/* Code blocks adopt the mono font */
+code, pre, kbd, samp {
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+}
+
+/* Status badge variants */
+.status-badge { background: var(--bg-tertiary); color: var(--text-secondary); }
+.status-badge.status-open { background: var(--accent-soft); color: var(--accent-text); }
+.status-badge.status-resolved { background: var(--success-bg); color: var(--success-text); }
+.status-badge.status-voided { background: var(--error-bg); color: var(--error-text); }
+.status-badge.status-closed { background: var(--bg-secondary); color: var(--text-tertiary); }
+
+/* Theme toggle button (used in sidebar / header) */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+}
+.theme-toggle:hover {
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+}
+.theme-toggle-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+/* Tighten landing nav logo on narrow screens only */
+@media (max-width: 480px) {
+  .lp-nav-inner img {
+    max-width: 40vw;
+    height: auto !important;
+  }
 }
 
