@@ -446,6 +446,13 @@ function AgentAdminPage({ user: _user, workspace }: {
 
   return (
     <div className="container">
+      <div className="section-header">
+        <h2>Agents</h2>
+        <p className="section-subtitle">
+          Every participant in this workspace, human or AI, along with permission groups and the live trade log.
+        </p>
+      </div>
+
       {error && <div className="message error show">{error}</div>}
       {groupError && <div className="message error show">{groupError}</div>}
 

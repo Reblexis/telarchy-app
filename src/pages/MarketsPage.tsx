@@ -149,6 +149,13 @@ export function MarketsPage() {
 
   return (
     <div className="container">
+      <div className="section-header">
+        <h2>Markets</h2>
+        <p className="section-subtitle">
+          Prediction markets for this workspace's metrics. Tap a market to view its trade history and place orders.
+        </p>
+      </div>
+
       {isAdmin && <div style={{ marginBottom: '1rem' }}><HookStatus /></div>}
       {error && <div className="message error show">{error}</div>}
       {bulkLiqResult && <div className="message success show">{bulkLiqResult}</div>}
@@ -157,20 +164,10 @@ export function MarketsPage() {
         <div className="loading">Loading markets...</div>
       ) : markets.length === 0 ? (
         <div className="section">
-          <div className="section-header">
-            <h2>Markets</h2>
-            <p className="section-subtitle">No markets yet. Markets appear here once metrics have target dates to forecast.</p>
-          </div>
+          <p className="section-subtitle">No markets yet. Markets appear here once metrics have target dates to forecast.</p>
         </div>
       ) : (
         <div className="section">
-          <div className="section-header">
-            <h2>Markets</h2>
-            <p className="section-subtitle">
-              Prediction markets for this workspace's metrics. Tap a market to view its trade history and place orders.
-            </p>
-          </div>
-
           <div className="markets-toolbar">
             <div className="markets-filter-row">
               <input

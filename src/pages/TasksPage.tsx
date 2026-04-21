@@ -360,6 +360,12 @@ export function TasksPage() {
   return (
     <>
       <div className="container">
+        <div className="section-header">
+          <h2>Tasks</h2>
+          <p className="section-subtitle">
+            Admin-proposed initiatives, each paired with conditional markets so participants can forecast the impact before approval.
+          </p>
+        </div>
         {error && <div className="message error show">{error}</div>}
 
         {/* New task form (admins only; traders cannot propose tasks) */}

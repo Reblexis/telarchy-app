@@ -408,25 +408,26 @@ export function SourcesPage() {
         </div>
       )}
 
-      <div className="section">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-          <div>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.25rem' }}>Sources</h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: 0 }}>
-              Text snippets and live external bridges (GitHub repos) available to workspace participants.
-            </p>
-          </div>
-          {isAdmin && (
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <button onClick={() => setShowCreate(!showCreate)} style={{ whiteSpace: 'nowrap' }}>
-                {showCreate ? 'Cancel' : 'New text source'}
-              </button>
-              <button onClick={handleConnectGitHub} style={{ whiteSpace: 'nowrap' }}>
-                Connect GitHub
-              </button>
-            </div>
-          )}
+      <div className="section-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+        <div>
+          <h2>Sources</h2>
+          <p className="section-subtitle">
+            Text snippets and live external bridges (GitHub repos) available to workspace participants.
+          </p>
         </div>
+        {isAdmin && (
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button onClick={() => setShowCreate(!showCreate)} style={{ whiteSpace: 'nowrap' }}>
+              {showCreate ? 'Cancel' : 'New text source'}
+            </button>
+            <button onClick={handleConnectGitHub} style={{ whiteSpace: 'nowrap' }}>
+              Connect GitHub
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="section">
 
         {showCreate && (
           <form onSubmit={handleCreate} style={{ marginBottom: '1.25rem', padding: '1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: 'var(--bg-secondary)' }}>

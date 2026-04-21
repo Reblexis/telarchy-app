@@ -2739,6 +2739,10 @@ code, pre, kbd, samp {
 }
 
 .section-header h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.5rem;
+  letter-spacing: -0.015em;
   margin-bottom: 0.25rem;
 }
 

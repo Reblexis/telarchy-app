@@ -141,30 +141,37 @@ export function WorkspaceSettingsPage() {
 
   if (!workspace) {
     return (
-      <div className="container" style={{ maxWidth: 600 }}>
-        <h1>Workspace Settings</h1>
-        <p style={{ color: 'var(--text-secondary)' }}>No workspace found.</p>
+      <div className="container">
+        <div className="section-header">
+          <h2>Workspace Settings</h2>
+          <p className="section-subtitle">No workspace found.</p>
+        </div>
       </div>
     );
   }
 
   if (workspace.tier !== 'admin') {
     return (
-      <div className="container" style={{ maxWidth: 600 }}>
-        <h1>Workspace Settings</h1>
-        <p style={{ color: 'var(--text-secondary)' }}>Only workspace admins can manage settings.</p>
+      <div className="container">
+        <div className="section-header">
+          <h2>Workspace Settings</h2>
+          <p className="section-subtitle">Only workspace admins can manage settings.</p>
+        </div>
         <button type="button" onClick={() => navigate('/metrics')}>Back to metrics</button>
       </div>
     );
   }
 
   return (
-    <div className="container" style={{ maxWidth: 600 }}>
-      <h1 style={{ marginBottom: '0.25rem' }}>Workspace Settings</h1>
-      <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-        ID: <code style={{ fontSize: '0.8rem' }}>{wsId}</code>
-      </p>
+    <div className="container">
+      <div className="section-header">
+        <h2>Workspace Settings</h2>
+        <p className="section-subtitle">
+          ID: <code style={{ fontSize: '0.8rem' }}>{wsId}</code>
+        </p>
+      </div>
 
+      <div style={{ maxWidth: 640 }}>
       {error && <div className="error show" style={{ marginBottom: '1rem' }}>{error}</div>}
 
       <div className="section">
@@ -314,6 +321,7 @@ export function WorkspaceSettingsPage() {
           </button>
         </div>
       )}
+      </div>
     </div>
   );
 }

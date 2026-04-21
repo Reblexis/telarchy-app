@@ -40,8 +40,13 @@ export function MetricsDashboard({
   const depths = Object.keys(groupedByDepth).map(Number).sort((a, b) => a - b);
 
   return (
-    <div className="section">
-      <h2>Metrics Dashboard</h2>
+    <>
+      <div className="section-header">
+        <h2>Metrics Dashboard</h2>
+        <p className="section-subtitle">
+          Every tracked metric and its formula-derived descendants. Expand a card to see its history, edit the formula, or jump to its markets.
+        </p>
+      </div>
       <div className="metrics-grid" id="metricsGrid">
         {focusedMetric && (
           <FocusBanner metric={focusedMetric} onExit={() => onToggleFocus(focusedMetricId!)} />
@@ -75,6 +80,6 @@ export function MetricsDashboard({
           </div>
         ))}
       </div>
-    </div>
+    </>
   );
 }
