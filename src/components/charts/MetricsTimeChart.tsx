@@ -112,6 +112,7 @@ export function MetricsTimeChart({
       tension: 0.4,
       pointRadius: 0,
       pointHoverRadius: 0,
+      pointHitRadius: 0,
       yAxisID: 'yWeight',
     });
   }
@@ -174,6 +175,7 @@ export function MetricsTimeChart({
         bodyColor: tipBody,
         borderColor: tipBorder,
         borderWidth: 1,
+        position: 'nearest',
         filter: (item) => item.dataset.label !== 'Weight',
         callbacks: {
           title: (items) => {
