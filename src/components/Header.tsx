@@ -1,5 +1,6 @@
 import { type ReactNode, useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Logo } from './Logo';
 
 type Page = 'metrics' | 'agents' | 'markets' | 'tasks';
 
@@ -208,7 +209,7 @@ export function Header({ activePage, navMode = 'creator', actions, workspaceName
   return (
     <div className="header">
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start' }}>
-        <img src="/logo_transparent_bg.png" alt="Telarchy" style={{ height: '4.5rem' }} />
+        <Logo variant="lockup" height="3.75rem" />
         {agentArea && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 500 }}>

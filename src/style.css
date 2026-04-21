@@ -245,21 +245,15 @@ body:has(.app-layout) {
   border-bottom: 1px solid var(--border-color);
 }
 
+.logo-img-dark { display: none; }
 @media (prefers-color-scheme: dark) {
-  .sidebar-logo img, .mobile-topbar-logo, .lp-nav-inner img {
-    filter: invert(0.92) hue-rotate(180deg) brightness(1.1);
-  }
+  .logo-img-light { display: none; }
+  .logo-img-dark { display: inline; }
 }
-[data-theme="dark"] .sidebar-logo img,
-[data-theme="dark"] .mobile-topbar-logo,
-[data-theme="dark"] .lp-nav-inner img {
-  filter: invert(0.92) hue-rotate(180deg) brightness(1.1);
-}
-[data-theme="light"] .sidebar-logo img,
-[data-theme="light"] .mobile-topbar-logo,
-[data-theme="light"] .lp-nav-inner img {
-  filter: none;
-}
+[data-theme="light"] .logo-img-light { display: inline; }
+[data-theme="light"] .logo-img-dark { display: none; }
+[data-theme="dark"] .logo-img-light { display: none; }
+[data-theme="dark"] .logo-img-dark { display: inline; }
 
 .sidebar-section {
   padding: 0.6rem 0;

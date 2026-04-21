@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { useTheme } from '../hooks/useTheme';
+import { Logo } from './Logo';
 
 export function Sidebar({ className = '' }: { className?: string }) {
   const { user, logout } = useAuth();
@@ -46,7 +47,7 @@ export function Sidebar({ className = '' }: { className?: string }) {
   return (
     <aside className={`sidebar ${className}`.trim()}>
       <div className="sidebar-logo">
-        <img src="/logo_transparent_bg.png" alt="Telarchy" style={{ height: '3rem' }} />
+        <Logo variant="lockup" height="2.5rem" />
       </div>
 
       {error && (

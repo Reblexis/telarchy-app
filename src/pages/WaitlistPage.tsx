@@ -1,4 +1,5 @@
 import { useState, FormEvent } from 'react';
+import { Logo } from '../components/Logo';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -32,7 +33,7 @@ export function WaitlistPage() {
   return (
     <>
       <div style={{ position: 'fixed', top: '1rem', left: '1rem', zIndex: 1000 }}>
-        <img src="/logo_transparent_bg.png" alt="Telarchy" style={{ height: '5.25rem' }} />
+        <Logo variant="lockup" height="5.25rem" />
       </div>
       <div className="login-page">
         <div className="container" style={{ maxWidth: 420 }}>

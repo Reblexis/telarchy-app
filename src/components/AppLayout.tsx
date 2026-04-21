@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
+import { Logo } from './Logo';
 
 export function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -20,7 +21,7 @@ export function AppLayout() {
   return (
     <div className="app-layout">
       <header className="mobile-topbar">
-        <img src="/logo_transparent_bg.png" alt="Telarchy" className="mobile-topbar-logo" />
+        <Logo variant="mark" height="1.75rem" className="mobile-topbar-logo" />
         <button
           className="mobile-topbar-btn"
           aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'}
