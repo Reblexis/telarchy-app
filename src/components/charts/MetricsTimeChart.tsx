@@ -37,12 +37,17 @@ export function MetricsTimeChart({
   const currentColor = '#b45309';
   const conditionalColor = '#0f766e';
   const currentFill = 'rgba(180,83,9,0.08)';
-  const gridColor = 'rgba(23,23,28,0.08)';
-  const textColor = '#666';
-  const tipBg = '#fff';
-  const tipTitle = '#1a1a1a';
-  const tipBody = '#4a4a4a';
-  const tipBorder = '#e0e0e0';
+  const rootStyles = typeof window !== 'undefined' ? getComputedStyle(document.documentElement) : null;
+  const cssVar = (name: string, fallback: string) => {
+    const v = rootStyles?.getPropertyValue(name).trim();
+    return v && v.length > 0 ? v : fallback;
+  };
+  const gridColor = 'rgba(127,127,127,0.15)';
+  const textColor = cssVar('--text-secondary', '#666');
+  const tipBg = cssVar('--bg-elevated', '#fff');
+  const tipTitle = cssVar('--text-primary', '#1a1a1a');
+  const tipBody = cssVar('--text-secondary', '#4a4a4a');
+  const tipBorder = cssVar('--border-color', '#e0e0e0');
 
   if (points.length === 0) {
     return <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>No time-series points</div>;
