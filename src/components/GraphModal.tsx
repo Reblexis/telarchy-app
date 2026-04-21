@@ -63,20 +63,21 @@ export function GraphModal({ metric, interval, isInspectMode, loadLogs, onClose 
       <div className="modal-content modal-large">
         <div className="modal-header">
           <h3>{metric.name} - Progress Graph</h3>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            {hasFuture && (
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', color: 'var(--text-secondary)', cursor: 'pointer', userSelect: 'none' }}>
-                <input
-                  type="checkbox"
-                  checked={showFuture}
-                  onChange={e => setShowFuture(e.target.checked)}
-                />
-                Show future predictions
-              </label>
-            )}
-            <button className="modal-close" onClick={onClose}>&times;</button>
-          </div>
+          <button className="modal-close" onClick={onClose}>&times;</button>
         </div>
+        {hasFuture && (
+          <div className="graph-modal-toolbar">
+            <button
+              type="button"
+              className={`graph-modal-toggle${showFuture ? ' active' : ''}`}
+              onClick={() => setShowFuture(v => !v)}
+              aria-pressed={showFuture}
+            >
+              <span className="graph-modal-toggle-swatch" aria-hidden="true" />
+              Show future predictions
+            </button>
+          </div>
+        )}
         <div className="graph-modal-container">
           {status === 'loading' && <div className="graph-loading">Loading graph...</div>}
           {showNoData && <div className="graph-no-data">No data yet. Values will be logged as they change.</div>}

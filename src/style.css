@@ -1455,6 +1455,47 @@ details > div {
   width: 95%;
 }
 
+.graph-modal-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.graph-modal-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.graph-modal-toggle:hover {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+}
+
+.graph-modal-toggle.active {
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border-color: #0f766e;
+}
+
+.graph-modal-toggle-swatch {
+  width: 14px;
+  height: 2px;
+  background: transparent;
+  border-top: 2px dashed #0f766e;
+  flex-shrink: 0;
+}
+
 .graph-modal-container {
   position: relative;
   padding: 1rem;
