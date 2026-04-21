@@ -25,6 +25,16 @@
   <meta name="twitter:image" content="https://telarchy.com/logo.png" />
 </head>
 <body>
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('telarchy-theme');
+        if (t === 'light' || t === 'dark') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) {}
+    })();
+  </script>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
 </body>

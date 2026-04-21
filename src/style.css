@@ -245,6 +245,22 @@ body:has(.app-layout) {
   border-bottom: 1px solid var(--border-color);
 }
 
+@media (prefers-color-scheme: dark) {
+  .sidebar-logo img, .mobile-topbar-logo, .lp-nav-inner img {
+    filter: invert(0.92) hue-rotate(180deg) brightness(1.1);
+  }
+}
+[data-theme="dark"] .sidebar-logo img,
+[data-theme="dark"] .mobile-topbar-logo,
+[data-theme="dark"] .lp-nav-inner img {
+  filter: invert(0.92) hue-rotate(180deg) brightness(1.1);
+}
+[data-theme="light"] .sidebar-logo img,
+[data-theme="light"] .mobile-topbar-logo,
+[data-theme="light"] .lp-nav-inner img {
+  filter: none;
+}
+
 .sidebar-section {
   padding: 0.6rem 0;
   border-bottom: 1px solid var(--border-color);
@@ -812,14 +828,13 @@ h3 {
 .leaf-badge {
   margin-left: 0.4rem;
   font-size: 0.65rem;
-  font-weight: 500;
+  font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 0.15em 0.5em;
   border-radius: 999px;
-  background: var(--accent-color, #3b82f6);
-  color: #fff;
-  opacity: 0.75;
+  background: var(--accent-soft);
+  color: var(--accent-text);
   vertical-align: middle;
 }
 
@@ -2679,13 +2694,15 @@ code, pre, kbd, samp {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  padding: 0.5rem 0.75rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   background: var(--bg-primary);
   color: var(--text-secondary);
-  font-size: 0.8rem;
+  font-size: 0.85rem;
+  cursor: pointer;
   font-weight: 500;
   cursor: pointer;
   transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);

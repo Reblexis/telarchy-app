@@ -1,28 +1,10 @@
 import { Link } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
 
 export function StartPage() {
-  const { logout } = useAuth();
-
   return (
     <>
-      <nav style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '1rem 2rem', borderBottom: '1px solid var(--border-color)',
-      }}>
-        <Link to="/" style={{ fontWeight: 700, fontSize: '1rem', textDecoration: 'none', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-          Telarchy
-        </Link>
-        <button
-          onClick={() => logout()}
-          style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.85rem' }}
-        >
-          Log out
-        </button>
-      </nav>
-
       <div style={{
-        minHeight: 'calc(100vh - 57px)',
+        minHeight: '100%',
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
         padding: '3rem 2rem',

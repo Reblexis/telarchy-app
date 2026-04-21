@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
+import { useTheme } from '../hooks/useTheme';
 
 export function Sidebar({ className = '' }: { className?: string }) {
   const { user, logout } = useAuth();
   const { workspace, allWorkspaces, switchWorkspace, error } = useWorkspace(!!user);
   const location = useLocation();
   const navigate = useNavigate();
+  const { theme, cycleTheme } = useTheme();
   const [workspaceNavOpen, setWorkspaceNavOpen] = useState(true);
   const [usdcEnabled, setUsdcEnabled] = useState(false);
 
@@ -81,7 +83,9 @@ export function Sidebar({ className = '' }: { className?: string }) {
                 </button>
                 {showSubnav && (
                   <div className="sidebar-workspace-subnav">
-                    <div className="sidebar-workspace-id">{ws.id}</div>
+                    {isAdmin && isSelected && (
+                      <div className="sidebar-workspace-id">{ws.id}</div>
+                    )}
                     {canAccessWorkspace && workspaceLinks.map(link => (
                       <Link
                         key={link.to}
@@ -127,9 +131,18 @@ export function Sidebar({ className = '' }: { className?: string }) {
       <div className="sidebar-spacer" />
 
       <div className="sidebar-bottom">
-        <div style={{ display: 'flex', gap: '0.75rem', padding: '0.5rem 1rem', fontSize: '0.7rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 1rem', fontSize: '0.7rem' }}>
           <Link to="/terms" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>Terms</Link>
           <Link to="/privacy" style={{ color: 'var(--text-tertiary)', textDecoration: 'none' }}>Privacy</Link>
+          <button
+            className="theme-toggle"
+            onClick={cycleTheme}
+            title={`Theme: ${theme} (click to cycle)`}
+            aria-label={`Theme: ${theme}. Click to cycle.`}
+            style={{ marginLeft: 'auto' }}
+          >
+            {theme === 'light' ? '☀' : theme === 'dark' ? '☾' : '◐'}
+          </button>
         </div>
         {user && (
           <>

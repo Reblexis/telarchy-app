@@ -33,10 +33,10 @@ export interface MetricsTimeChartProps {
 export function MetricsTimeChart({
   points, conditionalPoints, mode, variant, rangeMin, rangeMax, halfLifeYears, onPointClick,
 }: MetricsTimeChartProps) {
-  const currentColor = '#3b82f6';
-  const conditionalColor = '#f59e0b';
-  const currentFill = 'rgba(59,130,246,0.08)';
-  const gridColor = 'rgba(0,0,0,0.08)';
+  const currentColor = '#b45309';
+  const conditionalColor = '#0f766e';
+  const currentFill = 'rgba(180,83,9,0.08)';
+  const gridColor = 'rgba(23,23,28,0.08)';
   const textColor = '#666';
   const tipBg = '#fff';
   const tipTitle = '#1a1a1a';

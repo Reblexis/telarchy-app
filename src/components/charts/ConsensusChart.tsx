@@ -45,7 +45,7 @@ export function ConsensusChart({ trades, rangeMin, rangeMax }: {
     ...withT.map(t => ({ t: t._ts * 1000, y: t.consensus!, trade: t })),
   ];
 
-  const gridColor = 'rgba(0,0,0,0.08)';
+  const gridColor = 'rgba(23,23,28,0.08)';
   const tickColor = '#666';
 
   const minSpan = (rangeMax - rangeMin) * 0.1;
@@ -60,8 +60,8 @@ export function ConsensusChart({ trades, rangeMin, rangeMax }: {
   const chartData: ChartData<'line'> = {
     datasets: [{
       data: pts.map(p => ({ x: p.t, y: p.y })),
-      borderColor: '#3b82f6',
-      backgroundColor: 'rgba(59,130,246,0.08)',
+      borderColor: '#b45309',
+      backgroundColor: 'rgba(180,83,9,0.08)',
       fill: true,
       tension: 0.2,
       pointBackgroundColor: pts.map(p =>
