@@ -200,24 +200,23 @@ export function WorkspaceSettingsPage() {
         {isOwner ? (
           <form onSubmit={handleSaveAccess}>
             <div className="form-group">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              <div className="radio-card-group">
                 {([
-                  { id: 'private' as const, label: 'Private', help: 'Invite-only.' },
-                  { id: 'public'  as const, label: 'Public',  help: 'Listed; anyone can join and view.' },
-                  { id: 'open'    as const, label: 'Open',    help: 'Listed; anyone can join and trade.' },
+                  { id: 'private' as const, label: 'Private', help: 'Invite-only. Not listed anywhere.' },
+                  { id: 'public'  as const, label: 'Public',  help: 'Listed publicly. Anyone can join and view.' },
+                  { id: 'open'    as const, label: 'Open',    help: 'Listed publicly. Anyone can join and trade.' },
                 ]).map(opt => (
-                  <label key={opt.id} className="checkbox-label" style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                  <label key={opt.id} className={`radio-card${access === opt.id ? ' selected' : ''}`}>
                     <input
                       type="radio"
                       name="ws-access"
                       value={opt.id}
                       checked={access === opt.id}
                       onChange={() => setAccess(opt.id)}
-                      style={{ marginTop: '0.25rem' }}
                     />
-                    <span style={{ fontSize: '0.875rem' }}>
-                      <span style={{ color: 'var(--text-primary)' }}>{opt.label}</span>
-                      <span style={{ color: 'var(--text-secondary)' }}> — {opt.help}</span>
+                    <span className="radio-card-body">
+                      <span className="radio-card-title">{opt.label}</span>
+                      <span className="radio-card-help">{opt.help}</span>
                     </span>
                   </label>
                 ))}
@@ -226,6 +225,7 @@ export function WorkspaceSettingsPage() {
             <button type="submit" disabled={saving}>
               {saving ? 'Saving...' : 'Save'}
             </button>
+            {saveMsg && <span style={{ marginLeft: '1rem', fontSize: '0.875rem', color: 'var(--success-text)' }}>{saveMsg}</span>}
           </form>
         ) : (
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>

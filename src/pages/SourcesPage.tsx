@@ -323,7 +323,7 @@ export function SourcesPage() {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3 style={{ margin: 0, fontSize: '1rem' }}>Select repositories to connect</h3>
-              <button onClick={handleCancelRepoPicker} style={{ fontSize: '0.8rem' }}>Cancel</button>
+              <button type="button" className="btn-small" onClick={handleCancelRepoPicker}>Cancel</button>
             </div>
             {loadingRepos ? (
               <div className="loading">Loading repositories...</div>
@@ -393,7 +393,7 @@ export function SourcesPage() {
                       </a>
                     )}
                   </div>
-                  <button onClick={handleRefreshRepos} disabled={loadingRepos} style={{ fontSize: '0.8rem' }}>
+                  <button type="button" className="btn-small" onClick={handleRefreshRepos} disabled={loadingRepos}>
                     {loadingRepos ? 'Refreshing...' : 'Refresh'}
                   </button>
                 </div>
@@ -563,7 +563,7 @@ export function SourcesPage() {
                           {filePath && fileContent !== null ? (
                             <div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                <button onClick={handleBackToTree} style={{ fontSize: '0.8rem' }}>Back</button>
+                                <button type="button" className="btn-small" onClick={handleBackToTree}>Back</button>
                                 <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{filePath}</span>
                               </div>
                               <pre style={{
@@ -580,7 +580,7 @@ export function SourcesPage() {
                             <div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                                 {browsePath.length > 0 && (
-                                  <button onClick={handleNavigateUp} style={{ fontSize: '0.8rem' }}>Up</button>
+                                  <button type="button" className="btn-small" onClick={handleNavigateUp}>Up</button>
                                 )}
                                 <span style={{ fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                                   /{browsePath.join('/')}

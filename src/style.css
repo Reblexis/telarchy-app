@@ -930,6 +930,16 @@ input, select, textarea {
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
+input[type="radio"], input[type="checkbox"] {
+  width: auto;
+  height: auto;
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+  accent-color: var(--focus-border);
+}
+
 textarea {
   min-height: 80px;
   resize: vertical;
@@ -1044,6 +1054,59 @@ input[type="number"] {
 
 .checkbox-label input[type="checkbox"] {
   margin: 0;
+}
+
+/* ===== Radio card group (settings, choosers) ===== */
+.radio-card-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.radio-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.radio-card:hover {
+  border-color: var(--border-hover);
+}
+
+.radio-card.selected {
+  border-color: var(--focus-border);
+  background: var(--accent-ring);
+  box-shadow: 0 0 0 1px var(--focus-border) inset;
+}
+
+.radio-card input[type="radio"] {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
+.radio-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.radio-card-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.radio-card-help {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
 }
 
 /* ===== Timeline ===== */
