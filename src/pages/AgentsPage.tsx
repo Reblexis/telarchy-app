@@ -7,6 +7,31 @@ import { api, agentApi } from '../lib/api';
 import { cacheGet, cacheSet } from '../lib/cache';
 import type { Agent, PermissionGroup, Metric, Source, Capability } from '../types';
 
+// ─── Shared formatters ───────────────────────────────────────────────────────
+
+const fmt9 = (n: number | null | undefined) =>
+  n === null || n === undefined
+    ? '-'
+    : n.toLocaleString('en-US', { minimumFractionDigits: 9, maximumFractionDigits: 9 });
+
+const fmt2 = (n: number | null | undefined) =>
+  n === null || n === undefined
+    ? '-'
+    : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// Heuristic: opaque IDs (long random-looking strings) render in monospace
+// so human-readable names stay in the UI font.
+const isOpaqueId = (id: string) => id.length > 18 && !/\s/.test(id) && /^[a-zA-Z0-9_-]+$/.test(id);
+
+function signed(n: number, fmt: (n: number) => string = fmt9): string {
+  return (n >= 0 ? '+' : '-') + fmt(Math.abs(n));
+}
+
+function pnlClass(n: number | null | undefined): string {
+  if (n === null || n === undefined) return '';
+  return n >= 0 ? 'agent-num-pos' : 'agent-num-neg';
+}
+
 // ─── Operator view ───────────────────────────────────────────────────────────
 
 const STORED_AGENT_KEY = 'watchedAgent';
@@ -15,7 +40,7 @@ interface WatchedAgent { id: string; apiKey: string }
 interface AgentDashboard { balance: number; markets: { id: string; metricName: string; targetDate: string; consensus: number | null; liquidity: number }[] }
 interface Position { marketId: string; higherShares: number; lowerShares: number }
 
-function AgentOperatorPage({ user, hasWorkspace }: {
+function AgentOperatorPage({ user: _user, hasWorkspace: _hasWorkspace }: {
   user: NonNullable<ReturnType<typeof useAuth>['user']>;
   hasWorkspace: boolean;
 }) {
@@ -64,147 +89,136 @@ function AgentOperatorPage({ user, hasWorkspace }: {
   };
 
   return (
-    <>
-      <div className="container">
-
-        {/* Watch agent */}
-        <div className="section">
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.5rem' }}>Watch a participant</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+    <div className="container">
+      <div className="section">
+        <div className="section-header">
+          <h2>Watch a participant</h2>
+          <p className="section-subtitle">
             Enter a participant ID and API key to view its live balance, markets, and positions.
             Credentials are stored locally and never sent to our servers except to authenticate with the API.
           </p>
-
-          {!watched ? (
-            <form onSubmit={handleWatch} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-              <div className="form-group" style={{ flex: 1, minWidth: 160, marginBottom: 0 }}>
-                <label htmlFor="agent-id" style={{ fontSize: '0.8rem' }}>Agent ID</label>
-                <input id="agent-id" type="text" placeholder="my-trading-bot" value={inputId} onChange={e => setInputId(e.target.value)} required style={{ marginBottom: 0 }} />
-              </div>
-              <div className="form-group" style={{ flex: 2, minWidth: 260, marginBottom: 0 }}>
-                <label htmlFor="agent-key" style={{ fontSize: '0.8rem' }}>API Key</label>
-                <input id="agent-key" type="password" placeholder="agnt_…" value={inputKey} onChange={e => setInputKey(e.target.value)} required style={{ marginBottom: 0 }} />
-              </div>
-              <button type="submit" disabled={!inputId.trim() || !inputKey.trim()} style={{ whiteSpace: 'nowrap' }}>Watch</button>
-            </form>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-              <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '0.95rem' }}>{watched.id}</span>
-              <button className="btn-small" onClick={handleClear} style={{ fontSize: '0.8rem' }}>Change agent</button>
-            </div>
-          )}
-
-          {error && <div className="error show" style={{ marginTop: '0.75rem' }}>{error}</div>}
-
-          {watched && loading && <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '1rem' }}>Loading…</p>}
-
-          {dashboard && (
-            <div style={{ marginTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-              {/* Balance */}
-              <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Balance</div>
-                <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '1.3rem' }}>{dashboard.balance} credits</div>
-              </div>
-
-              {/* Positions */}
-              {positions.length > 0 && (
-                <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Open positions</div>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        {['Market', 'Higher shares', 'Lower shares'].map(h => (
-                          <th key={h} style={{ padding: '0.4rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.78rem', textAlign: h === 'Market' ? 'left' : 'right', fontWeight: 500 }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {positions.map(p => (
-                        <tr key={p.marketId} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <td style={{ padding: '0.4rem 0.5rem', fontFamily: 'monospace', fontSize: '0.8rem' }}>{p.marketId}</td>
-                          <td style={{ padding: '0.4rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--success-text)' }}>{p.higherShares.toFixed(3)}</td>
-                          <td style={{ padding: '0.4rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--error-text)' }}>{p.lowerShares.toFixed(3)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {/* Available markets */}
-              {dashboard.markets.length > 0 && (
-                <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Top markets</div>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                        {['Metric', 'Target', 'Consensus', 'Liquidity'].map(h => (
-                          <th key={h} style={{ padding: '0.4rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.78rem', textAlign: h === 'Metric' ? 'left' : 'right', fontWeight: 500 }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dashboard.markets.map(m => (
-                        <tr key={m.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                          <td style={{ padding: '0.4rem 0.5rem', fontSize: '0.875rem' }}>{m.metricName}</td>
-                          <td style={{ padding: '0.4rem 0.5rem', textAlign: 'right', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{m.targetDate}</td>
-                          <td style={{ padding: '0.4rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontSize: '0.875rem' }}>{m.consensus !== null ? m.consensus.toFixed(2) : '-'}</td>
-                          <td style={{ padding: '0.4rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontSize: '0.875rem' }}>{m.liquidity.toFixed(1)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
-        {/* Connecting your bot */}
-        <div className="section">
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.75rem' }}>Connecting your bot</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+        {!watched ? (
+          <form onSubmit={handleWatch} className="agent-form-inline">
+            <div className="form-group" style={{ flex: 1, minWidth: 160 }}>
+              <label htmlFor="agent-id" style={{ fontSize: '0.8rem' }}>Participant ID</label>
+              <input id="agent-id" type="text" placeholder="my-trading-bot" value={inputId} onChange={e => setInputId(e.target.value)} required style={{ marginBottom: 0 }} />
+            </div>
+            <div className="form-group" style={{ flex: 2, minWidth: 260 }}>
+              <label htmlFor="agent-key" style={{ fontSize: '0.8rem' }}>API key</label>
+              <input id="agent-key" type="password" placeholder="agnt_…" value={inputKey} onChange={e => setInputKey(e.target.value)} required style={{ marginBottom: 0 }} />
+            </div>
+            <button type="submit" disabled={!inputId.trim() || !inputKey.trim()} style={{ whiteSpace: 'nowrap' }}>Watch</button>
+          </form>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <span className={isOpaqueId(watched.id) ? 'agent-id agent-id-opaque' : 'agent-id'}>{watched.id}</span>
+            <button className="btn-small" onClick={handleClear}>Change participant</button>
+          </div>
+        )}
+
+        {error && <div className="error show" style={{ marginTop: '0.75rem' }}>{error}</div>}
+        {watched && loading && <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '1rem' }}>Loading…</p>}
+
+        {dashboard && (
+          <div style={{ marginTop: '1.5rem', display: 'grid', gap: '1.5rem' }}>
+            <div>
+              <div className="section-label">Balance</div>
+              <div className="stat-card-value" style={{ fontSize: '1.5rem' }}>{fmt2(dashboard.balance)} <span style={{ fontSize: '0.85rem', fontWeight: 400, color: 'var(--text-secondary)' }}>credits</span></div>
+            </div>
+
+            {positions.length > 0 && (
+              <div>
+                <div className="section-label">Open positions</div>
+                <table className="agent-subtable">
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: 'left' }}>Market</th>
+                      <th style={{ textAlign: 'right' }}>Higher shares</th>
+                      <th style={{ textAlign: 'right' }}>Lower shares</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {positions.map(p => (
+                      <tr key={p.marketId}>
+                        <td><span className="agent-id agent-id-opaque">{p.marketId}</span></td>
+                        <td className="agent-num agent-num-pos">{fmt9(p.higherShares)}</td>
+                        <td className="agent-num agent-num-neg">{fmt9(p.lowerShares)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {dashboard.markets.length > 0 && (
+              <div>
+                <div className="section-label">Top markets</div>
+                <table className="agent-subtable">
+                  <thead>
+                    <tr>
+                      <th style={{ textAlign: 'left' }}>Metric</th>
+                      <th style={{ textAlign: 'right' }}>Target</th>
+                      <th style={{ textAlign: 'right' }}>Consensus</th>
+                      <th style={{ textAlign: 'right' }}>Liquidity</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dashboard.markets.map(m => (
+                      <tr key={m.id}>
+                        <td>{m.metricName}</td>
+                        <td style={{ textAlign: 'right', color: 'var(--text-secondary)' }}>{m.targetDate}</td>
+                        <td className="agent-num">{m.consensus !== null ? m.consensus.toFixed(2) : '-'}</td>
+                        <td className="agent-num">{m.liquidity.toFixed(1)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="section">
+        <div className="section-header">
+          <h2>Connecting your bot</h2>
+          <p className="section-subtitle">
             Register via the API (no auth required). Include the returned key in every subsequent request.
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', fontWeight: 500 }}>1. Register your agent</p>
-              <pre style={{ background: 'var(--bg-secondary)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', fontSize: '0.78rem', overflowX: 'auto', border: '1px solid var(--border-color)', margin: 0 }}>
-{`curl -X POST -H "Content-Type: application/json" \\
+        </div>
+        <div style={{ display: 'grid', gap: '1rem' }}>
+          <div className="agent-code-step">
+            <p>1. Register your agent</p>
+            <pre>{`curl -X POST -H "Content-Type: application/json" \\
   -d '{"agentId":"my-bot"}' \\
-  ${apiBase}/api/agents/register`}
-              </pre>
-            </div>
-            <div>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', fontWeight: 500 }}>2. Check balance and available markets</p>
-              <pre style={{ background: 'var(--bg-secondary)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', fontSize: '0.78rem', overflowX: 'auto', border: '1px solid var(--border-color)', margin: 0 }}>
-{`curl -H "X-Agent-Key: <your-key>" \\
-  ${apiBase}/api/agents/<agent-id>/dashboard`}
-              </pre>
-            </div>
-            <div>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', fontWeight: 500 }}>3. Place a trade</p>
-              <pre style={{ background: 'var(--bg-secondary)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', fontSize: '0.78rem', overflowX: 'auto', border: '1px solid var(--border-color)', margin: 0 }}>
-{`curl -X POST -H "X-Agent-Key: <your-key>" \\
+  ${apiBase}/api/agents/register`}</pre>
+          </div>
+          <div className="agent-code-step">
+            <p>2. Check balance and available markets</p>
+            <pre>{`curl -H "X-Agent-Key: <your-key>" \\
+  ${apiBase}/api/agents/<agent-id>/dashboard`}</pre>
+          </div>
+          <div className="agent-code-step">
+            <p>3. Place a trade</p>
+            <pre>{`curl -X POST -H "X-Agent-Key: <your-key>" \\
   -H "Content-Type: application/json" \\
   -d '{"marketId":"<id>","direction":"higher","amount":10}' \\
-  ${apiBase}/api/predictions/trade`}
-              </pre>
-            </div>
+  ${apiBase}/api/predictions/trade`}</pre>
           </div>
-          <p style={{ marginTop: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-            See the full <a href={`${apiBase}/api/help`} target="_blank" rel="noreferrer" style={{ color: 'var(--focus-border)' }}>API reference</a>.
-          </p>
         </div>
-
+        <p style={{ marginTop: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          See the full <a href={`${apiBase}/api/help`} target="_blank" rel="noreferrer">API reference</a>.
+        </p>
       </div>
-    </>
+    </div>
   );
 }
 
 // ─── Admin view (workspace owners / admins) ─────────────────────────────────
 
-function AgentAdminPage({ user, workspace }: {
+function AgentAdminPage({ user: _user, workspace }: {
   user: NonNullable<ReturnType<typeof useAuth>['user']>;
   workspace: WorkspaceInfo | null;
 }) {
@@ -213,7 +227,6 @@ function AgentAdminPage({ user, workspace }: {
   const [error, setError] = useState('');
   const [workspaceStats, setWorkspaceStats] = useState<{ tradedVolume: number } | null>(null);
 
-  // Groups state
   const [groups, setGroups] = useState<PermissionGroup[]>([]);
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [sourcesList, setSourcesList] = useState<Source[]>([]);
@@ -221,12 +234,7 @@ function AgentAdminPage({ user, workspace }: {
   const [newGroupName, setNewGroupName] = useState('');
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [groupError, setGroupError] = useState('');
-  // Per-group participant search query
-  const [agentSearch, setAgentSearch] = useState<Record<string, string>>({});
-  // Per-group manual participant ID input
-  const [memberInput, setMemberInput] = useState<Record<string, string>>({});
 
-  // Per-agent trade log state (lazy-loaded on row expand)
   interface AgentTrade {
     id: string;
     marketId: string;
@@ -281,8 +289,6 @@ function AgentAdminPage({ user, workspace }: {
       setAgentExpansionLoading(null);
     }
   };
-
-  const fmt9 = (n: number | null | undefined) => n === null || n === undefined ? '-' : n.toFixed(9);
 
   type PnlSortKey = 'metric' | 'target' | 'status' | 'shares' | 'netCash' | 'consensus' | 'pnlConsensus' | 'metricValue' | 'payout' | 'pnlMetric';
   const [pnlSort, setPnlSort] = useState<SortState<PnlSortKey>>({ key: 'target', dir: 'asc' });
@@ -421,54 +427,66 @@ function AgentAdminPage({ user, workspace }: {
 
   const isSystemGroup = (type: string) => type === 'public' || type === 'admin' || type === 'trader';
 
-  // Build a lookup: agentId -> list of groups the agent belongs to
   const agentGroups = (agentId: string) =>
     groups.filter(g => g.memberIds.includes(agentId));
 
-  // Groups available to assign (non-public, since public is auto)
   const assignableGroups = groups.filter(g => g.type !== 'public');
 
+  const headers: [string, 'left' | 'right', string | undefined][] = [
+    ['Participant', 'left', undefined],
+    ['Groups', 'left', undefined],
+    ['Balance', 'right', undefined],
+    ['Earned', 'right', undefined],
+    ['Spent', 'right', undefined],
+    ['PnL', 'right', 'Earned - Spent across all trades (does not mark open positions)'],
+    ['Realized', 'right', 'Net P&L on resolved markets only (excludes open and voided markets)'],
+    ['PnL @ consensus', 'right', 'Sum over all markets: net cash + current LMSR sell proceeds. Marks open positions to market.'],
+    ['PnL @ metric', 'right', 'Sum over all markets: net cash + payout if each market settled at the current metric value (or actualValue for resolved markets).'],
+  ];
+
   return (
-    <>
-      <div className="container">
-        {error && <div className="message error show">{error}</div>}
-        {groupError && <div className="message error show">{groupError}</div>}
+    <div className="container">
+      {error && <div className="message error show">{error}</div>}
+      {groupError && <div className="message error show">{groupError}</div>}
 
-        {workspaceStats !== null && (
-          <div className="section" style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>Traded Volume</div>
-              <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '1.1rem' }}>{workspaceStats.tradedVolume.toFixed(2)} credits</div>
-            </div>
+      <div className="agent-stats">
+        <div className="section agent-stat-card">
+          <div className="stat-card-label">Traded volume</div>
+          <div className="stat-card-value">
+            {workspaceStats ? `${fmt2(workspaceStats.tradedVolume)}` : '-'}
+            <span style={{ fontSize: '0.7em', color: 'var(--text-secondary)', marginLeft: '0.3rem', fontWeight: 400 }}>credits</span>
           </div>
-        )}
+        </div>
+        <div className="section agent-stat-card">
+          <div className="stat-card-label">Participants</div>
+          <div className="stat-card-value">{loading ? '-' : agents.length}</div>
+        </div>
+        <div className="section agent-stat-card">
+          <div className="stat-card-label">Permission groups</div>
+          <div className="stat-card-value">{groups.length}</div>
+        </div>
+      </div>
 
-        {/* Agents table */}
+      <div className="section">
+        <div className="section-header">
+          <h2>Participants</h2>
+          <p className="section-subtitle">
+            Every human or AI participant in this workspace. Click a row to inspect per-market P&amp;L and the full trade log.
+          </p>
+        </div>
+
         {loading ? (
-          <div className="loading">Loading agents…</div>
+          <div className="loading">Loading participants…</div>
         ) : agents.length === 0 ? (
-          <div className="section"><p style={{ color: 'var(--text-secondary)' }}>No participants in this workspace yet.</p></div>
+          <p style={{ color: 'var(--text-secondary)' }}>No participants in this workspace yet.</p>
         ) : (
-          <div className="section">
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <div className="agents-table-wrap">
+            <table className="agents-table">
               <thead>
-                <tr style={{ borderBottom: '2px solid var(--border-color)', textAlign: 'left' }}>
-                  {([
-                    ['Participant', undefined],
-                    ['Groups', undefined],
-                    ['Balance', undefined],
-                    ['Earned', undefined],
-                    ['Spent', undefined],
-                    ['PnL', 'Earned - Spent across all trades (does not mark open positions)'],
-                    ['Realized', 'Net P&L on resolved markets only (excludes open and voided markets)'],
-                    ['PnL @ consensus', 'Sum over all markets: net cash + current LMSR sell proceeds. Marks open positions to market.'],
-                    ['PnL @ metric', 'Sum over all markets: net cash + payout if each market settled at the current metric value (or actualValue for resolved markets).'],
-                  ] as [string, string | undefined][]).map(([h, tt], i) => (
-                    <th
-                      key={h}
-                      style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem', textAlign: i >= 2 ? 'right' : 'left' }}
-                      title={tt}
-                    >{h}</th>
+                <tr>
+                  <th aria-hidden="true" />
+                  {headers.map(([h, align, tt]) => (
+                    <th key={h} style={{ textAlign: align }} title={tt}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -478,297 +496,291 @@ function AgentAdminPage({ user, workspace }: {
                   const notMemberOf = assignableGroups.filter(g => !g.memberIds.includes(agent.id));
                   const isExpanded = expandedAgentId === agent.id;
                   const trades = agentTrades[agent.id];
+                  const pnlRows = agentMarketPnl[agent.id];
+                  const tradingPnl = agent.earnedBetting - agent.spentBetting;
+
                   return (
                     <Fragment key={agent.id}>
-                    <tr style={{ borderBottom: isExpanded ? 'none' : '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '0.75rem 0.5rem' }}>
-                        <span
-                          style={{ fontWeight: 600, cursor: 'pointer' }}
-                          onClick={() => toggleAgentTrades(agent.id)}
-                          title="Show trade log"
-                        >{isExpanded ? '▼ ' : '▶ '}{agent.id}</span>
-                      </td>
-                      <td style={{ padding: '0.75rem 0.5rem' }}>
-                        <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                          {memberOf.map(g => (
-                            <span
-                              key={g.id}
-                              style={{
-                                display: 'inline-flex', alignItems: 'center', gap: '0.25rem',
-                                fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '999px',
-                                background: g.type === 'admin' ? 'var(--bg-tertiary)' : g.type === 'trader' ? 'rgba(34,197,94,0.12)' : 'var(--bg-secondary)',
-                                color: g.type === 'admin' ? 'var(--text-secondary)' : g.type === 'trader' ? 'var(--success-text)' : 'var(--text-secondary)',
-                              }}
-                            >
-                              {g.name}
-                              {g.type !== 'public' && (
-                                <span
-                                  role="button"
-                                  style={{ cursor: 'pointer', opacity: 0.6, marginLeft: '0.1rem', fontSize: '0.65rem' }}
-                                  title={`Remove from ${g.name}`}
-                                  onClick={() => handleRemoveMemberFromGroup(g, agent.id)}
-                                >x</span>
-                              )}
-                            </span>
-                          ))}
-                          {notMemberOf.length > 0 && (
-                            <select
-                              style={{
-                                fontSize: '0.7rem', padding: '0.1rem 0.2rem', borderRadius: '999px',
-                                background: 'var(--bg-secondary)', color: 'var(--text-secondary)',
-                                border: '1px dashed var(--border-color)', cursor: 'pointer',
-                                appearance: 'none', width: '1.4rem', textAlign: 'center',
-                              }}
-                              value=""
-                              title="Add to group"
-                              onChange={e => {
-                                const groupId = e.target.value;
-                                if (!groupId) return;
-                                const group = groups.find(g => g.id === groupId);
-                                if (group) handleAddMemberToGroup(group, agent.id);
-                              }}
-                            >
-                              <option value="">+</option>
-                              {notMemberOf.map(g => (
-                                <option key={g.id} value={g.id}>{g.name}</option>
-                              ))}
-                            </select>
-                          )}
-                        </div>
-                      </td>
-                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace' }}>${fmt9(agent.balance)}</td>
-                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--success-text)' }}>${fmt9(agent.earnedBetting)}</td>
-                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', color: 'var(--error-text)' }}>${fmt9(agent.spentBetting)}</td>
-                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: agent.earnedBetting - agent.spentBetting >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>
-                        {agent.earnedBetting - agent.spentBetting >= 0 ? '+$' : '-$'}{fmt9(Math.abs(agent.earnedBetting - agent.spentBetting))}
-                      </td>
-                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: (agent.realizedPnl ?? 0) >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>
-                        {(agent.realizedPnl ?? 0) >= 0 ? '+$' : '-$'}{fmt9(Math.abs(agent.realizedPnl ?? 0))}
-                      </td>
-                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: (agent.pnlConsensus ?? 0) >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>
-                        {(agent.pnlConsensus ?? 0) >= 0 ? '+$' : '-$'}{fmt9(Math.abs(agent.pnlConsensus ?? 0))}
-                      </td>
-                      <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: (agent.pnlMetric ?? 0) >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>
-                        {(agent.pnlMetric ?? 0) >= 0 ? '+$' : '-$'}{fmt9(Math.abs(agent.pnlMetric ?? 0))}
-                      </td>
-                    </tr>
-                    {isExpanded && (
-                      <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
-                        <td colSpan={9} style={{ padding: '0.5rem 1rem 1rem' }}>
-                          {agentExpansionLoading === agent.id && !trades ? (
-                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Loading…</div>
-                          ) : !trades || trades.length === 0 ? (
-                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>No trades.</div>
-                          ) : (
-                          <>
-                          {agentMarketPnl[agent.id] && agentMarketPnl[agent.id].length > 0 && (
-                            <div style={{ marginBottom: '1rem' }}>
-                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Per-market P&amp;L</div>
-                              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
-                                <thead>
-                                  <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
-                                    {([
-                                      ['metric', 'left', 'Market', undefined],
-                                      ['target', 'left', 'Target', undefined],
-                                      ['status', 'left', 'Status', undefined],
-                                      ['shares', 'right', 'Shares H/L', 'Shares held (higher / lower)'],
-                                      ['netCash', 'right', 'Net cash', 'Net cash invested in this market; sum of trade cash flows (only meaningful for open markets)'],
-                                      ['consensus', 'right', 'Consensus', 'Current market consensus (AMM); open markets only'],
-                                      ['pnlConsensus', 'right', 'PnL @ consensus', 'Unrealized P&L at current AMM prices; open markets only'],
-                                      ['metricValue', 'right', 'Metric', 'Current metric total (for resolved markets: actualValue)'],
-                                      ['payout', 'right', 'Payout', 'Gross payout from shares held: shares * payFactor. Uses actualValue for resolved markets, current metric total otherwise.'],
-                                      ['pnlMetric', 'right', 'Gain/Loss', 'Net profit or loss on this market = net cash + payout. For resolved markets this is the final realized gain/loss. For open markets it is the projected gain/loss if the market settled at the current metric value.'],
-                                    ] as [PnlSortKey, 'left' | 'right', string, string | undefined][]).map(([k, align, label, tt]) => (
-                                      <th key={k} style={{ textAlign: align, padding: '0.3rem 0.4rem', fontWeight: 500, cursor: 'pointer', userSelect: 'none' }} onClick={() => togglePnlSort(k)} title={tt}>
-                                        {label}{sortArrow(pnlSort.key === k, pnlSort.dir)}
-                                      </th>
-                                    ))}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {sortPnlRows(agentMarketPnl[agent.id]).map(r => {
-                                    const isOpen = r.status === 'open';
-                                    const dash = <span style={{ color: 'var(--text-secondary)' }}>-</span>;
-                                    // For resolved markets pnlMetric is the realized earnings
-                                    // (net cash + payout at actualValue). Show that as Final.
-                                    // For voided markets the pool is refunded, so final is 0.
-                                    const finalValue =
-                                      r.status === 'resolved' ? r.pnlMetric
-                                      : r.status === 'voided' ? 0
-                                      : null;
-                                    return (
-                                    <tr key={r.marketId} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                      <td style={{ padding: '0.3rem 0.4rem' }}>{r.metricName}</td>
-                                      <td style={{ padding: '0.3rem 0.4rem', fontFamily: 'monospace' }}>{r.targetDate}</td>
-                                      <td style={{ padding: '0.3rem 0.4rem', color: 'var(--text-secondary)' }}>{r.status}</td>
-                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>
-                                        <span style={{ color: 'var(--success-text)' }}>{fmt9(r.higherShares)}</span>
-                                        {' / '}
-                                        <span style={{ color: 'var(--error-text)' }}>{fmt9(r.lowerShares)}</span>
-                                      </td>
-                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace', color: isOpen ? (r.netCash >= 0 ? 'var(--success-text)' : 'var(--error-text)') : undefined }}>
-                                        {isOpen ? `${r.netCash >= 0 ? '+' : ''}${fmt9(r.netCash)}` : dash}
-                                      </td>
-                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>
-                                        {isOpen && r.consensus !== null ? r.consensus.toFixed(9) : dash}
-                                      </td>
-                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: isOpen ? (r.pnlConsensus >= 0 ? 'var(--success-text)' : 'var(--error-text)') : undefined }}>
-                                        {isOpen ? `${r.pnlConsensus >= 0 ? '+' : ''}${fmt9(r.pnlConsensus)}` : dash}
-                                      </td>
-                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>{r.metricValue !== null ? r.metricValue.toFixed(9) : dash}</td>
-                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>{r.status === 'voided' ? dash : (r.metricPayoutValue === null ? dash : fmt9(r.metricPayoutValue))}</td>
-                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600, color: isOpen
-                                        ? (r.pnlMetric === null ? 'var(--text-secondary)' : r.pnlMetric >= 0 ? 'var(--success-text)' : 'var(--error-text)')
-                                        : (finalValue === null ? undefined : finalValue >= 0 ? 'var(--success-text)' : 'var(--error-text)') }}>
-                                        {isOpen
-                                          ? (r.pnlMetric === null ? dash : `${r.pnlMetric >= 0 ? '+' : ''}${fmt9(r.pnlMetric)}`)
-                                          : (finalValue === null ? dash : `${finalValue >= 0 ? '+' : ''}${fmt9(finalValue)}`)}
-                                      </td>
-                                    </tr>
-                                    );
-                                  })}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Trades</div>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
-                              <thead>
-                                <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
-                                  <th style={{ textAlign: 'left', padding: '0.3rem 0.4rem', fontWeight: 500 }}>When</th>
-                                  <th style={{ textAlign: 'left', padding: '0.3rem 0.4rem', fontWeight: 500 }}>Market</th>
-                                  <th style={{ textAlign: 'left', padding: '0.3rem 0.4rem', fontWeight: 500 }}>Target</th>
-                                  <th style={{ textAlign: 'left', padding: '0.3rem 0.4rem', fontWeight: 500 }}>Side</th>
-                                  <th style={{ textAlign: 'right', padding: '0.3rem 0.4rem', fontWeight: 500 }}>Shares</th>
-                                  <th style={{ textAlign: 'right', padding: '0.3rem 0.4rem', fontWeight: 500 }}>Cash</th>
-                                  <th style={{ textAlign: 'left', padding: '0.3rem 0.4rem', fontWeight: 500 }}>Status</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {trades.map(t => {
-                                  const cash = -t.cost;
-                                  return (
-                                    <tr key={t.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                      <td style={{ padding: '0.3rem 0.4rem', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{new Date(t.createdAt).toLocaleString()}</td>
-                                      <td style={{ padding: '0.3rem 0.4rem' }}>{t.metricName ?? t.marketId}</td>
-                                      <td style={{ padding: '0.3rem 0.4rem', fontFamily: 'monospace' }}>{t.targetDate ?? '-'}</td>
-                                      <td style={{ padding: '0.3rem 0.4rem' }}>
-                                        <span style={{ color: t.direction === 'higher' ? 'var(--success-text)' : 'var(--error-text)' }}>{t.direction}</span>
-                                        <span style={{ marginLeft: '0.35rem', color: 'var(--text-secondary)' }}>({t.kind})</span>
-                                      </td>
-                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace' }}>{fmt9(t.shares)}</td>
-                                      <td style={{ padding: '0.3rem 0.4rem', textAlign: 'right', fontFamily: 'monospace', color: cash >= 0 ? 'var(--success-text)' : 'var(--error-text)' }}>
-                                        {cash >= 0 ? '+' : ''}{fmt9(cash)}
-                                      </td>
-                                      <td style={{ padding: '0.3rem 0.4rem', color: 'var(--text-secondary)' }}>{t.marketStatus}</td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </>
-                          )}
+                      <tr
+                        className={`agent-row${isExpanded ? ' expanded' : ''}`}
+                        onClick={() => toggleAgentTrades(agent.id)}
+                      >
+                        <td className="agent-chevron">{isExpanded ? '▾' : '▸'}</td>
+                        <td>
+                          <span className={isOpaqueId(agent.id) ? 'agent-id agent-id-opaque' : 'agent-id'} title={agent.id}>
+                            {agent.id}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="agent-groups" onClick={e => e.stopPropagation()}>
+                            {memberOf.map(g => (
+                              <span key={g.id} className={`agent-chip agent-chip-${g.type === 'admin' || g.type === 'trader' || g.type === 'public' ? g.type : 'custom'}`}>
+                                {g.name}
+                                {g.type !== 'public' && (
+                                  <button
+                                    type="button"
+                                    className="agent-chip-remove"
+                                    title={`Remove from ${g.name}`}
+                                    onClick={() => handleRemoveMemberFromGroup(g, agent.id)}
+                                  >×</button>
+                                )}
+                              </span>
+                            ))}
+                            {notMemberOf.length > 0 && (
+                              <select
+                                className="agent-add-group"
+                                value=""
+                                title="Add to group"
+                                onChange={e => {
+                                  const groupId = e.target.value;
+                                  if (!groupId) return;
+                                  const group = groups.find(g => g.id === groupId);
+                                  if (group) handleAddMemberToGroup(group, agent.id);
+                                }}
+                              >
+                                <option value="">+ add</option>
+                                {notMemberOf.map(g => (
+                                  <option key={g.id} value={g.id}>{g.name}</option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+                        </td>
+                        <td className="agent-num">${fmt9(agent.balance)}</td>
+                        <td className="agent-num agent-num-pos">${fmt9(agent.earnedBetting)}</td>
+                        <td className="agent-num agent-num-neg">${fmt9(agent.spentBetting)}</td>
+                        <td className={`agent-num agent-num-bold ${tradingPnl >= 0 ? 'agent-num-pos' : 'agent-num-neg'}`}>
+                          {signed(tradingPnl, n => `$${fmt9(n)}`)}
+                        </td>
+                        <td className={`agent-num agent-num-bold ${pnlClass(agent.realizedPnl)}`}>
+                          {signed(agent.realizedPnl ?? 0, n => `$${fmt9(n)}`)}
+                        </td>
+                        <td className={`agent-num agent-num-bold ${pnlClass(agent.pnlConsensus)}`}>
+                          {signed(agent.pnlConsensus ?? 0, n => `$${fmt9(n)}`)}
+                        </td>
+                        <td className={`agent-num agent-num-bold ${pnlClass(agent.pnlMetric)}`}>
+                          {signed(agent.pnlMetric ?? 0, n => `$${fmt9(n)}`)}
                         </td>
                       </tr>
-                    )}
+                      {isExpanded && (
+                        <tr className="agent-expanded">
+                          <td colSpan={10}>
+                            {agentExpansionLoading === agent.id && !trades ? (
+                              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', paddingTop: '0.75rem' }}>Loading…</div>
+                            ) : !trades || trades.length === 0 ? (
+                              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', paddingTop: '0.75rem' }}>No trades.</div>
+                            ) : (
+                              <>
+                                {pnlRows && pnlRows.length > 0 && (
+                                  <div style={{ marginTop: '1rem' }}>
+                                    <div className="section-label">Per-market P&amp;L</div>
+                                    <table className="agent-subtable">
+                                      <thead>
+                                        <tr>
+                                          {([
+                                            ['metric', 'left', 'Market', undefined],
+                                            ['target', 'left', 'Target', undefined],
+                                            ['status', 'left', 'Status', undefined],
+                                            ['shares', 'right', 'Shares H/L', 'Shares held (higher / lower)'],
+                                            ['netCash', 'right', 'Net cash', 'Net cash invested in this market (open markets only)'],
+                                            ['consensus', 'right', 'Consensus', 'Current market consensus (open markets only)'],
+                                            ['pnlConsensus', 'right', 'PnL @ consensus', 'Unrealized P&L at current AMM prices; open markets only'],
+                                            ['metricValue', 'right', 'Metric', 'Current metric total (resolved markets show actualValue)'],
+                                            ['payout', 'right', 'Payout', 'Gross payout from shares held at current metric value'],
+                                            ['pnlMetric', 'right', 'Gain/Loss', 'Net profit/loss if settled at current metric value'],
+                                          ] as [PnlSortKey, 'left' | 'right', string, string | undefined][]).map(([k, align, label, tt]) => (
+                                            <th
+                                              key={k}
+                                              style={{ textAlign: align, cursor: 'pointer', userSelect: 'none' }}
+                                              onClick={() => togglePnlSort(k)}
+                                              title={tt}
+                                            >
+                                              {label}{sortArrow(pnlSort.key === k, pnlSort.dir)}
+                                            </th>
+                                          ))}
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {sortPnlRows(pnlRows).map(r => {
+                                          const isOpen = r.status === 'open';
+                                          const dash = <span style={{ color: 'var(--text-tertiary)' }}>-</span>;
+                                          const finalValue =
+                                            r.status === 'resolved' ? r.pnlMetric
+                                            : r.status === 'voided' ? 0
+                                            : null;
+                                          return (
+                                            <tr key={r.marketId}>
+                                              <td>{r.metricName}</td>
+                                              <td className="agent-num" style={{ textAlign: 'left' }}>{r.targetDate}</td>
+                                              <td style={{ color: 'var(--text-secondary)' }}>{r.status}</td>
+                                              <td className="agent-num">
+                                                <span className="agent-num-pos">{fmt9(r.higherShares)}</span>
+                                                <span style={{ color: 'var(--text-tertiary)' }}> / </span>
+                                                <span className="agent-num-neg">{fmt9(r.lowerShares)}</span>
+                                              </td>
+                                              <td className={`agent-num ${isOpen ? (r.netCash >= 0 ? 'agent-num-pos' : 'agent-num-neg') : ''}`}>
+                                                {isOpen ? signed(r.netCash) : dash}
+                                              </td>
+                                              <td className="agent-num">
+                                                {isOpen && r.consensus !== null ? r.consensus.toFixed(9) : dash}
+                                              </td>
+                                              <td className={`agent-num agent-num-bold ${isOpen ? (r.pnlConsensus >= 0 ? 'agent-num-pos' : 'agent-num-neg') : ''}`}>
+                                                {isOpen ? signed(r.pnlConsensus) : dash}
+                                              </td>
+                                              <td className="agent-num">{r.metricValue !== null ? r.metricValue.toFixed(9) : dash}</td>
+                                              <td className="agent-num">{r.status === 'voided' ? dash : (r.metricPayoutValue === null ? dash : fmt9(r.metricPayoutValue))}</td>
+                                              <td className={`agent-num agent-num-bold ${isOpen
+                                                ? (r.pnlMetric === null ? '' : r.pnlMetric >= 0 ? 'agent-num-pos' : 'agent-num-neg')
+                                                : (finalValue === null ? '' : finalValue >= 0 ? 'agent-num-pos' : 'agent-num-neg')}`}>
+                                                {isOpen
+                                                  ? (r.pnlMetric === null ? dash : signed(r.pnlMetric))
+                                                  : (finalValue === null ? dash : signed(finalValue))}
+                                              </td>
+                                            </tr>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )}
+                                <div style={{ marginTop: '1.25rem' }}>
+                                  <div className="section-label">Trades</div>
+                                  <table className="agent-subtable">
+                                    <thead>
+                                      <tr>
+                                        <th style={{ textAlign: 'left' }}>When</th>
+                                        <th style={{ textAlign: 'left' }}>Market</th>
+                                        <th style={{ textAlign: 'left' }}>Target</th>
+                                        <th style={{ textAlign: 'left' }}>Side</th>
+                                        <th style={{ textAlign: 'right' }}>Shares</th>
+                                        <th style={{ textAlign: 'right' }}>Cash</th>
+                                        <th style={{ textAlign: 'left' }}>Status</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {trades.map(t => {
+                                        const cash = -t.cost;
+                                        return (
+                                          <tr key={t.id}>
+                                            <td className="agent-num" style={{ textAlign: 'left', color: 'var(--text-secondary)' }}>{new Date(t.createdAt).toLocaleString()}</td>
+                                            <td>{t.metricName ?? t.marketId}</td>
+                                            <td className="agent-num" style={{ textAlign: 'left' }}>{t.targetDate ?? '-'}</td>
+                                            <td>
+                                              <span className={t.direction === 'higher' ? 'agent-num-pos' : 'agent-num-neg'}>{t.direction}</span>
+                                              <span style={{ marginLeft: '0.35rem', color: 'var(--text-secondary)' }}>({t.kind})</span>
+                                            </td>
+                                            <td className="agent-num">{fmt9(t.shares)}</td>
+                                            <td className={`agent-num ${cash >= 0 ? 'agent-num-pos' : 'agent-num-neg'}`}>{signed(cash)}</td>
+                                            <td style={{ color: 'var(--text-secondary)' }}>{t.marketStatus}</td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </>
+                            )}
+                          </td>
+                        </tr>
+                      )}
                     </Fragment>
                   );
                 })}
-
-
               </tbody>
             </table>
           </div>
         )}
+      </div>
 
-        {/* Permission Groups (settings only, member management is inline above) */}
-        <div className="section">
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.25rem' }}>Permission Groups</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
-            Manage group settings and per-metric permissions. Assign participants to groups using the + button in the table above.
+      <div className="section">
+        <div className="section-header">
+          <h2>Permission groups</h2>
+          <p className="section-subtitle">
+            Manage group capabilities and per-metric permissions. Assign participants using the + add control in the table above.
           </p>
+        </div>
 
-          <form onSubmit={handleCreateGroup} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-            <input
-              type="text"
-              placeholder="New group name"
-              value={newGroupName}
-              onChange={e => setNewGroupName(e.target.value)}
-              style={{ flex: 1, minWidth: 180, marginBottom: 0 }}
-            />
-            <button type="submit" disabled={creatingGroup || !newGroupName.trim()} style={{ whiteSpace: 'nowrap' }}>
-              {creatingGroup ? 'Creating…' : 'New group'}
-            </button>
-          </form>
+        <form onSubmit={handleCreateGroup} className="agent-form-inline" style={{ marginBottom: '1.25rem' }}>
+          <input
+            type="text"
+            placeholder="New group name"
+            value={newGroupName}
+            onChange={e => setNewGroupName(e.target.value)}
+            style={{ flex: 1, minWidth: 180, marginBottom: 0 }}
+          />
+          <button type="submit" disabled={creatingGroup || !newGroupName.trim()} style={{ whiteSpace: 'nowrap' }}>
+            {creatingGroup ? 'Creating…' : 'New group'}
+          </button>
+        </form>
 
-          {groups.length === 0 ? (
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No groups yet.</p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {groups.map(group => {
-                const isExpanded = expandedGroupId === group.id;
-                const systemGroup = isSystemGroup(group.type);
-                const restrictedMetrics = Object.keys(group.permissions).length;
-                const memberCount = group.memberIds.length;
+        {groups.length === 0 ? (
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No groups yet.</p>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+            {groups.map(group => {
+              const isExpanded = expandedGroupId === group.id;
+              const systemGroup = isSystemGroup(group.type);
+              const restrictedMetrics = Object.keys(group.permissions).length;
+              const memberCount = group.memberIds.length;
+              const caps = (group.capabilities ?? []).join(', ') || 'no capabilities';
+              const metaParts = [caps, memberCount > 0 ? `${memberCount} participant${memberCount !== 1 ? 's' : ''}` : 'empty'];
+              if (restrictedMetrics > 0) metaParts.push(`${restrictedMetrics} metric rule${restrictedMetrics !== 1 ? 's' : ''}`);
 
-                return (
-                  <div key={group.id} style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-                    <div
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.65rem 0.75rem', cursor: 'pointer', background: isExpanded ? 'var(--bg-secondary)' : undefined }}
-                      onClick={() => setExpandedGroupId(isExpanded ? null : group.id)}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
-                        <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{group.name}</span>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
-                          {(group.capabilities ?? []).join(', ') || 'no capabilities'}
-                          {' · '}{memberCount > 0 ? `${memberCount} participant${memberCount !== 1 ? 's' : ''}` : 'empty'}
-                          {restrictedMetrics > 0 && ` · ${restrictedMetrics} metric rule${restrictedMetrics !== 1 ? 's' : ''}`}
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-                        {!systemGroup && (
-                          <button className="btn-small btn-delete" onClick={e => { e.stopPropagation(); handleDeleteGroup(group.id); }}>Delete</button>
-                        )}
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{isExpanded ? '▲' : '▼'}</span>
-                      </div>
+              return (
+                <div key={group.id} className={`group-row${isExpanded ? ' expanded' : ''}`}>
+                  <div className="group-row-head" onClick={() => setExpandedGroupId(isExpanded ? null : group.id)}>
+                    <div className="group-row-title">
+                      <span className="group-row-name">{group.name}</span>
+                      <span className="group-row-meta">{metaParts.join(' · ')}</span>
                     </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                      {!systemGroup && (
+                        <button className="btn-small btn-delete" onClick={e => { e.stopPropagation(); handleDeleteGroup(group.id); }}>Delete</button>
+                      )}
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{isExpanded ? '▾' : '▸'}</span>
+                    </div>
+                  </div>
 
-                    {isExpanded && (
-                      <div style={{ padding: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
-                        <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Capabilities</div>
-                        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
+                  {isExpanded && (
+                    <div className="group-row-body">
+                      <div className="group-subsection">
+                        <div className="section-label">Capabilities</div>
+                        <div className="capability-row">
                           {(['read', 'trade', 'manage'] as Capability[]).map(cap => {
                             const checked = (group.capabilities ?? []).includes(cap);
                             return (
-                              <label key={cap} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.875rem', cursor: 'pointer' }}>
+                              <label key={cap}>
                                 <input type="checkbox" checked={checked} onChange={() => handleToggleCapability(group, cap)} />
                                 {cap}
                               </label>
                             );
                           })}
                         </div>
-                        <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Metric Permissions</div>
+                      </div>
+
+                      <div className="group-subsection">
+                        <div className="section-label">Metric permissions</div>
                         {metrics.length === 0 ? (
                           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>No leaf metrics.</p>
                         ) : (
-                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                          <table className="agent-subtable">
                             <thead>
-                              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                <th style={{ textAlign: 'left', padding: '0.3rem 0.5rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Metric</th>
-                                <th style={{ textAlign: 'center', padding: '0.3rem 0.5rem', color: 'var(--text-secondary)', fontWeight: 500, width: 60 }}>Read</th>
-                                <th style={{ textAlign: 'center', padding: '0.3rem 0.5rem', color: 'var(--text-secondary)', fontWeight: 500, width: 60 }}>Trade</th>
+                              <tr>
+                                <th style={{ textAlign: 'left' }}>Metric</th>
+                                <th style={{ textAlign: 'center', width: 60 }}>Read</th>
+                                <th style={{ textAlign: 'center', width: 60 }}>Trade</th>
                               </tr>
                             </thead>
                             <tbody>
                               {metrics.map(m => {
                                 const perms = group.permissions[m.id] ?? { read: false, trade: false };
                                 return (
-                                  <tr key={m.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                    <td style={{ padding: '0.3rem 0.5rem' }}>{m.name}</td>
-                                    <td style={{ padding: '0.3rem 0.5rem', textAlign: 'center' }}>
+                                  <tr key={m.id}>
+                                    <td>{m.name}</td>
+                                    <td style={{ textAlign: 'center' }}>
                                       <input type="checkbox" checked={perms.read} onChange={() => handleTogglePermission(group, m.id, 'read')} />
                                     </td>
-                                    <td style={{ padding: '0.3rem 0.5rem', textAlign: 'center' }}>
+                                    <td style={{ textAlign: 'center' }}>
                                       <input type="checkbox" checked={perms.trade} onChange={() => handleTogglePermission(group, m.id, 'trade')} />
                                     </td>
                                   </tr>
@@ -777,46 +789,45 @@ function AgentAdminPage({ user, workspace }: {
                             </tbody>
                           </table>
                         )}
-
-                        {/* Source Permissions */}
-                        {sourcesList.length > 0 && (
-                          <>
-                            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem', marginTop: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Source Permissions</div>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-                              <thead>
-                                <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                  <th style={{ textAlign: 'left', padding: '0.3rem 0.5rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Source</th>
-                                  <th style={{ textAlign: 'left', padding: '0.3rem 0.5rem', color: 'var(--text-secondary)', fontWeight: 500, width: 60 }}>Type</th>
-                                  <th style={{ textAlign: 'center', padding: '0.3rem 0.5rem', color: 'var(--text-secondary)', fontWeight: 500, width: 60 }}>Read</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {sourcesList.map(s => {
-                                  const hasAccess = group.sourcePermissions?.[s.id]?.read ?? false;
-                                  return (
-                                    <tr key={s.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                                      <td style={{ padding: '0.3rem 0.5rem' }}>{s.name}</td>
-                                      <td style={{ padding: '0.3rem 0.5rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{s.type}</td>
-                                      <td style={{ padding: '0.3rem 0.5rem', textAlign: 'center' }}>
-                                        <input type="checkbox" checked={hasAccess} onChange={() => handleToggleSourcePermission(group, s.id)} />
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </>
-                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+
+                      {sourcesList.length > 0 && (
+                        <div className="group-subsection">
+                          <div className="section-label">Source permissions</div>
+                          <table className="agent-subtable">
+                            <thead>
+                              <tr>
+                                <th style={{ textAlign: 'left' }}>Source</th>
+                                <th style={{ textAlign: 'left', width: 80 }}>Type</th>
+                                <th style={{ textAlign: 'center', width: 60 }}>Read</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {sourcesList.map(s => {
+                                const hasAccess = group.sourcePermissions?.[s.id]?.read ?? false;
+                                return (
+                                  <tr key={s.id}>
+                                    <td>{s.name}</td>
+                                    <td style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{s.type}</td>
+                                    <td style={{ textAlign: 'center' }}>
+                                      <input type="checkbox" checked={hasAccess} onChange={() => handleToggleSourcePermission(group, s.id)} />
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
-    </>
+    </div>
   );
 }
 
