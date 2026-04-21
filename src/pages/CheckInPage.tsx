@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, useRef, FormEvent, KeyboardEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useWorkspace } from '../hooks/useWorkspace';
@@ -34,12 +34,23 @@ interface MetricRowProps {
   metric: Metric;
   value: string;
   onChange: (v: string) => void;
+  onCommit: () => void;
+  saving: boolean;
+  savedFlash: boolean;
+  rowError: string | null;
 }
 
-function MetricCheckInRow({ metric, value, onChange }: MetricRowProps) {
+function MetricCheckInRow({ metric, value, onChange, onCommit, saving, savedFlash, rowError }: MetricRowProps) {
   const rel = formatRelative(metric.updatedAt);
   const current = formatValue(metric.value);
-  const dirty = value !== '' && !isNaN(parseFloat(value)) && parseFloat(value) !== metric.value;
+  const parsed = parseFloat(value);
+  const dirty = value !== '' && !isNaN(parsed) && parsed !== metric.value;
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      (e.currentTarget as HTMLInputElement).blur();
+    }
+  };
   return (
     <div className={`checkin-card${dirty ? ' checkin-card--dirty' : ''}`}>
       <div className="checkin-card__heading">
@@ -58,6 +69,9 @@ function MetricCheckInRow({ metric, value, onChange }: MetricRowProps) {
           className="checkin-card__input"
           value={value}
           onChange={e => onChange(e.target.value)}
+          onBlur={onCommit}
+          onKeyDown={handleKeyDown}
+          disabled={saving}
         />
         {metric.marketRangeMax != null && (
           <span className="checkin-card__range-label">{metric.marketRangeMax}</span>
@@ -67,6 +81,11 @@ function MetricCheckInRow({ metric, value, onChange }: MetricRowProps) {
         <span>Current <strong>{current}</strong></span>
         {rel && <span className="checkin-card__meta-sep" aria-hidden="true">·</span>}
         {rel && <span>Updated {rel}</span>}
+        <span className="checkin-card__status">
+          {saving && <span className="checkin-card__status-text">Saving…</span>}
+          {!saving && savedFlash && <span className="checkin-card__status-text checkin-card__status-text--saved">Saved</span>}
+          {!saving && rowError && <span className="checkin-card__status-text checkin-card__status-text--error">{rowError}</span>}
+        </span>
       </div>
     </div>
   );
@@ -81,11 +100,16 @@ export function CheckInPage() {
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
   const [marketCount, setMarketCount] = useState<number | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
+  const [savingIds, setSavingIds] = useState<Record<string, boolean>>({});
+  const [savedAt, setSavedAt] = useState<Record<string, number>>({});
+  const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
+  const [tick, setTick] = useState(0);
+  const [welcomeSubmitting, setWelcomeSubmitting] = useState(false);
+  const metricsRef = useRef<Metric[]>([]);
+  metricsRef.current = metrics;
 
   useEffect(() => {
     api.getMetrics().then((data: Metric[]) => {
@@ -110,15 +134,55 @@ export function CheckInPage() {
     }).catch((e: Error) => console.error('getParticipant failed:', e.message));
   }, [isWelcome]);
 
+  // Re-render every second so "Saved" pips fade out (2.5s lifetime).
+  useEffect(() => {
+    if (Object.keys(savedAt).length === 0) return;
+    const id = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [savedAt]);
+
   const leaves = metrics.filter(isLeaf);
 
-  const handleSubmit = async (e: FormEvent) => {
+  const saveMetric = async (metric: Metric, rawValue: string) => {
+    const v = parseFloat(rawValue);
+    if (isNaN(v)) {
+      setRowErrors(prev => ({ ...prev, [metric.id]: 'Enter a number' }));
+      return;
+    }
+    if (v === metric.value) return;
+    setRowErrors(prev => { const { [metric.id]: _, ...rest } = prev; return rest; });
+    setSavingIds(prev => ({ ...prev, [metric.id]: true }));
+    try {
+      await api.updateMetric(metric.id, {
+        name: metric.name,
+        description: metric.description || '',
+        value: v,
+        formula: metric.formula || '0',
+        oldValue: metric.value,
+        updateNote: 'Check-in',
+        timePreference: metric.timePreference ?? null,
+        marketRangeMax: metric.marketRangeMax,
+      });
+      setMetrics(prev => prev.map(m => m.id === metric.id
+        ? { ...m, value: v, updatedAt: new Date().toISOString() }
+        : m));
+      setValues(prev => ({ ...prev, [metric.id]: String(v) }));
+      setSavedAt(prev => ({ ...prev, [metric.id]: Date.now() }));
+    } catch (e) {
+      setRowErrors(prev => ({ ...prev, [metric.id]: e instanceof Error ? e.message : 'Save failed' }));
+    } finally {
+      setSavingIds(prev => { const { [metric.id]: _, ...rest } = prev; return rest; });
+    }
+  };
+
+  const handleWelcomeSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
-    setSaving(true);
+    setWelcomeSubmitting(true);
     try {
-      for (const m of leaves) {
-        const v = parseFloat(values[m.id] ?? '');
+      for (const m of metricsRef.current.filter(isLeaf)) {
+        const raw = values[m.id] ?? '';
+        const v = parseFloat(raw);
         if (isNaN(v) || v === m.value) continue;
         await api.updateMetric(m.id, {
           name: m.name,
@@ -131,17 +195,11 @@ export function CheckInPage() {
           marketRangeMax: m.marketRangeMax,
         });
       }
-      if (isWelcome) {
-        navigate('/metrics');
-        return;
-      }
-      setSaved(true);
-      const fresh = await api.getMetrics() as Metric[];
-      setMetrics(fresh);
+      navigate('/metrics');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
     } finally {
-      setSaving(false);
+      setWelcomeSubmitting(false);
     }
   };
 
@@ -174,6 +232,27 @@ export function CheckInPage() {
   }
 
   const seedReserved = marketCount != null ? marketCount * 0.5 : null;
+  const now = Date.now();
+  const SAVED_FLASH_MS = 2500;
+  void tick;
+
+  const rows = leaves.map(m => (
+    <MetricCheckInRow
+      key={m.id}
+      metric={m}
+      value={values[m.id] ?? ''}
+      onChange={v => {
+        setValues(prev => ({ ...prev, [m.id]: v }));
+        if (rowErrors[m.id]) {
+          setRowErrors(prev => { const { [m.id]: _, ...rest } = prev; return rest; });
+        }
+      }}
+      onCommit={() => saveMetric(m, values[m.id] ?? '')}
+      saving={!!savingIds[m.id]}
+      savedFlash={savedAt[m.id] != null && now - savedAt[m.id] < SAVED_FLASH_MS}
+      rowError={rowErrors[m.id] || null}
+    />
+  ));
 
   return (
     <div className="container checkin-page">
@@ -205,36 +284,28 @@ export function CheckInPage() {
         </div>
       )}
 
-      {saved && !isWelcome && (
-        <div className="message success show checkin-feedback">Values saved.</div>
-      )}
+      {error && <div className="message error show checkin-feedback">{error}</div>}
 
-      <form onSubmit={handleSubmit} className="checkin-form">
-        <div className="checkin-list">
-          {leaves.map(m => (
-            <MetricCheckInRow
-              key={m.id}
-              metric={m}
-              value={values[m.id] ?? ''}
-              onChange={v => { setSaved(false); setValues(prev => ({ ...prev, [m.id]: v })); }}
-            />
-          ))}
-        </div>
-
-        {error && <div className="message error show checkin-feedback">{error}</div>}
-
-        <div className="checkin-actions">
-          <button type="submit" className="btn checkin-submit" disabled={saving}>
-            {saving ? 'Saving...' : isWelcome ? 'Continue' : 'Save'}
-          </button>
-        </div>
-
-        {isWelcome && (
+      {isWelcome ? (
+        <form onSubmit={handleWelcomeSubmit} className="checkin-form">
+          <div className="checkin-list">{rows}</div>
+          <div className="checkin-actions">
+            <button type="submit" className="btn checkin-submit" disabled={welcomeSubmitting}>
+              {welcomeSubmitting ? 'Saving...' : 'Continue'}
+            </button>
+          </div>
           <p className="checkin-footnote">
             Your workspace is listed on the marketplace and open to participants. Change in <Link to="/settings">Settings</Link>.
           </p>
-        )}
-      </form>
+        </form>
+      ) : (
+        <div className="checkin-form">
+          <div className="checkin-list">{rows}</div>
+          <p className="checkin-footnote checkin-footnote--muted">
+            Changes save automatically when you leave a field or press Enter.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

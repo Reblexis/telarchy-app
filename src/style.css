@@ -3613,3 +3613,59 @@ code, pre, kbd, samp {
   line-height: 1.5;
 }
 
+.checkin-footnote--muted {
+  margin-top: 1.25rem;
+  opacity: 0.85;
+}
+
+.checkin-card__status {
+  margin-left: auto;
+  font-weight: 500;
+  min-height: 1em;
+}
+
+.checkin-card__status-text {
+  display: inline-block;
+  animation: checkinStatusFade 0.2s ease-out;
+}
+
+.checkin-card__status-text--saved {
+  color: var(--success-text);
+}
+
+.checkin-card__status-text--error {
+  color: var(--error-text);
+}
+
+@keyframes checkinStatusFade {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Settings page: single "Saved" pip in header */
+.section-header--with-status {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.settings-saved-pip {
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: var(--success-bg);
+  color: var(--success-text);
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+  white-space: nowrap;
+  margin-top: 0.15rem;
+}
+
+.settings-saved-pip--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+

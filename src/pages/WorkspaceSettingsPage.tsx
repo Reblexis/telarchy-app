@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
@@ -30,8 +30,8 @@ export function WorkspaceSettingsPage() {
   const [publicGroup, setPublicGroup] = useState<PublicGroupState | null>(null);
   const [autoFund, setAutoFund] = useState(false);
   const [liquidityCredits, setLiquidityCredits] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [saveMsg, setSaveMsg] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [wsLoading, setWsLoading] = useState(true);
 
@@ -63,32 +63,37 @@ export function WorkspaceSettingsPage() {
       .finally(() => setWsLoading(false));
   }, [user, wsId]);
 
-  const handleSave = async (e: FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    if (savedAt == null) return;
+    const id = setTimeout(() => setSavedAt(null), 2500);
+    return () => clearTimeout(id);
+  }, [savedAt]);
+
+  const markSaved = () => { setError(''); setSavedAt(Date.now()); };
+  const markError = (e: unknown) => setError((e as Error).message);
+
+  const commitName = async () => {
     if (!user || !wsId) return;
-    setError(''); setSaveMsg(''); setSaving(true);
+    const trimmed = name.trim();
+    if (!trimmed || trimmed === ws?.name) return;
     try {
-      await api.updateWorkspaceSettings(wsId, { name: name.trim() });
-      setSaveMsg('Saved.');
-      setWs(prev => prev ? { ...prev, name: name.trim() } : prev);
-    } catch (e: unknown) {
-      setError((e as Error).message);
-    } finally {
-      setSaving(false);
-    }
+      await api.updateWorkspaceSettings(wsId, { name: trimmed });
+      setWs(prev => prev ? { ...prev, name: trimmed } : prev);
+      markSaved();
+    } catch (e) { markError(e); }
   };
 
-  const handleSaveAccess = async (e: FormEvent) => {
-    e.preventDefault();
+  const commitAccess = async (nextAccess: Access) => {
     if (!user || !wsId || !isOwner) return;
-    setError(''); setSaveMsg(''); setSaving(true);
+    const prevAccess = access;
+    setAccess(nextAccess);
     try {
-      const nextVisibility: 'public' | 'private' = access === 'private' ? 'private' : 'public';
+      const nextVisibility: 'public' | 'private' = nextAccess === 'private' ? 'private' : 'public';
       await api.updateWorkspaceSettings(wsId, { visibility: nextVisibility });
       if (publicGroup) {
         const current = publicGroup.capabilities;
         const hasTrade = current.includes('trade');
-        const shouldTrade = access === 'open';
+        const shouldTrade = nextAccess === 'open';
         if (hasTrade !== shouldTrade) {
           const nextCaps = shouldTrade
             ? Array.from(new Set([...current, 'read', 'trade']))
@@ -97,44 +102,53 @@ export function WorkspaceSettingsPage() {
           setPublicGroup({ ...publicGroup, capabilities: nextCaps });
         }
       }
-      setSaveMsg('Saved.');
       setWs(prev => prev ? { ...prev, visibility: nextVisibility } : prev);
-    } catch (e: unknown) {
-      setError((e as Error).message);
-    } finally {
-      setSaving(false);
+      markSaved();
+    } catch (e) {
+      setAccess(prevAccess);
+      markError(e);
     }
   };
 
-  const handleSaveMarkets = async (e: FormEvent) => {
-    e.preventDefault();
+  const commitMarkets = async (nextAutoFund: boolean, nextCredits: string) => {
     if (!user || !wsId || !isOwner) return;
-    const credits = parseFloat(liquidityCredits);
-    if (autoFund && (!Number.isFinite(credits) || credits <= 0)) {
+    const credits = parseFloat(nextCredits);
+    if (nextAutoFund && (!Number.isFinite(credits) || credits <= 0)) {
       setError('Enter a positive credit amount per new market when auto-fund is on.');
       return;
     }
-    setError(''); setSaveMsg(''); setSaving(true);
+    const sameAutoFund = Boolean(ws?.autoFundNewMarkets) === nextAutoFund;
+    const sameCredits = nextAutoFund
+      ? ws?.newMarketLiquidityCredits === credits
+      : true;
+    if (sameAutoFund && sameCredits) return;
     try {
       const body: { autoFundNewMarkets?: boolean; newMarketLiquidityCredits?: number } = {};
-      if (!autoFund) {
+      if (!nextAutoFund) {
         body.autoFundNewMarkets = false;
       } else {
         body.autoFundNewMarkets = true;
         body.newMarketLiquidityCredits = credits;
       }
       await api.updateWorkspaceSettings(wsId, body);
-      setSaveMsg('Saved.');
       setWs(prev => prev ? {
         ...prev,
-        autoFundNewMarkets: autoFund,
-        newMarketLiquidityCredits: autoFund ? credits : (prev.newMarketLiquidityCredits ?? 0),
+        autoFundNewMarkets: nextAutoFund,
+        newMarketLiquidityCredits: nextAutoFund ? credits : (prev.newMarketLiquidityCredits ?? 0),
       } : prev);
-    } catch (e: unknown) {
-      setError((e as Error).message);
-    } finally {
-      setSaving(false);
+      markSaved();
+    } catch (e) { markError(e); }
+  };
+
+  const handleAutoFundToggle = (checked: boolean) => {
+    setAutoFund(checked);
+    if (!checked) {
+      void commitMarkets(false, liquidityCredits);
+    } else if (parseFloat(liquidityCredits) > 0) {
+      // If a valid amount is already set, save immediately.
+      void commitMarkets(true, liquidityCredits);
     }
+    // Otherwise wait for the user to enter a valid number and blur.
   };
 
   if (wsLoading) return <div className="loading">Loading…</div>;
@@ -164,69 +178,64 @@ export function WorkspaceSettingsPage() {
 
   return (
     <div className="container">
-      <div className="section-header">
-        <h2>Workspace Settings</h2>
-        <p className="section-subtitle">
-          ID: <code style={{ fontSize: '0.8rem' }}>{wsId}</code>
-        </p>
+      <div className="section-header section-header--with-status">
+        <div>
+          <h2>Workspace Settings</h2>
+          <p className="section-subtitle">
+            ID: <code style={{ fontSize: '0.8rem' }}>{wsId}</code>
+          </p>
+        </div>
+        <span className={`settings-saved-pip${savedAt != null ? ' settings-saved-pip--visible' : ''}`} aria-live="polite">
+          Saved
+        </span>
       </div>
 
       <div style={{ maxWidth: 640 }}>
-      {error && <div className="error show" style={{ marginBottom: '1rem' }}>{error}</div>}
+      {error && <div className="message error show" style={{ marginBottom: '1rem' }}>{error}</div>}
 
       <div className="section">
         <h3 style={{ marginBottom: '1rem' }}>General</h3>
-        <form onSubmit={handleSave}>
-          <div className="form-group">
-            <label htmlFor="ws-name">Workspace name</label>
-            <input
-              id="ws-name"
-              type="text"
-              required
-              maxLength={80}
-              value={name}
-              onChange={e => setName(e.target.value)}
-            />
-          </div>
-          <button type="submit" disabled={saving || !name.trim()}>
-            {saving ? 'Saving...' : 'Save changes'}
-          </button>
-          {saveMsg && <span style={{ marginLeft: '1rem', fontSize: '0.875rem', color: 'var(--success-text)' }}>{saveMsg}</span>}
-        </form>
+        <div className="form-group">
+          <label htmlFor="ws-name">Workspace name</label>
+          <input
+            id="ws-name"
+            type="text"
+            required
+            maxLength={80}
+            value={name}
+            onChange={e => setName(e.target.value)}
+            onBlur={commitName}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); (e.currentTarget as HTMLInputElement).blur(); } }}
+          />
+        </div>
       </div>
 
       <div className="section" style={{ marginTop: '2rem' }}>
         <h3 style={{ marginBottom: '0.5rem' }}>Access</h3>
         {isOwner ? (
-          <form onSubmit={handleSaveAccess}>
-            <div className="form-group">
-              <div className="radio-card-group">
-                {([
-                  { id: 'private' as const, label: 'Private', help: 'Invite-only. Not listed anywhere.' },
-                  { id: 'public'  as const, label: 'Public',  help: 'Listed publicly. Anyone can join and view.' },
-                  { id: 'open'    as const, label: 'Open',    help: 'Listed publicly. Anyone can join and trade.' },
-                ]).map(opt => (
-                  <label key={opt.id} className={`radio-card${access === opt.id ? ' selected' : ''}`}>
-                    <input
-                      type="radio"
-                      name="ws-access"
-                      value={opt.id}
-                      checked={access === opt.id}
-                      onChange={() => setAccess(opt.id)}
-                    />
-                    <span className="radio-card-body">
-                      <span className="radio-card-title">{opt.label}</span>
-                      <span className="radio-card-help">{opt.help}</span>
-                    </span>
-                  </label>
-                ))}
-              </div>
+          <div className="form-group">
+            <div className="radio-card-group">
+              {([
+                { id: 'private' as const, label: 'Private', help: 'Invite-only. Not listed anywhere.' },
+                { id: 'public'  as const, label: 'Public',  help: 'Listed publicly. Anyone can join and view.' },
+                { id: 'open'    as const, label: 'Open',    help: 'Listed publicly. Anyone can join and trade.' },
+              ]).map(opt => (
+                <label key={opt.id} className={`radio-card${access === opt.id ? ' selected' : ''}`}>
+                  <input
+                    type="radio"
+                    name="ws-access"
+                    value={opt.id}
+                    checked={access === opt.id}
+                    onChange={() => commitAccess(opt.id)}
+                  />
+                  <span className="radio-card-body">
+                    <span className="radio-card-title">{opt.label}</span>
+                    <span className="radio-card-help">{opt.help}</span>
+                  </span>
+                </label>
+              ))}
             </div>
-            <button type="submit" disabled={saving}>
-              {saving ? 'Saving...' : 'Save'}
-            </button>
-            {saveMsg && <span style={{ marginLeft: '1rem', fontSize: '0.875rem', color: 'var(--success-text)' }}>{saveMsg}</span>}
-          </form>
+          </div>
         ) : (
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
             Only the workspace owner can change access.
@@ -241,34 +250,31 @@ export function WorkspaceSettingsPage() {
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
               Automatically fund new markets from your agent balance. Each new non-task market will debit the amount below.
             </p>
-            <form onSubmit={handleSaveMarkets}>
+            <div className="form-group">
+              <label htmlFor="auto-fund" className="checkbox-label">
+                <input
+                  id="auto-fund"
+                  type="checkbox"
+                  checked={autoFund}
+                  onChange={e => handleAutoFundToggle(e.target.checked)}
+                />
+                Auto-fund new markets
+              </label>
+            </div>
+            {autoFund && (
               <div className="form-group">
-                <label htmlFor="auto-fund" className="checkbox-label">
-                  <input
-                    id="auto-fund"
-                    type="checkbox"
-                    checked={autoFund}
-                    onChange={e => setAutoFund(e.target.checked)}
-                  />
-                  Auto-fund new markets
-                </label>
+                <label htmlFor="liq-credits">Credits per market</label>
+                <input
+                  id="liq-credits"
+                  type="number"
+                  step="any"
+                  value={liquidityCredits}
+                  onChange={e => setLiquidityCredits(e.target.value)}
+                  onBlur={() => commitMarkets(autoFund, liquidityCredits)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); (e.currentTarget as HTMLInputElement).blur(); } }}
+                />
               </div>
-              {autoFund && (
-                <div className="form-group">
-                  <label htmlFor="liq-credits">Credits per market</label>
-                  <input
-                    id="liq-credits"
-                    type="number"
-                    step="any"
-                    value={liquidityCredits}
-                    onChange={e => setLiquidityCredits(e.target.value)}
-                  />
-                </div>
-              )}
-              <button type="submit" disabled={saving}>
-                {saving ? 'Saving...' : 'Save'}
-              </button>
-            </form>
+            )}
           </>
         ) : (
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
@@ -300,24 +306,24 @@ export function WorkspaceSettingsPage() {
           <button
             type="button"
             className="btn-delete"
-            disabled={saving}
+            disabled={deleting}
             onClick={async () => {
               if (!wsId) return;
               const confirmed = window.confirm(
                 `Delete workspace "${ws?.name ?? wsId}"?\n\nAll markets will be voided (stakes refunded), and all metrics, trades, and history will be permanently deleted. This cannot be undone.`
               );
               if (!confirmed) return;
-              setSaving(true); setError('');
+              setDeleting(true); setError('');
               try {
                 await api.deleteWorkspace(wsId);
                 navigate('/');
               } catch (e: unknown) {
                 setError((e as Error).message);
-                setSaving(false);
+                setDeleting(false);
               }
             }}
           >
-            {saving ? 'Deleting...' : 'Delete workspace'}
+            {deleting ? 'Deleting...' : 'Delete workspace'}
           </button>
         </div>
       )}
