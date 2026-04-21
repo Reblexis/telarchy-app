@@ -8,7 +8,7 @@ import { AppError } from '../lib/errors';
 import { authMiddleware } from '../middleware/auth';
 import { requireCapability } from '../middleware/roles';
 import { getAllMetrics, getMetricLogs, getUpdates } from '../services/metrics';
-import { resolvePredictions, resolveMarket, getMarkets, voidMarket } from '../services/predictions';
+import { resolvePredictions, getMarkets } from '../services/predictions';
 import { refreshRelativeDateMarkets } from '../services/markets';
 import { createConditionalMarkets } from '../services/tasks';
 import { isValidDateFormat, endOfPeriod } from '../lib/date-utils';
@@ -580,16 +580,6 @@ predictionsRouter.post('/markets/:id/liquidity', requireCapability('manage'), wr
     if (e instanceof AppError) { res.status(e.status).json({ error: e.message }); return; }
     throw e;
   }
-}));
-
-predictionsRouter.post('/markets/:id/void', requireCapability('manage'), wrap(async (req, res) => {
-  const { workspaceId } = req.auth!;
-  res.json(await voidMarket(req.params.id as string, workspaceId));
-}));
-
-predictionsRouter.post('/markets/:id/resolve', requireCapability('manage'), wrap(async (req, res) => {
-  const { workspaceId } = req.auth!;
-  res.json(await resolveMarket(req.params.id as string, workspaceId));
 }));
 
 predictionsRouter.delete('/markets/:id', requireCapability('manage'), wrap(async (req, res) => {

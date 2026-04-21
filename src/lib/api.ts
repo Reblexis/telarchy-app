@@ -211,10 +211,6 @@ export const api = {
     request('/api/predictions/markets', { method: 'POST', body: JSON.stringify({ metricId, targetDate }) }),
   deleteMarket: (id: string) =>
     request(`/api/predictions/markets/${id}`, { method: 'DELETE' }),
-  voidMarket: (id: string) =>
-    request(`/api/predictions/markets/${id}/void`, { method: 'POST' }),
-  resolveMarket: (id: string) =>
-    request(`/api/predictions/markets/${id}/resolve`, { method: 'POST' }),
   refreshMarkets: (taskId?: string) =>
     request('/api/predictions/markets/refresh', {
       method: 'POST',

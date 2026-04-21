@@ -72,19 +72,6 @@ async function resolveMarketRow(
   return { positions: positionCount, totalPayout };
 }
 
-export async function resolveMarket(marketId: string, workspaceId: string): Promise<{ resolved: boolean; totalPayout: number }> {
-  const [market] = await db.select().from(markets)
-    .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
-
-  if (!market || market.resolved) return { resolved: false, totalPayout: 0 };
-
-  const allMetrics = await getAllMetrics(workspaceId);
-  const metricMap = new Map<string, Metric>(allMetrics.map(m => [m.id, m]));
-  const result = await resolveMarketRow(market, metricMap, workspaceId);
-  if (result.skipped) return { resolved: false, totalPayout: 0 };
-  return { resolved: true, totalPayout: result.totalPayout };
-}
-
 export async function resolvePredictions(targetDate: string | undefined, workspaceId: string): Promise<{ resolved: number; totalPayout: number }> {
   const today = targetDate || new Date().toISOString().slice(0, 10);
 
@@ -122,8 +109,6 @@ export async function resolvePredictions(targetDate: string | undefined, workspa
 
   return { resolved: resolvedCount, totalPayout };
 }
-
-export { voidMarket } from './markets';
 
 export interface GetMarketsOptions {
   includeResolved?: boolean;

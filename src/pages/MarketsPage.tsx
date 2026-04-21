@@ -31,7 +31,6 @@ export function MarketsPage() {
   const [mainMarketsMap, setMainMarketsMap] = useState<Map<string, Market>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [resolveResult, setResolveResult] = useState('');
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
   const [, setTick] = useState(0);
   useEffect(() => { const id = setInterval(() => setTick(t => t + 1), 60000); return () => clearInterval(id); }, []);
@@ -128,20 +127,6 @@ export function MarketsPage() {
     load();
   };
 
-  const handleVoid = async (id: string) => {
-    if (!user) return;
-    setError('');
-    const result = await api.voidMarket(id).catch((e: Error) => { setError(e.message); return null; });
-    if (result) { setResolveResult(`Market cancelled. Refunded $${result.refunded}.`); load(); }
-  };
-
-  const handleResolveOne = async (id: string) => {
-    if (!user) return;
-    setError('');
-    const result = await api.resolveMarket(id).catch((e: Error) => { setError(e.message); return null; });
-    if (result?.resolved) { setResolveResult(`Market closed. Total payout: $${result.totalPayout}.`); load(); }
-  };
-
   const handleBulkLiquidity = async () => {
     if (!user) return;
     const a = parseFloat(bulkLiqAmount);
@@ -166,7 +151,6 @@ export function MarketsPage() {
     <div className="container">
       {isAdmin && <div style={{ marginBottom: '1rem' }}><HookStatus /></div>}
       {error && <div className="message error show">{error}</div>}
-      {resolveResult && <div className="message success show">{resolveResult}</div>}
       {bulkLiqResult && <div className="message success show">{bulkLiqResult}</div>}
 
       {loading ? (
@@ -311,14 +295,9 @@ export function MarketsPage() {
                         )}
                       </div>
 
-                      {isAdmin && (
+                      {isAdmin && m.tradeCount === 0 && (
                         <div className="market-head-actions" onClick={e => e.stopPropagation()}>
-                          <button className="btn-small" onClick={() => handleResolveOne(m.id)}>Close</button>
-                          {m.tradeCount === 0 ? (
-                            <button className="btn-small" onClick={() => handleDelete(m.id)}>Delete</button>
-                          ) : (
-                            <button className="btn-small" onClick={() => handleVoid(m.id)}>Cancel</button>
-                          )}
+                          <button className="btn-small" onClick={() => handleDelete(m.id)}>Delete</button>
                         </div>
                       )}
                     </div>

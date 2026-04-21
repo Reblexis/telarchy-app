@@ -944,7 +944,6 @@ await suite('Metrics - edge cases', async () => {
 
 await suite('Markets - edge cases', async () => {
   let edgeMarketId = '';
-  let voidedMarketId = '';
   let edgeMetricId2 = '';
 
   await test('Setup: create a standalone metric for market edge tests', async () => {
@@ -1007,30 +1006,6 @@ await suite('Markets - edge cases', async () => {
     expect(r.status).toBe(400);
   });
 
-  await test('Voiding a market marks it inactive and returns payout info', async () => {
-    if (!edgeMetricId2) return;
-    const r = ok(await adminCall(ctx.wsId)('POST', '/predictions/markets', {
-      metricId: edgeMetricId2,
-      targetDate: `${new Date().getFullYear() + 5}`,
-      liquidity: 0.5,
-    }));
-    voidedMarketId = r.id as string;
-    const voidR = await adminCall(ctx.wsId)('POST', `/predictions/markets/${voidedMarketId}/void`);
-    expect(voidR.status).toBe(200);
-    const detail = ok(await adminCall(ctx.wsId)('GET', `/predictions/markets/${voidedMarketId}`));
-    expect(detail.resolved).toBe(true);
-  });
-
-  await test('Trading on a voided market is rejected (400)', async () => {
-    if (!voidedMarketId || !ctx.agentKey) return;
-    const r = await agentCall(ctx.agentKey, ctx.wsId)('POST', '/predictions/trade', {
-      marketId: voidedMarketId,
-      direction: 'higher',
-      amount: 1,
-    });
-    expect(r.status).toBe(400);
-  });
-
   await test('targetValue trade mode: bet towards a specific value', async () => {
     if (!edgeMarketId || !ctx.agentKey) return;
     const r = ok(await agentCall(ctx.agentKey, ctx.wsId)('POST', '/predictions/trade', {
@@ -1074,7 +1049,6 @@ await suite('Markets - edge cases', async () => {
 
   await test('Cleanup edge markets and metric', async () => {
     if (edgeMarketId) await adminCall(ctx.wsId)('DELETE', `/predictions/markets/${edgeMarketId}`);
-    if (voidedMarketId) await adminCall(ctx.wsId)('DELETE', `/predictions/markets/${voidedMarketId}`);
     if (edgeMetricId2) await adminCall(ctx.wsId)('DELETE', `/metrics/${edgeMetricId2}`);
   });
 });
@@ -1358,8 +1332,11 @@ await suite('Scenario: full market lifecycle with resolution payout', async () =
   });
 
   await test('Step 7: resolve the market; metric value 75 in range 0-100 means higher wins', async () => {
-    const r = ok(await adminCall(ctx.wsId)('POST', `/predictions/markets/${scenMarketId}/resolve`));
-    expect(r.resolved).toBe(true);
+    // Simulate the daily resolution cron by advancing "today" past the market's
+    // 2028 target year. resolvePredictions batches all past-due open markets; we
+    // only assert the scenMarketId landed correctly in the subsequent steps.
+    const r = ok(await adminCall(ctx.wsId)('POST', '/predictions/resolve', { targetDate: '2029-01-01' }));
+    expect(r.resolved as number).toBeGreaterThanOrEqual(1);
     expect(r.totalPayout as number).toBeGreaterThan(0);
   });
 
@@ -1540,11 +1517,12 @@ await suite('Scenario: closed market lifecycle (TP shift -> closed -> resolve)',
     ok(await adminCall(cmWsId)('PUT', `/metrics/${cmMetricId}`, {
       timePreference: { enabled: false },
     }));
-    // Stand-in for the daily cron firing once endOfPeriod(targetDate) <= today; both
-    // call the same resolveMarket() service.
+    // Stand-in for the daily cron firing once endOfPeriod(targetDate) <= today.
+    // Advance "today" past the closed market's target year so the batch resolver picks it up.
+    const resolveAsOf = `${parseInt(closedTargetDate, 10) + 1}-01-01`;
     const balBefore = (ok(await adminCall(cmWsId)('GET', `/agents/${cmAgentId}`)).balance as number);
-    const r = ok(await adminCall(cmWsId)('POST', `/predictions/markets/${closedMarketId}/resolve`));
-    expect(r.resolved).toBe(true);
+    const r = ok(await adminCall(cmWsId)('POST', '/predictions/resolve', { targetDate: resolveAsOf }));
+    expect(r.resolved as number).toBeGreaterThanOrEqual(1);
     expect(r.totalPayout as number).toBeGreaterThan(0);
     const lr = ok(await adminCall(cmWsId)('GET', '/predictions/markets?includeResolved=true')) as Array<Record<string, unknown>>;
     const detail = lr.find(x => x.id === closedMarketId)!;
