@@ -36,3 +36,7 @@ functions/.env.local
 .env
 .playwright-mcp/
 flow-audit-*/
+
+# Local debug artifacts (screenshots at repo root, TS incremental build cache)
+/*.png
+tsconfig.tsbuildinfo
