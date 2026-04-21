@@ -1,3 +1,14 @@
+export interface ActivityItem {
+  id: string;
+  type: string;
+  timestamp: string;
+  actor: { id: string; label: string } | null;
+  marketId?: string;
+  metricId?: string;
+  taskId?: string;
+  data: Record<string, unknown>;
+}
+
 export interface MarketplaceListing {
   workspaceId: string;
   workspaceName: string;
@@ -242,6 +253,37 @@ export const api = {
 
   getHooksStatus: (): Promise<{ active: boolean; lastPolledAt?: string; intervalMs?: number; nextPollAt?: string }> =>
     request('/api/events/hooks/status'),
+
+  // Admin activity feed (workspace-scoped; requires `manage` capability)
+  getAdminActivity: (
+    params: {
+      since?: string;
+      until?: string;
+      limit?: number;
+      types?: string[];
+      participantId?: string;
+      marketId?: string;
+      metricId?: string;
+      taskId?: string;
+    },
+    workspaceId?: string,
+  ): Promise<{
+    activities: ActivityItem[];
+    supportedTypes: string[];
+    nextCursor: string;
+  }> => {
+    const q = new URLSearchParams();
+    if (params.since) q.set('since', params.since);
+    if (params.until) q.set('until', params.until);
+    if (params.limit) q.set('limit', String(params.limit));
+    if (params.types?.length) q.set('types', params.types.join(','));
+    if (params.participantId) q.set('participantId', params.participantId);
+    if (params.marketId) q.set('marketId', params.marketId);
+    if (params.metricId) q.set('metricId', params.metricId);
+    if (params.taskId) q.set('taskId', params.taskId);
+    const qs = q.toString() ? `?${q}` : '';
+    return requestWithWorkspace(`/api/admin/activity${qs}`, {}, { workspaceId });
+  },
 
   // Marketplace (public, no auth)
   getStats: async (): Promise<{ marketsActive: number; agentsActive: number; tradesThisWeek: number }> => {
