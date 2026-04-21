@@ -19,10 +19,12 @@ const OPERATOR_NAV: NavItem[] = [
 
 const AGENT_NAV: NavItem[] = [];
 
+const PLATFORM_NAV: NavItem[] = [];
+
 export interface HeaderProps {
   activePage?: Page;
-  /** 'creator' = workspace owner nav; 'operator' = participant tooling nav; 'agent' = API-key portal nav. Defaults to 'creator'. */
-  navMode?: 'creator' | 'operator' | 'agent';
+  /** 'creator' = workspace owner nav; 'operator' = participant tooling nav; 'agent' = API-key portal nav; 'platform' = platform-admin pages (no workspace tabs or switcher). Defaults to 'creator'. */
+  navMode?: 'creator' | 'operator' | 'agent' | 'platform';
   actions?: ReactNode;
   /** If provided, displays the workspace name (fallback when workspaces list not supplied). */
   workspaceName?: string;
@@ -146,7 +148,12 @@ function WorkspaceSwitcher({ workspaces, activeId, onSwitch }: {
 }
 
 export function Header({ activePage, navMode = 'creator', actions, workspaceName, showSettings, workspaces, activeWorkspaceId, onWorkspaceSwitch, agentId }: HeaderProps) {
-  const navItems = navMode === 'operator' ? OPERATOR_NAV : navMode === 'agent' ? AGENT_NAV : CREATOR_NAV;
+  const navItems =
+    navMode === 'operator' ? OPERATOR_NAV :
+    navMode === 'agent' ? AGENT_NAV :
+    navMode === 'platform' ? PLATFORM_NAV :
+    CREATOR_NAV;
+  const hideWorkspaceArea = navMode === 'platform';
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -210,7 +217,7 @@ export function Header({ activePage, navMode = 'creator', actions, workspaceName
             {agentArea}
           </div>
         )}
-        {!agentArea && workspaceArea && (
+        {!agentArea && !hideWorkspaceArea && workspaceArea && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 500 }}>
               Workspace

@@ -1,35 +1,51 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { useWorkspace } from '../hooks/useWorkspace';
 import { api } from '../lib/api';
 import { Header } from '../components/Header';
 
 export function AdminPage() {
   const { user } = useAuth();
-  const { workspace, allWorkspaces, switchWorkspace, loading } = useWorkspace(!!user);
+  const [usdcEnabled, setUsdcEnabled] = useState<boolean | null>(null);
   const [treasury, setTreasury] = useState<{ address: string; usdcBalance: number; ethBalance: number } | null>(null);
   const [treasuryError, setTreasuryError] = useState('');
 
   useEffect(() => {
     if (!user) return;
-    api.getTreasury()
-      .then(data => setTreasury(data as { address: string; usdcBalance: number; ethBalance: number }))
-      .catch((e: Error) => setTreasuryError(e.message));
+    api.getStatus()
+      .then(s => {
+        const enabled = Boolean((s as { usdcSettlementEnabled?: boolean }).usdcSettlementEnabled);
+        setUsdcEnabled(enabled);
+        if (enabled) {
+          api.getTreasury()
+            .then(data => setTreasury(data as { address: string; usdcBalance: number; ethBalance: number }))
+            .catch((e: Error) => setTreasuryError(e.message));
+        }
+      })
+      .catch(() => setUsdcEnabled(false));
   }, [user]);
 
-  if (!user || loading) return <div className="loading">Loading…</div>;
+  if (!user || usdcEnabled === null) return <div className="loading">Loading…</div>;
 
   return (
     <>
-      <Header
-        workspaces={allWorkspaces}
-        activeWorkspaceId={workspace?.workspaceId}
-        onWorkspaceSwitch={switchWorkspace}
-      />
+      <Header navMode="platform" />
       <div className="container">
         <h1 style={{ marginBottom: '1.5rem', fontSize: '1.3rem', fontWeight: 700 }}>Platform Admin</h1>
 
-        {treasuryError && <div className="error show" style={{ marginBottom: '1rem' }}>{treasuryError}</div>}
+        {!usdcEnabled && (
+          <div
+            className="section"
+            style={{ marginBottom: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}
+          >
+            USDC settlement is disabled on this instance. Credits are play-money only; no on-chain
+            treasury is configured. Set <code>USDC_SETTLEMENT_ENABLED=true</code> and restart the
+            server to enable the treasury view.
+          </div>
+        )}
+
+        {treasuryError && (
+          <div className="error show" style={{ marginBottom: '1rem' }}>{treasuryError}</div>
+        )}
 
         {treasury && (
           <div className="section">
