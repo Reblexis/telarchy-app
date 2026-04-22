@@ -14,7 +14,7 @@ import {
 import zoomPlugin from 'chartjs-plugin-zoom';
 import { Line } from 'react-chartjs-2';
 import type { ChartPoint } from '../../lib/metrics-chart-model';
-import { formatAxisValue, formatTooltipTitle, formatXAxisTick, inferSpanMs } from '../../lib/metrics-chart-model';
+import { formatAxisValue, formatTooltipTitle, formatXAxisTick } from '../../lib/metrics-chart-model';
 
 ChartJS.register(LinearScale, PointElement, LineElement, Filler, Tooltip, Legend, zoomPlugin);
 
@@ -71,16 +71,26 @@ export function MetricsTimeChart({
   const datasets: ChartData<'line'>['datasets'] = [];
 
   if (sorted.length > 0) {
+    // Interpolated points (e.g. forward-filled gaps between sparse logs) should
+    // not render as dots — otherwise a single old log becomes a long plateau of
+    // identical-looking points and the user can't tell real logs from padding.
+    // The line still passes through them so the visual continuity is preserved.
+    const interpolatedFlags = sorted.map(p => p.interpolated === true);
+    const hasInterpolation = interpolatedFlags.some(Boolean);
     datasets.push({
       label: 'Current',
-      data: sorted.map(p => ({ x: p.x, y: p.y })),
+      data: sorted.map(p => ({ x: p.x, y: p.y, interpolated: p.interpolated === true })),
       borderColor: currentColor,
       backgroundColor: currentFill,
       borderWidth: 2,
       fill: true,
       tension: 0.25,
-      pointRadius: pr,
-      pointHoverRadius: phr,
+      pointRadius: hasInterpolation
+        ? (ctx) => (interpolatedFlags[ctx.dataIndex] ? 0 : pr)
+        : pr,
+      pointHoverRadius: hasInterpolation
+        ? (ctx) => (interpolatedFlags[ctx.dataIndex] ? 0 : phr)
+        : phr,
       pointBackgroundColor: currentColor,
     });
   }
@@ -250,6 +260,9 @@ export function MetricsTimeChart({
         position: 'nearest',
         yAlign: 'bottom',
         caretPadding: 10,
+        // Hovering a forward-filled gap should not show the stale carried
+        // value as if it were a real log.
+        filter: (item) => !((item.raw as { interpolated?: boolean } | null)?.interpolated),
         callbacks: {
           title: (items) => {
             const item = items[0];

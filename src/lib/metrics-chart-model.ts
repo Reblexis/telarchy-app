@@ -134,11 +134,6 @@ export function buildPointsFromLogs(logs: MetricLog[], interval: GraphInterval):
   return points;
 }
 
-export function inferSpanMs(points: ChartPoint[]): number {
-  if (points.length < 2) return 86400000;
-  return Math.max(1, points[points.length - 1].x - points[0].x);
-}
-
 export function formatTooltipTitle(point: ChartPoint): string {
   return `${point.label} (${formatDateShort(point.x)})`;
 }
