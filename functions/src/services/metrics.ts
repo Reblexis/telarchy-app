@@ -278,13 +278,21 @@ export async function getUpdates(limit: number | undefined, workspaceId: string)
 }
 
 export async function logSpecificMetrics(metricIds: string[], allMetrics: Metric[], workspaceId: string): Promise<void> {
+  // For leaf metrics the user directly authors `value` in the "Now:" editor,
+  // so that is what belongs in the graph history. For composites the value
+  // column is always 0 (see PUT /metrics/:id; non-leaf rows force value to 0),
+  // so falling back to `total` (the formula result) is what we want.
   const toInsert = metricIds
     .map(id => allMetrics.find(m => m.id === id))
     .filter((m): m is Metric => m !== undefined && m.total !== null)
-    .map(m => ({
-      id: randomUUID(), workspaceId, metricId: m.id, metricName: m.name,
-      value: m.total!, timestamp: new Date(),
-    }));
+    .map(m => {
+      const isLeaf = !m.formula || m.formula.trim() === '' || m.formula.trim() === '0';
+      const logValue = isLeaf ? m.value : m.total!;
+      return {
+        id: randomUUID(), workspaceId, metricId: m.id, metricName: m.name,
+        value: logValue, timestamp: new Date(),
+      };
+    });
 
   if (toInsert.length > 0) {
     await db.insert(metricLogs).values(toInsert);
