@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/client';
-import { metrics, markets, updates } from '../db/schema';
+import { metrics, markets, updates, metricLogs } from '../db/schema';
 import { eq, and, sql, asc } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
@@ -29,6 +29,20 @@ metricsRouter.get('/:id', requireCapability('read'), wrap(async (req, res) => {
 
 metricsRouter.get('/:id/logs', requireCapability('read'), wrap(async (req, res) => {
   res.json(await svc.getMetricLogs(req.params.id as string, req.auth!.workspaceId));
+}));
+
+// Purge metric_logs. Useful as a one-off reset when the logging semantic
+// changes (e.g. we switched leaf logs from total → value). Body { metricId }
+// scopes the purge to one metric; omit to wipe every log in the workspace.
+// Returns { deleted: number }. Admin-only.
+metricsRouter.post('/logs/purge', requireCapability('manage'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
+  const metricId = typeof req.body?.metricId === 'string' ? req.body.metricId : undefined;
+  const whereClause = metricId
+    ? and(eq(metricLogs.workspaceId, workspaceId), eq(metricLogs.metricId, metricId))
+    : eq(metricLogs.workspaceId, workspaceId);
+  const result = await db.delete(metricLogs).where(whereClause);
+  res.json({ deleted: result.rowCount ?? 0, scope: metricId ? 'metric' : 'workspace' });
 }));
 
 metricsRouter.post('/', requireCapability('manage'), wrap(async (req, res) => {
