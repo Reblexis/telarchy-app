@@ -233,8 +233,6 @@ The UI validates your formula in real time and warns about:
 - Circular dependencies (A → B → A)
 - Syntax errors or expressions that evaluate to NaN
 - Use of commas (JS comma operator; use separate expressions instead)
-
-> The deprecated \`consensus("MetricName", "date")\` syntax is no longer supported. Forward-looking values are handled via *Time Preference* instead.
 `,
   },
   {
