@@ -25,6 +25,9 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
   const [isEditingValue, setIsEditingValue] = useState(false);
   const [editValueStr, setEditValueStr] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  // Guards against onBlur firing a second onValueChange right after Enter
+  // (the input unmounts on Enter, which also induces a blur event).
+  const submittedRef = useRef(false);
   const points = useMemo(
     () => (metric.timeSeries ? buildPointsFromTimeSeries(metric.timeSeries) : []),
     [metric.timeSeries],
@@ -65,15 +68,18 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
                   onKeyDown={e => {
                     if (e.key === 'Enter') {
                       const v = parseFloat(editValueStr);
-                      if (!isNaN(v) && onValueChange) onValueChange(v);
+                      if (!isNaN(v) && onValueChange && v !== metric.value) onValueChange(v);
+                      submittedRef.current = true;
                       setIsEditingValue(false);
                     } else if (e.key === 'Escape') {
+                      submittedRef.current = true;
                       setIsEditingValue(false);
                     }
                   }}
                   onBlur={() => {
+                    if (submittedRef.current) { submittedRef.current = false; return; }
                     const v = parseFloat(editValueStr);
-                    if (!isNaN(v) && onValueChange) onValueChange(v);
+                    if (!isNaN(v) && onValueChange && v !== metric.value) onValueChange(v);
                     setIsEditingValue(false);
                   }}
                   style={{ width: '6rem', fontSize: 'inherit', padding: '0 0.25rem' }}
