@@ -116,6 +116,24 @@ describe('MetricsTimeChart', () => {
     expect(container.querySelector('canvas')).not.toBeNull();
   });
 
+  test('single-point series still produces a non-degenerate x-axis range', async () => {
+    // This is the "empty-looking graph" case: a user has logged a metric once
+    // and the graph naively rendered with xMin===xMax so Chart.js drew nothing.
+    // We assert the chart is rendered (canvas exists) with a single-point input.
+    const { container } = render(
+      <MetricsTimeChart points={[pt(1_700_000_000_000, 42)]} mode="normal" variant="modal" />
+    );
+    expect(container.querySelector('canvas')).not.toBeNull();
+  });
+
+  test('multiple points collapsed to the same x are still rendered', () => {
+    const same = [pt(100, 5), pt(100, 7)];
+    const { container } = render(
+      <MetricsTimeChart points={same} mode="normal" variant="modal" />
+    );
+    expect(container.querySelector('canvas')).not.toBeNull();
+  });
+
   test('renders chart without crashing when interpolated flag mixes with real points', () => {
     const mixed = [
       pt(1, 5, { interpolated: false }),

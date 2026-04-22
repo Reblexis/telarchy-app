@@ -61,8 +61,16 @@ export function MetricsTimeChart({
   }
 
   const allX = [...sorted.map(p => p.x), ...condSorted.map(p => p.x), ...futureSorted.map(p => p.x)];
-  const xMin = Math.min(...allX);
-  const xMax = Math.max(...allX);
+  const rawMin = Math.min(...allX);
+  const rawMax = Math.max(...allX);
+  // When all points share the same x (degenerate case: one log, or multiple
+  // logs collapsed into a single interval) the chart renders with a
+  // zero-width axis and nothing shows up. Widen it to ±12h so the single
+  // point is visible and centered.
+  const HALF_DAY = 12 * 60 * 60 * 1000;
+  const needsWiden = rawMax - rawMin < 1;
+  const xMin = needsWiden ? rawMin - HALF_DAY : rawMin;
+  const xMax = needsWiden ? rawMax + HALF_DAY : rawMax;
   const spanMs = Math.max(1, xMax - xMin);
 
   const pr = variant === 'modal' ? 4 : 3;
