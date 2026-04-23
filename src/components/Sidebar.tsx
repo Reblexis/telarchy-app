@@ -37,14 +37,16 @@ export function Sidebar({ className = '' }: { className?: string }) {
   const canAccessWorkspace = workspace?.tier && workspace.tier !== 'none';
   const isAdmin = workspace?.tier === 'admin';
   const workspaceLinks = [
-    ...(isAdmin ? [{ to: '/check-in', label: 'Check-in' }] : []),
     { to: '/metrics', label: 'Metrics' },
-    { to: '/markets', label: 'Markets' },
+    ...(isAdmin ? [{ to: '/check-in', label: 'Check-in' }] : []),
     { to: '/tasks', label: 'Tasks' },
+    { to: '/markets', label: 'Markets' },
     ...(isAdmin ? [{ to: '/agents', label: 'Agents' }] : []),
     { to: '/sources', label: 'Sources' },
     ...(isAdmin ? [{ to: '/settings', label: 'Settings' }] : []),
   ];
+  const workspacePaths = ['/metrics', '/check-in', '/tasks', '/markets', '/agents', '/sources', '/settings'];
+  const onWorkspacePath = workspacePaths.includes(currentPath);
 
   useEffect(() => {
     setWorkspaceNavOpen(true);
@@ -83,7 +85,7 @@ export function Sidebar({ className = '' }: { className?: string }) {
                       return;
                     }
                     setWorkspaceNavOpen(true);
-                    switchWorkspace(ws.id);
+                    switchWorkspace(ws.id, onWorkspacePath ? undefined : '/metrics');
                   }}
                 >
                   <span>{ws.name}</span>

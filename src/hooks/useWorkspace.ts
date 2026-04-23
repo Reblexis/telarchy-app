@@ -21,7 +21,7 @@ export interface WorkspaceListItem {
 export function useWorkspace(authenticated: boolean = true): {
   workspace: WorkspaceInfo | null;
   allWorkspaces: WorkspaceListItem[];
-  switchWorkspace: (id: string) => void;
+  switchWorkspace: (id: string, targetPath?: string) => void;
   loading: boolean;
   error: string | null;
 } {
@@ -30,9 +30,13 @@ export function useWorkspace(authenticated: boolean = true): {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const switchWorkspace = useCallback((id: string) => {
+  const switchWorkspace = useCallback((id: string, targetPath?: string) => {
     setActiveWorkspace(id);
-    window.location.reload();
+    if (targetPath) {
+      window.location.href = targetPath;
+    } else {
+      window.location.reload();
+    }
   }, []);
 
   useEffect(() => {
