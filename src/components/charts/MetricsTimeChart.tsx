@@ -21,6 +21,9 @@ ChartJS.register(LinearScale, PointElement, LineElement, Filler, Tooltip, Legend
 export interface MetricsTimeChartProps {
   points: ChartPoint[];
   conditionalPoints?: ChartPoint[];
+  /** Historical outlook (m.total) points. Rendered as a second solid line on leaves with Time Preference,
+   *  where the user-authored value and the value/consensus blend diverge. */
+  outlookPoints?: ChartPoint[];
   /** Forecast points to overlay on top of the main series (rendered as a dashed line with a "now" divider). */
   futurePoints?: ChartPoint[];
   mode: 'normal' | 'inspect';
@@ -34,10 +37,11 @@ export interface MetricsTimeChartProps {
 }
 
 export function MetricsTimeChart({
-  points, conditionalPoints, futurePoints, mode, variant, rangeMin, rangeMax, halfLifeYears, onPointClick,
+  points, conditionalPoints, outlookPoints, futurePoints, mode, variant, rangeMin, rangeMax, halfLifeYears, onPointClick,
 }: MetricsTimeChartProps) {
   const currentColor = '#b45309';
   const conditionalColor = '#0f766e';
+  const outlookColor = '#0f766e';
   const currentFill = 'rgba(180,83,9,0.08)';
   const rootStyles = typeof window !== 'undefined' ? getComputedStyle(document.documentElement) : null;
   const cssVar = (name: string, fallback: string) => {
@@ -54,13 +58,14 @@ export function MetricsTimeChart({
   const sorted = [...points].sort((a, b) => a.x - b.x);
   const isInspect = mode === 'inspect';
   const condSorted = isInspect && conditionalPoints ? [...conditionalPoints].sort((a, b) => a.x - b.x) : [];
+  const outlookSorted = outlookPoints ? [...outlookPoints].sort((a, b) => a.x - b.x) : [];
   const futureSorted = futurePoints ? [...futurePoints].sort((a, b) => a.x - b.x) : [];
 
-  if (sorted.length === 0 && condSorted.length === 0 && futureSorted.length === 0) {
+  if (sorted.length === 0 && condSorted.length === 0 && outlookSorted.length === 0 && futureSorted.length === 0) {
     return <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>No time-series points</div>;
   }
 
-  const allX = [...sorted.map(p => p.x), ...condSorted.map(p => p.x), ...futureSorted.map(p => p.x)];
+  const allX = [...sorted.map(p => p.x), ...condSorted.map(p => p.x), ...outlookSorted.map(p => p.x), ...futureSorted.map(p => p.x)];
   const rawMin = Math.min(...allX);
   const rawMax = Math.max(...allX);
   // When all points share the same x (degenerate case: one log, or multiple
@@ -114,6 +119,30 @@ export function MetricsTimeChart({
       pointRadius: pr,
       pointHoverRadius: phr,
       pointBackgroundColor: conditionalColor,
+    });
+  }
+
+  if (outlookSorted.length > 0) {
+    // Outlook points share the interpolated-flag logic with current: a gap row
+    // copies the last known outlook so the line stays continuous without
+    // misleading the user with fake dots for the carried-forward value.
+    const outlookInterpolated = outlookSorted.map(p => p.interpolated === true);
+    const hasOutlookInterpolation = outlookInterpolated.some(Boolean);
+    datasets.push({
+      label: 'Outlook',
+      data: outlookSorted.map(p => ({ x: p.x, y: p.y, interpolated: p.interpolated === true })),
+      borderColor: outlookColor,
+      backgroundColor: 'rgba(15,118,110,0.08)',
+      borderWidth: 2,
+      fill: false,
+      tension: 0.25,
+      pointRadius: hasOutlookInterpolation
+        ? (ctx) => (outlookInterpolated[ctx.dataIndex] ? 0 : pr)
+        : pr,
+      pointHoverRadius: hasOutlookInterpolation
+        ? (ctx) => (outlookInterpolated[ctx.dataIndex] ? 0 : phr)
+        : phr,
+      pointBackgroundColor: outlookColor,
     });
   }
 
@@ -258,7 +287,13 @@ export function MetricsTimeChart({
         }
       : undefined,
     plugins: {
-      legend: { display: false },
+      // Show the legend when more than one series is drawn so "Current" and
+      // "Outlook" are distinguishable at a glance, not only on hover.
+      legend: {
+        display: outlookSorted.length > 0 && sorted.length > 0,
+        position: 'bottom' as const,
+        labels: { color: textColor, boxWidth: 12, boxHeight: 2, padding: 12 },
+      },
       tooltip: {
         backgroundColor: tipBg,
         titleColor: tipTitle,
@@ -277,9 +312,11 @@ export function MetricsTimeChart({
             if (!item) return '';
             const source = item.dataset.label === 'Conditional'
               ? condSorted
-              : item.dataset.label === 'Forecast'
-                ? futureSorted
-                : sorted;
+              : item.dataset.label === 'Outlook'
+                ? outlookSorted
+                : item.dataset.label === 'Forecast'
+                  ? futureSorted
+                  : sorted;
             const p = source[item.dataIndex];
             return p ? formatTooltipTitle(p) : '';
           },
@@ -313,7 +350,7 @@ export function MetricsTimeChart({
       },
       y: {
         ...(() => {
-          const allY = [...sorted, ...condSorted, ...futureSorted].map(p => p.y);
+          const allY = [...sorted, ...condSorted, ...outlookSorted, ...futureSorted].map(p => p.y);
           const dataMin = Math.min(...allY);
           const dataMax = Math.max(...allY);
           const dataSpan = dataMax - dataMin;

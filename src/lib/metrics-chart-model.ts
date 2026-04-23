@@ -101,15 +101,25 @@ function intervalLabel(d: Date, interval: GraphInterval): string {
   return d.toLocaleDateString(undefined, { year: 'numeric' });
 }
 
-export function buildPointsFromLogs(logs: MetricLog[], interval: GraphInterval): ChartPoint[] {
+type LogPicker = (log: MetricLog) => number | null | undefined;
+
+function buildPointsPicking(logs: MetricLog[], interval: GraphInterval, pick: LogPicker): ChartPoint[] {
   if (logs.length === 0) return [];
   const sorted = [...logs].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-  const start = alignTimestamp(sorted[0].timestamp, interval);
+  // Skip leading rows where the picked field is missing so we don't open the
+  // chart window on rows that contribute nothing (e.g. pre-0018 logs for an
+  // outlook series).
+  const firstPickable = sorted.findIndex(l => {
+    const v = pick(l);
+    return typeof v === 'number' && !Number.isNaN(v);
+  });
+  if (firstPickable === -1) return [];
+  const start = alignTimestamp(sorted[firstPickable].timestamp, interval);
   const end = new Date();
 
   const points: ChartPoint[] = [];
   let cursor = new Date(start);
-  let i = 0;
+  let i = firstPickable;
   let lastKnown: number | null = null;
 
   while (cursor.getTime() <= end.getTime()) {
@@ -118,8 +128,11 @@ export function buildPointsFromLogs(logs: MetricLog[], interval: GraphInterval):
 
     let valueInInterval: number | null = null;
     while (i < sorted.length && sorted[i].timestamp.getTime() < intervalEnd) {
-      valueInInterval = sorted[i].value;
-      lastKnown = sorted[i].value;
+      const v = pick(sorted[i]);
+      if (typeof v === 'number' && !Number.isNaN(v)) {
+        valueInInterval = v;
+        lastKnown = v;
+      }
       i++;
     }
 
@@ -132,6 +145,14 @@ export function buildPointsFromLogs(logs: MetricLog[], interval: GraphInterval):
     cursor = nextIntervalStart(cursor, interval);
   }
   return points;
+}
+
+export function buildPointsFromLogs(logs: MetricLog[], interval: GraphInterval): ChartPoint[] {
+  return buildPointsPicking(logs, interval, l => l.value);
+}
+
+export function buildOutlookPointsFromLogs(logs: MetricLog[], interval: GraphInterval): ChartPoint[] {
+  return buildPointsPicking(logs, interval, l => l.outlook);
 }
 
 export function formatTooltipTitle(point: ChartPoint): string {

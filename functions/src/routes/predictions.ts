@@ -392,7 +392,7 @@ predictionsRouter.get('/markets/:id/context', requireCapability('read'), wrap(as
       name: metric.name, description: metric.description || undefined, formula: metric.formula,
       currentValue: metric.value, currentTotal: metric.total, dependencies: depValues,
     } : null,
-    history: logs.slice(-historyLimit).map(l => ({ value: l.value, timestamp: l.timestamp })),
+    history: logs.slice(-historyLimit).map(l => ({ value: l.outlook ?? l.value, timestamp: l.timestamp })),
     recentUpdates: metricUpdates.slice(0, updatesLimit).map(u => ({
       oldValue: u.oldValue, newValue: u.newValue, description: u.description, timestamp: u.timestamp,
     })),

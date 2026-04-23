@@ -259,6 +259,7 @@ export async function getMetricLogs(metricId: string, workspaceId: string): Prom
     metricId: r.metricId,
     metricName: r.metricName,
     value: r.value,
+    outlook: r.outlook,
     timestamp: r.timestamp,
   }));
 }
@@ -278,21 +279,20 @@ export async function getUpdates(limit: number | undefined, workspaceId: string)
 }
 
 export async function logSpecificMetrics(metricIds: string[], allMetrics: Metric[], workspaceId: string): Promise<void> {
-  // For leaf metrics the user directly authors `value` in the "Now:" editor,
-  // so that is what belongs in the graph history. For composites the value
-  // column is always 0 (see PUT /metrics/:id; non-leaf rows force value to 0),
-  // so falling back to `total` (the formula result) is what we want.
+  // We log two numbers per row: `value` (what the user types into the "Now:"
+  // editor for leaves; 0 for composites, since the PUT route zeroes value on
+  // non-leaf rows) and `outlook` (m.total, the computed formula result or the
+  // value/future-consensus blend for leaves with Time Preference). They
+  // coincide for leaves without TP and for fully-leaf composites with value=0;
+  // they diverge meaningfully for leaves with TP enabled, where the Graph
+  // modal renders both as two lines.
   const toInsert = metricIds
     .map(id => allMetrics.find(m => m.id === id))
     .filter((m): m is Metric => m !== undefined && m.total !== null)
-    .map(m => {
-      const isLeaf = !m.formula || m.formula.trim() === '' || m.formula.trim() === '0';
-      const logValue = isLeaf ? m.value : m.total!;
-      return {
-        id: randomUUID(), workspaceId, metricId: m.id, metricName: m.name,
-        value: logValue, timestamp: new Date(),
-      };
-    });
+    .map(m => ({
+      id: randomUUID(), workspaceId, metricId: m.id, metricName: m.name,
+      value: m.value, outlook: m.total!, timestamp: new Date(),
+    }));
 
   if (toInsert.length > 0) {
     await db.insert(metricLogs).values(toInsert);
@@ -306,14 +306,14 @@ export function getStatus(allMetrics: Metric[]) {
 }
 
 /** Fetch all metric logs for a workspace in one query, grouped by metricId. */
-export async function getAllMetricLogsGrouped(workspaceId: string): Promise<Record<string, Array<{ value: number; timestamp: Date }>>> {
+export async function getAllMetricLogsGrouped(workspaceId: string): Promise<Record<string, Array<{ value: number; outlook: number | null; timestamp: Date }>>> {
   const rows = await db.select().from(metricLogs)
     .where(eq(metricLogs.workspaceId, workspaceId))
     .orderBy(asc(metricLogs.timestamp));
-  const grouped: Record<string, Array<{ value: number; timestamp: Date }>> = {};
+  const grouped: Record<string, Array<{ value: number; outlook: number | null; timestamp: Date }>> = {};
   for (const r of rows) {
     if (!grouped[r.metricId]) grouped[r.metricId] = [];
-    grouped[r.metricId].push({ value: r.value, timestamp: r.timestamp });
+    grouped[r.metricId].push({ value: r.value, outlook: r.outlook, timestamp: r.timestamp });
   }
   return grouped;
 }

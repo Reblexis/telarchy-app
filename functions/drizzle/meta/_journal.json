@@ -127,6 +127,13 @@
       "when": 1776900000000,
       "tag": "0017_unify_sources",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1777000000000,
+      "tag": "0018_metric_logs_outlook",
+      "breakpoints": true
     }
   ]
 }

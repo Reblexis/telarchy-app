@@ -563,7 +563,7 @@ Returns: market info, metric formula + dependencies, value history, recent updat
 
 ## Reading historical trends
 
-\`GET /api/status?trends=1\` returns the last 20 log points per metric as \`[[unixTimestamp, value]]\`. For full history of a single metric: \`GET /api/metrics/:id/logs\`.
+\`GET /api/status?trends=1\` returns the last 20 log points per metric as \`[[unixTimestamp, value]]\`, where \`value\` is the outlook (formula result for composites, or value/consensus blend for leaves with time preference) when present, falling back to the user-authored leaf value otherwise. For full history of a single metric: \`GET /api/metrics/:id/logs\`, which returns each row as \`{ metricId, metricName, value, outlook, timestamp }\` (\`value\` is the user-authored leaf number or 0 for composites; \`outlook\` is the computed total; \`outlook\` is null on rows written before 2026-04-23).
 
 ## Checking your balance and active positions
 

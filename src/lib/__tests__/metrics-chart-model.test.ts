@@ -2,6 +2,7 @@ import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { MetricLog } from '../../types';
 import {
   buildPointsFromLogs,
+  buildOutlookPointsFromLogs,
   buildPointsFromTimeSeries,
   formatAxisValue,
   formatXAxisTick,
@@ -10,11 +11,12 @@ import {
 
 const DAY = 86400000;
 
-function log(ts: string, value: number): MetricLog {
+function log(ts: string, value: number, outlook: number | null = null): MetricLog {
   return {
     metricId: 'm',
     metricName: 'M',
     value,
+    outlook,
     timestamp: new Date(ts),
   };
 }
@@ -147,6 +149,62 @@ describe('buildPointsFromLogs', () => {
       expect(typeof p.label).toBe('string');
       expect(p.label.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('buildOutlookPointsFromLogs', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-22T12:00:00'));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  test('empty logs returns empty array', () => {
+    expect(buildOutlookPointsFromLogs([], 'day')).toEqual([]);
+  });
+
+  test('logs with only null outlook produce no points', () => {
+    const points = buildOutlookPointsFromLogs([
+      log('2026-04-20T10:00:00', 10, null),
+      log('2026-04-21T10:00:00', 20, null),
+    ], 'day');
+    expect(points).toEqual([]);
+  });
+
+  test('leading null outlook rows are skipped, series starts at first real outlook', () => {
+    const points = buildOutlookPointsFromLogs([
+      log('2026-04-20T10:00:00', 10, null),
+      log('2026-04-22T10:00:00', 20, 25),
+    ], 'day');
+    // Start 2026-04-22; no carry-forward before the first outlook.
+    expect(points.length).toBe(1);
+    expect(points[0]).toMatchObject({ y: 25, interpolated: false });
+  });
+
+  test('outlook forward-fills across gaps like value does', () => {
+    const points = buildOutlookPointsFromLogs([
+      log('2026-04-20T10:00:00', 5, 7),
+      log('2026-04-22T10:00:00', 15, 17),
+    ], 'day');
+    expect(points.length).toBe(3);
+    expect(points.map(p => p.y)).toEqual([7, 7, 17]);
+    expect(points.map(p => p.interpolated)).toEqual([false, true, false]);
+  });
+
+  test('value and outlook builders produce independent series', () => {
+    const logs = [
+      log('2026-04-20T10:00:00', 5, 7),
+      log('2026-04-21T10:00:00', 10, 12),
+    ];
+    const valuePts = buildPointsFromLogs(logs, 'day');
+    const outlookPts = buildOutlookPointsFromLogs(logs, 'day');
+    // Non-interpolated points reflect the original per-field values.
+    const valueReal = valuePts.filter(p => !p.interpolated).map(p => p.y);
+    const outlookReal = outlookPts.filter(p => !p.interpolated).map(p => p.y);
+    expect(valueReal).toEqual([5, 10]);
+    expect(outlookReal).toEqual([7, 12]);
   });
 });
 

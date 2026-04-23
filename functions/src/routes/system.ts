@@ -57,7 +57,9 @@ systemRouter.get('/status', requireCapability('read'), wrap(async (req, res) => 
 
     if (includeTrends && logsGrouped) {
       const logs = (logsGrouped[m.id] ?? []).slice(-trendsLimit);
-      result.trend = logs.map(l => [Math.floor(new Date(l.timestamp).getTime() / 1000), l.value] as [number, number]);
+      // Sparkline prefers outlook (composite total / leaf+TP blend) when stored,
+      // falls back to the raw value for pre-0018 rows and leaves without TP.
+      result.trend = logs.map(l => [Math.floor(new Date(l.timestamp).getTime() / 1000), l.outlook ?? l.value] as [number, number]);
     }
 
     if (includeMarkets) {

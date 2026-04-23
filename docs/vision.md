@@ -250,6 +250,7 @@ The Metrics tab uses a single Chart.js graph engine for both inline card charts 
 - **Unified date model**: mixed target date formats normalized into canonical timestamps before plotting.
 - **Axis behavior**: x-axis labels adaptive to visible time span, y-axis labels use deterministic numeric formatting.
 - **Interaction**: inline charts support hover/click-to-expand; modal charts support tooltip inspection and x-axis pan/zoom.
+- **Dual-line history for leaves with time preference**: each `metric_logs` row stores both `value` (the user-authored "Now:" number) and `outlook` (the computed total, which for a TP leaf is the value/future-consensus blend). The Graph modal shows one line for composites (outlook) and leaves without TP (value), and two lines for leaves with TP, so the user's edit history and the market-informed outlook are legible side by side.
 
 ## Planned Phases
 

@@ -8,11 +8,13 @@ import userEvent from '@testing-library/user-event';
 vi.mock('../charts/MetricsTimeChart', () => ({
   MetricsTimeChart: (props: {
     points: { x: number; y: number }[];
+    outlookPoints?: { x: number; y: number }[];
     futurePoints?: { x: number; y: number }[];
   }) => (
     <div
       data-testid="chart-stub"
       data-points={props.points.length}
+      data-outlook={props.outlookPoints?.length ?? 0}
       data-future={props.futurePoints?.length ?? 0}
     />
   ),
@@ -35,8 +37,8 @@ function makeMetric(overrides: Partial<Metric> = {}): Metric {
   };
 }
 
-function makeLog(ts: string, value: number): MetricLog {
-  return { metricId: 'm1', metricName: 'Test Metric', value, timestamp: new Date(ts) };
+function makeLog(ts: string, value: number, outlook: number | null = null): MetricLog {
+  return { metricId: 'm1', metricName: 'Test Metric', value, outlook, timestamp: new Date(ts) };
 }
 
 describe('GraphModal', () => {
@@ -194,6 +196,69 @@ describe('GraphModal', () => {
     resolveA!([makeLog('2020-01-01T00:00:00', 1)]);
     // m2's data should be what ends up displayed; title reflects the current metric.
     expect(await screen.findByRole('heading', { name: /B/ })).toBeInTheDocument();
+  });
+
+  test('composite metric renders only the outlook series (no value line)', async () => {
+    vi.useRealTimers();
+    const loadLogs = vi.fn().mockResolvedValue([
+      makeLog('2026-04-20T10:00:00', 0, 42),
+      makeLog('2026-04-21T10:00:00', 0, 48),
+    ]);
+    render(
+      <GraphModal
+        metric={makeMetric({ formula: '{a}+{b}' })}
+        interval="day"
+        isInspectMode={false}
+        loadLogs={loadLogs}
+        onClose={vi.fn()}
+      />
+    );
+    const chart = await screen.findByTestId('chart-stub');
+    expect(chart).toHaveAttribute('data-points', '0');
+    expect(Number(chart.getAttribute('data-outlook'))).toBeGreaterThan(0);
+  });
+
+  test('leaf without time preference renders only the value series', async () => {
+    vi.useRealTimers();
+    const loadLogs = vi.fn().mockResolvedValue([
+      makeLog('2026-04-20T10:00:00', 5, 5),
+      makeLog('2026-04-21T10:00:00', 7, 7),
+    ]);
+    render(
+      <GraphModal
+        metric={makeMetric({ formula: '0' })}
+        interval="day"
+        isInspectMode={false}
+        loadLogs={loadLogs}
+        onClose={vi.fn()}
+      />
+    );
+    const chart = await screen.findByTestId('chart-stub');
+    expect(Number(chart.getAttribute('data-points'))).toBeGreaterThan(0);
+    expect(chart).toHaveAttribute('data-outlook', '0');
+  });
+
+  test('leaf with time preference renders both value and outlook series', async () => {
+    vi.useRealTimers();
+    const loadLogs = vi.fn().mockResolvedValue([
+      makeLog('2026-04-20T10:00:00', 5, 6),
+      makeLog('2026-04-21T10:00:00', 10, 12),
+    ]);
+    render(
+      <GraphModal
+        metric={makeMetric({
+          formula: '0',
+          timePreference: { enabled: true, halfLife: 1 },
+        })}
+        interval="day"
+        isInspectMode={false}
+        loadLogs={loadLogs}
+        onClose={vi.fn()}
+      />
+    );
+    const chart = await screen.findByTestId('chart-stub');
+    expect(Number(chart.getAttribute('data-points'))).toBeGreaterThan(0);
+    expect(Number(chart.getAttribute('data-outlook'))).toBeGreaterThan(0);
   });
 
   test('close button invokes onClose', async () => {

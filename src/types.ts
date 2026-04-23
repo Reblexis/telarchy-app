@@ -26,6 +26,8 @@ export interface MetricLog {
   metricId: string;
   metricName: string;
   value: number;
+  /** Computed outlook (m.total) captured at log time. Null on rows written before migration 0018. */
+  outlook: number | null;
   timestamp: Date;
 }
 
