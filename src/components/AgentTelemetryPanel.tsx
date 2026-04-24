@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { api, type AgentHeartbeat, type AgentTrace, type AgentTraceEntry } from '../lib/api';
 
+/** Canonical outcome vocabulary used by the platform's first-party bots. The
+ *  trace-push protocol is open: any third-party agent may emit additional
+ *  outcome strings, which are surfaced in the panel and assigned a fallback
+ *  color. Keep this list in sync with docs/agent-telemetry-protocol.md. */
+const CANONICAL_OUTCOMES = ['trade', 'trade-error', 'trade-too-small', 'skip-under-threshold', 'unknown-market'] as const;
+
 const OUTCOME_COLORS: Record<string, string> = {
   trade: '#16a34a',
   'skip-under-threshold': '#64748b',
@@ -8,9 +14,16 @@ const OUTCOME_COLORS: Record<string, string> = {
   'trade-error': '#dc2626',
   'unknown-market': '#7c3aed',
 };
-
-const ALL_OUTCOMES = ['trade', 'trade-error', 'trade-too-small', 'skip-under-threshold', 'unknown-market'] as const;
-const ALL_STRATEGIES = ['anchor', 'momentum', 'stabilizer', 'blended', 'ai-analyst', 'ai-researcher'] as const;
+/** Stable color hash for unknown outcomes / strategies. Picks one of a small
+ *  palette deterministically from the string so chips don't flicker between
+ *  refreshes. */
+const FALLBACK_PALETTE = ['#0891b2', '#9333ea', '#db2777', '#0e7490', '#65a30d', '#b45309', '#475569'];
+function colorFor(name: string, registry: Record<string, string>): string {
+  if (registry[name]) return registry[name];
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
+  return FALLBACK_PALETTE[Math.abs(h) % FALLBACK_PALETTE.length];
+}
 
 const STATUS_COLORS: Record<string, string> = {
   idle: '#64748b',
@@ -67,20 +80,24 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
   const [scopeAll, setScopeAll] = useState<boolean>(isPlatformAdmin ?? false);
   // Outcome and strategy filters operate on the trace list client-side; the
   // server already caps to 30 per response and filtering happens after that.
-  const [outcomeFilter, setOutcomeFilter] = useState<Set<string>>(new Set(ALL_OUTCOMES));
-  const [strategyFilter, setStrategyFilter] = useState<Set<string>>(new Set(ALL_STRATEGIES));
+  // Filter sets store EXCLUDED values (i.e. all-on by default). This is the
+  // only way to support an open vocabulary: when a new agent shows up with
+  // an unfamiliar strategy or outcome, it appears as a chip in the on state
+  // without us having to enumerate it ahead of time.
+  const [outcomeExcluded, setOutcomeExcluded] = useState<Set<string>>(new Set());
+  const [strategyExcluded, setStrategyExcluded] = useState<Set<string>>(new Set());
   const [hideEmpty, setHideEmpty] = useState(false);
   /** Substring (case-insensitive) matched against entry.metric and entry.marketId.
    *  Empty = no metric filter. Auto-implies hideEmpty so the result list is tight. */
   const [metricFilter, setMetricFilter] = useState('');
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const toggleOutcome = (o: string) => setOutcomeFilter(prev => {
+  const toggleOutcome = (o: string) => setOutcomeExcluded(prev => {
     const next = new Set(prev);
     if (next.has(o)) next.delete(o); else next.add(o);
     return next;
   });
-  const toggleStrategy = (s: string) => setStrategyFilter(prev => {
+  const toggleStrategy = (s: string) => setStrategyExcluded(prev => {
     const next = new Set(prev);
     if (next.has(s)) next.delete(s); else next.add(s);
     return next;
@@ -226,6 +243,33 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
       )}
 
       {(() => {
+        // Derive the chip vocabularies from observed data, unioned with the
+        // canonical outcome list so rare outcomes are still filterable when
+        // currently absent. Strategies are 100% data-driven — no canonical
+        // list — so any agent that pushes traces with a new strategy name
+        // gets a chip automatically.
+        const observedStrategies = new Set<string>();
+        const observedOutcomes = new Set<string>();
+        for (const hb of heartbeats) {
+          if (hb.strategy) observedStrategies.add(hb.strategy);
+        }
+        for (const t of traces) {
+          if (t.strategy) observedStrategies.add(t.strategy);
+          for (const e of t.entries) observedOutcomes.add(e.outcome);
+        }
+        for (const o of CANONICAL_OUTCOMES) observedOutcomes.add(o);
+
+        const strategyChips = Array.from(observedStrategies).sort();
+        const outcomeChips = Array.from(observedOutcomes).sort((a, b) => {
+          const ai = (CANONICAL_OUTCOMES as readonly string[]).indexOf(a);
+          const bi = (CANONICAL_OUTCOMES as readonly string[]).indexOf(b);
+          // Canonical outcomes first in their declared order, custom outcomes after.
+          if (ai !== -1 && bi !== -1) return ai - bi;
+          if (ai !== -1) return -1;
+          if (bi !== -1) return 1;
+          return a.localeCompare(b);
+        });
+
         const metricNeedle = metricFilter.trim().toLowerCase();
         const matchesMetric = (e: AgentTraceEntry) =>
           metricNeedle === '' ||
@@ -233,10 +277,10 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
           e.marketId.toLowerCase().includes(metricNeedle);
         const dropEmpty = hideEmpty || metricNeedle !== '';
         const filteredTraces = traces
-          .filter(t => strategyFilter.has(t.strategy))
+          .filter(t => !strategyExcluded.has(t.strategy))
           .map(t => ({
             ...t,
-            entries: t.entries.filter(e => outcomeFilter.has(e.outcome) && matchesMetric(e)),
+            entries: t.entries.filter(e => !outcomeExcluded.has(e.outcome) && matchesMetric(e)),
           }))
           .filter(t => !dropEmpty || t.entries.length > 0);
         const totalShown = filteredTraces.length;
@@ -249,8 +293,9 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
 
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem', alignItems: 'center' }}>
               <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginRight: '0.25rem' }}>Outcome</span>
-              {ALL_OUTCOMES.map(o => {
-                const on = outcomeFilter.has(o);
+              {outcomeChips.map(o => {
+                const on = !outcomeExcluded.has(o);
+                const c = colorFor(o, OUTCOME_COLORS);
                 return (
                   <button
                     key={o}
@@ -258,9 +303,9 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
                     style={{
                       fontSize: '0.65rem',
                       padding: '0.15rem 0.5rem',
-                      border: `1px solid ${on ? OUTCOME_COLORS[o] : 'var(--border-color)'}`,
+                      border: `1px solid ${on ? c : 'var(--border-color)'}`,
                       borderRadius: 'var(--radius-full, 999px)',
-                      background: on ? OUTCOME_COLORS[o] : 'var(--bg-secondary)',
+                      background: on ? c : 'var(--bg-secondary)',
                       color: on ? '#fff' : 'var(--text-secondary)',
                       cursor: 'pointer',
                       fontWeight: on ? 600 : 500,
@@ -273,8 +318,14 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.75rem', alignItems: 'center' }}>
               <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginRight: '0.25rem' }}>Strategy</span>
-              {ALL_STRATEGIES.map(s => {
-                const on = strategyFilter.has(s);
+              {strategyChips.length === 0 && (
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                  No strategies seen yet — they appear here as agents push their first heartbeat.
+                </span>
+              )}
+              {strategyChips.map(s => {
+                const on = !strategyExcluded.has(s);
+                const c = colorFor(s, {});
                 return (
                   <button
                     key={s}
@@ -282,9 +333,9 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
                     style={{
                       fontSize: '0.65rem',
                       padding: '0.15rem 0.5rem',
-                      border: `1px solid ${on ? '#2563eb' : 'var(--border-color)'}`,
+                      border: `1px solid ${on ? c : 'var(--border-color)'}`,
                       borderRadius: 'var(--radius-full, 999px)',
-                      background: on ? '#2563eb' : 'var(--bg-secondary)',
+                      background: on ? c : 'var(--bg-secondary)',
                       color: on ? '#fff' : 'var(--text-secondary)',
                       cursor: 'pointer',
                       fontWeight: on ? 600 : 500,
@@ -400,7 +451,7 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
                               display: 'inline-block',
                               padding: '0.1rem 0.4rem',
                               borderRadius: 'var(--radius-md)',
-                              background: OUTCOME_COLORS[e.outcome] ?? 'var(--bg-tertiary)',
+                              background: colorFor(e.outcome, OUTCOME_COLORS),
                               color: '#fff',
                               fontSize: '0.65rem',
                               fontWeight: 600,
