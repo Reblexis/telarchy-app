@@ -2282,6 +2282,16 @@ body.landing-page {
 /* Matrix variant: feature cells become a centered icon + tiny note instead
    of paragraphs, so the eye scans the row of ticks rather than reading
    prose. Telarchy row reads as all-green; competitors have visible gaps. */
+.lp-matrix {
+  table-layout: fixed;
+}
+.lp-matrix .lp-compare-platform {
+  width: 18%;
+}
+.lp-matrix thead th:not(.lp-compare-platform) {
+  text-align: center;
+  width: 16.4%;
+}
 .lp-matrix tbody td:not(.lp-compare-platform) {
   text-align: center;
   font-size: 0.78rem;

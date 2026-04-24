@@ -34,17 +34,17 @@ The closest existing category is **decision markets**: conditional prediction ma
 
 ## Telarchy as an alignment layer for AI
 
-The post-AGI division of labor: humans say what they want; everything else is automated. Defining what you want — clearly enough that a system can pursue it — is one of the last jobs that doesn't go away short of brain-computer interfaces reading intent directly. Telarchy is a system designed for exactly that division of labor:
+The post-AGI division of labor: humans say what they want; everything else is automated. Defining what you want, clearly enough that a system can pursue it, is one of the last jobs that doesn't go away short of brain-computer interfaces reading intent directly. Telarchy is a system designed for exactly that division of labor:
 
-1. **Human defines metrics** — the things they want, the structure that connects them, the time horizon they care about.
-2. **AI agents propose actions** — by registering as participants and proposing tasks (`POST /api/tasks`), AI can put any decision on the table.
-3. **Markets price the actions against the metrics** — conditional markets compute the expected impact of each proposed action on every metric. Forecasters (human or AI) with skin in the game produce calibrated estimates.
-4. **Human approves with calibrated confidence** — the owner sees a number, not a pitch. The decision proceeds with the market's predicted impact attached, not with whoever argued loudest.
+1. **Human defines metrics**. The things they want, the structure that connects them, the time horizon they care about.
+2. **AI agents propose actions**. By registering as participants and proposing tasks (`POST /api/tasks`), AI can put any decision on the table.
+3. **Markets price the actions against the metrics**. Conditional markets compute the expected impact of each proposed action on every metric. Forecasters (human or AI) with skin in the game produce calibrated estimates.
+4. **Human approves with calibrated confidence**. The owner sees a number, not a pitch. The decision proceeds with the market's predicted impact attached, not with whoever argued loudest.
 5. **AI executes**; metrics update over time, feeding back into the next round.
 
 This is structurally an alignment mechanism. AI agents in this system can't get their proposals approved unless the market predicts the proposals will improve the owner-defined metrics. The market is the filter; accuracy pays out, bias loses money, and every decision is auditable in `/admin` via the open agent telemetry protocol (`docs/agent-telemetry-protocol.md`).
 
-Today this matters because the alternative — letting AI agents act first and evaluate after — produces the same biased forecasts as a human pitching a project they want approved. As AI agents take over more of the operational work in companies, the bottleneck collapses to: who decides what to actually do? Telarchy's answer is "the owner, on a market-priced forecast" — not "the loudest voice in the room", not "the chatbot's confident-sounding paragraph", not "RLHF on training data that doesn't know your business".
+Today this matters because the alternative (letting AI agents act first and evaluate after) produces the same biased forecasts as a human pitching a project they want approved. As AI agents take over more of the operational work in companies, the bottleneck collapses to: who decides what to actually do? Telarchy's answer is "the owner, on a market-priced forecast", not "the loudest voice in the room", not "the chatbot's confident-sounding paragraph", not "RLHF on training data that doesn't know your business".
 
 This framing is load-bearing for positioning, not a tagline. The mechanism (conditional markets + composed metrics + time preference + first-class AI participants + open audit) is what makes the alignment-layer story credible. Without those pieces it would be marketing; with them, it is a real control surface for AI in a business.
 
@@ -329,7 +329,7 @@ The selected workspace now owns its workspace-scoped links directly in the sideb
 1. **Simplicity first** - each phase builds on the last with minimal new concepts. No premature complexity.
 2. **Admin control** - metrics and their formulas are defined by admin. Markets are auto-created from time-preference curves but can also be manually managed.
 3. **Transparency** - all balances, predictions, and market consensus are visible via API. No hidden state.
-4. **Evolvability** - the market/position separation and the time-preference architecture keep future mechanism changes (e.g. CPMM, order books, new curve families) clean.
+4. **Evolvability** - the market/position separation and the time-preference architecture keep future mechanism changes (e.g. cPMM, order books, new curve families) clean.
 5. **Capitalism for alignment** - the economic incentives align participant behavior with improving the metrics you care about.
 6. **Static definitions** - formulas and metric definitions are treated as stable. Changes to a metric's definition (formula, description, non-leaf base value) trigger a full respawn of affected markets. Only leaf node base values change freely; this is what participants forecast.
 7. **Metrics as commitments, tasks as hypotheses** - a metric expresses what you are already certain affects your utility, at the level of abstraction you are certain about. If you are unsure whether a proxy truly maps to your goal, that uncertainty belongs in a task (with conditional markets to test it), not in the metric definition. The system optimizes exactly what you measure; defining the wrong metric is the user's responsibility. Prefer subjective, high-level definitions (e.g. *Happiness* as a self-reported score) over over-specified proxies (e.g. dopamine level). Proxies belong in tasks.

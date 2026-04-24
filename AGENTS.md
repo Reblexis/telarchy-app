@@ -32,7 +32,7 @@ After every feature implementation or bug fix, commit and push. Keep commit mess
 
 Run the test suite (`npm test`) before committing anything non-trivial, and always after touching backend logic (metrics engine, auth, workspaces, markets, credits, formulas, templates). `npm test` runs both backend Jest (under `functions/`) and frontend Vitest (root); `npm run test:frontend` runs frontend only. Fix failures before moving on; do not commit with a red suite.
 
-Frontend unit tests live alongside the source they cover, under `__tests__` directories (e.g. `src/lib/__tests__/metrics-chart-model.test.ts`). Use `@testing-library/react` for component tests. Chart.js does not render cleanly under jsdom after state updates — when writing tests for components that embed a chart, stub the chart module via `vi.mock`.
+Frontend unit tests live alongside the source they cover, under `__tests__` directories (e.g. `src/lib/__tests__/metrics-chart-model.test.ts`). Use `@testing-library/react` for component tests. Chart.js does not render cleanly under jsdom after state updates. When writing tests for components that embed a chart, stub the chart module via `vi.mock`.
 
 When you add or change a feature, update or add tests in the same commit. The rules:
 

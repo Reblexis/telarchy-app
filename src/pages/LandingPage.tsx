@@ -434,7 +434,7 @@ export function LandingPage() {
               Better decisions,<br />faster.
             </h1>
             <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 460 }}>
-              Define your KPIs once. Markets price every AI proposal against them. You approve with calibrated confidence — not a chatbot's guess.
+              Define your KPIs once. Markets price every AI proposal against them. You approve on a number, not a chatbot's guess.
             </p>
             <div className="lp-hero-ctas">
               <Link to="/signup" className="lp-btn-primary">Get started. 1000 free credits</Link>
@@ -558,7 +558,7 @@ export function LandingPage() {
                   <th>Decisions priced<br/>before you commit</th>
                   <th>Calibrated,<br/>not confident-sounding</th>
                   <th>Aimed at your<br/>defined KPIs</th>
-                  <th>AI shows<br/>its work</th>
+                  <th>See what the<br/>AI is doing</th>
                   <th>Your data<br/>stays yours</th>
                 </tr>
               </thead>
@@ -571,7 +571,7 @@ export function LandingPage() {
                   <td data-label="Decisions priced first" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">opinion, not price</span></td>
                   <td data-label="Calibrated" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">hallucinates</span></td>
                   <td data-label="Aimed at your KPIs" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">no goal context</span></td>
-                  <td data-label="AI shows its work" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">black box</span></td>
+                  <td data-label="See what the AI is doing" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">black box</span></td>
                   <td data-label="Stays private" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">depends on tier</span></td>
                 </tr>
                 <tr>
@@ -582,7 +582,7 @@ export function LandingPage() {
                   <td data-label="Decisions priced first" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">acts first</span></td>
                   <td data-label="Calibrated" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">no skin in game</span></td>
                   <td data-label="Aimed at your KPIs" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">if you wire it</span></td>
-                  <td data-label="AI shows its work" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">opaque steps</span></td>
+                  <td data-label="See what the AI is doing" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">opaque steps</span></td>
                   <td data-label="Stays private" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">depends on stack</span></td>
                 </tr>
                 <tr>
@@ -593,7 +593,7 @@ export function LandingPage() {
                   <td data-label="Decisions priced first" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">standalone events</span></td>
                   <td data-label="Calibrated" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">real money</span></td>
                   <td data-label="Aimed at your KPIs" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">public events only</span></td>
-                  <td data-label="AI shows its work" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">no observability</span></td>
+                  <td data-label="See what the AI is doing" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">no observability</span></td>
                   <td data-label="Stays private" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">public order book</span></td>
                 </tr>
                 <tr>
@@ -604,7 +604,7 @@ export function LandingPage() {
                   <td data-label="Decisions priced first" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">some conditional</span></td>
                   <td data-label="Calibrated" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">employee programs</span></td>
                   <td data-label="Aimed at your KPIs" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">admin-curated</span></td>
-                  <td data-label="AI shows its work" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">human forecasters only</span></td>
+                  <td data-label="See what the AI is doing" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">human forecasters only</span></td>
                   <td data-label="Stays private" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">enterprise-hosted</span></td>
                 </tr>
                 <tr>
@@ -615,7 +615,7 @@ export function LandingPage() {
                   <td data-label="Decisions priced first" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">simulation</span></td>
                   <td data-label="Calibrated" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">no forecasters</span></td>
                   <td data-label="Aimed at your KPIs" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">finance team</span></td>
-                  <td data-label="AI shows its work" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">LLM-only</span></td>
+                  <td data-label="See what the AI is doing" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">LLM-only</span></td>
                   <td data-label="Stays private" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">private SaaS</span></td>
                 </tr>
                 <tr className="lp-compare-us">
@@ -626,7 +626,7 @@ export function LandingPage() {
                   <td data-label="Decisions priced first" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">per proposal</span></td>
                   <td data-label="Calibrated" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">accuracy pays</span></td>
                   <td data-label="Aimed at your KPIs" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">you define them</span></td>
-                  <td data-label="AI shows its work" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note"><a href="/api/guides/agent-telemetry" style={{ color: 'inherit' }}>open protocol</a></span></td>
+                  <td data-label="See what the AI is doing" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">read every decision</span></td>
                   <td data-label="Stays private" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">workspace · per-metric · per-source</span></td>
                 </tr>
               </tbody>
@@ -638,7 +638,7 @@ export function LandingPage() {
             <div className="lp-alignment-eyebrow">The bigger picture</div>
             <h3 className="lp-alignment-title">An alignment layer for AI in your business</h3>
             <p className="lp-alignment-body">
-              You define what you want. AI agents propose actions. Markets price the actions against your KPIs. You approve with calibrated confidence — not because the chatbot sounded sure, but because the forecast cost something to make. As more of the work gets automated, this is what's left for humans: <strong>say what you want, once, and watch it get fulfilled</strong>.
+              You define what you want. AI agents propose actions. Markets price the actions against your KPIs. You approve on a number. The forecast cost something to make, so it isn't a chatbot's guess. As more of the work gets automated, this is what's left for humans: <strong>say what you want, once, and watch it get fulfilled</strong>.
             </p>
           </div>
         </div>
@@ -654,7 +654,7 @@ export function LandingPage() {
             <div className="lp-card">
               <h2 className="lp-card-title">Founders & leadership teams</h2>
               <ul className="lp-card-list">
-                <li>KPIs and OKRs you actually care about — outcomes, not activity proxies.</li>
+                <li>KPIs and OKRs you actually care about. Outcomes, not activity proxies.</li>
                 <li>Market-calibrated forecasts on every goal, around the clock.</li>
                 <li>Predicted impact on every initiative before you approve.</li>
               </ul>
