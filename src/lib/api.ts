@@ -13,6 +13,7 @@ export interface AgentHeartbeat {
   agentId: string;
   status: string;
   workspaceId: string | null;
+  workspaceName: string | null;
   strategy: string | null;
   lastCycleStartedAt: string | null;
   lastCycleEndedAt: string | null;
@@ -48,6 +49,7 @@ export interface AgentTraceEntry {
 export interface AgentTrace {
   id: string;
   workspaceId: string;
+  workspaceName: string | null;
   agentId: string;
   strategy: string;
   startedAt: string;

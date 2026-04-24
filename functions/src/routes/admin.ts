@@ -3,8 +3,8 @@ import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
 import { getActivityFeed, ACTIVITY_TYPES, type ActivityType } from '../services/activity';
 import { db } from '../db/client';
-import { agents, agentTraces, agentHeartbeats } from '../db/schema';
-import { and, desc, eq, gte, lte } from 'drizzle-orm';
+import { agents, agentTraces, agentHeartbeats, workspaces } from '../db/schema';
+import { and, desc, eq, gte, lte, inArray } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { AppError } from '../lib/errors';
 
@@ -167,7 +167,16 @@ adminRouter.get('/agent-traces', requireCapability('manage'), wrap(async (req, r
     .orderBy(desc(agentTraces.startedAt))
     .limit(limit);
 
-  res.json({ traces: rows, scope, isPlatformAdmin: isPlatform });
+  // Resolve human-readable workspace names in one query so the panel doesn't
+  // need a separate fetch + lookup just to render the trace rows.
+  const wsIds = Array.from(new Set(rows.map(r => r.workspaceId).filter((s): s is string => !!s)));
+  const wsRows = wsIds.length > 0
+    ? await db.select({ id: workspaces.id, name: workspaces.name }).from(workspaces).where(inArray(workspaces.id, wsIds))
+    : [];
+  const nameById = Object.fromEntries(wsRows.map(w => [w.id, w.name]));
+  const enriched = rows.map(r => ({ ...r, workspaceName: nameById[r.workspaceId] ?? null }));
+
+  res.json({ traces: enriched, scope, isPlatformAdmin: isPlatform });
 }));
 
 adminRouter.post('/agent-heartbeat', requireCapability('manage'), wrap(async (req, res) => {
@@ -231,5 +240,12 @@ adminRouter.get('/agent-heartbeats', requireCapability('manage'), wrap(async (re
     : db.select().from(agentHeartbeats)
   ).orderBy(desc(agentHeartbeats.updatedAt));
 
-  res.json({ heartbeats: rows, isPlatformAdmin: isPlatform });
+  const wsIds = Array.from(new Set(rows.map(r => r.workspaceId).filter((s): s is string => !!s)));
+  const wsRows = wsIds.length > 0
+    ? await db.select({ id: workspaces.id, name: workspaces.name }).from(workspaces).where(inArray(workspaces.id, wsIds))
+    : [];
+  const nameById = Object.fromEntries(wsRows.map(w => [w.id, w.name]));
+  const enriched = rows.map(r => ({ ...r, workspaceName: r.workspaceId ? (nameById[r.workspaceId] ?? null) : null }));
+
+  res.json({ heartbeats: enriched, isPlatformAdmin: isPlatform });
 }));

@@ -1,12 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { api, type AgentHeartbeat, type AgentTrace, type AgentTraceEntry } from '../lib/api';
 
-/** Canonical outcome vocabulary used by the platform's first-party bots. The
- *  trace-push protocol is open: any third-party agent may emit additional
- *  outcome strings, which are surfaced in the panel and assigned a fallback
- *  color. Keep this list in sync with docs/agent-telemetry-protocol.md. */
-const CANONICAL_OUTCOMES = ['trade', 'trade-error', 'trade-too-small', 'skip-under-threshold', 'unknown-market'] as const;
-
+/** Five canonical outcome strings carry hand-picked colors so the common
+ *  values are visually consistent. Outcomes are otherwise derived purely
+ *  from observed data — no list is enumerated to gate visibility. Custom
+ *  outcomes get a deterministic fallback color. */
 const OUTCOME_COLORS: Record<string, string> = {
   trade: '#16a34a',
   'skip-under-threshold': '#64748b',
@@ -66,42 +64,46 @@ interface Props {
   isPlatformAdmin?: boolean;
 }
 
+/** Resolve workspace name for display. Backend joins on the workspaces
+ *  table and ships `workspaceName` directly on every heartbeat / trace,
+ *  so a missing name is the rare case (workspace deleted, race). */
+function workspaceLabel(id: string | null | undefined, name: string | null | undefined): string {
+  if (name) return name;
+  if (!id) return '—';
+  return id.slice(0, 8);
+}
+
 export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
   const [heartbeats, setHeartbeats] = useState<AgentHeartbeat[]>([]);
   const [traces, setTraces] = useState<AgentTrace[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [expandedTrace, setExpandedTrace] = useState<string | null>(null);
   const [tickNow, setTickNow] = useState(Date.now());
   // Platform admins default to the cross-workspace view since bots run
   // against many workspaces and the most useful view is "show everything
   // they're doing platform-wide".
   const [scopeAll, setScopeAll] = useState<boolean>(isPlatformAdmin ?? false);
-  // Outcome and strategy filters operate on the trace list client-side; the
-  // server already caps to 30 per response and filtering happens after that.
-  // Filter sets store EXCLUDED values (i.e. all-on by default). This is the
-  // only way to support an open vocabulary: when a new agent shows up with
-  // an unfamiliar strategy or outcome, it appears as a chip in the on state
-  // without us having to enumerate it ahead of time.
+  // Filter sets store EXCLUDED values (default: nothing excluded = all on).
+  // Open vocabulary: any new participant / workspace / outcome string in
+  // observed data appears as an on-by-default chip without an allowlist.
   const [outcomeExcluded, setOutcomeExcluded] = useState<Set<string>>(new Set());
-  const [strategyExcluded, setStrategyExcluded] = useState<Set<string>>(new Set());
+  const [participantExcluded, setParticipantExcluded] = useState<Set<string>>(new Set());
+  const [workspaceExcluded, setWorkspaceExcluded] = useState<Set<string>>(new Set());
   const [hideEmpty, setHideEmpty] = useState(false);
   /** Substring (case-insensitive) matched against entry.metric and entry.marketId.
    *  Empty = no metric filter. Auto-implies hideEmpty so the result list is tight. */
   const [metricFilter, setMetricFilter] = useState('');
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const toggleOutcome = (o: string) => setOutcomeExcluded(prev => {
-    const next = new Set(prev);
-    if (next.has(o)) next.delete(o); else next.add(o);
-    return next;
-  });
-  const toggleStrategy = (s: string) => setStrategyExcluded(prev => {
-    const next = new Set(prev);
-    if (next.has(s)) next.delete(s); else next.add(s);
-    return next;
-  });
+  const toggle = (set: Set<string>, value: string, setter: (s: Set<string>) => void) => {
+    const next = new Set(set);
+    if (next.has(value)) next.delete(value); else next.add(value);
+    setter(next);
+  };
+  const toggleOutcome = (o: string) => toggle(outcomeExcluded, o, setOutcomeExcluded);
+  const toggleParticipant = (p: string) => toggle(participantExcluded, p, setParticipantExcluded);
+  const toggleWorkspace = (w: string) => toggle(workspaceExcluded, w, setWorkspaceExcluded);
 
   const fetchAll = useCallback(async () => {
     if (!workspaceId) return;
@@ -110,10 +112,7 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
       const tracesScope = isPlatformAdmin && scopeAll ? 'all' : undefined;
       const [hb, tr] = await Promise.all([
         api.getAgentHeartbeats(workspaceId),
-        api.getAgentTraces(
-          { agentId: selectedAgent ?? undefined, limit: 30, scopeWorkspaceId: tracesScope },
-          workspaceId,
-        ),
+        api.getAgentTraces({ limit: 30, scopeWorkspaceId: tracesScope }, workspaceId),
       ]);
       setHeartbeats(hb.heartbeats);
       setTraces(tr.traces);
@@ -123,7 +122,7 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [workspaceId, selectedAgent, isPlatformAdmin, scopeAll]);
+  }, [workspaceId, isPlatformAdmin, scopeAll]);
 
   useEffect(() => {
     let cancelled = false;
@@ -182,6 +181,7 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
               <tr style={{ textAlign: 'left', color: 'var(--text-secondary)', fontSize: '0.7rem', textTransform: 'uppercase' }}>
                 <th style={{ padding: '0.4rem 0.5rem' }}>Participant</th>
                 <th style={{ padding: '0.4rem 0.5rem' }}>Strategy</th>
+                <th style={{ padding: '0.4rem 0.5rem' }}>Workspace</th>
                 <th style={{ padding: '0.4rem 0.5rem' }}>Status</th>
                 <th style={{ padding: '0.4rem 0.5rem' }}>Last cycle</th>
                 <th style={{ padding: '0.4rem 0.5rem' }}>Next cycle</th>
@@ -190,85 +190,66 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
               </tr>
             </thead>
             <tbody>
-              {heartbeats.map(hb => {
-                const isSelected = selectedAgent === hb.agentId;
-                return (
-                  <tr
-                    key={hb.agentId}
-                    onClick={() => setSelectedAgent(isSelected ? null : hb.agentId)}
-                    style={{
-                      borderTop: '1px solid var(--border-color)',
-                      cursor: 'pointer',
-                      background: isSelected ? 'var(--bg-tertiary)' : 'transparent',
-                    }}
-                  >
-                    <td style={{ padding: '0.5rem', fontFamily: 'monospace', fontWeight: 600 }}>{hb.agentId}</td>
-                    <td style={{ padding: '0.5rem', color: 'var(--text-secondary)' }}>{hb.strategy ?? '—'}</td>
-                    <td style={{ padding: '0.5rem' }}>
-                      <span style={{
-                        display: 'inline-block',
-                        padding: '0.1rem 0.4rem',
-                        borderRadius: 'var(--radius-md)',
-                        background: STATUS_COLORS[hb.status] ?? 'var(--bg-tertiary)',
-                        color: '#fff',
-                        fontSize: '0.7rem',
-                        fontWeight: 600,
-                      }}>
-                        {hb.status}
-                      </span>
-                    </td>
-                    <td style={{ padding: '0.5rem', color: 'var(--text-secondary)' }}>{fmtAgo(hb.lastCycleEndedAt)}</td>
-                    <td style={{ padding: '0.5rem', color: 'var(--text-secondary)' }}>{fmtIn(hb.nextCycleAt)}</td>
-                    <td style={{ padding: '0.5rem', fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                      <span style={{ color: '#16a34a' }}>{hb.lastTraded}t</span>
-                      {' '}
-                      <span style={{ color: '#64748b' }}>{hb.lastSkipped}s</span>
-                      {hb.lastErrors > 0 && <> <span style={{ color: '#dc2626' }}>{hb.lastErrors}e</span></>}
-                    </td>
-                    <td style={{ padding: '0.5rem', fontFamily: 'monospace' }}>
-                      {hb.balance !== null ? `${fmtNum(hb.balance, 2)} cr` : '—'}
-                    </td>
-                  </tr>
-                );
-              })}
+              {heartbeats.map(hb => (
+                <tr key={hb.agentId} style={{ borderTop: '1px solid var(--border-color)' }}>
+                  <td style={{ padding: '0.5rem', fontFamily: 'monospace', fontWeight: 600 }}>{hb.agentId}</td>
+                  <td style={{ padding: '0.5rem', color: 'var(--text-secondary)' }}>{hb.strategy ?? '—'}</td>
+                  <td style={{ padding: '0.5rem', color: 'var(--text-secondary)' }}>{workspaceLabel(hb.workspaceId, hb.workspaceName)}</td>
+                  <td style={{ padding: '0.5rem' }}>
+                    <span style={{
+                      display: 'inline-block',
+                      padding: '0.1rem 0.4rem',
+                      borderRadius: 'var(--radius-md)',
+                      background: STATUS_COLORS[hb.status] ?? 'var(--bg-tertiary)',
+                      color: '#fff',
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                    }}>
+                      {hb.status}
+                    </span>
+                  </td>
+                  <td style={{ padding: '0.5rem', color: 'var(--text-secondary)' }}>{fmtAgo(hb.lastCycleEndedAt)}</td>
+                  <td style={{ padding: '0.5rem', color: 'var(--text-secondary)' }}>{fmtIn(hb.nextCycleAt)}</td>
+                  <td style={{ padding: '0.5rem', fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                    <span style={{ color: '#16a34a' }}>{hb.lastTraded}t</span>
+                    {' '}
+                    <span style={{ color: '#64748b' }}>{hb.lastSkipped}s</span>
+                    {hb.lastErrors > 0 && <> <span style={{ color: '#dc2626' }}>{hb.lastErrors}e</span></>}
+                  </td>
+                  <td style={{ padding: '0.5rem', fontFamily: 'monospace' }}>
+                    {hb.balance !== null ? `${fmtNum(hb.balance, 2)} cr` : '—'}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
       )}
 
-      {selectedAgent && (
-        <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-          Filtering traces to <code>{selectedAgent}</code>. <button onClick={() => setSelectedAgent(null)} style={{ background: 'none', border: 'none', color: 'var(--accent-color, #2563eb)', cursor: 'pointer', textDecoration: 'underline', padding: 0, font: 'inherit' }}>clear</button>
-        </div>
-      )}
-
       {(() => {
-        // Derive the chip vocabularies from observed data, unioned with the
-        // canonical outcome list so rare outcomes are still filterable when
-        // currently absent. Strategies are 100% data-driven — no canonical
-        // list — so any agent that pushes traces with a new strategy name
-        // gets a chip automatically.
-        const observedStrategies = new Set<string>();
+        // Chip vocabularies are derived purely from observed data — no
+        // canonical list, no allowlist. Any new participant / workspace /
+        // outcome string in observed traces or heartbeats gets an
+        // on-by-default chip on the next refresh.
+        const observedParticipants = new Set<string>();
+        // Workspace ids ↔ name resolution shipped on each heartbeat / trace,
+        // so we keep a co-derived name map for chip labels.
+        const observedWorkspaces = new Map<string, string | null>();
         const observedOutcomes = new Set<string>();
         for (const hb of heartbeats) {
-          if (hb.strategy) observedStrategies.add(hb.strategy);
+          observedParticipants.add(hb.agentId);
+          if (hb.workspaceId) observedWorkspaces.set(hb.workspaceId, hb.workspaceName);
         }
         for (const t of traces) {
-          if (t.strategy) observedStrategies.add(t.strategy);
+          observedParticipants.add(t.agentId);
+          observedWorkspaces.set(t.workspaceId, t.workspaceName);
           for (const e of t.entries) observedOutcomes.add(e.outcome);
         }
-        for (const o of CANONICAL_OUTCOMES) observedOutcomes.add(o);
 
-        const strategyChips = Array.from(observedStrategies).sort();
-        const outcomeChips = Array.from(observedOutcomes).sort((a, b) => {
-          const ai = (CANONICAL_OUTCOMES as readonly string[]).indexOf(a);
-          const bi = (CANONICAL_OUTCOMES as readonly string[]).indexOf(b);
-          // Canonical outcomes first in their declared order, custom outcomes after.
-          if (ai !== -1 && bi !== -1) return ai - bi;
-          if (ai !== -1) return -1;
-          if (bi !== -1) return 1;
-          return a.localeCompare(b);
-        });
+        const participantChips = Array.from(observedParticipants).sort();
+        const workspaceChips = Array.from(observedWorkspaces.entries())
+          .sort((a, b) => workspaceLabel(a[0], a[1]).localeCompare(workspaceLabel(b[0], b[1])));
+        const outcomeChips = Array.from(observedOutcomes).sort();
 
         const metricNeedle = metricFilter.trim().toLowerCase();
         const matchesMetric = (e: AgentTraceEntry) =>
@@ -277,7 +258,8 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
           e.marketId.toLowerCase().includes(metricNeedle);
         const dropEmpty = hideEmpty || metricNeedle !== '';
         const filteredTraces = traces
-          .filter(t => !strategyExcluded.has(t.strategy))
+          .filter(t => !participantExcluded.has(t.agentId))
+          .filter(t => !workspaceExcluded.has(t.workspaceId))
           .map(t => ({
             ...t,
             entries: t.entries.filter(e => !outcomeExcluded.has(e.outcome) && matchesMetric(e)),
@@ -285,6 +267,18 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
           .filter(t => !dropEmpty || t.entries.length > 0);
         const totalShown = filteredTraces.length;
         const totalEntries = filteredTraces.reduce((s, t) => s + t.entries.length, 0);
+
+        const chipStyle = (on: boolean, color: string) => ({
+          fontSize: '0.65rem',
+          padding: '0.15rem 0.5rem',
+          border: `1px solid ${on ? color : 'var(--border-color)'}`,
+          borderRadius: 'var(--radius-full, 999px)',
+          background: on ? color : 'var(--bg-secondary)',
+          color: on ? '#fff' : 'var(--text-secondary)',
+          cursor: 'pointer',
+          fontWeight: on ? 600 : 500,
+        }) as const;
+
         return (
           <>
             <h3 style={{ fontSize: '0.85rem', fontWeight: 600, margin: '1.5rem 0 0.5rem' }}>
@@ -293,55 +287,41 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
 
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem', alignItems: 'center' }}>
               <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginRight: '0.25rem' }}>Outcome</span>
-              {outcomeChips.map(o => {
+              {outcomeChips.length === 0 ? (
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>none yet</span>
+              ) : outcomeChips.map(o => {
                 const on = !outcomeExcluded.has(o);
-                const c = colorFor(o, OUTCOME_COLORS);
                 return (
-                  <button
-                    key={o}
-                    onClick={() => toggleOutcome(o)}
-                    style={{
-                      fontSize: '0.65rem',
-                      padding: '0.15rem 0.5rem',
-                      border: `1px solid ${on ? c : 'var(--border-color)'}`,
-                      borderRadius: 'var(--radius-full, 999px)',
-                      background: on ? c : 'var(--bg-secondary)',
-                      color: on ? '#fff' : 'var(--text-secondary)',
-                      cursor: 'pointer',
-                      fontWeight: on ? 600 : 500,
-                    }}
-                  >
+                  <button key={o} onClick={() => toggleOutcome(o)} style={chipStyle(on, colorFor(o, OUTCOME_COLORS))}>
                     {o}
                   </button>
                 );
               })}
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.75rem', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginRight: '0.25rem' }}>Strategy</span>
-              {strategyChips.length === 0 && (
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>
-                  No strategies seen yet — they appear here as agents push their first heartbeat.
-                </span>
-              )}
-              {strategyChips.map(s => {
-                const on = !strategyExcluded.has(s);
-                const c = colorFor(s, {});
+
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginRight: '0.25rem' }}>Participant</span>
+              {participantChips.length === 0 ? (
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>none yet</span>
+              ) : participantChips.map(p => {
+                const on = !participantExcluded.has(p);
                 return (
-                  <button
-                    key={s}
-                    onClick={() => toggleStrategy(s)}
-                    style={{
-                      fontSize: '0.65rem',
-                      padding: '0.15rem 0.5rem',
-                      border: `1px solid ${on ? c : 'var(--border-color)'}`,
-                      borderRadius: 'var(--radius-full, 999px)',
-                      background: on ? c : 'var(--bg-secondary)',
-                      color: on ? '#fff' : 'var(--text-secondary)',
-                      cursor: 'pointer',
-                      fontWeight: on ? 600 : 500,
-                    }}
-                  >
-                    {s}
+                  <button key={p} onClick={() => toggleParticipant(p)} style={{ ...chipStyle(on, colorFor(p, {})), fontFamily: 'monospace' }}>
+                    {p}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.75rem', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginRight: '0.25rem' }}>Workspace</span>
+              {workspaceChips.length === 0 ? (
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>none yet</span>
+              ) : workspaceChips.map(([id, name]) => {
+                const on = !workspaceExcluded.has(id);
+                return (
+                  <button key={id} onClick={() => toggleWorkspace(id)} style={chipStyle(on, colorFor(id, {}))}>
+                    {workspaceLabel(id, name)}
                   </button>
                 );
               })}
@@ -396,8 +376,8 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
       {totalShown === 0 ? (
         <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
           {traces.length === 0
-            ? 'No decision traces yet. Deterministic strategies push every cycle; AI strategies push per session.'
-            : 'No traces match the current outcome / strategy filters.'}
+            ? 'No decision traces yet. Participants push them per cycle (deterministic) or per session (LLM).'
+            : 'No traces match the current outcome / participant / workspace / metric filters.'}
         </div>
       ) : (
         <div style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', maxHeight: '60vh', overflowY: 'auto' }}>
@@ -420,10 +400,7 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
                 >
                   <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{t.agentId}</span>
                   <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-                    {new Date(t.startedAt).toLocaleString()} · {t.strategy} · {t.model ?? '—'}
-                    {scopeAll && (
-                      <> · <code style={{ fontSize: '0.7rem' }}>{t.workspaceId.slice(0, 8)}</code></>
-                    )}
+                    {new Date(t.startedAt).toLocaleString()} · {t.strategy} · {t.model ?? '—'} · in <strong>{workspaceLabel(t.workspaceId, t.workspaceName)}</strong>
                   </span>
                   <span style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
                     <span style={{ color: '#16a34a' }}>{t.traded}t</span>
