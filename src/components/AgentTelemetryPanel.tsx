@@ -9,6 +9,9 @@ const OUTCOME_COLORS: Record<string, string> = {
   'unknown-market': '#7c3aed',
 };
 
+const ALL_OUTCOMES = ['trade', 'trade-error', 'trade-too-small', 'skip-under-threshold', 'unknown-market'] as const;
+const ALL_STRATEGIES = ['anchor', 'momentum', 'stabilizer', 'blended', 'ai-analyst', 'ai-researcher'] as const;
+
 const STATUS_COLORS: Record<string, string> = {
   idle: '#64748b',
   running: '#2563eb',
@@ -62,7 +65,23 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
   // against many workspaces and the most useful view is "show everything
   // they're doing platform-wide".
   const [scopeAll, setScopeAll] = useState<boolean>(isPlatformAdmin ?? false);
+  // Outcome and strategy filters operate on the trace list client-side; the
+  // server already caps to 30 per response and filtering happens after that.
+  const [outcomeFilter, setOutcomeFilter] = useState<Set<string>>(new Set(ALL_OUTCOMES));
+  const [strategyFilter, setStrategyFilter] = useState<Set<string>>(new Set(ALL_STRATEGIES));
+  const [hideEmpty, setHideEmpty] = useState(false);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const toggleOutcome = (o: string) => setOutcomeFilter(prev => {
+    const next = new Set(prev);
+    if (next.has(o)) next.delete(o); else next.add(o);
+    return next;
+  });
+  const toggleStrategy = (s: string) => setStrategyFilter(prev => {
+    const next = new Set(prev);
+    if (next.has(s)) next.delete(s); else next.add(s);
+    return next;
+  });
 
   const fetchAll = useCallback(async () => {
     if (!workspaceId) return;
@@ -203,16 +222,89 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
         </div>
       )}
 
-      <h3 style={{ fontSize: '0.85rem', fontWeight: 600, margin: '1.5rem 0 0.5rem' }}>
-        Decision traces ({traces.length})
-      </h3>
-      {traces.length === 0 ? (
+      {(() => {
+        const filteredTraces = traces
+          .filter(t => strategyFilter.has(t.strategy))
+          .map(t => ({
+            ...t,
+            entries: t.entries.filter(e => outcomeFilter.has(e.outcome)),
+          }))
+          .filter(t => !hideEmpty || t.entries.length > 0);
+        const totalShown = filteredTraces.length;
+        const totalEntries = filteredTraces.reduce((s, t) => s + t.entries.length, 0);
+        return (
+          <>
+            <h3 style={{ fontSize: '0.85rem', fontWeight: 600, margin: '1.5rem 0 0.5rem' }}>
+              Decision traces ({totalShown}/{traces.length} traces · {totalEntries} entries)
+            </h3>
+
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginRight: '0.25rem' }}>Outcome</span>
+              {ALL_OUTCOMES.map(o => {
+                const on = outcomeFilter.has(o);
+                return (
+                  <button
+                    key={o}
+                    onClick={() => toggleOutcome(o)}
+                    style={{
+                      fontSize: '0.65rem',
+                      padding: '0.15rem 0.5rem',
+                      border: `1px solid ${on ? OUTCOME_COLORS[o] : 'var(--border-color)'}`,
+                      borderRadius: 'var(--radius-full, 999px)',
+                      background: on ? OUTCOME_COLORS[o] : 'var(--bg-secondary)',
+                      color: on ? '#fff' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      fontWeight: on ? 600 : 500,
+                    }}
+                  >
+                    {o}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.75rem', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginRight: '0.25rem' }}>Strategy</span>
+              {ALL_STRATEGIES.map(s => {
+                const on = strategyFilter.has(s);
+                return (
+                  <button
+                    key={s}
+                    onClick={() => toggleStrategy(s)}
+                    style={{
+                      fontSize: '0.65rem',
+                      padding: '0.15rem 0.5rem',
+                      border: `1px solid ${on ? '#2563eb' : 'var(--border-color)'}`,
+                      borderRadius: 'var(--radius-full, 999px)',
+                      background: on ? '#2563eb' : 'var(--bg-secondary)',
+                      color: on ? '#fff' : 'var(--text-secondary)',
+                      cursor: 'pointer',
+                      fontWeight: on ? 600 : 500,
+                    }}
+                  >
+                    {s}
+                  </button>
+                );
+              })}
+              <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.3rem', marginLeft: '0.5rem', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={hideEmpty}
+                  onChange={e => setHideEmpty(e.target.checked)}
+                  style={{ margin: 0 }}
+                />
+                Hide traces with no matching entries
+              </label>
+            </div>
+
+      {totalShown === 0 ? (
         <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-          No decision traces yet. AI strategies (ai-analyst, ai-researcher) push a trace per session; deterministic strategies don't generate them.
+          {traces.length === 0
+            ? 'No decision traces yet. Deterministic strategies push every cycle; AI strategies push per session.'
+            : 'No traces match the current outcome / strategy filters.'}
         </div>
       ) : (
         <div style={{ border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', maxHeight: '60vh', overflowY: 'auto' }}>
-          {traces.map(t => {
+          {filteredTraces.map(t => {
             const open = expandedTrace === t.id;
             return (
               <div key={t.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
@@ -292,6 +384,9 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
           })}
         </div>
       )}
+          </>
+        );
+      })()}
     </div>
   );
 }
