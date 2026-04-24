@@ -558,7 +558,7 @@ export function LandingPage() {
                   <th>Decisions priced<br/>before you commit</th>
                   <th>Calibrated,<br/>not confident-sounding</th>
                   <th>Aimed at your<br/>defined KPIs</th>
-                  <th>See what the<br/>AI is doing</th>
+                  <th>AI shows<br/>its reasoning</th>
                   <th>Your data<br/>stays yours</th>
                 </tr>
               </thead>
@@ -571,7 +571,7 @@ export function LandingPage() {
                   <td data-label="Decisions priced first" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">opinion, not price</span></td>
                   <td data-label="Calibrated" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">hallucinates</span></td>
                   <td data-label="Aimed at your KPIs" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">no goal context</span></td>
-                  <td data-label="See what the AI is doing" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">black box</span></td>
+                  <td data-label="AI shows its reasoning" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">black box</span></td>
                   <td data-label="Stays private" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">depends on tier</span></td>
                 </tr>
                 <tr>
@@ -582,7 +582,7 @@ export function LandingPage() {
                   <td data-label="Decisions priced first" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">acts first</span></td>
                   <td data-label="Calibrated" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">no skin in game</span></td>
                   <td data-label="Aimed at your KPIs" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">if you wire it</span></td>
-                  <td data-label="See what the AI is doing" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">opaque steps</span></td>
+                  <td data-label="AI shows its reasoning" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">opaque steps</span></td>
                   <td data-label="Stays private" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">depends on stack</span></td>
                 </tr>
                 <tr>
@@ -593,7 +593,7 @@ export function LandingPage() {
                   <td data-label="Decisions priced first" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">standalone events</span></td>
                   <td data-label="Calibrated" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">real money</span></td>
                   <td data-label="Aimed at your KPIs" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">public events only</span></td>
-                  <td data-label="See what the AI is doing" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">no observability</span></td>
+                  <td data-label="AI shows its reasoning" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">no observability</span></td>
                   <td data-label="Stays private" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">public order book</span></td>
                 </tr>
                 <tr>
@@ -604,7 +604,7 @@ export function LandingPage() {
                   <td data-label="Decisions priced first" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">some conditional</span></td>
                   <td data-label="Calibrated" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">employee programs</span></td>
                   <td data-label="Aimed at your KPIs" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">admin-curated</span></td>
-                  <td data-label="See what the AI is doing" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">human forecasters only</span></td>
+                  <td data-label="AI shows its reasoning" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">human forecasters only</span></td>
                   <td data-label="Stays private" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">enterprise-hosted</span></td>
                 </tr>
                 <tr>
@@ -615,7 +615,7 @@ export function LandingPage() {
                   <td data-label="Decisions priced first" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">simulation</span></td>
                   <td data-label="Calibrated" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">no forecasters</span></td>
                   <td data-label="Aimed at your KPIs" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">finance team</span></td>
-                  <td data-label="See what the AI is doing" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">LLM-only</span></td>
+                  <td data-label="AI shows its reasoning" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">LLM-only</span></td>
                   <td data-label="Stays private" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">private SaaS</span></td>
                 </tr>
                 <tr className="lp-compare-us">
@@ -626,7 +626,7 @@ export function LandingPage() {
                   <td data-label="Decisions priced first" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">per proposal</span></td>
                   <td data-label="Calibrated" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">accuracy pays</span></td>
                   <td data-label="Aimed at your KPIs" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">you define them</span></td>
-                  <td data-label="See what the AI is doing" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">read every decision</span></td>
+                  <td data-label="AI shows its reasoning" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">every reasoning logged</span></td>
                   <td data-label="Stays private" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">workspace · per-metric · per-source</span></td>
                 </tr>
               </tbody>

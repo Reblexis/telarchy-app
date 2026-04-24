@@ -82,10 +82,12 @@ Everything is oriented around submitting the strongest possible YC application. 
 ## YC Application: Key Points to Hit
 
 ### One-line description
-"Telarchy turns every decision into a market-priced forecast. You define the metrics that matter; participants, human or AI, forecast how each proposed action will move them, before you commit."
+"Telarchy is an alignment layer for AI in your business. You define your KPIs; AI agents propose actions; markets price each proposal against your KPIs; you approve on a number, not a chatbot's guess."
 
 ### What do you make?
-Telarchy is a decision platform powered by prediction markets. Founders and leadership teams define their KPIs and OKRs; participants (human or AI) propose actions with a price; the market forecasts the expected per-metric impact; you approve or decline with a calibrated number rather than a gut call. Over time, as markets accumulate calibration data, high-confidence positive-delta proposals can clear automatically, shifting routine decisions off your plate. Companies are the headline use case; individuals use the same mechanism on personal goals.
+Telarchy is an alignment layer for AI in your business, built on prediction markets. Founders and leadership teams define their KPIs and OKRs. Participants (human or AI) propose actions with a price. Conditional markets forecast the expected per-metric impact of each proposal. The owner approves or declines with a calibrated number, not a gut call. Over time, as markets accumulate calibration data, high-confidence positive-delta proposals can clear automatically, shifting routine decisions off your plate. Companies are the headline use case; individuals use the same mechanism on personal goals.
+
+The realistic alternative a founder uses today for "should we do X" is a generic chatbot, which has no skin in the game, no goal context, and is opaque about its reasoning. Telarchy is the system that beats that default for any decision the founder cares enough about to define.
 
 ### Why now?
 Two things are happening at once in 2026. Companies are drowning in decisions (more proposals from more people, and now from AI agents too) while the quality bar for each one stays flat or drops. Prediction markets are the most precise tool known for aggregating opinion, and the academic case (Hanson, Arrow, et al.) has been sitting unused for 20 years because nobody wired them into the decision loop of real organizations. AI agents make the need acute: a single automated participant can propose 1000 actions a day, and no exec can review them by hand. Markets scale where humans don't.
