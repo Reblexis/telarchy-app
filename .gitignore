@@ -41,3 +41,6 @@ flow-audit-*/
 /*.png
 tsconfig.tsbuildinfo
 .gstack/
+
+# Claude Code runtime state (not application code)
+.claude/
