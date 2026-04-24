@@ -2286,11 +2286,11 @@ body.landing-page {
   table-layout: fixed;
 }
 .lp-matrix .lp-compare-platform {
-  width: 18%;
+  width: 22%;
 }
 .lp-matrix thead th:not(.lp-compare-platform) {
   text-align: center;
-  width: 16.4%;
+  width: 19.5%;
 }
 .lp-matrix tbody td:not(.lp-compare-platform) {
   text-align: center;
