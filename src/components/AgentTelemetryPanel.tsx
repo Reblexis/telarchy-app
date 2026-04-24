@@ -70,6 +70,9 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
   const [outcomeFilter, setOutcomeFilter] = useState<Set<string>>(new Set(ALL_OUTCOMES));
   const [strategyFilter, setStrategyFilter] = useState<Set<string>>(new Set(ALL_STRATEGIES));
   const [hideEmpty, setHideEmpty] = useState(false);
+  /** Substring (case-insensitive) matched against entry.metric and entry.marketId.
+   *  Empty = no metric filter. Auto-implies hideEmpty so the result list is tight. */
+  const [metricFilter, setMetricFilter] = useState('');
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const toggleOutcome = (o: string) => setOutcomeFilter(prev => {
@@ -223,13 +226,19 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
       )}
 
       {(() => {
+        const metricNeedle = metricFilter.trim().toLowerCase();
+        const matchesMetric = (e: AgentTraceEntry) =>
+          metricNeedle === '' ||
+          e.metric.toLowerCase().includes(metricNeedle) ||
+          e.marketId.toLowerCase().includes(metricNeedle);
+        const dropEmpty = hideEmpty || metricNeedle !== '';
         const filteredTraces = traces
           .filter(t => strategyFilter.has(t.strategy))
           .map(t => ({
             ...t,
-            entries: t.entries.filter(e => outcomeFilter.has(e.outcome)),
+            entries: t.entries.filter(e => outcomeFilter.has(e.outcome) && matchesMetric(e)),
           }))
-          .filter(t => !hideEmpty || t.entries.length > 0);
+          .filter(t => !dropEmpty || t.entries.length > 0);
         const totalShown = filteredTraces.length;
         const totalEntries = filteredTraces.reduce((s, t) => s + t.entries.length, 0);
         return (
@@ -294,6 +303,43 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
                 />
                 Hide traces with no matching entries
               </label>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginRight: '0.25rem' }}>Metric / market</span>
+              <input
+                type="text"
+                value={metricFilter}
+                onChange={e => setMetricFilter(e.target.value)}
+                placeholder="filter by metric name or market id"
+                style={{
+                  flex: '1 1 280px',
+                  maxWidth: '420px',
+                  fontSize: '0.75rem',
+                  padding: '0.3rem 0.55rem',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--bg-secondary)',
+                  fontFamily: 'monospace',
+                }}
+              />
+              {metricFilter && (
+                <button
+                  onClick={() => setMetricFilter('')}
+                  style={{
+                    fontSize: '0.7rem',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--accent-color, #2563eb)',
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                    padding: 0,
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  clear
+                </button>
+              )}
             </div>
 
       {totalShown === 0 ? (
@@ -361,7 +407,28 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
                             }}>
                               {e.outcome}
                             </span>
-                            <strong style={{ fontSize: '0.8rem' }}>{e.metric}</strong>
+                            <button
+                              onClick={ev => {
+                                ev.stopPropagation();
+                                setMetricFilter(e.metric);
+                              }}
+                              title="Filter all traces to this metric"
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                padding: 0,
+                                font: 'inherit',
+                                fontWeight: 700,
+                                fontSize: '0.8rem',
+                                cursor: 'pointer',
+                                color: 'var(--text-primary)',
+                                textDecorationStyle: 'dotted',
+                                textDecorationLine: 'underline',
+                                textUnderlineOffset: '2px',
+                              }}
+                            >
+                              {e.metric}
+                            </button>
                             <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>@ {e.targetDate}</span>
                           </div>
                           <div style={{ fontFamily: 'monospace', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
