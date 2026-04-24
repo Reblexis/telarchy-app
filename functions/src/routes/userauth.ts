@@ -87,6 +87,7 @@ userauthRouter.get('/me', requireUser, wrap(async (req, res) => {
     authRole: effectiveAuthRole,
     memberRole,
     workspaces: workspaceMap,
+    platformAdmin: agent?.platformAdmin === true,
   });
 }));
 

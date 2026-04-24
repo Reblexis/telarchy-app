@@ -3,10 +3,21 @@ import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
 import { getActivityFeed, ACTIVITY_TYPES, type ActivityType } from '../services/activity';
 import { db } from '../db/client';
-import { agentTraces, agentHeartbeats } from '../db/schema';
+import { agents, agentTraces, agentHeartbeats } from '../db/schema';
 import { and, desc, eq, gte, lte } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { AppError } from '../lib/errors';
+
+/** True if the caller is the master key OR a platform admin. */
+async function isPlatformAuthorized(req: { auth?: { isMasterKey?: boolean; uid?: string } }): Promise<boolean> {
+  if (!req.auth) return false;
+  if (req.auth.isMasterKey) return true;
+  if (!req.auth.uid) return false;
+  const [agent] = await db.select({ platformAdmin: agents.platformAdmin })
+    .from(agents)
+    .where(eq(agents.authUserId, req.auth.uid));
+  return agent?.platformAdmin === true;
+}
 
 export const adminRouter = Router();
 
@@ -117,7 +128,20 @@ adminRouter.post('/agent-traces', requireCapability('manage'), wrap(async (req, 
 }));
 
 adminRouter.get('/agent-traces', requireCapability('manage'), wrap(async (req, res) => {
-  const { workspaceId } = req.auth!;
+  const callerWorkspaceId = req.auth!.workspaceId;
+  const requestedScope = typeof req.query.workspaceId === 'string' ? req.query.workspaceId : undefined;
+  const isPlatform = await isPlatformAuthorized(req);
+
+  // Platform admin / master key may scope to any single workspace, or pass
+  // 'all' for a cross-workspace view. Workspace-only admins are pinned to
+  // their own workspace.
+  let scope: string | 'all';
+  if (requestedScope && isPlatform) {
+    scope = requestedScope;
+  } else {
+    scope = callerWorkspaceId;
+  }
+
   const agentId = typeof req.query.agentId === 'string' ? req.query.agentId : undefined;
   const limit = Math.min(
     typeof req.query.limit === 'string' ? Math.max(1, parseInt(req.query.limit, 10) || 0) : 50,
@@ -126,18 +150,24 @@ adminRouter.get('/agent-traces', requireCapability('manage'), wrap(async (req, r
   const since = parseIsoDate(req.query.since);
   const until = parseIsoDate(req.query.until);
 
-  const conds = [eq(agentTraces.workspaceId, workspaceId)];
+  const conds = [];
+  if (scope !== 'all') conds.push(eq(agentTraces.workspaceId, scope));
   if (agentId) conds.push(eq(agentTraces.agentId, agentId));
   if (since) conds.push(gte(agentTraces.startedAt, since));
   if (until) conds.push(lte(agentTraces.startedAt, until));
 
-  const rows = await db.select()
-    .from(agentTraces)
-    .where(conds.length === 1 ? conds[0] : and(...conds))
+  const where = conds.length === 0 ? undefined
+    : conds.length === 1 ? conds[0]
+    : and(...conds);
+
+  const rows = await (where
+    ? db.select().from(agentTraces).where(where)
+    : db.select().from(agentTraces)
+  )
     .orderBy(desc(agentTraces.startedAt))
     .limit(limit);
 
-  res.json({ traces: rows });
+  res.json({ traces: rows, scope, isPlatformAdmin: isPlatform });
 }));
 
 adminRouter.post('/agent-heartbeat', requireCapability('manage'), wrap(async (req, res) => {
@@ -187,9 +217,19 @@ adminRouter.post('/agent-heartbeat', requireCapability('manage'), wrap(async (re
   res.status(204).end();
 }));
 
-adminRouter.get('/agent-heartbeats', requireCapability('manage'), wrap(async (_req, res) => {
-  const rows = await db.select()
-    .from(agentHeartbeats)
-    .orderBy(desc(agentHeartbeats.updatedAt));
-  res.json({ heartbeats: rows });
+adminRouter.get('/agent-heartbeats', requireCapability('manage'), wrap(async (req, res) => {
+  // Heartbeats are global by design (one row per bot, identifies which
+  // workspace the bot last visited). Platform admin / master key sees all;
+  // workspace admins see only the bots that visited their workspace.
+  const isPlatform = await isPlatformAuthorized(req);
+  const callerWorkspaceId = req.auth!.workspaceId;
+
+  const where = isPlatform ? undefined : eq(agentHeartbeats.workspaceId, callerWorkspaceId);
+
+  const rows = await (where
+    ? db.select().from(agentHeartbeats).where(where)
+    : db.select().from(agentHeartbeats)
+  ).orderBy(desc(agentHeartbeats.updatedAt));
+
+  res.json({ heartbeats: rows, isPlatformAdmin: isPlatform });
 }));

@@ -59,11 +59,19 @@ function summarize(item: ActivityItem): string {
 
 export function AdminPage() {
   const { user } = useAuth();
-  const { allWorkspaces, loading: wsLoading } = useWorkspace(Boolean(user));
+  const { workspace, allWorkspaces, loading: wsLoading } = useWorkspace(Boolean(user));
 
+  const isPlatformAdmin = workspace?.platformAdmin === true;
+
+  // Activity feed has only ever been workspace-scoped (per the existing
+  // /api/admin/activity behaviour). Platform admins can browse any workspace
+  // they're a member of even if they aren't admin there; non-platform admins
+  // see only the workspaces where they are owner/admin.
   const adminWorkspaces = useMemo(
-    () => allWorkspaces.filter(w => w.memberRole === 'owner' || w.memberRole === 'admin'),
-    [allWorkspaces],
+    () => isPlatformAdmin
+      ? allWorkspaces
+      : allWorkspaces.filter(w => w.memberRole === 'owner' || w.memberRole === 'admin'),
+    [allWorkspaces, isPlatformAdmin],
   );
 
   const [usdcEnabled, setUsdcEnabled] = useState<boolean | null>(null);
@@ -188,7 +196,12 @@ export function AdminPage() {
           </div>
         )}
 
-        {selectedWorkspace && <AgentTelemetryPanel workspaceId={selectedWorkspace} />}
+        {selectedWorkspace && (
+          <AgentTelemetryPanel
+            workspaceId={selectedWorkspace}
+            isPlatformAdmin={isPlatformAdmin}
+          />
+        )}
 
         <div className="section">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>

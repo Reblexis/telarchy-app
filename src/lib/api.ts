@@ -339,17 +339,18 @@ export const api = {
   },
 
   // Agent telemetry (heartbeats + decision traces; requires `manage`)
-  getAgentHeartbeats: (workspaceId?: string): Promise<{ heartbeats: AgentHeartbeat[] }> =>
+  getAgentHeartbeats: (workspaceId?: string): Promise<{ heartbeats: AgentHeartbeat[]; isPlatformAdmin?: boolean }> =>
     requestWithWorkspace('/api/admin/agent-heartbeats', {}, { workspaceId }),
 
   getAgentTraces: (
-    params: { agentId?: string; since?: string; limit?: number },
+    params: { agentId?: string; since?: string; limit?: number; scopeWorkspaceId?: string | 'all' },
     workspaceId?: string,
-  ): Promise<{ traces: AgentTrace[] }> => {
+  ): Promise<{ traces: AgentTrace[]; scope?: string; isPlatformAdmin?: boolean }> => {
     const q = new URLSearchParams();
     if (params.agentId) q.set('agentId', params.agentId);
     if (params.since) q.set('since', params.since);
     if (params.limit) q.set('limit', String(params.limit));
+    if (params.scopeWorkspaceId) q.set('workspaceId', params.scopeWorkspaceId);
     const qs = q.toString() ? `?${q}` : '';
     return requestWithWorkspace(`/api/admin/agent-traces${qs}`, {}, { workspaceId });
   },

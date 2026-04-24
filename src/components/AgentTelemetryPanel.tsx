@@ -47,9 +47,10 @@ function fmtNum(n: number | null | undefined, digits = 2): string {
 
 interface Props {
   workspaceId: string;
+  isPlatformAdmin?: boolean;
 }
 
-export function AgentTelemetryPanel({ workspaceId }: Props) {
+export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
   const [heartbeats, setHeartbeats] = useState<AgentHeartbeat[]>([]);
   const [traces, setTraces] = useState<AgentTrace[]>([]);
   const [error, setError] = useState('');
@@ -57,15 +58,23 @@ export function AgentTelemetryPanel({ workspaceId }: Props) {
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [expandedTrace, setExpandedTrace] = useState<string | null>(null);
   const [tickNow, setTickNow] = useState(Date.now());
+  // Platform admins default to the cross-workspace view since bots run
+  // against many workspaces and the most useful view is "show everything
+  // they're doing platform-wide".
+  const [scopeAll, setScopeAll] = useState<boolean>(isPlatformAdmin ?? false);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchAll = useCallback(async () => {
     if (!workspaceId) return;
     setLoading(true);
     try {
+      const tracesScope = isPlatformAdmin && scopeAll ? 'all' : undefined;
       const [hb, tr] = await Promise.all([
         api.getAgentHeartbeats(workspaceId),
-        api.getAgentTraces({ agentId: selectedAgent ?? undefined, limit: 30 }, workspaceId),
+        api.getAgentTraces(
+          { agentId: selectedAgent ?? undefined, limit: 30, scopeWorkspaceId: tracesScope },
+          workspaceId,
+        ),
       ]);
       setHeartbeats(hb.heartbeats);
       setTraces(tr.traces);
@@ -75,7 +84,7 @@ export function AgentTelemetryPanel({ workspaceId }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [workspaceId, selectedAgent]);
+  }, [workspaceId, selectedAgent, isPlatformAdmin, scopeAll]);
 
   useEffect(() => {
     let cancelled = false;
@@ -103,9 +112,22 @@ export function AgentTelemetryPanel({ workspaceId }: Props) {
     <div className="section" style={{ marginBottom: '1.5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
         <h2 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>Bot agents</h2>
-        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-          {loading ? 'Refreshing…' : 'Live (5s)'}
-        </span>
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          {isPlatformAdmin && (
+            <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={scopeAll}
+                onChange={e => setScopeAll(e.target.checked)}
+                style={{ margin: 0 }}
+              />
+              All workspaces
+            </label>
+          )}
+          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            {loading ? 'Refreshing…' : 'Live (5s)'}
+          </span>
+        </div>
       </div>
 
       {error && <div className="error show" style={{ marginBottom: '1rem' }}>{error}</div>}
@@ -210,6 +232,9 @@ export function AgentTelemetryPanel({ workspaceId }: Props) {
                   <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{t.agentId}</span>
                   <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
                     {new Date(t.startedAt).toLocaleString()} · {t.strategy} · {t.model ?? '—'}
+                    {scopeAll && (
+                      <> · <code style={{ fontSize: '0.7rem' }}>{t.workspaceId.slice(0, 8)}</code></>
+                    )}
                   </span>
                   <span style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
                     <span style={{ color: '#16a34a' }}>{t.traded}t</span>

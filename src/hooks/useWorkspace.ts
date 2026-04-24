@@ -10,6 +10,7 @@ export interface WorkspaceInfo {
   intent: 'creator' | 'agent' | null;
   tier: 'admin' | 'trader' | 'viewer' | 'none';
   needsWorkspace: boolean;
+  platformAdmin: boolean;
 }
 
 export interface WorkspaceListItem {
@@ -49,7 +50,7 @@ export function useWorkspace(authenticated: boolean = true): {
       api.listWorkspaces().catch((e: Error) => { console.error('listWorkspaces failed:', e.message); return []; }),
     ])
       .then(([profile, wsList]: [
-        { workspaceId?: string; authRole?: string; memberRole?: WorkspaceMemberRole | null; intent?: 'creator' | 'agent' | null },
+        { workspaceId?: string; authRole?: string; memberRole?: WorkspaceMemberRole | null; intent?: 'creator' | 'agent' | null; platformAdmin?: boolean },
         Array<{ id: string; name: string; memberRole: string }>,
       ]) => {
         if (cancelled) return;
@@ -72,7 +73,15 @@ export function useWorkspace(authenticated: boolean = true): {
         })();
 
         setError(null);
-        setWorkspace({ workspaceId: workspaceId ?? '', memberRole, authRole, intent, tier, needsWorkspace });
+        setWorkspace({
+          workspaceId: workspaceId ?? '',
+          memberRole,
+          authRole,
+          intent,
+          tier,
+          needsWorkspace,
+          platformAdmin: profile.platformAdmin === true,
+        });
 
         const mapped = wsList.map(w => ({ id: w.id, name: w.name, memberRole: w.memberRole }));
         setAllWorkspaces(mapped);
