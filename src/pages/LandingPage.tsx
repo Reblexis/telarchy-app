@@ -458,15 +458,15 @@ export function LandingPage() {
           {[
             {
               title: 'Honest by design',
-              body: 'Competing participants, human or AI, keep each other honest. Prediction markets eliminate optimism bias by rewarding accuracy.',
+              body: 'Forecasters compete on accuracy. Optimism bias loses money.',
             },
             {
               title: 'Continuous, not quarterly',
-              body: 'Forecasts update around the clock. See your projections drift in real time, not in the next planning cycle.',
+              body: 'Forecasts move around the clock, not at the next planning cycle.',
             },
             {
               title: 'Before you spend',
-              body: 'Conditional forecasts answer "what will this do to our metrics?" before you fund any initiative.',
+              body: 'Conditional markets price each initiative against your KPIs first.',
             },
           ].map(({ title, body }) => (
             <div key={title} className="lp-diff-item">
@@ -549,22 +549,22 @@ export function LandingPage() {
       <section className="lp-section" style={{ padding: '5rem 0' }}>
         <div className="lp-wrap">
           <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '0.5rem' }}>
-            A decision tool, not an oddsmaker
+            The only complete combination
           </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.7, maxWidth: 720, marginBottom: '2.5rem' }}>
-            Other platforms answer "what's the probability of <em>this public event</em>?" Telarchy answers "what would happen to <em>my goals</em> if I did <em>this proposed action</em>?" Different question, different mechanism, different audience.
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.7, maxWidth: 640, marginBottom: '2.5rem' }}>
+            Pieces of Telarchy exist elsewhere. The combination doesn't.
           </p>
 
           <div className="lp-compare-wrap">
-            <table className="lp-compare">
+            <table className="lp-compare lp-matrix">
               <thead>
                 <tr>
                   <th className="lp-compare-platform">Platform</th>
-                  <th>Market shape</th>
-                  <th>Stakes</th>
-                  <th>Visibility</th>
-                  <th>AI participants</th>
-                  <th>Best for</th>
+                  <th>Conditional<br/>decision markets</th>
+                  <th>Owner sets<br/>goals</th>
+                  <th>Metric tree<br/>+ time horizon</th>
+                  <th>Granular<br/>privacy</th>
+                  <th>First-class AI<br/>+ open audit</th>
                 </tr>
               </thead>
               <tbody>
@@ -573,80 +573,69 @@ export function LandingPage() {
                     <div className="lp-compare-name">Polymarket / Kalshi</div>
                     <div className="lp-compare-sub">consumer prediction markets</div>
                   </td>
-                  <td data-label="Market shape">Standalone market on a public event (news, sports, politics).</td>
-                  <td data-label="Stakes">Real USDC (Polymarket) or regulated USD (Kalshi).</td>
-                  <td data-label="Visibility">Fully public, on-chain (Polymarket) or regulated exchange (Kalshi).</td>
-                  <td data-label="AI participants">Tolerated; AI agents now drive 30%+ of Polymarket volume, but they're user-submitted bots with no platform-level observability.</td>
-                  <td data-label="Best for">Speculating on outcomes the whole world is watching.</td>
+                  <td data-label="Conditional markets" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">standalone</span></td>
+                  <td data-label="Owner sets goals" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">anyone</span></td>
+                  <td data-label="Metric tree" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">flat</span></td>
+                  <td data-label="Privacy" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">public</span></td>
+                  <td data-label="AI + audit" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">tolerated, no audit</span></td>
                 </tr>
                 <tr>
                   <td className="lp-compare-platform">
                     <div className="lp-compare-name">Manifold / Metaculus</div>
                     <div className="lp-compare-sub">public forecasting platforms</div>
                   </td>
-                  <td data-label="Market shape">Standalone user-submitted questions; anyone can create one.</td>
-                  <td data-label="Stakes">Play money (Manifold Mana) or reputation rank (Metaculus).</td>
-                  <td data-label="Visibility">Public website; every question, trade, and forecaster visible.</td>
-                  <td data-label="AI participants">Niche; a handful of serious bots, no first-class integration.</td>
-                  <td data-label="Best for">Practicing calibration on questions others care about.</td>
+                  <td data-label="Conditional markets" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">standalone</span></td>
+                  <td data-label="Owner sets goals" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">anyone</span></td>
+                  <td data-label="Metric tree" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">flat</span></td>
+                  <td data-label="Privacy" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">public site</span></td>
+                  <td data-label="AI + audit" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">niche</span></td>
                 </tr>
                 <tr>
                   <td className="lp-compare-platform">
                     <div className="lp-compare-name">MetaDAO</div>
                     <div className="lp-compare-sub">futarchy for Solana DAOs</div>
                   </td>
-                  <td data-label="Market shape"><strong>Conditional markets</strong> on a DAO proposal vs. a welfare token.</td>
-                  <td data-label="Stakes">Real on-chain tokens; lost on bad proposals.</td>
-                  <td data-label="Visibility">On-chain, fully public.</td>
-                  <td data-label="AI participants">Not a focus; bots permitted but not integrated into governance.</td>
-                  <td data-label="Best for">DAO governance via token-holder futarchy.</td>
+                  <td data-label="Conditional markets" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">DAO proposal</span></td>
+                  <td data-label="Owner sets goals" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">DAO vote</span></td>
+                  <td data-label="Metric tree" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">single welfare token</span></td>
+                  <td data-label="Privacy" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">on-chain</span></td>
+                  <td data-label="AI + audit" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">not a focus</span></td>
                 </tr>
                 <tr>
                   <td className="lp-compare-platform">
-                    <div className="lp-compare-name">Cultivate Labs</div>
-                    <div className="lp-compare-sub">enterprise internal forecasting</div>
+                    <div className="lp-compare-name">Cultivate Labs · Hypermind</div>
+                    <div className="lp-compare-sub">enterprise internal markets</div>
                   </td>
-                  <td data-label="Market shape">Standalone + some conditional; admin-curated question set.</td>
-                  <td data-label="Stakes">Virtual / play money tied to employee incentives.</td>
-                  <td data-label="Visibility">Private, hosted per-enterprise.</td>
-                  <td data-label="AI participants">Not a primary concept; built for internal humans.</td>
-                  <td data-label="Best for">Fortune-500-scale internal forecasting programs.</td>
+                  <td data-label="Conditional markets" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">some</span></td>
+                  <td data-label="Owner sets goals" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">admin-curated</span></td>
+                  <td data-label="Metric tree" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">flat questions</span></td>
+                  <td data-label="Privacy" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">enterprise-hosted</span></td>
+                  <td data-label="AI + audit" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">human forecasters</span></td>
+                </tr>
+                <tr>
+                  <td className="lp-compare-platform">
+                    <div className="lp-compare-name">Causal · Pigment · Anaplan</div>
+                    <div className="lp-compare-sub">AI scenario-planning tools</div>
+                  </td>
+                  <td data-label="Conditional markets" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">what-if simulation</span></td>
+                  <td data-label="Owner sets goals" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">finance team</span></td>
+                  <td data-label="Metric tree" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">model variables</span></td>
+                  <td data-label="Privacy" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">private SaaS</span></td>
+                  <td data-label="AI + audit" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">no market signal</span></td>
                 </tr>
                 <tr className="lp-compare-us">
                   <td className="lp-compare-platform">
                     <div className="lp-compare-name">Telarchy<span className="lp-compare-badge">you are here</span></div>
                     <div className="lp-compare-sub">decision markets for founders</div>
                   </td>
-                  <td data-label="Market shape">
-                    <strong>Conditional decision markets</strong> against <strong>your metric tree</strong> (KPIs / OKRs, composed via formulas, each carrying a time horizon).
-                  </td>
-                  <td data-label="Stakes">Play credits scoped to your workspace; USDC settlement opt-in on self-hosted.</td>
-                  <td data-label="Visibility">
-                    <strong>Workspace-scoped:</strong> Private (invite-only), Public (listed, view-only), or Open (listed, joiners trade). Switch in Settings anytime.
-                  </td>
-                  <td data-label="AI participants">
-                    <strong>First-class.</strong> Same signup, same balance as humans. Every decision audited in <code>/admin</code> via an <a href="/api/guides/agent-telemetry" style={{ color: 'inherit', textDecoration: 'underline' }}>open telemetry protocol</a> any bot can follow.
-                  </td>
-                  <td data-label="Best for">Founders and leadership teams pricing decisions against KPIs and OKRs, before committing.</td>
+                  <td data-label="Conditional markets" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">per proposal</span></td>
+                  <td data-label="Owner sets goals" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">no crowd vote</span></td>
+                  <td data-label="Metric tree" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">formulas + TP</span></td>
+                  <td data-label="Privacy" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">workspace · per-metric · per-source</span></td>
+                  <td data-label="AI + audit" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note"><a href="/api/guides/agent-telemetry" style={{ color: 'inherit' }}>open protocol</a></span></td>
                 </tr>
               </tbody>
             </table>
-          </div>
-
-          {/* Only Telarchy does this */}
-          <div className="lp-only-telarchy">
-            <div className="lp-only-title">Only Telarchy does all of these</div>
-            <ol className="lp-only-list">
-              <li>
-                <strong>Owner-defined goals.</strong> The workspace owner sets the KPIs. No crowd vote, no curated question list; the mechanism works for a single decision-maker.
-              </li>
-              <li>
-                <strong>Metric tree with time horizon.</strong> Composed metrics (formulas), each node's time preference generates the markets automatically. You see forward-looking outlooks, not spot odds.
-              </li>
-              <li>
-                <strong>Agentic privacy.</strong> Most forecasters are AI participants you opt in. Every decision is auditable; memory-scoped sandboxes and reset-on-demand controls are on the roadmap. Properties human-only markets can't offer structurally.
-              </li>
-            </ol>
           </div>
         </div>
       </section>

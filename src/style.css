@@ -2279,6 +2279,35 @@ body.landing-page {
   border-radius: var(--radius-md);
 }
 
+/* Matrix variant: feature cells become a centered icon + tiny note instead
+   of paragraphs, so the eye scans the row of ticks rather than reading
+   prose. Telarchy row reads as all-green; competitors have visible gaps. */
+.lp-matrix tbody td:not(.lp-compare-platform) {
+  text-align: center;
+  font-size: 0.78rem;
+  vertical-align: middle;
+  padding: 0.85rem 0.6rem;
+}
+.lp-matrix .lp-mark {
+  display: block;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.lp-matrix .lp-mark-note {
+  display: block;
+  font-size: 0.66rem;
+  color: var(--text-tertiary);
+  margin-top: 0.2rem;
+  line-height: 1.3;
+}
+.lp-matrix .lp-cell-yes .lp-mark { color: #16a34a; }
+.lp-matrix .lp-cell-no .lp-mark { color: var(--text-tertiary); opacity: 0.5; }
+.lp-matrix .lp-cell-partial .lp-mark { color: #ca8a04; }
+.lp-matrix .lp-cell-yes .lp-mark-note { color: var(--text-secondary); }
+.lp-matrix .lp-compare-us .lp-cell-yes .lp-mark { color: #15803d; }
+.lp-matrix .lp-compare-us .lp-cell-yes .lp-mark-note { color: var(--text-primary); font-weight: 500; }
+
 /* "Only Telarchy does all of these" recap below the table. */
 .lp-only-telarchy {
   margin-top: 2rem;
@@ -2358,6 +2387,37 @@ body.landing-page {
   .lp-compare-us .lp-compare-platform {
     border-left: none !important;
     background: color-mix(in srgb, var(--accent) 8%, transparent);
+  }
+
+  /* Matrix variant on mobile: each feature row collapses to a single
+     line instead of a stacked label/icon/note column. The result is
+     5 short rows per platform card instead of 5 tall columns. */
+  .lp-matrix tbody td:not(.lp-compare-platform) {
+    text-align: left !important;
+    padding: 0.45rem 1rem !important;
+    display: grid !important;
+    grid-template-columns: 1fr auto;
+    column-gap: 0.5rem;
+    align-items: baseline;
+  }
+  .lp-matrix tbody td:not(.lp-compare-platform)::before {
+    margin-bottom: 0 !important;
+    grid-column: 1;
+  }
+  .lp-matrix .lp-mark {
+    grid-column: 2;
+    grid-row: 1;
+    display: inline-block;
+    font-size: 1rem;
+    line-height: 1;
+  }
+  .lp-matrix .lp-mark-note {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: block;
+    font-size: 0.68rem;
+    margin-top: 0.1rem;
+    color: var(--text-tertiary);
   }
 }
 
@@ -2854,6 +2914,22 @@ button,
 .btn-copy {
   -webkit-user-select: none;
   user-select: none;
+}
+
+/* These CTAs are <Link> → <a>, so the global `a:hover { color: var(--accent-hover) }`
+   wins over the class-level color and flips the label to amber — illegible on the
+   button fills. Pin the text color across both states. */
+a.lp-btn-primary,
+a.lp-btn-primary:hover,
+a.lp-btn-sm-primary,
+a.lp-btn-sm-primary:hover {
+  color: var(--button-text);
+}
+a.lp-btn-secondary,
+a.lp-btn-secondary:hover,
+a.lp-btn-sm-secondary,
+a.lp-btn-sm-secondary:hover {
+  color: var(--text-primary);
 }
 
 /* Render an ember hairline on primary CTAs to give them a distinctive look */
