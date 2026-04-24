@@ -2,7 +2,7 @@ import { type ReactNode, useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from './Logo';
 
-type Page = 'metrics' | 'agents' | 'markets' | 'tasks';
+type Page = 'metrics' | 'participants' | 'markets' | 'tasks';
 
 type NavItem = { to: string; label: string; page?: Page };
 
@@ -10,11 +10,11 @@ const CREATOR_NAV: NavItem[] = [
   { to: '/metrics', label: 'Metrics',   page: 'metrics' },
   { to: '/markets', label: 'Markets',   page: 'markets' },
   { to: '/tasks',   label: 'Tasks',     page: 'tasks'   },
-  { to: '/agents',  label: 'Participants',    page: 'agents'  },
+  { to: '/participants',  label: 'Participants',    page: 'participants'  },
 ];
 
 const OPERATOR_NAV: NavItem[] = [
-  { to: '/agents',      label: 'My Participants',    page: 'agents' },
+  { to: '/participants',      label: 'My Participants',    page: 'participants' },
   { to: '/agent-login', label: 'API Key Portal' },
 ];
 
@@ -125,7 +125,7 @@ function WorkspaceSwitcher({ workspaces, activeId, onSwitch }: {
           ))}
           <div style={{ borderTop: '1px solid var(--border-color)', margin: '0.25rem 0' }} />
           <button
-            onClick={() => { navigate('/agents?view=operator'); setOpen(false); }}
+            onClick={() => { navigate('/participants?view=operator'); setOpen(false); }}
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               width: '100%',

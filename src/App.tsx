@@ -9,7 +9,7 @@ import { CreateWorkspacePage } from './pages/CreateWorkspacePage';
 import { MarketplacePage } from './pages/MarketplacePage';
 import { WorkspaceSettingsPage } from './pages/WorkspaceSettingsPage';
 import { MetricsPage } from './pages/MetricsPage';
-import { AgentsPage } from './pages/AgentsPage';
+import { ParticipantsPage } from './pages/ParticipantsPage';
 import { MarketsPage } from './pages/MarketsPage';
 import { TasksPage } from './pages/TasksPage';
 import { WaitlistPage } from './pages/WaitlistPage';
@@ -74,7 +74,7 @@ export function App() {
             <Route element={<RequireAuth />}>
               <Route path="/start" element={<StartPage />} />
               <Route path="/create-workspace" element={<CreateWorkspacePage />} />
-              <Route path="/agents" element={<AgentsPage />} />
+              <Route path="/participants" element={<ParticipantsPage />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/account" element={<AccountPage />} />
             </Route>

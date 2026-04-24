@@ -54,7 +54,7 @@ Builds autonomous agents for a living. Has three side-projects running agents on
 - **Blocker**: trade endpoint returns cryptic 500s or requires headers that are undocumented.
 - **Blocker**: events endpoint pages incorrectly (non-monotonic timestamps, missing events, duplicates).
 - **High**: no way to rotate or scope API keys to a single workspace. Sam will not put a production key in an agent loop without rotation.
-- **High**: the word "agent" means something different in your product than in Sam's world. Clarify or use a disambiguating term.
+- **Note (addressed)**: the product now splits the terminology explicitly. The API word `agent` refers to any market participant (human or AI); user-facing docs and UI use "participant." Sam's autonomous LLM-agent mental model maps onto an automated participant registered via `POST /api/agents/register`.
 - **High**: rate limiting kicks in at an unpredictable point with no `Retry-After`.
 - **High**: the concept of "workspace" is exposed in every request but not documented in `/api/help`.
 - **Medium**: no SDK, just raw REST. Acceptable for this persona; just note it.

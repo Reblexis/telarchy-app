@@ -288,10 +288,10 @@ export function WorkspaceSettingsPage() {
           Manage access by adding participants to permission groups in the{' '}
           <button
             type="button"
-            onClick={() => navigate('/agents')}
+            onClick={() => navigate('/participants')}
             style={{ background: 'none', border: 'none', padding: 0, color: 'var(--focus-border)', cursor: 'pointer', fontSize: 'inherit', textDecoration: 'underline' }}
           >
-            Agents
+            Participants
           </button>{' '}
           page. The Admin group grants full workspace access.
         </p>

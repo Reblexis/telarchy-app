@@ -840,7 +840,7 @@ function AgentAdminPage({ user: _user, workspace }: {
 
 // ─── Main export: routes to correct view based on workspace state ────────────
 
-export function AgentsPage() {
+export function ParticipantsPage() {
   const { user } = useAuth();
   const { workspace, loading } = useWorkspace(!!user);
   const [params] = useSearchParams();
