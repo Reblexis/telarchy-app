@@ -71,7 +71,7 @@ Closes the terminal tab. Typical cause: undocumented failure of one of the three
 
 ## Executor notes
 
-- This persona does most of their work with `curl`, not Playwright. The Playwright session is brief (just finding the API link from the landing page, and maybe the guides page for the hooks format). Most of the test is Bash.
+- This persona does most of their work with `curl`, not the browser. The `$B` session is brief (just finding the API link from the landing page, and maybe the guides page for the hooks format). Most of the test is Bash.
 - Use a fresh agent key per run; do not reuse keys across persona runs.
 - When capturing findings, paste the exact `curl` commands and their responses. Sam cares about precise contracts, not descriptions of contracts.
 - Compare what `/api/help` says vs. what the code actually does in `functions/src/app.ts`. Any drift is a blocker for this persona.

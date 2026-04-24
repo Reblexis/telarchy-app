@@ -37,6 +37,19 @@ When implementing a new feature or design decision not already captured in `docs
 
 Do not leave outdated, superseded, historical, or migration-era documentation in place. If a doc is no longer current, update it to match the live system or delete it.
 
+## Browser-driven test specs
+
+When verifying UI features, prefer the structured specs in
+`docs/browse-tests/` over ad-hoc browsing. Each file is a per-feature script
+of `browse` (`$B`) commands and expected results, runnable end-to-end
+without inferring intent. The master index is `docs/browse-tests/README.md`.
+
+When you ship a UI-affecting change, either update the relevant existing
+spec or add a new one (use `admin-observability.md` as the gold-standard
+template). Coverage gaps in that directory should match the
+"Known gaps" notes at the bottom of each spec; if they don't, fix it in the
+same commit.
+
 ## Testing features locally (user perspective)
 
 To verify features or debug UI/UX issues as the primary user would experience them, use the local dev server:

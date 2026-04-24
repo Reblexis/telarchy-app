@@ -22,16 +22,20 @@ When executing a persona, flag anything in these categories:
 
 Severity tags for findings: **blocker** (persona would bounce), **high** (persona would hesitate, possibly bounce), **medium** (noticed but would continue), **low** (polish).
 
+## Tooling
+
+Use gstack `browse` (`$B`) as the canonical browser-driver for these scripts. It's a persistent headless Chromium with the same primitives Playwright MCP exposed (goto, click, fill, snapshot, console, network, screenshot, viewport resize). The previous `browser_navigate` / `browser_console_messages` references in this directory map directly to `$B goto` / `$B console`. See `docs/browse-tests/README.md` for the command cheat sheet and per-feature scripts.
+
 ## How to execute
 
 One persona per session. Do not blend observations from multiple personas into a single test.
 
-1. **Cold-start the browser context.** Each persona starts with no cookies, no localStorage, no prior auth, no cached assets unless the persona file says otherwise. Use Playwright's incognito/fresh context.
-2. **Enter the site through the referral channel named in the persona.** A persona that arrives from Hacker News lands on the root page after following a link; a persona that arrived from a mobile share link lands on `/marketplace/<workspaceId>`. Do not just `browser_navigate` to whatever is convenient.
-3. **Set the viewport to the persona's device profile** before the first navigation. Desktop = 1440x900. Laptop = 1280x800. Phone = 390x844 (roughly an iPhone 15). Tablet portrait = 820x1180.
+1. **Cold-start the browser context.** Each persona starts with no cookies, no localStorage, no prior auth, no cached assets unless the persona file says otherwise. Use a fresh `$B` session (`$B stop` then a new command auto-restarts it), or `$B state save <name>` / `$B state load <name>` to switch between known-good fixtures.
+2. **Enter the site through the referral channel named in the persona.** A persona that arrives from Hacker News lands on the root page after following a link; a persona that arrived from a mobile share link lands on `/marketplace/<workspaceId>`. Do not just `$B goto` to whatever is convenient.
+3. **Set the viewport to the persona's device profile** before the first navigation: `$B viewport 1440x900` (desktop), `1280x800` (laptop), `390x844` (phone, iPhone 15), `820x1180` (tablet portrait).
 4. **Start a timer.** The persona has an explicit attention budget. When that budget is spent, the test ends. If the persona has not yet reached their conversion milestone by then, the outcome is "bounce".
 5. **Follow the session script in order.** At each step, ask yourself the persona's question ("if I were them, what would I do next?"). Script deviations are allowed and expected; note them.
-6. **Capture evidence.** Screenshot every screen the persona sees, especially at friction points. Use `browser_console_messages` and `browser_network_requests` to catch errors invisible to the user.
+6. **Capture evidence.** Screenshot every screen the persona sees with `$B screenshot <path>` (or `$B snapshot -a -o <path>` for a refs-annotated version), especially at friction points. Use `$B console` and `$B network` to catch errors invisible to the user.
 7. **Do not break character to make the test pass.** If the persona would not read a tooltip, do not hover to get past a confusing label. If the persona would not open devtools, do not use devtools.
 8. **Stay in sandbox.** Do not complete real OAuth flows. Use fresh email aliases of the form `qa+<persona-id>-<timestamp>@example.test`. Never trade with real USDC (settlement is off anyway).
 
@@ -67,7 +71,7 @@ Date: YYYY-MM-DD. Executor: Claude. Budget: <N min>. Used: <M min>.
 - [priority] concrete change, scoped to this persona's friction.
 
 ## Console / network anomalies
-- Any 4xx/5xx, console errors, slow requests captured via Playwright.
+- Any 4xx/5xx, console errors, slow requests captured via `$B console` / `$B network`.
 ```
 
 ## Re-running

@@ -134,6 +134,13 @@
       "when": 1777000000000,
       "tag": "0018_metric_logs_outlook",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1777100000000,
+      "tag": "0019_agent_telemetry",
+      "breakpoints": true
     }
   ]
 }

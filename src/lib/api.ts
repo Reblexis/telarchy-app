@@ -9,6 +9,63 @@ export interface ActivityItem {
   data: Record<string, unknown>;
 }
 
+export interface AgentHeartbeat {
+  agentId: string;
+  status: string;
+  workspaceId: string | null;
+  strategy: string | null;
+  lastCycleStartedAt: string | null;
+  lastCycleEndedAt: string | null;
+  nextCycleAt: string | null;
+  pollIntervalSeconds: number;
+  workspacesVisited: number;
+  lastTraded: number;
+  lastSkipped: number;
+  lastErrors: number;
+  lastError: string | null;
+  balance: number | null;
+  updatedAt: string;
+}
+
+export interface AgentTraceEntry {
+  marketId: string;
+  metric: string;
+  targetDate: string;
+  rangeMin: number;
+  rangeMax: number;
+  consensus: number;
+  estimate: number;
+  confidence: number;
+  distance: number;
+  threshold: number;
+  reasoning: string;
+  outcome: string;
+  cost?: number;
+  resultingConsensus?: number;
+  error?: string;
+}
+
+export interface AgentTrace {
+  id: string;
+  workspaceId: string;
+  agentId: string;
+  strategy: string;
+  startedAt: string;
+  endedAt: string;
+  model: string | null;
+  tokensIn: number;
+  tokensOut: number;
+  cacheRead: number;
+  cacheWrite: number;
+  candidates: number;
+  traded: number;
+  skipped: number;
+  errors: number;
+  costUsd: number;
+  entries: AgentTraceEntry[];
+  createdAt: string;
+}
+
 export interface MarketplaceListing {
   workspaceId: string;
   workspaceName: string;
@@ -279,6 +336,22 @@ export const api = {
     if (params.taskId) q.set('taskId', params.taskId);
     const qs = q.toString() ? `?${q}` : '';
     return requestWithWorkspace(`/api/admin/activity${qs}`, {}, { workspaceId });
+  },
+
+  // Agent telemetry (heartbeats + decision traces; requires `manage`)
+  getAgentHeartbeats: (workspaceId?: string): Promise<{ heartbeats: AgentHeartbeat[] }> =>
+    requestWithWorkspace('/api/admin/agent-heartbeats', {}, { workspaceId }),
+
+  getAgentTraces: (
+    params: { agentId?: string; since?: string; limit?: number },
+    workspaceId?: string,
+  ): Promise<{ traces: AgentTrace[] }> => {
+    const q = new URLSearchParams();
+    if (params.agentId) q.set('agentId', params.agentId);
+    if (params.since) q.set('since', params.since);
+    if (params.limit) q.set('limit', String(params.limit));
+    const qs = q.toString() ? `?${q}` : '';
+    return requestWithWorkspace(`/api/admin/agent-traces${qs}`, {}, { workspaceId });
   },
 
   // Marketplace (public, no auth)

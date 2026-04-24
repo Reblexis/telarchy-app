@@ -76,7 +76,7 @@ Finds a math error, a stale doc, or an undocumented behavior that casts doubt on
 
 ## Executor notes
 
-- This persona is half-code-reader, half-UI-user. Plan for both: Playwright for the UI portion, Bash/Read for the code portion.
+- This persona is half-code-reader, half-UI-user. Plan for both: `$B` for the UI portion, Bash/Read for the code portion.
 - Treat any doc-vs-code discrepancy as a blocker even if the code is arguably correct; Lin's trust is in the docs too.
 - Data export is often overlooked; verify it actually returns something useful, not an empty object.
 - If the resolution code has edge cases (negative values, values above rangeMax), probe them. Lin will.

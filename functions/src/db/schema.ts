@@ -330,3 +330,54 @@ export const hookWatcher = pgTable('hook_watcher', {
   lastHeartbeat: timestamp('last_heartbeat'),
   status: text('status'),
 });
+
+// ---------------------------------------------------------------------------
+// Bot agent telemetry: heartbeats from the polling loop (next-tick visibility)
+// and per-session decision traces (mainly LLM strategies). Pushed by the
+// out-of-process telarchy-agents service so the admin UI can introspect what
+// the bots are doing without tailing log files on the host.
+// ---------------------------------------------------------------------------
+
+export const agentTraces = pgTable('agent_traces', {
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
+  agentId: text('agent_id').notNull(),
+  strategy: text('strategy').notNull(),
+  startedAt: timestamp('started_at').notNull(),
+  endedAt: timestamp('ended_at').notNull(),
+  model: text('model'),
+  tokensIn: integer('tokens_in').notNull().default(0),
+  tokensOut: integer('tokens_out').notNull().default(0),
+  cacheRead: integer('cache_read').notNull().default(0),
+  cacheWrite: integer('cache_write').notNull().default(0),
+  candidates: integer('candidates').notNull().default(0),
+  traded: integer('traded').notNull().default(0),
+  skipped: integer('skipped').notNull().default(0),
+  errors: integer('errors').notNull().default(0),
+  costUsd: doublePrecision('cost_usd').notNull().default(0),
+  /** Array of session entries: per-market estimate, confidence, distance, threshold, outcome, reasoning. */
+  entries: jsonb('entries').notNull().$type<unknown[]>().default([]),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const agentHeartbeats = pgTable('agent_heartbeats', {
+  /** One row per bot agent (e.g. bot-anchor, bot-ai-analyst). */
+  agentId: text('agent_id').primaryKey(),
+  /** 'idle' | 'running' | 'error' */
+  status: text('status').notNull().default('idle'),
+  /** Workspace currently being processed (if status='running'), or last visited. */
+  workspaceId: text('workspace_id'),
+  strategy: text('strategy'),
+  lastCycleStartedAt: timestamp('last_cycle_started_at'),
+  lastCycleEndedAt: timestamp('last_cycle_ended_at'),
+  /** Wall-clock time of the next scheduled cycle, computed as endedAt + pollInterval. */
+  nextCycleAt: timestamp('next_cycle_at'),
+  pollIntervalSeconds: integer('poll_interval_seconds').notNull().default(0),
+  workspacesVisited: integer('workspaces_visited').notNull().default(0),
+  lastTraded: integer('last_traded').notNull().default(0),
+  lastSkipped: integer('last_skipped').notNull().default(0),
+  lastErrors: integer('last_errors').notNull().default(0),
+  lastError: text('last_error'),
+  balance: doublePrecision('balance'),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});

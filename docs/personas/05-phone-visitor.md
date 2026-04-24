@@ -63,9 +63,9 @@ Bounces within 10 seconds. If the first render doesn't look right on a phone, th
 
 ## Executor notes
 
-- Use Playwright's `browser_resize` to 390x844 before any navigation. Ideally also simulate a `user-agent` mobile header if accessible.
+- Use `$B viewport 390x844` before any navigation. Ideally also `$B useragent <iPhone string>` to simulate the mobile UA.
 - Test at least three entry points: `/` (landing), `/marketplace`, and a specific market page (`/markets/:id` if such a path exists, else `/markets?q=<name>`).
 - Screenshot each view at mobile width. Attach to findings.
-- Run `browser_console_messages` to catch mobile-specific JS errors (e.g. touch events, viewport meta bugs).
+- Run `$B console --errors` to catch mobile-specific JS errors (e.g. touch events, viewport meta bugs).
 - If the first entry point is a desktop-only redirect, that's a blocker on its own.
 - The OG meta tag check is part of this persona; a link without a preview image looks phishy when shared.

@@ -1,6 +1,6 @@
 # User-flow audit plan
 
-Repeatable script for walking the first-time-user flow end-to-end with Playwright, screenshotting each step, and noting every friction point. Run this before every launch-adjacent push. Designed for one human + one AI agent pair: the AI drives, the human skims screenshots.
+Repeatable script for walking the first-time-user flow end-to-end with the gstack `browse` headless browser (`$B`), screenshotting each step, and noting every friction point. Run this before every launch-adjacent push. Designed for one human + one AI agent pair: the AI drives, the human skims screenshots. The previous Playwright MCP commands referenced here map 1:1 to `$B` (see `docs/browse-tests/README.md` for the cheat sheet).
 
 ## Why this exists
 
@@ -94,7 +94,7 @@ URL: `/marketplace`
 
 ### 9. Marketplace (public, incognito)
 
-Open the shared URL in an incognito context (fresh `browser_navigate` after `browser_close`).
+Open the shared URL in an incognito context (`$B stop` to drop cookies, then `$B goto <shared-url>`).
 
 **Check:**
 - Does the page sell the product to a cold visitor? (It's the landing for shared links.)
@@ -117,7 +117,7 @@ After each run, append a brief dated entry below with: env, screenshot dir, fric
 
 ### 2026-04-19, prod, `flow-audit-1776625883@integration.test`
 
-Walked all 10 steps via Playwright. Highlights:
+Walked all 10 steps via `$B`. Highlights:
 
 **Working well:**
 - OG/Twitter meta tags live on prod (title, description, image, card).
