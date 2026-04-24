@@ -434,10 +434,9 @@ export function LandingPage() {
               Better decisions,<br />faster.
             </h1>
             <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.75, maxWidth: 460 }}>
-              Define the metrics that matter. Participants, human or AI, forecast
-              how each proposed action will move them, before you commit. You
-              decide with a number, not a gut feeling. Built for company
-              governance; used by individuals on personal goals too.
+              Define the KPIs that matter. Participants, human or AI, forecast
+              how each proposed initiative will move them, before you commit.
+              You decide with a number, not a gut feeling.
             </p>
             <div className="lp-hero-ctas">
               <Link to="/signup" className="lp-btn-primary">Get started. 1000 free credits</Link>
@@ -545,6 +544,72 @@ export function LandingPage() {
           </div>
         </div>
       )}
+
+      {/* How it's different */}
+      <section className="lp-section" style={{ padding: '5rem 0' }}>
+        <div className="lp-wrap">
+          <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '0.5rem' }}>
+            A decision tool, not an oddsmaker
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.7, maxWidth: 640, marginBottom: '2.5rem' }}>
+            Polymarket and Manifold ask "what's the probability of <em>this public event</em>?" Telarchy asks "what would happen to <em>my goals</em> if I did <em>this proposed action</em>?" Different question, different mechanism.
+          </p>
+          <div className="lp-cards-grid">
+            <div className="lp-card">
+              <h3 className="lp-card-title">Polymarket / Kalshi</h3>
+              <ul className="lp-card-list">
+                <li><strong>Question:</strong> probability of a public event</li>
+                <li><strong>Markets:</strong> standalone, flat (one question per market)</li>
+                <li><strong>Stakes:</strong> real USD on-chain (Polymarket) or regulated USD (Kalshi)</li>
+                <li><strong>Visibility:</strong> fully public order book</li>
+                <li><strong>Forecasters:</strong> anyone with capital and an opinion on the news</li>
+              </ul>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.6, margin: 0 }}>
+                Best for speculating on outcomes the whole world is watching. Wrong shape for "what would happen to <em>our</em> retention if we hired two sales reps?", and you wouldn't put internal numbers on a public order book anyway.
+              </p>
+            </div>
+
+            <div className="lp-card">
+              <h3 className="lp-card-title">Manifold / Metaculus</h3>
+              <ul className="lp-card-list">
+                <li><strong>Question:</strong> probability of a user-submitted question</li>
+                <li><strong>Markets:</strong> standalone, flat; anyone can create one</li>
+                <li><strong>Stakes:</strong> play money (Mana) or reputation points</li>
+                <li><strong>Visibility:</strong> public site, public questions</li>
+                <li><strong>Forecasters:</strong> hobbyist superforecasters</li>
+              </ul>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.6, margin: 0 }}>
+                Best for sharpening calibration. Needs a crowd interested in your specific question, and your KPIs aren't that crowd's question.
+              </p>
+            </div>
+
+            <div className="lp-card" style={{ borderColor: 'var(--accent-color, #2563eb)', borderWidth: 2, position: 'relative' }}>
+              <div style={{ position: 'absolute', top: '-0.65rem', right: '1rem', background: 'var(--accent-color, #2563eb)', color: '#fff', fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.05em', padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-md)', textTransform: 'uppercase' }}>You are here</div>
+              <h3 className="lp-card-title">Telarchy</h3>
+              <ul className="lp-card-list">
+                <li><strong>Question:</strong> impact of a proposed action on the metrics you defined</li>
+                <li><strong>Markets:</strong> <strong>conditional decision markets</strong> spawn per proposal, against a metric tree with formulas and a time horizon</li>
+                <li><strong>Stakes:</strong> play credits, scoped to your workspace (USDC settlement opt-in for self-hosted)</li>
+                <li><strong>Visibility:</strong> workspace-scoped — Private (invite-only), Public (listed, view-only), or Open (listed, joiners trade); switch in Settings anytime</li>
+                <li><strong>Forecasters:</strong> your team plus AI participants you opt in; same API, same balance, every decision audited in <code>/admin</code> via the open telemetry protocol</li>
+              </ul>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.6, margin: 0 }}>
+                Owner defines the goals; markets price the actions. The conditional-market mechanism (futarchy in single-owner form) is the load-bearing thing the others don't do.
+              </p>
+            </div>
+          </div>
+
+          {/* Agentic privacy callout */}
+          <div style={{ marginTop: '2rem', padding: '1.25rem 1.5rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: 'var(--bg-secondary)' }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.4rem' }}>
+              The privacy upside of agentic markets
+            </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.65, margin: 0 }}>
+              Polymarket and Manifold are pools of human traders who see your market and remember it forever. Telarchy's forecasters are mostly AI participants you opt in — which makes privacy a property of the architecture, not a setting buried in a menu. Every decision a participant makes is already auditable in <code>/admin</code> with full reasoning. Memory-scoped sandboxes, per-participant data-access policies, and reset-on-demand controls are on the roadmap; they only work because the participants are software you control, not strangers on a public order book.
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* Audience cards */}
       <section className="lp-section" style={{ padding: '5rem 0' }}>
