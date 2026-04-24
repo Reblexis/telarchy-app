@@ -55,6 +55,14 @@ export const SIGNUP_CREDITS = 1000;
 /** Default liquidity (in credits) auto-funded per new market on workspace creation. */
 export const DEFAULT_MARKET_LIQUIDITY_CREDITS = 0.5;
 
+/**
+ * Minimum credits for a single liquidity injection. Below this, the LMSR b
+ * parameter is so small that any trade (even a sub-cent one) swings consensus
+ * by hundreds of points, producing butterfly-sensitive markets. Any attempt to
+ * inject less is rejected to prevent that failure mode.
+ */
+export const MIN_LIQUIDITY_CONTRIBUTION = 0.1;
+
 /** Convert decimal credits → integer nanocredits for Firestore storage. */
 export function toUnits(credits: number): number {
   return Math.round(credits * CREDIT_PRECISION);

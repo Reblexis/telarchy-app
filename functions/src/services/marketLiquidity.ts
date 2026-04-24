@@ -3,7 +3,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { agents, markets, liquidityEvents } from '../db/schema';
 import { AppError } from '../lib/errors';
-import { sufficientBalance, toUnits, fromUnits } from '../lib/validation';
+import { sufficientBalance, toUnits, fromUnits, MIN_LIQUIDITY_CONTRIBUTION } from '../lib/validation';
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -37,6 +37,13 @@ export async function applyAgentLiquidityInjectionTx(
     poolContribution: number;
   },
 ): Promise<void> {
+  if (params.poolContribution < MIN_LIQUIDITY_CONTRIBUTION) {
+    throw new AppError(
+      `Liquidity contribution must be at least ${MIN_LIQUIDITY_CONTRIBUTION} credits (LMSR b < this produces butterfly-sensitive markets)`,
+      400,
+    );
+  }
+
   const [market] = await tx.select().from(markets)
     .where(and(eq(markets.id, params.marketId), eq(markets.workspaceId, params.workspaceId)))
     .for('update');

@@ -444,7 +444,7 @@ Seeding liquidity is therefore a deliberate **subsidy to information**. The seed
 New workspaces default to **auto-fund on**, with **0.5 credits per market**. Two owner-editable fields control this under Workspace Settings:
 
 - **\`autoFundNewMarkets\`** (boolean) - when true, every new non-task market is seeded from the workspace owner's balance.
-- **\`newMarketLiquidityCredits\`** (number) - credits to seed per market. Default: \`0.5\`.
+- **\`newMarketLiquidityCredits\`** (number) - credits to seed per market. Default: \`0.5\`. Minimum: \`0.1\` (pools below this make markets butterfly-sensitive to tiny trades).
 
 When the daily market-refresh cron (00:10 UTC) or a time-preference toggle spawns new markets, each one debits \`newMarketLiquidityCredits\` from the owner's balance and contributes it to the market's initial pool. If the owner can't cover the cost, the market is still created but with zero liquidity (trading paused) and the shortfall is logged.
 
@@ -459,7 +459,7 @@ POST /api/predictions/markets/:id/liquidity
 { "amount": 5 }
 \`\`\`
 
-The \`amount\` is debited from the caller's balance, added to the pool, and recorded in \`liquidityEvents\`. More liquidity makes consensus harder to move but more stable. Use it when a market looks under-traded for the decisions it's informing.
+The \`amount\` is debited from the caller's balance, added to the pool, and recorded in \`liquidityEvents\`. Each injection must be at least \`0.1\` credits (below that, the LMSR \`b\` parameter is so small any trade swings consensus wildly). More liquidity makes consensus harder to move but more stable. Use it when a market looks under-traded for the decisions it's informing.
 
 ## LP refunds at resolution and void
 

@@ -7,7 +7,7 @@ import { AMM_DEFAULTS, initialPool } from '../lib/amm';
 import { emitEvent } from './events';
 import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
 import { applyAgentLiquidityInjectionTx } from './marketLiquidity';
-import { sufficientBalance, toUnits } from '../lib/validation';
+import { sufficientBalance, toUnits, MIN_LIQUIDITY_CONTRIBUTION } from '../lib/validation';
 
 type MarketRow = typeof markets.$inferSelect;
 
@@ -315,7 +315,10 @@ export async function refreshRelativeDateMarkets(workspaceId: string, opts: { fo
       deactivated++;
     }
 
-    if (m.active && (m.pool ?? 0) === 0) toFund.push(m.id);
+    // Include any active market whose pool is below the minimum usable size.
+    // Captures both pool=0 (auto-fund was off when created) and pool < MIN
+    // (historical micro-injections that left markets butterfly-sensitive).
+    if (m.active && (m.pool ?? 0) < MIN_LIQUIDITY_CONTRIBUTION) toFund.push(m.id);
 
   }
 

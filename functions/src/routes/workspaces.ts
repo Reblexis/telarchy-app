@@ -15,7 +15,7 @@ import { resolveWorkspaceOwnerAgentId, provisionWorkspace } from '../lib/partici
 import { voidMarket } from '../services/markets';
 import { ensureMarketsForTimePreference } from '../services/metrics';
 import { getTemplate, type TemplateParams } from '../lib/templates';
-import { parseVisibility } from '../lib/validation';
+import { parseVisibility, MIN_LIQUIDITY_CONTRIBUTION } from '../lib/validation';
 
 export const workspacesRouter = Router();
 
@@ -205,8 +205,8 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
     nextAuto = autoFundNewMarkets;
   }
   if (hasCreditsKey) {
-    if (typeof newMarketLiquidityCredits !== 'number' || newMarketLiquidityCredits <= 0) {
-      res.status(400).json({ error: 'newMarketLiquidityCredits must be a positive number' }); return;
+    if (typeof newMarketLiquidityCredits !== 'number' || newMarketLiquidityCredits < MIN_LIQUIDITY_CONTRIBUTION) {
+      res.status(400).json({ error: `newMarketLiquidityCredits must be at least ${MIN_LIQUIDITY_CONTRIBUTION} credits` }); return;
     }
     nextCredits = newMarketLiquidityCredits;
   }

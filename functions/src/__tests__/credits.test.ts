@@ -1,6 +1,7 @@
 import {
   toUnits, fromUnits, sufficientBalance,
   CREDIT_PRECISION, SIGNUP_CREDITS, DEFAULT_MARKET_LIQUIDITY_CREDITS,
+  MIN_LIQUIDITY_CONTRIBUTION,
 } from '../lib/validation';
 
 describe('credit conversion helpers', () => {
@@ -79,6 +80,12 @@ describe('signup and workspace creation constants', () => {
 
   test('DEFAULT_MARKET_LIQUIDITY_CREDITS is 0.5', () => {
     expect(DEFAULT_MARKET_LIQUIDITY_CREDITS).toBe(0.5);
+  });
+
+  test('MIN_LIQUIDITY_CONTRIBUTION is at least 0.1 and below the default', () => {
+    // Floor below which LMSR b is too small to be usable.
+    expect(MIN_LIQUIDITY_CONTRIBUTION).toBeGreaterThanOrEqual(0.1);
+    expect(MIN_LIQUIDITY_CONTRIBUTION).toBeLessThan(DEFAULT_MARKET_LIQUIDITY_CREDITS);
   });
 
   test('auto-fund cost for a full workspace is affordable with signup credits', () => {
