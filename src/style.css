@@ -2308,31 +2308,39 @@ body.landing-page {
 .lp-matrix .lp-compare-us .lp-cell-yes .lp-mark { color: #15803d; }
 .lp-matrix .lp-compare-us .lp-cell-yes .lp-mark-note { color: var(--text-primary); font-weight: 500; }
 
-/* "Only Telarchy does all of these" recap below the table. */
-.lp-only-telarchy {
-  margin-top: 2rem;
-  padding: 1.5rem 1.75rem;
-  border: 1px solid var(--border-color);
+/* Alignment-layer closer below the matrix: vision-level callout that
+   anchors "this is what Telarchy fundamentally is" without competing
+   visually with the matrix. Soft amber wash + accent eyebrow. */
+.lp-alignment {
+  margin-top: 2.5rem;
+  padding: 2rem 2.25rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border-color));
   border-radius: var(--radius-md);
-  background: var(--bg-secondary);
+  background: color-mix(in srgb, var(--accent) 4%, var(--bg-primary));
 }
-.lp-only-title {
-  font-size: 0.95rem;
+.lp-alignment-eyebrow {
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
   font-weight: 700;
-  margin-bottom: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+.lp-alignment-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0 0 0.65rem;
   color: var(--text-primary);
+  letter-spacing: -0.015em;
 }
-.lp-only-list {
+.lp-alignment-body {
   margin: 0;
-  padding-left: 1.25rem;
   color: var(--text-secondary);
-  font-size: 0.88rem;
+  font-size: 0.92rem;
   line-height: 1.7;
+  max-width: 720px;
 }
-.lp-only-list li + li {
-  margin-top: 0.55rem;
-}
-.lp-only-list strong {
+.lp-alignment-body strong {
   color: var(--text-primary);
 }
 
@@ -2940,7 +2948,7 @@ a.lp-btn-sm-secondary:hover {
 }
 .lp-btn-primary:hover,
 .lp-btn-sm-primary:hover {
-  box-shadow: 0 0 0 4px var(--accent-ring), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 /* Landing: differentiator accent uses ember */

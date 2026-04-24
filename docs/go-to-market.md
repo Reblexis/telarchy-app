@@ -124,25 +124,47 @@ All tables include a `workspaceId` column; all queries filter by it. Mitigations
 
 ## Competitive Landscape
 
-| | Polymarket | Manifold | Metaculus | Telarchy |
-|---|---|---|---|---|
-| Money | Real (USDC) | Play (Mana) | None | Play (managed) / USDC (self-hosted) |
-| Markets | World events | Anything | Forecasting Qs | Owner-defined metrics (company or personal) |
-| Who creates | Curated | Anyone | Community | Workspace owners |
-| Mechanism | Order book | DPM/AMM | Continuous | LMSR AMM |
-| Human + AI participants | Tolerated | Some | No | First-class, symmetric |
-| Decision-making | No | No | No | Yes (conditional markets) |
-| Metric composition | No | No | No | Yes (formulas) |
-| Forward-looking | No | No | No | Yes (time preference) |
+The honest version of "what would I use instead of Telarchy if I had to make a strategic decision today" is mostly *not* prediction markets. The realistic alternatives, in order of how often a founder actually reaches for each:
 
-### Telarchy's Unique Positioning
+1. **Generic AI chatbots** — ask an LLM directly. The de-facto default in 2026. Confident-sounding paragraph, no skin in the game, no goal context, may train on your strategic prompts.
+2. **Autonomous AI agents** — modern agent frameworks acting on the founder's behalf. Acts first, evaluates after. No alignment mechanism; opaque steps.
+3. **Public prediction markets** — real-money markets on news events. Wrong shape (standalone, not conditional) and you wouldn't put your KPIs on a public order book.
+4. **Enterprise forecasting platforms** — internal prediction markets with employee forecasters. The closest mechanism cousin; misses AI participants entirely.
+5. **AI scenario-planning tools** — financial-modeling SaaS with LLM-augmented what-if simulation. Same job-to-be-done, simulation instead of markets, no skin in the game.
 
-1. **Conditional decision markets** - Every proposal is priced against the metrics it would affect before it ships. No competitor offers this for internal decisions.
-2. **Metric composition with formulas** - Markets compose into derived metrics via formulas, not just standalone questions.
-3. **Time preference** - Decay-weighted forward-looking evaluation. Unique.
-4. **Participant symmetry** - Humans and AI share the same signup, balance, and trading rights. API keys, hooks, and event feeds make automation first-class without reducing browser-account capabilities.
+Telarchy vs each of these (canonical landing matrix in `src/pages/LandingPage.tsx`):
 
-**Positioning:** Telarchy is a governance and decision-making tool, not a betting platform. "Capitalism for alignment."
+| What you'd use instead | Decisions priced first | Calibrated forecasts | Aimed at your KPIs | Auditable AI | Stays private |
+|---|---|---|---|---|---|
+| Generic AI chatbots | ✗ | ✗ hallucinates | ✗ no goal context | ✗ black box | ~ depends on tier |
+| Autonomous AI agents | ✗ acts first | ✗ no skin in game | ~ if you wire it | ✗ opaque steps | ~ depends on stack |
+| Public prediction markets | ✗ standalone | ✓ real money | ✗ public events only | ✗ no observability | ✗ public order book |
+| Enterprise forecasting platforms | ~ some conditional | ✓ employee programs | ✓ admin-curated | ✗ humans only | ✓ enterprise-hosted |
+| AI scenario-planning tools | ~ simulation | ✗ no forecasters | ✓ finance team | ✗ LLM-only | ✓ private SaaS |
+| **Telarchy** | ✓ per proposal | ✓ accuracy pays | ✓ you define them | ✓ open protocol | ✓ workspace · per-metric · per-source |
+
+### Telarchy's unique positioning
+
+1. **An alignment layer for AI** — not a betting platform, not a dashboard. Markets price what AI agents propose against the owner-defined metrics; the human approves with calibrated confidence. See `vision.md` ("Telarchy as an alignment layer for AI") for the load-bearing version.
+2. **Conditional decision markets** — every proposal is priced against the metrics it would affect before it ships. The only complete neighbour (MetaDAO) does this for DAO governance, not single-owner businesses.
+3. **Metric composition + time preference** — the market substrate. Owner defines a tree of metrics with formulas; each node carries a time horizon; markets are auto-created at sampled future dates. Forecasts are forward-looking outlooks, not spot odds.
+4. **Participant symmetry** — humans and AI share the same signup, balance, capabilities. API keys, hooks, the open agent telemetry protocol make AI participants first-class — same observability, same audit trail, same controls as human ones.
+5. **Workspace privacy with per-resource granularity** — workspace `visibility` (Private / Public / Open) plus permission groups carrying per-metric `{read, trade}` and per-source `{read}` permissions. Closest cousin (enterprise hosted-private) doesn't do per-metric. None of the public markets do private at all.
+
+**Positioning one-liner:** Telarchy is an alignment layer for AI in your business — markets price what AI agents propose, against the KPIs you define.
+
+### Why "alignment layer for AI" is the load-bearing framing (and not "private prediction markets")
+
+The earlier framing positioned Telarchy as "a private prediction market for company decisions". That made the page argue with itself: every prediction market is "private" if you self-host enough of it, and the audience-fit story was muddled (founders vs personal-goal users co-headlined).
+
+The current framing — *humans say what they want, AI proposes, markets price, human approves* — is sharper because:
+
+- It's the only category where the matrix shows Telarchy as the only complete combination.
+- It's the question every founder is *already* asking ("how do I get AI to actually help me decide?") via the wrong tool (a chatbot).
+- It anchors the long-term vision: as more work gets automated, defining what you want is the human's last job. Telarchy is the interface for that.
+- It separates Telarchy from the prediction-market category entirely. Polymarket / Manifold / etc. are not realistic alternatives for a founder pricing internal decisions; the realistic alternative is "ask Claude". Beating Claude on this specific job is the actual sales pitch.
+
+Do not drift back to "private prediction markets" framing. The mechanism is prediction markets; the product is an alignment layer.
 
 ## Key Decisions (to be resolved)
 

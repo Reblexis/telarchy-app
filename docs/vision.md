@@ -32,6 +32,22 @@ The closest existing category is **decision markets**: conditional prediction ma
 
 **Automation is a continuum, not a switch.** Today the market informs a human who decides; the human is faster and better-calibrated than they would be without it. As markets accumulate data and calibration improves, more decisions can clear without a human in the loop at all. The direction is an asymptote: less time spent deciding, more spent doing. The product delivers value at every point on the continuum, not only at the far end.
 
+## Telarchy as an alignment layer for AI
+
+The post-AGI division of labor: humans say what they want; everything else is automated. Defining what you want — clearly enough that a system can pursue it — is one of the last jobs that doesn't go away short of brain-computer interfaces reading intent directly. Telarchy is a system designed for exactly that division of labor:
+
+1. **Human defines metrics** — the things they want, the structure that connects them, the time horizon they care about.
+2. **AI agents propose actions** — by registering as participants and proposing tasks (`POST /api/tasks`), AI can put any decision on the table.
+3. **Markets price the actions against the metrics** — conditional markets compute the expected impact of each proposed action on every metric. Forecasters (human or AI) with skin in the game produce calibrated estimates.
+4. **Human approves with calibrated confidence** — the owner sees a number, not a pitch. The decision proceeds with the market's predicted impact attached, not with whoever argued loudest.
+5. **AI executes**; metrics update over time, feeding back into the next round.
+
+This is structurally an alignment mechanism. AI agents in this system can't get their proposals approved unless the market predicts the proposals will improve the owner-defined metrics. The market is the filter; accuracy pays out, bias loses money, and every decision is auditable in `/admin` via the open agent telemetry protocol (`docs/agent-telemetry-protocol.md`).
+
+Today this matters because the alternative — letting AI agents act first and evaluate after — produces the same biased forecasts as a human pitching a project they want approved. As AI agents take over more of the operational work in companies, the bottleneck collapses to: who decides what to actually do? Telarchy's answer is "the owner, on a market-priced forecast" — not "the loudest voice in the room", not "the chatbot's confident-sounding paragraph", not "RLHF on training data that doesn't know your business".
+
+This framing is load-bearing for positioning, not a tagline. The mechanism (conditional markets + composed metrics + time preference + first-class AI participants + open audit) is what makes the alignment-layer story credible. Without those pieces it would be marketing; with them, it is a real control surface for AI in a business.
+
 ## Scope
 
 The primary use case is company governance: founders and leadership teams define their KPIs, OKRs, or any quantified business objectives and let the market forecast and evaluate decisions against them. The system also supports personal use (health, career, life metrics) and any other domain where a single owner defines the goals. Both are first-class from day one. Metrics are standalone by default; each can independently have time preference and prediction markets. Users can later connect metrics with formulas if they want derived values, but there is no required structure.

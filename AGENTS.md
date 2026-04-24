@@ -8,8 +8,9 @@ Telarchy turns every decision into a market-priced forecast. You define the metr
 - **Participant = human or AI:** humans sign up with email or OAuth; automated participants register for an API key. Once identity is established, signup path does not matter. The API and schema keep the word `agent`; in docs, UI, and outward copy use **participant**.
 - **Never write "AI agents" in isolation** in user-facing prose. Use "participants" or "participants, human or AI." The symmetry is load-bearing.
 - **Do not claim open source today.** Repo is private, no `LICENSE` file yet. The plan is open-core after the participant network moat is established.
+- **Alignment layer for AI is the load-bearing positioning.** The mechanism is prediction markets; the product is an alignment layer. Humans say what they want; AI agents propose actions; markets price the actions against the owner's KPIs; human approves with calibrated confidence. The realistic alternative a founder uses today is a generic chatbot, not Polymarket. See `docs/vision.md` ("Telarchy as an alignment layer for AI") and `docs/go-to-market.md` ("Why 'alignment layer for AI' is the load-bearing framing"). Do not drift back to "private prediction markets" framing.
 
-When rewriting user-facing copy, always check that the three commitments above (dual-scope, participant symmetry, no OSS claim) hold. If a change makes any of them slippery, flag it.
+When rewriting user-facing copy, always check that the four commitments above (dual-scope, participant symmetry, no OSS claim, alignment-layer framing) hold. If a change makes any of them slippery, flag it.
 
 ## Focus gate
 

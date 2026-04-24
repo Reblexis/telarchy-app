@@ -433,10 +433,8 @@ export function LandingPage() {
             <h1 style={{ fontSize: 'clamp(2rem, 4.5vw, 3.1rem)', lineHeight: 1.08, marginBottom: '1.25rem', letterSpacing: '-0.04em' }}>
               Better decisions,<br />faster.
             </h1>
-            <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.75, maxWidth: 460 }}>
-              Define the KPIs that matter. Participants, human or AI, forecast
-              how each proposed initiative will move them, before you commit.
-              You decide with a number, not a gut feeling.
+            <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 460 }}>
+              Markets price every initiative against your KPIs before you commit.
             </p>
             <div className="lp-hero-ctas">
               <Link to="/signup" className="lp-btn-primary">Get started. 1000 free credits</Link>
@@ -481,27 +479,24 @@ export function LandingPage() {
       {/* How it works */}
       <section className="lp-section" style={{ padding: '5rem 0' }}>
         <div className="lp-wrap">
-          <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '0.5rem' }}>
+          <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '2.5rem' }}>
             How it works
           </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.7, maxWidth: 500, marginBottom: '3.5rem' }}>
-            Three steps that replace gut calls with market-calibrated signals.
-          </p>
           <div className="lp-how-grid">
             {[
               {
-                n: '1', title: 'Define your metrics',
-                body: 'Define the metrics you care about: revenue, retention, quality, whatever matters. Enable predictions and participants start forecasting where each one is heading.',
+                n: '1', title: 'Define your KPIs',
+                body: 'List the outcomes that matter. Markets open automatically.',
                 illustration: <GoalTreeIllustration visible={stepVisible[0]} />,
               },
               {
-                n: '2', title: 'Forecasters compete to predict',
-                body: 'Participants, human or AI, stake credits on where each metric is heading. Accurate forecasters earn; inaccurate ones lose. Try it: click Higher or Lower below to move the consensus.',
+                n: '2', title: 'Forecasters compete',
+                body: 'Participants stake credits on where each KPI is heading. Accuracy pays.',
                 illustration: <MarketDemo />,
               },
               {
-                n: '3', title: 'Get a verdict before you commit',
-                body: 'Propose any initiative and conditional forecasts spin up instantly. Participants predict the impact on every metric. You see expected deltas on your goals, then decide based on the forecast, not on whoever argues loudest.',
+                n: '3', title: 'Decide on the forecast',
+                body: 'Propose an initiative. Conditional markets price its impact on every KPI before you approve.',
                 illustration: <DecisionIllustration visible={stepVisible[2]} />,
               },
             ].map(({ n, title, body, illustration }, idx) => (
@@ -549,93 +544,102 @@ export function LandingPage() {
       <section className="lp-section" style={{ padding: '5rem 0' }}>
         <div className="lp-wrap">
           <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '0.5rem' }}>
-            The only complete combination
+            What you're using today, and why it isn't enough
           </h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.7, maxWidth: 640, marginBottom: '2.5rem' }}>
-            Pieces of Telarchy exist elsewhere. The combination doesn't.
+            Most founders making strategic decisions today reach for a chatbot. It sounds confident, has no skin in the game, and doesn't know your goals.
           </p>
 
           <div className="lp-compare-wrap">
             <table className="lp-compare lp-matrix">
               <thead>
                 <tr>
-                  <th className="lp-compare-platform">Platform</th>
-                  <th>Conditional<br/>decision markets</th>
-                  <th>Owner sets<br/>goals</th>
-                  <th>Metric tree<br/>+ time horizon</th>
-                  <th>Granular<br/>privacy</th>
-                  <th>First-class AI<br/>+ open audit</th>
+                  <th className="lp-compare-platform">What you'd use instead</th>
+                  <th>Decisions priced<br/>before you commit</th>
+                  <th>Calibrated,<br/>not confident-sounding</th>
+                  <th>Aimed at your<br/>defined KPIs</th>
+                  <th>Auditable<br/>AI participants</th>
+                  <th>Your data<br/>stays yours</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
                   <td className="lp-compare-platform">
-                    <div className="lp-compare-name">Polymarket / Kalshi</div>
-                    <div className="lp-compare-sub">consumer prediction markets</div>
+                    <div className="lp-compare-name">Generic AI chatbots</div>
+                    <div className="lp-compare-sub">ask an LLM and hope</div>
                   </td>
-                  <td data-label="Conditional markets" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">standalone</span></td>
-                  <td data-label="Owner sets goals" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">anyone</span></td>
-                  <td data-label="Metric tree" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">flat</span></td>
-                  <td data-label="Privacy" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">public</span></td>
-                  <td data-label="AI + audit" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">tolerated, no audit</span></td>
+                  <td data-label="Decisions priced first" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">opinion, not price</span></td>
+                  <td data-label="Calibrated" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">hallucinates</span></td>
+                  <td data-label="Aimed at your KPIs" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">no goal context</span></td>
+                  <td data-label="Auditable AI" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">black box</span></td>
+                  <td data-label="Stays private" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">depends on tier</span></td>
                 </tr>
                 <tr>
                   <td className="lp-compare-platform">
-                    <div className="lp-compare-name">Manifold / Metaculus</div>
-                    <div className="lp-compare-sub">public forecasting platforms</div>
+                    <div className="lp-compare-name">Autonomous AI agents</div>
+                    <div className="lp-compare-sub">agent frameworks acting on your behalf</div>
                   </td>
-                  <td data-label="Conditional markets" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">standalone</span></td>
-                  <td data-label="Owner sets goals" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">anyone</span></td>
-                  <td data-label="Metric tree" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">flat</span></td>
-                  <td data-label="Privacy" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">public site</span></td>
-                  <td data-label="AI + audit" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">niche</span></td>
+                  <td data-label="Decisions priced first" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">acts first</span></td>
+                  <td data-label="Calibrated" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">no skin in game</span></td>
+                  <td data-label="Aimed at your KPIs" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">if you wire it</span></td>
+                  <td data-label="Auditable AI" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">opaque steps</span></td>
+                  <td data-label="Stays private" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">depends on stack</span></td>
                 </tr>
                 <tr>
                   <td className="lp-compare-platform">
-                    <div className="lp-compare-name">MetaDAO</div>
-                    <div className="lp-compare-sub">futarchy for Solana DAOs</div>
+                    <div className="lp-compare-name">Public prediction markets</div>
+                    <div className="lp-compare-sub">real-money markets on news</div>
                   </td>
-                  <td data-label="Conditional markets" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">DAO proposal</span></td>
-                  <td data-label="Owner sets goals" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">DAO vote</span></td>
-                  <td data-label="Metric tree" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">single welfare token</span></td>
-                  <td data-label="Privacy" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">on-chain</span></td>
-                  <td data-label="AI + audit" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">not a focus</span></td>
+                  <td data-label="Decisions priced first" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">standalone events</span></td>
+                  <td data-label="Calibrated" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">real money</span></td>
+                  <td data-label="Aimed at your KPIs" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">public events only</span></td>
+                  <td data-label="Auditable AI" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">no observability</span></td>
+                  <td data-label="Stays private" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">public order book</span></td>
                 </tr>
                 <tr>
                   <td className="lp-compare-platform">
-                    <div className="lp-compare-name">Cultivate Labs · Hypermind</div>
-                    <div className="lp-compare-sub">enterprise internal markets</div>
+                    <div className="lp-compare-name">Enterprise forecasting platforms</div>
+                    <div className="lp-compare-sub">internal prediction markets</div>
                   </td>
-                  <td data-label="Conditional markets" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">some</span></td>
-                  <td data-label="Owner sets goals" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">admin-curated</span></td>
-                  <td data-label="Metric tree" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">flat questions</span></td>
-                  <td data-label="Privacy" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">enterprise-hosted</span></td>
-                  <td data-label="AI + audit" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">human forecasters</span></td>
+                  <td data-label="Decisions priced first" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">some conditional</span></td>
+                  <td data-label="Calibrated" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">employee programs</span></td>
+                  <td data-label="Aimed at your KPIs" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">admin-curated</span></td>
+                  <td data-label="Auditable AI" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">human forecasters only</span></td>
+                  <td data-label="Stays private" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">enterprise-hosted</span></td>
                 </tr>
                 <tr>
                   <td className="lp-compare-platform">
-                    <div className="lp-compare-name">Causal · Pigment · Anaplan</div>
-                    <div className="lp-compare-sub">AI scenario-planning tools</div>
+                    <div className="lp-compare-name">AI scenario-planning tools</div>
+                    <div className="lp-compare-sub">modeling + LLM what-ifs</div>
                   </td>
-                  <td data-label="Conditional markets" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">what-if simulation</span></td>
-                  <td data-label="Owner sets goals" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">finance team</span></td>
-                  <td data-label="Metric tree" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">model variables</span></td>
-                  <td data-label="Privacy" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">private SaaS</span></td>
-                  <td data-label="AI + audit" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">no market signal</span></td>
+                  <td data-label="Decisions priced first" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">simulation</span></td>
+                  <td data-label="Calibrated" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">no forecasters</span></td>
+                  <td data-label="Aimed at your KPIs" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">finance team</span></td>
+                  <td data-label="Auditable AI" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">LLM-only</span></td>
+                  <td data-label="Stays private" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">private SaaS</span></td>
                 </tr>
                 <tr className="lp-compare-us">
                   <td className="lp-compare-platform">
                     <div className="lp-compare-name">Telarchy<span className="lp-compare-badge">you are here</span></div>
-                    <div className="lp-compare-sub">decision markets for founders</div>
+                    <div className="lp-compare-sub">alignment layer for AI in your business</div>
                   </td>
-                  <td data-label="Conditional markets" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">per proposal</span></td>
-                  <td data-label="Owner sets goals" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">no crowd vote</span></td>
-                  <td data-label="Metric tree" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">formulas + TP</span></td>
-                  <td data-label="Privacy" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">workspace · per-metric · per-source</span></td>
-                  <td data-label="AI + audit" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note"><a href="/api/guides/agent-telemetry" style={{ color: 'inherit' }}>open protocol</a></span></td>
+                  <td data-label="Decisions priced first" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">per proposal</span></td>
+                  <td data-label="Calibrated" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">accuracy pays</span></td>
+                  <td data-label="Aimed at your KPIs" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">you define them</span></td>
+                  <td data-label="Auditable AI" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note"><a href="/api/guides/agent-telemetry" style={{ color: 'inherit' }}>open protocol</a></span></td>
+                  <td data-label="Stays private" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">workspace · per-metric · per-source</span></td>
                 </tr>
               </tbody>
             </table>
+          </div>
+
+          {/* Alignment-layer closer */}
+          <div className="lp-alignment">
+            <div className="lp-alignment-eyebrow">The bigger picture</div>
+            <h3 className="lp-alignment-title">An alignment layer for AI in your business</h3>
+            <p className="lp-alignment-body">
+              You define what you want. AI agents propose actions. Markets price the actions against your KPIs. You approve with calibrated confidence — not because the chatbot sounded sure, but because the forecast cost something to make. As more of the work gets automated, this is what's left for humans: <strong>say what you want, once, and watch it get fulfilled</strong>.
+            </p>
           </div>
         </div>
       </section>
@@ -648,34 +652,31 @@ export function LandingPage() {
           </h2>
           <div className="lp-cards-grid">
             <div className="lp-card">
-              <h2 className="lp-card-title">For founders & leadership teams</h2>
+              <h2 className="lp-card-title">Founders & leadership teams</h2>
               <ul className="lp-card-list">
-                <li>Define your KPIs and OKRs precisely: the outcomes you actually care about, not proxies or activity trackers</li>
-                <li>Continuous market-calibrated forecasts on every goal, updated around the clock</li>
-                <li>Predicted impact score on every proposed initiative before you approve it</li>
-                <li>Participants compete on accuracy, so forecasts stay honest and calibrated</li>
+                <li>KPIs and OKRs you actually care about — outcomes, not activity proxies.</li>
+                <li>Market-calibrated forecasts on every goal, around the clock.</li>
+                <li>Predicted impact on every initiative before you approve.</li>
               </ul>
               <Link to="/signup" className="lp-btn-sm-primary">Create a workspace</Link>
             </div>
 
             <div className="lp-card">
-              <h2 className="lp-card-title">For individuals with goals</h2>
+              <h2 className="lp-card-title">Individuals with goals</h2>
               <ul className="lp-card-list">
-                <li>Track the metrics that matter in your life: health, career, habits, finances</li>
-                <li>See where each one is heading before you commit time or money</li>
-                <li>Get market-calibrated forecasts on decisions you would otherwise make by gut</li>
-                <li>Same mechanism founders use, scoped to your own goals</li>
+                <li>Track personal metrics: health, career, habits, finances.</li>
+                <li>See where each is heading before you commit time or money.</li>
+                <li>Same mechanism founders use, scoped to your own goals.</li>
               </ul>
               <Link to="/signup" className="lp-btn-sm-primary">Start tracking</Link>
             </div>
 
             <div className="lp-card">
-              <h2 className="lp-card-title">For developers of automated participants</h2>
+              <h2 className="lp-card-title">Builders of AI participants</h2>
               <ul className="lp-card-list">
-                <li>Build bots that forecast real outcomes via prediction markets</li>
-                <li>Propose initiatives you believe will help; earn the listed price when approved</li>
-                <li>Integrate via API; automated participants run around the clock</li>
-                <li>Accurate forecasters accumulate credits. Inaccurate ones lose them.</li>
+                <li>Build bots that forecast real outcomes against real KPIs.</li>
+                <li>Propose initiatives; earn the price when approved.</li>
+                <li>API-first. Open telemetry; every decision audited in <code>/admin</code>.</li>
               </ul>
               <Link to="/marketplace" className="lp-btn-sm-secondary">Browse open markets</Link>
             </div>
