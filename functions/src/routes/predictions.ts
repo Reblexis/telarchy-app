@@ -9,7 +9,7 @@ import { authMiddleware } from '../middleware/auth';
 import { requireCapability } from '../middleware/roles';
 import { getAllMetrics, getMetricLogs, getUpdates } from '../services/metrics';
 import { resolvePredictions, getMarkets } from '../services/predictions';
-import { refreshRelativeDateMarkets } from '../services/markets';
+import { refreshRelativeDateMarkets, voidMarket } from '../services/markets';
 import { createConditionalMarkets } from '../services/tasks';
 import { isValidDateFormat, endOfPeriod } from '../lib/date-utils';
 import { extractMetricReferences } from '../lib/metrics-engine';
@@ -595,6 +595,22 @@ predictionsRouter.delete('/markets/:id', requireCapability('manage'), wrap(async
     await tx.delete(markets).where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
   });
   res.status(204).send();
+}));
+
+// Void an open market: refunds all positions at cost, returns LP pool
+// remainder to liquidity providers proportionally, and marks the market as
+// voided=true (preserves history, unlike DELETE). The next market-refresh
+// cycle will recreate the market at the same (metricId, targetDate) if the
+// time-preference curve still wants one there.
+predictionsRouter.post('/markets/:id/void', requireCapability('manage'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
+  const marketId = req.params.id as string;
+  const [market] = await db.select().from(markets)
+    .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
+  if (!market) { res.status(404).json({ error: 'Market not found' }); return; }
+  if (market.resolved) { res.status(409).json({ error: 'Market is already resolved or voided' }); return; }
+  const result = await voidMarket(market, workspaceId);
+  res.json({ voided: true, refundedPositions: result.refunded });
 }));
 
 predictionsRouter.post('/resolve', requireCapability('manage'), wrap(async (req, res) => {
