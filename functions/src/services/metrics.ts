@@ -301,7 +301,19 @@ export async function logSpecificMetrics(metricIds: string[], allMetrics: Metric
 
 export function getStatus(allMetrics: Metric[]) {
   return {
-    metrics: allMetrics.map(m => ({ id: m.id, name: m.name, value: m.value, total: m.total })),
+    // `formula` lets clients distinguish leaves (formula='0' or empty, value is
+    // the user-authored "today" reading) from composites (formula references
+    // other metrics, total is the formula result). Strategies that mean "today"
+    // should use value for leaves and total for composites — using total on a
+    // TP-enabled leaf reads the time-blended outlook, which already includes
+    // the market's own forecast and creates a circular reference.
+    metrics: allMetrics.map(m => ({
+      id: m.id,
+      name: m.name,
+      value: m.value,
+      total: m.total,
+      formula: m.formula,
+    })),
   };
 }
 
