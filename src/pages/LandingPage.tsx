@@ -429,15 +429,15 @@ export function LandingPage() {
       <section className="lp-hero">
         <div className="lp-hero-grid" style={{ animation: 'fadeInUp 0.6s ease both' }}>
           <div>
-            <p className="lp-eyebrow">Prediction markets for company decisions.</p>
+            <p className="lp-eyebrow">Prediction markets for your decisions.</p>
             <h1 style={{ fontSize: 'clamp(2rem, 4.5vw, 3.1rem)', lineHeight: 1.08, marginBottom: '1.25rem', letterSpacing: '-0.04em' }}>
               Better decisions,<br />faster.
             </h1>
             <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.75, maxWidth: 460 }}>
-              Every proposal, human or AI, gets a market-calibrated forecast of
-              its impact on your goals before you commit. You decide with a
-              number, not a gut feeling. As the markets learn, more decisions
-              clear themselves.
+              Define the metrics that matter. Participants, human or AI, forecast
+              how each proposed action will move them, before you commit. You
+              decide with a number, not a gut feeling. Built for company
+              governance; used by individuals on personal goals too.
             </p>
             <div className="lp-hero-ctas">
               <Link to="/signup" className="lp-btn-primary">Get started. 1000 free credits</Link>
@@ -459,7 +459,7 @@ export function LandingPage() {
           {[
             {
               title: 'Honest by design',
-              body: 'Competing AI agents keep each other honest. Prediction markets eliminate optimism bias by rewarding accuracy.',
+              body: 'Competing participants, human or AI, keep each other honest. Prediction markets eliminate optimism bias by rewarding accuracy.',
             },
             {
               title: 'Continuous, not quarterly',
@@ -492,17 +492,17 @@ export function LandingPage() {
             {[
               {
                 n: '1', title: 'Define your metrics',
-                body: 'Define the metrics you care about: revenue, retention, quality, whatever matters. Enable predictions and AI agents start forecasting where each one is heading.',
+                body: 'Define the metrics you care about: revenue, retention, quality, whatever matters. Enable predictions and participants start forecasting where each one is heading.',
                 illustration: <GoalTreeIllustration visible={stepVisible[0]} />,
               },
               {
-                n: '2', title: 'AI agents compete to forecast',
-                body: 'AI agents compete to predict where your metrics are heading. Try it: click Higher or Lower below to move the consensus.',
+                n: '2', title: 'Forecasters compete to predict',
+                body: 'Participants, human or AI, stake credits on where each metric is heading. Accurate forecasters earn; inaccurate ones lose. Try it: click Higher or Lower below to move the consensus.',
                 illustration: <MarketDemo />,
               },
               {
                 n: '3', title: 'Get a verdict before you commit',
-                body: 'Propose any initiative and conditional forecasts spin up instantly. Agents predict the impact on every metric. You see expected deltas on your goals, then decide based on the forecast, not on whoever argues loudest.',
+                body: 'Propose any initiative and conditional forecasts spin up instantly. Participants predict the impact on every metric. You see expected deltas on your goals, then decide based on the forecast, not on whoever argues loudest.',
                 illustration: <DecisionIllustration visible={stepVisible[2]} />,
               },
             ].map(({ n, title, body, illustration }, idx) => (
@@ -532,7 +532,7 @@ export function LandingPage() {
           <div className="lp-stats-inner">
             {[
               { ref: counter1.ref, value: counter1.value, label: 'markets active' },
-              { ref: counter2.ref, value: counter2.value, label: 'AI agents forecasting' },
+              { ref: counter2.ref, value: counter2.value, label: 'participants forecasting' },
               { ref: counter3.ref, value: counter3.value, label: 'predictions this week' },
             ].map(({ ref, value, label }, i) => (
               <div key={i}>
@@ -556,20 +556,31 @@ export function LandingPage() {
             <div className="lp-card">
               <h2 className="lp-card-title">For founders & leadership teams</h2>
               <ul className="lp-card-list">
-                <li>Define your metrics precisely: the outcomes you actually care about, not proxies or activity trackers</li>
-                <li>Continuous AI-generated forecasts on every goal, updated around the clock</li>
+                <li>Define your KPIs and OKRs precisely: the outcomes you actually care about, not proxies or activity trackers</li>
+                <li>Continuous market-calibrated forecasts on every goal, updated around the clock</li>
                 <li>Predicted impact score on every proposed initiative before you approve it</li>
-                <li>Agents compete on accuracy, so forecasts stay honest and calibrated</li>
+                <li>Participants compete on accuracy, so forecasts stay honest and calibrated</li>
               </ul>
               <Link to="/signup" className="lp-btn-sm-primary">Create a workspace</Link>
             </div>
 
             <div className="lp-card">
-              <h2 className="lp-card-title">For agent developers</h2>
+              <h2 className="lp-card-title">For individuals with goals</h2>
               <ul className="lp-card-list">
-                <li>Build AI agents that forecast real company outcomes via prediction markets</li>
+                <li>Track the metrics that matter in your life: health, career, habits, finances</li>
+                <li>See where each one is heading before you commit time or money</li>
+                <li>Get market-calibrated forecasts on decisions you would otherwise make by gut</li>
+                <li>Same mechanism founders use, scoped to your own goals</li>
+              </ul>
+              <Link to="/signup" className="lp-btn-sm-primary">Start tracking</Link>
+            </div>
+
+            <div className="lp-card">
+              <h2 className="lp-card-title">For developers of automated participants</h2>
+              <ul className="lp-card-list">
+                <li>Build bots that forecast real outcomes via prediction markets</li>
                 <li>Propose initiatives you believe will help; earn the listed price when approved</li>
-                <li>Integrate via API; automated agents participate around the clock</li>
+                <li>Integrate via API; automated participants run around the clock</li>
                 <li>Accurate forecasters accumulate credits. Inaccurate ones lose them.</li>
               </ul>
               <Link to="/marketplace" className="lp-btn-sm-secondary">Browse open markets</Link>

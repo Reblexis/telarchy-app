@@ -16,19 +16,29 @@ const sections: GuideSection[] = [
     description: 'Core concepts: what metrics are and how to track them.',
     content: `# Overview
 
+## What Telarchy is
+
+Telarchy turns every decision into a market-priced forecast. You define the metrics that matter; participants, human or AI, forecast how each proposed action will move them, before you commit.
+
+Founders and leadership teams use it to price company decisions against KPIs and OKRs. Individuals use the same mechanism on personal goals. Both are first-class.
+
+## What is a participant?
+
+A **participant** is any market actor, human or AI. Humans sign up with email or OAuth; automated participants register for an API key. Once identity is established, signup path does not matter: both trade, forecast, and propose on the same terms. Accuracy pays; noise loses.
+
+In the API and schema this concept is called an \`agent\` (e.g. \`/api/agents\`, \`X-Agent-Key\`). The word is kept in code; in docs and UI we use **participant**.
+
 ## What are metrics?
 
-Metrics are the core of Telarchy. They represent quantities you care about: goals, performance indicators, KPIs, or any measurable thing. Each metric is a named number you set directly: revenue, NPS, retention, hours slept, whatever you want to track.
+Metrics are the things you care about: goals, KPIs, OKRs, or any measurable outcome. Each metric is a named number: revenue, NPS, retention, hours slept, project velocity. You set metric values directly (for leaf metrics) or derive them via formulas.
 
-## How it works
+## How the loop works
 
-1. **Create a metric** - give it a name, a current value, and optionally a market range that matches its realistic bounds.
-2. **Enable time preference** - this creates prediction markets at sampled future dates. AI agents and other participants forecast where the metric is heading.
-3. **Read the consensus** - the market produces a stake-weighted forecast for each metric. This is the crowd's best estimate of the future value.
+1. **Define your metrics.** Create each metric with a current value and a realistic upper bound for its prediction markets.
+2. **Participants forecast where they are heading.** Prediction markets open at future dates. Participants (human or AI) stake credits on whether each metric will end up higher or lower. The stake-weighted outcome is the market consensus, the crowd's best estimate of the future value.
+3. **Price decisions before you commit.** Propose a task (an action you might take). Conditional markets open that predict what the metrics would look like *if that task were completed*. You see the per-metric impact, then approve or decline.
 
-That's it. Each metric stands on its own and produces its own forecast. No setup beyond defining what you want to track.
-
-For combining metrics with formulas, see the *Formulas* guide. For how time preference and market creation work in detail, see the *Time Preference* guide.
+For combining metrics, see the *Formulas* guide. For how time preference and market creation work in detail, see the *Time Preference* guide. For the decision loop, see the *Tasks & Decisions* guide.
 `,
   },
   {
@@ -104,7 +114,7 @@ This separation prevents over-specification:
 - Metric definition: *what do I actually care about?*
 - Task proposal: *will doing this improve what I care about?*
 
-Tasks can also be used to evaluate metric structure changes. If an agent suspects that tracking a new quantity would improve the system, it can propose a task (*"Add metric X and observe its relationship to our goals"*) and let conditional markets judge whether that structural addition is worthwhile before committing to it.
+Tasks can also be used to evaluate metric structure changes. If a participant suspects that tracking a new quantity would improve the system, they can propose a task (*"Add metric X and observe its relationship to our goals"*) and let conditional markets judge whether that structural addition is worthwhile before committing to it.
 
 ## Connecting multiple workspaces
 
@@ -112,14 +122,14 @@ A common pattern is one primary workspace plus one or more domain workspaces (a 
 
 **Instead:**
 
-- Keep the domain workspace as an **information source**. Agents observing both workspaces can use domain metrics as signal when proposing tasks and placing predictions in the primary workspace.
+- Keep the domain workspace as an **information source**. Participants observing both workspaces can use domain metrics as signal when proposing tasks and placing predictions in the primary workspace.
 - Use **tasks** to test the connection. A task like *"Will achieving milestone X improve our primary metrics?"* lets conditional markets evaluate the hypothesis before committing resources.
 
-This keeps workspaces decoupled at the definition level while still allowing agents to reason across them.
+This keeps workspaces decoupled at the definition level while still allowing participants to reason across them.
 
 ### Why maintain a separate domain workspace at all?
 
-1. **Agent information** - domain metrics give agents richer signal to reason about primary goals, without being hardcoded as direct formula inputs.
+1. **Contextual information** - domain metrics give participants richer signal to reason about primary goals, without being hardcoded as direct formula inputs.
 2. **Privacy and access control** - different workspaces can have different participant sets. Sensitive assessments in one workspace are not exposed to collaborators in another.
 3. **Multi-stakeholder** - multiple owners can share a domain workspace and independently evaluate its impact on their respective primary utilities.
 `,
@@ -135,7 +145,7 @@ Open the **Metrics** page and use the form at the top. Only admins can create or
 ## Fields
 
 - **Name** (required) - used in formula references by other metrics. Must match exactly, including capitalisation.
-- **Description** - optional. Helps agents understand what the metric measures.
+- **Description** - optional. Helps participants understand what the metric measures.
 - **Formula** - leave blank for a leaf metric. Provide a formula to make it computed. See the *Formulas* guide for syntax.
 - **Value** - only editable for leaf metrics. Computed metrics always have value 0 (their total comes from the formula).
 - **Market range max** - only available on leaf metrics. Sets the upper bound for this metric's AMM markets. Defaults to 1000. Match the realistic range of the metric (e.g. a 0-100 score -> set to 100, a metric that peaks around 500 -> set to 500).
@@ -151,7 +161,7 @@ Open the **Metrics** page and use the form at the top. Only admins can create or
 
 Click **Edit** on any metric card. On leaf metrics you can update the value directly; this requires an *update note* (a short description of why the value changed, logged to the metric history).
 
-> **Warning:** Any change to a metric's **definition** (name, description, formula, or market range max) voids all open markets for that metric. Voided positions are refunded to participants at cost (not at current market price), and fresh markets are spawned under the new definition. Inform agents before making structural changes so they can close positions first if they prefer.
+> **Warning:** Any change to a metric's **definition** (name, description, formula, or market range max) voids all open markets for that metric. Voided positions are refunded to participants at cost (not at current market price), and fresh markets are spawned under the new definition. Inform active participants before making structural changes so they can close positions first if they prefer.
 
 The only edits that do **not** void markets are value updates on leaf metrics and changes to non-definition fields such as display order. Toggling or adjusting time preference also does not void markets; it may close existing markets (halt trading, still resolve normally) or spawn new ones, but positions are retained.
 
@@ -362,11 +372,11 @@ Overall  (formula: {ShortTerm} + {LongTerm})     ← aggregates TP nodes
     description: 'How prediction markets work, the binary AMM, resolution, and range configuration.',
     content: `# Markets & Forecasting
 
-Every **leaf** metric has prediction markets attached to it. Markets let agents predict what value the metric will reach at a target date. The stake-weighted outcome is the *market consensus*, the crowd's best estimate of the future value.
+Every **leaf** metric has prediction markets attached to it. Markets let participants predict what value the metric will reach at a target date. The stake-weighted outcome is the *market consensus*, the crowd's best estimate of the future value.
 
 ## How the AMM works
 
-Markets use a binary LMSR (Logarithmic Market Scoring Rule). Each market has a **range** (\`rangeMin\` to \`rangeMax\`, default 0–1000). Agents predict \`higher\` or \`lower\`. Buying higher shares pushes the consensus up; buying lower pushes it down.
+Markets use a binary LMSR (Logarithmic Market Scoring Rule). Each market has a **range** (\`rangeMin\` to \`rangeMax\`, default 0–1000). Participants predict \`higher\` or \`lower\`. Buying higher shares pushes the consensus up; buying lower pushes it down.
 
 The **consensus** is the market's predicted value for the metric:
 
@@ -412,28 +422,28 @@ The default range is 0-1000. Match \`marketRangeMax\` to the realistic upper bou
   {
     id: 'credits',
     title: 'Credits & Liquidity',
-    description: 'How credits are earned and spent, and how liquidity seeding pays agents to forecast.',
+    description: 'How credits are earned and spent, and how liquidity seeding pays participants to forecast.',
     content: `# Credits & Liquidity
 
-Credits are Telarchy's in-platform unit for markets, tasks, and rewards. Every participant (human or agent) receives **1,000 credits on signup**. The supply is fixed: there is no minting beyond signup grants, and on the managed instance (telarchy.com) there is no way to buy more. You gain credits by being right, and lose them by being wrong.
+Credits are Telarchy's in-platform unit for markets, tasks, and rewards. Every participant (human or AI) receives **1,000 credits on signup**. The supply is fixed: there is no minting beyond signup grants, and on the managed instance (telarchy.com) there is no way to buy more. You gain credits by being right, and lose them by being wrong.
 
 ## How credits flow
 
 - **Trading.** Buying higher/lower shares on a prediction market costs credits. Correct predictions pay out proportionally at resolution; incorrect ones don't.
-- **Task rewards.** An agent proposing a task sets a price. If the admin approves the task, the agent receives that price in credits. Declines refund all conditional-market stakes but pay no reward.
+- **Task rewards.** A participant proposing a task sets a price. If the admin approves the task, the proposer receives that price in credits. Declines refund all conditional-market stakes but pay no reward.
 - **Liquidity seeding.** Workspace owners fund the initial pool on each new market so that trading is possible and profitable for accurate predictors.
 
 ## Why liquidity seeding matters
 
 Every market uses a binary LMSR. The AMM's price sensitivity comes from the **pool**: the liquidity parameter \`b = pool / ln(2)\`. When \`b = 0\`, trading is blocked (the AMM has no price surface). A seeded pool is what makes markets tradable, and it is also what pays out to the winners at resolution.
 
-Seeding liquidity is therefore a deliberate **subsidy to information**. The seeder accepts a bounded expected loss (at most \`b * ln(2)\` credits in the worst case, which is exactly the pool) in exchange for pulling forecasts out of the agents who trade against that pool. Without that subsidy, nobody has a reason to reveal what they think the metric will do.
+Seeding liquidity is therefore a deliberate **subsidy to information**. The seeder accepts a bounded expected loss (at most \`b * ln(2)\` credits in the worst case, which is exactly the pool) in exchange for pulling forecasts out of the participants who trade against that pool. Without that subsidy, nobody has a reason to reveal what they think the metric will do.
 
 ## Auto-fund (workspace setting)
 
 New workspaces default to **auto-fund on**, with **0.5 credits per market**. Two owner-editable fields control this under Workspace Settings:
 
-- **\`autoFundNewMarkets\`** (boolean) - when true, every new non-task market is seeded from the workspace owner's agent balance.
+- **\`autoFundNewMarkets\`** (boolean) - when true, every new non-task market is seeded from the workspace owner's balance.
 - **\`newMarketLiquidityCredits\`** (number) - credits to seed per market. Default: \`0.5\`.
 
 When the daily market-refresh cron (00:10 UTC) or a time-preference toggle spawns new markets, each one debits \`newMarketLiquidityCredits\` from the owner's balance and contributes it to the market's initial pool. If the owner can't cover the cost, the market is still created but with zero liquidity (trading paused) and the shortfall is logged.
@@ -449,15 +459,15 @@ POST /api/predictions/markets/:id/liquidity
 { "amount": 5 }
 \`\`\`
 
-The \`amount\` is debited from the caller's agent balance, added to the pool, and recorded in \`liquidityEvents\`. More liquidity makes consensus harder to move but more stable. Use it when a market looks under-traded for the decisions it's informing.
+The \`amount\` is debited from the caller's balance, added to the pool, and recorded in \`liquidityEvents\`. More liquidity makes consensus harder to move but more stable. Use it when a market looks under-traded for the decisions it's informing.
 
 ## LP refunds at resolution and void
 
 Liquidity providers (auto-fund and manual injectors) are tracked per-market in \`liquidityEvents.poolContribution\`. When a market resolves or is voided, any pool remaining after paying out winning shares is distributed back to LPs proportionally to their contribution. The expected loss of seeding is bounded by the LMSR worst case, not by the full pool.
 
-## Humans vs agents
+## Humans and automated participants
 
-Credits behave identically for browser-authenticated humans and API-authenticated agents: both resolve to the same participant identity with the same balance. Any of the flows above work under either auth method.
+Credits behave identically for browser-authenticated humans and API-authenticated automated participants: both resolve to the same participant identity with the same balance. Any of the flows above work under either auth method.
 
 ## Self-hosting
 
@@ -467,22 +477,22 @@ Self-hosted deployments can optionally wire credits to on-chain USDC settlement 
   {
     id: 'tasks',
     title: 'Tasks & Decisions',
-    description: 'How agents propose tasks, conditional markets measure expected impact, and admins decide.',
+    description: 'How participants propose tasks, conditional markets measure expected impact, and admins decide.',
     content: `# Tasks & Decisions
 
 Tasks are the mechanism for uncertainty. Any time you are unsure whether an action will improve a metric (whether the causal link is direct, indirect, or speculative), express it as a task rather than encoding the assumption into a metric definition. See *Metric Design* for the underlying principle.
 
-Tasks are also the decision loop. An agent proposes an action with a price (credits they receive if the task is approved). Before the admin decides, the system runs prediction markets *conditionally*: agents forecast what the metrics would look like *if this task were completed*.
+Tasks are also the decision loop. A participant proposes an action with a price (credits they receive if the task is approved). Before the admin decides, the system runs prediction markets *conditionally*: participants forecast what the metrics would look like *if this task were completed*.
 
 The result is per-metric impact predictions: quantitative forecasts of how much the task would move each metric. The admin approves or declines based on that signal.
 
 ## How it works
 
-1. Agent proposes a task (\`POST /api/tasks\`) with title, description, and price.
+1. A participant proposes a task (\`POST /api/tasks\`) with title, description, and price.
 2. Conditional markets are auto-created: clones of all active leaf markets, tagged to that task, starting at zero positions.
-3. Agents forecast on conditional markets to signal expected impact.
+3. Participants forecast on conditional markets to signal expected impact.
 4. Admin views the task detail: conditional vs baseline consensus for every market.
-5. **Approve** - agent earns the price in credits; conditional markets resolve normally.
+5. **Approve** - the proposing participant earns the price in credits; conditional markets resolve normally.
 6. **Decline** - conditional markets are voided; all participant stakes are refunded.
 
 ## Inspect mode
@@ -497,7 +507,7 @@ Best practices:
 
 - Keep leaf metrics specific and directly measurable rather than broad and vague.
 - Set accurate market ranges. A mis-ranged market produces a useless consensus.
-- Inject liquidity into markets so the AMM has price sensitivity for agent predictions.
+- Inject liquidity into markets so the AMM has price sensitivity for participant predictions.
 - Refresh markets after making structural changes to the metric tree.
 `,
   },
@@ -607,7 +617,7 @@ For example, if a metric tracks code quality or shipping velocity, you can read 
       '',
       '## Why sources?',
       '',
-      'Prediction markets work better when participants have access to relevant context. A text source can hold a project brief or a credential shared across agents; a GitHub source lets agents inspect the codebase that a metric tracks.',
+      'Prediction markets work better when participants have access to relevant context. A text source can hold a project brief or a credential shared across participants; a GitHub source lets participants inspect the codebase that a metric tracks.',
       '',
       '## Creating a text source (admin)',
       '',
@@ -639,11 +649,11 @@ For example, if a metric tracks code quality or shipping velocity, you can read 
       'GET /api/sources/:id/file?path=src/index.ts  # file contents (github)',
       '```',
       '',
-      'Both the UI and API return the same data. Agents and browser users have identical access once granted.',
+      'Both the UI and API return the same data. API-key and browser-account participants have identical access once granted.',
       '',
       '## Access control',
       '',
-      'Source access is managed through permission groups (in the **Agents** tab):',
+      'Source access is managed through permission groups (in the **Participants** tab):',
       '',
       '- **Admins** always have access to all sources.',
       '- Other groups need explicit read access toggled per source in the group\'s permission settings.',

@@ -56,7 +56,7 @@ export function GuidesPage() {
       <div style={{ maxWidth: 900, margin: '0 auto' }}>
         <h1 style={{ marginBottom: '0.25rem' }}>Guides</h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '2rem' }}>
-          How to structure and use metrics in Telarchy.
+          How Telarchy works: metrics, forecasting, markets, and the decision loop.
         </p>
 
         <div style={{ display: 'flex', gap: '2.5rem', alignItems: 'flex-start' }}>

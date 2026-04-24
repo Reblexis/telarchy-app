@@ -1,107 +1,75 @@
 # Telarchy
 
-A self-hostable metrics governance platform with prediction markets, formulas, dependency graphs, and participant automation. Built with React, TypeScript, BetterAuth, PostgreSQL, and an Express API.
+Telarchy turns every decision into a market-priced forecast. You define the metrics that matter; participants, human or AI, forecast how each proposed action will move them, before you commit.
 
-## Features
+It is a decision platform powered by prediction markets. Founders and leadership teams use it to price company decisions against KPIs and OKRs. Individuals use the same mechanism on personal goals. Both are first-class from day one; the headline use case is company governance.
 
-- **Formula-Based Metrics** - Create derived metrics using expressions like `{Deep Work} * 2 + {Exercise}`
-- **Dependency Tracking** - Metrics recalculate automatically in topological order when values change
-- **XP/Rank System** - Unified score from a "Utility" metric (ranks S through E)
-- **REST API** - Full CRUD over HTTP; authenticate with a browser account session or an agent key
-- **Progress Graphs** - Visualize metric history over day/week/month/year intervals
-- **Focus Mode** - Filter the dashboard to a single metric and its dependency chain
+## How it works
 
-## Tech Stack
+Three mechanisms stack:
+
+1. **Conditional markets** price the per-metric impact of every proposal before you commit.
+2. **Composed metrics** let a top-level goal decompose into measurable parts via formulas.
+3. **Time preference** gives each metric a forecasting horizon, so markets predict trajectories, not snapshots.
+
+A **participant** is any market actor, human or AI. Humans sign up with email or OAuth; automated participants register for an API key. Once identity is established, capabilities are identical. In the API and schema this is called an `agent`; the word is retained in code and routes for backwards compatibility.
+
+## Tech stack
 
 - **Frontend**: React 19, TypeScript, Vite, Chart.js
 - **Backend**: Node.js + Express
 - **Database**: PostgreSQL with Drizzle ORM
 - **Auth**: BetterAuth (email/password, optional Google/GitHub OAuth)
+- **Settlement** (self-hosted, opt-in): USDC on Base L2
 
-## Quick Start
-
-### 1. Environment Setup
-
-1. Create your local or hosted deployment environment
-2. Configure the environment variables from `functions/.env.example`
-3. Provision PostgreSQL and run the database migrations
-4. Configure BetterAuth providers if you want Google/GitHub OAuth
-
-### 2. Install and Configure
+## Quick start (self-hosted)
 
 ```bash
 # Install dependencies
 npm install
 cd functions && npm install && cd ..
 
-# Set your API key and browser admin allowlist
+# Configure environment
 cp functions/.env.example functions/.env
-# Edit functions/.env and set API_KEY=<your-secret> and ADMIN_EMAILS=<your-email>
+# Set API_KEY, ADMIN_EMAILS, DATABASE_URL, ALLOWED_ORIGIN, BETTER_AUTH_URL
+
+# Run database migrations
+cd functions && npx drizzle-kit migrate && cd ..
+
+# Start the stack
+docker compose up
 ```
 
-### 3. Deploy
+The app runs at the configured origin. Create your first browser account, add that email to `ADMIN_EMAILS`, restart, and log in to reach the admin UI.
 
-```bash
-firebase login
-firebase use <your-project-id>
-firebase deploy
-```
+For the full vision and architecture, see `docs/vision.md`. For the managed instance, see `telarchy.com`.
 
-For local/self-hosted setups, use the root `docker compose` / app scripts described in `docs/vision.md`.
+## API reference
 
-### 4. First Run
-
-1. Create your first browser account
-2. Set `ADMIN_EMAILS` in `functions/.env` to that email and deploy
-3. Log in with that account
-4. Create a workspace
-5. Start creating metrics and markets
-
-## API Reference
-
-All endpoints live under `/api`. Hit `GET /api/help` (no auth required) for a machine-readable description of every endpoint, the app's purpose, and its core concepts.
+All endpoints live under `/api`. Hit `GET /api/help` (no auth) for a machine-readable description of every endpoint and core concept. In-app guides are served under `/api/guides` and rendered by the `/guides` page.
 
 ### Authentication
 
-| Method | Header | Use Case |
+| Method | Header | Use case |
 |--------|--------|----------|
 | Browser session | BetterAuth cookie | Web app access |
-| Agent key | `X-Agent-Key: <agent-key>` | Scripts, automation, API-key sign-in |
-| Admin key | `X-API-Key: <secret>` | Platform/admin automation |
+| Participant API key | `X-Agent-Key: <key>` | Scripts, automation, automated participants |
+| Admin key | `X-API-Key: <secret>` | Platform / admin automation |
 
-Browser-account signup creates or attaches to the participant identity directly. Browser-account auth and agent-key auth are two access methods for the same participant model, not separate capability tiers.
+Browser-account signup and API-key signup are two access methods for the same participant model, not separate capability tiers.
 
-### Endpoints
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `GET` | `/api/help` | No | API documentation and app description |
-| `GET` | `/api/status` | Yes | XP, rank, and compact summary of all metrics |
-| `GET` | `/api/metrics` | Yes | List all metrics (computed totals and depths) |
-| `GET` | `/api/metrics/:id` | Yes | Single metric by ID |
-| `POST` | `/api/metrics` | Yes | Create a metric |
-| `PUT` | `/api/metrics/:id` | Yes | Update a metric |
-| `DELETE` | `/api/metrics/:id` | Yes | Delete a metric |
-| `GET` | `/api/metrics/:id/logs` | Yes | Historical value logs for graphing |
-| `GET` | `/api/updates` | Yes | Update history (`?limit=N`) |
-| `GET` | `/api/tasks` | Yes | List tasks |
-| `GET` | `/api/tasks/:id` | Yes | Task detail with `utilitySummary` and conditional market summaries including target date, liquidity, and baseline comparisons |
-
-### Example: Agent-Key Usage
+### Example: trading with an API key
 
 ```bash
-# Get a summary of everything
-curl -H "X-Agent-Key: YOUR_AGENT_KEY" https://your-project.web.app/api/status
+# One-call snapshot of a workspace
+curl -H "X-Agent-Key: YOUR_KEY" -H "X-Workspace-Id: $WS" \
+  "https://telarchy.com/api/status?trends=1&markets=1"
 
-# Create a metric
-curl -X POST -H "X-API-Key: YOUR_ADMIN_KEY" -H "Content-Type: application/json" \
-  -d '{"name":"Deep Work","value":5}' \
-  https://your-project.web.app/api/metrics
-
-# Update a metric's value
-curl -X PUT -H "X-API-Key: YOUR_ADMIN_KEY" -H "Content-Type: application/json" \
-  -d '{"name":"Deep Work","description":"","value":8,"formula":"0","oldValue":5,"updateNote":"Good focus day"}' \
-  https://your-project.web.app/api/metrics/METRIC_ID
+# Place a prediction
+curl -X POST -H "X-Agent-Key: YOUR_KEY" -H "X-Workspace-Id: $WS" \
+  -H "Content-Type: application/json" \
+  -d '{"metricName":"Revenue","targetDate":"2026-Q4","direction":"higher","amount":10}' \
+  "https://telarchy.com/api/predictions/trade"
 ```
 
 ## Formulas
@@ -109,45 +77,35 @@ curl -X PUT -H "X-API-Key: YOUR_ADMIN_KEY" -H "Content-Type: application/json" \
 Reference other metrics by name in curly braces:
 
 ```
-{Deep Work} * 2 + {Exercise} * 1.5
-sqrt({Consistency}) * ({Reading} + {Writing})
+{Throughput} * 0.6 + {Quality} * 0.4
+sqrt({Adoption} * {Retention})
 ```
 
-**Functions**: `sqrt()`, `abs()`, `min()`, `max()`, `pow()`
+**Functions**: `sqrt()`, `abs()`, `log()`, `log10()`, `min()`, `max()`, `pow()`, `clamp()`
 **Operators**: `+`, `-`, `*`, `/`, `()`
 
 Circular dependencies are detected and rejected.
 
-## Data Model
-
-| Collection | Purpose |
-|------------|---------|
-| `metrics` | Name, base value, formula, display order |
-| `metricLogs` | Historical total values (for graphs) |
-| `updates` | Change history with timestamps and notes |
-
-All database access goes through the API layer.
-
-## Project Structure
+## Project structure
 
 ```
 metrics-tracker/
 ├── src/                    # React frontend
 │   ├── components/         # UI components
-│   ├── hooks/              # useAuth, useMetrics, useDarkMode
-│   ├── lib/                # api client, metrics engine, firebase config
-│   └── pages/              # Login, Setup, Metrics pages
+│   ├── hooks/              # useAuth, useWorkspace, useMetrics
+│   ├── lib/                # API client, metrics engine
+│   └── pages/              # Landing, Metrics, Markets, Tasks, Participants, ...
 ├── functions/              # Backend API
 │   └── src/
-│       ├── index.ts        # Express app entry point
-│       ├── middleware/      # Auth and permission resolution
-│       ├── routes/          # metrics, updates, system endpoints
-│       ├── services/        # Business/domain operations
-│       └── lib/             # Formula engine, async handler
-├── docker-compose.yml      # Self-hosted stack
+│       ├── app.ts          # Express app wiring
+│       ├── middleware/     # Auth and capability resolution
+│       ├── routes/         # metrics, predictions, tasks, agents, ...
+│       ├── services/       # Business/domain operations
+│       └── lib/            # Formula engine, AMM, helpers
+├── docker-compose.yml      # Self-hosted stack (backend + frontend + PostgreSQL)
 └── docs/                   # Product and system docs
 ```
 
 ## License
 
-All rights reserved. An open-source release is planned for the future but not currently available.
+All rights reserved. The intent is to MIT-license the backend and frontend once the managed participant network is established; an `LICENSE` file will be committed then. Until then, do not make open-source claims externally.

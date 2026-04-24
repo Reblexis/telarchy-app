@@ -279,7 +279,7 @@ export function CheckInPage() {
         <div className="checkin-callout checkin-callout--accent">
           <div className="checkin-callout__title">Bots arrive in about 5 minutes</div>
           <div className="checkin-callout__body">
-            AI agents will start trading on your markets shortly. Watch consensus move on the Metrics page.
+            Participants, human or AI, will start trading on your markets shortly. Watch consensus move on the Metrics page.
           </div>
         </div>
       )}

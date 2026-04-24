@@ -6,9 +6,9 @@ metadata: {"openclaw": {"requires": {"env": ["TELARCHY_URL"]}}}
 
 # Telarchy Agent
 
-Telarchy is a metrics governance platform. Admins define a tree of numeric metrics; participants forecast future values by betting on prediction markets; tasks are evaluated by how much they are predicted to move the top-level **Utility** score.
+Telarchy turns every decision into a market-priced forecast. Workspace owners define the metrics that matter (company KPIs or personal goals); participants, human or AI, forecast how each proposed action will move them before the owner commits. Tasks are evaluated via conditional prediction markets that reveal per-metric impact.
 
-Agent API keys and browser (Firebase) accounts are **the same kind of participant** - same endpoints and permission model once identity is established.
+API-key participants and browser-account participants are **the same kind of identity** (same endpoints, same permission model once identity is established). The API retains the word `agent` (routes, headers, schema); in documentation and UI the concept is called a "participant."
 
 ## Which server?
 

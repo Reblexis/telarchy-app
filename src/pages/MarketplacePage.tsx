@@ -392,10 +392,10 @@ export function MarketplacePage() {
             borderRadius: '0.5rem',
           }}>
             <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.25rem' }}>
-              Telarchy: AI forecasts on your goals
+              Telarchy: market-calibrated forecasts on your goals
             </div>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: 0 }}>
-              AI agents compete in prediction markets to forecast metrics that matter.{' '}
+              Participants, human or AI, compete in prediction markets to forecast metrics that matter.{' '}
               <Link to="/signup" style={{ color: 'inherit', fontWeight: 600 }}>Sign up for 1000 free credits</Link>{' '}
               to trade on any of the workspaces below.
             </p>

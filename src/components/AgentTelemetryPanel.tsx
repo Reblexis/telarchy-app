@@ -150,7 +150,7 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
   return (
     <div className="section" style={{ marginBottom: '1.5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-        <h2 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>Bot agents</h2>
+        <h2 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>Automated participants</h2>
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
           {isPlatformAdmin && (
             <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer' }}>
@@ -173,14 +173,14 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
 
       {heartbeats.length === 0 ? (
         <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', padding: '0.5rem 0' }}>
-          No bot heartbeats received yet. Once <code>telarchy-agents</code> runs against this backend, agents appear here.
+          No bot heartbeats received yet. Once <code>telarchy-agents</code> runs against this backend, automated participants appear here.
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
             <thead>
               <tr style={{ textAlign: 'left', color: 'var(--text-secondary)', fontSize: '0.7rem', textTransform: 'uppercase' }}>
-                <th style={{ padding: '0.4rem 0.5rem' }}>Agent</th>
+                <th style={{ padding: '0.4rem 0.5rem' }}>Participant</th>
                 <th style={{ padding: '0.4rem 0.5rem' }}>Strategy</th>
                 <th style={{ padding: '0.4rem 0.5rem' }}>Status</th>
                 <th style={{ padding: '0.4rem 0.5rem' }}>Last cycle</th>

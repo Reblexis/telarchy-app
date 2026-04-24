@@ -238,7 +238,7 @@ function PositionsBreakdown({ positions, market, metricValue }: {
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr>
-            <th style={{ ...thStyle, textAlign: 'left' }}>Agent</th>
+            <th style={{ ...thStyle, textAlign: 'left' }}>Participant</th>
             <th style={{ ...thStyle, textAlign: 'center' }}>Side</th>
             <th style={{ ...thStyle, textAlign: 'right' }}>Shares</th>
             <th style={{ ...thStyle, textAlign: 'right' }}>Cost</th>

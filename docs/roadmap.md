@@ -19,9 +19,10 @@ Everything is oriented around submitting the strongest possible YC application. 
 - [ ] Record a short screen capture of the full loop working (metrics, agents trading, consensus moving, conditional market revealing signal); this becomes the YC demo video backbone
 
 ### Customer discovery (start immediately)
-- [ ] List 30 targets: AI agent builders (check GitHub agent framework repos, Twitter/X, LessWrong), startup founders deploying agents, quantified-self people
+- [ ] List 30 targets: startup founders and operators deploying AI agents, agent developers (check GitHub agent framework repos, Twitter/X, LessWrong), quantified-self people
 - [ ] Send 15 cold DMs/emails this week; goal is 5 scheduled conversations
-- [ ] Core question: "How do you currently evaluate whether your agents are doing the right thing?" and "Would you pay for a system that made agents financially accountable to your metrics?"
+- [ ] Core question for founders: "How do you currently evaluate whether a proposal (from a human or an agent) is worth shipping?" and "Would you pay for a system that forecast its impact on your metrics before you committed?"
+- [ ] Core question for agent developers: "What would it take to run your agents against real-world outcomes with skin in the game?"
 - [ ] Track every conversation: who, what they said, objections, interest level
 
 ### Build (only what unblocks demos and signups)
@@ -81,32 +82,33 @@ Everything is oriented around submitting the strongest possible YC application. 
 ## YC Application: Key Points to Hit
 
 ### One-line description
-"Prediction markets wired into your decision loop. Every proposal, human or AI, gets a market-calibrated forecast of its impact on your goals before you commit."
+"Telarchy turns every decision into a market-priced forecast. You define the metrics that matter; participants, human or AI, forecast how each proposed action will move them, before you commit."
 
 ### What do you make?
-Telarchy turns every company decision into a conditional prediction market. You define the metrics that matter; agents (human or AI) propose actions with a price; the market forecasts the expected per-metric impact; you approve or decline with a calibrated number, not a gut feeling. Over time, as markets accumulate calibration data, high-confidence positive-delta proposals can clear automatically, shifting routine decisions off your plate.
+Telarchy is a decision platform powered by prediction markets. Founders and leadership teams define their KPIs and OKRs; participants (human or AI) propose actions with a price; the market forecasts the expected per-metric impact; you approve or decline with a calibrated number rather than a gut call. Over time, as markets accumulate calibration data, high-confidence positive-delta proposals can clear automatically, shifting routine decisions off your plate. Companies are the headline use case; individuals use the same mechanism on personal goals.
 
 ### Why now?
-Two things are happening at once in 2026. Companies are drowning in decisions (more proposals from more people, and now from AI agents too) while the quality bar for each one stays flat or drops. Prediction markets are the most precise tool known for aggregating opinion, and the academic case (Hanson, Arrow, et al.) has been sitting unused for 20 years because nobody wired them into the decision loop of real organizations. AI agents make the need acute: an agent can propose 1000 actions a day, and no exec can review them by hand. Markets scale where humans don't.
+Two things are happening at once in 2026. Companies are drowning in decisions (more proposals from more people, and now from AI agents too) while the quality bar for each one stays flat or drops. Prediction markets are the most precise tool known for aggregating opinion, and the academic case (Hanson, Arrow, et al.) has been sitting unused for 20 years because nobody wired them into the decision loop of real organizations. AI agents make the need acute: a single automated participant can propose 1000 actions a day, and no exec can review them by hand. Markets scale where humans don't.
 
 ### What's unique?
-- Only platform combining metric composition, conditional decision markets, and time-preference forecasting.
-- Private, company-scoped markets for internal decisions (not public betting on news events).
-- Participant symmetry: humans and AI agents propose, forecast, and get paid on the same terms.
-- Play-money on the managed instance (no regulatory surface while we grow the network); the same stack runs USDC-settled on self-hosted and enterprise deployments once the open-core release lands.
+- Only platform combining conditional decision markets, metric composition, and time-preference forecasting.
+- Private, workspace-scoped markets for internal decisions (not public betting on news events).
+- Participant symmetry: humans and AI propose, forecast, and get paid on the same terms.
+- Serves both companies and individuals from day one on the same mechanism.
+- Play-money on the managed instance (no regulatory surface while we grow the network); the same stack runs USDC-settled on self-hosted deployments.
 
 ### Traction (fill in with real numbers)
-- X agents actively trading
+- X participants actively trading
 - X workspaces with live markets
 - X weekly trades
 - X customer conversations completed
 - X people who said they'd pay / signed up after a conversation
 
 ### What's your moat?
-The agent network. Agents build calibration history and reputation over time. The plan is to eventually open-source the code; a liquid pool of calibrated agents is not clonable from source. Network effects compound as more agents and workspaces join.
+The participant network. Participants build calibration history and reputation over time. The plan is to eventually open-source the code; a liquid pool of calibrated participants is not clonable from source. Network effects compound as more participants and workspaces join.
 
 ### How will you make money?
-Free managed tier to drive adoption. Agent network federation fees for self-hosted instances that want access to the shared agent pool. Enterprise tier with SLA, DPA, and dedicated support. Transaction fees on trades (0.5-1%) as a supplementary revenue stream.
+Free managed tier to drive adoption. Network federation fees for self-hosted instances that want access to the shared participant pool. Enterprise tier with SLA, DPA, and dedicated support. Transaction fees on trades (0.5-1%) as a supplementary revenue stream.
 
 ### What do you need YC for?
 Distribution to AI-forward companies deploying agents. Credibility for enterprise conversations. Guidance on regulatory posture for real-money prediction markets.

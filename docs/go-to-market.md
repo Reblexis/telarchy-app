@@ -1,39 +1,45 @@
 # Telarchy: Go-to-Market Plan
 
+## Positioning (one line)
+
+Telarchy turns every decision into a market-priced forecast. You define the metrics that matter; participants, human or AI, forecast how each proposed action will move them, before you commit.
+
+Headline use case: company governance (founders and leadership teams pricing decisions against KPIs and OKRs). Individuals use the same mechanism for personal goals and are first-class from day one. "Participant" means any market actor, human or AI; the word `agent` is retained in the API and schema only.
+
 ## What's Already Built
 
 - Full LMSR prediction market engine with binary trading (buy/sell, AMM shares, balance deduction)
-- Agent economy with registration, API keys, credit system, approval flow, task payouts
-- Multi-workspace support with role-based access (owner, admin, trader, viewer, permission groups)
-- USDC settlement on Base (deposit/withdraw via on-chain tx verification)
+- Participant economy with registration, API keys, credit system, approval flow, task payouts
+- Multi-workspace support with capability-based access (read, trade, manage) via permission groups
+- USDC settlement on Base (deposit/withdraw via on-chain tx verification; self-hosted only)
 - Time-preference system for forward-looking evaluation (decay-weighted temporal aggregation)
-- Conditional markets for futarchy (task proposals, market summaries per task)
-- Event feed + SSE hooks for agent automation
-- Admin UI for metrics, markets, agents, tasks, workspace management
+- Conditional markets for the decision loop (task proposals with per-metric impact predictions)
+- Event feed + SSE hooks for automation
+- Admin UI for metrics, markets, participants, tasks, workspace management
 - Graph/chart system for metric visualization and history
-- Self-hosting: single `docker compose up` deploys the full stack (frontend + backend + PostgreSQL)
+- Self-hosting: single `docker compose up` deploys the full stack (not yet a public release)
 - BetterAuth (email/password, optional Google/GitHub OAuth via env vars)
-- PostgreSQL + Drizzle ORM (no Firebase dependency; same stack for managed and self-hosted)
+- PostgreSQL + Drizzle ORM (same stack for managed and self-hosted)
 
 ## Credit Model
 
 Every participant (human or AI) gets **1000 credits on signup**. Credits are the core economy:
 
-- **Workspace creators** spend credits to provide liquidity to their markets. More liquidity attracts more agents and produces tighter forecasts. New workspaces auto-fund markets at 0.5 credits each by default.
-- **Traders/agents** spend credits to place predictions. Accurate forecasting earns credits; inaccurate forecasting loses them. The market mechanism ensures bad forecasters run out of influence.
-- **Credits will be backed by real money** (USDC on Base) once the platform matures. The infrastructure is already built. For now, credits are play-money with real scarcity: you get 1000, you earn or lose from there.
+- **Workspace owners** spend credits to provide liquidity to their markets. More liquidity attracts more participants and produces tighter forecasts. New workspaces auto-fund markets at 0.5 credits each by default.
+- **Participants** spend credits to place predictions. Accurate forecasting earns credits; inaccurate forecasting loses them. The market mechanism ensures bad forecasters run out of influence.
+- **Credits will be backed by real money** (USDC on Base) once the platform matures. The infrastructure is already built for self-hosted deployments. On the managed instance, credits are play-money with real scarcity: you get 1000, you earn or lose from there.
 
-When a user runs out of credits, they can earn more through accurate forecasting or purchase more (future: USDC deposit).
+When a participant runs out of credits, they can earn more through accurate forecasting or purchase more (future: USDC deposit on managed once legal posture is settled).
 
-**Platform agents** are seeded by the platform operator and auto-join all public workspaces. They provide baseline forecasting activity so new workspaces have immediate value. Platform agents use the same credit economy as everyone else.
+**Platform-operated participants** are seeded by the platform operator and auto-join all public workspaces. They provide baseline forecasting activity so new workspaces have immediate value. They use the same credit economy as everyone else.
 
 ## Signup-to-Value Flow
 
 1. **Sign up** (email/password or Google/GitHub OAuth). Receive 1000 credits.
 2. **Create workspace** (pick template: startup, personal, or blank). 3 metrics created, ~27 markets auto-created and auto-funded from your credits (~14 credits total).
 3. **Set initial metric values** (quick self-assessment for each metric).
-4. **Platform agents discover your workspace** and start trading within minutes. Consensus values appear.
-5. **Check back weekly**, update metric values. Markets resolve, accurate agents earn, inaccurate lose. New markets auto-created for future dates.
+4. **Platform-operated participants discover your workspace** and start trading within minutes. Consensus values appear.
+5. **Check back weekly**, update metric values. Markets resolve; accurate forecasters earn, inaccurate lose. New markets auto-created for future dates.
 6. **Propose a decision** (optional): create a task, see conditional market predictions of its impact on your metrics.
 
 ## Remaining Gaps
@@ -41,8 +47,8 @@ When a user runs out of credits, they can earn more through accurate forecasting
 | Gap | Status | Impact |
 |---|---|---|
 | Onboarding UX (guide user through first metric update) | Missing | High friction for new users |
-| Agent developer portal (docs, SDK, examples) | Missing | Blocks third-party agents |
-| Leaderboard / reputation | Missing | No visibility into agent quality |
+| Developer portal for automated participants (docs, SDK, examples) | Missing | Blocks third-party participants |
+| Leaderboard / reputation | Missing | No visibility into participant quality |
 | Notifications (email alerts for resolutions) | Missing | Users forget to check back |
 | Wallet connect (one-click USDC deposit) | Missing | Blocks real-money transition |
 
@@ -121,20 +127,20 @@ All tables include a `workspaceId` column; all queries filter by it. Mitigations
 | | Polymarket | Manifold | Metaculus | Telarchy |
 |---|---|---|---|---|
 | Money | Real (USDC) | Play (Mana) | None | Play (managed) / USDC (self-hosted) |
-| Markets | World events | Anything | Forecasting Qs | Org metrics |
-| Who creates | Curated | Anyone | Community | Creators |
+| Markets | World events | Anything | Forecasting Qs | Owner-defined metrics (company or personal) |
+| Who creates | Curated | Anyone | Community | Workspace owners |
 | Mechanism | Order book | DPM/AMM | Continuous | LMSR AMM |
-| Automated traders | Tolerated | Some | No | First-class |
-| Decision-making | No | No | No | Yes (futarchy) |
+| Human + AI participants | Tolerated | Some | No | First-class, symmetric |
+| Decision-making | No | No | No | Yes (conditional markets) |
 | Metric composition | No | No | No | Yes (formulas) |
-| Forward-looking | No | No | No | Yes (time pref) |
+| Forward-looking | No | No | No | Yes (time preference) |
 
 ### Telarchy's Unique Positioning
 
-1. **Metric composition with formulas** - Markets can compose into derived metrics via formulas, not just standalone questions.
-2. **Futarchy** - Conditional markets for organizational decisions. No competitor offers this.
-3. **Automation as a first-class interface** - API keys, hooks, event feeds, and the economy are designed for automated participation without reducing browser-account capabilities.
-4. **Time preference** - Decay-weighted forward-looking evaluation. Unique.
+1. **Conditional decision markets** - Every proposal is priced against the metrics it would affect before it ships. No competitor offers this for internal decisions.
+2. **Metric composition with formulas** - Markets compose into derived metrics via formulas, not just standalone questions.
+3. **Time preference** - Decay-weighted forward-looking evaluation. Unique.
+4. **Participant symmetry** - Humans and AI share the same signup, balance, and trading rights. API keys, hooks, and event feeds make automation first-class without reducing browser-account capabilities.
 
 **Positioning:** Telarchy is a governance and decision-making tool, not a betting platform. "Capitalism for alignment."
 
@@ -143,7 +149,7 @@ All tables include a `workspaceId` column; all queries filter by it. Mitigations
 - **Workspace isolation model** - Global trader balance vs per-workspace? Global is simpler and more liquid.
 - **Creator business model** - Free tier + premium? Transaction fees? Subscription?
 - **Legal structure** - Regulatory posture for real-money prediction markets. Needs legal counsel.
-- **Participant identity UX** - Keep browser-account and agent-key signup flows distinct while preserving the same permissions and market access?
+- **Participant identity UX** - Keep browser-account and API-key signup flows distinct while preserving the same permissions and market access?
 - **Data architecture** - how aggressively to partition or shard workspace-scoped PostgreSQL data as scale increases.
 - **Position visibility** - Per-workspace setting? Default private (prevent front-running) or public (social trading)?
 - **Market resolution trust** - Start with simple creator reputation score. Agents allocate fewer credits to low-reputation creators. Future: dispute mechanism, third-party data sources, creator stakes.

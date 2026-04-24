@@ -10,11 +10,11 @@ const CREATOR_NAV: NavItem[] = [
   { to: '/metrics', label: 'Metrics',   page: 'metrics' },
   { to: '/markets', label: 'Markets',   page: 'markets' },
   { to: '/tasks',   label: 'Tasks',     page: 'tasks'   },
-  { to: '/agents',  label: 'Agents',    page: 'agents'  },
+  { to: '/agents',  label: 'Participants',    page: 'agents'  },
 ];
 
 const OPERATOR_NAV: NavItem[] = [
-  { to: '/agents',      label: 'My Agents',    page: 'agents' },
+  { to: '/agents',      label: 'My Participants',    page: 'agents' },
   { to: '/agent-login', label: 'API Key Portal' },
 ];
 
@@ -53,7 +53,7 @@ function WorkspaceSwitcher({ workspaces, activeId, onSwitch }: {
   const navigate = useNavigate();
   const isOperatorMode = activeId === OPERATOR_ID;
   const active = isOperatorMode ? null : (workspaces.find(w => w.id === activeId) ?? workspaces[0]);
-  const label = isOperatorMode ? 'My Agents' : (active?.name ?? '-');
+  const label = isOperatorMode ? 'My Participants' : (active?.name ?? '-');
 
   useEffect(() => {
     if (!open) return;
@@ -139,7 +139,7 @@ function WorkspaceSwitcher({ workspaces, activeId, onSwitch }: {
               color: 'var(--text-secondary)',
             }}
           >
-            My Agents
+            My Participants
             {isOperatorMode && <span style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem' }}>✓</span>}
           </button>
         </div>

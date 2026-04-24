@@ -53,7 +53,7 @@ export function StartPage() {
               <strong style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>Forecast on public markets</strong>
               <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.6, margin: 0 }}>
                 Browse live markets across public workspaces, join one, and start forecasting,
-                manually or by connecting an AI agent.
+                manually or by connecting an automated participant.
               </p>
             </div>
           </Link>

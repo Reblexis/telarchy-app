@@ -39,7 +39,7 @@ export function WaitlistPage() {
         <div className="container" style={{ maxWidth: 420 }}>
           <h1>Telarchy</h1>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
-            Metrics governance with prediction markets and AI agents. Join the waitlist to get early access.
+            Decisions priced by prediction markets. Participants, human or AI, forecast how each proposed action will move your metrics, before you commit. Join the waitlist to get early access.
           </p>
           {done ? (
             <div className="message show" style={{ background: 'var(--success-bg)', color: 'var(--success-text)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>

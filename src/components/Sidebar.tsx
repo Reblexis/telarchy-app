@@ -41,7 +41,7 @@ export function Sidebar({ className = '' }: { className?: string }) {
     ...(isAdmin ? [{ to: '/check-in', label: 'Check-in' }] : []),
     { to: '/tasks', label: 'Tasks' },
     { to: '/markets', label: 'Markets' },
-    ...(isAdmin ? [{ to: '/agents', label: 'Agents' }] : []),
+    ...(isAdmin ? [{ to: '/agents', label: 'Participants' }] : []),
     { to: '/sources', label: 'Sources' },
     ...(isAdmin ? [{ to: '/settings', label: 'Settings' }] : []),
   ];

@@ -1,5 +1,16 @@
 For more info about this project look into docs/vision.md.
 
+## Canonical positioning (do not drift)
+
+Telarchy turns every decision into a market-priced forecast. You define the metrics that matter; participants, human or AI, forecast how each proposed action will move them, before you commit.
+
+- **Scope:** company governance is the headline use case (founders pricing decisions against KPIs and OKRs); individuals use the same mechanism on personal goals and are first-class from day one.
+- **Participant = human or AI:** humans sign up with email or OAuth; automated participants register for an API key. Once identity is established, signup path does not matter. The API and schema keep the word `agent`; in docs, UI, and outward copy use **participant**.
+- **Never write "AI agents" in isolation** in user-facing prose. Use "participants" or "participants, human or AI." The symmetry is load-bearing.
+- **Do not claim open source today.** Repo is private, no `LICENSE` file yet. The plan is open-core after the participant network moat is established.
+
+When rewriting user-facing copy, always check that the three commitments above (dual-scope, participant symmetry, no OSS claim) hold. If a change makes any of them slippery, flag it.
+
 ## Focus gate
 
 The product has no users yet. Every feature request or refactor should be evaluated against: "Does this help get the first users?" If the answer is no (or unclear), flag it to the user as potential procrastination and suggest deferring it. Renaming, reorganizing, or polishing things that no users will see is not a priority. Remove this section once the product has real users.
@@ -10,7 +21,7 @@ Do not use em dashes. Use commas, periods, semicolons, parentheses, or "i.e."/"e
 
 ## Participant symmetry
 
-Human users and AI users must have the same effective platform permissions and workspace access. Treat them as two signup/auth methods for the same kind of participant, not as separate capability tiers: a human user should be able to do everything an agent user can do, and vice versa, once identity is established.
+Human users and AI users must have the same effective platform permissions and workspace access. Treat them as two signup/auth methods for the same kind of participant, not as separate capability tiers: a human user should be able to do everything an API-key user can do, and vice versa, once identity is established.
 
 ## Commit and push
 
@@ -120,7 +131,7 @@ curl -s -H "X-API-Key: mtrk_a7f3x9kL2pQw8vNdR4jY6mBs" \
 
 Known working endpoints for debugging:
 - `GET /api/status` - system health
-- `GET /api/agents` - list agents and balances
+- `GET /api/agents` - list participants and balances
 - `GET /api/tasks` - list tasks (returns id, title, status)
 - `GET /api/predictions/markets` - non-conditional markets (add `?taskId=X` for conditional)
 - `POST /api/predictions/markets/refresh` - trigger market refresh (body: `{}` or `{ taskId }`)
@@ -142,7 +153,7 @@ If modifying the api capabilities or otherwise changing behaviour of the backend
 
 ## Balance storage convention
 
-Agent balances are stored in PostgreSQL as **integer nanocredits** (`1 credit = 1,000,000,000 units`). Never write raw decimal credits to stored balance fields.
+Participant balances are stored in PostgreSQL as **integer nanocredits** (`1 credit = 1,000,000,000 units`). Never write raw decimal credits to stored balance fields.
 
 - Use `toUnits(credits)` before any `FieldValue.increment()` on a balance field.
 - Use `fromUnits(units)` when reading a balance for display or computation.

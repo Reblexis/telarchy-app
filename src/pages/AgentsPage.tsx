@@ -447,7 +447,7 @@ function AgentAdminPage({ user: _user, workspace }: {
   return (
     <div className="container">
       <div className="section-header">
-        <h2>Agents</h2>
+        <h2>Participants</h2>
         <p className="section-subtitle">
           Every participant in this workspace, human or AI, along with permission groups and the live trade log.
         </p>
