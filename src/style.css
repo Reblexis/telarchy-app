@@ -2203,6 +2203,164 @@ body.landing-page {
   margin-bottom: 1.5rem;
 }
 
+/* Comparison table (Telarchy vs the neighbours).
+   Horizontal scroll wrapper for narrow viewports; otherwise the table
+   fills the page-wrap width and renders all six columns inline. */
+.lp-compare-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+}
+.lp-compare {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  min-width: 880px;
+}
+.lp-compare thead th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  vertical-align: bottom;
+}
+.lp-compare tbody td {
+  padding: 1.05rem 1rem;
+  vertical-align: top;
+  border-top: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+.lp-compare tbody tr:first-child td {
+  border-top: none;
+}
+.lp-compare-platform {
+  width: 16%;
+  min-width: 150px;
+}
+.lp-compare-name {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.lp-compare-sub {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  margin-top: 0.15rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.lp-compare-us td {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  color: var(--text-primary);
+}
+.lp-compare-us .lp-compare-platform {
+  border-left: 3px solid var(--accent);
+}
+.lp-compare-badge {
+  display: inline-block;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.12rem 0.45rem;
+  border-radius: var(--radius-md);
+}
+
+/* "Only Telarchy does all of these" recap below the table. */
+.lp-only-telarchy {
+  margin-top: 2rem;
+  padding: 1.5rem 1.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+}
+.lp-only-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 0.85rem;
+  color: var(--text-primary);
+}
+.lp-only-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.7;
+}
+.lp-only-list li + li {
+  margin-top: 0.55rem;
+}
+.lp-only-list strong {
+  color: var(--text-primary);
+}
+
+/* Mobile: stack each row as a card with field labels above each value
+   instead of forcing horizontal scroll on a 6-column table. */
+@media (max-width: 720px) {
+  .lp-compare-wrap {
+    overflow: visible;
+    border: none;
+    background: transparent;
+    padding: 0;
+  }
+  .lp-compare {
+    min-width: 0;
+    display: block;
+  }
+  .lp-compare thead { display: none; }
+  .lp-compare tbody, .lp-compare tr, .lp-compare td { display: block; }
+  .lp-compare tr {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    margin-bottom: 1rem;
+    background: var(--bg-primary);
+    padding: 0.25rem 0;
+  }
+  .lp-compare tbody td {
+    border-top: none !important;
+    padding: 0.55rem 1rem !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+  }
+  .lp-compare tbody td:not(.lp-compare-platform)::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-tertiary);
+    margin-bottom: 0.2rem;
+    font-weight: 600;
+  }
+  .lp-compare-platform {
+    width: auto !important;
+    background: var(--bg-secondary);
+    padding: 0.85rem 1rem !important;
+    border-bottom: 1px solid var(--border-color);
+  }
+  .lp-compare-us {
+    border-color: var(--accent) !important;
+    border-width: 2px !important;
+  }
+  .lp-compare-us .lp-compare-platform {
+    border-left: none !important;
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+  }
+}
+
 .lp-footer {
   border-top: 1px solid var(--border-color);
   margin-top: auto;
@@ -2679,6 +2837,23 @@ a.sidebar-nav-item,
 .lp-btn-sm-primary,
 .lp-btn-sm-secondary {
   text-decoration: none;
+}
+
+/* CTA labels aren't copy-target text; the global ember ::selection renders
+   illegibly on light button fills (cream bg + pale yellow text in dark mode). */
+button,
+.lp-btn-primary,
+.lp-btn-secondary,
+.lp-btn-sm-primary,
+.lp-btn-sm-secondary,
+.demo-btn,
+.btn,
+.btn-small,
+.btn-delete,
+.btn-focus,
+.btn-copy {
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* Render an ember hairline on primary CTAs to give them a distinctive look */
