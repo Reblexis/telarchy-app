@@ -277,12 +277,7 @@ predictionsRouter.get('/markets', requireCapability('read'), wrap(async (req, re
   const minLiquidity = typeof req.query.minLiquidity === 'string' ? parseFloat(req.query.minLiquidity) : undefined;
   const limit = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : undefined;
   const marketRows = await getMarkets({ taskId, active, includeResolved, minLiquidity, limit }, undefined, workspaceId);
-  if (req.auth!.capabilities.has('manage')) {
-    res.json(marketRows);
-    return;
-  }
-  const groups = await getTradePermissionGroups(workspaceId);
-  res.json(marketRows.filter(market => canTradeMetric(market.metricId, groups, req.auth!)));
+  res.json(marketRows);
 }));
 
 predictionsRouter.get('/markets/:id/trades', requireCapability('read'), wrap(async (req, res) => {
