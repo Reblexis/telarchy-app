@@ -6,9 +6,13 @@
  * is not set, one is auto-generated and printed to stdout. This mirrors
  * GitLab's first-boot root admin pattern.
  *
- * Idempotent: does nothing once any user row exists.
+ * On every boot, also elevates any existing user whose email matches
+ * INITIAL_ADMIN_EMAIL to platform_admin=true. Covers the case where a
+ * user was created before INITIAL_ADMIN_EMAIL was set in the env, or
+ * where the operator imported/migrated an existing DB.
  */
 import { randomBytes, randomUUID } from 'crypto';
+import { eq } from 'drizzle-orm';
 import { db } from '../db/client';
 import { authUser, authAccount, agents, agentApiKeys } from '../db/schema';
 import { hashKey } from '../middleware/auth';
@@ -41,14 +45,40 @@ export function validateStartupConfig(): void {
 }
 
 /**
+ * Promote the user whose email matches INITIAL_ADMIN_EMAIL to platform_admin.
+ * Idempotent: skips when the env var is unset, the user does not exist, or
+ * the user is already a platform admin.
+ */
+export async function ensureInitialAdminElevated(): Promise<void> {
+  const rawEmail = process.env.INITIAL_ADMIN_EMAIL?.trim();
+  if (!rawEmail) return;
+  const email = rawEmail.toLowerCase();
+
+  const [user] = await db.select({ id: authUser.id }).from(authUser).where(eq(authUser.email, email));
+  if (!user) return;
+
+  const [agent] = await db.select({ id: agents.id, platformAdmin: agents.platformAdmin })
+    .from(agents).where(eq(agents.authUserId, user.id));
+  if (!agent || agent.platformAdmin === true) return;
+
+  await db.update(agents).set({ platformAdmin: true }).where(eq(agents.id, agent.id));
+  console.log(`[bootstrap] Elevated ${email} to platform admin (matched INITIAL_ADMIN_EMAIL).`);
+}
+
+/**
  * Create the initial admin account on first boot.
- * No-op if any user already exists in the database.
+ * No-op if any user already exists in the database, except that it still
+ * promotes a user matching INITIAL_ADMIN_EMAIL to platform_admin so that
+ * env-driven admin assignment works on existing databases too.
  */
 export async function runBootstrap(): Promise<void> {
   validateStartupConfig();
 
   const [existingUser] = await db.select({ id: authUser.id }).from(authUser).limit(1);
-  if (existingUser) return;
+  if (existingUser) {
+    await ensureInitialAdminElevated();
+    return;
+  }
 
   const email = (process.env.INITIAL_ADMIN_EMAIL || 'admin@localhost').trim().toLowerCase();
   const providedPassword = process.env.INITIAL_ADMIN_PASSWORD?.trim();
