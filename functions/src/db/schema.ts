@@ -82,6 +82,12 @@ export const agents = pgTable('agents', {
   apiKeyHash: text('api_key_hash').notNull(),
   /** BetterAuth user ID for browser-authenticated participants. */
   authUserId: text('auth_user_id').references(() => authUser.id, { onDelete: 'set null' }),
+  /**
+   * Optional case-insensitive unique handle. Either signup path (human auth,
+   * API register) may claim one. Uniqueness is enforced by a partial unique
+   * index on LOWER(nickname); see migration 0020.
+   */
+  nickname: text('nickname'),
   /** Balance in nanocredits (1 credit = 1_000_000_000 units) */
   balance: bigint('balance', { mode: 'number' }).notNull().default(0),
   earnedBetting: doublePrecision('earned_betting').notNull().default(0),

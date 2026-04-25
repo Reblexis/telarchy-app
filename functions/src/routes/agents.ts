@@ -19,7 +19,7 @@ import {
 import { AppError } from '../lib/errors';
 import { creditsIssuedForUsdcDeposit, depositBuyRateUsd } from '../lib/economy';
 import { validateAgentId, validateTxHash, sufficientBalance, toUnits, fromUnits, SIGNUP_CREDITS } from '../lib/validation';
-import { listParticipantsForWorkspace } from '../lib/participants';
+import { listParticipantsForWorkspace, claimNickname } from '../lib/participants';
 import { isUsdcSettlementEnabled } from '../lib/settlement';
 import { directionSellProceeds, resolutionPayouts, pHigher, consensus } from '../lib/amm';
 import { getAllMetrics } from '../services/metrics';
@@ -41,7 +41,7 @@ function resolveRouteAgentId(req: Request): string | null {
 }
 
 agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => {
-  const { agentId, workspaceId } = req.body;
+  const { agentId, workspaceId, nickname } = req.body;
   const agentIdError = validateAgentId(agentId);
   if (agentIdError) { res.status(400).json({ error: agentIdError }); return; }
 
@@ -64,6 +64,9 @@ agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => 
       authUserId: req.auth?.uid ?? null, createdAt: new Date(), approvedAt: new Date(),
     });
     await tx.insert(agentApiKeys).values({ hash: keyHash, agentId, workspaceId });
+    if (nickname !== undefined && nickname !== null && nickname !== '') {
+      await claimNickname(tx, agentId, nickname);
+    }
   });
 
   // Auto-add to workspace Public and Trader groups (participant symmetry:
@@ -83,7 +86,7 @@ agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => 
     }
   }
 
-  res.status(201).json({ agentId, apiKey: rawKey });
+  res.status(201).json({ agentId, apiKey: rawKey, nickname: nickname || null });
 }));
 
 agentsRouter.get('/mine', authMiddleware, requireIdentity, wrap(async (req, res) => {

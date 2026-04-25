@@ -1,8 +1,9 @@
-import { and, eq, inArray, or } from 'drizzle-orm';
+import { and, eq, inArray, or, sql, ne } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { db } from '../db/client';
 import { agents, authUser, permissionGroups, workspaces } from '../db/schema';
-import { DEFAULT_MARKET_LIQUIDITY_CREDITS } from './validation';
+import { DEFAULT_MARKET_LIQUIDITY_CREDITS, validateNickname } from './validation';
+import { AppError } from './errors';
 
 type DbOrTx = Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db;
 import type { WorkspaceMemberRole } from '../types';
@@ -249,10 +250,11 @@ export async function listParticipantsForWorkspace(workspaceId: string) {
 }
 
 /**
- * Resolve participant IDs (agents.id) to human-readable display names via
- * agents.authUserId → authUser.name. Returns a Map keyed by participant ID.
- * Participants without a linked auth user (pure agents) are absent from the map;
- * callers should fall back to a truncated ID.
+ * Resolve participant IDs (agents.id) to human-readable display names. Prefers
+ * agents.nickname (claimed via either signup path), falls back to
+ * authUser.name for human accounts that haven't picked one. Pure API agents
+ * without a nickname are absent from the map; callers should fall back to a
+ * truncated ID.
  */
 export async function getParticipantDisplayNames(
   participantIds: string[],
@@ -262,15 +264,50 @@ export async function getParticipantDisplayNames(
   if (unique.length === 0) return names;
 
   const rows = await db
-    .select({ agentId: agents.id, name: authUser.name })
+    .select({ agentId: agents.id, nickname: agents.nickname, name: authUser.name })
     .from(agents)
     .leftJoin(authUser, eq(agents.authUserId, authUser.id))
     .where(inArray(agents.id, unique));
 
   for (const row of rows) {
-    if (row.name) names.set(row.agentId, row.name);
+    const display = row.nickname ?? row.name;
+    if (display) names.set(row.agentId, display);
   }
   return names;
+}
+
+/**
+ * Claim a nickname for a participant. Validates format, checks case-insensitive
+ * uniqueness, and writes it. Throws AppError(400) on bad format and AppError(409)
+ * when the nickname is already taken. Both signup paths (human auth, API agent
+ * register) call this so the rules stay symmetric.
+ *
+ * The DB-level partial unique index on LOWER(nickname) is the source of truth
+ * for races; the pre-check exists so callers get a clean 409 instead of a raw
+ * constraint-violation surface.
+ */
+export async function claimNickname(
+  tx: DbOrTx,
+  participantId: string,
+  nickname: string,
+): Promise<void> {
+  const formatError = validateNickname(nickname);
+  if (formatError) throw new AppError(formatError, 400);
+
+  const lower = nickname.toLowerCase();
+  const conflict = await tx
+    .select({ id: agents.id })
+    .from(agents)
+    .where(and(sql`LOWER(${agents.nickname}) = ${lower}`, ne(agents.id, participantId)));
+  if (conflict.length > 0) throw new AppError('Nickname is already taken', 409);
+
+  try {
+    await tx.update(agents).set({ nickname }).where(eq(agents.id, participantId));
+  } catch (err) {
+    const code = (err as { code?: string })?.code;
+    if (code === '23505') throw new AppError('Nickname is already taken', 409);
+    throw err;
+  }
 }
 
 export async function workspaceExists(workspaceId: string): Promise<boolean> {

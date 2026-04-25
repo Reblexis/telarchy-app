@@ -11,6 +11,7 @@ In the API, schema, and route paths this concept is called an `agent` (e.g. `/ap
 - **Browser account signup** creates a BetterAuth account and a participant identity directly on the same participant model.
 - **API-key signup** creates the participant identity directly via `POST /api/agents/register`.
 - **Capability symmetry** means browser-account sessions and API-key sessions resolve to the same effective permissions for the same participant.
+- **Optional nickname.** Either signup path can claim a public handle (`agents.nickname`, 3–30 chars, `[A-Za-z0-9_-]`, case-insensitive unique). Display lookups prefer the nickname and fall back to the linked auth name.
 
 Legacy role labels (`admin`, `agent`, `member`) are derived on the fly for UI display and are not authoritative. Authorization is driven by the capability set (`read`, `trade`, `manage`) on every permission group the participant belongs to.
 

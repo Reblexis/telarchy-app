@@ -141,6 +141,13 @@
       "when": 1777100000000,
       "tag": "0019_agent_telemetry",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1777200000000,
+      "tag": "0020_agents_nickname",
+      "breakpoints": true
     }
   ]
 }

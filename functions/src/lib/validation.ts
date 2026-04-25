@@ -11,6 +11,26 @@ export function validateAgentId(id: unknown): string | undefined {
   return undefined;
 }
 
+/**
+ * Optional participant nickname: 3–30 chars, alphanumeric + hyphens + underscores,
+ * must start with a letter or digit. Case-insensitive uniqueness is enforced at
+ * the database layer (partial unique index on LOWER(nickname)).
+ */
+export const NICKNAME_MIN = 3;
+export const NICKNAME_MAX = 30;
+const NICKNAME_RE = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+
+export function validateNickname(value: unknown): string | undefined {
+  if (typeof value !== 'string') return 'nickname must be a string';
+  if (value.length < NICKNAME_MIN || value.length > NICKNAME_MAX) {
+    return `nickname must be ${NICKNAME_MIN}–${NICKNAME_MAX} characters`;
+  }
+  if (!NICKNAME_RE.test(value)) {
+    return 'nickname must start with a letter or digit and contain only letters, digits, hyphens, and underscores';
+  }
+  return undefined;
+}
+
 /** Free-text content fields (task descriptions, messages, metric descriptions). Max 10,000 chars. */
 export function validateContent(value: unknown, fieldName = 'content', maxLength = 10_000): string | undefined {
   if (typeof value !== 'string') return `${fieldName} must be a string`;

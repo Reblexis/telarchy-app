@@ -8,6 +8,7 @@ export function SignupPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [nickname, setNickname] = useState('');
   const [password, setPassword] = useState('');
   const [agreed, setAgreed] = useState(false);
   const [error, setError] = useState('');
@@ -21,6 +22,11 @@ export function SignupPage() {
     if (password.length < 8) { setError('Password must be at least 8 characters'); return; }
     const name = displayName.trim();
     if (!name) { setError('Display name is required'); return; }
+    const handle = nickname.trim();
+    if (handle && !/^[A-Za-z0-9][A-Za-z0-9_-]{2,29}$/.test(handle)) {
+      setError('Nickname must be 3–30 chars, letters/digits/-/_, and start with a letter or digit.');
+      return;
+    }
 
     setSubmitting(true);
 
@@ -35,9 +41,17 @@ export function SignupPage() {
       console.error('recordConsent failed:', e.message);
     });
 
-    await api.upsertProfile(name).catch((e: Error) => {
-      console.error('upsertProfile failed:', e.message);
-    });
+    try {
+      await api.upsertProfile(handle ? { nickname: handle } : undefined);
+    } catch (e) {
+      const msg = (e as Error).message || '';
+      if (/nickname/i.test(msg)) {
+        setError(msg);
+        setSubmitting(false);
+        return;
+      }
+      console.error('upsertProfile failed:', msg);
+    }
 
     setSubmitting(false);
     navigate('/create-workspace');
@@ -79,8 +93,16 @@ export function SignupPage() {
           </div>
           <div className="form-group">
             <label htmlFor="displayName">Display name</label>
-            <input type="text" id="displayName" required autoComplete="nickname"
+            <input type="text" id="displayName" required autoComplete="name"
               value={displayName} onChange={e => setDisplayName(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label htmlFor="nickname">Nickname (optional)</label>
+            <input type="text" id="nickname" autoComplete="nickname"
+              minLength={3} maxLength={30}
+              pattern="[A-Za-z0-9][A-Za-z0-9_-]{2,29}"
+              placeholder="public handle, must be unique"
+              value={nickname} onChange={e => setNickname(e.target.value)} />
           </div>
           <div className="form-group">
             <label htmlFor="password">Password</label>

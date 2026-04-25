@@ -9,6 +9,7 @@ import { requireUser } from '../middleware/roles';
 import { hashKey } from '../middleware/auth';
 import { getAuthWorkspaceMemberships, getUserWorkspaceMemberships } from '../middleware/auth';
 import { toUnits, SIGNUP_CREDITS } from '../lib/validation';
+import { claimNickname } from '../lib/participants';
 
 export const userauthRouter = Router();
 
@@ -82,6 +83,7 @@ userauthRouter.get('/me', requireUser, wrap(async (req, res) => {
     uid,
     email: null, // BetterAuth session has the email; frontend reads from authClient.useSession()
     intent: agent?.intent ?? null,
+    nickname: agent?.nickname ?? null,
     participantId,
     workspaceId,
     authRole: effectiveAuthRole,
@@ -117,22 +119,25 @@ userauthRouter.post('/consent', requireUser, wrap(async (req, res) => {
 /**
  * POST /api/auth/profile
  * Upserts the user's app profile. Auto-creates a participant on first call.
- * Also used to update intent after signup.
+ * Also used to update intent and claim a nickname after signup.
  */
 userauthRouter.post('/profile', requireUser, wrap(async (req, res) => {
   const { uid } = req.auth!;
   if (!uid) { res.status(403).json({ error: 'Browser account session required' }); return; }
 
-  const { intent } = req.body;
+  const { intent, nickname } = req.body;
   if (intent !== undefined && !['creator', 'agent'].includes(intent)) {
     res.status(400).json({ error: 'intent must be "creator" or "agent"' }); return;
   }
 
   const { participantId } = await ensureParticipant(uid);
 
-  // Update intent if provided
   if (intent !== undefined) {
     await db.update(agents).set({ intent }).where(eq(agents.authUserId, uid));
+  }
+
+  if (nickname !== undefined && nickname !== null && nickname !== '') {
+    await claimNickname(db, participantId, nickname);
   }
 
   res.json({ ok: true, participantId, agentId: participantId });
@@ -189,6 +194,7 @@ userauthRouter.get('/me/export', requireUser, wrap(async (req, res) => {
   const participant = participantRow ? {
     id: participantRow.id,
     authUserId: participantRow.authUserId,
+    nickname: participantRow.nickname,
     balance: participantRow.balance,
     earnedBetting: participantRow.earnedBetting,
     spentBetting: participantRow.spentBetting,

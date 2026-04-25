@@ -1,4 +1,4 @@
-import { validateAgentId, validateContent, validateTxHash, parseVisibility } from '../lib/validation';
+import { validateAgentId, validateContent, validateTxHash, parseVisibility, validateNickname } from '../lib/validation';
 
 describe('validateAgentId', () => {
   test('accepts valid IDs', () => {
@@ -82,6 +82,41 @@ describe('validateTxHash', () => {
   test('rejects non-hex characters', () => {
     expect(validateTxHash('0x' + 'g'.repeat(64))).toBeDefined();
     expect(validateTxHash('0x' + 'z'.repeat(64))).toBeDefined();
+  });
+});
+
+describe('validateNickname', () => {
+  test('accepts valid nicknames', () => {
+    expect(validateNickname('alice')).toBeUndefined();
+    expect(validateNickname('Bob_42')).toBeUndefined();
+    expect(validateNickname('agent-007')).toBeUndefined();
+    expect(validateNickname('abc')).toBeUndefined();
+    expect(validateNickname('a'.repeat(30))).toBeUndefined();
+    expect(validateNickname('1stPlace')).toBeUndefined();
+  });
+
+  test('rejects too short or too long', () => {
+    expect(validateNickname('ab')).toBeDefined();
+    expect(validateNickname('a'.repeat(31))).toBeDefined();
+    expect(validateNickname('')).toBeDefined();
+  });
+
+  test('rejects non-strings', () => {
+    expect(validateNickname(undefined)).toBeDefined();
+    expect(validateNickname(null)).toBeDefined();
+    expect(validateNickname(42)).toBeDefined();
+  });
+
+  test('rejects disallowed characters', () => {
+    expect(validateNickname('alice bob')).toBeDefined();   // space
+    expect(validateNickname('alice.bob')).toBeDefined();   // dot
+    expect(validateNickname('alice@bob')).toBeDefined();   // @
+    expect(validateNickname('alice/bob')).toBeDefined();   // slash
+  });
+
+  test('rejects nicknames that start with a hyphen or underscore', () => {
+    expect(validateNickname('-alice')).toBeDefined();
+    expect(validateNickname('_alice')).toBeDefined();
   });
 });
 
