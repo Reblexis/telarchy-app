@@ -319,7 +319,7 @@ agents that trade against every workspace. These checks live alongside the
 existing activity feed coverage but specifically target the Bot agents panel
 that the `telarchy-agents` service feeds via `POST /api/admin/agent-heartbeat`
 and `POST /api/admin/agent-traces`. Detailed step-by-step browse script lives
-in `docs/browse-tests/admin-observability.md`.
+in `docs/browse-tests/07-admin/bot-agents-panel.md`.
 
 | # | Check | How | Pass |
 | --- | --- | --- | --- |

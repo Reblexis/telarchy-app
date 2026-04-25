@@ -1,3 +1,17 @@
+---
+id: 01-auth-signup-and-login
+tags: [browse, fast]
+isolation: user
+parallel-safe: true
+needs: [auth, browse]
+timeout: 90s
+goal-horizon: short
+goal-statement: |
+  As a stranger who decided to try Telarchy, I can sign up with email +
+  password, complete the consent gate, land on first-screen, and log back
+  in on a second visit.
+---
+
 # Browse test: Signup and login
 
 ## What this tests

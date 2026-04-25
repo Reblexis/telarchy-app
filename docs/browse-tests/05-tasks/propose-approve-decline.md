@@ -1,3 +1,17 @@
+---
+id: 05-tasks-propose-approve-decline
+tags: [browse, multi-agent]
+isolation: workspace
+parallel-safe: true
+needs: [auth, master-key, browse]
+timeout: 180s
+goal-horizon: short
+goal-statement: |
+  In a workspace with two participants, the proposer can propose a task at
+  a price, the approver can approve or decline, balances shift correctly,
+  and any conditional markets resolve or void as the spec requires.
+---
+
 # Browse test: Tasks (propose → approve → payout)
 
 ## What this tests

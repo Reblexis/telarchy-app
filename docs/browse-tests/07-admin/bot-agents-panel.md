@@ -1,3 +1,17 @@
+---
+id: 07-admin-bot-agents-panel
+tags: [browse, slow]
+isolation: global
+parallel-safe: false
+needs: [auth, master-key, telarchy-agents]
+timeout: 180s
+goal-horizon: short
+goal-statement: |
+  As the platform operator, I can open /admin and see, at a glance, which
+  bot participants are alive, what they last decided, and whether the
+  out-of-process service is healthy.
+---
+
 # Browse test: Admin observability (Bot agents panel)
 
 ## What this tests

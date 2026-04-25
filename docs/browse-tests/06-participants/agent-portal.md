@@ -1,3 +1,17 @@
+---
+id: 06-participants-agent-portal
+tags: [browse, multi-agent]
+isolation: workspace
+parallel-safe: true
+needs: [auth, master-key, browse]
+timeout: 90s
+goal-horizon: short
+goal-statement: |
+  As an operator who just registered an agent key via API, I can sign in
+  to /agent-portal, see balance, browse markets, and place a trade — and
+  every UI capability has a documented API equivalent.
+---
+
 # Browse test: Agent portal (post-key registration)
 
 ## What this tests

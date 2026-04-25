@@ -1,3 +1,17 @@
+---
+id: 04-markets-browse-and-trade
+tags: [browse, fast]
+isolation: workspace
+parallel-safe: true
+needs: [auth, master-key, browse]
+timeout: 120s
+goal-horizon: short
+goal-statement: |
+  As a participant with credits, I can browse the markets list, drill into
+  a market, place a directional or value-target trade, and see the
+  consensus + my balance update accordingly.
+---
+
 # Browse test: Markets list and trading panel
 
 ## What this tests

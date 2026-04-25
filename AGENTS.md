@@ -74,10 +74,12 @@ of `browse` (`$B`) commands and expected results, runnable end-to-end
 without inferring intent. The master index is `docs/browse-tests/README.md`.
 
 When you ship a UI-affecting change, either update the relevant existing
-spec or add a new one (use `admin-observability.md` as the gold-standard
-template). Coverage gaps in that directory should match the
-"Known gaps" notes at the bottom of each spec; if they don't, fix it in the
-same commit.
+spec or add a new one (use `07-admin/bot-agents-panel.md` as the
+gold-standard template). Specs are organised by category subdirectory
+(`00-anonymous` … `13-infra-and-abuse`) and run in parallel via
+`_runner/run.sh`; see `docs/browse-tests/README.md` for the full index.
+Coverage gaps in that directory should match the "Known gaps" notes at
+the bottom of each spec; if they don't, fix it in the same commit.
 
 ## Testing features locally (user perspective)
 

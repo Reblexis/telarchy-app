@@ -1,3 +1,17 @@
+---
+id: 09-sources-text-source-crud
+tags: [browse]
+isolation: workspace
+parallel-safe: true
+needs: [auth, master-key, browse]
+timeout: 90s
+goal-horizon: short
+goal-statement: |
+  As a workspace admin, I can create a text source, edit its content, set
+  per-group read permissions, and confirm a non-admin participant sees
+  only what they're entitled to.
+---
+
 # Browse test: Sources (text + GitHub)
 
 ## What this tests

@@ -1,3 +1,17 @@
+---
+id: 03-metrics-check-in
+tags: [browse, fast]
+isolation: workspace
+parallel-safe: true
+needs: [auth, master-key, browse]
+timeout: 120s
+goal-horizon: short
+goal-statement: |
+  As a returning participant, I can update a metric value on the check-in
+  page, see the change persist across reload, and see the related forecast
+  react.
+---
+
 # Browse test: Metrics dashboard and Check-in flow
 
 ## What this tests

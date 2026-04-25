@@ -1,3 +1,17 @@
+---
+id: 02-workspaces-create-from-templates
+tags: [browse, fast]
+isolation: user
+parallel-safe: true
+needs: [auth, browse]
+timeout: 120s
+goal-horizon: short
+goal-statement: |
+  As a freshly signed-up participant, I can pick a workspace template,
+  land on a usable first screen with seeded metrics, switch between
+  workspaces, change settings, and delete a workspace cleanly.
+---
+
 # Browse test: Workspaces (create, switch, settings, delete)
 
 ## What this tests

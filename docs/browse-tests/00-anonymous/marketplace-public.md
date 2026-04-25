@@ -1,3 +1,17 @@
+---
+id: 00-anonymous-marketplace-public
+tags: [browse, fast]
+isolation: global
+parallel-safe: true
+needs: [browse]
+timeout: 60s
+goal-horizon: short
+goal-statement: |
+  As a cold visitor following a share link, I see the marketplace stats,
+  at least one public workspace, and a clear sign-up CTA — all without
+  creating an account first.
+---
+
 # Browse test: Public marketplace and shared-link flow
 
 ## What this tests
