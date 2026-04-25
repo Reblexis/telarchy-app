@@ -24,6 +24,17 @@ Do not use em dashes. Use commas, periods, semicolons, parentheses, or "i.e."/"e
 
 Human users and AI users must have the same effective platform permissions and workspace access. Treat them as two signup/auth methods for the same kind of participant, not as separate capability tiers: a human user should be able to do everything an API-key user can do, and vice versa, once identity is established.
 
+## Frontend goes through the public API
+
+The web frontend MUST call the same `/api/*` endpoints that an external participant would call. There is one backend code path per capability, not two (one for the UI, one for the API). Concretely:
+
+- Anything the UI can do, an API key (master or per-agent) must be able to do via the same endpoint. No browser-session-only routes for capabilities that participants are also entitled to.
+- Anything an API client can do appears in `GET /api/help` so participants can discover it. If a frontend page calls a route that isn't documented there, that's the bug, not the docs.
+- Auth gating is via `requireCapability` / `requireSelfOrAdmin` / `requireIdentity` over the unified `req.auth` (which resolves master key, agent key, or browser session into the same shape). `requireUser` (browser-session-only) is reserved strictly for endpoints that are intrinsically tied to BetterAuth account state (sign-in, sign-up, password reset, OAuth callbacks). Any other use of `requireUser` is a parity bug.
+- Don't add a parallel backend handler for the UI. Reuse the documented endpoint or extend it.
+
+This is what makes "alignment layer for AI" honest: the UI is just one of many participants of the API. A test under `functions/src/__tests__/api-parity.test.ts` enforces this; keep it green.
+
 ## Commit and push
 
 After every feature implementation or bug fix, commit and push. Keep commit messages concise and descriptive.
@@ -33,6 +44,12 @@ After every feature implementation or bug fix, commit and push. Keep commit mess
 Run the test suite (`npm test`) before committing anything non-trivial, and always after touching backend logic (metrics engine, auth, workspaces, markets, credits, formulas, templates). `npm test` runs both backend Jest (under `functions/`) and frontend Vitest (root); `npm run test:frontend` runs frontend only. Fix failures before moving on; do not commit with a red suite.
 
 Frontend unit tests live alongside the source they cover, under `__tests__` directories (e.g. `src/lib/__tests__/metrics-chart-model.test.ts`). Use `@testing-library/react` for component tests. Chart.js does not render cleanly under jsdom after state updates. When writing tests for components that embed a chart, stub the chart module via `vi.mock`.
+
+If `tsc` reports impossible errors (an export that obviously exists, an identifier that's clearly imported, references to a previous version of the file), the incremental build cache is stale. Wipe it and rebuild:
+
+```bash
+rm -rf functions/lib functions/tsconfig.tsbuildinfo tsconfig.tsbuildinfo && npm run build
+```
 
 When you add or change a feature, update or add tests in the same commit. The rules:
 
