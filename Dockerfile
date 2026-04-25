@@ -1,5 +1,5 @@
 # ── Backend builder ────────────────────────────────────────────────────────────
-FROM node:20-alpine AS backend-builder
+FROM node:22-alpine AS backend-builder
 
 WORKDIR /app/functions
 COPY functions/package*.json ./
@@ -9,7 +9,7 @@ COPY functions/src ./src
 RUN npm run build
 
 # ── Frontend builder ──────────────────────────────────────────────────────────
-FROM node:20-alpine AS frontend-builder
+FROM node:22-alpine AS frontend-builder
 
 WORKDIR /app
 COPY package*.json ./
@@ -28,7 +28,7 @@ ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
 
 # ── Runtime ────────────────────────────────────────────────────────────────────
-FROM node:20-alpine
+FROM node:22-alpine
 
 WORKDIR /app
 COPY functions/package*.json ./
