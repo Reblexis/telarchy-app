@@ -362,6 +362,46 @@ body:has(.app-layout) {
   min-width: 0;
 }
 
+/* Floating "Help" button: top-right of every authenticated page. */
+.feedback-fab {
+  position: fixed;
+  top: 1rem;
+  right: 1.25rem;
+  z-index: 900;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast), box-shadow var(--transition-fast);
+}
+.feedback-fab:hover {
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-md);
+}
+.feedback-fab svg {
+  display: block;
+  flex-shrink: 0;
+}
+@media (max-width: 768px) {
+  .feedback-fab {
+    top: auto;
+    bottom: 1rem;
+    right: 1rem;
+  }
+  .feedback-fab-label {
+    display: none;
+  }
+}
+
 /* ===== Header ===== */
 .header {
   max-width: 1200px;
