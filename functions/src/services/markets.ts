@@ -143,6 +143,13 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
   const [wsRow] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId));
   const credits = wsRow?.newMarketLiquidityCredits ?? 0;
   if (!wsRow?.autoFundNewMarkets || credits <= 0) return insertWithDefaults();
+  // Legacy rows can carry sub-minimum credits (configured before the
+  // MIN_LIQUIDITY_CONTRIBUTION guard was added). Treat as auto-fund off
+  // rather than aborting the entire refresh transaction.
+  if (credits < MIN_LIQUIDITY_CONTRIBUTION) {
+    console.error('insertPendingMarkets: newMarketLiquidityCredits below minimum, falling back to insertWithDefaults', { workspaceId, credits, minimum: MIN_LIQUIDITY_CONTRIBUTION });
+    return insertWithDefaults();
+  }
 
   const ownerAgentId = await resolveWorkspaceOwnerAgentId(workspaceId);
   if (!ownerAgentId) {
@@ -361,7 +368,7 @@ export async function refreshRelativeDateMarkets(workspaceId: string, opts: { fo
   if (toFund.length > 0) {
     const [wsRow] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId));
     const credits = wsRow?.newMarketLiquidityCredits ?? 0;
-    if (wsRow?.autoFundNewMarkets && credits > 0) {
+    if (wsRow?.autoFundNewMarkets && credits >= MIN_LIQUIDITY_CONTRIBUTION) {
       const ownerAgentId = await resolveWorkspaceOwnerAgentId(workspaceId);
       if (ownerAgentId) {
         const totalCost = Math.round(credits * toFund.length * 1e6) / 1e6;
