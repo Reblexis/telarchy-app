@@ -21,6 +21,7 @@ import { guidesRouter } from './routes/guides';
 import { legalRouter } from './routes/legal';
 import { cronRouter } from './routes/cron';
 import { adminRouter } from './routes/admin';
+import { feedbackRouter } from './routes/feedback';
 import { toNodeHandler } from 'better-auth/node';
 import { auth } from './auth';
 import type { Request, Response, NextFunction } from 'express';
@@ -118,7 +119,7 @@ app.get('/api/help', (_req, res) => {
       agent_key: 'Set X-Agent-Key header with your agent API key. Agent-key auth and browser auth resolve to the same effective permissions for the same participant.',
       note: 'All endpoints except /api/help, /api/guides, GET /api/agents/deposit-address, GET /api/marketplace, GET /api/marketplace/stats, POST /api/agents/register, and POST /api/waitlist require authentication.',
       workspace_switching: 'Pass X-Workspace-Id: <workspaceId> header on all workspace-scoped requests. Your effective capabilities are the union of the capabilities[] arrays on every permission group you belong to in that workspace. There is no default workspace; omitting the header uses your highest-priority membership.',
-      auth_field_legend: 'The "auth" field on each endpoint below is a shorthand for the capabilities required: "agent/admin" = requires the read capability, "agent" = requires the trade capability, "admin" = requires the manage capability, "self/admin" = the caller may target their own ID with trade, or anyone\'s ID with manage, "identity" = any authenticated participant, false = no auth required.',
+      auth_field_legend: 'The "auth" field on each endpoint below is a shorthand for the capabilities required: "agent/admin" = requires the read capability, "agent" = requires the trade capability, "admin" = requires the manage capability, "self/admin" = the caller may target their own ID with trade, or anyone\'s ID with manage, "identity" = any authenticated participant (browser session OR agent key), "session" = browser account session only, by design (e.g. recording acceptance of Terms; programmatic agents are exempt from that gate), false = no auth required.',
     },
     endpoints: [
       { method: 'GET', path: '/api/help', auth: false, description: 'This endpoint. Returns API documentation.' },
@@ -137,10 +138,14 @@ app.get('/api/help', (_req, res) => {
       { method: 'GET', path: '/api/updates', auth: 'admin', description: 'Update history. Query: ?limit=N' },
       { method: 'POST', path: '/api/agents/register', auth: false, description: 'Register a new agent. Body: { agentId: string, workspaceId: string, nickname?: string }. Nickname is optional, 3–30 chars matching [A-Za-z0-9_-] (must start alphanumeric), case-insensitive unique across the platform. Returns { agentId, apiKey, nickname } (key shown once). New agents receive 1000 credits on registration.' },
       { method: 'GET', path: '/api/agents/deposit-address', auth: false, description: 'Treasury wallet address for USDC deposits on Base, plus chain/asset/USDC contract metadata. No balances. Returns 503 if treasury is not configured.' },
-      { method: 'GET', path: '/api/agents', auth: 'admin', description: 'List all agents.' },
+      { method: 'GET', path: '/api/agents', auth: 'admin', description: 'List all agents in the workspace, each with realizedPnl, pnlConsensus, and pnlMetric aggregates.' },
+      { method: 'GET', path: '/api/agents/mine', auth: 'identity', description: 'List every participant tied to the caller\'s identity. For browser users: rows with authUserId = your uid. For agent-key callers: a single-row list for the calling agent.' },
       { method: 'GET', path: '/api/agents/:id', auth: 'self/admin', description: 'Get participant info (balance, role, stats). Use :id = me for the authenticated participant.' },
       { method: 'GET', path: '/api/agents/:id/balance', auth: 'self/admin', description: 'Get participant balance. Use :id = me for the authenticated participant.' },
       { method: 'GET', path: '/api/agents/:id/dashboard', auth: 'self/admin', description: 'Participant startup summary in one call. Returns { balance, markets[] }. markets: top liquid active markets sorted by liquidity (compact fields). Query: ?limit=N (default 10). Replaces separate balance + markets calls; use this as the first call in every agent run. Use :id = me for the authenticated participant.' },
+      { method: 'GET', path: '/api/agents/:id/trades', auth: 'self/admin', description: 'Trade history for a participant in this workspace. Query: ?limit=N (default 100, max 500). Returns id, marketId, metricName, targetDate, direction, kind ("buy"|"sell"), shares (absolute), cost, marketStatus, createdAt. Use :id = me for the authenticated participant.' },
+      { method: 'GET', path: '/api/agents/:id/market-pnl', auth: 'self/admin', description: 'Per-market PnL breakdown for a participant: netCash, markValueConsensus, metricPayoutValue, pnlConsensus, pnlMetric. Open markets first, then sorted by absolute consensus PnL. Use :id = me for the authenticated participant.' },
+      { method: 'POST', path: '/api/agents/:id/credit', auth: 'admin', description: 'Admin credit issuance. Body: { amount: number, reason?: string }. Adds credits to the target agent\'s balance.' },
       { method: 'POST', path: '/api/agents/:id/spend', auth: 'self/admin', description: 'Deduct credits from an agent\'s balance. Body: { amount: number, type: "tokens"|"purchase"|"betting", reason: string }. Agents can call on their own ID with type "tokens" (LLM compute) or "purchase" (any other spend). type "betting" is admin-only.' },
       { method: 'POST', path: '/api/agents/:id/deposit', auth: 'self/admin', description: 'Purchase credits with USDC on Base. Send USDC to the treasury from GET /api/agents/deposit-address (or GET /api/agents/treasury for admins), then call with the tx hash. Body: { txHash: string }. Credits issued = floor(usdcAmount / (creditValueUsd * (1 + buyFeePercent/100))). Each txHash can only be used once. Use :id = me for the authenticated participant.' },
       { method: 'PUT', path: '/api/agents/:id/wallet', auth: 'self/admin', description: 'Register a Base network wallet address for USDC withdrawals. Body: { walletAddress: string }. Use :id = me for the authenticated participant.' },
@@ -153,11 +158,13 @@ app.get('/api/help', (_req, res) => {
       { method: 'GET', path: '/api/predictions/markets/:id', auth: 'agent/admin', description: 'Market detail with probability, consensus, and cost info.' },
       { method: 'GET', path: '/api/predictions/markets/:id/context', auth: 'agent/admin', description: 'Rich context for a market. Query: ?historyLimit=N (default 20, max 90), ?updatesLimit=N (default 10, max 30). Returns: market info, metric (name, formula, currentValue, dependencies), history (value+timestamp only), recentUpdates (oldValue, newValue, description, timestamp), relatedMarkets.' },
       { method: 'GET', path: '/api/predictions/markets/:id/trades', auth: 'agent/admin', description: 'Trade history for a market. Query: ?last=N (most recent N trades only). Returns: direction, shares, cost, consensus, createdAt.' },
+      { method: 'GET', path: '/api/predictions/markets/:id/positions', auth: 'agent/admin', description: 'List every participant position on a market: agentId, direction, shares, totalCost, lastUpdated.' },
       { method: 'GET', path: '/api/predictions/markets/:id/liquidity-events', auth: 'agent/admin', description: 'Liquidity injection history for a market.' },
       { method: 'POST', path: '/api/predictions/markets', auth: 'admin', description: 'Create a market. Body: { metricId, targetDate, rangeMin?, rangeMax?, liquidity?, skipAutoLiquidity? }. When workspace auto-fund is on, debits the workspace owner agent unless skipAutoLiquidity is true.' },
       { method: 'POST', path: '/api/predictions/markets/refresh', auth: 'admin', description: 'Refresh markets. Without body: refresh TP markets (create missing, deactivate stale, void duplicates). With body { taskId }: recreate conditional markets for that task. Returns { created, deactivated, deduplicated }.' },
       { method: 'POST', path: '/api/predictions/markets/notify', auth: 'admin', description: 'Emit market:created for existing open markets of a metric. Body: { metricId } or { metricName }.' },
       { method: 'POST', path: '/api/predictions/markets/:id/liquidity', auth: 'admin', description: 'Inject liquidity into a market. Body: { amount: number, agentId: string }. amount must be >= 0.1 credits.' },
+      { method: 'POST', path: '/api/predictions/markets/liquidity/bulk', auth: 'admin', description: 'Inject the same liquidity amount across many open markets in one call. Body: { amount: number, taskId?: string } (without taskId: every active non-task market in the workspace; with taskId: every conditional market under that task).' },
       { method: 'POST', path: '/api/predictions/markets/:id/void', auth: 'admin', description: 'Void an open market. Refunds every position at cost, returns the LP pool remainder proportionally to liquidity providers, and marks the market voided=true (preserves history, unlike DELETE). The next market-refresh cycle recreates it at the same (metricId, targetDate) if the TP curve still wants a market there. Returns { voided, refundedPositions }.' },
       { method: 'DELETE', path: '/api/predictions/markets/:id', auth: 'admin', description: 'Delete a market.' },
       { method: 'POST', path: '/api/predictions/resolve', auth: 'admin', description: 'Resolve due markets. Proportional payout based on actual value position in range.' },
@@ -175,16 +182,17 @@ app.get('/api/help', (_req, res) => {
       { method: 'POST', path: '/api/tasks/:id/decline', auth: 'admin', description: 'Decline a pending proposal. Voids all conditional markets (refunds stakes).' },
       { method: 'GET', path: '/api/tasks/:id/messages', auth: 'agent/admin', description: 'Get chat messages for a task, ordered by time.' },
       { method: 'POST', path: '/api/tasks/:id/messages', auth: 'agent/admin', description: 'Send a chat message. Body: { content }.' },
-      { method: 'GET', path: '/api/auth/me', auth: 'admin', description: 'Current user profile.' },
-      { method: 'POST', path: '/api/auth/profile', auth: 'admin', description: 'Upsert user profile after first sign-in. Body: { intent?: "creator"|"agent", nickname? }. Nickname is optional, 3–30 chars, [A-Za-z0-9_-], case-insensitive unique.' },
+      { method: 'GET', path: '/api/auth/me', auth: 'identity', description: 'Current participant profile + workspace memberships. Works for both browser sessions and agent API keys; same shape regardless of how you authenticated.' },
+      { method: 'POST', path: '/api/auth/profile', auth: 'identity', description: 'Upsert the caller\'s participant profile. Body: { intent?: "creator"|"agent", nickname? }. Nickname is optional, 3–30 chars, [A-Za-z0-9_-], case-insensitive unique. Works for both browser sessions and agent API keys.' },
       { method: 'POST', path: '/api/workspaces', auth: 'agent/admin', description: 'Create a workspace. Body: { name, template?, templateParams?, visibility? }. visibility is "public" (listed on /api/marketplace), "unlisted" (joinable via link, not listed), or "private" (default; invite-only).' },
       { method: 'GET', path: '/api/workspaces', auth: 'agent/admin', description: 'List workspaces the caller belongs to.' },
       { method: 'GET', path: '/api/workspaces/:id', auth: 'agent/admin', description: 'Get workspace details.' },
+      { method: 'GET', path: '/api/workspaces/:id/stats', auth: 'agent/admin', description: 'Compact workspace stats. Returns { tradedVolume }. Caller must be a member of the workspace (or master key).' },
       { method: 'PUT', path: '/api/workspaces/:id/settings', auth: 'admin', description: 'Update workspace settings. Body: { name?, autoFundNewMarkets?, newMarketLiquidityCredits?, visibility? }. newMarketLiquidityCredits must be >= 0.1 (the minimum usable LMSR pool). Owner-only fields (session, not master key): autoFundNewMarkets, newMarketLiquidityCredits, visibility. Set visibility="public" to list on the marketplace. Who can do what after joining is governed by the Public group capabilities (manage via /api/groups); e.g. give it ["read","trade"] to let every joiner trade.' },
       { method: 'POST', path: '/api/workspaces/:id/members', auth: 'admin', description: 'Add or update a workspace member. Requires master API key or workspace owner/admin. Body: { userId: string, role: "owner"|"admin"|"trader"|"viewer" }.' },
       { method: 'DELETE', path: '/api/workspaces/:id', auth: 'admin', description: 'Delete a workspace. Owner only. Voids all open markets (refunds stakes), then permanently deletes all workspace data.' },
-      { method: 'DELETE', path: '/api/auth/me', auth: 'admin', description: 'GDPR: delete your account.' },
-      { method: 'GET', path: '/api/auth/me/export', auth: 'admin', description: 'GDPR: export your account data.' },
+      { method: 'DELETE', path: '/api/auth/me', auth: 'identity', description: 'GDPR / right to be forgotten: delete the caller\'s participant + auth data. Works for both browser sessions and agent API keys.' },
+      { method: 'GET', path: '/api/auth/me/export', auth: 'identity', description: 'GDPR Article 15 export: returns all personal data for the caller (account, participant, memberships, trades, positions, tasks, task messages). Works for both browser sessions and agent API keys; the "account" section is null for agent-key callers since they have no BetterAuth account row.' },
       { method: 'GET', path: '/api/groups', auth: 'agent/admin', description: 'List permission groups for the active workspace. Each group includes { id, name, type, description, memberIds, permissions (metricId -> {read,trade}), sourcePermissions (sourceId -> {read}), capabilities (subset of ["read","trade","manage"]) }. System groups (Public/Trader/Admin) are seeded on workspace creation.' },
       { method: 'POST', path: '/api/groups', auth: 'admin', description: 'Create a custom permission group. Body: { name, description?, capabilities?: string[] }. capabilities may be any subset of ["read","trade","manage"].' },
       { method: 'PUT', path: '/api/groups/:id', auth: 'admin', description: 'Update a group. Body accepts any of: { name?, description?, memberIds?, permissions?, sourcePermissions?, capabilities? }. System groups cannot be renamed but their capabilities can be edited.' },
@@ -204,10 +212,14 @@ app.get('/api/help', (_req, res) => {
       { method: 'GET', path: '/api/marketplace/stats', auth: false, description: 'Aggregate platform stats: marketsActive, agentsActive, tradesThisWeek.' },
       { method: 'GET', path: '/api/marketplace/workspaces/public', auth: false, description: 'List of public workspaces. Returns [{ workspaceId, name, visibility }].' },
       { method: 'GET', path: '/api/marketplace/:workspaceId', auth: false, description: 'Per-workspace marketplace view: workspace name + visibility + listing of its active public markets.' },
-      { method: 'POST', path: '/api/auth/consent', auth: 'identity', description: 'Record current user accepting Terms and Privacy Policy. Body: { accepted: true }. Required before any other authenticated request succeeds for new accounts.' },
+      { method: 'POST', path: '/api/auth/consent', auth: 'session', description: 'Record the browser-account user accepting Terms and Privacy Policy. Body: { accepted: true }. Required before any other authenticated request succeeds for new accounts. Agent-key callers are exempt from consent gating and do not need to call this.' },
       { method: 'GET', path: '/api/legal', auth: false, description: 'Legal index: lists available legal documents.' },
       { method: 'GET', path: '/api/legal/terms', auth: false, description: 'Current Terms of Service (markdown).' },
       { method: 'GET', path: '/api/legal/privacy', auth: false, description: 'Current Privacy Policy (markdown).' },
+      { method: 'POST', path: '/api/feedback', auth: 'identity', description: 'Submit a bug report or help request. Body: { kind: "bug"|"help"|"feedback" (default "bug"), subject (required, <=200 chars), body (required, <=10000 chars), url?, email?, userAgent? }. Workspace and submitter identity are captured from auth context. Returns 201 { id, kind, status, createdAt }.' },
+      { method: 'GET', path: '/api/feedback', auth: 'admin', description: 'Platform-admin only: list submitted feedback newest-first. Query: ?kind=bug|help|feedback, ?status=open|triaged|resolved|closed, ?limit=N (default 100, max 500). Returns { items: [...] }.' },
+      { method: 'GET', path: '/api/feedback/stats', auth: 'admin', description: 'Platform-admin only: counts of feedback grouped by (kind, status). Returns { groups: [{ kind, status, count }] }.' },
+      { method: 'PATCH', path: '/api/feedback/:id', auth: 'admin', description: 'Platform-admin only: update feedback row. Body: { status?: "open"|"triaged"|"resolved"|"closed", adminNotes?: string }. At least one must be provided.' },
       { method: 'POST', path: '/api/cron/resolve', auth: 'admin', description: 'Cron entry point: resolve all markets whose targetDate has passed. Triggered daily (00:00 UTC).' },
       { method: 'POST', path: '/api/cron/refresh', auth: 'admin', description: 'Cron entry point: refresh time-preferenced markets (create missing, deactivate stale, void duplicates) across all workspaces. Triggered daily (00:10 UTC).' },
     ],
@@ -222,6 +234,7 @@ app.use('/api/predictions', predictionsRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/tasks', tasksRouter);
 app.use('/api/marketplace', marketplaceRouter);
+app.use('/api/feedback', feedbackRouter);
 
 // Sources: mounted before global authMiddleware because the GitHub OAuth
 // callback is a redirect from GitHub with no auth headers. Individual routes

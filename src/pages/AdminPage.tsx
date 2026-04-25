@@ -4,6 +4,7 @@ import { useWorkspace } from '../hooks/useWorkspace';
 import { api, type ActivityItem } from '../lib/api';
 import { Header } from '../components/Header';
 import { AgentTelemetryPanel } from '../components/AgentTelemetryPanel';
+import { FeedbackInbox } from '../components/FeedbackInbox';
 
 const ACTIVITY_TYPES = [
   'trade', 'deposit', 'withdrawal', 'market_created', 'market_resolved',
@@ -202,6 +203,8 @@ export function AdminPage() {
             isPlatformAdmin={isPlatformAdmin}
           />
         )}
+
+        {isPlatformAdmin && <FeedbackInbox />}
 
         <div className="section">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>

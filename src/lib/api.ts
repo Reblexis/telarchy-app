@@ -296,8 +296,6 @@ export const api = {
   getTask: (id: string) => request(`/api/tasks/${id}`),
   createTask: (body: { title: string; description: string; price: number }) =>
     request('/api/tasks', { method: 'POST', body: JSON.stringify(body) }),
-  testTask: (id: string) =>
-    request(`/api/tasks/${id}/test`, { method: 'POST' }),
   approveTask: (id: string) =>
     request(`/api/tasks/${id}/approve`, { method: 'POST' }),
   declineTask: (id: string) =>
@@ -428,6 +426,20 @@ export const api = {
     request(`/api/sources/github/repos?state=${encodeURIComponent(state)}`),
   connectGitHub: (body: { state: string; repos: string[] }) =>
     request('/api/sources/github/connect', { method: 'POST', body: JSON.stringify(body) }),
+
+  // Feedback (bug reports / help requests)
+  submitFeedback: (body: { kind: 'bug' | 'help' | 'feedback'; subject: string; body: string; url?: string; email?: string }) =>
+    request('/api/feedback', { method: 'POST', body: JSON.stringify(body) }, true),
+  listFeedback: (params: { kind?: 'bug' | 'help' | 'feedback'; status?: 'open' | 'triaged' | 'resolved' | 'closed'; limit?: number } = {}) => {
+    const q = new URLSearchParams();
+    if (params.kind) q.set('kind', params.kind);
+    if (params.status) q.set('status', params.status);
+    if (params.limit) q.set('limit', String(params.limit));
+    const qs = q.toString() ? `?${q}` : '';
+    return request(`/api/feedback${qs}`, {}, true);
+  },
+  updateFeedback: (id: string, body: { status?: 'open' | 'triaged' | 'resolved' | 'closed'; adminNotes?: string }) =>
+    request(`/api/feedback/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(body) }, true),
 
   // Permission groups
   listGroups: () => request('/api/groups'),

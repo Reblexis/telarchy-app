@@ -366,6 +366,37 @@ export const agentTraces = pgTable('agent_traces', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
+// ---------------------------------------------------------------------------
+// Feedback: bug reports and help requests submitted from the UI or via API.
+// Visible to platform admins via /api/feedback (list) and per-row update.
+// ---------------------------------------------------------------------------
+
+export const feedback = pgTable('feedback', {
+  id: text('id').primaryKey(),
+  /** 'bug' | 'help' | 'feedback' */
+  kind: text('kind').notNull(),
+  subject: text('subject').notNull(),
+  body: text('body').notNull(),
+  /** Workspace the submitter was active in at submission time, if any. */
+  workspaceId: text('workspace_id'),
+  /** Submitter's participant id (resolved from session or X-Agent-Key). */
+  agentId: text('agent_id'),
+  /** Submitter's BetterAuth user id, when signed in via browser session. */
+  authUserId: text('auth_user_id'),
+  /** Reply-to address. Captured from the form or copied from the user's auth profile. */
+  email: text('email'),
+  /** Page or endpoint where the issue was hit (frontend route or API path). */
+  url: text('url'),
+  /** Browser/client user-agent string. */
+  userAgent: text('user_agent'),
+  /** 'open' | 'triaged' | 'resolved' | 'closed' */
+  status: text('status').notNull().default('open'),
+  /** Free-form admin notes; appended over time, not exposed to submitters. */
+  adminNotes: text('admin_notes').notNull().default(''),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
 export const agentHeartbeats = pgTable('agent_heartbeats', {
   /** One row per bot agent (e.g. bot-anchor, bot-ai-analyst). */
   agentId: text('agent_id').primaryKey(),

@@ -5,6 +5,7 @@ import { useWorkspace } from '../hooks/useWorkspace';
 import { useTheme } from '../hooks/useTheme';
 import { api } from '../lib/api';
 import { Logo } from './Logo';
+import { FeedbackModal } from './FeedbackModal';
 
 export function Sidebar({ className = '' }: { className?: string }) {
   const { user, logout } = useAuth();
@@ -15,6 +16,7 @@ export function Sidebar({ className = '' }: { className?: string }) {
   const [workspaceNavOpen, setWorkspaceNavOpen] = useState(true);
   const [usdcEnabled, setUsdcEnabled] = useState(false);
   const [balance, setBalance] = useState<number | null>(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -140,6 +142,15 @@ export function Sidebar({ className = '' }: { className?: string }) {
         <Link to="/guides" className={`sidebar-nav-item${currentPath === '/guides' ? ' active' : ''}`}>
           Guides
         </Link>
+        {user && (
+          <button
+            type="button"
+            className="sidebar-nav-item"
+            onClick={() => setFeedbackOpen(true)}
+          >
+            Report bug / Get help
+          </button>
+        )}
       </div>
 
       <div className="sidebar-spacer" />
@@ -189,6 +200,7 @@ export function Sidebar({ className = '' }: { className?: string }) {
           </>
         )}
       </div>
+      <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </aside>
   );
 }
