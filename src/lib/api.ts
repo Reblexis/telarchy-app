@@ -392,7 +392,7 @@ export const api = {
   exportAccount: () => request('/api/auth/me/export'),
 
   // Workspaces
-  createWorkspace: (body: { name: string; template?: 'startup' | 'personal' | 'blank'; templateParams?: { revenueRangeMax?: number }; visibility?: 'public' | 'unlisted' | 'private' } | string) => {
+  createWorkspace: (body: { name: string; template?: string; templateParams?: { revenueRangeMax?: number; currency?: string }; visibility?: 'public' | 'unlisted' | 'private' } | string) => {
     const payload = typeof body === 'string' ? { name: body } : body;
     return request('/api/workspaces', { method: 'POST', body: JSON.stringify(payload) }, true);
   },
