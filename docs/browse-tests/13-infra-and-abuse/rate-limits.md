@@ -86,10 +86,10 @@ WS=$(tt_mkworkspace blank public); tt_on_cleanup "tt_rm_workspace '$WS'"
 read AID KEY < <(tt_mkagent "$WS" rate)
 tt_credit "$WS" "$AID" 1000
 mid=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d '{"name":"rl","type":"leaf","value":50,"rangeMin":0,"rangeMax":100}' \
+  -X POST -d '{"name":"rl","type":"leaf","value":50,"marketRangeMax":100}' \
   "$TT_BASE_URL/api/metrics" | jq -r '.id')
 mkt=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2030-01-01", liquidityCredits:30}')" \
+  -X POST -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2030-01-01", liquidity:30}')" \
   "$TT_BASE_URL/api/predictions/markets" | jq -r '.id')
 ok=0; lim=0
 for i in $(seq 1 60); do

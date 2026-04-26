@@ -39,11 +39,9 @@ WS=$(tt_mkworkspace personal public); tt_on_cleanup "tt_rm_workspace '$WS'"
 read PROP KP < <(tt_mkagent "$WS" prop)
 tt_credit "$WS" "$PROP" 100
 EMAIL_APP="qa+app-$TT_RUN_ID@example.test"
-JAR=$(tt_mkuser "$EMAIL_APP" "testtest123" "Approver")
+read JAR MUID < <(tt_mkuser_uid "$EMAIL_APP" "testtest123" "Approver")
 tt_on_cleanup "tt_rm_user '$JAR'"
-tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg e "$EMAIL_APP" '{email:$e, role:"admin"}')" \
-  "$TT_BASE_URL/api/workspaces/$WS/members" >/dev/null
+tt_add_member "$WS" "$MUID" "admin"
 # Propose a real-feeling task as bot
 TASK=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \

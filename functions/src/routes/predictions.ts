@@ -8,7 +8,7 @@ import { AppError } from '../lib/errors';
 import { authMiddleware } from '../middleware/auth';
 import { requireCapability } from '../middleware/roles';
 import { getAllMetrics, getMetricLogs, getUpdates } from '../services/metrics';
-import { resolvePredictions, getMarkets } from '../services/predictions';
+import { resolvePredictions, resolveSingleMarket, getMarkets } from '../services/predictions';
 import { refreshRelativeDateMarkets, voidMarket } from '../services/markets';
 import { createConditionalMarkets } from '../services/tasks';
 import { isValidDateFormat, endOfPeriod } from '../lib/date-utils';
@@ -611,6 +611,28 @@ predictionsRouter.post('/markets/:id/void', requireCapability('manage'), wrap(as
 predictionsRouter.post('/resolve', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   res.json(await resolvePredictions(req.body?.targetDate, workspaceId));
+}));
+
+/**
+ * POST /api/predictions/markets/:id/resolve
+ * Admin-only force-resolve for a single market, regardless of targetDate.
+ * Use to settle a market early (e.g. to test payouts in CI without waiting
+ * for the daily cron). Resolves at the metric's current `total`.
+ * Returns 404 if the market doesn't exist, 409 if already resolved.
+ */
+predictionsRouter.post('/markets/:id/resolve', requireCapability('manage'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
+  const marketId = req.params.id as string;
+  const [market] = await db.select().from(markets)
+    .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
+  if (!market) { res.status(404).json({ error: 'Market not found' }); return; }
+  if (market.resolved) { res.status(409).json({ error: 'Market is already resolved' }); return; }
+  const result = await resolveSingleMarket(marketId, workspaceId);
+  if (result.skipped) {
+    res.status(409).json({ error: 'Could not resolve (metric value missing/negative or already resolved)' });
+    return;
+  }
+  res.json({ resolved: true, totalPayout: result.totalPayout });
 }));
 
 predictionsRouter.post('/markets/refresh', requireCapability('manage'), wrap(async (req, res) => {

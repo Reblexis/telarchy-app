@@ -53,12 +53,14 @@ done
 
 ### T3. Each /api/guides/<id> body is non-empty
 
+The endpoint returns raw markdown (`text/markdown`), not JSON.
+
 ```bash
 sections=$(curl -sf "$TT_BASE_URL/api/guides" \
   | jq -r 'if type=="array" then .[].id else .sections[].id end')
 fails=0
 for s in $sections; do
-  body=$(curl -sf "$TT_BASE_URL/api/guides/$s" | jq -r '.body // .content // empty' | wc -c)
+  body=$(curl -sf "$TT_BASE_URL/api/guides/$s" | wc -c)
   [ "$body" -gt 50 ] || { echo "FAIL $s body length=$body"; fails=$((fails+1)); }
 done
 [ "$fails" = "0" ]
@@ -78,8 +80,8 @@ $B screenshot "/tmp/$TT_NS-guide.png"
 ### T5. No console errors
 
 ```bash
-out=$($B console --errors)
-[ -z "$out" ] || { echo "console errors:"; echo "$out"; exit 1; }
+out=$($B console --errors | sed -n '/^--- BEGIN/,/^--- END/{ /^---/d; p }')
+case "$out" in ''|'(no console errors)') ;; *) echo "console errors:"; echo "$out"; exit 1;; esac
 ```
 
 ### T6. No 4xx network responses for assets

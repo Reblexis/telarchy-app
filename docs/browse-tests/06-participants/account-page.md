@@ -25,12 +25,10 @@ goal-statement: |
 source "$ROOT/docs/browse-tests/_runner/lib.sh"
 tt_browse_init
 EMAIL="qa+acct-$TT_RUN_ID@example.test"
-JAR=$(tt_mkuser "$EMAIL" "testtest123" "AcctUser-$TT_RUN_ID")
+read JAR MUID < <(tt_mkuser_uid "$EMAIL" "testtest123" "AcctUser-$TT_RUN_ID")
 tt_on_cleanup "tt_rm_user '$JAR'"
 WS=$(tt_mkworkspace personal public); tt_on_cleanup "tt_rm_workspace '$WS'"
-tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg e "$EMAIL" '{email:$e, role:"trader"}')" \
-  "$TT_BASE_URL/api/workspaces/$WS/members" >/dev/null
+tt_add_member "$WS" "$MUID" "trader"
 $B viewport 1440x900
 $B stop
 $B goto "$TT_FRONTEND_URL/login" && $B wait --networkidle
@@ -47,8 +45,8 @@ $B wait --networkidle
 ```bash
 $B goto "$TT_FRONTEND_URL/account" && $B wait --networkidle
 text=$($B text)
-api_bal=$(curl -sf -b "$JAR" -H "X-Workspace-Id: $WS" "$TT_BASE_URL/api/auth/me" \
-  | jq -r '.user.balance // .agent.balance // empty')
+api_bal=$(curl -sf -b "$JAR" -H "X-Workspace-Id: $WS" "$TT_BASE_URL/api/agents/me" \
+  | jq -r '.balance // empty')
 [ -n "$api_bal" ] || { echo "no balance from API"; exit 1; }
 grep -F "$api_bal" <<<"$text" \
   || echo "WARN: API balance $api_bal not found verbatim on /account"
@@ -101,8 +99,8 @@ grep -qiE 'delete (my )?account|close account' <<<"$text" \
 ### T6. No console errors on the page
 
 ```bash
-out=$($B console --errors)
-[ -z "$out" ] || { echo "console errors:"; echo "$out"; exit 1; }
+out=$($B console --errors | sed -n '/^--- BEGIN/,/^--- END/{ /^---/d; p }')
+case "$out" in ''|'(no console errors)') ;; *) echo "console errors:"; echo "$out"; exit 1;; esac
 ```
 
 ## Cleanup

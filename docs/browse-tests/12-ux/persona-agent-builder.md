@@ -86,10 +86,10 @@ n=$(jq 'length' <<<"$mkts")
 if [ "$n" -lt 1 ]; then
   react "no markets in workspace; create one as Sam (admin would, but test workspace allows it)"
   mid=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' -X POST \
-    -d '{"name":"sam-m","type":"leaf","value":50,"rangeMin":0,"rangeMax":100}' \
+    -d '{"name":"sam-m","type":"leaf","value":50,"marketRangeMax":100}' \
     "$TT_BASE_URL/api/metrics" | jq -r '.id')
   mkt=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' -X POST \
-    -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2030-01-01", liquidityCredits:20}')" \
+    -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2030-01-01", liquidity:20}')" \
     "$TT_BASE_URL/api/predictions/markets" | jq -r '.id')
 else
   mkt=$(jq -r '.[0].id' <<<"$mkts")

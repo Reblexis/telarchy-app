@@ -27,10 +27,12 @@ set -uo pipefail
 # the calling script.
 : "${TT_TEST_ID:=$(basename "${BASH_SOURCE[1]:-spec}" .md | tr '/.' '__')}"
 
-# Namespace prefix every fixture created by a spec gets. Keep < 24 chars so
-# downstream IDs (workspace_id, agent_id) stay readable.
+# Namespace prefix every fixture created by a spec gets. The full TT_NS
+# stays human-readable as `tt-<test-id>-<run-id>`; truncating the run-id is
+# what previously caused cross-run collisions when test_id was long, so we
+# keep enough room for both. 96 is well under any API limit.
 TT_NS="tt-${TT_TEST_ID%%[!a-zA-Z0-9_-]*}-${TT_RUN_ID}"
-TT_NS="${TT_NS:0:48}"
+TT_NS="${TT_NS:0:96}"
 
 # Browse binary lookup: prefer the project-vendored install, fall back to the
 # user-global one. Re-uses the formula in browse-tests/README.md.
@@ -85,6 +87,13 @@ tt_user_curl() {
 
 # Create a fresh workspace for this spec. Echoes the workspace id.
 # Args: [template] [visibility]
+#
+# NOTE: The live `PUT /api/workspaces/:id/settings` route requires the caller
+# to be the signed-in workspace *owner* to change `autoFundNewMarkets`,
+# `newMarketLiquidityCredits`, or `visibility`. Master-key callers (which is
+# what this helper uses) are explicitly rejected. Tests that need to mutate
+# those settings must set up an owner session themselves; this helper does
+# not attempt to.
 tt_mkworkspace() {
   local tpl="${1:-blank}" vis="${2:-public}"
   local name="$TT_NS-ws"
@@ -97,9 +106,21 @@ tt_mkworkspace() {
 
 # Register a new agent participant, echoes "agentId apiKey" on stdout.
 # Args: <workspace-id> [tag]
+#
+# The live API enforces `agentId` ≤ 64 chars and rejects duplicates with
+# "Agent already registered". `agents` is a top-level table (no workspace
+# FK) so workspace cleanup doesn't cascade-delete agents from prior runs;
+# we add a 4-digit suffix to keep collisions virtually impossible across
+# back-to-back retries within the same run-id.
 tt_mkagent() {
   local ws="$1" tag="${2:-bot}"
-  local agentId="$TT_NS-$tag"
+  local rand="$RANDOM"
+  local agentId="$TT_NS-$tag-$rand"
+  if [ "${#agentId}" -gt 64 ]; then
+    local keep_tag="-${tag}-${rand}"
+    local prefix_max=$((64 - ${#keep_tag}))
+    agentId="${TT_NS:0:$prefix_max}${keep_tag}"
+  fi
   local body
   body=$(printf '{"agentId":"%s","workspaceId":"%s"}' "$agentId" "$ws")
   local res
@@ -122,6 +143,29 @@ tt_mkuser() {
   printf '%s\n' "$jar"
 }
 
+# Like tt_mkuser, but echoes "<jar> <uid>" so callers can use the user's
+# id as `participantId` when adding them to a workspace via
+# POST /api/workspaces/:id/members.
+# Args: <email> <password> <displayName>
+tt_mkuser_uid() {
+  local jar; jar=$(tt_mkuser "$1" "$2" "$3") || return 1
+  # /api/auth/me returns a flat shape: { uid, email, participantId, ... }
+  # — no `.user` nesting. participantId == uid for sign-up users.
+  local uid
+  uid=$(curl -sf -b "$jar" "$TT_BASE_URL/api/auth/me" | jq -r '.uid // .participantId // empty')
+  [ -n "$uid" ] || { echo "tt_mkuser_uid: empty uid for $1" >&2; return 1; }
+  printf '%s %s\n' "$jar" "$uid"
+}
+
+# Add a participant (agent or user UID) to a workspace with a given role.
+# Args: <workspace-id> <participant-id> <role>  (role: owner|admin|trader|viewer)
+tt_add_member() {
+  local ws="$1" pid="$2" role="$3"
+  tt_admin_curl "$ws" -H 'Content-Type: application/json' \
+    -X POST -d "$(jq -nc --arg p "$pid" --arg r "$role" '{participantId:$p, role:$r}')" \
+    "$TT_BASE_URL/api/workspaces/$ws/members" >/dev/null
+}
+
 # Credit an agent or user balance. Args: <workspace-id> <agentId> <credits>
 tt_credit() {
   local ws="$1" id="$2" cr="$3"
@@ -131,10 +175,14 @@ tt_credit() {
 }
 
 # Create a market for a metric. Args: <ws> <metricId> <targetISO>
+# Always sends `skipAutoLiquidity: true` because the master-key caller has no
+# agent record; auto-funding from a workspace with autoFundNewMarkets=true
+# would otherwise fail with "Workspace owner has no agent record".
 tt_mkmarket() {
   local ws="$1" mid="$2" iso="$3"
   tt_admin_curl "$ws" -H "Content-Type: application/json" \
-    -X POST -d "$(jq -nc --arg m "$mid" --arg t "$iso" '{metricId:$m, targetDate:$t}')" \
+    -X POST -d "$(jq -nc --arg m "$mid" --arg t "$iso" \
+        '{metricId:$m, targetDate:$t, skipAutoLiquidity:true}')" \
     "$TT_BASE_URL/api/predictions/markets" \
     | jq -r '.id'
 }
@@ -161,7 +209,7 @@ _tt_run_cleanup() {
   local code=$?
   local i
   for ((i=${#TT_CLEANUP_FUNCS[@]}-1; i>=0; i--)); do
-    "${TT_CLEANUP_FUNCS[$i]}" || true
+    eval "${TT_CLEANUP_FUNCS[$i]}" 2>/dev/null || true
   done
   exit "$code"
 }

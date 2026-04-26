@@ -28,7 +28,7 @@ WS=$(tt_mkworkspace blank public); tt_on_cleanup "tt_rm_workspace '$WS'"
 read PROP KP < <(tt_mkagent "$WS" prop)
 read APPR KA < <(tt_mkagent "$WS" appr)
 tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg id "$APPR" '{agentId:$id, role:"admin"}')" \
+  -X POST -d "$(jq -nc --arg id "$APPR" '{participantId:$id, role:"admin"}')" \
   "$TT_BASE_URL/api/workspaces/$WS/members" >/dev/null
 TASK=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \

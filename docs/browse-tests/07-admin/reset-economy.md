@@ -29,10 +29,10 @@ WS=$(tt_mkworkspace blank public); tt_on_cleanup "tt_rm_workspace '$WS'"
 read AID KEY < <(tt_mkagent "$WS" rs)
 tt_credit "$WS" "$AID" 100
 mid=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d '{"name":"rs","type":"leaf","value":50,"rangeMin":0,"rangeMax":100}' \
+  -X POST -d '{"name":"rs","type":"leaf","value":50,"marketRangeMax":100}' \
   "$TT_BASE_URL/api/metrics" | jq -r '.id')
 mkt=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2030-01-01", liquidityCredits:20}')" \
+  -X POST -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2030-01-01", liquidity:20, skipAutoLiquidity:true}')" \
   "$TT_BASE_URL/api/predictions/markets" | jq -r '.id')
 curl -sf -H "X-Agent-Key: $KEY" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \
@@ -75,11 +75,23 @@ n=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/agents" \
 
 ### T5. Markets either reset or marked accordingly
 
+After reset-economy a market is either resolved/voided (clean post-state)
+or deleted (404). The market response surfaces `.resolved` (boolean)
+even after a void; the `active` flag is internal.
+
 ```bash
-out=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/predictions/markets/$mkt")
-# Either the market is voided or its consensus is back to default
-voided=$(jq -r '.voided' <<<"$out")
-case "$voided" in true|false) ;; *) echo "unexpected voided=$voided"; exit 1;; esac
+status=$(curl -s -o /dev/null -w '%{http_code}' \
+  -H "X-API-Key: $TT_ADMIN_KEY" -H "X-Workspace-Id: $WS" \
+  "$TT_BASE_URL/api/predictions/markets/$mkt")
+case "$status" in
+  404) ;;
+  200)
+    out=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/predictions/markets/$mkt")
+    resolved=$(jq -r '.resolved' <<<"$out")
+    case "$resolved" in true|false) ;; *) echo "unexpected resolved=$resolved"; exit 1;; esac
+    ;;
+  *) echo "unexpected market status after reset: $status"; exit 1;;
+esac
 ```
 
 ### T6. Non-admin cannot trigger reset

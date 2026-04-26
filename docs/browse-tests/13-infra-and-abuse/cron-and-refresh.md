@@ -30,10 +30,10 @@ date has passed and whose metric value is known). Plus
 source "$ROOT/docs/browse-tests/_runner/lib.sh"
 WS=$(tt_mkworkspace blank public); tt_on_cleanup "tt_rm_workspace '$WS'"
 mid=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d '{"name":"cron-m","type":"leaf","value":50,"rangeMin":0,"rangeMax":100}' \
+  -X POST -d '{"name":"cron-m","type":"leaf","value":50,"marketRangeMax":100}' \
   "$TT_BASE_URL/api/metrics" | jq -r '.id')
 mkt=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2020-01-01", liquidityCredits:20}')" \
+  -X POST -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2020-01-01", liquidity:20}')" \
   "$TT_BASE_URL/api/predictions/markets" | jq -r '.id')
 ```
 

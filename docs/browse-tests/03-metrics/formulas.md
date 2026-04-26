@@ -31,15 +31,20 @@ basic arithmetic. The hard cases:
 source "$ROOT/docs/browse-tests/_runner/lib.sh"
 WS=$(tt_mkworkspace blank public); tt_on_cleanup "tt_rm_workspace '$WS'"
 mkleaf() {
+  # Leaf metrics default to timePreference.enabled=true; until markets spawn,
+  # the engine reports total=null on TP leaves. Pure formula evaluation
+  # tests want a deterministic value, so disable TP at creation.
   tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-    -X POST -d "$(jq -nc --arg n "$1" --argjson v "$2" '{name:$n,type:"leaf",value:$v}')" \
+    -X POST -d "$(jq -nc --arg n "$1" --argjson v "$2" \
+        '{name:$n,type:"leaf",value:$v,timePreference:{enabled:false}}')" \
     "$TT_BASE_URL/api/metrics" | jq -r '.id'
 }
 mkformula() {
   curl -s -o /tmp/$TT_NS-fbody -w '%{http_code}' \
     -H "X-API-Key: $TT_ADMIN_KEY" -H "X-Workspace-Id: $WS" \
     -H 'Content-Type: application/json' \
-    -X POST -d "$(jq -nc --arg n "$1" --arg f "$2" '{name:$n,type:"formula",formula:$f}')" \
+    -X POST -d "$(jq -nc --arg n "$1" --arg f "$2" \
+        '{name:$n,type:"formula",formula:$f,timePreference:{enabled:false}}')" \
     "$TT_BASE_URL/api/metrics"
 }
 ```
@@ -52,7 +57,7 @@ mkformula() {
 A=$(mkleaf a 3); B=$(mkleaf b 4)
 mkformula c '{a} + {b}' >/dev/null
 val=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/metrics?name=c" \
-  | jq -r '.[] | select(.name=="c") | .value')
+  | jq -r '.[] | select(.name=="c") | .total')
 [ "$val" = "7" ]
 ```
 
@@ -116,11 +121,11 @@ status=$(curl -s -o /dev/null -w '%{http_code}' \
 ### T7. Edit a formula → dependent metric recomputes immediately
 
 ```bash
-A=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/metrics?name=a" | jq -r '.[0].id')
+A=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/metrics" | jq -r '.[] | select(.name=="a") | .id')
 tt_admin_curl "$WS" -H 'Content-Type: application/json' \
   -X PUT -d '{"value":100}' "$TT_BASE_URL/api/metrics/$A" >/dev/null
 val=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/metrics?name=c" \
-  | jq -r '.[] | select(.name=="c") | .value')
+  | jq -r '.[] | select(.name=="c") | .total')
 [ "$val" = "104" ] || { echo "expected c=104, got $val"; exit 1; }
 ```
 

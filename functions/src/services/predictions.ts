@@ -11,6 +11,18 @@ import { emitEvent } from './events';
 
 type MarketRow = typeof markets.$inferSelect;
 
+export async function resolveSingleMarket(marketId: string, workspaceId: string): Promise<{ resolved: boolean; totalPayout: number; skipped?: boolean }> {
+  const [market] = await db.select().from(markets)
+    .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
+  if (!market) return { resolved: false, totalPayout: 0, skipped: true };
+  if (market.resolved) return { resolved: false, totalPayout: 0, skipped: true };
+
+  const allMetrics = await getAllMetrics(workspaceId);
+  const metricMap = new Map<string, Metric>(allMetrics.map(m => [m.id, m]));
+  const result = await resolveMarketRow(market, metricMap, workspaceId);
+  return { resolved: !result.skipped, totalPayout: result.totalPayout, skipped: result.skipped };
+}
+
 async function resolveMarketRow(
   market: MarketRow,
   metricMap: Map<string, Metric>,

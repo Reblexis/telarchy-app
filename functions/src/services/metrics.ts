@@ -285,13 +285,15 @@ export async function logSpecificMetrics(metricIds: string[], allMetrics: Metric
   // value/future-consensus blend for leaves with Time Preference). They
   // coincide for leaves without TP and for fully-leaf composites with value=0;
   // they diverge meaningfully for leaves with TP enabled, where the Graph
-  // modal renders both as two lines.
+  // modal renders both as two lines. When `total` is null (e.g. a TP-enabled
+  // leaf whose markets have not spawned yet), fall back to `value` — the
+  // history row should still exist; the chart can show the gap visually.
   const toInsert = metricIds
     .map(id => allMetrics.find(m => m.id === id))
-    .filter((m): m is Metric => m !== undefined && m.total !== null)
+    .filter((m): m is Metric => m !== undefined)
     .map(m => ({
       id: randomUUID(), workspaceId, metricId: m.id, metricName: m.name,
-      value: m.value, outlook: m.total!, timestamp: new Date(),
+      value: m.value, outlook: m.total ?? m.value, timestamp: new Date(),
     }));
 
   if (toInsert.length > 0) {

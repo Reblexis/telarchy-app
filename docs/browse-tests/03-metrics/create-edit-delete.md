@@ -32,7 +32,7 @@ WS=$(tt_mkworkspace blank public); tt_on_cleanup "tt_rm_workspace '$WS'"
 
 ```bash
 out=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d '{"name":"mrr","type":"leaf","value":10000,"unit":"$","rangeMin":0,"rangeMax":100000}' \
+  -X POST -d '{"name":"mrr","type":"leaf","value":10000,"unit":"$","marketRangeMax":100000}' \
   "$TT_BASE_URL/api/metrics")
 ID=$(jq -r '.id' <<<"$out")
 [ -n "$ID" ]
@@ -65,15 +65,18 @@ n=$(jq 'length' <<<"$log")
 [ "$n" -ge 1 ] || { echo "history empty after PUT"; exit 1; }
 ```
 
-### T5. Range validation: max < min rejected
+### T5. Range validation: non-positive `marketRangeMax` rejected
+
+The metric model only stores `marketRangeMax` (`rangeMin` is implicit at 0).
+A non-positive value is invalid.
 
 ```bash
 status=$(curl -s -o /dev/null -w '%{http_code}' \
   -H "X-API-Key: $TT_ADMIN_KEY" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' \
-  -X POST -d '{"name":"bad","type":"leaf","value":5,"rangeMin":10,"rangeMax":1}' \
+  -X POST -d '{"name":"bad","type":"leaf","value":5,"marketRangeMax":0}' \
   "$TT_BASE_URL/api/metrics")
-case "$status" in 400|422) ;; *) echo "expected 4xx, got $status"; exit 1;; esac
+case "$status" in 400|422) ;; *) echo "expected 4xx for marketRangeMax=0, got $status"; exit 1;; esac
 ```
 
 ### T6. Out-of-range value clamped or rejected (not silently accepted)

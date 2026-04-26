@@ -71,6 +71,7 @@ export function App() {
             <Route path="/marketplace" element={<MarketplacePage />} />
             <Route path="/marketplace/:workspaceId" element={<MarketplaceWorkspaceRedirect />} />
             <Route path="/guides" element={<GuidesPage />} />
+            <Route path="/guides/:section" element={<GuidesPage />} />
             <Route element={<RequireAuth />}>
               <Route path="/start" element={<StartPage />} />
               <Route path="/create-workspace" element={<CreateWorkspacePage />} />

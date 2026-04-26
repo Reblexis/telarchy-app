@@ -32,10 +32,12 @@ Maps to `mvp-evaluation-plan.md` Section 15.3.
 ## Setup
 
 ```bash
+source "$ROOT/docs/browse-tests/_runner/lib.sh"
+tt_browse_init
 $B viewport 1440x900
-$B goto https://telarchy.com/sources
+$B goto "$TT_FRONTEND_URL/sources"
 $B wait --networkidle
-$B screenshot /tmp/sources-baseline.png
+$B screenshot "/tmp/$TT_NS-sources-baseline.png"
 ```
 
 ## Tests

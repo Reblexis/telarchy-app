@@ -27,11 +27,11 @@ right capability set.
 source "$ROOT/docs/browse-tests/_runner/lib.sh"
 WS=$(tt_mkworkspace blank private); tt_on_cleanup "tt_rm_workspace '$WS'"
 # create one agent per role; we test capabilities through their keys
-for role in admin trader member viewer; do
+for role in admin trader viewer; do
   read aid akey < <(tt_mkagent "$WS" "$role")
   declare "AID_$role=$aid" "KEY_$role=$akey"
   tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-    -X POST -d "$(jq -nc --arg id "$aid" --arg r "$role" '{agentId:$id, role:$r}')" \
+    -X POST -d "$(jq -nc --arg id "$aid" --arg r "$role" '{participantId:$id, role:$r}')" \
     "$TT_BASE_URL/api/workspaces/$WS/members" >/dev/null
 done
 # fixture: one metric so trade / read paths have something to hit
@@ -39,7 +39,7 @@ metric_id=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
   -X POST -d '{"name":"perm-metric","type":"leaf","value":10}' \
   "$TT_BASE_URL/api/metrics" | jq -r '.id')
 market_id=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg m "$metric_id" '{metricId:$m, targetDate:"2030-01-01"}')" \
+  -X POST -d "$(jq -nc --arg m "$metric_id" '{metricId:$m, targetDate:"2030-01-01", liquidity:20, skipAutoLiquidity:true}')" \
   "$TT_BASE_URL/api/predictions/markets" | jq -r '.id')
 ```
 
@@ -98,29 +98,18 @@ status=$(curl -s -o /dev/null -w '%{http_code}' \
   || { echo "admin metric-create denied: $status"; exit 1; }
 ```
 
-### T4. Member is the middle role: read + trade only
+### T4. (skipped) — there is no `member` role in the live API
 
-```bash
-tt_credit "$WS" "$AID_member" 100
-status=$(curl -s -o /dev/null -w '%{http_code}' \
-  -H "X-Agent-Key: $KEY_member" -H "X-Workspace-Id: $WS" \
-  "$TT_BASE_URL/api/predictions/markets")
-[ "$status" = "200" ]
-status=$(curl -s -o /dev/null -w '%{http_code}' \
-  -H "X-Agent-Key: $KEY_member" -H "X-Workspace-Id: $WS" \
-  -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg id "$market_id" '{marketId:$id, direction:"lower", amount:1}')" \
-  "$TT_BASE_URL/api/predictions/trade")
-[ "$status" = "200" ] || [ "$status" = "201" ] \
-  || { echo "member trade denied: $status"; exit 1; }
-```
+The live role set is `owner|admin|trader|viewer`. Earlier drafts of this
+spec assumed a "member" middle tier that was removed; trader covers the
+read+trade case.
 
 ### T5. Role change takes effect on next request
 
 ```bash
 # promote viewer to admin
 tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg id "$AID_viewer" '{agentId:$id, role:"admin"}')" \
+  -X POST -d "$(jq -nc --arg id "$AID_viewer" '{participantId:$id, role:"admin"}')" \
   "$TT_BASE_URL/api/workspaces/$WS/members" >/dev/null
 
 status=$(curl -s -o /dev/null -w '%{http_code}' \
@@ -136,12 +125,15 @@ status=$(curl -s -o /dev/null -w '%{http_code}' \
 
 ```bash
 EMAIL="qa+memb-$TT_RUN_ID@example.test"
-JAR=$(tt_mkuser "$EMAIL" "testtest123" "MembUser-$TT_RUN_ID")
+read JAR MUID < <(tt_mkuser_uid "$EMAIL" "testtest123" "MembUser-$TT_RUN_ID")
 tt_on_cleanup "tt_rm_user '$JAR'"
+# Browser-session callers must accept consent before any non-/auth route works.
+curl -sf -b "$JAR" -H 'Content-Type: application/json' \
+  -X POST -d '{"accepted":true}' "$TT_BASE_URL/api/auth/consent" >/dev/null
 status=$(curl -s -o /dev/null -w '%{http_code}' \
   -H "X-API-Key: $TT_ADMIN_KEY" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg e "$EMAIL" '{email:$e, role:"trader"}')" \
+  -X POST -d "$(jq -nc --arg p "$MUID" '{participantId:$p, role:"trader"}')" \
   "$TT_BASE_URL/api/workspaces/$WS/members")
 [ "$status" = "201" ] || [ "$status" = "200" ]
 # user can now read this private workspace

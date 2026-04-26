@@ -35,10 +35,12 @@ Maps to `mvp-evaluation-plan.md` Section 3 and supersedes the one-off
 ## Setup
 
 ```bash
+source "$ROOT/docs/browse-tests/_runner/lib.sh"
+tt_browse_init
 $B viewport 1440x900
-$B goto http://localhost:5173/metrics   # or https://telarchy.com/metrics
+$B goto "$TT_FRONTEND_URL/metrics"
 $B wait --networkidle
-$B screenshot /tmp/metrics-baseline.png
+$B screenshot "/tmp/$TT_NS-metrics-baseline.png"
 ```
 
 The baseline should show "Metrics Dashboard" plus at least one card with

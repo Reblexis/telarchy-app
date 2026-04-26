@@ -26,12 +26,10 @@ operator can review.
 source "$ROOT/docs/browse-tests/_runner/lib.sh"
 tt_browse_init
 EMAIL="qa+cons-$TT_RUN_ID@example.test"
-JAR=$(tt_mkuser "$EMAIL" "testtest123" "ConsUser")
+read JAR MUID < <(tt_mkuser_uid "$EMAIL" "testtest123" "ConsUser")
 tt_on_cleanup "tt_rm_user '$JAR'"
 WS=$(tt_mkworkspace startup public); tt_on_cleanup "tt_rm_workspace '$WS'"
-tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg e "$EMAIL" '{email:$e, role:"admin"}')" \
-  "$TT_BASE_URL/api/workspaces/$WS/members" >/dev/null
+tt_add_member "$WS" "$MUID" "admin"
 $B viewport 1440x900
 $B stop
 $B goto "$TT_FRONTEND_URL/login" && $B wait --networkidle
@@ -52,14 +50,16 @@ PAGES="/ /signup /login /metrics /markets /tasks /account /sources /admin /marke
 
 ```bash
 $B goto "$TT_FRONTEND_URL/metrics" && $B wait --networkidle
-fams=$($B js '
-  const set = new Set();
-  document.querySelectorAll("*").forEach(e => {
-    const f = getComputedStyle(e).fontFamily.split(",")[0].trim().replace(/["']/g, "");
-    if (f) set.add(f);
-  });
-  return Array.from(set).join(",");
-')
+JS_FAMS=$(cat <<'EOF'
+const set = new Set();
+document.querySelectorAll("*").forEach(e => {
+  const f = getComputedStyle(e).fontFamily.split(",")[0].trim().replace(/["']/g, "");
+  if (f) set.add(f);
+});
+return Array.from(set).join(",");
+EOF
+)
+fams=$($B js "$JS_FAMS")
 n=$(echo "$fams" | tr , '\n' | sort -u | wc -l)
 [ "$n" -le 3 ] || note "FRICTION font sprawl on /metrics: $n distinct families: $fams"
 ```

@@ -35,10 +35,10 @@ read B KB < <(tt_mkagent "$WS" bob)
 tt_credit "$WS" "$A" 200
 tt_credit "$WS" "$B" 200
 mid=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d '{"name":"converge","type":"leaf","value":50,"rangeMin":0,"rangeMax":100}' \
+  -X POST -d '{"name":"converge","type":"leaf","value":50,"marketRangeMax":100,"timePreference":{"enabled":false}}' \
   "$TT_BASE_URL/api/metrics" | jq -r '.id')
 mkt=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2030-01-01", liquidityCredits:50}')" \
+  -X POST -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2030-01-01", liquidity:50, skipAutoLiquidity:true}')" \
   "$TT_BASE_URL/api/predictions/markets" | jq -r '.id')
 trade() { # $1 key, $2 dir, $3 amt
   curl -sf -H "X-Agent-Key: $1" -H "X-Workspace-Id: $WS" \
@@ -112,29 +112,40 @@ balA=$(curl -sf -H "X-Agent-Key: $KA" -H "X-Workspace-Id: $WS" \
   "$TT_BASE_URL/api/agents/$A/balance" | jq -r '.balance')
 balB=$(curl -sf -H "X-Agent-Key: $KB" -H "X-Workspace-Id: $WS" \
   "$TT_BASE_URL/api/agents/$B/balance" | jq -r '.balance')
-# Each started with 200; spent at most 50 + 30 = 80 (A) and 10 (B).
-awk -v b="$balA" 'BEGIN{exit !(b >= 100 && b <= 200)}' \
+# Newly-registered agents seed at 1000 + the 200 we tt_credit = 1200 each.
+# A spent up to 50 + 30 = 80; B spent up to 10. Allow slack for LMSR cost.
+awk -v b="$balA" 'BEGIN{exit !(b >= 1100 && b <= 1200)}' \
   || { echo "A balance out of expected range: $balA"; exit 1; }
-awk -v b="$balB" 'BEGIN{exit !(b >= 180 && b <= 200)}' \
+awk -v b="$balB" 'BEGIN{exit !(b >= 1180 && b <= 1200)}' \
   || { echo "B balance out of expected range: $balB"; exit 1; }
 ```
 
 ### T7. Resolve at the metric value 80 → A is the bigger winner
 
+Uses `POST /api/predictions/markets/:id/resolve` so the test exercises
+the payout flow without waiting on the daily cron.
+
+Each agent started with 1000 (signup) + 200 (tt_credit) = 1200. Compare
+each agent's *net* end-of-test balance against that starting line, not
+just post-trade vs post-resolve — the LP-leftover distribution can give
+a losing trader a small positive resolve delta even when their net is
+still a loss.
+
 ```bash
 tt_admin_curl "$WS" -H 'Content-Type: application/json' \
   -X PUT -d '{"value":80}' "$TT_BASE_URL/api/metrics/$mid" >/dev/null
 tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg id "$mkt" '{marketId:$id}')" \
-  "$TT_BASE_URL/api/predictions/resolve" >/dev/null
+  -X POST -d '{}' "$TT_BASE_URL/api/predictions/markets/$mkt/resolve" >/dev/null
 balA_post=$(curl -sf -H "X-Agent-Key: $KA" -H "X-Workspace-Id: $WS" \
   "$TT_BASE_URL/api/agents/$A/balance" | jq -r '.balance')
 balB_post=$(curl -sf -H "X-Agent-Key: $KB" -H "X-Workspace-Id: $WS" \
   "$TT_BASE_URL/api/agents/$B/balance" | jq -r '.balance')
-awk -v p="$balA" -v q="$balA_post" 'BEGIN{exit !(q > p)}' \
-  || { echo "A should have profited: pre=$balA post=$balA_post"; exit 1; }
-awk -v p="$balB" -v q="$balB_post" 'BEGIN{exit !(q < p)}' \
-  || { echo "B should have lost: pre=$balB post=$balB_post"; exit 1; }
+# A bet 'higher' on a metric that resolved at 80 (top end of range) → net winner.
+awk -v q="$balA_post" 'BEGIN{exit !(q > 1200)}' \
+  || { echo "A should be net up vs 1200 start; post=$balA_post"; exit 1; }
+# B bet 'lower' → net loser.
+awk -v q="$balB_post" 'BEGIN{exit !(q < 1200)}' \
+  || { echo "B should be net down vs 1200 start; post=$balB_post"; exit 1; }
 ```
 
 ## Cleanup

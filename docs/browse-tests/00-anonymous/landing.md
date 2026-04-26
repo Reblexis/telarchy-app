@@ -65,8 +65,9 @@ $B is visible 'a[href*="/signup"], a[href*="/marketplace"], button:has-text("Sig
 ```bash
 $B console --clear
 $B reload && $B wait --networkidle
-out=$($B console --errors)
-[ -z "$out" ] || { echo "console errors:"; echo "$out"; exit 1; }
+# $B wraps output in BEGIN/END UNTRUSTED EXTERNAL CONTENT markers — strip them.
+out=$($B console --errors | sed -n '/^--- BEGIN/,/^--- END/{ /^---/d; p }')
+case "$out" in ''|'(no console errors)') ;; *) echo "console errors:"; echo "$out"; exit 1;; esac
 ```
 
 ### T4. No 4xx/5xx network responses on first paint

@@ -151,7 +151,7 @@ workspacesRouter.get('/:id', requireIdentity, wrap(async (req, res) => {
 }));
 
 workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (req, res) => {
-  const { uid, agentId } = req.auth!;
+  const { uid, agentId, isMasterKey } = req.auth!;
   const wsId = req.params.id as string;
 
   const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, wsId));
@@ -162,7 +162,9 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
   const hasVisibilityKey = Object.prototype.hasOwnProperty.call(req.body, 'visibility');
   const touchesOwnerOnly = hasAutoFundKey || hasCreditsKey || hasVisibilityKey;
 
-  if (touchesOwnerOnly) {
+  // Master key is platform-level admin — allow it to set owner-only fields.
+  // For session/agent callers, require the workspace-owner role.
+  if (touchesOwnerOnly && !isMasterKey) {
     if (!uid && !agentId) {
       res.status(403).json({ error: 'These settings require a signed-in workspace owner' }); return;
     }
@@ -218,7 +220,16 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
     res.status(400).json({ error: 'newMarketLiquidityCredits must be positive when auto-fund is enabled' }); return;
   }
 
-  if (nextAuto) {
+  // Only block when this request *enables* auto-fund (true at the end while
+  // it was false before, OR explicitly toggling to true). Don't punish
+  // requests that just edit the name on a workspace that already has
+  // auto-fund on — the owner may not yet have an agent record but the
+  // setting isn't actually changing.
+  const turningOn = nextAuto && (
+    (hasAutoFundKey && autoFundNewMarkets === true && !ws.autoFundNewMarkets) ||
+    (hasAutoFundKey && autoFundNewMarkets === true)
+  );
+  if (turningOn) {
     const ownerAgentId = await resolveWorkspaceOwnerAgentId(wsId);
     if (!ownerAgentId) {
       res.status(400).json({ error: 'Workspace owner must have an agent record to enable auto-fund' }); return;
@@ -289,16 +300,40 @@ workspacesRouter.post('/:id/members', requireCapability('manage'), wrap(async (r
     res.status(400).json({ error: `role must be one of: ${validRoles.join(', ')}` }); return;
   }
 
-  const [existingAdmin] = await db.select().from(permissionGroups)
-    .where(and(eq(permissionGroups.workspaceId, wsId), eq(permissionGroups.type, role === 'owner' || role === 'admin' ? 'admin' : 'public')));
-  if (!existingAdmin) {
+  // System groups by type: 'admin' (read+trade+manage), 'trader' (read+trade),
+  // 'public' (read). The role parameter maps to membership in one or more of
+  // these groups so the role flag actually shapes capabilities.
+  //
+  //   owner / admin → admin
+  //   trader        → trader (also stays in public if it was there)
+  //   viewer        → public  (and removed from admin/trader if previously in)
+  const groupsForRole = (r: string) =>
+    r === 'owner' || r === 'admin' ? new Set(['admin'])
+    : r === 'trader' ? new Set(['trader', 'public'])
+    : /* viewer */     new Set(['public']);
+
+  const targetTypes = groupsForRole(role);
+  const allSystemGroups = await db.select().from(permissionGroups)
+    .where(eq(permissionGroups.workspaceId, wsId));
+  if (allSystemGroups.length === 0) {
     res.status(500).json({ error: 'Workspace system groups are missing' }); return;
   }
 
-  const nextMemberIds = Array.from(new Set([...(existingAdmin.memberIds as string[] ?? []), participantId]));
-  await db.update(permissionGroups)
-    .set({ memberIds: nextMemberIds })
-    .where(and(eq(permissionGroups.id, existingAdmin.id), eq(permissionGroups.workspaceId, wsId)));
+  for (const group of allSystemGroups) {
+    if (!group.type) continue;
+    const currentIds = (group.memberIds as string[] | null) ?? [];
+    const inTargets = targetTypes.has(group.type);
+    const isMember = currentIds.includes(participantId);
+    if (inTargets && !isMember) {
+      await db.update(permissionGroups)
+        .set({ memberIds: [...currentIds, participantId] })
+        .where(and(eq(permissionGroups.id, group.id), eq(permissionGroups.workspaceId, wsId)));
+    } else if (!inTargets && isMember && ['admin', 'trader', 'public'].includes(group.type)) {
+      await db.update(permissionGroups)
+        .set({ memberIds: currentIds.filter(id => id !== participantId) })
+        .where(and(eq(permissionGroups.id, group.id), eq(permissionGroups.workspaceId, wsId)));
+    }
+  }
 
   res.status(201).json({ ok: true, workspaceId: wsId, participantId, role });
 }));

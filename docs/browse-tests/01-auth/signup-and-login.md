@@ -33,11 +33,13 @@ Maps to `mvp-evaluation-plan.md` Section 2.
 ## Setup
 
 ```bash
+source "$ROOT/docs/browse-tests/_runner/lib.sh"
+tt_browse_init
 $B viewport 1440x900
 $B stop                              # cold-start a fresh browser context
-$B goto https://telarchy.com/signup
+$B goto "$TT_FRONTEND_URL/signup"
 $B wait --networkidle
-$B screenshot /tmp/signup-baseline.png
+$B screenshot "/tmp/$TT_NS-signup-baseline.png"
 ```
 
 ## Tests

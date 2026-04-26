@@ -246,8 +246,12 @@ content are tolerable; app-emitted errors are not.)
 
 ## Cleanup
 
-```bash
-# Remove the test heartbeats so they don't pollute the dashboard:
+`psql` is not assumed to be on PATH (the runner is environment-agnostic),
+so we leave the test heartbeats in the dashboard. The dashboard explicitly
+allows synthetic IDs and they don't bind to any business state. If you
+want to scrub them by hand on Cloud SQL:
+
+```bash skip
 psql "$DATABASE_URL" -c "DELETE FROM agent_heartbeats WHERE agent_id IN ('upsert-test','forbidden-bot');"
 psql "$DATABASE_URL" -c "DELETE FROM agent_traces WHERE agent_id IN ('test-empty','x');"
 ```

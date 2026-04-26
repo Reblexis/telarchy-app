@@ -32,11 +32,11 @@ WS_A=$(tt_mkworkspace blank private); tt_on_cleanup "tt_rm_workspace '$WS_A'"
 WS_B=$(tt_mkworkspace blank private); tt_on_cleanup "tt_rm_workspace '$WS_B'"
 read OWN_A KEY_A < <(tt_mkagent "$WS_A" owner)
 tt_admin_curl "$WS_A" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg id "$OWN_A" '{agentId:$id, role:"admin"}')" \
+  -X POST -d "$(jq -nc --arg id "$OWN_A" '{participantId:$id, role:"admin"}')" \
   "$TT_BASE_URL/api/workspaces/$WS_A/members" >/dev/null
 read OWN_B KEY_B < <(tt_mkagent "$WS_B" owner)
 tt_admin_curl "$WS_B" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg id "$OWN_B" '{agentId:$id, role:"admin"}')" \
+  -X POST -d "$(jq -nc --arg id "$OWN_B" '{participantId:$id, role:"admin"}')" \
   "$TT_BASE_URL/api/workspaces/$WS_B/members" >/dev/null
 read GUEST_A KGA < <(tt_mkagent "$WS_A" guest)
 # guest_a is in ws_a but only as default (read), not admin
@@ -63,9 +63,9 @@ probe() { # method url status_anon status_wrong_ws status_low_role status_owner
 ### T1. Read endpoints
 
 ```bash
-# anon=401, wrong-ws=403/401, low-role(read)=200, owner=200
-probe GET "$TT_BASE_URL/api/metrics" 401 401 200 200
-probe GET "$TT_BASE_URL/api/predictions/markets" 401 401 200 200
+# anon=401, wrong-ws=403, low-role(read)=200, owner=200
+probe GET "$TT_BASE_URL/api/metrics" 401 403 200 200
+probe GET "$TT_BASE_URL/api/predictions/markets" 401 403 200 200
 ```
 
 ### T2. Manage endpoints (require admin role)

@@ -33,14 +33,12 @@ source "$ROOT/docs/browse-tests/_runner/lib.sh"
 tt_browse_init
 WS=$(tt_mkworkspace blank public); tt_on_cleanup "tt_rm_workspace '$WS'"
 EMAIL="qa+sym-$TT_RUN_ID@example.test"
-JAR=$(tt_mkuser "$EMAIL" "testtest123" "SymUser-$TT_RUN_ID")
+read JAR MUID < <(tt_mkuser_uid "$EMAIL" "testtest123" "SymUser-$TT_RUN_ID")
 tt_on_cleanup "tt_rm_user '$JAR'"
-tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg e "$EMAIL" '{email:$e, role:"admin"}')" \
-  "$TT_BASE_URL/api/workspaces/$WS/members" >/dev/null
+tt_add_member "$WS" "$MUID" "admin"
 read AID KEY < <(tt_mkagent "$WS" symbot)
 tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg id "$AID" '{agentId:$id, role:"admin"}')" \
+  -X POST -d "$(jq -nc --arg id "$AID" '{participantId:$id, role:"admin"}')" \
   "$TT_BASE_URL/api/workspaces/$WS/members" >/dev/null
 $B viewport 1440x900
 $B stop
@@ -87,7 +85,7 @@ mid=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/metrics" \
   | jq -r --arg n "api-metric-$TT_RUN_ID" '.[] | select(.name==$n) | .id')
 mkt=$(curl -sf -b "$JAR" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \
-  -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2030-01-01"}')" \
+  -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2030-01-01", skipAutoLiquidity:true}')" \
   "$TT_BASE_URL/api/predictions/markets" | jq -r '.id')
 got=$(curl -sf -H "X-Agent-Key: $KEY" -H "X-Workspace-Id: $WS" \
   "$TT_BASE_URL/api/predictions/markets/$mkt" | jq -r '.id')

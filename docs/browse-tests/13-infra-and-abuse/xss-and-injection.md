@@ -29,18 +29,16 @@ the browser and asserts:
 source "$ROOT/docs/browse-tests/_runner/lib.sh"
 tt_browse_init
 EMAIL="qa+xss-$TT_RUN_ID@example.test"
-JAR=$(tt_mkuser "$EMAIL" "testtest123" "XssUser")
+read JAR MUID < <(tt_mkuser_uid "$EMAIL" "testtest123" "XssUser")
 tt_on_cleanup "tt_rm_user '$JAR'"
 WS=$(tt_mkworkspace blank private); tt_on_cleanup "tt_rm_workspace '$WS'"
-tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg e "$EMAIL" '{email:$e, role:"admin"}')" \
-  "$TT_BASE_URL/api/workspaces/$WS/members" >/dev/null
+tt_add_member "$WS" "$MUID" "admin"
 PAYLOAD='<img src=x onerror=alert(1)><script>alert(2)</script>'
 mid=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
   -X POST -d "$(jq -nc --arg n "$PAYLOAD" '{name:$n,type:"leaf",value:1}')" \
   "$TT_BASE_URL/api/metrics" | jq -r '.id')
 mkt=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2030-01-01"}')" \
+  -X POST -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2030-01-01", skipAutoLiquidity:true}')" \
   "$TT_BASE_URL/api/predictions/markets" | jq -r '.id')
 TASK=$(curl -sf -b "$JAR" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \
@@ -62,9 +60,12 @@ $B fill 'input[type="email"]' "$EMAIL"
 $B fill 'input[type="password"]' "testtest123"
 $B click 'button[type="submit"]'
 $B wait --networkidle
-# Stash original title so we can detect hijack.
-$B js 'window.__origTitle = document.title' >/dev/null
 ```
+
+A hijacked `document.title` would be set to the XSS payload (starts with
+`<img` / `<script`). All real titles in this app start with `Telarchy`;
+T1–T3 assert that pattern survives. We can't stash a JS variable across
+navigations because the browse session resets the JS context per page.
 
 ## Tests
 
@@ -75,33 +76,30 @@ $B goto "$TT_FRONTEND_URL/metrics" && $B wait --networkidle
 $B console --clear
 text=$($B text)
 grep -F "$PAYLOAD" <<<"$text" || echo "WARN: payload not in /metrics text — selector mismatch"
-err=$($B console --errors)
-[ -z "$err" ] || { echo "console errors on /metrics XSS: $err"; exit 1; }
+err=$($B console --errors | sed -n '/^--- BEGIN/,/^--- END/{ /^---/d; p }')
+case "$err" in ''|'(no console errors)') ;; *) echo "console errors on /metrics XSS: $err"; exit 1;; esac
 title=$($B js 'document.title')
-orig=$($B js 'window.__origTitle')
-[ "$title" = "$orig" ] || { echo "title hijack: $orig → $title"; exit 1; }
+case "$title" in Telarchy*|"") ;; *) echo "title hijack on /metrics: $title"; exit 1;; esac
 ```
 
 ### T2. /markets renders the metric name safely
 
 ```bash
 $B goto "$TT_FRONTEND_URL/markets" && $B wait --networkidle
-err=$($B console --errors)
-[ -z "$err" ]
+err=$($B console --errors | sed -n '/^--- BEGIN/,/^--- END/{ /^---/d; p }')
+case "$err" in ''|'(no console errors)') ;; *) echo "console errors on /markets XSS: $err"; exit 1;; esac
 title=$($B js 'document.title')
-orig=$($B js 'window.__origTitle')
-[ "$title" = "$orig" ]
+case "$title" in Telarchy*|"") ;; *) echo "title hijack on /markets: $title"; exit 1;; esac
 ```
 
 ### T3. /tasks renders title+description+chat safely
 
 ```bash
 $B goto "$TT_FRONTEND_URL/tasks" && $B wait --networkidle
-err=$($B console --errors)
-[ -z "$err" ]
+err=$($B console --errors | sed -n '/^--- BEGIN/,/^--- END/{ /^---/d; p }')
+case "$err" in ''|'(no console errors)') ;; *) echo "console errors on /tasks XSS: $err"; exit 1;; esac
 title=$($B js 'document.title')
-orig=$($B js 'window.__origTitle')
-[ "$title" = "$orig" ]
+case "$title" in Telarchy*|"") ;; *) echo "title hijack on /tasks: $title"; exit 1;; esac
 ```
 
 ### T4. No `<img onerror>` actually executed

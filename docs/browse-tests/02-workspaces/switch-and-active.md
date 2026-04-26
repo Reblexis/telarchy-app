@@ -34,18 +34,15 @@ workspace UX. Switching must:
 source "$ROOT/docs/browse-tests/_runner/lib.sh"
 tt_browse_init
 EMAIL="qa+sw-$TT_RUN_ID@example.test"
-JAR=$(tt_mkuser "$EMAIL" "testtest123" "SwUser-$TT_RUN_ID")
+read JAR MUID < <(tt_mkuser_uid "$EMAIL" "testtest123" "SwUser-$TT_RUN_ID")
 tt_on_cleanup "tt_rm_user '$JAR'"
 WS_A=$(tt_mkworkspace personal public)
 WS_B=$(tt_mkworkspace startup public)
 tt_on_cleanup "tt_rm_workspace '$WS_A'"
 tt_on_cleanup "tt_rm_workspace '$WS_B'"
-# membership: add the user to both as a manage role
-for ws in "$WS_A" "$WS_B"; do
-  tt_admin_curl "$ws" -H 'Content-Type: application/json' \
-    -X POST -d "$(jq -nc --arg e "$EMAIL" '{email:$e, role:"admin"}')" \
-    "$TT_BASE_URL/api/workspaces/$ws/members" >/dev/null
-done
+# membership: add the user (by participant id, not email) to both as admin
+tt_add_member "$WS_A" "$MUID" "admin"
+tt_add_member "$WS_B" "$MUID" "admin"
 $B viewport 1440x900
 $B stop
 $B goto "$TT_FRONTEND_URL/login" && $B wait --networkidle

@@ -34,11 +34,13 @@ Maps to `mvp-evaluation-plan.md` Sections 15.4 and persona 16.13
 ## Setup
 
 ```bash
+source "$ROOT/docs/browse-tests/_runner/lib.sh"
+tt_browse_init
 $B viewport 1440x900
 # Sign in as the Proposer first (use $B state save proposer for re-runs).
-$B goto https://telarchy.com/login
+$B goto "$TT_FRONTEND_URL/login"
 # fill + submit, then save state
-$B state save proposer-session
+$B state save "$TT_NS-proposer-session"
 ```
 
 ## Tests

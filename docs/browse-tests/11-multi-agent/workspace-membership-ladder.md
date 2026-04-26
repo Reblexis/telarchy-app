@@ -32,10 +32,10 @@ source "$ROOT/docs/browse-tests/_runner/lib.sh"
 WS=$(tt_mkworkspace blank public); tt_on_cleanup "tt_rm_workspace '$WS'"
 read STR KEY < <(tt_mkagent "$WS" stranger)
 mid=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d '{"name":"ladder-m","type":"leaf","value":50,"rangeMin":0,"rangeMax":100}' \
+  -X POST -d '{"name":"ladder-m","type":"leaf","value":50,"marketRangeMax":100}' \
   "$TT_BASE_URL/api/metrics" | jq -r '.id')
 mkt=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2030-01-01", liquidityCredits:20}')" \
+  -X POST -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2030-01-01", liquidity:20}')" \
   "$TT_BASE_URL/api/predictions/markets" | jq -r '.id')
 
 cap_status() { # $1 method, $2 path, $3 body
@@ -46,7 +46,7 @@ cap_status() { # $1 method, $2 path, $3 body
 }
 promote() { # $1 role
   tt_admin_curl "$WS" -H 'Content-Type: application/json' -X POST \
-    -d "$(jq -nc --arg id "$STR" --arg r "$1" '{agentId:$id, role:$r}')" \
+    -d "$(jq -nc --arg id "$STR" --arg r "$1" '{participantId:$id, role:$r}')" \
     "$TT_BASE_URL/api/workspaces/$WS/members" >/dev/null
 }
 ```

@@ -1,11 +1,11 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { randomBytes } from 'crypto';
 import { db } from '../db/client';
-import { agents, authUser, trades, positions, tasks, taskMessages } from '../db/schema';
+import { agents, agentApiKeys, authUser, trades, positions, tasks, taskMessages } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { CURRENT_CONSENT_VERSION } from './legal';
 import { wrap } from '../lib/wrap';
-import { requireUser } from '../middleware/roles';
+import { requireUser, requireIdentity } from '../middleware/roles';
 import { hashKey } from '../middleware/auth';
 import { getAuthWorkspaceMemberships, getUserWorkspaceMemberships } from '../middleware/auth';
 import { toUnits, SIGNUP_CREDITS } from '../lib/validation';
@@ -44,24 +44,42 @@ async function ensureParticipant(uid: string): Promise<{ participantId: string; 
 }
 
 /**
- * GET /api/auth/me
- * Returns the current user's profile and workspace memberships.
- * Auto-creates the participant on first call (handles OAuth users who skip profile setup).
+ * Resolve the caller to a participant ID (for both browser-session and agent-key auth).
+ * Browser users are auto-provisioned on first call; agent-key callers already
+ * have an agent row by definition.
  */
-userauthRouter.get('/me', requireUser, wrap(async (req, res) => {
-  const { uid, capabilities } = req.auth!;
+async function resolveCallerParticipantId(req: Request): Promise<string | null> {
+  const uid = req.auth?.uid;
+  const agentId = req.auth?.agentId;
+  if (uid) {
+    const { participantId } = await ensureParticipant(uid);
+    return participantId;
+  }
+  if (agentId) return agentId;
+  return null;
+}
 
-  if (!uid) {
+/**
+ * GET /api/auth/me
+ * Returns the current participant's profile and workspace memberships.
+ * Works for both browser sessions and agent API keys: same shape, different
+ * auth path. Auto-creates the participant for OAuth users on first call.
+ */
+userauthRouter.get('/me', requireIdentity, wrap(async (req, res) => {
+  const { uid, agentId, capabilities } = req.auth!;
+
+  if (!uid && !agentId) {
+    // Master key with no identity (rare): degrade gracefully.
     const authRole = capabilities.has('manage') ? 'admin' : capabilities.has('trade') ? 'agent' : capabilities.has('read') ? 'member' : 'pending';
     res.json({ uid: null, email: null, workspaceId: req.auth!.workspaceId, authRole, workspaces: {} });
     return;
   }
 
-  // Auto-create participant on first access (important for OAuth users who bypass signup page)
-  const { participantId } = await ensureParticipant(uid);
-
-  const [agent] = await db.select().from(agents).where(eq(agents.authUserId, uid));
-  const memberships = await getUserWorkspaceMemberships(uid);
+  const participantId = (await resolveCallerParticipantId(req))!;
+  const [agent] = await db.select().from(agents).where(eq(agents.id, participantId));
+  const memberships = uid
+    ? await getUserWorkspaceMemberships(uid)
+    : await getAuthWorkspaceMemberships({ agentId });
 
   const workspaceMap = Object.fromEntries(memberships.map(m => [m.workspaceId, { role: m.memberRole }]));
 
@@ -80,7 +98,7 @@ userauthRouter.get('/me', requireUser, wrap(async (req, res) => {
     : 'pending';
 
   res.json({
-    uid,
+    uid: uid ?? null,
     email: null, // BetterAuth session has the email; frontend reads from authClient.useSession()
     intent: agent?.intent ?? null,
     nickname: agent?.nickname ?? null,
@@ -96,8 +114,9 @@ userauthRouter.get('/me', requireUser, wrap(async (req, res) => {
 /**
  * POST /api/auth/consent
  * Records that the authenticated user accepted the current Terms and Privacy
- * Policy. Called by the signup flow immediately after sign-up (email/password
- * or OAuth) and before the user is allowed to use the app.
+ * Policy. Browser-account specific: programmatic agent-key participants are
+ * exempt from consent gating (see middleware/consent.ts), so this endpoint
+ * keeps requireUser by design.
  */
 userauthRouter.post('/consent', requireUser, wrap(async (req, res) => {
   const { uid } = req.auth!;
@@ -118,26 +137,41 @@ userauthRouter.post('/consent', requireUser, wrap(async (req, res) => {
 
 /**
  * POST /api/auth/profile
- * Upserts the user's app profile. Auto-creates a participant on first call.
- * Also used to update intent and claim a nickname after signup.
+ * Upserts the caller's participant profile (intent + nickname). Works for both
+ * browser sessions and agent API keys; uses whichever identity is present on
+ * req.auth and updates that participant's row.
  */
-userauthRouter.post('/profile', requireUser, wrap(async (req, res) => {
-  const { uid } = req.auth!;
-  if (!uid) { res.status(403).json({ error: 'Browser account session required' }); return; }
+userauthRouter.post('/profile', requireIdentity, wrap(async (req, res) => {
+  const participantId = await resolveCallerParticipantId(req);
+  if (!participantId) {
+    res.status(403).json({ error: 'Identity required' });
+    return;
+  }
 
   const { intent, nickname } = req.body;
   if (intent !== undefined && !['creator', 'agent'].includes(intent)) {
     res.status(400).json({ error: 'intent must be "creator" or "agent"' }); return;
   }
 
-  const { participantId } = await ensureParticipant(uid);
-
-  if (intent !== undefined) {
-    await db.update(agents).set({ intent }).where(eq(agents.authUserId, uid));
+  if (nickname !== undefined) {
+    if (typeof nickname !== 'string') {
+      res.status(400).json({ error: 'nickname must be a string' }); return;
+    }
+    const trimmed = nickname.trim();
+    if (trimmed.length === 0) {
+      res.status(400).json({ error: 'nickname must not be empty' }); return;
+    }
+    if (trimmed.length > 64) {
+      res.status(400).json({ error: 'nickname must be 1–64 characters' }); return;
+    }
   }
 
-  if (nickname !== undefined && nickname !== null && nickname !== '') {
-    await claimNickname(db, participantId, nickname);
+  if (intent !== undefined) {
+    await db.update(agents).set({ intent }).where(eq(agents.id, participantId));
+  }
+
+  if (nickname !== undefined) {
+    await claimNickname(db, participantId, nickname.trim());
   }
 
   res.json({ ok: true, participantId, agentId: participantId });
@@ -145,19 +179,37 @@ userauthRouter.post('/profile', requireUser, wrap(async (req, res) => {
 
 /**
  * DELETE /api/auth/me
- * GDPR: deletes the user's app profile and detaches browser auth from the participant.
+ * GDPR / self-delete: removes the caller's participant record (and, for
+ * browser users, the BetterAuth account rows). Works for both auth paths so
+ * an API-key participant can also exercise their right to be forgotten.
  */
-userauthRouter.delete('/me', requireUser, wrap(async (req, res) => {
-  const { uid } = req.auth!;
-  if (!uid) { res.status(403).json({ error: 'Browser account session required' }); return; }
+userauthRouter.delete('/me', requireIdentity, wrap(async (req, res) => {
+  const { uid, agentId } = req.auth!;
+  const participantId = await resolveCallerParticipantId(req);
+  if (!participantId) {
+    res.status(403).json({ error: 'Identity required' });
+    return;
+  }
 
   await db.transaction(async tx => {
-    await tx.update(agents).set({ authUserId: null }).where(eq(agents.authUserId, uid));
-    // Delete BetterAuth session/account rows (cascade deletes auth tables)
-    const { authAccount, authSession, authUser } = await import('../db/schema');
-    await tx.delete(authAccount).where(eq(authAccount.userId, uid));
-    await tx.delete(authSession).where(eq(authSession.userId, uid));
-    await tx.delete(authUser).where(eq(authUser.id, uid));
+    // Detach + delete the caller's PII. Trades, positions, and liquidity
+    // events are kept (they affect market state for other participants);
+    // the agent row stays as an opaque attribution token but loses every
+    // authentication path and human-identifiable field.
+    await tx.delete(agentApiKeys).where(eq(agentApiKeys.agentId, participantId));
+    await tx.update(agents)
+      .set({ authUserId: null, nickname: null, walletAddress: null, intent: null })
+      .where(eq(agents.id, participantId));
+    if (uid) {
+      // Browser-account user: tear down BetterAuth rows (login + sessions).
+      const { authAccount, authSession, authUser } = await import('../db/schema');
+      await tx.delete(authAccount).where(eq(authAccount.userId, uid));
+      await tx.delete(authSession).where(eq(authSession.userId, uid));
+      await tx.delete(authUser).where(eq(authUser.id, uid));
+    }
+    // The agent row itself is intentionally preserved — its presence keeps
+    // historical trades/positions/liquidity events attributable for market
+    // integrity, while the row carries no PII after the update above.
   });
 
   res.status(204).send();
@@ -165,17 +217,22 @@ userauthRouter.delete('/me', requireUser, wrap(async (req, res) => {
 
 /**
  * GET /api/auth/me/export
- * GDPR Article 15: returns all personal data associated with the current user.
- * Mirrors the categories listed in docs/legal/privacy-policy.md §1.
+ * GDPR Article 15: returns all personal data for the caller. Works for both
+ * auth paths; agent-key callers see the participant + their trades/positions
+ * (no BetterAuth account section, since they have none).
  */
-userauthRouter.get('/me/export', requireUser, wrap(async (req, res) => {
-  const { uid } = req.auth!;
-  if (!uid) { res.status(403).json({ error: 'Browser account session required' }); return; }
+userauthRouter.get('/me/export', requireIdentity, wrap(async (req, res) => {
+  const { uid, agentId } = req.auth!;
+  const participantId = await resolveCallerParticipantId(req);
+  if (!participantId) {
+    res.status(403).json({ error: 'Identity required' });
+    return;
+  }
 
   const [authRow, participantRow, memberships] = await Promise.all([
-    db.select().from(authUser).where(eq(authUser.id, uid)).then(r => r[0] ?? null),
-    db.select().from(agents).where(eq(agents.authUserId, uid)).then(r => r[0] ?? null),
-    getAuthWorkspaceMemberships({ uid }),
+    uid ? db.select().from(authUser).where(eq(authUser.id, uid)).then(r => r[0] ?? null) : Promise.resolve(null),
+    db.select().from(agents).where(eq(agents.id, participantId)).then(r => r[0] ?? null),
+    getAuthWorkspaceMemberships({ uid, agentId }),
   ]);
 
   const account = authRow ? {
@@ -190,7 +247,6 @@ userauthRouter.get('/me/export', requireUser, wrap(async (req, res) => {
     consentedVersion: authRow.consentedVersion,
   } : null;
 
-  const participantId = participantRow?.id ?? null;
   const participant = participantRow ? {
     id: participantRow.id,
     authUserId: participantRow.authUserId,
@@ -208,17 +264,15 @@ userauthRouter.get('/me/export', requireUser, wrap(async (req, res) => {
     approvedAt: participantRow.approvedAt,
   } : null;
 
-  const [userTrades, userPositions, userTasks, userTaskMessages] = participantId
-    ? await Promise.all([
-        db.select().from(trades).where(eq(trades.agentId, participantId)),
-        db.select().from(positions).where(eq(positions.agentId, participantId)),
-        db.select().from(tasks).where(eq(tasks.proposedBy, participantId)),
-        db.select().from(taskMessages).where(eq(taskMessages.from, participantId)),
-      ])
-    : [[], [], [], []];
+  const [userTrades, userPositions, userTasks, userTaskMessages] = await Promise.all([
+    db.select().from(trades).where(eq(trades.agentId, participantId)),
+    db.select().from(positions).where(eq(positions.agentId, participantId)),
+    db.select().from(tasks).where(eq(tasks.proposedBy, participantId)),
+    db.select().from(taskMessages).where(eq(taskMessages.from, participantId)),
+  ]);
 
   res.json({
-    uid,
+    uid: uid ?? null,
     account,
     participant,
     memberships,

@@ -26,10 +26,10 @@ deltas against closed-form LMSR expectations within tolerance.
 source "$ROOT/docs/browse-tests/_runner/lib.sh"
 WS=$(tt_mkworkspace blank public); tt_on_cleanup "tt_rm_workspace '$WS'"
 mid=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d '{"name":"vr","type":"leaf","value":50,"rangeMin":0,"rangeMax":100}' \
+  -X POST -d '{"name":"vr","type":"leaf","value":50,"marketRangeMax":100,"timePreference":{"enabled":false}}' \
   "$TT_BASE_URL/api/metrics" | jq -r '.id')
 mkt=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2030-01-01", liquidityCredits:20}')" \
+  -X POST -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2030-01-01", liquidity:20, skipAutoLiquidity:true}')" \
   "$TT_BASE_URL/api/predictions/markets" | jq -r '.id')
 read T1 K1 < <(tt_mkagent "$WS" t1)
 read T2 K2 < <(tt_mkagent "$WS" t2)
@@ -49,27 +49,40 @@ trade() { # $1 key, $2 dir, $3 amt
 ### T1. Both traders place opposing positions
 
 ```bash
+balT1_start=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/agents/$T1/balance" | jq -r '.balance')
+balT2_start=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/agents/$T2/balance" | jq -r '.balance')
 trade "$K1" higher 5 >/dev/null
 trade "$K2" lower 5 >/dev/null
 balT1_pre=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/agents/$T1/balance" | jq -r '.balance')
 balT2_pre=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/agents/$T2/balance" | jq -r '.balance')
-echo "pre-resolve: t1=$balT1_pre t2=$balT2_pre"
+echo "post-trade: t1=$balT1_pre t2=$balT2_pre"
 ```
 
-### T2. Resolve at metric value 80 → "higher" wins
+### T2. Resolve at metric value 80 → "higher" wins net of LP-leftover
+
+Use `POST /api/predictions/markets/:id/resolve` to settle a single market
+regardless of targetDate. (Date-window `/api/predictions/resolve` is the
+production cron path; the per-market endpoint is the test-friendly one.)
+The LP-leftover distribution refunds the residual pool pro-rata across
+*all* trades on the losing side as well as the winning side, so a losing
+trader's post-resolve balance can sit slightly above their post-trade
+balance even though their net (start vs end) is still a loss.
 
 ```bash
 tt_admin_curl "$WS" -H 'Content-Type: application/json' \
   -X PUT -d '{"value":80}' "$TT_BASE_URL/api/metrics/$mid" >/dev/null
-tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg id "$mkt" '{marketId:$id}')" \
-  "$TT_BASE_URL/api/predictions/resolve" >/dev/null
+out=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
+  -X POST -d '{}' "$TT_BASE_URL/api/predictions/markets/$mkt/resolve")
+echo "$out" | jq -e '.resolved == true' >/dev/null \
+  || { echo "force-resolve failed: $out"; exit 1; }
 balT1_post=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/agents/$T1/balance" | jq -r '.balance')
 balT2_post=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/agents/$T2/balance" | jq -r '.balance')
+# T1 (winner) got payout: post-resolve > post-trade.
 awk -v a="$balT1_pre" -v b="$balT1_post" 'BEGIN{exit !(b > a)}' \
   || { echo "T1 should have gained on higher with metric=80; pre=$balT1_pre post=$balT1_post"; exit 1; }
-awk -v a="$balT2_pre" -v b="$balT2_post" 'BEGIN{exit !(b <= a)}' \
-  || { echo "T2 should not have gained on lower with metric=80; pre=$balT2_pre post=$balT2_post"; exit 1; }
+# T2 (loser) net loss from start: end < start.
+awk -v a="$balT2_start" -v b="$balT2_post" 'BEGIN{exit !(b < a)}' \
+  || { echo "T2 should be net-down (lower w/ metric=80); start=$balT2_start post=$balT2_post"; exit 1; }
 ```
 
 ### T3. Resolved market is read-only
@@ -87,10 +100,10 @@ case "$status" in 400|409|422) ;; *) echo "trade after resolve returned $status 
 
 ```bash
 mid2=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d '{"name":"vr2","type":"leaf","value":50,"rangeMin":0,"rangeMax":100}' \
+  -X POST -d '{"name":"vr2","type":"leaf","value":50,"marketRangeMax":100,"timePreference":{"enabled":false}}' \
   "$TT_BASE_URL/api/metrics" | jq -r '.id')
 mkt2=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg m "$mid2" '{metricId:$m, targetDate:"2030-01-01", liquidityCredits:20}')" \
+  -X POST -d "$(jq -nc --arg m "$mid2" '{metricId:$m, targetDate:"2030-01-01", liquidity:20, skipAutoLiquidity:true}')" \
   "$TT_BASE_URL/api/predictions/markets" | jq -r '.id')
 pre1=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/agents/$T1/balance" | jq -r '.balance')
 curl -sf -H "X-Agent-Key: $K1" -H "X-Workspace-Id: $WS" \

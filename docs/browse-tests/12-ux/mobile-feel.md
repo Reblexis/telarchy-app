@@ -28,12 +28,10 @@ remain `(human)` checks.
 source "$ROOT/docs/browse-tests/_runner/lib.sh"
 tt_browse_init
 EMAIL="qa+mob-$TT_RUN_ID@example.test"
-JAR=$(tt_mkuser "$EMAIL" "testtest123" "MobUser")
+read JAR MUID < <(tt_mkuser_uid "$EMAIL" "testtest123" "MobUser")
 tt_on_cleanup "tt_rm_user '$JAR'"
 WS=$(tt_mkworkspace personal public); tt_on_cleanup "tt_rm_workspace '$WS'"
-tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg e "$EMAIL" '{email:$e, role:"admin"}')" \
-  "$TT_BASE_URL/api/workspaces/$WS/members" >/dev/null
+tt_add_member "$WS" "$MUID" "admin"
 $B viewport 390x844
 $B stop
 $B goto "$TT_FRONTEND_URL/login" && $B wait --networkidle

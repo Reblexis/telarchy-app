@@ -36,12 +36,10 @@ actually act on.
 source "$ROOT/docs/browse-tests/_runner/lib.sh"
 tt_browse_init
 EMAIL="qa+use-$TT_RUN_ID@example.test"
-JAR=$(tt_mkuser "$EMAIL" "testtest123" "DecidingFounder")
+read JAR MUID < <(tt_mkuser_uid "$EMAIL" "testtest123" "DecidingFounder")
 tt_on_cleanup "tt_rm_user '$JAR'"
 WS=$(tt_mkworkspace startup public); tt_on_cleanup "tt_rm_workspace '$WS'"
-tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg e "$EMAIL" '{email:$e, role:"admin"}')" \
-  "$TT_BASE_URL/api/workspaces/$WS/members" >/dev/null
+tt_add_member "$WS" "$MUID" "admin"
 read BOT KEY < <(tt_mkagent "$WS" usebot)
 tt_credit "$WS" "$BOT" 200
 $B viewport 1440x900
@@ -63,7 +61,7 @@ T0=$(date +%s)
 ### T1. Frame the decision in the user's words
 
 ```bash
-react "Goal: decide whether to hire 1 senior eng @ $200k. Trade-off: +burn, expected MRR lift."
+react 'Goal: decide whether to hire 1 senior eng @ $200k. Trade-off: +burn, expected MRR lift.'
 ```
 
 ### T2. Set the relevant KPIs (MRR, runway, headcount)

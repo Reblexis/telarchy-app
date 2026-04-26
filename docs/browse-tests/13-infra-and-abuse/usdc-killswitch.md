@@ -97,7 +97,7 @@ grep -qiE 'disabled|settlement|usdc|coming soon' <<<"$body" \
 ### T7. Frontend hides deposit UI on /account
 
 ```bash
-[ -z "$B" ] && { echo "skip: no browse"; exit 0; }
+tt_browse_init
 EMAIL="qa+ks-$TT_RUN_ID@example.test"
 JAR=$(tt_mkuser "$EMAIL" "testtest123" "KsUser")
 tt_on_cleanup "tt_rm_user '$JAR'"
@@ -116,13 +116,21 @@ grep -qiE 'deposit|withdraw|usdc' <<<"$text" \
   || echo "WARN: USDC UI may be visible despite kill-switch"
 ```
 
-### T8. /api/agents/treasury still works (it's not USDC-only)
+### T8. /api/agents/treasury matches the kill-switch state
+
+When USDC is enabled the on-chain treasury balance returns 200; when
+disabled it returns 503 with the kill-switch message. The treasury
+endpoint is the on-chain settlement balance, not a generic credits pool.
 
 ```bash
 status=$(curl -s -o /dev/null -w '%{http_code}' \
   -H "X-API-Key: $TT_ADMIN_KEY" -H "X-Workspace-Id: $WS" \
   "$TT_BASE_URL/api/agents/treasury")
-[ "$status" = "200" ]
+if [ "$ENABLED" = "true" ]; then
+  [ "$status" = "200" ] || { echo "treasury (USDC on) returned $status"; exit 1; }
+else
+  [ "$status" = "503" ] || { echo "treasury (USDC off) returned $status, expected 503"; exit 1; }
+fi
 ```
 
 ## Cleanup

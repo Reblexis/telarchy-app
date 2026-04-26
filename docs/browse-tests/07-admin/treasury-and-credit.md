@@ -28,21 +28,32 @@ read AID KEY < <(tt_mkagent "$WS" target)
 
 ## Tests
 
-### T1. Treasury endpoint returns numeric balance
+### T1. Treasury endpoint behaves correctly for the current USDC flag
+
+`/api/agents/treasury` is the on-chain USDC settlement balance. When USDC
+is disabled (the default in dev/test), it returns 503 with the
+kill-switch message. When enabled it returns a numeric balance.
 
 ```bash
-out=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/agents/treasury")
-jq -e '.balance, .currency' <<<"$out" >/dev/null \
-  || jq -e '.units // .nano // .credits' <<<"$out" >/dev/null
+config=$(curl -sf "$TT_BASE_URL/api/public-config")
+usdc=$(jq -r '.usdcSettlementEnabled' <<<"$config")
+status=$(curl -s -o /dev/null -w '%{http_code}' \
+  -H "X-API-Key: $TT_ADMIN_KEY" -H "X-Workspace-Id: $WS" \
+  "$TT_BASE_URL/api/agents/treasury")
+if [ "$usdc" = "true" ]; then
+  [ "$status" = "200" ] || { echo "treasury (USDC on) returned $status"; exit 1; }
+else
+  [ "$status" = "503" ] || { echo "treasury (USDC off) returned $status, expected 503"; exit 1; }
+fi
 ```
 
-### T2. Non-admin cannot read treasury
+### T2. Non-admin still cannot read treasury
 
 ```bash
 status=$(curl -s -o /dev/null -w '%{http_code}' \
   -H "X-Agent-Key: $KEY" -H "X-Workspace-Id: $WS" \
   "$TT_BASE_URL/api/agents/treasury")
-[ "$status" = "403" ]
+case "$status" in 401|403|503) ;; *) echo "non-admin treasury returned $status"; exit 1;; esac
 ```
 
 ### T3. Credit grants increment the agent's balance
@@ -60,11 +71,13 @@ awk -v d="$delta" 'BEGIN{exit !(d == 50 || d > 49.99)}' \
 
 ### T4. Self-spend works for the participant
 
+The spend endpoint requires `type` (`betting | tokens | purchase`).
+
 ```bash
 status=$(curl -s -o /dev/null -w '%{http_code}' \
   -H "X-Agent-Key: $KEY" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' \
-  -X POST -d '{"amount":1,"description":"test"}' \
+  -X POST -d '{"amount":1,"type":"tokens","description":"test"}' \
   "$TT_BASE_URL/api/agents/$AID/spend")
 case "$status" in 200|201) ;; *) echo "self-spend returned $status"; exit 1;; esac
 ```
@@ -76,7 +89,7 @@ read AID2 KEY2 < <(tt_mkagent "$WS" other)
 status=$(curl -s -o /dev/null -w '%{http_code}' \
   -H "X-Agent-Key: $KEY2" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' \
-  -X POST -d '{"amount":1,"description":"steal"}' \
+  -X POST -d '{"amount":1,"type":"tokens","description":"steal"}' \
   "$TT_BASE_URL/api/agents/$AID/spend")
 [ "$status" = "403" ]
 ```

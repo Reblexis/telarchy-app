@@ -32,7 +32,7 @@ read OUT  KO < <(tt_mkagent "$WS" out)
 read MM   KM < <(tt_mkagent "$WS" mm)
 for ag in $PROP $APPR $OUT $MM; do tt_credit "$WS" "$ag" 200; done
 tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg id "$APPR" '{agentId:$id, role:"admin"}')" \
+  -X POST -d "$(jq -nc --arg id "$APPR" '{participantId:$id, role:"admin"}')" \
   "$TT_BASE_URL/api/workspaces/$WS/members" >/dev/null
 ```
 

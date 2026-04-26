@@ -34,11 +34,9 @@ WS=$(tt_mkworkspace blank public); tt_on_cleanup "tt_rm_workspace '$WS'"
 $B viewport 1440x900
 $B stop
 EMAIL="qa+gh-$TT_RUN_ID@example.test"
-JAR=$(tt_mkuser "$EMAIL" "testtest123" "GhUser-$TT_RUN_ID")
+read JAR MUID < <(tt_mkuser_uid "$EMAIL" "testtest123" "GhUser-$TT_RUN_ID")
 tt_on_cleanup "tt_rm_user '$JAR'"
-tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg e "$EMAIL" '{email:$e, role:"admin"}')" \
-  "$TT_BASE_URL/api/workspaces/$WS/members" >/dev/null
+tt_add_member "$WS" "$MUID" "admin"
 $B goto "$TT_FRONTEND_URL/login" && $B wait --networkidle
 $B fill 'input[type="email"]' "$EMAIL"
 $B fill 'input[type="password"]' "testtest123"

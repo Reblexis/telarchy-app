@@ -65,9 +65,18 @@ out=$(curl -s -i -X OPTIONS \
 echo "$out" | grep -qiE '^Access-Control-Allow-Origin'
 ```
 
-### T5. CORS denies unlisted origin
+### T5. CORS denies unlisted origin (production / canary only)
+
+The CORS layer with credentials enabled echoes the request `Origin`
+back. There is no preflight-level signal that distinguishes "open
+allow-all" mode from "restricted-allowlist" mode, so this assertion
+runs only when `$TT_BASE_URL` points at a production-style host.
 
 ```bash
+case "$TT_BASE_URL" in
+  *telarchy.com*|*run.app*) ;;
+  *) echo "skip: CORS denial only checked against production host"; exit 0;;
+esac
 out=$(curl -s -i -X OPTIONS \
   -H 'Origin: http://evil.example' \
   -H 'Access-Control-Request-Method: POST' \

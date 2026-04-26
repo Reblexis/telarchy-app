@@ -39,19 +39,9 @@ if [ -n "$ID" ]; then
   got=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/metrics/$ID" | jq -r '.name')
   [ "$got" = "<script>alert(1)</script>" ]
 fi
-# In the UI it should render as text. Browse-side check: open metrics dashboard
-# and confirm the literal string appears, no script ran.
-if command -v "$B" >/dev/null 2>&1; then
-  $B viewport 1440x900
-  $B stop
-  $B goto "$TT_FRONTEND_URL/metrics" && $B wait --networkidle
-  $B console --clear
-  text=$($B text)
-  grep -q '<script>alert(1)</script>' <<<"$text" \
-    || echo "WARN: not asserting UI rendering — login flow not run"
-  out=$($B console --errors)
-  [ -z "$out" ]
-fi
+# UI rendering check skipped: this spec is api-only (no auth flow available
+# to land on /metrics). The literal-vs-rendered behaviour is verified by
+# 13-infra-and-abuse/xss-and-injection.md against an authenticated session.
 ```
 
 ### T2. Extremely long name truncated or rejected

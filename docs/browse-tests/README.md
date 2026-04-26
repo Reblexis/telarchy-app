@@ -46,7 +46,22 @@ docs/browse-tests/_runner/run.sh --human
 
 # write the results report somewhere stable
 docs/browse-tests/_runner/run.sh --report ./qa-report.md
+
+# resume an interrupted run (uses qa-runs/latest by default)
+docs/browse-tests/_runner/run.sh --resume
+
+# resume + re-run failures
+docs/browse-tests/_runner/run.sh --resume --retry-failed
+
+# resume into a specific run dir
+docs/browse-tests/_runner/run.sh --resume qa-runs/20260426-083141
 ```
+
+Output now lives under `qa-runs/<timestamp>/` (gitignored) with a
+`qa-runs/latest` symlink, so a reboot or crash mid-run no longer wipes
+state. Each spec produces `<id>.log`, `<id>.report.md`, and an
+`evidence/<id>/` directory copied out of `/tmp/tt-<id>-*` after it finishes.
+A `done` sentinel file is written when the aggregator completes.
 
 Required env (set once per session):
 

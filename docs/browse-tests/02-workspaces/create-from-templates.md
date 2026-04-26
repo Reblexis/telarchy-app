@@ -30,10 +30,12 @@ Maps to `mvp-evaluation-plan.md` Sections 3 and 6.
 ## Setup
 
 ```bash
+source "$ROOT/docs/browse-tests/_runner/lib.sh"
+tt_browse_init
 $B viewport 1440x900
-$B goto https://telarchy.com/workspaces/new
+$B goto "$TT_FRONTEND_URL/workspaces/new"
 $B wait --networkidle
-$B screenshot /tmp/workspace-create.png
+$B screenshot "/tmp/$TT_NS-workspace-create.png"
 ```
 
 ## Tests

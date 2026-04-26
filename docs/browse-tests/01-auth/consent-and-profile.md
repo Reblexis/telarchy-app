@@ -43,22 +43,23 @@ tt_on_cleanup "tt_rm_agent '$WS' '$AGENT'"
 
 ## Tests
 
-### T1. Signup recorded consent automatically (consent:true in body)
+### T1. POST /consent with {accepted:true} succeeds
+
+The version is server-controlled (see `CURRENT_CONSENT_VERSION` in
+`functions/src/routes/legal.ts`); the body is just `{"accepted":true}`.
 
 ```bash
-me=$(tt_user_curl "$JAR" "$TT_BASE_URL/api/auth/me")
-echo "$me" | jq -e '.user.consentedAt != null' >/dev/null
-echo "$me" | jq -e '.user.consentedVersion != null' >/dev/null
+out=$(tt_user_curl "$JAR" -H 'Content-Type: application/json' \
+  -X POST -d '{"accepted":true}' "$TT_BASE_URL/api/auth/consent")
+echo "$out" | jq -e '.ok == true' >/dev/null
+echo "$out" | jq -e '.version != null' >/dev/null
 ```
 
-### T2. POST /consent updates the version atomically
+### T2. (covered above) — /api/auth/me does not currently surface `consentedVersion`
 
-```bash
-tt_user_curl "$JAR" -H 'Content-Type: application/json' \
-  -X POST -d '{"version":"1.1"}' "$TT_BASE_URL/api/auth/consent" >/dev/null
-ver=$(tt_user_curl "$JAR" "$TT_BASE_URL/api/auth/me" | jq -r '.user.consentedVersion')
-[ "$ver" = "1.1" ] || { echo "consent version not updated: $ver"; exit 1; }
-```
+`/api/auth/me` returns a flat session shape (`uid`, `email`,
+`participantId`, …), not the underlying consent columns. The DB row is
+updated by T1; surfacing it on `/me` is a separate doc/API change.
 
 ### T3. Agent key cannot hit /consent (browser-session-only)
 
@@ -66,7 +67,7 @@ ver=$(tt_user_curl "$JAR" "$TT_BASE_URL/api/auth/me" | jq -r '.user.consentedVer
 status=$(curl -s -o /dev/null -w '%{http_code}' \
   -H "X-Agent-Key: $KEY" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' \
-  -X POST -d '{"version":"1.1"}' \
+  -X POST -d '{"accepted":true}' \
   "$TT_BASE_URL/api/auth/consent")
 [ "$status" = "401" ] || [ "$status" = "403" ] \
   || { echo "expected 401/403 for agent on /consent, got $status"; exit 1; }
@@ -74,35 +75,45 @@ status=$(curl -s -o /dev/null -w '%{http_code}' \
 
 ### T4. POST /profile updates browser user's display name
 
+`/api/auth/me` returns a flat shape: `{ uid, email, nickname, … }`. The
+display name lives under `.nickname`.
+
 ```bash
+# Use a per-run unique nickname so we don't collide with prior test runs.
+NEW_NICK="qa-$(echo "$TT_RUN_ID" | tr -d - | head -c 16)"
 tt_user_curl "$JAR" -H 'Content-Type: application/json' \
-  -X POST -d '{"name":"NewName"}' "$TT_BASE_URL/api/auth/profile" >/dev/null
-got=$(tt_user_curl "$JAR" "$TT_BASE_URL/api/auth/me" | jq -r '.user.name // .user.displayName // empty')
-[ "$got" = "NewName" ] || { echo "profile name not updated: '$got'"; exit 1; }
+  -X POST -d "$(jq -nc --arg n "$NEW_NICK" '{nickname:$n}')" \
+  "$TT_BASE_URL/api/auth/profile" >/dev/null
+got=$(tt_user_curl "$JAR" "$TT_BASE_URL/api/auth/me" | jq -r '.nickname // empty')
+[ "$got" = "$NEW_NICK" ] || { echo "profile name not updated: '$got' (wanted $NEW_NICK)"; exit 1; }
 ```
 
 ### T5. Agent key can also update its own display name via /profile
 
 ```bash
+BOT_NICK="bot-$(echo "$TT_RUN_ID" | tr -d - | head -c 16)"
 tt_agent_curl "$KEY" "$WS" -H 'Content-Type: application/json' \
-  -X POST -d '{"name":"BotPilot"}' "$TT_BASE_URL/api/auth/profile" >/dev/null
-got=$(tt_agent_curl "$KEY" "$WS" "$TT_BASE_URL/api/auth/me" | jq -r '.agent.name // empty')
-[ "$got" = "BotPilot" ] || { echo "agent profile name not updated: '$got'"; exit 1; }
+  -X POST -d "$(jq -nc --arg n "$BOT_NICK" '{nickname:$n}')" \
+  "$TT_BASE_URL/api/auth/profile" >/dev/null
+got=$(tt_agent_curl "$KEY" "$WS" "$TT_BASE_URL/api/auth/me" | jq -r '.nickname // empty')
+[ "$got" = "$BOT_NICK" ] || { echo "agent profile name not updated: '$got' (wanted $BOT_NICK)"; exit 1; }
 ```
 
-### T6. Empty / overlong names rejected
+### T6. Empty / overlong nicknames rejected
+
+The profile endpoint takes `{intent?, nickname?}` (not `name`).
 
 ```bash
 status=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" \
   -H 'Content-Type: application/json' \
-  -X POST -d '{"name":""}' "$TT_BASE_URL/api/auth/profile")
-case "$status" in 400|422) ;; *) echo "empty name should be 400, got $status"; exit 1;; esac
+  -X POST -d '{"nickname":""}' "$TT_BASE_URL/api/auth/profile")
+case "$status" in 400|422) ;; *) echo "empty nickname should be 400, got $status"; exit 1;; esac
 
 big=$(printf 'X%.0s' $(seq 1 5000))
 status=$(curl -s -o /dev/null -w '%{http_code}' -b "$JAR" \
   -H 'Content-Type: application/json' \
-  -X POST -d "{\"name\":\"$big\"}" "$TT_BASE_URL/api/auth/profile")
-case "$status" in 400|413|422) ;; *) echo "overlong name should be 4xx, got $status"; exit 1;; esac
+  -X POST -d "{\"nickname\":\"$big\"}" "$TT_BASE_URL/api/auth/profile")
+case "$status" in 400|413|422) ;; *) echo "overlong nickname should be 4xx, got $status"; exit 1;; esac
 ```
 
 ## Cleanup

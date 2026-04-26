@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -17,8 +18,10 @@ const mdStyles: React.CSSProperties = {
 };
 
 export function GuidesPage() {
+  const { section: routeSection } = useParams<{ section?: string }>();
+  const navigate = useNavigate();
   const [sections, setSections] = useState<GuideSection[]>([]);
-  const [active, setActive] = useState<string>('');
+  const [active, setActive] = useState<string>(routeSection ?? '');
   const [content, setContent] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const cache = useRef<Map<string, string>>(new Map());
@@ -28,10 +31,19 @@ export function GuidesPage() {
       .then(r => r.json())
       .then((data: GuideSection[]) => {
         setSections(data);
-        if (data.length > 0) setActive(data[0].id);
+        const fallback = data.length > 0 ? data[0].id : '';
+        const known = data.some(s => s.id === routeSection);
+        if (routeSection && known) setActive(routeSection);
+        else if (!active) setActive(fallback);
       })
       .catch(err => console.error('Failed to load guide index', err));
-  }, []);
+  }, [routeSection]);
+
+  // Keep the URL in sync with the active section so /guides/<id> works for
+  // both deep-links (handled by routeSection above) and the in-page nav.
+  useEffect(() => {
+    if (active && active !== routeSection) navigate(`/guides/${active}`, { replace: true });
+  }, [active, routeSection, navigate]);
 
   useEffect(() => {
     if (!active) return;

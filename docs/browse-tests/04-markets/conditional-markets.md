@@ -31,7 +31,7 @@ read OUTS KO < <(tt_mkagent "$WS" outsider)
 for ag in $PROP $APPR $OUTS; do tt_credit "$WS" "$ag" 200; done
 # Promote APPR to admin so it can approve
 tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg id "$APPR" '{agentId:$id, role:"admin"}')" \
+  -X POST -d "$(jq -nc --arg id "$APPR" '{participantId:$id, role:"admin"}')" \
   "$TT_BASE_URL/api/workspaces/$WS/members" >/dev/null
 ```
 

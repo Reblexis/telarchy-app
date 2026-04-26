@@ -44,7 +44,7 @@ $B stop
 ```bash
 $B goto "$TT_FRONTEND_URL/terms" && $B wait --networkidle
 text=$($B text)
-for clause in "18" "play-money\|no monetary value\|no redemption" "governing law\|jurisdiction" "contact\|reach"; do
+for clause in "18" "play-money|no monetary value|no redemption" "governing law|jurisdiction" "contact|reach"; do
   grep -Eqi "$clause" <<<"$text" || { echo "missing: $clause"; exit 1; }
 done
 $B screenshot "/tmp/$TT_NS-terms.png"
@@ -55,16 +55,18 @@ $B screenshot "/tmp/$TT_NS-terms.png"
 ```bash
 $B goto "$TT_FRONTEND_URL/privacy" && $B wait --networkidle
 text=$($B text)
-for cat in email "display name\|name" "ip\|address\|cookies"; do
+for cat in email "display name|name" "ip|address|cookies"; do
   grep -Eqi "$cat" <<<"$text" || { echo "missing: $cat"; exit 1; }
 done
 ```
 
 ### T3. Both pages render via the API too (no UI, machine-readable)
 
+The legal endpoints return raw markdown (`text/markdown`).
+
 ```bash
-curl -sf "$TT_BASE_URL/api/legal/terms" | jq -e '.title, .body' >/dev/null
-curl -sf "$TT_BASE_URL/api/legal/privacy" | jq -e '.title, .body' >/dev/null
+[ "$(curl -sf "$TT_BASE_URL/api/legal/terms" | wc -c)" -gt 200 ]
+[ "$(curl -sf "$TT_BASE_URL/api/legal/privacy" | wc -c)" -gt 200 ]
 ```
 
 ### T4. Markdown does not leak through (no raw `#` headers)
@@ -87,12 +89,18 @@ overflow=$($B js 'document.documentElement.scrollWidth > window.innerWidth')
 
 ### T6. Consent checkbox label links to these pages
 
+`$B snapshot -i` lists interactive refs by their label text, not their
+href; check for "Terms" / "Privacy" link rows next to the consent
+checkbox.
+
 ```bash
 $B viewport 1440x900
 $B goto "$TT_FRONTEND_URL/signup" && $B wait --networkidle
 $B snapshot -i > "/tmp/$TT_NS-signup-snap.txt"
-grep -E '/terms|/privacy' "/tmp/$TT_NS-signup-snap.txt" \
-  || { echo "consent label missing terms/privacy links"; exit 1; }
+grep -Eq '\[link\] "Terms"' "/tmp/$TT_NS-signup-snap.txt" \
+  || { echo "consent label missing Terms link"; exit 1; }
+grep -Eq '\[link\] "Privacy' "/tmp/$TT_NS-signup-snap.txt" \
+  || { echo "consent label missing Privacy link"; exit 1; }
 ```
 
 ## Cleanup

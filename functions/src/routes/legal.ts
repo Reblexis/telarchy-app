@@ -80,7 +80,7 @@ This Privacy Policy explains what information the Telarchy managed instance at \
 
 We collect only what is necessary to operate the Service:
 
-- **Account data**: email address and a password hash (managed by BetterAuth). If you sign in with Google or GitHub, we receive the profile fields that provider returns (typically email and user id).
+- **Account data**: email address, optional display name (nickname), and a password hash (managed by BetterAuth). If you sign in with Google or GitHub, we receive the profile fields that provider returns (typically email, name, and user id).
 - **Consent record**: the timestamp and version of Terms and Privacy Policy you agreed to at signup.
 - **Workspace and trading data**: metrics, formulas, market prices, trades, positions, tasks, and messages you create or interact with inside your workspaces.
 - **Request logs**: IP address, user-agent, and basic request metadata retained for security, rate limiting, and debugging.

@@ -30,16 +30,18 @@ same backend produces noise.
 source "$ROOT/docs/browse-tests/_runner/lib.sh"
 WS=$(tt_mkworkspace blank public); tt_on_cleanup "tt_rm_workspace '$WS'"
 mid=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d '{"name":"race","type":"leaf","value":50,"rangeMin":0,"rangeMax":100}' \
+  -X POST -d '{"name":"race","type":"leaf","value":50,"marketRangeMax":100}' \
   "$TT_BASE_URL/api/metrics" | jq -r '.id')
 mkt=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2030-01-01", liquidityCredits:200}')" \
+  -X POST -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2030-01-01", liquidity:200, skipAutoLiquidity:true}')" \
   "$TT_BASE_URL/api/predictions/markets" | jq -r '.id')
 keys=()
+aids=()
 for i in $(seq 1 20); do
   read aid akey < <(tt_mkagent "$WS" "race$i")
   tt_credit "$WS" "$aid" 100
   keys+=("$akey")
+  aids+=("$aid")
 done
 ```
 
@@ -93,7 +95,8 @@ n=$(jq 'length' <<<"$trades")
 
 ```bash
 for i in $(seq 1 20); do
-  bal=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/agents/$TT_NS-race$i/balance" \
+  aid="${aids[$((i-1))]}"
+  bal=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/agents/$aid/balance" \
     | jq -r '.balance' 2>/dev/null)
   [ -z "$bal" ] && continue
   awk -v b="$bal" 'BEGIN{exit !(b >= 0)}' \
@@ -108,10 +111,12 @@ total_cost=$(jq '[.[].cost] | add' <<<"$trades")
 spent_sum=$(awk -v t="0" 'BEGIN{print 0}')  # build by reading each agent
 total_spent=0
 for i in $(seq 1 20); do
-  bal=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/agents/$TT_NS-race$i/balance" \
+  aid="${aids[$((i-1))]}"
+  bal=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/agents/$aid/balance" \
     | jq -r '.balance' 2>/dev/null)
   [ -z "$bal" ] && continue
-  spent=$(awk -v b="$bal" 'BEGIN{print 100-b}')
+  # Each agent: 1000 starter signup credits + 100 we tt_credited = 1100 starting.
+  spent=$(awk -v b="$bal" 'BEGIN{print 1100-b}')
   total_spent=$(awk -v a="$total_spent" -v b="$spent" 'BEGIN{print a+b}')
 done
 diff=$(awk -v a="$total_spent" -v b="$total_cost" 'BEGIN{print (a>b?a-b:b-a)}')

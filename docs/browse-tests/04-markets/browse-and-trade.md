@@ -33,10 +33,12 @@ of those mechanics.
 ## Setup
 
 ```bash
+source "$ROOT/docs/browse-tests/_runner/lib.sh"
+tt_browse_init
 $B viewport 1440x900
-$B goto https://telarchy.com/markets
+$B goto "$TT_FRONTEND_URL/markets"
 $B wait --networkidle
-$B screenshot /tmp/markets-baseline.png
+$B screenshot "/tmp/$TT_NS-markets-baseline.png"
 ```
 
 ## Tests

@@ -26,11 +26,17 @@ add/remove math, the events log, and bulk semantics.
 source "$ROOT/docs/browse-tests/_runner/lib.sh"
 WS=$(tt_mkworkspace blank public); tt_on_cleanup "tt_rm_workspace '$WS'"
 mid=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d '{"name":"liq","type":"leaf","value":50,"rangeMin":0,"rangeMax":100}' \
+  -X POST -d '{"name":"liq","type":"leaf","value":50,"marketRangeMax":100}' \
   "$TT_BASE_URL/api/metrics" | jq -r '.id')
 mkt=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2030-01-01", liquidityCredits:10}')" \
+  -X POST -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2030-01-01", liquidity:10, skipAutoLiquidity:true}')" \
   "$TT_BASE_URL/api/predictions/markets" | jq -r '.id')
+# Liquidity injection requires an agent member of this workspace.
+read LP_AID LP_KEY < <(tt_mkagent "$WS" lp)
+tt_admin_curl "$WS" -H 'Content-Type: application/json' \
+  -X POST -d "$(jq -nc --arg p "$LP_AID" '{participantId:$p, role:"admin"}')" \
+  "$TT_BASE_URL/api/workspaces/$WS/members" >/dev/null
+tt_credit "$WS" "$LP_AID" 100
 ```
 
 ## Tests
@@ -45,55 +51,62 @@ liq=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/predictions/markets/$mkt" | jq -r '.
 
 ### T2. Add liquidity → LMSR `b` parameter increases
 
+The API takes `{amount, agentId}` (positive credits contributed by a
+workspace-member participant). Removing liquidity is not exposed via this
+endpoint; the only way to take liquidity off a market is `void`.
+
 ```bash
 b1=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/predictions/markets/$mkt" | jq -r '.liquidity')
 tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d '{"delta":5}' \
+  -X POST -d "$(jq -nc --arg a "$LP_AID" '{amount:5, agentId:$a}')" \
   "$TT_BASE_URL/api/predictions/markets/$mkt/liquidity" >/dev/null
 b2=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/predictions/markets/$mkt" | jq -r '.liquidity')
 awk -v a="$b1" -v b="$b2" 'BEGIN{exit !(b > a)}' \
   || { echo "liquidity did not increase: $b1 → $b2"; exit 1; }
 ```
 
-### T3. Remove liquidity (negative delta) decreases `b`
+### T3. Negative or zero amount is rejected
 
 ```bash
-b1=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/predictions/markets/$mkt" | jq -r '.liquidity')
-tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d '{"delta":-2}' \
-  "$TT_BASE_URL/api/predictions/markets/$mkt/liquidity" >/dev/null
-b2=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/predictions/markets/$mkt" | jq -r '.liquidity')
-awk -v a="$b1" -v b="$b2" 'BEGIN{exit !(b < a)}'
+status=$(curl -s -o /dev/null -w '%{http_code}' \
+  -H "X-API-Key: $TT_ADMIN_KEY" -H "X-Workspace-Id: $WS" \
+  -H 'Content-Type: application/json' \
+  -X POST -d "$(jq -nc --arg a "$LP_AID" '{amount:-2, agentId:$a}')" \
+  "$TT_BASE_URL/api/predictions/markets/$mkt/liquidity")
+case "$status" in 400|422) ;; *) echo "negative amount returned $status"; exit 1;; esac
 ```
 
-### T4. Liquidity events log records both adds and removes
+### T4. Liquidity events log records every injection
 
 ```bash
 events=$(tt_admin_curl "$WS" "$TT_BASE_URL/api/predictions/markets/$mkt/liquidity-events")
 n=$(jq 'length' <<<"$events")
-[ "$n" -ge 2 ] || { echo "expected ≥2 events, got $n"; exit 1; }
-# Newest event is a removal
-last_delta=$(jq -r '.[0].delta // .[-1].delta' <<<"$events")
-awk -v d="$last_delta" 'BEGIN{exit !(d < 0)}' || true
+[ "$n" -ge 1 ] || { echo "expected ≥1 events, got $n"; exit 1; }
 ```
 
 ### T5. Bulk liquidity edits across multiple markets
 
 ```bash
 m2=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2031-01-01", liquidityCredits:10}')" \
+  -X POST -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2031-01-01", liquidity:10, skipAutoLiquidity:true}')" \
   "$TT_BASE_URL/api/predictions/markets" | jq -r '.id')
 out=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg a "$mkt" --arg b "$m2" \
-      '{updates:[{marketId:$a,delta:1},{marketId:$b,delta:1}]}')" \
+  -X POST -d "$(jq -nc --arg a "$mkt" --arg b "$m2" --arg p "$LP_AID" \
+      '{updates:[{marketId:$a,amount:1,agentId:$p},{marketId:$b,amount:1,agentId:$p}]}')" \
   "$TT_BASE_URL/api/predictions/markets/liquidity/bulk")
 echo "$out" | jq -e '.updated // .results' >/dev/null \
   || { echo "bulk liquidity returned no per-market result"; exit 1; }
 ```
 
-### T6. Removing more liquidity than the AMM holds is rejected, not negative
+### T6. Skipped — endpoint does not support removal; voiding the market is the only way to drain it
 
 ```bash
+echo "skipped: removal not supported via /:id/liquidity endpoint"
+```
+
+### T6_unused (removed in favour of /void test in void-and-resolve.md)
+
+```bash skip
 status=$(curl -s -o /dev/null -w '%{http_code}' \
   -H "X-API-Key: $TT_ADMIN_KEY" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' \

@@ -36,11 +36,13 @@ Maps to `mvp-evaluation-plan.md` Sections 1.6, 6, and persona 16.5
 ## Setup
 
 ```bash
+source "$ROOT/docs/browse-tests/_runner/lib.sh"
+tt_browse_init
 $B viewport 1440x900
 $B stop                              # cold-start to drop any session cookies
-$B goto https://telarchy.com/marketplace
+$B goto "$TT_FRONTEND_URL/marketplace"
 $B wait --networkidle
-$B screenshot /tmp/marketplace-anonymous.png
+$B screenshot "/tmp/$TT_NS-marketplace-anonymous.png"
 ```
 
 ## Tests

@@ -31,12 +31,10 @@ reviews it before each release.
 source "$ROOT/docs/browse-tests/_runner/lib.sh"
 tt_browse_init
 EMAIL="qa+wow-$TT_RUN_ID@example.test"
-JAR=$(tt_mkuser "$EMAIL" "testtest123" "WowUser")
+read JAR MUID < <(tt_mkuser_uid "$EMAIL" "testtest123" "WowUser")
 tt_on_cleanup "tt_rm_user '$JAR'"
 WS=$(tt_mkworkspace personal public); tt_on_cleanup "tt_rm_workspace '$WS'"
-tt_admin_curl "$WS" -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg e "$EMAIL" '{email:$e, role:"admin"}')" \
-  "$TT_BASE_URL/api/workspaces/$WS/members" >/dev/null
+tt_add_member "$WS" "$MUID" "admin"
 read BOT KEY < <(tt_mkagent "$WS" wowbot)
 tt_credit "$WS" "$BOT" 100
 $B viewport 1440x900
@@ -79,11 +77,11 @@ $B wait --networkidle
 # Create a metric + market via API for stability
 mid=$(curl -sf -b "$JAR" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \
-  -d '{"name":"wow-m","type":"leaf","value":50,"rangeMin":0,"rangeMax":100}' \
+  -d '{"name":"wow-m","type":"leaf","value":50,"marketRangeMax":100}' \
   "$TT_BASE_URL/api/metrics" | jq -r '.id')
 mkt=$(curl -sf -b "$JAR" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \
-  -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2030-01-01", liquidityCredits:30}')" \
+  -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2030-01-01", liquidity:30}')" \
   "$TT_BASE_URL/api/predictions/markets" | jq -r '.id')
 $B goto "$TT_FRONTEND_URL/markets" && $B wait --networkidle
 $B screenshot "/tmp/$TT_NS-wow/04-pre-trade.png"
