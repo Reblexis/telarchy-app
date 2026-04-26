@@ -58,13 +58,41 @@ predictionsRouter.post('/trade', requireCapability('trade'), wrap(async (req, re
   const agentId = req.auth!.agentId;
   if (!agentId) { res.status(403).json({ error: 'A participant identity is required to trade' }); return; }
 
+  // If the body is empty or non-object, the most common cause is a missing
+  // `Content-Type: application/json` header. Express body-parser silently
+  // returns `{}`, which previously fell through to a generic field-name
+  // error and confused integrators.
+  const ctype = (req.headers['content-type'] || '').toLowerCase();
+  const bodyKeys = req.body && typeof req.body === 'object' ? Object.keys(req.body) : [];
+  if (bodyKeys.length === 0) {
+    if (!ctype.includes('json')) {
+      res.status(400).json({ error: 'Request body is empty. Set `Content-Type: application/json` and POST a JSON object.' });
+      return;
+    }
+    res.status(400).json({ error: 'Request body is empty. Provide marketId (or metricName/metricId + targetDate) and a trade specifier.' });
+    return;
+  }
+
   let marketId = typeof req.body.marketId === 'string' ? req.body.marketId : undefined;
 
   // Allow targeting by metricName/metricId + targetDate instead of marketId
   if (!marketId) {
     const { metricName, metricId: reqMetricId, targetDate: reqTargetDate } = req.body;
-    if ((!metricName && !reqMetricId) || !reqTargetDate) {
-      res.status(400).json({ error: 'Provide marketId, or (metricName or metricId) + targetDate' }); return;
+    if (req.body.market_id !== undefined || req.body.marketID !== undefined) {
+      res.status(400).json({ error: 'Use `marketId` (camelCase), not `market_id` or `marketID`.' });
+      return;
+    }
+    if (!metricName && !reqMetricId && !reqTargetDate) {
+      res.status(400).json({ error: 'Missing `marketId`. Alternative: provide `metricName` (or `metricId`) plus `targetDate`.' });
+      return;
+    }
+    if (!metricName && !reqMetricId) {
+      res.status(400).json({ error: 'When targeting by `targetDate`, also provide `metricName` or `metricId`.' });
+      return;
+    }
+    if (!reqTargetDate) {
+      res.status(400).json({ error: 'When targeting by metric, also provide `targetDate` (YYYY, YYYY-MM, YYYY-Www, or YYYY-MM-DD).' });
+      return;
     }
     const [found] = await db.select({ id: markets.id }).from(markets).where(and(
       eq(markets.workspaceId, workspaceId),

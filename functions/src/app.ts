@@ -39,14 +39,33 @@ app.use(cors({
 app.use(express.json());
 
 // RATE_LIMIT_MAX env var lets self-hosters raise or disable the limit.
-// Default: 300/min (generous for single-user). Set to 0 to disable entirely.
-const rateLimitMax = parseInt(process.env.RATE_LIMIT_MAX ?? '300', 10);
+// Default: 600/min (generous for single-user; doubled in 2026-Q2 because
+// authed normal flows — page load + a few component fetches — were hitting
+// the limit during persona-test runs and looking flaky to real users).
+// Set to 0 to disable entirely. The global limit is intentionally lax
+// because identified callers (master key, agent key, or signed-in session
+// cookie) are skipped via `skip` — only anonymous traffic counts.
+const rateLimitMax = parseInt(process.env.RATE_LIMIT_MAX ?? '600', 10);
+
+// True if the caller has any auth credential. We can't run authMiddleware
+// before the limiter (the limiter runs once per request), so detect by
+// header / cookie presence; the actual auth check still happens later.
+function hasIdentity(req: { headers: Record<string, unknown>; cookies?: Record<string, unknown> }): boolean {
+  if (req.headers['x-api-key']) return true;
+  if (req.headers['x-agent-key']) return true;
+  if (req.headers['authorization']) return true;
+  const cookie = req.headers['cookie'];
+  if (typeof cookie === 'string' && /better-auth\.session_token=|__Host-better-auth/i.test(cookie)) return true;
+  return false;
+}
+
 const globalLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: rateLimitMax || 1_000_000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },
+  skip: (req) => hasIdentity(req as unknown as { headers: Record<string, unknown> }),
 });
 
 const strictLimiter = rateLimit({
@@ -57,9 +76,15 @@ const strictLimiter = rateLimit({
   message: { error: 'Too many requests, please try again later.' },
 });
 
+// Registration limit guards against signup-spam from a single IP. The
+// historical 5/min was too tight: a parallel test run creating one user
+// per spec, or a small team onboarding from one office IP, can reach it
+// instantly. 30/min is still low enough to block real abuse and is
+// configurable via REGISTRATION_LIMIT_MAX.
+const registrationLimitMax = parseInt(process.env.REGISTRATION_LIMIT_MAX ?? '30', 10);
 const registrationLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 5,
+  max: registrationLimitMax || 1_000_000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },
@@ -152,7 +177,7 @@ app.get('/api/help', (_req, res) => {
       { method: 'POST', path: '/api/agents/:id/withdraw', auth: 'self/admin', description: 'Withdraw credits as USDC on Base. Body: { amount: number } (credits to convert). Sends amount * creditValueUsd USDC to the registered wallet. Re-credits on tx failure. Use :id = me for the authenticated participant.' },
       { method: 'GET', path: '/api/agents/treasury', auth: 'admin', description: 'Treasury wallet address and current USDC balance on Base. Send USDC here to top up for agent withdrawals or to purchase credits via POST /api/agents/:id/deposit.' },
       { method: 'DELETE', path: '/api/agents/:id', auth: 'admin', description: 'Delete an agent.' },
-      { method: 'POST', path: '/api/predictions/trade', auth: 'agent', description: 'Trade on a market. Market can be identified by marketId (UUID) OR by (metricName or metricId) + targetDate (the latter avoids a separate market lookup). Modes: {direction: "higher"|"lower", amount} (predict direction), {targetValue, maxBudget} (buy shares until prediction reaches targetValue, spending at most maxBudget; aliases: value->targetValue, amount->maxBudget), {direction, sellShares} (sell shares). Add market identifier to any mode.' },
+      { method: 'POST', path: '/api/predictions/trade', auth: 'agent', description: 'Trade on a market. Market can be identified by marketId (UUID) OR by (metricName or metricId) + targetDate (the latter avoids a separate market lookup). Modes: {direction: "higher"|"lower", amount} (predict direction), {targetValue, maxBudget} (buy shares until prediction reaches targetValue, spending at most maxBudget; aliases: value->targetValue, amount->maxBudget), {direction, sellShares} (sell shares). Add market identifier to any mode. Response includes the new tradeId — verify the trade via `GET /api/agents/me/trades`.' },
       { method: 'GET', path: '/api/predictions/positions', auth: 'agent/admin', description: 'List own positions (higher/lower share holdings). Query: ?marketId=X' },
       { method: 'GET', path: '/api/predictions/markets', auth: 'agent/admin', description: 'List open markets. Default sort is earliest resolution first (by end-of-period date). Query: ?active=true|false (filter by active status), ?minLiquidity=N (skip markets below N liquidity), ?limit=N (when either is used, results are sorted by liquidity desc before limiting). Returns compact fields: id, metricName, targetDate, active, consensus (predicted metric value), probability ((consensus-rangeMin)/(rangeMax-rangeMin), predicted value as fraction of range, NOT a directional probability), rangeMin, rangeMax, liquidity.' },
       { method: 'GET', path: '/api/predictions/markets/:id', auth: 'agent/admin', description: 'Market detail with probability, consensus, and cost info.' },

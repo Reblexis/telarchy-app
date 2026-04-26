@@ -51,12 +51,32 @@ marketplaceRouter.get('/', wrap(async (req, res) => {
     }
   }));
 
+  // Sort within-workspace by soonest target date, then by liquidity, then
+  // round-robin across workspaces so one prolific workspace doesn't dominate
+  // the public marketplace list. Anonymous visitors should see breadth.
   allMarkets.sort((a, b) => {
     const dateDiff = endOfPeriod(a.targetDate as string).localeCompare(endOfPeriod(b.targetDate as string));
     if (dateDiff !== 0) return dateDiff;
     return (b.liquidity as number) - (a.liquidity as number);
   });
-  res.json(allMarkets.slice(0, limit));
+  const byWs: Map<string, Array<Record<string, unknown>>> = new Map();
+  for (const m of allMarkets) {
+    const wsId = m.workspaceId as string;
+    if (!byWs.has(wsId)) byWs.set(wsId, []);
+    byWs.get(wsId)!.push(m);
+  }
+  const interleaved: Array<Record<string, unknown>> = [];
+  let added = true;
+  while (added && interleaved.length < limit) {
+    added = false;
+    for (const list of byWs.values()) {
+      if (list.length === 0) continue;
+      interleaved.push(list.shift()!);
+      added = true;
+      if (interleaved.length >= limit) break;
+    }
+  }
+  res.json(interleaved);
 }));
 
 marketplaceRouter.get('/stats', wrap(async (_req, res) => {

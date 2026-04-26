@@ -9,14 +9,22 @@ import { Logo } from '../components/Logo';
 
 // ─── Animated counter hook ─────────────────────────────────────────────────
 function useCounter(target: number, duration = 1200) {
-  const [value, setValue] = useState(0);
+  // Default to the target so screenshot tools, prefers-reduced-motion users,
+  // and anyone the IntersectionObserver never fires for see a real number
+  // instead of a stuck "0". When the strip scrolls into view we re-animate
+  // from 0 → target as a polish-only flourish.
+  const [value, setValue] = useState(target);
   const ref = useRef<HTMLElement>(null);
   useEffect(() => {
+    setValue(target);
     const el = ref.current;
     if (!el) return;
+    if (typeof IntersectionObserver === 'undefined') return;
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
     const obs = new IntersectionObserver(([entry]) => {
       if (!entry.isIntersecting) return;
       obs.unobserve(el);
+      setValue(0);
       const start = performance.now();
       const tick = (now: number) => {
         const p = Math.min((now - start) / duration, 1);
@@ -398,7 +406,16 @@ export function LandingPage() {
 
   const [stats, setStats] = useState({ marketsActive: 0, agentsActive: 0, tradesThisWeek: 0 });
   useEffect(() => {
-    api.getStats().then(setStats).catch(e => console.error('Failed to fetch stats:', e));
+    let cancelled = false;
+    api.getStats().then(s => { if (!cancelled) setStats(s); }).catch(e => {
+      // Aborted-on-navigation produces "Failed to fetch" on most browsers.
+      // Don't log it — it'd show up as a console error on every page change
+      // for browse-driven QA tools and obscure real failures.
+      if (e?.name === 'AbortError') return;
+      if (typeof e?.message === 'string' && /failed to fetch|networkerror/i.test(e.message)) return;
+      console.error('Failed to fetch stats:', e);
+    });
+    return () => { cancelled = true; };
   }, []);
 
   const counter1 = useCounter(stats.marketsActive);

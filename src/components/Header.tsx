@@ -67,6 +67,7 @@ function WorkspaceSwitcher({ workspaces, activeId, onSwitch }: {
   return (
     <div ref={ref} style={{ position: 'relative' }}>
       <button
+        data-testid="workspace-switcher-toggle"
         onClick={() => setOpen(o => !o)}
         style={{
           display: 'flex', alignItems: 'center', gap: '0.5rem',
@@ -104,6 +105,7 @@ function WorkspaceSwitcher({ workspaces, activeId, onSwitch }: {
           {workspaces.map(w => (
             <button
               key={w.id}
+              data-workspace-id={w.id}
               onClick={() => { onSwitch(w.id); setOpen(false); }}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',

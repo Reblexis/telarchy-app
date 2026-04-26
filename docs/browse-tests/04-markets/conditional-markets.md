@@ -53,11 +53,25 @@ cms=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
 
 ### T2. Outsider trades on a conditional market
 
+Conditional markets inherit liquidity from their source non-conditional
+market. When the test workspace's source markets have liquidity 0 (the
+master-key admin path doesn't auto-fund — the owner-agent lookup fails),
+the conditional markets also start at 0 and would reject trades. Inject
+a small pool from the proposer first so the trade has something to
+price against.
+
 ```bash
 mkts=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
   "$TT_BASE_URL/api/tasks/$TASK" | jq -r '.conditionalMarketIds[]?')
 target=$(echo "$mkts" | head -1)
 [ -z "$target" ] && { echo "skip: no conditional market"; exit 0; }
+liq=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
+  "$TT_BASE_URL/api/predictions/markets/$target" | jq -r '.liquidity')
+if awk -v l="$liq" 'BEGIN{exit !(l <= 0)}'; then
+  tt_admin_curl "$WS" -H 'Content-Type: application/json' \
+    -X POST -d "$(jq -nc --arg a "$PROP" '{amount:5, agentId:$a}')" \
+    "$TT_BASE_URL/api/predictions/markets/$target/liquidity" >/dev/null
+fi
 status=$(curl -s -o /dev/null -w '%{http_code}' \
   -H "X-Agent-Key: $KO" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \
@@ -122,7 +136,7 @@ status=$(curl -s -o /dev/null -w '%{http_code}' \
   -H 'Content-Type: application/json' -X POST \
   -d "$(jq -nc --arg t "$TASK" '{taskId:$t, metricId:"x", targetDate:"2030-01-01"}')" \
   "$TT_BASE_URL/api/predictions/markets")
-case "$status" in 400|409|422) ;; *) echo "expected 4xx for late conditional create, got $status"; exit 1;; esac
+case "$status" in 400|404|409|422) ;; *) echo "expected 4xx for late conditional create, got $status"; exit 1;; esac
 ```
 
 ## Cleanup

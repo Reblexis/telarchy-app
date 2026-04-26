@@ -6,7 +6,7 @@ import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireCapability } from '../middleware/roles';
-import { voidTaskMarkets, approveTask, getTaskMarketSummariesForTask } from '../services/tasks';
+import { voidTaskMarkets, approveTask, getTaskMarketSummariesForTask, createConditionalMarkets } from '../services/tasks';
 import { validateContent } from '../lib/validation';
 import { getParticipantDisplayNames } from '../lib/participants';
 
@@ -36,7 +36,24 @@ tasksRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
     status: 'pending', conditionalMarketIds: [], createdAt: new Date(),
   });
 
-  res.status(201).json({ id });
+  // Spawn conditional markets inline so the proposer (and anyone reading
+  // /tasks) sees a forecast immediately. Without this the approve flow has
+  // nothing to price the proposal against — the chatbot failure mode the
+  // product exists to replace. Failure here doesn't block the task; the
+  // /predictions/markets/refresh path will retry and a stale empty list is
+  // recoverable.
+  let conditionalMarketIds: string[] = [];
+  try {
+    conditionalMarketIds = await createConditionalMarkets(id, workspaceId);
+    if (conditionalMarketIds.length > 0) {
+      await db.update(tasks).set({ conditionalMarketIds })
+        .where(and(eq(tasks.id, id), eq(tasks.workspaceId, workspaceId)));
+    }
+  } catch (e) {
+    console.error(`createConditionalMarkets failed for task ${id}:`, e);
+  }
+
+  res.status(201).json({ id, conditionalMarketIds });
 }));
 
 tasksRouter.get('/', requireCapability('read'), wrap(async (req, res) => {

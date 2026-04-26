@@ -36,6 +36,9 @@ tt_browse_init
 EMAIL="qa+sw-$TT_RUN_ID@example.test"
 read JAR MUID < <(tt_mkuser_uid "$EMAIL" "testtest123" "SwUser-$TT_RUN_ID")
 tt_on_cleanup "tt_rm_user '$JAR'"
+# Browser-session callers must accept consent before any non-/auth route works.
+curl -sf -b "$JAR" -H 'Content-Type: application/json' \
+  -X POST -d '{"accepted":true}' "$TT_BASE_URL/api/auth/consent" >/dev/null
 WS_A=$(tt_mkworkspace personal public)
 WS_B=$(tt_mkworkspace startup public)
 tt_on_cleanup "tt_rm_workspace '$WS_A'"
@@ -50,6 +53,10 @@ $B fill 'input[type="email"]' "$EMAIL"
 $B fill 'input[type="password"]' "testtest123"
 $B click 'button[type="submit"]'
 $B wait --networkidle
+# Force navigation away from /login so the rest of the test runs on an
+# authed page even if the BetterAuth client's post-login redirect hasn't
+# settled yet.
+$B goto "$TT_FRONTEND_URL/start" && $B wait --networkidle
 ```
 
 ## Tests
@@ -64,8 +71,12 @@ grep -q "$(tt_admin_curl "$WS_B" "$TT_BASE_URL/api/workspaces/$WS_B" | jq -r '.n
 
 ### T2. Click WS_B → metrics list reflects WS_B's metrics
 
+The switcher is a button-then-dropdown; open the menu first, then click
+the workspace by `data-workspace-id`.
+
 ```bash
-$B click "[data-workspace-id='$WS_B'], a:has-text(\"$(tt_admin_curl "$WS_B" "$TT_BASE_URL/api/workspaces/$WS_B" | jq -r '.name')\")"
+$B click '[data-testid="workspace-switcher-toggle"]'
+$B click "[data-workspace-id='$WS_B']"
 $B wait --networkidle
 $B goto "$TT_FRONTEND_URL/metrics" && $B wait --networkidle
 api_b=$(curl -sf -b "$JAR" -H "X-Workspace-Id: $WS_B" "$TT_BASE_URL/api/metrics" | jq -r '.[].name' | sort -u)
