@@ -20,6 +20,31 @@ function formatCurrency(value: number): string {
   return `$${value.toFixed(2)}`;
 }
 
+/**
+ * One-line summary of how the task's conditional markets are pricing the
+ * proposal, used in the approve-confirm. Picks up to two largest-magnitude
+ * forecast moves (signed % from baseline) so the approver re-sees the
+ * signal at the commit moment instead of clicking blind.
+ */
+function summarizeMarketsForConfirm(markets: TaskMarketSummary[] | undefined): string {
+  if (!markets || markets.length === 0) return '';
+  const moves = markets
+    .filter(m => m.tradeCount > 0 && m.consensus != null && m.baselineConsensus != null && (m.baselineConsensus as number) !== 0)
+    .map(m => {
+      const base = m.baselineConsensus as number;
+      const cur = m.consensus as number;
+      const pct = ((cur - base) / Math.abs(base)) * 100;
+      return { name: m.metricName, pct, cur, base };
+    })
+    .sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
+  if (moves.length === 0) return '';
+  const top = moves.slice(0, 2)
+    .map(m => `${m.name}: ${m.pct >= 0 ? '+' : ''}${m.pct.toFixed(1)}% (${formatNumber(m.base)} → ${formatNumber(m.cur)})`)
+    .join('; ');
+  const more = moves.length > 2 ? ` (+${moves.length - 2} more)` : '';
+  return `${top}${more}`;
+}
+
 function ForecastCell({ baseline, current }: { baseline: number | null | undefined; current: number | null }) {
   if (current == null) return <span className="forecast-empty">—</span>;
   if (baseline == null) {
@@ -250,7 +275,16 @@ function TaskDrawer({ task, isAdmin, onClose, onAction, onError }: TaskDrawerPro
                       className="btn-approve"
                       disabled={acting}
                       onClick={() => {
-                        if (!window.confirm(`Approve "${task.title}"?\n\nThis will pay the proposer ${formatCurrency(task.price)} in credits and mark the task Done. Conditional markets stay open for post-decision tracking.`)) return;
+                        const forecast = summarizeMarketsForConfirm(task.markets);
+                        const lines = [
+                          `Approve "${task.title}"?`,
+                          '',
+                          `Cost: pays the proposer ${formatCurrency(task.price)} in credits.`,
+                          forecast ? `Forecast: ${forecast}` : 'Forecast: no market signal yet.',
+                          '',
+                          'Conditional markets stay open for post-decision tracking.',
+                        ];
+                        if (!window.confirm(lines.join('\n'))) return;
                         handle(() => api.approveTask(task.id));
                       }}
                     >

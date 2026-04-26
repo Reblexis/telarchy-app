@@ -292,7 +292,7 @@ export const api = {
     request('/api/predictions/markets/liquidity/bulk', { method: 'POST', body: JSON.stringify({ amount, ...(taskId && { taskId }) }) }),
 
   // Tasks
-  getTasks: () => request('/api/tasks'),
+  getTasks: (status?: string) => request(`/api/tasks${status ? `?status=${encodeURIComponent(status)}` : ''}`),
   getTask: (id: string) => request(`/api/tasks/${id}`),
   createTask: (body: { title: string; description: string; price: number }) =>
     request('/api/tasks', { method: 'POST', body: JSON.stringify(body) }),
