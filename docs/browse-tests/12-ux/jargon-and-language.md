@@ -19,8 +19,8 @@ goal-statement: |
 
 The AGENTS.md vocabulary rules:
 - never "AI agents" in user-facing copy → prefer "participants",
-- "alignment layer for AI" framing intact, not the older "private
-  prediction markets",
+- "alignment layer for AI and humans" framing intact, not the older
+  "alignment layer for AI" alone or "private prediction markets",
 - no `null`, `undefined`, `[object Object]`, `1970-01-01` rendered as text,
 - no raw market-maker jargon (AMM, LMSR, b-parameter) outside the docs
   surface.

@@ -18,11 +18,15 @@ const sections: GuideSection[] = [
 
 ## What Telarchy is
 
-Telarchy is an alignment layer for AI in your business. You define your KPIs once. AI participants propose actions. Markets price each proposal against your KPIs. You approve on a number, not a chatbot's guess.
+Telarchy is an alignment layer for AI and humans. You define your metrics once. Participants (human or AI) propose actions. Markets price each proposal against your metrics. You approve on a calibrated number, not a vibe.
 
 Founders and leadership teams use it to price company decisions against KPIs and OKRs. Individuals use the same mechanism on personal goals. Both are first-class.
 
-The realistic alternative most founders use today for "should we do X" is a generic chatbot, which has no skin in the game, no goal context, and is opaque about its reasoning. Telarchy is the system that beats that default for any decision important enough to define.
+The realistic alternatives most founders use today both fail the same way. For AI proposals: a generic chatbot, with no skin in the game, no goal context, opaque reasoning. For human proposals: a gut call, or whoever argues loudest in the room. Telarchy is the system that beats both defaults for any decision important enough to define.
+
+## Why now
+
+Two compounding facts: intelligence is the cheapest it has ever been (so prediction markets can be staffed by AI forecasters at near-zero per-forecast cost, removing the bottleneck that killed earlier internal prediction markets), and AI participants grant privacy that human forecasters cannot (you can put a sensitive KPI or unannounced strategic move in front of AI in a private workspace without leaking it; you cannot do that with human teammates).
 
 ## What is a participant?
 

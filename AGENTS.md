@@ -2,13 +2,14 @@ For more info about this project look into docs/vision.md.
 
 ## Canonical positioning (do not drift)
 
-Telarchy turns every decision into a market-priced forecast. You define the metrics that matter; participants, human or AI, forecast how each proposed action will move them, before you commit.
+Telarchy is an alignment layer for AI and humans. You define the metrics that matter; participants, human or AI, forecast how each proposed action will move them, before you commit.
 
 - **Scope:** company governance is the headline use case (founders pricing decisions against KPIs and OKRs); individuals use the same mechanism on personal goals and are first-class from day one.
 - **Participant = human or AI:** humans sign up with email or OAuth; automated participants register for an API key. Once identity is established, signup path does not matter. The API and schema keep the word `agent`; in docs, UI, and outward copy use **participant**.
-- **Never write "AI agents" in isolation** in user-facing prose. Use "participants" or "participants, human or AI." The symmetry is load-bearing.
+- **Never write "AI agents" in isolation** in user-facing prose where the same statement applies to humans. Use "participants" or "participants, human or AI." The symmetry is load-bearing. Exception: when a sentence is specifically about the AI moment (e.g. the "why now" line "AI agents can already act, but you cannot tell which actions are good"), naming AI alone is fine.
 - **Do not claim open source today.** Repo is private, no `LICENSE` file yet. The plan is open-core after the participant network moat is established.
-- **Alignment layer for AI is the load-bearing positioning.** The mechanism is prediction markets; the product is an alignment layer. Humans say what they want; AI agents propose actions; markets price the actions against the owner's KPIs; human approves with calibrated confidence. The realistic alternative a founder uses today is a generic chatbot, not Polymarket. See `docs/vision.md` ("Telarchy as an alignment layer for AI") and `docs/go-to-market.md` ("Why 'alignment layer for AI' is the load-bearing framing"). Do not drift back to "private prediction markets" framing.
+- **Alignment layer for AI and humans is the load-bearing positioning.** The mechanism is prediction markets; the product is an alignment layer that prices proposed actions, whether the proposer is an AI agent or a human teammate. Owners say what they want; participants (human or AI) propose actions; markets price the actions against the owner's metrics; owner approves with calibrated confidence. The realistic alternatives a founder uses today are a generic chatbot (for AI proposals) or a gut call / the loudest voice in the room (for human proposals). See `docs/vision.md` ("Telarchy as an alignment layer for AI and humans") and `docs/go-to-market.md` ("Why 'alignment layer' is the load-bearing framing"). Do not drift back to "alignment layer for AI" alone (it understates scope, since the system also prices human proposals) or to "private prediction markets" framing (it loses the wedge).
+- **Why now** (the timing argument, used in marketing copy): two compounding facts. (1) Intelligence is now the cheapest it has ever been; prediction markets thrive in cheap intelligence because every proposal can be evaluated by many forecasters at near-zero per-forecast cost. (2) AI participants grant privacy that human forecasters cannot: a founder will not put a sensitive KPI or unannounced strategic move in front of human teammates or a public market, but an AI participant inside a private workspace can forecast it without leaking it. Together these unlock pricing decisions that previously had no realistic forum.
 
 When rewriting user-facing copy, always check that the four commitments above (dual-scope, participant symmetry, no OSS claim, alignment-layer framing) hold. If a change makes any of them slippery, flag it.
 
@@ -33,7 +34,7 @@ The web frontend MUST call the same `/api/*` endpoints that an external particip
 - Auth gating is via `requireCapability` / `requireSelfOrAdmin` / `requireIdentity` over the unified `req.auth` (which resolves master key, agent key, or browser session into the same shape). `requireUser` (browser-session-only) is reserved strictly for endpoints that are intrinsically tied to BetterAuth account state (sign-in, sign-up, password reset, OAuth callbacks). Any other use of `requireUser` is a parity bug.
 - Don't add a parallel backend handler for the UI. Reuse the documented endpoint or extend it.
 
-This is what makes "alignment layer for AI" honest: the UI is just one of many participants of the API. A test under `functions/src/__tests__/api-parity.test.ts` enforces this; keep it green.
+This is what makes "alignment layer for AI and humans" honest: the UI is just one of many participants of the API. A test under `functions/src/__tests__/api-parity.test.ts` enforces this; keep it green.
 
 ## Commit and push
 

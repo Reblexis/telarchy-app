@@ -446,12 +446,12 @@ export function LandingPage() {
       <section className="lp-hero">
         <div className="lp-hero-grid" style={{ animation: 'fadeInUp 0.6s ease both' }}>
           <div>
-            <p className="lp-eyebrow">An alignment layer for AI in your business.</p>
+            <p className="lp-eyebrow">An alignment layer for AI and humans.</p>
             <h1 style={{ fontSize: 'clamp(2rem, 4.5vw, 3.1rem)', lineHeight: 1.08, marginBottom: '1.25rem', letterSpacing: '-0.04em' }}>
               Define. Forecast.<br />Decide.
             </h1>
             <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 460 }}>
-              Define your KPIs once. Markets price every AI proposal against them. You approve on a number, not a chatbot's guess.
+              Define your metrics once. Markets price every proposal against them, whether the proposer is an AI agent or a human teammate. You approve on a calibrated number, not a vibe.
             </p>
             <div className="lp-hero-ctas">
               <Link to="/signup" className="lp-btn-primary">Get started. 1000 free credits</Link>
@@ -632,7 +632,7 @@ export function LandingPage() {
                 <tr className="lp-compare-us">
                   <td className="lp-compare-platform">
                     <div className="lp-compare-name">Telarchy<span className="lp-compare-badge">you are here</span></div>
-                    <div className="lp-compare-sub">alignment layer for AI in your business</div>
+                    <div className="lp-compare-sub">alignment layer for AI and humans</div>
                   </td>
                   <td data-label="See what your decision will do" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">per proposal, against your KPIs</span></td>
                   <td data-label="Forecasts you can trust" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">accuracy pays, bias loses</span></td>
@@ -646,9 +646,9 @@ export function LandingPage() {
           {/* Alignment-layer closer */}
           <div className="lp-alignment">
             <div className="lp-alignment-eyebrow">The bigger picture</div>
-            <h3 className="lp-alignment-title">An alignment layer for AI in your business</h3>
+            <h3 className="lp-alignment-title">An alignment layer for AI and humans</h3>
             <p className="lp-alignment-body">
-              You define what you want. AI agents propose actions. Markets price the actions against your KPIs. You approve on a number. The forecast cost something to make, so it isn't a chatbot's guess. As more of the work gets automated, this is what's left for humans: <strong>say what you want, once, and watch it get fulfilled</strong>.
+              You define what you want. Participants, human or AI, propose actions. Markets price the actions against your metrics. You approve on a calibrated number. The forecast cost something to make, so it isn't a vibe. Why now: intelligence is the cheapest it has ever been (so markets can be staffed by AI forecasters at near-zero cost) and AI participants grant privacy that human forecasters cannot (you can put a sensitive KPI in front of them without leaking it). As more of the work gets automated, this is what's left for humans: <strong>say what you want, once, and watch it get fulfilled</strong>.
             </p>
           </div>
         </div>

@@ -82,15 +82,20 @@ Everything is oriented around submitting the strongest possible YC application. 
 ## YC Application: Key Points to Hit
 
 ### One-line description
-"Telarchy is an alignment layer for AI in your business. You define your KPIs; AI agents propose actions; markets price each proposal against your KPIs; you approve on a number, not a chatbot's guess."
+"Telarchy is an alignment layer for AI and humans. You define your metrics; participants, human or AI, propose actions; markets price each proposal against those metrics; you approve on a number, not a vibe."
 
 ### What do you make?
-Telarchy is an alignment layer for AI in your business, built on prediction markets. Founders and leadership teams define their KPIs and OKRs. Participants (human or AI) propose actions with a price. Conditional markets forecast the expected per-metric impact of each proposal. The owner approves or declines with a calibrated number, not a gut call. Over time, as markets accumulate calibration data, high-confidence positive-delta proposals can clear automatically, shifting routine decisions off your plate. Companies are the headline use case; individuals use the same mechanism on personal goals.
+Telarchy is an alignment layer for AI and humans, built on prediction markets. Founders and leadership teams define their KPIs and OKRs. Participants (human or AI) propose actions with a price. Conditional markets forecast the expected per-metric impact of each proposal. The owner approves or declines with a calibrated number, not a gut call. Over time, as markets accumulate calibration data, high-confidence positive-delta proposals can clear automatically, shifting routine decisions off your plate. Companies are the headline use case; individuals use the same mechanism on personal goals.
 
-The realistic alternative a founder uses today for "should we do X" is a generic chatbot, which has no skin in the game, no goal context, and is opaque about its reasoning. Telarchy is the system that beats that default for any decision the founder cares enough about to define.
+The realistic alternatives a founder uses today both fail the same way: for AI proposals it is a generic chatbot (no skin in the game, no goal context, opaque); for human proposals it is a gut call or whoever argues loudest in the room. Telarchy is the system that beats both defaults for any decision the founder cares enough to define.
 
 ### Why now?
-Two things are happening at once in 2026. Companies are drowning in decisions (more proposals from more people, and now from AI agents too) while the quality bar for each one stays flat or drops. Prediction markets are the most precise tool known for aggregating opinion, and the academic case (Hanson, Arrow, et al.) has been sitting unused for 20 years because nobody wired them into the decision loop of real organizations. AI agents make the need acute: a single automated participant can propose 1000 actions a day, and no exec can review them by hand. Markets scale where humans don't.
+Two compounding facts make this the right moment.
+
+1. **Intelligence is the cheapest it has ever been.** Prediction markets thrive in cheap intelligence: every proposal can be evaluated by many forecasters at near-zero per-forecast cost. The historical reason internal prediction markets failed, that you needed dozens of motivated human forecasters per market, is gone. A single LLM-driven participant can produce calibrated forecasts on hundreds of conditional markets per day for cents.
+2. **AI participants grant privacy that human forecasters cannot.** A founder will not put a sensitive KPI, an unannounced strategic move, or a confidential people decision in front of human teammates or a public market. They will put it in front of an AI participant inside a private workspace. AI does not gossip, does not carry the information to a competitor, and does not change how the team sees the founder. This unlocks pricing for decisions that previously had no realistic forum.
+
+On top of this, AI agents are also generating the demand: a single automated participant can propose 1000 actions a day, and no exec can review them by hand. Markets scale where unaided humans don't.
 
 ### What's unique?
 - Only platform combining conditional decision markets, metric composition, and time-preference forecasting.

@@ -2,7 +2,7 @@
 
 ## What Telarchy is
 
-Telarchy turns every decision into a market-priced forecast. You define the metrics that matter; participants, human or AI, forecast how each proposed action will move them, before you commit.
+Telarchy is an alignment layer for AI and humans. You define the metrics that matter; participants, human or AI, forecast how each proposed action will move them, before you commit.
 
 It is a decision platform powered by prediction markets. Founders and leadership teams use it to price company decisions against their KPIs and OKRs. Individuals use the same mechanism on personal goals (health, career, life). The product serves both from day one; the headline use case is company governance.
 
@@ -32,21 +32,28 @@ The closest existing category is **decision markets**: conditional prediction ma
 
 **Automation is a continuum, not a switch.** Today the market informs a human who decides; the human is faster and better-calibrated than they would be without it. As markets accumulate data and calibration improves, more decisions can clear without a human in the loop at all. The direction is an asymptote: less time spent deciding, more spent doing. The product delivers value at every point on the continuum, not only at the far end.
 
-## Telarchy as an alignment layer for AI
+## Telarchy as an alignment layer for AI and humans
 
-The post-AGI division of labor: humans say what they want; everything else is automated. Defining what you want, clearly enough that a system can pursue it, is one of the last jobs that doesn't go away short of brain-computer interfaces reading intent directly. Telarchy is a system designed for exactly that division of labor:
+The post-AGI division of labor: humans say what they want; everything else is automated. Defining what you want, clearly enough that a system can pursue it, is one of the last jobs that doesn't go away short of brain-computer interfaces reading intent directly. Telarchy is a system designed for exactly that division of labor, and the same mechanism applies whether the proposer is an AI or a human teammate:
 
-1. **Human defines metrics**. The things they want, the structure that connects them, the time horizon they care about.
-2. **AI agents propose actions**. By registering as participants and proposing tasks (`POST /api/tasks`), AI can put any decision on the table.
+1. **Owner defines metrics**. The things they want, the structure that connects them, the time horizon they care about.
+2. **Participants propose actions**. AI agents register via API key and propose tasks (`POST /api/tasks`); human teammates do the same through the UI. Either can put any decision on the table.
 3. **Markets price the actions against the metrics**. Conditional markets compute the expected impact of each proposed action on every metric. Forecasters (human or AI) with skin in the game produce calibrated estimates.
-4. **Human approves with calibrated confidence**. The owner sees a number, not a pitch. The decision proceeds with the market's predicted impact attached, not with whoever argued loudest.
-5. **AI executes**; metrics update over time, feeding back into the next round.
+4. **Owner approves with calibrated confidence**. The owner sees a number, not a pitch. The decision proceeds with the market's predicted impact attached, not with whoever argued loudest.
+5. **Whoever owns the action executes**; metrics update over time, feeding back into the next round.
 
-This is structurally an alignment mechanism. AI agents in this system can't get their proposals approved unless the market predicts the proposals will improve the owner-defined metrics. The market is the filter; accuracy pays out, bias loses money, and every decision is auditable in `/admin` via the open agent telemetry protocol (`docs/agent-telemetry-protocol.md`).
+This is structurally an alignment mechanism. No participant (AI or human) gets a proposal approved unless the market predicts it will improve the owner-defined metrics. The market is the filter; accuracy pays out, bias loses money, and every decision is auditable in `/admin` via the open agent telemetry protocol (`docs/agent-telemetry-protocol.md`).
 
-Today this matters because the alternative (letting AI agents act first and evaluate after) produces the same biased forecasts as a human pitching a project they want approved. As AI agents take over more of the operational work in companies, the bottleneck collapses to: who decides what to actually do? Telarchy's answer is "the owner, on a market-priced forecast", not "the loudest voice in the room", not "the chatbot's confident-sounding paragraph", not "RLHF on training data that doesn't know your business".
+Today this matters because the realistic alternatives a founder reaches for both fail in the same way. For AI proposals, the default is a generic chatbot, which has no skin in the game and no goal context. For human proposals, the default is a gut call or whoever argues loudest in the room. Both produce the same biased forecasts as the proposer pitching their own project. As AI agents take over more of the operational work in companies, the bottleneck collapses to: who decides what to actually do? Telarchy's answer is "the owner, on a market-priced forecast", regardless of who proposed the action.
 
-This framing is load-bearing for positioning, not a tagline. The mechanism (conditional markets + composed metrics + time preference + first-class AI participants + open audit) is what makes the alignment-layer story credible. Without those pieces it would be marketing; with them, it is a real control surface for AI in a business.
+### Why now
+
+Two compounding facts make this the right moment:
+
+- **Intelligence is the cheapest it has ever been.** Prediction markets thrive in cheap intelligence: every proposal can now be evaluated by many forecasters at near-zero per-forecast cost. The thing that limited internal prediction markets historically (you needed dozens of motivated human forecasters per market) is gone.
+- **AI participants grant privacy that human forecasters cannot.** A founder will not put a sensitive KPI, an unannounced strategic move, or a confidential people decision in front of human teammates or a public market. They *can* put it in front of an AI participant inside a private workspace. AI participants don't gossip, don't take the information to a competitor, and don't carry the social cost of seeing the founder's uncertainty. This unlocks pricing for decisions that previously had no realistic forum.
+
+This framing is load-bearing for positioning, not a tagline. The mechanism (conditional markets + composed metrics + time preference + first-class AI and human participants + open audit) is what makes the alignment-layer story credible. Without those pieces it would be marketing; with them, it is a real control surface for any decision in a business.
 
 ## Scope
 

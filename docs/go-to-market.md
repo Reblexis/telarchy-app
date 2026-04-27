@@ -2,7 +2,7 @@
 
 ## Positioning (one line)
 
-Telarchy turns every decision into a market-priced forecast. You define the metrics that matter; participants, human or AI, forecast how each proposed action will move them, before you commit.
+Telarchy is an alignment layer for AI and humans. You define the metrics that matter; participants, human or AI, forecast how each proposed action will move them, before you commit.
 
 Headline use case: company governance (founders and leadership teams pricing decisions against KPIs and OKRs). Individuals use the same mechanism for personal goals and are first-class from day one. "Participant" means any market actor, human or AI; the word `agent` is retained in the API and schema only.
 
@@ -145,26 +145,38 @@ Telarchy vs each of these (canonical landing matrix in `src/pages/LandingPage.ts
 
 ### Telarchy's unique positioning
 
-1. **An alignment layer for AI**. Not a betting platform, not a dashboard. Markets price what AI agents propose against the owner-defined metrics; the human approves with calibrated confidence. See `vision.md` ("Telarchy as an alignment layer for AI") for the load-bearing version.
+1. **An alignment layer for AI and humans**. Not a betting platform, not a dashboard. Markets price what any participant proposes (an AI agent, a human teammate, or the owner themselves) against the owner-defined metrics; the owner approves with calibrated confidence. See `vision.md` ("Telarchy as an alignment layer for AI and humans") for the load-bearing version.
 2. **Conditional decision markets**. Every proposal is priced against the metrics it would affect before it ships. The only complete neighbour (MetaDAO) does this for DAO governance, not single-owner businesses.
 3. **Metric composition + time preference**. The market substrate. Owner defines a tree of metrics with formulas; each node carries a time horizon; markets are auto-created at sampled future dates. Forecasts are forward-looking outlooks, not spot odds.
 4. **Participant symmetry**. Humans and AI share the same signup, balance, capabilities. API keys, hooks, the open agent telemetry protocol make AI participants first-class. Same observability, same audit trail, same controls as human ones.
 5. **Workspace privacy with per-resource granularity**. Workspace `visibility` (Private / Public / Open) plus permission groups carrying per-metric `{read, trade}` and per-source `{read}` permissions. Closest cousin (enterprise hosted-private) doesn't do per-metric. None of the public markets do private at all.
 
-**Positioning one-liner:** Telarchy is an alignment layer for AI in your business. Markets price what AI agents propose, against the KPIs you define.
+**Positioning one-liner:** Telarchy is an alignment layer for AI and humans. Markets price what any participant proposes, against the metrics you define.
 
-### Why "alignment layer for AI" is the load-bearing framing (and not "private prediction markets")
+### Why "alignment layer for AI and humans" is the load-bearing framing
 
-The earlier framing positioned Telarchy as "a private prediction market for company decisions". That made the page argue with itself: every prediction market is "private" if you self-host enough of it, and the audience-fit story was muddled (founders vs personal-goal users co-headlined).
+Two earlier framings have been retired and should not be drifted back to:
 
-The current framing. *humans say what they want, AI proposes, markets price, human approves*. Is sharper because:
+- **"Private prediction markets for company decisions"** made the page argue with itself: every prediction market is "private" if you self-host enough of it, and the audience-fit story was muddled (founders vs personal-goal users co-headlined).
+- **"Alignment layer for AI" (alone)** was a sharper wedge but understated scope. The system also prices proposals coming from human teammates or the owner themselves. Calling it "for AI" only made the marketing inconsistent with the product, where every action gets priced regardless of proposer.
 
-- It's the only category where the matrix shows Telarchy as the only complete combination.
-- It's the question every founder is *already* asking ("how do I get AI to actually help me decide?") via the wrong tool (a chatbot).
-- It anchors the long-term vision: as more work gets automated, defining what you want is the human's last job. Telarchy is the interface for that.
-- It separates Telarchy from the prediction-market category entirely. Polymarket / Manifold / etc. Are not realistic alternatives for a founder pricing internal decisions; the realistic alternative is "ask Claude". Beating Claude on this specific job is the actual sales pitch.
+The current framing (*owners say what they want; participants, human or AI, propose; markets price; owner approves*) is sharper because:
 
-Do not drift back to "private prediction markets" framing. The mechanism is prediction markets; the product is an alignment layer.
+- It is the only category where the matrix shows Telarchy as the only complete combination.
+- It answers two questions every founder is *already* asking with the wrong tool: "how do I get AI to actually help me decide?" (default: chatbot) and "how do I price decisions against my actual goals?" (default: gut call, loudest voice in the room).
+- It anchors the long-term vision: as more work gets automated, defining what you want is the human's last job. Telarchy is the interface for that, whether the action being priced was proposed by an AI or a human.
+- It separates Telarchy from the prediction-market category entirely. Polymarket / Manifold / etc. are not realistic alternatives for a founder pricing internal decisions.
+
+### Why now
+
+The timing argument used in marketing copy:
+
+- **Intelligence is the cheapest it has ever been.** Prediction markets thrive in cheap intelligence: every proposal can now be evaluated by many forecasters at near-zero per-forecast cost. The historical bottleneck for internal prediction markets, that you needed dozens of motivated human forecasters per market, is gone.
+- **AI participants grant privacy that human forecasters cannot.** A founder will not put a sensitive KPI, an unannounced strategic move, or a confidential people decision in front of human teammates or a public market. They will put it in front of an AI participant inside a private workspace. AI participants do not gossip, do not take the information to a competitor, and do not carry the social cost of seeing the founder's uncertainty. This unlocks pricing for decisions that previously had no realistic forum.
+
+These two facts compound: cheap intelligence makes the markets work, and AI privacy makes the founder willing to put the decision into a market in the first place.
+
+Do not drift back to "private prediction markets" or to "alignment layer for AI" alone. The mechanism is prediction markets; the product is an alignment layer for AI and humans.
 
 ## Key Decisions (to be resolved)
 
