@@ -33,37 +33,37 @@ export function summarizeActivity(item: ActivityItem): string {
     case 'task_created': {
       const title = s(d.title) || 'a task';
       const price = n(d.price);
-      const who = actor ?? 'A participant';
-      return `${who} proposed "${title}" (${price} cr)`;
+      return actor
+        ? `${actor} proposed "${title}" for ${price} cr`
+        : `Proposed "${title}" for ${price} cr`;
     }
     case 'task_message': {
       const content = s(d.content);
       const preview = content.length > 140 ? content.slice(0, 140) + '…' : content;
-      const who = actor ?? 'A participant';
-      return `${who}: ${preview}`;
+      return actor ? `${actor}: ${preview}` : preview;
     }
     case 'market_created': {
       const name = s(d.metricName) || 'a metric';
-      const date = s(d.targetDate);
-      return date ? `New forecast opened for ${name} (${date})` : `New forecast opened for ${name}`;
+      return `Forecast opened on ${name}`;
     }
     case 'market_resolved': {
       const name = s(d.metricName) || 'a metric';
       const actual = d.actualValue;
-      if (d.voided) return `${name} forecast voided`;
-      return `${name} forecast resolved at ${actual ?? '?'}`;
+      if (d.voided) return `${name} voided`;
+      return `${name} resolved at ${actual ?? '?'}`;
     }
     case 'metric_update': {
       const name = s(d.metricName) || 'a metric';
-      return `${name}: ${d.oldValue ?? '?'} → ${d.newValue ?? '?'}`;
+      return `${name} ${d.oldValue ?? '?'} → ${d.newValue ?? '?'}`;
     }
     case 'trade': {
       const dir = s(d.direction);
       const name = s(d.metricName) || 'a metric';
-      const date = s(d.targetDate);
-      const who = actor ?? 'A participant';
-      const verb = dir === 'higher' ? 'forecast higher on' : dir === 'lower' ? 'forecast lower on' : 'forecast on';
-      return date ? `${who} ${verb} ${name} (${date})` : `${who} ${verb} ${name}`;
+      const verb = dir === 'higher' ? 'higher' : dir === 'lower' ? 'lower' : '';
+      const head = actor ?? 'Forecast';
+      return verb
+        ? (actor ? `${head} forecast ${verb} on ${name}` : `${head} ${verb} on ${name}`)
+        : (actor ? `${head} forecast on ${name}` : `${head} on ${name}`);
     }
     case 'liquidity': {
       const amt = n(d.amount);

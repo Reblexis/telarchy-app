@@ -5,11 +5,7 @@ import { useWorkspace } from '../hooks/useWorkspace';
 import { api, type ActivityItem } from '../lib/api';
 import type { Metric, TaskProposal } from '../types';
 import { fmtTime } from '../lib/date-utils';
-import {
-  ACTIVITY_TYPE_COLOR,
-  ACTIVITY_TYPE_LABEL,
-  summarizeActivity,
-} from '../lib/activity-summary';
+import { summarizeActivity } from '../lib/activity-summary';
 
 interface ApiError { message: string }
 
@@ -20,10 +16,10 @@ function isLeafMetric(m: Metric): boolean {
 function primaryValue(m: Metric): { label: string; value: string } {
   const hasTP = m.timePreference?.enabled === true;
   const leaf = isLeafMetric(m);
-  if (leaf && !hasTP) return { label: 'Now', value: m.value.toFixed(2) };
-  if (leaf && hasTP) return { label: 'Outlook', value: m.total === null ? '–' : m.total.toFixed(2) };
-  if (!leaf && hasTP) return { label: 'Outlook', value: m.total === null ? '–' : m.total.toFixed(2) };
-  return { label: 'Now', value: m.total === null ? '–' : m.total.toFixed(2) };
+  if (leaf && !hasTP) return { label: 'now', value: m.value.toFixed(2) };
+  if (leaf && hasTP) return { label: 'outlook', value: m.total === null ? '–' : m.total.toFixed(2) };
+  if (!leaf && hasTP) return { label: 'outlook', value: m.total === null ? '–' : m.total.toFixed(2) };
+  return { label: 'now', value: m.total === null ? '–' : m.total.toFixed(2) };
 }
 
 function activityLink(item: ActivityItem): string | null {
@@ -35,15 +31,14 @@ function activityLink(item: ActivityItem): string | null {
 
 function timeAgo(iso: string): string {
   const d = new Date(iso);
-  const now = Date.now();
-  const diff = Math.max(0, now - d.getTime());
+  const diff = Math.max(0, Date.now() - d.getTime());
   const m = Math.round(diff / 60000);
-  if (m < 1) return 'just now';
-  if (m < 60) return `${m}m ago`;
+  if (m < 1) return 'now';
+  if (m < 60) return `${m}m`;
   const h = Math.round(m / 60);
-  if (h < 24) return `${h}h ago`;
+  if (h < 24) return `${h}h`;
   const days = Math.round(h / 24);
-  if (days < 7) return `${days}d ago`;
+  if (days < 7) return `${days}d`;
   return fmtTime(d.getTime() / 1000);
 }
 
@@ -52,9 +47,10 @@ export function OverviewPage() {
   const { workspace, allWorkspaces } = useWorkspace(!!user);
   const isAdmin = workspace?.tier === 'admin';
 
-  const workspaceName = useMemo(() => {
-    return allWorkspaces.find(w => w.id === workspace?.workspaceId)?.name ?? '';
-  }, [allWorkspaces, workspace?.workspaceId]);
+  const workspaceName = useMemo(
+    () => allWorkspaces.find(w => w.id === workspace?.workspaceId)?.name ?? '',
+    [allWorkspaces, workspace?.workspaceId],
+  );
 
   const [metrics, setMetrics] = useState<Metric[] | null>(null);
   const [metricsError, setMetricsError] = useState<string | null>(null);
@@ -93,7 +89,7 @@ export function OverviewPage() {
           if (item.type !== 'liquidity') return true;
           const amt = Number((item.data as { amount?: unknown }).amount ?? 0);
           return Math.abs(amt) >= 0.01;
-        }).slice(0, 8);
+        }).slice(0, 6);
         setActivity(filtered);
       })
       .catch((e: ApiError) => {
@@ -112,236 +108,103 @@ export function OverviewPage() {
 
   if (workspace.tier === 'none') {
     return (
-      <div className="container">
-        <p style={{ color: 'var(--text-secondary)' }}>You don't have access to this workspace yet.</p>
+      <div className="overview">
+        <p className="overview-muted">You don't have access to this workspace yet.</p>
       </div>
     );
   }
 
   return (
-    <div className="container">
-      <div style={{ marginBottom: '1.5rem' }}>
-        <h1 style={{ fontSize: '1.5rem', letterSpacing: '-0.02em', margin: 0 }}>
-          {workspaceName || 'Workspace'}
-        </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.25rem' }}>
-          What's changed and what needs you, at a glance.
-        </p>
-      </div>
+    <div className="overview">
+      <h1 className="overview-title">{workspaceName || 'Workspace'}</h1>
 
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)',
-        gap: '1.5rem',
-        alignItems: 'start',
-      }} className="overview-grid">
-        <section>
-          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-            <h2 style={{ fontSize: '1rem', margin: 0 }}>Health snapshot</h2>
-            <Link to="/metrics" style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
-              All metrics →
-            </Link>
-          </div>
-          {metricsError && (
-            <div className="error show" style={{ marginBottom: '0.75rem' }}>{metricsError}</div>
-          )}
-          {!metrics ? (
-            <div style={{ color: 'var(--text-tertiary)', fontSize: '0.9rem' }}>Loading metrics…</div>
-          ) : topLevelMetrics.length === 0 ? (
-            <div style={{
-              border: '1px dashed var(--border-color)', borderRadius: '0.5rem',
-              padding: '1.25rem', color: 'var(--text-secondary)', fontSize: '0.9rem',
-            }}>
-              No top-level metrics yet.{' '}
-              {isAdmin && <Link to="/metrics">Add one →</Link>}
-            </div>
-          ) : (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-              gap: '0.75rem',
-            }}>
-              {topLevelMetrics.map(m => {
-                const primary = primaryValue(m);
-                const hasDelta = !isLeafMetric(m) && m.baselineTotal != null && m.total !== null;
-                const delta = hasDelta ? (m.total as number) - (m.baselineTotal as number) : 0;
-                const showDelta = hasDelta && Math.abs(delta) >= 0.005;
-                return (
-                  <Link
-                    key={m.id}
-                    to="/metrics"
-                    style={{
-                      display: 'flex', flexDirection: 'column', gap: '0.4rem',
-                      padding: '0.9rem 1rem',
-                      background: 'var(--bg-secondary)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: 'var(--radius-sm)',
-                      textDecoration: 'none', color: 'var(--text-primary)',
-                      transition: 'border-color 0.15s, transform 0.15s',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--focus-border)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-color)'; }}
-                  >
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {m.name}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}>
-                      <span style={{ fontSize: '1.4rem', fontWeight: 600 }}>
-                        {primary.value}
-                      </span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
-                        {primary.label.toLowerCase()}
-                      </span>
-                    </div>
-                    {showDelta && (
-                      <div style={{
-                        fontSize: '0.8rem',
-                        color: delta > 0 ? 'var(--success-text, #22c55e)' : 'var(--error-text, #ef4444)',
-                        fontWeight: 500,
-                      }}>
-                        {delta > 0 ? '▲' : '▼'} {Math.abs(delta).toFixed(2)}
-                        <span style={{ color: 'var(--text-tertiary)', fontWeight: 400, marginLeft: '0.35rem' }}>
-                          vs baseline
-                        </span>
-                      </div>
-                    )}
-                  </Link>
-                );
-              })}
-            </div>
+      {metricsError ? (
+        <div className="error show">{metricsError}</div>
+      ) : !metrics ? null : topLevelMetrics.length === 0 ? (
+        <p className="overview-muted">
+          No top-level metrics yet.{' '}
+          {isAdmin && <Link to="/metrics">Add one →</Link>}
+        </p>
+      ) : (
+        <section className="overview-kpis">
+          {topLevelMetrics.map(m => {
+            const primary = primaryValue(m);
+            const hasDelta = !isLeafMetric(m) && m.baselineTotal != null && m.total !== null;
+            const delta = hasDelta ? (m.total as number) - (m.baselineTotal as number) : 0;
+            const showDelta = hasDelta && Math.abs(delta) >= 0.005;
+            return (
+              <Link key={m.id} to="/metrics" className="overview-kpi">
+                <div className="overview-kpi-name">{m.name}</div>
+                <div className="overview-kpi-num">{primary.value}</div>
+                <div className="overview-kpi-meta">
+                  <span>{primary.label}</span>
+                  {showDelta && (
+                    <span className={`overview-kpi-delta ${delta > 0 ? 'up' : 'down'}`}>
+                      {delta > 0 ? '↑' : '↓'} {Math.abs(delta).toFixed(2)}
+                    </span>
+                  )}
+                </div>
+              </Link>
+            );
+          })}
+        </section>
+      )}
+
+      {isAdmin && pending && pending.length > 0 && (
+        <section className="overview-section">
+          <header className="overview-section-head">
+            <h2>Awaiting <span className="overview-count">{pending.length}</span></h2>
+          </header>
+          <ul className="overview-list">
+            {pending.slice(0, 5).map(t => (
+              <li key={t.id}>
+                <Link to={`/tasks?id=${t.id}`} className="overview-row">
+                  <span className="overview-row-text">{t.title}</span>
+                  <span className="overview-row-meta">{t.price.toFixed(0)} cr</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {pending.length > 5 && (
+            <Link to="/tasks" className="overview-more">View all {pending.length} →</Link>
           )}
         </section>
+      )}
 
-        <aside style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {isAdmin && (
-            <div style={{
-              border: '1px solid var(--border-color)', borderRadius: '0.75rem',
-              background: 'var(--bg-secondary)', padding: '1rem 1.1rem',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
-                <strong style={{ fontSize: '0.9rem' }}>Awaiting your decision</strong>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
-                  {pending == null ? '…' : `${pending.length} pending`}
-                </span>
-              </div>
-              {pending == null ? (
-                <div style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>Loading…</div>
-              ) : pending.length === 0 ? (
-                <div style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>
-                  Nothing to approve right now.
+      <section className="overview-section">
+        <header className="overview-section-head">
+          <h2>Activity</h2>
+          <Link to="/activity" className="overview-more">Full feed →</Link>
+        </header>
+        {activity == null ? null : activity.length === 0 ? (
+          <p className="overview-muted">Quiet week.</p>
+        ) : (
+          <ul className="overview-list">
+            {activity.map(item => {
+              const summary = summarizeActivity(item);
+              if (!summary) return null;
+              const link = activityLink(item);
+              const inner = (
+                <div className="overview-row">
+                  <span className="overview-row-text">{summary}</span>
+                  <span className="overview-row-meta">{timeAgo(item.timestamp)}</span>
                 </div>
-              ) : (
-                <>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                    {pending.slice(0, 5).map(t => (
-                      <Link
-                        key={t.id}
-                        to={`/tasks?id=${t.id}`}
-                        style={{
-                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                          padding: '0.5rem 0.65rem',
-                          background: 'var(--bg-primary)',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: 'var(--radius-sm)',
-                          textDecoration: 'none', color: 'var(--text-primary)',
-                          fontSize: '0.85rem',
-                        }}
-                      >
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: '0.5rem' }}>
-                          {t.title}
-                        </span>
-                        <span style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', flexShrink: 0 }}>
-                          {t.price.toFixed(2)} cr
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
-                  {pending.length > 5 && (
-                    <Link to="/tasks" style={{ display: 'block', marginTop: '0.5rem', fontSize: '0.78rem', color: 'var(--text-tertiary)' }}>
-                      View all {pending.length} →
-                    </Link>
-                  )}
-                </>
-              )}
-            </div>
-          )}
+              );
+              return (
+                <li key={item.id}>
+                  {link ? <Link to={link} className="overview-row-link">{inner}</Link> : inner}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
-          <div style={{
-            border: '1px solid var(--border-color)', borderRadius: '0.75rem',
-            background: 'var(--bg-secondary)', padding: '1rem 1.1rem',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
-              <strong style={{ fontSize: '0.9rem' }}>Recent activity</strong>
-              <Link to="/activity" style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)' }}>
-                Full feed →
-              </Link>
-            </div>
-            {activity == null ? (
-              <div style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>Loading…</div>
-            ) : activity.length === 0 ? (
-              <div style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>
-                Quiet week. Nothing has happened in the last 7 days.
-              </div>
-            ) : (
-              <div style={{ borderTop: '1px solid var(--border-color)' }}>
-                {activity.map(item => {
-                  const summary = summarizeActivity(item);
-                  if (!summary) return null;
-                  const color = ACTIVITY_TYPE_COLOR[item.type] ?? 'var(--text-tertiary)';
-                  const label = ACTIVITY_TYPE_LABEL[item.type] ?? item.type;
-                  const link = activityLink(item);
-                  const row = (
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: '4px 70px 1fr',
-                      gap: '0.55rem',
-                      alignItems: 'baseline',
-                      padding: '0.5rem 0.1rem',
-                      borderBottom: '1px solid var(--border-color)',
-                      fontSize: '0.83rem',
-                    }}>
-                      <div style={{ background: color, alignSelf: 'stretch', borderRadius: 2 }} />
-                      <span style={{
-                        fontSize: '0.65rem', fontWeight: 600,
-                        color, textTransform: 'uppercase', letterSpacing: '0.04em',
-                      }}>
-                        {label}
-                      </span>
-                      <span style={{ color: 'var(--text-primary)', wordBreak: 'break-word' }}>
-                        {summary}
-                        <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: '0.15rem' }}>
-                          {timeAgo(item.timestamp)}
-                        </span>
-                      </span>
-                    </div>
-                  );
-                  return link ? (
-                    <Link key={item.id} to={link} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-                      {row}
-                    </Link>
-                  ) : (
-                    <div key={item.id}>{row}</div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {!isAdmin && (
-            <div style={{
-              border: '1px solid var(--border-color)', borderRadius: '0.75rem',
-              background: 'var(--bg-secondary)', padding: '1rem 1.1rem',
-              fontSize: '0.85rem', color: 'var(--text-secondary)',
-            }}>
-              <strong style={{ display: 'block', marginBottom: '0.4rem', color: 'var(--text-primary)' }}>
-                Forecast on this workspace
-              </strong>
-              Pricing tasks against these metrics is how you contribute.{' '}
-              <Link to="/markets">Open markets →</Link>
-            </div>
-          )}
-        </aside>
-      </div>
+      {!isAdmin && (
+        <p className="overview-muted">
+          <Link to="/markets">Open markets →</Link>
+        </p>
+      )}
     </div>
   );
 }

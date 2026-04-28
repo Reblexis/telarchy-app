@@ -1,20 +1,23 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { api, type ActivityItem } from '../lib/api';
-import {
-  FRIENDLY_ACTIVITY_TYPES,
-  ACTIVITY_TYPE_COLOR,
-  ACTIVITY_TYPE_LABEL,
-  summarizeActivity,
-} from '../lib/activity-summary';
+import { FRIENDLY_ACTIVITY_TYPES, summarizeActivity } from '../lib/activity-summary';
 
 const TIME_RANGES: { label: string; hours: number }[] = [
-  { label: '1 hour',  hours: 1 },
-  { label: '24 hours', hours: 24 },
-  { label: '7 days',   hours: 168 },
-  { label: '30 days',  hours: 720 },
+  { label: '1h',  hours: 1 },
+  { label: '24h', hours: 24 },
+  { label: '7d',  hours: 168 },
+  { label: '30d', hours: 720 },
 ];
+
+function activityLink(item: ActivityItem): string | null {
+  if (item.taskId) return `/tasks?id=${encodeURIComponent(item.taskId)}`;
+  if (item.marketId) return `/markets?marketId=${encodeURIComponent(item.marketId)}`;
+  if (item.metricId) return `/metrics`;
+  return null;
+}
 
 export function ActivityPage() {
   const { user } = useAuth();
@@ -82,10 +85,19 @@ export function ActivityPage() {
     });
   };
 
+  const visibleActivities = useMemo(
+    () => activities.filter(item => {
+      if (item.type !== 'liquidity') return true;
+      const amt = Number((item.data as { amount?: unknown }).amount ?? 0);
+      return Math.abs(amt) >= 0.01;
+    }),
+    [activities],
+  );
+
   const grouped = useMemo(() => {
     const out: { day: string; items: ActivityItem[] }[] = [];
     let currentDay = '';
-    for (const item of activities) {
+    for (const item of visibleActivities) {
       const day = new Date(item.timestamp).toLocaleDateString(undefined, {
         weekday: 'short', month: 'short', day: 'numeric',
       });
@@ -97,135 +109,89 @@ export function ActivityPage() {
       }
     }
     return out;
-  }, [activities]);
+  }, [visibleActivities]);
 
   if (!user || wsLoading) return <div className="loading">Loading…</div>;
 
   return (
-    <div className="container">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.25rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-        <h1 style={{ fontSize: '1.3rem', fontWeight: 700, margin: 0 }}>Activity</h1>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-            {feedLoading ? 'Refreshing…' : paused ? 'Paused' : 'Live'}
-          </span>
-          <button
-            onClick={() => setPaused(p => !p)}
-            style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: 'var(--bg-secondary)', cursor: 'pointer' }}
-          >
-            {paused ? 'Resume' : 'Pause'}
-          </button>
-          <button
-            onClick={() => { fetchActivity(); }}
-            style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: 'var(--bg-secondary)', cursor: 'pointer' }}
-          >
-            Refresh
-          </button>
-        </div>
-      </div>
-      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: 0, marginBottom: '1rem' }}>
-        What participants have been doing in this workspace.
-      </p>
+    <div className="activity">
+      <header className="activity-header">
+        <h1>Activity</h1>
+        <button
+          type="button"
+          className="activity-status"
+          onClick={() => setPaused(p => !p)}
+          title={paused ? 'Resume live updates' : 'Pause live updates'}
+        >
+          <span className={`activity-dot ${paused ? 'paused' : ''}`} />
+          {paused ? 'Paused' : feedLoading ? 'Updating' : 'Live'}
+        </button>
+      </header>
 
-      <div className="section">
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '0.75rem' }}>
-          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Range</label>
-          <select
-            value={rangeHours}
-            onChange={e => setRangeHours(Number(e.target.value))}
-            style={{ padding: '0.3rem 0.5rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: 'var(--bg-secondary)', fontSize: '0.85rem' }}
-          >
-            {TIME_RANGES.map(r => <option key={r.hours} value={r.hours}>{r.label}</option>)}
-          </select>
+      <div className="activity-toolbar">
+        <div className="activity-range">
+          {TIME_RANGES.map(r => (
+            <button
+              key={r.hours}
+              type="button"
+              className={`activity-range-btn${rangeHours === r.hours ? ' active' : ''}`}
+              onClick={() => setRangeHours(r.hours)}
+            >
+              {r.label}
+            </button>
+          ))}
         </div>
-
-        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+        <div className="activity-filters">
           {FRIENDLY_ACTIVITY_TYPES.map(t => {
             const on = selectedTypes.has(t.id);
             return (
               <button
                 key={t.id}
+                type="button"
+                className={`activity-filter${on ? ' active' : ''}`}
                 onClick={() => toggleType(t.id)}
-                style={{
-                  fontSize: '0.7rem',
-                  padding: '0.25rem 0.6rem',
-                  border: `1px solid ${on ? t.color : 'var(--border-color)'}`,
-                  borderRadius: 'var(--radius-full, 999px)',
-                  background: on ? t.color : 'var(--bg-secondary)',
-                  color: on ? '#fff' : 'var(--text-secondary)',
-                  cursor: 'pointer',
-                  fontWeight: on ? 600 : 500,
-                }}
               >
                 {t.label}
               </button>
             );
           })}
         </div>
+      </div>
 
-        {feedError && <div className="error show" style={{ marginBottom: '1rem' }}>{feedError}</div>}
+      {feedError && <div className="error show">{feedError}</div>}
 
-        {activities.length === 0 && !feedLoading ? (
-          <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            Nothing has happened in this range yet.
-          </div>
-        ) : (
-          <div style={{ borderTop: '1px solid var(--border-color)' }}>
-            {grouped.map(group => (
-              <div key={group.day}>
-                <div style={{
-                  padding: '0.6rem 0.5rem 0.3rem',
-                  fontSize: '0.7rem',
-                  fontWeight: 600,
-                  color: 'var(--text-tertiary)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
-                }}>
-                  {group.day}
-                </div>
+      {visibleActivities.length === 0 && !feedLoading ? (
+        <p className="activity-empty">Nothing has happened in this range yet.</p>
+      ) : (
+        <div className="activity-feed">
+          {grouped.map(group => (
+            <section key={group.day} className="activity-group">
+              <h2 className="activity-day">{group.day}</h2>
+              <ul className="activity-list">
                 {group.items.map(item => {
-                  const color = ACTIVITY_TYPE_COLOR[item.type] ?? 'var(--text-tertiary)';
-                  const label = ACTIVITY_TYPE_LABEL[item.type] ?? item.type;
+                  const summary = summarizeActivity(item);
+                  if (!summary) return null;
                   const time = new Date(item.timestamp).toLocaleTimeString([], {
                     hour: '2-digit', minute: '2-digit',
                   });
-                  return (
-                    <div
-                      key={item.id}
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: '4px 90px 60px 1fr',
-                        gap: '0.6rem',
-                        alignItems: 'baseline',
-                        padding: '0.55rem 0.5rem',
-                        borderBottom: '1px solid var(--border-color)',
-                        fontSize: '0.85rem',
-                      }}
-                    >
-                      <div style={{ background: color, alignSelf: 'stretch', borderRadius: 2 }} />
-                      <span style={{
-                        fontSize: '0.7rem',
-                        fontWeight: 600,
-                        color,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.04em',
-                      }}>
-                        {label}
-                      </span>
-                      <span style={{ color: 'var(--text-tertiary)', fontFamily: 'monospace', fontSize: '0.72rem' }}>
-                        {time}
-                      </span>
-                      <span style={{ color: 'var(--text-primary)', wordBreak: 'break-word' }}>
-                        {summarizeActivity(item)}
-                      </span>
+                  const link = activityLink(item);
+                  const inner = (
+                    <div className="activity-row">
+                      <span className="activity-text">{summary}</span>
+                      <span className="activity-time">{time}</span>
                     </div>
                   );
+                  return (
+                    <li key={item.id}>
+                      {link ? <Link to={link} className="activity-row-link">{inner}</Link> : inner}
+                    </li>
+                  );
                 })}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              </ul>
+            </section>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
