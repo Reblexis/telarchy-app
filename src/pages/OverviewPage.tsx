@@ -5,6 +5,11 @@ import { useWorkspace } from '../hooks/useWorkspace';
 import { api, type ActivityItem } from '../lib/api';
 import type { Metric, TaskProposal } from '../types';
 import { fmtTime } from '../lib/date-utils';
+import {
+  ACTIVITY_TYPE_COLOR,
+  ACTIVITY_TYPE_LABEL,
+  summarizeActivity,
+} from '../lib/activity-summary';
 
 interface ApiError { message: string }
 
@@ -19,40 +24,6 @@ function primaryValue(m: Metric): { label: string; value: string } {
   if (leaf && hasTP) return { label: 'Outlook', value: m.total === null ? '–' : m.total.toFixed(2) };
   if (!leaf && hasTP) return { label: 'Outlook', value: m.total === null ? '–' : m.total.toFixed(2) };
   return { label: 'Now', value: m.total === null ? '–' : m.total.toFixed(2) };
-}
-
-interface ActivityLine { actor: string | null; verb: string }
-
-function summarizeActivity(item: ActivityItem): ActivityLine | null {
-  const d = item.data as Record<string, unknown>;
-  const actor = item.actor?.label ?? null;
-  switch (item.type) {
-    case 'trade':
-      return { actor, verb: `traded ${d.direction} ${Number(d.shares ?? 0).toFixed(1)} shares for ${Number(d.cost ?? 0).toFixed(2)} cr` };
-    case 'metric_update':
-      return { actor, verb: `updated ${d.metricName ?? 'metric'}: ${d.oldValue ?? '?'} → ${d.newValue ?? '?'}` };
-    case 'task_created':
-      return { actor, verb: `proposed "${d.title ?? 'task'}"` };
-    case 'task_message':
-      return typeof d.content === 'string'
-        ? { actor, verb: `commented: ${d.content.length > 80 ? d.content.slice(0, 80) + '…' : d.content}` }
-        : { actor, verb: 'commented' };
-    case 'market_created':
-      return { actor: null, verb: `Market opened on ${d.metricName ?? 'a metric'}` };
-    case 'market_resolved':
-      return { actor: null, verb: `${d.metricName ?? 'Market'} resolved (actual ${d.actualValue ?? '?'})` };
-    case 'liquidity': {
-      const amt = Number(d.amount ?? 0);
-      if (Math.abs(amt) < 0.01) return null;
-      return { actor: null, verb: `Liquidity ${amt >= 0 ? '+' : ''}${amt.toFixed(2)} cr` };
-    }
-    case 'deposit':
-      return { actor, verb: `deposited ${Number(d.credits ?? 0).toFixed(2)} cr` };
-    case 'withdrawal':
-      return { actor, verb: `withdrew ${Number(d.credits ?? 0).toFixed(2)} cr` };
-    default:
-      return null;
-  }
 }
 
 function activityLink(item: ActivityItem): string | null {
@@ -89,7 +60,6 @@ export function OverviewPage() {
   const [metricsError, setMetricsError] = useState<string | null>(null);
   const [pending, setPending] = useState<TaskProposal[] | null>(null);
   const [activity, setActivity] = useState<ActivityItem[] | null>(null);
-  const [activityForbidden, setActivityForbidden] = useState(false);
 
   useEffect(() => {
     if (!user || !workspace?.workspaceId) return;
@@ -113,22 +83,25 @@ export function OverviewPage() {
   }, [user, isAdmin, workspace?.workspaceId]);
 
   useEffect(() => {
-    if (!user || !isAdmin || !workspace?.workspaceId) { setActivity([]); return; }
+    if (!user || !workspace?.workspaceId) { setActivity([]); return; }
     let cancelled = false;
     const since = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
-    api.getAdminActivity({ since, limit: 8 }, workspace.workspaceId)
-      .then(data => { if (!cancelled) { setActivity(data.activities); setActivityForbidden(false); } })
-      .catch((e: ApiError) => {
+    api.getActivity({ since, limit: 30 }, workspace.workspaceId)
+      .then(data => {
         if (cancelled) return;
-        if (/403|forbidden/i.test(e.message)) {
-          setActivityForbidden(true);
-        } else {
-          console.error('Failed to load activity for overview', e.message);
-        }
-        setActivity([]);
+        const filtered = data.activities.filter(item => {
+          if (item.type !== 'liquidity') return true;
+          const amt = Number((item.data as { amount?: unknown }).amount ?? 0);
+          return Math.abs(amt) >= 0.01;
+        }).slice(0, 8);
+        setActivity(filtered);
+      })
+      .catch((e: ApiError) => {
+        console.error('Failed to load activity for overview', e.message);
+        if (!cancelled) setActivity([]);
       });
     return () => { cancelled = true; };
-  }, [user, isAdmin, workspace?.workspaceId]);
+  }, [user, workspace?.workspaceId]);
 
   const topLevelMetrics = useMemo(
     () => (metrics ?? []).filter(m => (m.depth ?? 0) === 0),
@@ -293,56 +266,66 @@ export function OverviewPage() {
             </div>
           )}
 
-          {isAdmin && !activityForbidden && (
-            <div style={{
-              border: '1px solid var(--border-color)', borderRadius: '0.75rem',
-              background: 'var(--bg-secondary)', padding: '1rem 1.1rem',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
-                <strong style={{ fontSize: '0.9rem' }}>Recent activity</strong>
-                <Link to="/admin" style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)' }}>
-                  Full feed →
-                </Link>
-              </div>
-              {activity == null ? (
-                <div style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>Loading…</div>
-              ) : activity.length === 0 ? (
-                <div style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>
-                  Quiet week. Nothing has happened in the last 7 days.
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {activity.map(item => {
-                    const line = summarizeActivity(item);
-                    if (!line) return null;
-                    const link = activityLink(item);
-                    const inner = (
-                      <>
-                        <div style={{ fontSize: '0.83rem', color: 'var(--text-primary)' }}>
-                          {line.actor && (
-                            <span style={{ color: 'var(--text-secondary)' }}>
-                              {line.actor}{' '}
-                            </span>
-                          )}
-                          {line.verb}
-                        </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: '0.15rem' }}>
-                          {timeAgo(item.timestamp)}
-                        </div>
-                      </>
-                    );
-                    return link ? (
-                      <Link key={item.id} to={link} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
-                        {inner}
-                      </Link>
-                    ) : (
-                      <div key={item.id}>{inner}</div>
-                    );
-                  })}
-                </div>
-              )}
+          <div style={{
+            border: '1px solid var(--border-color)', borderRadius: '0.75rem',
+            background: 'var(--bg-secondary)', padding: '1rem 1.1rem',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '0.6rem' }}>
+              <strong style={{ fontSize: '0.9rem' }}>Recent activity</strong>
+              <Link to="/activity" style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)' }}>
+                Full feed →
+              </Link>
             </div>
-          )}
+            {activity == null ? (
+              <div style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>Loading…</div>
+            ) : activity.length === 0 ? (
+              <div style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>
+                Quiet week. Nothing has happened in the last 7 days.
+              </div>
+            ) : (
+              <div style={{ borderTop: '1px solid var(--border-color)' }}>
+                {activity.map(item => {
+                  const summary = summarizeActivity(item);
+                  if (!summary) return null;
+                  const color = ACTIVITY_TYPE_COLOR[item.type] ?? 'var(--text-tertiary)';
+                  const label = ACTIVITY_TYPE_LABEL[item.type] ?? item.type;
+                  const link = activityLink(item);
+                  const row = (
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: '4px 70px 1fr',
+                      gap: '0.55rem',
+                      alignItems: 'baseline',
+                      padding: '0.5rem 0.1rem',
+                      borderBottom: '1px solid var(--border-color)',
+                      fontSize: '0.83rem',
+                    }}>
+                      <div style={{ background: color, alignSelf: 'stretch', borderRadius: 2 }} />
+                      <span style={{
+                        fontSize: '0.65rem', fontWeight: 600,
+                        color, textTransform: 'uppercase', letterSpacing: '0.04em',
+                      }}>
+                        {label}
+                      </span>
+                      <span style={{ color: 'var(--text-primary)', wordBreak: 'break-word' }}>
+                        {summary}
+                        <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: '0.15rem' }}>
+                          {timeAgo(item.timestamp)}
+                        </span>
+                      </span>
+                    </div>
+                  );
+                  return link ? (
+                    <Link key={item.id} to={link} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
+                      {row}
+                    </Link>
+                  ) : (
+                    <div key={item.id}>{row}</div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           {!isAdmin && (
             <div style={{

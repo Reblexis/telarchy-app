@@ -2,23 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { api, type ActivityItem } from '../lib/api';
-
-const FRIENDLY_TYPES: { id: string; label: string; color: string }[] = [
-  { id: 'task_created',    label: 'Tasks',     color: '#db2777' },
-  { id: 'task_message',    label: 'Chat',      color: '#be185d' },
-  { id: 'market_created',  label: 'Markets',   color: '#7c3aed' },
-  { id: 'market_resolved', label: 'Resolved',  color: '#9333ea' },
-  { id: 'metric_update',   label: 'KPIs',      color: '#0891b2' },
-  { id: 'trade',           label: 'Forecasts', color: '#2563eb' },
-  { id: 'liquidity',       label: 'Liquidity', color: '#65a30d' },
-];
-
-const TYPE_COLOR: Record<string, string> = Object.fromEntries(
-  FRIENDLY_TYPES.map(t => [t.id, t.color]),
-);
-const TYPE_LABEL: Record<string, string> = Object.fromEntries(
-  FRIENDLY_TYPES.map(t => [t.id, t.label]),
-);
+import {
+  FRIENDLY_ACTIVITY_TYPES,
+  ACTIVITY_TYPE_COLOR,
+  ACTIVITY_TYPE_LABEL,
+  summarizeActivity,
+} from '../lib/activity-summary';
 
 const TIME_RANGES: { label: string; hours: number }[] = [
   { label: '1 hour',  hours: 1 },
@@ -27,71 +16,13 @@ const TIME_RANGES: { label: string; hours: number }[] = [
   { label: '30 days',  hours: 720 },
 ];
 
-function n(v: unknown, fallback = 0): number {
-  return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
-}
-
-function s(v: unknown): string {
-  return typeof v === 'string' ? v : '';
-}
-
-function summarize(item: ActivityItem): string {
-  const d = item.data as Record<string, unknown>;
-  const actor = item.actor?.label;
-  switch (item.type) {
-    case 'task_created': {
-      const title = s(d.title) || 'a task';
-      const price = n(d.price);
-      const who = actor ?? 'A participant';
-      return `${who} proposed "${title}" (${price} cr)`;
-    }
-    case 'task_message': {
-      const content = s(d.content);
-      const preview = content.length > 140 ? content.slice(0, 140) + '…' : content;
-      const who = actor ?? 'A participant';
-      return `${who}: ${preview}`;
-    }
-    case 'market_created': {
-      const name = s(d.metricName) || 'a metric';
-      const date = s(d.targetDate);
-      return date ? `New forecast opened for ${name} (${date})` : `New forecast opened for ${name}`;
-    }
-    case 'market_resolved': {
-      const name = s(d.metricName) || 'a metric';
-      const actual = d.actualValue;
-      if (d.voided) return `${name} forecast voided`;
-      return `${name} forecast resolved at ${actual ?? '?'}`;
-    }
-    case 'metric_update': {
-      const name = s(d.metricName) || 'a metric';
-      return `${name}: ${d.oldValue ?? '?'} → ${d.newValue ?? '?'}`;
-    }
-    case 'trade': {
-      const dir = s(d.direction);
-      const name = s(d.metricName) || 'a metric';
-      const date = s(d.targetDate);
-      const who = actor ?? 'A participant';
-      const verb = dir === 'higher' ? 'forecast higher on' : dir === 'lower' ? 'forecast lower on' : 'forecast on';
-      return date ? `${who} ${verb} ${name} (${date})` : `${who} ${verb} ${name}`;
-    }
-    case 'liquidity': {
-      const amt = n(d.amount);
-      const name = s(d.metricName) || 'a market';
-      const sign = amt >= 0 ? '+' : '';
-      return `${sign}${amt.toFixed(2)} cr liquidity on ${name}`;
-    }
-    default:
-      return '';
-  }
-}
-
 export function ActivityPage() {
   const { user } = useAuth();
   const { workspace, loading: wsLoading } = useWorkspace(Boolean(user));
 
   const [rangeHours, setRangeHours] = useState<number>(24);
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(
-    new Set(FRIENDLY_TYPES.map(t => t.id)),
+    new Set(FRIENDLY_ACTIVITY_TYPES.map(t => t.id)),
   );
   const [paused, setPaused] = useState(false);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
@@ -106,7 +37,7 @@ export function ActivityPage() {
     setFeedLoading(true);
     try {
       const since = new Date(Date.now() - rangeHours * 3600 * 1000).toISOString();
-      const allTypes = FRIENDLY_TYPES.length;
+      const allTypes = FRIENDLY_ACTIVITY_TYPES.length;
       const data = await api.getActivity(
         {
           since,
@@ -209,7 +140,7 @@ export function ActivityPage() {
         </div>
 
         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
-          {FRIENDLY_TYPES.map(t => {
+          {FRIENDLY_ACTIVITY_TYPES.map(t => {
             const on = selectedTypes.has(t.id);
             return (
               <button
@@ -253,8 +184,8 @@ export function ActivityPage() {
                   {group.day}
                 </div>
                 {group.items.map(item => {
-                  const color = TYPE_COLOR[item.type] ?? 'var(--text-tertiary)';
-                  const label = TYPE_LABEL[item.type] ?? item.type;
+                  const color = ACTIVITY_TYPE_COLOR[item.type] ?? 'var(--text-tertiary)';
+                  const label = ACTIVITY_TYPE_LABEL[item.type] ?? item.type;
                   const time = new Date(item.timestamp).toLocaleTimeString([], {
                     hour: '2-digit', minute: '2-digit',
                   });
@@ -285,7 +216,7 @@ export function ActivityPage() {
                         {time}
                       </span>
                       <span style={{ color: 'var(--text-primary)', wordBreak: 'break-word' }}>
-                        {summarize(item)}
+                        {summarizeActivity(item)}
                       </span>
                     </div>
                   );
