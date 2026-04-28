@@ -37,17 +37,16 @@ export function Sidebar({ className = '' }: { className?: string }) {
   const canAccessWorkspace = workspace?.tier && workspace.tier !== 'none';
   const isAdmin = workspace?.tier === 'admin';
   const workspaceLinks = [
-    { to: '/overview', label: 'Overview' },
     { to: '/metrics', label: 'Metrics' },
     ...(isAdmin ? [{ to: '/check-in', label: 'Check-in' }] : []),
     { to: '/tasks', label: 'Tasks' },
     { to: '/markets', label: 'Markets' },
-    ...(isAdmin ? [{ to: '/participants', label: 'Participants' }] : []),
     { to: '/activity', label: 'Activity' },
+    ...(isAdmin ? [{ to: '/participants', label: 'Participants' }] : []),
     { to: '/sources', label: 'Sources' },
     ...(isAdmin ? [{ to: '/settings', label: 'Settings' }] : []),
   ];
-  const workspacePaths = ['/overview', '/metrics', '/check-in', '/tasks', '/markets', '/participants', '/activity', '/sources', '/settings'];
+  const workspacePaths = ['/overview', '/metrics', '/check-in', '/tasks', '/markets', '/activity', '/participants', '/sources', '/settings'];
   const onWorkspacePath = workspacePaths.includes(currentPath);
 
   useEffect(() => {
@@ -80,7 +79,7 @@ export function Sidebar({ className = '' }: { className?: string }) {
             return (
               <div key={ws.id} className="sidebar-workspace-group">
                 <button
-                  className={`sidebar-nav-item${isSelected ? ' selected' : ''}${isSelected && currentPath === '/overview' ? ' active' : ''}`}
+                  className={`sidebar-nav-item sidebar-workspace-name${isSelected ? ' selected' : ''}${isSelected && currentPath === '/overview' ? ' active' : ''}`}
                   onClick={() => {
                     if (isSelected) {
                       if (canAccessWorkspace) navigate('/overview');

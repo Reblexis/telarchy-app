@@ -316,12 +316,27 @@ body:has(.app-layout) {
   margin-top: 0.15rem;
 }
 
+.sidebar-workspace-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding-top: 0.55rem;
+  padding-bottom: 0.55rem;
+}
+
+.sidebar-workspace-name:hover {
+  color: var(--text-primary);
+}
+
 .sidebar-workspace-subnav {
-  padding-bottom: 0.35rem;
+  position: relative;
+  padding: 0.15rem 0 0.5rem 0.6rem;
+  margin-left: 1.05rem;
+  border-left: 1px solid var(--border-color);
 }
 
 .sidebar-workspace-id {
-  padding: 0 1rem 0.35rem 1.65rem;
+  padding: 0 1rem 0.4rem 0.65rem;
   font-size: 0.7rem;
   font-family: monospace;
   color: var(--text-tertiary);
@@ -331,16 +346,32 @@ body:has(.app-layout) {
 }
 
 .sidebar-subnav-item {
-  padding-left: 1.65rem;
-  font-size: 0.82rem;
+  padding-left: 0.65rem;
+  font-size: 0.8rem;
+  font-weight: 400;
   justify-content: flex-start;
+  border-radius: var(--radius-sm);
+}
+
+.sidebar-subnav-item.active {
+  border-left-color: transparent;
+  background: var(--bg-tertiary);
+  font-weight: 500;
+  box-shadow: none;
 }
 
 .sidebar-workspace-toggle {
   color: var(--text-tertiary);
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   margin-left: 0.75rem;
   flex-shrink: 0;
+  padding: 0.1rem 0.3rem;
+  border-radius: var(--radius-sm);
+}
+
+.sidebar-workspace-toggle:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
 }
 
 .sidebar-spacer {
