@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { api, type ActivityItem } from '../lib/api';
-import { FRIENDLY_ACTIVITY_TYPES, summarizeActivity } from '../lib/activity-summary';
+import { FRIENDLY_ACTIVITY_TYPES, getActivityTags, summarizeActivity } from '../lib/activity-summary';
 
 const TIME_RANGES: { label: string; hours: number }[] = [
   { label: '1h',  hours: 1 },
@@ -27,6 +27,7 @@ export function ActivityPage() {
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(
     new Set(FRIENDLY_ACTIVITY_TYPES.map(t => t.id)),
   );
+  const [search, setSearch] = useState('');
   const [paused, setPaused] = useState(false);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [feedError, setFeedError] = useState('');
@@ -85,14 +86,20 @@ export function ActivityPage() {
     });
   };
 
-  const visibleActivities = useMemo(
-    () => activities.filter(item => {
-      if (item.type !== 'liquidity') return true;
-      const amt = Number((item.data as { amount?: unknown }).amount ?? 0);
-      return Math.abs(amt) >= 0.01;
-    }),
-    [activities],
-  );
+  const visibleActivities = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return activities.filter(item => {
+      if (item.type === 'liquidity') {
+        const amt = Number((item.data as { amount?: unknown }).amount ?? 0);
+        if (Math.abs(amt) < 0.01) return false;
+      }
+      if (!q) return true;
+      const summary = summarizeActivity(item).toLowerCase();
+      const tags = getActivityTags(item).join(' ').toLowerCase();
+      const actor = (item.actor?.label ?? '').toLowerCase();
+      return summary.includes(q) || tags.includes(q) || actor.includes(q);
+    });
+  }, [activities, search]);
 
   const grouped = useMemo(() => {
     const out: { day: string; items: ActivityItem[] }[] = [];
@@ -129,6 +136,13 @@ export function ActivityPage() {
       </header>
 
       <div className="activity-toolbar">
+        <input
+          type="search"
+          className="activity-search"
+          placeholder="Search activity"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
         <div className="activity-range">
           {TIME_RANGES.map(r => (
             <button
@@ -171,13 +185,23 @@ export function ActivityPage() {
                 {group.items.map(item => {
                   const summary = summarizeActivity(item);
                   if (!summary) return null;
+                  const tags = getActivityTags(item);
                   const time = new Date(item.timestamp).toLocaleTimeString([], {
                     hour: '2-digit', minute: '2-digit',
                   });
                   const link = activityLink(item);
                   const inner = (
                     <div className="activity-row">
-                      <span className="activity-text">{summary}</span>
+                      <div className="activity-text">
+                        <div>{summary}</div>
+                        {tags.length > 0 && (
+                          <div className="activity-tags">
+                            {tags.map(tag => (
+                              <span key={tag} className="activity-tag">{tag}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                       <span className="activity-time">{time}</span>
                     </div>
                   );

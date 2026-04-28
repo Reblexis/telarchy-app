@@ -26,6 +26,18 @@ function s(v: unknown): string {
   return typeof v === 'string' ? v : '';
 }
 
+export function getActivityTags(item: ActivityItem): string[] {
+  const d = item.data as Record<string, unknown>;
+  const out: string[] = [];
+  const typeLabel = ACTIVITY_TYPE_LABEL[item.type];
+  if (typeLabel) out.push(typeLabel);
+  const metricName = s(d.metricName);
+  if (metricName && metricName.toLowerCase() !== typeLabel?.toLowerCase()) {
+    out.push(metricName);
+  }
+  return out;
+}
+
 export function summarizeActivity(item: ActivityItem): string {
   const d = item.data as Record<string, unknown>;
   const actor = item.actor?.label;
