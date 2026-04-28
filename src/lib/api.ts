@@ -307,6 +307,30 @@ export const api = {
   getHooksStatus: (): Promise<{ active: boolean; lastPolledAt?: string; intervalMs?: number; nextPollAt?: string }> =>
     request('/api/events/hooks/status'),
 
+  // Member-friendly workspace activity feed (requires `read` capability).
+  // Hides deposits/withdrawals and anonymizes trade actors for non-admins.
+  getActivity: (
+    params: {
+      since?: string;
+      until?: string;
+      limit?: number;
+      types?: string[];
+    },
+    workspaceId?: string,
+  ): Promise<{
+    activities: ActivityItem[];
+    supportedTypes: string[];
+    nextCursor: string;
+  }> => {
+    const q = new URLSearchParams();
+    if (params.since) q.set('since', params.since);
+    if (params.until) q.set('until', params.until);
+    if (params.limit) q.set('limit', String(params.limit));
+    if (params.types?.length) q.set('types', params.types.join(','));
+    const qs = q.toString() ? `?${q}` : '';
+    return requestWithWorkspace(`/api/activity${qs}`, {}, { workspaceId });
+  },
+
   // Admin activity feed (workspace-scoped; requires `manage` capability)
   getAdminActivity: (
     params: {
