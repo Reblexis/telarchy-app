@@ -21,6 +21,10 @@ The product has no users yet. Every feature request or refactor should be evalua
 
 Do not use em dashes. Use commas, periods, semicolons, parentheses, or "i.e."/"e.g." instead. This applies to code comments, docs, commit messages, and all generated text.
 
+## UI conventions
+
+Frontend layout, type, color, and component patterns live in `docs/ui-conventions.md`. When adding or restyling a page, read it first. Key invariants: every workspace tab uses `max-width: 1080px; margin: 0 auto` so left edges align across tabs (do not widen for one page); horizontal padding belongs to `.page-content`, never the inner wrapper; sections use tiny uppercase `h2` labels, not large bold headers; lists use 1px hairlines, not card containers; the product is monochrome plus a single accent (no per-category color coding).
+
 ## Participant symmetry
 
 Human users and AI users must have the same effective platform permissions and workspace access. Treat them as two signup/auth methods for the same kind of participant, not as separate capability tiers: a human user should be able to do everything an API-key user can do, and vice versa, once identity is established.

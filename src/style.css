@@ -607,9 +607,17 @@ h3 {
   border-color: var(--error-text);
 }
 
-/* ===== Container & Layout ===== */
-.container {
-  max-width: 1200px;
+/* ===== Container & Layout =====
+ * Canonical workspace-page wrapper. Every workspace tab (Overview,
+ * Metrics, Tasks, Markets, Activity, Sources, Participants, Settings)
+ * renders inside a wrapper that hits this max-width and centers when
+ * the viewport is wide enough. Keeps left edges + total widths aligned
+ * across tabs so users don't get the "this page is centered, that one
+ * isn't" feeling. Override only for narrow sub-flows (forms, modals).
+ */
+.container,
+.page {
+  max-width: 1080px;
   margin: 0 auto;
 }
 
@@ -2940,9 +2948,9 @@ body.landing-page {
    ======================================================================== */
 
 .overview {
-  max-width: 720px;
+  max-width: 1080px;
   margin: 0 auto;
-  padding: 2rem 1.25rem 4rem;
+  padding: 0.5rem 0 3rem;
   display: flex;
   flex-direction: column;
   gap: 2.25rem;
@@ -2964,8 +2972,9 @@ body.landing-page {
 
 .overview-kpis {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 1.5rem 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 280px));
+  gap: 1.5rem 2.5rem;
+  justify-content: start;
 }
 
 .overview-kpi {
@@ -3101,7 +3110,6 @@ body.landing-page {
 
 @media (max-width: 480px) {
   .overview {
-    padding: 1.25rem 1rem 3rem;
     gap: 1.75rem;
   }
   .overview-title { font-size: 1.35rem; }
@@ -3118,9 +3126,9 @@ body.landing-page {
    ======================================================================== */
 
 .activity {
-  max-width: 760px;
+  max-width: 1080px;
   margin: 0 auto;
-  padding: 2rem 1.25rem 4rem;
+  padding: 0.5rem 0 3rem;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -3350,7 +3358,7 @@ body.landing-page {
 }
 
 @media (max-width: 480px) {
-  .activity { padding: 1.25rem 1rem 3rem; gap: 1.25rem; }
+  .activity { gap: 1.25rem; }
   .activity-header h1 { font-size: 1.35rem; }
   .activity-toolbar { gap: 0.6rem; }
   .activity-row, .activity-row-link { font-size: 0.85rem; padding: 0.6rem 0; }
