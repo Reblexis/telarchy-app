@@ -37,6 +37,7 @@ export function Sidebar({ className = '' }: { className?: string }) {
   const canAccessWorkspace = workspace?.tier && workspace.tier !== 'none';
   const isAdmin = workspace?.tier === 'admin';
   const workspaceLinks = [
+    { to: '/overview', label: 'Overview' },
     { to: '/metrics', label: 'Metrics' },
     ...(isAdmin ? [{ to: '/check-in', label: 'Check-in' }] : []),
     { to: '/tasks', label: 'Tasks' },
@@ -45,7 +46,7 @@ export function Sidebar({ className = '' }: { className?: string }) {
     { to: '/sources', label: 'Sources' },
     ...(isAdmin ? [{ to: '/settings', label: 'Settings' }] : []),
   ];
-  const workspacePaths = ['/metrics', '/check-in', '/tasks', '/markets', '/participants', '/sources', '/settings'];
+  const workspacePaths = ['/overview', '/metrics', '/check-in', '/tasks', '/markets', '/participants', '/sources', '/settings'];
   const onWorkspacePath = workspacePaths.includes(currentPath);
 
   useEffect(() => {
@@ -78,19 +79,33 @@ export function Sidebar({ className = '' }: { className?: string }) {
             return (
               <div key={ws.id} className="sidebar-workspace-group">
                 <button
-                  className={`sidebar-nav-item${isSelected ? ' selected' : ''}`}
+                  className={`sidebar-nav-item${isSelected ? ' selected' : ''}${isSelected && currentPath === '/overview' ? ' active' : ''}`}
                   onClick={() => {
                     if (isSelected) {
-                      setWorkspaceNavOpen(open => !open);
+                      if (canAccessWorkspace) navigate('/overview');
                       return;
                     }
                     setWorkspaceNavOpen(true);
-                    switchWorkspace(ws.id, onWorkspacePath ? undefined : '/metrics');
+                    switchWorkspace(ws.id, canAccessWorkspace ? '/overview' : (onWorkspacePath ? undefined : '/metrics'));
                   }}
                 >
                   <span>{ws.name}</span>
                   {isSelected && canAccessWorkspace && (
-                    <span className="sidebar-workspace-toggle" aria-hidden="true">
+                    <span
+                      className="sidebar-workspace-toggle"
+                      aria-label={workspaceNavOpen ? 'Collapse workspace nav' : 'Expand workspace nav'}
+                      role="button"
+                      tabIndex={0}
+                      onClick={e => { e.stopPropagation(); setWorkspaceNavOpen(open => !open); }}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setWorkspaceNavOpen(open => !open);
+                        }
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
                       {workspaceNavOpen ? '▾' : '▸'}
                     </span>
                   )}
