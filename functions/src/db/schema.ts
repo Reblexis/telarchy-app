@@ -80,8 +80,16 @@ export const workspaces = pgTable('workspaces', {
 export const agents = pgTable('agents', {
   id: text('id').primaryKey(),
   apiKeyHash: text('api_key_hash').notNull(),
-  /** BetterAuth user ID for browser-authenticated participants. */
+  /** BetterAuth user ID for browser-authenticated participants. Means "this
+   *  human IS this participant"; unique by index, set on the user's first
+   *  participant only. Detached on GDPR delete. */
   authUserId: text('auth_user_id').references(() => authUser.id, { onDelete: 'set null' }),
+  /** BetterAuth user ID of the human who registered this participant via
+   *  POST /api/agents. Means "this human OWNS this bot". Nullable, not unique
+   *  (one human can own many bots). Bot agents themselves are independent
+   *  participants once created; ownership is just an attribution / discovery
+   *  link surfaced in /api/agents/mine. */
+  ownerUserId: text('owner_user_id').references(() => authUser.id, { onDelete: 'set null' }),
   /**
    * Optional case-insensitive unique handle. Either signup path (human auth,
    * API register) may claim one. Uniqueness is enforced by a partial unique
@@ -107,9 +115,18 @@ export const agents = pgTable('agents', {
 
 export const agentApiKeys = pgTable('agent_api_keys', {
   hash: text('hash').primaryKey(),
+  /** Opaque public handle (uuid). Used in management URLs so the hash never leaves the DB. */
+  keyId: text('key_id').notNull(),
   agentId: text('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
   workspaceId: text('workspace_id').notNull(),
-});
+  /** Optional human label shown in the management UI. */
+  label: text('label'),
+  /** Per-key permission set. Vocabulary lives in lib/scopes.ts. Default '{*}' = full access. */
+  scopes: text('scopes').array().notNull().default(['*']),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  /** Bumped (debounced) by the auth middleware on every successful key resolve. */
+  lastUsedAt: timestamp('last_used_at'),
+}, t => [uniqueIndex('agent_api_keys_key_id_idx').on(t.keyId)]);
 
 // ---------------------------------------------------------------------------
 // Waitlist

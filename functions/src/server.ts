@@ -97,11 +97,15 @@ import('./app').then(async ({ app }) => {
   const publicDir = path.join(__dirname, 'public');
   if (fs.existsSync(publicDir)) {
     app.use(express.static(publicDir));
-    // SPA fallback: serve index.html for all non-API routes
+    // SPA fallback: serve index.html for all non-API routes. The exclusion
+    // checks for `/api/` (with trailing slash) so SPA routes whose path
+    // happens to begin with the literal characters "/api" (e.g.
+    // `/api-access`) still fall through to the SPA. The Express API router
+    // mounts on `/api` and only matches when the next char is `/` or the
+    // path is exactly `/api`, matching this boundary.
     app.get('*', (req, res) => {
-      if (!req.path.startsWith('/api')) {
-        res.sendFile(path.join(publicDir, 'index.html'));
-      }
+      if (req.path === '/api' || req.path.startsWith('/api/')) return;
+      res.sendFile(path.join(publicDir, 'index.html'));
     });
   }
 

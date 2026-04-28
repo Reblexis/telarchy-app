@@ -5,7 +5,7 @@ import { agents, agentApiKeys, authUser, trades, positions, tasks, taskMessages 
 import { eq } from 'drizzle-orm';
 import { CURRENT_CONSENT_VERSION } from './legal';
 import { wrap } from '../lib/wrap';
-import { requireUser, requireIdentity } from '../middleware/roles';
+import { requireUser, requireIdentity, requireScope } from '../middleware/roles';
 import { hashKey } from '../middleware/auth';
 import { getAuthWorkspaceMemberships, getUserWorkspaceMemberships } from '../middleware/auth';
 import { toUnits, SIGNUP_CREDITS } from '../lib/validation';
@@ -65,7 +65,7 @@ async function resolveCallerParticipantId(req: Request): Promise<string | null> 
  * Works for both browser sessions and agent API keys: same shape, different
  * auth path. Auto-creates the participant for OAuth users on first call.
  */
-userauthRouter.get('/me', requireIdentity, wrap(async (req, res) => {
+userauthRouter.get('/me', requireIdentity, requireScope('account:read'), wrap(async (req, res) => {
   const { uid, agentId, capabilities } = req.auth!;
 
   if (!uid && !agentId) {
@@ -141,7 +141,7 @@ userauthRouter.post('/consent', requireUser, wrap(async (req, res) => {
  * browser sessions and agent API keys; uses whichever identity is present on
  * req.auth and updates that participant's row.
  */
-userauthRouter.post('/profile', requireIdentity, wrap(async (req, res) => {
+userauthRouter.post('/profile', requireIdentity, requireScope('account:write'), wrap(async (req, res) => {
   const participantId = await resolveCallerParticipantId(req);
   if (!participantId) {
     res.status(403).json({ error: 'Identity required' });
@@ -185,6 +185,16 @@ userauthRouter.post('/profile', requireIdentity, wrap(async (req, res) => {
  */
 userauthRouter.delete('/me', requireIdentity, wrap(async (req, res) => {
   const { uid, agentId } = req.auth!;
+  // Account deletion is intentionally browser-only: a leaked or scoped API
+  // key must never be able to wipe its owner's account. The UI requires the
+  // user to be signed in (cookie session) to reach this endpoint. We keep
+  // requireIdentity at the middleware layer (API parity) and enforce the
+  // browser-only constraint inline so the endpoint still appears symmetric
+  // in /api/help with auth=identity but actually blocks key callers.
+  if (!uid) {
+    res.status(403).json({ error: 'Account deletion is only available from a signed-in browser session.' });
+    return;
+  }
   const participantId = await resolveCallerParticipantId(req);
   if (!participantId) {
     res.status(403).json({ error: 'Identity required' });
@@ -221,7 +231,7 @@ userauthRouter.delete('/me', requireIdentity, wrap(async (req, res) => {
  * auth paths; agent-key callers see the participant + their trades/positions
  * (no BetterAuth account section, since they have none).
  */
-userauthRouter.get('/me/export', requireIdentity, wrap(async (req, res) => {
+userauthRouter.get('/me/export', requireIdentity, requireScope('account:read'), wrap(async (req, res) => {
   const { uid, agentId } = req.auth!;
   const participantId = await resolveCallerParticipantId(req);
   if (!participantId) {

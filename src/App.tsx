@@ -24,6 +24,7 @@ import { SourcesPage } from './pages/SourcesPage';
 import { CheckInPage } from './pages/CheckInPage';
 import { OverviewPage } from './pages/OverviewPage';
 import { ActivityPage } from './pages/ActivityPage';
+import { ApiPage } from './pages/ApiPage';
 
 function MarketplaceWorkspaceRedirect() {
   const { workspaceId } = useParams();
@@ -80,6 +81,7 @@ export function App() {
               <Route path="/participants" element={<ParticipantsPage />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/account" element={<AccountPage />} />
+              <Route path="/api-access" element={<ApiPage />} />
             </Route>
             <Route element={<RequireWorkspace />}>
               <Route path="/overview" element={<OverviewPage />} />

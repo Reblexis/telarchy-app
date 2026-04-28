@@ -129,8 +129,10 @@ export async function runBootstrap(): Promise<void> {
     });
     await tx.insert(agentApiKeys).values({
       hash: agentKeyHash,
+      keyId: randomUUID(),
       agentId,
       workspaceId: wsId,
+      scopes: ['*'],
     });
   });
 

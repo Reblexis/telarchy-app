@@ -17,7 +17,12 @@ export default defineConfig({
   server: {
     host: '127.0.0.1',
     proxy: {
-      '/api': {
+      // Match `/api/...` (with trailing slash) so SPA routes whose path
+      // happens to start with the literal characters "/api" (e.g.
+      // `/api-access`) keep resolving to the SPA. The production server
+      // enforces the same boundary: only `/api/<segment>` is owned by the
+      // API router; everything else falls through to the static SPA.
+      '^/api/': {
         target: 'http://127.0.0.1:8080',
         changeOrigin: true,
       },

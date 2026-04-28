@@ -465,6 +465,32 @@ export const api = {
   updateFeedback: (id: string, body: { status?: 'open' | 'triaged' | 'resolved' | 'closed'; adminNotes?: string }) =>
     request(`/api/feedback/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(body) }, true),
 
+  // API keys & authenticated agent creation (used by the API page).
+  // /api/agents/:id/keys uses :id=me to operate on the calling agent.
+  listAgentKeys: (agentId: string) =>
+    request(`/api/agents/${encodeURIComponent(agentId)}/keys`),
+  mintAgentKey: (agentId: string, body: { label?: string; scopes?: string[]; workspaceId?: string }) =>
+    request(`/api/agents/${encodeURIComponent(agentId)}/keys`, { method: 'POST', body: JSON.stringify(body) }),
+  updateAgentKey: (agentId: string, keyId: string, body: { label?: string | null; scopes?: string[] }) =>
+    request(`/api/agents/${encodeURIComponent(agentId)}/keys/${encodeURIComponent(keyId)}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  revokeAgentKey: (agentId: string, keyId: string) =>
+    request(`/api/agents/${encodeURIComponent(agentId)}/keys/${encodeURIComponent(keyId)}`, { method: 'DELETE' }),
+  /**
+   * Authenticated agent creation. The caller becomes the owner (authUserId)
+   * for browser sessions. Memberships add the new agent to the named groups
+   * in each workspace; caller must hold `manage` capability there. The
+   * returned apiKey is shown once and never returned again. Send X-Workspace-Id
+   * via the active workspace; backend default workspaceId on the new key is
+   * memberships[0].workspaceId or the caller's active workspace.
+   */
+  createAgent: (body: {
+    agentId: string;
+    nickname?: string;
+    keyLabel?: string;
+    keyScopes?: string[];
+    memberships?: Array<{ workspaceId: string; groupIds: string[] }>;
+  }) => request('/api/agents', { method: 'POST', body: JSON.stringify(body) }),
+
   // Permission groups
   listGroups: () => request('/api/groups'),
   createGroup: (name: string) =>

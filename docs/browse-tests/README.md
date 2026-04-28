@@ -165,6 +165,8 @@ explains itself.
 | `balance-and-trades.md` | `GET /api/agents/:id/{balance,dashboard,trades,market-pnl}` |
 | `agent-portal.md` | `/agent-portal/<id>` post-key |
 | `agent-register.md` | `POST /api/agents/register` (anon → key) |
+| `api-tab-keys.md` | `/api` tab: mint/list/revoke own keys + scope intersection |
+| `api-create-agent.md` | `POST /api/agents` (authenticated create with scoped key + memberships) |
 
 ### 07-admin
 
@@ -196,6 +198,7 @@ explains itself.
 | --- | --- |
 | `render-pages.md` | `/guides/*` markdown render |
 | `api-help-discoverability.md` | `GET /api/help` runtime parity |
+| `auth-and-keys-guide.md` | new `auth-and-keys`, `recipes`, `api-reference` guide sections |
 
 ### 11-multi-agent
 

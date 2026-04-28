@@ -130,7 +130,9 @@ export interface Trade {
 
 export interface AuthInfo {
   /** Union of capabilities granted by all permission groups the caller belongs to
-   *  in the active workspace. Master API key receives all capabilities. */
+   *  in the active workspace. Master API key receives all capabilities. For
+   *  agent-key callers this is already intersected with the key's scopes; for
+   *  browser sessions and master keys, scopes don't apply. */
   capabilities: Set<Capability>;
   /** Canonical participant identity, stored in the agents table. */
   agentId?: string;
@@ -140,6 +142,13 @@ export interface AuthInfo {
   uid?: string;
   /** True when authenticated via the master API key (no real identity). */
   isMasterKey?: boolean;
+  /** Per-key scopes (only set for agent-key auth). Wildcard ['*'] means full
+   *  access. requireScope() consults this to gate account/identity endpoints;
+   *  intersectWorkspaceCaps() consults it to gate workspace endpoints. */
+  scopes?: string[];
+  /** Public handle of the agent_api_keys row that resolved this request. Set
+   *  for agent-key auth so routes can self-report which key authorized them. */
+  keyId?: string;
 }
 
 export type WorkspaceVisibility = 'public' | 'unlisted' | 'private';

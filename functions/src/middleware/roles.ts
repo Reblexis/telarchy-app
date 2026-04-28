@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import type { Capability } from '../types';
+import type { AccountScope, KeyScope } from '../lib/scopes';
+import { hasScope } from '../lib/scopes';
 
 /**
  * Require that the caller's capability set contains at least one of the given capabilities.
@@ -31,6 +33,30 @@ export function requireIdentity(req: Request, res: Response, next: NextFunction)
     return res.status(403).json({ error: 'Identity required' });
   }
   return next();
+}
+
+/**
+ * Per-key scope gate. Browser sessions and the master API key bypass scope
+ * checks; only agent-key callers carry a `scopes` array on req.auth, and they
+ * must include the named scope (or the wildcard '*'). Use this on
+ * account/identity endpoints, alongside requireIdentity / requireSelfOrAdmin.
+ *
+ * Implication: for workspace endpoints, scopes are already intersected into
+ * req.auth.capabilities by the auth middleware, so requireCapability is
+ * sufficient. requireScope is only needed for routes that are not workspace-
+ * capability-gated (e.g. profile, key management, register-as-me).
+ */
+export function requireScope(scope: KeyScope | AccountScope) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.auth) return res.status(401).json({ error: 'Unauthorized' });
+    // Browser session and master key: scopes don't apply.
+    if (req.auth.uid || req.auth.isMasterKey) return next();
+    // Agent-key caller: must have the scope.
+    if (!hasScope(req.auth.scopes, scope)) {
+      return res.status(403).json({ error: `Forbidden: this API key is missing the "${scope}" scope` });
+    }
+    return next();
+  };
 }
 
 /** Allows access if the caller IS the target agent (by ID or "me"), or if the

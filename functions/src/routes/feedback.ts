@@ -6,6 +6,7 @@ import { feedback, agents, authUser } from '../db/schema';
 import { wrap } from '../lib/wrap';
 import { AppError } from '../lib/errors';
 import { optionalAuthMiddleware } from '../middleware/auth';
+import { hasScope } from '../lib/scopes';
 import {
   FEEDBACK_KINDS, FEEDBACK_STATUSES, FEEDBACK_LIMITS,
   isValidFeedbackKind, isValidFeedbackStatus, trimWithLimit,
@@ -28,6 +29,11 @@ async function isPlatformAuthorized(req: { auth?: { isMasterKey?: boolean; uid?:
 feedbackRouter.post('/', optionalAuthMiddleware, wrap(async (req, res) => {
   if (!req.auth || (!req.auth.uid && !req.auth.agentId && !req.auth.isMasterKey)) {
     throw new AppError('Authentication required to submit feedback', 401);
+  }
+  // Agent-key callers need the account:feedback scope. Browser sessions and
+  // master keys bypass scope checks (req.auth.scopes is unset for them).
+  if (req.auth.scopes && !hasScope(req.auth.scopes, 'account:feedback')) {
+    throw new AppError('Forbidden: this API key is missing the "account:feedback" scope', 403);
   }
 
   const body = (req.body ?? {}) as Record<string, unknown>;

@@ -140,6 +140,9 @@ export function Sidebar({ className = '' }: { className?: string }) {
         <Link to="/marketplace" className={`sidebar-nav-item${currentPath === '/marketplace' ? ' active' : ''}`}>
           Marketplace
         </Link>
+        <Link to="/api-access" className={`sidebar-nav-item${currentPath === '/api-access' ? ' active' : ''}`}>
+          API
+        </Link>
         <Link to="/account" className={`sidebar-nav-item${currentPath === '/account' ? ' active' : ''}`}>
           Account
         </Link>

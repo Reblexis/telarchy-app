@@ -155,6 +155,20 @@
       "when": 1777300000000,
       "tag": "0021_feedback",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1777400000000,
+      "tag": "0022_agent_api_keys_scopes",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1777500000000,
+      "tag": "0023_agents_owner_user_id",
+      "breakpoints": true
     }
   ]
 }

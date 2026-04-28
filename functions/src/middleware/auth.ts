@@ -4,9 +4,10 @@ import { createHash, timingSafeEqual } from 'crypto';
 import { db } from '../db/client';
 import { agents, agentApiKeys } from '../db/schema';
 import { auth } from '../auth';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { AuthInfo, WorkspaceMemberRole } from '../types';
 import { computeCapabilities } from './capabilities';
+import { intersectWorkspaceCaps } from '../lib/scopes';
 import {
   getParticipantWorkspaceMemberships,
   getUserWorkspaceMemberships as getUserWorkspaceMembershipsForParticipant,
@@ -91,6 +92,21 @@ async function resolveAgentWorkspace(
   return membership;
 }
 
+/**
+ * Bump agent_api_keys.last_used_at when a key resolves successfully, debounced
+ * to roughly once per minute per key so we don't write on every request. Run
+ * fire-and-forget; auth path latency must not depend on this update.
+ */
+const LAST_USED_DEBOUNCE_MS = 60_000;
+function maybeBumpLastUsed(hash: string, lastUsedAt: Date | null): void {
+  const now = Date.now();
+  if (lastUsedAt && now - lastUsedAt.getTime() < LAST_USED_DEBOUNCE_MS) return;
+  db.update(agentApiKeys)
+    .set({ lastUsedAt: sql`now()` })
+    .where(eq(agentApiKeys.hash, hash))
+    .catch(err => console.error('[auth] failed to bump last_used_at', err));
+}
+
 /** Like authMiddleware but never rejects. Unauthenticated requests pass through with req.auth unset. */
 export async function optionalAuthMiddleware(req: Request, _res: Response, next: NextFunction) {
   const apiKey = req.headers['x-api-key'] as string | undefined;
@@ -137,17 +153,22 @@ export async function optionalAuthMiddleware(req: Request, _res: Response, next:
     if (!keyRecord) { console.error(`[optionalAuth] agent key not found in DB (hash ${hash.slice(0,8)}...)`); return next(); }
     const { agentId } = keyRecord;
     const keyWorkspaceId = keyRecord.workspaceId;
+    const keyScopes = (keyRecord.scopes as string[] | null) ?? ['*'];
     if (agentId && keyWorkspaceId) {
       const [agent] = await db.select().from(agents).where(eq(agents.id, agentId));
       if (agent) {
         const effectiveWorkspaceId = (req.headers['x-workspace-id'] as string | undefined) ?? keyWorkspaceId;
         const membership = await resolveAgentWorkspace(agentId, effectiveWorkspaceId);
         if (membership) {
+          const fullCaps = await computeCapabilities({ workspaceId: membership.workspaceId, agentId });
           req.auth = {
-            capabilities: await computeCapabilities({ workspaceId: membership.workspaceId, agentId }),
+            capabilities: intersectWorkspaceCaps(fullCaps, keyScopes),
             agentId,
             workspaceId: membership.workspaceId,
+            scopes: keyScopes,
+            keyId: keyRecord.keyId,
           };
+          maybeBumpLastUsed(hash, keyRecord.lastUsedAt as Date | null);
         } else {
           console.error(`[optionalAuth] agent ${agentId}: no membership for workspace ${effectiveWorkspaceId}`);
         }
@@ -213,6 +234,7 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     if (!keyWorkspaceId) {
       return res.status(403).json({ error: 'Agent API key has no workspace assigned' });
     }
+    const keyScopes = (keyRecord.scopes as string[] | null) ?? ['*'];
 
     const [agent] = await db.select().from(agents).where(eq(agents.id, agentId));
     if (!agent) return res.status(401).json({ error: 'Agent not found' });
@@ -222,14 +244,18 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     if (!membership) {
       return res.status(403).json({ error: 'Agent is not a member of the specified workspace' });
     }
+    const fullCaps = await computeCapabilities({
+      workspaceId: membership.workspaceId,
+      agentId,
+    });
     req.auth = {
-      capabilities: await computeCapabilities({
-        workspaceId: membership.workspaceId,
-        agentId,
-      }),
+      capabilities: intersectWorkspaceCaps(fullCaps, keyScopes),
       agentId,
       workspaceId: membership.workspaceId,
+      scopes: keyScopes,
+      keyId: keyRecord.keyId,
     };
+    maybeBumpLastUsed(hash, keyRecord.lastUsedAt as Date | null);
     return next();
   }
 

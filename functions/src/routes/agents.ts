@@ -23,6 +23,9 @@ import { listParticipantsForWorkspace, claimNickname } from '../lib/participants
 import { isUsdcSettlementEnabled } from '../lib/settlement';
 import { directionSellProceeds, resolutionPayouts, pHigher, consensus } from '../lib/amm';
 import { getAllMetrics } from '../services/metrics';
+import { computeCapabilities } from '../middleware/capabilities';
+import { requireScope } from '../middleware/roles';
+import { parseScopesInput, granterCoversScopes, SCOPE_PRESETS } from '../lib/scopes';
 
 export const agentsRouter = Router();
 
@@ -57,13 +60,18 @@ agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => 
 
   const rawKey = randomBytes(32).toString('hex');
   const keyHash = hashKey(rawKey);
+  const keyId = randomUUID();
 
   await db.transaction(async tx => {
     await tx.insert(agents).values({
       id: agentId, apiKeyHash: keyHash, balance: toUnits(SIGNUP_CREDITS),
       authUserId: req.auth?.uid ?? null, createdAt: new Date(), approvedAt: new Date(),
     });
-    await tx.insert(agentApiKeys).values({ hash: keyHash, agentId, workspaceId });
+    // Third-party registration keeps the legacy wildcard scope so existing
+    // bots that POST /register and expect full access aren't broken. Scoped
+    // keys are minted from the authenticated /api/agents and /api/agents/:id/keys
+    // endpoints (see lib/scopes.ts).
+    await tx.insert(agentApiKeys).values({ hash: keyHash, keyId, agentId, workspaceId, scopes: ['*'] });
     if (nickname !== undefined && nickname !== null && nickname !== '') {
       await claimNickname(tx, agentId, nickname);
     }
@@ -89,11 +97,17 @@ agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => 
   res.status(201).json({ agentId, apiKey: rawKey, nickname: nickname || null });
 }));
 
-agentsRouter.get('/mine', authMiddleware, requireIdentity, wrap(async (req, res) => {
+agentsRouter.get('/mine', authMiddleware, requireIdentity, requireScope('account:read'), wrap(async (req, res) => {
   const { uid, agentId: authAgentId } = req.auth!;
 
   if (uid) {
-    const rows = await db.select().from(agents).where(eq(agents.authUserId, uid));
+    // Two senses of "mine" for a human:
+    //   1. The agent that IS this human (authUserId = uid). Always at most one.
+    //   2. Bots they registered via POST /api/agents (ownerUserId = uid). Any number.
+    // Both surface here so the API page can split primary vs owned bots.
+    const { or } = await import('drizzle-orm');
+    const rows = await db.select().from(agents)
+      .where(or(eq(agents.authUserId, uid), eq(agents.ownerUserId, uid)));
     res.json(rows.map(row => {
       const { apiKeyHash: _, ...data } = row;
       return { ...data, balance: fromUnits(data.balance as number) };
@@ -123,6 +137,148 @@ agentsRouter.get('/deposit-address', (_req, res) => {
 });
 
 agentsRouter.use(authMiddleware);
+
+/**
+ * Authenticated agent creation. Used by the API page to register a bot agent
+ * under the caller's ownership and add it to one or more workspaces in a
+ * single call. Differs from POST /register (unauthenticated, third-party
+ * signup) in three ways:
+ *
+ *   1. The new agent's authUserId is set to the caller's uid when the caller
+ *      is a browser session, recording ownership for /agents/mine.
+ *   2. memberships[] lets you add the agent to multiple workspaces' groups in
+ *      one shot. Caller must hold `manage` in each workspace; group ids must
+ *      belong to that workspace.
+ *   3. The first key's scopes are settable. Default is the Trader preset
+ *      (workspace:read + workspace:trade) so a freshly minted bot key can do
+ *      what a bot is normally for, but can't, for example, drain the wallet.
+ */
+agentsRouter.post('/', requireScope('account:agents'), wrap(async (req, res) => {
+  const { agentId, nickname, keyLabel, keyScopes, memberships } = req.body ?? {};
+  const agentIdError = validateAgentId(agentId);
+  if (agentIdError) { res.status(400).json({ error: agentIdError }); return; }
+
+  // Caller-can-grant scope check (only meaningful for agent-key callers; users
+  // and master keys can grant any scope).
+  let scopes = SCOPE_PRESETS.trader.scopes.slice();
+  if (keyScopes !== undefined) {
+    const parsed = parseScopesInput(keyScopes);
+    if (!parsed.ok) { res.status(400).json({ error: parsed.error }); return; }
+    if (req.auth!.scopes && !granterCoversScopes(req.auth!.scopes, parsed.scopes)) {
+      res.status(403).json({ error: 'Cannot grant scopes broader than your own key' }); return;
+    }
+    scopes = parsed.scopes;
+  }
+
+  // Existing agent? bail out before generating a key.
+  const [existing] = await db.select({ id: agents.id }).from(agents).where(eq(agents.id, agentId));
+  if (existing) { res.status(409).json({ error: 'Agent already registered' }); return; }
+
+  // Validate memberships: caller must have manage in each workspace, and the
+  // listed groups must belong to that workspace. We do all checks before any
+  // writes so a partial failure can't leave a half-registered agent.
+  type Membership = { workspaceId: string; groupIds: string[] };
+  const membershipList: Membership[] = Array.isArray(memberships) ? memberships : [];
+  for (const m of membershipList) {
+    if (!m || typeof m !== 'object' || typeof m.workspaceId !== 'string' || !Array.isArray(m.groupIds)) {
+      res.status(400).json({ error: 'memberships[] entries need { workspaceId, groupIds: string[] }' }); return;
+    }
+    if (m.groupIds.some(id => typeof id !== 'string')) {
+      res.status(400).json({ error: 'groupIds must be an array of strings' }); return;
+    }
+  }
+
+  // Authorization: the caller needs manage capability in every listed
+  // workspace. Master key has it implicitly; for browser session and agent
+  // key, look it up via computeCapabilities so the result mirrors what
+  // requireCapability would do for that workspace.
+  for (const m of membershipList) {
+    if (!req.auth!.isMasterKey) {
+      const caps = await computeCapabilities({
+        workspaceId: m.workspaceId,
+        uid: req.auth!.uid,
+        agentId: req.auth!.agentId,
+      });
+      if (!caps.has('manage')) {
+        res.status(403).json({ error: `You do not have manage capability in workspace ${m.workspaceId}` }); return;
+      }
+    }
+    // Confirm every requested group belongs to this workspace.
+    if (m.groupIds.length > 0) {
+      const groupRows = await db.select({ id: permissionGroups.id }).from(permissionGroups)
+        .where(and(eq(permissionGroups.workspaceId, m.workspaceId), inArray(permissionGroups.id, m.groupIds)));
+      const found = new Set(groupRows.map(r => r.id));
+      const missing = m.groupIds.filter(id => !found.has(id));
+      if (missing.length > 0) {
+        res.status(400).json({ error: `Group ids not in workspace ${m.workspaceId}: ${missing.join(', ')}` }); return;
+      }
+    }
+  }
+
+  // Default key registration workspace: first listed membership, else fall
+  // back to the caller's own workspace. agent_api_keys.workspace_id is just
+  // the default workspace the key resolves into when no X-Workspace-Id is
+  // present; the agent's effective access in any workspace is governed by
+  // group membership, not by this field.
+  const defaultWorkspaceId = membershipList[0]?.workspaceId ?? req.auth!.workspaceId;
+  if (!defaultWorkspaceId) {
+    res.status(400).json({ error: 'memberships[] must include at least one workspace, or the caller must be in a workspace' }); return;
+  }
+
+  const rawKey = randomBytes(32).toString('hex');
+  const keyHash = hashKey(rawKey);
+  const keyId = randomUUID();
+
+  await db.transaction(async tx => {
+    // The new bot is its own participant; ownership is recorded via
+    // ownerUserId, not authUserId (which means "this human IS this
+    // participant" and is unique-per-user). Leaving authUserId null means
+    // /api/auth/me for the bot's own key resolves it as a standalone
+    // identity, not as the registering user.
+    await tx.insert(agents).values({
+      id: agentId,
+      apiKeyHash: keyHash,
+      balance: toUnits(SIGNUP_CREDITS),
+      authUserId: null,
+      ownerUserId: req.auth!.uid ?? null,
+      createdAt: new Date(),
+      approvedAt: new Date(),
+    });
+    await tx.insert(agentApiKeys).values({
+      hash: keyHash,
+      keyId,
+      agentId,
+      workspaceId: defaultWorkspaceId,
+      label: typeof keyLabel === 'string' && keyLabel.trim() ? keyLabel.trim() : null,
+      scopes,
+      createdAt: new Date(),
+    });
+    if (typeof nickname === 'string' && nickname !== '') {
+      await claimNickname(tx, agentId, nickname);
+    }
+    for (const m of membershipList) {
+      if (m.groupIds.length === 0) continue;
+      const groupRows = await tx.select().from(permissionGroups)
+        .where(and(eq(permissionGroups.workspaceId, m.workspaceId), inArray(permissionGroups.id, m.groupIds)));
+      for (const group of groupRows) {
+        const current = (group.memberIds as string[]) ?? [];
+        if (current.includes(agentId)) continue;
+        await tx.update(permissionGroups)
+          .set({ memberIds: [...current, agentId] })
+          .where(and(eq(permissionGroups.id, group.id), eq(permissionGroups.workspaceId, m.workspaceId)));
+      }
+    }
+  });
+
+  res.status(201).json({
+    agentId,
+    apiKey: rawKey,
+    keyId,
+    scopes,
+    label: typeof keyLabel === 'string' && keyLabel.trim() ? keyLabel.trim() : null,
+    memberships: membershipList,
+  });
+}));
 
 agentsRouter.get('/treasury', requireCapability('manage'), wrap(async (req, res) => {
   if (!requireUsdcEnabled(res)) return;
@@ -423,7 +579,7 @@ agentsRouter.get('/', requireCapability('manage'), wrap(async (_req, res) => {
 }));
 
 
-agentsRouter.post('/:id/spend', requireSelfOrAdmin, wrap(async (req, res) => {
+agentsRouter.post('/:id/spend', requireSelfOrAdmin, requireScope('account:wallet'), wrap(async (req, res) => {
   const { amount, reason, type } = req.body;
   if (typeof amount !== 'number' || amount <= 0) {
     res.status(400).json({ error: 'amount must be a positive number' }); return;
@@ -469,7 +625,7 @@ agentsRouter.post('/:id/credit', requireCapability('manage'), wrap(async (req, r
   res.json({ ok: true, credited: amount, balance: newBalance });
 }));
 
-agentsRouter.post('/:id/deposit', requireSelfOrAdmin, wrap(async (req, res) => {
+agentsRouter.post('/:id/deposit', requireSelfOrAdmin, requireScope('account:wallet'), wrap(async (req, res) => {
   if (!requireUsdcEnabled(res)) return;
   const id = resolveRouteAgentId(req);
   if (!id) { res.status(403).json({ error: 'A participant identity is required' }); return; }
@@ -504,7 +660,7 @@ agentsRouter.post('/:id/deposit', requireSelfOrAdmin, wrap(async (req, res) => {
   res.status(201).json({ ok: true, usdcAmount, credits, buyRate, from });
 }));
 
-agentsRouter.put('/:id/wallet', requireSelfOrAdmin, wrap(async (req, res) => {
+agentsRouter.put('/:id/wallet', requireSelfOrAdmin, requireScope('account:wallet'), wrap(async (req, res) => {
   if (!requireUsdcEnabled(res)) return;
   const id = resolveRouteAgentId(req);
   if (!id) { res.status(403).json({ error: 'A participant identity is required' }); return; }
@@ -519,7 +675,7 @@ agentsRouter.put('/:id/wallet', requireSelfOrAdmin, wrap(async (req, res) => {
   res.json({ ok: true, walletAddress: checksummed });
 }));
 
-agentsRouter.post('/:id/withdraw', requireSelfOrAdmin, wrap(async (req, res) => {
+agentsRouter.post('/:id/withdraw', requireSelfOrAdmin, requireScope('account:wallet'), wrap(async (req, res) => {
   if (!requireUsdcEnabled(res)) return;
   const id = resolveRouteAgentId(req);
   if (!id) { res.status(403).json({ error: 'A participant identity is required' }); return; }
@@ -566,6 +722,130 @@ agentsRouter.post('/:id/withdraw', requireSelfOrAdmin, wrap(async (req, res) => 
   ]);
 
   res.json({ ok: true, credits: amount, usdcAmount, txHash, toAddress: walletAddress });
+}));
+
+/**
+ * List API keys for an agent. Never returns the hash; the keyId column is the
+ * opaque public handle for revoke/rotate. hashPrefix is shown so the user can
+ * identify keys at a glance ("which one is `agnt_a1b2…` again?").
+ */
+agentsRouter.get('/:id/keys', requireSelfOrAdmin, requireScope('account:keys'), wrap(async (req, res) => {
+  const id = resolveRouteAgentId(req);
+  if (!id) { res.status(403).json({ error: 'A participant identity is required' }); return; }
+  const rows = await db.select().from(agentApiKeys).where(eq(agentApiKeys.agentId, id));
+  res.json(rows.map(r => ({
+    keyId: r.keyId,
+    label: r.label,
+    scopes: (r.scopes as string[] | null) ?? ['*'],
+    workspaceId: r.workspaceId,
+    createdAt: r.createdAt,
+    lastUsedAt: r.lastUsedAt,
+    hashPrefix: r.hash.slice(0, 8),
+  })));
+}));
+
+/**
+ * Mint an additional API key for an agent. Body: { label?, scopes?, workspaceId? }.
+ * Default scopes = Trader preset (least-privilege relative to wildcard). When
+ * the caller is itself an agent-key, they cannot grant scopes broader than
+ * their own (granterCoversScopes), preventing self-elevation. The raw key is
+ * shown once in this response and never again.
+ */
+agentsRouter.post('/:id/keys', requireSelfOrAdmin, requireScope('account:keys'), wrap(async (req, res) => {
+  const id = resolveRouteAgentId(req);
+  if (!id) { res.status(403).json({ error: 'A participant identity is required' }); return; }
+
+  const [agent] = await db.select({ id: agents.id }).from(agents).where(eq(agents.id, id));
+  if (!agent) { res.status(404).json({ error: 'Agent not found' }); return; }
+
+  let scopes = SCOPE_PRESETS.trader.scopes.slice();
+  if (req.body?.scopes !== undefined) {
+    const parsed = parseScopesInput(req.body.scopes);
+    if (!parsed.ok) { res.status(400).json({ error: parsed.error }); return; }
+    if (req.auth!.scopes && !granterCoversScopes(req.auth!.scopes, parsed.scopes)) {
+      res.status(403).json({ error: 'Cannot grant scopes broader than your own key' }); return;
+    }
+    scopes = parsed.scopes;
+  }
+
+  const label = typeof req.body?.label === 'string' && req.body.label.trim() ? req.body.label.trim() : null;
+  const workspaceId = typeof req.body?.workspaceId === 'string' && req.body.workspaceId
+    ? req.body.workspaceId
+    : req.auth!.workspaceId;
+  if (!workspaceId) {
+    res.status(400).json({ error: 'workspaceId is required' }); return;
+  }
+
+  const rawKey = randomBytes(32).toString('hex');
+  const keyHash = hashKey(rawKey);
+  const keyId = randomUUID();
+  await db.insert(agentApiKeys).values({
+    hash: keyHash,
+    keyId,
+    agentId: id,
+    workspaceId,
+    label,
+    scopes,
+    createdAt: new Date(),
+  });
+  res.status(201).json({ keyId, apiKey: rawKey, label, scopes, workspaceId, createdAt: new Date() });
+}));
+
+/**
+ * Update label or scopes on an existing key without regenerating it. Same
+ * caller-can-grant-scopes rule as POST. Useful when you want to widen or
+ * narrow a deployed bot's permissions without rolling its key.
+ */
+agentsRouter.patch('/:id/keys/:keyId', requireSelfOrAdmin, requireScope('account:keys'), wrap(async (req, res) => {
+  const id = resolveRouteAgentId(req);
+  if (!id) { res.status(403).json({ error: 'A participant identity is required' }); return; }
+  const keyId = req.params.keyId as string;
+
+  const [keyRow] = await db.select().from(agentApiKeys)
+    .where(and(eq(agentApiKeys.keyId, keyId), eq(agentApiKeys.agentId, id)));
+  if (!keyRow) { res.status(404).json({ error: 'Key not found for this agent' }); return; }
+
+  const update: { label?: string | null; scopes?: string[] } = {};
+  if (req.body?.label !== undefined) {
+    if (req.body.label === null || req.body.label === '') update.label = null;
+    else if (typeof req.body.label !== 'string') { res.status(400).json({ error: 'label must be a string or null' }); return; }
+    else update.label = req.body.label.trim();
+  }
+  if (req.body?.scopes !== undefined) {
+    const parsed = parseScopesInput(req.body.scopes);
+    if (!parsed.ok) { res.status(400).json({ error: parsed.error }); return; }
+    if (req.auth!.scopes && !granterCoversScopes(req.auth!.scopes, parsed.scopes)) {
+      res.status(403).json({ error: 'Cannot grant scopes broader than your own key' }); return;
+    }
+    update.scopes = parsed.scopes;
+  }
+  if (Object.keys(update).length === 0) {
+    res.status(400).json({ error: 'No fields to update (allowed: label, scopes)' }); return;
+  }
+  await db.update(agentApiKeys).set(update)
+    .where(and(eq(agentApiKeys.keyId, keyId), eq(agentApiKeys.agentId, id)));
+  res.json({ ok: true, keyId, ...update });
+}));
+
+/**
+ * Revoke a key. The hash row is deleted; subsequent requests with the raw
+ * key fail at the auth middleware with 401. The route refuses to revoke the
+ * very key that authorized the current request, so callers don't accidentally
+ * brick their own session.
+ */
+agentsRouter.delete('/:id/keys/:keyId', requireSelfOrAdmin, requireScope('account:keys'), wrap(async (req, res) => {
+  const id = resolveRouteAgentId(req);
+  if (!id) { res.status(403).json({ error: 'A participant identity is required' }); return; }
+  const keyId = req.params.keyId as string;
+  const [keyRow] = await db.select({ hash: agentApiKeys.hash }).from(agentApiKeys)
+    .where(and(eq(agentApiKeys.keyId, keyId), eq(agentApiKeys.agentId, id)));
+  if (!keyRow) { res.status(404).json({ error: 'Key not found for this agent' }); return; }
+  if (req.auth!.keyId === keyId) {
+    res.status(400).json({ error: 'Cannot revoke the key that authorized this request' }); return;
+  }
+  await db.delete(agentApiKeys)
+    .where(and(eq(agentApiKeys.keyId, keyId), eq(agentApiKeys.agentId, id)));
+  res.status(204).send();
 }));
 
 agentsRouter.delete('/:id', requireCapability('manage'), wrap(async (req, res) => {

@@ -1,5 +1,24 @@
 import '@testing-library/jest-dom/vitest';
 
+// Vitest 4.x prints a `--localstorage-file` warning when its flag is malformed
+// and, in some module-init paths, leaves localStorage undefined when api.ts
+// reads it eagerly at import time. Provide a deterministic in-memory stub up
+// front so module load never crashes before the test body runs.
+if (typeof globalThis.localStorage === 'undefined' || typeof globalThis.localStorage.getItem !== 'function') {
+  const store = new Map<string, string>();
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
+      setItem: (k: string, v: string) => { store.set(k, String(v)); },
+      removeItem: (k: string) => { store.delete(k); },
+      clear: () => { store.clear(); },
+      key: (i: number) => Array.from(store.keys())[i] ?? null,
+      get length() { return store.size; },
+    },
+  });
+}
+
 // jsdom does not implement canvas, but Chart.js queries canvas context on
 // construction. Provide a minimal stub so render tests don't crash.
 HTMLCanvasElement.prototype.getContext = (() => {
