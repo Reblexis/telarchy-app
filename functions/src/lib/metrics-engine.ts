@@ -317,6 +317,7 @@ export function recalculateMetrics(metrics: Metric[], consensusMap: Record<strin
     const isLeaf = !metric.formula || metric.formula.trim() === '0';
     if (isLeaf && metric.timePreference?.enabled) {
       // Leaf with TP: blend current value with market consensus at future dates
+      metric.currentTotal = metric.value;
       if (metric.missingMarkets?.length) {
         metric.total = null;
       } else {
@@ -332,14 +333,17 @@ export function recalculateMetrics(metrics: Metric[], consensusMap: Record<strin
       }
     } else if (isLeaf) {
       metric.total = metric.value;
+      metric.currentTotal = metric.value;
     } else if (metric.timePreference?.enabled) {
       if (metric.missingMarkets?.length) {
         metric.total = null;
+        metric.currentTotal = null;
       } else {
         const { halfLife } = metric.timePreference;
         const formula = metric.formula;
 
         const formulaAt0 = evaluateFormula(formula, nameToMetric);
+        metric.currentTotal = formulaAt0;
         if (formulaAt0 === null) { metric.total = null; }
         else {
           let weightedSum = WEIGHT_T0 * formulaAt0;
@@ -357,6 +361,7 @@ export function recalculateMetrics(metrics: Metric[], consensusMap: Record<strin
       }
     } else {
       metric.total = evaluateFormula(metric.formula, nameToMetric);
+      metric.currentTotal = metric.total;
     }
   });
 

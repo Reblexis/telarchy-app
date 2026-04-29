@@ -3012,9 +3012,16 @@ body.landing-page {
 
 .overview-kpi-row {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  gap: 1rem;
+  gap: 1.25rem;
+}
+
+.overview-kpi-row-pair {
+  grid-template-columns: 1fr 1fr auto;
+}
+
+.overview-kpi-row-single {
+  grid-template-columns: 1fr auto;
 }
 
 .overview-kpi-cell {
@@ -3022,10 +3029,6 @@ body.landing-page {
   flex-direction: column;
   gap: 0.15rem;
   text-align: right;
-}
-
-.overview-kpi-cell-outlook {
-  text-align: left;
 }
 
 .overview-kpi-cell-label {

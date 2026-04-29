@@ -9,6 +9,11 @@ export interface Metric {
   description: string;
   value: number;
   total: number | null;
+  /** The metric's value evaluated at "now" (formula result with no time-
+   *  preference projection applied). For leaves this equals `value`; for
+   *  derived metrics it's the formula evaluated against children's current
+   *  values. Null when an upstream computation failed. */
+  currentTotal?: number | null;
   formula: string;
   order: number;
   depth: number;

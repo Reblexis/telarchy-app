@@ -20,19 +20,18 @@ function primaryValue(m: Metric): {
   outlookDelta?: number;
 } {
   const hasTP = m.timePreference?.enabled === true;
-  const leaf = isLeafMetric(m);
-  if (leaf && !hasTP) return { label: 'now', value: m.value.toFixed(2) };
-  if (leaf && hasTP) {
-    const outlookDelta = m.total === null ? undefined : m.total - m.value;
-    return {
-      label: 'outlook',
-      value: m.total === null ? '–' : m.total.toFixed(2),
-      nowValue: m.value.toFixed(2),
-      outlookDelta,
-    };
+  const currentTotal = m.currentTotal ?? (isLeafMetric(m) ? m.value : null);
+  if (!hasTP) {
+    const v = m.total ?? currentTotal;
+    return { label: 'now', value: v === null ? '–' : v.toFixed(2) };
   }
-  if (!leaf && hasTP) return { label: 'outlook', value: m.total === null ? '–' : m.total.toFixed(2) };
-  return { label: 'now', value: m.total === null ? '–' : m.total.toFixed(2) };
+  const outlookDelta = m.total === null || currentTotal === null ? undefined : m.total - currentTotal;
+  return {
+    label: 'outlook',
+    value: m.total === null ? '–' : m.total.toFixed(2),
+    nowValue: currentTotal === null ? undefined : currentTotal.toFixed(2),
+    outlookDelta,
+  };
 }
 
 function activityLink(item: ActivityItem): string | null {
@@ -150,10 +149,14 @@ export function OverviewPage() {
               <Link key={m.id} to="/metrics" className="overview-kpi">
                 <div className="overview-kpi-name">{m.name}</div>
                 {primary.nowValue ? (
-                  <div className="overview-kpi-row">
+                  <div className="overview-kpi-row overview-kpi-row-pair">
                     <div className="overview-kpi-cell">
                       <div className="overview-kpi-num">{primary.nowValue}</div>
                       <div className="overview-kpi-cell-label">now</div>
+                    </div>
+                    <div className="overview-kpi-cell">
+                      <div className="overview-kpi-num">{primary.value}</div>
+                      <div className="overview-kpi-cell-label">{primary.label}</div>
                     </div>
                     <div className={`overview-kpi-trend ${showOutlookDelta ? (primary.outlookDelta! > 0 ? 'up' : 'down') : 'flat'}`}>
                       {showOutlookDelta ? (
@@ -165,13 +168,9 @@ export function OverviewPage() {
                         <span className="overview-kpi-trend-icon">→</span>
                       )}
                     </div>
-                    <div className="overview-kpi-cell overview-kpi-cell-outlook">
-                      <div className="overview-kpi-num">{primary.value}</div>
-                      <div className="overview-kpi-cell-label">{primary.label}</div>
-                    </div>
                   </div>
                 ) : (
-                  <div className="overview-kpi-row">
+                  <div className="overview-kpi-row overview-kpi-row-single">
                     <div className="overview-kpi-cell">
                       <div className="overview-kpi-num">{primary.value}</div>
                       <div className="overview-kpi-cell-label">{primary.label}</div>
