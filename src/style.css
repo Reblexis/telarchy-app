@@ -2980,8 +2980,8 @@ body.landing-page {
   display: grid;
   grid-template-columns: minmax(140px, 1.2fr) 3fr;
   align-items: center;
-  gap: 1.5rem;
-  padding: 0.85rem 0;
+  gap: 1rem;
+  padding: 0.55rem 0;
   border-bottom: 1px solid var(--border-color);
   text-decoration: none;
   color: var(--text-primary);
@@ -3003,9 +3003,18 @@ body.landing-page {
 }
 
 .overview-kpi-num {
-  font-size: 1.5rem;
+  font-size: 1.65rem;
   font-weight: 600;
   letter-spacing: -0.02em;
+  font-feature-settings: 'tnum';
+  line-height: 1.05;
+}
+
+.overview-kpi-num-secondary {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: -0.01em;
   font-feature-settings: 'tnum';
   line-height: 1.05;
 }
@@ -3013,7 +3022,7 @@ body.landing-page {
 .overview-kpi-row {
   display: grid;
   align-items: center;
-  gap: 1.25rem;
+  gap: 0.9rem;
 }
 
 .overview-kpi-row-pair {
@@ -3027,31 +3036,38 @@ body.landing-page {
 .overview-kpi-cell {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.05rem;
   text-align: right;
 }
 
 .overview-kpi-cell-label {
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   color: var(--text-tertiary);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
+  font-weight: 500;
+}
+
+.overview-kpi-cell-sublabel {
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  font-weight: 400;
 }
 
 .overview-kpi-trend {
   display: inline-flex;
   align-items: baseline;
-  gap: 0.25rem;
+  gap: 0.2rem;
   font-feature-settings: 'tnum';
   font-weight: 600;
   white-space: nowrap;
-  padding: 0.25rem 0.55rem;
+  padding: 0.2rem 0.5rem;
   border-radius: var(--radius-full, 999px);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
 }
 
 .overview-kpi-trend-icon {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   line-height: 1;
 }
 

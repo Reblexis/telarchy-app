@@ -20,18 +20,23 @@ function primaryValue(m: Metric): {
   outlookDelta?: number;
 } {
   const hasTP = m.timePreference?.enabled === true;
-  const currentTotal = m.currentTotal ?? (isLeafMetric(m) ? m.value : null);
-  if (!hasTP) {
-    const v = m.total ?? currentTotal;
-    return { label: 'now', value: v === null ? '–' : v.toFixed(2) };
+  const leaf = isLeafMetric(m);
+  // Only leaves expose a meaningful "now" value: m.value is the user-set
+  // current state, m.total is the time-decayed projection. Derived metrics
+  // with TP are inherently an outlook concept (the formula evaluated at
+  // future dates), so we skip the "now" column for them.
+  if (leaf && hasTP) {
+    const outlookDelta = m.total === null ? undefined : m.total - m.value;
+    return {
+      label: 'outlook',
+      value: m.total === null ? '–' : m.total.toFixed(2),
+      nowValue: m.value.toFixed(2),
+      outlookDelta,
+    };
   }
-  const outlookDelta = m.total === null || currentTotal === null ? undefined : m.total - currentTotal;
-  return {
-    label: 'outlook',
-    value: m.total === null ? '–' : m.total.toFixed(2),
-    nowValue: currentTotal === null ? undefined : currentTotal.toFixed(2),
-    outlookDelta,
-  };
+  if (leaf) return { label: 'now', value: m.value.toFixed(2) };
+  if (hasTP) return { label: 'outlook', value: m.total === null ? '–' : m.total.toFixed(2) };
+  return { label: 'now', value: m.total === null ? '–' : m.total.toFixed(2) };
 }
 
 function activityLink(item: ActivityItem): string | null {
@@ -150,11 +155,13 @@ export function OverviewPage() {
                 <div className="overview-kpi-name">{m.name}</div>
                 {primary.nowValue ? (
                   <div className="overview-kpi-row overview-kpi-row-pair">
-                    <div className="overview-kpi-cell">
-                      <div className="overview-kpi-num">{primary.nowValue}</div>
-                      <div className="overview-kpi-cell-label">now</div>
+                    <div className="overview-kpi-cell overview-kpi-cell-now">
+                      <div className="overview-kpi-num-secondary">{primary.nowValue}</div>
+                      <div className="overview-kpi-cell-sublabel">
+                        now{m.updatedAt && <> · {timeAgo(m.updatedAt)}</>}
+                      </div>
                     </div>
-                    <div className="overview-kpi-cell">
+                    <div className="overview-kpi-cell overview-kpi-cell-primary">
                       <div className="overview-kpi-num">{primary.value}</div>
                       <div className="overview-kpi-cell-label">{primary.label}</div>
                     </div>
@@ -171,7 +178,7 @@ export function OverviewPage() {
                   </div>
                 ) : (
                   <div className="overview-kpi-row overview-kpi-row-single">
-                    <div className="overview-kpi-cell">
+                    <div className="overview-kpi-cell overview-kpi-cell-primary">
                       <div className="overview-kpi-num">{primary.value}</div>
                       <div className="overview-kpi-cell-label">{primary.label}</div>
                     </div>
