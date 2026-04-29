@@ -142,52 +142,47 @@ export function OverviewPage() {
         <section className="overview-kpis">
           {topLevelMetrics.map(m => {
             const primary = primaryValue(m);
-            const hasDelta = !isLeafMetric(m) && m.baselineTotal != null && m.total !== null;
-            const delta = hasDelta ? (m.total as number) - (m.baselineTotal as number) : 0;
-            const showDelta = hasDelta && Math.abs(delta) >= 0.005;
+            const hasBaselineDelta = !isLeafMetric(m) && m.baselineTotal != null && m.total !== null;
+            const baselineDelta = hasBaselineDelta ? (m.total as number) - (m.baselineTotal as number) : 0;
+            const showBaselineDelta = hasBaselineDelta && Math.abs(baselineDelta) >= 0.005;
+            const showOutlookDelta = primary.outlookDelta !== undefined && Math.abs(primary.outlookDelta) >= 0.005;
             return (
               <Link key={m.id} to="/metrics" className="overview-kpi">
                 <div className="overview-kpi-name">{m.name}</div>
                 {primary.nowValue ? (
-                  <>
-                    <div className="overview-kpi-pair">
-                      <div className="overview-kpi-pair-item">
-                        <div className="overview-kpi-num">{primary.nowValue}</div>
-                        <div className="overview-kpi-pair-label">now</div>
-                      </div>
-                      {primary.outlookDelta !== undefined && Math.abs(primary.outlookDelta) >= 0.005 && (
-                        <span
-                          className={`overview-kpi-pair-delta ${primary.outlookDelta > 0 ? 'up' : 'down'}`}
-                          title={primary.outlookDelta > 0 ? 'Outlook is higher than now' : 'Outlook is lower than now'}
-                        >
-                          {primary.outlookDelta > 0 ? '↑' : '↓'} {Math.abs(primary.outlookDelta).toFixed(2)}
-                        </span>
-                      )}
-                      <div className="overview-kpi-pair-item">
-                        <div className="overview-kpi-num">{primary.value}</div>
-                        <div className="overview-kpi-pair-label">{primary.label}</div>
-                      </div>
+                  <div className="overview-kpi-row">
+                    <div className="overview-kpi-cell">
+                      <div className="overview-kpi-num">{primary.nowValue}</div>
+                      <div className="overview-kpi-cell-label">now</div>
                     </div>
-                    {showDelta && (
-                      <div className="overview-kpi-meta">
-                        <span className={`overview-kpi-delta ${delta > 0 ? 'up' : 'down'}`}>
-                          {delta > 0 ? '↑' : '↓'} {Math.abs(delta).toFixed(2)}
-                        </span>
+                    <div className={`overview-kpi-trend ${showOutlookDelta ? (primary.outlookDelta! > 0 ? 'up' : 'down') : 'flat'}`}>
+                      {showOutlookDelta ? (
+                        <>
+                          <span className="overview-kpi-trend-icon">{primary.outlookDelta! > 0 ? '↑' : '↓'}</span>
+                          <span className="overview-kpi-trend-mag">{Math.abs(primary.outlookDelta!).toFixed(2)}</span>
+                        </>
+                      ) : (
+                        <span className="overview-kpi-trend-icon">→</span>
+                      )}
+                    </div>
+                    <div className="overview-kpi-cell overview-kpi-cell-outlook">
+                      <div className="overview-kpi-num">{primary.value}</div>
+                      <div className="overview-kpi-cell-label">{primary.label}</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="overview-kpi-row">
+                    <div className="overview-kpi-cell">
+                      <div className="overview-kpi-num">{primary.value}</div>
+                      <div className="overview-kpi-cell-label">{primary.label}</div>
+                    </div>
+                    {showBaselineDelta && (
+                      <div className={`overview-kpi-trend ${baselineDelta > 0 ? 'up' : 'down'}`}>
+                        <span className="overview-kpi-trend-icon">{baselineDelta > 0 ? '↑' : '↓'}</span>
+                        <span className="overview-kpi-trend-mag">{Math.abs(baselineDelta).toFixed(2)}</span>
                       </div>
                     )}
-                  </>
-                ) : (
-                  <>
-                    <div className="overview-kpi-num">{primary.value}</div>
-                    <div className="overview-kpi-meta">
-                      <span>{primary.label}</span>
-                      {showDelta && (
-                        <span className={`overview-kpi-delta ${delta > 0 ? 'up' : 'down'}`}>
-                          {delta > 0 ? '↑' : '↓'} {Math.abs(delta).toFixed(2)}
-                        </span>
-                      )}
-                    </div>
-                  </>
+                  </div>
                 )}
               </Link>
             );
