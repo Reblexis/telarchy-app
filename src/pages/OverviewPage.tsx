@@ -13,11 +13,17 @@ function isLeafMetric(m: Metric): boolean {
   return !m.formula || m.formula.trim() === '' || m.formula.trim() === '0';
 }
 
-function primaryValue(m: Metric): { label: string; value: string } {
+function primaryValue(m: Metric): { label: string; value: string; nowValue?: string } {
   const hasTP = m.timePreference?.enabled === true;
   const leaf = isLeafMetric(m);
   if (leaf && !hasTP) return { label: 'now', value: m.value.toFixed(2) };
-  if (leaf && hasTP) return { label: 'outlook', value: m.total === null ? '–' : m.total.toFixed(2) };
+  if (leaf && hasTP) {
+    return {
+      label: 'outlook',
+      value: m.total === null ? '–' : m.total.toFixed(2),
+      nowValue: m.value.toFixed(2),
+    };
+  }
   if (!leaf && hasTP) return { label: 'outlook', value: m.total === null ? '–' : m.total.toFixed(2) };
   return { label: 'now', value: m.total === null ? '–' : m.total.toFixed(2) };
 }
@@ -143,6 +149,7 @@ export function OverviewPage() {
                       {delta > 0 ? '↑' : '↓'} {Math.abs(delta).toFixed(2)}
                     </span>
                   )}
+                  {primary.nowValue && <span>now {primary.nowValue}</span>}
                 </div>
               </Link>
             );
