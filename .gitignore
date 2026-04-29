@@ -49,3 +49,9 @@ tsconfig.tsbuildinfo
 qa-runs/
 qa-results.md
 ux-grade.md
+
+# Concierge program: contains founder names, contact info, private context
+docs/concierge-candidates.md
+docs/concierge-tracking.md
+docs/concierge/intake-*.md
+docs/concierge/findings/
