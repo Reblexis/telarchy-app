@@ -141,16 +141,39 @@ export function OverviewPage() {
             return (
               <Link key={m.id} to="/metrics" className="overview-kpi">
                 <div className="overview-kpi-name">{m.name}</div>
-                <div className="overview-kpi-num">{primary.value}</div>
-                <div className="overview-kpi-meta">
-                  <span>{primary.label}</span>
-                  {showDelta && (
-                    <span className={`overview-kpi-delta ${delta > 0 ? 'up' : 'down'}`}>
-                      {delta > 0 ? '↑' : '↓'} {Math.abs(delta).toFixed(2)}
-                    </span>
-                  )}
-                  {primary.nowValue && <span>now {primary.nowValue}</span>}
-                </div>
+                {primary.nowValue ? (
+                  <>
+                    <div className="overview-kpi-pair">
+                      <div className="overview-kpi-pair-item">
+                        <div className="overview-kpi-num">{primary.value}</div>
+                        <div className="overview-kpi-pair-label">{primary.label}</div>
+                      </div>
+                      <div className="overview-kpi-pair-item">
+                        <div className="overview-kpi-num">{primary.nowValue}</div>
+                        <div className="overview-kpi-pair-label">now</div>
+                      </div>
+                    </div>
+                    {showDelta && (
+                      <div className="overview-kpi-meta">
+                        <span className={`overview-kpi-delta ${delta > 0 ? 'up' : 'down'}`}>
+                          {delta > 0 ? '↑' : '↓'} {Math.abs(delta).toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="overview-kpi-num">{primary.value}</div>
+                    <div className="overview-kpi-meta">
+                      <span>{primary.label}</span>
+                      {showDelta && (
+                        <span className={`overview-kpi-delta ${delta > 0 ? 'up' : 'down'}`}>
+                          {delta > 0 ? '↑' : '↓'} {Math.abs(delta).toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  </>
+                )}
               </Link>
             );
           })}

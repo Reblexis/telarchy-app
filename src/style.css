@@ -3018,6 +3018,28 @@ body.landing-page {
   color: var(--text-tertiary);
 }
 
+.overview-kpi-pair {
+  display: flex;
+  gap: 1.5rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.overview-kpi-pair-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.overview-kpi-pair .overview-kpi-num {
+  font-size: 1.5rem;
+}
+
+.overview-kpi-pair-label {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+
 .overview-kpi-delta.up { color: #16a34a; }
 .overview-kpi-delta.down { color: #dc2626; }
 
@@ -3118,6 +3140,8 @@ body.landing-page {
     gap: 1.25rem 1.5rem;
   }
   .overview-kpi-num { font-size: 1.55rem; }
+  .overview-kpi-pair { gap: 1rem; }
+  .overview-kpi-pair .overview-kpi-num { font-size: 1.3rem; }
   .overview-row, .overview-row-link { font-size: 0.85rem; padding: 0.6rem 0; }
 }
 
