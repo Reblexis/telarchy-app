@@ -153,43 +153,33 @@ export function OverviewPage() {
             return (
               <Link key={m.id} to="/metrics" className="overview-kpi">
                 <div className="overview-kpi-name">{m.name}</div>
-                {primary.nowValue ? (
-                  <div className="overview-kpi-row overview-kpi-row-pair">
-                    <div className="overview-kpi-cell overview-kpi-cell-now">
-                      <div className="overview-kpi-num-secondary">{primary.nowValue}</div>
-                      <div className="overview-kpi-cell-sublabel">
-                        now{m.updatedAt && <> · {timeAgo(m.updatedAt)}</>}
-                      </div>
-                    </div>
-                    <div className="overview-kpi-cell overview-kpi-cell-primary">
-                      <div className="overview-kpi-num">{primary.value}</div>
-                      <div className="overview-kpi-cell-label">{primary.label}</div>
-                    </div>
-                    <div className={`overview-kpi-trend ${showOutlookDelta ? (primary.outlookDelta! > 0 ? 'up' : 'down') : 'flat'}`}>
-                      {showOutlookDelta ? (
-                        <>
-                          <span className="overview-kpi-trend-icon">{primary.outlookDelta! > 0 ? '↑' : '↓'}</span>
-                          <span className="overview-kpi-trend-mag">{Math.abs(primary.outlookDelta!).toFixed(2)}</span>
-                        </>
-                      ) : (
-                        <span className="overview-kpi-trend-icon">→</span>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="overview-kpi-row overview-kpi-row-single">
-                    <div className="overview-kpi-cell overview-kpi-cell-primary">
-                      <div className="overview-kpi-num">{primary.value}</div>
-                      <div className="overview-kpi-cell-label">{primary.label}</div>
-                    </div>
-                    {showBaselineDelta && (
-                      <div className={`overview-kpi-trend ${baselineDelta > 0 ? 'up' : 'down'}`}>
-                        <span className="overview-kpi-trend-icon">{baselineDelta > 0 ? '↑' : '↓'}</span>
-                        <span className="overview-kpi-trend-mag">{Math.abs(baselineDelta).toFixed(2)}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
+                <div className="overview-kpi-data">
+                  {primary.nowValue && (
+                    <>
+                      <span className="overview-kpi-now">{primary.nowValue}</span>
+                      <span className="overview-kpi-sep" aria-hidden="true">›</span>
+                    </>
+                  )}
+                  <span className="overview-kpi-outlook">{primary.value}</span>
+                  {primary.nowValue && showOutlookDelta && (
+                    <span className={`overview-kpi-delta ${primary.outlookDelta! > 0 ? 'up' : 'down'}`}>
+                      {primary.outlookDelta! > 0 ? '↑' : '↓'}{Math.abs(primary.outlookDelta!).toFixed(2)}
+                    </span>
+                  )}
+                  {!primary.nowValue && showBaselineDelta && (
+                    <span className={`overview-kpi-delta ${baselineDelta > 0 ? 'up' : 'down'}`}>
+                      {baselineDelta > 0 ? '↑' : '↓'}{Math.abs(baselineDelta).toFixed(2)}
+                    </span>
+                  )}
+                </div>
+                <div className="overview-kpi-meta-right">
+                  {primary.nowValue && m.updatedAt && (
+                    <span className="overview-kpi-time">{timeAgo(m.updatedAt)}</span>
+                  )}
+                  {!primary.nowValue && (
+                    <span className="overview-kpi-time overview-kpi-time-muted">{primary.label}</span>
+                  )}
+                </div>
               </Link>
             );
           })}

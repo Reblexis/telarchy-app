@@ -2978,9 +2978,9 @@ body.landing-page {
 
 .overview-kpi {
   display: grid;
-  grid-template-columns: minmax(140px, 1.2fr) 3fr;
-  align-items: center;
-  gap: 1rem;
+  grid-template-columns: minmax(160px, 1.2fr) auto 4.5rem;
+  align-items: baseline;
+  column-gap: 1.5rem;
   padding: 0.55rem 0;
   border-bottom: 1px solid var(--border-color);
   text-decoration: none;
@@ -2993,98 +2993,70 @@ body.landing-page {
 }
 
 .overview-kpi-name {
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: 0.92rem;
+  font-weight: 500;
   color: var(--text-primary);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.005em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.overview-kpi-num {
-  font-size: 1.65rem;
+.overview-kpi-data {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  font-feature-settings: 'tnum';
+}
+
+.overview-kpi-now {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.overview-kpi-sep {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  opacity: 0.6;
+  margin: 0 -0.05rem;
+}
+
+.overview-kpi-outlook {
+  font-size: 1.55rem;
   font-weight: 600;
   letter-spacing: -0.02em;
-  font-feature-settings: 'tnum';
-  line-height: 1.05;
+  line-height: 1;
+  color: var(--text-primary);
 }
 
-.overview-kpi-num-secondary {
-  font-size: 1rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  letter-spacing: -0.01em;
-  font-feature-settings: 'tnum';
-  line-height: 1.05;
+.overview-kpi-delta {
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-left: 0.15rem;
+  font-variant-numeric: tabular-nums;
 }
 
-.overview-kpi-row {
-  display: grid;
-  align-items: center;
-  gap: 0.9rem;
-}
+.overview-kpi-delta.up { color: #16a34a; }
+.overview-kpi-delta.down { color: #dc2626; }
 
-.overview-kpi-row-pair {
-  grid-template-columns: 1fr 1fr auto;
-}
-
-.overview-kpi-row-single {
-  grid-template-columns: 1fr auto;
-}
-
-.overview-kpi-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 0.05rem;
+.overview-kpi-meta-right {
   text-align: right;
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  font-feature-settings: 'tnum';
+  white-space: nowrap;
 }
 
-.overview-kpi-cell-label {
-  font-size: 0.65rem;
-  color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 500;
-}
-
-.overview-kpi-cell-sublabel {
-  font-size: 0.65rem;
-  color: var(--text-tertiary);
+.overview-kpi-time {
   font-weight: 400;
 }
 
-.overview-kpi-trend {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.2rem;
-  font-feature-settings: 'tnum';
-  font-weight: 600;
-  white-space: nowrap;
-  padding: 0.2rem 0.5rem;
-  border-radius: var(--radius-full, 999px);
-  font-size: 0.78rem;
-}
-
-.overview-kpi-trend-icon {
-  font-size: 0.9rem;
-  line-height: 1;
-}
-
-.overview-kpi-trend.up {
-  color: #15803d;
-  background: rgba(22, 163, 74, 0.12);
-}
-
-.overview-kpi-trend.down {
-  color: #b91c1c;
-  background: rgba(220, 38, 38, 0.12);
-}
-
-.overview-kpi-trend.flat {
-  color: var(--text-tertiary);
-  background: var(--bg-secondary);
-  font-weight: 500;
+.overview-kpi-time-muted {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
 }
 
 .overview-kpi-delta.up { color: #16a34a; }
@@ -3187,14 +3159,19 @@ body.landing-page {
     gap: 1.25rem 1.5rem;
   }
   .overview-kpi {
-    grid-template-columns: 1fr;
-    gap: 0.4rem;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "name time"
+      "data data";
+    column-gap: 0.6rem;
+    row-gap: 0.2rem;
+    padding: 0.65rem 0;
   }
-  .overview-kpi-row {
-    gap: 0.6rem;
-  }
-  .overview-kpi-num { font-size: 1.3rem; }
-  .overview-kpi-name { font-size: 0.85rem; }
+  .overview-kpi-name { grid-area: name; font-size: 0.85rem; }
+  .overview-kpi-data { grid-area: data; justify-content: flex-start; }
+  .overview-kpi-meta-right { grid-area: time; }
+  .overview-kpi-outlook { font-size: 1.35rem; }
+  .overview-kpi-now { font-size: 0.9rem; }
   .overview-row, .overview-row-link { font-size: 0.85rem; padding: 0.6rem 0; }
 }
 
