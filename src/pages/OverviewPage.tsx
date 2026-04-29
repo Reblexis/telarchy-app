@@ -13,15 +13,22 @@ function isLeafMetric(m: Metric): boolean {
   return !m.formula || m.formula.trim() === '' || m.formula.trim() === '0';
 }
 
-function primaryValue(m: Metric): { label: string; value: string; nowValue?: string } {
+function primaryValue(m: Metric): {
+  label: string;
+  value: string;
+  nowValue?: string;
+  outlookDelta?: number;
+} {
   const hasTP = m.timePreference?.enabled === true;
   const leaf = isLeafMetric(m);
   if (leaf && !hasTP) return { label: 'now', value: m.value.toFixed(2) };
   if (leaf && hasTP) {
+    const outlookDelta = m.total === null ? undefined : m.total - m.value;
     return {
       label: 'outlook',
       value: m.total === null ? '–' : m.total.toFixed(2),
       nowValue: m.value.toFixed(2),
+      outlookDelta,
     };
   }
   if (!leaf && hasTP) return { label: 'outlook', value: m.total === null ? '–' : m.total.toFixed(2) };
@@ -145,12 +152,20 @@ export function OverviewPage() {
                   <>
                     <div className="overview-kpi-pair">
                       <div className="overview-kpi-pair-item">
-                        <div className="overview-kpi-num">{primary.value}</div>
-                        <div className="overview-kpi-pair-label">{primary.label}</div>
-                      </div>
-                      <div className="overview-kpi-pair-item">
                         <div className="overview-kpi-num">{primary.nowValue}</div>
                         <div className="overview-kpi-pair-label">now</div>
+                      </div>
+                      {primary.outlookDelta !== undefined && Math.abs(primary.outlookDelta) >= 0.005 && (
+                        <span
+                          className={`overview-kpi-pair-delta ${primary.outlookDelta > 0 ? 'up' : 'down'}`}
+                          title={primary.outlookDelta > 0 ? 'Outlook is higher than now' : 'Outlook is lower than now'}
+                        >
+                          {primary.outlookDelta > 0 ? '↑' : '↓'} {Math.abs(primary.outlookDelta).toFixed(2)}
+                        </span>
+                      )}
+                      <div className="overview-kpi-pair-item">
+                        <div className="overview-kpi-num">{primary.value}</div>
+                        <div className="overview-kpi-pair-label">{primary.label}</div>
                       </div>
                     </div>
                     {showDelta && (
