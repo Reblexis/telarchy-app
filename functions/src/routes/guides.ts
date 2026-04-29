@@ -2,10 +2,33 @@ import { Router } from 'express';
 
 export const guidesRouter = Router();
 
+/**
+ * Guides are grouped into a small fixed set of categories. The order of the
+ * categories array below is the order they render in the UI; the order of
+ * sections within each category is determined by the `order` field on each
+ * section.
+ *
+ * Stripe-style: a tight first-time path (Start here), then concepts, then
+ * the build surface. New sections should pick the category that matches the
+ * reader's task, not the writer's.
+ */
+export type GuideCategoryId = 'start' | 'metrics' | 'forecast' | 'api';
+
+export const GUIDE_CATEGORIES: Array<{ id: GuideCategoryId; title: string; description: string }> = [
+  { id: 'start',    title: 'Start here',           description: 'A 5-minute orientation. Read this first.' },
+  { id: 'metrics',  title: 'Define your metrics',  description: 'How to design, create, and compose metrics so the system optimizes what you actually want.' },
+  { id: 'forecast', title: 'Forecast and decide',  description: 'How prediction markets price proposals against your metrics, and how decisions flow through tasks.' },
+  { id: 'api',      title: 'Build with the API',   description: 'Authenticate, write bots, observe them, and look up endpoints.' },
+];
+
 interface GuideSection {
   id: string;
   title: string;
   description: string;
+  category: GuideCategoryId;
+  /** Position within the category. Lower = earlier. Use 10/20/30/... so
+   *  inserts don't require renumbering everything. */
+  order: number;
   content: string;
 }
 
@@ -14,6 +37,8 @@ const sections: GuideSection[] = [
     id: 'overview',
     title: 'Overview',
     description: 'Core concepts: what metrics are and how to track them.',
+    category: 'start',
+    order: 10,
     content: `# Overview
 
 ## What Telarchy is
@@ -51,6 +76,8 @@ For combining metrics, see the *Formulas* guide. For how time preference and mar
     id: 'metric-design',
     title: 'Metric Design',
     description: 'How to define metrics correctly: the genie principle, commitments vs hypotheses, and connecting multiple workspaces.',
+    category: 'metrics',
+    order: 10,
     content: `# Metric Design
 
 ## Terminal vs instrumental values
@@ -144,6 +171,8 @@ This keeps workspaces decoupled at the definition level while still allowing par
     id: 'creating',
     title: 'Creating Metrics',
     description: 'How to create, edit, and delete metrics, and what each field does.',
+    category: 'metrics',
+    order: 20,
     content: `# Creating Metrics
 
 Open the **Metrics** page and use the form at the top. Only admins can create or edit metrics.
@@ -184,6 +213,8 @@ The **order** field controls how metrics are sorted in the UI. Lower numbers app
     id: 'formulas',
     title: 'Formulas',
     description: 'Formula syntax: metric references, operators, math functions, and validation.',
+    category: 'metrics',
+    order: 30,
     content: `# Formulas
 
 Most metrics are **leaf metrics**: you set their value directly and they stand on their own. But sometimes you want a metric that combines others: a weighted score, a ratio, or an aggregate. That's what formulas are for.
@@ -255,6 +286,8 @@ The UI validates your formula in real time and warns about:
     id: 'time-preference',
     title: 'Time Preference',
     description: 'How TP nodes blend present and future market consensus, and how to configure half-life.',
+    category: 'metrics',
+    order: 40,
     content: `# Time Preference
 
 ## Why it matters
@@ -376,6 +409,8 @@ Overall  (formula: {ShortTerm} + {LongTerm})     ← aggregates TP nodes
     id: 'markets',
     title: 'Markets & Forecasting',
     description: 'How prediction markets work, the binary AMM, resolution, and range configuration.',
+    category: 'forecast',
+    order: 10,
     content: `# Markets & Forecasting
 
 Every **leaf** metric has prediction markets attached to it. Markets let participants predict what value the metric will reach at a target date. The stake-weighted outcome is the *market consensus*, the crowd's best estimate of the future value.
@@ -429,6 +464,8 @@ The default range is 0-1000. Match \`marketRangeMax\` to the realistic upper bou
     id: 'credits',
     title: 'Credits & Liquidity',
     description: 'How credits are earned and spent, and how liquidity seeding pays participants to forecast.',
+    category: 'forecast',
+    order: 20,
     content: `# Credits & Liquidity
 
 Credits are Telarchy's in-platform unit for markets, tasks, and rewards. Every participant (human or AI) receives **1,000 credits on signup**. The supply is fixed: there is no minting beyond signup grants, and on the managed instance (telarchy.com) there is no way to buy more. You gain credits by being right, and lose them by being wrong.
@@ -484,6 +521,8 @@ Self-hosted deployments can optionally wire credits to on-chain USDC settlement 
     id: 'tasks',
     title: 'Tasks & Decisions',
     description: 'How participants propose tasks, conditional markets measure expected impact, and admins decide.',
+    category: 'forecast',
+    order: 30,
     content: `# Tasks & Decisions
 
 Tasks are the mechanism for uncertainty. Any time you are unsure whether an action will improve a metric (whether the causal link is direct, indirect, or speculative), express it as a task rather than encoding the assumption into a metric definition. See *Metric Design* for the underlying principle.
@@ -521,6 +560,8 @@ Best practices:
     id: 'agent-api',
     title: 'Agent API Guide',
     description: 'How to read metrics and act on markets efficiently via the API with minimal token usage.',
+    category: 'api',
+    order: 20,
     content: `# Agent API Guide
 
 ## Efficient reading: one call for everything
@@ -670,6 +711,8 @@ await fetch(\`\${BASE}/api/predictions/trade\`, {
     id: 'auth-and-keys',
     title: 'Authentication & keys',
     description: 'The three auth modes (master key, browser session, agent key), per-key scopes, and how to mint, label, edit, rotate, and revoke keys.',
+    category: 'api',
+    order: 10,
     content: [
       '# Authentication & keys',
       '',
@@ -828,6 +871,8 @@ await fetch(\`\${BASE}/api/predictions/trade\`, {
     id: 'recipes',
     title: 'Recipes',
     description: 'Worked end-to-end examples: a daily metric updater, an anchor trading bot, and an LLM-driven analyst. curl + Python for each.',
+    category: 'api',
+    order: 30,
     content: [
       '# Recipes',
       '',
@@ -988,6 +1033,8 @@ await fetch(\`\${BASE}/api/predictions/trade\`, {
     id: 'api-reference',
     title: 'API reference',
     description: 'Categorized endpoint reference. The structured source of truth is GET /api/help; this guide is the readable rendering of the same data.',
+    category: 'api',
+    order: 60,
     content: [
       '# API reference',
       '',
@@ -1148,6 +1195,8 @@ await fetch(\`\${BASE}/api/predictions/trade\`, {
     id: 'sources',
     title: 'Sources',
     description: 'How sources work: text snippets and live external bridges (GitHub), plus access control.',
+    category: 'forecast',
+    order: 40,
     content: [
       '# Sources',
       '',
@@ -1211,6 +1260,8 @@ await fetch(\`\${BASE}/api/predictions/trade\`, {
     id: 'agent-telemetry',
     title: 'Agent telemetry protocol',
     description: 'How any trading agent (first-party or third-party) makes itself visible in /admin → Bot agents.',
+    category: 'api',
+    order: 40,
     content: [
       '# Agent telemetry protocol',
       '',
@@ -1274,6 +1325,8 @@ await fetch(\`\${BASE}/api/predictions/trade\`, {
     id: 'feedback',
     title: 'Feedback and bug reports',
     description: 'How any participant (human or AI) reports bugs, asks for help, or proposes feature requests via /api/feedback.',
+    category: 'api',
+    order: 50,
     content: [
       '# Feedback and bug reports',
       '',
@@ -1368,14 +1421,41 @@ await fetch(\`\${BASE}/api/predictions/trade\`, {
 
 const sectionMap = new Map(sections.map(s => [s.id, s]));
 
-// GET /api/guides - index of all sections
+/**
+ * Sort sections deterministically: category-first (in the order of
+ * GUIDE_CATEGORIES), then by `order` within the category. This is the order
+ * everyone reads guides in — UI sidebar, /api/guides JSON, and any client
+ * that mirrors the index. Don't sort by title or by id; those produce
+ * arbitrary orderings that don't reflect the journey.
+ */
+function compareSections(a: GuideSection, b: GuideSection): number {
+  const aCat = GUIDE_CATEGORIES.findIndex(c => c.id === a.category);
+  const bCat = GUIDE_CATEGORIES.findIndex(c => c.id === b.category);
+  if (aCat !== bCat) return aCat - bCat;
+  return a.order - b.order;
+}
+
+// GET /api/guides - flat array of every section, sorted by category and then
+// by order. Each item carries its `category` so structured renderers can
+// group without re-deriving the order. Category metadata (titles +
+// descriptions) is exposed via GET /api/guides/_categories below.
 guidesRouter.get('/', (_req, res) => {
-  res.json(sections.map(({ id, title, description }) => ({
+  const sorted = [...sections].sort(compareSections);
+  res.json(sorted.map(({ id, title, description, category, order }) => ({
     id,
     title,
     description,
+    category,
+    order,
     path: `/api/guides/${id}`,
   })));
+});
+
+// GET /api/guides/_categories - category metadata, in render order. Kept
+// separate so /api/guides remains a clean array. The leading underscore
+// can never collide with a real section id (slugs are kebab-case).
+guidesRouter.get('/_categories', (_req, res) => {
+  res.json(GUIDE_CATEGORIES);
 });
 
 // GET /api/guides/:section - markdown for a specific section

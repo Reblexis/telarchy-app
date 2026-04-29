@@ -200,6 +200,12 @@ explains itself.
 | `api-help-discoverability.md` | `GET /api/help` runtime parity |
 | `auth-and-keys-guide.md` | new `auth-and-keys`, `recipes`, `api-reference` guide sections |
 
+### 12-ux (additions)
+
+| File | Surface |
+| --- | --- |
+| `guides-structure.md` | Stripe-style category groups in the sidebar + breadcrumb + prev/next |
+
 ### 11-multi-agent
 
 | File | Surface |

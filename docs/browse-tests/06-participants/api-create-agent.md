@@ -48,7 +48,10 @@ TRADER_GID=$(curl -sf -b "$JAR" -H "X-Workspace-Id: $WS" \
 ### T1. Create succeeds and returns the key once
 
 ```bash
-ID="$TT_NS-bot1"
+# Short suffix so agentId stays under the 64-char validation cap even when
+# TT_NS is long.
+SUFFIX="$$-$RANDOM"
+ID="bot1-$SUFFIX"
 res=$(curl -sf -b "$JAR" -H "X-Workspace-Id: $WS" -H "Content-Type: application/json" \
   -X POST "$TT_BASE_URL/api/agents" \
   -d "$(jq -nc --arg id "$ID" --arg ws "$WS" --arg g "$TRADER_GID" \
@@ -106,15 +109,20 @@ case "$code" in 400|409|422) ;; *) echo "expected 4xx for dup, got $code"; exit 
 ```bash
 # Sign in as a different user that has no manage anywhere, then try to
 # add a bot into the default workspace.
-EMAIL="$TT_NS-stranger@example.com"
-JAR2=$(tt_mkuser "$EMAIL" "Test1234!" "Stranger")
-ID2="$TT_NS-bot2"
-code=$(curl -s -o /dev/null -w '%{http_code}' \
+EMAIL="stranger-$SUFFIX@example.test"
+JAR2=$(tt_mkuser "$EMAIL" "Test1234!" "Stranger") || { echo "tt_mkuser failed"; exit 1; }
+[ -s "$JAR2" ] || { echo "stranger jar is empty: $JAR2"; exit 1; }
+ID2="bot2-$SUFFIX"
+out=$(mktemp)
+code=$(curl -s -o "$out" -w '%{http_code}' \
   -b "$JAR2" -H "X-Workspace-Id: $WS" -H "Content-Type: application/json" \
   -X POST "$TT_BASE_URL/api/agents" \
   -d "$(jq -nc --arg id "$ID2" --arg ws "$WS" --arg g "$TRADER_GID" \
       '{agentId:$id, memberships:[{workspaceId:$ws, groupIds:[$g]}]}')")
-case "$code" in 403) ;; *) echo "expected 403 unauthorized membership, got $code"; exit 1;; esac
+case "$code" in 403) ;;
+  *) echo "expected 403 unauthorized membership, got $code"; echo "body: $(cat "$out")"; exit 1;;
+esac
+rm -f "$out"
 ```
 
 ### T7. Memberships referencing groups outside the workspace are refused
@@ -125,7 +133,7 @@ WS2=$(tt_mkworkspace blank private)
 tt_on_cleanup "tt_rm_workspace '$WS2'"
 
 # Pull a Trader group from WS (different workspace) and try to use it in WS2.
-ID3="$TT_NS-bot3"
+ID3="bot3-$SUFFIX"
 code=$(curl -s -o /dev/null -w '%{http_code}' \
   -b "$JAR" -H "X-Workspace-Id: $WS2" -H "Content-Type: application/json" \
   -X POST "$TT_BASE_URL/api/agents" \
@@ -137,7 +145,7 @@ case "$code" in 400) ;; *) echo "expected 400 cross-ws group, got $code"; exit 1
 ## Cleanup
 
 ```bash
-tt_on_cleanup "tt_rm_agent '$ID' '$WS' || true"
+tt_on_cleanup "tt_rm_agent 'bot1-$SUFFIX' '$WS' || true"
 ```
 
 ## Known gaps

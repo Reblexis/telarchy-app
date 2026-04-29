@@ -41,6 +41,22 @@ for id in auth-and-keys recipes api-reference; do
 done
 ```
 
+### T1b. Each section carries a category and an order field
+
+```bash
+idx=$(curl -sf "$TT_BASE_URL/api/guides")
+# All four categories come back from the metadata endpoint.
+cats=$(curl -sf "$TT_BASE_URL/api/guides/_categories" | jq -r '.[].id' | sort | xargs)
+[ "$cats" = "api forecast metrics start" ] || { echo "categories: $cats"; exit 1; }
+# Every section item has both fields, both are non-empty / numeric.
+jq -e 'all(.[]; (.category | type == "string" and length > 0) and (.order | type == "number"))' <<<"$idx" >/dev/null
+# auth-and-keys, recipes, api-reference all live under the api category.
+for id in auth-and-keys recipes api-reference; do
+  cat=$(jq -r --arg id "$id" '.[] | select(.id==$id) | .category' <<<"$idx")
+  [ "$cat" = "api" ] || { echo "$id is in $cat, expected api"; exit 1; }
+done
+```
+
 ### T2. Each new section returns non-trivial markdown
 
 ```bash
