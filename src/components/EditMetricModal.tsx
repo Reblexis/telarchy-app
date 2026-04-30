@@ -1,6 +1,30 @@
 import { useState, useEffect, FormEvent } from 'react';
 import type { Metric, TimePreference } from '../types';
 
+const UNIT_TO_YEARS: Record<string, number> = {
+  d: 1 / 365, w: 7 / 365, mo: 1 / 12, m: 1 / 12, y: 1,
+};
+
+function parseHalfLife(input: string): number | null {
+  const m = input.trim().toLowerCase().replace(',', '.').match(/^([0-9]*\.?[0-9]+)\s*(d|w|mo|m|y)?$/);
+  if (!m) return null;
+  const n = parseFloat(m[1]);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n * UNIT_TO_YEARS[m[2] ?? 'y'];
+}
+
+function formatHalfLife(years: number): string {
+  const round = (n: number) => Number.isInteger(n) ? String(n) : n.toFixed(2).replace(/\.?0+$/, '');
+  if (years >= 1) return `${round(years)}y`;
+  const months = years * 12;
+  if (months >= 1 && Math.abs(months - Math.round(months)) < 0.01) return `${Math.round(months)}mo`;
+  const weeks = years * 365 / 7;
+  if (weeks >= 1 && Math.abs(weeks - Math.round(weeks)) < 0.01) return `${Math.round(weeks)}w`;
+  const days = years * 365;
+  if (days >= 1) return `${Math.round(days)}d`;
+  return round(years);
+}
+
 interface EditMetricModalProps {
   metric: Metric | null;
   onClose: () => void;
@@ -29,7 +53,7 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
       setValue(String(metric.value));
       setFormula(metric.formula || '0');
       setTpEnabled(metric.timePreference?.enabled ?? false);
-      setTpHalfLife(String(metric.timePreference?.halfLife ?? 1));
+      setTpHalfLife(formatHalfLife(metric.timePreference?.halfLife ?? 1));
       setMarketRangeMax(String(metric.marketRangeMax ?? 1000));
       setError('');
     }
@@ -42,8 +66,13 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+    const parsedHl = parseHalfLife(tpHalfLife);
+    if (tpEnabled && parsedHl === null) {
+      setError('Half-life must be a positive number, optionally with d / w / mo / y (e.g. 6mo, 30d, 0.5y)');
+      return;
+    }
     const tp: TimePreference | null = tpEnabled
-      ? { enabled: true, halfLife: Math.max(0.01, Number(tpHalfLife)) }
+      ? { enabled: true, halfLife: Math.max(1 / 365, parsedHl!) }
       : null;
     try {
       const rmx = isLeaf ? Math.max(1, Number(marketRangeMax) || 1000) : undefined;
@@ -106,9 +135,10 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
             </div>
             {tpEnabled && (
               <div className="tp-halflife">
-                <label htmlFor="editHalfLife">Half-life (years)</label>
+                <label htmlFor="editHalfLife">Half-life</label>
                 <input
-                  type="number" id="editHalfLife" step="0.01" min="0.01"
+                  type="text" id="editHalfLife" inputMode="decimal"
+                  placeholder="e.g. 6mo, 30d, 0.5y"
                   value={tpHalfLife}
                   onChange={e => setTpHalfLife(e.target.value)}
                   className="tp-halflife-input"
@@ -116,7 +146,7 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
               </div>
             )}
             {tpEnabled && (() => {
-              const hl = Math.max(0.01, Number(tpHalfLife) || 1);
+              const hl = parseHalfLife(tpHalfLife) ?? 1;
               const lambda = Math.LN2 / hl;
               const offsets = Array.from({ length: 10 }, (_, i) => {
                 const p = (2 * i + 1) / 20;
