@@ -68,6 +68,18 @@ export interface AgentTrace {
   createdAt: string;
 }
 
+export interface LeaderboardEntry {
+  rank: number | null;
+  id: string;
+  nickname: string | null;
+  calibration: number | null;
+  accuracy: number | null;
+  totalEarnings: number;
+  resolvedMarkets: number;
+  totalTrades: number;
+  lastTradeAt: string | null;
+}
+
 export interface MarketplaceListing {
   workspaceId: string;
   workspaceName: string;
@@ -398,6 +410,11 @@ export const api = {
   getPublicWorkspaces: async (): Promise<Array<{ workspaceId: string; name: string; visibility: string }>> => {
     const res = await fetch(`${API_BASE}/api/marketplace/workspaces/public`);
     if (!res.ok) throw new Error(`Public workspaces request failed: ${res.status}`);
+    return res.json();
+  },
+  getLeaderboard: async (limit = 100): Promise<{ participants: LeaderboardEntry[] }> => {
+    const res = await fetch(`${API_BASE}/api/leaderboard?limit=${limit}`);
+    if (!res.ok) throw new Error(`Leaderboard request failed: ${res.status}`);
     return res.json();
   },
   joinWorkspace: (workspaceId: string) =>

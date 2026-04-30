@@ -109,6 +109,7 @@ explains itself.
 | --- | --- |
 | `landing.md` | `/` first paint, footer links, viewport coverage |
 | `marketplace-public.md` | Anonymous `/marketplace`, share-link, OG meta |
+| `leaderboard.md` | Anonymous `/leaderboard`, calibration ranking, register CTA |
 | `legal.md` | `/terms`, `/privacy`, ToS clauses |
 | `waitlist.md` | `POST /api/waitlist` + dedup + rate limit |
 | `seo-and-og.md` | `robots.txt`, `sitemap.xml`, OG/Twitter cards, no trackers |

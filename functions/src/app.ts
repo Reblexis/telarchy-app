@@ -15,6 +15,7 @@ import { waitlistRouter } from './routes/waitlist';
 import { workspacesRouter } from './routes/workspaces';
 import { userauthRouter } from './routes/userauth';
 import { marketplaceRouter } from './routes/marketplace';
+import { leaderboardRouter } from './routes/leaderboard';
 import { groupsRouter } from './routes/groups';
 import { sourcesRouter } from './routes/sources';
 import { guidesRouter } from './routes/guides';
@@ -145,7 +146,7 @@ app.get('/api/help', (_req, res) => {
       api_key: 'Set X-API-Key header with your secret key (admin access).',
       session_cookie: 'Browser sessions use cookie-based auth via BetterAuth. Sign in at POST /api/auth/sign-in/email. Credentials are managed at /api/auth/* (handled by BetterAuth). Browser-account signup creates or attaches to the same participant identity used for browser trading and API-key trading.',
       agent_key: 'Set X-Agent-Key header with your agent API key. Agent-key auth and browser auth resolve to the same effective permissions for the same participant.',
-      note: 'All endpoints except /api/help, /api/guides, GET /api/agents/deposit-address, GET /api/marketplace, GET /api/marketplace/stats, POST /api/agents/register, and POST /api/waitlist require authentication.',
+      note: 'All endpoints except /api/help, /api/guides, GET /api/agents/deposit-address, GET /api/marketplace, GET /api/marketplace/stats, GET /api/leaderboard, POST /api/agents/register, and POST /api/waitlist require authentication.',
       workspace_switching: 'Pass X-Workspace-Id: <workspaceId> header on all workspace-scoped requests. Your effective capabilities are the union of the capabilities[] arrays on every permission group you belong to in that workspace. There is no default workspace; omitting the header uses your highest-priority membership.',
       auth_field_legend: 'The "auth" field on each endpoint below is a shorthand for the capabilities required: "agent/admin" = requires the read capability, "agent" = requires the trade capability, "admin" = requires the manage capability, "self/admin" = the caller may target their own ID with trade, or anyone\'s ID with manage, "identity" = any authenticated participant (browser session OR agent key), "session" = browser account session only, by design (e.g. recording acceptance of Terms; programmatic agents are exempt from that gate), false = no auth required.',
       scope_field_legend: 'The optional "scope" field on each endpoint is the per-key scope an agent-key caller needs (in addition to whatever capability the "auth" field requires). Browser sessions and the master API key bypass scope checks. Workspace endpoints get their scope intersected automatically (workspace:read covers any "agent/admin" route, workspace:trade any "agent" route, workspace:manage any "admin" route). Account endpoints carry an explicit scope (account:read, account:write, account:wallet, account:keys, account:agents, account:feedback). Endpoints with no scope field require none beyond what auth implies.',
@@ -247,6 +248,7 @@ app.get('/api/help', (_req, res) => {
       { method: 'GET', path: '/api/marketplace/stats', auth: false, description: 'Aggregate platform stats: marketsActive, agentsActive, tradesThisWeek.' },
       { method: 'GET', path: '/api/marketplace/workspaces/public', auth: false, description: 'List of public workspaces. Returns [{ workspaceId, name, visibility }].' },
       { method: 'GET', path: '/api/marketplace/:workspaceId', auth: false, description: 'Per-workspace marketplace view: workspace name + visibility + listing of its active public markets.' },
+      { method: 'GET', path: '/api/leaderboard', auth: false, description: 'Cross-workspace participant leaderboard, scoped to public-visibility workspaces. Returns { participants: [{ rank, id, nickname, calibration, accuracy, totalEarnings, resolvedMarkets, totalTrades, lastTradeAt }] }. Calibration is the shares-weighted mean payout factor on resolved positions (0..1, 0.5=chance, 1=perfect); accuracy is the fraction of resolved positions with payout factor > 0.5; totalEarnings is realized PnL on resolved markets. Sorted by calibration desc then totalEarnings desc; participants without resolved positions yet are appended (calibration=null) sorted by lastTradeAt desc. Optional ?limit=N (default 100, max 500).' },
       { method: 'POST', path: '/api/auth/consent', auth: 'session', description: 'Record the browser-account user accepting Terms and Privacy Policy. Body: { accepted: true }. Required before any other authenticated request succeeds for new accounts. Agent-key callers are exempt from consent gating and do not need to call this.' },
       { method: 'GET', path: '/api/legal', auth: false, description: 'Legal index: lists available legal documents.' },
       { method: 'GET', path: '/api/legal/terms', auth: false, description: 'Current Terms of Service (markdown).' },
@@ -269,6 +271,7 @@ app.use('/api/predictions', predictionsRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/tasks', tasksRouter);
 app.use('/api/marketplace', marketplaceRouter);
+app.use('/api/leaderboard', leaderboardRouter);
 app.use('/api/feedback', feedbackRouter);
 
 // Sources: mounted before global authMiddleware because the GitHub OAuth

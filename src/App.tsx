@@ -25,6 +25,7 @@ import { CheckInPage } from './pages/CheckInPage';
 import { OverviewPage } from './pages/OverviewPage';
 import { ActivityPage } from './pages/ActivityPage';
 import { ApiPage } from './pages/ApiPage';
+import { LeaderboardPage } from './pages/LeaderboardPage';
 
 function MarketplaceWorkspaceRedirect() {
   const { workspaceId } = useParams();
@@ -73,6 +74,7 @@ export function App() {
           <Route element={<AppLayout />}>
             <Route path="/marketplace" element={<MarketplacePage />} />
             <Route path="/marketplace/:workspaceId" element={<MarketplaceWorkspaceRedirect />} />
+            <Route path="/leaderboard" element={<LeaderboardPage />} />
             <Route path="/guides" element={<GuidesPage />} />
             <Route path="/guides/:section" element={<GuidesPage />} />
             <Route element={<RequireAuth />}>
