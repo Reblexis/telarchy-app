@@ -106,6 +106,10 @@ export function CheckInPage() {
   const [savingIds, setSavingIds] = useState<Record<string, boolean>>({});
   const [savedAt, setSavedAt] = useState<Record<string, number>>({});
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
+  // Tracks which inputs the user has actually edited in this session.
+  // Lets us treat a same-value blur as a "still correct" confirmation
+  // (bumps updatedAt) without treating an idle tab-through as one.
+  const [touchedIds, setTouchedIds] = useState<Record<string, boolean>>({});
   const [tick, setTick] = useState(0);
   const [welcomeSubmitting, setWelcomeSubmitting] = useState(false);
   const metricsRef = useRef<Metric[]>([]);
@@ -149,7 +153,11 @@ export function CheckInPage() {
       setRowErrors(prev => ({ ...prev, [metric.id]: 'Enter a number' }));
       return;
     }
-    if (v === metric.value) return;
+    // If value is unchanged AND the user never typed in this field this
+    // session, treat it as an idle tab-through and skip the save.
+    // If they edited (even to land on the same value), it counts as a
+    // "still correct" confirmation that bumps updatedAt server-side.
+    if (v === metric.value && !touchedIds[metric.id]) return;
     setRowErrors(prev => { const { [metric.id]: _, ...rest } = prev; return rest; });
     setSavingIds(prev => ({ ...prev, [metric.id]: true }));
     try {
@@ -168,6 +176,7 @@ export function CheckInPage() {
         : m));
       setValues(prev => ({ ...prev, [metric.id]: String(v) }));
       setSavedAt(prev => ({ ...prev, [metric.id]: Date.now() }));
+      setTouchedIds(prev => { const { [metric.id]: _, ...rest } = prev; return rest; });
     } catch (e) {
       setRowErrors(prev => ({ ...prev, [metric.id]: e instanceof Error ? e.message : 'Save failed' }));
     } finally {
@@ -183,7 +192,8 @@ export function CheckInPage() {
       for (const m of metricsRef.current.filter(isLeaf)) {
         const raw = values[m.id] ?? '';
         const v = parseFloat(raw);
-        if (isNaN(v) || v === m.value) continue;
+        if (isNaN(v)) continue;
+        if (v === m.value && !touchedIds[m.id]) continue;
         await api.updateMetric(m.id, {
           name: m.name,
           description: m.description || '',
@@ -243,6 +253,7 @@ export function CheckInPage() {
       value={values[m.id] ?? ''}
       onChange={v => {
         setValues(prev => ({ ...prev, [m.id]: v }));
+        setTouchedIds(prev => ({ ...prev, [m.id]: true }));
         if (rowErrors[m.id]) {
           setRowErrors(prev => { const { [m.id]: _, ...rest } = prev; return rest; });
         }
