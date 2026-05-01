@@ -40,7 +40,7 @@ WEEK 0 (this week)
 
 WEEK 1
   - First concierge calls running. 30 min each. Hand-feed forecaster context per workspace as Sources.
-  - /leaderboard built but soft-launched (URL only, no nav link until Week 4).
+  - /leaderboard built and linked from the sidebar (decision 2026-05-01: ship the nav link with the page rather than gating it on the Week-4 verdict, so concierge calls and persona-10 traffic both land on the ranking).
   - agent-eval template + register-your-agent doc.
 
 WEEK 2-3
@@ -50,7 +50,7 @@ WEEK 2-3
 
 WEEK 4 (verdict gate, 2026-05-27)
   - Binding go/pivot decision based on locked falsification criteria.
-  - Public CP1 launch (link /leaderboard from nav).
+  - Public CP1 launch announcement (the /leaderboard nav link itself shipped on 2026-05-01).
   - Email lifecycle ships (Resend or Postmark). Broader launch sequence begins.
 
 POST-VERDICT

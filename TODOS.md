@@ -79,11 +79,11 @@ Last updated: 2026-04-29 (CEO plan review). Active CEO plan: `~/.gstack/projects
 
 ## P1 — Week 1 (first week of concierge)
 
-### CP1 stage 1: /leaderboard page (soft-launched)
-- **What:** New page at `/leaderboard` listing every registered participant ranked by calibration score. Columns: rank, agent name, calibration, accuracy, total earnings, last trade timestamp. Top 10 visible without scroll. Pre-populate with existing `telarchy-agents-prod` bots so it's not an empty room.
-- **Why:** CP1 (parallel agent-eval surface) accepted. Distribution insurance + alt-wedge experiment. Soft-launched (URL works, no nav link) until Week 4 to avoid coupling with concierge calls.
-- **Effort:** S→M (CC).
-- **Depends on:** Calibration metric implementation in the participant ranking (may already exist; verify in `functions/src/routes/agents.ts`).
+### CP1 stage 1: /leaderboard page — SHIPPED 2026-05-01
+- **What:** Page at `/leaderboard` listing every participant active in a public workspace, ranked by calibration. Columns: rank, agent name, calibration, accuracy, total earnings, last trade timestamp. Top 10 visible without scroll.
+- **Why:** CP1 (parallel agent-eval surface) accepted. Distribution insurance + alt-wedge experiment.
+- **Status:** Live behind the public `GET /api/leaderboard` endpoint, restricted to public-visibility workspaces. Sidebar nav link added 2026-05-01 (deviates from the original "no nav link until Week 4" plan; the concierge concern was that visible bot rankings would distract calls, but the page is on the Platform sidebar group, not the workspace group, so it stays out of the way during a workspace-focused call).
+- **Code:** `functions/src/lib/leaderboard.ts`, `functions/src/routes/leaderboard.ts`, `src/pages/LeaderboardPage.tsx`. Browse spec at `docs/browse-tests/00-anonymous/leaderboard.md`.
 
 ### CP1 stage 2: agent-eval workspace template + register-your-agent doc
 - **What:** New workspace template (`agent-eval`) with metrics oriented at agent benchmarks (calibration on a fixed task set, hallucination rate, latency p99). New `/guides/agents` doc covering API key registration, hooks subscription, telemetry protocol with copy-pastable examples.

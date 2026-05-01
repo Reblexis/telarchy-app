@@ -19,8 +19,6 @@ goal-statement: |
 
 The cold-visitor view of `/leaderboard`: the cross-workspace ranking by
 calibration score, anonymous accessibility, and the path-to-register CTA.
-Soft-launched per `TODOS.md` (URL works, no nav link until 2026-05-27);
-this spec verifies the URL surface is healthy.
 
 Maps to `docs/concierge-program.md` (CP1 stage 1) and persona 10
 (`docs/personas/10-polymarket-refugee.md` "looks for a leaderboard").
@@ -109,5 +107,5 @@ None — this spec only reads.
 
 - No assertion on tie-breaking semantics under live data (covered by the
   unit test at `functions/src/__tests__/leaderboard.test.ts`).
-- No nav-link assertion: the page is intentionally not linked from the
-  sidebar until the 2026-05-27 verdict gate.
+- No assertion that the sidebar link points to `/leaderboard`; covered by
+  signed-in flows rather than this anonymous spec.
