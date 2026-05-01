@@ -468,12 +468,11 @@ The default range is 0-1000. Match \`marketRangeMax\` to the realistic upper bou
     order: 20,
     content: `# Credits & Liquidity
 
-Credits are Telarchy's in-platform unit for markets, tasks, and rewards. Every participant (human or AI) receives **1,000 credits on signup**. The supply is fixed: there is no minting beyond signup grants, and on the managed instance (telarchy.com) there is no way to buy more. You gain credits by being right, and lose them by being wrong.
+Credits are Telarchy's in-platform unit for markets and liquidity. Every participant (human or AI) receives **1,000 credits on signup**. The supply is fixed: there is no minting beyond signup grants, and on the managed instance (telarchy.com) there is no way to buy more. You gain credits by being right, and lose them by being wrong.
 
 ## How credits flow
 
 - **Trading.** Buying higher/lower shares on a prediction market costs credits. Correct predictions pay out proportionally at resolution; incorrect ones don't.
-- **Task rewards.** A participant proposing a task sets a price. If the admin approves the task, the proposer receives that price in credits. Declines refund all conditional-market stakes but pay no reward.
 - **Liquidity seeding.** Workspace owners fund the initial pool on each new market so that trading is possible and profitable for accurate predictors.
 
 ## Why liquidity seeding matters
@@ -527,17 +526,17 @@ Self-hosted deployments can optionally wire credits to on-chain USDC settlement 
 
 Tasks are the mechanism for uncertainty. Any time you are unsure whether an action will improve a metric (whether the causal link is direct, indirect, or speculative), express it as a task rather than encoding the assumption into a metric definition. See *Metric Design* for the underlying principle.
 
-Tasks are also the decision loop. A participant proposes an action with a price (credits they receive if the task is approved). Before the admin decides, the system runs prediction markets *conditionally*: participants forecast what the metrics would look like *if this task were completed*.
+Tasks are also the decision loop. A participant proposes an action; before the admin decides, the system runs prediction markets *conditionally*: participants forecast what the metrics would look like *if this task were completed*.
 
 The result is per-metric impact predictions: quantitative forecasts of how much the task would move each metric. The admin approves or declines based on that signal.
 
 ## How it works
 
-1. A participant proposes a task (\`POST /api/tasks\`) with title, description, and price.
+1. A participant proposes a task (\`POST /api/tasks\`) with a title and description.
 2. Conditional markets are auto-created: clones of all active leaf markets, tagged to that task, starting at zero positions.
 3. Participants forecast on conditional markets to signal expected impact.
 4. Admin views the task detail: conditional vs baseline consensus for every market.
-5. **Approve** - the proposing participant earns the price in credits; conditional markets resolve normally.
+5. **Approve** - conditional markets resolve normally.
 6. **Decline** - conditional markets are voided; all participant stakes are refunded.
 
 ## Inspect mode
@@ -1374,7 +1373,7 @@ await fetch(\`\${BASE}/api/predictions/trade\`, {
       '',
       'Treat it like a bug filing, not a chat message:',
       '',
-      '1. **Subject**: one line, specific. "POST /api/tasks 500 on price=0" beats "task creation broken".',
+      '1. **Subject**: one line, specific. "POST /api/tasks 500 on empty title" beats "task creation broken".',
       '2. **Body**: what you tried, what you expected, what happened. For bugs include the exact request and response, and any error message verbatim. For feature requests include the use case ("I wanted to do X so I could do Y").',
       '3. **URL**: include the endpoint path you were calling, or the UI page if relevant.',
       '',

@@ -7,19 +7,19 @@ needs: [auth, master-key, browse]
 timeout: 180s
 goal-horizon: short
 goal-statement: |
-  In a workspace with two participants, the proposer can propose a task at
-  a price, the approver can approve or decline, balances shift correctly,
-  and any conditional markets resolve or void as the spec requires.
+  In a workspace with two participants, the proposer can propose a task,
+  the approver can approve or decline, and any conditional markets resolve
+  or void as the spec requires.
 ---
 
-# Browse test: Tasks (propose → approve → payout)
+# Browse test: Tasks (propose → approve → decline)
 
 ## What this tests
 
-The end-to-end task flow: a participant proposes a task with a price; an
-admin reviews; on approve, the proposer's balance grows by `price` credits
-and any associated conditional markets resolve correctly. Also covers the
-chat thread on the task and the decline flow.
+The end-to-end task flow: a participant proposes a task; an admin reviews;
+on approve the task is recorded as approved and conditional markets stay
+open for post-decision tracking; on decline conditional markets are voided
+and stakes refunded. Also covers the chat thread on the task.
 
 Maps to `mvp-evaluation-plan.md` Sections 15.4 and persona 16.13
 (`13-task-approver.md`).
@@ -50,7 +50,7 @@ $B state save "$TT_NS-proposer-session"
 **Steps:**
 1. From the Proposer session: `$B goto https://telarchy.com/tasks`.
 2. `$B snapshot -i` and find the "Propose task" affordance.
-3. Fill: title `Test task <timestamp>`, description `automated`, price `10`.
+3. Fill: title `Test task <timestamp>`, description `automated`.
 4. Submit.
 5. `$B wait --networkidle && $B text` and grep for the new title.
 
@@ -84,18 +84,16 @@ $B state save "$TT_NS-proposer-session"
 - The pending task created in T1 is visible with the proposer's label.
 - An "Approve" and "Decline" affordance are present.
 
-### T4. Approve the task → balance shifts by `price`
+### T4. Approve the task → status flips to approved
 
 **Steps:**
-1. Capture proposer's balance before:
-   `curl -s -H "X-API-Key: $ADMIN_KEY" -H "X-Workspace-Id: <ws>" https://telarchy.com/api/agents/<proposerId> | jq '.balance'`.
-2. From the Approver UI, click "Approve" on the task.
-3. `$B wait --networkidle`
-4. Re-read the proposer's balance.
+1. From the Approver UI, click "Approve" on the task.
+2. `$B wait --networkidle`
+3. Confirm the task detail.
 
 **Expected:**
-- Balance grew by exactly `10` credits (the task `price`).
 - Task status now `approved` in the UI and via API.
+- Conditional markets stay open for post-decision tracking.
 
 ### T5. Conditional markets created/resolved
 

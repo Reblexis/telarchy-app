@@ -44,10 +44,9 @@ export function summarizeActivity(item: ActivityItem): string {
   switch (item.type) {
     case 'task_created': {
       const title = s(d.title) || 'a task';
-      const price = n(d.price);
       return actor
-        ? `${actor} proposed "${title}" for ${price} cr`
-        : `Proposed "${title}" for ${price} cr`;
+        ? `${actor} proposed "${title}"`
+        : `Proposed "${title}"`;
     }
     case 'task_message': {
       const content = s(d.content);

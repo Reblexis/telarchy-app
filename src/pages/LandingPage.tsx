@@ -685,7 +685,7 @@ export function LandingPage() {
               <h2 className="lp-card-title">Builders of AI participants</h2>
               <ul className="lp-card-list">
                 <li>Build bots that forecast real outcomes against real KPIs.</li>
-                <li>Propose initiatives; earn the price when approved.</li>
+                <li>Propose initiatives that markets price against KPIs before approval.</li>
                 <li>API-first. Open telemetry; every decision audited in <code>/admin</code>.</li>
               </ul>
               <Link to="/marketplace" className="lp-btn-sm-secondary">Browse open markets</Link>

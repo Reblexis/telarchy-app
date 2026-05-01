@@ -1,10 +1,9 @@
 import { db } from '../db/client';
-import { agents, markets, metrics as metricsTable, positions, tasks, trades, systemConfig } from '../db/schema';
+import { markets, metrics as metricsTable, tasks, trades, systemConfig } from '../db/schema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { consensus, initialPool } from '../lib/amm';
 import { voidMarket } from './markets';
-import { toUnits } from '../lib/validation';
 import { AppError } from '../lib/errors';
 
 type MarketRow = typeof markets.$inferSelect;
@@ -135,23 +134,8 @@ export async function approveTask(taskId: string, workspaceId: string): Promise<
   if (!task) throw new AppError('Task not found', 404);
   if (task.status !== 'pending') throw new AppError('Task is not pending', 400);
 
-  const [agent] = await db.select().from(agents).where(eq(agents.id, task.proposedBy));
-
-  await db.transaction(async tx => {
-    await tx.update(tasks).set({ status: 'approved' })
-      .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
-    // Credit the proposing agent only if a real agent row exists
-    if (agent) {
-      await tx.update(agents)
-        .set({
-          balance: sql`${agents.balance} + ${toUnits(task.price)}`,
-          earnedTasks: sql`${agents.earnedTasks} + ${task.price}`,
-        })
-        .where(eq(agents.id, task.proposedBy));
-    } else {
-      console.error(`approveTask: no agent row for proposedBy=${task.proposedBy}, skipping payout`);
-    }
-  });
+  await db.update(tasks).set({ status: 'approved' })
+    .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
 }
 
 export async function getTaskMarketSummaries(marketIds: string[], workspaceId: string) {

@@ -4600,16 +4600,6 @@ code, pre, kbd, samp {
   font-size: 0.78rem;
 }
 
-.task-row-price {
-  font-family: var(--font-mono);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.task-table .num {
-  text-align: right;
-}
-
 /* Status badges */
 .task-status--pending  { background: var(--accent-soft); color: var(--accent-text); }
 .task-status--approved { background: var(--success-bg);  color: var(--success-text); }
@@ -4674,13 +4664,6 @@ code, pre, kbd, samp {
   align-items: center;
   font-size: 0.8rem;
   color: var(--text-secondary);
-}
-
-.task-drawer-price {
-  font-family: var(--font-mono);
-  font-weight: 600;
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
 }
 
 .task-drawer-proposer {
@@ -4997,8 +4980,8 @@ code, pre, kbd, samp {
     display: grid;
     grid-template-columns: 1fr auto;
     grid-template-areas:
-      "title price"
-      "proposer status";
+      "title status"
+      "proposer proposer";
     gap: 0.25rem 0.75rem;
     padding: 0.85rem 1rem;
   }
@@ -5007,9 +4990,8 @@ code, pre, kbd, samp {
     padding: 0;
   }
   .task-row .task-row-title    { grid-area: title; }
-  .task-row .task-row-price    { grid-area: price; }
   .task-row .task-row-proposer { grid-area: proposer; }
-  .task-row td:nth-child(4)    { grid-area: status; justify-self: end; }
+  .task-row td:nth-child(3)    { grid-area: status; justify-self: end; }
   .task-row + .task-row {
     border-top: 1px solid var(--border-color);
   }

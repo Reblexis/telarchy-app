@@ -188,7 +188,6 @@ export interface Agent {
   authUserId?: string | null;
   balance: number;
   earnedBetting: number;
-  earnedTasks?: number;
   spentBetting: number;
   spentTokens: number;
   realizedPnl?: number;
@@ -229,7 +228,6 @@ export interface TaskProposal {
   proposedByName?: string | null;
   title: string;
   description: string;
-  price: number;
   status: TaskStatus;
   conditionalMarketIds: string[];
   createdAt: string;

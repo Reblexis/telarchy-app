@@ -28,7 +28,7 @@ The closest existing category is **decision markets**: conditional prediction ma
 
 ## Core thesis
 
-**Owners set goals, markets score actions against them.** A participant proposes an action with a price. Conditional markets reveal the expected per-metric impact. The owner approves or declines with a calibrated number rather than a gut call. Participants whose forecasts are consistently accurate accumulate credits; inaccurate ones lose them. The market makes manipulation transparent and expensive. A bad proposal is rejected not by opinion but by the crowd's forecasts. A good one clears faster as the markets learn.
+**Owners set goals, markets score actions against them.** A participant proposes an action. Conditional markets reveal the expected per-metric impact. The owner approves or declines with a calibrated number rather than a gut call. Participants whose forecasts are consistently accurate accumulate credits; inaccurate ones lose them. The market makes manipulation transparent and expensive. A bad proposal is rejected not by opinion but by the crowd's forecasts. A good one clears faster as the markets learn.
 
 **Automation is a continuum, not a switch.** Today the market informs a human who decides; the human is faster and better-calibrated than they would be without it. As markets accumulate data and calibration improves, more decisions can clear without a human in the loop at all. The direction is an asymptote: less time spent deciding, more spent doing. The product delivers value at every point on the continuum, not only at the far end.
 
@@ -101,7 +101,7 @@ Participants sign up either through browser accounts or direct API-key registrat
 - **Capabilities**: authorization is a flat set of three capabilities, `read` (view metrics/markets/tasks/sources), `trade` (place trades, propose tasks, send task messages), and `manage` (admin operations: create/edit metrics, resolve markets, approve tasks, manage groups and members). A caller's effective capabilities are the union of the `capabilities` arrays on every permission group they belong to in the active workspace. The master API key, the platform admin flag (`platformAdmin` in the DB, bootstrapped from `ADMIN_EMAILS`), and the workspace creator/owner short-circuit to all three capabilities. There are no fixed role enums at the auth layer; legacy labels like `admin`, `agent`, `member` are derived on the fly for UI display and are not authoritative.
 - **Authentication**: three paths checked in order: master API key (`X-API-Key` header), BetterAuth browser-account session (cookie, resolved via `auth.api.getSession()`), per-participant API key (`X-Agent-Key`, SHA-256 hashed; header name kept for backwards compatibility). Google and GitHub OAuth are supported when `GOOGLE_CLIENT_ID`/`GITHUB_CLIENT_ID` env vars are set. Browser accounts attach directly to a participant row in the `agents` table via `authUserId` (the table retains its original name). CORS and BetterAuth `trustedOrigins` come only from `ALLOWED_ORIGIN` / `TRUSTED_ORIGINS` (see `functions/src/lib/origins.ts`); `BETTER_AUTH_URL` is the public browser origin for OAuth redirects; optional `AUTH_COOKIE_DOMAIN` (e.g. `.example.com`) aligns cookies when apex and www both serve the app.
 - **Identity symmetry**: human participants and AI participants are the same class of identity with different signup methods. A human-user login resolves to the same participant identity used by the corresponding API-key session, so trading, task, and workspace capabilities stay aligned.
-- **Balance tracking**: `balance`, `earnedBetting`, `earnedTasks`, `spentBetting`, `spentTokens` - separate counters for full auditability.
+- **Balance tracking**: `balance`, `earnedBetting`, `spentBetting`, `spentTokens` - separate counters for full auditability.
 - **Credit economy**: Every participant receives 1000 credits on signup (`SIGNUP_CREDITS` constant). Credits are the core economy: workspace owners spend them to fund market liquidity; participants spend them to place predictions. On the managed instance (telarchy.com), credits are play-money with real scarcity. Platform admins can also distribute credits via `POST /agents/:id/credit`. On self-hosted instances with USDC settlement enabled, every credit is backed 1:1 by USDC held in the treasury, created only via `POST /agents/:id/deposit` (USDC -> credits, requires on-chain tx hash verification).
 - **Global balance**: A participant's balance row in the `agents` table is not scoped to any workspace. Each participant has exactly one account with one credit balance usable across the system. **Balances are stored as integer nanocredits** (1 credit = 1,000,000,000 units) to eliminate IEEE 754 float drift. All reads go through `fromUnits()`, all writes use `toUnits()` before any SQL increment.
 - **Admin UI**: Participants page with admin badge (rendered when a participant has the `manage` capability), credit distribution, PnL display. Administrative access is granted by adding a participant to the Admin system group (or any group whose capabilities include `manage`), not via a direct role dropdown.
@@ -122,14 +122,14 @@ Metric formulas use `{MetricName}` references plus standard math operators and h
 
 ### Phase 4: Tasks and Conditional Decision Markets (Implemented)
 
-Participants propose tasks with a price (credits they receive if approved). The system evaluates each proposal by running the existing prediction markets conditionally against it.
+Participants propose tasks; the system evaluates each proposal by running the existing prediction markets conditionally against it.
 
 **How it works**:
-1. A participant calls `POST /api/tasks` with `{ title, description, price }`.
+1. A participant calls `POST /api/tasks` with `{ title, description }`.
 2. When any participant fetches markets with `?taskId=<id>`, the system auto-creates **conditional markets** (clones of all currently active leaf-metric markets, starting with zero positions, tagged with the `taskId`).
 3. Participants forecast on conditional markets to signal expected impact: "what will metric X be if this task is completed?"
 4. The admin (workspace owner or a participant with `manage` capability) views the task detail, which shows: conditional consensus vs baseline consensus for every market, revealing per-metric impact predictions.
-5. **Approve** - proposing participant receives `price` credits (tracked in `earnedTasks`); conditional markets remain and resolve normally.
+5. **Approve** - the task is recorded as approved; conditional markets remain and resolve normally.
 6. **Decline** - conditional markets are voided; all participant stakes are fully refunded.
 
 A per-task message thread (`tasks/{taskId}/messages`) enables proposer-admin negotiation before a decision is made.

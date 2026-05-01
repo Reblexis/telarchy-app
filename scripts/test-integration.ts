@@ -601,7 +601,6 @@ await suite('Tasks', async () => {
     const r = ok(await agentCall(ctx.agentKey, ctx.wsId)('POST', '/tasks', {
       title: 'Integration test task',
       description: 'Verify task flow works end-to-end',
-      price: 5,
     }));
     ctx.taskId = r.id as string;
     expect(ctx.taskId).toBeTruthy();
@@ -618,16 +617,15 @@ await suite('Tasks', async () => {
     expect(r.id).toBe(ctx.taskId);
     expect(r.title).toBe('Integration test task');
     expect(r.status).toBe('pending');
-    expect(r.price).toBe(5);
   });
 
-  await test('Task creation without price is rejected (400)', async () => {
-    const r = await agentCall(ctx.agentKey, ctx.wsId)('POST', '/tasks', { title: 'No price' });
+  await test('Task creation without title is rejected (400)', async () => {
+    const r = await agentCall(ctx.agentKey, ctx.wsId)('POST', '/tasks', { description: 'no title' });
     expect(r.status).toBe(400);
   });
 
   await test('Task creation with master key is rejected (403, no participant identity)', async () => {
-    const r = await adminCall(ctx.wsId)('POST', '/tasks', { title: 'Admin task', price: 1 });
+    const r = await adminCall(ctx.wsId)('POST', '/tasks', { title: 'Admin task' });
     expect(r.status).toBe(403);
   });
 
@@ -643,7 +641,7 @@ await suite('Tasks', async () => {
 
   await test('POST /api/tasks/:id/decline declines a pending task', async () => {
     const taskR = ok(await agentCall(ctx.agentKey, ctx.wsId)('POST', '/tasks', {
-      title: 'Task to decline', price: 2,
+      title: 'Task to decline',
     }));
     const r = await adminCall(ctx.wsId)('POST', `/tasks/${taskR.id as string}/decline`, {});
     expect(r.status).toBe(200);
@@ -1060,7 +1058,6 @@ await suite('Task messages', async () => {
     const r = ok(await agentCall(ctx.agentKey, ctx.wsId)('POST', '/tasks', {
       title: 'Message test task',
       description: 'Used to verify task message threading',
-      price: 1,
     }));
     msgTaskId = r.id as string;
     expect(msgTaskId).toBeTruthy();
@@ -1833,11 +1830,10 @@ await suite('Scenario: task lifecycle with conditional markets', async () => {
     lifecycleMetricId = mr.id as string;
   });
 
-  await test('Step 1: agent proposes a task with a price', async () => {
+  await test('Step 1: agent proposes a task', async () => {
     const r = ok(await agentCall(lifecycleAgentKey, ctx.wsId)('POST', '/tasks', {
       title: 'Lifecycle Test Task',
       description: 'Complete a specific measurable outcome',
-      price: 10,
     }));
     lifecycleTaskId = r.id as string;
     expect(lifecycleTaskId).toBeTruthy();

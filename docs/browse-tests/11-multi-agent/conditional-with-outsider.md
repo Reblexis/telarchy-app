@@ -43,7 +43,7 @@ tt_admin_curl "$WS" -H 'Content-Type: application/json' \
 ```bash
 TASK=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \
-  -d '{"title":"Run an experiment","description":"...","price":15}' \
+  -d '{"title":"Run an experiment","description":"..."}' \
   "$TT_BASE_URL/api/tasks" | jq -r '.id')
 mkts=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
   "$TT_BASE_URL/api/tasks/$TASK" | jq -r '.conditionalMarketIds[]?')
@@ -97,16 +97,7 @@ awk -v a="$b1" -v b="$b2" 'BEGIN{exit !(b >= a)}' \
   || echo "WARN: outsider's balance dropped post-resolve: $b1 → $b2 (only legitimate if 'higher' lost)"
 ```
 
-### T6. Proposer received the task price
-
-```bash
-prop_bal=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
-  "$TT_BASE_URL/api/agents/$PROP/balance" | jq -r '.balance')
-awk -v b="$prop_bal" 'BEGIN{exit !(b >= 215)}' \
-  || echo "WARN: proposer balance $prop_bal does not include +15 task price"
-```
-
-### T7. Approver did not lose credits to approve the task
+### T6. Approver did not lose credits to approve the task
 
 ```bash
 appr_bal=$(curl -sf -H "X-Agent-Key: $KA" -H "X-Workspace-Id: $WS" \

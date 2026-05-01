@@ -196,7 +196,6 @@ export function OverviewPage() {
               <li key={t.id}>
                 <Link to={`/tasks?id=${t.id}`} className="overview-row">
                   <span className="overview-row-text">{t.title}</span>
-                  <span className="overview-row-meta">{t.price.toFixed(0)} cr</span>
                 </Link>
               </li>
             ))}

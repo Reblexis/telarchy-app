@@ -16,7 +16,7 @@ tasksRouter.use(authMiddleware);
 
 tasksRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
-  const { title, description, price } = req.body;
+  const { title, description } = req.body;
   if (!title || typeof title !== 'string') { res.status(400).json({ error: 'title is required' }); return; }
   const titleError = validateContent(title, 'title', 200);
   if (titleError) { res.status(400).json({ error: titleError }); return; }
@@ -24,7 +24,6 @@ tasksRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
     const descError = validateContent(description, 'description');
     if (descError) { res.status(400).json({ error: descError }); return; }
   }
-  if (typeof price !== 'number' || price <= 0) { res.status(400).json({ error: 'price must be a positive number' }); return; }
 
   const proposedBy = req.auth!.agentId;
   if (!proposedBy) { res.status(403).json({ error: 'Task creation requires a participant identity. Visit your account page to finish setup.' }); return; }
@@ -32,7 +31,7 @@ tasksRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
 
   await db.insert(tasks).values({
     id, workspaceId, proposedBy,
-    title, description: description || '', price,
+    title, description: description || '',
     status: 'pending', conditionalMarketIds: [], createdAt: new Date(),
   });
 
@@ -74,7 +73,6 @@ tasksRouter.get('/', requireCapability('read'), wrap(async (req, res) => {
     description: typeof t.description === 'string' && t.description.length > 150
       ? t.description.slice(0, 150) + '…'
       : (t.description ?? ''),
-    price: t.price,
     status: t.status,
     proposedBy: t.proposedBy,
     proposedByName: names.get(t.proposedBy) ?? null,

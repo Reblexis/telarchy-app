@@ -306,7 +306,7 @@ export const api = {
   // Tasks
   getTasks: (status?: string) => request(`/api/tasks${status ? `?status=${encodeURIComponent(status)}` : ''}`),
   getTask: (id: string) => request(`/api/tasks/${id}`),
-  createTask: (body: { title: string; description: string; price: number }) =>
+  createTask: (body: { title: string; description: string }) =>
     request('/api/tasks', { method: 'POST', body: JSON.stringify(body) }),
   approveTask: (id: string) =>
     request(`/api/tasks/${id}/approve`, { method: 'POST' }),

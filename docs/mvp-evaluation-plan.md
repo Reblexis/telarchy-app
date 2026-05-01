@@ -277,7 +277,7 @@ Things that exist but are easy to forget.
 | 15.1 | `/api/help` endpoint documents every currently-routed endpoint | Bash compare registered routes vs `/api/help` | No missing or stale entries |
 | 15.2 | Guides pages (`/guides/*`) all render | browse navigate each section | Markdown renders |
 | 15.3 | Sources (text + GitHub) end-to-end if enabled | Bash + browse `$B goto`| Text source creatable + readable; GitHub flow reachable |
-| 15.4 | Tasks propose → approve → payout works end-to-end | Bash/browse `$B goto`| Balance shifts by `price` credits |
+| 15.4 | Tasks propose → approve / decline works end-to-end | Bash/browse `$B goto`| Status flips; on decline conditional markets are voided and stakes refunded |
 | 15.5 | Credit balance displayed consistently across Dashboard, Marketplace, AgentPortal | browse compare | Three values identical |
 
 ---

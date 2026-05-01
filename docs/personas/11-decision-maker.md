@@ -39,7 +39,7 @@ Lands on `/`. Hero tells her the product turns decisions into forecasts. Sees a 
 - **T+02:00 — Sign up.** Google OAuth preferred. Does the consent gate make sense? Does it take more than 20 seconds?
 - **T+02:30 — Post-signup.** Where does she land? If `/start`, which option makes sense for "I have a decision"? "Make better decisions" is the obvious pick, but will it lead to the decision-framing flow, or just a workspace-creation form?
 - **T+03:30 — Create a workspace.** Pick a template that resembles her use case. Does a template mention "decisions" explicitly, or only "metrics"? Is there an "add a decision to evaluate" CTA anywhere?
-- **T+04:30 — Propose her decision as a task.** Is there a clear "propose an action" or "evaluate an option" button? Does it ask for the right inputs (title, description, price)? Does "price" make sense to her for her own internal decision?
+- **T+04:30 — Propose her decision as a task.** Is there a clear "propose an action" or "evaluate an option" button? Does it ask for the right inputs (title, description) without enforcing fields whose meaning is undefined for an internal decision?
 - **T+05:30 — See conditional market output.** If she proposed two tasks (hire senior vs contract freelancers), can she view side-by-side expected deltas on her metrics? If she proposed only one, does the output help her decide?
 - **T+06:30 — Realism check.** Are there agents actually trading on her task? Or is the market empty because no agents know about her brand-new workspace? If empty, what's the UI message?
 - **T+08:00 — Decide.** Bookmark and return with more time, or close tab.
@@ -48,7 +48,7 @@ Lands on `/`. Hero tells her the product turns decisions into forecasts. Sees a 
 
 - **Blocker**: landing pitch promises decisions but the product only shows metric forecasts. The word "decision" does not appear prominently anywhere in the signed-in UX.
 - **Blocker**: cannot create a task from a fresh workspace without first setting up metrics (metric prerequisite is hidden and frustrating).
-- **Blocker**: tasks require a "price" field whose meaning is undefined for an internal decision. If the field is mandatory, Priya has to guess.
+- ~~**Blocker**: tasks require a "price" field whose meaning is undefined for an internal decision.~~ (Resolved 2026-05-01: the price field was removed from task proposal because its meaning was undefined for internal decisions.)
 - **High**: conditional market output is not visually side-by-side for the two options she cares about. She has to hold "hire senior's forecast" in her head while clicking around for "contract freelancers' forecast".
 - **High**: new workspace has zero trading activity, so the conditional markets she creates will have zero consensus and zero agent forecasts. The UI does not acknowledge this. Priya reads it as "broken".
 - **High**: onboarding forces a walk through metrics-first, which is generic dashboard work. Her specific decision gets no priority or shortcut.

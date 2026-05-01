@@ -16,10 +16,6 @@ function formatNumber(value: number | null | undefined): string {
   return Math.abs(value - rounded) < 0.005 ? String(rounded) : value.toFixed(2);
 }
 
-function formatCurrency(value: number): string {
-  return `$${value.toFixed(2)}`;
-}
-
 /**
  * One-line summary of how the task's conditional markets are pricing the
  * proposal, used in the approve-confirm. Picks up to two largest-magnitude
@@ -246,7 +242,6 @@ function TaskDrawer({ task, isAdmin, onClose, onAction, onError }: TaskDrawerPro
             <h3>{task.title}</h3>
             <div className="task-drawer-meta">
               <StatusBadge status={task.status} />
-              <span className="task-drawer-price">{formatCurrency(task.price)}</span>
               <span className="task-drawer-proposer">
                 proposed by {task.proposedByName ?? `${task.proposedBy.slice(0, 8)}…`}
               </span>
@@ -279,7 +274,6 @@ function TaskDrawer({ task, isAdmin, onClose, onAction, onError }: TaskDrawerPro
                         const lines = [
                           `Approve "${task.title}"?`,
                           '',
-                          `Cost: pays the proposer ${formatCurrency(task.price)} in credits.`,
                           forecast ? `Forecast: ${forecast}` : 'Forecast: no market signal yet.',
                           '',
                           'Conditional markets stay open for post-decision tracking.',
@@ -295,7 +289,7 @@ function TaskDrawer({ task, isAdmin, onClose, onAction, onError }: TaskDrawerPro
                       className="btn-decline"
                       disabled={acting}
                       onClick={() => {
-                        if (!window.confirm(`Decline "${task.title}"?\n\nThis voids the task's conditional markets and refunds any stakes. The proposer is not paid.`)) return;
+                        if (!window.confirm(`Decline "${task.title}"?\n\nThis voids the task's conditional markets and refunds any stakes.`)) return;
                         handle(() => api.declineTask(task.id));
                       }}
                     >
@@ -306,7 +300,7 @@ function TaskDrawer({ task, isAdmin, onClose, onAction, onError }: TaskDrawerPro
               </div>
               <p className="task-actions-hint">
                 {isAdmin
-                  ? `Approving pays the proposer ${formatCurrency(task.price)} in credits. Declining voids conditional markets and refunds stakes.`
+                  ? 'Declining voids conditional markets and refunds stakes.'
                   : 'Only workspace admins can approve or decline. Click Inspect to see how this task would shift each metric.'}
               </p>
             </div>
@@ -337,24 +331,22 @@ interface NewTaskModalProps {
 function NewTaskModal({ open, onClose, onCreated, onError }: NewTaskModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [price, setPrice] = useState('');
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setTitle(''); setDescription(''); setPrice(''); setCreating(false);
+    setTitle(''); setDescription(''); setCreating(false);
   }, [open]);
 
   if (!open) return null;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!title || !price) return;
+    if (!title) return;
     setCreating(true);
     const result = await api.createTask({
       title,
       description,
-      price: parseFloat(price),
     }).catch((e: Error) => { onError(e.message); return null; });
     setCreating(false);
     if (result) { onCreated(); onClose(); }
@@ -391,15 +383,7 @@ function NewTaskModal({ open, onClose, onCreated, onError }: NewTaskModalProps) 
               rows={3}
             />
           </div>
-          <div className="form-group">
-            <label htmlFor="newTaskPrice">Price (credits)</label>
-            <input
-              id="newTaskPrice" type="number" required min="1"
-              value={price} onChange={e => setPrice(e.target.value)}
-              placeholder="500"
-            />
-          </div>
-          <button type="submit" className="btn" disabled={creating || !title || !price}>
+          <button type="submit" className="btn" disabled={creating || !title}>
             {creating ? 'Proposing…' : 'Propose task'}
           </button>
         </form>
@@ -495,7 +479,6 @@ export function TasksPage() {
               <tr>
                 <th>Title</th>
                 <th>Proposed by</th>
-                <th className="num">Price</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -516,7 +499,6 @@ export function TasksPage() {
                       <span className="task-row-proposer-id">{`${task.proposedBy.slice(0, 8)}…`}</span>
                     )}
                   </td>
-                  <td className="num task-row-price">{formatCurrency(task.price)}</td>
                   <td><StatusBadge status={task.status} /></td>
                 </tr>
               ))}

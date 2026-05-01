@@ -101,7 +101,6 @@ export const agents = pgTable('agents', {
   earnedBetting: doublePrecision('earned_betting').notNull().default(0),
   spentBetting: doublePrecision('spent_betting').notNull().default(0),
   spentTokens: doublePrecision('spent_tokens').notNull().default(0),
-  earnedTasks: doublePrecision('earned_tasks').notNull().default(0),
   /** Base network USDC withdrawal address (checksummed) */
   walletAddress: text('wallet_address'),
   withdrawnUsdc: doublePrecision('withdrawn_usdc').notNull().default(0),
@@ -257,7 +256,6 @@ export const tasks = pgTable('tasks', {
   proposedBy: text('proposed_by').notNull(),
   title: text('title').notNull(),
   description: text('description').notNull().default(''),
-  price: doublePrecision('price').notNull(),
   /** 'pending' | 'approved' | 'declined' */
   status: text('status').notNull().default('pending'),
   conditionalMarketIds: jsonb('conditional_market_ids').notNull().$type<string[]>().default([]),

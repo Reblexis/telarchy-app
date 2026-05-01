@@ -42,7 +42,7 @@ tt_admin_curl "$WS" -H 'Content-Type: application/json' \
 ```bash
 out=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \
-  -d '{"title":"Ship onboarding","description":"...","price":10}' \
+  -d '{"title":"Ship onboarding","description":"..."}' \
   "$TT_BASE_URL/api/tasks")
 TASK=$(jq -r '.id' <<<"$out")
 [ -n "$TASK" ] && [ "$TASK" != "null" ]
@@ -105,7 +105,7 @@ done
 ```bash
 out=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \
-  -d '{"title":"Decline me","description":"...","price":5}' \
+  -d '{"title":"Decline me","description":"..."}' \
   "$TT_BASE_URL/api/tasks")
 TASK2=$(jq -r '.id' <<<"$out")
 mkts2=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \

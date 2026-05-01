@@ -276,7 +276,6 @@ export async function getActivityFeed(workspaceId: string, opts: ActivityQuery):
       taskId: t.id,
       data: {
         title: t.title,
-        price: t.price,
         status: t.status,
       },
     });

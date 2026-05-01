@@ -32,7 +32,7 @@ tt_admin_curl "$WS" -H 'Content-Type: application/json' \
   "$TT_BASE_URL/api/workspaces/$WS/members" >/dev/null
 TASK=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \
-  -d '{"title":"Chat me","description":"...","price":3}' \
+  -d '{"title":"Chat me","description":"..."}' \
   "$TT_BASE_URL/api/tasks" | jq -r '.id')
 ```
 

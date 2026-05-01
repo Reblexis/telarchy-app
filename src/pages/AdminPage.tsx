@@ -46,7 +46,7 @@ function summarize(item: ActivityItem): string {
     case 'metric_update':
       return `${d.metricName ?? 'metric'}: ${d.oldValue ?? '?'} → ${d.newValue ?? '?'}`;
     case 'task_created':
-      return `${d.title ?? 'task'} (${d.status ?? 'open'}) ${d.price ?? 0} cr`;
+      return `${d.title ?? 'task'} (${d.status ?? 'open'})`;
     case 'task_message':
       return typeof d.content === 'string' ? (d.content.length > 120 ? d.content.slice(0, 120) + '…' : d.content) : '';
     case 'liquidity': {

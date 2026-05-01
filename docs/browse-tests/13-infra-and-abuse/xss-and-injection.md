@@ -42,7 +42,7 @@ mkt=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
   "$TT_BASE_URL/api/predictions/markets" | jq -r '.id')
 TASK=$(curl -sf -b "$JAR" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \
-  -d "$(jq -nc --arg t "$PAYLOAD" '{title:$t, description:$t, price:1}')" \
+  -d "$(jq -nc --arg t "$PAYLOAD" '{title:$t, description:$t}')" \
   "$TT_BASE_URL/api/tasks" | jq -r '.id')
 curl -sf -b "$JAR" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \

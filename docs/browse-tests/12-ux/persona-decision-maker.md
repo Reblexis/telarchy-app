@@ -45,7 +45,7 @@ tt_add_member "$WS" "$MUID" "admin"
 # Propose a real-feeling task as bot
 TASK=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \
-  -d '{"title":"Run a paid ad campaign in Q2","description":"Spend $5k targeting design teams. Expected lift: 80 signups.","price":40}' \
+  -d '{"title":"Run a paid ad campaign in Q2","description":"Spend $5k targeting design teams. Expected lift: 80 signups."}' \
   "$TT_BASE_URL/api/tasks" | jq -r '.id')
 # Have a third bot trade so consensus exists
 read T3 K3 < <(tt_mkagent "$WS" thirdparty)
@@ -95,7 +95,6 @@ text=$($B text)
 echo "=== TASK DETAIL ===" >> "$findings"; echo "$text" | head -c 2000 >> "$findings"
 grep -qi 'paid ad campaign' <<<"$text" || react "FRICTION title missing"
 grep -qi 'lift' <<<"$text"             || react "FRICTION description missing"
-grep -qi '40\|price'                   <<<"$text" || react "FRICTION price missing"
 ```
 
 ### T3. Read the consensus

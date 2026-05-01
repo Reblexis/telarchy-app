@@ -85,7 +85,7 @@ $B screenshot "/tmp/$TT_NS-use/01-kpis.png"
 ```bash
 TASK=$(curl -sf -b "$JAR" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \
-  -d '{"title":"Hire senior engineer at $200k base","description":"~+15k/mo burn, expected +8k/mo MRR by Q3","price":50}' \
+  -d '{"title":"Hire senior engineer at $200k base","description":"~+15k/mo burn, expected +8k/mo MRR by Q3"}' \
   "$TT_BASE_URL/api/tasks" | jq -r '.id')
 react "proposed task: $TASK"
 mkts=$(curl -sf -b "$JAR" -H "X-Workspace-Id: $WS" \

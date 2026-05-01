@@ -15,7 +15,7 @@ grade-prompt: |
   You are Marcus, a YC-batch founder with $40k cash and four bets to
   evaluate. Score:
   - relevance (1-10): could you map your real KPI tree onto this in 10 min?
-  - decision-pricing (1-10): is the "price a decision" mechanic clear?
+  - decision-forecasting (1-10): is the "forecast a decision against KPIs" mechanic clear?
   - team scale (1-10): could you bring a co-founder + advisor into this?
   - calibration (1-10): does the UI help you stay calibrated?
   Verdict: ADOPT / TRIAL_ONE_DECISION / SKIP. Top 2 frictions.
@@ -27,7 +27,7 @@ grade-prompt: |
 
 Borrowed from `docs/personas/04-startup-founder.md`. The founder needs to
 see (a) a startup template that maps to revenue/runway/etc., (b) a way to
-propose-and-price a decision, (c) member invite flow.
+propose a decision and read a market forecast on it, (c) member invite flow.
 
 ## Setup
 
@@ -98,7 +98,7 @@ done
 react "founder-relevant KPI matches: $hits / 5"
 ```
 
-### T4. Propose a decision and price it
+### T4. Propose a decision
 
 ```bash
 $B goto "$TT_FRONTEND_URL/tasks" && $B wait --networkidle
@@ -108,7 +108,6 @@ $B click 'button:has-text("Propose"), button:has-text("New task"), [data-testid=
 $B wait --networkidle
 $B fill 'input[name="title"], input[placeholder*="title" i]' "Hire 1 senior engineer"
 $B fill 'textarea[name="description"], textarea[placeholder*="description" i]' "Trade-off: increase burn by 15k/mo, expect MRR up 8k/mo by Q3"
-$B fill 'input[name="price"], input[placeholder*="price" i]' "20"
 $B click 'button[type="submit"]:has-text("Propose"), button:has-text("Submit")'
 $B wait --networkidle
 $B screenshot "/tmp/$TT_NS-sf/06-task-proposed.png"

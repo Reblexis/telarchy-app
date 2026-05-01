@@ -11,14 +11,14 @@ Returning admin of an existing workspace. A participant (automated or human team
 
 ## Background
 
-Admin / owner of a workspace with a few metrics (revenue, retention, velocity) and several active markets. A participant or teammate proposed a task such as "Hire freelance designer for H2 landing page" with a price of 800 credits. Conditional markets spawned for each leaf metric. At least 2-3 participants have traded on the conditional markets.
+Admin / owner of a workspace with a few metrics (revenue, retention, velocity) and several active markets. A participant or teammate proposed a task such as "Hire freelance designer for H2 landing page". Conditional markets spawned for each leaf metric. At least 2-3 participants have traded on the conditional markets.
 
 ## Mental model
 
 **They already know**:
 - The product enough to navigate: sidebar, workspace context, tasks page, markets page.
 - Which metrics in their workspace matter most right now.
-- That "approving" a task means paying the proposer the price *and* committing to the action.
+- That "approving" a task means committing to the action; conditional markets stay open for post-decision tracking.
 - Roughly what a prediction market looks like (they've placed a trade or two).
 
 **They don't know**:
@@ -34,13 +34,12 @@ Opens Tasks. Sees the pending task with an obvious "conditional forecast" summar
 ## Session script
 
 - **T+00:00 — Open Tasks.** Is the pending task surfaced at the top? Is there a count badge on the sidebar item? Is there a clear "needs your attention" signal vs fully autonomous ones?
-- **T+00:30 — Click the task.** Does the detail page show the task title, description, price, proposing participant, and baseline-vs-conditional per-metric forecasts side by side, or does Chen have to click into each market individually?
+- **T+00:30 — Click the task.** Does the detail page show the task title, description, proposing participant, and baseline-vs-conditional per-metric forecasts side by side, or does Chen have to click into each market individually?
 - **T+01:30 — Read the forecast delta table.** Is it a table, a chart, or a narrative? Which metrics are predicted to move? Does the UI tell Chen how many trades informed each conditional forecast?
 - **T+02:30 — Low-liquidity check.** If only 1-2 trades have happened, is the UI honest about low confidence? Does it show volume / number of trades / liquidity on each conditional market?
 - **T+03:30 — Ask a question via message thread.** Is the task thread discoverable on the same page? Is it obvious how to ping the proposer? Does the proposer get notified?
 - **T+04:30 — Decision UI.** Approve and Decline buttons. Is the consequence of each spelled out? Specifically: on Decline, are conditional markets voided and stakes refunded? On Approve, does the task move to "done" or "in progress"?
-- **T+06:00 — Approve.** Click. What happens? Toast? Redirect? Does Chen see the task status update? Is the proposer credited? Are conditional markets left running or do they resolve/close?
-- **T+08:00 — Check proposer balance.** Does the proposing participant actually receive the price? Is there visible audit trail?
+- **T+06:00 — Approve.** Click. What happens? Toast? Redirect? Does Chen see the task status update? Are conditional markets left running or do they resolve/close?
 - **T+10:00 — Return to dashboard.** Is there any visible "decisions made this week" summary, or is the approval invisible once completed?
 
 ## Friction triggers
@@ -57,7 +56,7 @@ Opens Tasks. Sees the pending task with an obvious "conditional forecast" summar
 
 ## Conversion criteria
 
-Chen successfully approves or declines the task with confidence in what they just did, and the consequence (payout / refund / status change) is visible and consistent with expectations.
+Chen successfully approves or declines the task with confidence in what they just did, and the consequence (status change, refund on decline) is visible and consistent with expectations.
 
 ## Bounce criteria
 
@@ -66,6 +65,6 @@ Cannot figure out how the conditional markets inform the decision and punts on m
 ## Executor notes
 
 - This persona requires a seeded state: a workspace with metrics and at least one pending task with conditional markets that have real (non-zero) trade volume. If state is not available, precondition the session by using the primary admin account to propose a test task, or use an existing dogfood-workspace task.
-- Verify the *live* flow end to end: approve → payout lands in proposing-participant balance → conditional markets stay open (per vision) → task status changes.
+- Verify the *live* flow end to end: approve → conditional markets stay open (per vision) → task status changes.
 - Specifically note whether volume / trade-count is visible per conditional market. This is the signal that separates "calibrated forecast" from "one random trade".
 - If "Approve" and "Decline" do not have explicit consequences in the UI text, flag it.

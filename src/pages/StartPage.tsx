@@ -48,9 +48,6 @@ function PendingTasksQueue() {
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: '0.75rem' }}>
               {t.title}
             </span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', flexShrink: 0 }}>
-              ${t.price.toFixed(2)}
-            </span>
           </Link>
         ))}
       </div>

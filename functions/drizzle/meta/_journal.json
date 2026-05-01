@@ -169,6 +169,13 @@
       "when": 1777500000000,
       "tag": "0023_agents_owner_user_id",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1777600000000,
+      "tag": "0024_drop_task_price",
+      "breakpoints": true
     }
   ]
 }

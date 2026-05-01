@@ -94,7 +94,7 @@ systemRouter.post('/reset-economy', requireCapability('manage'), wrap(async (req
 
     if (wsAgentIds.length) {
       await tx.update(agents).set({
-        balance: 0, earnedBetting: 0, earnedTasks: 0,
+        balance: 0, earnedBetting: 0,
         spentBetting: 0, spentTokens: 0, withdrawnUsdc: 0,
       }).where(inArray(agents.id, wsAgentIds));
       await tx.delete(deposits).where(inArray(deposits.agentId, wsAgentIds));

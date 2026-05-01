@@ -59,7 +59,7 @@ WS_ID=$(curl -sf -b "$JAR" -H 'Content-Type: application/json' \
 curl -sf -b "$JAR" -H 'Content-Type: application/json' \
   -H "X-Workspace-Id: $WS_ID" \
   -X POST "$BASE/api/tasks" \
-  -d '{"title":"Test proposal","price":100}' >/dev/null
+  -d '{"title":"Test proposal"}' >/dev/null
 ```
 
 ## Test
