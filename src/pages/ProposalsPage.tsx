@@ -248,6 +248,79 @@ interface ProposalDrawerProps {
   onError: (msg: string) => void;
 }
 
+function SubsidyHeader({ proposal, isAdmin, onAdded, onError }: {
+  proposal: ProposalDetailData;
+  isAdmin: boolean;
+  onAdded: () => void;
+  onError: (msg: string) => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [showInput, setShowInput] = useState(false);
+  const [amount, setAmount] = useState('');
+  const subsidy = proposal.liquiditySubsidy ?? 0;
+  const marketCount = proposal.marketCount ?? proposal.markets?.length ?? 0;
+  const total = Math.round(subsidy * marketCount * 100) / 100;
+  const isPending = proposal.status === 'pending';
+
+  const handleAdd = async () => {
+    const a = parseFloat(amount);
+    if (!Number.isFinite(a) || a < 0.1) { onError('Amount must be at least 0.1 credits per market'); return; }
+    setAdding(true);
+    const result = await api.injectLiquidityBulk(a, proposal.id).catch((e: Error) => { onError(e.message); return null; });
+    setAdding(false);
+    if (result) {
+      setAmount(''); setShowInput(false);
+      onAdded();
+    }
+  };
+
+  return (
+    <div style={{
+      marginBottom: '1rem', padding: '0.5rem 0.75rem',
+      background: subsidy > 0 ? 'var(--focus-bg)' : 'var(--warning-bg, #fef3c7)',
+      border: `1px solid ${subsidy > 0 ? 'var(--focus-border)' : 'var(--warning-border, #f59e0b)'}`,
+      borderRadius: '6px',
+      fontSize: '0.85rem',
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap',
+    }}>
+      <span>
+        {subsidy > 0 ? (
+          <>
+            <strong>Forecast subsidy:</strong> {subsidy.toFixed(2)} cr/market &times; {marketCount} markets ={' '}
+            <strong>{total.toFixed(2)} cr</strong>
+          </>
+        ) : (
+          <>
+            <strong>No forecast subsidy.</strong> Conditional markets have zero liquidity, so no signal.
+          </>
+        )}
+      </span>
+      {isPending && isAdmin && (
+        showInput ? (
+          <span style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+            <input
+              type="number" step="any" min="0.1"
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+              placeholder="cr/market"
+              style={{ width: '6rem', padding: '0.2rem 0.4rem', fontSize: '0.85rem' }}
+              autoFocus
+            />
+            <button type="button" className="btn-small" disabled={adding || !amount} onClick={handleAdd}>
+              {adding ? '…' : 'Add'}
+            </button>
+            <button type="button" className="btn-small" onClick={() => { setShowInput(false); setAmount(''); }}>Cancel</button>
+          </span>
+        ) : (
+          <button type="button" className="btn-small" onClick={() => setShowInput(true)}>
+            {subsidy > 0 ? 'Top up' : 'Add liquidity'}
+          </button>
+        )
+      )}
+    </div>
+  );
+}
+
 function ProposalDrawer({ proposal, isAdmin, onClose, onAction, onError }: ProposalDrawerProps) {
   const { inspectProposal, setInspectProposal } = useInspectMode();
   const [acting, setActing] = useState(false);
@@ -300,6 +373,8 @@ function ProposalDrawer({ proposal, isAdmin, onClose, onAction, onError }: Propo
 
         <div className="proposal-drawer-body">
           {proposal.description && <p className="proposal-description">{proposal.description}</p>}
+
+          <SubsidyHeader proposal={proposal} isAdmin={isAdmin} onAdded={onAction} onError={onError} />
 
           {proposal.status === 'pending' && (
             <div className="proposal-actions-row">
@@ -406,24 +481,46 @@ interface NewProposalModalProps {
 }
 
 function NewProposalModal({ open, onClose, onCreated, onError }: NewProposalModalProps) {
+  const { workspace } = useWorkspace();
+  const wsId = workspace?.workspaceId;
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [subsidy, setSubsidy] = useState('');
+  const [activeMarketCount, setActiveMarketCount] = useState<number | null>(null);
+  const [defaultLiquidity, setDefaultLiquidity] = useState<number>(0);
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !wsId) return;
     setTitle(''); setDescription(''); setCreating(false);
-  }, [open]);
+    Promise.all([
+      api.getWorkspace(wsId).catch(() => null),
+      api.getMarkets(undefined, wsId).catch(() => null),
+    ]).then(([wsDetail, mkts]) => {
+      const def = (wsDetail as { defaultProposalLiquidity?: number } | null)?.defaultProposalLiquidity ?? 0;
+      setDefaultLiquidity(def);
+      setSubsidy(def > 0 ? String(def) : '');
+      const list = (mkts as Array<{ active?: boolean; proposalId?: string | null }> | null) ?? [];
+      setActiveMarketCount(list.filter(m => m.active !== false && !m.proposalId).length);
+    });
+  }, [open, wsId]);
 
   if (!open) return null;
 
+  const subsidyNumber = subsidy.trim() === '' ? 0 : parseFloat(subsidy);
+  const subsidyValid = Number.isFinite(subsidyNumber) && subsidyNumber >= 0 && (subsidyNumber === 0 || subsidyNumber >= 0.1);
+  const totalCost = activeMarketCount != null && subsidyNumber > 0
+    ? Math.round(subsidyNumber * activeMarketCount * 100) / 100
+    : 0;
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!title) return;
+    if (!title || !subsidyValid) return;
     setCreating(true);
     const result = await api.createProposal({
       title,
       description,
+      liquiditySubsidy: subsidyNumber,
     }).catch((e: Error) => { onError(e.message); return null; });
     setCreating(false);
     if (result) { onCreated(); onClose(); }
@@ -460,7 +557,39 @@ function NewProposalModal({ open, onClose, onCreated, onError }: NewProposalModa
               rows={3}
             />
           </div>
-          <button type="submit" className="btn" disabled={creating || !title}>
+          <div className="form-group">
+            <label htmlFor="newProposalSubsidy">Forecast subsidy (credits per market)</label>
+            <input
+              id="newProposalSubsidy"
+              type="number"
+              step="any"
+              min="0"
+              value={subsidy}
+              onChange={e => setSubsidy(e.target.value)}
+              placeholder={defaultLiquidity > 0 ? String(defaultLiquidity) : '0'}
+            />
+            <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+              {activeMarketCount == null ? (
+                <span>Counting active markets…</span>
+              ) : subsidyNumber > 0 ? (
+                <span>
+                  {subsidyNumber.toFixed(2)} cr/market &times; {activeMarketCount} markets ={' '}
+                  <strong>{totalCost.toFixed(2)} credits</strong> debited from your balance.
+                  Refunded if declined; up to {(totalCost * Math.LN2).toFixed(2)} at risk if approved.
+                </span>
+              ) : (
+                <span style={{ color: 'var(--warning-text, #b45309)' }}>
+                  No subsidy &mdash; conditional markets will have zero liquidity, so traders see no point forecasting and the approve screen will say &ldquo;no signal&rdquo;.
+                </span>
+              )}
+            </div>
+            {!subsidyValid && (
+              <div style={{ marginTop: '0.3rem', fontSize: '0.8rem', color: 'var(--error-text)' }}>
+                Subsidy must be 0 or at least 0.1 credits per market.
+              </div>
+            )}
+          </div>
+          <button type="submit" className="btn" disabled={creating || !title || !subsidyValid}>
             {creating ? 'Proposing…' : 'Submit proposal'}
           </button>
         </form>

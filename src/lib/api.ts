@@ -306,7 +306,7 @@ export const api = {
   // Proposals
   getProposals: (status?: string) => request(`/api/proposals${status ? `?status=${encodeURIComponent(status)}` : ''}`),
   getProposal: (id: string) => request(`/api/proposals/${id}`),
-  createProposal: (body: { title: string; description: string }) =>
+  createProposal: (body: { title: string; description: string; liquiditySubsidy?: number }) =>
     request('/api/proposals', { method: 'POST', body: JSON.stringify(body) }),
   approveProposal: (id: string) =>
     request(`/api/proposals/${id}/approve`, { method: 'POST' }),
@@ -438,7 +438,7 @@ export const api = {
   listWorkspaces: () => request('/api/workspaces', {}, true),
   getWorkspace: (id: string) => request(`/api/workspaces/${id}`),
   getWorkspaceStats: (id: string) => request(`/api/workspaces/${id}/stats`),
-  updateWorkspaceSettings: (id: string, body: { name?: string; autoFundNewMarkets?: boolean; newMarketLiquidityCredits?: number; visibility?: 'public' | 'unlisted' | 'private' }) =>
+  updateWorkspaceSettings: (id: string, body: { name?: string; autoFundNewMarkets?: boolean; newMarketLiquidityCredits?: number; visibility?: 'public' | 'unlisted' | 'private'; defaultProposalLiquidity?: number }) =>
     request(`/api/workspaces/${id}/settings`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteWorkspace: (id: string) =>
     request(`/api/workspaces/${id}`, { method: 'DELETE' }),

@@ -294,7 +294,11 @@ predictionsRouter.get('/markets', requireCapability('read'), wrap(async (req, re
     if (proposal) {
       const currentIds = (proposal.conditionalMarketIds as string[]) ?? [];
       if (!currentIds.length) {
-        const marketIds = await createConditionalMarkets(proposalId, workspaceId);
+        const subsidy = proposal.liquiditySubsidy ?? 0;
+        const marketIds = await createConditionalMarkets(proposalId, workspaceId, {
+          subsidyPerMarket: subsidy,
+          proposerAgentId: subsidy > 0 ? proposal.proposedBy : null,
+        });
         await db.update(proposals).set({ conditionalMarketIds: marketIds })
           .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
       }
@@ -659,7 +663,11 @@ predictionsRouter.post('/markets/refresh', requireCapability('manage'), wrap(asy
       .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
     if (!proposal) { res.status(404).json({ error: 'Proposal not found' }); return; }
     const existingIds = (proposal.conditionalMarketIds as string[]) ?? [];
-    const marketIds = await createConditionalMarkets(proposalId, workspaceId);
+    const subsidy = proposal.liquiditySubsidy ?? 0;
+    const marketIds = await createConditionalMarkets(proposalId, workspaceId, {
+      subsidyPerMarket: subsidy,
+      proposerAgentId: subsidy > 0 ? proposal.proposedBy : null,
+    });
     await db.update(proposals).set({ conditionalMarketIds: marketIds })
       .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
     const reused = existingIds.length > 0 && existingIds.length === marketIds.length &&

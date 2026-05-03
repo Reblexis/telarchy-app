@@ -1,10 +1,11 @@
 import { db } from '../db/client';
-import { markets, metrics as metricsTable, proposals, trades, systemConfig } from '../db/schema';
+import { agents, markets, metrics as metricsTable, proposals, trades, systemConfig, liquidityEvents } from '../db/schema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
-import { consensus, initialPool } from '../lib/amm';
+import { consensus } from '../lib/amm';
 import { voidMarket } from './markets';
 import { AppError } from '../lib/errors';
+import { MIN_LIQUIDITY_CONTRIBUTION, sufficientBalance, toUnits, fromUnits } from '../lib/validation';
 
 type MarketRow = typeof markets.$inferSelect;
 
@@ -41,7 +42,28 @@ async function getBaselineConsensusMap(marketRows: MarketRow[], workspaceId: str
   return map;
 }
 
-export async function createConditionalMarkets(proposalId: string, workspaceId: string): Promise<string[]> {
+export interface CreateConditionalMarketsOptions {
+  /** Per-market credit subsidy. 0 means no subsidy; markets ship at zero liquidity. */
+  subsidyPerMarket?: number;
+  /** LP attribution for the subsidy. Required when subsidyPerMarket > 0. */
+  proposerAgentId?: string | null;
+}
+
+export async function createConditionalMarkets(
+  proposalId: string,
+  workspaceId: string,
+  options: CreateConditionalMarketsOptions = {},
+): Promise<string[]> {
+  const subsidy = options.subsidyPerMarket ?? 0;
+  if (subsidy > 0 && subsidy < MIN_LIQUIDITY_CONTRIBUTION) {
+    throw new AppError(
+      `Liquidity subsidy must be at least ${MIN_LIQUIDITY_CONTRIBUTION} credits per market (LMSR b below this is butterfly-sensitive)`,
+      400,
+    );
+  }
+  if (subsidy > 0 && !options.proposerAgentId) {
+    throw new AppError('proposerAgentId is required when subsidyPerMarket > 0', 400);
+  }
   const lockKey = `lock:proposalMarket:${proposalId}`;
 
   const acquired = await db.transaction(async tx => {
@@ -91,6 +113,7 @@ export async function createConditionalMarkets(proposalId: string, workspaceId: 
 
     await voidProposalMarkets(proposalId, workspaceId);
 
+    const conditionalLiquidity = subsidy > 0 ? subsidy / Math.LN2 : 0;
     const newMarkets: typeof markets.$inferInsert[] = [];
     for (const src of sourceMarkets) {
       const marketId = randomUUID();
@@ -99,13 +122,51 @@ export async function createConditionalMarkets(proposalId: string, workspaceId: 
         metricId: src.metricId, metricName: src.metricName, targetDate: src.targetDate,
         resolved: false, resolvedAt: null, actualValue: null, active: true, proposalId,
         rangeMin: src.rangeMin, rangeMax: src.rangeMax,
-        shares: [0, 0] as [number, number], liquidity: src.liquidity,
-        pool: initialPool(src.liquidity), createdAt: new Date(),
+        shares: [0, 0] as [number, number],
+        liquidity: conditionalLiquidity,
+        pool: subsidy > 0 ? subsidy : 0,
+        createdAt: new Date(),
       });
     }
 
+    const totalCost = subsidy > 0 ? Math.round(subsidy * newMarkets.length * 1e6) / 1e6 : 0;
+
     if (newMarkets.length > 0) {
-      await db.insert(markets).values(newMarkets);
+      await db.transaction(async tx => {
+        if (totalCost > 0) {
+          const proposerId = options.proposerAgentId as string;
+          const [agentRow] = await tx.select().from(agents).where(eq(agents.id, proposerId)).for('update');
+          if (!agentRow) throw new AppError('Proposer agent not found', 404);
+          if (!sufficientBalance(agentRow.balance as number, totalCost)) {
+            throw new AppError(
+              `Insufficient balance for forecast subsidy: need ${totalCost}, have ${fromUnits(agentRow.balance as number)}`,
+              400,
+            );
+          }
+          await tx.update(agents).set({
+            balance: sql`${agents.balance} - ${toUnits(totalCost)}`,
+            spentBetting: sql`${agents.spentBetting} + ${totalCost}`,
+          }).where(eq(agents.id, proposerId));
+        }
+
+        await tx.insert(markets).values(newMarkets);
+
+        if (totalCost > 0) {
+          const proposerId = options.proposerAgentId as string;
+          const liqRows = newMarkets.map(m => ({
+            id: randomUUID(),
+            workspaceId,
+            marketId: m.id as string,
+            agentId: proposerId,
+            amount: subsidy,
+            poolContribution: subsidy,
+            totalLiquidity: conditionalLiquidity,
+            type: 'proposal-subsidy',
+            createdAt: new Date(),
+          }));
+          await tx.insert(liquidityEvents).values(liqRows);
+        }
+      });
     }
     return newMarkets.map(m => m.id as string);
   } finally {

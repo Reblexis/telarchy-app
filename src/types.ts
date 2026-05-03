@@ -231,6 +231,7 @@ export interface Proposal {
   description: string;
   status: ProposalStatus;
   conditionalMarketIds: string[];
+  liquiditySubsidy: number;
   createdAt: string;
 }
 
@@ -258,6 +259,7 @@ export interface ProposalMarketSummary {
 
 export interface ProposalDetailData extends Proposal {
   markets?: ProposalMarketSummary[];
+  marketCount?: number;
 }
 
 export interface Position {

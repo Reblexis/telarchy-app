@@ -71,6 +71,8 @@ export const workspaces = pgTable('workspaces', {
   autoFundNewMarkets: boolean('auto_fund_new_markets').notNull().default(false),
   /** Pool contribution (credits) per new market when auto-fund is on. */
   newMarketLiquidityCredits: doublePrecision('new_market_liquidity_credits').notNull().default(0),
+  /** Default per-market credit subsidy to prefill on the proposal-create modal. 0 = ask each time. */
+  defaultProposalLiquidity: doublePrecision('default_proposal_liquidity').notNull().default(0),
 });
 
 // ---------------------------------------------------------------------------
@@ -259,6 +261,8 @@ export const proposals = pgTable('proposals', {
   /** 'pending' | 'approved' | 'declined' */
   status: text('status').notNull().default('pending'),
   conditionalMarketIds: jsonb('conditional_market_ids').notNull().$type<string[]>().default([]),
+  /** Per-market credit subsidy seeded into each conditional market's pool at creation. */
+  liquiditySubsidy: doublePrecision('liquidity_subsidy').notNull().default(0),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
 

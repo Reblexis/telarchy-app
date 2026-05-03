@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import { db } from '../db/client';
-import { proposals, proposalMessages } from '../db/schema';
+import { proposals, proposalMessages, workspaces } from '../db/schema';
 import { eq, and, desc, asc } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireCapability } from '../middleware/roles';
 import { voidProposalMarkets, approveProposal, getProposalMarketSummariesForProposal, createConditionalMarkets } from '../services/proposals';
-import { validateContent } from '../lib/validation';
+import { validateContent, MIN_LIQUIDITY_CONTRIBUTION } from '../lib/validation';
 import { getParticipantDisplayNames } from '../lib/participants';
 
 export const proposalsRouter = Router();
@@ -16,7 +16,7 @@ proposalsRouter.use(authMiddleware);
 
 proposalsRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
-  const { title, description } = req.body;
+  const { title, description, liquiditySubsidy } = req.body;
   if (!title || typeof title !== 'string') { res.status(400).json({ error: 'title is required' }); return; }
   const titleError = validateContent(title, 'title', 200);
   if (titleError) { res.status(400).json({ error: titleError }); return; }
@@ -27,32 +27,57 @@ proposalsRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
 
   const proposedBy = req.auth!.agentId;
   if (!proposedBy) { res.status(403).json({ error: 'Proposal creation requires a participant identity. Visit your account page to finish setup.' }); return; }
+
+  let subsidy: number;
+  if (liquiditySubsidy === undefined || liquiditySubsidy === null) {
+    const [ws] = await db.select({ defaultProposalLiquidity: workspaces.defaultProposalLiquidity })
+      .from(workspaces).where(eq(workspaces.id, workspaceId));
+    subsidy = ws?.defaultProposalLiquidity ?? 0;
+  } else if (typeof liquiditySubsidy !== 'number' || !Number.isFinite(liquiditySubsidy) || liquiditySubsidy < 0) {
+    res.status(400).json({ error: 'liquiditySubsidy must be a non-negative number' });
+    return;
+  } else {
+    subsidy = liquiditySubsidy;
+  }
+  if (subsidy > 0 && subsidy < MIN_LIQUIDITY_CONTRIBUTION) {
+    res.status(400).json({ error: `liquiditySubsidy must be at least ${MIN_LIQUIDITY_CONTRIBUTION} credits per market when set` });
+    return;
+  }
+
   const id = randomUUID();
 
   await db.insert(proposals).values({
     id, workspaceId, proposedBy,
     title, description: description || '',
-    status: 'pending', conditionalMarketIds: [], createdAt: new Date(),
+    status: 'pending', conditionalMarketIds: [],
+    liquiditySubsidy: subsidy,
+    createdAt: new Date(),
   });
 
   // Spawn conditional markets inline so the proposer (and anyone reading
-  // /proposals) sees a forecast immediately. Without this the approve flow has
-  // nothing to price the proposal against — the chatbot failure mode the
-  // product exists to replace. Failure here doesn't block the proposal; the
-  // /predictions/markets/refresh path will retry and a stale empty list is
-  // recoverable.
+  // /proposals) sees a forecast immediately. With subsidy > 0, the
+  // proposer is debited and each conditional market gets a real LP row;
+  // with subsidy = 0, markets ship at zero liquidity and the UI shows a
+  // "no signal" warning the proposer can correct via Add liquidity.
   let conditionalMarketIds: string[] = [];
   try {
-    conditionalMarketIds = await createConditionalMarkets(id, workspaceId);
+    conditionalMarketIds = await createConditionalMarkets(id, workspaceId, {
+      subsidyPerMarket: subsidy,
+      proposerAgentId: subsidy > 0 ? proposedBy : null,
+    });
     if (conditionalMarketIds.length > 0) {
       await db.update(proposals).set({ conditionalMarketIds })
         .where(and(eq(proposals.id, id), eq(proposals.workspaceId, workspaceId)));
     }
   } catch (e) {
     console.error(`createConditionalMarkets failed for proposal ${id}:`, e);
+    if (subsidy > 0) {
+      res.status(400).json({ error: e instanceof Error ? e.message : 'Failed to create conditional markets' });
+      return;
+    }
   }
 
-  res.status(201).json({ id, conditionalMarketIds });
+  res.status(201).json({ id, conditionalMarketIds, liquiditySubsidy: subsidy });
 }));
 
 proposalsRouter.get('/', requireCapability('read'), wrap(async (req, res) => {
@@ -76,6 +101,7 @@ proposalsRouter.get('/', requireCapability('read'), wrap(async (req, res) => {
     status: t.status,
     proposedBy: t.proposedBy,
     proposedByName: names.get(t.proposedBy) ?? null,
+    liquiditySubsidy: t.liquiditySubsidy,
     createdAt: t.createdAt,
   })));
 }));
@@ -93,6 +119,7 @@ proposalsRouter.get('/:proposalId', requireCapability('read'), wrap(async (req, 
     ...proposal,
     proposedByName: names.get(proposal.proposedBy) ?? null,
     markets: proposalMarkets,
+    marketCount: proposalMarkets.length,
   });
 }));
 

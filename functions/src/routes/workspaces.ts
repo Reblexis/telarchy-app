@@ -160,7 +160,8 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
   const hasAutoFundKey = Object.prototype.hasOwnProperty.call(req.body, 'autoFundNewMarkets');
   const hasCreditsKey = Object.prototype.hasOwnProperty.call(req.body, 'newMarketLiquidityCredits');
   const hasVisibilityKey = Object.prototype.hasOwnProperty.call(req.body, 'visibility');
-  const touchesOwnerOnly = hasAutoFundKey || hasCreditsKey || hasVisibilityKey;
+  const hasProposalLiquidityKey = Object.prototype.hasOwnProperty.call(req.body, 'defaultProposalLiquidity');
+  const touchesOwnerOnly = hasAutoFundKey || hasCreditsKey || hasVisibilityKey || hasProposalLiquidityKey;
 
   // Master key is platform-level admin — allow it to set owner-only fields.
   // For session/agent callers, require the workspace-owner role.
@@ -182,7 +183,7 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
     }
   }
 
-  const { name, autoFundNewMarkets, newMarketLiquidityCredits, visibility } = req.body;
+  const { name, autoFundNewMarkets, newMarketLiquidityCredits, visibility, defaultProposalLiquidity } = req.body;
   const update: Partial<typeof workspaces.$inferInsert> = {};
 
   if (hasVisibilityKey) {
@@ -215,6 +216,16 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
 
   if (hasAutoFundKey) update.autoFundNewMarkets = nextAuto;
   if (hasCreditsKey) update.newMarketLiquidityCredits = nextCredits;
+
+  if (hasProposalLiquidityKey) {
+    if (typeof defaultProposalLiquidity !== 'number' || !Number.isFinite(defaultProposalLiquidity) || defaultProposalLiquidity < 0) {
+      res.status(400).json({ error: 'defaultProposalLiquidity must be a non-negative number' }); return;
+    }
+    if (defaultProposalLiquidity > 0 && defaultProposalLiquidity < MIN_LIQUIDITY_CONTRIBUTION) {
+      res.status(400).json({ error: `defaultProposalLiquidity must be at least ${MIN_LIQUIDITY_CONTRIBUTION} credits when set` }); return;
+    }
+    update.defaultProposalLiquidity = defaultProposalLiquidity;
+  }
 
   if (nextAuto && nextCredits <= 0) {
     res.status(400).json({ error: 'newMarketLiquidityCredits must be positive when auto-fund is enabled' }); return;

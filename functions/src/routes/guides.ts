@@ -435,7 +435,7 @@ At resolution, payouts are proportional to where the actual value falls in the r
 
 Markets are created automatically (when a time-preferenced ancestor is enabled, or on the daily refresh cron at 00:10 UTC) for each leaf metric at the 10 sampled time points.
 
-New workspaces have **auto-funding enabled by default** (0.5 credits per market), so each new non-proposal market debits the workspace owner's balance automatically. The owner can adjust or disable this in workspace settings. Proposal-scoped conditional markets are not auto-funded this way.
+New workspaces have **auto-funding enabled by default** (0.5 credits per market), so each new non-proposal market debits the workspace owner's balance automatically. The owner can adjust or disable this in workspace settings. Proposal-scoped conditional markets follow a separate per-proposal subsidy model — see *Credits & Liquidity* for details.
 
 ## Target date formats
 
@@ -499,7 +499,15 @@ New workspaces default to **auto-fund on**, with **0.5 credits per market**. Two
 
 When the daily market-refresh cron (00:10 UTC) or a time-preference toggle spawns new markets, each one debits \`newMarketLiquidityCredits\` from the owner's balance and contributes it to the market's initial pool. If the owner can't cover the cost, the market is still created but with zero liquidity (trading paused) and the shortfall is logged.
 
-Proposal-scoped conditional markets are **not** auto-funded this way; their liquidity is inherited from the baseline market state at the moment the proposal is proposed.
+## Proposal subsidy
+
+Proposal-scoped conditional markets are funded by the proposer at creation time, not by the auto-fund path above.
+
+When a participant submits a proposal, the API accepts a \`liquiditySubsidy\` field (credits per conditional market). The proposer is debited \`liquiditySubsidy * N\` (where N is the number of active leaf markets) and each conditional market gets a real LP row attributed to the proposer. On decline the conditional markets are voided and the LP is refunded; on approve the markets continue trading until the metric resolves at its target date.
+
+If \`liquiditySubsidy\` is omitted, the workspace's \`defaultProposalLiquidity\` setting is used. If both are zero, the conditional markets ship at zero liquidity (no trading, no signal) and the proposer can later top them up via \`POST /api/predictions/markets/liquidity/bulk\` with \`{ amount, proposalId }\`.
+
+Owner-editable workspace setting: **\`defaultProposalLiquidity\`** (number, default \`0\` = ask each time, minimum \`0.1\` when set).
 
 ## Manual injection
 
@@ -541,16 +549,16 @@ The result is per-metric impact predictions: quantitative forecasts of how much 
 
 ## How it works
 
-1. A participant proposes a proposal (\`POST /api/proposals\`) with a title and description.
-2. Conditional markets are auto-created: clones of all active leaf markets, tagged to that proposal, starting at zero positions.
+1. A participant proposes a proposal (\`POST /api/proposals\`) with a title, description, and optional \`liquiditySubsidy\` (credits per conditional market). If omitted, the workspace's \`defaultProposalLiquidity\` setting is used.
+2. Conditional markets are auto-created: clones of all active leaf markets, tagged to that proposal, starting at zero positions and seeded with the per-market subsidy. The proposer's balance is debited \`liquiditySubsidy * N\` and each conditional market gets a real LP row attributed to the proposer.
 3. Participants forecast on conditional markets to signal expected impact.
-4. Admin views the proposal detail: conditional vs baseline consensus for every market.
-5. **Approve** - conditional markets resolve normally.
-6. **Decline** - conditional markets are voided; all participant stakes are refunded.
+4. Admin views the proposal detail: conditional vs baseline consensus for every market, plus a "Forecast subsidy" header showing how much liquidity backs the signal. Admins can top up via the inline **Add liquidity** button or via \`POST /api/predictions/markets/liquidity/bulk { amount, proposalId }\`.
+5. **Approve** - conditional markets keep trading and resolve at the actual metric value when their target date arrives.
+6. **Decline** - conditional markets are voided; participant stakes are refunded; the proposer's LP contribution is refunded too.
 
 ## Inspect mode
 
-On the Proposals page, clicking **Inspect** on a proposal switches the entire app into inspect mode. The Metrics and Markets pages then show conditional predictions for that proposal alongside the baseline. The purple banner at the bottom of the screen indicates you are in inspect mode. Click *Exit Inspect* to return to normal view.
+On the Proposals page, clicking **Inspect** on a proposal sets a \`?proposal=<id>\` URL param. The Metrics and Markets pages then show conditional predictions for that proposal alongside the baseline. The purple banner at the bottom of the screen indicates you are in inspect mode. Click *Exit Inspect* to return to normal view, or open a second browser tab with a different \`?proposal=\` to compare proposals side-by-side.
 
 ## Metrics and proposal quality
 
