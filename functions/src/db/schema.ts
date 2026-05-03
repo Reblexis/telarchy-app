@@ -182,7 +182,7 @@ export const metrics = pgTable('metrics', {
   formula: text('formula').notNull().default('0'),
   /** Display order within workspace */
   order: integer('order').notNull().default(0),
-  /** { enabled: boolean, halfLife: number } | null */
+  /** { enabled: boolean, halfLife: number, density?: number } | null */
   timePreference: jsonb('time_preference'),
   marketRangeMax: doublePrecision('market_range_max').notNull().default(1000),
   createdAt: timestamp('created_at').notNull().defaultNow(),

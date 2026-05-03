@@ -43,6 +43,7 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
   const [formula, setFormula] = useState('0');
   const [tpEnabled, setTpEnabled] = useState(false);
   const [tpHalfLife, setTpHalfLife] = useState('1');
+  const [tpDensity, setTpDensity] = useState('3');
   const [marketRangeMax, setMarketRangeMax] = useState('1000');
   const [error, setError] = useState('');
 
@@ -54,6 +55,7 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
       setFormula(metric.formula || '0');
       setTpEnabled(metric.timePreference?.enabled ?? false);
       setTpHalfLife(formatHalfLife(metric.timePreference?.halfLife ?? 1));
+      setTpDensity(String(metric.timePreference?.density ?? 3));
       setMarketRangeMax(String(metric.marketRangeMax ?? 1000));
       setError('');
     }
@@ -72,7 +74,11 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
       return;
     }
     const tp: TimePreference | null = tpEnabled
-      ? { enabled: true, halfLife: Math.max(1 / 365, parsedHl!) }
+      ? {
+          enabled: true,
+          halfLife: Math.max(1 / 365, parsedHl!),
+          density: Math.max(1, Math.floor(Number(tpDensity) || 3)),
+        }
       : null;
     try {
       const rmx = isLeaf ? Math.max(1, Number(marketRangeMax) || 1000) : undefined;
@@ -145,11 +151,23 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
                 />
               </div>
             )}
+            {tpEnabled && (
+              <div className="tp-halflife">
+                <label htmlFor="editTpDensity" title="How many markets to spawn per leaf descendant. Higher = more granular forecasts, more markets.">Market density</label>
+                <input
+                  type="number" id="editTpDensity" step="1" min="1" max="50"
+                  value={tpDensity}
+                  onChange={e => setTpDensity(e.target.value)}
+                  className="tp-halflife-input"
+                />
+              </div>
+            )}
             {tpEnabled && (() => {
               const hl = parseHalfLife(tpHalfLife) ?? 1;
+              const n = Math.max(1, Math.floor(Number(tpDensity) || 3));
               const lambda = Math.LN2 / hl;
-              const offsets = Array.from({ length: 10 }, (_, i) => {
-                const p = (2 * i + 1) / 20;
+              const offsets = Array.from({ length: n }, (_, i) => {
+                const p = (2 * i + 1) / (2 * n);
                 const days = Math.max(1, Math.round((-Math.log(1 - p)) / lambda * 365));
                 if (days < 14) return `${days}d`;
                 if (days < 60) return `${Math.round(days / 7)}w`;

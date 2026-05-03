@@ -147,6 +147,20 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
             ))}
           </div>
         )}
+        {isLeaf && !hasTP && !metric.inheritedHalfLife && (
+          <div
+            style={{
+              marginTop: '0.5rem', fontSize: '0.75rem',
+              color: 'var(--warning-text, #b45309)',
+              cursor: onEdit ? 'pointer' : 'default',
+            }}
+            onClick={onEdit}
+            role={onEdit ? 'button' : undefined}
+            title="Markets only spawn for metrics with a time preference (or for leaves whose ancestor has one). Click to edit."
+          >
+            No forecasts - enable Time Preference to spawn prediction markets.
+          </div>
+        )}
         {metric.missingMarkets?.length ? (
           <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}
             title={`Awaiting first trade on: ${metric.missingMarkets.join(', ')}`}>

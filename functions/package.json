@@ -4,7 +4,7 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
-    "test": "jest",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "test:integration": "node ../../scripts/test-integration.ts",
     "start:standalone": "node lib/server.js",
     "db:generate": "drizzle-kit generate",
@@ -25,12 +25,15 @@
     "pg": "^8.20.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.4.5",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
     "@types/pg": "^8.20.0",
+    "@types/supertest": "^7.2.0",
     "drizzle-kit": "^0.31.10",
     "jest": "^30.3.0",
+    "supertest": "^7.2.2",
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"

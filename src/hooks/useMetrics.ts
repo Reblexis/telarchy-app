@@ -109,7 +109,7 @@ export function useMetrics(authenticated: boolean, inspectProposalId?: string | 
   const editMetric = async (
     id: string, name: string, description: string, value: number,
     formula: string, oldValue: number, updateNote: string,
-    timePreference?: { enabled: boolean; halfLife: number } | null,
+    timePreference?: { enabled: boolean; halfLife: number; density?: number } | null,
     marketRangeMax?: number,
   ) => {
     if (detectCircularDependency(id, formula, metrics)) {

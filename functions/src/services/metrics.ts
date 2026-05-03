@@ -39,7 +39,7 @@ function enrichMetrics(rawMetrics: Metric[], consensusMap: Record<string, number
   for (const tpMetric of rawMetrics) {
     if (!tpMetric.timePreference?.enabled) continue;
     const halfLife = tpMetric.timePreference.halfLife;
-    const timePoints = sampleTimePoints(halfLife);
+    const timePoints = sampleTimePoints(halfLife, tpMetric.timePreference.density);
 
     const descendants = new Set<string>();
     const tpIsLeaf = !nameToFormulaLocal[tpMetric.name] || nameToFormulaLocal[tpMetric.name].trim() === '0';
@@ -166,6 +166,7 @@ export async function ensureMarketsForTimePreference(
   tpMetricId: string,
   halfLife: number,
   workspaceId: string,
+  density?: number,
 ): Promise<void> {
   const metricRows = await db.select().from(metrics).where(eq(metrics.workspaceId, workspaceId));
   const nameToFormula: Record<string, string> = {};
@@ -193,7 +194,7 @@ export async function ensureMarketsForTimePreference(
     return;
   }
 
-  const timePoints = sampleTimePoints(halfLife);
+  const timePoints = sampleTimePoints(halfLife, density);
 
   const openMarkets = await db.select({ id: markets.id, metricId: markets.metricId, targetDate: markets.targetDate, active: markets.active })
     .from(markets)
@@ -243,8 +244,9 @@ export async function respawnMarketsForTimePreference(
   tpMetricId: string,
   halfLife: number,
   workspaceId: string,
+  density?: number,
 ): Promise<void> {
-  await ensureMarketsForTimePreference(tpMetricId, halfLife, workspaceId);
+  await ensureMarketsForTimePreference(tpMetricId, halfLife, workspaceId, density);
 }
 
 export async function deleteMetric(id: string, workspaceId: string): Promise<void> {

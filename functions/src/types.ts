@@ -1,6 +1,7 @@
 export interface TimePreference {
   enabled: boolean;
   halfLife: number; // in years
+  density?: number; // number of market sample points per metric (default 3)
 }
 
 export interface Metric {

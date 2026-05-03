@@ -1,0 +1,68 @@
+/**
+ * In-process Postgres for backend integration tests.
+ *
+ * Use by adding this near the top of a test file (jest.mock is hoisted, so the
+ * call must be a literal `jest.mock(...)`):
+ *
+ *   jest.mock('../db/client', () => require('./harness/test-db'));
+ *
+ *   import { ensureMigrations, truncateAll, db } from './harness/test-db';
+ *
+ *   beforeAll(async () => { await ensureMigrations(); });
+ *   beforeEach(async () => { await truncateAll(); });
+ *
+ * `db` re-exports a drizzle instance pointed at a pglite database, using the
+ * same schema as production. `ensureMigrations` walks `functions/drizzle/` and
+ * replays each `*.sql` file (split on `--> statement-breakpoint`) once per
+ * process. `truncateAll` wipes every public table between tests.
+ */
+
+import { PGlite } from '@electric-sql/pglite';
+import { drizzle } from 'drizzle-orm/pglite';
+import { readFileSync, readdirSync } from 'fs';
+import { join } from 'path';
+import * as schema from '../../db/schema';
+
+const client = new PGlite();
+export const db = drizzle(client, { schema });
+
+let migrationsApplied: Promise<void> | null = null;
+
+export function ensureMigrations(): Promise<void> {
+  if (!migrationsApplied) migrationsApplied = applyMigrations();
+  return migrationsApplied;
+}
+
+async function applyMigrations(): Promise<void> {
+  const dir = join(__dirname, '..', '..', '..', 'drizzle');
+  const files = readdirSync(dir)
+    .filter(f => /^\d{4}_.+\.sql$/.test(f))
+    .sort();
+  for (const f of files) {
+    const sql = readFileSync(join(dir, f), 'utf8');
+    const statements = sql.split('--> statement-breakpoint');
+    for (const raw of statements) {
+      const stmt = raw.trim();
+      if (!stmt) continue;
+      try {
+        await client.exec(stmt);
+      } catch (e) {
+        throw new Error(`Migration ${f} failed on statement:\n${stmt}\n\n${(e as Error).message}`);
+      }
+    }
+  }
+}
+
+export async function truncateAll(): Promise<void> {
+  const result = await client.query<{ tablename: string }>(
+    `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`,
+  );
+  const names = result.rows
+    .map(r => r.tablename)
+    .filter(n => n !== '__drizzle_migrations')
+    .map(n => `"${n}"`)
+    .join(', ');
+  if (names) {
+    await client.exec(`TRUNCATE ${names} RESTART IDENTITY CASCADE`);
+  }
+}

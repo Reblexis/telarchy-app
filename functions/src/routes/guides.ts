@@ -451,9 +451,18 @@ New workspaces have **auto-funding enabled by default** (0.5 credits per market)
 +1y           1 year from now
 \`\`\`
 
+## Lifecycle
+
+Each market sits in one of four states (returned as \`status\` on every market row):
+
+- **open** — active and tradable. Buys and sells, both directions, subject to liquidity.
+- **closed** — deactivated, not yet resolved. A time-preference refresh re-samples 10 future dates each time the metric is touched; markets at dropped dates flip from open to closed instead of being voided. Existing positions are kept, and at the target date the market still resolves on the actual metric value. The market accepts **sell-only** trades while closed so participants can exit; new buys are rejected.
+- **resolved** — the target period has ended and payouts have been credited. No trades.
+- **voided** — admin cancelled the market. All positions were refunded at cost and the market is preserved for history. No trades.
+
 ## Resolution
 
-A market resolves when its target date period has ended. The admin sets the actual metric value on the Metrics page, then triggers resolution (or the daily cron at 00:00 UTC handles it). Winning shares pay proportionally; losing shares pay the complementary proportion.
+A market resolves when its target date period has ended, regardless of whether it is currently open or closed. The admin sets the actual metric value on the Metrics page, then triggers resolution (or the daily cron at 00:00 UTC handles it). Winning shares pay proportionally; losing shares pay the complementary proportion. A position that was opened on an open market and held through a "closed" period still pays at the actual value.
 
 ## Setting market range max
 

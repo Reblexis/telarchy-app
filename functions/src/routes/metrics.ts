@@ -91,7 +91,7 @@ metricsRouter.post('/', requireCapability('manage'), wrap(async (req, res) => {
       if (removed.length > 0) {
         warnings.push(`Time preference removed from ${removed.join(', ')} (now covered by ${name})`);
       }
-      await svc.ensureMarketsForTimePreference(id, effectiveTP.halfLife, workspaceId);
+      await svc.ensureMarketsForTimePreference(id, effectiveTP.halfLife, workspaceId, effectiveTP.density);
     }
   }
 
@@ -202,14 +202,17 @@ metricsRouter.put('/:id', requireCapability('manage'), wrap(async (req, res) => 
   res.json({ ...updated, warnings });
 
   const effectiveHalfLife = newTP?.halfLife ?? oldTP?.halfLife ?? 1;
+  const effectiveDensity = newTP?.density ?? oldTP?.density;
 
   if (newTP !== undefined) {
     if (newTP?.enabled && !wasTPEnabled) {
-      await svc.ensureMarketsForTimePreference(id, newTP.halfLife, workspaceId);
+      await svc.ensureMarketsForTimePreference(id, newTP.halfLife, workspaceId, newTP.density);
     } else if (!newTP?.enabled && wasTPEnabled) {
-      await deactivateLeafMarketsForTPMetric(id, oldTP!.halfLife, workspaceId);
-    } else if (newTP?.enabled && wasTPEnabled && newTP.halfLife !== oldTP!.halfLife) {
-      await svc.respawnMarketsForTimePreference(id, newTP.halfLife, workspaceId);
+      await deactivateLeafMarketsForTPMetric(id, oldTP!.halfLife, workspaceId, oldTP!.density);
+    } else if (newTP?.enabled && wasTPEnabled && (
+      newTP.halfLife !== oldTP!.halfLife || newTP.density !== oldTP!.density
+    )) {
+      await svc.respawnMarketsForTimePreference(id, newTP.halfLife, workspaceId, newTP.density);
     }
   }
 
@@ -235,8 +238,8 @@ metricsRouter.put('/:id', requireCapability('manage'), wrap(async (req, res) => 
       for (const tpId of tpAncestorIds) {
         const [tpRow] = await db.select({ timePreference: metrics.timePreference }).from(metrics)
           .where(and(eq(metrics.id, tpId), eq(metrics.workspaceId, workspaceId)));
-        const tpHalfLife = (tpRow?.timePreference as TimePreference | null)?.halfLife;
-        if (tpHalfLife) await svc.respawnMarketsForTimePreference(tpId, tpHalfLife, workspaceId);
+        const tpRecord = tpRow?.timePreference as TimePreference | null;
+        if (tpRecord?.halfLife) await svc.respawnMarketsForTimePreference(tpId, tpRecord.halfLife, workspaceId, tpRecord.density);
       }
     } else if (voidedTargetDates.length > 0) {
       // Standalone leaf metric with no TP ancestors: recreate voided markets with the new definition.
@@ -247,7 +250,7 @@ metricsRouter.put('/:id', requireCapability('manage'), wrap(async (req, res) => 
   }
 
   if (definitionChanged && isTPEnabled) {
-    await svc.respawnMarketsForTimePreference(id, effectiveHalfLife, workspaceId);
+    await svc.respawnMarketsForTimePreference(id, effectiveHalfLife, workspaceId, effectiveDensity);
   }
 
   const allMetrics = await svc.getAllMetrics(workspaceId);
@@ -282,8 +285,8 @@ metricsRouter.delete('/:id', requireCapability('manage'), wrap(async (req, res) 
     for (const tpId of tpAncestorIds) {
       const [tpRow] = await db.select({ timePreference: metrics.timePreference }).from(metrics)
         .where(and(eq(metrics.id, tpId), eq(metrics.workspaceId, workspaceId)));
-      const tpHalfLife = (tpRow?.timePreference as TimePreference | null)?.halfLife;
-      if (tpHalfLife) await svc.respawnMarketsForTimePreference(tpId, tpHalfLife, workspaceId);
+      const tpRecord = tpRow?.timePreference as TimePreference | null;
+      if (tpRecord?.halfLife) await svc.respawnMarketsForTimePreference(tpId, tpRecord.halfLife, workspaceId, tpRecord.density);
     }
   }
 }));
@@ -312,7 +315,16 @@ function parseTimePreference(raw: unknown): TimePreference | undefined | Error {
   if (obj.enabled && (typeof obj.halfLife !== 'number' || obj.halfLife <= 0)) {
     return new Error('timePreference.halfLife must be a positive number (years)');
   }
-  return { enabled: obj.enabled, halfLife: (obj.halfLife as number) ?? 1 };
+  let density: number | undefined;
+  if (obj.density !== undefined && obj.density !== null) {
+    if (typeof obj.density !== 'number' || !Number.isFinite(obj.density) || obj.density < 1) {
+      return new Error('timePreference.density must be a positive integer');
+    }
+    density = Math.floor(obj.density);
+  }
+  const tp: TimePreference = { enabled: obj.enabled, halfLife: (obj.halfLife as number) ?? 1 };
+  if (density !== undefined) tp.density = density;
+  return tp;
 }
 
 function isDefinitionChange(
@@ -388,7 +400,7 @@ async function removeTPFromDescendants(metricName: string, workspaceId: string):
     if (tp?.enabled) {
       await db.update(metrics).set({ timePreference: null, updatedAt: new Date() })
         .where(and(eq(metrics.id, row!.id), eq(metrics.workspaceId, workspaceId)));
-      await deactivateLeafMarketsForTPMetric(row!.id, tp.halfLife, workspaceId);
+      await deactivateLeafMarketsForTPMetric(row!.id, tp.halfLife, workspaceId, tp.density);
       removed.push(name);
     }
   }
@@ -396,7 +408,7 @@ async function removeTPFromDescendants(metricName: string, workspaceId: string):
   return removed;
 }
 
-async function deactivateLeafMarketsForTPMetric(tpMetricId: string, oldHalfLife: number, workspaceId: string): Promise<void> {
+async function deactivateLeafMarketsForTPMetric(tpMetricId: string, oldHalfLife: number, workspaceId: string, oldDensity?: number): Promise<void> {
   const rows = await getAllMetricRows(workspaceId);
   const nameToFormula: Record<string, string> = {};
   const nameToId = new Map<string, string>();
@@ -419,7 +431,7 @@ async function deactivateLeafMarketsForTPMetric(tpMetricId: string, oldHalfLife:
   }
 
   const leafIds = new Set(leafNames.map(n => nameToId.get(n)).filter(Boolean) as string[]);
-  const oldDates = new Set(sampleTimePoints(oldHalfLife).map(p => p.date));
+  const oldDates = new Set(sampleTimePoints(oldHalfLife, oldDensity).map(p => p.date));
 
   const openMarkets = await db.select().from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));

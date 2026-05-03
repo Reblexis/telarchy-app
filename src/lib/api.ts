@@ -216,9 +216,9 @@ async function requestWithWorkspace(
 
 export const api = {
   getMetrics: () => request('/api/metrics'),
-  createMetric: (body: { name: string; description: string; value: number; formula: string; timePreference?: { enabled: boolean; halfLife: number }; marketRangeMax?: number }) =>
+  createMetric: (body: { name: string; description: string; value: number; formula: string; timePreference?: { enabled: boolean; halfLife: number; density?: number }; marketRangeMax?: number }) =>
     request('/api/metrics', { method: 'POST', body: JSON.stringify(body) }),
-  updateMetric: (id: string, body: { name: string; description: string; value: number; formula: string; oldValue: number; updateNote: string; timePreference?: { enabled: boolean; halfLife: number } | null; marketRangeMax?: number }) =>
+  updateMetric: (id: string, body: { name: string; description: string; value: number; formula: string; oldValue: number; updateNote: string; timePreference?: { enabled: boolean; halfLife: number; density?: number } | null; marketRangeMax?: number }) =>
     request(`/api/metrics/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteMetric: (id: string) =>
     request(`/api/metrics/${id}`, { method: 'DELETE' }),

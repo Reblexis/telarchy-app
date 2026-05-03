@@ -295,7 +295,12 @@ export function MarketplacePage() {
           workspaceId: workspace.id,
           workspaceName: workspace.name,
           memberRole: workspace.memberRole,
-          markets: markets.filter(market => market.active),
+          // Members see open and closed markets so they can exit positions on
+          // markets the TP refresh deactivated. Resolved markets are already
+          // excluded server-side (no includeResolved); voided markets are
+          // dropped here since their stakes were refunded and there's nothing
+          // left to trade.
+          markets: markets.filter(market => market.status === 'open' || market.status === 'closed'),
         };
       }));
 

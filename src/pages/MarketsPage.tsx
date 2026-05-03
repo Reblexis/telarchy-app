@@ -120,13 +120,6 @@ export function MarketsPage() {
     });
   }, [targetFilter, filterText, markets]);
 
-  const handleDelete = async (id: string) => {
-    if (!user) return;
-    setError('');
-    await api.deleteMarket(id).catch((e: Error) => { setError(e.message); });
-    load();
-  };
-
   const handleBulkLiquidity = async () => {
     if (!user) return;
     const a = parseFloat(bulkLiqAmount);
@@ -292,11 +285,6 @@ export function MarketsPage() {
                         )}
                       </div>
 
-                      {isAdmin && m.tradeCount === 0 && (
-                        <div className="market-head-actions" onClick={e => e.stopPropagation()}>
-                          <button className="btn-small" onClick={() => handleDelete(m.id)}>Delete</button>
-                        </div>
-                      )}
                     </div>
 
                     {expanded && (

@@ -4,11 +4,11 @@
  * A time-preferenced metric node has an exponential decay function:
  *   f(t) = λe^(-λt)  where λ = ln(2) / halfLife
  *
- * We sample 10 quantile-midpoints of this distribution.
+ * We sample N quantile-midpoints of this distribution (default N=3).
  * Each bin covers equal probability mass, so all sample points receive
  * equal weight (1.0) in the weighted average.
  *
- *   p_i = (2i − 1) / 20   for i = 1..10  →  [0.05, 0.15, …, 0.95]
+ *   p_i = (2i − 1) / (2N)   for i = 1..N
  *   t_i = (−ln(1 − p_i)) / λ
  *
  * Date granularity by distance:
@@ -22,7 +22,7 @@ import { toISOWeekString } from './date-utils';
 
 export const WEIGHT_T0 = 1.0; // weight at t = 0 (current)
 
-const N_SAMPLES = 10;
+export const DEFAULT_DENSITY = 3;
 
 export interface TimePoint {
   date: string;   // absolute date string (YYYY-MM or YYYY)
@@ -47,16 +47,17 @@ function fractionalYearsToDate(years: number, base: Date): string {
 }
 
 /**
- * Return 10 quantile-midpoint time points for a given halfLife.
+ * Return N quantile-midpoint time points for a given halfLife.
  * Deduplicates dates that collapse to the same period.
  */
-export function sampleTimePoints(halfLife: number, base: Date = new Date()): TimePoint[] {
+export function sampleTimePoints(halfLife: number, density?: number, base: Date = new Date()): TimePoint[] {
+  const n = Math.max(1, Math.floor(density ?? DEFAULT_DENSITY));
   const seen = new Set<string>();
   const result: TimePoint[] = [];
   const lambda = Math.LN2 / halfLife;
 
-  for (let i = 1; i <= N_SAMPLES; i++) {
-    const p = (2 * i - 1) / (2 * N_SAMPLES);
+  for (let i = 1; i <= n; i++) {
+    const p = (2 * i - 1) / (2 * n);
     const tYears = (-Math.log(1 - p)) / lambda;
     const date = fractionalYearsToDate(tYears, base);
     if (!seen.has(date)) {

@@ -1258,6 +1258,8 @@ input[type="number"] {
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  padding: 1rem;
+  overflow-y: auto;
 }
 
 .modal.show {
@@ -1270,6 +1272,8 @@ input[type="number"] {
   border-radius: var(--radius-lg);
   max-width: 500px;
   width: 90%;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow-lg);
   animation: modalIn 0.2s ease-out;

@@ -321,10 +321,10 @@ export function recalculateMetrics(metrics: Metric[], consensusMap: Record<strin
       if (metric.missingMarkets?.length) {
         metric.total = null;
       } else {
-        const { halfLife } = metric.timePreference;
+        const { halfLife, density } = metric.timePreference;
         let weightedSum = WEIGHT_T0 * metric.value;
         let totalWeight = WEIGHT_T0;
-        for (const { date, weight } of sampleTimePoints(halfLife)) {
+        for (const { date, weight } of sampleTimePoints(halfLife, density)) {
           const consensusAtT = consensusMap[`${metric.name}:${date}`] ?? metric.value;
           weightedSum += weight * consensusAtT;
           totalWeight += weight;
@@ -339,7 +339,7 @@ export function recalculateMetrics(metrics: Metric[], consensusMap: Record<strin
         metric.total = null;
         metric.currentTotal = null;
       } else {
-        const { halfLife } = metric.timePreference;
+        const { halfLife, density } = metric.timePreference;
         const formula = metric.formula;
 
         const formulaAt0 = evaluateFormula(formula, nameToMetric);
@@ -350,7 +350,7 @@ export function recalculateMetrics(metrics: Metric[], consensusMap: Record<strin
           let totalWeight = WEIGHT_T0;
 
           const memo: Record<string, number> = {};
-          for (const { date, weight } of sampleTimePoints(halfLife)) {
+          for (const { date, weight } of sampleTimePoints(halfLife, density)) {
             const formulaAtT = evaluateFormulaAtTime(formula, nameToFormula, consensusMap, date, memo);
             weightedSum += weight * formulaAtT;
             totalWeight += weight;

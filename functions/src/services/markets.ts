@@ -247,15 +247,15 @@ export async function refreshRelativeDateMarkets(workspaceId: string, opts: { fo
   const nameToFormula: Record<string, string> = {};
   const nameToId = new Map<string, string>();
   const idToRangeMax = new Map<string, number>();
-  const tpMetrics: { id: string; name: string; halfLife: number }[] = [];
+  const tpMetrics: { id: string; name: string; halfLife: number; density?: number }[] = [];
 
   for (const row of metricRows) {
     nameToFormula[row.name] = row.formula || '0';
     nameToId.set(row.name, row.id);
     if (row.marketRangeMax != null) idToRangeMax.set(row.id, row.marketRangeMax);
-    const tp = row.timePreference as { enabled?: boolean; halfLife?: number } | null;
+    const tp = row.timePreference as { enabled?: boolean; halfLife?: number; density?: number } | null;
     if (tp?.enabled && tp.halfLife) {
-      tpMetrics.push({ id: row.id, name: row.name, halfLife: tp.halfLife });
+      tpMetrics.push({ id: row.id, name: row.name, halfLife: tp.halfLife, density: tp.density });
     }
   }
 
@@ -265,7 +265,7 @@ export async function refreshRelativeDateMarkets(workspaceId: string, opts: { fo
     // If the TP metric is itself a leaf, it needs markets for itself
     const tpIsLeaf = !nameToFormula[tp.name] || nameToFormula[tp.name].trim() === '0';
     if (tpIsLeaf) leafNames = [tp.name];
-    const timePoints = sampleTimePoints(tp.halfLife);
+    const timePoints = sampleTimePoints(tp.halfLife, tp.density);
     for (const leafName of leafNames) {
       const leafId = nameToId.get(leafName);
       if (!leafId) continue;

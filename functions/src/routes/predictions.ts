@@ -155,7 +155,10 @@ predictionsRouter.post('/trade', requireCapability('trade'), wrap(async (req, re
       .for('update');
     if (!market) throw new AppError('Market not found', 404);
     if (market.resolved) throw new AppError('Market is resolved', 400);
-    if (!market.active) throw new AppError('Market is inactive', 400);
+    if (market.voided) throw new AppError('Market is voided; positions were refunded', 400);
+    if (!market.active && mode.type !== 'sell') {
+      throw new AppError('Market is closed; only selling existing positions is allowed', 400);
+    }
 
     const shares = (market.shares as [number, number]) || [0, 0];
     const b = market.liquidity;
@@ -605,24 +608,9 @@ predictionsRouter.post('/markets/:id/liquidity', requireCapability('manage'), wr
   }
 }));
 
-predictionsRouter.delete('/markets/:id', requireCapability('manage'), wrap(async (req, res) => {
-  const { workspaceId } = req.auth!;
-  const marketId = req.params.id as string;
-  const [market] = await db.select({ id: markets.id }).from(markets)
-    .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
-  if (!market) { res.status(404).json({ error: 'Market not found' }); return; }
-  await db.transaction(async tx => {
-    await tx.delete(positions).where(and(eq(positions.marketId, marketId), eq(positions.workspaceId, workspaceId)));
-    await tx.delete(trades).where(and(eq(trades.marketId, marketId), eq(trades.workspaceId, workspaceId)));
-    await tx.delete(liquidityEvents).where(and(eq(liquidityEvents.marketId, marketId), eq(liquidityEvents.workspaceId, workspaceId)));
-    await tx.delete(markets).where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
-  });
-  res.status(204).send();
-}));
-
 // Void an open market: refunds all positions at cost, returns LP pool
 // remainder to liquidity providers proportionally, and marks the market as
-// voided=true (preserves history, unlike DELETE). The next market-refresh
+// voided=true (preserves history). The next market-refresh
 // cycle will recreate the market at the same (metricId, targetDate) if the
 // time-preference curve still wants one there.
 predictionsRouter.post('/markets/:id/void', requireCapability('manage'), wrap(async (req, res) => {

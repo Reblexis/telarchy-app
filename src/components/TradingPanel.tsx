@@ -129,6 +129,13 @@ export function TradingPanel({ market, workspaceId, showLiquidityControls = true
         refreshToken={activityRefreshToken}
       />
 
+      {market.status === 'closed' && (
+        <div style={{ fontSize: '0.8rem', padding: '0.5rem 0.75rem', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', borderLeft: '3px solid var(--text-secondary)', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+          This market is closed: trading is paused until it resolves at the target date. You can still sell positions you already hold below.
+        </div>
+      )}
+
+      {market.status !== 'closed' && (
       <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div>
           <label style={labelStyle}>Amount ($)</label>
@@ -170,6 +177,7 @@ export function TradingPanel({ market, workspaceId, showLiquidityControls = true
           </div>
         )}
       </div>
+      )}
 
       {positions.length > 0 && (
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)' }}>
