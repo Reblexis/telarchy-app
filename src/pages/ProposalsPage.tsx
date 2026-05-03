@@ -193,6 +193,53 @@ function ChatPanel({ proposalId }: { proposalId: string }) {
   );
 }
 
+interface ConfirmModalProps {
+  open: boolean;
+  title: string;
+  body: React.ReactNode;
+  confirmLabel: string;
+  confirmClass: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+/**
+ * Styled approve/decline confirm. Replaces window.confirm() because the
+ * approval moment is the load-bearing screen for the product — a native
+ * dialog strips the forecast summary back to a single \n-joined string and
+ * looks like a junior-class system prompt.
+ */
+function ConfirmModal({ open, title, body, confirmLabel, confirmClass, onConfirm, onCancel }: ConfirmModalProps) {
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [open, onCancel]);
+
+  if (!open) return null;
+
+  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) onCancel();
+  };
+
+  return (
+    <div className="modal show" onClick={handleOverlayClick} role="dialog" aria-modal="true" aria-label={title}>
+      <div className="modal-content">
+        <div className="modal-header">
+          <h3>{title}</h3>
+          <button className="modal-close" onClick={onCancel} aria-label="Cancel">&times;</button>
+        </div>
+        <div className="confirm-modal-body">{body}</div>
+        <div className="confirm-modal-actions">
+          <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
+          <button type="button" className={confirmClass} onClick={onConfirm} autoFocus>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface ProposalDrawerProps {
   proposal: ProposalDetailData | null;
   isAdmin: boolean;
@@ -204,6 +251,7 @@ interface ProposalDrawerProps {
 function ProposalDrawer({ proposal, isAdmin, onClose, onAction, onError }: ProposalDrawerProps) {
   const { inspectProposal, setInspectProposal } = useInspectMode();
   const [acting, setActing] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<null | 'approve' | 'decline'>(null);
 
   useEffect(() => {
     if (!proposal) return;
@@ -269,18 +317,7 @@ function ProposalDrawer({ proposal, isAdmin, onClose, onAction, onError }: Propo
                       type="button"
                       className="btn-approve"
                       disabled={acting}
-                      onClick={() => {
-                        const forecast = summarizeMarketsForConfirm(proposal.markets);
-                        const lines = [
-                          `Approve "${proposal.title}"?`,
-                          '',
-                          forecast ? `Forecast: ${forecast}` : 'Forecast: no market signal yet.',
-                          '',
-                          'Conditional markets stay open for post-decision tracking.',
-                        ];
-                        if (!window.confirm(lines.join('\n'))) return;
-                        handle(() => api.approveProposal(proposal.id));
-                      }}
+                      onClick={() => setConfirmAction('approve')}
                     >
                       {acting ? '…' : 'Approve'}
                     </button>
@@ -288,10 +325,7 @@ function ProposalDrawer({ proposal, isAdmin, onClose, onAction, onError }: Propo
                       type="button"
                       className="btn-decline"
                       disabled={acting}
-                      onClick={() => {
-                        if (!window.confirm(`Decline "${proposal.title}"?\n\nThis voids the proposal's conditional markets and refunds any stakes.`)) return;
-                        handle(() => api.declineProposal(proposal.id));
-                      }}
+                      onClick={() => setConfirmAction('decline')}
                     >
                       {acting ? '…' : 'Decline'}
                     </button>
@@ -317,6 +351,49 @@ function ProposalDrawer({ proposal, isAdmin, onClose, onAction, onError }: Propo
           </section>
         </div>
       </aside>
+
+      <ConfirmModal
+        open={confirmAction === 'approve'}
+        title={`Approve "${proposal.title}"?`}
+        body={(() => {
+          const forecast = summarizeMarketsForConfirm(proposal.markets);
+          return (
+            <>
+              <p className="confirm-modal-forecast">
+                <span className="confirm-modal-label">Forecast:</span>{' '}
+                {forecast ? forecast : <em>no market signal yet</em>}
+              </p>
+              <p className="confirm-modal-note">
+                Conditional markets stay open for post-decision tracking.
+              </p>
+            </>
+          );
+        })()}
+        confirmLabel="Approve"
+        confirmClass="btn-approve"
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={() => {
+          setConfirmAction(null);
+          handle(() => api.approveProposal(proposal.id));
+        }}
+      />
+
+      <ConfirmModal
+        open={confirmAction === 'decline'}
+        title={`Decline "${proposal.title}"?`}
+        body={
+          <p className="confirm-modal-note">
+            This voids the proposal's conditional markets and refunds any stakes.
+          </p>
+        }
+        confirmLabel="Decline"
+        confirmClass="btn-decline"
+        onCancel={() => setConfirmAction(null)}
+        onConfirm={() => {
+          setConfirmAction(null);
+          handle(() => api.declineProposal(proposal.id));
+        }}
+      />
     </>
   );
 }
@@ -360,7 +437,7 @@ function NewProposalModal({ open, onClose, onCreated, onError }: NewProposalModa
     <div className="modal show" onClick={handleOverlayClick}>
       <div className="modal-content">
         <div className="modal-header">
-          <h3>Propose proposal</h3>
+          <h3>New proposal</h3>
           <button className="modal-close" onClick={onClose} aria-label="Close">&times;</button>
         </div>
         <form onSubmit={handleSubmit}>
@@ -384,7 +461,7 @@ function NewProposalModal({ open, onClose, onCreated, onError }: NewProposalModa
             />
           </div>
           <button type="submit" className="btn" disabled={creating || !title}>
-            {creating ? 'Proposing…' : 'Propose proposal'}
+            {creating ? 'Proposing…' : 'Submit proposal'}
           </button>
         </form>
       </div>
@@ -447,7 +524,7 @@ export function ProposalsPage() {
         </div>
         {isAdmin && (
           <button type="button" className="btn" onClick={() => setNewProposalOpen(true)}>
-            + Propose proposal
+            + New proposal
           </button>
         )}
       </div>
@@ -468,7 +545,7 @@ export function ProposalsPage() {
           <p>No proposals yet.</p>
           {isAdmin && (
             <button type="button" className="btn" onClick={() => setNewProposalOpen(true)}>
-              Propose the first proposal
+              Propose the first one
             </button>
           )}
         </div>
