@@ -446,7 +446,7 @@ function NewProposalModal({ open, onClose, onCreated, onError }: NewProposalModa
             <input
               id="newProposalTitle" type="text" required
               value={title} onChange={e => setTitle(e.target.value)}
-              placeholder="e.g. Improve sleep routine"
+              placeholder="e.g. Hire 2 sales reps"
               autoFocus
             />
           </div>
