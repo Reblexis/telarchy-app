@@ -41,7 +41,7 @@ mkdir -p "/tmp/$TT_NS-cons"
 findings="/tmp/$TT_NS-cons/findings.txt"
 :>"$findings"
 note() { echo "$1" >> "$findings"; echo "$1"; }
-PAGES="/ /signup /login /metrics /markets /tasks /account /sources /admin /marketplace /guides /terms /privacy"
+PAGES="/ /signup /login /metrics /markets /proposals /account /sources /admin /marketplace /guides /terms /privacy"
 ```
 
 ## Tests
@@ -68,7 +68,7 @@ n=$(echo "$fams" | tr , '\n' | sort -u | wc -l)
 
 ```bash
 declare -A bgs
-for p in /metrics /markets /tasks /account; do
+for p in /metrics /markets /proposals /account; do
   $B goto "$TT_FRONTEND_URL$p" && $B wait --networkidle
   bg=$($B js 'getComputedStyle(document.body).backgroundColor')
   bgs[$p]="$bg"

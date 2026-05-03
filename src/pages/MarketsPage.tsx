@@ -23,7 +23,7 @@ const SORT_LABELS: Record<SortKey, string> = {
 
 export function MarketsPage() {
   const { user } = useAuth();
-  const { inspectTask } = useInspectMode();
+  const { inspectProposal } = useInspectMode();
   const { workspace } = useWorkspace(!!user);
   const isAdmin = workspace?.tier === 'admin';
   const [markets, setMarkets] = useState<Market[]>([]);
@@ -81,12 +81,12 @@ export function MarketsPage() {
   const load = useCallback(async () => {
     if (!user) return;
     setError('');
-    if (!inspectTask) {
+    if (!inspectProposal) {
       const cachedMkts = cacheGet<Market[]>('markets');
       if (cachedMkts) { setMarkets(cachedMkts); setLoading(false); }
     }
-    const mkts = await api.getMarkets(inspectTask?.id, undefined, { includeResolved: true }).catch((e: Error) => { setError(e.message); return null; });
-    if (inspectTask) {
+    const mkts = await api.getMarkets(inspectProposal?.id, undefined, { includeResolved: true }).catch((e: Error) => { setError(e.message); return null; });
+    if (inspectProposal) {
       api.getMarkets().then((mains: Market[]) => {
         const map = new Map<string, Market>();
         for (const m of mains) map.set(`${m.metricId}:${m.targetDate}`, m);
@@ -97,7 +97,7 @@ export function MarketsPage() {
     }
     if (mkts) {
       setMarkets(mkts);
-      if (!inspectTask) cacheSet('markets', mkts);
+      if (!inspectProposal) cacheSet('markets', mkts);
     }
     api.getStatus().then((status: { metrics: Metric[] }) => {
       const map = new Map<string, Metric>();
@@ -105,7 +105,7 @@ export function MarketsPage() {
       setMetricsMap(map);
     }).catch((e: Error) => { console.error('Failed to load metric status', e); });
     setLoading(false);
-  }, [user, inspectTask]);
+  }, [user, inspectProposal]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -133,7 +133,7 @@ export function MarketsPage() {
     if (isNaN(a) || a <= 0) return;
     setError('');
     setBulkLiqResult('');
-    const result = await api.injectLiquidityBulk(a, inspectTask?.id).catch((e: Error) => { setError(e.message); return null; });
+    const result = await api.injectLiquidityBulk(a, inspectProposal?.id).catch((e: Error) => { setError(e.message); return null; });
     if (result) {
       setBulkLiqAmount('');
       setBulkLiqResult(`Funded ${a} into ${result.markets} markets (total: ${result.totalCost.toFixed(6)} credits).`);
@@ -246,7 +246,7 @@ export function MarketsPage() {
                 const expanded = expandedIds.includes(m.id);
                 const timeRemaining = m.status === 'open' ? formatTimeRemaining(m.targetDate) : null;
                 const expired = timeRemaining === 'expired';
-                const main = inspectTask ? mainMarketsMap.get(`${m.metricId}:${m.targetDate}`) : null;
+                const main = inspectProposal ? mainMarketsMap.get(`${m.metricId}:${m.targetDate}`) : null;
                 const delta = main && m.consensus !== null && main.consensus !== null && Math.abs(m.consensus - main.consensus) >= 0.005
                   ? m.consensus - main.consensus
                   : null;

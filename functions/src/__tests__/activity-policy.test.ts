@@ -22,28 +22,28 @@ describe('activity member policy', () => {
       item('trade'),
       item('deposit'),
       item('withdrawal'),
-      item('task_created'),
+      item('proposal_created'),
       item('market_resolved'),
     ];
     const filtered = applyMemberPolicy(feed);
     const types = filtered.map(f => f.type);
     expect(types).not.toContain('deposit');
     expect(types).not.toContain('withdrawal');
-    expect(types).toEqual(expect.arrayContaining(['trade', 'task_created', 'market_resolved']));
+    expect(types).toEqual(expect.arrayContaining(['trade', 'proposal_created', 'market_resolved']));
   });
 
   it('anonymizes the actor on trade entries but keeps actors on other entries', () => {
     const feed: ActivityItem[] = [
       item('trade'),
-      item('task_created'),
+      item('proposal_created'),
       item('metric_update'),
     ];
     const filtered = applyMemberPolicy(feed);
     const trade = filtered.find(f => f.type === 'trade')!;
-    const task = filtered.find(f => f.type === 'task_created')!;
+    const proposal = filtered.find(f => f.type === 'proposal_created')!;
     const metric = filtered.find(f => f.type === 'metric_update')!;
     expect(trade.actor).toBeNull();
-    expect(task.actor).toEqual({ id: 'a1', label: 'Alice' });
+    expect(proposal.actor).toEqual({ id: 'a1', label: 'Alice' });
     expect(metric.actor).toEqual({ id: 'a1', label: 'Alice' });
   });
 

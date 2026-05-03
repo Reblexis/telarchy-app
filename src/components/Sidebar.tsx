@@ -39,14 +39,14 @@ export function Sidebar({ className = '' }: { className?: string }) {
   const workspaceLinks = [
     { to: '/metrics', label: 'Metrics' },
     ...(isAdmin ? [{ to: '/check-in', label: 'Check-in' }] : []),
-    { to: '/tasks', label: 'Tasks' },
+    { to: '/proposals', label: 'Proposals' },
     { to: '/markets', label: 'Markets' },
     ...(isAdmin ? [{ to: '/participants', label: 'Participants' }] : []),
     { to: '/sources', label: 'Sources' },
     { to: '/activity', label: 'Activity' },
     ...(isAdmin ? [{ to: '/settings', label: 'Settings' }] : []),
   ];
-  const workspacePaths = ['/overview', '/metrics', '/check-in', '/tasks', '/markets', '/participants', '/sources', '/activity', '/settings'];
+  const workspacePaths = ['/overview', '/metrics', '/check-in', '/proposals', '/markets', '/participants', '/sources', '/activity', '/settings'];
   const onWorkspacePath = workspacePaths.includes(currentPath);
 
   useEffect(() => {

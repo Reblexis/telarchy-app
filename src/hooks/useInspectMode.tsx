@@ -1,37 +1,37 @@
 import { createContext, useContext, useState, type ReactNode } from 'react';
 
-export interface InspectTask {
+export interface InspectProposal {
   id: string;
   title: string;
 }
 
 interface InspectModeContextValue {
-  inspectTask: InspectTask | null;
-  setInspectTask: (task: InspectTask | null) => void;
+  inspectProposal: InspectProposal | null;
+  setInspectProposal: (proposal: InspectProposal | null) => void;
 }
 
-const KEY = 'inspectTask';
+const KEY = 'inspectProposal';
 
 const InspectModeContext = createContext<InspectModeContextValue>({
-  inspectTask: null,
-  setInspectTask: () => {},
+  inspectProposal: null,
+  setInspectProposal: () => {},
 });
 
 export function InspectModeProvider({ children }: { children: ReactNode }) {
-  const [inspectTask, setInspectTaskState] = useState<InspectTask | null>(() => {
+  const [inspectProposal, setInspectProposalState] = useState<InspectProposal | null>(() => {
     const stored = localStorage.getItem(KEY);
     if (!stored) return null;
-    try { return JSON.parse(stored) as InspectTask; } catch { localStorage.removeItem(KEY); return null; }
+    try { return JSON.parse(stored) as InspectProposal; } catch { localStorage.removeItem(KEY); return null; }
   });
 
-  const setInspectTask = (task: InspectTask | null) => {
-    if (task) localStorage.setItem(KEY, JSON.stringify(task));
+  const setInspectProposal = (proposal: InspectProposal | null) => {
+    if (proposal) localStorage.setItem(KEY, JSON.stringify(proposal));
     else localStorage.removeItem(KEY);
-    setInspectTaskState(task);
+    setInspectProposalState(proposal);
   };
 
   return (
-    <InspectModeContext.Provider value={{ inspectTask, setInspectTask }}>
+    <InspectModeContext.Provider value={{ inspectProposal, setInspectProposal }}>
       {children}
     </InspectModeContext.Provider>
   );

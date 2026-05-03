@@ -8,7 +8,7 @@ import { FeedbackInbox } from '../components/FeedbackInbox';
 
 const ACTIVITY_TYPES = [
   'trade', 'deposit', 'withdrawal', 'market_created', 'market_resolved',
-  'metric_update', 'task_created', 'task_message', 'liquidity',
+  'metric_update', 'proposal_created', 'proposal_message', 'liquidity',
 ] as const;
 
 const TYPE_COLORS: Record<string, string> = {
@@ -18,8 +18,8 @@ const TYPE_COLORS: Record<string, string> = {
   market_created: '#7c3aed',
   market_resolved: '#9333ea',
   metric_update: '#0891b2',
-  task_created: '#db2777',
-  task_message: '#be185d',
+  proposal_created: '#db2777',
+  proposal_message: '#be185d',
   liquidity: '#65a30d',
 };
 
@@ -45,9 +45,9 @@ function summarize(item: ActivityItem): string {
       return `${d.metricName ?? 'market'} resolved${d.voided ? ' (voided)' : ''} actual=${d.actualValue ?? '?'}`;
     case 'metric_update':
       return `${d.metricName ?? 'metric'}: ${d.oldValue ?? '?'} → ${d.newValue ?? '?'}`;
-    case 'task_created':
-      return `${d.title ?? 'task'} (${d.status ?? 'open'})`;
-    case 'task_message':
+    case 'proposal_created':
+      return `${d.title ?? 'proposal'} (${d.status ?? 'open'})`;
+    case 'proposal_message':
       return typeof d.content === 'string' ? (d.content.length > 120 ? d.content.slice(0, 120) + '…' : d.content) : '';
     case 'liquidity': {
       const amt = Number(d.amount ?? 0);
@@ -85,7 +85,7 @@ export function AdminPage() {
   const [participantId, setParticipantId] = useState('');
   const [marketId, setMarketId] = useState('');
   const [metricId, setMetricId] = useState('');
-  const [taskId, setTaskId] = useState('');
+  const [proposalId, setProposalId] = useState('');
   const [paused, setPaused] = useState(false);
 
   const [activities, setActivities] = useState<ActivityItem[]>([]);
@@ -127,7 +127,7 @@ export function AdminPage() {
         participantId: participantId.trim() || undefined,
         marketId: marketId.trim() || undefined,
         metricId: metricId.trim() || undefined,
-        taskId: taskId.trim() || undefined,
+        proposalId: proposalId.trim() || undefined,
       }, selectedWorkspace);
       setActivities(data.activities);
       setFeedError('');
@@ -136,7 +136,7 @@ export function AdminPage() {
     } finally {
       setFeedLoading(false);
     }
-  }, [selectedWorkspace, rangeHours, selectedTypes, participantId, marketId, metricId, taskId]);
+  }, [selectedWorkspace, rangeHours, selectedTypes, participantId, marketId, metricId, proposalId]);
 
   useEffect(() => {
     if (!selectedWorkspace || paused) {
@@ -298,9 +298,9 @@ export function AdminPage() {
                     style={{ flex: '1 1 140px', padding: '0.35rem 0.55rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: 'var(--bg-secondary)', fontSize: '0.8rem', fontFamily: 'monospace' }}
                   />
                   <input
-                    placeholder="taskId"
-                    value={taskId}
-                    onChange={e => setTaskId(e.target.value)}
+                    placeholder="proposalId"
+                    value={proposalId}
+                    onChange={e => setProposalId(e.target.value)}
                     style={{ flex: '1 1 140px', padding: '0.35rem 0.55rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', background: 'var(--bg-secondary)', fontSize: '0.8rem', fontFamily: 'monospace' }}
                   />
                 </div>

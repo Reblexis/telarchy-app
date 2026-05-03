@@ -80,16 +80,16 @@ $B goto "$TT_FRONTEND_URL/metrics" && $B wait --networkidle
 $B screenshot "/tmp/$TT_NS-use/01-kpis.png"
 ```
 
-### T3. Propose the decision as a task with conditional markets
+### T3. Propose the decision as a proposal with conditional markets
 
 ```bash
-TASK=$(curl -sf -b "$JAR" -H "X-Workspace-Id: $WS" \
+PROPOSAL=$(curl -sf -b "$JAR" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \
   -d '{"title":"Hire senior engineer at $200k base","description":"~+15k/mo burn, expected +8k/mo MRR by Q3"}' \
-  "$TT_BASE_URL/api/tasks" | jq -r '.id')
-react "proposed task: $TASK"
+  "$TT_BASE_URL/api/proposals" | jq -r '.id')
+react "proposed proposal: $PROPOSAL"
 mkts=$(curl -sf -b "$JAR" -H "X-Workspace-Id: $WS" \
-  "$TT_BASE_URL/api/tasks/$TASK" | jq -r '.conditionalMarketIds[]?')
+  "$TT_BASE_URL/api/proposals/$PROPOSAL" | jq -r '.conditionalMarketIds[]?')
 n_mkts=$(echo "$mkts" | grep -c .)
 react "conditional markets spawned: $n_mkts"
 ```
@@ -110,10 +110,10 @@ target=$(echo "$mkts" | head -1)
 ### T5. Look at the actual signal the founder gets
 
 ```bash
-$B goto "$TT_FRONTEND_URL/tasks" && $B wait --networkidle
-$B screenshot "/tmp/$TT_NS-use/02-tasks-with-conditional.png"
+$B goto "$TT_FRONTEND_URL/proposals" && $B wait --networkidle
+$B screenshot "/tmp/$TT_NS-use/02-proposals-with-conditional.png"
 text=$($B text)
-echo "=== TASKS PAGE ===" >> "$findings"
+echo "=== PROPOSALS PAGE ===" >> "$findings"
 echo "$text" | head -c 2000 >> "$findings"
 # What is the consensus telling me?
 [ -n "$target" ] && {
@@ -128,11 +128,11 @@ echo "$text" | head -c 2000 >> "$findings"
 ```bash
 $B click "a:has-text(\"Hire senior engineer\")" || true
 $B wait --networkidle
-$B screenshot "/tmp/$TT_NS-use/03-task-detail.png"
+$B screenshot "/tmp/$TT_NS-use/03-proposal-detail.png"
 react "founder reads consensus, decides; approving"
 curl -sf -b "$JAR" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST -d '{}' \
-  "$TT_BASE_URL/api/tasks/$TASK/approve" >/dev/null
+  "$TT_BASE_URL/api/proposals/$PROPOSAL/approve" >/dev/null
 react "decision recorded"
 ```
 

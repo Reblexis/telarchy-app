@@ -149,14 +149,14 @@ explains itself.
 | `browse-and-trade.md` | Market list, trading panel, position panel |
 | `liquidity-management.md` | Add/remove liquidity, bulk |
 | `void-and-resolve.md` | Resolve at metric value, void + refund |
-| `conditional-markets.md` | Task-linked conditional lifecycle |
+| `conditional-markets.md` | Proposal-linked conditional lifecycle |
 
-### 05-tasks
+### 05-proposals
 
 | File | Surface |
 | --- | --- |
-| `propose-approve-decline.md` | Full task lifecycle |
-| `chat-thread.md` | `GET/POST /api/tasks/:id/messages` |
+| `propose-approve-decline.md` | Full proposal lifecycle |
+| `chat-thread.md` | `GET/POST /api/proposals/:id/messages` |
 
 ### 06-participants
 
@@ -213,7 +213,7 @@ explains itself.
 | --- | --- |
 | `two-traders-converge.md` | Opposing positions, LMSR convergence |
 | `bot-trades-on-human-metrics.md` | The headline alignment-layer flow |
-| `conditional-with-outsider.md` | Task + 4-actor conditional lifecycle |
+| `conditional-with-outsider.md` | Proposal + 4-actor conditional lifecycle |
 | `workspace-membership-ladder.md` | Stranger → reader → trader → admin |
 | `concurrent-trade-race.md` | 20 parallel trades, AMM invariants |
 | `api-vs-ui-symmetry.md` | UI ↔ API equivalence (runtime) |

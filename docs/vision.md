@@ -24,7 +24,7 @@ In the API, schema, and developer docs this same concept is called an **agent** 
 
 Futarchy (Robin Hanson, 2000) is the system this builds on: "vote on values, bet on beliefs." Its mechanism (conditional prediction markets that evaluate proposals against a welfare metric) is structurally identical. The one difference: futarchy requires a vote to define the welfare metric, because it was designed for groups that disagree on values. Telarchy removes that step. The owner defines their metrics directly. No voting, no aggregation. The same mechanism becomes usable by companies, individuals, and any other setting where one party can define the goal.
 
-The closest existing category is **decision markets**: conditional prediction markets that execute decisions rather than merely forecast. Telarchy is a decision market system with three additions not found elsewhere: metrics that can be flat or composed into hierarchies via formulas, a proposal economy where participants propose tasks and earn for approved ones, and a time preference system for forward-looking evaluation.
+The closest existing category is **decision markets**: conditional prediction markets that execute decisions rather than merely forecast. Telarchy is a decision market system with three additions not found elsewhere: metrics that can be flat or composed into hierarchies via formulas, a proposal economy where participants propose proposals and earn for approved ones, and a time preference system for forward-looking evaluation.
 
 ## Core thesis
 
@@ -37,7 +37,7 @@ The closest existing category is **decision markets**: conditional prediction ma
 The post-AGI division of labor: humans say what they want; everything else is automated. Defining what you want, clearly enough that a system can pursue it, is one of the last jobs that doesn't go away short of brain-computer interfaces reading intent directly. Telarchy is a system designed for exactly that division of labor, and the same mechanism applies whether the proposer is an AI or a human teammate:
 
 1. **Owner defines metrics**. The things they want, the structure that connects them, the time horizon they care about.
-2. **Participants propose actions**. AI agents register via API key and propose tasks (`POST /api/tasks`); human teammates do the same through the UI. Either can put any decision on the table.
+2. **Participants propose actions**. AI agents register via API key and propose proposals (`POST /api/proposals`); human teammates do the same through the UI. Either can put any decision on the table.
 3. **Markets price the actions against the metrics**. Conditional markets compute the expected impact of each proposed action on every metric. Forecasters (human or AI) with skin in the game produce calibrated estimates.
 4. **Owner approves with calibrated confidence**. The owner sees a number, not a pitch. The decision proceeds with the market's predicted impact attached, not with whoever argued loudest.
 5. **Whoever owns the action executes**; metrics update over time, feeding back into the next round.
@@ -59,15 +59,15 @@ This framing is load-bearing for positioning, not a tagline. The mechanism (cond
 
 The primary use case is company governance: founders and leadership teams define their KPIs, OKRs, or any quantified business objectives and let the market forecast and evaluate decisions against them. The system also supports personal use (health, career, life metrics) and any other domain where a single owner defines the goals. Both are first-class from day one. Metrics are standalone by default; each can independently have time preference and prediction markets. Users can later connect metrics with formulas if they want derived values, but there is no required structure.
 
-## Metrics vs Tasks
+## Metrics vs Proposals
 
-The distinction between metrics and tasks is foundational.
+The distinction between metrics and proposals is foundational.
 
 **Metrics** are definitional commitments. A metric declares that some quantity *certainly* matters in a known way. If you later find the metric was wrong (that you measured the wrong thing), that is a definition error, not a system failure, and the system cannot fix it for you. The practical implication: define metrics at the level of abstraction you are genuinely certain about, and keep them as subjective as necessary. A self-reported *Happiness* score is often a better leaf metric than *Dopamine level*, because the link between dopamine and subjective happiness is uncertain.
 
-> **Example.** Suppose you define Happiness as dopamine level, then start taking drugs. Your dopamine metric rises; you are still unhappy. The system has done nothing wrong; it optimized exactly what you asked. The error was in the definition. The correct approach: keep *Happiness* as the metric (self-reported), and create a task (*"Will increasing dopamine improve my subjective happiness?"*) evaluated via conditional prediction markets before committing.
+> **Example.** Suppose you define Happiness as dopamine level, then start taking drugs. Your dopamine metric rises; you are still unhappy. The system has done nothing wrong; it optimized exactly what you asked. The error was in the definition. The correct approach: keep *Happiness* as the metric (self-reported), and create a proposal (*"Will increasing dopamine improve my subjective happiness?"*) evaluated via conditional prediction markets before committing.
 
-**Tasks** are hypothesis tests. Any time you are uncertain whether an action will improve a metric, that uncertainty belongs in a task, not in the metric definition. Conditional markets answer the question "what would metrics look like if this task were completed?" and the crowd's money resolves the uncertainty. This extends to metric structure itself: a participant can propose a task such as *"Create a new metric X and evaluate its relationship to our goals"*, letting the market judge whether adding that measurement will produce useful signal before the owner commits to a structural change.
+**Proposals** are hypothesis tests. Any time you are uncertain whether an action will improve a metric, that uncertainty belongs in a proposal, not in the metric definition. Conditional markets answer the question "what would metrics look like if this proposal were completed?" and the crowd's money resolves the uncertainty. This extends to metric structure itself: a participant can propose a proposal such as *"Create a new metric X and evaluate its relationship to our goals"*, letting the market judge whether adding that measurement will produce useful signal before the owner commits to a structural change.
 
 ## Multi-workspace and domain metrics
 
@@ -75,8 +75,8 @@ Telarchy workspaces are composable. A common pattern for individuals: one person
 
 The connection between domain metrics and parent-level goals is often uncertain. How much does a startup's user count correspond to personal wealth? How much does a team's velocity contribute to company-level retention? These are empirical questions, not definitional ones, and they should not be hardwired into formulas. Instead:
 
-- Treat the domain workspace as an information source. Participants observing both workspaces can use domain metrics as signal when proposing tasks and placing predictions in the parent workspace.
-- Use tasks to test the connection. A task such as *"Will growing MAU by 20% improve our overall retention?"* lets conditional markets evaluate the hypothesis before you commit resources.
+- Treat the domain workspace as an information source. Participants observing both workspaces can use domain metrics as signal when proposing proposals and placing predictions in the parent workspace.
+- Use proposals to test the connection. A proposal such as *"Will growing MAU by 20% improve our overall retention?"* lets conditional markets evaluate the hypothesis before you commit resources.
 
 This keeps workspaces decoupled at the definition level while still allowing participants to reason across them.
 
@@ -86,7 +86,7 @@ This keeps workspaces decoupled at the definition level while still allowing par
 2. **Privacy** - a personal workspace may contain sensitive self-assessments; a company workspace may contain confidential revenue numbers. Each can have a different participant set without exposing the other's data.
 3. **Multi-stakeholder** - multiple shareholders can co-own a workspace and independently evaluate its impact on their respective higher-level utilities. The exact coordination mechanism for this is an open design question.
 
-Workspace settings include the display name, access level, and auto-funding of new non-task markets. Access is a single picker in Settings with three options: **Private** (invite-only), **Public** (listed on `/api/marketplace`, joiners view only), **Open** (listed, joiners can trade immediately). Under the hood this composes two primitives: `visibility` on the workspace (`public` / `private`; the `unlisted` value is kept in the schema for future use but no longer surfaced in the UI) and the Public permission group's `capabilities`. "Open" means `visibility=public` plus `['read','trade']` on the Public group; the picker adjusts both atomically so there is no separate backend field. Owners can still fine-tune the Public group's capabilities on the Participants page if they need something in between. **New workspaces default to Open** (no picker at creation) so first-time users land immediately on "participants can trade on my metrics"; a one-line notice on the welcome check-in page points to Settings for anyone who wants to change it. The backend default (`provisionWorkspace` with no `visibility` specified) remains `private`, which is the safer default for non-UI callers (self-hosted, API-only). Auto-funding is enabled by default on new workspaces (`DEFAULT_MARKET_LIQUIDITY_CREDITS = 0.5` per market), deducting from the workspace owner's balance. The browser client always talks to the deployment API (`VITE_API_URL` / hosted URL). Self-hosting remains a deploy-time concern, not a per-workspace redirect.
+Workspace settings include the display name, access level, and auto-funding of new non-proposal markets. Access is a single picker in Settings with three options: **Private** (invite-only), **Public** (listed on `/api/marketplace`, joiners view only), **Open** (listed, joiners can trade immediately). Under the hood this composes two primitives: `visibility` on the workspace (`public` / `private`; the `unlisted` value is kept in the schema for future use but no longer surfaced in the UI) and the Public permission group's `capabilities`. "Open" means `visibility=public` plus `['read','trade']` on the Public group; the picker adjusts both atomically so there is no separate backend field. Owners can still fine-tune the Public group's capabilities on the Participants page if they need something in between. **New workspaces default to Open** (no picker at creation) so first-time users land immediately on "participants can trade on my metrics"; a one-line notice on the welcome check-in page points to Settings for anyone who wants to change it. The backend default (`provisionWorkspace` with no `visibility` specified) remains `private`, which is the safer default for non-UI callers (self-hosted, API-only). Auto-funding is enabled by default on new workspaces (`DEFAULT_MARKET_LIQUIDITY_CREDITS = 0.5` per market), deducting from the workspace owner's balance. The browser client always talks to the deployment API (`VITE_API_URL` / hosted URL). Self-hosting remains a deploy-time concern, not a per-workspace redirect.
 
 ## Current State
 
@@ -98,14 +98,14 @@ Workspace settings include the display name, access level, and auto-funding of n
 
 Participants sign up either through browser accounts or direct API-key registration and then participate in a real-stakes economy.
 
-- **Capabilities**: authorization is a flat set of three capabilities, `read` (view metrics/markets/tasks/sources), `trade` (place trades, propose tasks, send task messages), and `manage` (admin operations: create/edit metrics, resolve markets, approve tasks, manage groups and members). A caller's effective capabilities are the union of the `capabilities` arrays on every permission group they belong to in the active workspace. The master API key, the platform admin flag (`platformAdmin` in the DB, bootstrapped from `ADMIN_EMAILS`), and the workspace creator/owner short-circuit to all three capabilities. There are no fixed role enums at the auth layer; legacy labels like `admin`, `agent`, `member` are derived on the fly for UI display and are not authoritative.
+- **Capabilities**: authorization is a flat set of three capabilities, `read` (view metrics/markets/proposals/sources), `trade` (place trades, propose proposals, send proposal messages), and `manage` (admin operations: create/edit metrics, resolve markets, approve proposals, manage groups and members). A caller's effective capabilities are the union of the `capabilities` arrays on every permission group they belong to in the active workspace. The master API key, the platform admin flag (`platformAdmin` in the DB, bootstrapped from `ADMIN_EMAILS`), and the workspace creator/owner short-circuit to all three capabilities. There are no fixed role enums at the auth layer; legacy labels like `admin`, `agent`, `member` are derived on the fly for UI display and are not authoritative.
 - **Authentication**: three paths checked in order: master API key (`X-API-Key` header), BetterAuth browser-account session (cookie, resolved via `auth.api.getSession()`), per-participant API key (`X-Agent-Key`, SHA-256 hashed; header name kept for backwards compatibility). Google and GitHub OAuth are supported when `GOOGLE_CLIENT_ID`/`GITHUB_CLIENT_ID` env vars are set. Browser accounts attach directly to a participant row in the `agents` table via `authUserId` (the table retains its original name). CORS and BetterAuth `trustedOrigins` come only from `ALLOWED_ORIGIN` / `TRUSTED_ORIGINS` (see `functions/src/lib/origins.ts`); `BETTER_AUTH_URL` is the public browser origin for OAuth redirects; optional `AUTH_COOKIE_DOMAIN` (e.g. `.example.com`) aligns cookies when apex and www both serve the app.
-- **Identity symmetry**: human participants and AI participants are the same class of identity with different signup methods. A human-user login resolves to the same participant identity used by the corresponding API-key session, so trading, task, and workspace capabilities stay aligned.
+- **Identity symmetry**: human participants and AI participants are the same class of identity with different signup methods. A human-user login resolves to the same participant identity used by the corresponding API-key session, so trading, proposal, and workspace capabilities stay aligned.
 - **Balance tracking**: `balance`, `earnedBetting`, `spentBetting`, `spentTokens` - separate counters for full auditability.
 - **Credit economy**: Every participant receives 1000 credits on signup (`SIGNUP_CREDITS` constant). Credits are the core economy: workspace owners spend them to fund market liquidity; participants spend them to place predictions. On the managed instance (telarchy.com), credits are play-money with real scarcity. Platform admins can also distribute credits via `POST /agents/:id/credit`. On self-hosted instances with USDC settlement enabled, every credit is backed 1:1 by USDC held in the treasury, created only via `POST /agents/:id/deposit` (USDC -> credits, requires on-chain tx hash verification).
 - **Global balance**: A participant's balance row in the `agents` table is not scoped to any workspace. Each participant has exactly one account with one credit balance usable across the system. **Balances are stored as integer nanocredits** (1 credit = 1,000,000,000 units) to eliminate IEEE 754 float drift. All reads go through `fromUnits()`, all writes use `toUnits()` before any SQL increment.
 - **Admin UI**: Participants page with admin badge (rendered when a participant has the `manage` capability), credit distribution, PnL display. Administrative access is granted by adding a participant to the Admin system group (or any group whose capabilities include `manage`), not via a direct role dropdown.
-- **Admin activity feed**: `GET /api/admin/activity` (manage capability required) returns a unified, workspace-scoped stream of trades, deposits, withdrawals, market creations/resolutions, metric updates, task activity, and liquidity events. Filterable by time range, type, participant, market, metric, or task. Polled with `nextCursor` for near-realtime observability of what every participant (human or bot) is doing.
+- **Admin activity feed**: `GET /api/admin/activity` (manage capability required) returns a unified, workspace-scoped stream of trades, deposits, withdrawals, market creations/resolutions, metric updates, proposal activity, and liquidity events. Filterable by time range, type, participant, market, metric, or proposal. Polled with `nextCursor` for near-realtime observability of what every participant (human or bot) is doing.
 
 ### Phase 2: Prediction Layer (Implemented)
 
@@ -120,19 +120,19 @@ Participants forecast metric values, staking credits on their predictions.
 
 Metric formulas use `{MetricName}` references plus standard math operators and helper functions such as `sqrt()`, `abs()`, `min()`, `max()`, and `pow()`. Forward-looking behavior is handled by the time-preference system, not by special formula syntax.
 
-### Phase 4: Tasks and Conditional Decision Markets (Implemented)
+### Phase 4: Proposals and Conditional Decision Markets (Implemented)
 
-Participants propose tasks; the system evaluates each proposal by running the existing prediction markets conditionally against it.
+Participants propose proposals; the system evaluates each proposal by running the existing prediction markets conditionally against it.
 
 **How it works**:
-1. A participant calls `POST /api/tasks` with `{ title, description }`.
-2. When any participant fetches markets with `?taskId=<id>`, the system auto-creates **conditional markets** (clones of all currently active leaf-metric markets, starting with zero positions, tagged with the `taskId`).
-3. Participants forecast on conditional markets to signal expected impact: "what will metric X be if this task is completed?"
-4. The admin (workspace owner or a participant with `manage` capability) views the task detail, which shows: conditional consensus vs baseline consensus for every market, revealing per-metric impact predictions.
-5. **Approve** - the task is recorded as approved; conditional markets remain and resolve normally.
+1. A participant calls `POST /api/proposals` with `{ title, description }`.
+2. When any participant fetches markets with `?proposalId=<id>`, the system auto-creates **conditional markets** (clones of all currently active leaf-metric markets, starting with zero positions, tagged with the `proposalId`).
+3. Participants forecast on conditional markets to signal expected impact: "what will metric X be if this proposal is completed?"
+4. The admin (workspace owner or a participant with `manage` capability) views the proposal detail, which shows: conditional consensus vs baseline consensus for every market, revealing per-metric impact predictions.
+5. **Approve** - the proposal is recorded as approved; conditional markets remain and resolve normally.
 6. **Decline** - conditional markets are voided; all participant stakes are fully refunded.
 
-A per-task message thread (`tasks/{taskId}/messages`) enables proposer-admin negotiation before a decision is made.
+A per-proposal message thread (`proposals/{proposalId}/messages`) enables proposer-admin negotiation before a decision is made.
 
 Any participant with `manage` capability can also refresh conditional markets at any time to pick up newly created base markets.
 
@@ -236,7 +236,7 @@ Overall (formula: {Health} + {Career})
 On self-hosted instances with `USDC_SETTLEMENT_ENABLED=true`, credits are backed by real USDC. A treasury wallet on the Base L2 network holds the USDC reserve. Participants register a Base wallet address and can withdraw their credit balance as on-chain USDC at any time. On the managed instance (telarchy.com), USDC settlement is disabled and credits are play-money with no cash value.
 
 **Settlement model**:
-- Internal credit transfers (forecasting, task payouts, gifting) remain purely off-chain, with no gas fees.
+- Internal credit transfers (forecasting, proposal payouts, gifting) remain purely off-chain, with no gas fees.
 - On-chain settlement only happens at withdrawal time, keeping fees negligible (~$0.001/tx on Base).
 - Conversion rate: `creditValueUsd` from the `systemConfig` table (key: `economy`) determines how many USDC a credit is worth.
 
@@ -267,7 +267,7 @@ On self-hosted instances with `USDC_SETTLEMENT_ENABLED=true`, credits are backed
 
 `GET /api/status` returns `creditValueUsd` (USD value of 1 credit), sourced from the system economy configuration. Admins set this; participants use it to understand the real-money value of their balance.
 
-**Credit model**: On the managed instance, credits are play-money distributed by admins. On USDC-enabled instances, 1 credit = `creditValueUsd` USD; total credits in circulation equal total USDC in the treasury divided by `creditValueUsd`. Internal flows (forecast wins/losses, task payouts, participant-to-participant transfers) are purely redistributive. Credits go down from inaccurate forecasts (automatic through AMM) and voluntary spending. Participants can call `POST /api/agents/:id/spend` on their own ID with `type: "tokens"` (LLM compute) or `type: "purchase"` (any other service). All credit transactions are explicit; nothing is deducted automatically.
+**Credit model**: On the managed instance, credits are play-money distributed by admins. On USDC-enabled instances, 1 credit = `creditValueUsd` USD; total credits in circulation equal total USDC in the treasury divided by `creditValueUsd`. Internal flows (forecast wins/losses, proposal payouts, participant-to-participant transfers) are purely redistributive. Credits go down from inaccurate forecasts (automatic through AMM) and voluntary spending. Participants can call `POST /api/agents/:id/spend` on their own ID with `type: "tokens"` (LLM compute) or `type: "purchase"` (any other service). All credit transactions are explicit; nothing is deducted automatically.
 
 ### Hooks (Implemented)
 
@@ -312,7 +312,7 @@ The Metrics tab uses a single Chart.js graph engine for both inline card charts 
                                               │  metrics         │
                                               │  metricLogs      │
                                               │  updates         │
-                                              │  tasks           │
+                                              │  proposals           │
                                               │  workspaces      │
                                               │  permGroups      │
                                               └──────────────────┘
@@ -323,13 +323,13 @@ Self-hosted: docker compose up (includes postgres service) or any Linux host + p
 
 ## Navigation
 
-The app uses a persistent left sidebar (`Sidebar.tsx` + `AppLayout.tsx`) for all authenticated pages. The sidebar handles workspace switching (all workspaces listed, click to switch), workspace-scoped nav (Metrics, Markets, Tasks, Participants), platform nav (Marketplace, Account, Guides), and logout. The horizontal header (`Header.tsx`) is kept only for the API-key portal. `/account` shows the signed-in participant identity and balance, and links to the API-key portal for direct API access when needed.
+The app uses a persistent left sidebar (`Sidebar.tsx` + `AppLayout.tsx`) for all authenticated pages. The sidebar handles workspace switching (all workspaces listed, click to switch), workspace-scoped nav (Metrics, Markets, Proposals, Participants), platform nav (Marketplace, Account, Guides), and logout. The horizontal header (`Header.tsx`) is kept only for the API-key portal. `/account` shows the signed-in participant identity and balance, and links to the API-key portal for direct API access when needed.
 
 `/marketplace` is both a discovery surface and a trading surface: anonymous visitors can browse public markets, while signed-in users can see the active markets from workspaces they belong to and trade on them directly as their authenticated participant identity. Marketplace lists are ordered by actual resolution date (not by liquidity), and each card preserves the original granularity label (`month`, `week`, etc.) while also showing the exact UTC resolution timestamp.
 
-`/guides` is a publicly accessible in-app reference covering metric structure, formula syntax, time preference, markets, and the task decision loop. No auth required.
+`/guides` is a publicly accessible in-app reference covering metric structure, formula syntax, time preference, markets, and the proposal decision loop. No auth required.
 
-The selected workspace now owns its workspace-scoped links directly in the sidebar. Metrics, Markets, Tasks, Participants, and workspace Settings render as a collapsible nested subsection under the active workspace rather than as a separate top-level "Workspace" section, which keeps workspace context and page context aligned.
+The selected workspace now owns its workspace-scoped links directly in the sidebar. Metrics, Markets, Proposals, Participants, and workspace Settings render as a collapsible nested subsection under the active workspace rather than as a separate top-level "Workspace" section, which keeps workspace context and page context aligned.
 
 ## Design Principles
 
@@ -339,7 +339,7 @@ The selected workspace now owns its workspace-scoped links directly in the sideb
 4. **Evolvability** - the market/position separation and the time-preference architecture keep future mechanism changes (e.g. cPMM, order books, new curve families) clean.
 5. **Capitalism for alignment** - the economic incentives align participant behavior with improving the metrics you care about.
 6. **Static definitions** - formulas and metric definitions are treated as stable. Changes to a metric's definition (formula, description, non-leaf base value) trigger a full respawn of affected markets. Only leaf node base values change freely; this is what participants forecast.
-7. **Metrics as commitments, tasks as hypotheses** - a metric expresses what you are already certain affects your utility, at the level of abstraction you are certain about. If you are unsure whether a proxy truly maps to your goal, that uncertainty belongs in a task (with conditional markets to test it), not in the metric definition. The system optimizes exactly what you measure; defining the wrong metric is the user's responsibility. Prefer subjective, high-level definitions (e.g. *Happiness* as a self-reported score) over over-specified proxies (e.g. dopamine level). Proxies belong in tasks.
+7. **Metrics as commitments, proposals as hypotheses** - a metric expresses what you are already certain affects your utility, at the level of abstraction you are certain about. If you are unsure whether a proxy truly maps to your goal, that uncertainty belongs in a proposal (with conditional markets to test it), not in the metric definition. The system optimizes exactly what you measure; defining the wrong metric is the user's responsibility. Prefer subjective, high-level definitions (e.g. *Happiness* as a self-reported score) over over-specified proxies (e.g. dopamine level). Proxies belong in proposals.
 
 ## Business Model
 
@@ -378,7 +378,7 @@ Run with `npm test` (in `functions/`) or `npm test` from the repo root.
 
 **Integration tests** (`scripts/test-integration.ts`):
 
-End-to-end test suite that hits the live API. Covers: health, workspaces, agents, admin credit, metrics (CRUD, formulas, circular deps), prediction markets (create, refresh, liquidity injection, market fields), trading (buy, sell, balance tracking, error cases), tasks (propose, approve, decline), permission groups, workspace isolation (cross-tenant data separation), events, and auth.
+End-to-end test suite that hits the live API. Covers: health, workspaces, agents, admin credit, metrics (CRUD, formulas, circular deps), prediction markets (create, refresh, liquidity injection, market fields), trading (buy, sell, balance tracking, error cases), proposals (propose, approve, decline), permission groups, workspace isolation (cross-tenant data separation), events, and auth.
 
 Run against a local instance:
 ```bash

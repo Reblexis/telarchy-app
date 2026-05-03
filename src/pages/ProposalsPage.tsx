@@ -4,10 +4,10 @@ import { useWorkspace } from '../hooks/useWorkspace';
 import { useInspectMode } from '../hooks/useInspectMode';
 import { api } from '../lib/api';
 import { formatTargetDateDisplay } from '../lib/date-utils';
-import type { TaskProposal, TaskMessage, TaskMarketSummary, TaskDetailData, TaskStatus } from '../types';
+import type { Proposal, ProposalMessage, ProposalMarketSummary, ProposalDetailData, ProposalStatus } from '../types';
 
-function StatusBadge({ status }: { status: TaskStatus }) {
-  return <span className={`status-badge task-status task-status--${status}`}>{status}</span>;
+function StatusBadge({ status }: { status: ProposalStatus }) {
+  return <span className={`status-badge proposal-status proposal-status--${status}`}>{status}</span>;
 }
 
 function formatNumber(value: number | null | undefined): string {
@@ -17,12 +17,12 @@ function formatNumber(value: number | null | undefined): string {
 }
 
 /**
- * One-line summary of how the task's conditional markets are pricing the
+ * One-line summary of how the proposal's conditional markets are pricing the
  * proposal, used in the approve-confirm. Picks up to two largest-magnitude
  * forecast moves (signed % from baseline) so the approver re-sees the
  * signal at the commit moment instead of clicking blind.
  */
-function summarizeMarketsForConfirm(markets: TaskMarketSummary[] | undefined): string {
+function summarizeMarketsForConfirm(markets: ProposalMarketSummary[] | undefined): string {
   if (!markets || markets.length === 0) return '';
   const moves = markets
     .filter(m => m.tradeCount > 0 && m.consensus != null && m.baselineConsensus != null && (m.baselineConsensus as number) !== 0)
@@ -63,7 +63,7 @@ function ForecastCell({ baseline, current }: { baseline: number | null | undefin
   );
 }
 
-function PredictionsTable({ markets }: { markets: TaskMarketSummary[] }) {
+function PredictionsTable({ markets }: { markets: ProposalMarketSummary[] }) {
   const [showAll, setShowAll] = useState(false);
 
   if (markets.length === 0) {
@@ -113,8 +113,8 @@ function PredictionsTable({ markets }: { markets: TaskMarketSummary[] }) {
   );
 }
 
-function ChatPanel({ taskId }: { taskId: string }) {
-  const [messages, setMessages] = useState<TaskMessage[]>([]);
+function ChatPanel({ proposalId }: { proposalId: string }) {
+  const [messages, setMessages] = useState<ProposalMessage[]>([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [loadError, setLoadError] = useState('');
@@ -124,9 +124,9 @@ function ChatPanel({ taskId }: { taskId: string }) {
 
   const loadMessages = useCallback(async () => {
     setLoadError('');
-    const data = await api.getTaskMessages(taskId).catch((e: Error) => { setLoadError(e.message); return null; });
+    const data = await api.getProposalMessages(proposalId).catch((e: Error) => { setLoadError(e.message); return null; });
     if (data) setMessages(data);
-  }, [taskId]);
+  }, [proposalId]);
 
   useEffect(() => { loadMessages(); }, [loadMessages]);
 
@@ -146,7 +146,7 @@ function ChatPanel({ taskId }: { taskId: string }) {
     if (!input.trim()) return;
     setSending(true);
     setSendError('');
-    const ok = await api.sendTaskMessage(taskId, input.trim()).catch((e: Error) => { setSendError(e.message); return null; });
+    const ok = await api.sendProposalMessage(proposalId, input.trim()).catch((e: Error) => { setSendError(e.message); return null; });
     if (ok) setInput('');
     setSending(false);
     loadMessages();
@@ -157,27 +157,27 @@ function ChatPanel({ taskId }: { taskId: string }) {
   };
 
   return (
-    <div className="task-chat">
-      <div className="task-chat-messages" ref={containerRef}>
-        {messages.length === 0 && <span className="task-chat-empty">No messages yet.</span>}
+    <div className="proposal-chat">
+      <div className="proposal-chat-messages" ref={containerRef}>
+        {messages.length === 0 && <span className="proposal-chat-empty">No messages yet.</span>}
         {messages.map(msg => {
           const isAdmin = msg.from === 'admin';
           const author = isAdmin ? 'admin' : (msg.fromName ?? `${msg.from.slice(0, 6)}…`);
           return (
-            <div key={msg.id} className="task-chat-msg">
+            <div key={msg.id} className="proposal-chat-msg">
               <span
                 title={msg.from}
-                className={`task-chat-author ${isAdmin ? 'task-chat-author--admin' : 'task-chat-author--participant'}`}
+                className={`proposal-chat-author ${isAdmin ? 'proposal-chat-author--admin' : 'proposal-chat-author--participant'}`}
               >
                 {author}
               </span>
-              <span className="task-chat-content">{msg.content}</span>
+              <span className="proposal-chat-content">{msg.content}</span>
             </div>
           );
         })}
       </div>
-      {(loadError || sendError) && <div className="task-chat-error">{loadError || sendError}</div>}
-      <div className="task-chat-input">
+      {(loadError || sendError) && <div className="proposal-chat-error">{loadError || sendError}</div>}
+      <div className="proposal-chat-input">
         <textarea
           value={input}
           onChange={e => setInput(e.target.value)}
@@ -193,34 +193,34 @@ function ChatPanel({ taskId }: { taskId: string }) {
   );
 }
 
-interface TaskDrawerProps {
-  task: TaskDetailData | null;
+interface ProposalDrawerProps {
+  proposal: ProposalDetailData | null;
   isAdmin: boolean;
   onClose: () => void;
   onAction: () => void;
   onError: (msg: string) => void;
 }
 
-function TaskDrawer({ task, isAdmin, onClose, onAction, onError }: TaskDrawerProps) {
-  const { inspectTask, setInspectTask } = useInspectMode();
+function ProposalDrawer({ proposal, isAdmin, onClose, onAction, onError }: ProposalDrawerProps) {
+  const { inspectProposal, setInspectProposal } = useInspectMode();
   const [acting, setActing] = useState(false);
 
   useEffect(() => {
-    if (!task) return;
+    if (!proposal) return;
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [task, onClose]);
+  }, [proposal, onClose]);
 
   useEffect(() => {
-    if (!task) return;
+    if (!proposal) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = prev; };
-  }, [task]);
+  }, [proposal]);
 
-  if (!task) return null;
-  const isInspecting = inspectTask?.id === task.id;
+  if (!proposal) return null;
+  const isInspecting = inspectProposal?.id === proposal.id;
 
   const handle = async (action: () => Promise<unknown>) => {
     setActing(true);
@@ -230,32 +230,32 @@ function TaskDrawer({ task, isAdmin, onClose, onAction, onError }: TaskDrawerPro
   };
 
   const handleInspect = () => {
-    setInspectTask(isInspecting ? null : { id: task.id, title: task.title });
+    setInspectProposal(isInspecting ? null : { id: proposal.id, title: proposal.title });
   };
 
   return (
     <>
-      <div className="task-drawer-scrim show" onClick={onClose} aria-hidden="true" />
-      <aside className="task-drawer open" role="dialog" aria-label={`Task: ${task.title}`}>
-        <header className="task-drawer-header">
-          <div className="task-drawer-title">
-            <h3>{task.title}</h3>
-            <div className="task-drawer-meta">
-              <StatusBadge status={task.status} />
-              <span className="task-drawer-proposer">
-                proposed by {task.proposedByName ?? `${task.proposedBy.slice(0, 8)}…`}
+      <div className="proposal-drawer-scrim show" onClick={onClose} aria-hidden="true" />
+      <aside className="proposal-drawer open" role="dialog" aria-label={`Proposal: ${proposal.title}`}>
+        <header className="proposal-drawer-header">
+          <div className="proposal-drawer-title">
+            <h3>{proposal.title}</h3>
+            <div className="proposal-drawer-meta">
+              <StatusBadge status={proposal.status} />
+              <span className="proposal-drawer-proposer">
+                proposed by {proposal.proposedByName ?? `${proposal.proposedBy.slice(0, 8)}…`}
               </span>
             </div>
           </div>
-          <button className="modal-close" onClick={onClose} aria-label="Close task panel">&times;</button>
+          <button className="modal-close" onClick={onClose} aria-label="Close proposal panel">&times;</button>
         </header>
 
-        <div className="task-drawer-body">
-          {task.description && <p className="task-description">{task.description}</p>}
+        <div className="proposal-drawer-body">
+          {proposal.description && <p className="proposal-description">{proposal.description}</p>}
 
-          {task.status === 'pending' && (
-            <div className="task-actions-row">
-              <div className="task-actions">
+          {proposal.status === 'pending' && (
+            <div className="proposal-actions-row">
+              <div className="proposal-actions">
                 <button
                   type="button"
                   className={`btn-inspect${isInspecting ? ' btn-inspect--active' : ''}`}
@@ -270,16 +270,16 @@ function TaskDrawer({ task, isAdmin, onClose, onAction, onError }: TaskDrawerPro
                       className="btn-approve"
                       disabled={acting}
                       onClick={() => {
-                        const forecast = summarizeMarketsForConfirm(task.markets);
+                        const forecast = summarizeMarketsForConfirm(proposal.markets);
                         const lines = [
-                          `Approve "${task.title}"?`,
+                          `Approve "${proposal.title}"?`,
                           '',
                           forecast ? `Forecast: ${forecast}` : 'Forecast: no market signal yet.',
                           '',
                           'Conditional markets stay open for post-decision tracking.',
                         ];
                         if (!window.confirm(lines.join('\n'))) return;
-                        handle(() => api.approveTask(task.id));
+                        handle(() => api.approveProposal(proposal.id));
                       }}
                     >
                       {acting ? '…' : 'Approve'}
@@ -289,8 +289,8 @@ function TaskDrawer({ task, isAdmin, onClose, onAction, onError }: TaskDrawerPro
                       className="btn-decline"
                       disabled={acting}
                       onClick={() => {
-                        if (!window.confirm(`Decline "${task.title}"?\n\nThis voids the task's conditional markets and refunds any stakes.`)) return;
-                        handle(() => api.declineTask(task.id));
+                        if (!window.confirm(`Decline "${proposal.title}"?\n\nThis voids the proposal's conditional markets and refunds any stakes.`)) return;
+                        handle(() => api.declineProposal(proposal.id));
                       }}
                     >
                       {acting ? '…' : 'Decline'}
@@ -298,22 +298,22 @@ function TaskDrawer({ task, isAdmin, onClose, onAction, onError }: TaskDrawerPro
                   </>
                 )}
               </div>
-              <p className="task-actions-hint">
+              <p className="proposal-actions-hint">
                 {isAdmin
                   ? 'Declining voids conditional markets and refunds stakes.'
-                  : 'Only workspace admins can approve or decline. Click Inspect to see how this task would shift each metric.'}
+                  : 'Only workspace admins can approve or decline. Click Inspect to see how this proposal would shift each metric.'}
               </p>
             </div>
           )}
 
-          <section className="task-drawer-section">
+          <section className="proposal-drawer-section">
             <h4>Impact predictions</h4>
-            <PredictionsTable markets={task.markets ?? []} />
+            <PredictionsTable markets={proposal.markets ?? []} />
           </section>
 
-          <section className="task-drawer-section">
+          <section className="proposal-drawer-section">
             <h4>Discussion</h4>
-            <ChatPanel taskId={task.id} />
+            <ChatPanel proposalId={proposal.id} />
           </section>
         </div>
       </aside>
@@ -321,14 +321,14 @@ function TaskDrawer({ task, isAdmin, onClose, onAction, onError }: TaskDrawerPro
   );
 }
 
-interface NewTaskModalProps {
+interface NewProposalModalProps {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
   onError: (msg: string) => void;
 }
 
-function NewTaskModal({ open, onClose, onCreated, onError }: NewTaskModalProps) {
+function NewProposalModal({ open, onClose, onCreated, onError }: NewProposalModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [creating, setCreating] = useState(false);
@@ -344,7 +344,7 @@ function NewTaskModal({ open, onClose, onCreated, onError }: NewTaskModalProps) 
     e.preventDefault();
     if (!title) return;
     setCreating(true);
-    const result = await api.createTask({
+    const result = await api.createProposal({
       title,
       description,
     }).catch((e: Error) => { onError(e.message); return null; });
@@ -360,23 +360,23 @@ function NewTaskModal({ open, onClose, onCreated, onError }: NewTaskModalProps) 
     <div className="modal show" onClick={handleOverlayClick}>
       <div className="modal-content">
         <div className="modal-header">
-          <h3>Propose task</h3>
+          <h3>Propose proposal</h3>
           <button className="modal-close" onClick={onClose} aria-label="Close">&times;</button>
         </div>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="newTaskTitle">Title</label>
+            <label htmlFor="newProposalTitle">Title</label>
             <input
-              id="newTaskTitle" type="text" required
+              id="newProposalTitle" type="text" required
               value={title} onChange={e => setTitle(e.target.value)}
               placeholder="e.g. Improve sleep routine"
               autoFocus
             />
           </div>
           <div className="form-group">
-            <label htmlFor="newTaskDescription">Description</label>
+            <label htmlFor="newProposalDescription">Description</label>
             <textarea
-              id="newTaskDescription"
+              id="newProposalDescription"
               value={description}
               onChange={e => setDescription(e.target.value)}
               placeholder="What would change if this is done? (optional)"
@@ -384,7 +384,7 @@ function NewTaskModal({ open, onClose, onCreated, onError }: NewTaskModalProps) 
             />
           </div>
           <button type="submit" className="btn" disabled={creating || !title}>
-            {creating ? 'Proposing…' : 'Propose task'}
+            {creating ? 'Proposing…' : 'Propose proposal'}
           </button>
         </form>
       </div>
@@ -392,46 +392,46 @@ function NewTaskModal({ open, onClose, onCreated, onError }: NewTaskModalProps) 
   );
 }
 
-export function TasksPage() {
+export function ProposalsPage() {
   const { user } = useAuth();
   const { workspace } = useWorkspace();
   const isAdmin = workspace?.tier === 'admin';
-  const [tasks, setTasks] = useState<TaskProposal[]>([]);
+  const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [openTaskId, setOpenTaskId] = useState<string | null>(null);
-  const [openTaskData, setOpenTaskData] = useState<TaskDetailData | null>(null);
-  const [newTaskOpen, setNewTaskOpen] = useState(false);
+  const [openProposalId, setOpenProposalId] = useState<string | null>(null);
+  const [openProposalData, setOpenProposalData] = useState<ProposalDetailData | null>(null);
+  const [newProposalOpen, setNewProposalOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!user) return;
     setError('');
-    const data = await api.getTasks().catch((e: Error) => { setError(e.message); return null; });
-    if (data) setTasks(data);
+    const data = await api.getProposals().catch((e: Error) => { setError(e.message); return null; });
+    if (data) setProposals(data);
     setLoading(false);
   }, [user]);
 
   useEffect(() => { load(); }, [load]);
 
   const loadDetail = useCallback(async (id: string) => {
-    const detail = await api.getTask(id).catch((e: Error) => { setError(e.message); return null; });
-    if (detail) setOpenTaskData(detail);
+    const detail = await api.getProposal(id).catch((e: Error) => { setError(e.message); return null; });
+    if (detail) setOpenProposalData(detail);
   }, []);
 
-  const openTask = (task: TaskProposal) => {
-    setOpenTaskId(task.id);
-    setOpenTaskData(task as TaskDetailData);
-    loadDetail(task.id);
+  const openProposal = (proposal: Proposal) => {
+    setOpenProposalId(proposal.id);
+    setOpenProposalData(proposal as ProposalDetailData);
+    loadDetail(proposal.id);
   };
 
-  const closeTask = () => {
-    setOpenTaskId(null);
-    setOpenTaskData(null);
+  const closeProposal = () => {
+    setOpenProposalId(null);
+    setOpenProposalData(null);
   };
 
   const handleAction = async () => {
     await load();
-    if (openTaskId) await loadDetail(openTaskId);
+    if (openProposalId) await loadDetail(openProposalId);
   };
 
   if (!user) return null;
@@ -440,14 +440,14 @@ export function TasksPage() {
     <div className="container">
       <div className="section-header section-header--with-status">
         <div>
-          <h2>Tasks</h2>
+          <h2>Proposals</h2>
           <p className="section-subtitle">
             Admin-proposed initiatives, each paired with conditional markets so participants can forecast the impact before approval.
           </p>
         </div>
         {isAdmin && (
-          <button type="button" className="btn" onClick={() => setNewTaskOpen(true)}>
-            + Propose task
+          <button type="button" className="btn" onClick={() => setNewProposalOpen(true)}>
+            + Propose proposal
           </button>
         )}
       </div>
@@ -455,26 +455,26 @@ export function TasksPage() {
       {error && <div className="message error show">{error}</div>}
 
       {workspace && !isAdmin && (
-        <p className="task-trader-hint">
-          You have trader access in this workspace. You can see proposed tasks and forecast on conditional markets,
-          but only admins can propose or approve tasks.
+        <p className="proposal-trader-hint">
+          You have trader access in this workspace. You can see proposed proposals and forecast on conditional markets,
+          but only admins can propose or approve proposals.
         </p>
       )}
 
       {loading ? (
-        <div className="loading">Loading tasks…</div>
-      ) : tasks.length === 0 ? (
-        <div className="task-empty">
-          <p>No tasks yet.</p>
+        <div className="loading">Loading proposals…</div>
+      ) : proposals.length === 0 ? (
+        <div className="proposal-empty">
+          <p>No proposals yet.</p>
           {isAdmin && (
-            <button type="button" className="btn" onClick={() => setNewTaskOpen(true)}>
-              Propose the first task
+            <button type="button" className="btn" onClick={() => setNewProposalOpen(true)}>
+              Propose the first proposal
             </button>
           )}
         </div>
       ) : (
-        <div className="task-list">
-          <table className="task-table">
+        <div className="proposal-list">
+          <table className="proposal-table">
             <thead>
               <tr>
                 <th>Title</th>
@@ -483,23 +483,23 @@ export function TasksPage() {
               </tr>
             </thead>
             <tbody>
-              {tasks.map(task => (
+              {proposals.map(proposal => (
                 <tr
-                  key={task.id}
-                  className={`task-row${openTaskId === task.id ? ' task-row--active' : ''}`}
-                  onClick={() => openTask(task)}
+                  key={proposal.id}
+                  className={`proposal-row${openProposalId === proposal.id ? ' proposal-row--active' : ''}`}
+                  onClick={() => openProposal(proposal)}
                   tabIndex={0}
                   role="button"
-                  aria-label={`Open task ${task.title}`}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openTask(task); } }}
+                  aria-label={`Open proposal ${proposal.title}`}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProposal(proposal); } }}
                 >
-                  <td className="task-row-title">{task.title}</td>
-                  <td className="task-row-proposer" title={task.proposedBy}>
-                    {task.proposedByName ?? (
-                      <span className="task-row-proposer-id">{`${task.proposedBy.slice(0, 8)}…`}</span>
+                  <td className="proposal-row-title">{proposal.title}</td>
+                  <td className="proposal-row-proposer" title={proposal.proposedBy}>
+                    {proposal.proposedByName ?? (
+                      <span className="proposal-row-proposer-id">{`${proposal.proposedBy.slice(0, 8)}…`}</span>
                     )}
                   </td>
-                  <td><StatusBadge status={task.status} /></td>
+                  <td><StatusBadge status={proposal.status} /></td>
                 </tr>
               ))}
             </tbody>
@@ -507,17 +507,17 @@ export function TasksPage() {
         </div>
       )}
 
-      <TaskDrawer
-        task={openTaskId ? openTaskData : null}
+      <ProposalDrawer
+        proposal={openProposalId ? openProposalData : null}
         isAdmin={isAdmin}
-        onClose={closeTask}
+        onClose={closeProposal}
         onAction={handleAction}
         onError={setError}
       />
 
-      <NewTaskModal
-        open={newTaskOpen}
-        onClose={() => setNewTaskOpen(false)}
+      <NewProposalModal
+        open={newProposalOpen}
+        onClose={() => setNewProposalOpen(false)}
         onCreated={load}
         onError={setError}
       />

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { api, type ActivityItem } from '../lib/api';
-import type { Metric, TaskProposal } from '../types';
+import type { Metric, Proposal } from '../types';
 import { fmtTime } from '../lib/date-utils';
 import { summarizeActivity } from '../lib/activity-summary';
 
@@ -40,7 +40,7 @@ function primaryValue(m: Metric): {
 }
 
 function activityLink(item: ActivityItem): string | null {
-  if (item.taskId) return `/tasks?id=${encodeURIComponent(item.taskId)}`;
+  if (item.proposalId) return `/proposals?id=${encodeURIComponent(item.proposalId)}`;
   if (item.marketId) return `/markets?marketId=${encodeURIComponent(item.marketId)}`;
   if (item.metricId) return `/metrics`;
   return null;
@@ -71,7 +71,7 @@ export function OverviewPage() {
 
   const [metrics, setMetrics] = useState<Metric[] | null>(null);
   const [metricsError, setMetricsError] = useState<string | null>(null);
-  const [pending, setPending] = useState<TaskProposal[] | null>(null);
+  const [pending, setPending] = useState<Proposal[] | null>(null);
   const [activity, setActivity] = useState<ActivityItem[] | null>(null);
 
   useEffect(() => {
@@ -86,10 +86,10 @@ export function OverviewPage() {
   useEffect(() => {
     if (!user || !isAdmin || !workspace?.workspaceId) { setPending([]); return; }
     let cancelled = false;
-    api.getTasks('pending')
-      .then((rows: TaskProposal[]) => { if (!cancelled) setPending(rows); })
+    api.getProposals('pending')
+      .then((rows: Proposal[]) => { if (!cancelled) setPending(rows); })
       .catch((e: ApiError) => {
-        console.error('Failed to load pending tasks for overview', e.message);
+        console.error('Failed to load pending proposals for overview', e.message);
         if (!cancelled) setPending([]);
       });
     return () => { cancelled = true; };
@@ -194,14 +194,14 @@ export function OverviewPage() {
           <ul className="overview-list">
             {pending.slice(0, 5).map(t => (
               <li key={t.id}>
-                <Link to={`/tasks?id=${t.id}`} className="overview-row">
+                <Link to={`/proposals?id=${t.id}`} className="overview-row">
                   <span className="overview-row-text">{t.title}</span>
                 </Link>
               </li>
             ))}
           </ul>
           {pending.length > 5 && (
-            <Link to="/tasks" className="overview-more">View all {pending.length} →</Link>
+            <Link to="/proposals" className="overview-more">View all {pending.length} →</Link>
           )}
         </section>
       )}

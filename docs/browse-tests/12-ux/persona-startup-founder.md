@@ -101,20 +101,20 @@ react "founder-relevant KPI matches: $hits / 5"
 ### T4. Propose a decision
 
 ```bash
-$B goto "$TT_FRONTEND_URL/tasks" && $B wait --networkidle
-$B screenshot "/tmp/$TT_NS-sf/05-tasks.png"
-$B click 'button:has-text("Propose"), button:has-text("New task"), [data-testid="new-task"]' \
-  || react "FRICTION: no propose-task affordance found"
+$B goto "$TT_FRONTEND_URL/proposals" && $B wait --networkidle
+$B screenshot "/tmp/$TT_NS-sf/05-proposals.png"
+$B click 'button:has-text("Propose"), button:has-text("New proposal"), [data-testid="new-proposal"]' \
+  || react "FRICTION: no propose-proposal affordance found"
 $B wait --networkidle
 $B fill 'input[name="title"], input[placeholder*="title" i]' "Hire 1 senior engineer"
 $B fill 'textarea[name="description"], textarea[placeholder*="description" i]' "Trade-off: increase burn by 15k/mo, expect MRR up 8k/mo by Q3"
 $B click 'button[type="submit"]:has-text("Propose"), button:has-text("Submit")'
 $B wait --networkidle
-$B screenshot "/tmp/$TT_NS-sf/06-task-proposed.png"
+$B screenshot "/tmp/$TT_NS-sf/06-proposal-proposed.png"
 text=$($B text)
 grep -qi "Hire 1 senior" <<<"$text" \
   && react "Decision proposed and visible" \
-  || react "FRICTION: proposed task not visible after submit"
+  || react "FRICTION: proposed proposal not visible after submit"
 ```
 
 ### T5. Invite a collaborator (advisor)

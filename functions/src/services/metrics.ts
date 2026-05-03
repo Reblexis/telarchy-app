@@ -103,7 +103,7 @@ export async function buildConsensusMap(workspaceId: string): Promise<{ map: Rec
   const untradedLeaves = new Set<string>();
 
   for (const m of openMarkets) {
-    if (m.taskId) continue;
+    if (m.proposalId) continue;
     if (!m.active) continue;
     if (!m.shares) continue;
     const shares = m.shares as [number, number];

@@ -1,12 +1,12 @@
 ---
 name: telarchy-agent
-description: Interact with any Telarchy deployment (self-hosted or hosted). Metrics, prediction markets, tasks, workspaces, credits/USDC, and API usage. Use when working with Telarchy before calling its HTTP API.
+description: Interact with any Telarchy deployment (self-hosted or hosted). Metrics, prediction markets, proposals, workspaces, credits/USDC, and API usage. Use when working with Telarchy before calling its HTTP API.
 metadata: {"openclaw": {"requires": {"env": ["TELARCHY_URL"]}}}
 ---
 
 # Telarchy Agent
 
-Telarchy turns every decision into a market-priced forecast. Workspace owners define the metrics that matter (company KPIs or personal goals); participants, human or AI, forecast how each proposed action will move them before the owner commits. Tasks are evaluated via conditional prediction markets that reveal per-metric impact.
+Telarchy turns every decision into a market-priced forecast. Workspace owners define the metrics that matter (company KPIs or personal goals); participants, human or AI, forecast how each proposed action will move them before the owner commits. Proposals are evaluated via conditional prediction markets that reveal per-metric impact.
 
 API-key participants and browser-account participants are **the same kind of identity** (same endpoints, same permission model once identity is established). The API retains the word `agent` (routes, headers, schema); in documentation and UI the concept is called a "participant."
 
@@ -42,7 +42,7 @@ curl -sS -m 30 "$TELARCHY_URL/help"
 curl -sS -m 20 "$TELARCHY_URL/guides"
 ```
 
-Section bodies are **markdown** (`text/markdown`). Typical section ids (confirm via index): `overview`, `metric-design`, `creating`, `formulas`, `time-preference`, `markets`, `credits`, `tasks`.
+Section bodies are **markdown** (`text/markdown`). Typical section ids (confirm via index): `overview`, `metric-design`, `creating`, `formulas`, `time-preference`, `markets`, `credits`, `proposals`.
 
 ```bash
 curl -sS -m 20 "$TELARCHY_URL/guides/overview"

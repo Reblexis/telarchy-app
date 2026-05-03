@@ -3,7 +3,7 @@ import { db } from '../db/client';
 import {
   workspaces, permissionGroups,
   markets, positions, trades, liquidityEvents,
-  metrics, tasks, taskMessages, updates, metricLogs, events,
+  metrics, proposals, proposalMessages, updates, metricLogs, events,
   hookWatcher, agentApiKeys,
 } from '../db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
@@ -371,8 +371,8 @@ workspacesRouter.delete('/:id', requireCapability('manage'), wrap(async (req, re
     await tx.delete(positions).where(eq(positions.workspaceId, wsId));
     await tx.delete(trades).where(eq(trades.workspaceId, wsId));
     await tx.delete(markets).where(eq(markets.workspaceId, wsId));
-    await tx.delete(taskMessages).where(eq(taskMessages.workspaceId, wsId));
-    await tx.delete(tasks).where(eq(tasks.workspaceId, wsId));
+    await tx.delete(proposalMessages).where(eq(proposalMessages.workspaceId, wsId));
+    await tx.delete(proposals).where(eq(proposals.workspaceId, wsId));
     await tx.delete(updates).where(eq(updates.workspaceId, wsId));
     await tx.delete(metricLogs).where(eq(metricLogs.workspaceId, wsId));
     await tx.delete(events).where(eq(events.workspaceId, wsId));

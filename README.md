@@ -94,12 +94,12 @@ metrics-tracker/
 │   ├── components/         # UI components
 │   ├── hooks/              # useAuth, useWorkspace, useMetrics
 │   ├── lib/                # API client, metrics engine
-│   └── pages/              # Landing, Metrics, Markets, Tasks, Participants, ...
+│   └── pages/              # Landing, Metrics, Markets, Proposals, Participants, ...
 ├── functions/              # Backend API
 │   └── src/
 │       ├── app.ts          # Express app wiring
 │       ├── middleware/     # Auth and capability resolution
-│       ├── routes/         # metrics, predictions, tasks, agents, ...
+│       ├── routes/         # metrics, predictions, proposals, agents, ...
 │       ├── services/       # Business/domain operations
 │       └── lib/            # Formula engine, AMM, helpers
 ├── docker-compose.yml      # Self-hosted stack (backend + frontend + PostgreSQL)

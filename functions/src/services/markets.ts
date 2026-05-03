@@ -283,7 +283,7 @@ export async function refreshRelativeDateMarkets(workspaceId: string, opts: { fo
   const toDeactivate: string[] = [];
   const toActivate: string[] = [];
   const toLiquidityNormalize: string[] = [];
-  const seenNonTask = new Map<string, { id: string; createdAt: Date }>();
+  const seenNonProposal = new Map<string, { id: string; createdAt: Date }>();
   const toVoid: MarketRow[] = [];
   const toFund: string[] = [];
 
@@ -292,7 +292,7 @@ export async function refreshRelativeDateMarkets(workspaceId: string, opts: { fo
 
     // Void markets whose rangeMax is stale (metric's marketRangeMax has changed).
     // Skip adding to openKeys so the pending step recreates them with the correct rangeMax.
-    if (!m.taskId) {
+    if (!m.proposalId) {
       const expectedRangeMax = idToRangeMax.get(m.metricId);
       if (expectedRangeMax !== undefined && m.rangeMax !== expectedRangeMax) {
         toVoid.push(m);
@@ -301,15 +301,15 @@ export async function refreshRelativeDateMarkets(workspaceId: string, opts: { fo
     }
 
     openKeys.add(key);
-    if (m.taskId) continue;
+    if (m.proposalId) continue;
 
-    const prev = seenNonTask.get(key);
+    const prev = seenNonProposal.get(key);
     if (!prev) {
-      seenNonTask.set(key, { id: m.id, createdAt: m.createdAt });
+      seenNonProposal.set(key, { id: m.id, createdAt: m.createdAt });
     } else if (m.createdAt < prev.createdAt) {
       const prevMarket = openMarkets.find(om => om.id === prev.id);
       if (prevMarket) toVoid.push(prevMarket);
-      seenNonTask.set(key, { id: m.id, createdAt: m.createdAt });
+      seenNonProposal.set(key, { id: m.id, createdAt: m.createdAt });
     } else {
       toVoid.push(m);
     }

@@ -22,7 +22,7 @@ Read `_protocol.md` once to understand the execution model and findings template
 | 10 | `10-polymarket-refugee.md` | Kai — crypto-native, expects real-money markets | desktop | crypto-twitter | 3 min |
 | 11 | `11-decision-maker.md` | Priya — manager with a specific decision weighing on her | desktop | peer tweet | 8 min |
 | 12 | `12-invited-collaborator.md` | Dev — teammate invited into an existing workspace | desktop | DM from boss | 5 min |
-| 13 | `13-task-approver.md` | Chen — admin approving a task via conditional markets | desktop | in-app / email | 10 min |
+| 13 | `13-proposal-approver.md` | Chen — admin approving a proposal via conditional markets | desktop | in-app / email | 10 min |
 
 ## Coverage
 
@@ -35,7 +35,7 @@ These thirteen personas cover the axes that matter for MVP survival:
 - **Time horizon**: 1 (seconds), 5 (seconds), 10 (minutes), 4 (minutes), 2 (minutes), 3 (minutes), 8 (minutes), 11 (minutes), 12 (minutes), 13 (minutes), 6 (half hour), 7 (retention after 48 h), 9 (reads legal pages).
 - **Attention profile**: 1 (hostile), 2 (curious), 3 (impatient-technical), 4 (commercial), 5 (distracted), 6 (thoughtful), 7 (uncertain), 8 (suspicious of SaaS-only), 9 (compliance-aware), 10 (crypto-impatient), 11 (decision-pragmatic), 12 (obligated-neutral), 13 (trust-cautious).
 - **Compliance / messaging canaries**: 8 probes the open-source-claim consistency; 9 probes ToS/Privacy/consent truthfulness; 10 probes the play-money-vs-USDC framing. These three re-run after any edit to legal or landing copy.
-- **Product-thesis canaries**: 11 probes the "Better decisions, faster" landing pitch against the actual product journey; 13 probes whether the conditional-decision-market (futarchy) loop is usable by the person it's meant to serve. Re-run these after any landing or tasks UI change.
+- **Product-thesis canaries**: 11 probes the "Better decisions, faster" landing pitch against the actual product journey; 13 probes whether the conditional-decision-market (futarchy) loop is usable by the person it's meant to serve. Re-run these after any landing or proposals UI change.
 - **Team/multi-user canary**: 12 probes the invitee side of team workspaces. Re-run after any change to workspace visibility, join flow, or default group capabilities.
 
 Missing (explicit non-goals for now):

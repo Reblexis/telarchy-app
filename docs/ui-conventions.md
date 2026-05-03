@@ -30,7 +30,7 @@ different one, put it in this doc and pick from the tier below.
 
 | Tier      | Max-width  | Use for                                          |
 | --------- | ---------- | ------------------------------------------------ |
-| standard  | **1080px** | All workspace tabs (overview, metrics, activity, tasks, markets, …). Default. |
+| standard  | **1080px** | All workspace tabs (overview, metrics, activity, proposals, markets, …). Default. |
 | narrow    | 640px      | Single-form pages — account, single-step settings panels.                     |
 | signup    | 420–460px  | Auth/intake — sign in, sign up, create workspace.                             |
 
@@ -97,7 +97,7 @@ the standard accent border + light fill on its subnav row.
 
 Subnav items sit in an indented column with a single 1px guide line
 on the left, no per-item border. Reorder of subnav: data-creating
-tabs first (Metrics, Tasks, Markets), then secondary (Participants,
+tabs first (Metrics, Proposals, Markets), then secondary (Participants,
 Sources, Activity), then administrative (Settings).
 
 ## Activity feed

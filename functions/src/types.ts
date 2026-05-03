@@ -89,24 +89,24 @@ export interface Market {
   rangeMax: number;
   shares: [number, number];
   liquidity: number;
-  taskId?: string;
+  proposalId?: string;
 }
 
-export type TaskStatus = 'pending' | 'approved' | 'declined';
+export type ProposalStatus = 'pending' | 'approved' | 'declined';
 
-export interface TaskProposal {
+export interface Proposal {
   id: string;
   proposedBy: string;
   title: string;
   description: string;
-  status: TaskStatus;
+  status: ProposalStatus;
   conditionalMarketIds: string[];
   createdAt: Date;
 }
 
-export interface TaskMessage {
+export interface ProposalMessage {
   id: string;
-  taskId: string;
+  proposalId: string;
   from: string;
   content: string;
   createdAt: Date;

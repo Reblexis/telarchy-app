@@ -31,7 +31,7 @@ You agree not to:
 
 ## 5. User content
 
-You retain ownership of the metrics, descriptions, task text, and other content you submit. You grant us a limited, worldwide, royalty-free license to store, process, and display that content solely as needed to operate the Service for you and your workspace members.
+You retain ownership of the metrics, descriptions, proposal text, and other content you submit. You grant us a limited, worldwide, royalty-free license to store, process, and display that content solely as needed to operate the Service for you and your workspace members.
 
 ## 6. Disclaimers
 

@@ -110,5 +110,5 @@ Workspace deletion handles the rest.
 
 ## Known gaps
 
-- No assertion on what happens to outstanding tasks.
+- No assertion on what happens to outstanding proposals.
 - No idempotency check (calling twice in a row).

@@ -31,7 +31,7 @@ export function validateNickname(value: unknown): string | undefined {
   return undefined;
 }
 
-/** Free-text content fields (task descriptions, messages, metric descriptions). Max 10,000 chars. */
+/** Free-text content fields (proposal descriptions, messages, metric descriptions). Max 10,000 chars. */
 export function validateContent(value: unknown, fieldName = 'content', maxLength = 10_000): string | undefined {
   if (typeof value !== 'string') return `${fieldName} must be a string`;
   if (value.length > maxLength) return `${fieldName} must be at most ${maxLength} characters`;

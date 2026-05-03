@@ -9,7 +9,7 @@ goal-horizon: short
 goal-statement: |
   As any workspace member, I can open the workspace's Activity tab and see
   a friendly, reverse-chronological feed of what participants have been
-  doing (tasks proposed, markets created and resolved, KPIs updated,
+  doing (proposals proposed, markets created and resolved, KPIs updated,
   forecasts placed, liquidity added) without exposing financial events
   (deposits, withdrawals) or revealing who placed which forecast.
 ---
@@ -34,7 +34,7 @@ Backend: `GET /api/activity` (capability `read`).
 ## Preconditions
 
 - A signed-in workspace member.
-- The workspace already has at least one task, one market, and one trade
+- The workspace already has at least one proposal, one market, and one trade
   (to populate the feed). The fixture script below creates these fresh.
 
 ## Setup
@@ -55,10 +55,10 @@ WS_ID=$(curl -sf -b "$JAR" -H 'Content-Type: application/json' \
   -X POST "$BASE/api/workspaces" \
   -d '{"name":"Activity QA","template":"personal-goals"}' | jq -r .id)
 
-# Propose a task to populate the feed.
+# Propose a proposal to populate the feed.
 curl -sf -b "$JAR" -H 'Content-Type: application/json' \
   -H "X-Workspace-Id: $WS_ID" \
-  -X POST "$BASE/api/tasks" \
+  -X POST "$BASE/api/proposals" \
   -d '{"title":"Test proposal"}' >/dev/null
 ```
 
@@ -78,9 +78,9 @@ $B snapshot -i
 Expected:
 
 - Page heading "Activity".
-- Type chips visible (Tasks, Chat, Markets, Resolved, KPIs, Forecasts,
+- Type chips visible (Proposals, Chat, Markets, Resolved, KPIs, Forecasts,
   Liquidity).
-- The "Test proposal" task appears in the feed under a "Tasks" chip,
+- The "Test proposal" proposal appears in the feed under a "Proposals" chip,
   summarized like `<actor> proposed "Test proposal" (100 cr)`.
 - No `deposit` or `withdrawal` chip shown anywhere (member view does not
   expose financial events).

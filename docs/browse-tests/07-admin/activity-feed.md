@@ -8,7 +8,7 @@ timeout: 90s
 goal-horizon: short
 goal-statement: |
   As the platform operator, I can read the per-workspace activity feed and
-  see human-readable, chronological events for every market, trade, task,
+  see human-readable, chronological events for every market, trade, proposal,
   and metric change worth knowing about.
 ---
 

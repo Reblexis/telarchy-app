@@ -67,7 +67,7 @@ export const workspaces = pgTable('workspaces', {
   /** 'public' | 'unlisted' | 'private' */
   visibility: text('visibility').notNull().default('private'),
   tradedVolume: doublePrecision('traded_volume').notNull().default(0),
-  /** When true, new non-task markets debit the workspace owner's agent balance per newMarketLiquidityCredits. */
+  /** When true, new non-proposal markets debit the workspace owner's agent balance per newMarketLiquidityCredits. */
   autoFundNewMarkets: boolean('auto_fund_new_markets').notNull().default(false),
   /** Pool contribution (credits) per new market when auto-fund is on. */
   newMarketLiquidityCredits: doublePrecision('new_market_liquidity_credits').notNull().default(0),
@@ -210,7 +210,7 @@ export const markets = pgTable('markets', {
   pool: doublePrecision('pool').notNull(),
   /** Cumulative traded volume on this market: sum of |cost| across all buy and sell trades. */
   tradedVolume: doublePrecision('traded_volume').notNull().default(0),
-  taskId: text('task_id'),
+  proposalId: text('proposal_id'),
 }, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
 
 export const positions = pgTable('positions', {
@@ -250,7 +250,7 @@ export const liquidityEvents = pgTable('liquidity_events', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
 
-export const tasks = pgTable('tasks', {
+export const proposals = pgTable('proposals', {
   id: text('id').notNull(),
   workspaceId: text('workspace_id').notNull(),
   proposedBy: text('proposed_by').notNull(),
@@ -262,10 +262,10 @@ export const tasks = pgTable('tasks', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
 
-export const taskMessages = pgTable('task_messages', {
+export const proposalMessages = pgTable('proposal_messages', {
   id: text('id').notNull(),
   workspaceId: text('workspace_id').notNull(),
-  taskId: text('task_id').notNull(),
+  proposalId: text('proposal_id').notNull(),
   from: text('from').notNull(),
   content: text('content').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),

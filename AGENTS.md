@@ -161,9 +161,9 @@ curl -s -H "X-API-Key: mtrk_a7f3x9kL2pQw8vNdR4jY6mBs" \
 Known working endpoints for debugging:
 - `GET /api/status` - system health
 - `GET /api/agents` - list participants and balances
-- `GET /api/tasks` - list tasks (returns id, title, status)
-- `GET /api/predictions/markets` - non-conditional markets (add `?taskId=X` for conditional)
-- `POST /api/predictions/markets/refresh` - trigger market refresh (body: `{}` or `{ taskId }`)
+- `GET /api/proposals` - list proposals (returns id, title, status)
+- `GET /api/predictions/markets` - non-conditional markets (add `?proposalId=X` for conditional)
+- `POST /api/predictions/markets/refresh` - trigger market refresh (body: `{}` or `{ proposalId }`)
 
 Important: always rebuild functions before checking compiled output (`npm run build:functions`). The deploy script does this automatically but if you edit `.ts` files and check `lib/*.js` directly, recompile first or the compiled output will be stale.
 

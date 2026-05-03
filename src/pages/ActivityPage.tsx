@@ -13,7 +13,7 @@ const TIME_RANGES: { label: string; hours: number }[] = [
 ];
 
 function activityLink(item: ActivityItem): string | null {
-  if (item.taskId) return `/tasks?id=${encodeURIComponent(item.taskId)}`;
+  if (item.proposalId) return `/proposals?id=${encodeURIComponent(item.proposalId)}`;
   if (item.marketId) return `/markets?marketId=${encodeURIComponent(item.marketId)}`;
   if (item.metricId) return `/metrics`;
   return null;

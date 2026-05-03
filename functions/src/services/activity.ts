@@ -6,8 +6,8 @@ import {
   withdrawals,
   markets,
   updates,
-  tasks,
-  taskMessages,
+  proposals,
+  proposalMessages,
   liquidityEvents,
   metrics as metricsTable,
 } from '../db/schema';
@@ -20,8 +20,8 @@ export const ACTIVITY_TYPES = [
   'market_created',
   'market_resolved',
   'metric_update',
-  'task_created',
-  'task_message',
+  'proposal_created',
+  'proposal_message',
   'liquidity',
 ] as const;
 export type ActivityType = typeof ACTIVITY_TYPES[number];
@@ -33,7 +33,7 @@ export interface ActivityItem {
   actor: { id: string; label: string } | null;
   marketId?: string;
   metricId?: string;
-  taskId?: string;
+  proposalId?: string;
   data: Record<string, unknown>;
 }
 
@@ -45,7 +45,7 @@ export interface ActivityQuery {
   participantId?: string;
   marketId?: string;
   metricId?: string;
-  taskId?: string;
+  proposalId?: string;
 }
 
 function want(types: ActivityType[] | undefined, t: ActivityType): boolean {
@@ -120,24 +120,24 @@ export async function getActivityFeed(workspaceId: string, opts: ActivityQuery):
       )).orderBy(desc(updates.timestamp)).limit(limit)
     : Promise.resolve([]);
 
-  const tasksQuery = want(types, 'task_created')
-    ? db.select().from(tasks).where(and(
-        eq(tasks.workspaceId, workspaceId),
-        gt(tasks.createdAt, since),
-        lte(tasks.createdAt, until),
-        ...(opts.taskId ? [eq(tasks.id, opts.taskId)] : []),
-        ...(opts.participantId ? [eq(tasks.proposedBy, opts.participantId)] : []),
-      )).orderBy(desc(tasks.createdAt)).limit(limit)
+  const proposalsQuery = want(types, 'proposal_created')
+    ? db.select().from(proposals).where(and(
+        eq(proposals.workspaceId, workspaceId),
+        gt(proposals.createdAt, since),
+        lte(proposals.createdAt, until),
+        ...(opts.proposalId ? [eq(proposals.id, opts.proposalId)] : []),
+        ...(opts.participantId ? [eq(proposals.proposedBy, opts.participantId)] : []),
+      )).orderBy(desc(proposals.createdAt)).limit(limit)
     : Promise.resolve([]);
 
-  const taskMessagesQuery = want(types, 'task_message')
-    ? db.select().from(taskMessages).where(and(
-        eq(taskMessages.workspaceId, workspaceId),
-        gt(taskMessages.createdAt, since),
-        lte(taskMessages.createdAt, until),
-        ...(opts.taskId ? [eq(taskMessages.taskId, opts.taskId)] : []),
-        ...(opts.participantId ? [eq(taskMessages.from, opts.participantId)] : []),
-      )).orderBy(desc(taskMessages.createdAt)).limit(limit)
+  const proposalMessagesQuery = want(types, 'proposal_message')
+    ? db.select().from(proposalMessages).where(and(
+        eq(proposalMessages.workspaceId, workspaceId),
+        gt(proposalMessages.createdAt, since),
+        lte(proposalMessages.createdAt, until),
+        ...(opts.proposalId ? [eq(proposalMessages.proposalId, opts.proposalId)] : []),
+        ...(opts.participantId ? [eq(proposalMessages.from, opts.participantId)] : []),
+      )).orderBy(desc(proposalMessages.createdAt)).limit(limit)
     : Promise.resolve([]);
 
   const liquidityQuery = want(types, 'liquidity')
@@ -156,8 +156,8 @@ export async function getActivityFeed(workspaceId: string, opts: ActivityQuery):
     marketCreatedRows,
     marketResolvedRows,
     updateRows,
-    taskRows,
-    taskMessageRows,
+    proposalRows,
+    proposalMessageRows,
     liquidityRows,
   ] = await Promise.all([
     tradesQuery,
@@ -166,8 +166,8 @@ export async function getActivityFeed(workspaceId: string, opts: ActivityQuery):
     marketsCreatedQuery,
     marketsResolvedQuery,
     updatesQuery,
-    tasksQuery,
-    taskMessagesQuery,
+    proposalsQuery,
+    proposalMessagesQuery,
     liquidityQuery,
   ]);
 
@@ -220,7 +220,7 @@ export async function getActivityFeed(workspaceId: string, opts: ActivityQuery):
       actor: null,
       marketId: m.id,
       metricId: m.metricId,
-      taskId: m.taskId ?? undefined,
+      proposalId: m.proposalId ?? undefined,
       data: {
         metricName: m.metricName,
         targetDate: m.targetDate,
@@ -267,13 +267,13 @@ export async function getActivityFeed(workspaceId: string, opts: ActivityQuery):
     });
   }
 
-  for (const t of taskRows) {
+  for (const t of proposalRows) {
     items.push({
-      id: `task_created:${t.id}`,
-      type: 'task_created',
+      id: `proposal_created:${t.id}`,
+      type: 'proposal_created',
       timestamp: t.createdAt.toISOString(),
       actor: { id: t.proposedBy, label: t.proposedBy },
-      taskId: t.id,
+      proposalId: t.id,
       data: {
         title: t.title,
         status: t.status,
@@ -281,13 +281,13 @@ export async function getActivityFeed(workspaceId: string, opts: ActivityQuery):
     });
   }
 
-  for (const msg of taskMessageRows) {
+  for (const msg of proposalMessageRows) {
     items.push({
-      id: `task_message:${msg.id}`,
-      type: 'task_message',
+      id: `proposal_message:${msg.id}`,
+      type: 'proposal_message',
       timestamp: msg.createdAt.toISOString(),
       actor: { id: msg.from, label: msg.from },
-      taskId: msg.taskId,
+      proposalId: msg.proposalId,
       data: { content: msg.content },
     });
   }

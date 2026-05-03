@@ -54,7 +54,7 @@ BUG_ID=$(jq -r '.id' <<<"$out")
 
 ```bash
 out=$(curl -sf -b "$JAR" -H 'Content-Type: application/json' -X POST \
-  -d '{"kind":"help","subject":"How do conditional markets resolve?","body":"Read the docs but unclear what happens to my stake if the task is declined."}' \
+  -d '{"kind":"help","subject":"How do conditional markets resolve?","body":"Read the docs but unclear what happens to my stake if the proposal is declined."}' \
   "$TT_BASE_URL/api/feedback")
 HELP_ID=$(jq -r '.id' <<<"$out")
 [ -n "$HELP_ID" ] && [ "$HELP_ID" != "null" ]

@@ -82,8 +82,8 @@ export type KeyScope = WorkspaceScope | AccountScope;
 export type ScopeValue = KeyScope | '*';
 
 export const SCOPE_LABELS: Record<KeyScope, { label: string; group: 'Workspace' | 'Account'; help: string }> = {
-  'workspace:read': { label: 'Read workspace data', group: 'Workspace', help: 'View metrics, markets, tasks, status, and accessible sources.' },
-  'workspace:trade': { label: 'Place trades', group: 'Workspace', help: 'Trade on markets, propose tasks, and post task messages. Implies workspace:read.' },
+  'workspace:read': { label: 'Read workspace data', group: 'Workspace', help: 'View metrics, markets, proposals, status, and accessible sources.' },
+  'workspace:trade': { label: 'Place trades', group: 'Workspace', help: 'Trade on markets, propose proposals, and post proposal messages. Implies workspace:read.' },
   'workspace:manage': { label: 'Workspace admin', group: 'Workspace', help: 'Create metrics, resolve markets, edit groups, void markets, and other admin operations. Implies workspace:trade and workspace:read.' },
   'account:read': { label: 'Read account', group: 'Account', help: 'Read your own profile and the list of participants you own. Required for /api/auth/me, /api/agents/mine, /api/auth/me/export.' },
   'account:write': { label: 'Edit account profile', group: 'Account', help: 'Update your nickname and intent via /api/auth/profile.' },
@@ -217,32 +217,32 @@ export interface Market {
   rangeMin: number;
   rangeMax: number;
   liquidity: number;
-  taskId?: string;
+  proposalId?: string;
 }
 
-export type TaskStatus = 'pending' | 'approved' | 'declined';
+export type ProposalStatus = 'pending' | 'approved' | 'declined';
 
-export interface TaskProposal {
+export interface Proposal {
   id: string;
   proposedBy: string;
   proposedByName?: string | null;
   title: string;
   description: string;
-  status: TaskStatus;
+  status: ProposalStatus;
   conditionalMarketIds: string[];
   createdAt: string;
 }
 
-export interface TaskMessage {
+export interface ProposalMessage {
   id: string;
-  taskId: string;
+  proposalId: string;
   from: string;
   fromName?: string | null;
   content: string;
   createdAt: string;
 }
 
-export interface TaskMarketSummary {
+export interface ProposalMarketSummary {
   marketId: string;
   metricId: string;
   metricName: string;
@@ -255,8 +255,8 @@ export interface TaskMarketSummary {
   tradeCount: number;
 }
 
-export interface TaskDetailData extends TaskProposal {
-  markets?: TaskMarketSummary[];
+export interface ProposalDetailData extends Proposal {
+  markets?: ProposalMarketSummary[];
 }
 
 export interface Position {

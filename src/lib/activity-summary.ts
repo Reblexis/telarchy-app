@@ -3,8 +3,8 @@ import type { ActivityItem } from './api';
 export interface FriendlyActivityType { id: string; label: string; color: string }
 
 export const FRIENDLY_ACTIVITY_TYPES: FriendlyActivityType[] = [
-  { id: 'task_created',    label: 'Tasks',     color: '#db2777' },
-  { id: 'task_message',    label: 'Chat',      color: '#be185d' },
+  { id: 'proposal_created',    label: 'Proposals',     color: '#db2777' },
+  { id: 'proposal_message',    label: 'Chat',      color: '#be185d' },
   { id: 'market_created',  label: 'Markets',   color: '#7c3aed' },
   { id: 'market_resolved', label: 'Resolved',  color: '#9333ea' },
   { id: 'metric_update',   label: 'KPIs',      color: '#0891b2' },
@@ -42,13 +42,13 @@ export function summarizeActivity(item: ActivityItem): string {
   const d = item.data as Record<string, unknown>;
   const actor = item.actor?.label;
   switch (item.type) {
-    case 'task_created': {
-      const title = s(d.title) || 'a task';
+    case 'proposal_created': {
+      const title = s(d.title) || 'a proposal';
       return actor
         ? `${actor} proposed "${title}"`
         : `Proposed "${title}"`;
     }
-    case 'task_message': {
+    case 'proposal_message': {
       const content = s(d.content);
       const preview = content.length > 140 ? content.slice(0, 140) + '…' : content;
       return actor ? `${actor}: ${preview}` : preview;

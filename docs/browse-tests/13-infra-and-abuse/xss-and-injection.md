@@ -7,7 +7,7 @@ needs: [auth, master-key, browse]
 timeout: 120s
 goal-horizon: short
 goal-statement: |
-  As a malicious user, I cannot inject script into a metric name, task
+  As a malicious user, I cannot inject script into a metric name, proposal
   title, chat message, or feedback subject and have it execute in another
   user's browser.
 ---
@@ -40,14 +40,14 @@ mid=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
 mkt=$(tt_admin_curl "$WS" -H 'Content-Type: application/json' \
   -X POST -d "$(jq -nc --arg m "$mid" '{metricId:$m, targetDate:"2030-01-01", skipAutoLiquidity:true}')" \
   "$TT_BASE_URL/api/predictions/markets" | jq -r '.id')
-TASK=$(curl -sf -b "$JAR" -H "X-Workspace-Id: $WS" \
+PROPOSAL=$(curl -sf -b "$JAR" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \
   -d "$(jq -nc --arg t "$PAYLOAD" '{title:$t, description:$t}')" \
-  "$TT_BASE_URL/api/tasks" | jq -r '.id')
+  "$TT_BASE_URL/api/proposals" | jq -r '.id')
 curl -sf -b "$JAR" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \
   -d "$(jq -nc --arg b "$PAYLOAD" '{body:$b}')" \
-  "$TT_BASE_URL/api/tasks/$TASK/messages" >/dev/null
+  "$TT_BASE_URL/api/proposals/$PROPOSAL/messages" >/dev/null
 curl -sf -b "$JAR" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \
   -d "$(jq -nc --arg s "$PAYLOAD" --arg b "$PAYLOAD" '{kind:"bug",subject:$s,body:$b}')" \
@@ -92,14 +92,14 @@ title=$($B js 'document.title')
 case "$title" in Telarchy*|"") ;; *) echo "title hijack on /markets: $title"; exit 1;; esac
 ```
 
-### T3. /tasks renders title+description+chat safely
+### T3. /proposals renders title+description+chat safely
 
 ```bash
-$B goto "$TT_FRONTEND_URL/tasks" && $B wait --networkidle
+$B goto "$TT_FRONTEND_URL/proposals" && $B wait --networkidle
 err=$($B console --errors | sed -n '/^--- BEGIN/,/^--- END/{ /^---/d; p }')
-case "$err" in ''|'(no console errors)') ;; *) echo "console errors on /tasks XSS: $err"; exit 1;; esac
+case "$err" in ''|'(no console errors)') ;; *) echo "console errors on /proposals XSS: $err"; exit 1;; esac
 title=$($B js 'document.title')
-case "$title" in Telarchy*|"") ;; *) echo "title hijack on /tasks: $title"; exit 1;; esac
+case "$title" in Telarchy*|"") ;; *) echo "title hijack on /proposals: $title"; exit 1;; esac
 ```
 
 ### T4. No `<img onerror>` actually executed

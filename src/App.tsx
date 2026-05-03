@@ -11,7 +11,7 @@ import { WorkspaceSettingsPage } from './pages/WorkspaceSettingsPage';
 import { MetricsPage } from './pages/MetricsPage';
 import { ParticipantsPage } from './pages/ParticipantsPage';
 import { MarketsPage } from './pages/MarketsPage';
-import { TasksPage } from './pages/TasksPage';
+import { ProposalsPage } from './pages/ProposalsPage';
 import { WaitlistPage } from './pages/WaitlistPage';
 import { StartPage } from './pages/StartPage';
 import { AdminPage } from './pages/AdminPage';
@@ -33,8 +33,8 @@ function MarketplaceWorkspaceRedirect() {
 }
 
 function InspectBanner() {
-  const { inspectTask, setInspectTask } = useInspectMode();
-  if (!inspectTask) return null;
+  const { inspectProposal, setInspectProposal } = useInspectMode();
+  if (!inspectProposal) return null;
   return (
     <div style={{
       position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1000,
@@ -42,10 +42,10 @@ function InspectBanner() {
       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem',
       padding: '0.5rem 1rem', fontSize: '0.875rem',
     }}>
-      <span>Inspecting: <strong>{inspectTask.title}</strong> - showing impact predictions</span>
-      <Link to="/tasks" style={{ color: '#e9d5ff', textDecoration: 'underline', fontSize: '0.8rem' }}>Back to Tasks</Link>
+      <span>Inspecting: <strong>{inspectProposal.title}</strong> - showing impact predictions</span>
+      <Link to="/proposals" style={{ color: '#e9d5ff', textDecoration: 'underline', fontSize: '0.8rem' }}>Back to Proposals</Link>
       <button
-        onClick={() => setInspectTask(null)}
+        onClick={() => setInspectProposal(null)}
         style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: '6px', padding: '0.2rem 0.6rem', cursor: 'pointer', fontSize: '0.8rem' }}
       >
         Exit Inspect
@@ -91,7 +91,7 @@ export function App() {
               <Route path="/check-in" element={<CheckInPage />} />
               <Route path="/metrics" element={<MetricsPage />} />
               <Route path="/markets" element={<MarketsPage />} />
-              <Route path="/tasks" element={<TasksPage />} />
+              <Route path="/proposals" element={<ProposalsPage />} />
               <Route path="/sources" element={<SourcesPage />} />
               <Route path="/activity" element={<ActivityPage />} />
             </Route>

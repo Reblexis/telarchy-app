@@ -21,7 +21,7 @@ Compiled 2026-04-19. Every item lists: **what** to check, **how** (automation la
 **What Claude cannot test directly (marked `(human)` throughout):**
 1. Completing OAuth consent on Google/GitHub's own domains (browse can click "Continue with Google", but the OAuth provider's own consent screen needs an authenticated browser session Claude doesn't have).
 2. Real device hardware (touch gestures, pinch-zoom, hardware keyboard quirks). Viewport emulation covers the visual layer; physical feel does not.
-3. Assistive-tech behaviour (VoiceOver, NVDA). Semantic HTML and contrast ratios are auditable; the actual screen-reader narration is a human task.
+3. Assistive-tech behaviour (VoiceOver, NVDA). Semantic HTML and contrast ratios are auditable; the actual screen-reader narration is a human proposal.
 4. Legal review of ToS/Privacy text against a specific jurisdiction. Claude can check internal consistency; a lawyer is the authoritative read.
 5. Sustained load testing (hours of synthetic traffic). Spot-checks of 50–100 concurrent requests are in scope; a k6 soak run is a human call (cost + blast radius).
 6. Email deliverability. No provider is wired up, so this is a "does it exist" check rather than a "does it land in inbox" check.
@@ -106,7 +106,7 @@ The core loop. If this is shaky nothing else matters.
 | 4.6 | Market resolution at known metric value pays proportional | Bash: create, trade, resolve, read balances | Payouts ~= expected within LMSR rounding |
 | 4.7 | Void market refunds all stakes | Bash void on traded market | All participants get full stake back |
 | 4.8 | Market created for nonexistent metric returns 400 | Bash | 400 with clear error |
-| 4.9 | Conditional market creation via task works | Bash task + markets | Conditional markets created and resolvable |
+| 4.9 | Conditional market creation via proposal works | Bash proposal + markets | Conditional markets created and resolvable |
 | 4.10 | UI trade panel updates consensus live after trade | browse `$B goto`| Number updates within 2 s |
 | 4.11 | Position panel shows owned shares correctly | browse `$B goto`| Shares match API |
 | 4.12 | Trade with 0 or negative amount rejected | Bash | 400, not 500 |
@@ -122,7 +122,7 @@ AGENTS.md rule: humans and agents must have symmetric capabilities.
 | --- | --- | --- | --- |
 | 5.1 | `POST /api/agents/register` creates agent + key | Bash | 201, key returned once |
 | 5.2 | Agent key trades on a market successfully | Bash with `X-Agent-Key` | Position created |
-| 5.3 | Agent key can propose a task | Bash | 201 |
+| 5.3 | Agent key can propose a proposal | Bash | 201 |
 | 5.4 | Agent key can join a public workspace | Bash `POST /api/marketplace/:id/join` | Membership added |
 | 5.5 | Agent portal UI hides USDC settings when flag is off | browse as agent key | Only "disabled" notice shown in Settings |
 | 5.6 | Hook watcher `GET /api/events/hooks/status` reports active when configured | Bash | `{active: true}` if hooks file exists |
@@ -157,7 +157,7 @@ AGENTS.md rule: humans and agents must have symmetric capabilities.
 | 7.9 | Git history does not contain committed secrets | Grep history for regex: hex-40, hex-64, AWS-style keys | No matches |
 | 7.10 | Rate limiter: >300 req/min throttled, returns 429 | Bash: 400 reqs in 60s | 429 appears before request 400 |
 | 7.11 | Registration rate limiter (5/min on waitlist) works | Bash | 429 after 5 |
-| 7.12 | SQL-injection spot-check on obvious params (`?q=`, `?taskId=`) | Bash with `' OR 1=1--` | 400 or clean empty result, not 500 |
+| 7.12 | SQL-injection spot-check on obvious params (`?q=`, `?proposalId=`) | Bash with `' OR 1=1--` | 400 or clean empty result, not 500 |
 | 7.13 | XSS spot-check: metric name with `<script>` renders as text | browse create + view | Literal string shown, no execution |
 | 7.14 | Consent gate: signup with `consent: false` rejected by backend | Bash | 400 with message |
 | 7.15 | Unknown `/api/*` route returns clean 404 for authed users (fix verified) | Bash | `{error:"Not found"}` 404 |
@@ -260,7 +260,7 @@ Things that go wrong when someone tries to break it.
 | 14.1 | Create 10k metrics via API, dashboard still loads | Bash + browse `$B goto`| Render time < 5 s, no timeout |
 | 14.2 | Extremely long metric name (2000 chars) handled gracefully | Bash create | Truncated or rejected, not crash |
 | 14.3 | Unicode/RTL metric name renders correctly | Bash create "مقياس ١" | Displays, sorts, links still work |
-| 14.4 | Script-injection in task title/description | Bash create + browse render | Escaped |
+| 14.4 | Script-injection in proposal title/description | Bash create + browse render | Escaped |
 | 14.5 | Formula with billion-step recursion or cycle | Bash create `A = B; B = A` | Cycle detected, error surfaced, engine not stuck |
 | 14.6 | Very large number in metric value (1e300) | Bash | Rejected or handled, no NaN poisoning |
 | 14.7 | Concurrent signup race (same email) | Bash: two parallel signups | One succeeds, other gets duplicate error |
@@ -277,7 +277,7 @@ Things that exist but are easy to forget.
 | 15.1 | `/api/help` endpoint documents every currently-routed endpoint | Bash compare registered routes vs `/api/help` | No missing or stale entries |
 | 15.2 | Guides pages (`/guides/*`) all render | browse navigate each section | Markdown renders |
 | 15.3 | Sources (text + GitHub) end-to-end if enabled | Bash + browse `$B goto`| Text source creatable + readable; GitHub flow reachable |
-| 15.4 | Tasks propose → approve / decline works end-to-end | Bash/browse `$B goto`| Status flips; on decline conditional markets are voided and stakes refunded |
+| 15.4 | Proposals propose → approve / decline works end-to-end | Bash/browse `$B goto`| Status flips; on decline conditional markets are voided and stakes refunded |
 | 15.5 | Credit balance displayed consistently across Dashboard, Marketplace, AgentPortal | browse compare | Three values identical |
 
 ---
@@ -335,7 +335,7 @@ in `docs/browse-tests/07-admin/bot-agents-panel.md`.
 | 17.10 | `POST /api/admin/agent-traces` rejects calls without master key | Same | 403, no row written |
 | 17.11 | Trace `entries` payload accepts an empty array | `curl POST` with `entries: []` | 201, row stored with `entries=[]` |
 | 17.12 | Heartbeat upsert uses `agentId` PK (does not duplicate rows) | Send two heartbeats for same agent, count rows | Exactly one row, `updatedAt` advanced |
-| 17.13 | Telemetry tables don't grow unbounded | `select count(*) from agent_traces` after 24 h of polling | Row count consistent with cycle frequency × strategies; if > 50k, add retention task |
+| 17.13 | Telemetry tables don't grow unbounded | `select count(*) from agent_traces` after 24 h of polling | Row count consistent with cycle frequency × strategies; if > 50k, add retention proposal |
 
 ---
 

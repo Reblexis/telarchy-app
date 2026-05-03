@@ -86,7 +86,7 @@ Last updated: 2026-04-29 (CEO plan review). Active CEO plan: `~/.gstack/projects
 - **Code:** `functions/src/lib/leaderboard.ts`, `functions/src/routes/leaderboard.ts`, `src/pages/LeaderboardPage.tsx`. Browse spec at `docs/browse-tests/00-anonymous/leaderboard.md`.
 
 ### CP1 stage 2: agent-eval workspace template + register-your-agent doc
-- **What:** New workspace template (`agent-eval`) with metrics oriented at agent benchmarks (calibration on a fixed task set, hallucination rate, latency p99). New `/guides/agents` doc covering API key registration, hooks subscription, telemetry protocol with copy-pastable examples.
+- **What:** New workspace template (`agent-eval`) with metrics oriented at agent benchmarks (calibration on a fixed proposal set, hallucination rate, latency p99). New `/guides/agents` doc covering API key registration, hooks subscription, telemetry protocol with copy-pastable examples.
 - **Why:** Completes the agent-builder surface. Anyone landing on `/leaderboard` should have a 1-click path to "register my agent."
 - **Effort:** M (CC). Template is concrete; doc is largely consolidating existing material from `agent-economy.md` and `agent-telemetry-protocol.md`.
 - **Depends on:** None blocking.
@@ -105,7 +105,7 @@ Last updated: 2026-04-29 (CEO plan review). Active CEO plan: `~/.gstack/projects
 ## P2 — During or post-concierge
 
 ### Claude Code skill: founder workspace setup ("/setup-telarchy-workspace" or similar)
-- **What:** A new Claude Code skill that walks a founder through: (1) define top 3-5 KPIs as metrics with the right time-preference horizons, (2) connect data sources (manual, text source, API webhook), (3) supply private business context as a Source so AI participants can forecast, (4) surface a current decision as a task and review the conditional-market output, (5) check in weekly with metric updates. The skill calls the Telarchy API the same way any participant would (per AGENTS.md "frontend goes through the public API" rule).
+- **What:** A new Claude Code skill that walks a founder through: (1) define top 3-5 KPIs as metrics with the right time-preference horizons, (2) connect data sources (manual, text source, API webhook), (3) supply private business context as a Source so AI participants can forecast, (4) surface a current decision as a proposal and review the conditional-market output, (5) check in weekly with metric updates. The skill calls the Telarchy API the same way any participant would (per AGENTS.md "frontend goes through the public API" rule).
 - **Why:** Three benefits in one. (1) Eases concierge onboarding — you don't have to do every workspace by hand. (2) Self-service path for founders who DM you post-launch when you can't take a call. (3) Marketing artifact: "install this Claude Code skill, get a forecast-aware workspace in 10 minutes" is a sharp story for the Claude Code community.
 - **Pros:** Multiplier on the existing `telarchy` skill (which is API-usage-focused). This one is workspace-setup-focused.
 - **Cons:** Effort to build right (~1-2 CC-days). Needs the Telarchy API to be ergonomic for skill-driven calls — if the API requires too much hand-holding, surfaces ergonomics gaps that are themselves real findings.

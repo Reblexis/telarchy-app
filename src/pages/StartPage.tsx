@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
-import type { TaskProposal } from '../types';
+import type { Proposal } from '../types';
 
-function PendingTasksQueue() {
-  const [pending, setPending] = useState<TaskProposal[] | null>(null);
+function PendingProposalsQueue() {
+  const [pending, setPending] = useState<Proposal[] | null>(null);
   useEffect(() => {
     let cancelled = false;
-    api.getTasks('pending')
-      .then((rows: TaskProposal[]) => { if (!cancelled) setPending(rows); })
+    api.getProposals('pending')
+      .then((rows: Proposal[]) => { if (!cancelled) setPending(rows); })
       .catch(() => { if (!cancelled) setPending([]); });
     return () => { cancelled = true; };
   }, []);
@@ -31,7 +31,7 @@ function PendingTasksQueue() {
         {pending.slice(0, 5).map(t => (
           <Link
             key={t.id}
-            to={`/tasks?id=${t.id}`}
+            to={`/proposals?id=${t.id}`}
             style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               padding: '0.55rem 0.75rem',
@@ -52,7 +52,7 @@ function PendingTasksQueue() {
         ))}
       </div>
       {pending.length > 5 && (
-        <Link to="/tasks" style={{ display: 'block', marginTop: '0.6rem', fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
+        <Link to="/proposals" style={{ display: 'block', marginTop: '0.6rem', fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
           View all {pending.length} pending →
         </Link>
       )}
@@ -76,7 +76,7 @@ export function StartPage() {
           You can always do both - this just picks where you land first.
         </p>
 
-        <PendingTasksQueue />
+        <PendingProposalsQueue />
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem', width: '100%', maxWidth: 620 }}>
 

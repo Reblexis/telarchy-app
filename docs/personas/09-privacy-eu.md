@@ -36,7 +36,7 @@ Noor reads ToS and Privacy in full, finds them consistent with the live product,
 - **T+01:00 — Click "Terms of Service".** Check eligibility age, play-money clause, governing law. A stale `[GOVERNING_LAW]` or `[CONTACT_EMAIL]` placeholder is a blocker.
 - **T+02:00 — Check signup flow.** Go to `/signup`. Is there a single required checkbox for ToS + Privacy + age, with inline links? Or are these preticked? Is the consent labeled per Article 7 (clear, specific, affirmative)?
 - **T+03:00 — Create account** with `qa+09-<ts>@example.test`. Does the app confirm consent was recorded? (Not required to be user-visible, but the DB must store it.)
-- **T+05:00 — Test data export.** Find the setting / endpoint (`GET /api/auth/me/export`). Does it return JSON with the user's actual data? If the export claims "complete" but omits trades/positions/tasks, that's a false statement in the Privacy Policy.
+- **T+05:00 — Test data export.** Find the setting / endpoint (`GET /api/auth/me/export`). Does it return JSON with the user's actual data? If the export claims "complete" but omits trades/positions/proposals, that's a false statement in the Privacy Policy.
 - **T+07:00 — Test data deletion.** Find the `DELETE /api/auth/me` endpoint or UI button. Does it work? Does the Privacy Policy accurately describe what happens (hard delete vs detach)?
 - **T+09:00 — Decide.** If Privacy Policy is honest about the partial-deletion state (detach, leaves orphan agent row), Noor respects the transparency. If it claims "full deletion" and the live code does detach, trust breaks.
 

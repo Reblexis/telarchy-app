@@ -1,5 +1,5 @@
 ---
-id: 05-tasks-propose-approve-decline
+id: 05-proposals-propose-approve-decline
 tags: [browse, multi-agent]
 isolation: workspace
 parallel-safe: true
@@ -7,22 +7,22 @@ needs: [auth, master-key, browse]
 timeout: 180s
 goal-horizon: short
 goal-statement: |
-  In a workspace with two participants, the proposer can propose a task,
+  In a workspace with two participants, the proposer can propose a proposal,
   the approver can approve or decline, and any conditional markets resolve
   or void as the spec requires.
 ---
 
-# Browse test: Tasks (propose → approve → decline)
+# Browse test: Proposals (propose → approve → decline)
 
 ## What this tests
 
-The end-to-end task flow: a participant proposes a task; an admin reviews;
-on approve the task is recorded as approved and conditional markets stay
+The end-to-end proposal flow: a participant proposes a proposal; an admin reviews;
+on approve the proposal is recorded as approved and conditional markets stay
 open for post-decision tracking; on decline conditional markets are voided
-and stakes refunded. Also covers the chat thread on the task.
+and stakes refunded. Also covers the chat thread on the proposal.
 
 Maps to `mvp-evaluation-plan.md` Sections 15.4 and persona 16.13
-(`13-task-approver.md`).
+(`13-proposal-approver.md`).
 
 ## Preconditions
 
@@ -45,24 +45,24 @@ $B state save "$TT_NS-proposer-session"
 
 ## Tests
 
-### T1. Propose a task
+### T1. Propose a proposal
 
 **Steps:**
-1. From the Proposer session: `$B goto https://telarchy.com/tasks`.
-2. `$B snapshot -i` and find the "Propose task" affordance.
-3. Fill: title `Test task <timestamp>`, description `automated`.
+1. From the Proposer session: `$B goto https://telarchy.com/proposals`.
+2. `$B snapshot -i` and find the "Propose proposal" affordance.
+3. Fill: title `Test proposal <timestamp>`, description `automated`.
 4. Submit.
 5. `$B wait --networkidle && $B text` and grep for the new title.
 
 **Expected:**
-- The new task appears in the Pending column with status `pending`.
-- Network log: `POST /api/tasks` returned 201.
-- Save the task id from the URL or DOM for later steps.
+- The new proposal appears in the Pending column with status `pending`.
+- Network log: `POST /api/proposals` returned 201.
+- Save the proposal id from the URL or DOM for later steps.
 
-### T2. Send a chat message on the task
+### T2. Send a chat message on the proposal
 
 **Steps:**
-1. `$B click <task-card-ref>`
+1. `$B click <proposal-card-ref>`
 2. `$B snapshot -i` and find the chat input.
 3. `$B fill <ref> "Looks good?"`
 4. Submit.
@@ -70,7 +70,7 @@ $B state save "$TT_NS-proposer-session"
 
 **Expected:**
 - Message visible with the proposer's label.
-- `POST /api/tasks/<id>/messages` returned 200.
+- `POST /api/proposals/<id>/messages` returned 200.
 
 ### T3. Switch to Approver, see the proposal
 
@@ -78,42 +78,42 @@ $B state save "$TT_NS-proposer-session"
 1. `$B state save proposer-session`
 2. Sign out, sign in as the Approver (or `$B state load approver-session`
    if previously captured).
-3. `$B goto https://telarchy.com/tasks && $B text`
+3. `$B goto https://telarchy.com/proposals && $B text`
 
 **Expected:**
-- The pending task created in T1 is visible with the proposer's label.
+- The pending proposal created in T1 is visible with the proposer's label.
 - An "Approve" and "Decline" affordance are present.
 
-### T4. Approve the task → status flips to approved
+### T4. Approve the proposal → status flips to approved
 
 **Steps:**
-1. From the Approver UI, click "Approve" on the task.
+1. From the Approver UI, click "Approve" on the proposal.
 2. `$B wait --networkidle`
-3. Confirm the task detail.
+3. Confirm the proposal detail.
 
 **Expected:**
-- Task status now `approved` in the UI and via API.
+- Proposal status now `approved` in the UI and via API.
 - Conditional markets stay open for post-decision tracking.
 
 ### T5. Conditional markets created/resolved
 
 **Steps:**
-1. If the task carries `conditionalMarketIds`, fetch them:
-   `curl -s -b <cookie> https://telarchy.com/api/tasks/<id> | jq '.conditionalMarketIds'`.
+1. If the proposal carries `conditionalMarketIds`, fetch them:
+   `curl -s -b <cookie> https://telarchy.com/api/proposals/<id> | jq '.conditionalMarketIds'`.
 2. For each id: `curl https://telarchy.com/api/predictions/markets/<mid>` and
    inspect `voided` / `resolved` fields.
 
 **Expected:**
 - Conditional markets are resolved (or voided as the spec requires) once
-  the task is approved.
+  the proposal is approved.
 
 ### T6. Decline path voids conditionals and refunds stakes
 
 **Steps:**
-1. As Proposer: create another test task, attach a conditional market
+1. As Proposer: create another test proposal, attach a conditional market
    (or wait for the platform to auto-attach if that's the default).
 2. As Approver: click "Decline".
-3. `$B text` and confirm the task moves to a `declined` state.
+3. `$B text` and confirm the proposal moves to a `declined` state.
 4. Inspect the conditional market: it should be `voided: true`.
 5. Inspect any participant who held shares: their balance should be
    restored to within rounding of the pre-trade value.
@@ -122,8 +122,8 @@ $B state save "$TT_NS-proposer-session"
 
 ## Cleanup
 
-Decline or approve any leftover test tasks rather than leaving them in
-`pending`. Test tasks accumulate visually in the workspace.
+Decline or approve any leftover test proposals rather than leaving them in
+`pending`. Test proposals accumulate visually in the workspace.
 
 ## Known gaps
 
@@ -131,5 +131,5 @@ Decline or approve any leftover test tasks rather than leaving them in
 - No assertion on real-time updates: today the UI polls; if WebSocket support
   lands, retest that the Approver sees the proposer's chat message without
   reload.
-- No coverage of the in-app email/notification when a task is approved
+- No coverage of the in-app email/notification when a proposal is approved
   (no email pipe wired today; placeholder for the future).

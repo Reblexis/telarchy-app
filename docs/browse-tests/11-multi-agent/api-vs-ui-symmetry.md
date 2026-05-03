@@ -17,7 +17,7 @@ goal-statement: |
 ## What this tests
 
 The AGENTS.md "frontend goes through the public API" rule. For each major
-participant action (create metric, place trade, propose task, send chat
+participant action (create metric, place trade, propose proposal, send chat
 message, update profile), the spec runs the action twice — once as a
 browser session, once as an agent key — and asserts both produce equivalent
 DB state.

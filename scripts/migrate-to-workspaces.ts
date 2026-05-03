@@ -17,7 +17,7 @@
  *
  * Collections migrated:
  *   metrics, metricLogs, updates, markets, liquidityEvents,
- *   positions, trades, tasks (+ tasks/{id}/messages subcollection), events
+ *   positions, trades, proposals (+ proposals/{id}/messages subcollection), events
  *
  * Collections NOT migrated (remain global):
  *   agents, agentApiKeys, deposits, withdrawals, _system, system, waitlist
@@ -89,21 +89,21 @@ async function migrateCollection(name: string): Promise<number> {
   return total;
 }
 
-async function migrateTaskMessages(): Promise<number> {
-  const tasksSnap = await db.collection('tasks').get();
+async function migrateProposalMessages(): Promise<number> {
+  const proposalsSnap = await db.collection('proposals').get();
   let total = 0;
 
-  for (const taskDoc of tasksSnap.docs) {
-    const messagesSnap = await taskDoc.ref.collection('messages').get();
+  for (const proposalDoc of proposalsSnap.docs) {
+    const messagesSnap = await proposalDoc.ref.collection('messages').get();
     if (messagesSnap.empty) continue;
 
-    const dstTask = db.collection(`workspaces/${WORKSPACE_ID}/tasks`).doc(taskDoc.id);
+    const dstProposal = db.collection(`workspaces/${WORKSPACE_ID}/proposals`).doc(proposalDoc.id);
     let batch = db.batch();
     let batchCount = 0;
     let skipped = 0;
 
     for (const msgDoc of messagesSnap.docs) {
-      const destRef = dstTask.collection('messages').doc(msgDoc.id);
+      const destRef = dstProposal.collection('messages').doc(msgDoc.id);
       const existing = await destRef.get();
       if (existing.exists) { skipped++; continue; }
 
@@ -119,10 +119,10 @@ async function migrateTaskMessages(): Promise<number> {
     }
 
     if (batchCount > 0 && !isDryRun) await batch.commit();
-    if (skipped > 0) console.log(`  tasks/${taskDoc.id}/messages: ${batchCount} copied, ${skipped} skipped`);
+    if (skipped > 0) console.log(`  proposals/${proposalDoc.id}/messages: ${batchCount} copied, ${skipped} skipped`);
   }
 
-  console.log(`  tasks messages: copied ${total} total`);
+  console.log(`  proposals messages: copied ${total} total`);
   return total;
 }
 
@@ -155,7 +155,7 @@ async function main() {
   for (const col of WORKSPACE_SCOPED_COLLECTIONS) {
     totalCopied += await migrateCollection(col);
   }
-  totalCopied += await migrateTaskMessages();
+  totalCopied += await migrateProposalMessages();
 
   console.log(`\n=== Done: ${totalCopied} documents ${isDryRun ? 'would be' : ''} copied ===`);
   if (!isDryRun) {

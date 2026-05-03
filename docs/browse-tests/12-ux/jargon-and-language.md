@@ -45,7 +45,7 @@ $B wait --networkidle
 findings="/tmp/$TT_NS-jargon.txt"
 :>"$findings"
 note() { echo "$1" >> "$findings"; echo "$1"; }
-PAGES="/ /signup /login /metrics /markets /tasks /account /admin /marketplace /guides"
+PAGES="/ /signup /login /metrics /markets /proposals /account /admin /marketplace /guides"
 ```
 
 ## Tests
@@ -103,7 +103,7 @@ done
 ### T5. AMM / LMSR jargon should be in docs only, not user UI
 
 ```bash
-for p in / /metrics /markets /tasks /account; do
+for p in / /metrics /markets /proposals /account; do
   $B goto "$TT_FRONTEND_URL$p" && $B wait --networkidle
   text=$($B text)
   if grep -qE '\b(LMSR|AMM)\b' <<<"$text"; then

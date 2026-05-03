@@ -27,8 +27,8 @@ grade-prompt: |
 ## What this tests
 
 The other end of the dual-actor flow: a person who didn't propose the
-task and is being asked to commit. Borrowed from
-`docs/personas/13-task-approver.md` and `11-decision-maker.md`.
+proposal and is being asked to commit. Borrowed from
+`docs/personas/13-proposal-approver.md` and `11-decision-maker.md`.
 
 ## Setup
 
@@ -42,16 +42,16 @@ EMAIL_APP="qa+app-$TT_RUN_ID@example.test"
 read JAR MUID < <(tt_mkuser_uid "$EMAIL_APP" "testtest123" "Approver")
 tt_on_cleanup "tt_rm_user '$JAR'"
 tt_add_member "$WS" "$MUID" "admin"
-# Propose a real-feeling task as bot
-TASK=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
+# Propose a real-feeling proposal as bot
+PROPOSAL=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \
   -d '{"title":"Run a paid ad campaign in Q2","description":"Spend $5k targeting design teams. Expected lift: 80 signups."}' \
-  "$TT_BASE_URL/api/tasks" | jq -r '.id')
+  "$TT_BASE_URL/api/proposals" | jq -r '.id')
 # Have a third bot trade so consensus exists
 read T3 K3 < <(tt_mkagent "$WS" thirdparty)
 tt_credit "$WS" "$T3" 100
 mkts=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
-  "$TT_BASE_URL/api/tasks/$TASK" | jq -r '.conditionalMarketIds[]?')
+  "$TT_BASE_URL/api/proposals/$PROPOSAL" | jq -r '.conditionalMarketIds[]?')
 target=$(echo "$mkts" | head -1)
 [ -n "$target" ] && curl -sf -H "X-Agent-Key: $K3" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \
@@ -73,26 +73,26 @@ T0=$(date +%s)
 
 ## Tests
 
-### T1. Land on /tasks; can I tell what I'm being asked?
+### T1. Land on /proposals; can I tell what I'm being asked?
 
 ```bash
-$B goto "$TT_FRONTEND_URL/tasks" && $B wait --networkidle
-$B screenshot "/tmp/$TT_NS-app/01-task-list.png"
+$B goto "$TT_FRONTEND_URL/proposals" && $B wait --networkidle
+$B screenshot "/tmp/$TT_NS-app/01-proposal-list.png"
 text=$($B text)
-echo "=== TASK LIST ===" >> "$findings"; echo "$text" | head -c 1500 >> "$findings"
+echo "=== PROPOSAL LIST ===" >> "$findings"; echo "$text" | head -c 1500 >> "$findings"
 grep -qi 'Run a paid ad' <<<"$text" \
-  && react "task visible in list" \
-  || react "FRICTION proposed task not surfaced for approver"
+  && react "proposal visible in list" \
+  || react "FRICTION proposed proposal not surfaced for approver"
 ```
 
-### T2. Open the task — is the context complete?
+### T2. Open the proposal — is the context complete?
 
 ```bash
-$B click "a:has-text(\"Run a paid ad\"), [data-task-id=\"$TASK\"]" || true
+$B click "a:has-text(\"Run a paid ad\"), [data-proposal-id=\"$PROPOSAL\"]" || true
 $B wait --networkidle
-$B screenshot "/tmp/$TT_NS-app/02-task-detail.png"
+$B screenshot "/tmp/$TT_NS-app/02-proposal-detail.png"
 text=$($B text)
-echo "=== TASK DETAIL ===" >> "$findings"; echo "$text" | head -c 2000 >> "$findings"
+echo "=== PROPOSAL DETAIL ===" >> "$findings"; echo "$text" | head -c 2000 >> "$findings"
 grep -qi 'paid ad campaign' <<<"$text" || react "FRICTION title missing"
 grep -qi 'lift' <<<"$text"             || react "FRICTION description missing"
 ```

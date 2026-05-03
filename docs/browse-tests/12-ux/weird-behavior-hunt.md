@@ -162,7 +162,7 @@ v1=$(curl -sf -b "$JAR" -H "X-Workspace-Id: $WS" "$TT_BASE_URL/api/metrics" | jq
 ### W9. URL-injected query params
 
 ```bash
-for s in "/metrics?id=' OR 1=1--" "/markets?q=%3Cscript%3Ealert(1)%3C%2Fscript%3E" "/tasks?status=null"; do
+for s in "/metrics?id=' OR 1=1--" "/markets?q=%3Cscript%3Ealert(1)%3C%2Fscript%3E" "/proposals?status=null"; do
   $B goto "$TT_FRONTEND_URL$s" && $B wait --networkidle
   text=$($B text)
   grep -qE 'TypeError|ReferenceError|stack at' <<<"$text" && note "URL-injection on $s shows error in text"
@@ -172,7 +172,7 @@ done
 ### W10. Console error sweep across all main pages
 
 ```bash
-for p in / /signup /login /metrics /markets /tasks /sources /admin /marketplace /guides; do
+for p in / /signup /login /metrics /markets /proposals /sources /admin /marketplace /guides; do
   $B console --clear
   $B goto "$TT_FRONTEND_URL$p" && $B wait --networkidle
   out=$($B console --errors)

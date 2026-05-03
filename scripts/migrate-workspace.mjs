@@ -19,7 +19,7 @@ const FLAT_COLLECTIONS = [
   'metrics',
   'metricLogs',
   'markets',
-  'tasks',
+  'proposals',
   'updates',
   'events',
   'permissionGroups',
@@ -31,7 +31,7 @@ const FLAT_COLLECTIONS = [
 // Subcollections nested under each parent collection document
 const SUBCOLLECTIONS = {
   markets: ['liquidityEvents', 'trades'],
-  tasks: ['messages'],
+  proposals: ['messages'],
 };
 
 async function copyCollection(srcCol, dstCol, label) {

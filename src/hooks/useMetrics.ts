@@ -22,7 +22,7 @@ function buildWarnings(
   return result;
 }
 
-export function useMetrics(authenticated: boolean, inspectTaskId?: string | null, canViewUpdates = true) {
+export function useMetrics(authenticated: boolean, inspectProposalId?: string | null, canViewUpdates = true) {
   const [metrics, setMetrics] = useState<Metric[]>(() => cacheGet<Metric[]>('metrics') || []);
   const [updates, setUpdates] = useState<UpdateEntry[]>(() => cacheGet<UpdateEntry[]>('updates') || []);
   const [formulaWarnings, setFormulaWarnings] = useState<Record<string, FormulaWarning[]>>({});
@@ -38,7 +38,7 @@ export function useMetrics(authenticated: boolean, inspectTaskId?: string | null
 
     const [metricsData, marketsData] = await Promise.all([
       api.getMetrics() as Promise<Metric[]>,
-      api.getMarkets(inspectTaskId || undefined).catch((e: Error) => { console.error('Failed to load markets for metrics page:', e.message); return [] as Market[]; }),
+      api.getMarkets(inspectProposalId || undefined).catch((e: Error) => { console.error('Failed to load markets for metrics page:', e.message); return [] as Market[]; }),
       canViewUpdates
         ? api.getUpdates().then((list: UpdateEntry[]) => {
             const parsed = list.map(u => ({ ...u, timestamp: new Date(u.timestamp) }));
@@ -49,7 +49,7 @@ export function useMetrics(authenticated: boolean, inspectTaskId?: string | null
     ]);
 
     consensusMapRef.current = buildConsensusMap(marketsData);
-    if (inspectTaskId) {
+    if (inspectProposalId) {
       setMetrics(buildInspectMetrics(metricsData, marketsData));
     } else {
       setMetrics(metricsData);
@@ -59,7 +59,7 @@ export function useMetrics(authenticated: boolean, inspectTaskId?: string | null
     setFormulaWarnings(buildWarnings(metricsData));
 
     return metricsData;
-  }, [authenticated, inspectTaskId, canViewUpdates]);
+  }, [authenticated, inspectProposalId, canViewUpdates]);
 
   useEffect(() => {
     if (!authenticated) { setLoading(false); return; }

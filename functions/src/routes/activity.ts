@@ -60,7 +60,7 @@ activityRouter.get('/', requireCapability('read'), wrap(async (req, res) => {
   const participantId = typeof req.query.participantId === 'string' ? req.query.participantId : undefined;
   const marketId = typeof req.query.marketId === 'string' ? req.query.marketId : undefined;
   const metricId = typeof req.query.metricId === 'string' ? req.query.metricId : undefined;
-  const taskId = typeof req.query.taskId === 'string' ? req.query.taskId : undefined;
+  const proposalId = typeof req.query.proposalId === 'string' ? req.query.proposalId : undefined;
 
   const raw = await getActivityFeed(workspaceId, {
     since,
@@ -70,7 +70,7 @@ activityRouter.get('/', requireCapability('read'), wrap(async (req, res) => {
     participantId,
     marketId,
     metricId,
-    taskId,
+    proposalId,
   });
 
   const activities = isAdmin ? raw : applyMemberPolicy(raw);

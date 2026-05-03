@@ -248,7 +248,7 @@ export function WorkspaceSettingsPage() {
         {isOwner ? (
           <>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
-              Automatically fund new markets from your agent balance. Each new non-task market will debit the amount below.
+              Automatically fund new markets from your agent balance. Each new non-proposal market will debit the amount below.
             </p>
             <div className="form-group">
               <label htmlFor="auto-fund" className="checkbox-label">

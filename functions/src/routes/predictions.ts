@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/client';
-import { agents, markets, positions, trades, liquidityEvents, workspaces, tasks } from '../db/schema';
+import { agents, markets, positions, trades, liquidityEvents, workspaces, proposals } from '../db/schema';
 import { eq, and, asc, desc, sql, inArray } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
@@ -10,7 +10,7 @@ import { requireCapability } from '../middleware/roles';
 import { getAllMetrics, getMetricLogs, getUpdates } from '../services/metrics';
 import { resolvePredictions, resolveSingleMarket, getMarkets } from '../services/predictions';
 import { refreshRelativeDateMarkets, voidMarket } from '../services/markets';
-import { createConditionalMarkets } from '../services/tasks';
+import { createConditionalMarkets } from '../services/proposals';
 import { isValidDateFormat, endOfPeriod } from '../lib/date-utils';
 import { extractMetricReferences } from '../lib/metrics-engine';
 import { consensus, pHigher, directionTradeCost, sharesForBudget, betTowardsValue, directionSellProceeds, lmsrCost, initialPool, AMM_DEFAULTS } from '../lib/amm';
@@ -283,17 +283,17 @@ predictionsRouter.get('/positions', requireCapability('read'), wrap(async (req, 
 
 predictionsRouter.get('/markets', requireCapability('read'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
-  const taskId = typeof req.query.taskId === 'string' ? req.query.taskId : undefined;
+  const proposalId = typeof req.query.proposalId === 'string' ? req.query.proposalId : undefined;
 
-  if (taskId) {
-    const [task] = await db.select().from(tasks)
-      .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
-    if (task) {
-      const currentIds = (task.conditionalMarketIds as string[]) ?? [];
+  if (proposalId) {
+    const [proposal] = await db.select().from(proposals)
+      .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+    if (proposal) {
+      const currentIds = (proposal.conditionalMarketIds as string[]) ?? [];
       if (!currentIds.length) {
-        const marketIds = await createConditionalMarkets(taskId, workspaceId);
-        await db.update(tasks).set({ conditionalMarketIds: marketIds })
-          .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
+        const marketIds = await createConditionalMarkets(proposalId, workspaceId);
+        await db.update(proposals).set({ conditionalMarketIds: marketIds })
+          .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
       }
     }
   } else {
@@ -304,7 +304,7 @@ predictionsRouter.get('/markets', requireCapability('read'), wrap(async (req, re
   const includeResolved = req.query.includeResolved === 'true';
   const minLiquidity = typeof req.query.minLiquidity === 'string' ? parseFloat(req.query.minLiquidity) : undefined;
   const limit = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : undefined;
-  const marketRows = await getMarkets({ taskId, active, includeResolved, minLiquidity, limit }, undefined, workspaceId);
+  const marketRows = await getMarkets({ proposalId, active, includeResolved, minLiquidity, limit }, undefined, workspaceId);
   res.json(marketRows);
 }));
 
@@ -514,7 +514,7 @@ predictionsRouter.get('/markets/:id/liquidity-events', requireCapability('read')
 
 predictionsRouter.post('/markets/liquidity/bulk', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId, agentId: callerAgentId } = req.auth!;
-  const { amount, agentId: bodyAgentId, taskId } = req.body;
+  const { amount, agentId: bodyAgentId, proposalId } = req.body;
   if (typeof amount !== 'number' || amount <= 0) { res.status(400).json({ error: 'amount must be a positive number' }); return; }
   const agentId = (typeof bodyAgentId === 'string' && bodyAgentId) ? bodyAgentId : callerAgentId;
   if (!agentId) { res.status(400).json({ error: 'agentId is required' }); return; }
@@ -526,8 +526,8 @@ predictionsRouter.post('/markets/liquidity/bulk', requireCapability('manage'), w
 
   let marketRows = await db.select().from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.active, true), eq(markets.resolved, false)));
-  if (taskId) marketRows = marketRows.filter(m => m.taskId === taskId);
-  else marketRows = marketRows.filter(m => !m.taskId);
+  if (proposalId) marketRows = marketRows.filter(m => m.proposalId === proposalId);
+  else marketRows = marketRows.filter(m => !m.proposalId);
   if (marketRows.length === 0) { res.status(400).json({ error: 'No active markets' }); return; }
 
   const balanceUnits = agent.balance as number;
@@ -665,15 +665,15 @@ predictionsRouter.post('/markets/:id/resolve', requireCapability('manage'), wrap
 
 predictionsRouter.post('/markets/refresh', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
-  const taskId = typeof req.body?.taskId === 'string' ? req.body.taskId : undefined;
-  if (taskId) {
-    const [task] = await db.select().from(tasks)
-      .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
-    if (!task) { res.status(404).json({ error: 'Task not found' }); return; }
-    const existingIds = (task.conditionalMarketIds as string[]) ?? [];
-    const marketIds = await createConditionalMarkets(taskId, workspaceId);
-    await db.update(tasks).set({ conditionalMarketIds: marketIds })
-      .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
+  const proposalId = typeof req.body?.proposalId === 'string' ? req.body.proposalId : undefined;
+  if (proposalId) {
+    const [proposal] = await db.select().from(proposals)
+      .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+    if (!proposal) { res.status(404).json({ error: 'Proposal not found' }); return; }
+    const existingIds = (proposal.conditionalMarketIds as string[]) ?? [];
+    const marketIds = await createConditionalMarkets(proposalId, workspaceId);
+    await db.update(proposals).set({ conditionalMarketIds: marketIds })
+      .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
     const reused = existingIds.length > 0 && existingIds.length === marketIds.length &&
       existingIds.every(id => marketIds.includes(id));
     res.json({ created: reused ? 0 : marketIds.length, deactivated: 0, deduplicated: 0 });

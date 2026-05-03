@@ -7,7 +7,7 @@ Arrives via a link from a co-worker ("the founder is trying this out, take a loo
 - **Device**: desktop, 1280x800, Chrome. Zoom open, Slack open, calendar open.
 - **Referral**: a founder or lead DM'd them the URL of a specific workspace (`telarchy.com/marketplace/<workspaceId>`) or a generic invite ("sign up and I'll add you").
 - **Attention budget**: 5 minutes. Either this makes immediate sense in their existing team context or they close the tab and promise to "look later".
-- **Trust level**: neutral. Not hostile, but won't read copy that doesn't match their immediate task.
+- **Trust level**: neutral. Not hostile, but won't read copy that doesn't match their immediate proposal.
 
 ## Background
 
@@ -38,7 +38,7 @@ Clicks the link. Sees a recognizable workspace name and familiar metric names (e
 - **T+01:30 — Post-signup landing.** If they came from `/marketplace/<workspaceId>`, do they land back there, or get redirected elsewhere? If `/start`, is there a "join my team's workspace" option, or do they have to pick "create" vs "forecast"?
 - **T+02:30 — Find the team workspace.** If they came from a direct link, the workspace is already known. Otherwise: how do they find the workspace their boss set up? Workspace ID? Workspace name search? Invite link?
 - **T+03:00 — Join.** Click "Join workspace". What's the feedback? What role are they granted (read-only, trader, admin)? Is there a clear indicator of what they can and can't do?
-- **T+03:30 — View the metrics.** Are metric values, forecasts, and recent updates visible to them? Can they see what agents are forecasting? Can they see if there are any active decisions / tasks?
+- **T+03:30 — View the metrics.** Are metric values, forecasts, and recent updates visible to them? Can they see what agents are forecasting? Can they see if there are any active decisions / proposals?
 - **T+04:30 — Understand their role.** "Am I supposed to do something here?" If there's no CTA, is it clear they're just observing?
 - **T+05:00 — Close tab.** Decide: "this is useful, I'll come back" vs "this is my boss's project, I'll leave it alone".
 
@@ -47,7 +47,7 @@ Clicks the link. Sees a recognizable workspace name and familiar metric names (e
 - **Blocker**: clicking a direct workspace URL (`/marketplace/<workspaceId>`) leads to a 404 or a blank page for an anonymous user. Dev's first impression is "broken".
 - **Blocker**: the only way to join a specific workspace is to know its opaque UUID. Dev cannot ask their boss for a cryptic ID and expect compliance.
 - **Blocker**: signup forces them to create a workspace before they can join one. A team-joiner has no reason to create a separate workspace.
-- **High**: after signup + join, Dev has no clear indication of what permissions they have. Can they update metrics? Trade? Propose tasks? Nothing on screen says.
+- **High**: after signup + join, Dev has no clear indication of what permissions they have. Can they update metrics? Trade? Propose proposals? Nothing on screen says.
 - **High**: the workspace is public / open visibility-wise but Dev doesn't know that and can't tell what "Open" means for their role.
 - **High**: "Open" workspace gives Dev trade capability but no UI prompt to trade; the affordance is hidden behind "Markets" which is a nav item not a CTA.
 - **Medium**: the "1000 free credits on signup" language confuses a team-joiner. It reads as gamification, not enterprise software.

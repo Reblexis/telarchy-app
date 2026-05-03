@@ -48,7 +48,7 @@ $B click 'button[type="submit"]'
 $B wait --networkidle
 findings="/tmp/$TT_NS-cq.txt"
 :>"$findings"
-PAGES="/ /signup /login /metrics /markets /tasks /account /sources /admin /marketplace /guides /terms /privacy"
+PAGES="/ /signup /login /metrics /markets /proposals /account /sources /admin /marketplace /guides /terms /privacy"
 ```
 
 ## Tests
@@ -58,7 +58,7 @@ PAGES="/ /signup /login /metrics /markets /tasks /account /sources /admin /marke
 ```bash
 for p in $PAGES; do
   $B stop  # cold per page when needed (anonymous pages)
-  case "$p" in /metrics|/markets|/tasks|/account|/sources|/admin)
+  case "$p" in /metrics|/markets|/proposals|/account|/sources|/admin)
     $B goto "$TT_FRONTEND_URL/login" && $B wait --networkidle
     $B fill 'input[type="email"]' "$EMAIL"
     $B fill 'input[type="password"]' "testtest123"

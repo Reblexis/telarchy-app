@@ -34,7 +34,7 @@ marketplaceRouter.get('/', wrap(async (req, res) => {
       ));
 
     for (const m of wsMarkets) {
-      if (m.taskId) continue;
+      if (m.proposalId) continue;
       const shares = (m.shares as [number, number]) || [0, 0];
       allMarkets.push({
         workspaceId: ws.id,
@@ -120,7 +120,7 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
   const wsMarkets = await db.select().from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false), eq(markets.active, true)));
 
-  const marketList = wsMarkets.filter(m => !m.taskId).map(m => {
+  const marketList = wsMarkets.filter(m => !m.proposalId).map(m => {
     const shares = (m.shares as [number, number]) || [0, 0];
     return {
       marketId: m.id,

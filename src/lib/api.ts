@@ -5,7 +5,7 @@ export interface ActivityItem {
   actor: { id: string; label: string } | null;
   marketId?: string;
   metricId?: string;
-  taskId?: string;
+  proposalId?: string;
   data: Record<string, unknown>;
 }
 
@@ -263,9 +263,9 @@ export const api = {
     request(`/api/agents/${agentId}/wallet`, { method: 'PUT', body: JSON.stringify({ walletAddress }) }),
 
   // Markets & Trading
-  getMarkets: (taskId?: string, workspaceId?: string, opts?: { includeResolved?: boolean }) => {
+  getMarkets: (proposalId?: string, workspaceId?: string, opts?: { includeResolved?: boolean }) => {
     const params = new URLSearchParams();
-    if (taskId) params.set('taskId', taskId);
+    if (proposalId) params.set('proposalId', proposalId);
     if (opts?.includeResolved) params.set('includeResolved', 'true');
     const qs = params.toString() ? `?${params}` : '';
     return requestWithWorkspace(`/api/predictions/markets${qs}`, {}, { workspaceId });
@@ -282,10 +282,10 @@ export const api = {
     request('/api/predictions/markets', { method: 'POST', body: JSON.stringify({ metricId, targetDate }) }),
   deleteMarket: (id: string) =>
     request(`/api/predictions/markets/${id}`, { method: 'DELETE' }),
-  refreshMarkets: (taskId?: string) =>
+  refreshMarkets: (proposalId?: string) =>
     request('/api/predictions/markets/refresh', {
       method: 'POST',
-      body: JSON.stringify(taskId ? { taskId } : {}),
+      body: JSON.stringify(proposalId ? { proposalId } : {}),
     }),
   resolvePredictions: (targetDate?: string) =>
     request('/api/predictions/resolve', { method: 'POST', body: JSON.stringify({ targetDate }) }),
@@ -300,21 +300,21 @@ export const api = {
   },
   injectLiquidity: (marketId: string, amount: number) =>
     request(`/api/predictions/markets/${marketId}/liquidity`, { method: 'POST', body: JSON.stringify({ amount }) }),
-  injectLiquidityBulk: (amount: number, taskId?: string) =>
-    request('/api/predictions/markets/liquidity/bulk', { method: 'POST', body: JSON.stringify({ amount, ...(taskId && { taskId }) }) }),
+  injectLiquidityBulk: (amount: number, proposalId?: string) =>
+    request('/api/predictions/markets/liquidity/bulk', { method: 'POST', body: JSON.stringify({ amount, ...(proposalId && { proposalId }) }) }),
 
-  // Tasks
-  getTasks: (status?: string) => request(`/api/tasks${status ? `?status=${encodeURIComponent(status)}` : ''}`),
-  getTask: (id: string) => request(`/api/tasks/${id}`),
-  createTask: (body: { title: string; description: string }) =>
-    request('/api/tasks', { method: 'POST', body: JSON.stringify(body) }),
-  approveTask: (id: string) =>
-    request(`/api/tasks/${id}/approve`, { method: 'POST' }),
-  declineTask: (id: string) =>
-    request(`/api/tasks/${id}/decline`, { method: 'POST' }),
-  getTaskMessages: (id: string) => request(`/api/tasks/${id}/messages`),
-  sendTaskMessage: (id: string, content: string) =>
-    request(`/api/tasks/${id}/messages`, { method: 'POST', body: JSON.stringify({ content }) }),
+  // Proposals
+  getProposals: (status?: string) => request(`/api/proposals${status ? `?status=${encodeURIComponent(status)}` : ''}`),
+  getProposal: (id: string) => request(`/api/proposals/${id}`),
+  createProposal: (body: { title: string; description: string }) =>
+    request('/api/proposals', { method: 'POST', body: JSON.stringify(body) }),
+  approveProposal: (id: string) =>
+    request(`/api/proposals/${id}/approve`, { method: 'POST' }),
+  declineProposal: (id: string) =>
+    request(`/api/proposals/${id}/decline`, { method: 'POST' }),
+  getProposalMessages: (id: string) => request(`/api/proposals/${id}/messages`),
+  sendProposalMessage: (id: string, content: string) =>
+    request(`/api/proposals/${id}/messages`, { method: 'POST', body: JSON.stringify({ content }) }),
 
   getHooksStatus: (): Promise<{ active: boolean; lastPolledAt?: string; intervalMs?: number; nextPollAt?: string }> =>
     request('/api/events/hooks/status'),
@@ -353,7 +353,7 @@ export const api = {
       participantId?: string;
       marketId?: string;
       metricId?: string;
-      taskId?: string;
+      proposalId?: string;
     },
     workspaceId?: string,
   ): Promise<{
@@ -369,7 +369,7 @@ export const api = {
     if (params.participantId) q.set('participantId', params.participantId);
     if (params.marketId) q.set('marketId', params.marketId);
     if (params.metricId) q.set('metricId', params.metricId);
-    if (params.taskId) q.set('taskId', params.taskId);
+    if (params.proposalId) q.set('proposalId', params.proposalId);
     const qs = q.toString() ? `?${q}` : '';
     return requestWithWorkspace(`/api/admin/activity${qs}`, {}, { workspaceId });
   },

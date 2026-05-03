@@ -609,7 +609,7 @@ h3 {
 
 /* ===== Container & Layout =====
  * Canonical workspace-page wrapper. Every workspace tab (Overview,
- * Metrics, Tasks, Markets, Activity, Sources, Participants, Settings)
+ * Metrics, Proposals, Markets, Activity, Sources, Participants, Settings)
  * renders inside a wrapper that hits this max-width and centers when
  * the viewport is wide enough. Keeps left edges + total widths aligned
  * across tabs so users don't get the "this page is centered, that one
@@ -4506,16 +4506,16 @@ code, pre, kbd, samp {
 }
 
 /* ========================================================================
-   Tasks page
+   Proposals page
    ======================================================================== */
 
-.task-trader-hint {
+.proposal-trader-hint {
   font-size: 0.85rem;
   color: var(--text-secondary);
   margin: 0 0 1rem;
 }
 
-.task-empty {
+.proposal-empty {
   border: 1px dashed var(--border-color);
   border-radius: var(--radius-lg);
   padding: 2.5rem 1.5rem;
@@ -4527,7 +4527,7 @@ code, pre, kbd, samp {
   gap: 1rem;
 }
 
-.task-list {
+.proposal-list {
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   background: var(--bg-primary);
@@ -4535,12 +4535,12 @@ code, pre, kbd, samp {
   box-shadow: var(--shadow-sm);
 }
 
-.task-table {
+.proposal-table {
   width: 100%;
   border-collapse: collapse;
 }
 
-.task-table thead th {
+.proposal-table thead th {
   text-align: left;
   padding: 0.65rem 1rem;
   background: var(--bg-secondary);
@@ -4552,62 +4552,62 @@ code, pre, kbd, samp {
   border-bottom: 1px solid var(--border-color);
 }
 
-.task-table thead th.num {
+.proposal-table thead th.num {
   text-align: right;
 }
 
-.task-row {
+.proposal-row {
   cursor: pointer;
   transition: background var(--transition-fast);
 }
 
-.task-row td {
+.proposal-row td {
   padding: 0.85rem 1rem;
   border-top: 1px solid var(--border-color);
   font-size: 0.92rem;
   vertical-align: middle;
 }
 
-.task-row:first-child td {
+.proposal-row:first-child td {
   border-top: none;
 }
 
-.task-row:hover {
+.proposal-row:hover {
   background: var(--bg-secondary);
 }
 
-.task-row--active {
+.proposal-row--active {
   background: var(--accent-soft);
 }
 
-.task-row:focus-visible {
+.proposal-row:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 
-.task-row-title {
+.proposal-row-title {
   font-weight: 600;
   color: var(--text-primary);
 }
 
-.task-row-proposer {
+.proposal-row-proposer {
   color: var(--text-secondary);
   font-size: 0.85rem;
 }
 
-.task-row-proposer-id {
+.proposal-row-proposer-id {
   font-family: var(--font-mono);
   font-size: 0.78rem;
 }
 
 /* Status badges */
-.task-status--pending  { background: var(--accent-soft); color: var(--accent-text); }
-.task-status--approved { background: var(--success-bg);  color: var(--success-text); }
-.task-status--declined { background: var(--error-bg);    color: var(--error-text); }
+.proposal-status--pending  { background: var(--accent-soft); color: var(--accent-text); }
+.proposal-status--approved { background: var(--success-bg);  color: var(--success-text); }
+.proposal-status--declined { background: var(--error-bg);    color: var(--error-text); }
 
-/* ===== Task drawer ===== */
+/* ===== Proposal drawer ===== */
 
-.task-drawer-scrim {
+.proposal-drawer-scrim {
   position: fixed;
   inset: 0;
   background: var(--modal-overlay);
@@ -4615,7 +4615,7 @@ code, pre, kbd, samp {
   animation: fadeIn 0.18s ease both;
 }
 
-.task-drawer {
+.proposal-drawer {
   position: fixed;
   top: 0;
   right: 0;
@@ -4631,11 +4631,11 @@ code, pre, kbd, samp {
   transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.task-drawer.open {
+.proposal-drawer.open {
   transform: translateX(0);
 }
 
-.task-drawer-header {
+.proposal-drawer-header {
   padding: 1rem 1.25rem;
   border-bottom: 1px solid var(--border-color);
   display: flex;
@@ -4644,12 +4644,12 @@ code, pre, kbd, samp {
   background: var(--bg-primary);
 }
 
-.task-drawer-title {
+.proposal-drawer-title {
   flex: 1;
   min-width: 0;
 }
 
-.task-drawer-title h3 {
+.proposal-drawer-title h3 {
   font-family: var(--font-display);
   font-size: 1.15rem;
   letter-spacing: -0.01em;
@@ -4657,7 +4657,7 @@ code, pre, kbd, samp {
   word-wrap: break-word;
 }
 
-.task-drawer-meta {
+.proposal-drawer-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 0.6rem 0.85rem;
@@ -4666,11 +4666,11 @@ code, pre, kbd, samp {
   color: var(--text-secondary);
 }
 
-.task-drawer-proposer {
+.proposal-drawer-proposer {
   color: var(--text-tertiary);
 }
 
-.task-drawer-body {
+.proposal-drawer-body {
   flex: 1;
   overflow-y: auto;
   padding: 1.25rem 1.25rem 1.5rem;
@@ -4679,7 +4679,7 @@ code, pre, kbd, samp {
   gap: 1.5rem;
 }
 
-.task-description {
+.proposal-description {
   margin: 0;
   font-size: 0.92rem;
   color: var(--text-secondary);
@@ -4687,19 +4687,19 @@ code, pre, kbd, samp {
   line-height: 1.5;
 }
 
-.task-actions-row {
+.proposal-actions-row {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.task-actions {
+.proposal-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
 }
 
-.task-actions-hint {
+.proposal-actions-hint {
   margin: 0;
   font-size: 0.75rem;
   color: var(--text-tertiary);
@@ -4768,7 +4768,7 @@ code, pre, kbd, samp {
   cursor: not-allowed;
 }
 
-.task-drawer-section h4 {
+.proposal-drawer-section h4 {
   font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -4895,15 +4895,15 @@ code, pre, kbd, samp {
   text-decoration-color: var(--text-primary);
 }
 
-/* ===== Task chat ===== */
+/* ===== Proposal chat ===== */
 
-.task-chat {
+.proposal-chat {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.task-chat-messages {
+.proposal-chat-messages {
   height: 240px;
   overflow-y: auto;
   border: 1px solid var(--border-color);
@@ -4916,28 +4916,28 @@ code, pre, kbd, samp {
   overscroll-behavior: contain;
 }
 
-.task-chat-empty {
+.proposal-chat-empty {
   color: var(--text-tertiary);
   font-size: 0.82rem;
 }
 
-.task-chat-msg {
+.proposal-chat-msg {
   display: flex;
   gap: 0.55rem;
   align-items: flex-start;
 }
 
-.task-chat-author {
+.proposal-chat-author {
   font-size: 0.7rem;
   font-weight: 600;
   min-width: 72px;
   padding-top: 0.1rem;
 }
 
-.task-chat-author--admin       { color: var(--accent); }
-.task-chat-author--participant { color: var(--text-secondary); }
+.proposal-chat-author--admin       { color: var(--accent); }
+.proposal-chat-author--participant { color: var(--text-secondary); }
 
-.task-chat-content {
+.proposal-chat-content {
   font-size: 0.88rem;
   flex: 1;
   white-space: pre-wrap;
@@ -4945,38 +4945,38 @@ code, pre, kbd, samp {
   line-height: 1.45;
 }
 
-.task-chat-error {
+.proposal-chat-error {
   color: var(--error-text);
   font-size: 0.8rem;
 }
 
-.task-chat-input {
+.proposal-chat-input {
   display: flex;
   gap: 0.5rem;
   align-items: flex-end;
 }
 
-.task-chat-input textarea {
+.proposal-chat-input textarea {
   flex: 1;
   resize: vertical;
   font-size: 0.88rem;
   min-height: 2.5rem;
 }
 
-.task-chat-input .btn-small {
+.proposal-chat-input .btn-small {
   align-self: flex-end;
   padding: 0.5rem 0.85rem;
 }
 
 @media (max-width: 600px) {
-  .task-drawer {
+  .proposal-drawer {
     width: 100vw;
     border-left: none;
   }
-  .task-table thead {
+  .proposal-table thead {
     display: none;
   }
-  .task-row {
+  .proposal-row {
     display: grid;
     grid-template-columns: 1fr auto;
     grid-template-areas:
@@ -4985,14 +4985,14 @@ code, pre, kbd, samp {
     gap: 0.25rem 0.75rem;
     padding: 0.85rem 1rem;
   }
-  .task-row td {
+  .proposal-row td {
     border: none;
     padding: 0;
   }
-  .task-row .task-row-title    { grid-area: title; }
-  .task-row .task-row-proposer { grid-area: proposer; }
-  .task-row td:nth-child(3)    { grid-area: status; justify-self: end; }
-  .task-row + .task-row {
+  .proposal-row .proposal-row-title    { grid-area: title; }
+  .proposal-row .proposal-row-proposer { grid-area: proposer; }
+  .proposal-row td:nth-child(3)    { grid-area: status; justify-self: end; }
+  .proposal-row + .proposal-row {
     border-top: 1px solid var(--border-color);
   }
 }

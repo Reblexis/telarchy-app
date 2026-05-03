@@ -136,7 +136,7 @@ $B screenshot "/tmp/$TT_NS-404.png"
 ### T7. No stack traces ever leak to the UI
 
 ```bash
-for path in /signup /login /markets /metrics /tasks /admin; do
+for path in /signup /login /markets /metrics /proposals /admin; do
   $B goto "$TT_FRONTEND_URL$path" && $B wait --networkidle
   text=$($B text)
   if grep -qE 'at .*\.(js|ts|tsx):[0-9]+:[0-9]+|TypeError|ReferenceError|Error:' <<<"$text"; then

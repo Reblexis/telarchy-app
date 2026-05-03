@@ -2,14 +2,14 @@ import { type ReactNode, useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Logo } from './Logo';
 
-type Page = 'metrics' | 'participants' | 'markets' | 'tasks';
+type Page = 'metrics' | 'participants' | 'markets' | 'proposals';
 
 type NavItem = { to: string; label: string; page?: Page };
 
 const CREATOR_NAV: NavItem[] = [
   { to: '/metrics', label: 'Metrics',   page: 'metrics' },
   { to: '/markets', label: 'Markets',   page: 'markets' },
-  { to: '/tasks',   label: 'Tasks',     page: 'tasks'   },
+  { to: '/proposals',   label: 'Proposals',     page: 'proposals'   },
   { to: '/participants',  label: 'Participants',    page: 'participants'  },
 ];
 

@@ -130,8 +130,8 @@ workspace seeded fresh each time over editing the production AMM.
 - No coverage of the LMSR `targetValue + maxBudget` mode. Add once a UI
   affordance for it lands (today only the directional and "buy until value"
   flows are wired in the trading panel).
-- No coverage of conditional markets (linked to tasks). Use
-  `tasks-flow.md` for that surface.
+- No coverage of conditional markets (linked to proposals). Use
+  `proposals-flow.md` for that surface.
 - No assertion on chart-update latency; `mvp-evaluation-plan.md` 4.10 wants
   consensus to refresh within 2s. Add timing once `$B perf` integration is
   wired into the spec.

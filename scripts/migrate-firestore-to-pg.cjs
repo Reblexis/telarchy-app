@@ -113,7 +113,7 @@ async function migrateWorkspace(workspaceId, workspaceName) {
       shares: toSharesTuple(d.shares),
       liquidity,
       pool: d.pool ?? liquidity,
-      taskId: d.taskId ?? null,
+      proposalId: d.proposalId ?? null,
       createdAt: toDate(d.createdAt),
     }).onConflictDoNothing();
   }
@@ -150,11 +150,11 @@ async function migrateWorkspace(workspaceId, workspaceName) {
   }
   console.log(`  ✓ ${tradesSnap.size} trades`);
 
-  // Tasks
-  const tasksSnap = await wsCollection(workspaceId, 'tasks').get();
-  for (const doc of tasksSnap.docs) {
+  // Proposals
+  const proposalsSnap = await wsCollection(workspaceId, 'proposals').get();
+  for (const doc of proposalsSnap.docs) {
     const d = doc.data();
-    await db.insert(schema.tasks).values({
+    await db.insert(schema.proposals).values({
       id: doc.id, workspaceId,
       proposedBy: d.proposedBy ?? '',
       title: d.title ?? '',
@@ -164,7 +164,7 @@ async function migrateWorkspace(workspaceId, workspaceName) {
       createdAt: toDate(d.createdAt),
     }).onConflictDoNothing();
   }
-  console.log(`  ✓ ${tasksSnap.size} tasks`);
+  console.log(`  ✓ ${proposalsSnap.size} proposals`);
 
   // Updates
   const updatesSnap = await wsCollection(workspaceId, 'updates').get();

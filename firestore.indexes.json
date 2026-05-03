@@ -85,7 +85,7 @@
       "collectionGroup": "markets",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "taskId", "order": "ASCENDING" },
+        { "fieldPath": "proposalId", "order": "ASCENDING" },
         { "fieldPath": "resolved", "order": "ASCENDING" }
       ]
     },
@@ -93,7 +93,7 @@
       "collectionGroup": "markets",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "taskId", "order": "ASCENDING" },
+        { "fieldPath": "proposalId", "order": "ASCENDING" },
         { "fieldPath": "resolved", "order": "ASCENDING" },
         { "fieldPath": "targetDate", "order": "ASCENDING" }
       ]
@@ -107,7 +107,7 @@
       ]
     },
     {
-      "collectionGroup": "tasks",
+      "collectionGroup": "proposals",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "status", "order": "ASCENDING" },
@@ -115,7 +115,7 @@
       ]
     },
     {
-      "collectionGroup": "tasks",
+      "collectionGroup": "proposals",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "proposedBy", "order": "ASCENDING" },
@@ -123,7 +123,7 @@
       ]
     },
     {
-      "collectionGroup": "tasks",
+      "collectionGroup": "proposals",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "status", "order": "ASCENDING" },

@@ -1,7 +1,7 @@
 import { Router, type Request } from 'express';
 import { randomBytes } from 'crypto';
 import { db } from '../db/client';
-import { agents, agentApiKeys, authUser, trades, positions, tasks, taskMessages } from '../db/schema';
+import { agents, agentApiKeys, authUser, trades, positions, proposals, proposalMessages } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { CURRENT_CONSENT_VERSION } from './legal';
 import { wrap } from '../lib/wrap';
@@ -273,11 +273,11 @@ userauthRouter.get('/me/export', requireIdentity, requireScope('account:read'), 
     approvedAt: participantRow.approvedAt,
   } : null;
 
-  const [userTrades, userPositions, userTasks, userTaskMessages] = await Promise.all([
+  const [userTrades, userPositions, userProposals, userProposalMessages] = await Promise.all([
     db.select().from(trades).where(eq(trades.agentId, participantId)),
     db.select().from(positions).where(eq(positions.agentId, participantId)),
-    db.select().from(tasks).where(eq(tasks.proposedBy, participantId)),
-    db.select().from(taskMessages).where(eq(taskMessages.from, participantId)),
+    db.select().from(proposals).where(eq(proposals.proposedBy, participantId)),
+    db.select().from(proposalMessages).where(eq(proposalMessages.from, participantId)),
   ]);
 
   res.json({
@@ -287,8 +287,8 @@ userauthRouter.get('/me/export', requireIdentity, requireScope('account:read'), 
     memberships,
     trades: userTrades,
     positions: userPositions,
-    tasksProposed: userTasks,
-    taskMessages: userTaskMessages,
+    proposalsProposed: userProposals,
+    proposalMessages: userProposalMessages,
     exportedAt: new Date().toISOString(),
     notes: 'Request logs (IP, user-agent, short-TTL) are not included; see Privacy Policy §5.',
   });

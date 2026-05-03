@@ -9,13 +9,13 @@ Headline use case: company governance (founders and leadership teams pricing dec
 ## What's Already Built
 
 - Full LMSR prediction market engine with binary trading (buy/sell, AMM shares, balance deduction)
-- Participant economy with registration, API keys, credit system, approval flow, task payouts
+- Participant economy with registration, API keys, credit system, approval flow, proposal payouts
 - Multi-workspace support with capability-based access (read, trade, manage) via permission groups
 - USDC settlement on Base (deposit/withdraw via on-chain tx verification; self-hosted only)
 - Time-preference system for forward-looking evaluation (decay-weighted temporal aggregation)
-- Conditional markets for the decision loop (task proposals with per-metric impact predictions)
+- Conditional markets for the decision loop (proposal proposals with per-metric impact predictions)
 - Event feed + SSE hooks for automation
-- Admin UI for metrics, markets, participants, tasks, workspace management
+- Admin UI for metrics, markets, participants, proposals, workspace management
 - Graph/chart system for metric visualization and history
 - Self-hosting: single `docker compose up` deploys the full stack (not yet a public release)
 - BetterAuth (email/password, optional Google/GitHub OAuth via env vars)
@@ -40,7 +40,7 @@ When a participant runs out of credits, they can earn more through accurate fore
 3. **Set initial metric values** (quick self-assessment for each metric).
 4. **Platform-operated participants discover your workspace** and start trading within minutes. Consensus values appear.
 5. **Check back weekly**, update metric values. Markets resolve; accurate forecasters earn, inaccurate lose. New markets auto-created for future dates.
-6. **Propose a decision** (optional): create a task, see conditional market predictions of its impact on your metrics.
+6. **Propose a decision** (optional): create a proposal, see conditional market predictions of its impact on your metrics.
 
 ## Remaining Gaps
 

@@ -74,15 +74,15 @@ grep -qiE 'no markets|no forecasts yet|once you have' <<<"$text" \
   || note "FRICTION markets: empty page lacks copy"
 ```
 
-### T3. /tasks empty state
+### T3. /proposals empty state
 
 ```bash
-$B goto "$TT_FRONTEND_URL/tasks" && $B wait --networkidle
-$B screenshot "/tmp/$TT_NS-shots/tasks-empty.png"
+$B goto "$TT_FRONTEND_URL/proposals" && $B wait --networkidle
+$B screenshot "/tmp/$TT_NS-shots/proposals-empty.png"
 text=$($B text)
-grep -qiE 'no tasks|propose a task' <<<"$text" \
-  && note "tasks: empty state copy present" \
-  || note "FRICTION tasks: empty page lacks copy"
+grep -qiE 'no proposals|propose a proposal' <<<"$text" \
+  && note "proposals: empty state copy present" \
+  || note "FRICTION proposals: empty page lacks copy"
 ```
 
 ### T4. /sources empty state
@@ -121,7 +121,7 @@ grep -qiE 'public workspaces|browse|join' <<<"$text" \
 ### T7. No spinners stuck >5s
 
 ```bash
-for page in /metrics /markets /tasks /sources /account /marketplace; do
+for page in /metrics /markets /proposals /sources /account /marketplace; do
   $B goto "$TT_FRONTEND_URL$page"
   sleep 5
   if $B is visible '[role="progressbar"], .spinner, .loading' 2>/dev/null; then

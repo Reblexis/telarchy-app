@@ -44,7 +44,7 @@ adminRouter.get('/activity', requireCapability('manage'), wrap(async (req, res) 
   const participantId = typeof req.query.participantId === 'string' ? req.query.participantId : undefined;
   const marketId = typeof req.query.marketId === 'string' ? req.query.marketId : undefined;
   const metricId = typeof req.query.metricId === 'string' ? req.query.metricId : undefined;
-  const taskId = typeof req.query.taskId === 'string' ? req.query.taskId : undefined;
+  const proposalId = typeof req.query.proposalId === 'string' ? req.query.proposalId : undefined;
 
   const activities = await getActivityFeed(workspaceId, {
     since,
@@ -54,7 +54,7 @@ adminRouter.get('/activity', requireCapability('manage'), wrap(async (req, res) 
     participantId,
     marketId,
     metricId,
-    taskId,
+    proposalId,
   });
 
   const nextCursor = activities.length > 0 ? activities[0].timestamp : (until ?? new Date()).toISOString();

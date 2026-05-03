@@ -39,7 +39,7 @@ You agree not to:
 
 ## 5. User content
 
-You retain ownership of the metrics, descriptions, task text, and other content you submit. You grant us a limited, worldwide, royalty-free license to store, process, and display that content solely as needed to operate the Service for you and your workspace members.
+You retain ownership of the metrics, descriptions, proposal text, and other content you submit. You grant us a limited, worldwide, royalty-free license to store, process, and display that content solely as needed to operate the Service for you and your workspace members.
 
 ## 6. Disclaimers
 
@@ -82,7 +82,7 @@ We collect only what is necessary to operate the Service:
 
 - **Account data**: email address, optional display name (nickname), and a password hash (managed by BetterAuth). If you sign in with Google or GitHub, we receive the profile fields that provider returns (typically email, name, and user id).
 - **Consent record**: the timestamp and version of Terms and Privacy Policy you agreed to at signup.
-- **Workspace and trading data**: metrics, formulas, market prices, trades, positions, tasks, and messages you create or interact with inside your workspaces.
+- **Workspace and trading data**: metrics, formulas, market prices, trades, positions, proposals, and messages you create or interact with inside your workspaces.
 - **Request logs**: IP address, user-agent, and basic request metadata retained for security, rate limiting, and debugging.
 - **Optional wallet address**: only collected if you choose to use USDC settlement on an instance where it is enabled. The managed instance runs with USDC settlement disabled by default, so no wallet address is collected there.
 
@@ -93,7 +93,7 @@ We do not use third-party analytics, tracking cookies, or advertising SDKs.
 We process your information to:
 
 - authenticate you and keep your account secure;
-- operate the prediction market, metrics, and task features you and your workspace use;
+- operate the prediction market, metrics, and proposal features you and your workspace use;
 - enforce acceptable use, rate limits, and platform integrity;
 - respond to support requests and legal obligations.
 

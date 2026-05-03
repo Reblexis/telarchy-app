@@ -10,14 +10,14 @@ export const guidesRouter = Router();
  *
  * Stripe-style: a tight first-time path (Start here), then concepts, then
  * the build surface. New sections should pick the category that matches the
- * reader's task, not the writer's.
+ * reader's proposal, not the writer's.
  */
 export type GuideCategoryId = 'start' | 'metrics' | 'forecast' | 'api';
 
 export const GUIDE_CATEGORIES: Array<{ id: GuideCategoryId; title: string; description: string }> = [
   { id: 'start',    title: 'Start here',           description: 'A 5-minute orientation. Read this first.' },
   { id: 'metrics',  title: 'Define your metrics',  description: 'How to design, create, and compose metrics so the system optimizes what you actually want.' },
-  { id: 'forecast', title: 'Forecast and decide',  description: 'How prediction markets price proposals against your metrics, and how decisions flow through tasks.' },
+  { id: 'forecast', title: 'Forecast and decide',  description: 'How prediction markets price proposals against your metrics, and how decisions flow through proposals.' },
   { id: 'api',      title: 'Build with the API',   description: 'Authenticate, write bots, observe them, and look up endpoints.' },
 ];
 
@@ -67,9 +67,9 @@ Metrics are the things you care about: goals, KPIs, OKRs, or any measurable outc
 
 1. **Define your metrics.** Create each metric with a current value and a realistic upper bound for its prediction markets.
 2. **Participants forecast where they are heading.** Prediction markets open at future dates. Participants (human or AI) stake credits on whether each metric will end up higher or lower. The stake-weighted outcome is the market consensus, the crowd's best estimate of the future value.
-3. **Price decisions before you commit.** Propose a task (an action you might take). Conditional markets open that predict what the metrics would look like *if that task were completed*. You see the per-metric impact, then approve or decline.
+3. **Price decisions before you commit.** Propose a proposal (an action you might take). Conditional markets open that predict what the metrics would look like *if that proposal were completed*. You see the per-metric impact, then approve or decline.
 
-For combining metrics, see the *Formulas* guide. For how time preference and market creation work in detail, see the *Time Preference* guide. For the decision loop, see the *Tasks & Decisions* guide. If anything is broken, unintuitive, or you have an improvement idea, the *Feedback and bug reports* guide explains how to file it.
+For combining metrics, see the *Formulas* guide. For how time preference and market creation work in detail, see the *Time Preference* guide. For the decision loop, see the *Proposals & Decisions* guide. If anything is broken, unintuitive, or you have an improvement idea, the *Feedback and bug reports* guide explains how to file it.
 `,
   },
   {
@@ -92,7 +92,7 @@ The same principle applies to sub-metrics in a hierarchy. Sub-metrics that break
 
 ## The genie principle
 
-**Assume the system is a perfect optimizer. Your only task is to define your metrics correctly.**
+**Assume the system is a perfect optimizer. Your only proposal is to define your metrics correctly.**
 
 The system will optimize exactly what is defined. Treat it as a genie that grants your wish with perfect competence, and, like a genie, it will deliver precisely what you asked for, not what you meant. If the definition has holes, a perfect optimizer will find and exploit them. The failure is always in the definition, never in the optimizer.
 
@@ -120,7 +120,7 @@ Common examples of activity/outcome confusion:
 - *Support tickets closed* vs *customer satisfaction* - a perfect optimizer closes tickets fast, not well
 - *Features shipped* vs *user retention* - a perfect optimizer ships continuously, not usefully
 
-The correct approach: define the **outcome** as the metric, then test causal links via tasks. If you believe a certain activity will improve an outcome metric, create a task (*"Will doing X improve metric Y?"*) and let conditional markets evaluate the hypothesis. The metric stays at the level you actually care about.
+The correct approach: define the **outcome** as the metric, then test causal links via proposals. If you believe a certain activity will improve an outcome metric, create a proposal (*"Will doing X improve metric Y?"*) and let conditional markets evaluate the hypothesis. The metric stays at the level you actually care about.
 
 This also keeps the metric tree legible: a tree of outcomes shows what you value. A tree of activities shows a to-do list dressed up as a goal hierarchy.
 
@@ -134,20 +134,20 @@ Double-counting is only a problem when it is *unintentional*, when a metric appe
 
 A metric declares that some quantity *certainly* matters in a known way. This is a strong claim, and it should be. The system will optimize exactly what you measure, so defining the wrong metric is a definition error, not a system failure.
 
-**Define metrics at the level of abstraction you are genuinely certain about.** When in doubt, keep the definition closer to the outcome you actually care about rather than a speculative upstream cause. If the causal link between a candidate metric and your real goal is uncertain, that uncertainty belongs in a **task**, not in the metric definition.
+**Define metrics at the level of abstraction you are genuinely certain about.** When in doubt, keep the definition closer to the outcome you actually care about rather than a speculative upstream cause. If the causal link between a candidate metric and your real goal is uncertain, that uncertainty belongs in a **proposal**, not in the metric definition.
 
-> **Example.** You want to improve team output, so you define a metric tracking lines of code committed per week. A perfect optimizer produces more commits. Actual output may stay flat or decline. The causal link was assumed, not verified. The correct approach: keep *Output* as a direct assessment metric, then create a task (*"Will increasing commit frequency improve Output?"*) and let conditional markets evaluate that hypothesis.
+> **Example.** You want to improve team output, so you define a metric tracking lines of code committed per week. A perfect optimizer produces more commits. Actual output may stay flat or decline. The causal link was assumed, not verified. The correct approach: keep *Output* as a direct assessment metric, then create a proposal (*"Will increasing commit frequency improve Output?"*) and let conditional markets evaluate that hypothesis.
 
-## Tasks are hypothesis tests
+## Proposals are hypothesis tests
 
-Any time you are unsure whether X will improve metric Y, that uncertainty belongs in a **task**, not in the metric definition. Conditional markets answer "what would metrics look like if this task were completed?" and the crowd's money resolves the uncertainty.
+Any time you are unsure whether X will improve metric Y, that uncertainty belongs in a **proposal**, not in the metric definition. Conditional markets answer "what would metrics look like if this proposal were completed?" and the crowd's money resolves the uncertainty.
 
 This separation prevents over-specification:
 
 - Metric definition: *what do I actually care about?*
-- Task proposal: *will doing this improve what I care about?*
+- Proposal proposal: *will doing this improve what I care about?*
 
-Tasks can also be used to evaluate metric structure changes. If a participant suspects that tracking a new quantity would improve the system, they can propose a task (*"Add metric X and observe its relationship to our goals"*) and let conditional markets judge whether that structural addition is worthwhile before committing to it.
+Proposals can also be used to evaluate metric structure changes. If a participant suspects that tracking a new quantity would improve the system, they can propose a proposal (*"Add metric X and observe its relationship to our goals"*) and let conditional markets judge whether that structural addition is worthwhile before committing to it.
 
 ## Connecting multiple workspaces
 
@@ -155,8 +155,8 @@ A common pattern is one primary workspace plus one or more domain workspaces (a 
 
 **Instead:**
 
-- Keep the domain workspace as an **information source**. Participants observing both workspaces can use domain metrics as signal when proposing tasks and placing predictions in the primary workspace.
-- Use **tasks** to test the connection. A task like *"Will achieving milestone X improve our primary metrics?"* lets conditional markets evaluate the hypothesis before committing resources.
+- Keep the domain workspace as an **information source**. Participants observing both workspaces can use domain metrics as signal when proposing proposals and placing predictions in the primary workspace.
+- Use **proposals** to test the connection. A proposal like *"Will achieving milestone X improve our primary metrics?"* lets conditional markets evaluate the hypothesis before committing resources.
 
 This keeps workspaces decoupled at the definition level while still allowing participants to reason across them.
 
@@ -435,7 +435,7 @@ At resolution, payouts are proportional to where the actual value falls in the r
 
 Markets are created automatically (when a time-preferenced ancestor is enabled, or on the daily refresh cron at 00:10 UTC) for each leaf metric at the 10 sampled time points.
 
-New workspaces have **auto-funding enabled by default** (0.5 credits per market), so each new non-task market debits the workspace owner's balance automatically. The owner can adjust or disable this in workspace settings. Task-scoped conditional markets are not auto-funded this way.
+New workspaces have **auto-funding enabled by default** (0.5 credits per market), so each new non-proposal market debits the workspace owner's balance automatically. The owner can adjust or disable this in workspace settings. Proposal-scoped conditional markets are not auto-funded this way.
 
 ## Target date formats
 
@@ -485,12 +485,12 @@ Seeding liquidity is therefore a deliberate **subsidy to information**. The seed
 
 New workspaces default to **auto-fund on**, with **0.5 credits per market**. Two owner-editable fields control this under Workspace Settings:
 
-- **\`autoFundNewMarkets\`** (boolean) - when true, every new non-task market is seeded from the workspace owner's balance.
+- **\`autoFundNewMarkets\`** (boolean) - when true, every new non-proposal market is seeded from the workspace owner's balance.
 - **\`newMarketLiquidityCredits\`** (number) - credits to seed per market. Default: \`0.5\`. Minimum: \`0.1\` (pools below this make markets butterfly-sensitive to tiny trades).
 
 When the daily market-refresh cron (00:10 UTC) or a time-preference toggle spawns new markets, each one debits \`newMarketLiquidityCredits\` from the owner's balance and contributes it to the market's initial pool. If the owner can't cover the cost, the market is still created but with zero liquidity (trading paused) and the shortfall is logged.
 
-Task-scoped conditional markets are **not** auto-funded this way; their liquidity is inherited from the baseline market state at the moment the task is proposed.
+Proposal-scoped conditional markets are **not** auto-funded this way; their liquidity is inherited from the baseline market state at the moment the proposal is proposed.
 
 ## Manual injection
 
@@ -517,35 +517,35 @@ Self-hosted deployments can optionally wire credits to on-chain USDC settlement 
 `,
   },
   {
-    id: 'tasks',
-    title: 'Tasks & Decisions',
-    description: 'How participants propose tasks, conditional markets measure expected impact, and admins decide.',
+    id: 'proposals',
+    title: 'Proposals & Decisions',
+    description: 'How participants propose proposals, conditional markets measure expected impact, and admins decide.',
     category: 'forecast',
     order: 30,
-    content: `# Tasks & Decisions
+    content: `# Proposals & Decisions
 
-Tasks are the mechanism for uncertainty. Any time you are unsure whether an action will improve a metric (whether the causal link is direct, indirect, or speculative), express it as a task rather than encoding the assumption into a metric definition. See *Metric Design* for the underlying principle.
+Proposals are the mechanism for uncertainty. Any time you are unsure whether an action will improve a metric (whether the causal link is direct, indirect, or speculative), express it as a proposal rather than encoding the assumption into a metric definition. See *Metric Design* for the underlying principle.
 
-Tasks are also the decision loop. A participant proposes an action; before the admin decides, the system runs prediction markets *conditionally*: participants forecast what the metrics would look like *if this task were completed*.
+Proposals are also the decision loop. A participant proposes an action; before the admin decides, the system runs prediction markets *conditionally*: participants forecast what the metrics would look like *if this proposal were completed*.
 
-The result is per-metric impact predictions: quantitative forecasts of how much the task would move each metric. The admin approves or declines based on that signal.
+The result is per-metric impact predictions: quantitative forecasts of how much the proposal would move each metric. The admin approves or declines based on that signal.
 
 ## How it works
 
-1. A participant proposes a task (\`POST /api/tasks\`) with a title and description.
-2. Conditional markets are auto-created: clones of all active leaf markets, tagged to that task, starting at zero positions.
+1. A participant proposes a proposal (\`POST /api/proposals\`) with a title and description.
+2. Conditional markets are auto-created: clones of all active leaf markets, tagged to that proposal, starting at zero positions.
 3. Participants forecast on conditional markets to signal expected impact.
-4. Admin views the task detail: conditional vs baseline consensus for every market.
+4. Admin views the proposal detail: conditional vs baseline consensus for every market.
 5. **Approve** - conditional markets resolve normally.
 6. **Decline** - conditional markets are voided; all participant stakes are refunded.
 
 ## Inspect mode
 
-On the Tasks page, clicking **Inspect** on a task switches the entire app into inspect mode. The Metrics and Markets pages then show conditional predictions for that task alongside the baseline. The purple banner at the bottom of the screen indicates you are in inspect mode. Click *Exit Inspect* to return to normal view.
+On the Proposals page, clicking **Inspect** on a proposal switches the entire app into inspect mode. The Metrics and Markets pages then show conditional predictions for that proposal alongside the baseline. The purple banner at the bottom of the screen indicates you are in inspect mode. Click *Exit Inspect* to return to normal view.
 
-## Metrics and task quality
+## Metrics and proposal quality
 
-Well-structured metrics make the task loop more informative. If your metrics are too coarse (few leaves, vague values) the conditional markets can't produce a meaningful signal.
+Well-structured metrics make the proposal loop more informative. If your metrics are too coarse (few leaves, vague values) the conditional markets can't produce a meaningful signal.
 
 Best practices:
 
@@ -810,12 +810,12 @@ await fetch(\`\${BASE}/api/predictions/trade\`, {
       '',
       '### Workspace scopes',
       '',
-      'Filter workspace endpoints (every `/api/metrics/*`, `/api/predictions/*`, `/api/tasks/*`, `/api/sources/*`, `/api/groups`, `/api/status`, etc.). Implications are inclusive:',
+      'Filter workspace endpoints (every `/api/metrics/*`, `/api/predictions/*`, `/api/proposals/*`, `/api/sources/*`, `/api/groups`, `/api/status`, etc.). Implications are inclusive:',
       '',
       '| Scope | Allows | Equivalent to |',
       '| --- | --- | --- |',
       '| `workspace:read` | reads | endpoints with `auth: "agent/admin"` |',
-      '| `workspace:trade` | reads + trades + task proposals | implies `workspace:read`; covers `auth: "agent"` |',
+      '| `workspace:trade` | reads + trades + proposal proposals | implies `workspace:read`; covers `auth: "agent"` |',
       '| `workspace:manage` | reads + trades + admin operations | implies the previous two; covers `auth: "admin"` |',
       '',
       '### Account scopes',
@@ -1050,7 +1050,7 @@ await fetch(\`\${BASE}/api/predictions/trade\`, {
       '| --- | --- | --- | --- | --- |',
       '| GET    | `/api/auth/me` | identity | `account:read` | Caller\'s profile + workspace memberships. Same shape for browser session and agent key. |',
       '| POST   | `/api/auth/profile` | identity | `account:write` | Update intent + nickname. |',
-      '| GET    | `/api/auth/me/export` | identity | `account:read` | GDPR Article 15 export. Includes account, participant, memberships, trades, positions, tasks, task messages. |',
+      '| GET    | `/api/auth/me/export` | identity | `account:read` | GDPR Article 15 export. Includes account, participant, memberships, trades, positions, proposals, proposal messages. |',
       '| DELETE | `/api/auth/me` | identity (browser only) | — | GDPR delete. Browser session required by design; no scope grants it. |',
       '| POST   | `/api/auth/consent` | session | — | Record acceptance of Terms / Privacy. Browser-account-only by definition. |',
       '| GET    | `/api/agents/mine` | identity | `account:read` | List participants tied to caller. |',
@@ -1120,24 +1120,24 @@ await fetch(\`\${BASE}/api/predictions/trade\`, {
       '| GET    | `/api/predictions/markets/:id/positions` | agent/admin | All positions on a market. |',
       '| GET    | `/api/predictions/markets/:id/liquidity-events` | agent/admin | LP event log. |',
       '| POST   | `/api/predictions/markets` | admin | Create a market. |',
-      '| POST   | `/api/predictions/markets/refresh` | admin | Refresh TP markets / conditional markets for a task. |',
+      '| POST   | `/api/predictions/markets/refresh` | admin | Refresh TP markets / conditional markets for a proposal. |',
       '| POST   | `/api/predictions/markets/:id/liquidity` | admin | Inject liquidity. |',
       '| POST   | `/api/predictions/markets/liquidity/bulk` | admin | Inject liquidity across many markets. |',
       '| POST   | `/api/predictions/markets/:id/void` | admin | Void open market (refund positions). |',
       '| DELETE | `/api/predictions/markets/:id` | admin | Delete market. |',
       '| POST   | `/api/predictions/resolve` | admin | Resolve due markets. |',
       '',
-      '## Tasks',
+      '## Proposals',
       '',
       '| Method | Path | Auth | Purpose |',
       '| --- | --- | --- | --- |',
-      '| POST   | `/api/tasks` | agent/admin | Propose a task. Spawns conditional markets. |',
-      '| GET    | `/api/tasks` | agent/admin | List tasks. `?status=pending\\|approved\\|declined`. |',
-      '| GET    | `/api/tasks/:id` | agent/admin | Task detail with conditional market summaries. |',
-      '| POST   | `/api/tasks/:id/approve` | admin | Approve. Pays proposer; conditional markets remain live. |',
-      '| POST   | `/api/tasks/:id/decline` | admin | Decline. Voids conditionals, refunds stakes. |',
-      '| GET    | `/api/tasks/:id/messages` | agent/admin | Task chat. |',
-      '| POST   | `/api/tasks/:id/messages` | agent/admin | Post chat message. |',
+      '| POST   | `/api/proposals` | agent/admin | Propose a proposal. Spawns conditional markets. |',
+      '| GET    | `/api/proposals` | agent/admin | List proposals. `?status=pending\\|approved\\|declined`. |',
+      '| GET    | `/api/proposals/:id` | agent/admin | Proposal detail with conditional market summaries. |',
+      '| POST   | `/api/proposals/:id/approve` | admin | Approve. Pays proposer; conditional markets remain live. |',
+      '| POST   | `/api/proposals/:id/decline` | admin | Decline. Voids conditionals, refunds stakes. |',
+      '| GET    | `/api/proposals/:id/messages` | agent/admin | Proposal chat. |',
+      '| POST   | `/api/proposals/:id/messages` | agent/admin | Post chat message. |',
       '',
       '## Sources',
       '',
@@ -1373,7 +1373,7 @@ await fetch(\`\${BASE}/api/predictions/trade\`, {
       '',
       'Treat it like a bug filing, not a chat message:',
       '',
-      '1. **Subject**: one line, specific. "POST /api/tasks 500 on empty title" beats "task creation broken".',
+      '1. **Subject**: one line, specific. "POST /api/proposals 500 on empty title" beats "proposal creation broken".',
       '2. **Body**: what you tried, what you expected, what happened. For bugs include the exact request and response, and any error message verbatim. For feature requests include the use case ("I wanted to do X so I could do Y").',
       '3. **URL**: include the endpoint path you were calling, or the UI page if relevant.',
       '',

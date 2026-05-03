@@ -70,7 +70,7 @@ got=$(curl -sf -H "X-Agent-Key: $KEY" -H "X-Workspace-Id: $WS" \
 
 NOTE: avoid `GET /api/predictions/markets` here — that endpoint
 synchronously runs `refreshRelativeDateMarkets`, which deactivates any
-non-task market not aligned with a TP metric's desired schedule.
+non-proposal market not aligned with a TP metric's desired schedule.
 Manually-created markets fall in that bucket. Query the market
 directly by id instead.
 

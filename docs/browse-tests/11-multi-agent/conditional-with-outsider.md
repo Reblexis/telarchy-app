@@ -8,18 +8,18 @@ timeout: 90s
 goal-horizon: short
 goal-statement: |
   As an outside trader (not the proposer or approver), I can take a
-  position on a conditional market tied to someone else's task; on
-  approve, my position resolves against the post-task metric value.
+  position on a conditional market tied to someone else's proposal; on
+  approve, my position resolves against the post-proposal metric value.
 ---
 
 # Browse test: Conditional market with an outside trader
 
 ## What this tests
 
-A four-actor flow: proposer creates a task, approver gates it, an outside
-trader has no task involvement but stakes credits on the conditional
+A four-actor flow: proposer creates a proposal, approver gates it, an outside
+trader has no proposal involvement but stakes credits on the conditional
 market, a market-maker bot supplies liquidity. Verifies that the outsider's
-P&L is fair regardless of who proposed the task.
+P&L is fair regardless of who proposed the proposal.
 
 ## Setup
 
@@ -38,15 +38,15 @@ tt_admin_curl "$WS" -H 'Content-Type: application/json' \
 
 ## Tests
 
-### T1. Proposer creates a task with conditional markets
+### T1. Proposer creates a proposal with conditional markets
 
 ```bash
-TASK=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
+PROPOSAL=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \
   -d '{"title":"Run an experiment","description":"..."}' \
-  "$TT_BASE_URL/api/tasks" | jq -r '.id')
+  "$TT_BASE_URL/api/proposals" | jq -r '.id')
 mkts=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
-  "$TT_BASE_URL/api/tasks/$TASK" | jq -r '.conditionalMarketIds[]?')
+  "$TT_BASE_URL/api/proposals/$PROPOSAL" | jq -r '.conditionalMarketIds[]?')
 [ -n "$mkts" ] || { echo "skip: no conditional market spawned"; exit 0; }
 target=$(echo "$mkts" | head -1)
 ```
@@ -78,7 +78,7 @@ tt_admin_curl "$WS" -H 'Content-Type: application/json' \
 ```bash
 curl -sf -H "X-Agent-Key: $KA" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST -d '{}' \
-  "$TT_BASE_URL/api/tasks/$TASK/approve" >/dev/null
+  "$TT_BASE_URL/api/proposals/$PROPOSAL/approve" >/dev/null
 resolved=$(curl -sf "$TT_BASE_URL/api/predictions/markets/$target" \
   | jq -r '.resolved')
 voided=$(curl -sf "$TT_BASE_URL/api/predictions/markets/$target" \
@@ -97,7 +97,7 @@ awk -v a="$b1" -v b="$b2" 'BEGIN{exit !(b >= a)}' \
   || echo "WARN: outsider's balance dropped post-resolve: $b1 → $b2 (only legitimate if 'higher' lost)"
 ```
 
-### T6. Approver did not lose credits to approve the task
+### T6. Approver did not lose credits to approve the proposal
 
 ```bash
 appr_bal=$(curl -sf -H "X-Agent-Key: $KA" -H "X-Workspace-Id: $WS" \

@@ -119,7 +119,7 @@ const ctx = {} as {
   agentId: string; agentKey: string;
   metricId: string; metricName: string;
   marketId: string;
-  taskId: string;
+  proposalId: string;
 };
 
 // authMiddleware always requires X-Workspace-Id when using the master key.
@@ -510,8 +510,8 @@ await suite('Prediction Markets', async () => {
     expect(r.status).toBe(400);
   });
 
-  await test('GET /predictions/markets with unknown taskId returns empty array', async () => {
-    const r = await adminCall(ctx.wsId)('GET', '/predictions/markets?taskId=nonexistent-task-id');
+  await test('GET /predictions/markets with unknown proposalId returns empty array', async () => {
+    const r = await adminCall(ctx.wsId)('GET', '/predictions/markets?proposalId=nonexistent-proposal-id');
     expect(r.status).toBe(200);
     expect((r.body as Array<unknown>).length).toBe(0);
   });
@@ -595,55 +595,55 @@ await suite('Trading', async () => {
   });
 });
 
-await suite('Tasks', async () => {
-  await test('POST /api/tasks creates a task (requires agent key)', async () => {
+await suite('Proposals', async () => {
+  await test('POST /api/proposals creates a proposal (requires agent key)', async () => {
     // proposedBy is set from req.auth.agentId; requires X-Agent-Key auth
-    const r = ok(await agentCall(ctx.agentKey, ctx.wsId)('POST', '/tasks', {
-      title: 'Integration test task',
-      description: 'Verify task flow works end-to-end',
+    const r = ok(await agentCall(ctx.agentKey, ctx.wsId)('POST', '/proposals', {
+      title: 'Integration test proposal',
+      description: 'Verify proposal flow works end-to-end',
     }));
-    ctx.taskId = r.id as string;
-    expect(ctx.taskId).toBeTruthy();
+    ctx.proposalId = r.id as string;
+    expect(ctx.proposalId).toBeTruthy();
   });
 
-  await test('GET /api/tasks lists the task', async () => {
-    const r = await adminCall(ctx.wsId)('GET', '/tasks');
+  await test('GET /api/proposals lists the proposal', async () => {
+    const r = await adminCall(ctx.wsId)('GET', '/proposals');
     expect(r.status).toBe(200);
-    expect((r.body as Array<Record<string, unknown>>).some(t => t.id === ctx.taskId)).toBeTruthy();
+    expect((r.body as Array<Record<string, unknown>>).some(t => t.id === ctx.proposalId)).toBeTruthy();
   });
 
-  await test('GET /api/tasks/:id returns task details', async () => {
-    const r = ok(await adminCall(ctx.wsId)('GET', `/tasks/${ctx.taskId}`));
-    expect(r.id).toBe(ctx.taskId);
-    expect(r.title).toBe('Integration test task');
+  await test('GET /api/proposals/:id returns proposal details', async () => {
+    const r = ok(await adminCall(ctx.wsId)('GET', `/proposals/${ctx.proposalId}`));
+    expect(r.id).toBe(ctx.proposalId);
+    expect(r.title).toBe('Integration test proposal');
     expect(r.status).toBe('pending');
   });
 
-  await test('Task creation without title is rejected (400)', async () => {
-    const r = await agentCall(ctx.agentKey, ctx.wsId)('POST', '/tasks', { description: 'no title' });
+  await test('Proposal creation without title is rejected (400)', async () => {
+    const r = await agentCall(ctx.agentKey, ctx.wsId)('POST', '/proposals', { description: 'no title' });
     expect(r.status).toBe(400);
   });
 
-  await test('Task creation with master key is rejected (403, no participant identity)', async () => {
-    const r = await adminCall(ctx.wsId)('POST', '/tasks', { title: 'Admin task' });
+  await test('Proposal creation with master key is rejected (403, no participant identity)', async () => {
+    const r = await adminCall(ctx.wsId)('POST', '/proposals', { title: 'Admin proposal' });
     expect(r.status).toBe(403);
   });
 
-  await test('POST /api/tasks/:id/approve approves the task', async () => {
-    const r = await adminCall(ctx.wsId)('POST', `/tasks/${ctx.taskId}/approve`, {});
+  await test('POST /api/proposals/:id/approve approves the proposal', async () => {
+    const r = await adminCall(ctx.wsId)('POST', `/proposals/${ctx.proposalId}/approve`, {});
     expect(r.status).toBe(200);
   });
 
-  await test('Approved task status is "approved"', async () => {
-    const r = ok(await adminCall(ctx.wsId)('GET', `/tasks/${ctx.taskId}`));
+  await test('Approved proposal status is "approved"', async () => {
+    const r = ok(await adminCall(ctx.wsId)('GET', `/proposals/${ctx.proposalId}`));
     expect(r.status).toBe('approved');
   });
 
-  await test('POST /api/tasks/:id/decline declines a pending task', async () => {
-    const taskR = ok(await agentCall(ctx.agentKey, ctx.wsId)('POST', '/tasks', {
-      title: 'Task to decline',
+  await test('POST /api/proposals/:id/decline declines a pending proposal', async () => {
+    const proposalR = ok(await agentCall(ctx.agentKey, ctx.wsId)('POST', '/proposals', {
+      title: 'Proposal to decline',
     }));
-    const r = await adminCall(ctx.wsId)('POST', `/tasks/${taskR.id as string}/decline`, {});
+    const r = await adminCall(ctx.wsId)('POST', `/proposals/${proposalR.id as string}/decline`, {});
     expect(r.status).toBe(200);
   });
 });
@@ -1051,84 +1051,84 @@ await suite('Markets - edge cases', async () => {
   });
 });
 
-await suite('Task messages', async () => {
-  let msgTaskId = '';
+await suite('Proposal messages', async () => {
+  let msgProposalId = '';
 
-  await test('Setup: create a task for message tests', async () => {
-    const r = ok(await agentCall(ctx.agentKey, ctx.wsId)('POST', '/tasks', {
-      title: 'Message test task',
-      description: 'Used to verify task message threading',
+  await test('Setup: create a proposal for message tests', async () => {
+    const r = ok(await agentCall(ctx.agentKey, ctx.wsId)('POST', '/proposals', {
+      title: 'Message test proposal',
+      description: 'Used to verify proposal message threading',
     }));
-    msgTaskId = r.id as string;
-    expect(msgTaskId).toBeTruthy();
+    msgProposalId = r.id as string;
+    expect(msgProposalId).toBeTruthy();
   });
 
-  await test('GET /tasks/:id/messages returns empty array initially', async () => {
-    if (!msgTaskId) return;
-    const r = await agentCall(ctx.agentKey, ctx.wsId)('GET', `/tasks/${msgTaskId}/messages`);
+  await test('GET /proposals/:id/messages returns empty array initially', async () => {
+    if (!msgProposalId) return;
+    const r = await agentCall(ctx.agentKey, ctx.wsId)('GET', `/proposals/${msgProposalId}/messages`);
     expect(r.status).toBe(200);
     expect(Array.isArray(r.body)).toBeTruthy();
     expect((r.body as Array<unknown>).length).toBe(0);
   });
 
-  await test('POST /tasks/:id/messages agent can send a message', async () => {
-    if (!msgTaskId) return;
-    const r = await agentCall(ctx.agentKey, ctx.wsId)('POST', `/tasks/${msgTaskId}/messages`, {
+  await test('POST /proposals/:id/messages agent can send a message', async () => {
+    if (!msgProposalId) return;
+    const r = await agentCall(ctx.agentKey, ctx.wsId)('POST', `/proposals/${msgProposalId}/messages`, {
       content: 'Hello from agent',
     });
     expect(r.status).toBe(201);
     expect((r.body as Record<string, unknown>).content).toBe('Hello from agent');
   });
 
-  await test('POST /tasks/:id/messages admin can send a message', async () => {
-    if (!msgTaskId) return;
-    const r = await adminCall(ctx.wsId)('POST', `/tasks/${msgTaskId}/messages`, {
+  await test('POST /proposals/:id/messages admin can send a message', async () => {
+    if (!msgProposalId) return;
+    const r = await adminCall(ctx.wsId)('POST', `/proposals/${msgProposalId}/messages`, {
       content: 'Reply from admin',
     });
     expect(r.status).toBe(201);
   });
 
-  await test('GET /tasks/:id/messages returns both messages in order', async () => {
-    if (!msgTaskId) return;
-    const r = await agentCall(ctx.agentKey, ctx.wsId)('GET', `/tasks/${msgTaskId}/messages`);
+  await test('GET /proposals/:id/messages returns both messages in order', async () => {
+    if (!msgProposalId) return;
+    const r = await agentCall(ctx.agentKey, ctx.wsId)('GET', `/proposals/${msgProposalId}/messages`);
     expect(r.status).toBe(200);
     expect((r.body as Array<unknown>).length).toBe(2);
   });
 
   await test('Message with empty content is rejected (400)', async () => {
-    if (!msgTaskId) return;
-    const r = await agentCall(ctx.agentKey, ctx.wsId)('POST', `/tasks/${msgTaskId}/messages`, { content: '' });
+    if (!msgProposalId) return;
+    const r = await agentCall(ctx.agentKey, ctx.wsId)('POST', `/proposals/${msgProposalId}/messages`, { content: '' });
     expect(r.status).toBe(400);
   });
 
   await test('Message with content exceeding 5000 chars is rejected (400)', async () => {
-    if (!msgTaskId) return;
-    const r = await agentCall(ctx.agentKey, ctx.wsId)('POST', `/tasks/${msgTaskId}/messages`, {
+    if (!msgProposalId) return;
+    const r = await agentCall(ctx.agentKey, ctx.wsId)('POST', `/proposals/${msgProposalId}/messages`, {
       content: 'x'.repeat(5001),
     });
     expect(r.status).toBe(400);
   });
 
-  await test('Approving the task succeeds', async () => {
-    if (!msgTaskId) return;
-    const r = await adminCall(ctx.wsId)('POST', `/tasks/${msgTaskId}/approve`, {});
+  await test('Approving the proposal succeeds', async () => {
+    if (!msgProposalId) return;
+    const r = await adminCall(ctx.wsId)('POST', `/proposals/${msgProposalId}/approve`, {});
     expect(r.status).toBe(200);
   });
 
-  await test('Declining an already-approved task is rejected (400)', async () => {
-    if (!msgTaskId) return;
-    const r = await adminCall(ctx.wsId)('POST', `/tasks/${msgTaskId}/decline`, {});
+  await test('Declining an already-approved proposal is rejected (400)', async () => {
+    if (!msgProposalId) return;
+    const r = await adminCall(ctx.wsId)('POST', `/proposals/${msgProposalId}/decline`, {});
     expect(r.status).toBe(400);
   });
 
-  await test('Approving an already-approved task is idempotent or rejected gracefully (not 500)', async () => {
-    if (!msgTaskId) return;
-    const r = await adminCall(ctx.wsId)('POST', `/tasks/${msgTaskId}/approve`, {});
+  await test('Approving an already-approved proposal is idempotent or rejected gracefully (not 500)', async () => {
+    if (!msgProposalId) return;
+    const r = await adminCall(ctx.wsId)('POST', `/proposals/${msgProposalId}/approve`, {});
     expect(r.status).toBeStatus(200, 400, 409);
   });
 
-  await test('Cleanup: message test task', async () => {
-    // Tasks have no delete endpoint. This is expected; they persist.
+  await test('Cleanup: message test proposal', async () => {
+    // Proposals have no delete endpoint. This is expected; they persist.
   });
 });
 
@@ -1417,7 +1417,7 @@ await suite('Scenario: closed market lifecycle (TP shift -> closed -> resolve)',
     cmMetricId = r.id as string;
     const lr = await adminCall(cmWsId)('GET', '/predictions/markets');
     const mine = (lr.body as Array<Record<string, unknown>>)
-      .filter(m => m.metricId === cmMetricId && !m.taskId);
+      .filter(m => m.metricId === cmMetricId && !m.proposalId);
     expect(mine.length).toBeGreaterThan(0);
     // halfLife=1y produces some year-granular sample dates (e.g. "2030"); pick one so
     // it's guaranteed to fall out when we later shrink halfLife to ~weeks.
@@ -1455,7 +1455,7 @@ await suite('Scenario: closed market lifecycle (TP shift -> closed -> resolve)',
     }));
     const lr = await adminCall(cmWsId)('GET', '/predictions/markets');
     const mine = (lr.body as Array<Record<string, unknown>>)
-      .filter(m => m.metricId === cmMetricId && !m.taskId);
+      .filter(m => m.metricId === cmMetricId && !m.proposalId);
     const weekly = mine.filter(m => /^\d{4}-W\d{2}$/.test(String(m.targetDate)) && m.status === 'open');
     expect(weekly.length).toBeGreaterThan(0); // new week-granular schedule was spawned
   });
@@ -1466,7 +1466,7 @@ await suite('Scenario: closed market lifecycle (TP shift -> closed -> resolve)',
     await adminCall(cmWsId)('POST', '/predictions/markets/refresh', { force: true });
     const lr = await adminCall(cmWsId)('GET', '/predictions/markets');
     const mine = (lr.body as Array<Record<string, unknown>>)
-      .filter(m => m.metricId === cmMetricId && !m.taskId);
+      .filter(m => m.metricId === cmMetricId && !m.proposalId);
     const closedOnes = mine.filter(m => m.status === 'closed');
     expect(closedOnes.length).toBeGreaterThan(0);
     expect(closedOnes.some(m => m.id === closedMarketId)).toBeTruthy();
@@ -1811,75 +1811,75 @@ await suite('Scenario: balance accounting integrity', async () => {
   });
 });
 
-await suite('Scenario: task lifecycle with conditional markets', async () => {
-  // Full task flow: propose → approve → conditional markets → trade → complete/decline
+await suite('Scenario: proposal lifecycle with conditional markets', async () => {
+  // Full proposal flow: propose → approve → conditional markets → trade → complete/decline
   let lifecycleAgentId = '';
   let lifecycleAgentKey = '';
-  let lifecycleTaskId = '';
+  let lifecycleProposalId = '';
   let lifecycleMetricId = '';
 
-  await test('Setup: create agent and metric for task scenario', async () => {
-    lifecycleAgentId = `task_life_${Date.now().toString(36)}`;
+  await test('Setup: create agent and metric for proposal scenario', async () => {
+    lifecycleAgentId = `proposal_life_${Date.now().toString(36)}`;
     const r = ok(await apiRaw('POST', '/agents/register', { agentId: lifecycleAgentId, workspaceId: ctx.wsId }));
     lifecycleAgentKey = r.apiKey as string;
     await adminCall(ctx.wsId)('POST', `/agents/${lifecycleAgentId}/credit`, { amount: 50 });
 
     const mr = ok(await adminCall(ctx.wsId)('POST', '/metrics', {
-      name: `TaskMetric_${Date.now()}`, value: 30,
+      name: `ProposalMetric_${Date.now()}`, value: 30,
     }));
     lifecycleMetricId = mr.id as string;
   });
 
-  await test('Step 1: agent proposes a task', async () => {
-    const r = ok(await agentCall(lifecycleAgentKey, ctx.wsId)('POST', '/tasks', {
-      title: 'Lifecycle Test Task',
+  await test('Step 1: agent proposes a proposal', async () => {
+    const r = ok(await agentCall(lifecycleAgentKey, ctx.wsId)('POST', '/proposals', {
+      title: 'Lifecycle Test Proposal',
       description: 'Complete a specific measurable outcome',
     }));
-    lifecycleTaskId = r.id as string;
-    expect(lifecycleTaskId).toBeTruthy();
+    lifecycleProposalId = r.id as string;
+    expect(lifecycleProposalId).toBeTruthy();
   });
 
-  await test('Step 2: task starts as pending', async () => {
-    const r = ok(await agentCall(lifecycleAgentKey, ctx.wsId)('GET', `/tasks/${lifecycleTaskId}`));
+  await test('Step 2: proposal starts as pending', async () => {
+    const r = ok(await agentCall(lifecycleAgentKey, ctx.wsId)('GET', `/proposals/${lifecycleProposalId}`));
     expect(r.status).toBe('pending');
   });
 
-  await test('Step 3: agent sends a question about the task', async () => {
-    const r = await agentCall(lifecycleAgentKey, ctx.wsId)('POST', `/tasks/${lifecycleTaskId}/messages`, {
+  await test('Step 3: agent sends a question about the proposal', async () => {
+    const r = await agentCall(lifecycleAgentKey, ctx.wsId)('POST', `/proposals/${lifecycleProposalId}/messages`, {
       content: 'Can you clarify the acceptance criteria?',
     });
     expect(r.status).toBe(201);
   });
 
   await test('Step 4: admin replies with clarification', async () => {
-    const r = await adminCall(ctx.wsId)('POST', `/tasks/${lifecycleTaskId}/messages`, {
+    const r = await adminCall(ctx.wsId)('POST', `/proposals/${lifecycleProposalId}/messages`, {
       content: 'The metric must reach 50 within 30 days.',
     });
     expect(r.status).toBe(201);
   });
 
   await test('Step 5: message thread has 2 messages in order', async () => {
-    const r = await adminCall(ctx.wsId)('GET', `/tasks/${lifecycleTaskId}/messages`);
+    const r = await adminCall(ctx.wsId)('GET', `/proposals/${lifecycleProposalId}/messages`);
     const msgs = r.body as Array<Record<string, unknown>>;
     expect(msgs.length).toBe(2);
     expect(msgs[0].content).toBe('Can you clarify the acceptance criteria?');
     expect(msgs[1].content).toBe('The metric must reach 50 within 30 days.');
   });
 
-  await test('Step 6: admin approves the task', async () => {
-    const r = await adminCall(ctx.wsId)('POST', `/tasks/${lifecycleTaskId}/approve`, {});
+  await test('Step 6: admin approves the proposal', async () => {
+    const r = await adminCall(ctx.wsId)('POST', `/proposals/${lifecycleProposalId}/approve`, {});
     expect(r.status).toBe(200);
-    const detail = ok(await adminCall(ctx.wsId)('GET', `/tasks/${lifecycleTaskId}`));
+    const detail = ok(await adminCall(ctx.wsId)('GET', `/proposals/${lifecycleProposalId}`));
     expect(detail.status).toBe('approved');
   });
 
-  await test('Step 7: cannot decline an already-approved task (400)', async () => {
-    const r = await adminCall(ctx.wsId)('POST', `/tasks/${lifecycleTaskId}/decline`, {});
+  await test('Step 7: cannot decline an already-approved proposal (400)', async () => {
+    const r = await adminCall(ctx.wsId)('POST', `/proposals/${lifecycleProposalId}/decline`, {});
     expect(r.status).toBe(400);
   });
 
   await test('Step 8: agent can still read messages after approval', async () => {
-    const r = await agentCall(lifecycleAgentKey, ctx.wsId)('GET', `/tasks/${lifecycleTaskId}/messages`);
+    const r = await agentCall(lifecycleAgentKey, ctx.wsId)('GET', `/proposals/${lifecycleProposalId}/messages`);
     expect(r.status).toBe(200);
     expect((r.body as Array<unknown>).length).toBe(2);
   });

@@ -45,7 +45,7 @@ PhD-level researcher (AI safety, forecasting, cognitive science, or applied ML).
 - **T+06:00 — Verify the market math.** Lin computes an expected trade cost from their own LMSR formula and checks it against a real trade (Bash a trade call, read the returned cost).
 - **T+10:00 — Sign up.** Same flow as other personas. Fast, unremarkable.
 - **T+11:00 — Create a workspace** with the blank or "research" template if one exists. If not, picks blank and builds manually.
-- **T+13:00 — Create a metric.** Something like "Benchmark accuracy on task X at Y date". Set a sensible range (rangeMax).
+- **T+13:00 — Create a metric.** Something like "Benchmark accuracy on proposal X at Y date". Set a sensible range (rangeMax).
 - **T+14:00 — Create a market.** Target date 12 months out. Seed with 1000 credits of liquidity.
 - **T+17:00 — Place a trade of their own.** Verify position and consensus updated correctly.
 - **T+20:00 — Try `GET /api/auth/me/export`** (GDPR export). Is the format machine-readable? Does it include trades and market states?

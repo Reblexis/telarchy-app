@@ -31,7 +31,7 @@ export function useAuth() {
       setActiveWorkspace(null);
       clearCache();
       clearSessionCache();
-      localStorage.removeItem('inspectTask');
+      localStorage.removeItem('inspectProposal');
     }
     prevUidRef.current = nextUid;
   }, [user?.id]);
@@ -39,7 +39,7 @@ export function useAuth() {
   const logout = async () => {
     await authClient.signOut();
     setActiveWorkspace(null);
-    localStorage.removeItem('inspectTask');
+    localStorage.removeItem('inspectProposal');
   };
 
   return { user, loading: isPending, logout };

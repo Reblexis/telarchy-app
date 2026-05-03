@@ -50,7 +50,7 @@ note() { echo "$1" >> "$findings"; echo "$1"; }
 ### T1. No horizontal overflow on key pages
 
 ```bash
-for page in / /signup /login /metrics /markets /tasks /account /sources /marketplace; do
+for page in / /signup /login /metrics /markets /proposals /account /sources /marketplace; do
   $B goto "$TT_FRONTEND_URL$page" && $B wait --networkidle
   ow=$($B js 'document.documentElement.scrollWidth > window.innerWidth')
   [ "$ow" = "true" ] && note "FRICTION $page: horizontal overflow at 390px"

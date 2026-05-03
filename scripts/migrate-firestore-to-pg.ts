@@ -123,7 +123,7 @@ async function migrateWorkspace(workspaceId: string, workspaceName: string, crea
       shares: toSharesTuple(d.shares),
       liquidity,
       pool,
-      taskId: d.taskId ?? null,
+      proposalId: d.proposalId ?? null,
       createdAt: toDate(d.createdAt),
     }).onConflictDoNothing();
   }
@@ -162,11 +162,11 @@ async function migrateWorkspace(workspaceId: string, workspaceName: string, crea
   }
   console.log(`  ✓ ${tradesSnap.size} trades`);
 
-  // Tasks
-  const tasksSnap = await wsCollection(workspaceId, 'tasks').get();
-  for (const doc of tasksSnap.docs) {
+  // Proposals
+  const proposalsSnap = await wsCollection(workspaceId, 'proposals').get();
+  for (const doc of proposalsSnap.docs) {
     const d = doc.data();
-    await db.insert(schema.tasks).values({
+    await db.insert(schema.proposals).values({
       id: doc.id,
       workspaceId,
       proposedBy: d.proposedBy ?? '',
@@ -177,7 +177,7 @@ async function migrateWorkspace(workspaceId: string, workspaceName: string, crea
       createdAt: toDate(d.createdAt),
     }).onConflictDoNothing();
   }
-  console.log(`  ✓ ${tasksSnap.size} tasks`);
+  console.log(`  ✓ ${proposalsSnap.size} proposals`);
 
   // Updates (metric change log)
   const updatesSnap = await wsCollection(workspaceId, 'updates').get();

@@ -1,5 +1,5 @@
 import { db } from '../db/client';
-import { markets, metrics as metricsTable, tasks, trades, systemConfig } from '../db/schema';
+import { markets, metrics as metricsTable, proposals, trades, systemConfig } from '../db/schema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { consensus, initialPool } from '../lib/amm';
@@ -31,7 +31,7 @@ async function getBaselineConsensusMap(marketRows: MarketRow[], workspaceId: str
 
   const map = new Map<string, number>();
   for (const m of openMarkets) {
-    if (m.taskId || !m.active) continue;
+    if (m.proposalId || !m.active) continue;
     const key = `${m.metricId}:${m.targetDate}`;
     if (!wantedKeys.has(key) || map.has(key)) continue;
     const shares = (m.shares as [number, number]) || [0, 0];
@@ -41,8 +41,8 @@ async function getBaselineConsensusMap(marketRows: MarketRow[], workspaceId: str
   return map;
 }
 
-export async function createConditionalMarkets(taskId: string, workspaceId: string): Promise<string[]> {
-  const lockKey = `lock:taskMarket:${taskId}`;
+export async function createConditionalMarkets(proposalId: string, workspaceId: string): Promise<string[]> {
+  const lockKey = `lock:proposalMarket:${proposalId}`;
 
   const acquired = await db.transaction(async tx => {
     const rows = await tx.select().from(systemConfig)
@@ -61,7 +61,7 @@ export async function createConditionalMarkets(taskId: string, workspaceId: stri
 
   if (!acquired) {
     const existing = await db.select({ id: markets.id }).from(markets)
-      .where(and(eq(markets.workspaceId, workspaceId), eq(markets.taskId, taskId), eq(markets.resolved, false)));
+      .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.resolved, false)));
     return existing.map(m => m.id);
   }
 
@@ -76,11 +76,11 @@ export async function createConditionalMarkets(taskId: string, workspaceId: stri
     const openMarkets = await db.select().from(markets)
       .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
 
-    const sourceMarkets = openMarkets.filter(m => m.active !== false && !m.taskId && leafMetricIds.has(m.metricId));
+    const sourceMarkets = openMarkets.filter(m => m.active !== false && !m.proposalId && leafMetricIds.has(m.metricId));
     const desiredKeys = new Set(sourceMarkets.map(m => `${m.metricId}:${m.targetDate}`));
 
     const existingConditional = await db.select().from(markets)
-      .where(and(eq(markets.workspaceId, workspaceId), eq(markets.taskId, taskId), eq(markets.resolved, false)));
+      .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.resolved, false)));
 
     if (existingConditional.length > 0) {
       const existingKeys = new Set(existingConditional.map(m => `${m.metricId}:${m.targetDate}`));
@@ -89,7 +89,7 @@ export async function createConditionalMarkets(taskId: string, workspaceId: stri
       if (setsMatch) return existingConditional.map(m => m.id);
     }
 
-    await voidTaskMarkets(taskId, workspaceId);
+    await voidProposalMarkets(proposalId, workspaceId);
 
     const newMarkets: typeof markets.$inferInsert[] = [];
     for (const src of sourceMarkets) {
@@ -97,7 +97,7 @@ export async function createConditionalMarkets(taskId: string, workspaceId: stri
       newMarkets.push({
         id: marketId, workspaceId,
         metricId: src.metricId, metricName: src.metricName, targetDate: src.targetDate,
-        resolved: false, resolvedAt: null, actualValue: null, active: true, taskId,
+        resolved: false, resolvedAt: null, actualValue: null, active: true, proposalId,
         rangeMin: src.rangeMin, rangeMax: src.rangeMax,
         shares: [0, 0] as [number, number], liquidity: src.liquidity,
         pool: initialPool(src.liquidity), createdAt: new Date(),
@@ -118,40 +118,40 @@ export async function createConditionalMarkets(taskId: string, workspaceId: stri
   }
 }
 
-export async function voidTaskMarkets(taskId: string, workspaceId: string): Promise<void> {
+export async function voidProposalMarkets(proposalId: string, workspaceId: string): Promise<void> {
   const openMarkets = await db.select().from(markets)
-    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.taskId, taskId), eq(markets.resolved, false)));
+    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.resolved, false)));
 
   for (const market of openMarkets) {
     await voidMarket(market, workspaceId);
   }
 }
 
-export async function approveTask(taskId: string, workspaceId: string): Promise<void> {
-  const [task] = await db.select().from(tasks)
-    .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
+export async function approveProposal(proposalId: string, workspaceId: string): Promise<void> {
+  const [proposal] = await db.select().from(proposals)
+    .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
 
-  if (!task) throw new AppError('Task not found', 404);
-  if (task.status !== 'pending') throw new AppError('Task is not pending', 400);
+  if (!proposal) throw new AppError('Proposal not found', 404);
+  if (proposal.status !== 'pending') throw new AppError('Proposal is not pending', 400);
 
-  await db.update(tasks).set({ status: 'approved' })
-    .where(and(eq(tasks.id, taskId), eq(tasks.workspaceId, workspaceId)));
+  await db.update(proposals).set({ status: 'approved' })
+    .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
 }
 
-export async function getTaskMarketSummaries(marketIds: string[], workspaceId: string) {
+export async function getProposalMarketSummaries(marketIds: string[], workspaceId: string) {
   if (marketIds.length === 0) return [];
   const rows = await db.select().from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), inArray(markets.id, marketIds)));
-  return buildTaskMarketSummariesFromRows(rows, workspaceId);
+  return buildProposalMarketSummariesFromRows(rows, workspaceId);
 }
 
-export async function getTaskMarketSummariesForTask(taskId: string, workspaceId: string) {
+export async function getProposalMarketSummariesForProposal(proposalId: string, workspaceId: string) {
   const rows = await db.select().from(markets)
-    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.taskId, taskId), eq(markets.resolved, false)));
-  return buildTaskMarketSummariesFromRows(rows, workspaceId);
+    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.resolved, false)));
+  return buildProposalMarketSummariesFromRows(rows, workspaceId);
 }
 
-async function buildTaskMarketSummariesFromRows(rows: MarketRow[], workspaceId: string) {
+async function buildProposalMarketSummariesFromRows(rows: MarketRow[], workspaceId: string) {
   const [tradeCountMap, baselineConsensusMap] = await Promise.all([
     getTradeCountMap(rows.map(r => r.id), workspaceId),
     getBaselineConsensusMap(rows, workspaceId),

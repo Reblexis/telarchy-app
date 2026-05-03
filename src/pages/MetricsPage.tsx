@@ -13,7 +13,7 @@ import { GraphModal } from '../components/GraphModal';
 export function MetricsPage() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { inspectTask } = useInspectMode();
+  const { inspectProposal } = useInspectMode();
   const { workspace } = useWorkspace(!!user);
   const isAdmin = workspace?.tier === 'admin';
   const {
@@ -22,7 +22,7 @@ export function MetricsPage() {
     focusedMetricId, toggleFocus,
     addMetric, editMetric, removeMetric,
     loadMetricLogs,
-  } = useMetrics(!!user, inspectTask?.id, isAdmin);
+  } = useMetrics(!!user, inspectProposal?.id, isAdmin);
 
   const [editingMetric, setEditingMetric] = useState<Metric | null>(null);
   const [graphMetric, setGraphMetric] = useState<Metric | null>(null);
@@ -102,7 +102,7 @@ export function MetricsPage() {
         )}
         <MetricsDashboard
           metrics={metrics}
-          isInspectMode={!!inspectTask}
+          isInspectMode={!!inspectProposal}
           formulaWarnings={formulaWarnings}
           focusedMetricId={focusedMetricId}
           onToggleFocus={toggleFocus}
@@ -121,7 +121,7 @@ export function MetricsPage() {
       <GraphModal
         metric={graphMetric}
         interval="day"
-        isInspectMode={!!inspectTask}
+        isInspectMode={!!inspectProposal}
         loadLogs={loadMetricLogs}
         onClose={() => setGraphMetric(null)}
       />

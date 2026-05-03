@@ -1,5 +1,5 @@
 ---
-id: 05-tasks-chat-thread
+id: 05-proposals-chat-thread
 tags: [api-only, multi-agent]
 isolation: workspace
 parallel-safe: true
@@ -7,16 +7,16 @@ needs: [auth, master-key]
 timeout: 60s
 goal-horizon: short
 goal-statement: |
-  As proposer and approver discussing a task, I can post messages, see
+  As proposer and approver discussing a proposal, I can post messages, see
   them in chronological order, and the read endpoint enforces the same
   capability the rest of the workspace does.
 ---
 
-# Browse test: Task chat thread
+# Browse test: Proposal chat thread
 
 ## What this tests
 
-`GET / POST /api/tasks/:taskId/messages`. Verifies ordering, capability
+`GET / POST /api/proposals/:proposalId/messages`. Verifies ordering, capability
 gates (read for `read`, post for `trade`), and that very long messages are
 truncated cleanly.
 
@@ -30,10 +30,10 @@ read APPR KA < <(tt_mkagent "$WS" appr)
 tt_admin_curl "$WS" -H 'Content-Type: application/json' \
   -X POST -d "$(jq -nc --arg id "$APPR" '{participantId:$id, role:"admin"}')" \
   "$TT_BASE_URL/api/workspaces/$WS/members" >/dev/null
-TASK=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
+PROPOSAL=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \
   -d '{"title":"Chat me","description":"..."}' \
-  "$TT_BASE_URL/api/tasks" | jq -r '.id')
+  "$TT_BASE_URL/api/proposals" | jq -r '.id')
 ```
 
 ## Tests
@@ -42,7 +42,7 @@ TASK=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
 
 ```bash
 n=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
-  "$TT_BASE_URL/api/tasks/$TASK/messages" | jq 'length')
+  "$TT_BASE_URL/api/proposals/$PROPOSAL/messages" | jq 'length')
 [ "$n" = "0" ]
 ```
 
@@ -53,11 +53,11 @@ for body in "looks good?" "needs scope" "ship it"; do
   curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
     -H 'Content-Type: application/json' -X POST \
     -d "$(jq -nc --arg b "$body" '{body:$b}')" \
-    "$TT_BASE_URL/api/tasks/$TASK/messages" >/dev/null
+    "$TT_BASE_URL/api/proposals/$PROPOSAL/messages" >/dev/null
   sleep 0.1
 done
 seq=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
-  "$TT_BASE_URL/api/tasks/$TASK/messages" | jq -r '.[].body' | tr '\n' '|')
+  "$TT_BASE_URL/api/proposals/$PROPOSAL/messages" | jq -r '.[].body' | tr '\n' '|')
 [ "$seq" = "looks good?|needs scope|ship it|" ]
 ```
 
@@ -67,7 +67,7 @@ seq=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
 out=$(curl -sf -H "X-Agent-Key: $KA" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \
   -d '{"body":"approving"}' \
-  "$TT_BASE_URL/api/tasks/$TASK/messages")
+  "$TT_BASE_URL/api/proposals/$PROPOSAL/messages")
 echo "$out" | jq -e '.id' >/dev/null
 ```
 
@@ -77,12 +77,12 @@ echo "$out" | jq -e '.id' >/dev/null
 read RID RKEY < <(tt_mkagent "$WS" reader)
 status=$(curl -s -o /dev/null -w '%{http_code}' \
   -H "X-Agent-Key: $RKEY" -H "X-Workspace-Id: $WS" \
-  "$TT_BASE_URL/api/tasks/$TASK/messages")
+  "$TT_BASE_URL/api/proposals/$PROPOSAL/messages")
 [ "$status" = "200" ]
 status=$(curl -s -o /dev/null -w '%{http_code}' \
   -H "X-Agent-Key: $RKEY" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST -d '{"body":"x"}' \
-  "$TT_BASE_URL/api/tasks/$TASK/messages")
+  "$TT_BASE_URL/api/proposals/$PROPOSAL/messages")
 [ "$status" = "403" ]
 ```
 
@@ -92,7 +92,7 @@ status=$(curl -s -o /dev/null -w '%{http_code}' \
 status=$(curl -s -o /dev/null -w '%{http_code}' \
   -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST -d '{"body":""}' \
-  "$TT_BASE_URL/api/tasks/$TASK/messages")
+  "$TT_BASE_URL/api/proposals/$PROPOSAL/messages")
 case "$status" in 400|422) ;; *) echo "empty body returned $status"; exit 1;; esac
 
 big=$(printf 'X%.0s' $(seq 1 20000))
@@ -100,7 +100,7 @@ status=$(curl -s -o /dev/null -w '%{http_code}' \
   -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' \
   -X POST -d "$(jq -nc --arg b "$big" '{body:$b}')" \
-  "$TT_BASE_URL/api/tasks/$TASK/messages")
+  "$TT_BASE_URL/api/proposals/$PROPOSAL/messages")
 case "$status" in 200|201|400|413|422) ;; *) echo "huge body returned $status"; exit 1;; esac
 ```
 
@@ -111,7 +111,7 @@ WS2=$(tt_mkworkspace blank public); tt_on_cleanup "tt_rm_workspace '$WS2'"
 read SID SKEY < <(tt_mkagent "$WS2" stranger)
 status=$(curl -s -o /dev/null -w '%{http_code}' \
   -H "X-Agent-Key: $SKEY" -H "X-Workspace-Id: $WS" \
-  "$TT_BASE_URL/api/tasks/$TASK/messages")
+  "$TT_BASE_URL/api/proposals/$PROPOSAL/messages")
 [ "$status" = "403" ] || [ "$status" = "404" ] \
   || { echo "stranger read returned $status"; exit 1; }
 ```

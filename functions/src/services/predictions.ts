@@ -1,5 +1,5 @@
 import { db } from '../db/client';
-import { agents, markets, positions, tasks, trades } from '../db/schema';
+import { agents, markets, positions, proposals, trades } from '../db/schema';
 import { eq, and, inArray, sql, count } from 'drizzle-orm';
 import { getAllMetrics, buildConsensusMap } from './metrics';
 import { voidMarket, distributeLPLeftover } from './markets';
@@ -96,19 +96,19 @@ export async function resolvePredictions(targetDate: string | undefined, workspa
   const allMetrics = await getAllMetrics(workspaceId);
   const metricMap = new Map<string, Metric>(allMetrics.map(m => [m.id, m]));
 
-  const taskIds = [...new Set(marketsToResolve.map(m => m.taskId).filter(Boolean) as string[])];
-  const taskStatusMap = new Map<string, string>();
-  if (taskIds.length > 0) {
-    const taskRows = await db.select({ id: tasks.id, status: tasks.status }).from(tasks)
-      .where(and(eq(tasks.workspaceId, workspaceId), inArray(tasks.id, taskIds)));
-    for (const row of taskRows) taskStatusMap.set(row.id, row.status);
+  const proposalIds = [...new Set(marketsToResolve.map(m => m.proposalId).filter(Boolean) as string[])];
+  const proposalStatusMap = new Map<string, string>();
+  if (proposalIds.length > 0) {
+    const proposalRows = await db.select({ id: proposals.id, status: proposals.status }).from(proposals)
+      .where(and(eq(proposals.workspaceId, workspaceId), inArray(proposals.id, proposalIds)));
+    for (const row of proposalRows) proposalStatusMap.set(row.id, row.status);
   }
 
   let totalPayout = 0;
   let resolvedCount = 0;
 
   for (const market of marketsToResolve) {
-    if (market.taskId && taskStatusMap.get(market.taskId) !== 'approved') {
+    if (market.proposalId && proposalStatusMap.get(market.proposalId) !== 'approved') {
       await voidMarket(market, workspaceId);
     } else {
       const result = await resolveMarketRow(market, metricMap, workspaceId);
@@ -124,26 +124,26 @@ export async function resolvePredictions(targetDate: string | undefined, workspa
 
 export interface GetMarketsOptions {
   includeResolved?: boolean;
-  taskId?: string;
+  proposalId?: string;
   active?: boolean;
   minLiquidity?: number;
   limit?: number;
 }
 
-export async function getMarkets(options: GetMarketsOptions | boolean = false, taskId: string | undefined, workspaceId: string) {
+export async function getMarkets(options: GetMarketsOptions | boolean = false, proposalId: string | undefined, workspaceId: string) {
   const opts: GetMarketsOptions = typeof options === 'boolean'
-    ? { includeResolved: options, taskId }
+    ? { includeResolved: options, proposalId }
     : options;
 
   let rows = await db.select().from(markets)
     .where(and(
       eq(markets.workspaceId, workspaceId),
       opts.includeResolved ? undefined : eq(markets.resolved, false),
-      opts.taskId ? eq(markets.taskId, opts.taskId) : undefined,
+      opts.proposalId ? eq(markets.proposalId, opts.proposalId) : undefined,
     ));
 
-  if (!opts.taskId) {
-    rows = rows.filter(m => !m.taskId);
+  if (!opts.proposalId) {
+    rows = rows.filter(m => !m.proposalId);
   }
   if (!rows.length) return [];
 
@@ -196,7 +196,7 @@ export async function getMarkets(options: GetMarketsOptions | boolean = false, t
       voided: m.voided,
       status,
       createdAt: m.createdAt,
-      taskId: m.taskId ?? undefined,
+      proposalId: m.proposalId ?? undefined,
       consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
       probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
       rangeMin: m.rangeMin,

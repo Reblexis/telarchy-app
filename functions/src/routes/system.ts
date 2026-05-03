@@ -40,13 +40,13 @@ systemRouter.get('/status', requireCapability('read'), wrap(async (req, res) => 
       : Promise.resolve(null),
   ]);
 
-  type MarketRow = { id: string; metricId: string; targetDate: string; shares: unknown; liquidity: number; rangeMin: number; rangeMax: number; taskId: string | null; active: boolean };
+  type MarketRow = { id: string; metricId: string; targetDate: string; shares: unknown; liquidity: number; rangeMin: number; rangeMax: number; proposalId: string | null; active: boolean };
 
-  // Group open markets by metricId (exclude task-scoped and inactive)
+  // Group open markets by metricId (exclude proposal-scoped and inactive)
   const marketsByMetricId: Record<string, MarketRow[]> = {};
   if (openMarketRows) {
     for (const m of openMarketRows as MarketRow[]) {
-      if (m.taskId || !m.active) continue;
+      if (m.proposalId || !m.active) continue;
       if (!marketsByMetricId[m.metricId]) marketsByMetricId[m.metricId] = [];
       marketsByMetricId[m.metricId].push(m);
     }
