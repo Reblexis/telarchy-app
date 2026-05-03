@@ -290,10 +290,11 @@ function SubsidyHeader({ proposal, isAdmin, onAdded, onError }: {
   return (
     <div style={{
       marginBottom: '1rem', padding: '0.5rem 0.75rem',
-      background: subsidy > 0 ? 'var(--focus-bg)' : 'var(--warning-bg, #fef3c7)',
-      border: `1px solid ${subsidy > 0 ? 'var(--focus-border)' : 'var(--warning-border, #f59e0b)'}`,
-      borderRadius: '6px',
+      background: 'var(--focus-bg)',
+      border: '1px solid var(--focus-border)',
+      borderRadius: 'var(--radius-md, 6px)',
       fontSize: '0.85rem',
+      color: 'var(--text-primary)',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap',
     }}>
       <span>
@@ -303,9 +304,9 @@ function SubsidyHeader({ proposal, isAdmin, onAdded, onError }: {
             <strong>{total.toFixed(2)} cr</strong>
           </>
         ) : (
-          <>
+          <span style={{ color: 'var(--accent-text)' }}>
             <strong>No forecast subsidy.</strong> Conditional markets have zero liquidity, so no signal.
-          </>
+          </span>
         )}
       </span>
       {isPending && isAdmin && (
@@ -591,7 +592,7 @@ function NewProposalModal({ open, onClose, onCreated, onError }: NewProposalModa
                   Refunded if declined; up to {(totalCost * Math.LN2).toFixed(2)} at risk if approved.
                 </span>
               ) : (
-                <span style={{ color: 'var(--warning-text, #b45309)' }}>
+                <span style={{ color: 'var(--accent-text)' }}>
                   No subsidy &mdash; conditional markets will have zero liquidity, so traders see no point forecasting and the approve screen will say &ldquo;no signal&rdquo;.
                 </span>
               )}

@@ -151,7 +151,7 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
           <div
             style={{
               marginTop: '0.5rem', fontSize: '0.75rem',
-              color: 'var(--warning-text, #b45309)',
+              color: 'var(--accent-text)',
               cursor: onEdit ? 'pointer' : 'default',
             }}
             onClick={onEdit}
