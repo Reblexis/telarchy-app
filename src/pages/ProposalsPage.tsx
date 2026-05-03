@@ -17,15 +17,34 @@ function formatNumber(value: number | null | undefined): string {
 }
 
 /**
+ * Same near-horizon filter PredictionsTable applies by default. Long
+ * horizons get hidden from the table because their markets are sparsely
+ * traded and read as noise; the same noise must be hidden from the
+ * confirm dialog or the top-2 line shows a 2030 market with one stray
+ * trade while the visible table looks calibrated. Cutoff is currentYear
+ * + 1 to mirror the table.
+ */
+function isNearHorizon(targetDate: string): boolean {
+  const year = parseInt(targetDate.slice(0, 4), 10);
+  if (!Number.isFinite(year)) return true;
+  return year <= new Date().getFullYear() + 1;
+}
+
+/**
  * One-line summary of how the proposal's conditional markets are pricing the
  * proposal, used in the approve-confirm. Picks up to two largest-magnitude
  * forecast moves (signed % from baseline) so the approver re-sees the
  * signal at the commit moment instead of clicking blind.
+ *
+ * Restricted to near-horizon markets so the line agrees with what the
+ * approver actually sees in the predictions table; otherwise a thinly
+ * traded long-horizon market with a stray outlier wins the top spot and
+ * tells a different story than the table.
  */
 function summarizeMarketsForConfirm(markets: ProposalMarketSummary[] | undefined): string {
   if (!markets || markets.length === 0) return '';
   const moves = markets
-    .filter(m => m.tradeCount > 0 && m.consensus != null && m.baselineConsensus != null && (m.baselineConsensus as number) !== 0)
+    .filter(m => m.tradeCount > 0 && m.consensus != null && m.baselineConsensus != null && (m.baselineConsensus as number) !== 0 && isNearHorizon(m.targetDate))
     .map(m => {
       const base = m.baselineConsensus as number;
       const cur = m.consensus as number;
@@ -70,13 +89,7 @@ function PredictionsTable({ markets }: { markets: ProposalMarketSummary[] }) {
     return <p className="predictions-empty">No impact predictions yet. Click <strong>Inspect</strong> to spawn conditional markets.</p>;
   }
 
-  const nearHorizonCutoff = new Date();
-  nearHorizonCutoff.setFullYear(nearHorizonCutoff.getFullYear() + 1);
-  const isNear = (targetDate: string) => {
-    const year = parseInt(targetDate.slice(0, 4), 10);
-    return Number.isFinite(year) && year <= nearHorizonCutoff.getFullYear();
-  };
-  const visible = showAll ? markets : markets.filter(m => isNear(m.targetDate));
+  const visible = showAll ? markets : markets.filter(m => isNearHorizon(m.targetDate));
   const hidden = markets.length - visible.length;
 
   return (
