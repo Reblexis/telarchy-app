@@ -87,6 +87,19 @@ export async function resolveWorkspaceOwnerAgentId(workspaceId: string): Promise
 }
 
 export async function getParticipantWorkspaceMemberships(participantId: string): Promise<WorkspaceMembership[]> {
+  // Platform admins are virtual admins of every workspace. They do not get a
+  // permission-group entry (so they stay hidden in the participants tab via
+  // listParticipantsForWorkspace), but every workspace shows up in their
+  // workspace switcher and admin-gated routes treat them as 'admin'.
+  const [participant] = await db
+    .select({ platformAdmin: agents.platformAdmin })
+    .from(agents)
+    .where(eq(agents.id, participantId));
+  if (participant?.platformAdmin === true) {
+    const allWorkspaces = await db.select({ id: workspaces.id }).from(workspaces);
+    return allWorkspaces.map(w => ({ workspaceId: w.id, memberRole: 'admin' as WorkspaceMemberRole }));
+  }
+
   const groups = await db.select().from(permissionGroups);
   const memberships = new Map<string, WorkspaceMemberRole>();
 
@@ -246,7 +259,13 @@ export async function listParticipantsForWorkspace(workspaceId: string) {
   const groups = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, workspaceId));
   const memberIds = [...new Set(groups.flatMap(group => getGroupMemberIds(group)))];
   if (memberIds.length === 0) return [];
-  return db.select().from(agents).where(inArray(agents.id, memberIds));
+  const rows = await db.select().from(agents).where(inArray(agents.id, memberIds));
+  // Platform admins act as virtual admins in every workspace (see
+  // getParticipantWorkspaceMemberships and computeCapabilities). They are not
+  // real members of those workspaces, so they should not appear in the
+  // participants tab, leaderboards, activity-feed member set, or admin-credit
+  // target lists. Filter them out uniformly here.
+  return rows.filter(a => !a.platformAdmin);
 }
 
 /**
