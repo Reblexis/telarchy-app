@@ -288,46 +288,36 @@ function SubsidyHeader({ proposal, isAdmin, onAdded, onError }: {
   };
 
   return (
-    <div style={{
-      marginBottom: '1rem', padding: '0.5rem 0.75rem',
-      background: 'var(--focus-bg)',
-      border: '1px solid var(--focus-border)',
-      borderRadius: 'var(--radius-md, 6px)',
-      fontSize: '0.85rem',
-      color: 'var(--text-primary)',
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', flexWrap: 'wrap',
-    }}>
-      <span>
-        {subsidy > 0 ? (
-          <>
-            <strong>Forecast subsidy:</strong> {subsidy.toFixed(2)} cr/market &times; {marketCount} markets ={' '}
-            <strong>{total.toFixed(2)} cr</strong>
-          </>
-        ) : (
-          <span style={{ color: 'var(--accent-text)' }}>
-            <strong>No forecast subsidy.</strong> Conditional markets have zero liquidity, so no signal.
-          </span>
-        )}
-      </span>
+    <div className="proposal-subsidy-line">
+      {subsidy > 0 ? (
+        <span>
+          Subsidy <span className="proposal-subsidy-num">{subsidy.toFixed(2)}</span>/market &middot;{' '}
+          {marketCount} {marketCount === 1 ? 'market' : 'markets'} &middot;{' '}
+          <span className="proposal-subsidy-num">{total.toFixed(2)} cr</span> total
+        </span>
+      ) : (
+        <span className="proposal-subsidy-warn">
+          No subsidy &mdash; conditional markets have zero liquidity, no forecast signal.
+        </span>
+      )}
       {isPending && isAdmin && (
         showInput ? (
-          <span style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+          <span className="proposal-subsidy-input">
             <input
               type="number" step="any" min="0.1"
               value={amount}
               onChange={e => setAmount(e.target.value)}
               placeholder="cr/market"
-              style={{ width: '6rem', padding: '0.2rem 0.4rem', fontSize: '0.85rem' }}
               autoFocus
             />
-            <button type="button" className="btn-small" disabled={adding || !amount} onClick={handleAdd}>
-              {adding ? '…' : 'Add'}
+            <button type="button" className="link-button" disabled={adding || !amount} onClick={handleAdd}>
+              {adding ? '…' : 'add'}
             </button>
-            <button type="button" className="btn-small" onClick={() => { setShowInput(false); setAmount(''); }}>Cancel</button>
+            <button type="button" className="link-button" onClick={() => { setShowInput(false); setAmount(''); }}>cancel</button>
           </span>
         ) : (
-          <button type="button" className="btn-small" onClick={() => setShowInput(true)}>
-            {subsidy > 0 ? 'Top up' : 'Add liquidity'}
+          <button type="button" className="link-button" onClick={() => setShowInput(true)}>
+            {subsidy > 0 ? 'top up' : 'add liquidity'}
           </button>
         )
       )}

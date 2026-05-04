@@ -36,19 +36,18 @@ function InspectBanner() {
   const { inspectProposal, setInspectProposal } = useInspectMode();
   if (!inspectProposal) return null;
   return (
-    <div style={{
-      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 1000,
-      background: '#7c3aed', color: '#fff',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '1rem',
-      padding: '0.5rem 1rem', fontSize: '0.875rem',
-    }}>
-      <span>Inspecting: <strong>{inspectProposal.title}</strong> - showing impact predictions</span>
-      <Link to="/proposals" style={{ color: '#e9d5ff', textDecoration: 'underline', fontSize: '0.8rem' }}>Back to Proposals</Link>
+    <div className="inspect-banner" role="status">
+      <span className="inspect-banner-dot" aria-hidden="true" />
+      <span className="inspect-banner-label">Inspecting</span>
+      <span className="inspect-banner-title">{inspectProposal.title}</span>
+      <span className="inspect-banner-spacer" />
+      <Link to="/proposals" className="inspect-banner-link">Open proposal</Link>
       <button
+        type="button"
+        className="inspect-banner-exit"
         onClick={() => setInspectProposal(null)}
-        style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: '6px', padding: '0.2rem 0.6rem', cursor: 'pointer', fontSize: '0.8rem' }}
       >
-        Exit Inspect
+        Exit
       </button>
     </div>
   );
