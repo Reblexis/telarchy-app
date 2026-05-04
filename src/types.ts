@@ -60,7 +60,7 @@ export interface SourcePermission {
   read: boolean;
 }
 
-export type Capability = 'read' | 'trade' | 'manage';
+export type Capability = 'read' | 'trade' | 'manage' | 'manage_workspace';
 
 /**
  * Vocabulary mirrored from functions/src/lib/scopes.ts. Kept hand-synced with

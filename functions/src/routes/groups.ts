@@ -16,7 +16,7 @@ const SYSTEM_GROUP_TYPES: PermissionGroupType[] = ['public', 'admin', 'trader'];
  *  these presets are what actually grants access. Admins may edit Trader/Public/Custom capabilities. */
 export const SYSTEM_GROUP_CAPABILITIES: Record<'public' | 'admin' | 'trader', Capability[]> = {
   public: ['read'],
-  admin: ['read', 'trade', 'manage'],
+  admin: ['read', 'trade', 'manage', 'manage_workspace'],
   trader: ['read', 'trade'],
 };
 
@@ -50,13 +50,13 @@ async function ensureSystemGroups(workspaceId: string): Promise<void> {
   if (toInsert.length > 0) await db.insert(permissionGroups).values(toInsert);
 }
 
-const VALID_CAPS = new Set<Capability>(['read', 'trade', 'manage']);
+const VALID_CAPS = new Set<Capability>(['read', 'trade', 'manage', 'manage_workspace']);
 function parseCapabilities(input: unknown): { ok: true; value: Capability[] } | { ok: false; error: string } {
   if (!Array.isArray(input)) return { ok: false, error: 'capabilities must be an array of strings' };
   const result: Capability[] = [];
   for (const v of input) {
     if (typeof v !== 'string' || !VALID_CAPS.has(v as Capability)) {
-      return { ok: false, error: `capabilities contains invalid entry "${String(v)}"; allowed: read, trade, manage` };
+      return { ok: false, error: `capabilities contains invalid entry "${String(v)}"; allowed: read, trade, manage, manage_workspace` };
     }
     if (!result.includes(v as Capability)) result.push(v as Capability);
   }

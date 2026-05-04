@@ -96,6 +96,7 @@ export function intersectWorkspaceCaps(
   if (caps.has('read') && scopes.includes('workspace:read')) out.add('read');
   if (caps.has('trade') && scopes.includes('workspace:trade')) out.add('trade');
   if (caps.has('manage') && scopes.includes('workspace:manage')) out.add('manage');
+  if (caps.has('manage_workspace') && scopes.includes('workspace:manage')) out.add('manage_workspace');
   return out;
 }
 

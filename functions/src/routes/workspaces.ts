@@ -151,7 +151,6 @@ workspacesRouter.get('/:id', requireIdentity, wrap(async (req, res) => {
 }));
 
 workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (req, res) => {
-  const { uid, agentId, isMasterKey } = req.auth!;
   const wsId = req.params.id as string;
 
   const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, wsId));
@@ -161,26 +160,14 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
   const hasCreditsKey = Object.prototype.hasOwnProperty.call(req.body, 'newMarketLiquidityCredits');
   const hasVisibilityKey = Object.prototype.hasOwnProperty.call(req.body, 'visibility');
   const hasProposalLiquidityKey = Object.prototype.hasOwnProperty.call(req.body, 'defaultProposalLiquidity');
-  const touchesOwnerOnly = hasAutoFundKey || hasCreditsKey || hasVisibilityKey || hasProposalLiquidityKey;
+  const touchesLifecycleFields = hasAutoFundKey || hasCreditsKey || hasVisibilityKey || hasProposalLiquidityKey;
 
-  // Master key is platform-level admin — allow it to set owner-only fields.
-  // For session/agent callers, require the workspace-owner role.
-  if (touchesOwnerOnly && !isMasterKey) {
-    if (!uid && !agentId) {
-      res.status(403).json({ error: 'These settings require a signed-in workspace owner' }); return;
-    }
-    const memberRole = await getMembershipRoleForWorkspace({ uid, agentId }, wsId);
-    if (memberRole !== 'owner') {
-      res.status(403).json({ error: 'Only the workspace owner can change these settings' }); return;
-    }
-  }
-
-  // Verify workspace-level admin membership (if not using master key)
-  if (uid || agentId) {
-    const memberRole = await getMembershipRoleForWorkspace({ uid, agentId }, wsId);
-    if (!memberRole || !['owner', 'admin'].includes(memberRole)) {
-      res.status(403).json({ error: 'Only workspace owner or admin can update settings' }); return;
-    }
+  // Lifecycle-shaped fields (visibility, auto-fund, liquidity defaults) are
+  // gated by the granular `manage_workspace` capability, which the Admin group
+  // holds by default but operators can revoke per group via the Participants
+  // tab. The route's outer `manage` gate is enough for everything else.
+  if (touchesLifecycleFields && !req.auth!.capabilities.has('manage_workspace')) {
+    res.status(403).json({ error: 'These settings require the manage_workspace capability' }); return;
   }
 
   const { name, autoFundNewMarkets, newMarketLiquidityCredits, visibility, defaultProposalLiquidity } = req.body;
@@ -351,21 +338,16 @@ workspacesRouter.post('/:id/members', requireCapability('manage'), wrap(async (r
 
 /**
  * DELETE /api/workspaces/:id
- * Owner-only: void all open markets (refund participants), then delete all workspace data.
+ * Requires the `manage_workspace` capability (held by the workspace creator
+ * always, and by the Admin group by default; per-group toggle in the
+ * Participants tab). Voids all open markets (refunding participants) before
+ * deleting all workspace data.
  */
-workspacesRouter.delete('/:id', requireCapability('manage'), wrap(async (req, res) => {
-  const { uid, agentId } = req.auth!;
+workspacesRouter.delete('/:id', requireCapability('manage_workspace'), wrap(async (req, res) => {
   const wsId = req.params.id as string;
 
   const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, wsId));
   if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
-
-  if (uid || agentId) {
-    const memberRole = await getMembershipRoleForWorkspace({ uid, agentId }, wsId);
-    if (memberRole !== 'owner') {
-      res.status(403).json({ error: 'Only the workspace owner can delete a workspace' }); return;
-    }
-  }
 
   // Void all unresolved markets (refunds positions to participants)
   const openMarkets = await db.select().from(markets)

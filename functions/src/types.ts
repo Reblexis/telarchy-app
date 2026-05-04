@@ -50,8 +50,8 @@ export interface UpdateEntry {
  * Atomic permissions granted to a participant (via union of their groups' capabilities).
  * Group names/types are just labels — they do not directly grant access. Capabilities do.
  */
-export type Capability = 'read' | 'trade' | 'manage';
-export const ALL_CAPABILITIES: Capability[] = ['read', 'trade', 'manage'];
+export type Capability = 'read' | 'trade' | 'manage' | 'manage_workspace';
+export const ALL_CAPABILITIES: Capability[] = ['read', 'trade', 'manage', 'manage_workspace'];
 
 export interface Agent {
   id: string;

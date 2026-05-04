@@ -753,7 +753,7 @@ function AgentAdminPage({ user: _user, workspace }: {
                       <div className="group-subsection">
                         <div className="section-label">Capabilities</div>
                         <div className="capability-row">
-                          {(['read', 'trade', 'manage'] as Capability[]).map(cap => {
+                          {(['read', 'trade', 'manage', 'manage_workspace'] as Capability[]).map(cap => {
                             const checked = (group.capabilities ?? []).includes(cap);
                             return (
                               <label key={cap}>

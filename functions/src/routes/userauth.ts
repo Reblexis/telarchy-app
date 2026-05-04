@@ -106,6 +106,7 @@ userauthRouter.get('/me', requireIdentity, requireScope('account:read'), wrap(as
     workspaceId,
     authRole: effectiveAuthRole,
     memberRole,
+    capabilities: [...capabilities].sort(),
     workspaces: workspaceMap,
     platformAdmin: agent?.platformAdmin === true,
   });

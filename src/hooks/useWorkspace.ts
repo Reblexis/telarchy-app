@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api, setActiveWorkspace } from '../lib/api';
+import type { Capability } from '../types';
 
 export type WorkspaceMemberRole = 'owner' | 'admin' | 'trader' | 'viewer';
 
@@ -9,6 +10,7 @@ export interface WorkspaceInfo {
   authRole: string;
   intent: 'creator' | 'agent' | null;
   tier: 'admin' | 'trader' | 'viewer' | 'none';
+  capabilities: Capability[];
   needsWorkspace: boolean;
   platformAdmin: boolean;
 }
@@ -33,11 +35,14 @@ export function useWorkspace(authenticated: boolean = true): {
 
   const switchWorkspace = useCallback((id: string, targetPath?: string) => {
     setActiveWorkspace(id);
-    if (targetPath) {
-      window.location.href = targetPath;
-    } else {
-      window.location.reload();
-    }
+    // Drop ?proposal=: it points at a proposal in the workspace we're leaving,
+    // so inspect mode would otherwise persist into the new workspace.
+    const next = new URL(
+      targetPath ?? `${window.location.pathname}${window.location.search}${window.location.hash}`,
+      window.location.origin,
+    );
+    next.searchParams.delete('proposal');
+    window.location.href = next.pathname + next.search + next.hash;
   }, []);
 
   useEffect(() => {
@@ -50,7 +55,7 @@ export function useWorkspace(authenticated: boolean = true): {
       api.listWorkspaces().catch((e: Error) => { console.error('listWorkspaces failed:', e.message); return []; }),
     ])
       .then(([profile, wsList]: [
-        { workspaceId?: string; authRole?: string; memberRole?: WorkspaceMemberRole | null; intent?: 'creator' | 'agent' | null; platformAdmin?: boolean },
+        { workspaceId?: string; authRole?: string; memberRole?: WorkspaceMemberRole | null; intent?: 'creator' | 'agent' | null; platformAdmin?: boolean; capabilities?: string[] },
         Array<{ id: string; name: string; memberRole: string }>,
       ]) => {
         if (cancelled) return;
@@ -72,6 +77,11 @@ export function useWorkspace(authenticated: boolean = true): {
           return 'viewer';
         })();
 
+        const KNOWN_CAPS: ReadonlyArray<Capability> = ['read', 'trade', 'manage', 'manage_workspace'];
+        const capabilities = (profile.capabilities ?? []).filter(
+          (c): c is Capability => (KNOWN_CAPS as readonly string[]).includes(c),
+        );
+
         setError(null);
         setWorkspace({
           workspaceId: workspaceId ?? '',
@@ -79,6 +89,7 @@ export function useWorkspace(authenticated: boolean = true): {
           authRole,
           intent,
           tier,
+          capabilities,
           needsWorkspace,
           platformAdmin: profile.platformAdmin === true,
         });

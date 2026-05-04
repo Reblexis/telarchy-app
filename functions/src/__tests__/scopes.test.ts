@@ -141,6 +141,16 @@ describe('intersectWorkspaceCaps', () => {
     const caps = cap('read', 'trade');
     expect([...intersectWorkspaceCaps(caps, ['account:read'])]).toEqual([]);
   });
+  test('workspace:manage scope passes manage_workspace capability through', () => {
+    const caps = cap('read', 'trade', 'manage', 'manage_workspace');
+    expect([...intersectWorkspaceCaps(caps, ['workspace:read', 'workspace:trade', 'workspace:manage'])].sort())
+      .toEqual(['manage', 'manage_workspace', 'read', 'trade']);
+  });
+  test('without workspace:manage scope, manage_workspace capability is filtered out', () => {
+    const caps = cap('read', 'trade', 'manage_workspace');
+    expect([...intersectWorkspaceCaps(caps, ['workspace:read', 'workspace:trade'])].sort())
+      .toEqual(['read', 'trade']);
+  });
 });
 
 describe('granterCoversScopes (self-elevation guard)', () => {

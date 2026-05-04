@@ -38,7 +38,10 @@ export function WorkspaceSettingsPage() {
   const [wsLoading, setWsLoading] = useState(true);
 
   const wsId = workspace?.workspaceId;
-  const isOwner = workspace?.memberRole === 'owner';
+  // Lifecycle-shaped settings (visibility, auto-fund, liquidity defaults, deletion)
+  // are gated by the `manage_workspace` capability. Owners hold it implicitly;
+  // the Admin group holds it by default; the Participants tab can revoke it.
+  const canManageWorkspace = workspace?.capabilities.includes('manage_workspace') ?? false;
 
   useEffect(() => {
     if (!user || !wsId) { setWsLoading(false); return; }
@@ -88,7 +91,7 @@ export function WorkspaceSettingsPage() {
   };
 
   const commitAccess = async (nextAccess: Access) => {
-    if (!user || !wsId || !isOwner) return;
+    if (!user || !wsId || !canManageWorkspace) return;
     const prevAccess = access;
     setAccess(nextAccess);
     try {
@@ -115,7 +118,7 @@ export function WorkspaceSettingsPage() {
   };
 
   const commitMarkets = async (nextAutoFund: boolean, nextCredits: string) => {
-    if (!user || !wsId || !isOwner) return;
+    if (!user || !wsId || !canManageWorkspace) return;
     const credits = parseFloat(nextCredits);
     if (nextAutoFund && (!Number.isFinite(credits) || credits <= 0)) {
       setError('Enter a positive credit amount per new market when auto-fund is on.');
@@ -156,7 +159,7 @@ export function WorkspaceSettingsPage() {
   };
 
   const commitDefaultProposalLiquidity = async (raw: string) => {
-    if (!user || !wsId || !isOwner) return;
+    if (!user || !wsId || !canManageWorkspace) return;
     const trimmed = raw.trim();
     const value = trimmed === '' ? 0 : parseFloat(trimmed);
     if (!Number.isFinite(value) || value < 0) {
@@ -236,7 +239,7 @@ export function WorkspaceSettingsPage() {
 
       <div className="section" style={{ marginTop: '2rem' }}>
         <h3 style={{ marginBottom: '0.5rem' }}>Access</h3>
-        {isOwner ? (
+        {canManageWorkspace ? (
           <div className="form-group">
             <div className="radio-card-group">
               {([
@@ -262,14 +265,14 @@ export function WorkspaceSettingsPage() {
           </div>
         ) : (
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            Only the workspace owner can change access.
+            Requires the manage_workspace permission. An owner can grant it on the Participants tab.
           </p>
         )}
       </div>
 
       <div className="section" style={{ marginTop: '2rem' }}>
         <h3 style={{ marginBottom: '0.5rem' }}>Markets</h3>
-        {isOwner ? (
+        {canManageWorkspace ? (
           <>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
               Automatically fund new markets from your agent balance. Each new non-proposal market will debit the amount below.
@@ -302,14 +305,14 @@ export function WorkspaceSettingsPage() {
           </>
         ) : (
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            Only the workspace owner can configure market funding.
+            Requires the manage_workspace permission. An owner can grant it on the Participants tab.
           </p>
         )}
       </div>
 
       <div className="section" style={{ marginTop: '2rem' }}>
         <h3 style={{ marginBottom: '0.5rem' }}>Proposals</h3>
-        {isOwner ? (
+        {canManageWorkspace ? (
           <>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
               Default subsidy per conditional market when a participant proposes a new proposal. The proposer is debited (refunded if declined).
@@ -332,7 +335,7 @@ export function WorkspaceSettingsPage() {
           </>
         ) : (
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            Only the workspace owner can configure proposal defaults.
+            Requires the manage_workspace permission. An owner can grant it on the Participants tab.
           </p>
         )}
       </div>
@@ -351,7 +354,7 @@ export function WorkspaceSettingsPage() {
         </p>
       </div>
 
-      {isOwner && (
+      {canManageWorkspace && (
         <div className="section" style={{ marginTop: '3rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
           <h3 style={{ marginBottom: '0.5rem', color: 'var(--error-text)' }}>Danger zone</h3>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>

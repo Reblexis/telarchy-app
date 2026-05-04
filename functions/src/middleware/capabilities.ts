@@ -55,7 +55,7 @@ export async function computeCapabilities(opts: {
     if (!getGroupMemberIds(group).includes(participantId)) continue;
     const groupCaps = (group.capabilities as string[] | null) ?? [];
     for (const cap of groupCaps) {
-      if (cap === 'read' || cap === 'trade' || cap === 'manage') caps.add(cap);
+      if (cap === 'read' || cap === 'trade' || cap === 'manage' || cap === 'manage_workspace') caps.add(cap);
     }
   }
   return caps;
