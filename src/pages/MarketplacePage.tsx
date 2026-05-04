@@ -287,20 +287,27 @@ export function MarketplacePage() {
 
       const tradableWorkspaces = workspaces.filter(workspace => workspace.memberRole !== 'viewer');
       const workspaceMarkets = await Promise.all(tradableWorkspaces.map(async workspace => {
-        const markets = await api.getMarkets(undefined, workspace.id).catch((e: Error) => {
-          console.error(`getMarkets failed for workspace ${workspace.id}:`, e.message);
-          return [];
-        }) as Market[];
+        const [markets, positions] = await Promise.all([
+          api.getMarkets(undefined, workspace.id).catch((e: Error) => {
+            console.error(`getMarkets failed for workspace ${workspace.id}:`, e.message);
+            return [];
+          }) as Promise<Market[]>,
+          api.getPositions(undefined, undefined, workspace.id).catch((e: Error) => {
+            console.error(`getPositions failed for workspace ${workspace.id}:`, e.message);
+            return [];
+          }) as Promise<Array<{ marketId: string; shares: number }>>,
+        ]);
+        // Open markets are always shown. Closed markets (deactivated by the
+        // TP refresh) only matter if the participant still has shares to
+        // exit; otherwise they clutter the marketplace because the metric's
+        // density only keeps N markets active at a time.
+        const heldMarketIds = new Set(positions.filter(p => p.shares > 0).map(p => p.marketId));
         return {
           workspaceId: workspace.id,
           workspaceName: workspace.name,
           memberRole: workspace.memberRole,
-          // Members see open and closed markets so they can exit positions on
-          // markets the TP refresh deactivated. Resolved markets are already
-          // excluded server-side (no includeResolved); voided markets are
-          // dropped here since their stakes were refunded and there's nothing
-          // left to trade.
-          markets: markets.filter(market => market.status === 'open' || market.status === 'closed'),
+          markets: markets.filter(market =>
+            market.status === 'open' || (market.status === 'closed' && heldMarketIds.has(market.id))),
         };
       }));
 
