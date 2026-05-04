@@ -11,6 +11,7 @@ import { useSortableRows } from '../lib/sort';
 import { HookStatus } from '../components/HookStatus';
 import { MarketActivityPanel } from '../components/MarketActivityPanel';
 import { ProbabilitySlider } from '../components/ProbabilitySlider';
+import { InspectIndicator } from '../components/InspectIndicator';
 import type { Market, MarketStatus, Metric } from '../types';
 
 type SortKey = 'metric' | 'target' | 'prediction';
@@ -143,7 +144,10 @@ export function MarketsPage() {
   return (
     <div className="container">
       <div className="section-header">
-        <h2>Markets</h2>
+        <div className="section-header-row">
+          <h2>Markets</h2>
+          <InspectIndicator />
+        </div>
         <p className="section-subtitle">
           Prediction markets for this workspace's metrics. Tap a market to view its trade history and place orders.
         </p>

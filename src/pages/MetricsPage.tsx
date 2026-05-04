@@ -9,6 +9,7 @@ import { MetricsDashboard } from '../components/MetricsDashboard';
 import { AddMetricGhostCard } from '../components/AddMetricGhostCard';
 import { EditMetricModal } from '../components/EditMetricModal';
 import { GraphModal } from '../components/GraphModal';
+import { InspectIndicator } from '../components/InspectIndicator';
 
 export function MetricsPage() {
   const navigate = useNavigate();
@@ -82,6 +83,11 @@ export function MetricsPage() {
   return (
     <>
       <div className="container">
+        {inspectProposal && (
+          <div style={{ marginBottom: '1rem' }}>
+            <InspectIndicator />
+          </div>
+        )}
         {metrics.length === 0 && isAdmin && (
           <div style={{
             padding: '2rem',

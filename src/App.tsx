@@ -1,5 +1,5 @@
-import { BrowserRouter, Routes, Route, Link, Navigate, useParams } from 'react-router-dom';
-import { InspectModeProvider, useInspectMode } from './hooks/useInspectMode';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { InspectModeProvider } from './hooks/useInspectMode';
 import { RequireAuth, RequireWorkspace, RequireAgentSession } from './components/RequireAuth';
 import { AppLayout } from './components/AppLayout';
 import { LandingPage } from './pages/LandingPage';
@@ -30,27 +30,6 @@ import { LeaderboardPage } from './pages/LeaderboardPage';
 function MarketplaceWorkspaceRedirect() {
   const { workspaceId } = useParams();
   return <Navigate to={`/marketplace?workspace=${encodeURIComponent(workspaceId ?? '')}`} replace />;
-}
-
-function InspectBanner() {
-  const { inspectProposal, setInspectProposal } = useInspectMode();
-  if (!inspectProposal) return null;
-  return (
-    <div className="inspect-banner" role="status">
-      <span className="inspect-banner-dot" aria-hidden="true" />
-      <span className="inspect-banner-label">Inspecting</span>
-      <span className="inspect-banner-title">{inspectProposal.title}</span>
-      <span className="inspect-banner-spacer" />
-      <Link to="/proposals" className="inspect-banner-link">Open proposal</Link>
-      <button
-        type="button"
-        className="inspect-banner-exit"
-        onClick={() => setInspectProposal(null)}
-      >
-        Exit
-      </button>
-    </div>
-  );
 }
 
 export function App() {
@@ -96,7 +75,6 @@ export function App() {
             </Route>
           </Route>
         </Routes>
-        <InspectBanner />
       </InspectModeProvider>
     </BrowserRouter>
   );
