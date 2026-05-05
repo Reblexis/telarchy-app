@@ -1952,6 +1952,46 @@ input[type="checkbox"]:hover:not(:disabled) {
   border-color: var(--focus-border);
 }
 
+/* ===== Radios ===== */
+input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border: 1.5px solid var(--border-color);
+  border-radius: 50%;
+  background: var(--bg-primary);
+  cursor: pointer;
+  position: relative;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+input[type="radio"]:checked {
+  background: var(--focus-border);
+  border-color: var(--focus-border);
+}
+
+input[type="radio"]:checked::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+input[type="radio"]:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+input[type="radio"]:hover:not(:disabled) {
+  border-color: var(--focus-border);
+}
+
 /* ===== Status badges ===== */
 .status-badge {
   font-size: 0.7rem;
