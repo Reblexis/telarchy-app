@@ -491,19 +491,12 @@ function NewProposalModal({ open, onClose, onCreated, onError }: NewProposalModa
   const [description, setDescription] = useState('');
   const [subsidy, setSubsidy] = useState('');
   const [activeMarketCount, setActiveMarketCount] = useState<number | null>(null);
-  const [defaultLiquidity, setDefaultLiquidity] = useState<number>(0);
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     if (!open || !wsId) return;
-    setTitle(''); setDescription(''); setCreating(false);
-    Promise.all([
-      api.getWorkspace(wsId).catch(() => null),
-      api.getMarkets(undefined, wsId).catch(() => null),
-    ]).then(([wsDetail, mkts]) => {
-      const def = (wsDetail as { defaultProposalLiquidity?: number } | null)?.defaultProposalLiquidity ?? 0;
-      setDefaultLiquidity(def);
-      setSubsidy(def > 0 ? String(def) : '');
+    setTitle(''); setDescription(''); setSubsidy(''); setCreating(false);
+    api.getMarkets(undefined, wsId).catch(() => null).then(mkts => {
       const list = (mkts as Array<{ active?: boolean; proposalId?: string | null }> | null) ?? [];
       setActiveMarketCount(list.filter(m => m.active !== false && !m.proposalId).length);
     });
@@ -570,7 +563,7 @@ function NewProposalModal({ open, onClose, onCreated, onError }: NewProposalModa
               min="0"
               value={subsidy}
               onChange={e => setSubsidy(e.target.value)}
-              placeholder={defaultLiquidity > 0 ? String(defaultLiquidity) : '0'}
+              placeholder="0"
             />
             <div style={{ marginTop: '0.4rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
               {activeMarketCount == null ? (

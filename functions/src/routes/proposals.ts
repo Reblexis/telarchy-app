@@ -38,7 +38,6 @@ proposalsRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
 
   const [wsForCap] = await db.select({
     maxPending: workspaces.maxPendingProposalsPerParticipant,
-    defaultProposalLiquidity: workspaces.defaultProposalLiquidity,
   }).from(workspaces).where(eq(workspaces.id, workspaceId));
   const cap = wsForCap?.maxPending ?? 3;
   if (cap > 0) {
@@ -55,7 +54,7 @@ proposalsRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
 
   let subsidy: number;
   if (liquiditySubsidy === undefined || liquiditySubsidy === null) {
-    subsidy = wsForCap?.defaultProposalLiquidity ?? 0;
+    subsidy = 0;
   } else if (typeof liquiditySubsidy !== 'number' || !Number.isFinite(liquiditySubsidy) || liquiditySubsidy < 0) {
     res.status(400).json({ error: 'liquiditySubsidy must be a non-negative number' });
     return;

@@ -438,7 +438,7 @@ export const api = {
   listWorkspaces: () => request('/api/workspaces', {}, true),
   getWorkspace: (id: string) => request(`/api/workspaces/${id}`),
   getWorkspaceStats: (id: string) => request(`/api/workspaces/${id}/stats`),
-  updateWorkspaceSettings: (id: string, body: { name?: string; autoFundNewMarkets?: boolean; newMarketLiquidityCredits?: number; visibility?: 'public' | 'unlisted' | 'private'; defaultProposalLiquidity?: number }) =>
+  updateWorkspaceSettings: (id: string, body: { name?: string; autoFundNewMarkets?: boolean; newMarketLiquidityCredits?: number; visibility?: 'public' | 'unlisted' | 'private'; proposalReward?: number; spamPenalty?: number; maxPendingProposalsPerParticipant?: number }) =>
     request(`/api/workspaces/${id}/settings`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteWorkspace: (id: string) =>
     request(`/api/workspaces/${id}`, { method: 'DELETE' }),

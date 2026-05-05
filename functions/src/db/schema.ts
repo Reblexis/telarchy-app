@@ -71,8 +71,6 @@ export const workspaces = pgTable('workspaces', {
   autoFundNewMarkets: boolean('auto_fund_new_markets').notNull().default(false),
   /** Pool contribution (credits) per new market when auto-fund is on. */
   newMarketLiquidityCredits: doublePrecision('new_market_liquidity_credits').notNull().default(0),
-  /** Default per-market credit subsidy to prefill on the proposal-create modal. 0 = ask each time. */
-  defaultProposalLiquidity: doublePrecision('default_proposal_liquidity').notNull().default(0),
   /** Bounty paid by workspace owner to proposer when a proposal is approved. 0 = no reward. */
   proposalReward: doublePrecision('proposal_reward').notNull().default(0),
   /** Penalty deducted from proposer (paid to workspace owner) when a proposal is declined as spam. 0 = no penalty. */

@@ -10,7 +10,6 @@ interface WorkspaceDetail {
   visibility?: 'public' | 'unlisted' | 'private';
   autoFundNewMarkets?: boolean;
   newMarketLiquidityCredits?: number;
-  defaultProposalLiquidity?: number;
 }
 
 type Access = 'private' | 'public' | 'open';
@@ -31,7 +30,6 @@ export function WorkspaceSettingsPage() {
   const [publicGroup, setPublicGroup] = useState<PublicGroupState | null>(null);
   const [autoFund, setAutoFund] = useState(false);
   const [liquidityCredits, setLiquidityCredits] = useState('');
-  const [defaultProposalLiquidity, setDefaultProposalLiquidity] = useState('');
   const [deleting, setDeleting] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [error, setError] = useState('');
@@ -63,8 +61,6 @@ export function WorkspaceSettingsPage() {
         setAutoFund(Boolean(d.autoFundNewMarkets));
         const c = d.newMarketLiquidityCredits;
         setLiquidityCredits(typeof c === 'number' && c > 0 ? String(c) : '');
-        const p = d.defaultProposalLiquidity;
-        setDefaultProposalLiquidity(typeof p === 'number' && p > 0 ? String(p) : '');
       })
       .catch((e: Error) => setError(e.message))
       .finally(() => setWsLoading(false));
@@ -156,26 +152,6 @@ export function WorkspaceSettingsPage() {
       void commitMarkets(true, liquidityCredits);
     }
     // Otherwise wait for the user to enter a valid number and blur.
-  };
-
-  const commitDefaultProposalLiquidity = async (raw: string) => {
-    if (!user || !wsId || !canManageWorkspace) return;
-    const trimmed = raw.trim();
-    const value = trimmed === '' ? 0 : parseFloat(trimmed);
-    if (!Number.isFinite(value) || value < 0) {
-      setError('Default proposal liquidity must be a non-negative number');
-      return;
-    }
-    if (value > 0 && value < 0.1) {
-      setError('Default proposal liquidity must be at least 0.1 credits per market when set');
-      return;
-    }
-    if ((ws?.defaultProposalLiquidity ?? 0) === value) return;
-    try {
-      await api.updateWorkspaceSettings(wsId, { defaultProposalLiquidity: value });
-      setWs(prev => prev ? { ...prev, defaultProposalLiquidity: value } : prev);
-      markSaved();
-    } catch (e) { markError(e); }
   };
 
   if (wsLoading) return <div className="loading">Loading…</div>;
@@ -302,36 +278,6 @@ export function WorkspaceSettingsPage() {
                 />
               </div>
             )}
-          </>
-        ) : (
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            Requires the manage_workspace permission. An owner can grant it on the Participants tab.
-          </p>
-        )}
-      </div>
-
-      <div className="section" style={{ marginTop: '2rem' }}>
-        <h3 style={{ marginBottom: '0.5rem' }}>Proposals</h3>
-        {canManageWorkspace ? (
-          <>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
-              Default subsidy per conditional market when a participant proposes a new proposal. The proposer is debited (refunded if declined).
-              Set to 0 to ask each time. Min 0.1 credits per market when set.
-            </p>
-            <div className="form-group">
-              <label htmlFor="proposal-liq">Default proposal liquidity (credits per market)</label>
-              <input
-                id="proposal-liq"
-                type="number"
-                step="any"
-                min="0"
-                placeholder="0 (ask each time)"
-                value={defaultProposalLiquidity}
-                onChange={e => setDefaultProposalLiquidity(e.target.value)}
-                onBlur={() => commitDefaultProposalLiquidity(defaultProposalLiquidity)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); (e.currentTarget as HTMLInputElement).blur(); } }}
-              />
-            </div>
           </>
         ) : (
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>

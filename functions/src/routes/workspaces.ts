@@ -159,11 +159,10 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
   const hasAutoFundKey = Object.prototype.hasOwnProperty.call(req.body, 'autoFundNewMarkets');
   const hasCreditsKey = Object.prototype.hasOwnProperty.call(req.body, 'newMarketLiquidityCredits');
   const hasVisibilityKey = Object.prototype.hasOwnProperty.call(req.body, 'visibility');
-  const hasProposalLiquidityKey = Object.prototype.hasOwnProperty.call(req.body, 'defaultProposalLiquidity');
   const hasProposalRewardKey = Object.prototype.hasOwnProperty.call(req.body, 'proposalReward');
   const hasSpamPenaltyKey = Object.prototype.hasOwnProperty.call(req.body, 'spamPenalty');
   const hasMaxPendingKey = Object.prototype.hasOwnProperty.call(req.body, 'maxPendingProposalsPerParticipant');
-  const touchesLifecycleFields = hasAutoFundKey || hasCreditsKey || hasVisibilityKey || hasProposalLiquidityKey || hasProposalRewardKey || hasSpamPenaltyKey || hasMaxPendingKey;
+  const touchesLifecycleFields = hasAutoFundKey || hasCreditsKey || hasVisibilityKey || hasProposalRewardKey || hasSpamPenaltyKey || hasMaxPendingKey;
 
   // Lifecycle-shaped fields (visibility, auto-fund, liquidity defaults) are
   // gated by the granular `manage_workspace` capability, which the Admin group
@@ -173,7 +172,7 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
     res.status(403).json({ error: 'These settings require the manage_workspace capability' }); return;
   }
 
-  const { name, autoFundNewMarkets, newMarketLiquidityCredits, visibility, defaultProposalLiquidity, proposalReward, spamPenalty, maxPendingProposalsPerParticipant } = req.body;
+  const { name, autoFundNewMarkets, newMarketLiquidityCredits, visibility, proposalReward, spamPenalty, maxPendingProposalsPerParticipant } = req.body;
   const update: Partial<typeof workspaces.$inferInsert> = {};
 
   if (hasVisibilityKey) {
@@ -206,16 +205,6 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
 
   if (hasAutoFundKey) update.autoFundNewMarkets = nextAuto;
   if (hasCreditsKey) update.newMarketLiquidityCredits = nextCredits;
-
-  if (hasProposalLiquidityKey) {
-    if (typeof defaultProposalLiquidity !== 'number' || !Number.isFinite(defaultProposalLiquidity) || defaultProposalLiquidity < 0) {
-      res.status(400).json({ error: 'defaultProposalLiquidity must be a non-negative number' }); return;
-    }
-    if (defaultProposalLiquidity > 0 && defaultProposalLiquidity < MIN_LIQUIDITY_CONTRIBUTION) {
-      res.status(400).json({ error: `defaultProposalLiquidity must be at least ${MIN_LIQUIDITY_CONTRIBUTION} credits when set` }); return;
-    }
-    update.defaultProposalLiquidity = defaultProposalLiquidity;
-  }
 
   if (hasProposalRewardKey) {
     if (typeof proposalReward !== 'number' || !Number.isFinite(proposalReward) || proposalReward < 0) {

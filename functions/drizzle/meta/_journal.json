@@ -204,6 +204,13 @@
       "when": 1778000000000,
       "tag": "0028_proposal_bounty_model",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1778100000000,
+      "tag": "0029_drop_default_proposal_liquidity",
+      "breakpoints": true
     }
   ]
 }

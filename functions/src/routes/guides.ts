@@ -501,13 +501,12 @@ When the daily market-refresh cron (00:10 UTC) or a time-preference toggle spawn
 
 ## Proposal subsidy
 
-Proposal-scoped conditional markets are funded by the proposer at creation time, not by the auto-fund path above.
+Proposal-scoped conditional markets are NOT auto-funded by the workspace owner. Funding is opt-in from one of two sources:
 
-When a participant submits a proposal, the API accepts a \`liquiditySubsidy\` field (credits per conditional market). The proposer is debited \`liquiditySubsidy * N\` (where N is the number of active leaf markets) and each conditional market gets a real LP row attributed to the proposer. On decline the conditional markets are voided and the LP is refunded; on approve the markets continue trading until the metric resolves at its target date.
+1. **The proposer**, voluntarily, by passing \`liquiditySubsidy\` (credits per conditional market) on \`POST /api/proposals\`. The proposer is debited \`liquiditySubsidy * N\` (where N is the number of active leaf markets) and each conditional market gets a real LP row attributed to them. On decline the conditional markets are voided and the LP is refunded; on approve the markets continue trading until the metric resolves at its target date.
+2. **A workspace admin**, post-hoc, via \`POST /api/predictions/markets/liquidity/bulk\` with \`{ amount, proposalId }\`. This is the canonical "owner provides liquidity" path.
 
-If \`liquiditySubsidy\` is omitted, the workspace's \`defaultProposalLiquidity\` setting is used. If both are zero, the conditional markets ship at zero liquidity (no trading, no signal) and the proposer can later top them up via \`POST /api/predictions/markets/liquidity/bulk\` with \`{ amount, proposalId }\`.
-
-Owner-editable workspace setting: **\`defaultProposalLiquidity\`** (number, default \`0\` = ask each time, minimum \`0.1\` when set).
+If both are zero, the conditional markets ship at zero liquidity (no trading, no signal) until someone tops them up. There is no automatic per-proposal owner debit by design: a workspace-owner-funded default would be a spam vector (any participant could drain the owner's balance by submitting empty proposals).
 
 ## Manual injection
 
@@ -549,8 +548,8 @@ The result is per-metric impact predictions: quantitative forecasts of how much 
 
 ## How it works
 
-1. A participant proposes a proposal (\`POST /api/proposals\`) with a title, description, and optional \`liquiditySubsidy\` (credits per conditional market). If omitted, the workspace's \`defaultProposalLiquidity\` setting is used.
-2. Conditional markets are auto-created: clones of all active leaf markets, tagged to that proposal, starting at zero positions and seeded with the per-market subsidy. The proposer's balance is debited \`liquiditySubsidy * N\` and each conditional market gets a real LP row attributed to the proposer.
+1. A participant proposes a proposal (\`POST /api/proposals\`) with a title, description, and optional \`liquiditySubsidy\` (credits per conditional market). If omitted, subsidy is 0 — proposing is free.
+2. Conditional markets are auto-created: clones of all active leaf markets, tagged to that proposal, starting at zero positions. If \`liquiditySubsidy > 0\`, the proposer's balance is debited \`liquiditySubsidy * N\` (where N is the number of active leaf markets) and each conditional market gets a real LP row attributed to the proposer. Otherwise markets ship at zero liquidity until an admin injects via \`POST /api/predictions/markets/liquidity/bulk { amount, proposalId }\`.
 3. Participants forecast on conditional markets to signal expected impact.
 4. Admin views the proposal detail: conditional vs baseline consensus for every market, plus a "Forecast subsidy" header showing how much liquidity backs the signal. Admins can top up via the inline **Add liquidity** button or via \`POST /api/predictions/markets/liquidity/bulk { amount, proposalId }\`.
 5. **Approve** - conditional markets keep trading and resolve at the actual metric value when their target date arrives. If the workspace has \`proposalReward\` set, the owner's balance is debited and the proposer is paid the reward (skipped if 0; 409 if owner balance is insufficient).
