@@ -2,29 +2,45 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api, type MarketplaceListing } from '../lib/api';
 import { TradingPanel } from '../components/TradingPanel';
+import { ProbabilitySlider } from '../components/ProbabilitySlider';
 import { useAuth } from '../hooks/useAuth';
-import { endOfPeriod, formatResolutionLabel } from '../lib/date-utils';
-import type { Market } from '../types';
+import { endOfPeriod, formatResolutionLabel, formatTimeRemaining } from '../lib/date-utils';
+import { resolutionPayouts } from '../lib/amm';
+import type { Market, Position } from '../types';
 
-interface TradingParticipant {
+interface ParticipantSummary {
   id: string;
   balance: number;
 }
 
-interface AccessibleWorkspaceMarkets {
+interface WorkspaceMembership {
+  id: string;
+  name: string;
+  memberRole: string;
+}
+
+interface PositionRow {
   workspaceId: string;
   workspaceName: string;
-  memberRole: string;
-  markets: Market[];
+  market: Market;
+  position: Position;
 }
 
-function compareByResolutionDate<T extends { targetDate: string; liquidity: number }>(a: T, b: T): number {
-  const dateDiff = endOfPeriod(a.targetDate).localeCompare(endOfPeriod(b.targetDate));
-  if (dateDiff !== 0) return dateDiff;
-  return b.liquidity - a.liquidity;
+interface MarketRow {
+  workspaceId: string;
+  workspaceName: string;
+  market: Market;
 }
 
-function formatCompactNumber(value: number): string {
+interface DiscoverRow {
+  workspaceId: string;
+  workspaceName: string;
+  preview: MarketplaceListing[];
+  totalMarkets: number;
+}
+
+function compactNumber(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) return '-';
   const abs = Math.abs(value);
   if (abs >= 100) return value.toFixed(2);
   if (abs >= 1) return value.toFixed(4).replace(/\.?0+$/, '');
@@ -32,201 +48,83 @@ function formatCompactNumber(value: number): string {
   return value.toFixed(9).replace(/\.?0+$/, '');
 }
 
-function ShareWorkspaceButton({ workspaceId, workspaceName }: { workspaceId: string; workspaceName: string }) {
-  const [copied, setCopied] = useState(false);
-  const handleShare = async () => {
-    const url = `${window.location.origin}/marketplace?workspace=${encodeURIComponent(workspaceId)}`;
-    const shareData = { title: `${workspaceName} on Telarchy`, text: `Watch and trade on ${workspaceName}`, url };
-    try {
-      if (navigator.share && navigator.canShare?.(shareData)) {
-        await navigator.share(shareData);
-        return;
-      }
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch (e) {
-      console.error('share failed:', e);
-    }
-  };
-  return (
-    <button
-      type="button"
-      onClick={handleShare}
-      style={{
-        background: 'none', border: '1px solid var(--border-color)',
-        color: 'var(--text-secondary)', fontSize: '0.75rem',
-        padding: '0.25rem 0.6rem', borderRadius: '0.35rem', cursor: 'pointer',
-      }}
-    >
-      {copied ? '✓ Link copied' : 'Share'}
-    </button>
-  );
+function formatSignedDelta(value: number): string {
+  const sign = value >= 0 ? '+' : '';
+  return `${sign}${compactNumber(value)}`;
 }
 
-interface JoinResult {
-  workspaceName?: string;
-  role?: string;
-  alreadyMember?: boolean;
+function payoutAtConsensus(market: Market, direction: 'higher' | 'lower', shares: number): number | null {
+  if (market.consensus == null) return null;
+  const clamped = Math.max(market.rangeMin, Math.min(market.rangeMax, market.consensus));
+  const [lp, hp] = resolutionPayouts(clamped, market.rangeMin, market.rangeMax);
+  return shares * (direction === 'higher' ? hp : lp);
 }
 
-function JoinButton({ workspaceId, joined, onJoined }: {
-  workspaceId: string;
-  joined?: boolean;
-  onJoined?: () => void;
-}) {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [state, setState] = useState<'idle' | 'joining' | 'joined' | 'error'>('idle');
-  const [errMsg, setErrMsg] = useState('');
-  const [result, setResult] = useState<JoinResult | null>(null);
-
-  const handleJoin = async () => {
-    if (!user) { navigate('/signup'); return; }
-    setState('joining');
-    try {
-      const data = await api.joinWorkspace(workspaceId) as JoinResult;
-      setResult(data);
-      setState('joined');
-      onJoined?.();
-    } catch (e: unknown) {
-      setErrMsg((e as Error).message || 'Failed to join');
-      setState('error');
-    }
-  };
-
-  if (state === 'joined') {
-    const roleLabel = result?.role ?? 'member';
-    const wsLabel = result?.workspaceName ?? 'workspace';
-    return (
-      <span
-        style={{ color: 'var(--success-text)', fontSize: '0.85rem', textAlign: 'right' }}
-        title={`You can ${roleLabel === 'trader' ? 'forecast on this workspace\'s markets' : 'read this workspace'}`}
-      >
-        ✓ Joined {wsLabel} as <strong>{roleLabel}</strong>
-      </span>
-    );
-  }
-  if (joined) return <span style={{ color: 'var(--success-text)', fontSize: '0.875rem' }}>Joined</span>;
-  if (state === 'error') return <span style={{ color: 'var(--error-text)', fontSize: '0.8rem' }}>{errMsg}</span>;
-
-  return (
-    <button
-      onClick={handleJoin}
-      disabled={state === 'joining'}
-      style={{ padding: '0.35rem 0.85rem', fontSize: '0.875rem' }}
-    >
-      {state === 'joining' ? 'Joining...' : 'Join workspace'}
-    </button>
-  );
+function compareMarketsByResolution(a: { market: Market }, b: { market: Market }): number {
+  const dateDiff = endOfPeriod(a.market.targetDate).localeCompare(endOfPeriod(b.market.targetDate));
+  if (dateDiff !== 0) return dateDiff;
+  return b.market.liquidity - a.market.liquidity;
 }
 
-function ProbabilityBar({ probability }: { probability: number }) {
-  const pct = Math.round(probability * 100);
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
-      <div style={{
-        flex: 1, height: 6, background: 'var(--bg-tertiary)', borderRadius: 3, overflow: 'hidden',
-      }}>
-        <div style={{
-          width: `${pct}%`, height: '100%',
-          background: pct > 50 ? 'var(--success-text)' : 'var(--error-text)',
-          borderRadius: 3, transition: 'width 0.3s',
-        }} />
-      </div>
-      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', minWidth: 32, textAlign: 'right' }}>
-        {pct}%
-      </span>
-    </div>
-  );
+function displayName(user: { name?: string | null; email?: string | null } | null, fallback: string): string {
+  if (user?.name && user.name !== user.email) return user.name;
+  if (user?.email) return user.email;
+  return fallback;
 }
 
-function PublicMarketCard({ market, joined, onJoined }: {
-  market: MarketplaceListing;
-  joined?: boolean;
-  onJoined?: () => void;
-}) {
-  const consensusDisplay = market.consensus !== null
-    ? `${market.consensus.toFixed(2)} (of ${market.rangeMin}–${market.rangeMax})`
-    : '-';
-
-  return (
-    <div className="metric-card" style={{ padding: '1rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.15rem' }}>
-            {market.metricName}
-          </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-            {market.workspaceName}
-          </div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)' }}>
-            {formatResolutionLabel(market.targetDate)}
-          </div>
-        </div>
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Prediction</div>
-          <div style={{ fontWeight: 600 }}>{consensusDisplay}</div>
-        </div>
-      </div>
-      <ProbabilityBar probability={market.probability} />
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '0.75rem' }}>
-        <JoinButton workspaceId={market.workspaceId} joined={joined} onJoined={onJoined} />
-      </div>
-    </div>
-  );
-}
-
-function AccessibleMarketCard({
-  workspaceId,
-  workspaceName,
-  market,
-  participant,
-  onTrade,
-  onError,
-}: {
-  workspaceId: string;
-  workspaceName: string;
-  market: Market;
-  participant: TradingParticipant;
+function PositionCard({ row, onTrade, onError }: {
+  row: PositionRow;
   onTrade: () => void;
   onError: (msg: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const { market, position, workspaceName, workspaceId } = row;
+  const time = market.status === 'open' ? formatTimeRemaining(market.targetDate) : null;
+  const expired = time === 'expired';
+
+  const payout = payoutAtConsensus(market, position.direction, position.shares);
+  const pl = payout != null ? payout - position.totalCost : null;
+  const dirSymbol = position.direction === 'higher' ? '▲' : '▼';
+  const plClass = pl == null ? '' : pl >= 0 ? 'pos' : 'neg';
 
   return (
-    <div className="metric-card" style={{ padding: '1rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.15rem' }}>
-            {market.metricName}
-          </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-            {workspaceName}
-          </div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)' }}>
-            {formatResolutionLabel(market.targetDate)}
-          </div>
+    <div
+      className={`market-card${expanded ? ' expanded' : ''}`}
+      onClick={() => setExpanded(open => !open)}
+    >
+      <div className="market-card-head">
+        <div className="market-head-name">
+          <span className="market-metric-name">{market.metricName}</span>
+          <span className={`market-status-badge market-status-${market.status}`}>{market.status}</span>
         </div>
-        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Prediction</div>
-          <div style={{ fontWeight: 600 }}>
-            {market.consensus !== null ? market.consensus.toFixed(2) : '-'}
-          </div>
+
+        <div className="market-head-target">
+          <span className="market-workspace-tag">{workspaceName}</span>
+          <span className="dot">·</span>
+          <span>{formatResolutionLabel(market.targetDate)}</span>
+          {time && (
+            <>
+              <span className="dot">·</span>
+              <span className={`time-remaining${expired ? ' expired' : ''}`}>{time}</span>
+            </>
+          )}
         </div>
-      </div>
-      <ProbabilityBar probability={market.probability} />
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginTop: '0.75rem', gap: '0.75rem' }}>
-        <button
-          className="btn-small"
-          onClick={() => setExpanded(open => !open)}
-          style={{ padding: '0.35rem 0.85rem', fontSize: '0.875rem' }}
-        >
-          {expanded ? 'Hide trade panel' : 'Trade'}
-        </button>
+
+        <div className="market-head-prediction">
+          <span className={`market-position-pill market-position-${position.direction}`}>
+            {dirSymbol} {compactNumber(position.shares)}
+          </span>
+          <span className="market-consensus">{market.consensus != null ? compactNumber(market.consensus) : '-'}</span>
+          {pl != null && (
+            <span className={`market-delta ${plClass}`}>
+              {formatSignedDelta(pl)}
+              <span className="market-delta-baseline">(cost {compactNumber(position.totalCost)})</span>
+            </span>
+          )}
+        </div>
       </div>
       {expanded && (
-        <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border-color)' }}>
+        <div className="market-card-expanded" onClick={e => e.stopPropagation()}>
           <TradingPanel
             market={market}
             workspaceId={workspaceId}
@@ -240,307 +138,484 @@ function AccessibleMarketCard({
   );
 }
 
+function WorkspaceMarketCard({ row, onTrade, onError }: {
+  row: MarketRow;
+  onTrade: () => void;
+  onError: (msg: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const { market, workspaceName, workspaceId } = row;
+  const time = market.status === 'open' ? formatTimeRemaining(market.targetDate) : null;
+  const expired = time === 'expired';
+
+  return (
+    <div
+      className={`market-card${expanded ? ' expanded' : ''}`}
+      onClick={() => setExpanded(open => !open)}
+    >
+      <div className="market-card-head">
+        <div className="market-head-name">
+          <span className="market-metric-name">{market.metricName}</span>
+          <span className={`market-status-badge market-status-${market.status}`}>{market.status}</span>
+        </div>
+
+        <div className="market-head-target">
+          <span className="market-workspace-tag">{workspaceName}</span>
+          <span className="dot">·</span>
+          <span>{formatResolutionLabel(market.targetDate)}</span>
+          {time && (
+            <>
+              <span className="dot">·</span>
+              <span className={`time-remaining${expired ? ' expired' : ''}`}>{time}</span>
+            </>
+          )}
+        </div>
+
+        <div className="market-head-prediction">
+          <div className="slider-wrap">
+            <ProbabilitySlider
+              probability={market.probability}
+              rangeMin={market.rangeMin}
+              rangeMax={market.rangeMax}
+              fullWidth
+            />
+          </div>
+          <span className="market-consensus">{market.consensus != null ? compactNumber(market.consensus) : '-'}</span>
+        </div>
+      </div>
+      {expanded && (
+        <div className="market-card-expanded" onClick={e => e.stopPropagation()}>
+          <TradingPanel
+            market={market}
+            workspaceId={workspaceId}
+            showLiquidityControls={false}
+            onTrade={onTrade}
+            onError={onError}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DiscoverWorkspaceCard({ row, onJoined, onSignup }: {
+  row: DiscoverRow;
+  onJoined: () => void;
+  onSignup: () => void;
+}) {
+  const { user } = useAuth();
+  const [state, setState] = useState<'idle' | 'joining' | 'joined' | 'error'>('idle');
+  const [errMsg, setErrMsg] = useState('');
+  const [resultRole, setResultRole] = useState<string | null>(null);
+
+  const handleJoin = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user) { onSignup(); return; }
+    setState('joining');
+    try {
+      const result = await api.joinWorkspace(row.workspaceId) as { role?: string };
+      setResultRole(result?.role ?? 'member');
+      setState('joined');
+      onJoined();
+    } catch (err) {
+      setErrMsg((err as Error).message || 'Failed to join');
+      setState('error');
+    }
+  };
+
+  return (
+    <div className="market-card discover-card">
+      <div className="market-card-head">
+        <div className="market-head-name">
+          <span className="market-metric-name">{row.workspaceName}</span>
+          <span className="market-meta">
+            {row.totalMarkets} {row.totalMarkets === 1 ? 'market' : 'markets'}
+          </span>
+        </div>
+        <div className="market-head-actions">
+          {state === 'joined' ? (
+            <span className="market-join-status">✓ joined as {resultRole ?? 'member'}</span>
+          ) : state === 'error' ? (
+            <span className="market-join-status err">{errMsg}</span>
+          ) : (
+            <button
+              className="btn-small"
+              onClick={handleJoin}
+              disabled={state === 'joining'}
+            >
+              {state === 'joining' ? 'joining…' : user ? 'join' : 'sign up to join'}
+            </button>
+          )}
+        </div>
+      </div>
+      {row.preview.length > 0 && (
+        <ul className="discover-preview">
+          {row.preview.map(m => (
+            <li key={m.marketId}>
+              <span className="discover-preview-name">{m.metricName}</span>
+              <span className="discover-preview-target">{formatResolutionLabel(m.targetDate)}</span>
+              <span className="discover-preview-consensus">
+                {m.consensus != null ? compactNumber(m.consensus) : '-'}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function MarketplacePage() {
   const { user } = useAuth();
-  const [publicMarkets, setPublicMarkets] = useState<MarketplaceListing[]>([]);
-  const [accessibleWorkspaces, setAccessibleWorkspaces] = useState<AccessibleWorkspaceMarkets[]>([]);
-  const [joinedWorkspaceIds, setJoinedWorkspaceIds] = useState<string[]>([]);
-  const [tradingParticipant, setTradingParticipant] = useState<TradingParticipant | null>(null);
-  const [loadingPublic, setLoadingPublic] = useState(true);
-  const [loadingAccessible, setLoadingAccessible] = useState(false);
-  const [publicError, setPublicError] = useState('');
-  const [accessibleError, setAccessibleError] = useState('');
+  const navigate = useNavigate();
+
+  const [participant, setParticipant] = useState<ParticipantSummary | null>(null);
+  const [memberships, setMemberships] = useState<WorkspaceMembership[]>([]);
+  const [positions, setPositions] = useState<PositionRow[]>([]);
+  const [workspaceMarkets, setWorkspaceMarkets] = useState<MarketRow[]>([]);
+  const [discover, setDiscover] = useState<DiscoverRow[]>([]);
+  const [stats, setStats] = useState<{ marketsActive: number; agentsActive: number; tradesThisWeek: number } | null>(null);
+  const [loadingPersonal, setLoadingPersonal] = useState(false);
+  const [loadingDiscover, setLoadingDiscover] = useState(true);
+  const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+  const [activeWorkspaceFilter, setActiveWorkspaceFilter] = useState<string>('all');
 
-  const loadPublic = useCallback(async () => {
-    setLoadingPublic(true);
-    setPublicError('');
-    try {
-      setPublicMarkets(await api.getMarketplace());
-    } catch (e: unknown) {
-      setPublicError((e as Error).message || 'Failed to load public markets');
-    } finally {
-      setLoadingPublic(false);
-    }
-  }, []);
+  const handleSignup = useCallback(() => navigate('/signup'), [navigate]);
 
-  const loadAccessible = useCallback(async () => {
+  const loadPersonal = useCallback(async () => {
     if (!user) {
-      setAccessibleWorkspaces([]);
-      setJoinedWorkspaceIds([]);
-      setTradingParticipant(null);
-      setAccessibleError('');
-      setLoadingAccessible(false);
+      setParticipant(null);
+      setMemberships([]);
+      setPositions([]);
+      setWorkspaceMarkets([]);
+      setLoadingPersonal(false);
       return;
     }
-
-    setLoadingAccessible(true);
-    setAccessibleError('');
-
+    setLoadingPersonal(true);
+    setError('');
     try {
-      const workspaces = await api.listWorkspaces() as Array<{ id: string; name: string; memberRole: string }>;
-      setJoinedWorkspaceIds(workspaces.map(workspace => workspace.id));
-
       await api.getProfile().catch((e: Error) => console.error('getProfile failed:', e.message));
-      const participant = await api.getParticipant().catch(() => null) as { id: string; balance: number } | null;
-      setTradingParticipant(participant);
+      const [me, workspaces] = await Promise.all([
+        api.getParticipant().catch(() => null) as Promise<ParticipantSummary | null>,
+        api.listWorkspaces().catch((e: Error) => {
+          console.error('listWorkspaces failed:', e.message);
+          return [] as WorkspaceMembership[];
+        }) as Promise<WorkspaceMembership[]>,
+      ]);
+      setParticipant(me);
+      setMemberships(workspaces);
 
-      const tradableWorkspaces = workspaces.filter(workspace => workspace.memberRole !== 'viewer');
-      const workspaceMarkets = await Promise.all(tradableWorkspaces.map(async workspace => {
-        const [markets, positions] = await Promise.all([
-          api.getMarkets(undefined, workspace.id).catch((e: Error) => {
-            console.error(`getMarkets failed for workspace ${workspace.id}:`, e.message);
-            return [];
+      const tradable = workspaces.filter(w => w.memberRole !== 'viewer');
+      const perWorkspace = await Promise.all(tradable.map(async w => {
+        const [markets, ps] = await Promise.all([
+          api.getMarkets(undefined, w.id).catch((e: Error) => {
+            console.error(`getMarkets(${w.id}) failed:`, e.message);
+            return [] as Market[];
           }) as Promise<Market[]>,
-          api.getPositions(undefined, undefined, workspace.id).catch((e: Error) => {
-            console.error(`getPositions failed for workspace ${workspace.id}:`, e.message);
-            return [];
-          }) as Promise<Array<{ marketId: string; shares: number }>>,
+          api.getPositions(undefined, undefined, w.id).catch((e: Error) => {
+            console.error(`getPositions(${w.id}) failed:`, e.message);
+            return [] as Position[];
+          }) as Promise<Position[]>,
         ]);
-        // Open markets are always shown. Closed markets (deactivated by the
-        // TP refresh) only matter if the participant still has shares to
-        // exit; otherwise they clutter the marketplace because the metric's
-        // density only keeps N markets active at a time.
-        const heldMarketIds = new Set(positions.filter(p => p.shares > 0).map(p => p.marketId));
-        return {
-          workspaceId: workspace.id,
-          workspaceName: workspace.name,
-          memberRole: workspace.memberRole,
-          markets: markets.filter(market =>
-            market.status === 'open' || (market.status === 'closed' && heldMarketIds.has(market.id))),
-        };
+        return { workspace: w, markets, positions: ps };
       }));
 
-      setAccessibleWorkspaces(workspaceMarkets.filter(workspace => workspace.markets.length > 0));
-    } catch (e: unknown) {
-      setAccessibleError((e as Error).message || 'Failed to load your markets');
-      setAccessibleWorkspaces([]);
-      setJoinedWorkspaceIds([]);
-      setTradingParticipant(null);
+      const heldRows: PositionRow[] = [];
+      const openRows: MarketRow[] = [];
+      for (const { workspace, markets, positions: ps } of perWorkspace) {
+        const heldByMarket = new Map<string, Position>();
+        for (const p of ps) {
+          if (p.shares > 0) heldByMarket.set(`${p.marketId}:${p.direction}`, p);
+        }
+        for (const m of markets) {
+          const heldHigher = heldByMarket.get(`${m.id}:higher`);
+          const heldLower = heldByMarket.get(`${m.id}:lower`);
+          const held = [heldHigher, heldLower].filter((p): p is Position => Boolean(p));
+          if (held.length > 0) {
+            for (const p of held) {
+              heldRows.push({ workspaceId: workspace.id, workspaceName: workspace.name, market: m, position: p });
+            }
+          } else if (m.status === 'open') {
+            openRows.push({ workspaceId: workspace.id, workspaceName: workspace.name, market: m });
+          }
+        }
+      }
+
+      heldRows.sort((a, b) => {
+        const aResolved = a.market.status !== 'open';
+        const bResolved = b.market.status !== 'open';
+        if (aResolved !== bResolved) return aResolved ? 1 : -1;
+        return endOfPeriod(a.market.targetDate).localeCompare(endOfPeriod(b.market.targetDate));
+      });
+      openRows.sort(compareMarketsByResolution);
+
+      setPositions(heldRows);
+      setWorkspaceMarkets(openRows);
+    } catch (e) {
+      setError((e as Error).message || 'Failed to load your markets');
     } finally {
-      setLoadingAccessible(false);
+      setLoadingPersonal(false);
     }
   }, [user]);
 
-  useEffect(() => {
-    void loadPublic();
-  }, [loadPublic]);
+  const loadDiscover = useCallback(async () => {
+    setLoadingDiscover(true);
+    try {
+      const listings = await api.getMarketplace().catch(() => [] as MarketplaceListing[]);
+      const grouped = new Map<string, DiscoverRow>();
+      for (const m of listings) {
+        const existing = grouped.get(m.workspaceId);
+        if (existing) {
+          existing.totalMarkets += 1;
+          if (existing.preview.length < 2) existing.preview.push(m);
+        } else {
+          grouped.set(m.workspaceId, {
+            workspaceId: m.workspaceId,
+            workspaceName: m.workspaceName,
+            preview: [m],
+            totalMarkets: 1,
+          });
+        }
+      }
+      setDiscover(Array.from(grouped.values()));
+    } catch (e) {
+      console.error('loadDiscover failed:', (e as Error).message);
+    } finally {
+      setLoadingDiscover(false);
+    }
+  }, []);
 
+  useEffect(() => { void loadPersonal(); }, [loadPersonal]);
+  useEffect(() => { void loadDiscover(); }, [loadDiscover]);
   useEffect(() => {
-    void loadAccessible();
-  }, [loadAccessible]);
+    api.getStats()
+      .then(setStats)
+      .catch((e: Error) => console.error('getStats failed:', e.message));
+  }, []);
 
+  // Share-link handoff: ?workspace=<id> pre-fills the search so the targeted
+  // workspace is the only thing on screen. Kept for backwards-compat with
+  // existing share URLs (see docs/browse-tests/00-anonymous/marketplace-public.md T4).
   useEffect(() => {
     const wsId = new URLSearchParams(window.location.search).get('workspace');
-    if (!wsId || publicMarkets.length === 0) return;
-    const match = publicMarkets.find(m => m.workspaceId === wsId);
-    if (match) setSearch(match.workspaceName);
-  }, [publicMarkets]);
+    if (!wsId) return;
+    const fromMembership = memberships.find(w => w.id === wsId);
+    if (fromMembership) { setSearch(fromMembership.name); setActiveWorkspaceFilter(wsId); return; }
+    const fromDiscover = discover.find(d => d.workspaceId === wsId);
+    if (fromDiscover) setSearch(fromDiscover.workspaceName);
+  }, [memberships, discover]);
 
-  const normalizedSearch = search.trim().toLowerCase();
-  const filteredPublic = useMemo(() => {
-    const filtered = !normalizedSearch
-      ? publicMarkets
-      : publicMarkets.filter(market =>
-      market.metricName.toLowerCase().includes(normalizedSearch) ||
-      market.workspaceName.toLowerCase().includes(normalizedSearch),
-      );
-    return [...filtered].sort(compareByResolutionDate);
-  }, [normalizedSearch, publicMarkets]);
+  const joinedWorkspaceIds = useMemo(() => new Set(memberships.map(w => w.id)), [memberships]);
 
-  const filteredAccessible = useMemo(() => {
-    const filtered = (!normalizedSearch ? accessibleWorkspaces : accessibleWorkspaces
-      .map(workspace => {
-        const workspaceMatch = workspace.workspaceName.toLowerCase().includes(normalizedSearch);
-        return {
-          ...workspace,
-          markets: workspaceMatch
-            ? workspace.markets
-            : workspace.markets.filter(market => market.metricName.toLowerCase().includes(normalizedSearch)),
-        };
-      })
-      .filter(workspace => workspace.markets.length > 0));
-    return filtered
-      .map(workspace => ({ ...workspace, markets: [...workspace.markets].sort(compareByResolutionDate) }))
-      .sort((a, b) => {
-        const aFirst = a.markets[0];
-        const bFirst = b.markets[0];
-        if (!aFirst || !bFirst) return a.workspaceName.localeCompare(b.workspaceName);
-        const dateDiff = compareByResolutionDate(aFirst, bFirst);
-        if (dateDiff !== 0) return dateDiff;
-        return a.workspaceName.localeCompare(b.workspaceName);
-      });
-  }, [accessibleWorkspaces, normalizedSearch]);
+  const filteredDiscover = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return discover
+      .filter(d => !joinedWorkspaceIds.has(d.workspaceId))
+      .filter(d => !q ||
+        d.workspaceName.toLowerCase().includes(q) ||
+        d.preview.some(p => p.metricName.toLowerCase().includes(q)))
+      .sort((a, b) => b.totalMarkets - a.totalMarkets);
+  }, [discover, joinedWorkspaceIds, search]);
+
+  const filteredPositions = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return positions.filter(row =>
+      (activeWorkspaceFilter === 'all' || row.workspaceId === activeWorkspaceFilter) &&
+      (!q ||
+        row.market.metricName.toLowerCase().includes(q) ||
+        row.workspaceName.toLowerCase().includes(q)),
+    );
+  }, [positions, activeWorkspaceFilter, search]);
+
+  const filteredOpen = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return workspaceMarkets.filter(row =>
+      (activeWorkspaceFilter === 'all' || row.workspaceId === activeWorkspaceFilter) &&
+      (!q ||
+        row.market.metricName.toLowerCase().includes(q) ||
+        row.workspaceName.toLowerCase().includes(q)),
+    );
+  }, [workspaceMarkets, activeWorkspaceFilter, search]);
+
+  const summary = useMemo(() => {
+    let exposure = 0;
+    let mark = 0;
+    let valued = 0;
+    for (const row of positions) {
+      exposure += row.position.totalCost;
+      const payout = payoutAtConsensus(row.market, row.position.direction, row.position.shares);
+      if (payout != null) { mark += payout; valued += row.position.totalCost; }
+    }
+    return {
+      count: positions.length,
+      exposure,
+      pl: valued > 0 ? mark - valued : null,
+    };
+  }, [positions]);
+
+  const refresh = () => { void loadPersonal(); };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {!user && (
-        <nav style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          paddingBottom: '1.25rem', borderBottom: '1px solid var(--border-color)',
-          marginBottom: '2rem',
-        }}>
-          <Link to="/" style={{ fontWeight: 700, fontSize: '1.05rem', letterSpacing: '-0.02em', textDecoration: 'none', color: 'var(--text-primary)' }}>
-            Telarchy
-          </Link>
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-            <Link to="/login" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.9rem' }}>Log in</Link>
-            <Link to="/signup" style={{
-              background: 'var(--button-bg)', color: 'var(--button-text)',
-              padding: '0.4rem 1rem', borderRadius: 'var(--radius-md)',
-              textDecoration: 'none', fontSize: '0.9rem', fontWeight: 500,
-            }}>
-              Sign up
-            </Link>
-          </div>
-        </nav>
-      )}
-
-      <div style={{ maxWidth: 720, margin: '0 auto', width: '100%', flex: 1 }}>
-        {!user && (
-          <div style={{
-            marginBottom: '1.5rem', padding: '1rem 1.25rem',
-            background: 'var(--focus-bg)', border: '1px solid var(--focus-border)',
-            borderRadius: '0.5rem',
-          }}>
-            <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '0.25rem' }}>
-              Telarchy: market-calibrated forecasts on your goals
-            </div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: 0 }}>
-              Participants, human or AI, compete in prediction markets to forecast metrics that matter.{' '}
-              <Link to="/signup" style={{ color: 'inherit', fontWeight: 600 }}>Sign up for 1000 free credits</Link>{' '}
-              to trade on any of the workspaces below.
+    <div className="marketplace-page">
+      <div className="marketplace-container">
+        <header className="marketplace-header">
+          <h1>Marketplace</h1>
+          {user ? (
+            <p className="marketplace-summary">
+              Trading as <strong>{displayName(user, participant?.id ?? 'you')}</strong>
+              {participant && <> · {compactNumber(participant.balance)} credits</>}
+              {summary.count > 0 && (
+                <>
+                  {' '}· {summary.count} {summary.count === 1 ? 'position' : 'positions'} ({compactNumber(summary.exposure)} cost
+                  {summary.pl != null && (
+                    <> · <span className={summary.pl >= 0 ? 'pl-pos' : 'pl-neg'}>{formatSignedDelta(summary.pl)} at consensus</span></>
+                  )})
+                </>
+              )}
             </p>
-          </div>
-        )}
-        <div style={{ marginBottom: '1.5rem' }}>
-          <h2 style={{ marginBottom: '0.25rem' }}>Marketplace</h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            Browse public markets and, when signed in, trade directly in the workspaces you already have access to.
-          </p>
-        </div>
+          ) : (
+            <p className="marketplace-summary">
+              Participants, human or AI, forecast metrics that matter.{' '}
+              <Link to="/signup">Sign up for 1000 free credits</Link> to trade in any of the workspaces below.
+            </p>
+          )}
+          {stats && (
+            <p className="marketplace-stats">
+              <strong>{stats.marketsActive}</strong> active {stats.marketsActive === 1 ? 'market' : 'markets'}
+              {' · '}
+              <strong>{stats.agentsActive}</strong> {stats.agentsActive === 1 ? 'participant' : 'participants'}
+              {' · '}
+              <strong>{stats.tradesThisWeek}</strong> {stats.tradesThisWeek === 1 ? 'trade' : 'trades'} this week
+            </p>
+          )}
+        </header>
 
-        <div className="form-group" style={{ marginBottom: '1rem' }}>
+        <div className="marketplace-toolbar">
           <input
             type="search"
-            placeholder="Search metrics or workspaces..."
+            className="marketplace-search"
+            placeholder="Search metrics or workspaces…"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
+          {user && memberships.length > 1 && (
+            <div className="marketplace-chips" role="tablist">
+              <button
+                type="button"
+                className={`markets-chip${activeWorkspaceFilter === 'all' ? ' active' : ''}`}
+                onClick={() => setActiveWorkspaceFilter('all')}
+              >
+                <span>all workspaces</span>
+              </button>
+              {memberships.map(w => (
+                <button
+                  key={w.id}
+                  type="button"
+                  className={`markets-chip${activeWorkspaceFilter === w.id ? ' active' : ''}`}
+                  onClick={() => setActiveWorkspaceFilter(w.id)}
+                >
+                  <span>{w.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
+        {error && <div className="message error show">{error}</div>}
+
         {user && (
-          <div style={{ marginBottom: '2rem' }}>
-            <div style={{ marginBottom: '0.75rem' }}>
-              <h3 style={{ marginBottom: '0.25rem' }}>Your accessible markets</h3>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>
-                {tradingParticipant
-                  ? (
-                    <>
-                      You are trading as{' '}
-                      <span title={tradingParticipant.id}>{user?.name && user.name !== user.email ? user.name : (user?.email ?? tradingParticipant.id)}</span>
-                      {' '}({tradingParticipant.balance.toFixed(2)} credits).
-                    </>
-                  )
-                  : 'Your participant account is still loading.'}
+          <section className="marketplace-section">
+            <h2>Your positions</h2>
+            {loadingPersonal && positions.length === 0 ? (
+              <div className="loading">Loading your positions…</div>
+            ) : filteredPositions.length === 0 ? (
+              <p className="marketplace-empty">
+                {search || activeWorkspaceFilter !== 'all'
+                  ? 'No positions match the current filter.'
+                  : 'No positions yet. Place a forecast on any open market below to start.'}
               </p>
-            </div>
-
-            {loadingAccessible && <div className="loading" style={{ padding: '1.5rem 0' }}>Loading your markets...</div>}
-            {accessibleError && <div className="error show">{accessibleError}</div>}
-            {!loadingAccessible && !accessibleError && filteredAccessible.length === 0 && (
-              <div style={{ color: 'var(--text-tertiary)', padding: '1rem 0 0' }}>
-                {normalizedSearch ? 'No accessible markets match your search.' : 'You do not have any tradable markets yet. Join a public workspace below to start trading.'}
-              </div>
-            )}
-
-            {!loadingAccessible && !accessibleError && tradingParticipant && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                {filteredAccessible.map(workspace => (
-                  <section key={workspace.workspaceId} className="section" style={{ padding: '1rem' }}>
-                    <div style={{ marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
-                      <div>
-                        <div style={{ fontWeight: 600 }}>{workspace.workspaceName}</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                          {workspace.markets.length} active market{workspace.markets.length === 1 ? '' : 's'} · role: {workspace.memberRole}
-                        </div>
-                      </div>
-                      <ShareWorkspaceButton workspaceId={workspace.workspaceId} workspaceName={workspace.workspaceName} />
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                      {workspace.markets.map(market => (
-                        <AccessibleMarketCard
-                          key={market.id}
-                          workspaceId={workspace.workspaceId}
-                          workspaceName={workspace.workspaceName}
-                          market={market}
-                          participant={tradingParticipant}
-                          onTrade={() => { void loadAccessible(); }}
-                          onError={setAccessibleError}
-                        />
-                      ))}
-                    </div>
-                  </section>
+            ) : (
+              <div className="markets-list">
+                {filteredPositions.map(row => (
+                  <PositionCard
+                    key={`${row.workspaceId}:${row.market.id}:${row.position.direction}`}
+                    row={row}
+                    onTrade={refresh}
+                    onError={setError}
+                  />
                 ))}
               </div>
             )}
-          </div>
+          </section>
         )}
 
-        <div style={{ marginBottom: '1rem' }}>
-          <h3 style={{ marginBottom: '0.25rem' }}>Public markets</h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', margin: 0 }}>
-            Discover active markets from public workspaces.
+        {user && (
+          <section className="marketplace-section">
+            <h2>Open markets in your workspaces</h2>
+            {loadingPersonal && workspaceMarkets.length === 0 ? (
+              <div className="loading">Loading…</div>
+            ) : filteredOpen.length === 0 ? (
+              <p className="marketplace-empty">
+                {memberships.length === 0
+                  ? 'You are not a member of any workspace yet. Discover one below to get started.'
+                  : search || activeWorkspaceFilter !== 'all'
+                  ? 'No open markets match the current filter.'
+                  : 'Every open market in your workspaces already has one of your positions.'}
+              </p>
+            ) : (
+              <div className="markets-list">
+                {filteredOpen.map(row => (
+                  <WorkspaceMarketCard
+                    key={`${row.workspaceId}:${row.market.id}`}
+                    row={row}
+                    onTrade={refresh}
+                    onError={setError}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        <section className="marketplace-section">
+          <h2>Discover workspaces</h2>
+          <p className="marketplace-section-sub">
+            Public workspaces you can join. Joining grants the role configured by the workspace owner; on Open workspaces that's trading rights immediately.
           </p>
-        </div>
-
-        {loadingPublic && <div className="loading" style={{ padding: '2rem 0' }}>Loading markets...</div>}
-        {publicError && <div className="error show">{publicError}</div>}
-
-        {!loadingPublic && !publicError && filteredPublic.length === 0 && (
-          <div style={{ textAlign: 'center', color: 'var(--text-tertiary)', padding: '3rem 0' }}>
-            {search ? 'No markets match your search.' : 'No public markets yet.'}
-          </div>
-        )}
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {filteredPublic.map(market => (
-            <PublicMarketCard
-              key={`${market.workspaceId}:${market.marketId}`}
-              market={market}
-              joined={joinedWorkspaceIds.includes(market.workspaceId)}
-              onJoined={() => { void loadAccessible(); }}
-            />
-          ))}
-        </div>
-
-        {!user && filteredPublic.length > 0 && (
-          <div style={{
-            marginTop: '2rem', padding: '1.25rem',
-            background: 'var(--focus-bg)', border: '1px solid var(--focus-border)',
-            borderRadius: '0.5rem', textAlign: 'center',
-          }}>
-            <p style={{ marginBottom: '0.75rem' }}>
-              <strong>Want to trade on these markets?</strong><br />
-              <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                Create a free account or log in to join workspaces and place trades.
-              </span>
+          {loadingDiscover ? (
+            <div className="loading">Loading public workspaces…</div>
+          ) : filteredDiscover.length === 0 ? (
+            <p className="marketplace-empty">
+              {search ? 'No public workspaces match your search.' : 'No public workspaces yet.'}
             </p>
-            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
-              <Link to="/signup" style={{
-                background: 'var(--button-bg)', color: 'var(--button-text)',
-                padding: '0.5rem 1.1rem', borderRadius: 'var(--radius-md)',
-                textDecoration: 'none', fontWeight: 500, fontSize: '0.875rem',
-              }}>Create account</Link>
-              <Link to="/login" style={{
-                background: 'var(--bg-secondary)', color: 'var(--text-primary)',
-                border: '1px solid var(--border-color)',
-                padding: '0.5rem 1.1rem', borderRadius: 'var(--radius-md)',
-                textDecoration: 'none', fontWeight: 500, fontSize: '0.875rem',
-              }}>Log in</Link>
+          ) : (
+            <div className="markets-list">
+              {filteredDiscover.map(row => (
+                <DiscoverWorkspaceCard
+                  key={row.workspaceId}
+                  row={row}
+                  onJoined={refresh}
+                  onSignup={handleSignup}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+
+        {!user && filteredDiscover.length > 0 && (
+          <div className="marketplace-signup-cta">
+            <p>
+              <strong>Want to trade on these markets?</strong><br />
+              <span>Create a free account or log in to join workspaces and place trades.</span>
+            </p>
+            <div className="marketplace-cta-row">
+              <Link to="/signup" className="btn btn-primary">Create account</Link>
+              <Link to="/login" className="btn">Log in</Link>
             </div>
           </div>
         )}
+
       </div>
     </div>
   );

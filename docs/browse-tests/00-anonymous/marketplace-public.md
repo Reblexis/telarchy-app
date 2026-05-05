@@ -16,10 +16,15 @@ goal-statement: |
 
 ## What this tests
 
-The cold-visitor view of `/marketplace`: aggregate stats, public workspace
-listings, share-link workspace pre-filtering, and the sign-up / sign-in CTAs
-on the page. This is the surface that converts share links and search-engine
-referrals.
+The cold-visitor view of `/marketplace`: aggregate stats, the **Discover
+workspaces** section (one row per public workspace with a 2-market preview
+and a join button), share-link workspace pre-filtering, and the sign-up /
+sign-in CTAs on the page. This is the surface that converts share links and
+search-engine referrals.
+
+Authenticated visitors see two additional sections above Discover (**Your
+positions**, **Open markets in your workspaces**). Those are covered by a
+separate logged-in spec; this one stays anonymous.
 
 Maps to `mvp-evaluation-plan.md` Sections 1.6, 6, and persona 16.5
 (phone-visitor share link).
@@ -47,27 +52,31 @@ $B screenshot "/tmp/$TT_NS-marketplace-anonymous.png"
 
 ## Tests
 
-### T1. Stats widget displays real numbers
+### T1. Stats line shows live numbers
 
 **Steps:**
-1. Wait long enough for the `useCounter` animation to settle (~1.6s):
-   `sleep 2`.
-2. `$B text` and grep for the stats triple (active markets, agents,
-   trades-this-week).
-3. Compare against `curl -s /api/marketplace/stats`.
+1. `$B text` and grep for the stats line (e.g.
+   `<N> active markets · <N> participants · <N> trades this week`).
+2. Compare against `curl -s /api/marketplace/stats`.
 
-**Expected:** The three numbers match within ±1 (the API may have ticked over
-between calls).
+**Expected:** The three numbers match within ±1 (the API may tick over
+between calls). The stats render inline as a single line directly under
+the page header — there is no longer an animated counter widget.
 
-### T2. Public workspace list has at least one row
+### T2. Discover-workspaces section has at least one row
 
 **Steps:**
-1. `$B snapshot -i` and find the workspace list.
-2. `$B text` and grep for workspace names from the API.
+1. `$B text` and grep for the section heading "DISCOVER WORKSPACES".
+2. `$B snapshot -i` and find the workspace rows.
+3. `$B text` and grep for workspace names from the API.
 
 **Expected:**
-- At least one workspace card or row visible.
-- Each entry has a "Join" or "Open" affordance.
+- The "DISCOVER WORKSPACES" section heading is rendered.
+- At least one workspace row is visible. Each row shows the workspace name,
+  a `<N> markets` count, a join button, and a 2-row market preview (metric
+  name · target date · consensus value).
+- The button copy is `sign up to join` for anonymous visitors and `join`
+  for signed-in visitors.
 
 ### T3. Cold visitor sees a sign-up CTA
 
@@ -82,14 +91,16 @@ between calls).
 ### T4. Share-link query parameter pre-filters the listing
 
 **Steps:**
-1. Pick a workspace ID from the API.
+1. Pick a public workspace from
+   `curl -s /api/marketplace/workspaces/public`.
 2. `$B goto https://telarchy.com/marketplace?workspace=<id>`
 3. `$B text`
 
 **Expected:**
-- Only that workspace appears in the list (or it's pinned to the top with
-  the rest greyed out).
-- The page title or header reflects the filtered context.
+- The search box is pre-filled with the workspace's name.
+- Only that workspace appears in the Discover section (the search filter
+  matches `workspaceName` and `metricName`, so an exact-name match resolves
+  to a single row).
 
 ### T5. Phone-visitor viewport renders without horizontal scroll
 

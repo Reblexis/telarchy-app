@@ -5305,3 +5305,266 @@ code, pre, kbd, samp {
   .leaderboard-row > :nth-child(4) { display: none; }
 }
 
+
+/* ===== Marketplace page (agent-centric rebuild) ===== */
+.marketplace-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.marketplace-topnav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 1.5rem;
+}
+
+.marketplace-brand {
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+  text-decoration: none;
+  color: var(--text-primary);
+}
+
+.marketplace-topnav-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.marketplace-link {
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.marketplace-cta {
+  font-size: 0.9rem;
+}
+
+.marketplace-container {
+  max-width: 1080px;
+  margin: 0 auto;
+  width: 100%;
+  flex: 1;
+  padding: 0 1rem 3rem;
+}
+
+.marketplace-header {
+  margin-bottom: 1.5rem;
+}
+
+.marketplace-header h1 {
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  margin: 0 0 0.35rem;
+}
+
+.marketplace-summary {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin: 0;
+  line-height: 1.6;
+}
+
+.marketplace-summary strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.marketplace-summary .pl-pos { color: var(--success-text); }
+.marketplace-summary .pl-neg { color: var(--error-text); }
+
+.marketplace-stats {
+  margin: 0.5rem 0 0;
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.marketplace-stats strong {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.marketplace-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.marketplace-search {
+  flex: 1 1 240px;
+  min-width: 200px;
+  height: 36px;
+}
+
+.marketplace-section {
+  margin-bottom: 2.25rem;
+}
+
+.marketplace-section h2 {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary);
+  margin: 0 0 0.65rem;
+}
+
+.marketplace-section-sub {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: -0.35rem 0 0.75rem;
+  line-height: 1.45;
+}
+
+.marketplace-empty {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  padding: 0.75rem 0;
+  margin: 0;
+}
+
+/* Workspace nametag inside the target row of a market card */
+.market-workspace-tag {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  text-transform: none;
+  letter-spacing: 0.01em;
+}
+
+/* Direction + shares pill on a position row (replaces the slider) */
+.market-position-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.market-position-higher {
+  background: var(--success-bg);
+  color: var(--success-text);
+}
+
+.market-position-lower {
+  background: var(--error-bg, var(--bg-tertiary));
+  color: var(--error-text);
+}
+
+/* Discover (workspace) row variant */
+.discover-card {
+  cursor: default;
+}
+
+.discover-card .market-head-name {
+  flex: 1 1 220px;
+}
+
+.discover-card:hover {
+  border-color: var(--border-hover);
+}
+
+.market-meta {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.market-join-status {
+  font-size: 0.78rem;
+  color: var(--success-text);
+  white-space: nowrap;
+}
+
+.market-join-status.err { color: var(--error-text); }
+
+.discover-preview {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  border-top: 1px solid var(--border-color);
+}
+
+.discover-preview li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.6rem;
+  align-items: baseline;
+  padding: 0.35rem 0;
+  border-bottom: 1px dashed var(--border-color);
+  font-size: 0.82rem;
+}
+
+.discover-preview li:last-child { border-bottom: none; }
+
+.discover-preview-name {
+  color: var(--text-primary);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.discover-preview-target {
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+}
+
+.discover-preview-consensus {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: right;
+  min-width: 3rem;
+}
+
+.marketplace-signup-cta {
+  margin-top: 2rem;
+  padding: 1.25rem;
+  background: var(--focus-bg);
+  border: 1px solid var(--focus-border);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.marketplace-signup-cta p { margin: 0 0 0.75rem; }
+.marketplace-signup-cta strong { font-weight: 600; }
+.marketplace-signup-cta span { color: var(--text-secondary); font-size: 0.9rem; }
+
+.marketplace-cta-row {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+@media (max-width: 640px) {
+  .marketplace-container { padding: 0 1rem 2rem; }
+  .marketplace-topnav { padding: 1rem 1rem 1.25rem; }
+  .marketplace-toolbar { flex-direction: column; align-items: stretch; }
+  .market-workspace-tag { font-size: 0.7rem; }
+  .discover-preview li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .discover-preview-target { display: none; }
+}
