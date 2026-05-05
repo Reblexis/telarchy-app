@@ -390,10 +390,19 @@ function AgentAdminPage({ user: _user, workspace }: {
     }
   };
 
-  const handleTogglePermission = async (group: PermissionGroup, metricId: string, field: 'read' | 'trade') => {
-    const current = group.permissions[metricId] ?? { read: false, trade: false };
-    const next = { ...group.permissions, [metricId]: { ...current, [field]: !current[field] } };
-    if (!next[metricId].read && !next[metricId].trade) delete next[metricId];
+  // Per-metric trade allow-list. Backend semantics (predictions.canTradeMetric):
+  // when any group has permissions[metricId].trade === true, that metric becomes
+  // restricted and only members of allow-listed groups can trade it; metrics
+  // with no rules anywhere are unrestricted. Per-metric `read` is not enforced
+  // by the backend (no read filter exists), so the UI does not surface it.
+  const handleToggleAllowList = async (group: PermissionGroup, metricId: string) => {
+    const inList = group.permissions[metricId]?.trade === true;
+    const next = { ...group.permissions };
+    if (inList) {
+      delete next[metricId];
+    } else {
+      next[metricId] = { read: false, trade: true };
+    }
     try {
       await api.updateGroup(group.id, { permissions: next });
       setGroups(prev => prev.map(g => g.id === group.id ? { ...g, permissions: next } : g));
@@ -703,7 +712,7 @@ function AgentAdminPage({ user: _user, workspace }: {
         <div className="section-header">
           <h2>Permission groups</h2>
           <p className="section-subtitle">
-            Manage group capabilities and per-metric permissions. Assign participants using the + add control in the table above.
+            Each group carries a set of capabilities (read, trade, manage, manage_workspace) that apply to every member. Optional per-metric trade restrictions and per-source read grants narrow access further. Assign participants using the + add control in the table above.
           </p>
         </div>
 
@@ -752,6 +761,10 @@ function AgentAdminPage({ user: _user, workspace }: {
                     <div className="group-row-body">
                       <div className="group-subsection">
                         <div className="section-label">Capabilities</div>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0 0 0.4rem' }}>
+                          A participant's effective capabilities are the union across every group they belong to.
+                          <code>read</code> sees data, <code>trade</code> places trades and submits proposals, <code>manage</code> covers admin operations (approve/decline proposals, manage groups, edit workspace name), <code>manage_workspace</code> covers destructive lifecycle ops (delete the workspace, change visibility, configure auto-fund and proposal liquidity).
+                        </p>
                         <div className="capability-row">
                           {(['read', 'trade', 'manage', 'manage_workspace'] as Capability[]).map(cap => {
                             const checked = (group.capabilities ?? []).includes(cap);
@@ -765,42 +778,87 @@ function AgentAdminPage({ user: _user, workspace }: {
                         </div>
                       </div>
 
-                      <div className="group-subsection">
-                        <div className="section-label">Metric permissions</div>
-                        {metrics.length === 0 ? (
-                          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>No leaf metrics.</p>
-                        ) : (
-                          <table className="agent-subtable">
-                            <thead>
-                              <tr>
-                                <th style={{ textAlign: 'left' }}>Metric</th>
-                                <th style={{ textAlign: 'center', width: 60 }}>Read</th>
-                                <th style={{ textAlign: 'center', width: 60 }}>Trade</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {metrics.map(m => {
-                                const perms = group.permissions[m.id] ?? { read: false, trade: false };
-                                return (
-                                  <tr key={m.id}>
-                                    <td>{m.name}</td>
-                                    <td style={{ textAlign: 'center' }}>
-                                      <input type="checkbox" checked={perms.read} onChange={() => handleTogglePermission(group, m.id, 'read')} />
-                                    </td>
-                                    <td style={{ textAlign: 'center' }}>
-                                      <input type="checkbox" checked={perms.trade} onChange={() => handleTogglePermission(group, m.id, 'trade')} />
-                                    </td>
+                      {(() => {
+                        // Show metrics that have an allow-list entry from any group, so the
+                        // admin sees the active restriction landscape and where this group
+                        // sits within it. Metrics with no rule anywhere are unrestricted and
+                        // don't need a row.
+                        const restrictedIds = new Set<string>();
+                        for (const g of groups) {
+                          for (const [mid, p] of Object.entries(g.permissions ?? {})) {
+                            if (p?.trade) restrictedIds.add(mid);
+                          }
+                        }
+                        const restrictedMetrics = metrics.filter(m => restrictedIds.has(m.id));
+                        const addableMetrics = metrics.filter(m => !restrictedIds.has(m.id));
+                        const groupCanTrade = (group.capabilities ?? []).includes('trade');
+
+                        return (
+                          <div className="group-subsection">
+                            <div className="section-label">Per-metric trade restrictions</div>
+                            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0 0 0.6rem' }}>
+                              By default any participant with the <code>trade</code> capability can trade every metric. Add a metric below to restrict trading on it: once any group has an entry for a metric, only members of allow-listed groups (plus participants with <code>manage</code>) can trade that metric.
+                              {!groupCanTrade && (
+                                <> This group does not have the <code>trade</code> capability, so allow-listing it is informational only until you grant it.</>
+                              )}
+                            </p>
+                            {metrics.length === 0 ? (
+                              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>No leaf metrics.</p>
+                            ) : restrictedMetrics.length === 0 ? (
+                              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                No metrics are restricted. Members of this group can trade every metric (subject to the <code>trade</code> capability).
+                              </p>
+                            ) : (
+                              <table className="agent-subtable">
+                                <thead>
+                                  <tr>
+                                    <th style={{ textAlign: 'left' }}>Metric</th>
+                                    <th style={{ textAlign: 'center', width: 160 }}>In allow-list</th>
                                   </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        )}
-                      </div>
+                                </thead>
+                                <tbody>
+                                  {restrictedMetrics.map(m => {
+                                    const inList = group.permissions[m.id]?.trade === true;
+                                    return (
+                                      <tr key={m.id}>
+                                        <td>{m.name}</td>
+                                        <td style={{ textAlign: 'center' }}>
+                                          <input type="checkbox" checked={inList} onChange={() => handleToggleAllowList(group, m.id)} />
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            )}
+                            {addableMetrics.length > 0 && (
+                              <div style={{ marginTop: '0.5rem' }}>
+                                <select
+                                  value=""
+                                  onChange={e => {
+                                    const mid = e.target.value;
+                                    if (mid) handleToggleAllowList(group, mid);
+                                    e.target.value = '';
+                                  }}
+                                  style={{ fontSize: '0.85rem' }}
+                                >
+                                  <option value="">+ restrict a metric to this group</option>
+                                  {addableMetrics.map(m => (
+                                    <option key={m.id} value={m.id}>{m.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
 
                       {sourcesList.length > 0 && (
                         <div className="group-subsection">
                           <div className="section-label">Source permissions</div>
+                          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: '0 0 0.4rem' }}>
+                            Sources require an explicit grant per group. Members of this group can read a source only if it is checked here (participants with <code>manage</code> can read everything regardless).
+                          </p>
                           <table className="agent-subtable">
                             <thead>
                               <tr>
