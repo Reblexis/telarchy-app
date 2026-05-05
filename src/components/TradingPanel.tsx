@@ -17,8 +17,9 @@ function formatCompactNumber(value: number | null | undefined): string {
   return value.toFixed(9).replace(/\.?0+$/, '');
 }
 
-export function TradingPanel({ market, workspaceId, showLiquidityControls = true, onTrade, onError }: {
+export function TradingPanel({ market, workspaceId, showLiquidityControls = true, metricValue, onTrade, onError }: {
   market: Market; workspaceId?: string; showLiquidityControls?: boolean;
+  metricValue?: number | null;
   onTrade: () => void; onError: (msg: string) => void;
 }) {
   const [tradeAmount, setTradeAmount] = useState('');
@@ -127,6 +128,7 @@ export function TradingPanel({ market, workspaceId, showLiquidityControls = true
         workspaceId={workspaceId}
         onError={onError}
         refreshToken={activityRefreshToken}
+        metricValue={metricValue}
       />
 
       {market.status === 'closed' && (
@@ -135,7 +137,19 @@ export function TradingPanel({ market, workspaceId, showLiquidityControls = true
         </div>
       )}
 
-      {market.status !== 'closed' && (
+      {market.status === 'resolved' && (
+        <div style={{ fontSize: '0.8rem', padding: '0.5rem 0.75rem', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', borderLeft: '3px solid var(--text-secondary)', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+          {`Resolved at ${market.actualValue?.toFixed(2) ?? 'N/A'}${market.resolvedAt ? ` on ${new Date(market.resolvedAt).toLocaleDateString()}` : ''}.`}
+        </div>
+      )}
+
+      {market.status === 'voided' && (
+        <div style={{ fontSize: '0.8rem', padding: '0.5rem 0.75rem', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', borderLeft: '3px solid var(--text-secondary)', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+          This market was cancelled. All positions were refunded at cost.
+        </div>
+      )}
+
+      {market.status === 'open' && (
       <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <div>
           <label style={labelStyle}>Amount ($)</label>
@@ -179,7 +193,7 @@ export function TradingPanel({ market, workspaceId, showLiquidityControls = true
       </div>
       )}
 
-      {positions.length > 0 && (
+      {(market.status === 'open' || market.status === 'closed') && positions.length > 0 && (
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)' }}>
           <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', alignSelf: 'center' }}>Sell position:</span>
           {positions.map(pos => (
