@@ -73,6 +73,12 @@ export const workspaces = pgTable('workspaces', {
   newMarketLiquidityCredits: doublePrecision('new_market_liquidity_credits').notNull().default(0),
   /** Default per-market credit subsidy to prefill on the proposal-create modal. 0 = ask each time. */
   defaultProposalLiquidity: doublePrecision('default_proposal_liquidity').notNull().default(0),
+  /** Bounty paid by workspace owner to proposer when a proposal is approved. 0 = no reward. */
+  proposalReward: doublePrecision('proposal_reward').notNull().default(0),
+  /** Penalty deducted from proposer (paid to workspace owner) when a proposal is declined as spam. 0 = no penalty. */
+  spamPenalty: doublePrecision('spam_penalty').notNull().default(0),
+  /** Per-participant cap on simultaneously pending proposals in this workspace. */
+  maxPendingProposalsPerParticipant: integer('max_pending_proposals').notNull().default(3),
 });
 
 // ---------------------------------------------------------------------------
@@ -258,11 +264,19 @@ export const proposals = pgTable('proposals', {
   proposedBy: text('proposed_by').notNull(),
   title: text('title').notNull(),
   description: text('description').notNull().default(''),
-  /** 'pending' | 'approved' | 'declined' */
+  /** 'pending' | 'approved' | 'declined' | 'declined_spam' | 'withdrawn' */
   status: text('status').notNull().default('pending'),
   conditionalMarketIds: jsonb('conditional_market_ids').notNull().$type<string[]>().default([]),
   /** Per-market credit subsidy seeded into each conditional market's pool at creation. */
   liquiditySubsidy: doublePrecision('liquidity_subsidy').notNull().default(0),
+  /** Reward credits actually paid out on approval. 0 if not approved or workspace had no reward configured. */
+  rewardPaid: doublePrecision('reward_paid').notNull().default(0),
+  /** Penalty credits actually charged on spam-decline. 0 if not declined as spam. */
+  penaltyCharged: doublePrecision('penalty_charged').notNull().default(0),
+  /** Set when status leaves 'pending'. */
+  resolvedAt: timestamp('resolved_at'),
+  /** Participant id who approved/declined/spam-declined; equals proposedBy on withdraw. */
+  resolvedBy: text('resolved_by'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
 

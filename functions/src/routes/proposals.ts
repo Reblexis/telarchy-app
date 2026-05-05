@@ -6,7 +6,15 @@ import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireCapability } from '../middleware/roles';
-import { voidProposalMarkets, approveProposal, getProposalMarketSummariesForProposal, createConditionalMarkets } from '../services/proposals';
+import {
+  approveProposal,
+  declineProposal,
+  declineProposalAsSpam,
+  withdrawProposal,
+  countPendingProposalsByProposer,
+  getProposalMarketSummariesForProposal,
+  createConditionalMarkets,
+} from '../services/proposals';
 import { validateContent, MIN_LIQUIDITY_CONTRIBUTION } from '../lib/validation';
 import { getParticipantDisplayNames } from '../lib/participants';
 
@@ -28,11 +36,26 @@ proposalsRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
   const proposedBy = req.auth!.agentId;
   if (!proposedBy) { res.status(403).json({ error: 'Proposal creation requires a participant identity. Visit your account page to finish setup.' }); return; }
 
+  const [wsForCap] = await db.select({
+    maxPending: workspaces.maxPendingProposalsPerParticipant,
+    defaultProposalLiquidity: workspaces.defaultProposalLiquidity,
+  }).from(workspaces).where(eq(workspaces.id, workspaceId));
+  const cap = wsForCap?.maxPending ?? 3;
+  if (cap > 0) {
+    const pending = await countPendingProposalsByProposer(workspaceId, proposedBy);
+    if (pending >= cap) {
+      res.status(429).json({
+        error: `You have ${pending} pending proposals; this workspace allows at most ${cap} per participant. Wait for one to be reviewed, or withdraw it.`,
+        pending,
+        cap,
+      });
+      return;
+    }
+  }
+
   let subsidy: number;
   if (liquiditySubsidy === undefined || liquiditySubsidy === null) {
-    const [ws] = await db.select({ defaultProposalLiquidity: workspaces.defaultProposalLiquidity })
-      .from(workspaces).where(eq(workspaces.id, workspaceId));
-    subsidy = ws?.defaultProposalLiquidity ?? 0;
+    subsidy = wsForCap?.defaultProposalLiquidity ?? 0;
   } else if (typeof liquiditySubsidy !== 'number' || !Number.isFinite(liquiditySubsidy) || liquiditySubsidy < 0) {
     res.status(400).json({ error: 'liquiditySubsidy must be a non-negative number' });
     return;
@@ -102,6 +125,10 @@ proposalsRouter.get('/', requireCapability('read'), wrap(async (req, res) => {
     proposedBy: t.proposedBy,
     proposedByName: names.get(t.proposedBy) ?? null,
     liquiditySubsidy: t.liquiditySubsidy,
+    rewardPaid: t.rewardPaid,
+    penaltyCharged: t.penaltyCharged,
+    resolvedAt: t.resolvedAt,
+    resolvedBy: t.resolvedBy,
     createdAt: t.createdAt,
   })));
 }));
@@ -124,23 +151,27 @@ proposalsRouter.get('/:proposalId', requireCapability('read'), wrap(async (req, 
 }));
 
 proposalsRouter.post('/:proposalId/approve', requireCapability('manage'), wrap(async (req, res) => {
-  const { workspaceId } = req.auth!;
-  await approveProposal(req.params.proposalId as string, workspaceId);
-  res.json({ ok: true });
+  const { workspaceId, agentId } = req.auth!;
+  const result = await approveProposal(req.params.proposalId as string, workspaceId, agentId ?? null);
+  res.json({ ok: true, rewardPaid: result.rewardPaid });
 }));
 
 proposalsRouter.post('/:proposalId/decline', requireCapability('manage'), wrap(async (req, res) => {
-  const { workspaceId } = req.auth!;
-  const proposalId = req.params.proposalId as string;
-  const [proposal] = await db.select().from(proposals)
-    .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
-  if (!proposal) { res.status(404).json({ error: 'Proposal not found' }); return; }
-  if (proposal.status !== 'pending') { res.status(400).json({ error: 'Can only decline pending proposals' }); return; }
+  const { workspaceId, agentId } = req.auth!;
+  await declineProposal(req.params.proposalId as string, workspaceId, agentId ?? null);
+  res.json({ ok: true });
+}));
 
-  await voidProposalMarkets(proposal.id, workspaceId);
-  await db.update(proposals).set({ status: 'declined' })
-    .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+proposalsRouter.post('/:proposalId/decline-spam', requireCapability('manage'), wrap(async (req, res) => {
+  const { workspaceId, agentId } = req.auth!;
+  const result = await declineProposalAsSpam(req.params.proposalId as string, workspaceId, agentId ?? null);
+  res.json({ ok: true, penaltyCharged: result.penaltyCharged });
+}));
 
+proposalsRouter.post('/:proposalId/withdraw', requireCapability('trade'), wrap(async (req, res) => {
+  const { workspaceId, agentId } = req.auth!;
+  if (!agentId) { res.status(403).json({ error: 'Withdraw requires a participant identity.' }); return; }
+  await withdrawProposal(req.params.proposalId as string, workspaceId, agentId);
   res.json({ ok: true });
 }));
 

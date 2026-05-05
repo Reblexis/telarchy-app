@@ -1,11 +1,12 @@
 import { db } from '../db/client';
-import { agents, markets, metrics as metricsTable, proposals, trades, systemConfig, liquidityEvents } from '../db/schema';
+import { agents, markets, metrics as metricsTable, proposals, trades, systemConfig, liquidityEvents, workspaces } from '../db/schema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { consensus } from '../lib/amm';
 import { voidMarket } from './markets';
 import { AppError } from '../lib/errors';
 import { MIN_LIQUIDITY_CONTRIBUTION, sufficientBalance, toUnits, fromUnits } from '../lib/validation';
+import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
 
 type MarketRow = typeof markets.$inferSelect;
 
@@ -188,15 +189,164 @@ export async function voidProposalMarkets(proposalId: string, workspaceId: strin
   }
 }
 
-export async function approveProposal(proposalId: string, workspaceId: string): Promise<void> {
+export async function approveProposal(
+  proposalId: string,
+  workspaceId: string,
+  resolvedBy?: string | null,
+): Promise<{ rewardPaid: number }> {
   const [proposal] = await db.select().from(proposals)
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
-
   if (!proposal) throw new AppError('Proposal not found', 404);
   if (proposal.status !== 'pending') throw new AppError('Proposal is not pending', 400);
 
-  await db.update(proposals).set({ status: 'approved' })
+  const [ws] = await db.select({ proposalReward: workspaces.proposalReward })
+    .from(workspaces).where(eq(workspaces.id, workspaceId));
+  const reward = ws?.proposalReward ?? 0;
+
+  if (reward <= 0) {
+    await db.update(proposals).set({
+      status: 'approved',
+      resolvedAt: new Date(),
+      resolvedBy: resolvedBy ?? null,
+    }).where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+    return { rewardPaid: 0 };
+  }
+
+  const ownerAgentId = await resolveWorkspaceOwnerAgentId(workspaceId);
+  if (!ownerAgentId) {
+    throw new AppError('Workspace has no owner participant; cannot pay proposal reward', 409);
+  }
+  if (ownerAgentId === proposal.proposedBy) {
+    await db.update(proposals).set({
+      status: 'approved',
+      resolvedAt: new Date(),
+      resolvedBy: resolvedBy ?? ownerAgentId,
+    }).where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+    return { rewardPaid: 0 };
+  }
+
+  await db.transaction(async tx => {
+    const [owner] = await tx.select().from(agents).where(eq(agents.id, ownerAgentId)).for('update');
+    if (!owner) throw new AppError('Workspace owner participant not found', 409);
+    if (!sufficientBalance(owner.balance as number, reward)) {
+      throw new AppError(
+        `Workspace owner balance insufficient to pay proposal reward: need ${reward}, have ${fromUnits(owner.balance as number)}`,
+        409,
+      );
+    }
+    await tx.update(agents)
+      .set({ balance: sql`${agents.balance} - ${toUnits(reward)}` })
+      .where(eq(agents.id, ownerAgentId));
+    await tx.update(agents)
+      .set({ balance: sql`${agents.balance} + ${toUnits(reward)}` })
+      .where(eq(agents.id, proposal.proposedBy));
+    await tx.update(proposals).set({
+      status: 'approved',
+      rewardPaid: reward,
+      resolvedAt: new Date(),
+      resolvedBy: resolvedBy ?? ownerAgentId,
+    }).where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+  });
+  return { rewardPaid: reward };
+}
+
+export async function declineProposal(
+  proposalId: string,
+  workspaceId: string,
+  resolvedBy?: string | null,
+): Promise<void> {
+  const [proposal] = await db.select().from(proposals)
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+  if (!proposal) throw new AppError('Proposal not found', 404);
+  if (proposal.status !== 'pending') throw new AppError('Can only decline pending proposals', 400);
+
+  await voidProposalMarkets(proposalId, workspaceId);
+  await db.update(proposals).set({
+    status: 'declined',
+    resolvedAt: new Date(),
+    resolvedBy: resolvedBy ?? null,
+  }).where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+}
+
+export async function declineProposalAsSpam(
+  proposalId: string,
+  workspaceId: string,
+  resolvedBy?: string | null,
+): Promise<{ penaltyCharged: number }> {
+  const [proposal] = await db.select().from(proposals)
+    .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+  if (!proposal) throw new AppError('Proposal not found', 404);
+  if (proposal.status !== 'pending') throw new AppError('Can only decline pending proposals', 400);
+
+  await voidProposalMarkets(proposalId, workspaceId);
+
+  const [ws] = await db.select({ spamPenalty: workspaces.spamPenalty })
+    .from(workspaces).where(eq(workspaces.id, workspaceId));
+  const configuredPenalty = ws?.spamPenalty ?? 0;
+
+  let actualCharged = 0;
+  const ownerAgentId = await resolveWorkspaceOwnerAgentId(workspaceId);
+
+  if (configuredPenalty > 0 && ownerAgentId && ownerAgentId !== proposal.proposedBy) {
+    await db.transaction(async tx => {
+      const [proposer] = await tx.select().from(agents)
+        .where(eq(agents.id, proposal.proposedBy)).for('update');
+      if (!proposer) return;
+      const balance = proposer.balance as number;
+      const wantedUnits = toUnits(configuredPenalty);
+      const chargedUnits = balance >= wantedUnits ? wantedUnits : Math.max(0, balance);
+      if (chargedUnits <= 0) return;
+      actualCharged = fromUnits(chargedUnits);
+      await tx.update(agents)
+        .set({ balance: sql`${agents.balance} - ${chargedUnits}` })
+        .where(eq(agents.id, proposal.proposedBy));
+      await tx.update(agents)
+        .set({ balance: sql`${agents.balance} + ${chargedUnits}` })
+        .where(eq(agents.id, ownerAgentId));
+    });
+  }
+
+  await db.update(proposals).set({
+    status: 'declined_spam',
+    penaltyCharged: actualCharged,
+    resolvedAt: new Date(),
+    resolvedBy: resolvedBy ?? ownerAgentId ?? null,
+  }).where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+
+  return { penaltyCharged: actualCharged };
+}
+
+export async function withdrawProposal(
+  proposalId: string,
+  workspaceId: string,
+  byAgentId: string,
+): Promise<void> {
+  const [proposal] = await db.select().from(proposals)
+    .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+  if (!proposal) throw new AppError('Proposal not found', 404);
+  if (proposal.status !== 'pending') throw new AppError('Can only withdraw pending proposals', 400);
+  if (proposal.proposedBy !== byAgentId) throw new AppError('Only the proposer may withdraw a proposal', 403);
+
+  await voidProposalMarkets(proposalId, workspaceId);
+  await db.update(proposals).set({
+    status: 'withdrawn',
+    resolvedAt: new Date(),
+    resolvedBy: byAgentId,
+  }).where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+}
+
+export async function countPendingProposalsByProposer(
+  workspaceId: string,
+  proposedBy: string,
+): Promise<number> {
+  const [row] = await db.select({ count: sql<number>`count(*)::int` })
+    .from(proposals)
+    .where(and(
+      eq(proposals.workspaceId, workspaceId),
+      eq(proposals.proposedBy, proposedBy),
+      eq(proposals.status, 'pending'),
+    ));
+  return row?.count ?? 0;
 }
 
 export async function getProposalMarketSummaries(marketIds: string[], workspaceId: string) {

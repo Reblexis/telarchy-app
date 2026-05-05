@@ -160,7 +160,10 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
   const hasCreditsKey = Object.prototype.hasOwnProperty.call(req.body, 'newMarketLiquidityCredits');
   const hasVisibilityKey = Object.prototype.hasOwnProperty.call(req.body, 'visibility');
   const hasProposalLiquidityKey = Object.prototype.hasOwnProperty.call(req.body, 'defaultProposalLiquidity');
-  const touchesLifecycleFields = hasAutoFundKey || hasCreditsKey || hasVisibilityKey || hasProposalLiquidityKey;
+  const hasProposalRewardKey = Object.prototype.hasOwnProperty.call(req.body, 'proposalReward');
+  const hasSpamPenaltyKey = Object.prototype.hasOwnProperty.call(req.body, 'spamPenalty');
+  const hasMaxPendingKey = Object.prototype.hasOwnProperty.call(req.body, 'maxPendingProposalsPerParticipant');
+  const touchesLifecycleFields = hasAutoFundKey || hasCreditsKey || hasVisibilityKey || hasProposalLiquidityKey || hasProposalRewardKey || hasSpamPenaltyKey || hasMaxPendingKey;
 
   // Lifecycle-shaped fields (visibility, auto-fund, liquidity defaults) are
   // gated by the granular `manage_workspace` capability, which the Admin group
@@ -170,7 +173,7 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
     res.status(403).json({ error: 'These settings require the manage_workspace capability' }); return;
   }
 
-  const { name, autoFundNewMarkets, newMarketLiquidityCredits, visibility, defaultProposalLiquidity } = req.body;
+  const { name, autoFundNewMarkets, newMarketLiquidityCredits, visibility, defaultProposalLiquidity, proposalReward, spamPenalty, maxPendingProposalsPerParticipant } = req.body;
   const update: Partial<typeof workspaces.$inferInsert> = {};
 
   if (hasVisibilityKey) {
@@ -212,6 +215,27 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
       res.status(400).json({ error: `defaultProposalLiquidity must be at least ${MIN_LIQUIDITY_CONTRIBUTION} credits when set` }); return;
     }
     update.defaultProposalLiquidity = defaultProposalLiquidity;
+  }
+
+  if (hasProposalRewardKey) {
+    if (typeof proposalReward !== 'number' || !Number.isFinite(proposalReward) || proposalReward < 0) {
+      res.status(400).json({ error: 'proposalReward must be a non-negative number' }); return;
+    }
+    update.proposalReward = proposalReward;
+  }
+
+  if (hasSpamPenaltyKey) {
+    if (typeof spamPenalty !== 'number' || !Number.isFinite(spamPenalty) || spamPenalty < 0) {
+      res.status(400).json({ error: 'spamPenalty must be a non-negative number' }); return;
+    }
+    update.spamPenalty = spamPenalty;
+  }
+
+  if (hasMaxPendingKey) {
+    if (typeof maxPendingProposalsPerParticipant !== 'number' || !Number.isInteger(maxPendingProposalsPerParticipant) || maxPendingProposalsPerParticipant < 0) {
+      res.status(400).json({ error: 'maxPendingProposalsPerParticipant must be a non-negative integer (0 disables the cap)' }); return;
+    }
+    update.maxPendingProposalsPerParticipant = maxPendingProposalsPerParticipant;
   }
 
   if (nextAuto && nextCredits <= 0) {

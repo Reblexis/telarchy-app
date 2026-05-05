@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/client';
-import { workspaces, markets, agents, trades, permissionGroups } from '../db/schema';
-import { eq, and, gt, count } from 'drizzle-orm';
+import { workspaces, markets, agents, trades, permissionGroups, proposals } from '../db/schema';
+import { eq, and, gt, gte, count, inArray, sql } from 'drizzle-orm';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireIdentity } from '../middleware/roles';
@@ -105,10 +105,51 @@ marketplaceRouter.get('/stats', wrap(async (_req, res) => {
 }));
 
 marketplaceRouter.get('/workspaces/public', wrap(async (_req, res) => {
-  const rows = await db.select({ id: workspaces.id, name: workspaces.name, visibility: workspaces.visibility })
-    .from(workspaces)
-    .where(eq(workspaces.visibility, 'public'));
-  res.json(rows.map(r => ({ workspaceId: r.id, name: r.name, visibility: r.visibility })));
+  const rows = await db.select({
+    id: workspaces.id,
+    name: workspaces.name,
+    visibility: workspaces.visibility,
+    proposalReward: workspaces.proposalReward,
+    spamPenalty: workspaces.spamPenalty,
+    maxPendingProposalsPerParticipant: workspaces.maxPendingProposalsPerParticipant,
+  }).from(workspaces).where(eq(workspaces.visibility, 'public'));
+
+  if (rows.length === 0) { res.json([]); return; }
+
+  const wsIds = rows.map(r => r.id);
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const statRows = await db.select({
+    workspaceId: proposals.workspaceId,
+    status: proposals.status,
+    n: sql<number>`count(*)::int`,
+  }).from(proposals)
+    .where(and(inArray(proposals.workspaceId, wsIds), gte(proposals.createdAt, since)))
+    .groupBy(proposals.workspaceId, proposals.status);
+
+  const statsByWs = new Map<string, { total: number; approved: number; declined: number; declinedSpam: number; withdrawn: number; pending: number }>();
+  for (const id of wsIds) {
+    statsByWs.set(id, { total: 0, approved: 0, declined: 0, declinedSpam: 0, withdrawn: 0, pending: 0 });
+  }
+  for (const row of statRows) {
+    const s = statsByWs.get(row.workspaceId);
+    if (!s) continue;
+    s.total += row.n;
+    if (row.status === 'approved') s.approved += row.n;
+    else if (row.status === 'declined') s.declined += row.n;
+    else if (row.status === 'declined_spam') s.declinedSpam += row.n;
+    else if (row.status === 'withdrawn') s.withdrawn += row.n;
+    else if (row.status === 'pending') s.pending += row.n;
+  }
+
+  res.json(rows.map(r => ({
+    workspaceId: r.id,
+    name: r.name,
+    visibility: r.visibility,
+    proposalReward: r.proposalReward,
+    spamPenalty: r.spamPenalty,
+    maxPendingProposalsPerParticipant: r.maxPendingProposalsPerParticipant,
+    proposalStats: statsByWs.get(r.id)!,
+  })));
 }));
 
 marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {

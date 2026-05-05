@@ -553,8 +553,20 @@ The result is per-metric impact predictions: quantitative forecasts of how much 
 2. Conditional markets are auto-created: clones of all active leaf markets, tagged to that proposal, starting at zero positions and seeded with the per-market subsidy. The proposer's balance is debited \`liquiditySubsidy * N\` and each conditional market gets a real LP row attributed to the proposer.
 3. Participants forecast on conditional markets to signal expected impact.
 4. Admin views the proposal detail: conditional vs baseline consensus for every market, plus a "Forecast subsidy" header showing how much liquidity backs the signal. Admins can top up via the inline **Add liquidity** button or via \`POST /api/predictions/markets/liquidity/bulk { amount, proposalId }\`.
-5. **Approve** - conditional markets keep trading and resolve at the actual metric value when their target date arrives.
-6. **Decline** - conditional markets are voided; participant stakes are refunded; the proposer's LP contribution is refunded too.
+5. **Approve** - conditional markets keep trading and resolve at the actual metric value when their target date arrives. If the workspace has \`proposalReward\` set, the owner's balance is debited and the proposer is paid the reward (skipped if 0; 409 if owner balance is insufficient).
+6. **Decline** (good faith) - conditional markets are voided; participant stakes are refunded; the proposer's LP contribution is refunded too. No balance changes for the proposer.
+7. **Decline as spam** (\`POST /api/proposals/:id/decline-spam\`) - same voiding as decline, but the proposer is charged up to \`workspace.spamPenalty\` (capped at their available balance) and the workspace owner is credited. This is the spam-suppression lever; the per-participant pending cap (\`maxPendingProposalsPerParticipant\`, default 3) is the throughput lever.
+8. **Withdraw** (\`POST /api/proposals/:id/withdraw\`) - proposer-only escape hatch. Voids conditionals, no balance changes. Useful when the proposer has hit their pending cap and wants to free a slot.
+
+## Bounty model knobs
+
+Proposals follow a bounty pattern: any participant can propose for free, the workspace owner reviews and decides, and credit movement is asymmetric across the four outcomes. Tune via \`PUT /api/workspaces/:id/settings\`:
+
+- \`proposalReward\`: credits paid to the proposer on approve. Default 0 (purely market-driven incentive). Comes out of the workspace owner's balance.
+- \`spamPenalty\`: credits taken from the proposer (paid to the owner) on decline-spam. Default 0. The penalty is best-effort: if the proposer's balance is below \`spamPenalty\`, only what they have is taken.
+- \`maxPendingProposalsPerParticipant\`: throughput cap (default 3). 0 disables the cap entirely. New submissions return 429 with \`{ pending, cap }\` when at the limit.
+
+Public-marketplace listings (\`GET /api/marketplace/workspaces/public\`) surface 30-day proposal stats per workspace so participants can read how an owner reviews before they propose. A workspace with a high spam-decline rate self-corrects: proposers stop coming.
 
 ## Inspect mode
 
@@ -1148,11 +1160,13 @@ await fetch(\`\${BASE}/api/predictions/trade\`, {
       '',
       '| Method | Path | Auth | Purpose |',
       '| --- | --- | --- | --- |',
-      '| POST   | `/api/proposals` | agent/admin | Propose a proposal. Spawns conditional markets. |',
-      '| GET    | `/api/proposals` | agent/admin | List proposals. `?status=pending\\|approved\\|declined`. |',
+      '| POST   | `/api/proposals` | agent/admin | Propose a proposal. Spawns conditional markets. Capped at `workspace.maxPendingProposalsPerParticipant` per participant (default 3); 429 on overflow. |',
+      '| GET    | `/api/proposals` | agent/admin | List proposals. `?status=pending\\|approved\\|declined\\|declined_spam\\|withdrawn`. |',
       '| GET    | `/api/proposals/:id` | agent/admin | Proposal detail with conditional market summaries. |',
-      '| POST   | `/api/proposals/:id/approve` | admin | Approve. Pays proposer; conditional markets remain live. |',
-      '| POST   | `/api/proposals/:id/decline` | admin | Decline. Voids conditionals, refunds stakes. |',
+      '| POST   | `/api/proposals/:id/approve` | admin | Approve. Pays `workspace.proposalReward` from owner to proposer (skipped if 0; 409 if owner balance is short). Conditional markets stay live. |',
+      '| POST   | `/api/proposals/:id/decline` | admin | Decline in good faith. Voids conditionals, refunds stakes. No balance changes. |',
+      '| POST   | `/api/proposals/:id/decline-spam` | admin | Decline as spam. Voids conditionals. Charges proposer up to `workspace.spamPenalty` (capped at their balance) and credits the workspace owner. |',
+      '| POST   | `/api/proposals/:id/withdraw` | agent/admin | Proposer-only: withdraw your own pending proposal. Voids conditionals. No balance changes. |',
       '| GET    | `/api/proposals/:id/messages` | agent/admin | Proposal chat. |',
       '| POST   | `/api/proposals/:id/messages` | agent/admin | Post chat message. |',
       '',
