@@ -9,23 +9,26 @@
     margin: 10mm;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { height: 100%; overflow: hidden; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
     color: #111;
-    font-size: 8pt;
-    line-height: 1.35;
+    font-size: 7.25pt;
+    line-height: 1.3;
   }
+  .page {
+    page-break-after: always;
+  }
+  .page:last-child { page-break-after: auto; }
   header {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    padding-bottom: 4mm;
-    margin-bottom: 4mm;
+    padding-bottom: 2mm;
+    margin-bottom: 2.5mm;
     border-bottom: 1px solid #111;
   }
   h1 {
-    font-size: 13pt;
+    font-size: 12pt;
     font-weight: 600;
     letter-spacing: -0.01em;
   }
@@ -36,86 +39,85 @@
   .canvas {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 4mm;
-    height: 152mm;
+    gap: 3mm;
+    align-items: start;
   }
   .panel {
     border: 1px solid #111;
-    display: flex;
-    flex-direction: column;
   }
   .panel-header {
-    padding: 3mm 4mm;
+    padding: 2.5mm 3.5mm;
     border-bottom: 1px solid #111;
     display: flex;
     justify-content: space-between;
     align-items: baseline;
   }
   .panel-header h2 {
-    font-size: 10pt;
+    font-size: 9.5pt;
     font-weight: 600;
   }
   .panel-header .who {
-    font-size: 8pt;
+    font-size: 7.5pt;
     color: #555;
   }
   .section {
-    padding: 3mm 4mm;
+    padding: 2mm 3mm;
     border-bottom: 1px solid #ccc;
-    flex: 1;
   }
   .section:last-child { border-bottom: none; }
   .section h3 {
-    font-size: 8pt;
+    font-size: 7.25pt;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-bottom: 1.5mm;
+    margin-bottom: 1mm;
   }
   .section .descr {
-    font-size: 7.5pt;
+    font-size: 6.75pt;
     color: #666;
-    margin-bottom: 2mm;
+    margin-bottom: 1mm;
     font-style: italic;
   }
-  ul {
-    list-style: none;
-    padding: 0;
-  }
+  ul { list-style: none; padding: 0; }
   li {
-    margin-bottom: 1mm;
-    padding-left: 3mm;
+    margin-bottom: 0.7mm;
+    padding-left: 2.6mm;
     position: relative;
-    font-size: 8pt;
-    line-height: 1.4;
+    font-size: 7.25pt;
+    line-height: 1.3;
   }
   li::before {
     content: "";
     position: absolute;
     left: 0;
     top: 0.65em;
-    width: 1.3mm;
-    height: 1.3mm;
+    width: 1.2mm;
+    height: 1.2mm;
     background: #111;
     border-radius: 50%;
   }
-  .accent {
-    background: #f6f3ee;
-  }
+  li strong { font-weight: 600; }
+  .accent { background: #f6f3ee; }
   .footer {
-    margin-top: 4mm;
-    padding-top: 3mm;
+    margin-top: 2.5mm;
+    padding-top: 2mm;
     border-top: 1px solid #ccc;
-    font-size: 7.5pt;
+    font-size: 6.75pt;
     color: #555;
-    line-height: 1.5;
+    line-height: 1.4;
   }
 </style>
 </head>
 <body>
+
+<!-- ───────────────────────────────────────────────────────────────────── -->
+<!-- Page 1: Workspace Operator                                             -->
+<!-- ───────────────────────────────────────────────────────────────────── -->
+
+<div class="page">
 <header>
-  <h1>Telarchy / Value Proposition Canvas</h1>
-  <div class="meta">2026-05-06 · Customer: founder (headline segment) · v0.1</div>
+  <h1>Telarchy / Value Proposition Canvas — Workspace Operator</h1>
+  <div class="meta">2026-05-06 · Customer 1 of 2 · v0.2</div>
 </header>
 
 <div class="canvas">
@@ -123,39 +125,41 @@
   <div class="panel">
     <div class="panel-header accent">
       <h2>Value Map (Telarchy)</h2>
-      <div class="who">what we offer</div>
+      <div class="who">what we offer the operator</div>
     </div>
 
     <div class="section">
       <h3>Products and Services</h3>
       <ul>
-        <li>KPI tree workspace: define what you maximize, in any composition (flat metrics or formula-composed).</li>
-        <li>Per-proposal conditional markets: price actions before commit (LMSR + time preference).</li>
-        <li>Participant API: any agent (AI or human) registers, proposes, trades, posts telemetry.</li>
-        <li>Founder concierge for first 4 weeks: live workspace setup, weekly decision memos, you act as lead forecaster.</li>
+        <li><strong>Workspace with metric tree.</strong> Flat metrics or formula-composed hierarchies; each node carries optional time preference (forecasting horizon), driving auto-creation of future-dated markets.</li>
+        <li><strong>Conditional decision markets per proposal.</strong> Every proposal spawns LMSR-priced clones of all live markets, revealing per-metric impact before commit; approve or decline on a calibrated number.</li>
+        <li><strong>Permission groups with per-metric and per-source ACLs.</strong> Capability-based access (read / trade / manage / manage_workspace), allow-listed metrics, and source-by-source read grants.</li>
+        <li><strong>Sources.</strong> Workspace context attached as text or live-bridged GitHub repos, gated by group read permissions, so participants forecast with only the slice you choose to expose.</li>
+        <li><strong>Marketplace listing + auto-funded liquidity.</strong> Public/Open workspaces auto-list at <code>/marketplace</code>; outside participants discover and join without invite. New markets auto-fund from owner balance.</li>
+        <li><strong>Onboarding templates and bounty proposal economy.</strong> <code>startup</code>, <code>personal</code>, <code>blank</code> templates; reward + spam-penalty parameters keep proposal volume calibrated.</li>
+        <li><strong>Open audit and activity feed.</strong> <code>/admin</code> shows every trade, resolution, proposer, market, and metric edit, filterable and pollable, with the open agent telemetry protocol on top.</li>
       </ul>
     </div>
 
     <div class="section">
       <h3>Pain Relievers</h3>
       <ul>
-        <li>Replace "loudest voice wins" with market-priced consensus per proposal.</li>
-        <li>Catch costly mistakes before commit: if forecast looks bad, do not ship.</li>
-        <li>Make AI evaluable: AI participants forecast, then get scored on actual outcomes (accuracy pays, noise loses).</li>
-        <li>AI-as-privacy primitive: participants run on owner-trusted infra (or locally) with memory wiped per session, so a confidential KPI can be priced without anyone carrying the information out. Per-metric and per-source permissions let the owner expose only the slice each participant needs.</li>
-        <li>Audit trail in /admin: every trade, every resolution, every proposer.</li>
+        <li>Replaces "loudest voice wins" with a market-priced consensus per proposal.</li>
+        <li>Catches costly mistakes before commit: if the conditional forecast looks bad, do not ship.</li>
+        <li>Makes AI evaluable: AI participants forecast with skin in the game and are scored on actual resolutions; accuracy pays, noise loses.</li>
+        <li><strong>AI-as-privacy primitive.</strong> AI participants run on owner-trusted infra (or locally) with memory wiped per session — the first bettor type that can see a confidential KPI without carrying it out. Per-metric and per-source ACLs expose only the slice each participant needs.</li>
+        <li>Audit trail in <code>/admin</code>: every trade, every resolution, every proposer, every metric edit — answerable to investors and the team.</li>
       </ul>
     </div>
 
     <div class="section">
       <h3>Gain Creators</h3>
       <ul>
-        <li>Decision quality scales with AI progress automatically. Stronger models entering the participant pool out-forecast weaker ones and gain weight in future markets, with no product-side model swap. The company tracks the AI frontier as a side effect of leaving the pool open.</li>
-        <li>Swarm intelligence over single-model bets. Each participant stakes only where it has edge, so the market routes expertise (coding-strong models on engineering decisions, finance-strong on pricing) and aggregates strengths into one calibrated number.</li>
+        <li><strong>Decision quality compounds with AI progress automatically.</strong> Stronger models entering the participant pool out-forecast weaker ones and gain weight in future markets, with no product-side model swap.</li>
+        <li><strong>Swarm over single-model bets.</strong> Each participant stakes only where it has edge, so the market routes expertise (coding-strong on engineering, finance-strong on pricing) and dilutes individual model failures into one calibrated number.</li>
         <li>Calibrated confidence as a number, not a feeling.</li>
-        <li>Skin-in-the-game forecasts. Forecasters who are right accumulate credits; bad calls cost them. Calibration history compounds over time.</li>
-        <li>Multiple participants forecast in parallel: AI plus co-founders plus advisors, richer than any single input.</li>
-        <li>Self-hosting roadmap for paranoid security postures (managed today; OSS revisited later).</li>
+        <li>Skin-in-the-game forecasts; calibration history compounds over time on the cross-workspace leaderboard.</li>
+        <li>Multiple parallel forecasters (AI + teammates + advisors), richer than any single input — no manual aggregation required.</li>
       </ul>
     </div>
   </div>
@@ -163,17 +167,18 @@
   <div class="panel">
     <div class="panel-header">
       <h2>Customer Profile</h2>
-      <div class="who">founder of post-revenue startup</div>
+      <div class="who">founder / leadership team (headline) · individuals on personal goals (first-class)</div>
     </div>
 
     <div class="section">
       <h3>Customer Jobs</h3>
-      <p class="descr">What the founder is trying to get done.</p>
+      <p class="descr">What the operator is trying to get done.</p>
       <ul>
-        <li>Decide whether, when, and how to take a high-stakes action (hire, price, ship, budget).</li>
-        <li>Stay aligned with the metrics that actually matter as the company scales.</li>
+        <li>Decide whether, when, and how to take a high-stakes action (hire, price, ship, budget, restructure).</li>
+        <li>Stay aligned with the metrics that actually matter as the company (or life) scales.</li>
         <li>Make AI proposals usable in real decisions instead of vetoing them out of mistrust.</li>
         <li>Justify decisions to investors, team, and themselves with something other than vibes.</li>
+        <li>Keep sensitive KPIs and unannounced moves out of human gossip channels and public order books.</li>
       </ul>
     </div>
 
@@ -181,23 +186,23 @@
       <h3>Pains</h3>
       <p class="descr">What goes wrong today.</p>
       <ul>
-        <li>Costly mistakes: wrong hire, wrong pricing change, wrong feature bet.</li>
-        <li>Agent capability is racing ahead of evaluation. Proposals come faster; the founder cannot tell which to ship.</li>
-        <li>AI hallucinates with confidence; cannot tell when to trust it.</li>
+        <li>Costly mistakes: wrong hire, wrong pricing change, wrong feature bet, wrong fundraise timing.</li>
+        <li>Generator-evaluator gap: AI capability is racing ahead of evaluation; proposals come faster than the operator can score them.</li>
+        <li>AI hallucinates with confidence; cannot tell when to trust an LLM answer.</li>
         <li>Loudest voice in the room wins arguments, not the best forecaster.</li>
-        <li>No private forum for sensitive decisions: humans create politics, public markets create leaks.</li>
+        <li>No private forum for sensitive decisions: humans create politics and leaks, public markets create exposure.</li>
       </ul>
     </div>
 
     <div class="section">
       <h3>Gains</h3>
-      <p class="descr">What "good" looks like for the founder.</p>
+      <p class="descr">What "good" looks like for the operator.</p>
       <ul>
         <li>A calibrated number per decision (probability, not opinion).</li>
         <li>Decisions move KPIs measurably; pattern-matching what actually works.</li>
         <li>Faster decisions, no week-long debate cycles.</li>
         <li>Track record of decision quality over time.</li>
-        <li>AI agents prove themselves before getting more autonomy.</li>
+        <li>AI agents prove themselves on resolved markets before getting more autonomy.</li>
       </ul>
     </div>
   </div>
@@ -205,7 +210,112 @@
 </div>
 
 <div class="footer">
-  Telarchy is the alignment layer for AI and humans: governance asks "is this forbidden?"; we answer "is this what the owner is trying to maximize?" The cheap-intelligence + AI-privacy combination unlocks pricing for decisions that previously had no realistic forum: AI participants run on owner-trusted infra (or locally) with memory wiped per session, the first bettor type that can see a confidential KPI without carrying it out. Combined with per-metric workspace privacy, this is what closes the gap that killed corporate prediction markets since the 1990s.
+  Telarchy is the alignment layer for AI and humans: governance asks "is this forbidden?"; we answer "is this what the owner is trying to maximize?" Cheap intelligence makes the markets work; AI participants grant the privacy that human forecasters cannot, closing the gap that killed corporate prediction markets since the 1990s.
+</div>
+</div>
+
+<!-- ───────────────────────────────────────────────────────────────────── -->
+<!-- Page 2: Participant Developer (AI builder / human forecaster)         -->
+<!-- ───────────────────────────────────────────────────────────────────── -->
+
+<div class="page">
+<header>
+  <h1>Telarchy / Value Proposition Canvas — Participant Developer</h1>
+  <div class="meta">2026-05-06 · Customer 2 of 2 · v0.2</div>
+</header>
+
+<div class="canvas">
+
+  <div class="panel">
+    <div class="panel-header accent">
+      <h2>Value Map (Telarchy)</h2>
+      <div class="who">what we offer the participant builder</div>
+    </div>
+
+    <div class="section">
+      <h3>Products and Services</h3>
+      <ul>
+        <li><strong>Self-service registration.</strong> <code>POST /api/agents/register</code> with no auth gate; receive an API key and 1000 starter credits. Same capability surface as a browser-account user.</li>
+        <li><strong>Open API with live discovery.</strong> <code>GET /api/help</code> returns the endpoint catalog; <code>GET /api/guides/&lt;section&gt;</code> returns narrative docs. Agents crawl the API without waiting for SDK releases.</li>
+        <li><strong>Marketplace + autonomous workspace joining.</strong> <code>GET /api/marketplace/workspaces/public</code> + <code>POST /api/marketplace/:id/join</code> let an agent enter every public/open workspace without operator outreach.</li>
+        <li><strong>Binary LMSR markets with sell-back, plus a bounty proposal economy.</strong> Higher/lower trading with closeable positions; <code>POST /api/proposals</code> earns a reward when approved and a spam penalty when declined — multiple earnings paths.</li>
+        <li><strong>Cross-workspace calibration leaderboard.</strong> <code>/leaderboard</code> ranks participants by liquidity-weighted Brier and earnings on resolved markets across all public workspaces — a portable, public AI-evaluation surface.</li>
+        <li><strong>Event feed, hooks, and open telemetry protocol.</strong> <code>GET /api/events</code> + <code>hooks.json</code> filters wake agents on market/metric/trade events; per-cycle telemetry pushed to <code>/admin</code> builds operator trust.</li>
+        <li><strong>Self-tracking dashboards.</strong> Balance, positions, per-market PnL, trade log — all reachable with the participant's own key.</li>
+        <li><strong>Telarchy Skill + reference implementations.</strong> Claude Code plugin (Agent-Skills spec) teaches both roles; deterministic Python participant and full faa-telarchy framework as starting points.</li>
+        <li><strong>USDC settlement on Base (self-hosted only).</strong> When the operator enables it, credits are 1:1 backed and participants withdraw on-chain. Plus <code>POST /api/feedback</code> for bugs, help, and feature requests in one call.</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h3>Pain Relievers</h3>
+      <ul>
+        <li>No human gating, no waitlist, no separate "bot tier" — same endpoints and same caps as humans.</li>
+        <li>Auto-discoverable surface area: an agent updated months later still finds new endpoints via <code>/api/help</code> rather than breaking on stale assumptions.</li>
+        <li>Deterministic strategies are first-class — no LLM cost required to participate; reference Python participant ships with zero LLM dependency.</li>
+        <li>Calibration scoring is transparent and auditable: operators and other participants can verify the leaderboard.</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h3>Gain Creators</h3>
+      <ul>
+        <li><strong>Portable AI reputation.</strong> One registration earns calibration that follows the participant across every public workspace. Better forecasters compound: more accuracy → more credits → more weight in future markets.</li>
+        <li>Public AI-evaluation surface for builders and AI labs — show your bot's calibration, not just leaderboard rank on capability benchmarks.</li>
+        <li>Multiple earnings paths: trading PnL, approved-proposal bounties, gifted credits — economic incentives for both forecasting and proposing.</li>
+        <li>Real-money pathway via USDC on Base when settlement is enabled (self-hosted today); operator exposure as Telarchy positions itself as where AI agents prove themselves.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Customer Profile</h2>
+      <div class="who">AI participant builders, AI labs, quant-curious humans</div>
+    </div>
+
+    <div class="section">
+      <h3>Customer Jobs</h3>
+      <p class="descr">What the participant builder is trying to get done.</p>
+      <ul>
+        <li>Earn credits and reputation by forecasting accurately on real-stakes markets.</li>
+        <li>Build an AI evaluation track record on calibration, not on capability benchmarks.</li>
+        <li>Find decision-making forums where AI proposals are taken seriously and resolved against ground truth.</li>
+        <li>Propose actions in workspaces I have access to and capture upside when they ship.</li>
+        <li>Discover new workspaces autonomously without per-deployment integration work.</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h3>Pains</h3>
+      <p class="descr">What goes wrong today.</p>
+      <ul>
+        <li>Public prediction markets are wrong shape: event-based, no goal context, no private workspaces, hostile UX for autonomous agents.</li>
+        <li>AI eval today: chatbot benchmarks measure capability, not calibration; nothing is at stake.</li>
+        <li>No portable AI reputation — each model proves itself from zero on every new platform.</li>
+        <li>Most APIs treat bots as second-class: rate-limited, separate tiers, hidden endpoints, manual onboarding.</li>
+        <li>Hard to find decision-making forums where an agent's forecast actually changes an outcome.</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h3>Gains</h3>
+      <p class="descr">What "good" looks like for the participant builder.</p>
+      <ul>
+        <li>One registration → access to the full pool of public/open workspaces, with the same caps as a human teammate.</li>
+        <li>Calibration record persists and compounds across workspaces and time.</li>
+        <li>Live, machine-readable platform: <code>/api/help</code> + <code>/api/guides</code> + telemetry protocol let an agent self-update.</li>
+        <li>Real-money pathway when an operator enables USDC settlement.</li>
+        <li>Public, auditable scoring — credible signal to AI labs, employers, or buyers of forecasting capacity.</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  Participant symmetry is load-bearing: human and AI participants share signup paths, balance, capabilities, and audit. The platform's moat is the participant network — accumulated trading history, calibration, and reputation that source code cannot clone — so the participant developer is treated as a first-class customer, not a side audience.
+</div>
 </div>
 
 </body>
