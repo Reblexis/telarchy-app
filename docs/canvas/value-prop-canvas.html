@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Telarchy - Value Proposition Canvas</title>
+<style>
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: #111;
+    font-size: 8pt;
+    line-height: 1.35;
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-bottom: 4mm;
+    margin-bottom: 4mm;
+    border-bottom: 1px solid #111;
+  }
+  h1 {
+    font-size: 13pt;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .meta {
+    font-size: 7.5pt;
+    color: #555;
+  }
+  .canvas {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4mm;
+    height: 152mm;
+  }
+  .panel {
+    border: 1px solid #111;
+    display: flex;
+    flex-direction: column;
+  }
+  .panel-header {
+    padding: 3mm 4mm;
+    border-bottom: 1px solid #111;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .panel-header h2 {
+    font-size: 10pt;
+    font-weight: 600;
+  }
+  .panel-header .who {
+    font-size: 8pt;
+    color: #555;
+  }
+  .section {
+    padding: 3mm 4mm;
+    border-bottom: 1px solid #ccc;
+    flex: 1;
+  }
+  .section:last-child { border-bottom: none; }
+  .section h3 {
+    font-size: 8pt;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1.5mm;
+  }
+  .section .descr {
+    font-size: 7.5pt;
+    color: #666;
+    margin-bottom: 2mm;
+    font-style: italic;
+  }
+  ul {
+    list-style: none;
+    padding: 0;
+  }
+  li {
+    margin-bottom: 1mm;
+    padding-left: 3mm;
+    position: relative;
+    font-size: 8pt;
+    line-height: 1.4;
+  }
+  li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.65em;
+    width: 1.3mm;
+    height: 1.3mm;
+    background: #111;
+    border-radius: 50%;
+  }
+  .accent {
+    background: #f6f3ee;
+  }
+  .footer {
+    margin-top: 4mm;
+    padding-top: 3mm;
+    border-top: 1px solid #ccc;
+    font-size: 7.5pt;
+    color: #555;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Telarchy / Value Proposition Canvas</h1>
+  <div class="meta">2026-05-06 · For: Jirka Helmich call · Customer: founder (headline segment) · v0.1</div>
+</header>
+
+<div class="canvas">
+
+  <div class="panel">
+    <div class="panel-header accent">
+      <h2>Value Map (Telarchy)</h2>
+      <div class="who">what we offer</div>
+    </div>
+
+    <div class="section">
+      <h3>Products and Services</h3>
+      <ul>
+        <li>KPI tree workspace: define what you maximize, in any composition (flat metrics or formula-composed).</li>
+        <li>Per-proposal conditional markets: price actions before commit (LMSR + time preference).</li>
+        <li>Participant API: any agent (AI or human) registers, proposes, trades, posts telemetry.</li>
+        <li>Founder concierge for first 4 weeks: live workspace setup, weekly decision memos, you act as lead forecaster.</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h3>Pain Relievers</h3>
+      <ul>
+        <li>Replace "loudest voice wins" with market-priced consensus per proposal.</li>
+        <li>Catch costly mistakes before commit: if forecast looks bad, do not ship.</li>
+        <li>Make AI evaluable: AI participants forecast, then get scored on actual outcomes (accuracy pays, noise loses).</li>
+        <li>Per-workspace privacy with per-metric and per-source granularity. Founder controls who sees what.</li>
+        <li>Audit trail in /admin: every trade, every resolution, every proposer.</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h3>Gain Creators</h3>
+      <ul>
+        <li>Calibrated confidence as a number, not a feeling.</li>
+        <li>Skin-in-the-game forecasts. Forecasters who are right accumulate credits; bad calls cost them. Calibration history compounds over time.</li>
+        <li>Multiple participants forecast in parallel: AI plus co-founders plus advisors, richer than any single input.</li>
+        <li>Self-hosting roadmap for paranoid security postures (managed today; OSS revisited later).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Customer Profile</h2>
+      <div class="who">founder of post-revenue startup</div>
+    </div>
+
+    <div class="section">
+      <h3>Customer Jobs</h3>
+      <p class="descr">What the founder is trying to get done.</p>
+      <ul>
+        <li>Decide whether, when, and how to take a high-stakes action (hire, price, ship, budget).</li>
+        <li>Stay aligned with the metrics that actually matter as the company scales.</li>
+        <li>Make AI proposals usable in real decisions instead of vetoing them out of mistrust.</li>
+        <li>Justify decisions to investors, team, and themselves with something other than vibes.</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h3>Pains</h3>
+      <p class="descr">What goes wrong today.</p>
+      <ul>
+        <li>Costly mistakes: wrong hire, wrong pricing change, wrong feature bet.</li>
+        <li>Agent capability is racing ahead of evaluation. Proposals come faster; the founder cannot tell which to ship.</li>
+        <li>AI hallucinates with confidence; cannot tell when to trust it.</li>
+        <li>Loudest voice in the room wins arguments, not the best forecaster.</li>
+        <li>No private forum for sensitive decisions: humans create politics, public markets create leaks.</li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h3>Gains</h3>
+      <p class="descr">What "good" looks like for the founder.</p>
+      <ul>
+        <li>A calibrated number per decision (probability, not opinion).</li>
+        <li>Decisions move KPIs measurably; pattern-matching what actually works.</li>
+        <li>Faster decisions, no week-long debate cycles.</li>
+        <li>Track record of decision quality over time.</li>
+        <li>AI agents prove themselves before getting more autonomy.</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  Telarchy is the alignment layer for AI and humans: governance asks "is this forbidden?"; we answer "is this what the owner is trying to maximize?" The cheap-intelligence + AI-privacy combination unlocks pricing for decisions that previously had no realistic forum (a founder will not put a sensitive KPI in front of human teammates or a public market, but will put it in front of an AI participant in a private workspace). The 4-week founder concierge program (5 founders, verdict 2026-05-27) is the falsification test.
+</div>
+
+</body>
+</html>
