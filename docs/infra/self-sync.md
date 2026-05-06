@@ -8,10 +8,10 @@ Five metrics, defined in `docs/metrics.md` and created in the workspace:
 
 | Metric (Telarchy name) | Source | Cadence |
 | --- | --- | --- |
-| Wedge: % cohort with ≥2 priced decisions in 4w | concierge cohort workspace IDs (env) | daily, transient until 2026-05-27 |
+| Wedge: % cohort with ≥2 priced decisions in 4w | cohort auto-derived from /api/workspaces (concierge window, excl. owner) | daily, transient until 2026-05-27 |
 | WAU: workspaces with ≥1 priced decision (7d) | iterate all workspaces | daily |
 | Forecaster quality: liquidity-weighted Brier (30d) | iterate resolved markets across all workspaces | daily |
-| Active forecasters: agents with positive PnL (30d) | aggregate `realizedPnl` across all workspaces (lifetime PnL today; 30d-windowed is a TODO) | daily |
+| Active forecasters: agents with positive PnL (30d) | per-agent pnlMetric summed across markets resolved in last 30d, via /api/agents/:id/market-pnl | daily |
 | Proposal quality: realized vs predicted lift (90d corr) | stub until ≥90d of approved agent-proposed proposals exists | daily (will skip while stubbed) |
 
 The compute logic, including each metric's data path, lives in `scripts/telarchy-self-sync.js`. The `COMPUTE` object near the bottom maps Telarchy metric name → compute function.
@@ -129,16 +129,16 @@ The deploy script expects:
 - `~/.ssh/lookpilot_kpi_sync_ed25519`
 - Optional: `~/keyring/secrets/telarchy-self-sync.cohort` with comma-separated cohort workspace UUIDs
 
-## Cohort workspace IDs
+## Cohort auto-derivation
 
-The Wedge metric needs the founder concierge cohort's workspace IDs. Workflow:
+The Wedge metric's cohort is auto-derived from `/api/workspaces` on each run:
 
-1. Each concierge founder creates a workspace at telarchy.com.
-2. Capture each workspace's UUID (visible in the `/api/workspaces` response, or in the URL).
-3. Append to `~/keyring/secrets/telarchy-self-sync.cohort` (comma-separated).
-4. Re-run the deploy script (or `scp` the env file directly).
+- All workspaces with `createdAt` in `[2026-04-29, 2026-06-03)` (concierge window + 1-week buffer for late joiners).
+- Excluding any workspace whose `createdBy` matches the platform owner's user ID (constant in `scripts/telarchy-self-sync.js`).
 
-The Wedge metric will skip until at least one cohort workspace ID is present, with a log line `SKIP Wedge: COHORT_WORKSPACE_IDS not set`.
+So the metric requires zero manual input. As concierge founders create workspaces, they enter the cohort automatically; the metric updates daily.
+
+If the auto-derivation needs correction (e.g. a non-concierge workspace happens to be created in the window), drop a `~/keyring/secrets/telarchy-self-sync.cohort` file with comma-separated workspace UUIDs and re-run the deploy. The override replaces the auto-derived list entirely.
 
 ## Things this doc deliberately does not cover
 

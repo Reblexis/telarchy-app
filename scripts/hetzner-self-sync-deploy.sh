@@ -11,10 +11,13 @@
 #   ~/keyring/secrets/telarchy-master.apikey   (Telarchy master API key)
 #   ~/.ssh/lookpilot_kpi_sync_ed25519          (same SSH key as LookPilot deploy)
 #
-# Optional:
+# Optional override (default: auto-derived):
 #   ~/keyring/secrets/telarchy-self-sync.cohort
-#       Comma-separated workspace IDs for the founder concierge cohort.
-#       Drives the Wedge metric. Sync skips that metric if unset.
+#       Comma-separated workspace IDs to override the auto-derived founder
+#       concierge cohort. Default behaviour: cohort is auto-derived from
+#       /api/workspaces filtered by createdAt in the concierge window
+#       (2026-04-29 → 2026-06-03), excluding the platform owner. Use this
+#       file only if the auto-derivation needs correction.
 #
 # Usage:
 #   bash scripts/hetzner-self-sync-deploy.sh <ipv4>

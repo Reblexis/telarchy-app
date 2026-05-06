@@ -15,8 +15,10 @@
  *                       reads — agent keys are scoped to their own workspace).
  *
  * Optional env:
- *   COHORT_WORKSPACE_IDS  comma-separated workspace IDs for the founder
- *                         concierge cohort (drives the Wedge metric).
+ *   COHORT_WORKSPACE_IDS  comma-separated override for the founder concierge
+ *                         cohort. If unset (default), the cohort is auto-
+ *                         derived from /api/workspaces filtered by createdAt
+ *                         in the concierge window, excluding the owner.
  *
  * Usage:
  *   node scripts/telarchy-self-sync.js [--dry-run] [--metric "<name>"]
@@ -30,8 +32,15 @@ const ADMIN_KEY = process.env.TELARCHY_ADMIN_KEY;
 const TELARCHY_WORKSPACE_ID = 'qzOIWWj7m6rDInxrvqPx';
 const EXPECTED_WORKSPACE_NAME = 'Telarchy';
 
-const COHORT_WORKSPACE_IDS = (process.env.COHORT_WORKSPACE_IDS || '')
+const COHORT_WORKSPACE_IDS_OVERRIDE = (process.env.COHORT_WORKSPACE_IDS || '')
   .split(',').map((s) => s.trim()).filter(Boolean);
+
+// Founder concierge phase. Cohort is auto-derived from workspaces created
+// in this window, with the owner excluded.
+const CONCIERGE_START_MS = Date.parse('2026-04-29T00:00:00Z');
+const CONCIERGE_END_MS = Date.parse('2026-06-03T00:00:00Z'); // 2026-05-27 verdict + 1 week buffer for late joiners
+// Owner of the Telarchy workspace; their own workspaces are excluded from the cohort.
+const TELARCHY_OWNER_USER_ID = '8fdf5d6ad6ecd374a3ea71583481d71a';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * DAY_MS;
@@ -102,26 +111,34 @@ async function safeListMarkets(workspaceId) {
   }
 }
 
+function deriveCohort(allWorkspaces) {
+  return allWorkspaces.filter((w) => {
+    const t = Date.parse(w.createdAt);
+    return t >= CONCIERGE_START_MS && t < CONCIERGE_END_MS && w.createdBy !== TELARCHY_OWNER_USER_ID;
+  });
+}
+
 async function computeWedge() {
-  if (COHORT_WORKSPACE_IDS.length === 0) {
-    return { value: null, note: 'COHORT_WORKSPACE_IDS not set; cohort not yet recruited' };
+  const allWorkspaces = await listAllWorkspaces();
+  const cohort = COHORT_WORKSPACE_IDS_OVERRIDE.length
+    ? allWorkspaces.filter((w) => COHORT_WORKSPACE_IDS_OVERRIDE.includes(w.id))
+    : deriveCohort(allWorkspaces);
+  if (cohort.length === 0) {
+    return { value: null, note: `no cohort workspaces detected in [${new Date(CONCIERGE_START_MS).toISOString().slice(0, 10)}, ${new Date(CONCIERGE_END_MS).toISOString().slice(0, 10)})` };
   }
   let qualifying = 0;
-  for (const wsId of COHORT_WORKSPACE_IDS) {
-    let ws;
-    try { ws = await api('GET', `/workspaces/${wsId}`, { workspaceId: wsId }); }
-    catch (e) { console.warn(`  cohort ws ${wsId.slice(0, 8)}: ${e.message}`); continue; }
-    const cutoff = new Date(ws.createdAt).getTime() + 4 * WEEK_MS;
-    const markets = await safeListMarkets(wsId);
-    const proposals = await safeListProposals(wsId);
-    const earlyMarkets = markets.filter((m) => new Date(m.createdAt).getTime() <= cutoff).length;
-    const earlyProposals = proposals.filter((p) => new Date(p.createdAt).getTime() <= cutoff).length;
+  for (const ws of cohort) {
+    const cutoff = Date.parse(ws.createdAt) + 4 * WEEK_MS;
+    const markets = await safeListMarkets(ws.id);
+    const proposals = await safeListProposals(ws.id);
+    const earlyMarkets = markets.filter((m) => Date.parse(m.createdAt) <= cutoff).length;
+    const earlyProposals = proposals.filter((p) => Date.parse(p.createdAt) <= cutoff).length;
     if (earlyMarkets >= 2 || earlyProposals >= 2) qualifying++;
   }
-  const pct = (qualifying / COHORT_WORKSPACE_IDS.length) * 100;
+  const pct = (qualifying / cohort.length) * 100;
   return {
     value: pct,
-    note: `${qualifying}/${COHORT_WORKSPACE_IDS.length} cohort workspaces with >=2 priced decisions in 4w`,
+    note: `${qualifying}/${cohort.length} cohort workspaces with >=2 priced decisions in 4w (cohort auto-derived from concierge window${COHORT_WORKSPACE_IDS_OVERRIDE.length ? ', overridden' : ''})`,
   };
 }
 
@@ -172,22 +189,44 @@ async function computeBrier() {
 }
 
 async function computeActiveForecasters() {
-  // Approximation v1: agents with positive realizedPnl across all workspaces.
-  // realizedPnl is lifetime, not 30d-windowed. TODO: page through
-  // /api/agents/:id/trades filtered by resolved markets in last 30d.
+  // Per agent (deduped across workspaces), sum pnlMetric across markets
+  // resolved in the last 30 days. Count agents whose 30d sum is > 0.
+  const since = NOW - 30 * DAY_MS;
   const workspaces = await listAllWorkspaces();
-  const positives = new Set();
+  const agentPnl30d = new Map(); // agentId -> aggregate 30d pnlMetric
+
   for (const ws of workspaces) {
+    const markets = await safeListMarkets(ws.id);
+    const resolved30d = new Set(
+      markets
+        .filter((m) => m.status === 'resolved' && m.resolvedAt && Date.parse(m.resolvedAt) >= since)
+        .map((m) => m.id),
+    );
+    if (resolved30d.size === 0) continue;
+
     let agents;
     try { agents = await api('GET', '/agents', { workspaceId: ws.id }); }
-    catch (e) { console.warn(`  agents fetch ws=${ws.id.slice(0, 8)}: ${e.message}`); continue; }
+    catch (e) { console.warn(`  agents ws=${ws.id.slice(0, 8)}: ${e.message}`); continue; }
+
     for (const a of agents) {
-      if ((a.realizedPnl ?? 0) > 0) positives.add(a.id);
+      let breakdown;
+      try { breakdown = await api('GET', `/agents/${a.id}/market-pnl`, { workspaceId: ws.id }); }
+      catch (e) { console.warn(`  market-pnl ws=${ws.id.slice(0, 8)} agent=${a.id.slice(0, 8)}: ${e.message}`); continue; }
+      const list = Array.isArray(breakdown) ? breakdown : (breakdown.markets || breakdown.entries || []);
+      const pnl30d = list
+        .filter((entry) => resolved30d.has(entry.marketId))
+        .reduce((s, entry) => s + (entry.pnlMetric ?? entry.pnl ?? 0), 0);
+      if (pnl30d !== 0) {
+        agentPnl30d.set(a.id, (agentPnl30d.get(a.id) || 0) + pnl30d);
+      }
     }
   }
+
+  let count = 0;
+  for (const v of agentPnl30d.values()) if (v > 0) count++;
   return {
-    value: positives.size,
-    note: `${positives.size} unique agents with lifetime realized PnL > 0 (TODO: window to 30d)`,
+    value: count,
+    note: `${count} unique agents with positive 30d realized PnL on resolved markets (across ${workspaces.length} workspaces)`,
   };
 }
 
