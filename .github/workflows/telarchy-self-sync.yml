@@ -1,0 +1,35 @@
+name: Telarchy self-sync
+
+# Daily push of the 5 platform-self-monitoring metrics into Telarchy's
+# dogfooding workspace. Computes everything from telarchy.com /api; no
+# external data sources, no Hetzner ASN required. See docs/infra/self-sync.md.
+
+on:
+  schedule:
+    # 03:30 UTC daily. The historical 03:00 slot was reserved for LookPilot's
+    # Hetzner KPI sync; we offset to keep the two visually separated in logs.
+    - cron: '30 3 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: telarchy-self-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Run self-sync
+        env:
+          TELARCHY_ADMIN_KEY: ${{ secrets.TELARCHY_ADMIN_KEY }}
+        run: node scripts/telarchy-self-sync.js
