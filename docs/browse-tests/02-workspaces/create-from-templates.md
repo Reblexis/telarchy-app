@@ -20,7 +20,7 @@ Creating a workspace from a template, switching the active workspace via the
 sidebar, editing settings (name, visibility, auto-fund), and deleting a
 workspace (which voids open markets and refunds stakes).
 
-Maps to `mvp-evaluation-plan.md` Sections 3 and 6.
+Maps to `mvp-evaluation/plan.md` Sections 3 and 6.
 
 ## Preconditions
 

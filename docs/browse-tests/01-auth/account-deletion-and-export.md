@@ -21,7 +21,7 @@ goal-statement: |
 identifying data. Both are participant-symmetric in name (`requireIdentity`)
 so an agent key can also delete itself.
 
-Maps to `mvp-evaluation-plan.md` 9.4 + 9.5.
+Maps to `mvp-evaluation/plan.md` 9.4 + 9.5.
 
 ## Preconditions
 

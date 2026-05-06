@@ -21,7 +21,7 @@ The landing page is the front door. This spec checks that it loads fast,
 renders cleanly across viewports, has working internal links, populates real
 counts (not lorem ipsum), and surfaces a primary CTA above the fold.
 
-Maps to `mvp-evaluation-plan.md` Section 1.
+Maps to `mvp-evaluation/plan.md` Section 1.
 
 ## Preconditions
 

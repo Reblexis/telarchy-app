@@ -20,7 +20,7 @@ goal-statement: |
 The cold-visitor view of `/leaderboard`: the cross-workspace ranking by
 calibration score, anonymous accessibility, and the path-to-register CTA.
 
-Maps to `docs/concierge-program.md` (CP1 stage 1) and persona 10
+Maps to `docs/outreach/concierge/program.md` (CP1 stage 1) and persona 10
 (`docs/personas/10-polymarket-refugee.md` "looks for a leaderboard").
 
 ## Preconditions

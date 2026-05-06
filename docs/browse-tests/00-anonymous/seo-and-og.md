@@ -20,7 +20,7 @@ Anonymous, machine-driven view of the public surface: `/`, `/marketplace`,
 `/marketplace/<id>`, `/robots.txt`, `/sitemap.xml`. Every page that's
 shareable must surface OG / Twitter meta.
 
-Maps to `mvp-evaluation-plan.md` 1.10 + 1.11 + 6.5.
+Maps to `mvp-evaluation/plan.md` 1.10 + 1.11 + 6.5.
 
 ## Setup
 

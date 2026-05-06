@@ -21,7 +21,7 @@ cleanly (headings, lists, no raw `#` showing through), are reachable from
 the consent-checkbox label inline links, and contain the load-bearing
 clauses the product relies on for legal posture.
 
-Maps to `mvp-evaluation-plan.md` Section 9.
+Maps to `mvp-evaluation/plan.md` Section 9.
 
 ## Preconditions
 

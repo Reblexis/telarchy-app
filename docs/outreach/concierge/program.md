@@ -12,7 +12,7 @@ A 4-week concierge program with 5 specific founders is the cheapest way to falsi
 
 ## The 5 founders
 
-Targets recruited in Week 0. Names in `docs/concierge-candidates.md` (gitignored, contains personal data).
+Targets recruited in Week 0. Names in `candidates.md` (sibling file, gitignored — contains personal data).
 
 Selection criteria (each scored 0-3, total /15 + bonuses):
 
@@ -76,9 +76,9 @@ Lock 2-3 of these as binding thresholds (e.g. "≥2 of 5 bring a 2nd unprompted 
 
 ## Operating model artifacts (Week 0 P1)
 
-Three artifacts to write before first call. All live in `docs/concierge/` (will be created when these are written).
+Three artifacts to write before first call. All live in this directory (`docs/outreach/concierge/`).
 
-1. **Intake form template** (`docs/concierge/intake-form.md`)
+1. **Intake form template** (`intake-form.md`, sibling)
    - Founder name, company, role
    - Top 3-5 KPIs / metrics they care about
    - Current values + units
@@ -89,13 +89,13 @@ Three artifacts to write before first call. All live in `docs/concierge/` (will 
    - Co-founders / collaborators to include in workspace
    - Confidentiality requirements (which fields are export-OK, which are private-only)
 
-2. **Call script** (`docs/concierge/call-script.md`)
+2. **Call script** (`call-script.md`, sibling)
    - 5 min: intro + Telarchy 90-second pitch
    - 10 min: decision elicitation (use intake form as guide)
    - 10 min: live workspace setup — workspace created on the call, NOT promised for later
    - 5 min: next-step commitment (you'll send the first decision memo Friday; they'll update one metric by Monday)
 
-3. **Weekly decision memo template** (`docs/concierge/weekly-memo.md`)
+3. **Weekly decision memo template** (`weekly-memo.md`, sibling)
    - Founder name + week
    - Market view: current consensus per metric
    - Points of disagreement among forecasters (where the bots/humans diverged)

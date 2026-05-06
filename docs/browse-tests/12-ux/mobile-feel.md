@@ -18,7 +18,7 @@ goal-statement: |
 ## What this tests
 
 Layout, tap targets, scroll behaviour, and modal traps at phone dimensions.
-Maps to `mvp-evaluation-plan.md` Section 13. The viewport-resize is a
+Maps to `mvp-evaluation/plan.md` Section 13. The viewport-resize is a
 proxy for device feel — physical pinch/zoom and hardware keyboard quirks
 remain `(human)` checks.
 

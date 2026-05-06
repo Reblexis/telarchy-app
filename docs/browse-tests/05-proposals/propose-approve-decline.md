@@ -21,7 +21,7 @@ on approve the proposal is recorded as approved and conditional markets stay
 open for post-decision tracking; on decline conditional markets are voided
 and stakes refunded. Also covers the chat thread on the proposal.
 
-Maps to `mvp-evaluation-plan.md` Sections 15.4 and persona 16.13
+Maps to `mvp-evaluation/plan.md` Sections 15.4 and persona 16.13
 (`13-proposal-approver.md`).
 
 ## Preconditions

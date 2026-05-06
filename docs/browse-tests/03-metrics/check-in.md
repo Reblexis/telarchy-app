@@ -21,7 +21,7 @@ metric definitions, formulas, history) and `/check-in` (auto-save value
 updates against leaf metrics). Covers the happy path plus the formula and
 clamping edge cases.
 
-Maps to `mvp-evaluation-plan.md` Section 3 and supersedes the one-off
+Maps to `mvp-evaluation/plan.md` Section 3 and supersedes the one-off
 `.gstack/qa-reports/qa-report-check-in-2026-04-23.md` for repeatable runs.
 
 ## Preconditions

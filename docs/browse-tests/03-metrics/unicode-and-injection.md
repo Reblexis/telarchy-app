@@ -18,7 +18,7 @@ goal-statement: |
 ## What this tests
 
 `POST /api/metrics` and the dashboard rendering, against a fixed corpus of
-adversarial inputs. Maps to `mvp-evaluation-plan.md` 7.13, 14.2, 14.3, 14.4.
+adversarial inputs. Maps to `mvp-evaluation/plan.md` 7.13, 14.2, 14.3, 14.4.
 
 ## Setup
 

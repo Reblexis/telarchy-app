@@ -20,7 +20,7 @@ goal-statement: |
 `/:id/wallet`, `/api/agents/treasury` (the on-chain part). And the
 frontend hides the corresponding deposit / withdraw UI.
 
-Maps to `mvp-evaluation-plan.md` Section 8.
+Maps to `mvp-evaluation/plan.md` Section 8.
 
 `parallel-safe: false` because this spec checks env-flag state.
 

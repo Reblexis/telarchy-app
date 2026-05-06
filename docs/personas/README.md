@@ -1,6 +1,6 @@
 # Personas
 
-Persona-based UX tests. Each file describes a specific user profile, their context, attention budget, and the session script to execute as them. Complements `docs/mvp-evaluation-plan.md`, which covers feature-level correctness; these cover the UX layer feature tests can't see.
+Persona-based UX tests. Each file describes a specific user profile, their context, attention budget, and the session script to execute as them. Complements `docs/mvp-evaluation/plan.md`, which covers feature-level correctness; these cover the UX layer feature tests can't see.
 
 ## How to use
 

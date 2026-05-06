@@ -8,7 +8,7 @@ Markdown file with YAML frontmatter and concrete `browse` (`$B`) +
 
 | Layer | File(s) | Question it answers |
 | --- | --- | --- |
-| Feature checklist | `docs/mvp-evaluation-plan.md` | Does every feature behave as specified? |
+| Feature checklist | `docs/mvp-evaluation/plan.md` | Does every feature behave as specified? |
 | Persona walkthroughs | `docs/personas/*.md` | Will a specific kind of stranger succeed? |
 | First-time-user flow | `docs/user-flow-audit.md` | Does the activation funnel hold together end-to-end? |
 | **This directory** | `docs/browse-tests/**.md` | Per-feature, runnable, parallelisable test specs |

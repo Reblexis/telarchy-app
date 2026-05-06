@@ -80,4 +80,4 @@ Persona tests should be cheap to re-run after any material UX change (landing co
 
 ## Complement to feature tests, not replacement
 
-Persona walkthroughs complement `docs/mvp-evaluation-plan.md`. If a persona fails at step 4 because the backend returned 500, that's a bug that feature tests should have caught; file it against the relevant feature, not the persona. Persona findings are reserved for the UX-layer gaps that feature tests can't see.
+Persona walkthroughs complement `docs/mvp-evaluation/plan.md`. If a persona fails at step 4 because the backend returned 500, that's a bug that feature tests should have caught; file it against the relevant feature, not the persona. Persona findings are reserved for the UX-layer gaps that feature tests can't see.

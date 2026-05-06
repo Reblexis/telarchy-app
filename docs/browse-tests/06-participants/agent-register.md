@@ -18,7 +18,7 @@ goal-statement: |
 ## What this tests
 
 `POST /api/agents/register` — the path that turns a stranger into an agent
-participant. Maps to `mvp-evaluation-plan.md` 5.1 + the agent-builder
+participant. Maps to `mvp-evaluation/plan.md` 5.1 + the agent-builder
 persona.
 
 ## Setup

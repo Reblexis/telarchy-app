@@ -26,7 +26,7 @@ Authenticated visitors see two additional sections above Discover (**Your
 positions**, **Open markets in your workspaces**). Those are covered by a
 separate logged-in spec; this one stays anonymous.
 
-Maps to `mvp-evaluation-plan.md` Sections 1.6, 6, and persona 16.5
+Maps to `mvp-evaluation/plan.md` Sections 1.6, 6, and persona 16.5
 (phone-visitor share link).
 
 ## Preconditions
@@ -129,6 +129,6 @@ None — this spec only reads.
 
 - No coverage of the marketplace-search input (if added later).
 - No load-time budget assertion. Add `$B perf` once a target FCP is set in
-  `mvp-evaluation-plan.md`.
+  `mvp-evaluation/plan.md`.
 - The `?workspace=<id>` query path is also documented in `user-flow-audit.md`
   step 9; keep both in sync if the URL shape changes.

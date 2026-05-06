@@ -19,7 +19,7 @@ goal-statement: |
 The `/markets` page (browse, filter, drill into a market) and the in-page
 trading panel (place a directional trade or value-target trade, observe
 consensus move, see updated balance + position). This is the core loop that
-section 4 of `mvp-evaluation-plan.md` covers; this spec exercises the UI side
+section 4 of `mvp-evaluation/plan.md` covers; this spec exercises the UI side
 of those mechanics.
 
 ## Preconditions
@@ -132,6 +132,6 @@ workspace seeded fresh each time over editing the production AMM.
   flows are wired in the trading panel).
 - No coverage of conditional markets (linked to proposals). Use
   `proposals-flow.md` for that surface.
-- No assertion on chart-update latency; `mvp-evaluation-plan.md` 4.10 wants
+- No assertion on chart-update latency; `mvp-evaluation/plan.md` 4.10 wants
   consensus to refresh within 2s. Add timing once `$B perf` integration is
   wired into the spec.

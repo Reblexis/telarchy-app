@@ -22,7 +22,7 @@ agent-key participant can sign in to the portal, see balance, browse markets
 they can trade on, and place a trade — i.e. that the AGENTS.md "participant
 symmetry" rule holds at the UI layer.
 
-Maps to `mvp-evaluation-plan.md` Section 5 and persona `03-agent-builder.md`.
+Maps to `mvp-evaluation/plan.md` Section 5 and persona `03-agent-builder.md`.
 
 ## Preconditions
 

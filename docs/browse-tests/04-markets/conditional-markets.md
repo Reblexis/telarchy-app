@@ -18,7 +18,7 @@ goal-statement: |
 
 The lifecycle: create proposal → conditional markets exist → trade on them →
 approve or decline proposal → markets resolve / void cleanly. Maps to
-`mvp-evaluation-plan.md` 4.9, the conditional path of `proposals-flow.md`.
+`mvp-evaluation/plan.md` 4.9, the conditional path of `proposals-flow.md`.
 
 ## Setup
 

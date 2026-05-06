@@ -21,7 +21,7 @@ verifying the source content shows up where expected, and walking the
 GitHub-bridge installation flow up to the OAuth handoff (the OAuth itself
 is human-only).
 
-Maps to `mvp-evaluation-plan.md` Section 15.3.
+Maps to `mvp-evaluation/plan.md` Section 15.3.
 
 ## Preconditions
 

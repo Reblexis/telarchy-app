@@ -20,7 +20,7 @@ The handoff to Google / GitHub OAuth from `/signup` and `/login`. The
 provider's consent screen itself can only be completed by a human, so this
 spec uses `$B handoff` to pause the runner and ask a person to finish.
 
-Maps to `mvp-evaluation-plan.md` 2.10 + 2.11.
+Maps to `mvp-evaluation/plan.md` 2.10 + 2.11.
 
 ## Preconditions
 

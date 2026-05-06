@@ -21,7 +21,7 @@ one workspace. Specifically: the signup form's validation, the consent gate,
 the OAuth-button affordance (without completing real OAuth), and the
 post-signup landing.
 
-Maps to `mvp-evaluation-plan.md` Section 2.
+Maps to `mvp-evaluation/plan.md` Section 2.
 
 ## Preconditions
 
@@ -149,7 +149,7 @@ DELETE FROM "user" WHERE email LIKE 'qa+%@example.test';
 
 ## Known gaps
 
-- Steps 2.10 and 2.11 in `mvp-evaluation-plan.md` (real Google/GitHub OAuth)
+- Steps 2.10 and 2.11 in `mvp-evaluation/plan.md` (real Google/GitHub OAuth)
   remain human-only. Use `$B handoff` if you need to walk a human through it.
 - T2 currently asserts on text patterns; once the signup form has stable
   `data-testid` attributes, switch to those for resilience.

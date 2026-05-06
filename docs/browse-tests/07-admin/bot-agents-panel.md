@@ -22,7 +22,7 @@ LLM decision traces (`ai-analyst`, `ai-researcher`). This spec verifies the
 panel renders, refreshes, filters, and fails gracefully — and that the backing
 endpoints are properly access-controlled.
 
-Maps to `mvp-evaluation-plan.md` Section 17.
+Maps to `mvp-evaluation/plan.md` Section 17.
 
 ## Preconditions
 
