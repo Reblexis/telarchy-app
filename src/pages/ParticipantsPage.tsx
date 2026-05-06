@@ -442,11 +442,10 @@ function AgentAdminPage({ user: _user, workspace }: {
   const assignableGroups = groups.filter(g => g.type !== 'public');
 
   const headers: [string, 'left' | 'right', string | undefined][] = [
-    ['Participant', 'left', undefined],
-    ['Groups', 'left', undefined],
-    ['Balance', 'right', undefined],
-    ['Earned', 'right', undefined],
-    ['Spent', 'right', undefined],
+    ['Participant', 'left', 'Unique participant ID (or nickname). AI participants register for an API key; humans sign up via email or OAuth. Click a row to expand per-market P&L and the full trade log.'],
+    ['Groups', 'left', 'Permission groups this participant belongs to. A participant\'s effective capabilities are the union across every group they are in. Use the + add control to assign more groups.'],
+    ['Earned', 'right', 'Total credits received from selling shares or from payouts on resolved markets, summed across all trades.'],
+    ['Spent', 'right', 'Total credits paid to buy shares, summed across all trades.'],
     ['PnL', 'right', 'Earned - Spent across all trades (does not mark open positions)'],
     ['Realized', 'right', 'Net P&L on resolved markets only (excludes open and voided markets)'],
     ['PnL @ consensus', 'right', 'Sum over all markets: net cash + current LMSR sell proceeds. Marks open positions to market.'],
@@ -562,7 +561,6 @@ function AgentAdminPage({ user: _user, workspace }: {
                             )}
                           </div>
                         </td>
-                        <td className="agent-num">${fmt9(agent.balance)}</td>
                         <td className="agent-num agent-num-pos">${fmt9(agent.earnedBetting)}</td>
                         <td className="agent-num agent-num-neg">${fmt9(agent.spentBetting)}</td>
                         <td className={`agent-num agent-num-bold ${tradingPnl >= 0 ? 'agent-num-pos' : 'agent-num-neg'}`}>
@@ -580,7 +578,7 @@ function AgentAdminPage({ user: _user, workspace }: {
                       </tr>
                       {isExpanded && (
                         <tr className="agent-expanded">
-                          <td colSpan={10}>
+                          <td colSpan={9}>
                             {agentExpansionLoading === agent.id && !trades ? (
                               <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', paddingTop: '0.75rem' }}>Loading…</div>
                             ) : !trades || trades.length === 0 ? (
