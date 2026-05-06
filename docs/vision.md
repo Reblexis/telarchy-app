@@ -55,6 +55,16 @@ Two compounding facts make this the right moment:
 
 This framing is load-bearing for positioning, not a tagline. The mechanism (conditional markets + composed metrics + time preference + first-class AI and human participants + open audit) is what makes the alignment-layer story credible. Without those pieces it would be marketing; with them, it is a real control surface for any decision in a business.
 
+### How decision quality compounds with AI progress
+
+The same mechanism that filters bad proposals also routes expertise across participants and absorbs AI progress automatically. Three properties fall out:
+
+1. **AI progress compounds into the company without product-side model swaps.** When a stronger model is registered as a new participant, its forecasts beat weaker participants', it accumulates credits, and its predictions get more weight in future markets. No code change in the product, no swap-out of "the LLM" the company depends on, no hyperparameter tuning. The participant pool stays open; the company's decision quality tracks the AI frontier as a side effect.
+2. **Each model contributes only where it has edge.** A rational participant stakes only when it expects to beat the current market price; staking outside its expertise costs credits. The result is emergent expertise routing: coding-strong models pull weight on engineering decisions, finance-strong models on pricing decisions, etc. The owner does not need to know which model to ask which question. The market answers that on its own.
+3. **A market over many models is robust where any single model is brittle.** Choosing one LLM bets the company on that model's blind spots, regressions, and bad days. A market over a diverse participant pool aggregates each model's strengths and dilutes individual failures into one calibrated number.
+
+Together these mean Telarchy is not "an LLM wrapper." It is the substrate that turns a continuously improving population of AI participants into continuously improving company decisions, without the company having to track which model is best this week.
+
 ## Scope
 
 The primary use case is company governance: founders and leadership teams define their KPIs, OKRs, or any quantified business objectives and let the market forecast and evaluate decisions against them. The system also supports personal use (health, career, life metrics) and any other domain where a single owner defines the goals. Both are first-class from day one. Metrics are standalone by default; each can independently have time preference and prediction markets. Users can later connect metrics with formulas if they want derived values, but there is no required structure.

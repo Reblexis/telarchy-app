@@ -10,15 +10,15 @@ Last updated: 2026-04-29 (CEO plan review). Active CEO plan: `~/.gstack/projects
 
 ### Run /cso security pass — focused on confidentiality, not open-source
 - **What:** Run the `/cso` skill in daily mode against the live product. **Reframed (codex 2026-04-29):** the question is NOT "is the code safe to open-source." It is "can a founder safely paste confidential KPIs into this hosted system with AI participants?" Triage gaps in that order: workspace isolation, AI-participant data access, master API key handling, admin audit trail, secrets management.
-- **Why:** Concierge users are 5 real, named founders with real network value. The confidentiality checklist (separate TODO above) needs honest answers, and `/cso` will surface where current answers are wrong.
+- **Why:** Concierge users are real, named founders with real network value. The confidentiality checklist (separate TODO above) needs honest answers, and `/cso` will surface where current answers are wrong.
 - **Pros:** ~1-2 CC-hours yields a short triage list. Most fixes are likely small.
 - **Cons:** May surface a larger issue that delays Week 1.
 - **Context:** Codex outside-voice reframed the original /cso framing. The skill is still useful, but its output goes into the founder-call confidentiality checklist, not the open-source-readiness gate.
 - **Effort:** S (CC).
 - **Depends on:** Nothing.
 
-### Recruit 5 founders — DAY 1 (was Week 1, codex moved it earlier)
-- **What:** Name 20 founders today. Ask 10 to a 30-min call. Target 5 booked by end of Week 0.
+### Recruit founder cohort — DAY 1 (was Week 1, codex moved it earlier)
+- **What:** Build a list of candidate founders today, reach out to a subset for 30-min calls. Target a small cohort booked by end of Week 0.
 - **Why:** Codex flagged this as the top sequencing fix: everything else gates on whether these people exist. If you can't list 20 names today, the wedge is wrong before any code is written.
 - **Pros:** Falsifies the founder-network assumption immediately. If recruitment fails, you know within 48h, not 4 weeks.
 - **Cons:** Founder time. Cold DMs are uncomfortable.
@@ -47,12 +47,12 @@ Last updated: 2026-04-29 (CEO plan review). Active CEO plan: `~/.gstack/projects
 ### Email lifecycle: welcome + first-trade + day-3 nudge — DEFERRED to post-verdict (was Week 0)
 - **What:** Wire one transactional provider (Resend or Postmark). Send: welcome email (with workspace URL), first-bot-trade notification (with consensus delta), day-3 re-engagement nudge.
 - **Status change (2026-04-29 codex review):** Demoted from Week 0 P1 to **post-verdict P1**. Codex argued: 5 concierge founders don't need a transactional provider — manual personal emails are warmer and higher signal. User accepted. Email lifecycle becomes a launch-readiness item, not a concierge-readiness item.
-- **Why (post-verdict):** Once the wedge is locked and the broader launch is on the calendar, transactional email is non-negotiable. Pre-launch with 5 named people, manual is better.
+- **Why (post-verdict):** Once the wedge is locked and the broader launch is on the calendar, transactional email is non-negotiable. Pre-launch with a small named cohort, manual is better.
 - **Effort:** S→M (CC).
 - **Depends on:** Week-4 verdict.
 
 ### Concierge tracking sheet + pre-committed falsification criteria
-- **What:** Create `docs/concierge-tracking.md` with: (a) founder × stage matrix (recruited / call done / workspace live / week-1 metric update / week-2 return / week-4 verdict); (b) pre-committed falsification thresholds (e.g., "≥3 of 5 founders update a metric a second time without prompting" for week-2 retention; "≥2 of 5 say a market changed their mind on a real call" for week-4 verdict).
+- **What:** Create `docs/concierge-tracking.md` with: (a) founder × stage matrix (recruited / call done / workspace live / week-1 metric update / week-2 return / week-4 verdict); (b) pre-committed falsification thresholds (e.g., "majority of cohort update a metric a second time without prompting" for week-2 retention; "≥2 founders say a market changed their mind on a real call" for week-4 verdict). Scale thresholds to whatever cohort size is actually booked.
 - **Why:** Prevents goalpost-drift during the program. Makes the Week 4 verdict binding instead of felt-sense. Without pre-committed criteria, observation moves the line.
 - **Pros:** 30 minutes of work. Removes the dominant epistemological failure mode.
 - **Cons:** None.

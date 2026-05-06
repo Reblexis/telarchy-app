@@ -2,17 +2,17 @@
 
 Status: ACTIVE. Started 2026-04-29. Verdict gate: 2026-05-27 (4 weeks).
 
-This is the load-bearing validation arm of the pre-launch strategy. The riskiest assumption in Telarchy is that *a real founder will paste a real decision into a workspace and let the market move them off a gut call*. This program tests it directly with 5 manually-recruited founders, 30-min calls, real KPIs, real decisions, real workspaces.
+This is the load-bearing validation arm of the pre-launch strategy. The riskiest assumption in Telarchy is that *a real founder will paste a real decision into a workspace and let the market move them off a gut call*. This program tests it directly with a small cohort of manually-recruited founders, 30-min calls, real KPIs, real decisions, real workspaces.
 
 ## Why this exists
 
 The product is structurally complete (LMSR markets, conditional markets, time preference, multi-workspace, USDC settlement, hooks, BetterAuth, `/marketplace`, `/guides`). Zero users today. The last 30 days of commit history is ~80% UI polish (5 sidebar redesigns, 3 landing-H1 rewrites). That pattern is the leading indicator of pre-launch procrastination — polishing surfaces for a user who hasn't been recruited yet.
 
-A 4-week concierge program with 5 specific founders is the cheapest way to falsify the headline use case. If founders convert, the headline is locked. If they bounce on something the docs already address, that's the falsification signal — and the AI-agent-eval wedge becomes the headline instead.
+A 4-week concierge program with a small focused cohort is the cheapest way to falsify the headline use case. If founders convert, the headline is locked. If they bounce on something the docs already address, that's the falsification signal — and the AI-agent-eval wedge becomes the headline instead.
 
-## The 5 founders
+## The cohort
 
-Targets recruited in Week 0. Names in `candidates.md` (sibling file, gitignored — contains personal data).
+Targets recruited in Week 0. Names in `candidates.md` (sibling file, gitignored — contains personal data). Cohort size is intentionally flexible (single-digit); enough to detect a signal, small enough that the founder can act as lead forecaster on every workspace.
 
 Selection criteria (each scored 0-3, total /15 + bonuses):
 
@@ -29,7 +29,7 @@ Anti-flags (excludes): would ghost a call, regulated industry that can't share K
 
 ```
 WEEK 0 (this week)
-  Day 1   - Recruit. 20 names → 10 asks → target 5 booked.
+  Day 1   - Recruit. Outreach funnel: build a list, ask a subset, target a small handful of booked calls.
   Day 1+  - LinkedIn export submitted (ZIP arrives in ~24h, unlocks broader filtering).
   Mid-wk  - Confidentiality checklist drafted. /cso pass focused on confidentiality.
   Mid-wk  - Concierge operating model written: intake form + call script + weekly memo template.
@@ -62,7 +62,7 @@ POST-VERDICT
 
 **Status: TODO — user to lock numbers before first call.**
 
-The original review proposed: ≥3 of 5 founders update a metric a second time without prompting (week-2 retention proxy); ≥2 of 5 say a market changed their mind on a real call.
+The original review proposed: a majority of the cohort update a metric a second time without prompting (week-2 retention proxy); ≥2 founders say a market changed their mind on a real call.
 
 Codex outside-voice review sharpened these. Better criteria:
 
@@ -72,7 +72,7 @@ Codex outside-voice review sharpened these. Better criteria:
 - **Would they pay for it post-verdict?** Direct revenue intent signal.
 - **Would they refer another founder unprompted?** Direct distribution signal.
 
-Lock 2-3 of these as binding thresholds (e.g. "≥2 of 5 bring a 2nd unprompted decision by Week 4 OR ≥1 refers another founder = headline confirmed"). Write the actual numbers in `docs/concierge-tracking.md` before the first call.
+Lock 2-3 of these as binding thresholds (e.g. "≥2 founders in the cohort bring a 2nd unprompted decision by Week 4 OR ≥1 refers another founder = headline confirmed"). Write the actual numbers in `docs/concierge-tracking.md` before the first call, scaled to whatever cohort size you actually book.
 
 ## Operating model artifacts (Week 0 P1)
 
@@ -111,7 +111,7 @@ Codex's sharpest critique: with private founder workspaces and platform bots tha
 - For each founder workspace, write a **context briefing** as a Source (text source attached to the workspace). Bots read sources via the existing source mechanism.
 - Founder can supply **additional custom Sources** via the Sources tab — encouraged.
 - Founder also does **API connection for metric sync** (Stripe, Mixpanel, manual webhook) — natural moment to pair-program a context briefing.
-- You are effectively the **lead forecaster** on every concierge workspace for the first 4 weeks. This works for 5; doesn't scale; produces real forecasts.
+- You are effectively the **lead forecaster** on every concierge workspace for the first 4 weeks. This works for a small cohort; doesn't scale; produces real forecasts.
 
 The Claude Code skill for workspace setup (P2 TODO) is the natural force-multiplier — install the skill, get walked through KPI definition + source connection + decision elicitation in 10 minutes.
 

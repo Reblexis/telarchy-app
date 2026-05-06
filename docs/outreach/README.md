@@ -7,7 +7,7 @@ mechanism gets its own subdirectory.
 
 | Path | Status | What it is |
 | --- | --- | --- |
-| `concierge/` | active 2026-04-29 → 2026-05-27 | The 5-founder concierge program. Process tracked, real-people data gitignored. See `concierge/program.md`. |
+| `concierge/` | active 2026-04-29 → 2026-05-27 | The founder concierge program. Process tracked, real-people data gitignored. See `concierge/program.md`. |
 
 ## Tracked vs gitignored split
 
