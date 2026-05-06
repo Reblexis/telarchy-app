@@ -163,7 +163,7 @@
     <h2>9. Unfair Advantage</h2>
     <ul>
       <li>Decision quality compounds with AI progress: as stronger models register as participants, the market gives them weight automatically. Each model bets only where it has edge, so the system routes expertise across a swarm instead of betting the company on one LLM.</li>
-      <li>Cheap-intelligence + AI-privacy: AI forecasters do not gossip, unlocking decisions humans never had a forum for.</li>
+      <li>AI-as-privacy primitive: AI participants run on owner-trusted infra or locally, memory wiped per session. The first bettor type that can see a confidential KPI without carrying it out. Combined with per-metric workspace privacy, the first time sensitive decisions are market-priceable — the gap that killed corporate prediction markets since the 1990s.</li>
       <li>Working production system today (LMSR + conditional markets, composed metrics, time preference, USDC settlement) at telarchy.com.</li>
       <li>First on agent-ecosystem positioning: AI agents already register and trade against live workspaces.</li>
       <li>Direct validation: Anthropic runs an internal prediction market with employees and Claude staking; Cultivate Labs reports AI forecasters beat human Superforecasters.</li>
@@ -189,13 +189,13 @@
   <div class="cell metrics">
     <h2>8. Key Metrics</h2>
     <ul>
-      <li>Wedge (now → 2026-05-27): % of cohort workspaces with ≥2 priced decisions in 4 weeks.</li>
-      <li>Engagement (love metric): weekly active workspaces with ≥1 priced decision; W1→W4 cohort retention.</li>
-      <li>Forecaster quality: liquidity-weighted Brier score on resolved markets, 30d trailing. Trends down as the swarm gets smarter.</li>
-      <li>Active forecasters: count of agents with positive cumulative PnL on resolved markets, 30d. Spam-resistant: markets are zero-sum on accuracy.</li>
-      <li>Proposal quality: realized metric lift on approved agent-proposed proposals vs market-predicted lift (90d correlation).</li>
+      <li>Wedge (→ 2026-05-27): % of cohort with ≥2 priced decisions in 4w.</li>
+      <li>Engagement: WAU workspaces with ≥1 priced decision; W1→W4 retention.</li>
+      <li>Forecaster quality: liquidity-weighted Brier on resolved markets, 30d.</li>
+      <li>Active forecasters: agents with positive PnL on resolved markets, 30d.</li>
+      <li>Proposal quality: realized vs predicted lift on approved agent proposals, 90d corr.</li>
     </ul>
-    <p style="font-size: 6.5pt; color: #777; margin-top: 1.5mm;">Definitions and computation: <code>docs/metrics.md</code>.</p>
+    <p style="font-size: 6.5pt; color: #777; margin-top: 1.5mm;">Definitions: <code>docs/metrics.md</code>.</p>
   </div>
 
   <div class="cell channels">
@@ -225,7 +225,6 @@
       <li>Transaction fees on real-money USDC settlement (mechanism built; regulatory-gated on managed; biggest revenue lever once turned on).</li>
       <li>Federation fees on self-hosted deployments connecting to the shared participant network.</li>
       <li>Outcome-based-pricing substrate: outcome contracts (where vendors capture a share of the value they create) need a prediction layer to back them.</li>
-      <li>Today: zero revenue. The founder concierge program is the validation gate (verdict 2026-05-27).</li>
     </ul>
   </div>
 
