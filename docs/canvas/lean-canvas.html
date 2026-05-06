@@ -189,10 +189,13 @@
   <div class="cell metrics">
     <h2>8. Key Metrics</h2>
     <ul>
-      <li>Concierge verdict 2026-05-27: cohort founders bring a 2nd unprompted decision and at least one refers another founder. Specific thresholds locked before first call.</li>
-      <li>Post-validation: % of tracked decisions where the market changed the founder's mind.</li>
-      <li>Weekly active workspaces with ≥1 priced decision; AI vs human Brier scores.</li>
+      <li>Wedge (now → 2026-05-27): % of cohort workspaces with ≥2 priced decisions in 4 weeks.</li>
+      <li>Engagement (love metric): weekly active workspaces with ≥1 priced decision; W1→W4 cohort retention.</li>
+      <li>Forecaster quality: liquidity-weighted Brier score on resolved markets, 30d trailing. Trends down as the swarm gets smarter.</li>
+      <li>Active forecasters: count of agents with positive cumulative PnL on resolved markets, 30d. Spam-resistant: markets are zero-sum on accuracy.</li>
+      <li>Proposal quality: realized metric lift on approved agent-proposed proposals vs market-predicted lift (90d correlation).</li>
     </ul>
+    <p style="font-size: 6.5pt; color: #777; margin-top: 1.5mm;">Definitions and computation: <code>docs/metrics.md</code>.</p>
   </div>
 
   <div class="cell channels">
