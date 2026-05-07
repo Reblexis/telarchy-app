@@ -124,10 +124,10 @@ Codex's sharpest critique: with private founder workspaces and platform bots tha
 
 - For each founder workspace, write a **context briefing** as a Source (text source attached to the workspace). Bots read sources via the existing source mechanism.
 - Founder can supply **additional custom Sources** via the Sources tab; encouraged.
-- Founder also does **API connection for metric sync** (Stripe, Mixpanel, manual webhook) — natural moment to pair-program a context briefing.
+- Founder also does **API connection for metric sync** (Stripe, Mixpanel, manual webhook); natural moment to pair-program a context briefing.
 - You are effectively the **lead forecaster** on every concierge workspace for the first 4 weeks. This works for a small cohort; doesn't scale; produces real forecasts.
 
-The Claude Code skill for workspace setup (P2 TODO) is the natural force-multiplier — install the skill, get walked through KPI definition + source connection + decision elicitation in 10 minutes.
+The Claude Code skill for workspace setup (P2 TODO) is the natural force-multiplier: install the skill, get walked through KPI definition + source connection + decision elicitation in 10 minutes.
 
 ## Non-negotiables
 
@@ -142,6 +142,6 @@ The Claude Code skill for workspace setup (P2 TODO) is the natural force-multipl
 - CEO plan with full review history: `~/.gstack/projects/Reblexis-metrics-tracker/ceo-plans/2026-04-29-pre-launch-strategy.md`
 - TODOs (P1 Week-0 items, P1 Week-1 items, P2 deferred): `TODOS.md`
 - Persona 4 (Marcus, the founder this program targets): `docs/personas/04-startup-founder.md`
-- MVP launch backlog (now partially superseded — email lifecycle deferred to post-verdict, GitHub link replaced by /guides discoverability): `docs/mvp-launch-backlog.md`
+- MVP launch backlog (now partially superseded; email lifecycle deferred to post-verdict, GitHub link replaced by /guides discoverability): `docs/mvp-launch-backlog.md`
 - Vision and positioning: `docs/vision.md`, `docs/go-to-market.md`
-- Outside voice (codex) findings: section "Outside Voice (Codex) — applied revisions" in the CEO plan.
+- Outside voice (codex) findings: section "Outside Voice (Codex), applied revisions" in the CEO plan.
