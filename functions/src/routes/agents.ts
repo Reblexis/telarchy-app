@@ -136,6 +136,114 @@ agentsRouter.get('/deposit-address', (_req, res) => {
   }
 });
 
+/**
+ * Public participant profile. No auth. Resolves :idOrNickname against agents.id
+ * first, then case-insensitively against agents.nickname. Returns identity plus
+ * stats aggregated only over public-visibility workspaces (same privacy
+ * contract as /api/leaderboard and /api/marketplace).
+ */
+agentsRouter.get('/:idOrNickname/public', wrap(async (req, res) => {
+  const { computeLeaderboard } = await import('../lib/leaderboard');
+  const idOrNickname = req.params.idOrNickname as string;
+
+  let [agent] = await db.select().from(agents).where(eq(agents.id, idOrNickname)).limit(1);
+  if (!agent) {
+    [agent] = await db.select().from(agents)
+      .where(sql`LOWER(${agents.nickname}) = ${idOrNickname.toLowerCase()}`)
+      .limit(1);
+  }
+  if (!agent) { res.status(404).json({ error: 'Participant not found' }); return; }
+
+  const publicWs = await db.select({ id: workspaces.id, name: workspaces.name })
+    .from(workspaces).where(eq(workspaces.visibility, 'public'));
+  const publicWsIds = publicWs.map(w => w.id);
+  const wsNameById = new Map(publicWs.map(w => [w.id, w.name]));
+
+  const emptyStats = {
+    rank: null as number | null,
+    calibration: null as number | null,
+    accuracy: null as number | null,
+    totalEarnings: 0,
+    resolvedMarkets: 0,
+    totalTrades: 0,
+    lastTradeAt: null as string | null,
+  };
+
+  if (publicWsIds.length === 0) {
+    res.json({
+      id: agent.id,
+      nickname: agent.nickname,
+      intent: agent.intent,
+      joinedAt: agent.createdAt,
+      stats: emptyStats,
+      activeWorkspaces: [],
+    });
+    return;
+  }
+
+  const wsMarkets = await db.select({
+    id: markets.id,
+    workspaceId: markets.workspaceId,
+    rangeMin: markets.rangeMin,
+    rangeMax: markets.rangeMax,
+    resolved: markets.resolved,
+    actualValue: markets.actualValue,
+  }).from(markets).where(and(
+    inArray(markets.workspaceId, publicWsIds),
+    eq(markets.voided, false),
+  ));
+
+  const [tradeRows, positionRows] = await Promise.all([
+    db.select({
+      agentId: trades.agentId,
+      workspaceId: trades.workspaceId,
+      marketId: trades.marketId,
+      cost: trades.cost,
+      createdAt: trades.createdAt,
+    }).from(trades).where(inArray(trades.workspaceId, publicWsIds)),
+    db.select({
+      agentId: positions.agentId,
+      workspaceId: positions.workspaceId,
+      marketId: positions.marketId,
+      direction: positions.direction,
+      shares: positions.shares,
+    }).from(positions).where(inArray(positions.workspaceId, publicWsIds)),
+  ]);
+
+  const seenIds = new Set<string>();
+  for (const t of tradeRows) seenIds.add(t.agentId);
+  for (const p of positionRows) seenIds.add(p.agentId);
+  const seenAgents = seenIds.size > 0
+    ? await db.select({ id: agents.id, nickname: agents.nickname })
+        .from(agents).where(inArray(agents.id, Array.from(seenIds)))
+    : [];
+  const nicknameById = new Map(seenAgents.map(a => [a.id, a.nickname]));
+
+  // Compute the full leaderboard (limit larger than any plausible participant
+  // count) so the rank we report is real, not a tail-cutoff. The math is
+  // single-pass over the already-fetched data.
+  const ranked = computeLeaderboard(wsMarkets, tradeRows, positionRows, nicknameById, 1_000_000);
+  const entry = ranked.find(e => e.id === agent.id);
+
+  // Public workspaces this participant has actually traded in. Useful as a
+  // starting point for browsing their activity; we don't expose their full
+  // group memberships across private workspaces.
+  const activeWorkspaceIds = new Set<string>();
+  for (const t of tradeRows) if (t.agentId === agent.id) activeWorkspaceIds.add(t.workspaceId);
+  for (const p of positionRows) if (p.agentId === agent.id) activeWorkspaceIds.add(p.workspaceId);
+  const activeWorkspaces = Array.from(activeWorkspaceIds)
+    .map(id => ({ id, name: wsNameById.get(id) ?? id }));
+
+  res.json({
+    id: agent.id,
+    nickname: agent.nickname,
+    intent: agent.intent,
+    joinedAt: agent.createdAt,
+    stats: entry ?? emptyStats,
+    activeWorkspaces,
+  });
+}));
+
 agentsRouter.use(authMiddleware);
 
 /**

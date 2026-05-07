@@ -74,7 +74,9 @@ export function LeaderboardPage() {
                 {e.rank !== null ? e.rank : '—'}
               </span>
               <span className="leaderboard-col-name" role="cell">
-                <span className="leaderboard-name">{e.nickname || e.id}</span>
+                <Link to={`/participants/${encodeURIComponent(e.nickname ?? e.id)}`} className="leaderboard-name">
+                  {e.nickname || e.id}
+                </Link>
                 {e.resolvedMarkets > 0 && (
                   <span className="leaderboard-meta">
                     {e.resolvedMarkets} resolved · {e.totalTrades} trades

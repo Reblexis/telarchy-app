@@ -10,6 +10,7 @@ import { MarketplacePage } from './pages/MarketplacePage';
 import { WorkspaceSettingsPage } from './pages/WorkspaceSettingsPage';
 import { MetricsPage } from './pages/MetricsPage';
 import { ParticipantsPage } from './pages/ParticipantsPage';
+import { ParticipantProfilePage } from './pages/ParticipantProfilePage';
 import { MarketsPage } from './pages/MarketsPage';
 import { ProposalsPage } from './pages/ProposalsPage';
 import { WaitlistPage } from './pages/WaitlistPage';
@@ -53,6 +54,7 @@ export function App() {
             <Route path="/marketplace" element={<MarketplacePage />} />
             <Route path="/marketplace/:workspaceId" element={<MarketplaceWorkspaceRedirect />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
+            <Route path="/participants/:id" element={<ParticipantProfilePage />} />
             <Route path="/guides" element={<GuidesPage />} />
             <Route path="/guides/:section" element={<GuidesPage />} />
             <Route element={<RequireAuth />}>

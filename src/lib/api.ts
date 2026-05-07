@@ -80,6 +80,23 @@ export interface LeaderboardEntry {
   lastTradeAt: string | null;
 }
 
+export interface PublicParticipantProfile {
+  id: string;
+  nickname: string | null;
+  intent: string | null;
+  joinedAt: string;
+  stats: {
+    rank: number | null;
+    calibration: number | null;
+    accuracy: number | null;
+    totalEarnings: number;
+    resolvedMarkets: number;
+    totalTrades: number;
+    lastTradeAt: string | null;
+  };
+  activeWorkspaces: Array<{ id: string; name: string }>;
+}
+
 export interface MarketplaceListing {
   workspaceId: string;
   workspaceName: string;
@@ -415,6 +432,12 @@ export const api = {
   getLeaderboard: async (limit = 100): Promise<{ participants: LeaderboardEntry[] }> => {
     const res = await fetch(`${API_BASE}/api/leaderboard?limit=${limit}`);
     if (!res.ok) throw new Error(`Leaderboard request failed: ${res.status}`);
+    return res.json();
+  },
+  getPublicProfile: async (idOrNickname: string): Promise<PublicParticipantProfile> => {
+    const res = await fetch(`${API_BASE}/api/agents/${encodeURIComponent(idOrNickname)}/public`);
+    if (res.status === 404) throw new Error('Participant not found');
+    if (!res.ok) throw new Error(`Profile request failed: ${res.status}`);
     return res.json();
   },
   joinWorkspace: (workspaceId: string) =>

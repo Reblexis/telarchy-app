@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, FormEvent, Fragment } from 'react';
 import { compare, sortArrow, type SortState } from '../lib/sort';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace, type WorkspaceInfo } from '../hooks/useWorkspace';
 import { api, agentApi } from '../lib/api';
@@ -522,9 +522,14 @@ function AgentAdminPage({ user: _user, workspace }: {
                       >
                         <td className="agent-chevron">{isExpanded ? '▾' : '▸'}</td>
                         <td>
-                          <span className={isOpaqueId(agent.id) ? 'agent-id agent-id-opaque' : 'agent-id'} title={agent.id}>
+                          <Link
+                            to={`/participants/${encodeURIComponent(agent.id)}`}
+                            onClick={e => e.stopPropagation()}
+                            className={isOpaqueId(agent.id) ? 'agent-id agent-id-opaque' : 'agent-id'}
+                            title={`Open public profile · ${agent.id}`}
+                          >
                             {agent.id}
-                          </span>
+                          </Link>
                         </td>
                         <td>
                           <div className="agent-groups" onClick={e => e.stopPropagation()}>
