@@ -19,7 +19,22 @@ The product has no users yet. Every feature request or refactor should be evalua
 
 **Active milestone (2026-04-29 to 2026-05-27): founder concierge program.** See `docs/outreach/concierge/program.md`. The plan is to manually onboard a small founder cohort, run real decisions through their workspaces, and use their behavior to lock the headline use case (founder governance) or pivot to AI-agent-eval. All other product motion is gated against this 4-week window. The verdict on 2026-05-27 is binding.
 
-**Position freeze active until 2026-05-27.** No landing-page rewrites, no sidebar redesigns, no positioning iterations, no new "calmer / sharper / monochrome" passes. The exception is a specific complaint from a real concierge founder. The reason: the last 30 days saw 5 sidebar redesigns and 3 landing-H1 rewrites without user input — that pattern is solo-loop optimization, not product iteration. If you find yourself opening `LandingPage.tsx` or `Sidebar.tsx` for visual reasons, close the file.
+**Position freeze active until 2026-05-27.** The freeze targets one specific failure pattern: solo-loop UI/copy polish on surfaces that no real user has asked about. Concretely:
+
+Forbidden during the freeze (no exceptions without a named real-user trigger):
+- Landing-page rewrites (`LandingPage.tsx`)
+- Sidebar redesigns (`Sidebar.tsx`)
+- "Calmer / sharper / monochrome" visual passes
+- Internal positioning iterations driven by my own taste with no external trigger
+
+Allowed during the freeze:
+- A specific complaint or feedback request from a real concierge founder, investor, or other named external stakeholder. The triggering message goes in the commit body so the chain is auditable.
+- Sharpening investor or outreach artifacts when a specific outreach event needs them: YC application, Lean Canvas, Value Prop Canvas, vision/go-to-market docs being sent to a real person. "Founder X asked to see the lean canvas" is a real trigger; "I want this to read better" is not.
+- Bug fixes, infra, the concierge program operations, anything that ships a working product to a real founder.
+
+The reason for the original freeze still holds: the 30 days before 2026-04-29 saw 5 sidebar redesigns and 3 landing-H1 rewrites without user input. That pattern is solo-loop optimization, not product iteration. If you find yourself opening `LandingPage.tsx` or `Sidebar.tsx` for visual reasons with no founder having asked, close the file.
+
+If you are about to make a positioning commit during the freeze, the commit body should name the external trigger (founder, investor, outreach event). If you cannot name one, do not commit.
 
 ## Writing style
 
