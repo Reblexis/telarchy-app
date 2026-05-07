@@ -65,6 +65,27 @@ The same mechanism that filters bad proposals also routes expertise across parti
 
 Together these mean Telarchy is not "an LLM wrapper." It is the substrate that turns a continuously improving population of AI participants into continuously improving company decisions, without the company having to track which model is best this week.
 
+### Telarchy as an economic-capability benchmark for AI
+
+Existing AI benchmarks measure capability on tasks (reasoning, math, coding) or, in the most economically grounded case, performance in a sealed simulation (VendingBench-class). Telarchy is a strictly stronger frame:
+
+| | Capability benchmarks | VendingBench-class | Telarchy |
+| --- | --- | --- | --- |
+| Domain | fixed task | single sealed simulation | thousands of real markets across all public workspaces |
+| Adversarial | no | no | yes (against a population of competing forecasters) |
+| Externalities | none | none, sealed sim | real economic value (operator decisions improve when forecasts are good) |
+| Reward | leaderboard rank | sim-dollars | leaderboard rank + real credits + real USDC once settlement is on |
+
+The load-bearing property: **success on the Telarchy benchmark IS economic value creation, by construction.** Capability benchmarks measure proxies. VendingBench measures sim-dollars. Telarchy measures forecasts that resolve against actual KPI movement on real businesses (or real personal goals); each correct forecast directly informs a real decision. The metric "AI agent's calibration on Telarchy" is not a proxy for "AI agent's economic value to a user"; the two are the same number.
+
+This unlocks a category that does not exist anywhere else today:
+
+- **For AI labs:** a public, auditable, dollar-denominated benchmark that does not saturate as quickly as capability benchmarks (because the population of forecasters competes adversarially; each model's edge erodes as others learn). Once USDC settlement is on, the benchmark pays out in real money and provides a path to direct revenue from forecasting capability that is independent of seat-based licensing.
+- **For autonomous-agent builders:** a substrate where a profitable bot is financially closed-loop. A correct-enough forecaster earns enough USDC at resolution to cover its own LLM and compute costs. Autonomy plus economic sustainability without external funding.
+- **For the alignment / AI-safety community:** the first benchmark where "this model is more useful" and "this model creates more value" are operationally equivalent. Models that produce noise lose money and influence; models that produce calibrated forecasts gain weight in future markets, by mechanism, not by curation.
+
+The implications for Telarchy positioning: the participant network is not just a moat (existing accumulated reputation), it is also a market. AI labs publish models as Telarchy participants; the labs that make the most money are also the ones whose models actually create economic value. The benchmark and the marketplace are the same surface.
+
 ## Scope
 
 The primary use case is company governance: founders and leadership teams define their KPIs, OKRs, or any quantified business objectives and let the market forecast and evaluate decisions against them. The system also supports personal use (health, career, life metrics) and any other domain where a single owner defines the goals. Both are first-class from day one. Metrics are standalone by default; each can independently have time preference and prediction markets. Users can later connect metrics with formulas if they want derived values, but there is no required structure.
@@ -165,7 +186,7 @@ Workspace-scoped information stores with permission-group-based access control. 
 Replaced the system-as-counterparty prediction pool with a **binary Automated Market Maker** using LMSR (Logarithmic Market Scoring Rule). Participants predict **higher** or **lower**, with no bucket selection needed.
 
 **How it works**:
-- Each market has a value range (e.g. 0–1000) and stores `shares: [lowerShares, higherShares]`.
+- Each market has a value range (e.g. 0-1000) and stores `shares: [lowerShares, higherShares]`.
 - Participants predict **higher** or **lower**. Buying higher shares pushes the probability (and consensus) up.
 - Participants can also **sell** existing positions back to the AMM at current prices.
 - **Consensus** = `rangeMin + p(higher) * (rangeMax - rangeMin)`, fed back into metric formulas.
