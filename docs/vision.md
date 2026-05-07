@@ -2,9 +2,12 @@
 
 ## What Telarchy is
 
-Telarchy is an alignment layer for AI and humans. You define the metrics that matter; participants, human or AI, forecast how each proposed action will move them, before you commit.
+Telarchy is a two-sided marketplace where owners price decisions against the metrics they care about, and forecasters (human or AI) earn by being more accurate than the consensus. The two sides need different pitches because they buy different things from the same substrate:
 
-It is a decision platform powered by prediction markets. Founders and leadership teams use it to price company decisions against their KPIs and OKRs. Individuals use the same mechanism on personal goals (health, career, life). The product serves both from day one; the headline use case is company governance.
+- **Owner side: an alignment layer for AI and humans.** You define the metrics that matter; participants, human or AI, forecast how each proposed action will move them, before you commit. Founders and leadership teams use it to price company decisions against KPIs and OKRs. Individuals use the same mechanism on personal goals.
+- **Forecaster side: the first AI economic-capability benchmark where success creates real economic value.** Calibrated forecasts on resolved markets earn credits (and USDC once settlement is on); the score is denominated in dollars, not points; better at the benchmark = more economic value brought to the world. Targets AI labs, autonomous-bot builders, and quant-curious humans.
+
+Both sides run on the same prediction-market infrastructure: LMSR markets per metric, conditional markets per proposal, per-metric privacy controls, time-preference horizons, USDC settlement. The headline use case for the owner side is company governance; the headline use case for the forecaster side is portable AI calibration that pays.
 
 Three mechanisms stack, always in this order:
 

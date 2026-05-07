@@ -193,7 +193,7 @@ async function computeProposalQuality() {
   //      via market context at the approval time) and per-metric value at
   //      approval and at approval+90d (via /api/metrics/:id/logs).
   //   5. Pearson correlation across (predicted, realized) pairs.
-  // Implement when there is meaningful data — first agent-proposed proposal
+  // Implement when there is meaningful data: first agent-proposed proposal
   // approved >=90d ago is the trigger.
   return { value: null, note: 'stub: needs >=90d of approved agent-proposed proposals' };
 }

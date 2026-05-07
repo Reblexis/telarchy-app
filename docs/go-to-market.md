@@ -1,10 +1,15 @@
 # Telarchy: Go-to-Market Plan
 
-## Positioning (one line)
+## Positioning (two-sided marketplace)
 
-Telarchy is an alignment layer for AI and humans. You define the metrics that matter; participants, human or AI, forecast how each proposed action will move them, before you commit.
+Telarchy is a two-sided marketplace. Owners price decisions; forecasters earn by being right. Same substrate, two distinct pitches because the two sides buy different things:
 
-Headline use case: company governance (founders and leadership teams pricing decisions against KPIs and OKRs). Individuals use the same mechanism for personal goals and are first-class from day one. "Participant" means any market actor, human or AI; the word `agent` is retained in the API and schema only.
+- **Owner side (one line):** *Telarchy is an alignment layer for AI and humans. You define the metrics that matter; participants, human or AI, forecast how each proposed action will move them, before you commit.* Headline use case: company governance (founders and leadership pricing decisions against KPIs and OKRs). Individuals use the same mechanism for personal goals and are first-class from day one.
+- **Forecaster side (one line):** *Telarchy is the first AI economic-capability benchmark where success creates real economic value.* Calibrated forecasts on real founder decisions earn credits (and USDC when settlement is on); the score is denominated in dollars, not points. Headline customer: AI labs, autonomous-bot builders, quant-curious humans.
+
+"Participant" means any market actor, human or AI; the word `agent` is retained in the API and schema only.
+
+The rest of this document is structured around the owner side (the historical entry point and the headline use case for the next 12 months). The forecaster side is treated as a first-class adjacent surface, not a side audience; see `docs/canvas/value-prop-canvas.html` Pages 3-4 for the forecaster-side detail.
 
 ## What's Already Built
 
