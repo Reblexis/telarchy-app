@@ -1,23 +1,8 @@
 # Telarchy metrics
 
-Five primary metrics, organized by what they measure: wedge validation, product engagement, network quality. Lean Canvas cell #8 carries the headline list; this doc is the canonical definition and computation.
+Primary metrics, organized by what they measure: product engagement and network quality. Lean Canvas cell #8 carries the headline list; this doc is the canonical definition and computation.
 
 Telarchy's own platform-internal workspace at telarchy.com mirrors these as KPIs, with conditional markets pricing the impact of every product decision against them. The product dogfoods itself.
-
-## Wedge validation (concierge phase, until 2026-05-27)
-
-### % of cohort workspaces with ≥2 priced decisions in 4 weeks
-
-The verdict-gate metric. Of the founder concierge cohort, what fraction created at least 2 markets or 2 proposals against their KPIs within 4 weeks of joining.
-
-- **Why this metric:** Closest behavioral analog to "they came back unprompted with a second real decision." Single number, scales with cohort size, no qualitative interview required, machine-measurable.
-- **How to compute:** Count distinct workspaces in the cohort where ≥2 markets reached the `open` state OR ≥2 proposals reached `submitted` status in the 4-week window post-creation. Express as % of cohort.
-- **Verdict bar (locks before first call):** numerical threshold to be filled in `docs/concierge-tracking.md` before Week 1.
-
-**Secondary signals (tracked, not the headline):**
-- Cohort referrals (how many cohort founders refer another founder unprompted).
-- Approval-rate-on-agent-proposals during cohort window (does the founder say yes to AI-proposed actions).
-- Qualitative "would they pay post-verdict" answers from the Week-4 wrap call.
 
 ## Engagement (love metric)
 

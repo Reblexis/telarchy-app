@@ -2,7 +2,7 @@
 /**
  * Sync Telarchy's own self-monitoring metrics.
  *
- * Reads platform-wide data from telarchy.com /api, computes the 5 metrics
+ * Reads platform-wide data from telarchy.com /api, computes the 4 metrics
  * defined in docs/metrics.md, and PUTs each value into the Telarchy
  * dogfooding workspace ("Telarchy", id qzOIWWj7m6rDInxrvqPx).
  *
@@ -12,13 +12,7 @@
  *
  * Auth:
  *   TELARCHY_ADMIN_KEY  master API key (required for cross-workspace platform
- *                       reads — agent keys are scoped to their own workspace).
- *
- * Optional env:
- *   COHORT_WORKSPACE_IDS  comma-separated override for the founder concierge
- *                         cohort. If unset (default), the cohort is auto-
- *                         derived from /api/workspaces filtered by createdAt
- *                         in the concierge window, excluding the owner.
+ *                       reads; agent keys are scoped to their own workspace).
  *
  * Usage:
  *   node scripts/telarchy-self-sync.js [--dry-run] [--metric "<name>"]
@@ -31,16 +25,6 @@ const TELARCHY_URL = process.env.TELARCHY_URL || 'https://telarchy.com';
 const ADMIN_KEY = process.env.TELARCHY_ADMIN_KEY;
 const TELARCHY_WORKSPACE_ID = 'qzOIWWj7m6rDInxrvqPx';
 const EXPECTED_WORKSPACE_NAME = 'Telarchy';
-
-const COHORT_WORKSPACE_IDS_OVERRIDE = (process.env.COHORT_WORKSPACE_IDS || '')
-  .split(',').map((s) => s.trim()).filter(Boolean);
-
-// Founder concierge phase. Cohort is auto-derived from workspaces created
-// in this window, with the owner excluded.
-const CONCIERGE_START_MS = Date.parse('2026-04-29T00:00:00Z');
-const CONCIERGE_END_MS = Date.parse('2026-06-03T00:00:00Z'); // 2026-05-27 verdict + 1 week buffer for late joiners
-// Owner of the Telarchy workspace; their own workspaces are excluded from the cohort.
-const TELARCHY_OWNER_USER_ID = '8fdf5d6ad6ecd374a3ea71583481d71a';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEK_MS = 7 * DAY_MS;
@@ -109,37 +93,6 @@ async function safeListMarkets(workspaceId) {
     console.warn(`  markets fetch failed for ws=${workspaceId.slice(0, 8)}: ${e.message}`);
     return [];
   }
-}
-
-function deriveCohort(allWorkspaces) {
-  return allWorkspaces.filter((w) => {
-    const t = Date.parse(w.createdAt);
-    return t >= CONCIERGE_START_MS && t < CONCIERGE_END_MS && w.createdBy !== TELARCHY_OWNER_USER_ID;
-  });
-}
-
-async function computeWedge() {
-  const allWorkspaces = await listAllWorkspaces();
-  const cohort = COHORT_WORKSPACE_IDS_OVERRIDE.length
-    ? allWorkspaces.filter((w) => COHORT_WORKSPACE_IDS_OVERRIDE.includes(w.id))
-    : deriveCohort(allWorkspaces);
-  if (cohort.length === 0) {
-    return { value: null, note: `no cohort workspaces detected in [${new Date(CONCIERGE_START_MS).toISOString().slice(0, 10)}, ${new Date(CONCIERGE_END_MS).toISOString().slice(0, 10)})` };
-  }
-  let qualifying = 0;
-  for (const ws of cohort) {
-    const cutoff = Date.parse(ws.createdAt) + 4 * WEEK_MS;
-    const markets = await safeListMarkets(ws.id);
-    const proposals = await safeListProposals(ws.id);
-    const earlyMarkets = markets.filter((m) => Date.parse(m.createdAt) <= cutoff).length;
-    const earlyProposals = proposals.filter((p) => Date.parse(p.createdAt) <= cutoff).length;
-    if (earlyMarkets >= 2 || earlyProposals >= 2) qualifying++;
-  }
-  const pct = (qualifying / cohort.length) * 100;
-  return {
-    value: pct,
-    note: `${qualifying}/${cohort.length} cohort workspaces with >=2 priced decisions in 4w (cohort auto-derived from concierge window${COHORT_WORKSPACE_IDS_OVERRIDE.length ? ', overridden' : ''})`,
-  };
 }
 
 async function computeWAU() {
@@ -246,7 +199,6 @@ async function computeProposalQuality() {
 }
 
 const COMPUTE = {
-  'Wedge: % cohort with >=2 priced decisions in 4w': computeWedge,
   'WAU: workspaces with >=1 priced decision (7d)': computeWAU,
   'Forecaster quality: liquidity-weighted Brier (30d)': computeBrier,
   'Active forecasters: agents with positive PnL (30d)': computeActiveForecasters,
