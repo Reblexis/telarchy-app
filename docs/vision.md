@@ -86,6 +86,34 @@ This unlocks a category that does not exist anywhere else today:
 
 The implications for Telarchy positioning: the participant network is not just a moat (existing accumulated reputation), it is also a market. AI labs publish models as Telarchy participants; the labs that make the most money are also the ones whose models actually create economic value. The benchmark and the marketplace are the same surface.
 
+### Decision quality scales with capital
+
+The LMSR mechanism has graceful, logarithmic diminishing returns to liquidity: each marginal credit added to a market still buys real forecast sharpness, just less than the one before. Combined with the practical dynamic that bigger pools attract more and better forecasters (because the expected value of trading scales with pool size), the practical scaling is even gentler than the math alone suggests. There is no architectural ceiling: unlike user-count-bounded SaaS economics, where the marginal user eventually saturates the market, the marginal credit poured into a Telarchy market still buys value far longer.
+
+This expresses itself in three places that operators and traders care about directly:
+
+1. **Per-market sharpness.** Price sensitivity is `b = pool / ln(2)`. A bigger pool means a more sensitive price surface, so more forecasters find tradable edges, so more information enters the consensus. The expected loss to the LP is bounded at `b * ln(2)` (= the pool itself), which is paid only when the market consensus is wrong; on average, an LP recovers most of the pool through correct payouts and the cost works out as a deliberate subsidy to information.
+
+2. **Per-workspace prioritization by liquidity.** Owners allocate liquidity by importance. Metrics the owner cares about most get rich pools (`autoFundNewMarkets` plus targeted `POST /predictions/markets/:id/liquidity` injections), pulling tight forecasts. Less critical metrics get smaller pools and looser consensus. Priorities become a continuous knob, not a binary "track or do not track" choice. The pool you put on a metric is itself a legible signal of how much you care.
+
+3. **Per-proposal conviction-weighted influence.** A trader confident in a conditional forecast can fund that market more heavily via `liquiditySubsidy` on `POST /api/proposals` (or, for an admin or any participant, via `POST /predictions/markets/liquidity/bulk`). Their conviction translates to influence in two ways: the trader's own position size, plus the LP subsidy that pulls other forecasters in to compete on the now-more-tradable market. High-conviction calls become high-signal markets, which is precisely the right thing.
+
+The pair to the AI-progress-compounding argument: AI progress makes forecaster *quality* approach free; capital scaling makes forecaster *attention* allocatable to anywhere the operator or trader wants it. Decision quality scales on two independent axes, both gracefully, both without ceiling. The bottleneck is neither AI capability (which keeps getting cheaper) nor user count (which Telarchy does not depend on linearly); the bottleneck is willingness to allocate, and that is exactly where the operator's prioritization signal lives.
+
+For investor framing: this is a strictly better growth model than user-count-driven SaaS. Telarchy's effective output (decision quality, calibration, real economic value created) keeps responding to capital injection long after a SaaS would have saturated. Combined with the participant-network moat (calibration history that source code cannot clone) and the AI-economic-capability-benchmark frame (where every dollar of liquidity converts directly to a dollar-denominated benchmark surface for the AI ecosystem), the marginal-credit math compounds favourably across all three positioning axes.
+
+### Outcome-based pricing on both sides of the marketplace
+
+The same mechanism that makes the system scale with capital also aligns economic motivation across all three roles in a Telarchy workspace. Telarchy is, structurally, outcome-based pricing on both sides of a marketplace, with the operator buying value in the middle:
+
+- **Proposers** earn LP returns proportional to actual metric movement vs the conditional consensus they helped fund. A proposer who believes their proposal will move a metric dramatically can fund the conditional markets heavily; if the metric moves as predicted, the LP earns proportionally; if the proposal turns out to be a wash, the LP barely moves either way. Big predicted impact + correct prediction = big LP earnings. Big predicted impact + wrong prediction = big losses. The economics push proposers toward finding genuinely high-leverage actions, not just any action.
+- **Forecasters** earn payouts proportional to forecast accuracy on resolved markets. The pool that subsidizes the market is the LP's commitment; the accuracy of the forecaster against the eventual resolution determines how the pool gets distributed at payout. Accurate calibration on a heavily-funded market pays more than accurate calibration on a thin one, mirroring real-economy outcome compensation.
+- **Operators** pay both proposers and forecasters only in proportion to value delivered: the proposer is paid (via LP returns or via the optional `proposalReward`) only if the proposal moved the metric; forecasters are paid (via market payouts or via accuracy-weighted credit accumulation) only when their forecasts beat the consensus they helped form. The operator's spend on Telarchy is therefore a pure function of decision quality created, not a fixed cost.
+
+This is a strictly better economic structure than seat-based SaaS, $/seat AI vendor licensing, or fixed-fee consulting. Each side is paid by the resolution of real KPI movement against real predictions; nobody is paid for activity in the absence of value created. The marketplace has built-in alignment: incentives flow to participants who reduce uncertainty about the operator's metrics, and they flow in proportion to how much uncertainty was reduced and how much that uncertainty mattered.
+
+For the AI vendor world specifically, this is the substrate the industry is reaching for under the "outcome-based pricing" label. Telarchy provides the verifiable predictor that outcome contracts need; the same mechanism happens to also reward forecasters and proposers in the same outcome-aligned way.
+
 ## Scope
 
 The primary use case is company governance: founders and leadership teams define their KPIs, OKRs, or any quantified business objectives and let the market forecast and evaluate decisions against them. The system also supports personal use (health, career, life metrics) and any other domain where a single owner defines the goals. Both are first-class from day one. Metrics are standalone by default; each can independently have time preference and prediction markets. Users can later connect metrics with formulas if they want derived values, but there is no required structure.
