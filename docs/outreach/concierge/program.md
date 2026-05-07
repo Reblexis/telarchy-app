@@ -58,21 +58,35 @@ POST-VERDICT
   - Build Claude Code skill for founder workspace setup (`/setup-telarchy-workspace`).
 ```
 
-## Falsification criteria (LOCK BEFORE WEEK 1)
+## Falsification criteria (LOCKED 2026-05-07; binding for 2026-05-27 verdict)
 
-**Status: TODO — user to lock numbers before first call.**
+The verdict on 2026-05-27 is decided by these criteria, agreed in advance to prevent goalpost drift. Two behavioral signals, both observable without asking the founder leading questions, both pattern-over-anecdote.
 
-The original review proposed: a majority of the cohort update a metric a second time without prompting (week-2 retention proxy); ≥2 founders say a market changed their mind on a real call.
+**CONFIRMED (founder governance is the headline; ship the broader launch):**
+EITHER of these:
+- ≥2 cohort founders bring a 2nd real decision unprompted by Week 4 (a new proposal or a new market they create themselves, not because we asked them to), OR
+- ≥1 cohort founder makes an unprompted referral by Week 4 (sends another founder to telarchy.com or asks for an intro template, without us asking).
 
-Codex outside-voice review sharpened these. Better criteria:
+**FALSIFIED (pivot to AI-agent-eval per `AGENTS.md` § Canonical positioning):**
+BOTH of these:
+- 0 cohort founders bring a 2nd unprompted decision, AND
+- 0 cohort founders make an unprompted referral, AND
+- Majority of cohort is cold past Week 2 (no metric updates, no new markets, no proposals; not just quiet but actively disengaged).
 
-- **Did they bring a 2nd real decision unprompted?** Higher signal than "updated a metric." Measures whether they internalized the workflow.
-- **Did they ask to invite another participant** (co-founder, advisor, teammate)? Measures whether they think of this as multi-person infrastructure.
-- **Did they trust the forecast enough to delay/change/spend?** Direct measure of whether the mechanism affected behavior.
-- **Would they pay for it post-verdict?** Direct revenue intent signal.
-- **Would they refer another founder unprompted?** Direct distribution signal.
+**INCONCLUSIVE (anything between confirmed and falsified): default to pivot.** Founder governance becomes a supporting use case; AI-agent-eval is promoted to headline. The default-to-pivot is intentional: extending the program in the gray zone is goalpost drift. We can always come back to founder governance from an AI-agent-eval headline; we cannot un-spend the next quarter chasing a weak founder signal.
 
-Lock 2-3 of these as binding thresholds (e.g. "≥2 founders in the cohort bring a 2nd unprompted decision by Week 4 OR ≥1 refers another founder = headline confirmed"). Write the actual numbers in `docs/concierge-tracking.md` before the first call, scaled to whatever cohort size you actually book.
+### Why these two and not the other three
+
+The original Codex review proposed five candidate criteria. Three are deliberately not locked:
+
+- **Asked to invite another participant.** Confounded by the founder's team structure (a solo founder can't invite a co-founder); it measures the founder's situation, not Telarchy's value.
+- **Trusted forecast enough to delay/change/spend.** Requires founder self-report; verbal commitment is noisier than observable behavior. The 2nd unprompted decision criterion already captures behavioral trust, more cleanly.
+- **Would pay post-verdict.** Verbal commitment under social pressure of a 1:1 call. Revealed preference (do they actually keep using it for new decisions) is the stronger signal and is already covered by the 2nd unprompted decision criterion.
+
+### What gets tracked, where
+
+- `docs/outreach/concierge/tracking.md` (gitignored, contains real founder names) is the live operational dashboard with the founder × stage matrix and the locked thresholds restated. Update after every concierge call.
+- The two criteria here MUST NOT BE EDITED before 2026-05-27. If you find yourself wanting to soften them mid-program, that is the goalpost drift the lock was designed to prevent. Add the would-have-been observation to the post-verdict notes file instead.
 
 ## Operating model artifacts (Week 0 P1)
 
