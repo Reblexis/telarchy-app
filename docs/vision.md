@@ -5,9 +5,9 @@
 Telarchy is a two-sided marketplace where owners price decisions against the metrics they care about, and forecasters (human or AI) earn by being more accurate than the consensus. The two sides need different pitches because they buy different things from the same substrate:
 
 - **Owner side: an alignment layer for AI and humans.** You define the metrics that matter; participants, human or AI, forecast how each proposed action will move them, before you commit. Founders and leadership teams use it to price company decisions against KPIs and OKRs. Individuals use the same mechanism on personal goals.
-- **Forecaster side: the first AI economic-capability benchmark where success creates real economic value.** Calibrated forecasts on resolved markets earn credits (and USDC once settlement is on); the score is denominated in dollars, not points; better at the benchmark = more economic value brought to the world. Targets AI labs, autonomous-bot builders, and quant-curious humans.
+- **Forecaster side: the first AI economic-capability benchmark where success creates real economic value.** Calibrated forecasts on resolved markets earn credits (and real-money payouts once settlement is on); the score is denominated in dollars, not points; better at the benchmark = more economic value brought to the world. Targets AI labs, autonomous-bot builders, and quant-curious humans.
 
-Both sides run on the same prediction-market infrastructure: LMSR markets per metric, conditional markets per proposal, per-metric privacy controls, time-preference horizons, USDC settlement. The headline use case for the owner side is company governance; the headline use case for the forecaster side is portable AI calibration that pays.
+Both sides run on the same prediction-market infrastructure: LMSR markets per metric, conditional markets per proposal, per-metric privacy controls, time-preference horizons, real-money settlement (USDC on Base today, see Phase 8). The headline use case for the owner side is company governance; the headline use case for the forecaster side is portable AI calibration that pays.
 
 Three mechanisms stack, always in this order:
 
@@ -77,14 +77,14 @@ Existing AI benchmarks measure capability on tasks (reasoning, math, coding) or,
 | Domain | fixed task | single sealed simulation | thousands of real markets across all public workspaces |
 | Adversarial | no | no | yes (against a population of competing forecasters) |
 | Externalities | none | none, sealed sim | real economic value (operator decisions improve when forecasts are good) |
-| Reward | leaderboard rank | sim-dollars | leaderboard rank + real credits + real USDC once settlement is on |
+| Reward | leaderboard rank | sim-dollars | leaderboard rank + real credits + real-money payouts once settlement is on |
 
 The load-bearing property: **success on the Telarchy benchmark IS economic value creation, by construction.** Capability benchmarks measure proxies. VendingBench measures sim-dollars. Telarchy measures forecasts that resolve against actual KPI movement on real businesses (or real personal goals); each correct forecast directly informs a real decision. The metric "AI agent's calibration on Telarchy" is not a proxy for "AI agent's economic value to a user"; the two are the same number.
 
 This unlocks a category that does not exist anywhere else today:
 
-- **For AI labs:** a public, auditable, dollar-denominated benchmark that does not saturate as quickly as capability benchmarks (because the population of forecasters competes adversarially; each model's edge erodes as others learn). Once USDC settlement is on, the benchmark pays out in real money and provides a path to direct revenue from forecasting capability that is independent of seat-based licensing.
-- **For autonomous-agent builders:** a substrate where a profitable bot is financially closed-loop. A correct-enough forecaster earns enough USDC at resolution to cover its own LLM and compute costs. Autonomy plus economic sustainability without external funding.
+- **For AI labs:** a public, auditable, dollar-denominated benchmark that does not saturate as quickly as capability benchmarks (because the population of forecasters competes adversarially; each model's edge erodes as others learn). Once real-money settlement is on, the benchmark pays out in real money and provides a path to direct revenue from forecasting capability that is independent of seat-based licensing.
+- **For autonomous-agent builders:** a substrate where a profitable bot is financially closed-loop. A correct-enough forecaster earns enough at resolution to cover its own LLM and compute costs. Autonomy plus economic sustainability without external funding.
 - **For the alignment / AI-safety community:** the first benchmark where "this model is more useful" and "this model creates more value" are operationally equivalent. Models that produce noise lose money and influence; models that produce calibrated forecasts gain weight in future markets, by mechanism, not by curation.
 
 The implications for Telarchy positioning: the participant network is not just a moat (existing accumulated reputation), it is also a market. AI labs publish models as Telarchy participants; the labs that make the most money are also the ones whose models actually create economic value. The benchmark and the marketplace are the same surface.
@@ -109,7 +109,7 @@ For investor framing: this is a strictly better growth model than user-count-dri
 
 ### Outcome-based pricing on both sides of the marketplace
 
-The same mechanism that makes the system scale with capital also aligns economic motivation across all three roles in a Telarchy workspace. Telarchy is, structurally, outcome-based pricing on both sides of a marketplace, with the operator buying value in the middle. The unit (play-money credits today on telarchy.com, USDC on self-hosted with settlement enabled) changes without changing the alignment property; the user-facing pre-settlement and post-settlement value maps live in `docs/canvas/value-prop-canvas.html` Pages 1+3 (play-money) and 2+4 (USDC).
+The same mechanism that makes the system scale with capital also aligns economic motivation across all three roles in a Telarchy workspace. Telarchy is, structurally, outcome-based pricing on both sides of a marketplace, with the operator buying value in the middle. The unit (play-money credits today on telarchy.com, real-money settlement on self-hosted with settlement enabled) changes without changing the alignment property; the user-facing pre-settlement and post-settlement value maps live in `docs/canvas/value-prop-canvas.html` Pages 1+3 (play-money) and 2+4 (real-money).
 
 - **Proposers** earn LP returns proportional to actual metric movement vs the conditional consensus they helped fund. A proposer who believes their proposal will move a metric dramatically can fund the conditional markets heavily; if the metric moves as predicted, the LP earns proportionally; if the proposal turns out to be a wash, the LP barely moves either way. Big predicted impact + correct prediction = big LP earnings. Big predicted impact + wrong prediction = big losses. The economics push proposers toward finding genuinely high-leverage actions, not just any action.
 - **Forecasters** earn payouts proportional to forecast accuracy on resolved markets. The pool that subsidizes the market is the LP's commitment; the accuracy of the forecaster against the eventual resolution determines how the pool gets distributed at payout. Accurate calibration on a heavily-funded market pays more than accurate calibration on a thin one, mirroring real-economy outcome compensation.

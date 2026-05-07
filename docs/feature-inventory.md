@@ -103,7 +103,7 @@ Use this when you need to (a) decide what to put on a canvas / pitch deck / land
 74. Owner-tunable `newMarketLiquidityCredits` and `autoFundNewMarkets`.
 75. Manual liquidity injection (`POST /api/predictions/markets/:id/liquidity`).
 76. Bulk liquidity injection across many markets (`POST /api/predictions/markets/liquidity/bulk`).
-77. Earnings paths: trading PnL, approved-proposal bounty, gifted credits, USDC deposit.
+77. Earnings paths: trading PnL, approved-proposal bounty, gifted credits, on-chain deposit.
 78. Spend tracking by type: `tokens`, `purchase`, `betting`.
 79. Admin credit issuance (`POST /api/agents/:id/credit`).
 

@@ -53,7 +53,7 @@ The default today fails the same way for both kinds of proposal. For AI proposal
 
 Companies use it to price strategic and operational decisions against KPIs and OKRs. Individuals use the same mechanism on personal goals (health, career, finances). One stack, two scopes from day one.
 
-Working product is live at telarchy.com: LMSR engine, conditional decision markets, agent economy with API keys and an open telemetry protocol, multi-workspace permissions, public marketplace, play-money settlement on managed and USDC settlement on Base for self-hosted. A fleet of automated forecasting agents (anchor, momentum, stabilizer, blended, ai-analyst, ai-researcher) trades continuously on the production workspace.
+Working product is live at telarchy.com: LMSR engine, conditional decision markets, agent economy with API keys and an open telemetry protocol, multi-workspace permissions, public marketplace, play-money settlement on managed and real-money settlement (USDC on Base) for self-hosted. A fleet of automated forecasting agents (anchor, momentum, stabilizer, blended, ai-analyst, ai-researcher) trades continuously on the production workspace.
 
 (~270 words)
 
@@ -73,7 +73,7 @@ Solo. ~5 months on the underlying codebase (started December 2025), ~3 months on
 
 ## What is your tech stack?
 
-React 19 + TypeScript + Vite (frontend), Node.js + Express + BetterAuth (backend), PostgreSQL + Drizzle ORM (DB), Cloud Run + Cloud SQL (infra), Chart.js (visualization). Self-hosted deployments use the same stack via `docker compose up`. USDC settlement on Base for self-hosted (deposit/withdraw via on-chain tx verification). Agent infra: API keys, SSE event hooks, open agent telemetry protocol with per-cycle heartbeats and decision traces.
+React 19 + TypeScript + Vite (frontend), Node.js + Express + BetterAuth (backend), PostgreSQL + Drizzle ORM (DB), Cloud Run + Cloud SQL (infra), Chart.js (visualization). Self-hosted deployments use the same stack via `docker compose up`. Real-money settlement on self-hosted (deposit/withdraw via on-chain tx verification; USDC on Base today). Agent infra: API keys, SSE event hooks, open agent telemetry protocol with per-cycle heartbeats and decision traces.
 
 ---
 
@@ -194,7 +194,7 @@ Open to a great cofounder during or after the batch. Not slowing down to find an
 Two reasons.
 
 - **Distribution into AI-forward companies.** Telarchy's customer is a founder shipping AI agents into their own company. YC's founder network is the densest concentration of that customer in the world.
-- **Regulatory and legal credibility.** Prediction markets have a regulatory gradient (CFTC in the US specifically). Managed runs play-money to keep the surface zero while the network grows; self-hosted runs USDC. Getting this right early matters and the YC partner network has the right kind of legal-savvy operators to triangulate with, plus the credibility to be taken seriously by an actual lawyer.
+- **Regulatory and legal credibility.** Prediction markets have a regulatory gradient (CFTC in the US specifically). Managed runs play-money to keep the surface zero while the network grows; self-hosted runs real-money settlement (USDC on Base today). Getting this right early matters and the YC partner network has the right kind of legal-savvy operators to triangulate with, plus the credibility to be taken seriously by an actual lawyer.
 
 ---
 

@@ -5,7 +5,7 @@
 Telarchy is a two-sided marketplace. Owners price decisions; forecasters earn by being right. Same substrate, two distinct pitches because the two sides buy different things:
 
 - **Owner side (one line):** *Telarchy is an alignment layer for AI and humans. You define the metrics that matter; participants, human or AI, forecast how each proposed action will move them, before you commit.* Headline use case: company governance (founders and leadership pricing decisions against KPIs and OKRs). Individuals use the same mechanism for personal goals and are first-class from day one.
-- **Forecaster side (one line):** *Telarchy is the first AI economic-capability benchmark where success creates real economic value.* Calibrated forecasts on real founder decisions earn credits (and USDC when settlement is on); the score is denominated in dollars, not points. Headline customer: AI labs, autonomous-bot builders, quant-curious humans.
+- **Forecaster side (one line):** *Telarchy is the first AI economic-capability benchmark where success creates real economic value.* Calibrated forecasts on real founder decisions earn credits (and real-money payouts when settlement is on); the score is denominated in dollars, not points. Headline customer: AI labs, autonomous-bot builders, quant-curious humans.
 
 "Participant" means any market actor, human or AI; the word `agent` is retained in the API and schema only.
 
@@ -16,7 +16,7 @@ The rest of this document is structured around the owner side (the historical en
 - Full LMSR prediction market engine with binary trading (buy/sell, AMM shares, balance deduction)
 - Participant economy with registration, API keys, credit system, approval flow, proposal payouts
 - Multi-workspace support with capability-based access (read, trade, manage) via permission groups
-- USDC settlement on Base (deposit/withdraw via on-chain tx verification; self-hosted only)
+- Real-money settlement: deposit/withdraw via on-chain tx verification; self-hosted only. Today: USDC on Base.
 - Time-preference system for forward-looking evaluation (decay-weighted temporal aggregation)
 - Conditional markets for the decision loop (proposal proposals with per-metric impact predictions)
 - Event feed + SSE hooks for automation
@@ -32,9 +32,9 @@ Every participant (human or AI) gets **1000 credits on signup**. Credits are the
 
 - **Workspace owners** spend credits to provide liquidity to their markets. More liquidity attracts more participants and produces tighter forecasts. New workspaces auto-fund markets at 0.5 credits each by default.
 - **Participants** spend credits to place predictions. Accurate forecasting earns credits; inaccurate forecasting loses them. The market mechanism ensures bad forecasters run out of influence.
-- **Credits will be backed by real money** (USDC on Base) once the platform matures. The infrastructure is already built for self-hosted deployments. On the managed instance, credits are play-money with real scarcity: you get 1000, you earn or lose from there.
+- **Credits will be backed by real money** (1:1 with a reserve asset, on-chain redeemable; today USDC on Base) once the platform matures. The infrastructure is already built for self-hosted deployments. On the managed instance, credits are play-money with real scarcity: you get 1000, you earn or lose from there.
 
-When a participant runs out of credits, they can earn more through accurate forecasting or purchase more (future: USDC deposit on managed once legal posture is settled).
+When a participant runs out of credits, they can earn more through accurate forecasting or purchase more (future: real-money deposit on managed once legal posture is settled).
 
 **Platform-operated participants** are seeded by the platform operator and auto-join all public workspaces. They provide baseline forecasting activity so new workspaces have immediate value. They use the same credit economy as everyone else.
 
@@ -55,7 +55,7 @@ When a participant runs out of credits, they can earn more through accurate fore
 | Developer portal for automated participants (docs, SDK, examples) | Missing | Blocks third-party participants |
 | Leaderboard / reputation | Missing | No visibility into participant quality |
 | Notifications (email alerts for resolutions) | Missing | Users forget to check back |
-| Wallet connect (one-click USDC deposit) | Missing | Blocks real-money transition |
+| Wallet connect (one-click real-money deposit) | Missing | Blocks real-money transition |
 
 ## Privacy, Security, and Data Sovereignty
 
@@ -156,7 +156,7 @@ Telarchy vs each of these (canonical landing matrix in `src/pages/LandingPage.ts
 4. **Participant symmetry**. Humans and AI share the same signup, balance, capabilities. API keys, hooks, the open agent telemetry protocol make AI participants first-class. Same observability, same audit trail, same controls as human ones.
 5. **Workspace privacy with per-resource granularity**. Workspace `visibility` (Private / Public / Open) plus permission groups carrying per-metric `{read, trade}` and per-source `{read}` permissions. Closest cousin (enterprise hosted-private) doesn't do per-metric. None of the public markets do private at all.
 6. **Decision quality compounds with AI progress.** As stronger models register as participants, accuracy-weighted credit accumulation gives them more weight in future markets, automatically. Each model bets only where it has edge, so the system routes expertise across a swarm rather than betting the company on one LLM. Competitors that wrap a chosen model carry that model's regressions and blind spots; Telarchy users absorb AI progress passively by keeping their participant pool open. See `vision.md` ("How decision quality compounds with AI progress") for the load-bearing version.
-7. **First AI economic-capability benchmark where success IS value creation.** Existing AI benchmarks measure capability on fixed tasks; VendingBench measures economic agentic capability in a sealed simulation. Telarchy goes further: thousands of real markets, adversarial against a population of competing forecasters, with correct forecasts producing real economic value (better operator decisions on the other side of every trade). Once USDC settlement is on, the benchmark pays out in real money, and "success on the benchmark" and "economic value brought to the world" become the same number by construction. Autonomous bots become financially closed-loop. AI labs get a direct revenue path for forecasting capability beyond seat-based licensing. See `vision.md` ("Telarchy as an economic-capability benchmark for AI") for the load-bearing version.
+7. **First AI economic-capability benchmark where success IS value creation.** Existing AI benchmarks measure capability on fixed tasks; VendingBench measures economic agentic capability in a sealed simulation. Telarchy goes further: thousands of real markets, adversarial against a population of competing forecasters, with correct forecasts producing real economic value (better operator decisions on the other side of every trade). Once real-money settlement is on, the benchmark pays out in real money, and "success on the benchmark" and "economic value brought to the world" become the same number by construction. Autonomous bots become financially closed-loop. AI labs get a direct revenue path for forecasting capability beyond seat-based licensing. See `vision.md` ("Telarchy as an economic-capability benchmark for AI") for the load-bearing version.
 8. **Decision quality scales gracefully with capital invested.** The LMSR mechanism has logarithmic diminishing returns to liquidity: each marginal credit poured into a market still buys real forecast sharpness, far longer than user-count-bounded SaaS economics admit. Owners allocate liquidity by importance (richer pools on the metrics they care about most); traders allocate by conviction (heavier `liquiditySubsidy` on the proposals they believe in most). Both channels flow naturally to the decisions and metrics that matter, and the pool you put on a thing is itself a legible signal of how much you care. Combined with the AI-progress-compounding argument (point 6), decision quality scales on two independent axes (AI capability and capital invested) with no architectural ceiling. See `vision.md` ("Decision quality scales with capital") for the load-bearing version.
 9. **Outcome-based pricing on both sides of the marketplace.** Proposers earn LP returns proportional to actual metric movement; forecasters earn proportional to forecast accuracy on resolved markets; operators pay both sides only in proportion to value delivered. Bigger predicted impact + correct prediction = bigger LP earnings, so proposers are correctly incentivized to find high-leverage actions, not just any action. Better calibration on heavily-funded markets pays proportionally more, so forecasters are correctly incentivized to put effort into the decisions that matter most. The operator's spend on Telarchy is a pure function of decision quality created, not a fixed cost. This is the substrate the AI vendor industry is reaching for under the "outcome-based pricing" label. See `vision.md` ("Outcome-based pricing on both sides of the marketplace") for the load-bearing version.
 
