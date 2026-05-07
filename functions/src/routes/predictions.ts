@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/client';
 import { agents, markets, positions, trades, liquidityEvents, workspaces, proposals } from '../db/schema';
-import { eq, and, asc, desc, sql, inArray } from 'drizzle-orm';
+import { eq, and, asc, desc, sql, inArray, isNull } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { AppError } from '../lib/errors';
@@ -75,9 +75,13 @@ predictionsRouter.post('/trade', requireCapability('trade'), wrap(async (req, re
 
   let marketId = typeof req.body.marketId === 'string' ? req.body.marketId : undefined;
 
-  // Allow targeting by metricName/metricId + targetDate instead of marketId
+  // Allow targeting by metricName/metricId + targetDate instead of marketId.
+  // proposalId disambiguates between baseline and conditional markets:
+  //   - omitted (default): match the baseline market (proposalId IS NULL)
+  //   - string: match the conditional market for that proposal
+  //   - explicit null: same as default (baseline)
   if (!marketId) {
-    const { metricName, metricId: reqMetricId, targetDate: reqTargetDate } = req.body;
+    const { metricName, metricId: reqMetricId, targetDate: reqTargetDate, proposalId: reqProposalId } = req.body;
     if (req.body.market_id !== undefined || req.body.marketID !== undefined) {
       res.status(400).json({ error: 'Use `marketId` (camelCase), not `market_id` or `marketID`.' });
       return;
@@ -94,13 +98,27 @@ predictionsRouter.post('/trade', requireCapability('trade'), wrap(async (req, re
       res.status(400).json({ error: 'When targeting by metric, also provide `targetDate` (YYYY, YYYY-MM, YYYY-Www, or YYYY-MM-DD).' });
       return;
     }
+    if (reqProposalId !== undefined && reqProposalId !== null && typeof reqProposalId !== 'string') {
+      res.status(400).json({ error: '`proposalId` must be a string (the conditional-market\'s proposal) or omitted/null (baseline market).' });
+      return;
+    }
+    const proposalFilter = typeof reqProposalId === 'string'
+      ? eq(markets.proposalId, reqProposalId)
+      : isNull(markets.proposalId);
     const [found] = await db.select({ id: markets.id }).from(markets).where(and(
       eq(markets.workspaceId, workspaceId),
       eq(markets.resolved, false),
       eq(markets.targetDate, reqTargetDate as string),
       reqMetricId ? eq(markets.metricId, reqMetricId as string) : eq(markets.metricName, metricName as string),
+      proposalFilter,
     ));
-    if (!found) { res.status(404).json({ error: 'No open market found for that metric + targetDate' }); return; }
+    if (!found) {
+      const which = typeof reqProposalId === 'string'
+        ? `conditional market for proposal ${reqProposalId}`
+        : 'baseline market';
+      res.status(404).json({ error: `No open ${which} found for that metric + targetDate. Pass marketId directly, or check that proposalId is correct.` });
+      return;
+    }
     marketId = found.id;
   }
 
