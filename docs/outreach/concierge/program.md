@@ -6,24 +6,24 @@ This is the load-bearing validation arm of the pre-launch strategy. The riskiest
 
 ## Why this exists
 
-The product is structurally complete (LMSR markets, conditional markets, time preference, multi-workspace, USDC settlement, hooks, BetterAuth, `/marketplace`, `/guides`). Zero users today. The last 30 days of commit history is ~80% UI polish (5 sidebar redesigns, 3 landing-H1 rewrites). That pattern is the leading indicator of pre-launch procrastination — polishing surfaces for a user who hasn't been recruited yet.
+The product is structurally complete (LMSR markets, conditional markets, time preference, multi-workspace, real-money settlement, hooks, BetterAuth, `/marketplace`, `/guides`). Zero users today. The last 30 days of commit history is ~80% UI polish (5 sidebar redesigns, 3 landing-H1 rewrites). That pattern is the leading indicator of pre-launch procrastination: polishing surfaces for a user who hasn't been recruited yet.
 
-A 4-week concierge program with a small focused cohort is the cheapest way to falsify the headline use case. If founders convert, the headline is locked. If they bounce on something the docs already address, that's the falsification signal — and the AI-agent-eval wedge becomes the headline instead.
+A 4-week concierge program with a small focused cohort is the cheapest way to falsify the headline use case. If founders convert, the headline is locked. If they bounce on something the docs already address, that's the falsification signal, and the AI-agent-eval wedge becomes the headline instead.
 
 ## The cohort
 
-Targets recruited in Week 0. Names in `candidates.md` (sibling file, gitignored — contains personal data). Cohort size is intentionally flexible (single-digit); enough to detect a signal, small enough that the founder can act as lead forecaster on every workspace.
+Targets recruited in Week 0. Names in `candidates.md` (sibling file, gitignored, contains personal data). Cohort size is intentionally flexible (single-digit); enough to detect a signal, small enough that the founder can act as lead forecaster on every workspace.
 
 Selection criteria (each scored 0-3, total /15 + bonuses):
 
 - **Real company:** has revenue, not pre-product, not solo no-employees.
 - **Real KPIs:** tracks ≥2 metrics weekly, has some kind of dashboard or running spreadsheet.
-- **Upcoming real decision (~30 days):** spending decision, hiring decision, product bet — something with ≥$10K stakes or ≥10% of one quarter's effort.
+- **Upcoming real decision (~30 days):** spending decision, hiring decision, product bet, anything with ≥$10K stakes or ≥10% of one quarter's effort.
 - **Warmth:** how reachable. 0=cold name, 3=texted last week.
 - **Forecasting fit:** domain where AI/human forecasters could plausibly add signal.
-- **Bonus +1 each:** technical (will enjoy the markets mechanic), has co-founder (richer workspace), public-facing (writes/podcasts/builds-in-public — if it works, they tell people).
+- **Bonus +1 each:** technical (will enjoy the markets mechanic), has co-founder (richer workspace), public-facing (writes/podcasts/builds-in-public; if it works, they tell people).
 
-Anti-flags (excludes): would ghost a call, regulated industry that can't share KPIs, M&A in flight, conflict-of-interest (e.g. SCS Software CEO planning to invest in user's other startup — different relationship, don't pitch).
+Anti-flags (excludes): would ghost a call, regulated industry that can't share KPIs, M&A in flight, conflict-of-interest (e.g. SCS Software CEO planning to invest in user's other startup; different relationship, don't pitch).
 
 ## The 4-week schedule
 
@@ -44,7 +44,7 @@ WEEK 1
   - agent-eval template + register-your-agent doc.
 
 WEEK 2-3
-  - Calls iterating. POSITION FREEZE ACTIVE — no landing/positioning/sidebar work.
+  - Calls iterating. POSITION FREEZE ACTIVE: no landing/positioning/sidebar work without a named external trigger.
   - Weekly decision memos sent to each founder.
   - Watch Week-2 forecast-utility signal (codex flag): if founders say "the forecast didn't tell me anything I didn't already know," that's higher-priority signal than retention numbers.
 
@@ -106,7 +106,7 @@ Three artifacts to write before first call. All live in this directory (`docs/ou
 2. **Call script** (`call-script.md`, sibling)
    - 5 min: intro + Telarchy 90-second pitch
    - 10 min: decision elicitation (use intake form as guide)
-   - 10 min: live workspace setup — workspace created on the call, NOT promised for later
+   - 10 min: live workspace setup, workspace created on the call, NOT promised for later
    - 5 min: next-step commitment (you'll send the first decision memo Friday; they'll update one metric by Monday)
 
 3. **Weekly decision memo template** (`weekly-memo.md`, sibling)
@@ -123,7 +123,7 @@ Three artifacts to write before first call. All live in this directory (`docs/ou
 Codex's sharpest critique: with private founder workspaces and platform bots that don't know the founder's domain, market forecasts may be decorative not informative. Mitigation strategy: **Hybrid Approach A**.
 
 - For each founder workspace, write a **context briefing** as a Source (text source attached to the workspace). Bots read sources via the existing source mechanism.
-- Founder can supply **additional custom Sources** via the Sources tab — encouraged.
+- Founder can supply **additional custom Sources** via the Sources tab; encouraged.
 - Founder also does **API connection for metric sync** (Stripe, Mixpanel, manual webhook) — natural moment to pair-program a context briefing.
 - You are effectively the **lead forecaster** on every concierge workspace for the first 4 weeks. This works for a small cohort; doesn't scale; produces real forecasts.
 
