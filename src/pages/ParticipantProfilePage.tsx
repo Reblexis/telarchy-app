@@ -67,7 +67,6 @@ function marketDeepLink(workspaceId: string, marketId: string): string {
 function PositionRow({ p }: { p: PublicProfilePosition }) {
   const subtitle = formatConsensusOrProb(p);
   const date = p.targetDate ? formatTargetDateDisplay(p.targetDate) : null;
-  const showWorkspace = true;
   return (
     <li>
       <Link to={marketDeepLink(p.workspaceId, p.marketId)} className="activity-row-link">
@@ -83,8 +82,8 @@ function PositionRow({ p }: { p: PublicProfilePosition }) {
               <span className="activity-tag">{formatShares(p.shares)} shares</span>
               <span className="activity-tag">cost {formatEarnings(p.totalCost)}</span>
               {subtitle && <span className="activity-tag">{subtitle}</span>}
-              {p.status === 'resolved' && <span className="activity-tag">resolved</span>}
-              {showWorkspace && <span className="activity-tag">{p.workspaceName}</span>}
+              {p.status !== 'open' && <span className="activity-tag">{p.status}</span>}
+              <span className="activity-tag">{p.workspaceName}</span>
             </div>
           </div>
           <span className="activity-time">{date ?? ''}</span>
@@ -195,13 +194,13 @@ export function ParticipantProfilePage() {
 
       <div className="section">
         <div className="section-header">
-          <h2>Open positions</h2>
+          <h2>Positions</h2>
           <p className="section-subtitle">
-            Live positions visible to you. Activity in workspaces you can't read is hidden.
+            Held positions visible to you. Open markets first, then closed and resolved. Activity in workspaces you can't read is hidden.
           </p>
         </div>
         {profile.openPositions.length === 0 ? (
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No open positions you can see.</p>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No positions you can see.</p>
         ) : (
           <ul className="activity-list">
             {profile.openPositions.map(p => (

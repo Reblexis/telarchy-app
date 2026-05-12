@@ -224,6 +224,7 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
         rangeMax: markets.rangeMax,
         liquidity: markets.liquidity,
         shares: markets.shares,
+        active: markets.active,
         resolved: markets.resolved,
         actualValue: markets.actualValue,
       }).from(markets).where(and(
@@ -298,30 +299,36 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
   const ownerTrades = tradeRows.filter(t => t.agentId === agent.id && viewerWsIds.has(t.workspaceId));
   const ownerPositions = positionRows.filter(p => p.agentId === agent.id && p.shares > 0 && viewerWsIds.has(p.workspaceId));
 
-  const openPositions = ownerPositions.map(p => {
+  // Skip positions whose market isn't in marketById: the only way that
+  // happens with our filter is a voided market, and voided positions are
+  // refunded out of band so reporting them as "open" would be wrong.
+  const openPositions = ownerPositions.flatMap(p => {
     const m = marketById.get(p.marketId);
-    const mShares = (m?.shares as [number, number] | undefined) ?? [0, 0];
-    const liq = m?.liquidity ?? 0;
-    return {
+    if (!m) return [];
+    const mShares = (m.shares as [number, number]) ?? [0, 0];
+    const liq = m.liquidity;
+    const status: 'open' | 'closed' | 'resolved' =
+      m.resolved ? 'resolved' : m.active === false ? 'closed' : 'open';
+    return [{
       workspaceId: p.workspaceId,
       workspaceName: wsNameById.get(p.workspaceId) ?? p.workspaceId,
       marketId: p.marketId,
-      metricName: m?.metricName ?? null,
-      targetDate: m?.targetDate ?? null,
+      metricName: m.metricName,
+      targetDate: m.targetDate,
       direction: p.direction as 'higher' | 'lower',
       shares: p.shares,
       totalCost: p.totalCost,
-      status: (m?.resolved ? 'resolved' : 'open') as 'open' | 'resolved',
-      probabilityHigher: m && liq > 0 ? Math.round(pHigher(mShares, liq) * 10000) / 10000 : null,
-      consensus: m ? (consensus(mShares, liq, m.rangeMin, m.rangeMax) ?? null) : null,
-      actualValue: m?.actualValue ?? null,
-    };
+      status,
+      probabilityHigher: liq > 0 ? Math.round(pHigher(mShares, liq) * 10000) / 10000 : null,
+      consensus: consensus(mShares, liq, m.rangeMin, m.rangeMax) ?? null,
+      actualValue: m.actualValue ?? null,
+    }];
   });
-  // Open positions first by absolute shares (heaviest exposure first), resolved last.
+  // Open first (heaviest exposure first within open), then closed, then resolved.
+  const statusRank = (s: 'open' | 'closed' | 'resolved') => s === 'open' ? 0 : s === 'closed' ? 1 : 2;
   openPositions.sort((a, b) => {
-    const sa = a.status === 'open' ? 0 : 1;
-    const sb = b.status === 'open' ? 0 : 1;
-    if (sa !== sb) return sa - sb;
+    const r = statusRank(a.status) - statusRank(b.status);
+    if (r !== 0) return r;
     return Math.abs(b.shares) - Math.abs(a.shares);
   });
 

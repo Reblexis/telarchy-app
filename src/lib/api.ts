@@ -89,7 +89,7 @@ export interface PublicProfilePosition {
   direction: 'higher' | 'lower';
   shares: number;
   totalCost: number;
-  status: 'open' | 'resolved';
+  status: 'open' | 'closed' | 'resolved';
   probabilityHigher: number | null;
   consensus: number | null;
   actualValue: number | null;

@@ -164,6 +164,26 @@ describe('GET /api/agents/:idOrNickname/public visibility', () => {
     expect(res.body.recentTrades.map((t: { workspaceId: string }) => t.workspaceId)).toEqual([PUBLIC_WS]);
   });
 
+  test('position status reflects market state (open / closed / resolved)', async () => {
+    await seed();
+    // Public market: still open. Private market: close it (active=false, unresolved).
+    await db.update(markets).set({ active: false }).where(eq(markets.id, 'mkt-private'));
+    const res = await request(app)
+      .get(`/api/agents/${PROFILE_OWNER}/public`)
+      .set('X-Test-Agent-Id', PRIVATE_VIEWER)
+      .set('X-Workspace-Id', PRIVATE_WS);
+    const byMarket = new Map<string, string>(res.body.openPositions.map((p: { marketId: string; status: string }) => [p.marketId, p.status]));
+    expect(byMarket.get('mkt-public')).toBe('open');
+    expect(byMarket.get('mkt-private')).toBe('closed');
+  });
+
+  test('voided markets do not surface as open positions', async () => {
+    await seed();
+    await db.update(markets).set({ voided: true, active: false }).where(eq(markets.id, 'mkt-public'));
+    const res = await request(app).get(`/api/agents/${PROFILE_OWNER}/public`);
+    expect(res.body.openPositions).toEqual([]);
+  });
+
   test('open positions are filtered to shares > 0', async () => {
     await seed();
     await db.update(positions)
