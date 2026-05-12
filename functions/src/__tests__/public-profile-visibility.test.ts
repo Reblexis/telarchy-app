@@ -164,6 +164,16 @@ describe('GET /api/agents/:idOrNickname/public visibility', () => {
     expect(res.body.recentTrades.map((t: { workspaceId: string }) => t.workspaceId)).toEqual([PUBLIC_WS]);
   });
 
+  test('conditional markets get status "conditional" and surface proposalId', async () => {
+    await seed();
+    // Mark mkt-public as conditional (proposalId set, otherwise still live).
+    await db.update(markets).set({ proposalId: 'prop-123' }).where(eq(markets.id, 'mkt-public'));
+    const res = await request(app).get(`/api/agents/${PROFILE_OWNER}/public`);
+    const pub = res.body.openPositions.find((p: { marketId: string }) => p.marketId === 'mkt-public');
+    expect(pub.status).toBe('conditional');
+    expect(pub.proposalId).toBe('prop-123');
+  });
+
   test('position status reflects market state (open / closed / resolved)', async () => {
     await seed();
     // Public market: still open. Private market: close it (active=false, unresolved).

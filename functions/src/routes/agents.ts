@@ -227,6 +227,7 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
         active: markets.active,
         resolved: markets.resolved,
         actualValue: markets.actualValue,
+        proposalId: markets.proposalId,
       }).from(markets).where(and(
         inArray(markets.workspaceId, queryScope),
         eq(markets.voided, false),
@@ -302,17 +303,24 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
   // Skip positions whose market isn't in marketById: the only way that
   // happens with our filter is a voided market, and voided positions are
   // refunded out of band so reporting them as "open" would be wrong.
+  // A conditional market (proposalId set) is reported with status 'conditional'
+  // when its proposal is still pending, since it only resolves on
+  // approve/decline and isn't tradeable from the regular /markets tab.
   const openPositions = ownerPositions.flatMap(p => {
     const m = marketById.get(p.marketId);
     if (!m) return [];
     const mShares = (m.shares as [number, number]) ?? [0, 0];
     const liq = m.liquidity;
-    const status: 'open' | 'closed' | 'resolved' =
-      m.resolved ? 'resolved' : m.active === false ? 'closed' : 'open';
+    const status: 'open' | 'closed' | 'resolved' | 'conditional' =
+      m.resolved ? 'resolved'
+      : m.active === false ? 'closed'
+      : m.proposalId ? 'conditional'
+      : 'open';
     return [{
       workspaceId: p.workspaceId,
       workspaceName: wsNameById.get(p.workspaceId) ?? p.workspaceId,
       marketId: p.marketId,
+      proposalId: m.proposalId ?? null,
       metricName: m.metricName,
       targetDate: m.targetDate,
       direction: p.direction as 'higher' | 'lower',
@@ -324,8 +332,9 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
       actualValue: m.actualValue ?? null,
     }];
   });
-  // Open first (heaviest exposure first within open), then closed, then resolved.
-  const statusRank = (s: 'open' | 'closed' | 'resolved') => s === 'open' ? 0 : s === 'closed' ? 1 : 2;
+  // Open first (heaviest exposure first within open), then conditional, then closed, then resolved.
+  const statusRank = (s: 'open' | 'conditional' | 'closed' | 'resolved') =>
+    s === 'open' ? 0 : s === 'conditional' ? 1 : s === 'closed' ? 2 : 3;
   openPositions.sort((a, b) => {
     const r = statusRank(a.status) - statusRank(b.status);
     if (r !== 0) return r;
@@ -344,6 +353,7 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
         workspaceId: t.workspaceId,
         workspaceName: wsNameById.get(t.workspaceId) ?? t.workspaceId,
         marketId: t.marketId,
+        proposalId: m?.proposalId ?? null,
         metricName: m?.metricName ?? null,
         targetDate: m?.targetDate ?? null,
         direction: t.direction as 'higher' | 'lower',

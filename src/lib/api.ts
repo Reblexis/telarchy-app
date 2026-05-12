@@ -84,12 +84,13 @@ export interface PublicProfilePosition {
   workspaceId: string;
   workspaceName: string;
   marketId: string;
+  proposalId: string | null;
   metricName: string | null;
   targetDate: string | null;
   direction: 'higher' | 'lower';
   shares: number;
   totalCost: number;
-  status: 'open' | 'closed' | 'resolved';
+  status: 'open' | 'conditional' | 'closed' | 'resolved';
   probabilityHigher: number | null;
   consensus: number | null;
   actualValue: number | null;
@@ -100,6 +101,7 @@ export interface PublicProfileTrade {
   workspaceId: string;
   workspaceName: string;
   marketId: string;
+  proposalId: string | null;
   metricName: string | null;
   targetDate: string | null;
   direction: 'higher' | 'lower';

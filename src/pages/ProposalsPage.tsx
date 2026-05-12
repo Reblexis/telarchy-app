@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { useInspectMode } from '../hooks/useInspectMode';
@@ -597,14 +598,35 @@ function NewProposalModal({ open, onClose, onCreated, onError }: NewProposalModa
 
 export function ProposalsPage() {
   const { user } = useAuth();
-  const { workspace } = useWorkspace();
+  const { workspace, allWorkspaces, switchWorkspace } = useWorkspace();
   const isAdmin = workspace?.tier === 'admin';
+  const [searchParams, setSearchParams] = useSearchParams();
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [openProposalId, setOpenProposalId] = useState<string | null>(null);
   const [openProposalData, setOpenProposalData] = useState<ProposalDetailData | null>(null);
   const [newProposalOpen, setNewProposalOpen] = useState(false);
+
+  // Deep-link handoff from /participants/:id (and elsewhere): if
+  // ?workspace=<id> names a workspace the user belongs to and it isn't the
+  // active one, switch to it and reload at the same URL so ?id=<proposal>
+  // resolves against the right workspace's proposals.
+  useEffect(() => {
+    const targetWs = searchParams.get('workspace');
+    if (!targetWs || !workspace) return;
+    if (targetWs === workspace.workspaceId) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('workspace');
+      setSearchParams(next, { replace: true });
+      return;
+    }
+    if (allWorkspaces.some(w => w.id === targetWs)) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('workspace');
+      switchWorkspace(targetWs, `/proposals?${next.toString()}`);
+    }
+  }, [searchParams, workspace, allWorkspaces, switchWorkspace, setSearchParams]);
 
   const load = useCallback(async () => {
     if (!user) return;
@@ -626,6 +648,20 @@ export function ProposalsPage() {
     setOpenProposalData(proposal as ProposalDetailData);
     loadDetail(proposal.id);
   };
+
+  // Auto-open the proposal drawer when ?id=<proposalId> is in the URL and
+  // the proposal exists in the current workspace's list.
+  useEffect(() => {
+    const id = searchParams.get('id');
+    if (!id || proposals.length === 0 || openProposalId === id) return;
+    const proposal = proposals.find(p => p.id === id);
+    if (!proposal) return;
+    openProposal(proposal);
+    const next = new URLSearchParams(searchParams);
+    next.delete('id');
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, proposals]);
 
   const closeProposal = () => {
     setOpenProposalId(null);

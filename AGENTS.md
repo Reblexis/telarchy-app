@@ -135,6 +135,20 @@ curl -s -b /tmp/cookies.txt http://localhost:8080/api/auth/me
 curl -s -b /tmp/cookies.txt http://localhost:8080/api/status
 ```
 
+## Verify each fix end-to-end before reporting it done
+
+Tests passing and types compiling are not proof a fix works in production. Every bug fix or feature change must be observed working before being reported as done. The order:
+
+1. Reproduce the original bug first (so you know the verification step is meaningful and you're not just confirming code shape).
+2. Ship the change (commit + push so CI deploys, or run locally).
+3. Hit the *live* surface and confirm the bug is gone:
+   - Backend fix: `curl` the affected endpoint on the deployed URL and inspect the response (the API help legend at the top of this file is the canonical reference; use the master key for admin paths).
+   - Frontend fix: open the page in a browser (or via the `browse` skill), reproduce the original user steps, and confirm the new behaviour.
+   - Data-state question (is this market really voided? is this proposal really pending?): query the DB directly via cloud-sql-proxy (the manual migration fallback below has the exact incantation). Do not infer state from API shape; check the row.
+4. If you cannot verify (e.g. behaviour depends on a state you don't have), say so explicitly in the wrap-up message rather than claiming success.
+
+This applies even for "obvious" or single-line fixes. The cost of an unverified false-positive is high: the user loses trust, the bug stays in prod, and the next session inherits a stale problem.
+
 ## Production deployment
 
 The backend runs on **Google Cloud Run** (service: `api`, region: `us-central1`, project: `telarchy-e0043`). The frontend is served from the same origin (`telarchy.com`).
