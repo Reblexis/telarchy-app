@@ -333,6 +333,12 @@ export const api = {
   sendProposalMessage: (id: string, content: string) =>
     request(`/api/proposals/${id}/messages`, { method: 'POST', body: JSON.stringify({ content }) }),
 
+  getMarketMessages: (marketId: string) =>
+    request(`/api/predictions/markets/${encodeURIComponent(marketId)}/messages`),
+  sendMarketMessage: (marketId: string, content: string) =>
+    request(`/api/predictions/markets/${encodeURIComponent(marketId)}/messages`,
+      { method: 'POST', body: JSON.stringify({ content }) }),
+
   getHooksStatus: (): Promise<{ active: boolean; lastPolledAt?: string; intervalMs?: number; nextPollAt?: string }> =>
     request('/api/events/hooks/status'),
 

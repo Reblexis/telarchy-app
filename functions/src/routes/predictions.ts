@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/client';
-import { agents, markets, positions, trades, liquidityEvents, workspaces, proposals } from '../db/schema';
+import { agents, markets, marketMessages, positions, trades, liquidityEvents, workspaces, proposals } from '../db/schema';
 import { eq, and, asc, desc, sql, inArray, isNull } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
@@ -16,8 +16,8 @@ import { extractMetricReferences } from '../lib/metrics-engine';
 import { consensus, pHigher, directionTradeCost, sharesForBudget, betTowardsValue, directionSellProceeds, lmsrCost, initialPool, AMM_DEFAULTS } from '../lib/amm';
 import { emitEvent } from '../services/events';
 import { applyAgentLiquidityInjectionTx } from '../services/marketLiquidity';
-import { sufficientBalance, toUnits, fromUnits } from '../lib/validation';
-import { getGroupMemberIds, resolveWorkspaceOwnerAgentId, listParticipantsForWorkspace } from '../lib/participants';
+import { sufficientBalance, toUnits, fromUnits, validateContent } from '../lib/validation';
+import { getGroupMemberIds, resolveWorkspaceOwnerAgentId, listParticipantsForWorkspace, getParticipantDisplayNames } from '../lib/participants';
 
 export const predictionsRouter = Router();
 
@@ -367,6 +367,43 @@ predictionsRouter.get('/markets/:id/trades', requireCapability('read'), wrap(asy
     return;
   }
   res.json(tradePoints);
+}));
+
+predictionsRouter.get('/markets/:id/messages', requireCapability('read'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
+  const marketId = req.params.id as string;
+  const [market] = await db.select({ id: markets.id }).from(markets)
+    .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
+  if (!market) { res.status(404).json({ error: 'Market not found' }); return; }
+
+  const messages = await db.select().from(marketMessages)
+    .where(and(eq(marketMessages.workspaceId, workspaceId), eq(marketMessages.marketId, marketId)))
+    .orderBy(asc(marketMessages.createdAt));
+
+  const names = await getParticipantDisplayNames(messages.map(m => m.from));
+  res.json(messages.map(m => ({ ...m, fromName: names.get(m.from) ?? null })));
+}));
+
+predictionsRouter.post('/markets/:id/messages', requireCapability('trade'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
+  const marketId = req.params.id as string;
+  const { content } = req.body;
+  if (!content || typeof content !== 'string') { res.status(400).json({ error: 'content is required' }); return; }
+  const contentError = validateContent(content, 'content', 5_000);
+  if (contentError) { res.status(400).json({ error: contentError }); return; }
+
+  const [market] = await db.select({ id: markets.id }).from(markets)
+    .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
+  if (!market) { res.status(404).json({ error: 'Market not found' }); return; }
+
+  const agentId = req.auth!.agentId;
+  const from = agentId || 'admin';
+  const id = randomUUID();
+  const createdAt = new Date();
+  await db.insert(marketMessages).values({ id, workspaceId, marketId, from, content, createdAt });
+
+  const names = await getParticipantDisplayNames([from]);
+  res.status(201).json({ id, marketId, from, fromName: names.get(from) ?? null, content, createdAt });
 }));
 
 predictionsRouter.get('/markets/:id', requireCapability('read'), wrap(async (req, res) => {

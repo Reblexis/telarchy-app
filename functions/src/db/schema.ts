@@ -287,6 +287,15 @@ export const proposalMessages = pgTable('proposal_messages', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
 
+export const marketMessages = pgTable('market_messages', {
+  id: text('id').notNull(),
+  workspaceId: text('workspace_id').notNull(),
+  marketId: text('market_id').notNull(),
+  from: text('from').notNull(),
+  content: text('content').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
+
 export const updates = pgTable('updates', {
   id: text('id').notNull(),
   workspaceId: text('workspace_id').notNull(),

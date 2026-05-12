@@ -10,6 +10,7 @@ import { formatTargetDateDisplay, formatTimeRemaining, endOfPeriod } from '../li
 import { useSortableRows } from '../lib/sort';
 import { HookStatus } from '../components/HookStatus';
 import { TradingPanel } from '../components/TradingPanel';
+import { MarketComments } from '../components/MarketComments';
 import { ProbabilitySlider } from '../components/ProbabilitySlider';
 import { InspectIndicator } from '../components/InspectIndicator';
 import type { Market, MarketStatus, Metric } from '../types';
@@ -300,6 +301,7 @@ export function MarketsPage() {
                           onTrade={() => { void load(); }}
                           onError={setError}
                         />
+                        <MarketComments marketId={m.id} />
                       </div>
                     )}
                   </div>

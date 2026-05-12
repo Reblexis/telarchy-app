@@ -244,6 +244,15 @@ export interface ProposalMessage {
   createdAt: string;
 }
 
+export interface MarketMessage {
+  id: string;
+  marketId: string;
+  from: string;
+  fromName?: string | null;
+  content: string;
+  createdAt: string;
+}
+
 export interface ProposalMarketSummary {
   marketId: string;
   metricId: string;
