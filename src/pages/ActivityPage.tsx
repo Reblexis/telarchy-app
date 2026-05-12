@@ -3,7 +3,13 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { api, type ActivityItem } from '../lib/api';
-import { FRIENDLY_ACTIVITY_TYPES, getActivityTags, summarizeActivity } from '../lib/activity-summary';
+import {
+  FRIENDLY_ACTIVITY_TYPES,
+  activityDetail,
+  activityHref,
+  getActivityTags,
+  summarizeActivity,
+} from '../lib/activity-summary';
 
 const TIME_RANGES: { label: string; hours: number }[] = [
   { label: '1h',  hours: 1 },
@@ -11,13 +17,6 @@ const TIME_RANGES: { label: string; hours: number }[] = [
   { label: '7d',  hours: 168 },
   { label: '30d', hours: 720 },
 ];
-
-function activityLink(item: ActivityItem): string | null {
-  if (item.proposalId) return `/proposals?id=${encodeURIComponent(item.proposalId)}`;
-  if (item.marketId) return `/markets?marketId=${encodeURIComponent(item.marketId)}`;
-  if (item.metricId) return `/metrics`;
-  return null;
-}
 
 export function ActivityPage() {
   const { user } = useAuth();
@@ -186,10 +185,11 @@ export function ActivityPage() {
                   const summary = summarizeActivity(item);
                   if (!summary) return null;
                   const tags = getActivityTags(item);
+                  const detail = activityDetail(item);
                   const time = new Date(item.timestamp).toLocaleTimeString([], {
                     hour: '2-digit', minute: '2-digit',
                   });
-                  const link = activityLink(item);
+                  const link = activityHref(item);
                   const inner = (
                     <div className="activity-row">
                       <div className="activity-text">
@@ -202,6 +202,7 @@ export function ActivityPage() {
                           </div>
                         )}
                       </div>
+                      {detail && <span className="activity-detail">{detail}</span>}
                       <span className="activity-time">{time}</span>
                     </div>
                   );

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useMetrics } from '../hooks/useMetrics';
 import { useWorkspace } from '../hooks/useWorkspace';
@@ -27,6 +27,22 @@ export function MetricsPage() {
 
   const [editingMetric, setEditingMetric] = useState<Metric | null>(null);
   const [graphMetric, setGraphMetric] = useState<Metric | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    const target = searchParams.get('focus');
+    if (!target || metricsLoading) return;
+    if (!metrics.find(m => m.id === target)) return;
+    if (focusedMetricId !== target) toggleFocus(target);
+    const next = new URLSearchParams(searchParams);
+    next.delete('focus');
+    setSearchParams(next, { replace: true });
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`metric-${target}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, metrics, metricsLoading]);
   const handleLogout = async () => {
     await logout();
     navigate('/login');

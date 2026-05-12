@@ -5,7 +5,7 @@ import { useWorkspace } from '../hooks/useWorkspace';
 import { api, type ActivityItem } from '../lib/api';
 import type { Metric, Proposal } from '../types';
 import { fmtTime } from '../lib/date-utils';
-import { summarizeActivity } from '../lib/activity-summary';
+import { activityDetail, activityHref, summarizeActivity } from '../lib/activity-summary';
 
 interface ApiError { message: string }
 
@@ -37,13 +37,6 @@ function primaryValue(m: Metric): {
   if (leaf) return { label: 'now', value: m.value.toFixed(2) };
   if (hasTP) return { label: 'outlook', value: m.total === null ? '–' : m.total.toFixed(2) };
   return { label: 'now', value: m.total === null ? '–' : m.total.toFixed(2) };
-}
-
-function activityLink(item: ActivityItem): string | null {
-  if (item.proposalId) return `/proposals?id=${encodeURIComponent(item.proposalId)}`;
-  if (item.marketId) return `/markets?marketId=${encodeURIComponent(item.marketId)}`;
-  if (item.metricId) return `/metrics`;
-  return null;
 }
 
 function timeAgo(iso: string): string {
@@ -151,7 +144,7 @@ export function OverviewPage() {
             const showBaselineDelta = hasBaselineDelta && Math.abs(baselineDelta) >= 0.005;
             const showOutlookDelta = primary.outlookDelta !== undefined && Math.abs(primary.outlookDelta) >= 0.005;
             return (
-              <Link key={m.id} to="/metrics" className="overview-kpi">
+              <Link key={m.id} to={`/metrics?focus=${encodeURIComponent(m.id)}`} className="overview-kpi">
                 <div className="overview-kpi-name">{m.name}</div>
                 <div className="overview-kpi-data">
                   {primary.nowValue && (
@@ -218,10 +211,12 @@ export function OverviewPage() {
             {activity.map(item => {
               const summary = summarizeActivity(item);
               if (!summary) return null;
-              const link = activityLink(item);
+              const link = activityHref(item);
+              const detail = activityDetail(item);
               const inner = (
                 <div className="overview-row">
                   <span className="overview-row-text">{summary}</span>
+                  {detail && <span className="overview-row-detail">{detail}</span>}
                   <span className="overview-row-meta">{timeAgo(item.timestamp)}</span>
                 </div>
               );

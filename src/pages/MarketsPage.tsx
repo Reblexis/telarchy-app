@@ -38,17 +38,33 @@ export function MarketsPage() {
   useEffect(() => { const id = setInterval(() => setTick(t => t + 1), 60000); return () => clearInterval(id); }, []);
   const [hoverDir] = useState<Record<string, 'higher' | 'lower' | undefined>>({});
 
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filterText, setFilterText] = useState(() => searchParams.get('q') ?? '');
   const [targetFilter, setTargetFilter] = useState(() => searchParams.get('target') ?? '');
-  const [statusFilter, setStatusFilter] = useState<MarketStatus | 'all'>(() => searchParams.get('target') ? 'all' : 'open');
+  const [statusFilter, setStatusFilter] = useState<MarketStatus | 'all'>(() =>
+    searchParams.get('target') || searchParams.get('marketId') ? 'all' : 'open',
+  );
   useEffect(() => {
     const q = searchParams.get('q') ?? '';
     const t = searchParams.get('target') ?? '';
     setFilterText(q);
     setTargetFilter(t);
-    if (t) setStatusFilter('all');
+    if (t || searchParams.get('marketId')) setStatusFilter('all');
   }, [searchParams]);
+
+  useEffect(() => {
+    const marketId = searchParams.get('marketId');
+    if (!marketId || markets.length === 0) return;
+    if (!markets.find(m => m.id === marketId)) return;
+    setExpandedIds(prev => (prev.includes(marketId) ? prev : [...prev, marketId]));
+    const next = new URLSearchParams(searchParams);
+    next.delete('marketId');
+    setSearchParams(next, { replace: true });
+    requestAnimationFrame(() => {
+      const el = document.getElementById(`market-${marketId}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }, [searchParams, markets, setSearchParams]);
   const [bulkLiqAmount, setBulkLiqAmount] = useState('');
   const [bulkLiqResult, setBulkLiqResult] = useState('');
 
@@ -252,6 +268,7 @@ export function MarketsPage() {
                 return (
                   <div
                     key={m.id}
+                    id={`market-${m.id}`}
                     className={`market-card${expanded ? ' expanded' : ''}`}
                     onClick={() => setExpandedIds(prev => prev.includes(m.id) ? prev.filter(id => id !== m.id) : [...prev, m.id])}
                   >

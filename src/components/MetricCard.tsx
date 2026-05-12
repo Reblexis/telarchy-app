@@ -38,7 +38,7 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
   );
 
   return (
-    <div className="metric-card">
+    <div className="metric-card" id={`metric-${metric.id}`}>
       <div className="metric-info">
         <div className="metric-name">
           {metric.name}

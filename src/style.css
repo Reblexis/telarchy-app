@@ -3175,6 +3175,15 @@ body.landing-page {
   white-space: nowrap;
 }
 
+.overview-row-detail {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-feature-settings: 'tnum';
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .overview-row-meta {
   flex-shrink: 0;
   font-size: 0.78rem;
@@ -3445,6 +3454,16 @@ body.landing-page {
   background: var(--bg-tertiary);
   border-radius: var(--radius-sm);
   letter-spacing: 0.01em;
+}
+
+.activity-detail {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-feature-settings: 'tnum';
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .activity-time {
