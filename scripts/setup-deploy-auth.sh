@@ -62,16 +62,41 @@ else
     --display-name="GitHub Actions Cloud Run deployer" \
     --project="$PROJECT_ID" >/dev/null
   ok "created"
+
+  # GCP IAM is eventually consistent — describe can succeed up to ~30s after
+  # create returns. Poll until the SA is queryable before granting roles.
+  step "Waiting for IAM propagation (can take up to ~60s)"
+  for i in $(seq 1 30); do
+    if gcloud iam service-accounts describe "$SA_EMAIL" --project="$PROJECT_ID" >/dev/null 2>&1; then
+      ok "service account is queryable"
+      break
+    fi
+    sleep 2
+    if [ "$i" -eq 30 ]; then
+      echo "Service account never became visible after 60s. Re-run this script — the create succeeded, so the SA-exists check will pass on the next run."
+      exit 1
+    fi
+  done
 fi
 
 # ── 2. Roles ──────────────────────────────────────────────────────────────
-step "Granting roles (idempotent)"
+step "Granting roles (idempotent, with retry for IAM consistency)"
 for role in "${ROLES[@]}"; do
-  gcloud projects add-iam-policy-binding "$PROJECT_ID" \
-    --member="serviceAccount:$SA_EMAIL" \
-    --role="$role" \
-    --condition=None \
-    --quiet >/dev/null
+  attempts=0
+  until gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+          --member="serviceAccount:$SA_EMAIL" \
+          --role="$role" \
+          --condition=None \
+          --quiet >/dev/null 2>&1; do
+    attempts=$((attempts + 1))
+    if [ "$attempts" -ge 10 ]; then
+      echo "Role $role couldn't be bound after 10 retries — bailing."
+      gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+        --member="serviceAccount:$SA_EMAIL" --role="$role" --condition=None --quiet
+      exit 1
+    fi
+    sleep 3
+  done
   ok "  $role"
 done
 
