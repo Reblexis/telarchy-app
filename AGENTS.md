@@ -139,23 +139,19 @@ curl -s -b /tmp/cookies.txt http://localhost:8080/api/status
 
 The backend runs on **Google Cloud Run** (service: `api`, region: `us-central1`, project: `telarchy-e0043`). The frontend is served from the same origin (`telarchy.com`).
 
-**Auto-deploy on push to `main`** via `.github/workflows/deploy-cloudrun.yml` (mirrors `npm run deploy` exactly). One-time GCP+GitHub setup is in `docs/infra/deploy.md`. To deploy by hand (rollback, hotfix offline), `npm run deploy` from the repo root still works and runs the same command.
+**Auto-deploy on push to `main`** via `.github/workflows/deploy-cloudrun.yml`. The workflow runs pending Drizzle migrations against the prod DB *before* deploying the new container, so schema and code roll forward together. To deploy by hand (rollback, hotfix offline), `npm run deploy` from the repo root still works and runs the same `gcloud run deploy` command — but it does NOT run migrations, so if you're shipping a schema change, apply migrations first (see the manual fallback below). One-time GCP+GitHub setup is in `docs/infra/deploy.md`.
 
-**Database**: Cloud SQL PostgreSQL (instance: `telarchy-pg`). Migrations are managed by Drizzle Kit.
+**Database**: Cloud SQL PostgreSQL (instance: `telarchy-pg`). Migrations are managed by Drizzle Kit and applied automatically by the deploy workflow.
 
-**Running migrations against production**:
+**Manual migration fallback** (rare — used when shipping a schema change by hand or recovering from a failed CI migrate):
 ```bash
-# Start the Cloud SQL Auth Proxy (pick an unused port)
 cloud-sql-proxy telarchy-e0043:us-central1:telarchy-pg --port=5435 &
-
-# Run migrations
-cd functions && DATABASE_URL="postgresql://telarchy:BhNaKo6sLsEdzyyMDko794lFc0rb9D28@127.0.0.1:5435/telarchy" npx drizzle-kit migrate
-
-# Kill the proxy when done
+PASSWORD=$(gcloud secrets versions access latest --secret=DATABASE_URL --project=telarchy-e0043 | python3 -c 'import sys,urllib.parse; print(urllib.parse.urlparse(sys.stdin.read().strip()).password)')
+cd functions && DATABASE_URL="postgresql://telarchy:${PASSWORD}@127.0.0.1:5435/telarchy" npx drizzle-kit migrate
 kill %1
 ```
 
-Schema changes that add/remove columns will break the running service if the deployed code expects them. Always run migrations immediately after pushing code that depends on new columns. If production returns 503, check `gcloud run services logs read api --region us-central1 --limit 20` first.
+If production returns 500/503 after a deploy, the first check is `gcloud run services logs read api --region us-central1 --limit 20` — a missing-table error means the auto-migrate step was skipped or failed.
 
 **Checking production logs**:
 ```bash
