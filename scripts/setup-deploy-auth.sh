@@ -101,6 +101,26 @@ for role in "${ROLES[@]}"; do
   ok "  $role"
 done
 
+# ── 2b. Repo-level Artifact Registry binding ─────────────────────────────
+# Project-level roles/artifactregistry.admin SHOULD inherit to the
+# cloud-run-source-deploy repo. In practice we've seen it not — first
+# `gcloud run deploy --source .` still failed with
+# "Permission 'artifactregistry.repositories.get' denied" despite the
+# project-level binding being present. Binding the SA directly on the
+# repo unblocks it. No-op once present.
+step "Granting repo-level Artifact Registry access (works around inheritance gap)"
+if gcloud artifacts repositories describe cloud-run-source-deploy \
+     --project="$PROJECT_ID" --location=us-central1 >/dev/null 2>&1; then
+  gcloud artifacts repositories add-iam-policy-binding cloud-run-source-deploy \
+    --project="$PROJECT_ID" --location=us-central1 \
+    --member="serviceAccount:$SA_EMAIL" \
+    --role="roles/artifactregistry.repoAdmin" \
+    --quiet >/dev/null
+  ok "repo-level binding applied"
+else
+  warn "cloud-run-source-deploy repo doesn't exist yet — first deploy will auto-create it (project-level role covers create)"
+fi
+
 # ── 3. Mint key ───────────────────────────────────────────────────────────
 step "Minting a new service-account key"
 gcloud iam service-accounts keys create "$KEY_FILE" \
