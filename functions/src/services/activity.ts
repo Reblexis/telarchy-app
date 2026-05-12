@@ -176,17 +176,46 @@ export async function getActivityFeed(workspaceId: string, opts: ActivityQuery):
     .from(metricsTable).where(eq(metricsTable.workspaceId, workspaceId));
   const metricIdByName = new Map(metricRows.map(r => [r.name, r.id]));
 
+  // Market lookup so trade/liquidity rows can surface metricName + targetDate
+  // (their own tables only carry marketId, hence "a metric" in the feed).
+  const marketIdsForLookup = new Set<string>();
+  for (const t of tradeRows) marketIdsForLookup.add(t.marketId);
+  for (const e of liquidityRows) marketIdsForLookup.add(e.marketId);
+  const marketLookup = new Map<string, { metricId: string; metricName: string; targetDate: string }>();
+  if (marketIdsForLookup.size > 0) {
+    const rows = await db.select({
+      id: markets.id,
+      metricId: markets.metricId,
+      metricName: markets.metricName,
+      targetDate: markets.targetDate,
+    }).from(markets).where(and(
+      eq(markets.workspaceId, workspaceId),
+      inArray(markets.id, Array.from(marketIdsForLookup)),
+    ));
+    for (const r of rows) {
+      marketLookup.set(r.id, { metricId: r.metricId, metricName: r.metricName, targetDate: r.targetDate });
+    }
+  }
+
   const items: ActivityItem[] = [];
 
   for (const t of tradeRows) {
     if (!memberSet.has(t.agentId)) continue;
+    const mkt = marketLookup.get(t.marketId);
     items.push({
       id: `trade:${t.id}`,
       type: 'trade',
       timestamp: t.createdAt.toISOString(),
       actor: { id: t.agentId, label: t.agentId },
       marketId: t.marketId,
-      data: { direction: t.direction, shares: t.shares, cost: t.cost },
+      metricId: mkt?.metricId,
+      data: {
+        direction: t.direction,
+        shares: t.shares,
+        cost: t.cost,
+        metricName: mkt?.metricName,
+        targetDate: mkt?.targetDate,
+      },
     });
   }
 
@@ -293,17 +322,21 @@ export async function getActivityFeed(workspaceId: string, opts: ActivityQuery):
   }
 
   for (const e of liquidityRows) {
+    const mkt = marketLookup.get(e.marketId);
     items.push({
       id: `liquidity:${e.id}`,
       type: 'liquidity',
       timestamp: e.createdAt.toISOString(),
       actor: e.agentId ? { id: e.agentId, label: e.agentId } : null,
       marketId: e.marketId,
+      metricId: mkt?.metricId,
       data: {
         amount: e.amount,
         totalLiquidity: e.totalLiquidity,
         kind: e.type,
         poolContribution: e.poolContribution,
+        metricName: mkt?.metricName,
+        targetDate: mkt?.targetDate,
       },
     });
   }
