@@ -24,11 +24,12 @@ SERVICE_ACCOUNT_NAME="cloudrun-deployer"
 SA_EMAIL="${SERVICE_ACCOUNT_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 REPO="${REPO:-Reblexis/metrics-tracker}"
 ROLES=(
-  "roles/run.admin"
-  "roles/cloudbuild.builds.editor"
-  "roles/storage.objectViewer"
-  "roles/iam.serviceAccountUser"
-  "roles/logging.viewer"
+  "roles/run.admin"                  # deploy + update services
+  "roles/cloudbuild.builds.editor"   # kick off builds via --source
+  "roles/artifactregistry.admin"     # auto-create + push to cloud-run-source-deploy repo
+  "roles/storage.objectViewer"       # read Cloud Build staging artifacts
+  "roles/iam.serviceAccountUser"     # act-as the Cloud Run runtime SA
+  "roles/logging.viewer"             # tail build/deploy logs from CI on failure
 )
 KEY_FILE="$(mktemp -t cloudrun-deployer-key.XXXXXX.json)"
 trap 'rm -f "$KEY_FILE"' EXIT
