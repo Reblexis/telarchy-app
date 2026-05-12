@@ -26,7 +26,7 @@ const SORT_LABELS: Record<SortKey, string> = {
 export function MarketsPage() {
   const { user } = useAuth();
   const { inspectProposal } = useInspectMode();
-  const { workspace } = useWorkspace(!!user);
+  const { workspace, allWorkspaces, switchWorkspace } = useWorkspace(!!user);
   const isAdmin = workspace?.tier === 'admin';
   const [markets, setMarkets] = useState<Market[]>([]);
   const [metricsMap, setMetricsMap] = useState<Map<string, Metric>>(new Map());
@@ -51,6 +51,26 @@ export function MarketsPage() {
     setTargetFilter(t);
     if (t || searchParams.get('marketId')) setStatusFilter('all');
   }, [searchParams]);
+
+  // Deep-link handoff from /participants/:id (and any other source): if
+  // ?workspace=<id> names a workspace the user belongs to and it isn't the
+  // active one, switch to it and reload at the same URL so ?marketId=<id>
+  // resolves against the right workspace's markets.
+  useEffect(() => {
+    const targetWs = searchParams.get('workspace');
+    if (!targetWs || !workspace) return;
+    if (targetWs === workspace.workspaceId) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('workspace');
+      setSearchParams(next, { replace: true });
+      return;
+    }
+    if (allWorkspaces.some(w => w.id === targetWs)) {
+      const next = new URLSearchParams(searchParams);
+      next.delete('workspace');
+      switchWorkspace(targetWs, `/markets?${next.toString()}`);
+    }
+  }, [searchParams, workspace, allWorkspaces, switchWorkspace, setSearchParams]);
 
   useEffect(() => {
     const marketId = searchParams.get('marketId');

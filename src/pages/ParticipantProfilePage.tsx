@@ -59,13 +59,18 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
   );
 }
 
+function marketDeepLink(workspaceId: string, marketId: string): string {
+  const qs = new URLSearchParams({ workspace: workspaceId, marketId }).toString();
+  return `/markets?${qs}`;
+}
+
 function PositionRow({ p }: { p: PublicProfilePosition }) {
   const subtitle = formatConsensusOrProb(p);
   const date = p.targetDate ? formatTargetDateDisplay(p.targetDate) : null;
   const showWorkspace = true;
   return (
     <li>
-      <Link to={`/markets?marketId=${encodeURIComponent(p.marketId)}`} className="activity-row-link">
+      <Link to={marketDeepLink(p.workspaceId, p.marketId)} className="activity-row-link">
         <div className="activity-row">
           <div className="activity-text">
             <div>
@@ -93,7 +98,7 @@ function TradeRow({ t }: { t: PublicProfileTrade }) {
   const time = timeAgo(t.createdAt);
   return (
     <li>
-      <Link to={`/markets?marketId=${encodeURIComponent(t.marketId)}`} className="activity-row-link">
+      <Link to={marketDeepLink(t.workspaceId, t.marketId)} className="activity-row-link">
         <div className="activity-row">
           <div className="activity-text">
             <div>
