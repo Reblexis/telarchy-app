@@ -80,6 +80,35 @@ export interface LeaderboardEntry {
   lastTradeAt: string | null;
 }
 
+export interface PublicProfilePosition {
+  workspaceId: string;
+  workspaceName: string;
+  marketId: string;
+  metricName: string | null;
+  targetDate: string | null;
+  direction: 'higher' | 'lower';
+  shares: number;
+  totalCost: number;
+  status: 'open' | 'resolved';
+  probabilityHigher: number | null;
+  consensus: number | null;
+  actualValue: number | null;
+}
+
+export interface PublicProfileTrade {
+  id: string;
+  workspaceId: string;
+  workspaceName: string;
+  marketId: string;
+  metricName: string | null;
+  targetDate: string | null;
+  direction: 'higher' | 'lower';
+  kind: 'buy' | 'sell';
+  shares: number;
+  cost: number;
+  createdAt: string;
+}
+
 export interface PublicParticipantProfile {
   id: string;
   nickname: string | null;
@@ -95,6 +124,8 @@ export interface PublicParticipantProfile {
     lastTradeAt: string | null;
   };
   activeWorkspaces: Array<{ id: string; name: string }>;
+  openPositions: PublicProfilePosition[];
+  recentTrades: PublicProfileTrade[];
 }
 
 export interface MarketplaceListing {

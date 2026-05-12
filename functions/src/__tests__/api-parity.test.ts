@@ -101,6 +101,7 @@ describe('API parity: frontend goes through the public API', () => {
   test('every documented endpoint has a known auth label', () => {
     const allowedLabels = new Set([
       'false',
+      'optional',
       'identity',
       'session',
       'agent',

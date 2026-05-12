@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { api, type PublicParticipantProfile } from '../lib/api';
+import { api, type PublicParticipantProfile, type PublicProfilePosition, type PublicProfileTrade } from '../lib/api';
+import { formatTargetDateDisplay } from '../lib/date-utils';
 
 function timeAgo(iso: string | null): string {
   if (!iso) return '-';
@@ -29,6 +30,19 @@ function formatEarnings(v: number): string {
   return `${sign}${abs.toFixed(2)}`;
 }
 
+function formatShares(v: number): string {
+  if (v >= 1000) return Math.round(v).toLocaleString();
+  if (v >= 10) return v.toFixed(1);
+  return v.toFixed(2);
+}
+
+function formatConsensusOrProb(p: PublicProfilePosition): string | null {
+  if (p.status === 'resolved' && p.actualValue !== null) return `resolved at ${p.actualValue}`;
+  if (p.consensus !== null) return `consensus ${p.consensus}`;
+  if (p.probabilityHigher !== null) return `p(higher) ${(p.probabilityHigher * 100).toFixed(0)}%`;
+  return null;
+}
+
 function formatJoinedDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
@@ -42,6 +56,61 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
       <div className="stat-card-label" title={hint}>{label}</div>
       <div className="stat-card-value">{value}</div>
     </div>
+  );
+}
+
+function PositionRow({ p }: { p: PublicProfilePosition }) {
+  const subtitle = formatConsensusOrProb(p);
+  const date = p.targetDate ? formatTargetDateDisplay(p.targetDate) : null;
+  const showWorkspace = true;
+  return (
+    <li>
+      <Link to={`/markets?marketId=${encodeURIComponent(p.marketId)}`} className="activity-row-link">
+        <div className="activity-row">
+          <div className="activity-text">
+            <div>
+              <strong>{p.metricName ?? p.marketId}</strong>
+              <span style={{ color: 'var(--text-tertiary)', marginLeft: '0.4rem' }}>
+                · {p.direction}
+              </span>
+            </div>
+            <div className="activity-tags">
+              <span className="activity-tag">{formatShares(p.shares)} shares</span>
+              <span className="activity-tag">cost {formatEarnings(p.totalCost)}</span>
+              {subtitle && <span className="activity-tag">{subtitle}</span>}
+              {p.status === 'resolved' && <span className="activity-tag">resolved</span>}
+              {showWorkspace && <span className="activity-tag">{p.workspaceName}</span>}
+            </div>
+          </div>
+          <span className="activity-time">{date ?? ''}</span>
+        </div>
+      </Link>
+    </li>
+  );
+}
+
+function TradeRow({ t }: { t: PublicProfileTrade }) {
+  const time = timeAgo(t.createdAt);
+  return (
+    <li>
+      <Link to={`/markets?marketId=${encodeURIComponent(t.marketId)}`} className="activity-row-link">
+        <div className="activity-row">
+          <div className="activity-text">
+            <div>
+              <strong>{t.kind === 'buy' ? 'Bought' : 'Sold'} {formatShares(t.shares)} {t.direction}</strong>
+              <span style={{ color: 'var(--text-tertiary)', marginLeft: '0.4rem' }}>
+                on {t.metricName ?? t.marketId}
+              </span>
+            </div>
+            <div className="activity-tags">
+              <span className="activity-tag">{t.kind === 'sell' ? 'proceeds' : 'cost'} {formatEarnings(Math.abs(t.cost))}</span>
+              <span className="activity-tag">{t.workspaceName}</span>
+            </div>
+          </div>
+          <span className="activity-time">{time}</span>
+        </div>
+      </Link>
+    </li>
   );
 }
 
@@ -121,9 +190,43 @@ export function ParticipantProfilePage() {
 
       <div className="section">
         <div className="section-header">
+          <h2>Open positions</h2>
+          <p className="section-subtitle">
+            Live positions visible to you. Activity in workspaces you can't read is hidden.
+          </p>
+        </div>
+        {profile.openPositions.length === 0 ? (
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No open positions you can see.</p>
+        ) : (
+          <ul className="activity-list">
+            {profile.openPositions.map(p => (
+              <PositionRow key={`${p.workspaceId}:${p.marketId}:${p.direction}`} p={p} />
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="section">
+        <div className="section-header">
+          <h2>Recent trades</h2>
+          <p className="section-subtitle">
+            Newest first. Trades on markets you can't read are hidden.
+          </p>
+        </div>
+        {profile.recentTrades.length === 0 ? (
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No recent trades you can see.</p>
+        ) : (
+          <ul className="activity-list">
+            {profile.recentTrades.map(t => <TradeRow key={t.id} t={t} />)}
+          </ul>
+        )}
+      </div>
+
+      <div className="section">
+        <div className="section-header">
           <h2>Active in public workspaces</h2>
           <p className="section-subtitle">
-            Public-visibility workspaces this participant has traded in. Private-workspace activity is not shown here.
+            Public-visibility workspaces this participant has traded in.
           </p>
         </div>
         {profile.activeWorkspaces.length === 0 ? (

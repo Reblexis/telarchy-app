@@ -5,7 +5,7 @@ import { eq, and, sql, inArray, desc } from 'drizzle-orm';
 import { randomBytes } from 'crypto';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
-import { hashKey, authMiddleware, optionalAuthMiddleware } from '../middleware/auth';
+import { hashKey, authMiddleware, optionalAuthMiddleware, getAuthWorkspaceMemberships } from '../middleware/auth';
 import { requireCapability, requireSelfOrAdmin, requireIdentity } from '../middleware/roles';
 import { getMarkets } from '../services/predictions';
 import {
@@ -137,12 +137,18 @@ agentsRouter.get('/deposit-address', (_req, res) => {
 });
 
 /**
- * Public participant profile. No auth. Resolves :idOrNickname against agents.id
- * first, then case-insensitively against agents.nickname. Returns identity plus
- * stats aggregated only over public-visibility workspaces (same privacy
- * contract as /api/leaderboard and /api/marketplace).
+ * Public participant profile. Resolves :idOrNickname against agents.id first,
+ * then case-insensitively against agents.nickname. Stats are aggregated only
+ * over public-visibility workspaces (privacy contract shared with
+ * /api/leaderboard and /api/marketplace).
+ *
+ * Uses optionalAuthMiddleware so the response can include per-position and
+ * per-trade detail visible to the caller: public workspaces are always
+ * included, plus any workspace where the caller has 'read' capability (a
+ * master key or platform admin sees everything). Anonymous callers get only
+ * public-workspace detail.
  */
-agentsRouter.get('/:idOrNickname/public', wrap(async (req, res) => {
+agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (req, res) => {
   const { computeLeaderboard } = await import('../lib/leaderboard');
   const idOrNickname = req.params.idOrNickname as string;
 
@@ -154,10 +160,28 @@ agentsRouter.get('/:idOrNickname/public', wrap(async (req, res) => {
   }
   if (!agent) { res.status(404).json({ error: 'Participant not found' }); return; }
 
-  const publicWs = await db.select({ id: workspaces.id, name: workspaces.name })
-    .from(workspaces).where(eq(workspaces.visibility, 'public'));
-  const publicWsIds = publicWs.map(w => w.id);
-  const wsNameById = new Map(publicWs.map(w => [w.id, w.name]));
+  const allWs = await db.select({ id: workspaces.id, name: workspaces.name, visibility: workspaces.visibility })
+    .from(workspaces);
+  const wsNameById = new Map(allWs.map(w => [w.id, w.name]));
+  const publicWsIds = allWs.filter(w => w.visibility === 'public').map(w => w.id);
+
+  // Resolve which workspaces the *caller* can see beyond public ones. Master
+  // key sees everything; otherwise check 'read' capability per candidate. Read
+  // capabilities only get computed for workspaces the caller actually has a
+  // membership in, so this scales with the caller's reach, not all workspaces.
+  const viewerWsIds = new Set<string>(publicWsIds);
+  if (req.auth?.isMasterKey) {
+    for (const w of allWs) viewerWsIds.add(w.id);
+  } else if (req.auth?.uid || req.auth?.agentId) {
+    const memberships = await getAuthWorkspaceMemberships({ uid: req.auth?.uid, agentId: req.auth?.agentId });
+    const candidate = memberships.map(m => m.workspaceId).filter(id => !viewerWsIds.has(id));
+    if (candidate.length > 0) {
+      const caps = await Promise.all(candidate.map(id =>
+        computeCapabilities({ workspaceId: id, uid: req.auth?.uid, agentId: req.auth?.agentId })
+      ));
+      candidate.forEach((id, i) => { if (caps[i].has('read')) viewerWsIds.add(id); });
+    }
+  }
 
   const emptyStats = {
     rank: null as number | null,
@@ -169,7 +193,7 @@ agentsRouter.get('/:idOrNickname/public', wrap(async (req, res) => {
     lastTradeAt: null as string | null,
   };
 
-  if (publicWsIds.length === 0) {
+  if (publicWsIds.length === 0 && viewerWsIds.size === 0) {
     res.json({
       id: agent.id,
       nickname: agent.nickname,
@@ -177,62 +201,152 @@ agentsRouter.get('/:idOrNickname/public', wrap(async (req, res) => {
       joinedAt: agent.createdAt,
       stats: emptyStats,
       activeWorkspaces: [],
+      openPositions: [],
+      recentTrades: [],
     });
     return;
   }
 
-  const wsMarkets = await db.select({
-    id: markets.id,
-    workspaceId: markets.workspaceId,
-    rangeMin: markets.rangeMin,
-    rangeMax: markets.rangeMax,
-    resolved: markets.resolved,
-    actualValue: markets.actualValue,
-  }).from(markets).where(and(
-    inArray(markets.workspaceId, publicWsIds),
-    eq(markets.voided, false),
-  ));
+  // Stats are still aggregated over public workspaces only (the documented
+  // privacy contract for this endpoint). Per-position and per-trade detail
+  // expands to viewerWsIds.
+  const statsScope = publicWsIds;
+  const detailScope = Array.from(viewerWsIds);
+
+  const queryScope = Array.from(new Set([...statsScope, ...detailScope]));
+  const wsMarkets = queryScope.length > 0
+    ? await db.select({
+        id: markets.id,
+        workspaceId: markets.workspaceId,
+        metricName: markets.metricName,
+        targetDate: markets.targetDate,
+        rangeMin: markets.rangeMin,
+        rangeMax: markets.rangeMax,
+        liquidity: markets.liquidity,
+        shares: markets.shares,
+        resolved: markets.resolved,
+        actualValue: markets.actualValue,
+      }).from(markets).where(and(
+        inArray(markets.workspaceId, queryScope),
+        eq(markets.voided, false),
+      ))
+    : [];
+  const marketById = new Map(wsMarkets.map(m => [m.id, m]));
 
   const [tradeRows, positionRows] = await Promise.all([
-    db.select({
-      agentId: trades.agentId,
-      workspaceId: trades.workspaceId,
-      marketId: trades.marketId,
-      cost: trades.cost,
-      createdAt: trades.createdAt,
-    }).from(trades).where(inArray(trades.workspaceId, publicWsIds)),
-    db.select({
-      agentId: positions.agentId,
-      workspaceId: positions.workspaceId,
-      marketId: positions.marketId,
-      direction: positions.direction,
-      shares: positions.shares,
-    }).from(positions).where(inArray(positions.workspaceId, publicWsIds)),
+    queryScope.length > 0
+      ? db.select({
+          id: trades.id,
+          agentId: trades.agentId,
+          workspaceId: trades.workspaceId,
+          marketId: trades.marketId,
+          direction: trades.direction,
+          shares: trades.shares,
+          cost: trades.cost,
+          createdAt: trades.createdAt,
+        }).from(trades).where(inArray(trades.workspaceId, queryScope))
+      : Promise.resolve([] as Array<{
+          id: string; agentId: string; workspaceId: string; marketId: string;
+          direction: string; shares: number; cost: number; createdAt: Date;
+        }>),
+    queryScope.length > 0
+      ? db.select({
+          agentId: positions.agentId,
+          workspaceId: positions.workspaceId,
+          marketId: positions.marketId,
+          direction: positions.direction,
+          shares: positions.shares,
+          totalCost: positions.totalCost,
+        }).from(positions).where(inArray(positions.workspaceId, queryScope))
+      : Promise.resolve([] as Array<{
+          agentId: string; workspaceId: string; marketId: string;
+          direction: string; shares: number; totalCost: number;
+        }>),
   ]);
 
-  const seenIds = new Set<string>();
-  for (const t of tradeRows) seenIds.add(t.agentId);
-  for (const p of positionRows) seenIds.add(p.agentId);
-  const seenAgents = seenIds.size > 0
-    ? await db.select({ id: agents.id, nickname: agents.nickname })
-        .from(agents).where(inArray(agents.id, Array.from(seenIds)))
-    : [];
-  const nicknameById = new Map(seenAgents.map(a => [a.id, a.nickname]));
+  // Stats: same shape and source as before, restricted to public workspaces.
+  let entry: ReturnType<typeof computeLeaderboard>[number] | undefined;
+  if (statsScope.length > 0) {
+    const statsWsSet = new Set(statsScope);
+    const statsMarkets = wsMarkets.filter(m => statsWsSet.has(m.workspaceId));
+    const statsTrades = tradeRows.filter(t => statsWsSet.has(t.workspaceId))
+      .map(t => ({ agentId: t.agentId, workspaceId: t.workspaceId, marketId: t.marketId, cost: t.cost, createdAt: t.createdAt }));
+    const statsPositions = positionRows.filter(p => statsWsSet.has(p.workspaceId))
+      .map(p => ({ agentId: p.agentId, workspaceId: p.workspaceId, marketId: p.marketId, direction: p.direction, shares: p.shares }));
+    const seenIds = new Set<string>();
+    for (const t of statsTrades) seenIds.add(t.agentId);
+    for (const p of statsPositions) seenIds.add(p.agentId);
+    const seenAgents = seenIds.size > 0
+      ? await db.select({ id: agents.id, nickname: agents.nickname })
+          .from(agents).where(inArray(agents.id, Array.from(seenIds)))
+      : [];
+    const nicknameById = new Map(seenAgents.map(a => [a.id, a.nickname]));
+    const ranked = computeLeaderboard(statsMarkets, statsTrades, statsPositions, nicknameById, 1_000_000);
+    entry = ranked.find(e => e.id === agent.id);
+  }
 
-  // Compute the full leaderboard (limit larger than any plausible participant
-  // count) so the rank we report is real, not a tail-cutoff. The math is
-  // single-pass over the already-fetched data.
-  const ranked = computeLeaderboard(wsMarkets, tradeRows, positionRows, nicknameById, 1_000_000);
-  const entry = ranked.find(e => e.id === agent.id);
-
-  // Public workspaces this participant has actually traded in. Useful as a
-  // starting point for browsing their activity; we don't expose their full
-  // group memberships across private workspaces.
+  // activeWorkspaces stays public-only so anonymous callers see the same
+  // "where they trade publicly" list they always have. Detail-level lists
+  // (open positions, recent trades) expand for authenticated viewers.
+  const publicWsIdSet = new Set(publicWsIds);
   const activeWorkspaceIds = new Set<string>();
-  for (const t of tradeRows) if (t.agentId === agent.id) activeWorkspaceIds.add(t.workspaceId);
-  for (const p of positionRows) if (p.agentId === agent.id) activeWorkspaceIds.add(p.workspaceId);
+  for (const t of tradeRows) if (t.agentId === agent.id && publicWsIdSet.has(t.workspaceId)) activeWorkspaceIds.add(t.workspaceId);
+  for (const p of positionRows) if (p.agentId === agent.id && publicWsIdSet.has(p.workspaceId)) activeWorkspaceIds.add(p.workspaceId);
   const activeWorkspaces = Array.from(activeWorkspaceIds)
     .map(id => ({ id, name: wsNameById.get(id) ?? id }));
+
+  const ownerTrades = tradeRows.filter(t => t.agentId === agent.id && viewerWsIds.has(t.workspaceId));
+  const ownerPositions = positionRows.filter(p => p.agentId === agent.id && p.shares > 0 && viewerWsIds.has(p.workspaceId));
+
+  const openPositions = ownerPositions.map(p => {
+    const m = marketById.get(p.marketId);
+    const mShares = (m?.shares as [number, number] | undefined) ?? [0, 0];
+    const liq = m?.liquidity ?? 0;
+    return {
+      workspaceId: p.workspaceId,
+      workspaceName: wsNameById.get(p.workspaceId) ?? p.workspaceId,
+      marketId: p.marketId,
+      metricName: m?.metricName ?? null,
+      targetDate: m?.targetDate ?? null,
+      direction: p.direction as 'higher' | 'lower',
+      shares: p.shares,
+      totalCost: p.totalCost,
+      status: (m?.resolved ? 'resolved' : 'open') as 'open' | 'resolved',
+      probabilityHigher: m && liq > 0 ? Math.round(pHigher(mShares, liq) * 10000) / 10000 : null,
+      consensus: m ? (consensus(mShares, liq, m.rangeMin, m.rangeMax) ?? null) : null,
+      actualValue: m?.actualValue ?? null,
+    };
+  });
+  // Open positions first by absolute shares (heaviest exposure first), resolved last.
+  openPositions.sort((a, b) => {
+    const sa = a.status === 'open' ? 0 : 1;
+    const sb = b.status === 'open' ? 0 : 1;
+    if (sa !== sb) return sa - sb;
+    return Math.abs(b.shares) - Math.abs(a.shares);
+  });
+
+  const RECENT_TRADES_LIMIT = 20;
+  const recentTrades = ownerTrades
+    .slice()
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, RECENT_TRADES_LIMIT)
+    .map(t => {
+      const m = marketById.get(t.marketId);
+      return {
+        id: t.id,
+        workspaceId: t.workspaceId,
+        workspaceName: wsNameById.get(t.workspaceId) ?? t.workspaceId,
+        marketId: t.marketId,
+        metricName: m?.metricName ?? null,
+        targetDate: m?.targetDate ?? null,
+        direction: t.direction as 'higher' | 'lower',
+        // trades.shares is negative for sells.
+        kind: (t.shares < 0 ? 'sell' : 'buy') as 'buy' | 'sell',
+        shares: Math.abs(t.shares),
+        cost: t.cost,
+        createdAt: t.createdAt,
+      };
+    });
 
   res.json({
     id: agent.id,
@@ -241,6 +355,8 @@ agentsRouter.get('/:idOrNickname/public', wrap(async (req, res) => {
     joinedAt: agent.createdAt,
     stats: entry ?? emptyStats,
     activeWorkspaces,
+    openPositions,
+    recentTrades,
   });
 }));
 
