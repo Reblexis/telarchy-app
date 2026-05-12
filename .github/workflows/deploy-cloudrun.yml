@@ -69,6 +69,58 @@ jobs:
         with:
           project_id: telarchy-e0043
 
+      - uses: actions/setup-node@v4
+        if: steps.auth_check.outputs.skip != 'true'
+        with:
+          node-version: '22'
+
+      # Migrations run BEFORE the deploy so the new container starts against
+      # the schema it expects. Path: download cloud-sql-proxy, tunnel to the
+      # Cloud SQL instance, read the prod DATABASE_URL from Secret Manager
+      # (rewriting its socket host to the local tunnel), then `drizzle-kit
+      # migrate` from functions/.
+      - name: Apply pending database migrations
+        if: steps.auth_check.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+
+          # 1. Download cloud-sql-proxy
+          PROXY_VERSION=v2.20.0
+          curl -fsSL -o /tmp/cloud-sql-proxy \
+            "https://storage.googleapis.com/cloud-sql-connectors/cloud-sql-proxy/${PROXY_VERSION}/cloud-sql-proxy.linux.amd64"
+          chmod +x /tmp/cloud-sql-proxy
+
+          # 2. Tunnel
+          /tmp/cloud-sql-proxy telarchy-e0043:us-central1:telarchy-pg --port=5435 > /tmp/proxy.log 2>&1 &
+          PROXY_PID=$!
+          trap 'kill $PROXY_PID 2>/dev/null || true' EXIT
+          # Wait until the proxy accepts connections (~5s typically)
+          for _ in $(seq 1 30); do
+            if nc -z 127.0.0.1 5435 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if ! nc -z 127.0.0.1 5435; then
+            echo "cloud-sql-proxy never came up; log:"; cat /tmp/proxy.log; exit 1
+          fi
+
+          # 3. Read prod DATABASE_URL and swap the host for the local tunnel
+          PROD_URL=$(gcloud secrets versions access latest \
+            --secret=DATABASE_URL --project=telarchy-e0043)
+          PASSWORD=$(python3 -c "
+          import sys, urllib.parse
+          p = urllib.parse.urlparse('$PROD_URL')
+          print(p.password or '')
+          ")
+          if [ -z "$PASSWORD" ]; then
+            echo "Couldn't parse password from DATABASE_URL"; exit 1
+          fi
+          export DATABASE_URL="postgresql://telarchy:${PASSWORD}@127.0.0.1:5435/telarchy"
+
+          # 4. Install drizzle-kit (functions/) and migrate
+          cd functions
+          npm ci --no-audit --no-fund
+          npx drizzle-kit migrate
+
       # Mirrors `npm run deploy` from package.json. Build is done by Cloud
       # Build via --source .; we don't pull the GHCR-published image
       # because the manual path also doesn't (and we want behavior parity).

@@ -24,12 +24,14 @@ SERVICE_ACCOUNT_NAME="cloudrun-deployer"
 SA_EMAIL="${SERVICE_ACCOUNT_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 REPO="${REPO:-Reblexis/metrics-tracker}"
 ROLES=(
-  "roles/run.admin"                  # deploy + update services
-  "roles/cloudbuild.builds.editor"   # kick off builds via --source
-  "roles/artifactregistry.admin"     # auto-create + push to cloud-run-source-deploy repo
-  "roles/storage.admin"              # access the run-sources-* Cloud Build staging bucket
-  "roles/iam.serviceAccountUser"     # act-as the Cloud Run runtime SA
-  "roles/logging.viewer"             # tail build/deploy logs from CI on failure
+  "roles/run.admin"                       # deploy + update services
+  "roles/cloudbuild.builds.editor"        # kick off builds via --source
+  "roles/artifactregistry.admin"          # auto-create + push to cloud-run-source-deploy repo
+  "roles/storage.admin"                   # access the run-sources-* Cloud Build staging bucket
+  "roles/iam.serviceAccountUser"          # act-as the Cloud Run runtime SA
+  "roles/logging.viewer"                  # tail build/deploy logs from CI on failure
+  "roles/cloudsql.client"                 # connect to telarchy-pg via cloud-sql-proxy for migrations
+  "roles/secretmanager.secretAccessor"    # read DATABASE_URL from Secret Manager for migrations
 )
 KEY_FILE="$(mktemp -t cloudrun-deployer-key.XXXXXX.json)"
 trap 'rm -f "$KEY_FILE"' EXIT
