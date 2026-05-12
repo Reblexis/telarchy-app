@@ -329,7 +329,10 @@ predictionsRouter.get('/markets', requireCapability('read'), wrap(async (req, re
   const includeResolved = req.query.includeResolved === 'true';
   const minLiquidity = typeof req.query.minLiquidity === 'string' ? parseFloat(req.query.minLiquidity) : undefined;
   const limit = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : undefined;
-  const marketRows = await getMarkets({ proposalId, active, includeResolved, minLiquidity, limit }, undefined, workspaceId);
+  const rawKind = typeof req.query.kind === 'string' ? req.query.kind : undefined;
+  const kind: 'baseline' | 'conditional' | 'all' | undefined =
+    rawKind === 'baseline' || rawKind === 'conditional' || rawKind === 'all' ? rawKind : undefined;
+  const marketRows = await getMarkets({ proposalId, active, includeResolved, minLiquidity, limit, kind }, undefined, workspaceId);
   res.json(marketRows);
 }));
 

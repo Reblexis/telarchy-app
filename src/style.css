@@ -4123,6 +4123,28 @@ code, pre, kbd, samp {
 
 .markets-chip.active .markets-chip-count { color: var(--accent-text); opacity: 0.75; }
 
+.market-proposal-chip {
+  padding: 0.15rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.market-proposal-chip:hover {
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+}
+
 .markets-sort {
   display: inline-flex;
   gap: 0.3rem;

@@ -128,6 +128,14 @@ export interface GetMarketsOptions {
   active?: boolean;
   minLiquidity?: number;
   limit?: number;
+  /**
+   * Filter by market kind:
+   *  - 'baseline' (default when no proposalId): rows where proposalId is null
+   *  - 'conditional': rows with any proposalId set
+   *  - 'all': both
+   * Ignored when opts.proposalId is set (that already pins to one proposal).
+   */
+  kind?: 'baseline' | 'conditional' | 'all';
 }
 
 export async function getMarkets(options: GetMarketsOptions | boolean = false, proposalId: string | undefined, workspaceId: string) {
@@ -143,7 +151,10 @@ export async function getMarkets(options: GetMarketsOptions | boolean = false, p
     ));
 
   if (!opts.proposalId) {
-    rows = rows.filter(m => !m.proposalId);
+    const kind = opts.kind ?? 'baseline';
+    if (kind === 'baseline') rows = rows.filter(m => !m.proposalId);
+    else if (kind === 'conditional') rows = rows.filter(m => !!m.proposalId);
+    // 'all' keeps both
   }
   if (!rows.length) return [];
 

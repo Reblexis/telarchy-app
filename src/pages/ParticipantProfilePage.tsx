@@ -64,12 +64,9 @@ function marketDeepLink(
   marketId: string,
   proposalId: string | null,
 ): string {
-  if (proposalId) {
-    const qs = new URLSearchParams({ workspace: workspaceId, id: proposalId }).toString();
-    return `/proposals?${qs}`;
-  }
-  const qs = new URLSearchParams({ workspace: workspaceId, marketId }).toString();
-  return `/markets?${qs}`;
+  const params: Record<string, string> = { workspace: workspaceId, marketId };
+  if (proposalId) params.kind = 'conditional';
+  return `/markets?${new URLSearchParams(params).toString()}`;
 }
 
 function PositionRow({ p }: { p: PublicProfilePosition }) {

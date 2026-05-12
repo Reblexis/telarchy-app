@@ -13,9 +13,10 @@ import { TradingPanel } from '../components/TradingPanel';
 import { MarketComments } from '../components/MarketComments';
 import { ProbabilitySlider } from '../components/ProbabilitySlider';
 import { InspectIndicator } from '../components/InspectIndicator';
-import type { Market, MarketStatus, Metric } from '../types';
+import type { Market, MarketStatus, Metric, Proposal } from '../types';
 
 type SortKey = 'metric' | 'target' | 'prediction';
+type MarketKind = 'baseline' | 'conditional' | 'all';
 
 const SORT_LABELS: Record<SortKey, string> = {
   target: 'Target date',
@@ -23,9 +24,15 @@ const SORT_LABELS: Record<SortKey, string> = {
   prediction: 'Prediction',
 };
 
+const KIND_LABELS: Record<MarketKind, string> = {
+  baseline: 'Baseline',
+  conditional: 'Conditional',
+  all: 'All',
+};
+
 export function MarketsPage() {
   const { user } = useAuth();
-  const { inspectProposal } = useInspectMode();
+  const { inspectProposal, setInspectProposal } = useInspectMode();
   const { workspace, allWorkspaces, switchWorkspace } = useWorkspace(!!user);
   const isAdmin = workspace?.tier === 'admin';
   const [markets, setMarkets] = useState<Market[]>([]);
@@ -44,12 +51,19 @@ export function MarketsPage() {
   const [statusFilter, setStatusFilter] = useState<MarketStatus | 'all'>(() =>
     searchParams.get('target') || searchParams.get('marketId') ? 'all' : 'open',
   );
+  const [kindFilter, setKindFilter] = useState<MarketKind>(() => {
+    const raw = searchParams.get('kind');
+    return raw === 'conditional' || raw === 'all' ? raw : 'baseline';
+  });
+  const [proposalsById, setProposalsById] = useState<Map<string, Proposal>>(new Map());
   useEffect(() => {
     const q = searchParams.get('q') ?? '';
     const t = searchParams.get('target') ?? '';
     setFilterText(q);
     setTargetFilter(t);
     if (t || searchParams.get('marketId')) setStatusFilter('all');
+    const rawKind = searchParams.get('kind');
+    setKindFilter(rawKind === 'conditional' || rawKind === 'all' ? rawKind : 'baseline');
   }, [searchParams]);
 
   // Deep-link handoff from /participants/:id (and any other source): if
@@ -119,11 +133,16 @@ export function MarketsPage() {
   const load = useCallback(async () => {
     if (!user) return;
     setError('');
-    if (!inspectProposal) {
+    // Cache only the default view (no inspect, baseline kind) — other views
+    // are too varied to cache usefully and showing a stale conditional list
+    // would be misleading.
+    const isDefaultView = !inspectProposal && kindFilter === 'baseline';
+    if (isDefaultView) {
       const cachedMkts = cacheGet<Market[]>('markets');
       if (cachedMkts) { setMarkets(cachedMkts); setLoading(false); }
     }
-    const mkts = await api.getMarkets(inspectProposal?.id, undefined, { includeResolved: true }).catch((e: Error) => { setError(e.message); return null; });
+    const mkts = await api.getMarkets(inspectProposal?.id, undefined, { includeResolved: true, kind: kindFilter })
+      .catch((e: Error) => { setError(e.message); return null; });
     if (inspectProposal) {
       api.getMarkets().then((mains: Market[]) => {
         const map = new Map<string, Market>();
@@ -135,7 +154,7 @@ export function MarketsPage() {
     }
     if (mkts) {
       setMarkets(mkts);
-      if (!inspectProposal) cacheSet('markets', mkts);
+      if (isDefaultView) cacheSet('markets', mkts);
     }
     api.getStatus().then((status: { metrics: Metric[] }) => {
       const map = new Map<string, Metric>();
@@ -143,7 +162,17 @@ export function MarketsPage() {
       setMetricsMap(map);
     }).catch((e: Error) => { console.error('Failed to load metric status', e); });
     setLoading(false);
-  }, [user, inspectProposal]);
+  }, [user, inspectProposal, kindFilter]);
+
+  // Fetch proposal titles when we'll be showing conditional rows so each
+  // gets a readable "from X" chip instead of a UUID. Inspect mode already
+  // pins to one proposal so the chip is redundant there.
+  useEffect(() => {
+    if (inspectProposal || kindFilter === 'baseline') return;
+    api.getProposals().then((rows: Proposal[]) => {
+      setProposalsById(new Map(rows.map(p => [p.id, p])));
+    }).catch((e: Error) => { console.error('Failed to load proposals for market chips', e); });
+  }, [inspectProposal, kindFilter]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -157,6 +186,16 @@ export function MarketsPage() {
       return Array.from(next);
     });
   }, [targetFilter, filterText, markets]);
+
+  const setKindFilterAndUrl = useCallback((next: MarketKind) => {
+    setKindFilter(next);
+    setSearchParams(prev => {
+      const sp = new URLSearchParams(prev);
+      if (next === 'baseline') sp.delete('kind');
+      else sp.set('kind', next);
+      return sp;
+    }, { replace: true });
+  }, [setSearchParams]);
 
   const handleBulkLiquidity = async () => {
     if (!user) return;
@@ -232,6 +271,29 @@ export function MarketsPage() {
               </div>
             </div>
 
+            {!inspectProposal && (
+              <div className="markets-filter-row">
+                <span className="markets-sort-label">Kind</span>
+                <div className="markets-chips">
+                  {(['baseline', 'conditional', 'all'] as const).map(k => (
+                    <button
+                      key={k}
+                      type="button"
+                      className={`markets-chip${kindFilter === k ? ' active' : ''}`}
+                      onClick={() => setKindFilterAndUrl(k)}
+                      title={
+                        k === 'baseline' ? 'Live markets that aren\'t tied to a proposal.'
+                        : k === 'conditional' ? 'Markets attached to a proposal — what the metric would look like if the proposal is approved.'
+                        : 'Both baseline and conditional in one list.'
+                      }
+                    >
+                      {KIND_LABELS[k]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="markets-filter-row">
               <div className="markets-sort">
                 <span className="markets-sort-label">Sort</span>
@@ -296,6 +358,23 @@ export function MarketsPage() {
                       <div className="market-head-name">
                         <span className="market-metric-name">{m.metricName}</span>
                         <span className={`market-status-badge market-status-${m.status}`}>{m.status}</span>
+                        {!inspectProposal && m.proposalId && (() => {
+                          const prop = proposalsById.get(m.proposalId);
+                          const label = prop ? prop.title : `proposal ${m.proposalId.slice(0, 8)}…`;
+                          return (
+                            <button
+                              type="button"
+                              className="market-proposal-chip"
+                              title="Conditional market — click to enter the proposal lens."
+                              onClick={e => {
+                                e.stopPropagation();
+                                setInspectProposal({ id: m.proposalId!, title: prop?.title ?? m.proposalId! });
+                              }}
+                            >
+                              from {label}
+                            </button>
+                          );
+                        })()}
                       </div>
 
                       <div className="market-head-target">

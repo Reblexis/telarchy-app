@@ -313,10 +313,11 @@ export const api = {
     request(`/api/agents/${agentId}/wallet`, { method: 'PUT', body: JSON.stringify({ walletAddress }) }),
 
   // Markets & Trading
-  getMarkets: (proposalId?: string, workspaceId?: string, opts?: { includeResolved?: boolean }) => {
+  getMarkets: (proposalId?: string, workspaceId?: string, opts?: { includeResolved?: boolean; kind?: 'baseline' | 'conditional' | 'all' }) => {
     const params = new URLSearchParams();
     if (proposalId) params.set('proposalId', proposalId);
     if (opts?.includeResolved) params.set('includeResolved', 'true');
+    if (opts?.kind && opts.kind !== 'baseline') params.set('kind', opts.kind);
     const qs = params.toString() ? `?${params}` : '';
     return requestWithWorkspace(`/api/predictions/markets${qs}`, {}, { workspaceId });
   },
