@@ -3,7 +3,14 @@ import { events } from '../db/schema';
 import { eq, gt, lt, and, asc } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 
-export type EventType = 'market:created' | 'market:resolved' | 'metric:updated' | 'trade:executed';
+export type EventType =
+  | 'market:created'
+  | 'market:resolved'
+  | 'market:closed'
+  | 'metric:updated'
+  | 'trade:executed'
+  | 'proposal:created'
+  | 'proposal:status_changed';
 
 export async function emitEvent(
   type: EventType,

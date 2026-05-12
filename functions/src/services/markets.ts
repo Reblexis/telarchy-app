@@ -345,6 +345,11 @@ export async function refreshRelativeDateMarkets(workspaceId: string, opts: { fo
         }
       }
     });
+    // Outside the transaction (events are non-blocking, fire-and-forget).
+    for (const id of toDeactivate) {
+      emitEvent('market:closed', { marketId: id }, workspaceId)
+        .catch(e => console.error('emitEvent failed:', e));
+    }
   }
 
   // Create missing markets

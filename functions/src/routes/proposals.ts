@@ -17,6 +17,7 @@ import {
 } from '../services/proposals';
 import { validateContent, MIN_LIQUIDITY_CONTRIBUTION } from '../lib/validation';
 import { getParticipantDisplayNames } from '../lib/participants';
+import { emitEvent } from '../services/events';
 
 export const proposalsRouter = Router();
 
@@ -99,6 +100,11 @@ proposalsRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
     }
   }
 
+  emitEvent('proposal:created', {
+    proposalId: id, title, proposedBy, liquiditySubsidy: subsidy,
+    conditionalMarketCount: conditionalMarketIds.length,
+  }, workspaceId).catch(e => console.error('emitEvent failed:', e));
+
   res.status(201).json({ id, conditionalMarketIds, liquiditySubsidy: subsidy });
 }));
 
@@ -151,26 +157,42 @@ proposalsRouter.get('/:proposalId', requireCapability('read'), wrap(async (req, 
 
 proposalsRouter.post('/:proposalId/approve', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId, agentId } = req.auth!;
-  const result = await approveProposal(req.params.proposalId as string, workspaceId, agentId ?? null);
+  const proposalId = req.params.proposalId as string;
+  const result = await approveProposal(proposalId, workspaceId, agentId ?? null);
+  emitEvent('proposal:status_changed', {
+    proposalId, fromStatus: 'pending', toStatus: 'approved', decidedBy: agentId ?? null,
+  }, workspaceId).catch(e => console.error('emitEvent failed:', e));
   res.json({ ok: true, rewardPaid: result.rewardPaid });
 }));
 
 proposalsRouter.post('/:proposalId/decline', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId, agentId } = req.auth!;
-  await declineProposal(req.params.proposalId as string, workspaceId, agentId ?? null);
+  const proposalId = req.params.proposalId as string;
+  await declineProposal(proposalId, workspaceId, agentId ?? null);
+  emitEvent('proposal:status_changed', {
+    proposalId, fromStatus: 'pending', toStatus: 'declined', decidedBy: agentId ?? null,
+  }, workspaceId).catch(e => console.error('emitEvent failed:', e));
   res.json({ ok: true });
 }));
 
 proposalsRouter.post('/:proposalId/decline-spam', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId, agentId } = req.auth!;
-  const result = await declineProposalAsSpam(req.params.proposalId as string, workspaceId, agentId ?? null);
+  const proposalId = req.params.proposalId as string;
+  const result = await declineProposalAsSpam(proposalId, workspaceId, agentId ?? null);
+  emitEvent('proposal:status_changed', {
+    proposalId, fromStatus: 'pending', toStatus: 'declined-spam', decidedBy: agentId ?? null,
+  }, workspaceId).catch(e => console.error('emitEvent failed:', e));
   res.json({ ok: true, penaltyCharged: result.penaltyCharged });
 }));
 
 proposalsRouter.post('/:proposalId/withdraw', requireCapability('trade'), wrap(async (req, res) => {
   const { workspaceId, agentId } = req.auth!;
   if (!agentId) { res.status(403).json({ error: 'Withdraw requires a participant identity.' }); return; }
-  await withdrawProposal(req.params.proposalId as string, workspaceId, agentId);
+  const proposalId = req.params.proposalId as string;
+  await withdrawProposal(proposalId, workspaceId, agentId);
+  emitEvent('proposal:status_changed', {
+    proposalId, fromStatus: 'pending', toStatus: 'withdrawn', decidedBy: agentId,
+  }, workspaceId).catch(e => console.error('emitEvent failed:', e));
   res.json({ ok: true });
 }));
 
