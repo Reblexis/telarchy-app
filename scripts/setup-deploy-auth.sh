@@ -27,7 +27,7 @@ ROLES=(
   "roles/run.admin"                  # deploy + update services
   "roles/cloudbuild.builds.editor"   # kick off builds via --source
   "roles/artifactregistry.admin"     # auto-create + push to cloud-run-source-deploy repo
-  "roles/storage.objectViewer"       # read Cloud Build staging artifacts
+  "roles/storage.admin"              # access the run-sources-* Cloud Build staging bucket
   "roles/iam.serviceAccountUser"     # act-as the Cloud Run runtime SA
   "roles/logging.viewer"             # tail build/deploy logs from CI on failure
 )
