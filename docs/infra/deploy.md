@@ -1,0 +1,139 @@
+# Backend deploy (Cloud Run, via GitHub Actions)
+
+The backend (`api` service on Cloud Run, project `telarchy-e0043`, region
+`us-central1`) auto-deploys on every push to `main` via
+`.github/workflows/deploy-cloudrun.yml`. The workflow is a one-for-one
+mirror of `npm run deploy` in `package.json` — `gcloud run deploy api
+--source . ...` — so behavior matches what you get when you run the
+deploy locally.
+
+If you ever need to deploy by hand (incident, rollback, hotfix from a
+laptop offline), just run:
+
+```bash
+cd metrics-tracker
+npm run deploy
+```
+
+It's the same command the workflow runs.
+
+## One-time setup
+
+You need to pick one of two auth paths between GitHub and GCP. Workload
+Identity Federation is the recommended modern path (no JSON keys to
+rotate). The service-account-key fallback works too if you need to get
+this running in 5 minutes.
+
+### Option A — Workload Identity Federation (recommended)
+
+One-time GCP setup (replace `<...>`):
+
+```bash
+PROJECT_ID=telarchy-e0043
+POOL_ID=github-actions
+PROVIDER_ID=github-actions-provider
+SA_EMAIL=cloudrun-deployer@${PROJECT_ID}.iam.gserviceaccount.com
+GITHUB_REPO=Reblexis/metrics-tracker
+
+# 1. Create the service account the workflow will impersonate
+gcloud iam service-accounts create cloudrun-deployer \
+  --display-name="GitHub Actions Cloud Run deployer" \
+  --project=$PROJECT_ID
+
+# 2. Grant it just enough to deploy
+for role in run.admin cloudbuild.builds.editor storage.objectViewer iam.serviceAccountUser; do
+  gcloud projects add-iam-policy-binding $PROJECT_ID \
+    --member="serviceAccount:$SA_EMAIL" \
+    --role="roles/$role"
+done
+
+# 3. Create the WIF pool + provider
+gcloud iam workload-identity-pools create $POOL_ID \
+  --project=$PROJECT_ID --location=global
+
+gcloud iam workload-identity-pools providers create-oidc $PROVIDER_ID \
+  --project=$PROJECT_ID --location=global \
+  --workload-identity-pool=$POOL_ID \
+  --issuer-uri=https://token.actions.githubusercontent.com \
+  --attribute-mapping="google.subject=assertion.sub,attribute.repository=assertion.repository" \
+  --attribute-condition="assertion.repository == '${GITHUB_REPO}'"
+
+# 4. Allow the WIF pool to impersonate the service account
+PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')
+gcloud iam service-accounts add-iam-policy-binding $SA_EMAIL \
+  --project=$PROJECT_ID \
+  --role="roles/iam.workloadIdentityUser" \
+  --member="principalSet://iam.googleapis.com/projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/$POOL_ID/attribute.repository/$GITHUB_REPO"
+```
+
+Then in **GitHub → Settings → Secrets and variables → Actions → Variables**
+(yes, variables, not secrets — these aren't sensitive):
+
+| Name | Value |
+| --- | --- |
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | `projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/github-actions/providers/github-actions-provider` |
+| `GCP_DEPLOY_SERVICE_ACCOUNT` | `cloudrun-deployer@telarchy-e0043.iam.gserviceaccount.com` |
+
+The workflow picks up these variables and auths via OIDC. No JSON key
+ever leaves GCP.
+
+### Option B — Service-account JSON key (faster setup)
+
+```bash
+PROJECT_ID=telarchy-e0043
+gcloud iam service-accounts create cloudrun-deployer \
+  --display-name="GitHub Actions Cloud Run deployer" \
+  --project=$PROJECT_ID
+
+SA_EMAIL=cloudrun-deployer@${PROJECT_ID}.iam.gserviceaccount.com
+for role in run.admin cloudbuild.builds.editor storage.objectViewer iam.serviceAccountUser; do
+  gcloud projects add-iam-policy-binding $PROJECT_ID \
+    --member="serviceAccount:$SA_EMAIL" \
+    --role="roles/$role"
+done
+
+gcloud iam service-accounts keys create key.json \
+  --iam-account=$SA_EMAIL --project=$PROJECT_ID
+```
+
+Then in **GitHub → Settings → Secrets and variables → Actions → Secrets**:
+
+| Name | Value |
+| --- | --- |
+| `GCP_SA_KEY` | the entire contents of `key.json` (paste as-is) |
+
+Delete `key.json` from your laptop after pasting. Rotate it every ~90
+days.
+
+The workflow detects automatically which path you set up (presence of
+the `GCP_WORKLOAD_IDENTITY_PROVIDER` variable), so you can start with
+Option B and migrate to Option A later by adding the variables and
+removing the secret.
+
+## What the workflow does
+
+On `push` to `main` (or `workflow_dispatch`):
+
+1. Checks out the repo.
+2. Auths to GCP (WIF if configured, SA key otherwise).
+3. Runs the same `gcloud run deploy` command as `npm run deploy`.
+
+That's it. Cloud Build does the actual image build server-side (faster
+than running `docker build` on the GitHub runner because Cloud Build
+caches layers per-project). Typical end-to-end time: ~3-5 minutes.
+
+The workflow is configured with `concurrency: cancel-in-progress` so if
+several pushes land in a row, only the newest one actually deploys —
+production always ends up on the latest commit, not a stale intermediate.
+
+## What this replaces
+
+- `docker-publish.yml` still runs in parallel and pushes the image to
+  `ghcr.io/reblexis/metrics-tracker-server:latest`. That image is now
+  redundant for production (Cloud Build does its own build), but it's
+  useful for `docker run` deploys and CI smoke tests. Leave it.
+- `deploy.yml` (Deploy to GitHub Pages) is separate — it builds the
+  static frontend bundle and pushes it to the `gh-pages` branch. That
+  bundle isn't what telarchy.com serves; the production frontend is
+  served by the same Cloud Run container as the backend. The gh-pages
+  build is for embeddable / docs use cases.

@@ -1,0 +1,88 @@
+name: Deploy backend to Cloud Run
+
+# Auto-deploys the Express+Vite app to the existing `api` Cloud Run service
+# whenever main moves. Mirrors `npm run deploy` from package.json so the
+# behavior is identical to the manual path. See docs/infra/deploy.md for
+# the one-time GCP setup this workflow depends on.
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.github/workflows/deploy.yml'        # frontend-only gh-pages job
+      - '.github/workflows/telarchy-self-sync.yml'
+  workflow_dispatch: {}
+
+# A single in-flight deploy at a time; cancel an older run if a newer push
+# arrives so production lands on the most recent commit, not a stale one.
+concurrency:
+  group: cloud-run-deploy
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write   # required for Workload Identity Federation auth
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # Before doing anything, check whether ANY auth path is configured.
+      # On a fresh repo neither WIF nor SA key is set — we skip the deploy
+      # cleanly so the first run doesn't show as a red failure. See
+      # docs/infra/deploy.md for the one-time setup.
+      - name: Check auth configured
+        id: auth_check
+        env:
+          HAS_SA_KEY: ${{ secrets.GCP_SA_KEY != '' }}
+        run: |
+          if [ "${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}" = "" ] && [ "$HAS_SA_KEY" != "true" ]; then
+            echo "::warning::No GCP auth configured — skipping deploy. Set up either GCP_WORKLOAD_IDENTITY_PROVIDER + GCP_DEPLOY_SERVICE_ACCOUNT (vars) or GCP_SA_KEY (secret). See docs/infra/deploy.md."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Auth path: prefer Workload Identity Federation when configured (no
+      # JSON keys in secrets), fall back to a service-account JSON key.
+      # Only ONE of these blocks runs — gated by which secrets are populated.
+      - name: 'gcloud auth (WIF)'
+        if: steps.auth_check.outputs.skip != 'true' && vars.GCP_WORKLOAD_IDENTITY_PROVIDER != ''
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: 'gcloud auth (SA key)'
+        if: steps.auth_check.outputs.skip != 'true' && vars.GCP_WORKLOAD_IDENTITY_PROVIDER == ''
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+        if: steps.auth_check.outputs.skip != 'true'
+        with:
+          project_id: telarchy-e0043
+
+      # Mirrors `npm run deploy` from package.json. Build is done by Cloud
+      # Build via --source .; we don't pull the GHCR-published image
+      # because the manual path also doesn't (and we want behavior parity).
+      - name: Deploy to Cloud Run
+        if: steps.auth_check.outputs.skip != 'true'
+        run: |
+          gcloud run deploy api \
+            --source . \
+            --region us-central1 \
+            --allow-unauthenticated \
+            --memory 256Mi \
+            --cpu 1 \
+            --min-instances 1 \
+            --max-instances 20 \
+            --set-cloudsql-instances telarchy-e0043:us-central1:telarchy-pg \
+            --clear-base-image \
+            --quiet

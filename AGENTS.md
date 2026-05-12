@@ -139,6 +139,8 @@ curl -s -b /tmp/cookies.txt http://localhost:8080/api/status
 
 The backend runs on **Google Cloud Run** (service: `api`, region: `us-central1`, project: `telarchy-e0043`). The frontend is served from the same origin (`telarchy.com`).
 
+**Auto-deploy on push to `main`** via `.github/workflows/deploy-cloudrun.yml` (mirrors `npm run deploy` exactly). One-time GCP+GitHub setup is in `docs/infra/deploy.md`. To deploy by hand (rollback, hotfix offline), `npm run deploy` from the repo root still works and runs the same command.
+
 **Database**: Cloud SQL PostgreSQL (instance: `telarchy-pg`). Migrations are managed by Drizzle Kit.
 
 **Running migrations against production**:
