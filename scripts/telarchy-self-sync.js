@@ -88,7 +88,7 @@ async function safeListProposals(workspaceId) {
 
 async function safeListMarkets(workspaceId) {
   try {
-    return await api('GET', '/predictions/markets', { workspaceId });
+    return await api('GET', '/predictions/markets?includeResolved=true', { workspaceId });
   } catch (e) {
     console.warn(`  markets fetch failed for ws=${workspaceId.slice(0, 8)}: ${e.message}`);
     return [];
@@ -286,11 +286,13 @@ async function main() {
     const absDelta = Math.abs(computed.value - oldVal);
     const delta = oldVal === 0 ? (absDelta < 1e-9 ? 0 : Infinity) : absDelta / Math.abs(oldVal);
     const moved = delta >= args.threshold;
-    const tag = moved ? 'PUSH' : 'flat';
+    const tag = moved ? 'PUSH' : 'TOUCH';
     const noteSuffix = computed.note ? ` (${computed.note})` : '';
     console.log(`  ${tag} ${name}: ${oldVal} -> ${Number(computed.value).toFixed(4)}${noteSuffix}`);
 
-    if (moved && !args.dryRun) {
+    const movedNote = `daily self-sync ${today}${computed.note ? ': ' + computed.note : ''}`;
+    const flatNote = `daily self-sync ${today} (unchanged${computed.note ? '; ' + computed.note : ''})`;
+    if (!args.dryRun) {
       await api('PUT', `/metrics/${metric.id}`, {
         body: {
           name: metric.name,
@@ -298,13 +300,11 @@ async function main() {
           value: computed.value,
           formula: metric.formula || '0',
           oldValue: oldVal,
-          updateNote: `daily self-sync ${today}${computed.note ? ': ' + computed.note : ''}`,
+          updateNote: moved ? movedNote : flatNote,
         },
       });
-      counters.traded++;
-    } else if (!moved) {
-      counters.skipped++;
     }
+    counters.traded++;
   }
 
   const endedAt = new Date().toISOString();
