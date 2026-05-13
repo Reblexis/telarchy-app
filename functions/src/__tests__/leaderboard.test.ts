@@ -125,6 +125,33 @@ describe('computeLeaderboard', () => {
     expect(result[0].resolvedMarkets).toBe(2);
   });
 
+  test('ranks by earnings desc even when calibration would order differently', () => {
+    // alpha: tiny stake, perfect calibration (1.0), trivial earnings.
+    // bravo: bigger stake, lower calibration (0.75), much higher earnings.
+    // Sort must put bravo first because earnings is primary.
+    const result = computeLeaderboard(
+      [
+        m({ id: 'A', resolved: true, actualValue: 1000 }),  // resolves at max
+        m({ id: 'B', resolved: true, actualValue: 750 }),   // resolves mid
+      ],
+      [
+        t({ agentId: 'alpha', marketId: 'A', cost: 1 }),
+        t({ agentId: 'bravo', marketId: 'B', cost: 10 }),
+      ],
+      [
+        p({ agentId: 'alpha', marketId: 'A', direction: 'higher', shares: 1 }),  // factor 1, payout 1, pnl 0
+        p({ agentId: 'bravo', marketId: 'B', direction: 'higher', shares: 100 }), // factor 0.75, payout 75, pnl 65
+      ],
+      new Map(),
+      100,
+    );
+    expect(result[0].id).toBe('bravo');
+    expect(result[0].calibration).toBeCloseTo(0.75);
+    expect(result[1].id).toBe('alpha');
+    expect(result[1].calibration).toBe(1);
+    expect(result[0].totalEarnings).toBeGreaterThan(result[1].totalEarnings);
+  });
+
   test('ranks identical-calibration participants by earnings desc', () => {
     const result = computeLeaderboard(
       [

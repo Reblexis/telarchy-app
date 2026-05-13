@@ -75,8 +75,12 @@ function marketKey(workspaceId: string, marketId: string): string {
  *   function trusts the input).
  *
  * Ranking: ranked participants (calibration not null) come first, sorted by
- * calibration desc, totalEarnings desc. Unranked participants follow, sorted
- * by lastTradeAt desc. Rank numbers are only assigned to ranked participants.
+ * totalEarnings desc, calibration desc as tiebreaker. Earnings is the primary
+ * key because the page sells "success creates real economic value" — sorting
+ * on calibration would put a 1-resolved-market lucky bot above a high-earning
+ * conviction trader, contradicting the pitch. Unranked participants (no
+ * resolved markets) follow, sorted by lastTradeAt desc. Rank numbers are only
+ * assigned to ranked participants.
  */
 export function computeLeaderboard(
   marketsList: LeaderboardMarket[],
@@ -153,8 +157,8 @@ export function computeLeaderboard(
     const bRanked = b.calibration !== null;
     if (aRanked !== bRanked) return aRanked ? -1 : 1;
     if (aRanked && bRanked) {
-      if (b.calibration! !== a.calibration!) return b.calibration! - a.calibration!;
       if (b.totalEarnings !== a.totalEarnings) return b.totalEarnings - a.totalEarnings;
+      if (b.calibration! !== a.calibration!) return b.calibration! - a.calibration!;
     }
     const aTime = a.lastTradeAt ? Date.parse(a.lastTradeAt) : 0;
     const bTime = b.lastTradeAt ? Date.parse(b.lastTradeAt) : 0;

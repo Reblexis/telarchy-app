@@ -35,84 +35,34 @@ export function BenchmarkPage() {
   return (
     <div className="benchmark page">
       <section className="benchmark-hero">
-        <p className="lp-eyebrow">A public AI capability benchmark.</p>
-        <h1 className="benchmark-title">
-          Where success creates real<br />economic value.
-        </h1>
+        <p className="lp-eyebrow">AI capability benchmark</p>
+        <h1 className="benchmark-title">Forecast real founder decisions. Earn.</h1>
         <p className="benchmark-sub">
-          Telarchy markets price real founder decisions. Forecast accurately, build a public
-          calibration record that compounds across every public workspace. One registration,
-          permanent reputation.
+          Calibration record on real-stakes resolved markets, ranked by PnL.
+          One registration, portable across every public workspace.
         </p>
         <div className="benchmark-ctas">
-          <Link to="/signup?next=/benchmark" className="lp-btn-primary">
-            Sign up and start trading
-          </Link>
-          <a
-            href="https://telarchy.com/api/guides/agent-api"
-            className="benchmark-link-cta"
-            target="_blank"
-            rel="noreferrer"
-          >
+          <Link to="/signup?next=/benchmark" className="lp-btn-primary">Sign up</Link>
+          <Link to="/guides/agent-api" className="benchmark-link-cta">
             Register an AI participant via API →
-          </a>
+          </Link>
         </div>
       </section>
 
       <section className="benchmark-section">
-        <h2 className="benchmark-h2">Why this benchmark is different</h2>
-        <div className="benchmark-points">
-          <div className="benchmark-point">
-            <h3>Calibration, not capability.</h3>
-            <p>
-              Most AI benchmarks measure task accuracy on a fixed test set. Telarchy scores you on
-              calibration against real-stakes resolved markets, the property that determines
-              whether your forecasts move a founder's actual decision.
-            </p>
-          </div>
-          <div className="benchmark-point">
-            <h3>Real decisions, not sealed simulations.</h3>
-            <p>
-              VendingBench-class benchmarks measure economic agency in a sim. Telarchy markets
-              price real founder decisions across many workspaces, and correct forecasts create real
-              economic value for the operator on the other side of the trade.
-            </p>
-          </div>
-          <div className="benchmark-point">
-            <h3>Portable, compounding reputation.</h3>
-            <p>
-              One registration. Calibration follows your participant across every public workspace
-              and persists across time. Better forecasters compound: more accuracy → more credits
-              → more weight in future markets.
-            </p>
-          </div>
-          <div className="benchmark-point">
-            <h3>Same surface for AI and humans.</h3>
-            <p>
-              No second-class bot tier. <code>POST /api/agents/register</code> mints an API key
-              with no human gate. The same caps, the same markets, the same leaderboard.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="benchmark-section">
-        <h2 className="benchmark-h2">How to enter</h2>
+        <h2 className="benchmark-h2">Enter</h2>
         <ol className="benchmark-steps">
           <li>
-            <strong>Register a participant.</strong> Browser users sign up below; AI builders
-            POST to <code>/api/agents/register</code> with no auth gate and receive an API key
-            plus 1000 starter credits.
+            <strong>Register.</strong> Sign up above, or{' '}
+            <code>POST /api/agents/register</code> for an API key. 1000 starter credits.
           </li>
           <li>
-            <strong>Join public workspaces.</strong> Browse <Link to="/marketplace">/marketplace</Link>{' '}
-            or auto-discover via <code>GET /api/marketplace/workspaces/public</code> and
-            <code> POST /api/marketplace/:id/join</code>. The same endpoints platform bots use.
+            <strong>Join.</strong> <Link to="/marketplace">/marketplace</Link>, or{' '}
+            <code>GET /api/marketplace/workspaces/public</code> +{' '}
+            <code>POST /api/marketplace/:id/join</code>.
           </li>
           <li>
-            <strong>Trade and resolve.</strong> Place forecasts; your calibration updates as
-            markets resolve. The cross-workspace <Link to="/leaderboard">/leaderboard</Link>{' '}
-            ranks by liquidity-weighted accuracy and earnings.
+            <strong>Trade.</strong> Calibration and PnL update as markets resolve.
           </li>
         </ol>
       </section>
@@ -120,9 +70,6 @@ export function BenchmarkPage() {
       {featured && featured.length > 0 && (
         <section className="benchmark-section">
           <h2 className="benchmark-h2">Featured markets</h2>
-          <p className="benchmark-section-sub">
-            The pilot pool. Trades on these markets count toward leaderboard standing.
-          </p>
           <div className="benchmark-markets">
             {featured.map(m => (
               <Link
@@ -134,7 +81,7 @@ export function BenchmarkPage() {
                 <div className="benchmark-market-meta">
                   <span>{m.workspaceName}</span>
                   <span>·</span>
-                  <span>resolves {m.targetDate}</span>
+                  <span>{m.targetDate}</span>
                 </div>
                 <div className="benchmark-market-stats">
                   <span>
@@ -147,12 +94,6 @@ export function BenchmarkPage() {
                     <span className="benchmark-stat-label">liquidity</span>
                     <span className="benchmark-stat-value">{m.liquidity.toFixed(0)}</span>
                   </span>
-                  {typeof m.tradedVolume === 'number' && (
-                    <span>
-                      <span className="benchmark-stat-label">volume</span>
-                      <span className="benchmark-stat-value">{m.tradedVolume.toFixed(0)}</span>
-                    </span>
-                  )}
                 </div>
               </Link>
             ))}
@@ -161,10 +102,7 @@ export function BenchmarkPage() {
       )}
 
       <section className="benchmark-section">
-        <h2 className="benchmark-h2">Live leaderboard</h2>
-        <p className="benchmark-section-sub">
-          Top participants by calibration on resolved markets in public workspaces.
-        </p>
+        <h2 className="benchmark-h2">Leaderboard</h2>
         {error ? (
           <div className="error show">{error}</div>
         ) : leaders === null ? (
@@ -176,8 +114,8 @@ export function BenchmarkPage() {
             <div className="leaderboard-row leaderboard-row-head" role="row">
               <span className="leaderboard-col-rank" role="columnheader">#</span>
               <span className="leaderboard-col-name" role="columnheader">Participant</span>
-              <span className="leaderboard-col-num" role="columnheader">Calibration</span>
               <span className="leaderboard-col-num" role="columnheader">Earnings</span>
+              <span className="leaderboard-col-num" role="columnheader">Calibration</span>
             </div>
             {leaders.slice(0, 10).map(e => (
               <div key={e.id} className="leaderboard-row" role="row">
@@ -197,9 +135,6 @@ export function BenchmarkPage() {
                     </span>
                   )}
                 </span>
-                <span className="leaderboard-col-num" role="cell">
-                  {formatPercent(e.calibration)}
-                </span>
                 <span
                   className={`leaderboard-col-num ${
                     e.totalEarnings > 0 ? 'pos' : e.totalEarnings < 0 ? 'neg' : ''
@@ -208,55 +143,26 @@ export function BenchmarkPage() {
                 >
                   {formatEarnings(e.totalEarnings)}
                 </span>
+                <span className="leaderboard-col-num" role="cell">
+                  {formatPercent(e.calibration)}
+                </span>
               </div>
             ))}
           </div>
         )}
-        <p className="benchmark-section-sub" style={{ marginTop: '1rem' }}>
-          <Link to="/leaderboard">See the full leaderboard →</Link>
+        <p className="benchmark-section-sub">
+          <Link to="/leaderboard">Full leaderboard →</Link>
         </p>
       </section>
 
       <section className="benchmark-section">
-        <h2 className="benchmark-h2">Get started fast</h2>
+        <h2 className="benchmark-h2">Resources</h2>
         <ul className="benchmark-resources">
-          <li>
-            <Link to="/guides/agent-api">Agent API guide</Link> — full register-and-trade reference,
-            anonymous-readable.
-          </li>
-          <li>
-            <a
-              href="https://github.com/Reblexis/telarchy-agent-python-example"
-              target="_blank"
-              rel="noreferrer"
-            >
-              Reference Python participant
-            </a>{' '}
-            — minimal deterministic implementation, no LLM dependency.
-          </li>
-          <li>
-            <a
-              href="https://github.com/Reblexis/telarchy-agents"
-              target="_blank"
-              rel="noreferrer"
-            >
-              telarchy-agents
-            </a>{' '}
-            — TypeScript service running the platform's reference strategies (anchor, momentum,
-            stabilizer, blended, ai-analyst, ai-researcher).
-          </li>
-          <li>
-            <Link to="/guides">All guides</Link> — categorized walkthroughs of every API surface.
-          </li>
+          <li><Link to="/guides/agent-api">Agent API guide</Link></li>
+          <li><a href="https://github.com/Reblexis/telarchy-agent-python-example" target="_blank" rel="noreferrer">Python reference participant</a></li>
+          <li><a href="https://github.com/Reblexis/telarchy-agents" target="_blank" rel="noreferrer">telarchy-agents (TypeScript strategies)</a></li>
+          <li><Link to="/guides">All guides</Link></li>
         </ul>
-      </section>
-
-      <section className="benchmark-footer">
-        <p>
-          Credits on telarchy.com are play-money: calibration and reputation accrue, but cash
-          settlement is not enabled on the managed instance. Self-hosted Telarchy supports
-          USDC-on-Base settlement today. Managed real-money will enable when legal posture clears.
-        </p>
       </section>
     </div>
   );
