@@ -26,6 +26,7 @@ export type TemplateId =
   | 'marketplace'
   | 'consumer-app'
   | 'agency'
+  | 'community'
   | 'creator'
   | 'oss'
   | 'wellbeing'
@@ -284,6 +285,49 @@ const AGENCY: TemplateSpec = {
         name: 'Proposal win rate (%)',
         description: 'Proposals accepted in the past 90 days divided by proposals sent in the past 90 days (0-100).',
         marketRangeMax: 100,
+        timePreferenceHalfLifeYears: 2,
+        initialValue: 0,
+      },
+    ];
+  },
+};
+
+const COMMUNITY: TemplateSpec = {
+  id: 'community',
+  category: 'startup',
+  name: 'Community / collective',
+  intent: 'Active members, weekly engagement, retention, recurring revenue. For professional communities, advisory collectives, or curated networks.',
+  needsCurrency: true,
+  revenueScale: { label: 'Recurring revenue target', default: 30000 },
+  metrics: (params) => {
+    const cur = normalizeCurrency(params.currency);
+    const revMax = clampPositive(params.revenueRangeMax, 30000);
+    return [
+      {
+        name: 'Active members',
+        description: 'Distinct members in good standing at week end (count, from your member directory or billing system).',
+        marketRangeMax: 5000,
+        timePreferenceHalfLifeYears: 2,
+        initialValue: 0,
+      },
+      {
+        name: 'Weekly engagement events',
+        description: 'Distinct events held this week with at least 3 member participants (count, e.g. workshops, meetups, hosted threads, live sessions).',
+        marketRangeMax: 30,
+        timePreferenceHalfLifeYears: 1,
+        initialValue: 0,
+      },
+      {
+        name: 'Annual member retention (%)',
+        description: 'Members renewed in the trailing 12 months divided by members eligible to renew in that window, expressed as a percentage (0-100).',
+        marketRangeMax: 100,
+        timePreferenceHalfLifeYears: 3,
+        initialValue: 0,
+      },
+      {
+        name: `Recurring revenue (${cur})`,
+        description: `Sum of active recurring contracts at week end across membership, advisory retainers, and sponsorships, in ${cur}.`,
+        marketRangeMax: revMax,
         timePreferenceHalfLifeYears: 2,
         initialValue: 0,
       },
@@ -642,6 +686,7 @@ const TEMPLATES: Record<TemplateId, TemplateSpec> = {
   marketplace: MARKETPLACE,
   'consumer-app': CONSUMER_APP,
   agency: AGENCY,
+  community: COMMUNITY,
   creator: CREATOR,
   oss: OSS,
   wellbeing: WELLBEING,

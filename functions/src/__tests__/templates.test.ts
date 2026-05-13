@@ -9,7 +9,7 @@ describe('templates', () => {
   describe('getTemplate', () => {
     test('resolves every catalog id', () => {
       const ids: TemplateId[] = [
-        'saas', 'ecommerce', 'marketplace', 'consumer-app', 'agency', 'creator', 'oss',
+        'saas', 'ecommerce', 'marketplace', 'consumer-app', 'agency', 'community', 'creator', 'oss',
         'wellbeing', 'health-fitness', 'career', 'learning', 'relationships',
         'creative-project', 'financial-independence', 'blank',
       ];
