@@ -41,6 +41,9 @@ if ! docker ps --format '{{.Names}}' | grep -q "^${DB_CONTAINER}$"; then
   sleep 3
 fi
 
+echo "Applying pending migrations..."
+(cd "$REPO_DIR/functions" && DATABASE_URL="$DATABASE_URL" npx drizzle-kit migrate)
+
 fuser -k 8080/tcp 2>/dev/null || true
 sleep 1
 
