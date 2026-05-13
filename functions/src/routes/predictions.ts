@@ -637,10 +637,11 @@ predictionsRouter.post('/markets/liquidity/bulk', requireCapability('manage'), w
 }));
 
 predictionsRouter.post('/markets/:id/liquidity', requireCapability('manage'), wrap(async (req, res) => {
-  const { workspaceId } = req.auth!;
-  const { amount, agentId } = req.body;
+  const { workspaceId, agentId: callerAgentId } = req.auth!;
+  const { amount, agentId: bodyAgentId } = req.body;
   if (typeof amount !== 'number' || amount <= 0) { res.status(400).json({ error: 'amount must be a positive number' }); return; }
-  if (typeof agentId !== 'string' || !agentId) { res.status(400).json({ error: 'agentId is required' }); return; }
+  const agentId = (typeof bodyAgentId === 'string' && bodyAgentId) ? bodyAgentId : callerAgentId;
+  if (!agentId) { res.status(400).json({ error: 'agentId is required' }); return; }
 
   const [preMarket] = await db.select().from(markets)
     .where(and(eq(markets.id, req.params.id as string), eq(markets.workspaceId, workspaceId)));
