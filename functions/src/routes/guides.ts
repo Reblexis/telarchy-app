@@ -356,7 +356,7 @@ The only parameter is **half-life** (in years). It sets the timescale of your co
 - **Short half-life (e.g. 0.5y)** - near-term dominated; most weight on the next few months. Good for fast-moving or tactical metrics.
 - **Long half-life (e.g. 5y)** - long-horizon; samples spread across years. Good for strategic or structural goals.
 
-The blend is a simple average across t=0 and the 10 sampled future points (equal weights). The half-life shapes *where* those 10 samples fall, not how much each one counts.
+The blend is a simple average across t=0 and the sampled future points (equal weights). The half-life shapes *where* those samples fall, not how much each one counts. All samples share a single calendar granularity (day, week, month, or year), chosen as the coarsest one whose bucket width is at most the smallest gap between adjacent samples — so two samples can never land in overlapping buckets (no "2026-W23 plus 2026-06 both covering the same day" double counting).
 
 ## The "Current X" structural pattern
 
@@ -433,7 +433,7 @@ At resolution, payouts are proportional to where the actual value falls in the r
 
 ## Market creation
 
-Markets are created automatically (when a time-preferenced ancestor is enabled, or on the daily refresh cron at 00:10 UTC) for each leaf metric at the 10 sampled time points.
+Markets are created automatically (when a time-preferenced ancestor is enabled, or on the daily refresh cron at 00:10 UTC) for each leaf metric at the sampled time points. All sample points for a given (halfLife, density) share a single calendar granularity (day, week, month, or year) — picked as the coarsest one whose bucket width is at most the smallest gap between adjacent samples — so each (metric, date) market is unique and no two markets ever cover overlapping spans of the same metric.
 
 New workspaces have **auto-funding enabled by default** (0.5 credits per market), so each new non-proposal market debits the workspace owner's balance automatically. The owner can adjust or disable this in workspace settings. Proposal-scoped conditional markets follow a separate per-proposal subsidy model — see *Credits & Liquidity* for details.
 

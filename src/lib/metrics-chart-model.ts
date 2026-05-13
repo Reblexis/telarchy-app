@@ -65,9 +65,13 @@ export function buildPointsFromTimeSeries(series: Array<{ date: string; value: n
     .filter(p => !Number.isNaN(p.x))
     .sort((a, b) => a.x - b.x);
 
-  // Merge duplicates by x, keeping the latest seen value.
-  const dedup = new Map<number, ChartPoint>();
-  for (const p of points) dedup.set(p.x, p);
+  // Merge duplicates by source date string, keeping the latest seen value.
+  // Dedup must key on the original label, not the parsed timestamp: distinct
+  // buckets at different granularities can collide on the same calendar day
+  // (e.g. 2026-W23 and 2026-06 both parse to 2026-06-01), and they are
+  // genuinely different markets that should both render.
+  const dedup = new Map<string, ChartPoint>();
+  for (const p of points) dedup.set(p.label, p);
   return Array.from(dedup.values()).sort((a, b) => a.x - b.x);
 }
 

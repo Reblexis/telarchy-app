@@ -258,6 +258,21 @@ describe('buildPointsFromTimeSeries', () => {
     expect(points[0].y).toBe(20);
   });
 
+  test('keeps distinct labels that parse to the same x (week + month boundary)', () => {
+    // ISO Week 23 of 2026 starts on Monday 2026-06-01 — the same calendar day
+    // 2026-06 parses to. They are different markets at different granularities
+    // and both must appear on the chart; older dedup-by-x silently dropped one.
+    const points = buildPointsFromTimeSeries([
+      { date: '2026-W23', value: 20015.11 },
+      { date: '2026-06', value: 4853.52 },
+    ]);
+    expect(points.length).toBe(2);
+    const labels = points.map(p => p.label).sort();
+    expect(labels).toEqual(['2026-06', '2026-W23']);
+    const ys = points.map(p => p.y).sort((a, b) => a - b);
+    expect(ys).toEqual([4853.52, 20015.11]);
+  });
+
   test('sorts output by x ascending even if input is out of order', () => {
     const points = buildPointsFromTimeSeries([
       { date: '2026-03-01', value: 3 },
