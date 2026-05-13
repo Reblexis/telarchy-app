@@ -217,6 +217,8 @@ export const markets = pgTable('markets', {
   /** Cumulative traded volume on this market: sum of |cost| across all buy and sell trades. */
   tradedVolume: doublePrecision('traded_volume').notNull().default(0),
   proposalId: text('proposal_id'),
+  /** Flagged for the public benchmark surface (/benchmark + /api/marketplace/featured). */
+  featured: boolean('featured').notNull().default(false),
 }, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
 
 export const positions = pgTable('positions', {

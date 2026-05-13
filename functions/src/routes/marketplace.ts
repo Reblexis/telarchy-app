@@ -104,6 +104,52 @@ marketplaceRouter.get('/stats', wrap(async (_req, res) => {
   res.json({ marketsActive, agentsActive: Number(agentCount.count), tradesThisWeek });
 }));
 
+/**
+ * Public featured-markets list for the /benchmark surface. Returns only
+ * featured + active + unresolved markets that live in public-visibility
+ * workspaces, matching the privacy contract of the rest of /api/marketplace
+ * (anything inside a private workspace stays private). Anonymous-readable.
+ */
+marketplaceRouter.get('/featured', wrap(async (_req, res) => {
+  const publicWs = await db.select({ id: workspaces.id, name: workspaces.name })
+    .from(workspaces).where(eq(workspaces.visibility, 'public'));
+  if (publicWs.length === 0) { res.json([]); return; }
+  const wsById = new Map(publicWs.map(w => [w.id, w.name]));
+
+  const rows = await db.select().from(markets).where(and(
+    inArray(markets.workspaceId, publicWs.map(w => w.id)),
+    eq(markets.featured, true),
+    eq(markets.resolved, false),
+    eq(markets.active, true),
+    eq(markets.voided, false),
+  ));
+
+  const out = rows.filter(m => !m.proposalId).map(m => {
+    const shares = (m.shares as [number, number]) || [0, 0];
+    return {
+      workspaceId: m.workspaceId,
+      workspaceName: wsById.get(m.workspaceId) ?? m.workspaceId,
+      marketId: m.id,
+      metricName: m.metricName,
+      targetDate: m.targetDate,
+      consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
+      probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
+      liquidity: m.liquidity,
+      tradedVolume: m.tradedVolume,
+      rangeMin: m.rangeMin,
+      rangeMax: m.rangeMax,
+    };
+  });
+
+  out.sort((a, b) => {
+    const dateDiff = endOfPeriod(a.targetDate).localeCompare(endOfPeriod(b.targetDate));
+    if (dateDiff !== 0) return dateDiff;
+    return b.liquidity - a.liquidity;
+  });
+
+  res.json(out);
+}));
+
 marketplaceRouter.get('/workspaces/public', wrap(async (_req, res) => {
   const rows = await db.select({
     id: workspaces.id,

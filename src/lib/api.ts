@@ -139,6 +139,8 @@ export interface MarketplaceListing {
   consensus: number | null;
   probability: number;
   liquidity: number;
+  /** Present on /api/marketplace/featured; absent on other marketplace endpoints. */
+  tradedVolume?: number;
   rangeMin: number;
   rangeMax: number;
 }
@@ -467,6 +469,11 @@ export const api = {
   getPublicWorkspaces: async (): Promise<Array<{ workspaceId: string; name: string; visibility: string }>> => {
     const res = await fetch(`${API_BASE}/api/marketplace/workspaces/public`);
     if (!res.ok) throw new Error(`Public workspaces request failed: ${res.status}`);
+    return res.json();
+  },
+  getFeaturedMarkets: async (): Promise<MarketplaceListing[]> => {
+    const res = await fetch(`${API_BASE}/api/marketplace/featured`);
+    if (!res.ok) throw new Error(`Featured markets request failed: ${res.status}`);
     return res.json();
   },
   getLeaderboard: async (limit = 100): Promise<{ participants: LeaderboardEntry[] }> => {

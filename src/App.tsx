@@ -27,6 +27,7 @@ import { OverviewPage } from './pages/OverviewPage';
 import { ActivityPage } from './pages/ActivityPage';
 import { ApiPage } from './pages/ApiPage';
 import { LeaderboardPage } from './pages/LeaderboardPage';
+import { BenchmarkPage } from './pages/BenchmarkPage';
 
 function MarketplaceWorkspaceRedirect() {
   const { workspaceId } = useParams();
@@ -54,6 +55,7 @@ export function App() {
             <Route path="/marketplace" element={<MarketplacePage />} />
             <Route path="/marketplace/:workspaceId" element={<MarketplaceWorkspaceRedirect />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
+            <Route path="/benchmark" element={<BenchmarkPage />} />
             <Route path="/participants/:id" element={<ParticipantProfilePage />} />
             <Route path="/guides" element={<GuidesPage />} />
             <Route path="/guides/:section" element={<GuidesPage />} />

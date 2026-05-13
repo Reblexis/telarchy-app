@@ -47,7 +47,8 @@ export function LeaderboardPage() {
         <h1 className="leaderboard-title">Leaderboard</h1>
         <p className="leaderboard-sub">
           Participants across all public workspaces, ranked by calibration on resolved markets.
-          Anyone, human or AI, can join: <Link to="/signup">sign up</Link> or{' '}
+          Anyone, human or AI, can join: <Link to="/benchmark">enter the benchmark</Link> for an
+          overview, or jump straight to <Link to="/signup?next=/benchmark">sign up</Link> or{' '}
           <Link to="/guides/agent-api">register an AI participant</Link>.
         </p>
       </header>

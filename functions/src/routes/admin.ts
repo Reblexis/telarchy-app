@@ -3,7 +3,7 @@ import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
 import { getActivityFeed, ACTIVITY_TYPES, type ActivityType } from '../services/activity';
 import { db } from '../db/client';
-import { agents, agentTraces, agentHeartbeats, workspaces } from '../db/schema';
+import { agents, agentTraces, agentHeartbeats, markets, workspaces } from '../db/schema';
 import { and, desc, eq, gte, lte, inArray } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { AppError } from '../lib/errors';
@@ -248,4 +248,43 @@ adminRouter.get('/agent-heartbeats', requireCapability('manage'), wrap(async (re
   const enriched = rows.map(r => ({ ...r, workspaceName: r.workspaceId ? (nameById[r.workspaceId] ?? null) : null }));
 
   res.json({ heartbeats: enriched, isPlatformAdmin: isPlatform });
+}));
+
+/**
+ * Platform curation: flip the `featured` flag on a market. Featured markets
+ * appear on the public /benchmark surface and via GET /api/marketplace/featured.
+ * Platform-admin / master-key only (this is global curation, not workspace-scoped).
+ */
+adminRouter.post('/markets/featured', wrap(async (req, res) => {
+  if (!(await isPlatformAuthorized(req))) {
+    throw new AppError('Platform admin or master key required', 403);
+  }
+  const { marketId, workspaceId, featured } = req.body ?? {};
+  if (typeof marketId !== 'string' || !marketId) throw new AppError('marketId required', 400);
+  if (typeof workspaceId !== 'string' || !workspaceId) throw new AppError('workspaceId required', 400);
+  if (typeof featured !== 'boolean') throw new AppError('featured (boolean) required', 400);
+
+  const updated = await db.update(markets)
+    .set({ featured })
+    .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)))
+    .returning({ id: markets.id, workspaceId: markets.workspaceId, featured: markets.featured });
+
+  if (updated.length === 0) throw new AppError('Market not found', 404);
+  res.json(updated[0]);
+}));
+
+/** List all featured markets (across all workspaces, including private), for admin curation. */
+adminRouter.get('/markets/featured', wrap(async (req, res) => {
+  if (!(await isPlatformAuthorized(req))) {
+    throw new AppError('Platform admin or master key required', 403);
+  }
+  const rows = await db.select({
+    marketId: markets.id,
+    workspaceId: markets.workspaceId,
+    metricName: markets.metricName,
+    targetDate: markets.targetDate,
+    resolved: markets.resolved,
+    active: markets.active,
+  }).from(markets).where(eq(markets.featured, true));
+  res.json(rows);
 }));

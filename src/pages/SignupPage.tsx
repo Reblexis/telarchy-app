@@ -1,11 +1,14 @@
 import { useState, FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { authClient } from '../lib/auth-client';
 import { api } from '../lib/api';
 import { OAuthButtons } from '../components/OAuthButtons';
+import { readNextFromSearch, stashNextPath } from '../lib/nextPath';
 
 export function SignupPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const next = readNextFromSearch(location.search);
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [nickname, setNickname] = useState('');
@@ -54,7 +57,7 @@ export function SignupPage() {
     }
 
     setSubmitting(false);
-    navigate('/create-workspace');
+    navigate(next ?? '/create-workspace');
   };
 
   const handleOAuthConsentGate = () => {
@@ -63,6 +66,7 @@ export function SignupPage() {
       return false;
     }
     sessionStorage.setItem('pendingConsent', '1');
+    stashNextPath(next);
     return true;
   };
 

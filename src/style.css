@@ -5609,3 +5609,270 @@ code, pre, kbd, samp {
   }
   .discover-preview-target { display: none; }
 }
+
+/* /benchmark — public AI capability benchmark landing surface. */
+
+.benchmark {
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+  padding: 1rem 0 4rem;
+}
+
+.benchmark-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-top: 1rem;
+}
+
+.benchmark-title {
+  margin: 0;
+  font-size: clamp(1.85rem, 4vw, 2.6rem);
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  font-weight: 700;
+}
+
+.benchmark-sub {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 60ch;
+}
+
+.benchmark-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.benchmark-link-cta {
+  color: var(--text-primary);
+  font-size: 0.92rem;
+  text-decoration: underline;
+  text-decoration-color: var(--border-color);
+  text-underline-offset: 0.18em;
+}
+
+.benchmark-link-cta:hover {
+  text-decoration-color: var(--text-tertiary);
+}
+
+.benchmark-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.benchmark-h2 {
+  margin: 0;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+
+.benchmark-section-sub {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.benchmark-section-sub a {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--border-color);
+  text-underline-offset: 0.18em;
+}
+
+.benchmark-points {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+.benchmark-point h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.benchmark-point p {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.benchmark-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: bench-step;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.benchmark-steps li {
+  counter-increment: bench-step;
+  position: relative;
+  padding-left: 2.25rem;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.benchmark-steps li::before {
+  content: counter(bench-step);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1.6rem;
+  height: 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  font-feature-settings: 'tnum';
+}
+
+.benchmark-steps strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.benchmark-steps code,
+.benchmark-point code {
+  font-size: 0.84em;
+  background: var(--bg-secondary);
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+}
+
+.benchmark-markets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.5rem;
+}
+
+.benchmark-market {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.benchmark-market:hover {
+  border-color: var(--text-tertiary);
+  background: var(--bg-secondary);
+}
+
+.benchmark-market-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.benchmark-market-meta {
+  display: flex;
+  gap: 0.4rem;
+  align-items: baseline;
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+}
+
+.benchmark-market-stats {
+  display: flex;
+  gap: 1.2rem;
+  margin-top: 0.25rem;
+  font-feature-settings: 'tnum';
+}
+
+.benchmark-market-stats > span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+}
+
+.benchmark-stat-label {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-tertiary);
+}
+
+.benchmark-stat-value {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.benchmark-leaderboard.leaderboard-row,
+.benchmark-leaderboard .leaderboard-row {
+  grid-template-columns: 2.25rem minmax(0, 1fr) 5.5rem 5.5rem;
+}
+
+.benchmark-resources {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  font-size: 0.93rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.benchmark-resources a {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--border-color);
+  text-underline-offset: 0.18em;
+}
+
+.benchmark-resources a:hover {
+  text-decoration-color: var(--text-tertiary);
+}
+
+.benchmark-footer {
+  margin-top: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.benchmark-footer p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-tertiary);
+  line-height: 1.55;
+  max-width: 64ch;
+}
+
+@media (max-width: 720px) {
+  .benchmark-points {
+    grid-template-columns: 1fr;
+  }
+  .benchmark-leaderboard .leaderboard-row {
+    grid-template-columns: 2rem minmax(0, 1fr) 4.5rem 4.5rem;
+    font-size: 0.85rem;
+  }
+}

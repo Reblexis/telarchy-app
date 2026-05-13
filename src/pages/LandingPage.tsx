@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/api';
 import { postLoginPath } from '../lib/postLoginPath';
+import { popStashedNextPath } from '../lib/nextPath';
 import { Logo } from '../components/Logo';
 
 // ─── Scroll reveal hook ────────────────────────────────────────────────────
@@ -376,12 +377,13 @@ export function LandingPage() {
           .then(() => sessionStorage.removeItem('pendingConsent'))
           .catch((err: Error) => console.error('recordConsent failed:', err.message))
       : Promise.resolve();
+    const stashedNext = popStashedNextPath();
     consentPromise.then(() =>
       api.getProfile()
         .then((profile: { authRole?: string }) => {
-          navigate(postLoginPath(profile), { replace: true });
+          navigate(stashedNext ?? postLoginPath(profile), { replace: true });
         })
-        .catch(() => navigate('/start', { replace: true }))
+        .catch(() => navigate(stashedNext ?? '/start', { replace: true }))
     );
   }, [user, loading, navigate]);
 
