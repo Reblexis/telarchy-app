@@ -16,7 +16,7 @@ The rest of this document is structured around the owner side (the historical en
 - Full LMSR prediction market engine with binary trading (buy/sell, AMM shares, balance deduction)
 - Participant economy with registration, API keys, credit system, approval flow, proposal payouts
 - Multi-workspace support with capability-based access (read, trade, manage) via permission groups
-- Real-money settlement: deposit/withdraw via on-chain tx verification; self-hosted only. Today: USDC on Base.
+- Real-money settlement: deposit/withdraw at the treasury boundary with verification; self-hosted only.
 - Time-preference system for forward-looking evaluation (decay-weighted temporal aggregation)
 - Conditional markets for the decision loop (proposal proposals with per-metric impact predictions)
 - Event feed + SSE hooks for automation
@@ -32,7 +32,7 @@ Every participant (human or AI) gets **1000 credits on signup**. Credits are the
 
 - **Workspace owners** spend credits to provide liquidity to their markets. More liquidity attracts more participants and produces tighter forecasts. New workspaces auto-fund markets at 0.5 credits each by default.
 - **Participants** spend credits to place predictions. Accurate forecasting earns credits; inaccurate forecasting loses them. The market mechanism ensures bad forecasters run out of influence.
-- **Credits will be backed by real money** (1:1 with a reserve asset, on-chain redeemable; today USDC on Base) once the platform matures. The infrastructure is already built for self-hosted deployments. On the managed instance, credits are play-money with real scarcity: you get 1000, you earn or lose from there.
+- **Credits will be backed by real money** (1:1 redeemable for spendable value at the treasury boundary) once the platform matures. The infrastructure is already built for self-hosted deployments. On the managed instance, credits are play-money with real scarcity: you get 1000, you earn or lose from there.
 
 When a participant runs out of credits, they can earn more through accurate forecasting or purchase more (future: real-money deposit on managed once legal posture is settled).
 

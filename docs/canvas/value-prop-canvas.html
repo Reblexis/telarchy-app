@@ -238,7 +238,7 @@
       <h3>Products and Services</h3>
       <ul>
         <li>Everything in play-money mode (metric tree with formula composition, time preference, conditional decision markets per proposal, per-metric and per-source privacy controls, workspace context, no-cold-start participant pool, templates, real-time decision audit log).</li>
-        <li><strong>Real-money settlement.</strong> Credits backed 1:1 by a reserve asset, on-chain verifiable. Treasury wallet, deposits and withdrawals, internal trades stay off-chain. Today: USDC on Base, ~$0.001/tx.</li>
+        <li><strong>Real-money settlement.</strong> Credits are entailed in the workspace's real economy. 1:1 redeemable for fungible value at the treasury boundary; deposits and withdrawals are the only conversion points; internal trades stay frictionless.</li>
         <li><strong>Outcome-contract substrate.</strong> When AI vendors charge on outcomes, your workspace's conditional markets are the ground-truth predictor. Pay the vendor on actual KPI movement, not on capability seats.</li>
         <li><strong>Transaction-fee revenue capture.</strong> Configurable <code>buyFeePercent</code> on credit purchases routes a share of the workspace's economic activity back to you.</li>
         <li><strong>Self-funded forecasting subsidies.</strong> Real-money LP positions on conditional markets earn or lose proportionally; the cost of forecaster recruitment becomes a budgeted expense, not a hand-wave.</li>
@@ -250,7 +250,7 @@
       <ul>
         <li><strong>Real-money skin in the game produces sharper signals than play-money.</strong> Forecasters whose own real money is on the line price more carefully; calibration becomes a commitment, not an estimate.</li>
         <li>Outcome contracts get a verifiable substrate. The AI vendor cannot dispute the markets they themselves traded against.</li>
-        <li>The workspace's real economic activity is auditable and on-chain at withdraw, satisfying CFO / treasurer / auditor scrutiny in ways play-money cannot.</li>
+        <li>The workspace's real economic activity is auditable end-to-end, satisfying CFO / treasurer / auditor scrutiny in ways play-money cannot.</li>
         <li>Replace seat-based AI vendor licensing with outcome-based settlement: the vendor is paid (or not) based on what their model actually delivered.</li>
       </ul>
     </div>
@@ -442,8 +442,8 @@
       <h3>Products and Services</h3>
       <ul>
         <li>Everything in play-money mode (self-service registration, open API with live discovery, marketplace + autonomous joining, LMSR markets with sell-back, cross-workspace leaderboard, telemetry protocol, deterministic-strategy support, Telarchy Skill, reference participants, feedback channel).</li>
-        <li><strong>Real-money withdrawal flow.</strong> Register a wallet (<code>PUT /api/agents/:id/wallet</code>); withdraw earnings on-chain via <code>POST /api/agents/:id/withdraw</code>. Today: USDC on Base, ~$0.001/tx; atomic re-credit on tx failure.</li>
-        <li><strong>Real-money deposit flow.</strong> Send the reserve asset to the treasury, call <code>POST /api/agents/:id/deposit</code> with the tx hash; backend verifies on-chain transfer, double-spend prevention by tx hash. Credits issued at <code>creditValueUsd</code>.</li>
+        <li><strong>Real-money withdrawal flow.</strong> Register a payout destination (<code>PUT /api/agents/:id/wallet</code>); withdraw earnings via <code>POST /api/agents/:id/withdraw</code>. Atomic re-credit on failure.</li>
+        <li><strong>Real-money deposit flow.</strong> Send funds to the treasury, then call <code>POST /api/agents/:id/deposit</code> to confirm; backend verifies receipt with double-spend prevention. Credits issued at <code>creditValueUsd</code>.</li>
         <li><strong>Real-money proposal bounties.</strong> Approved proposals pay the configured <code>proposalReward</code> in 1:1-backed credits, withdrawable on demand.</li>
       </ul>
     </div>
@@ -507,7 +507,7 @@
       <h3>Gains</h3>
       <p class="descr">What "good" looks like for the participant builder.</p>
       <ul>
-        <li>Real income proportional to forecast accuracy, withdrawable on-chain.</li>
+        <li>Real income proportional to forecast accuracy, withdrawable on demand.</li>
         <li>Public, dollar-denominated AI economic-capability benchmark; credible signal that doesn't require interpretation.</li>
         <li>Autonomous agents financially closed-loop: profitable bot pays its own bills.</li>
         <li>AI labs monetize forecasting capability directly via the leaderboard, not via separate product revenue.</li>
