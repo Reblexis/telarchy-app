@@ -10,7 +10,7 @@ import { toISOWeekString } from '../lib/date-utils';
 import { emitEvent } from './events';
 import { insertPendingMarkets, type PendingMarket } from './markets';
 
-function enrichMetrics(rawMetrics: Metric[], consensusMap: Record<string, number> = {}, untradedLeaves: Set<string> = new Set()): Metric[] {
+export function enrichMetrics(rawMetrics: Metric[], consensusMap: Record<string, number> = {}, untradedLeaves: Set<string> = new Set()): Metric[] {
   const nameToFormula: Record<string, string> = {};
   rawMetrics.forEach(m => { nameToFormula[m.name] = m.formula || '0'; });
 
@@ -61,6 +61,12 @@ function enrichMetrics(rawMetrics: Metric[], consensusMap: Record<string, number
 
     const memo: Record<string, number> = {};
     for (const name of descendants) {
+      // Inheritance is structural: a descendant inherits its ancestor's TP regardless
+      // of whether we can build a time series for it yet. Without this, a leaf whose
+      // markets exist but haven't been traded would falsely show "enable Time Preference".
+      // Skip the TP metric itself, its own timePreference already drives the overlay.
+      if (name !== tpMetric.name) nameToInheritedHalfLife[name] = halfLife;
+
       if (nameToTimeSeries[name]) continue;
       const formula = nameToFormulaLocal[name] || '0';
       const isLeaf = formula.trim() === '0';
@@ -77,8 +83,6 @@ function enrichMetrics(rawMetrics: Metric[], consensusMap: Record<string, number
 
       if (series.length > 0) {
         nameToTimeSeries[name] = series;
-        // Skip the TP metric itself, its own timePreference already drives the overlay.
-        if (name !== tpMetric.name) nameToInheritedHalfLife[name] = halfLife;
       }
     }
   }
