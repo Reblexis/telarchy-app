@@ -187,6 +187,48 @@ These two facts compound: cheap intelligence makes the markets work, and AI priv
 
 Do not drift back to "private prediction markets" or to "alignment layer for AI" alone. The mechanism is prediction markets; the product is an alignment layer for AI and humans.
 
+## First-customer ICP hypotheses (2026-05-16)
+
+Telarchy has no real paying customers today. Outreach is hypothesis-driven, not segment-locked. The current ranking of who is most likely to be the first painful entry, in order of working confidence:
+
+**Primary hypothesis (highest confidence):**
+
+- **AI-native startups** and **companies actively deploying AI agents into operations.** Their problem ("AI generates more proposals than I can evaluate") is the one Telarchy is structurally built to solve. They are pre-built to think in metrics and to put AI into the loop, so the cognitive distance to a working Telarchy workspace is small. The narrative ("with rising AI agent autonomy the central problem shifts from generating proposals to evaluating them") lands without translation.
+
+**Secondary hypotheses (open, being pressure-tested in conversations):**
+
+- **AI vendors and AI-tool builders.** Less likely to be the headline buyer, but strategically useful: their AI agents joining as platform participants strengthens the forecaster network, which compounds value for the operator side. May matter more for valuation than for direct revenue.
+- **Portfolio companies of investment groups** that already think in KPIs and have a reason to standardize decision-making across multiple holdings. Hypothesis quality unclear; depends entirely on whether such groups treat decision quality as a centralized capability or leave it to each portfolio company.
+- **KPI-heavy companies in general** (not specifically AI-native) where decisions are already routinely framed against quantified metrics. Lower upside than the AI-native segment but a potentially simpler conversation because the "express your goals as metrics" precondition is already true.
+
+What is explicitly **not** the working hypothesis: regulated industries, large enterprises with multi-quarter procurement, and any segment requiring the mechanism itself to be unfamiliar (Telarchy already requires the buyer to absorb "owner defines metrics, markets price proposals, owner approves on a calibrated number"; layering a second new concept on top of that doubles the conviction needed).
+
+The right output of an outreach conversation is not a sale; it is one of:
+
+1. A named first-customer prospect inside the buyer's network.
+2. A specific reason the primary hypothesis is wrong (the "biggest killer of the idea" answer).
+3. A redirected segment hypothesis that the conversation makes more credible than the current ranking.
+
+## Communication patterns for potential-customer outreach (2026-05-16)
+
+When introducing Telarchy to a potential customer or operator who can refer one, the canonical sequence is:
+
+1. **Lead with the problem, not the term "alignment layer."** The narrative is "AI generates more proposals than the company can evaluate; Telarchy is the layer that prices each proposal against the metrics that matter before the company commits." The phrase *alignment layer for AI and humans* is correct, but it does not land in five seconds with a cold reader. Earn the term; do not open with it.
+2. **Anchor on one example, not a use-case tour.** Reference example: an AI agent proposes a product change; Telarchy lets humans and AI participants forecast the expected impact on revenue or retention before deployment; reality eventually resolves the market and the system learns whose forecasts to trust on that kind of decision. One mechanism, one vision, one image.
+3. **Prediction markets is the right term, after explanation.** Skip it in the opening line. Once the problem and the example land, naming the mechanism precisely is a credibility move.
+4. **Real money is a long-term motivation layer, not a first-pass topic.** Mention only when explaining why the participant network has economic alignment, or when discussing outcome-based pricing for AI vendors. Do not lead with settlement, leaderboard rank, or transaction fees.
+5. **Skip the API catalog, the public leaderboard, and any developer-facing depth.** Operators read these as either technical noise or hobbyist signals. The participant developer surface is real and important, but it is the wrong half of the marketplace for an operator conversation.
+6. **Do not anchor on Czech roots, Prague, or geographic origin.** The product is global by construction (English-default UI, no jurisdictional binding). The local-origin framing only reduces perceived ambition.
+7. **Be honest about stage.** Functional MVP, no paying customer yet, founder uses it himself. Frame it as the explicit reason for the conversation: "I am looking for the first place where the pain is sharp enough and the metric is measurable enough." This is more credible than asserting traction the data does not yet support.
+
+The three questions worth raising in every conversation, in order of marginal usefulness:
+
+- Where is the first really painful entry?
+- Who is the first realistic buyer?
+- What is the largest unstated assumption, or the biggest killer of the idea as framed?
+
+Founder-credibility line, used at most once per conversation and only when it earns trust rather than fills space: previous shipped product LookPilot now nets ~5k USD per month; Telarchy is the deliberately more ambitious next bet.
+
 ## Key Decisions (to be resolved)
 
 - **Workspace isolation model** - Global trader balance vs per-workspace? Global is simpler and more liquid.

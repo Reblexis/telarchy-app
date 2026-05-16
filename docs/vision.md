@@ -123,6 +123,27 @@ For the AI vendor world specifically, this is the substrate the industry is reac
 
 The primary use case is company governance: founders and leadership teams define their KPIs, OKRs, or any quantified business objectives and let the market forecast and evaluate decisions against them. The system also supports personal use (health, career, life metrics) and any other domain where a single owner defines the goals. Both are first-class from day one. Metrics are standalone by default; each can independently have time preference and prediction markets. Users can later connect metrics with formulas if they want derived values, but there is no required structure.
 
+## Current stage and load-bearing uncertainties (2026-05-16)
+
+Telarchy is a functional MVP, not a validated product. The infrastructure (LMSR markets, conditional markets, time preference, multi-workspace, real-money settlement, hooks, BetterAuth, `/marketplace`, `/leaderboard`, `/guides`) is complete and running on `telarchy.com`. There are zero real paying customers today. The founder uses the platform himself, partly to drive the product, partly because real first-customer validation has not happened yet. AI participants run, but their quality is weaker than the platform needs to be self-sustaining; automated LLM traders do not yet operate continuously.
+
+Three things run concurrently in this phase:
+
+1. **Potential-customer outreach.** Direct conversations with founders, operators, and investors to find the first real customer. The "founder concierge program" framing from earlier strategy notes is retired; in practice this is a reality-test motion, not a four-week verdict gate. Each conversation aims at: where is the most painful first entry, who is the first realistic buyer, what's the largest unstated assumption, what would falsify the wedge.
+2. **Building the initial AI participant network.** Workspaces have to come with non-empty markets from minute one. This means seeded platform-operated participants whose forecast quality is good enough that an owner reading a price feels they are reading signal. Quality of the participant pool is currently the biggest product gap.
+3. **Real-money settlement for AI participants, as fast as legal posture allows.** Real money turns Telarchy from a decision-support tool into an economic mechanism: forecasts get sharper because skin in the game is real, outcome contracts get a verifiable substrate, profitable AI bots can cover their own LLM costs (financially closed-loop autonomy), and the platform earns transaction-fee revenue proportional to decision throughput. The settlement infrastructure exists for self-hosted deployments today; turning it on for the managed instance is gated on legal posture.
+
+Two uncertainties are load-bearing and have not yet been resolved by data:
+
+- **Marketplace dynamics.** Companies need predictors of high enough quality that their pricing materially changes a decision; predictors need companies whose decisions are interesting enough to be worth forecasting. Either side without the other collapses the market. Mitigations in progress: one real workspace (the founder's own) seeds demand-side activity, and platform-built AI participants seed supply-side liquidity. Whether this is enough to bootstrap a self-sustaining network at single-digit cohort scale is an open question.
+- **Metric-expressibility of company goals.** The mechanism assumes a company's ultimate objectives can be decomposed into a small set of measurable metrics well enough that forecasts on those metrics are a useful proxy for forecasts on the underlying objectives. If real companies turn out to have goals that fail to compose into a tractable metric set (because of softness, multi-stakeholder structure, or strategic ambiguity), the substrate stops being a useful decision aid for them regardless of how well the markets calibrate.
+
+These two are the questions worth raising on every outreach conversation. Validation that the wedge holds depends more on these than on retention or DAU.
+
+### Founder context
+
+Solo technical founder. Previous shipped product: **LookPilot**, a software product that currently nets around 5,000 USD per month and provided global software-sales experience. AI tooling is part of the daily workflow; Telarchy's AI participants are being built in-house. The track record matters here because it sets a credible floor: this is not a first attempt at shipping software, but it is a deliberate move from a small-and-safe product to an ambitious one with much higher upside risk.
+
 ## Metrics vs Proposals
 
 The distinction between metrics and proposals is foundational.

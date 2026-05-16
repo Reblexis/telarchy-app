@@ -1,147 +1,77 @@
-# Founder concierge program
+# Pre-customer outreach phase
 
-Status: ACTIVE. Started 2026-04-29. Verdict gate: 2026-05-27 (4 weeks).
+Status: ACTIVE since 2026-04-29. Reframed 2026-05-16: the original "founder concierge program with 2026-05-27 verdict gate" framing did not match what actually happened on the ground. The current motion is open-ended potential-customer outreach plus participant-network building plus pushing real-currency settlement live; there is no fixed verdict date.
 
-This is the load-bearing validation arm of the pre-launch strategy. The riskiest assumption in Telarchy is that *a real founder will paste a real decision into a workspace and let the market move them off a gut call*. This program tests it directly with a small cohort of manually-recruited founders, 30-min calls, real KPIs, real decisions, real workspaces.
+This file supersedes the earlier "Founder concierge program" doc. The original four-week schedule, falsification thresholds, and binary verdict gate are retired. The substantive insights that still hold (selection criteria for who is worth talking to, non-negotiables when running a live call, forecaster-context strategy for any workspace that does get built) are kept below.
 
-## Why this exists
+## Why this phase exists
 
-The product is structurally complete (LMSR markets, conditional markets, time preference, multi-workspace, real-money settlement, hooks, BetterAuth, `/marketplace`, `/guides`). Zero users today. The last 30 days of commit history is ~80% UI polish (5 sidebar redesigns, 3 landing-H1 rewrites). That pattern is the leading indicator of pre-launch procrastination: polishing surfaces for a user who hasn't been recruited yet.
+Telarchy has all the infrastructure required to run real workspaces, real conditional markets, real settlements (on self-hosted) and AI participant integrations. It has zero paying customers. The risk that needs to fall first is not "do the markets calibrate" (they do) or "does the mechanism work end-to-end" (it does). The risk is whether a real operator will actually use this layer to price a real decision they were otherwise going to make on a gut call. The only way to find out is to talk to potential customers and have them either commit or articulate exactly why they will not.
 
-A 4-week concierge program with a small focused cohort is the cheapest way to falsify the headline use case. If founders convert, the headline is locked. If they bounce on something the docs already address, that's the falsification signal, and the AI-agent-eval wedge becomes the headline instead.
+Three things run concurrently in this phase, see `docs/vision.md` section "Current stage and load-bearing uncertainties" for the canonical version:
 
-## The cohort
+1. **Potential-customer outreach.** Direct conversations to find the first real customer.
+2. **Initial AI participant network.** Workspaces have to ship with non-empty markets and forecast quality good enough that an owner reads a price and feels they are reading signal.
+3. **Real-currency settlement for AI participants.** Real money turns the mechanism from advisory into economic. Infrastructure exists for self-hosted; managed turn-on is legal-gated.
 
-Targets recruited in Week 0. Names in `candidates.md` (sibling file, gitignored, contains personal data). Cohort size is intentionally flexible (single-digit); enough to detect a signal, small enough that the founder can act as lead forecaster on every workspace.
+## How outreach conversations are structured
 
-Selection criteria (each scored 0-3, total /15 + bonuses):
+The goal of any conversation is one of three things, in declining order of value:
 
-- **Real company:** has revenue, not pre-product, not solo no-employees.
-- **Real KPIs:** tracks ≥2 metrics weekly, has some kind of dashboard or running spreadsheet.
-- **Upcoming real decision (~30 days):** spending decision, hiring decision, product bet, anything with ≥$10K stakes or ≥10% of one quarter's effort.
-- **Warmth:** how reachable. 0=cold name, 3=texted last week.
-- **Forecasting fit:** domain where AI/human forecasters could plausibly add signal.
-- **Bonus +1 each:** technical (will enjoy the markets mechanic), has co-founder (richer workspace), public-facing (writes/podcasts/builds-in-public; if it works, they tell people).
+1. A named first-customer prospect inside the buyer's network.
+2. A specific, sharp reason the primary ICP hypothesis is wrong (the "biggest killer of the idea" answer).
+3. A redirected segment hypothesis that the conversation makes more credible than the current ranking.
 
-Anti-flags (excludes): would ghost a call, regulated industry that can't share KPIs, M&A in flight, conflict-of-interest (e.g. SCS Software CEO planning to invest in user's other startup; different relationship, don't pitch).
+Selling Telarchy on a first call is not the goal; reality-testing the wedge is. The canonical communication patterns (what narrative to lead with, what to avoid, how to handle the term "prediction markets") live in `docs/go-to-market.md` section "Communication patterns for potential-customer outreach."
 
-## The 4-week schedule
+Three questions to raise on every conversation:
 
-```
-WEEK 0 (this week)
-  Day 1   - Recruit. Outreach funnel: build a list, ask a subset, target a small handful of booked calls.
-  Day 1+  - LinkedIn export submitted (ZIP arrives in ~24h, unlocks broader filtering).
-  Mid-wk  - Confidentiality checklist drafted. /cso pass focused on confidentiality.
-  Mid-wk  - Concierge operating model written: intake form + call script + weekly memo template.
-  Mid-wk  - Tracking sheet + falsification thresholds locked.
-  End-wk  - Persona 4 (Marcus, founder) smoke test. Fix anything blocker/high.
-  End-wk  - Min-viable launch backlog: pricing one-liner, signup display name, /guides discoverability, 504→404 verified.
-  End-wk  - Doc rewrites (public-facing only): soften open-core language in vision.md and landing.
+- Where is the first really painful entry?
+- Who is the first realistic buyer?
+- What is the largest unstated assumption, or the biggest killer of the idea as framed?
 
-WEEK 1
-  - First concierge calls running. 30 min each. Hand-feed forecaster context per workspace as Sources.
-  - /leaderboard built and linked from the sidebar (decision 2026-05-01: ship the nav link with the page rather than gating it on the Week-4 verdict, so concierge calls and persona-10 traffic both land on the ranking).
-  - agent-eval template + register-your-agent doc.
+Per-call artifacts live in this directory. Examples:
 
-WEEK 2-3
-  - Calls iterating. POSITION FREEZE ACTIVE: no landing/positioning/sidebar work without a named external trigger.
-  - Weekly decision memos sent to each founder.
-  - Watch Week-2 forecast-utility signal (codex flag): if founders say "the forecast didn't tell me anything I didn't already know," that's higher-priority signal than retention numbers.
+- `helmich-2026-05-13-call-script.md` (Jirka Helmich, B2B Minds founder, ex-Mews CPO).
+- `cerny-2026-05-16-preread.md` (Jan Černý, Managing Partner at Pale Fire Capital).
+- `cerny-2026-05-16-input-notes.md` (raw Q&A capturing Viktor's state of thinking ahead of the Černý pre-read).
 
-WEEK 4 (verdict gate, 2026-05-27)
-  - Binding go/pivot decision based on locked falsification criteria.
-  - Public CP1 launch announcement (the /leaderboard nav link itself shipped on 2026-05-01).
-  - Email lifecycle ships (Resend or Postmark). Broader launch sequence begins.
+## Selection criteria for who is worth a call
 
-POST-VERDICT
-  - Decide on CP4 (spectacle markets), open-source revisit, broader launch.
-  - Build Claude Code skill for founder workspace setup (`/setup-telarchy-workspace`).
-```
+When deciding whether to spend a slot on someone, score informally on these dimensions:
 
-## Falsification criteria (LOCKED 2026-05-07; binding for 2026-05-27 verdict)
+- **Real company:** has revenue, ships product, is not pre-product or solo-no-employees.
+- **Real KPIs:** tracks at least two metrics weekly, has some dashboard or running spreadsheet.
+- **Upcoming real decision (next ~30 days):** spending decision, hiring decision, product bet, anything with non-trivial stakes.
+- **Warmth:** how reachable. Cold cost is high; warm intros multiply expected value.
+- **Forecasting fit:** domain where AI and human forecasters could plausibly add signal.
+- **AI-adjacency bonus:** company is AI-native, building AI products, or actively deploying AI agents into operations. This is the primary ICP hypothesis per `docs/go-to-market.md`.
 
-The verdict on 2026-05-27 is decided by these criteria, agreed in advance to prevent goalpost drift. Two behavioral signals, both observable without asking the founder leading questions, both pattern-over-anecdote.
+Anti-flags: would ghost a call, regulated industry that cannot share KPIs, M&A in flight, conflict of interest, requires a multi-quarter procurement cycle.
 
-**CONFIRMED (founder governance is the headline; ship the broader launch):**
-EITHER of these:
-- ≥2 cohort founders bring a 2nd real decision unprompted by Week 4 (a new proposal or a new market they create themselves, not because we asked them to), OR
-- ≥1 cohort founder makes an unprompted referral by Week 4 (sends another founder to telarchy.com or asks for an intro template, without us asking).
+## Non-negotiables when a call leads to a real workspace
 
-**FALSIFIED (pivot to AI-agent-eval per `AGENTS.md` § Canonical positioning):**
-BOTH of these:
-- 0 cohort founders bring a 2nd unprompted decision, AND
-- 0 cohort founders make an unprompted referral, AND
-- Majority of cohort is cold past Week 2 (no metric updates, no new markets, no proposals; not just quiet but actively disengaged).
+These hold even though the broader "concierge" framing has been retired:
 
-**INCONCLUSIVE (anything between confirmed and falsified): default to pivot.** Founder governance becomes a supporting use case; AI-agent-eval is promoted to headline. The default-to-pivot is intentional: extending the program in the gray zone is goalpost drift. We can always come back to founder governance from an AI-agent-eval headline; we cannot un-spend the next quarter chasing a weak founder signal.
+- **Workspace is created on the call, not after.** Operators who say "I'll set it up later" do not.
+- **No mocked or seed data in real workspaces.** Real metrics, real values, or no workspace.
+- **No AI-participant access without explicit operator approval.** Confidentiality is part of the value proposition; lying about it ends the relationship.
+- **Position freeze on cosmetic surfaces is still active.** Landing-page rewrites, sidebar redesigns, and other taste-driven positioning iterations require a named external trigger (a specific complaint from a real operator, investor, or outreach event). The trigger goes in the commit body so the chain is auditable.
 
-### Why these two and not the other three
+## Forecaster context strategy (still applies)
 
-The original Codex review proposed five candidate criteria. Three are deliberately not locked:
+The hardest part of any real workspace is making sure the participants forecasting it actually have the context they need. Platform-operated AI participants do not know the operator's domain by default. Strategy:
 
-- **Asked to invite another participant.** Confounded by the founder's team structure (a solo founder can't invite a co-founder); it measures the founder's situation, not Telarchy's value.
-- **Trusted forecast enough to delay/change/spend.** Requires founder self-report; verbal commitment is noisier than observable behavior. The 2nd unprompted decision criterion already captures behavioral trust, more cleanly.
-- **Would pay post-verdict.** Verbal commitment under social pressure of a 1:1 call. Revealed preference (do they actually keep using it for new decisions) is the stronger signal and is already covered by the 2nd unprompted decision criterion.
+- For each workspace, write a **context briefing** as a Source (text source attached to the workspace). Participants read sources via the existing source mechanism.
+- Operator supplies **additional custom Sources** through the Sources tab; encouraged.
+- Operator does **API connection for metric sync** (Stripe, Mixpanel, manual webhook); natural moment to pair-program the context briefing.
+- The founder is effectively the **lead forecaster** on every workspace for as long as the network is small. This does not scale; it produces real forecasts.
 
-### What gets tracked, where
-
-- `docs/outreach/concierge/tracking.md` (gitignored, contains real founder names) is the live operational dashboard with the founder × stage matrix and the locked thresholds restated. Update after every concierge call.
-- The two criteria here MUST NOT BE EDITED before 2026-05-27. If you find yourself wanting to soften them mid-program, that is the goalpost drift the lock was designed to prevent. Add the would-have-been observation to the post-verdict notes file instead.
-
-## Operating model artifacts (Week 0 P1)
-
-Three artifacts to write before first call. All live in this directory (`docs/outreach/concierge/`).
-
-1. **Intake form template** (`intake-form.md`, sibling)
-   - Founder name, company, role
-   - Top 3-5 KPIs / metrics they care about
-   - Current values + units
-   - Time horizon for each metric
-   - Decision being considered (one specific upcoming call)
-   - Constraints on the decision (budget, deadline, alternatives)
-   - Private context the AI participants need to forecast
-   - Co-founders / collaborators to include in workspace
-   - Confidentiality requirements (which fields are export-OK, which are private-only)
-
-2. **Call script** (`call-script.md`, sibling)
-   - 5 min: intro + Telarchy 90-second pitch
-   - 10 min: decision elicitation (use intake form as guide)
-   - 10 min: live workspace setup, workspace created on the call, NOT promised for later
-   - 5 min: next-step commitment (you'll send the first decision memo Friday; they'll update one metric by Monday)
-
-3. **Weekly decision memo template** (`weekly-memo.md`, sibling)
-   - Founder name + week
-   - Market view: current consensus per metric
-   - Points of disagreement among forecasters (where the bots/humans diverged)
-   - Confidence interval
-   - Recommended action
-   - What would change the forecast
-   - Attached evidence: per-market chart + trades
-
-## Forecaster context strategy
-
-Codex's sharpest critique: with private founder workspaces and platform bots that don't know the founder's domain, market forecasts may be decorative not informative. Mitigation strategy: **Hybrid Approach A**.
-
-- For each founder workspace, write a **context briefing** as a Source (text source attached to the workspace). Bots read sources via the existing source mechanism.
-- Founder can supply **additional custom Sources** via the Sources tab; encouraged.
-- Founder also does **API connection for metric sync** (Stripe, Mixpanel, manual webhook); natural moment to pair-program a context briefing.
-- You are effectively the **lead forecaster** on every concierge workspace for the first 4 weeks. This works for a small cohort; doesn't scale; produces real forecasts.
-
-The Claude Code skill for workspace setup (P2 TODO) is the natural force-multiplier: install the skill, get walked through KPI definition + source connection + decision elicitation in 10 minutes.
-
-## Non-negotiables
-
-- **Position freeze** is in effect for 4 weeks (until 2026-05-27). No landing-page rewrites, no sidebar redesigns, no positioning iterations. If you find yourself opening `LandingPage.tsx`, close it. The only acceptable change to public copy during this window is in response to a *specific complaint from a real concierge founder*.
-- **Workspace is created on the call, not after.** Founders who say "I'll set it up later" don't.
-- **No mocked or seed data in concierge workspaces.** Real metrics, real values, or no workspace.
-- **No AI-participant access without explicit founder approval.** Confidentiality is part of the pitch; lying about it kills the program.
-- **Verdict at end of Week 4 is binding.** Whatever the falsification criteria say, you write a one-page verdict and live with it for the next quarter.
+The Claude Code skill for workspace setup is the natural force-multiplier: install the skill, get walked through KPI definition + source connection + decision elicitation in roughly ten minutes.
 
 ## Cross-references
 
-- CEO plan with full review history: `~/.gstack/projects/Reblexis-metrics-tracker/ceo-plans/2026-04-29-pre-launch-strategy.md`
-- TODOs (P1 Week-0 items, P1 Week-1 items, P2 deferred): `TODOS.md`
-- Persona 4 (Marcus, the founder this program targets): `docs/personas/04-startup-founder.md`
-- MVP launch backlog (now partially superseded; email lifecycle deferred to post-verdict, GitHub link replaced by /guides discoverability): `docs/mvp-launch-backlog.md`
-- Vision and positioning: `docs/vision.md`, `docs/go-to-market.md`
-- Outside voice (codex) findings: section "Outside Voice (Codex), applied revisions" in the CEO plan.
+- Vision and positioning: `docs/vision.md`, `docs/go-to-market.md`.
+- ICP hypotheses and communication patterns: `docs/go-to-market.md` (sections "First-customer ICP hypotheses" and "Communication patterns for potential-customer outreach").
+- Candidate pipeline and outreach status: `candidates.md`.
+- Per-call working artifacts: this directory.
