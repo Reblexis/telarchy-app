@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:functions": "npm --prefix functions run build",
-    "deploy": "gcloud run deploy api --source . --region us-central1 --allow-unauthenticated --memory 256Mi --cpu 1 --min-instances 1 --max-instances 20 --set-cloudsql-instances telarchy-e0043:us-central1:telarchy-pg --clear-base-image",
+    "deploy": "gcloud run deploy api --source . --region us-central1 --allow-unauthenticated --memory 256Mi --cpu 1 --min-instances 0 --max-instances 20 --set-cloudsql-instances telarchy-e0043:us-central1:telarchy-pg --clear-base-image",
     "preview": "vite preview",
     "dev:local": "npm run build:functions && concurrently -n emu,vite,tsc -c blue,green,yellow \"npx firebase-tools emulators:start --only functions\" \"vite\" \"npm --prefix functions run watch\"",
     "test": "npm --prefix functions run test && npm run test:frontend",
