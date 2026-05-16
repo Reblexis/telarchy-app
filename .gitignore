@@ -50,11 +50,3 @@ qa-runs/
 qa-results.md
 ux-grade.md
 
-# Concierge program: contains founder names, contact info, private context.
-# Process and templates are tracked; real-people data and per-founder notes are not.
-docs/outreach/concierge/candidates.md
-docs/outreach/concierge/tracking.md
-docs/outreach/concierge/intake-*.md
-docs/outreach/concierge/*-call-script.md
-docs/outreach/concierge/findings/
-docs/outreach/concierge/sent-dms/
