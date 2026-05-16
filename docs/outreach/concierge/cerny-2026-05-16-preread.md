@@ -1,8 +1,4 @@
-> **Pro Jirku, smazat před odesláním Janovi:** Jirko, díky za intro. Můžeš mi to prosím rychle zvetovat, případně rovnou škrtnout nebo přepsat, než to pošleš Janovi? Cíl je, aby měl maximum kontextu dopředu a těch 30 minut šlo jen na věci, kde je jeho pohled opravdu cenný.
-
 # Telarchy, pre-read pro Jana Černého
-
-Připravil: Viktor Číhal, 16. 5. 2026
 
 ## TL;DR
 
