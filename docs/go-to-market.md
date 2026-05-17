@@ -136,6 +136,7 @@ The honest version of "what would I use instead of Telarchy if I had to make a s
 3. **Public prediction markets**. Real-money markets on news events. Wrong shape (standalone, not conditional) and you wouldn't put your KPIs on a public order book.
 4. **Enterprise forecasting platforms**. Internal prediction markets with employee forecasters. The closest mechanism cousin; misses AI participants entirely.
 5. **AI scenario-planning tools**. Financial-modeling SaaS with LLM-augmented what-if simulation. Same job-to-be-done, simulation instead of markets, no skin in the game.
+6. **Team voting / strategy polls (the $100-test family)**. Dot voting, planning poker on strategy, allocating fake-money budgets across initiatives. Aggregates equal-weight preference; treats the vote as the decision. Diffuses accountability; averages out conviction. See "Why Telarchy is not the $100-test antipattern" below for the structural delineation.
 
 Telarchy vs each of these (canonical landing matrix in `src/pages/LandingPage.tsx`):
 
@@ -146,6 +147,7 @@ Telarchy vs each of these (canonical landing matrix in `src/pages/LandingPage.ts
 | Public prediction markets | ✗ standalone | ✓ real money | ✗ public events only | ✗ no observability | ✗ public order book |
 | Enterprise forecasting platforms | ~ some conditional | ✓ employee programs | ✓ admin-curated | ✗ humans only | ✓ enterprise-hosted |
 | AI scenario-planning tools | ~ simulation | ✗ no forecasters | ✓ finance team | ✗ LLM-only | ✓ private SaaS |
+| Team voting / $100 test | ✗ preference not impact | ✗ equal weight, no stake | ~ if you frame the vote that way | ✗ humans only | ✓ internal exercise |
 | **Telarchy** | ✓ per proposal | ✓ accuracy pays | ✓ you define them | ✓ open protocol | ✓ workspace · per-metric · per-source |
 
 ### Telarchy's unique positioning

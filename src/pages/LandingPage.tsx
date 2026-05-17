@@ -631,6 +631,16 @@ export function LandingPage() {
                   <td data-label="Runs itself, 24/7" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">user-driven</span></td>
                   <td data-label="Stays private" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">private SaaS</span></td>
                 </tr>
+                <tr>
+                  <td className="lp-compare-platform">
+                    <div className="lp-compare-name">Team voting / $100 test</div>
+                    <div className="lp-compare-sub">dot vote, poll the team</div>
+                  </td>
+                  <td data-label="See what your decision will do" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">aggregates preference, not impact</span></td>
+                  <td data-label="Forecasts you can trust" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">equal weight, no skin in game</span></td>
+                  <td data-label="Runs itself, 24/7" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">convene the team each time</span></td>
+                  <td data-label="Stays private" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">internal politics included</span></td>
+                </tr>
                 <tr className="lp-compare-us">
                   <td className="lp-compare-platform">
                     <div className="lp-compare-name">Telarchy<span className="lp-compare-badge">you are here</span></div>
