@@ -75,10 +75,11 @@ case "$URL" in
   *"/login"*) echo "Setup FAIL: still at $URL after login"; exit 1 ;;
 esac
 
-# Pretend the welcome tour has already been seen, so the first-seen
-# hints are the only overlay we are exercising. Clear both per-key
-# flags so the hints fire fresh.
-$B js "localStorage.setItem('telarchy.tour.seen.v2','1'); localStorage.removeItem('telarchy.firstSeen.markets-list'); localStorage.removeItem('telarchy.firstSeen.proposal-impact'); 'ok'" >/dev/null
+# Pretend the persona has already been picked + the Builder tutorial
+# has been completed, so the persona picker and tutorial overlays are
+# the only thing that could compete with the hints. Clear both per-key
+# hint flags so the hints fire fresh.
+$B js "localStorage.setItem('telarchy.tutorial.persona.v3','builder'); localStorage.setItem('telarchy.tutorial.completed.v3', JSON.stringify(['builder'])); localStorage.removeItem('telarchy.tutorial.active.v3'); localStorage.setItem('telarchy.tutorial.step.v3','0'); localStorage.removeItem('telarchy.firstSeen.markets-list'); localStorage.removeItem('telarchy.firstSeen.proposal-impact'); 'ok'" >/dev/null
 ```
 
 ## Tests
@@ -175,38 +176,37 @@ FLAG=$($B js "localStorage.getItem('telarchy.firstSeen.proposal-impact')")
 tt_assert_contains "1" "$FLAG" "T3 proposal-impact flag set on dismiss" || HINTS_FAILS=$((HINTS_FAILS+1))
 ```
 
-### T4. Hints are suppressed while the welcome tour is active
+### T4. Hints are suppressed while the persona picker / tutorial is active
 
-Activate the welcome tour by clearing its flag, then revisit Markets
-with the markets-list hint flag also cleared. The tour modal must show
-and the first-seen hint must NOT show.
+Clear the persona flag so the PersonaPicker fires; the markets-list
+hint flag is also cleared. The persona picker modal must show and
+the first-seen hint must NOT show.
 
 ```bash
-$B js "localStorage.removeItem('telarchy.tour.seen.v2'); localStorage.removeItem('telarchy.firstSeen.markets-list'); 'reset'" >/dev/null
+$B js "localStorage.removeItem('telarchy.tutorial.persona.v3'); localStorage.removeItem('telarchy.tutorial.active.v3'); localStorage.removeItem('telarchy.firstSeen.markets-list'); 'reset'" >/dev/null
 $B goto "$TT_FRONTEND_URL/markets"
 $B wait --networkidle
 sleep 2
 
-TOUR_VIS=$($B is visible '.tour-modal')
+PICKER_VIS=$($B is visible '.persona-picker')
 HINT_VIS=$($B is visible '.first-seen-hint')
-if [ "$TOUR_VIS" = "true" ] && [ "$HINT_VIS" = "false" ]; then
-  echo "T4 PASS: tour visible, hint suppressed"
+if [ "$PICKER_VIS" = "true" ] && [ "$HINT_VIS" = "false" ]; then
+  echo "T4 PASS: persona picker visible, hint suppressed"
 else
-  echo "T4 FAIL: tour=$TOUR_VIS hint=$HINT_VIS (expected true/false)"
+  echo "T4 FAIL: picker=$PICKER_VIS hint=$HINT_VIS (expected true/false)"
   HINTS_FAILS=$((HINTS_FAILS+1))
 fi
 
-# Skip the tour for the next test.
-$B click '.tour-btn-ghost' >/dev/null
+# Skip the picker for the next test.
+$B click '.persona-picker .tour-btn-ghost' >/dev/null 2>&1 || true
 sleep 1
 ```
 
-### T5. Hint resumes firing once the tour is closed (and flag was cleared)
+### T5. Hint resumes firing once the persona picker is closed
 
-After skipping the tour above, the welcome tour flag is now set (Skip
-persists it) so the tour is inactive. The Markets hint flag was also
-cleared in T4 setup. Reloading the Markets tab should now show the
-hint (the suppression only applies while the tour was active).
+After skipping the picker, the persona flag is now set so the picker
+no longer fires. The Markets hint flag was cleared in T4. Reloading
+the Markets tab should now show the hint.
 
 ```bash
 $B reload
@@ -214,9 +214,9 @@ $B wait --networkidle
 sleep 2
 
 if [ "$($B is visible '.first-seen-hint')" = "true" ]; then
-  echo "T5 PASS: hint reappears once tour is no longer active"
+  echo "T5 PASS: hint reappears once picker is no longer active"
 else
-  echo "T5 FAIL: hint did not reappear after tour was skipped"
+  echo "T5 FAIL: hint did not reappear after picker was skipped"
   HINTS_FAILS=$((HINTS_FAILS+1))
 fi
 ```

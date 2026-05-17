@@ -131,8 +131,9 @@ explains itself.
 | `switch-and-active.md` | Sidebar switcher + `localStorage.activeWorkspaceId` |
 | `settings-and-visibility.md` | Name + visibility + auto-fund |
 | `members-and-permissions.md` | Role matrix (admin / trader / member / viewer) |
-| `welcome-tour.md` | Seeded starter proposal + 12-step product tour |
+| `welcome-tour.md` | Seeded starter proposal + persona picker + Builder tutorial |
 | `first-seen-hints.md` | Once-per-user contextual hints (Markets, proposal drawer) |
+| `tab-banners.md` | Per-tab opt-in banners + Trader/AI Agent persona stubs |
 
 ### 03-metrics
 
