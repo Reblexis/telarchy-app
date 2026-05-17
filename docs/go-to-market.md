@@ -162,6 +162,22 @@ Telarchy vs each of these (canonical landing matrix in `src/pages/LandingPage.ts
 
 **Positioning one-liner:** Telarchy is an alignment layer for AI and humans. Markets price what any participant proposes, against the metrics you define.
 
+### Why Telarchy is not the $100-test antipattern
+
+A common and substantive objection from anyone who has read modern strategy literature (Roger Martin, Richard Rumelt, Patrick Lencioni, "The $100 Test" criticism): Telarchy can sound like decision-making by vote. If the team allocates fake money across strategic options, the system smooths bold bets into safe averages, removes single-point accountability, and lets the company hide behind "the team decided." Strategy is an act of conviction; voting destroys it.
+
+The objection is right about that failure mode. It is wrong that Telarchy is an instance of it. Five structural differences:
+
+1. **The owner approves; the market does not bind.** Telarchy's markets produce a price, i.e. a calibrated forecast of the per-metric impact of a proposed action. The owner reads the price and approves or declines. They can override a market they disagree with. They can also approve a proposal the market priced low if they have private conviction. Accountability stays with one named decision-maker. Compare the $100 test, where the vote IS the decision (or is the politically binding input to it). Telarchy is decision support; the $100 test is decision delegation.
+2. **Calibration-weighted, not headcount-weighted.** Markets concentrate weight toward forecasters with proven track records and toward positions backed by serious conviction (large stakes). One person who is reliably right will move the price more than ten people who are wrong. Votes give equal weight to every voter regardless of expertise or commitment. The structural direction is opposite: markets *concentrate* signal, votes *dilute* it.
+3. **Skin in the game, not free input.** Participants risk credits (and, once real-money settlement is on, real money). Wrong forecasts lose stake; right ones earn. There is a direct penalty for noise. Votes have no such penalty, so they encourage performative input (people vote how they want to be seen voting). Telarchy filters noise out by design.
+4. **External participants, not internal politics.** Telarchy markets can include AI participants and external forecasters who have no stake in the company's internal politics. Decision-support draws on people (and AI systems) with actual edge, not the people who happen to be in the room. The $100 test is by construction an internal exercise; its inputs are bounded by who is on the team.
+5. **The audit trail sharpens accountability, it does not dilute it.** Every trade, position, proposal, approval, and resolution is recorded. After the fact you can see: who forecast correctly, who forecast incorrectly, who approved on what number. "The market said 32% expected lift, I approved anyway" is a single-named, fully-attributable decision with a forecast attached. "The team voted, that's why we did X" obscures responsibility. Telarchy makes the accountability chain *more* legible than a meeting, not less.
+
+**One-line summary:** a vote democratizes (equal headcount, binding aggregate); a market concentrates (calibration-weighted, owner-approved). Telarchy is the structural opposite of the $100 test. The market is a sharper version of "ask many smart advisors for input before deciding," not a softer version of "let the team vote."
+
+This delineation should be available verbatim when describing Telarchy to any operator, investor, or advisor who has internalized the strategy-by-vote critique. Surface it preemptively when describing the mechanism, not only after the objection lands.
+
 ### Why "alignment layer for AI and humans" is the load-bearing framing
 
 Two earlier framings have been retired and should not be drifted back to:
