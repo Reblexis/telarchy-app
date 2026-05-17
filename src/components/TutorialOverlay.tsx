@@ -213,12 +213,17 @@ export function TutorialOverlay() {
     );
   }
 
-  if (!rect) return <div className="tour-overlay tour-overlay-loading" aria-hidden="true" />;
+  // Target hasn't mounted yet; render nothing rather than a dim layer.
+  if (!rect) return null;
   const pos = computePosition(rect);
 
   return (
     <>
-      <div className="tour-overlay tour-overlay-coach" aria-hidden="true" />
+      {/* No dim backdrop for coach steps: the page underneath stays at
+          its normal brightness so any modals, forms, or buttons the
+          user opens during the step look exactly the way they normally
+          would. The orange-pulse outline on the highlighted target and
+          the coachmark card itself are sufficient cues. */}
       <div
         className={`tour-coach tour-coach-arrow-${pos.arrow}`}
         role="dialog"
