@@ -8,7 +8,7 @@ export interface WorkspaceInfo {
   workspaceId: string;
   memberRole: WorkspaceMemberRole | null;
   authRole: string;
-  intent: 'creator' | 'agent' | null;
+  intent: 'creator' | 'agent' | 'trader' | null;
   tier: 'admin' | 'trader' | 'viewer' | 'none';
   capabilities: Capability[];
   needsWorkspace: boolean;
@@ -55,7 +55,7 @@ export function useWorkspace(authenticated: boolean = true): {
       api.listWorkspaces().catch((e: Error) => { console.error('listWorkspaces failed:', e.message); return []; }),
     ])
       .then(([profile, wsList]: [
-        { workspaceId?: string; authRole?: string; memberRole?: WorkspaceMemberRole | null; intent?: 'creator' | 'agent' | null; platformAdmin?: boolean; capabilities?: string[] },
+        { workspaceId?: string; authRole?: string; memberRole?: WorkspaceMemberRole | null; intent?: 'creator' | 'agent' | 'trader' | null; platformAdmin?: boolean; capabilities?: string[] },
         Array<{ id: string; name: string; memberRole: string }>,
       ]) => {
         if (cancelled) return;

@@ -150,8 +150,8 @@ userauthRouter.post('/profile', requireIdentity, requireScope('account:write'), 
   }
 
   const { intent, nickname } = req.body;
-  if (intent !== undefined && !['creator', 'agent'].includes(intent)) {
-    res.status(400).json({ error: 'intent must be "creator" or "agent"' }); return;
+  if (intent !== undefined && !['creator', 'agent', 'trader'].includes(intent)) {
+    res.status(400).json({ error: 'intent must be "creator", "agent", or "trader"' }); return;
   }
 
   if (nickname !== undefined) {

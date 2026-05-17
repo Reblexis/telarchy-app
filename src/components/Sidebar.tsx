@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { useTheme } from '../hooks/useTheme';
-import { useWelcomeTour } from '../hooks/useWelcomeTour';
 import { api } from '../lib/api';
 import { Logo } from './Logo';
 
@@ -16,7 +15,6 @@ export function Sidebar({ className = '' }: { className?: string }) {
   const [workspaceNavOpen, setWorkspaceNavOpen] = useState(true);
   const [usdcEnabled, setUsdcEnabled] = useState(false);
   const [balance, setBalance] = useState<number | null>(null);
-  const { start: startTour } = useWelcomeTour();
 
   useEffect(() => {
     if (!user) return;
@@ -161,17 +159,12 @@ export function Sidebar({ className = '' }: { className?: string }) {
             Top up credits (USDC)
           </Link>
         )}
+        <Link to="/tutorials" className={`sidebar-nav-item${currentPath === '/tutorials' ? ' active' : ''}`}>
+          Tutorials
+        </Link>
         <Link to="/guides" className={`sidebar-nav-item${currentPath === '/guides' ? ' active' : ''}`}>
           Guides
         </Link>
-        <button
-          type="button"
-          className="sidebar-nav-item sidebar-nav-muted"
-          style={{ fontSize: '0.8rem', textAlign: 'left' }}
-          onClick={() => startTour()}
-        >
-          Show product tour
-        </button>
       </div>
 
       <div className="sidebar-spacer" />

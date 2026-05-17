@@ -6173,6 +6173,128 @@ code, pre, kbd, samp {
   animation: tour-pulse 1.8s ease-in-out infinite;
 }
 
+/* ===== Persona picker ===== */
+.persona-picker {
+  max-width: 580px;
+}
+
+.persona-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 1rem 0 0.5rem;
+}
+
+.persona-option {
+  text-align: left;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.persona-option:hover {
+  border-color: var(--accent);
+  background: var(--bg-secondary);
+}
+
+.persona-option:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.persona-option-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.persona-option-blurb {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* ===== Tutorial coach title + waiting indicator ===== */
+.tour-coach-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0.15rem 0 0.4rem;
+  color: var(--text-primary);
+}
+
+.tour-waiting {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 0.55rem;
+}
+
+.tour-waiting-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  animation: tour-pulse-dot 1.2s ease-in-out infinite;
+}
+
+@keyframes tour-pulse-dot {
+  0%, 100% { opacity: 0.4; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+/* ===== Tutorials hub list ===== */
+.tutorials-list {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.tutorial-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+}
+
+.tutorial-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.tutorial-card-blurb {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 0.35rem;
+}
+
+.tutorial-card-status {
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.tutorial-card-actions {
+  flex-shrink: 0;
+}
+
 /* Glow halo on the focused target element */
 .tour-target-glow {
   position: relative;

@@ -17,12 +17,19 @@ export function RequireAgentSession() {
   return <Outlet />;
 }
 
-/** Wraps routes that require an active workspace. Redirects to /create-workspace if none exists. */
+/** Wraps routes that require an active workspace. Redirects to /create-workspace if none exists.
+ * Exception: trader and ai-agent intents can browse the platform without owning a workspace,
+ * so they go to /marketplace or /api-access instead.
+ */
 export function RequireWorkspace() {
   const { user, loading: authLoading } = useAuth();
   const { workspace, loading: wsLoading } = useWorkspace(!!user);
   if (authLoading || wsLoading) return <div className="loading">Loading...</div>;
   if (!user) return <Navigate to="/" replace />;
-  if (workspace?.needsWorkspace) return <Navigate to="/create-workspace" replace />;
+  if (workspace?.needsWorkspace) {
+    if (workspace.intent === 'trader') return <Navigate to="/marketplace" replace />;
+    if (workspace.intent === 'agent') return <Navigate to="/api-access" replace />;
+    return <Navigate to="/create-workspace" replace />;
+  }
   return <Outlet />;
 }

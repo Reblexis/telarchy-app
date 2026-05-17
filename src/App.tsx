@@ -20,6 +20,7 @@ import { AccountPage } from './pages/AccountPage';
 import { AgentLoginPage } from './pages/AgentLoginPage';
 import { AgentPortalPage } from './pages/AgentPortalPage';
 import { GuidesPage } from './pages/GuidesPage';
+import { TutorialsPage } from './pages/TutorialsPage';
 import { LegalPage } from './pages/LegalPage';
 import { SourcesPage } from './pages/SourcesPage';
 import { CheckInPage } from './pages/CheckInPage';
@@ -59,6 +60,7 @@ export function App() {
             <Route path="/participants/:id" element={<ParticipantProfilePage />} />
             <Route path="/guides" element={<GuidesPage />} />
             <Route path="/guides/:section" element={<GuidesPage />} />
+            <Route path="/tutorials" element={<TutorialsPage />} />
             <Route element={<RequireAuth />}>
               <Route path="/start" element={<StartPage />} />
               <Route path="/create-workspace" element={<CreateWorkspacePage />} />

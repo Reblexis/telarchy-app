@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useWelcomeTour } from './useWelcomeTour';
+import { useTutorial } from './useTutorial';
 
 const STORAGE_PREFIX = 'telarchy.firstSeen.';
 
@@ -15,7 +15,8 @@ interface FirstSeenHint {
  * active so the two overlays never stack.
  */
 export function useFirstSeenHint(key: string): FirstSeenHint {
-  const { active: tourActive } = useWelcomeTour();
+  const { activeId, needsPersona } = useTutorial();
+  const tourActive = activeId !== null || needsPersona;
   const [shouldShow, setShouldShow] = useState(false);
   const storageKey = `${STORAGE_PREFIX}${key}`;
 
