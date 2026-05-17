@@ -741,6 +741,33 @@ export function listTemplates(): TemplateSummary[] {
   return out;
 }
 
+/**
+ * Title + description for the starter proposal that ships with every newly
+ * created workspace. The tour points at this proposal so a first-time user
+ * (or a demoing investor) sees the mechanism (proposal -> priced market ->
+ * approve) on a populated workspace, not an empty one.
+ */
+export function getStarterProposal(template: TemplateSpec): { title: string; description: string } {
+  switch (template.category) {
+    case 'startup':
+      return {
+        title: 'Actively use Telarchy to run this company',
+        description: 'Starter proposal. Approve if you intend to run real decisions through this workspace for at least one cycle. The conditional markets below price whether doing so will move the KPIs you just set up; participants forecast the impact and you decide.',
+      };
+    case 'personal':
+      return {
+        title: 'Actively use Telarchy for my personal goals',
+        description: 'Starter proposal. Approve if you intend to use this workspace to make decisions against your personal goals for at least one cycle. The conditional markets below price the predicted impact on each metric you just set up.',
+      };
+    case 'blank':
+    default:
+      return {
+        title: 'Try Telarchy for one cycle',
+        description: 'Starter proposal. Approve if you intend to use this workspace to make at least one real decision. The conditional markets below price predicted impact against the metrics in this workspace.',
+      };
+  }
+}
+
 export function listSupportedCurrencies(): string[] {
   return [...SUPPORTED_CURRENCIES];
 }

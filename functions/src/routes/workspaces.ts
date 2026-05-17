@@ -14,7 +14,8 @@ import { getAuthWorkspaceMemberships } from '../middleware/auth';
 import { resolveWorkspaceOwnerAgentId, provisionWorkspace } from '../lib/participants';
 import { voidMarket } from '../services/markets';
 import { ensureMarketsForTimePreference } from '../services/metrics';
-import { getTemplate, type TemplateParams } from '../lib/templates';
+import { getTemplate, getStarterProposal, type TemplateParams } from '../lib/templates';
+import { createConditionalMarkets } from '../services/proposals';
 import { parseVisibility, MIN_LIQUIDITY_CONTRIBUTION } from '../lib/validation';
 
 export const workspacesRouter = Router();
@@ -96,12 +97,47 @@ workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
     await ensureMarketsForTimePreference(id, halfLife, wsId);
   }
 
+  // Seed one starter proposal so the workspace is non-empty on first land.
+  // The product tour points at this proposal; without it, a brand new
+  // workspace cannot demonstrate the proposal -> market -> approval flow.
+  let starterProposalId: string | null = null;
+  if (ownerAgentId) {
+    try {
+      const starter = getStarterProposal(template);
+      const propId = randomUUID();
+      await db.insert(proposals).values({
+        id: propId,
+        workspaceId: wsId,
+        proposedBy: ownerAgentId,
+        title: starter.title,
+        description: starter.description,
+        status: 'pending',
+        conditionalMarketIds: [],
+        liquiditySubsidy: 0,
+        createdAt: new Date(),
+      });
+      const conditionalMarketIds = await createConditionalMarkets(propId, wsId, {
+        subsidyPerMarket: 0,
+        proposerAgentId: null,
+      });
+      if (conditionalMarketIds.length > 0) {
+        await db.update(proposals).set({ conditionalMarketIds })
+          .where(and(eq(proposals.id, propId), eq(proposals.workspaceId, wsId)));
+      }
+      starterProposalId = propId;
+    } catch (err) {
+      // Starter proposal is non-fatal: workspace creation must still succeed.
+      console.error(`Failed to seed starter proposal for workspace ${wsId}:`, err);
+    }
+  }
+
   res.status(201).json({
     id: wsId,
     name: name.trim(),
     visibility,
     template: template.id,
     metricsCreated: templateMetrics.length,
+    starterProposalId,
   });
 }));
 

@@ -3,6 +3,8 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { Logo } from './Logo';
 import { FeedbackModal } from './FeedbackModal';
+import { WelcomeTour } from './WelcomeTour';
+import { WelcomeTourProvider } from '../hooks/useWelcomeTour';
 import { useAuth } from '../hooks/useAuth';
 
 export function AppLayout() {
@@ -23,6 +25,7 @@ export function AppLayout() {
   }, [mobileOpen]);
 
   return (
+    <WelcomeTourProvider>
     <div className="app-layout">
       <header className="mobile-topbar">
         <Logo variant="mark" height="1.75rem" className="mobile-topbar-logo" />
@@ -61,6 +64,8 @@ export function AppLayout() {
         </button>
       )}
       <FeedbackModal open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
+      {user && <WelcomeTour />}
     </div>
+    </WelcomeTourProvider>
   );
 }

@@ -1,5 +1,6 @@
 import {
   getTemplate,
+  getStarterProposal,
   listTemplates,
   listSupportedCurrencies,
   type TemplateId,
@@ -141,5 +142,23 @@ describe('templates', () => {
     expect(codes).toContain('USD');
     expect(codes).toContain('EUR');
     expect(codes).toContain('GBP');
+  });
+
+  describe('getStarterProposal', () => {
+    test('returns startup-flavored copy for startup-category templates', () => {
+      const starter = getStarterProposal(getTemplate('saas'));
+      expect(starter.title.toLowerCase()).toContain('company');
+      expect(starter.description.length).toBeGreaterThan(0);
+    });
+
+    test('returns personal-flavored copy for personal-category templates', () => {
+      const starter = getStarterProposal(getTemplate('wellbeing'));
+      expect(starter.title.toLowerCase()).toContain('personal');
+    });
+
+    test('returns generic copy for the blank template', () => {
+      const starter = getStarterProposal(getTemplate('blank'));
+      expect(starter.title.toLowerCase()).toContain('try telarchy');
+    });
   });
 });

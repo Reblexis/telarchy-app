@@ -685,7 +685,7 @@ export function ProposalsPage() {
           </p>
         </div>
         {isAdmin && (
-          <button type="button" className="btn" onClick={() => setNewProposalOpen(true)}>
+          <button type="button" className="btn" data-tour-id="proposals-new" onClick={() => setNewProposalOpen(true)}>
             + New proposal
           </button>
         )}
@@ -722,10 +722,11 @@ export function ProposalsPage() {
               </tr>
             </thead>
             <tbody>
-              {proposals.map(proposal => (
+              {proposals.map((proposal, idx) => (
                 <tr
                   key={proposal.id}
                   className={`proposal-row${openProposalId === proposal.id ? ' proposal-row--active' : ''}`}
+                  data-tour-id={idx === 0 ? 'proposals-first-row' : undefined}
                   onClick={() => openProposal(proposal)}
                   tabIndex={0}
                   role="button"
