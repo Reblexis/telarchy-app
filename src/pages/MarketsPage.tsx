@@ -13,6 +13,7 @@ import { TradingPanel } from '../components/TradingPanel';
 import { MarketComments } from '../components/MarketComments';
 import { ProbabilitySlider } from '../components/ProbabilitySlider';
 import { InspectIndicator } from '../components/InspectIndicator';
+import { FirstSeenHint } from '../components/FirstSeenHint';
 import type { Market, MarketStatus, Metric, Proposal } from '../types';
 
 type SortKey = 'metric' | 'target' | 'prediction';
@@ -338,6 +339,18 @@ export function MarketsPage() {
             <div className="markets-empty">No markets match the current filters.</div>
           ) : (
             <div className="markets-list">
+              <FirstSeenHint
+                hintKey="markets-list"
+                target=".market-card"
+                title="Trade a forecast"
+                body={
+                  <>
+                    Every priced market across every proposal is here. Click a card
+                    to expand it, then place a trade to put your forecast on the
+                    record. Correct forecasts earn credits; wrong ones cost them.
+                  </>
+                }
+              />
               {sortedMarkets.map(m => {
                 const expanded = expandedIds.includes(m.id);
                 const timeRemaining = m.status === 'open' ? formatTimeRemaining(m.targetDate) : null;

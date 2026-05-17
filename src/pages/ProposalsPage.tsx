@@ -6,6 +6,7 @@ import { useInspectMode } from '../hooks/useInspectMode';
 import { api } from '../lib/api';
 import { formatTargetDateDisplay } from '../lib/date-utils';
 import type { Proposal, ProposalMessage, ProposalMarketSummary, ProposalDetailData, ProposalStatus } from '../types';
+import { FirstSeenHint } from '../components/FirstSeenHint';
 
 function StatusBadge({ status }: { status: ProposalStatus }) {
   return <span className={`status-badge proposal-status proposal-status--${status}`}>{status}</span>;
@@ -420,10 +421,23 @@ function ProposalDrawer({ proposal, isAdmin, onClose, onAction, onError }: Propo
             </div>
           )}
 
-          <section className="proposal-drawer-section">
+          <section className="proposal-drawer-section" data-tour-id="proposal-impact-section">
             <h4>Impact predictions</h4>
             <PredictionsTable markets={proposal.markets ?? []} />
           </section>
+          <FirstSeenHint
+            hintKey="proposal-impact"
+            target='[data-tour-id="proposal-impact-section"]'
+            title="Conditional markets"
+            body={
+              <>
+                Each row is a market forecast for one of your metrics under the
+                assumption this proposal is approved. The spread shows participant
+                disagreement, wider = more uncertain. Use <strong>Inspect</strong>{' '}
+                above to overlay the predicted impact on your Metrics page.
+              </>
+            }
+          />
 
           <section className="proposal-drawer-section">
             <h4>Discussion</h4>
