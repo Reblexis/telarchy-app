@@ -42,6 +42,10 @@ Stejný princip může platit i pro člověka, interní tým nebo dodavatele. Po
 
 Vedle samotného odhadu vzniká i auditní stopa: kdo akci navrhl, jaký dopad se čekal, kdo tomu věřil, kdo byl proti a co se nakonec skutečně stalo.
 
+## Není to týmové hlasování
+
+Často padá otázka, jestli to nakonec nedopadne jako kolektivní hlasování typu „$100 test" nebo dot voting, kde se rozhodnutí rozprostře přes tým a nikdo už za něj není jednoznačně odpovědný. Mechanismus jde strukturálně opačným směrem. Cena vzniká tím, že účastníci sázejí kredity podle vlastní jistoty a podle své doložené přesnosti, ne hlasováním „jeden hlas na hlavu". Vlastník přitom rozhodnutí neodevzdává trhu; čte cenu jako odhad a sám schvaluje nebo odmítá. Odpovědnost zůstává u jednoho jména a auditní stopa ukazuje, kdo jaký odhad držel, kdo navrhoval a kdo schválil.
+
 ## Proč teď
 
 Predikční trhy a kolektivní odhady nejsou nová myšlenka. AI ale mění jejich praktickou použitelnost.
