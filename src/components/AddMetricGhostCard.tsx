@@ -29,9 +29,12 @@ export function AddMetricGhostCard({ onAdd, autoFocus }: AddMetricGhostCardProps
   useEffect(() => {
     if (!isExpanded) return;
     const handler = (e: MouseEvent) => {
-      if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
-        collapse();
-      }
+      const target = e.target as Node;
+      if (cardRef.current && cardRef.current.contains(target)) return;
+      // Don't collapse when the user clicks inside the welcome tour overlay;
+      // the tour is actively coaching this form.
+      if (target instanceof Element && target.closest('.tour-coach, .tour-overlay')) return;
+      collapse();
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
@@ -89,6 +92,7 @@ export function AddMetricGhostCard({ onAdd, autoFocus }: AddMetricGhostCardProps
     return (
       <div
         className="metric-card add-metric-ghost"
+        data-tour-id="metric-add-ghost"
         onClick={() => setIsExpanded(true)}
       >
         <span className="ghost-icon">+</span>
@@ -100,6 +104,7 @@ export function AddMetricGhostCard({ onAdd, autoFocus }: AddMetricGhostCardProps
   return (
     <div
       className="metric-card add-metric-ghost expanded"
+      data-tour-id="metric-add-ghost"
       ref={cardRef}
       onKeyDown={handleKeyDown}
     >
@@ -108,6 +113,7 @@ export function AddMetricGhostCard({ onAdd, autoFocus }: AddMetricGhostCardProps
           ref={nameRef}
           type="text"
           className="metric-name-input"
+          data-tour-id="metric-form-name"
           placeholder="Metric name"
           value={name}
           onChange={e => setName(e.target.value)}
@@ -118,6 +124,7 @@ export function AddMetricGhostCard({ onAdd, autoFocus }: AddMetricGhostCardProps
         <button
           type="button"
           className="add-metric-toggle"
+          data-tour-id="metric-form-more-options"
           onClick={() => setShowAdvanced(!showAdvanced)}
         >
           {showAdvanced ? '- Less options' : '+ More options'}

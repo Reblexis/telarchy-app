@@ -121,6 +121,7 @@ export function Sidebar({ className = '' }: { className?: string }) {
                       <Link
                         key={link.to}
                         to={link.to}
+                        data-tour-id={`nav-${link.to.slice(1)}`}
                         className={`sidebar-nav-item sidebar-subnav-item${currentPath === link.to ? ' active' : ''}`}
                       >
                         {link.label}

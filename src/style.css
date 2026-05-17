@@ -6031,10 +6031,58 @@ code, pre, kbd, samp {
   transform: translateY(-50%) rotate(45deg);
 }
 
+.tour-coach-arrow-right::before {
+  top: 50%;
+  right: -7px;
+  left: auto;
+  transform: translateY(-50%) rotate(-135deg);
+}
+
 .tour-coach-arrow-top::before {
   top: -7px;
   left: 24px;
   transform: rotate(135deg);
+}
+
+.tour-coach-arrow-bottom::before {
+  top: auto;
+  bottom: -7px;
+  left: 24px;
+  border-left: none;
+  border-bottom: none;
+  border-right: 1px solid var(--border-color);
+  border-top: 1px solid var(--border-color);
+  transform: rotate(135deg);
+}
+
+.tour-progress {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: center;
+  margin: 1rem 0 0.25rem;
+}
+
+.tour-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border-color);
+}
+
+.tour-dot-done {
+  background: var(--accent-soft);
+}
+
+.tour-dot-active {
+  background: var(--accent);
+  width: 18px;
+}
+
+.tour-coach code {
+  background: var(--bg-secondary);
+  padding: 0.05rem 0.3rem;
+  border-radius: var(--radius-xs);
+  font-size: 0.85em;
 }
 
 /* Glow halo on the focused target element */
