@@ -2,7 +2,18 @@ import type { ReactNode } from 'react';
 
 export type Persona = 'builder' | 'trader' | 'agent';
 
-export type TutorialId = 'builder' | 'trader' | 'agent';
+export type PersonaTutorialId = 'builder' | 'trader' | 'agent';
+
+export type TabTutorialId =
+  | 'tab-metrics'
+  | 'tab-markets'
+  | 'tab-proposals'
+  | 'tab-sources'
+  | 'tab-marketplace'
+  | 'tab-leaderboard'
+  | 'tab-participants';
+
+export type TutorialId = PersonaTutorialId | TabTutorialId;
 
 export interface TutorialStep {
   id: string;

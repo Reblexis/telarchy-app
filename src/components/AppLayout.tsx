@@ -5,6 +5,7 @@ import { Logo } from './Logo';
 import { FeedbackModal } from './FeedbackModal';
 import { PersonaPicker } from './PersonaPicker';
 import { TutorialOverlay } from './TutorialOverlay';
+import { TabTourBanner } from './TabTourBanner';
 import { TutorialProvider } from '../hooks/useTutorial';
 import { useAuth } from '../hooks/useAuth';
 
@@ -46,6 +47,7 @@ export function AppLayout() {
         aria-hidden="true"
       />
       <main className="page-content">
+        {user && <TabTourBanner />}
         <Outlet />
       </main>
       {user && (

@@ -6295,6 +6295,74 @@ code, pre, kbd, samp {
   flex-shrink: 0;
 }
 
+/* ===== Tab tour opt-in banner ===== */
+.tab-tour-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 0 1.25rem;
+  padding: 0.6rem 1rem;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  font-size: 0.88rem;
+  color: var(--text-primary);
+}
+
+.tab-tour-banner-text {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.4;
+}
+
+.tab-tour-banner-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.tab-tour-banner-btn {
+  font-size: 0.83rem;
+  font-weight: 500;
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.tab-tour-banner-btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.tab-tour-banner-btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.tab-tour-banner-btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.tab-tour-banner-btn-ghost:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+@media (max-width: 720px) {
+  .tab-tour-banner {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .tab-tour-banner-actions {
+    justify-content: flex-end;
+  }
+}
+
 /* Glow halo on the focused target element */
 .tour-target-glow {
   position: relative;

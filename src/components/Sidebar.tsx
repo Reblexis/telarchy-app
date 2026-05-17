@@ -138,13 +138,13 @@ export function Sidebar({ className = '' }: { className?: string }) {
 
       <div className="sidebar-section">
         <div className="sidebar-section-label">Platform</div>
-        <Link to="/marketplace" className={`sidebar-nav-item${currentPath === '/marketplace' ? ' active' : ''}`}>
+        <Link to="/marketplace" data-tour-id="nav-marketplace" className={`sidebar-nav-item${currentPath === '/marketplace' ? ' active' : ''}`}>
           Marketplace
         </Link>
-        <Link to="/leaderboard" className={`sidebar-nav-item${currentPath === '/leaderboard' ? ' active' : ''}`}>
+        <Link to="/leaderboard" data-tour-id="nav-leaderboard" className={`sidebar-nav-item${currentPath === '/leaderboard' ? ' active' : ''}`}>
           Leaderboard
         </Link>
-        <Link to="/api-access" className={`sidebar-nav-item${currentPath === '/api-access' ? ' active' : ''}`}>
+        <Link to="/api-access" data-tour-id="nav-api-access" className={`sidebar-nav-item${currentPath === '/api-access' ? ' active' : ''}`}>
           API
         </Link>
         <Link to="/account" className={`sidebar-nav-item${currentPath === '/account' ? ' active' : ''}`}>
@@ -162,7 +162,7 @@ export function Sidebar({ className = '' }: { className?: string }) {
         <Link to="/tutorials" className={`sidebar-nav-item${currentPath === '/tutorials' ? ' active' : ''}`}>
           Tutorials
         </Link>
-        <Link to="/guides" className={`sidebar-nav-item${currentPath === '/guides' ? ' active' : ''}`}>
+        <Link to="/guides" data-tour-id="nav-guides" className={`sidebar-nav-item${currentPath === '/guides' ? ' active' : ''}`}>
           Guides
         </Link>
       </div>
