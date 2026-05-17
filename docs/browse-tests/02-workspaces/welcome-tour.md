@@ -159,16 +159,27 @@ sleep 4
 STEP_TITLE=$($B js "document.querySelector('.tour-coach-title')?.textContent || ''")
 tt_assert_contains "Add your first metric" "$STEP_TITLE" "T5 advanced past Workspace step to Add metric" || TOUR_FAILS=$((TOUR_FAILS+1))
 
-# T6. Add a metric via API; tour should auto-advance to Check-in.
+# T6a. The coach overlay must NOT block clicks to the highlighted target.
+# Scroll the + Add metric ghost card into view and click it; the form
+# should expand (revealing the Name input). This catches the
+# "pointer-events on overlay" regression class.
+$B js "document.querySelector('[data-tour-id=\"metric-add-ghost\"]')?.scrollIntoView({block:'center'}); 'scrolled'" >/dev/null
+sleep 1
+$B click '[data-tour-id="metric-add-ghost"]' >/dev/null
+sleep 1
+EXPANDED=$($B is visible '[data-tour-id="metric-form-name"]')
+tt_assert_eq "true" "$EXPANDED" "T6a click on highlighted ghost card expanded the form (overlay does not block)" || TOUR_FAILS=$((TOUR_FAILS+1))
+
+# T6b. Now add a metric via API to verify the polling layer advances.
 WS_DEFAULT=$($B js "localStorage.getItem('activeWorkspaceId')" | tr -d '"')
 METRIC_ID=$(curl -sf -b "$COOKIE_JAR" -H "Content-Type: application/json" -H "X-Workspace-Id: $WS_DEFAULT" \
   -X POST -d '{"name":"Tutorial test metric '"$TT_NS"'","value":0,"formula":"0","marketRangeMax":100,"timePreference":{"enabled":true,"halfLife":1}}' \
   "$TT_BASE_URL/api/metrics" | jq -r '.id')
 sleep 5
 STEP_TITLE=$($B js "document.querySelector('.tour-coach-title')?.textContent || ''")
-tt_assert_contains "Log a current value" "$STEP_TITLE" "T6 advanced to Check-in after metric add" || TOUR_FAILS=$((TOUR_FAILS+1))
+tt_assert_contains "Log a current value" "$STEP_TITLE" "T6b advanced to Check-in after metric add" || TOUR_FAILS=$((TOUR_FAILS+1))
 URL=$($B url)
-tt_assert_contains "/check-in" "$URL" "T6 navigated to /check-in" || TOUR_FAILS=$((TOUR_FAILS+1))
+tt_assert_contains "/check-in" "$URL" "T6b navigated to /check-in" || TOUR_FAILS=$((TOUR_FAILS+1))
 
 # T7. Update the metric value via API; tour should auto-advance to Submit proposal.
 curl -sf -b "$COOKIE_JAR" -H "Content-Type: application/json" -H "X-Workspace-Id: $WS_DEFAULT" \
@@ -201,13 +212,17 @@ sleep 1
 COMPLETED=$($B js "localStorage.getItem('telarchy.tutorial.completed.v3') || '[]'")
 tt_assert_contains "builder" "$COMPLETED" "T10 builder tutorial recorded as completed" || TOUR_FAILS=$((TOUR_FAILS+1))
 
-# T11. Tutorials hub page renders with the three tracks.
-$B goto "$TT_FRONTEND_URL/tutorials"
+# T11. Tutorials launcher is reachable from inside the Guides tab.
+$B goto "$TT_FRONTEND_URL/guides"
 $B wait --networkidle
 sleep 1
+$B click '[data-tour-id="guides-nav-tutorials"]' >/dev/null
+sleep 1
+LAUNCHER_VIS=$($B is visible '[data-tour-id="tutorials-launcher"]')
+tt_assert_eq "true" "$LAUNCHER_VIS" "T11 Guides 'Interactive tutorials' shows launcher" || TOUR_FAILS=$((TOUR_FAILS+1))
 for id in builder trader agent; do
   if [ "$($B is visible "[data-tour-id=\"tutorial-card-$id\"]")" = "true" ]; then
-    echo "T11 PASS: tutorial card $id rendered"
+    echo "T11 PASS: tutorial card $id rendered inside Guides"
   else
     echo "T11 FAIL: tutorial card $id missing"
     TOUR_FAILS=$((TOUR_FAILS+1))

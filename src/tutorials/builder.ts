@@ -41,7 +41,7 @@ export const builderTutorial: Tutorial = {
       navigate: '/create-workspace',
       target: 'form input[type="text"], input[name="name"], input[placeholder*="name" i]',
       title: 'Name your workspace',
-      body: () => "Give your workspace a name (your company, your project, or your goals). Pick the template that matches what you're tracking. I'll wait while you submit.",
+      body: () => "Give your workspace a name (your company, your project, or your goals). Pick the template that fits. I'll wait while you submit.",
       capture: async () => null,
       waitFor: async () => {
         try {
@@ -59,15 +59,15 @@ export const builderTutorial: Tutorial = {
       navigate: '/metrics',
       target: '[data-tour-id="metric-add-ghost"]',
       title: 'Add your first metric',
-      body: () => "Click the + Add metric card and define one KPI. Use something objectively measurable. I'll wait while you save.",
-      capture: async (ctx) => {
-        if (!ctx.workspaceId) return 0;
+      body: () => "Click the + Add metric card and define one KPI. Pick whatever you actually want to track. I'll wait while you save.",
+      capture: async () => {
         try {
           const ms = await api.getMetrics();
-          return Array.isArray(ms) ? (ms as Array<{ id: string }>).length : 0;
-        } catch { return 0; }
+          return Array.isArray(ms) ? (ms as Array<{ id: string }>).length : null;
+        } catch { return null; }
       },
       waitFor: async (initial) => {
+        if (initial === null) return false;
         try {
           const ms = await api.getMetrics();
           const n = Array.isArray(ms) ? (ms as Array<{ id: string }>).length : 0;

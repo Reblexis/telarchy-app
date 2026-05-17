@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { TutorialsLauncher } from '../components/TutorialsLauncher';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -66,11 +67,15 @@ export function GuidesPage() {
   // Keep the URL in sync with the active section so /guides/<id> works for
   // both deep-links (handled by routeSection above) and the in-page nav.
   useEffect(() => {
-    if (active && active !== routeSection) navigate(`/guides/${active}`, { replace: true });
+    if (!active) return;
+    // Sentinel for the in-page tutorials view; do not push to the URL.
+    if (active === '__tutorials__') return;
+    if (active !== routeSection) navigate(`/guides/${active}`, { replace: true });
   }, [active, routeSection, navigate]);
 
   useEffect(() => {
     if (!active) return;
+    if (active === '__tutorials__') { setContent(''); setLoading(false); return; }
     if (cache.current.has(active)) {
       setContent(cache.current.get(active)!);
       setLoading(false);
@@ -131,6 +136,30 @@ export function GuidesPage() {
               <h1 style={{ fontSize: '1.05rem', fontWeight: 600, margin: '0 0 0.2rem', letterSpacing: '-0.01em' }}>Guides</h1>
               <p style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)', margin: 0 }}>How Telarchy works.</p>
             </div>
+            <button
+              type="button"
+              onClick={() => setActive('__tutorials__')}
+              className="guides-nav-item"
+              data-tour-id="guides-nav-tutorials"
+              style={{
+                display: 'block',
+                width: '100%',
+                textAlign: 'left',
+                padding: '0.4rem 0.75rem',
+                fontSize: '0.84rem',
+                fontWeight: active === '__tutorials__' ? 600 : 500,
+                color: active === '__tutorials__' ? 'var(--text-primary)' : 'var(--accent)',
+                background: active === '__tutorials__' ? 'var(--bg-secondary)' : 'none',
+                border: 'none',
+                borderLeft: `2px solid ${active === '__tutorials__' ? 'var(--accent)' : 'transparent'}`,
+                borderRadius: '0 var(--radius-sm) var(--radius-sm) 0',
+                cursor: 'pointer',
+                marginBottom: '1rem',
+                transition: 'all var(--transition-fast)',
+              }}
+            >
+              Interactive tutorials
+            </button>
             {categories.map(cat => {
               const list = sectionsByCategory.get(cat.id) ?? [];
               if (list.length === 0) return null;
@@ -183,6 +212,10 @@ export function GuidesPage() {
           </nav>
 
           <article className="guides-article" style={{ flex: 1, minWidth: 0, opacity: loading ? 0.5 : 1, transition: 'opacity 0.1s', paddingBottom: '4rem' }}>
+            {active === '__tutorials__' ? (
+              <TutorialsLauncher />
+            ) : (
+            <>
             {activeCategory && activeSection && (
               <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginBottom: '0.75rem', display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                 <span>{activeCategory.title}</span>
@@ -311,6 +344,8 @@ export function GuidesPage() {
                   </button>
                 ) : <div style={{ flex: 1 }} />}
               </div>
+            )}
+            </>
             )}
           </article>
         </div>

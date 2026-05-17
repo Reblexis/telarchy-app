@@ -174,11 +174,13 @@ $B js "Array.from(document.querySelectorAll('button.tour-btn-ghost')).find(b => 
 sleep 1
 ```
 
-### T5. Trader persona tutorial reachable from the Tutorials hub
+### T5. Trader persona tutorial reachable from inside the Guides tab
 
 ```bash
-$B goto "$TT_FRONTEND_URL/tutorials"
+$B goto "$TT_FRONTEND_URL/guides"
 $B wait --networkidle
+sleep 1
+$B click '[data-tour-id="guides-nav-tutorials"]' >/dev/null
 sleep 1
 # Find the "Forecast and trade" card and click its primary button.
 took=$($B js "(() => {
@@ -202,11 +204,13 @@ $B js "Array.from(document.querySelectorAll('button.tour-btn-ghost')).find(b => 
 sleep 1
 ```
 
-### T6. AI Agent persona tutorial reachable from the Tutorials hub
+### T6. AI Agent persona tutorial reachable from inside the Guides tab
 
 ```bash
-$B goto "$TT_FRONTEND_URL/tutorials"
+$B goto "$TT_FRONTEND_URL/guides"
 $B wait --networkidle
+sleep 1
+$B click '[data-tour-id="guides-nav-tutorials"]' >/dev/null
 sleep 1
 took=$($B js "(() => {
   const cards = document.querySelectorAll('.tutorial-card');
@@ -227,14 +231,16 @@ $B js "Array.from(document.querySelectorAll('button.tour-btn-ghost')).find(b => 
 sleep 1
 ```
 
-### T7. Hub lists all 10 tutorials (3 persona + 7 tab)
+### T7. Guides Tutorials launcher lists all 10 tutorials (3 persona + 7 tab)
 
 ```bash
-$B goto "$TT_FRONTEND_URL/tutorials"
+$B goto "$TT_FRONTEND_URL/guides"
 $B wait --networkidle
 sleep 1
+$B click '[data-tour-id="guides-nav-tutorials"]' >/dev/null
+sleep 1
 N=$($B js "document.querySelectorAll('.tutorial-card').length")
-tt_assert_eq "10" "$N" "T7 hub lists 10 tutorial cards" || TAB_FAILS=$((TAB_FAILS+1))
+tt_assert_eq "10" "$N" "T7 launcher lists 10 tutorial cards" || TAB_FAILS=$((TAB_FAILS+1))
 ```
 
 ## Exit

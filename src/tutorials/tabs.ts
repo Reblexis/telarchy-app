@@ -43,7 +43,7 @@ const metricsTabTutorial: Tutorial = {
       id: 'add', kind: 'coach', navigate: '/metrics',
       target: '[data-tour-id="metric-add-ghost"]',
       title: 'Add metrics',
-      body: () => "Every metric needs a name. Click + Add metric, expand More options to set an initial value, formula, market range, and half-life. Half-life determines how fast future values discount in forecasts.",
+      body: () => "Every metric needs a name. Click + Add metric, expand More options to set an initial value, formula, market range, and half-life. Half-life determines how fast future values discount in forecasts. Track whatever matters to you.",
       primaryLabel: 'Next',
     },
     {

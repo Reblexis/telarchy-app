@@ -159,9 +159,6 @@ export function Sidebar({ className = '' }: { className?: string }) {
             Top up credits (USDC)
           </Link>
         )}
-        <Link to="/tutorials" className={`sidebar-nav-item${currentPath === '/tutorials' ? ' active' : ''}`}>
-          Tutorials
-        </Link>
         <Link to="/guides" data-tour-id="nav-guides" className={`sidebar-nav-item${currentPath === '/guides' ? ' active' : ''}`}>
           Guides
         </Link>

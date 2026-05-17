@@ -5892,11 +5892,15 @@ code, pre, kbd, samp {
 
 .tour-overlay-coach {
   background: rgba(17, 17, 22, 0.35);
-  cursor: pointer;
+  /* Coach steps tell the user to interact with the highlighted target,
+     so the dim layer MUST NOT block clicks. The card itself
+     (.tour-coach) re-enables pointer-events for its own buttons. */
+  pointer-events: none;
 }
 
 .tour-overlay-loading {
   background: rgba(17, 17, 22, 0.2);
+  pointer-events: none;
 }
 
 @keyframes tour-fade-in {
@@ -6006,6 +6010,9 @@ code, pre, kbd, samp {
   box-shadow: var(--shadow-lg);
   padding: 1rem 1.1rem 0.85rem;
   animation: tour-card-in 0.15s ease-out;
+  /* Parent overlay disables pointer-events so the highlighted target
+     stays clickable; re-enable on the card so its buttons work. */
+  pointer-events: auto;
 }
 
 .tour-coach-body {
@@ -6293,6 +6300,32 @@ code, pre, kbd, samp {
 
 .tutorial-card-actions {
   flex-shrink: 0;
+}
+
+.tutorials-launcher {
+  margin: 0;
+}
+
+.tutorials-launcher-header {
+  margin: 0 0 0.75rem;
+}
+
+.tutorials-launcher-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+  color: var(--text-primary);
+}
+
+.tutorials-launcher-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.tutorials-launcher-compact .tutorials-list {
+  margin-top: 0.5rem;
 }
 
 /* ===== Tab tour opt-in banner ===== */
