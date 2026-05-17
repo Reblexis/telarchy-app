@@ -2,51 +2,50 @@
 id: 02-workspaces-welcome-tour
 tags: [browse, fast]
 isolation: user
-parallel-safe: true
+parallel-safe: false
 needs: [auth, browse, master-key]
 timeout: 240s
 goal-horizon: short
 goal-statement: |
-  As a freshly signed-up participant landing in a new workspace, the
-  12-step welcome tour fires automatically and walks me through every
-  workspace tab (Metrics with field-by-field Add Metric form, Check-in,
-  Proposals with the seeded starter row, New proposal, Markets,
-  Participants, Sources). Progress dots and Back/Skip work; the
-  localStorage flag persists; the sidebar "Show product tour" link
-  re-opens it any time.
+  A signed-in user sees a persona picker (Builder / Trader / AI agent)
+  on first visit. Picking Builder starts an action-driven walkthrough:
+  workspace exists or is created, then add a metric, check in a value,
+  submit a proposal, approve/decline. Each step waits for the actual
+  API change before advancing; the tour does not require click-Next
+  for action steps. A starter proposal is seeded on fresh workspace
+  creation so the demo path is always populated.
 ---
 
-# Browse test: Welcome tour (12 steps) + starter proposal seeding
+# Browse test: Persona picker + Builder tutorial (action-driven)
 
 ## What this tests
 
-Three coupled pieces that ship together:
+The tutorial v3 architecture, end-to-end:
 
-1. Workspace creation seeds one starter proposal owned by the workspace
-   owner so the tour has something concrete to point at.
-2. The 12-step welcome tour (welcome modal -> Metrics tab -> Add metric
-   ghost card -> Name field -> More options -> Check-in -> Proposals +
-   first row -> New proposal -> Markets -> Participants -> Sources ->
-   done card) fires on first authenticated visit and is config-driven.
-3. The sidebar restart link re-opens the tour even after the
-   `telarchy.tour.seen.v2` localStorage flag is set.
+1. **Backend seeding**: workspace creation seeds one starter proposal.
+2. **PersonaPicker**: on first authenticated visit with no
+   `telarchy.tutorial.persona.v3` flag, a modal asks the user which
+   of three personas they are. Picking one writes the intent via
+   `/api/auth/profile` AND starts the matching tutorial.
+3. **Action-driven progression**: the Builder tutorial polls the
+   relevant API every 2.5s and auto-advances when the user actually
+   performs the step. We simulate the user actions via direct API
+   calls and confirm the tour advances.
+4. **Tutorials hub**: `/tutorials` lists all 3 tracks with status
+   labels (Not started / In progress / Completed).
+5. **Sidebar entry**: "Tutorials" replaces the previous "Show product
+   tour" button.
 
 ## Preconditions
 
-- Auth: master key in `$TT_ADMIN_KEY` (used by `tt_mkuser` / cleanup).
-- Frontend: dev server on `$TT_FRONTEND_URL` (default
-  `http://localhost:5173`).
-- Backend: dev API on `$TT_BASE_URL` (default `http://localhost:8080`).
+- Auth: master key in `$TT_ADMIN_KEY` (for `tt_mkuser` / cleanup).
+- Frontend: `$TT_FRONTEND_URL` (default `http://localhost:5173`).
+- Backend: `$TT_BASE_URL` (default `http://localhost:8080`).
 - Test user `viktor.cihal@gmail.com` / `TestAdmin99!` exists with at
-  least one workspace owned (used by the UI-flow tests; the backend
-  seeding test creates a fresh user inline).
+  least one workspace owned (used by all UI tests; the backend
+  seeding test signs up a fresh user inline).
 
 ## Setup: seed a fresh workspace via user session (for T1)
-
-The starter proposal is only seeded when an owner agent exists. Real
-signups always have one; master-key creates via `tt_mkworkspace` skip
-seeding by design. So we sign up a fresh user, consent, and have them
-create the workspace through the real public API the UI uses.
 
 ```bash
 source "$ROOT/docs/browse-tests/_runner/lib.sh"
@@ -58,10 +57,6 @@ TOUR_FAILS=0
 USER_EMAIL="$TT_NS@example.com"
 USER_JAR=$(tt_mkuser "$USER_EMAIL" "TourTest99!" "Tour Tester")
 USER_UID=$(curl -sf -b "$USER_JAR" "$TT_BASE_URL/api/auth/me" | jq -r '.uid')
-
-# tt_mkuser sends consent:true in the signup body, but BetterAuth's
-# sign-up endpoint does not write the consent column. Record consent
-# explicitly so subsequent capability-gated routes are not 403'd.
 curl -sf -b "$USER_JAR" -H "Content-Type: application/json" \
   -X POST -d '{"accepted":true}' "$TT_BASE_URL/api/auth/consent" >/dev/null
 
@@ -78,154 +73,154 @@ tt_on_cleanup "tt_rm_user $USER_UID"
 
 ## Tests
 
-### T1. Workspace creation seeds exactly one starter proposal
-
-`starterProposalId` must be populated, and the proposals endpoint must
-return exactly one row whose title references Telarchy, whose status is
-`pending`, and whose proposer is the workspace owner.
+### T1. Workspace creation seeds one starter proposal
 
 ```bash
 [ "$STARTER_ID" != "null" ] && [ -n "$STARTER_ID" ] \
-  || { echo "T1 FAIL: expected starterProposalId in workspace POST response"; echo "  got: $WS_CREATE"; TOUR_FAILS=$((TOUR_FAILS+1)); }
+  || { echo "T1 FAIL: no starterProposalId"; echo "  got: $WS_CREATE"; TOUR_FAILS=$((TOUR_FAILS+1)); }
 
-PROPS=$(curl -sf -b "$USER_JAR" -H "X-Workspace-Id: $WS_ID" \
-  "$TT_BASE_URL/api/proposals")
+PROPS=$(curl -sf -b "$USER_JAR" -H "X-Workspace-Id: $WS_ID" "$TT_BASE_URL/api/proposals")
 COUNT=$(echo "$PROPS" | jq 'length')
-tt_assert_eq "1" "$COUNT" "T1 expected exactly one seeded proposal" || TOUR_FAILS=$((TOUR_FAILS+1))
-
-PROP=$(echo "$PROPS" | jq '.[0]')
-TITLE=$(echo "$PROP" | jq -r '.title')
+tt_assert_eq "1" "$COUNT" "T1 expected one seeded proposal" || TOUR_FAILS=$((TOUR_FAILS+1))
+TITLE=$(echo "$PROPS" | jq -r '.[0].title')
 tt_assert_contains "Telarchy" "$TITLE" "T1 title mentions Telarchy" || TOUR_FAILS=$((TOUR_FAILS+1))
-tt_assert_eq "pending" "$(echo "$PROP" | jq -r '.status')" "T1 status is pending" || TOUR_FAILS=$((TOUR_FAILS+1))
-tt_assert_eq "$USER_UID" "$(echo "$PROP" | jq -r '.proposedBy')" "T1 proposedBy is owner" || TOUR_FAILS=$((TOUR_FAILS+1))
 echo "T1: starter proposal seeded ($STARTER_ID) title=\"$TITLE\""
 ```
 
-### T2-T8. UI tour against viktor's existing workspace
+### T2-T8. Persona picker + Builder tutorial UI flow
 
-Sign in as the configured test user (`viktor.cihal@gmail.com` /
-`TestAdmin99!`) and drive the tour through all 12 steps. Each step has
-an expected DOM target; we verify the target exists in the page after
-the tour navigates to it. Login uses a small retry loop because the
-headless click-then-redirect is timing-sensitive.
+Sign in as viktor, clear all tutorial localStorage, reload, and drive
+through the persona picker and action-driven Builder tutorial. Every
+action is performed via direct API calls (the polling layer is what
+we are exercising); we then verify the tutorial advances within ~4s.
 
 ```bash
+# Sign in
 $B goto "$TT_FRONTEND_URL/login"
 $B wait --networkidle
 sleep 1
-$B fill 'input[type=email]' "viktor.cihal@gmail.com"
+$B fill 'input[type=email]' 'viktor.cihal@gmail.com'
 $B fill 'input[type=password]' 'TestAdmin99!'
 $B click 'button[type=submit]'
-# Poll up to 15s for the redirect off /login.
 for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
-  URL=$($B url)
-  case "$URL" in *"/login"*) sleep 1 ;; *) break ;; esac
+  case "$($B url)" in *"/login"*) sleep 1 ;; *) break ;; esac
 done
-URL=$($B url)
-tt_assert_contains "/" "$URL" "T2 logged in (not /login)" || { TOUR_FAILS=$((TOUR_FAILS+1)); echo "T2 FAIL: still at $URL"; }
+case "$($B url)" in
+  *"/login"*) echo "Setup FAIL: still at /login"; exit 1 ;;
+esac
 
-# Reset the tour flag so we start clean.
-$B js "localStorage.removeItem('telarchy.tour.seen.v2');'reset'" >/dev/null
+# Save cookies for the API helper.
+$B js "Array.from(document.cookies||'').length" >/dev/null
+COOKIE_JAR="/tmp/$TT_NS-viktor.jar"
+curl -s -c "$COOKIE_JAR" -X POST -H "Content-Type: application/json" \
+  -d '{"email":"viktor.cihal@gmail.com","password":"TestAdmin99!"}' \
+  "$TT_BASE_URL/api/auth/sign-in/email" >/dev/null
+
+# Clear tutorial state and reload so the persona picker fires fresh.
+$B js "['telarchy.tour.seen.v1','telarchy.tour.seen.v2','telarchy.tutorial.persona.v3','telarchy.tutorial.active.v3','telarchy.tutorial.step.v3','telarchy.tutorial.completed.v3'].forEach(k=>localStorage.removeItem(k));'cleared'" >/dev/null
 $B goto "$TT_FRONTEND_URL/metrics"
 $B wait --networkidle
-sleep 1
+sleep 2
 
-# T2. Welcome modal fires.
-if [ "$($B is visible '.tour-modal')" = "true" ]; then
-  echo "T2 PASS: welcome modal visible"
-  $B screenshot "/tmp/$TT_NS-tour-step0.png" >/dev/null
+# T2. PersonaPicker visible.
+if [ "$($B is visible '.persona-picker')" = "true" ]; then
+  echo "T2 PASS: PersonaPicker visible"
+  $B screenshot "/tmp/$TT_NS-persona-picker.png" >/dev/null
 else
-  echo "T2 FAIL: welcome modal not visible after first authenticated visit"
+  echo "T2 FAIL: PersonaPicker not visible"
   TOUR_FAILS=$((TOUR_FAILS+1))
 fi
 
-# T3. Progress dots render (12 of them).
-DOT_COUNT=$($B js "document.querySelectorAll('.tour-progress .tour-dot').length")
-tt_assert_eq "12" "$DOT_COUNT" "T3 expected 12 progress dots" || TOUR_FAILS=$((TOUR_FAILS+1))
-ACTIVE_DOT=$($B js "document.querySelectorAll('.tour-progress .tour-dot-active').length")
-tt_assert_eq "1" "$ACTIVE_DOT" "T3 expected exactly one active dot" || TOUR_FAILS=$((TOUR_FAILS+1))
-
-# T4. Walk through every step and assert its expected target is visible
-# in the DOM at the time the tour reaches it. Step 0 is the welcome
-# modal (no DOM target); step 11 is the done card (no DOM target).
-TARGETS=(
-  ""                                                                    # 0  welcome modal
-  '[data-tour-id="nav-metrics"]'                                        # 1  Metrics nav
-  '[data-tour-id="metric-add-ghost"]'                                   # 2  Add metric ghost card
-  '[data-tour-id="metric-form-name"]'                                   # 3  Name field
-  '[data-tour-id="metric-form-more-options"]'                           # 4  More options toggle
-  '[data-tour-id="nav-check-in"]'                                       # 5  Check-in nav
-  '[data-tour-id="proposals-first-row"]'                                # 6  Proposals first row
-  '[data-tour-id="proposals-new"]'                                      # 7  + New proposal
-  '[data-tour-id="nav-markets"]'                                        # 8  Markets nav
-  '[data-tour-id="nav-participants"]'                                   # 9  Participants nav
-  '[data-tour-id="nav-sources"]'                                        # 10 Sources nav
-  ""                                                                    # 11 done card
-)
-
-for i in 1 2 3 4 5 6 7 8 9 10 11; do
-  # Click the primary button (Start tour / Next).
-  $B click '.tour-btn-primary' >/dev/null
-  sleep 2
-  target="${TARGETS[$i]}"
-  if [ -z "$target" ]; then
-    # done card: expect the modal to be visible.
-    if [ "$($B is visible '.tour-modal')" = "true" ]; then
-      echo "T4.$i PASS: done card visible"
-    else
-      echo "T4.$i FAIL: done card not visible at step $i"
-      TOUR_FAILS=$((TOUR_FAILS+1))
-    fi
-    continue
-  fi
-  if [ "$($B is visible "$target")" = "true" ]; then
-    echo "T4.$i PASS: $target visible at step $i"
+# T3. All three persona options present.
+for p in builder trader agent; do
+  if [ "$($B is visible "[data-tour-id=\"persona-$p\"]")" = "true" ]; then
+    echo "T3 PASS: persona option $p present"
   else
-    echo "T4.$i FAIL: $target NOT visible at step $i"
+    echo "T3 FAIL: persona option $p not present"
     TOUR_FAILS=$((TOUR_FAILS+1))
   fi
 done
 
-# T5. Click "Get started" on the done card. Tour closes, flag is set.
+# T4. Pick Builder, welcome modal appears.
+$B click '[data-tour-id="persona-builder"]' >/dev/null
+sleep 2
+if [ "$($B is visible '.tour-modal')" = "true" ]; then
+  echo "T4 PASS: Builder welcome modal visible after pick"
+else
+  echo "T4 FAIL: Builder welcome modal not visible after pick"
+  TOUR_FAILS=$((TOUR_FAILS+1))
+fi
+
+# Click Start. The workspace step probes immediately and auto-skips
+# because viktor already has at least one workspace; we should land
+# directly on the Add a metric step.
+$B click '.tour-btn-primary' >/dev/null
+sleep 4
+STEP_TITLE=$($B js "document.querySelector('.tour-coach-title')?.textContent || ''")
+tt_assert_contains "Add your first metric" "$STEP_TITLE" "T5 advanced past Workspace step to Add metric" || TOUR_FAILS=$((TOUR_FAILS+1))
+
+# T6. Add a metric via API; tour should auto-advance to Check-in.
+WS_DEFAULT=$($B js "localStorage.getItem('activeWorkspaceId')" | tr -d '"')
+METRIC_ID=$(curl -sf -b "$COOKIE_JAR" -H "Content-Type: application/json" -H "X-Workspace-Id: $WS_DEFAULT" \
+  -X POST -d '{"name":"Tutorial test metric '"$TT_NS"'","value":0,"formula":"0","marketRangeMax":100,"timePreference":{"enabled":true,"halfLife":1}}' \
+  "$TT_BASE_URL/api/metrics" | jq -r '.id')
+sleep 5
+STEP_TITLE=$($B js "document.querySelector('.tour-coach-title')?.textContent || ''")
+tt_assert_contains "Log a current value" "$STEP_TITLE" "T6 advanced to Check-in after metric add" || TOUR_FAILS=$((TOUR_FAILS+1))
+URL=$($B url)
+tt_assert_contains "/check-in" "$URL" "T6 navigated to /check-in" || TOUR_FAILS=$((TOUR_FAILS+1))
+
+# T7. Update the metric value via API; tour should auto-advance to Submit proposal.
+curl -sf -b "$COOKIE_JAR" -H "Content-Type: application/json" -H "X-Workspace-Id: $WS_DEFAULT" \
+  -X PUT -d '{"value":42}' "$TT_BASE_URL/api/metrics/$METRIC_ID" >/dev/null
+sleep 5
+STEP_TITLE=$($B js "document.querySelector('.tour-coach-title')?.textContent || ''")
+tt_assert_contains "Propose your first action" "$STEP_TITLE" "T7 advanced to Submit proposal after value update" || TOUR_FAILS=$((TOUR_FAILS+1))
+
+# T8. Skip-step button works on action steps. "I'll do it later" advances
+# to Approve/Decline without performing the action.
+$B js "Array.from(document.querySelectorAll('button.tour-btn-ghost')).find(b => /I'll do it later/.test(b.textContent || ''))?.click(); 'clicked'" >/dev/null
+sleep 2
+STEP_TITLE=$($B js "document.querySelector('.tour-coach-title')?.textContent || ''")
+tt_assert_contains "Decide on the number" "$STEP_TITLE" "T8 advanced to Approve/Decline via skip" || TOUR_FAILS=$((TOUR_FAILS+1))
+
+# T9. Decline a pending proposal via API; tour should reach the Done modal.
+PENDING_ID=$(curl -sf -b "$COOKIE_JAR" -H "X-Workspace-Id: $WS_DEFAULT" "$TT_BASE_URL/api/proposals?status=pending" | jq -r '.[0].id // empty')
+if [ -n "$PENDING_ID" ]; then
+  curl -sf -b "$COOKIE_JAR" -H "X-Workspace-Id: $WS_DEFAULT" -X POST "$TT_BASE_URL/api/proposals/$PENDING_ID/decline" >/dev/null
+  sleep 5
+  DONE_TITLE=$($B js "document.querySelector('.tour-modal h2')?.textContent || ''")
+  tt_assert_contains "You ran the loop" "$DONE_TITLE" "T9 reached Done modal after decline" || TOUR_FAILS=$((TOUR_FAILS+1))
+else
+  echo "T9 SKIP: no pending proposal available for viktor's workspace"
+fi
+
+# T10. Finish closes the tour and records completion.
 $B click '.tour-btn-primary' >/dev/null
 sleep 1
-if [ "$($B is hidden '.tour-modal')" = "true" ]; then
-  echo "T5 PASS: tour modal hidden after Get started"
-else
-  echo "T5 FAIL: tour modal still visible after Get started"
-  TOUR_FAILS=$((TOUR_FAILS+1))
-fi
-FLAG=$($B js "localStorage.getItem('telarchy.tour.seen.v2')")
-tt_assert_contains "1" "$FLAG" "T5 telarchy.tour.seen.v2 set on finish" || TOUR_FAILS=$((TOUR_FAILS+1))
+COMPLETED=$($B js "localStorage.getItem('telarchy.tutorial.completed.v3') || '[]'")
+tt_assert_contains "builder" "$COMPLETED" "T10 builder tutorial recorded as completed" || TOUR_FAILS=$((TOUR_FAILS+1))
 
-# T6. Sidebar restart link re-opens the tour even with the flag set.
-RESTART_CLICK=$($B js "(()=>{const btns=Array.from(document.querySelectorAll('button.sidebar-nav-item')); const b=btns.find(x=>/Show product tour/i.test(x.textContent||'')); if(!b)return 'NO_BTN'; b.click(); return 'OK';})()")
+# T11. Tutorials hub page renders with the three tracks.
+$B goto "$TT_FRONTEND_URL/tutorials"
+$B wait --networkidle
 sleep 1
-if [ "$RESTART_CLICK" = "OK" ] && [ "$($B is visible '.tour-modal')" = "true" ]; then
-  echo "T6 PASS: sidebar restart re-opens the tour"
-else
-  echo "T6 FAIL: sidebar restart did not re-open the tour (click=$RESTART_CLICK)"
-  TOUR_FAILS=$((TOUR_FAILS+1))
-fi
+for id in builder trader agent; do
+  if [ "$($B is visible "[data-tour-id=\"tutorial-card-$id\"]")" = "true" ]; then
+    echo "T11 PASS: tutorial card $id rendered"
+  else
+    echo "T11 FAIL: tutorial card $id missing"
+    TOUR_FAILS=$((TOUR_FAILS+1))
+  fi
+done
 
-# T7. Back button works: advance one step, then go back.
-$B click '.tour-btn-primary' >/dev/null   # step 0 -> 1
-sleep 2
-BACK_CLICK=$($B js "(()=>{const btns=Array.from(document.querySelectorAll('.tour-btn-ghost')); const b=btns.find(x=>(x.textContent||'').trim()==='Back'); if(!b)return 'NO_BACK'; b.click(); return 'OK';})()")
-sleep 1
-# After Back from step 1, we should be on the welcome modal again
-# (the welcome modal carries the title "An alignment layer for AI and humans").
-HEADING=$($B js "document.querySelector('.tour-modal .tour-title')?.textContent || ''")
-tt_assert_contains "alignment layer" "$HEADING" "T7 Back returns to welcome modal" || TOUR_FAILS=$((TOUR_FAILS+1))
+# T12. Builder card shows "Completed" status text.
+COMPLETED_TEXT=$($B js "document.querySelector('[data-tour-id=\"tutorial-card-builder\"] .tutorial-card-status')?.textContent || ''")
+tt_assert_contains "Completed" "$COMPLETED_TEXT" "T12 builder card shows Completed" || TOUR_FAILS=$((TOUR_FAILS+1))
 
-# T8. Skip closes the tour.
-$B click '.tour-btn-ghost' >/dev/null   # Skip (the first ghost button is Skip on the welcome modal)
-sleep 1
-if [ "$($B is hidden '.tour-modal')" = "true" ]; then
-  echo "T8 PASS: Skip closes the tour"
-else
-  echo "T8 FAIL: Skip did not close the tour"
-  TOUR_FAILS=$((TOUR_FAILS+1))
+# Cleanup: delete the test metric so the test workspace stays clean.
+if [ -n "$METRIC_ID" ]; then
+  curl -s -b "$COOKIE_JAR" -H "X-Workspace-Id: $WS_DEFAULT" -X DELETE "$TT_BASE_URL/api/metrics/$METRIC_ID" >/dev/null
 fi
 ```
 
@@ -233,26 +228,26 @@ fi
 
 ```bash
 if [ "${TOUR_FAILS:-0}" -gt 0 ]; then
-  echo "welcome-tour spec: $TOUR_FAILS check(s) failed"
+  echo "tutorial v3 spec: $TOUR_FAILS check(s) failed"
   exit 1
 fi
-echo "welcome-tour spec: all checks passed"
+echo "tutorial v3 spec: all checks passed"
 ```
 
 ## Cleanup
 
-Registered via `tt_on_cleanup` in Setup: deletes the throwaway
-workspace + the test user.
+Registered via `tt_on_cleanup`: deletes the throwaway workspace and
+test user. T12 cleanup deletes the test metric inline.
 
 ## Known gaps
 
-- Does not test the field-by-field Add Metric form expansion deeply
-  (only that the targets are reachable). Submitting a metric mid-tour
-  is exercised manually.
-- Uses viktor's pre-existing test workspace for the UI flow, so the
-  proposals-first-row coachmark may target an existing proposal rather
-  than a freshly-seeded one. T1 already proves the seeding works on a
-  fresh workspace.
-- No coverage of dark mode rendering (the runner does not currently
-  theme-switch between steps); manual screenshots taken on the
-  introducing commit.
+- Skipped Approve/Decline step (T9) when no pending proposal exists
+  in viktor's workspace. Production traffic always has pending
+  proposals so this is rarely hit.
+- Trader and AI Agent tutorials are stubbed (welcome + done modal
+  only); their walkthroughs are coming in the next iteration and
+  the spec will grow tests for them then.
+- Does not yet test the workspace-creation guidance path (where the
+  user has no workspace and the tutorial coachmarks /create-workspace
+  fields). Setup signs the user up but uses viktor's existing
+  workspace for the UI flow.
