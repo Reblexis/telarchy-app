@@ -236,6 +236,7 @@ export async function getMarkets(options: GetMarketsOptions | boolean = false, p
       metricId: m.metricId,
       metricName: m.metricName,
       targetDate: m.targetDate,
+      resolvesOn: endOfPeriod(m.targetDate),
       active: m.active !== false,
       resolved: m.resolved,
       resolvedAt: m.resolvedAt ?? null,

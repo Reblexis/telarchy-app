@@ -426,7 +426,8 @@ predictionsRouter.get('/markets/:id', requireCapability('read'), wrap(async (req
   const prob = pHigher(shares, market.liquidity);
   res.json({
     id: market.id, metricId: market.metricId, metricName: market.metricName,
-    targetDate: market.targetDate, resolved: market.resolved,
+    targetDate: market.targetDate, resolvesOn: endOfPeriod(market.targetDate),
+    resolved: market.resolved,
     resolvedAt: market.resolvedAt ?? null,
     actualValue: market.actualValue ?? null,
     rangeMin: market.rangeMin, rangeMax: market.rangeMax, liquidity: market.liquidity,
@@ -479,7 +480,8 @@ predictionsRouter.get('/markets/:id/context', requireCapability('read'), wrap(as
 
   res.json({
     market: {
-      id: market.id, metricName: market.metricName, targetDate: market.targetDate,
+      id: market.id, metricName: market.metricName,
+      targetDate: market.targetDate, resolvesOn: endOfPeriod(market.targetDate),
       rangeMin: market.rangeMin, rangeMax: market.rangeMax,
       probability: Math.round(pHigher(shares, market.liquidity) * 10000) / 10000,
       consensus: consensus(shares, market.liquidity, market.rangeMin, market.rangeMax) ?? null,
@@ -497,7 +499,7 @@ predictionsRouter.get('/markets/:id/context', requireCapability('read'), wrap(as
       .map(m => {
         const s = (m.shares as [number, number]) || [0, 0];
         return {
-          id: m.id, targetDate: m.targetDate,
+          id: m.id, targetDate: m.targetDate, resolvesOn: endOfPeriod(m.targetDate),
           consensus: consensus(s, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
           probability: Math.round(pHigher(s, m.liquidity) * 10000) / 10000,
         };

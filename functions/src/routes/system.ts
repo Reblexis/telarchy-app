@@ -7,6 +7,7 @@ import { requireCapability } from '../middleware/roles';
 import { getAllMetrics, getStatus, getAllMetricLogsGrouped } from '../services/metrics';
 import { consensus, pHigher } from '../lib/amm';
 import { isUsdcSettlementEnabled } from '../lib/settlement';
+import { endOfPeriod } from '../lib/date-utils';
 
 export const systemRouter = Router();
 
@@ -70,6 +71,7 @@ systemRouter.get('/status', requireCapability('read'), wrap(async (req, res) => 
           return {
             id: mk.id,
             targetDate: mk.targetDate,
+            resolvesOn: endOfPeriod(mk.targetDate),
             prediction: consensus(s, mk.liquidity, mk.rangeMin, mk.rangeMax) ?? null,
             probability: Math.round(pHigher(s, mk.liquidity) * 10000) / 10000,
           };

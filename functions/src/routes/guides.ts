@@ -451,6 +451,8 @@ New workspaces have **auto-funding enabled by default** (0.5 credits per market)
 +1y           1 year from now
 \`\`\`
 
+The \`targetDate\` value is the **input form** (granular: year, month, ISO week, or day). It is also the trade-input key for \`POST /api/predictions/trade\` when targeting by metric. **The market resolves at the end of that period**, not the start: \`2026-06\` resolves on \`2026-06-30\`, \`2026\` on \`2026-12-31\`, \`2026-W24\` on the Sunday of that ISO week. Every market response also carries a companion field \`resolvesOn\` (exact \`YYYY-MM-DD\`) with the resolution day pre-computed; agents reasoning about timing should read \`resolvesOn\` rather than re-derive it from \`targetDate\`.
+
 ## Lifecycle
 
 Each market sits in one of four states (returned as \`status\` on every market row):
@@ -598,7 +600,7 @@ Best practices:
 \`\`\`
 GET /api/status                          # minimal: metrics[{id,name,value,total}]
 GET /api/status?trends=1                 # + trend:[[unixTs,value]] per metric (last 20 log points)
-GET /api/status?markets=1                # + markets:[{id,targetDate,prediction,probability}] per metric
+GET /api/status?markets=1                # + markets:[{id,targetDate,resolvesOn,prediction,probability}] per metric
 GET /api/status?trends=1&markets=1       # full snapshot in one call
 GET /api/status?trends=1&trendsLimit=5   # fewer trend points to save tokens
 \`\`\`

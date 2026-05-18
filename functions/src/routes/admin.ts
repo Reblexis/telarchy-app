@@ -7,6 +7,7 @@ import { agents, agentTraces, agentHeartbeats, markets, workspaces } from '../db
 import { and, desc, eq, gte, lte, inArray } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { AppError } from '../lib/errors';
+import { endOfPeriod } from '../lib/date-utils';
 
 /** True if the caller is the master key OR a platform admin. */
 async function isPlatformAuthorized(req: { auth?: { isMasterKey?: boolean; uid?: string } }): Promise<boolean> {
@@ -286,5 +287,5 @@ adminRouter.get('/markets/featured', wrap(async (req, res) => {
     resolved: markets.resolved,
     active: markets.active,
   }).from(markets).where(eq(markets.featured, true));
-  res.json(rows);
+  res.json(rows.map(r => ({ ...r, resolvesOn: endOfPeriod(r.targetDate) })));
 }));

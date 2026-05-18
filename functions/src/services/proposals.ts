@@ -7,6 +7,7 @@ import { voidMarket } from './markets';
 import { AppError } from '../lib/errors';
 import { MIN_LIQUIDITY_CONTRIBUTION, sufficientBalance, toUnits, fromUnits } from '../lib/validation';
 import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
+import { endOfPeriod } from '../lib/date-utils';
 
 type MarketRow = typeof markets.$inferSelect;
 
@@ -376,6 +377,7 @@ async function buildProposalMarketSummariesFromRows(rows: MarketRow[], workspace
       metricId: m.metricId,
       metricName: m.metricName,
       targetDate: m.targetDate,
+      resolvesOn: endOfPeriod(m.targetDate),
       consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
       baselineConsensus: baselineConsensusMap.get(key) ?? null,
       rangeMin: m.rangeMin,

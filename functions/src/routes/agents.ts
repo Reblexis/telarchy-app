@@ -18,6 +18,7 @@ import {
 } from '../lib/usdc';
 import { AppError } from '../lib/errors';
 import { creditsIssuedForUsdcDeposit, depositBuyRateUsd } from '../lib/economy';
+import { endOfPeriod } from '../lib/date-utils';
 import { validateAgentId, validateTxHash, sufficientBalance, toUnits, fromUnits, SIGNUP_CREDITS } from '../lib/validation';
 import { listParticipantsForWorkspace, claimNickname } from '../lib/participants';
 import { isUsdcSettlementEnabled } from '../lib/settlement';
@@ -323,6 +324,7 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
       proposalId: m.proposalId ?? null,
       metricName: m.metricName,
       targetDate: m.targetDate,
+      resolvesOn: endOfPeriod(m.targetDate),
       direction: p.direction as 'higher' | 'lower',
       shares: p.shares,
       totalCost: p.totalCost,
@@ -356,6 +358,7 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
         proposalId: m?.proposalId ?? null,
         metricName: m?.metricName ?? null,
         targetDate: m?.targetDate ?? null,
+        resolvesOn: m?.targetDate ? endOfPeriod(m.targetDate) : null,
         direction: t.direction as 'higher' | 'lower',
         // trades.shares is negative for sells.
         kind: (t.shares < 0 ? 'sell' : 'buy') as 'buy' | 'sell',
@@ -625,6 +628,7 @@ agentsRouter.get('/:id/market-pnl', requireSelfOrAdmin, wrap(async (req, res) =>
       metricId: m.metricId,
       metricName: m.metricName,
       targetDate: m.targetDate,
+      resolvesOn: endOfPeriod(m.targetDate),
       status: m.voided ? 'voided' : m.resolved ? 'resolved' : (m.active === false ? 'closed' : 'open'),
       rangeMin: m.rangeMin,
       rangeMax: m.rangeMax,
@@ -681,6 +685,7 @@ agentsRouter.get('/:id/trades', requireSelfOrAdmin, wrap(async (req, res) => {
     marketId: r.marketId,
     metricName: r.metricName,
     targetDate: r.targetDate,
+    resolvesOn: r.targetDate ? endOfPeriod(r.targetDate) : null,
     direction: r.direction,
     // trades.shares is negative for sells; surface sign + absolute amount.
     kind: r.shares < 0 ? 'sell' : 'buy',
