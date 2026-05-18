@@ -142,10 +142,16 @@ export function MarketsPage() {
       const cachedMkts = cacheGet<Market[]>('markets');
       if (cachedMkts) { setMarkets(cachedMkts); setLoading(false); }
     }
+    // includeResolved=true returns open + closed + resolved but excludes
+    // voided (which are noise here — refunded duplicates / cancelled
+    // conditional markets). To inspect voided rows, hit the API directly.
     const mkts = await api.getMarkets(inspectProposal?.id, undefined, { includeResolved: true, kind: kindFilter })
       .catch((e: Error) => { setError(e.message); return null; });
     if (inspectProposal) {
-      api.getMarkets().then((mains: Market[]) => {
+      // Use includeResolved=true so the conditional-vs-baseline comparison
+      // still works when the baseline market at a target date has already
+      // closed or resolved.
+      api.getMarkets(undefined, undefined, { includeResolved: true }).then((mains: Market[]) => {
         const map = new Map<string, Market>();
         for (const m of mains) map.set(`${m.metricId}:${m.targetDate}`, m);
         setMainMarketsMap(map);

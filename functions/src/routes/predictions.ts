@@ -8,7 +8,7 @@ import { AppError } from '../lib/errors';
 import { authMiddleware } from '../middleware/auth';
 import { requireCapability } from '../middleware/roles';
 import { getAllMetrics, getMetricLogs, getUpdates } from '../services/metrics';
-import { resolvePredictions, resolveSingleMarket, getMarkets } from '../services/predictions';
+import { resolvePredictions, resolveSingleMarket, getMarkets, type MarketStatus } from '../services/predictions';
 import { refreshRelativeDateMarkets, voidMarket } from '../services/markets';
 import { createConditionalMarkets } from '../services/proposals';
 import { isValidDateFormat, endOfPeriod } from '../lib/date-utils';
@@ -327,12 +327,20 @@ predictionsRouter.get('/markets', requireCapability('read'), wrap(async (req, re
 
   const active = req.query.active === 'true' ? true : req.query.active === 'false' ? false : undefined;
   const includeResolved = req.query.includeResolved === 'true';
+  const includeVoided = req.query.includeVoided === 'true';
   const minLiquidity = typeof req.query.minLiquidity === 'string' ? parseFloat(req.query.minLiquidity) : undefined;
   const limit = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : undefined;
   const rawKind = typeof req.query.kind === 'string' ? req.query.kind : undefined;
   const kind: 'baseline' | 'conditional' | 'all' | undefined =
     rawKind === 'baseline' || rawKind === 'conditional' || rawKind === 'all' ? rawKind : undefined;
-  const marketRows = await getMarkets({ proposalId, active, includeResolved, minLiquidity, limit, kind }, undefined, workspaceId);
+  const rawStatus = typeof req.query.status === 'string' ? req.query.status : undefined;
+  const status: MarketStatus | undefined =
+    rawStatus === 'open' || rawStatus === 'closed' || rawStatus === 'resolved' || rawStatus === 'voided' || rawStatus === 'all'
+      ? rawStatus : undefined;
+  const marketRows = await getMarkets(
+    { proposalId, status, active, includeResolved, includeVoided, minLiquidity, limit, kind },
+    undefined, workspaceId,
+  );
   res.json(marketRows);
 }));
 

@@ -315,10 +315,12 @@ export const api = {
     request(`/api/agents/${agentId}/wallet`, { method: 'PUT', body: JSON.stringify({ walletAddress }) }),
 
   // Markets & Trading
-  getMarkets: (proposalId?: string, workspaceId?: string, opts?: { includeResolved?: boolean; kind?: 'baseline' | 'conditional' | 'all' }) => {
+  getMarkets: (proposalId?: string, workspaceId?: string, opts?: { status?: 'open' | 'closed' | 'resolved' | 'voided' | 'all'; includeResolved?: boolean; includeVoided?: boolean; kind?: 'baseline' | 'conditional' | 'all' }) => {
     const params = new URLSearchParams();
     if (proposalId) params.set('proposalId', proposalId);
+    if (opts?.status) params.set('status', opts.status);
     if (opts?.includeResolved) params.set('includeResolved', 'true');
+    if (opts?.includeVoided) params.set('includeVoided', 'true');
     if (opts?.kind && opts.kind !== 'baseline') params.set('kind', opts.kind);
     const qs = params.toString() ? `?${params}` : '';
     return requestWithWorkspace(`/api/predictions/markets${qs}`, {}, { workspaceId });

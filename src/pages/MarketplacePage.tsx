@@ -309,7 +309,10 @@ export function MarketplacePage() {
       const tradable = workspaces.filter(w => w.memberRole !== 'viewer');
       const perWorkspace = await Promise.all(tradable.map(async w => {
         const [markets, ps] = await Promise.all([
-          api.getMarkets(undefined, w.id).catch((e: Error) => {
+          // status='all' here because the held-position rows below need to
+          // render markets you hold shares on even after they close or resolve.
+          // The open-list rendering still filters on m.status === 'open'.
+          api.getMarkets(undefined, w.id, { status: 'all' }).catch((e: Error) => {
             console.error(`getMarkets(${w.id}) failed:`, e.message);
             return [] as Market[];
           }) as Promise<Market[]>,

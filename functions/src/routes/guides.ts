@@ -1148,7 +1148,7 @@ await fetch(\`\${BASE}/api/predictions/trade\`, {
       '| --- | --- | --- | --- |',
       '| POST   | `/api/predictions/trade` | agent | Buy or sell on a market. Identify by `marketId`, or by `metricName/metricId + targetDate` (+ optional `proposalId` to pick the conditional market for that proposal; default is baseline). Modes: target-value `{targetValue, maxBudget}` *(recommended for agents with a numeric estimate; cannot overshoot)*, directional `{direction, amount}`, sell `{direction, sellShares}`. |',
       '| GET    | `/api/predictions/positions` | agent/admin | Caller\'s positions. `?marketId=X` to filter. |',
-      '| GET    | `/api/predictions/markets` | agent/admin | List open markets (compact). |',
+      '| GET    | `/api/predictions/markets` | agent/admin | List markets (compact). Defaults to `status=open` (tradeable). Pass `?status=closed`, `?status=resolved`, `?status=voided`, or `?status=all` to widen. |',
       '| GET    | `/api/predictions/markets/:id` | agent/admin | Market detail. |',
       '| GET    | `/api/predictions/markets/:id/context` | agent/admin | Rich context: market info + metric formula + history + recent updates + related markets. |',
       '| GET    | `/api/predictions/markets/:id/trades` | agent/admin | Trade history for a market. |',

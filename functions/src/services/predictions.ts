@@ -122,10 +122,23 @@ export async function resolvePredictions(targetDate: string | undefined, workspa
   return { resolved: resolvedCount, totalPayout };
 }
 
+export type MarketStatus = 'open' | 'closed' | 'resolved' | 'voided' | 'all';
+
 export interface GetMarketsOptions {
   includeResolved?: boolean;
+  includeVoided?: boolean;
   proposalId?: string;
   active?: boolean;
+  /**
+   * Canonical lifecycle filter. When set, takes precedence over
+   * includeResolved / includeVoided / active.
+   *  - 'open'     active markets that accept buys and sells (default)
+   *  - 'closed'   TP-deactivated, sell-only, not resolved
+   *  - 'resolved' settled markets
+   *  - 'voided'   cancelled / refunded markets
+   *  - 'all'      every market regardless of state
+   */
+  status?: MarketStatus;
   minLiquidity?: number;
   limit?: number;
   /**
@@ -143,10 +156,24 @@ export async function getMarkets(options: GetMarketsOptions | boolean = false, p
     ? { includeResolved: options, proposalId }
     : options;
 
+  // Resolve which lifecycle states the caller actually wants. Explicit
+  // `status` is authoritative. Otherwise: if any legacy flag is set, treat
+  // the call as legacy; if nothing is set, default to status='open' so a
+  // bare `GET /api/predictions/markets` returns tradeable markets only.
+  const anyLegacy = opts.active !== undefined || !!opts.includeResolved || !!opts.includeVoided;
+  const effectiveStatus: MarketStatus | 'legacy' =
+    opts.status ? opts.status : anyLegacy ? 'legacy' : 'open';
+
+  const wantsResolved = effectiveStatus === 'resolved' || effectiveStatus === 'all'
+    || (effectiveStatus === 'legacy' && !!opts.includeResolved);
+  const wantsVoided = effectiveStatus === 'voided' || effectiveStatus === 'all'
+    || (effectiveStatus === 'legacy' && !!opts.includeVoided);
+
   let rows = await db.select().from(markets)
     .where(and(
       eq(markets.workspaceId, workspaceId),
-      opts.includeResolved ? undefined : eq(markets.resolved, false),
+      wantsResolved ? undefined : eq(markets.resolved, false),
+      wantsVoided ? undefined : eq(markets.voided, false),
       opts.proposalId ? eq(markets.proposalId, opts.proposalId) : undefined,
     ));
 
@@ -158,9 +185,18 @@ export async function getMarkets(options: GetMarketsOptions | boolean = false, p
   }
   if (!rows.length) return [];
 
-  if (opts.active !== undefined) {
+  if (effectiveStatus === 'open') {
+    rows = rows.filter(m => m.active !== false && !m.resolved && !m.voided);
+  } else if (effectiveStatus === 'closed') {
+    rows = rows.filter(m => m.active === false && !m.resolved && !m.voided);
+  } else if (effectiveStatus === 'resolved') {
+    rows = rows.filter(m => m.resolved && !m.voided);
+  } else if (effectiveStatus === 'voided') {
+    rows = rows.filter(m => m.voided);
+  } else if (effectiveStatus === 'legacy' && opts.active !== undefined) {
     rows = rows.filter(m => (m.active !== false) === opts.active);
   }
+  // effectiveStatus === 'all' or legacy-without-active: no additional filter.
   if (opts.minLiquidity !== undefined && opts.minLiquidity > 0) {
     rows = rows.filter(m => (m.liquidity ?? 0) >= opts.minLiquidity!);
   }
