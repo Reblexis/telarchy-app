@@ -63,7 +63,7 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
                 ? {}
                 : {
                     display: '-webkit-box',
-                    WebkitLineClamp: 1,
+                    WebkitLineClamp: 2,
                     WebkitBoxOrient: 'vertical',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
