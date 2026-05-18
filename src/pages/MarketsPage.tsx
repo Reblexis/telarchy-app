@@ -49,9 +49,11 @@ export function MarketsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filterText, setFilterText] = useState(() => searchParams.get('q') ?? '');
   const [targetFilter, setTargetFilter] = useState(() => searchParams.get('target') ?? '');
-  const [statusFilter, setStatusFilter] = useState<MarketStatus | 'all'>(() =>
-    searchParams.get('target') || searchParams.get('marketId') ? 'all' : 'open',
-  );
+  // Default to 'open' even when arriving via ?target / ?marketId: a user who
+  // clicked a market on the metric chart is interested in the live forecast,
+  // not the closed / voided history. The status chips at the top let them
+  // widen if they want.
+  const [statusFilter, setStatusFilter] = useState<MarketStatus | 'all'>('open');
   const [kindFilter, setKindFilter] = useState<MarketKind>(() => {
     const raw = searchParams.get('kind');
     return raw === 'conditional' || raw === 'all' ? raw : 'baseline';
@@ -62,7 +64,6 @@ export function MarketsPage() {
     const t = searchParams.get('target') ?? '';
     setFilterText(q);
     setTargetFilter(t);
-    if (t || searchParams.get('marketId')) setStatusFilter('all');
     const rawKind = searchParams.get('kind');
     setKindFilter(rawKind === 'conditional' || rawKind === 'all' ? rawKind : 'baseline');
   }, [searchParams]);
