@@ -77,20 +77,20 @@ agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => 
     }
   });
 
-  // Auto-add to workspace Public and Trader groups (participant symmetry:
-  // registered agents get read+trade by default, matching what a human
-  // user would have after creating their own workspace).
+  // Auto-add to the workspace Public group only. Trading rights, if any,
+  // come from the Public group's own capabilities (Open workspaces grant
+  // 'trade' on Public); auto-adding to Trader would bypass the workspace
+  // owner's permission policy.
   const { permissionGroups } = await import('../db/schema');
   const sysGroups = await db.select().from(permissionGroups)
     .where(eq(permissionGroups.workspaceId, workspaceId));
-  for (const targetType of ['public', 'trader'] as const) {
-    const group = sysGroups.find(g => g.type === targetType);
-    if (!group) continue;
-    const currentIds = (group.memberIds as string[]) ?? [];
+  const publicGroup = sysGroups.find(g => g.type === 'public');
+  if (publicGroup) {
+    const currentIds = (publicGroup.memberIds as string[]) ?? [];
     if (!currentIds.includes(agentId)) {
       await db.update(permissionGroups)
         .set({ memberIds: [...currentIds, agentId] })
-        .where(and(eq(permissionGroups.id, group.id), eq(permissionGroups.workspaceId, workspaceId)));
+        .where(and(eq(permissionGroups.id, publicGroup.id), eq(permissionGroups.workspaceId, workspaceId)));
     }
   }
 
