@@ -288,20 +288,24 @@ export async function refreshRelativeDateMarkets(workspaceId: string, opts: { fo
   const toFund: string[] = [];
 
   for (const m of openMarkets) {
+    // Conditional markets (those scoped to a proposal) are independent of the
+    // metric's permanent baseline forecasting. They must not occupy openKeys,
+    // otherwise a stale conditional at a date that matches a current sample
+    // point would block the baseline market at that date from ever being
+    // (re)created, and the metric's time series silently loses that point.
+    if (m.proposalId) continue;
+
     const key = `${m.metricId}:${m.targetDate}`;
 
     // Void markets whose rangeMax is stale (metric's marketRangeMax has changed).
     // Skip adding to openKeys so the pending step recreates them with the correct rangeMax.
-    if (!m.proposalId) {
-      const expectedRangeMax = idToRangeMax.get(m.metricId);
-      if (expectedRangeMax !== undefined && m.rangeMax !== expectedRangeMax) {
-        toVoid.push(m);
-        continue;
-      }
+    const expectedRangeMax = idToRangeMax.get(m.metricId);
+    if (expectedRangeMax !== undefined && m.rangeMax !== expectedRangeMax) {
+      toVoid.push(m);
+      continue;
     }
 
     openKeys.add(key);
-    if (m.proposalId) continue;
 
     const prev = seenNonProposal.get(key);
     if (!prev) {
