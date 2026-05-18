@@ -1,4 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { useEffect } from 'react';
+import { setActiveWorkspace } from './lib/api';
 import { InspectModeProvider } from './hooks/useInspectMode';
 import { RequireAuth, RequireWorkspace, RequireAgentSession } from './components/RequireAuth';
 import { AppLayout } from './components/AppLayout';
@@ -35,6 +37,24 @@ function MarketplaceWorkspaceRedirect() {
   return <Navigate to={`/marketplace?workspace=${encodeURIComponent(workspaceId ?? '')}`} replace />;
 }
 
+// /marketplace/:workspaceId/:tab — deep-link a workspace into a specific page.
+// Sets the active workspace (so /proposals, /markets, etc. find their context)
+// then redirects to /<tab>. Used by external links (agent profiles, share URLs).
+const ALLOWED_TABS = new Set([
+  'overview', 'metrics', 'markets', 'proposals', 'sources',
+  'activity', 'settings', 'check-in', 'participants',
+]);
+function MarketplaceTabRedirect() {
+  const { workspaceId, tab } = useParams();
+  useEffect(() => {
+    if (workspaceId) setActiveWorkspace(workspaceId);
+  }, [workspaceId]);
+  if (!tab || !ALLOWED_TABS.has(tab)) {
+    return <Navigate to={`/marketplace?workspace=${encodeURIComponent(workspaceId ?? '')}`} replace />;
+  }
+  return <Navigate to={`/${tab}`} replace />;
+}
+
 export function App() {
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || '/'}>
@@ -55,6 +75,7 @@ export function App() {
           <Route element={<AppLayout />}>
             <Route path="/marketplace" element={<MarketplacePage />} />
             <Route path="/marketplace/:workspaceId" element={<MarketplaceWorkspaceRedirect />} />
+            <Route path="/marketplace/:workspaceId/:tab" element={<MarketplaceTabRedirect />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
             <Route path="/benchmark" element={<BenchmarkPage />} />
             <Route path="/participants/:id" element={<ParticipantProfilePage />} />
