@@ -6,6 +6,14 @@ const ACTIVE_KEY = 'telarchy.tutorial.active.v3';
 const STEP_KEY = 'telarchy.tutorial.step.v3';
 const COMPLETED_KEY = 'telarchy.tutorial.completed.v3';
 
+/**
+ * Master switch for auto-firing surfaces (persona picker on first visit,
+ * tab-tour opt-in banners, first-seen contextual hints). Flip to `true`
+ * to re-enable. Manual launches from /guides > Interactive tutorials
+ * still work either way, so the tutorial system stays alive for testing.
+ */
+export const AUTO_TUTORIALS_ENABLED = false;
+
 interface TutorialState {
   persona: Persona | null;
   /** True while we should be showing the persona picker. */

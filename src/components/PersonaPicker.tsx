@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useTutorial } from '../hooks/useTutorial';
+import { useTutorial, AUTO_TUTORIALS_ENABLED } from '../hooks/useTutorial';
 import { api } from '../lib/api';
 import type { Persona } from '../tutorials/types';
 
@@ -28,6 +28,7 @@ export function PersonaPicker() {
   const { needsPersona, setPersona, skipPersona } = useTutorial();
   const [submitting, setSubmitting] = useState<Persona | null>(null);
 
+  if (!AUTO_TUTORIALS_ENABLED) return null;
   if (!needsPersona) return null;
 
   const onPick = async (option: typeof OPTIONS[number]) => {

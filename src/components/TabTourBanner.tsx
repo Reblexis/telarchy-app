@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useTutorial } from '../hooks/useTutorial';
+import { useTutorial, AUTO_TUTORIALS_ENABLED } from '../hooks/useTutorial';
 import { TAB_TUTORIAL_META } from '../tutorials';
 import type { TabTutorialId } from '../tutorials/types';
 
@@ -27,6 +27,7 @@ export function TabTourBanner() {
   // Force a re-evaluation when localStorage may have changed.
   useEffect(() => { setTick(t => t + 1); }, [location.pathname]);
 
+  if (!AUTO_TUTORIALS_ENABLED) return null;
   if (!tabId || !meta) return null;
   if (activeId || needsPersona) return null;
   if (typeof window === 'undefined') return null;

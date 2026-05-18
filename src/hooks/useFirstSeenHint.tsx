@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useTutorial } from './useTutorial';
+import { useTutorial, AUTO_TUTORIALS_ENABLED } from './useTutorial';
 
 const STORAGE_PREFIX = 'telarchy.firstSeen.';
 
@@ -21,6 +21,7 @@ export function useFirstSeenHint(key: string): FirstSeenHint {
   const storageKey = `${STORAGE_PREFIX}${key}`;
 
   useEffect(() => {
+    if (!AUTO_TUTORIALS_ENABLED) return;
     if (typeof window === 'undefined') return;
     if (window.localStorage.getItem(storageKey)) return;
     if (tourActive) return;
