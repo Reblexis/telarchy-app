@@ -24,6 +24,7 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
   const overlayHalfLife = hasTP ? metric.timePreference!.halfLife : metric.inheritedHalfLife;
   const [isEditingValue, setIsEditingValue] = useState(false);
   const [editValueStr, setEditValueStr] = useState('');
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   // Guards against onBlur firing a second onValueChange right after Enter
   // (the input unmounts on Enter, which also induces a blur event).
@@ -50,7 +51,25 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
           )}
         </div>
         {metric.description && (
-          <div className="metric-stats" style={{ marginBottom: '0.25rem', fontStyle: 'italic' }}>
+          <div
+            className="metric-stats"
+            onClick={() => setIsDescriptionExpanded(v => !v)}
+            title={isDescriptionExpanded ? 'Click to collapse' : metric.description}
+            style={{
+              marginBottom: '0.25rem',
+              fontStyle: 'italic',
+              cursor: 'pointer',
+              ...(isDescriptionExpanded
+                ? {}
+                : {
+                    display: '-webkit-box',
+                    WebkitLineClamp: 1,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }),
+            }}
+          >
             {metric.description}
           </div>
         )}
