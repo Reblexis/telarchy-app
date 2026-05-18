@@ -61,7 +61,7 @@ Use this when you need to (a) decide what to put on a canvas / pitch deck / land
 41. Decline-as-spam: spam penalty taken from proposer (capped at balance), credited to owner.
 42. Withdraw: proposer-only escape hatch.
 43. Bounty model: optional `proposalReward` paid on approve.
-44. Per-participant `maxPendingProposalsPerParticipant` cap (default 3).
+44. Optional per-participant `maxPendingProposalsPerParticipant` cap (default 0 = off).
 45. Proposal message thread (`/api/proposals/:id/messages`) for proposer-admin negotiation.
 46. "Forecast subsidy" header showing how much liquidity backs a proposal's signal.
 47. Inspect mode: `?proposal=<id>` URL param renders conditional vs baseline across pages.

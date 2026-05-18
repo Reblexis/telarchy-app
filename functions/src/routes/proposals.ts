@@ -40,7 +40,7 @@ proposalsRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
   const [wsForCap] = await db.select({
     maxPending: workspaces.maxPendingProposalsPerParticipant,
   }).from(workspaces).where(eq(workspaces.id, workspaceId));
-  const cap = wsForCap?.maxPending ?? 3;
+  const cap = wsForCap?.maxPending ?? 0;
   if (cap > 0) {
     const pending = await countPendingProposalsByProposer(workspaceId, proposedBy);
     if (pending >= cap) {

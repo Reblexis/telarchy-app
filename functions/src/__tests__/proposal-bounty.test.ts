@@ -46,7 +46,7 @@ async function seed(opts: {
     visibility: 'private',
     proposalReward: opts.proposalReward ?? 0,
     spamPenalty: opts.spamPenalty ?? 0,
-    maxPendingProposalsPerParticipant: opts.maxPending ?? 3,
+    maxPendingProposalsPerParticipant: opts.maxPending ?? 0,
   });
 }
 
