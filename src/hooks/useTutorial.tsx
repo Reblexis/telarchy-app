@@ -70,12 +70,26 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     const v = window.localStorage.getItem(PERSONA_KEY);
     return (v as Persona | null) ?? null;
   });
+  // When auto-tutorials are disabled, do NOT resurrect a tutorial that
+  // was active in a previous session. Otherwise a stale activeId
+  // (left over from earlier testing) keeps driving navigation: the
+  // TutorialOverlay would try to push the user to the step's path on
+  // every interaction. Always start with no active tutorial unless
+  // the user explicitly launches one from the hub.
   const [activeId, setActiveId] = useState<TutorialId | null>(() => {
     if (typeof window === 'undefined') return null;
+    if (!AUTO_TUTORIALS_ENABLED) {
+      window.localStorage.removeItem(ACTIVE_KEY);
+      window.localStorage.removeItem(STEP_KEY);
+      return null;
+    }
     const v = window.localStorage.getItem(ACTIVE_KEY);
     return (v as TutorialId | null) ?? null;
   });
-  const [stepIndex, setStepIndex] = useState<number>(() => loadInt(STEP_KEY, 0));
+  const [stepIndex, setStepIndex] = useState<number>(() => {
+    if (!AUTO_TUTORIALS_ENABLED) return 0;
+    return loadInt(STEP_KEY, 0);
+  });
   const [completed, setCompleted] = useState<TutorialId[]>(loadCompleted);
 
   const needsPersona = persona === null;
