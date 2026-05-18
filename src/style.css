@@ -5045,6 +5045,16 @@ code, pre, kbd, samp {
   opacity: 0.65;
 }
 
+.predictions-table tr.predictions-row {
+  transition: background-color 0.1s ease;
+}
+
+.predictions-table tr.predictions-row:hover,
+.predictions-table tr.predictions-row:focus-visible {
+  background: var(--bg-tertiary, rgba(0, 0, 0, 0.04));
+  outline: none;
+}
+
 .predictions-table .metric-name {
   font-weight: 500;
   color: var(--text-primary);

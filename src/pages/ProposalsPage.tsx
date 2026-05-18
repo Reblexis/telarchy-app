@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, FormEvent } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { useInspectMode } from '../hooks/useInspectMode';
@@ -86,6 +86,7 @@ function ForecastCell({ baseline, current }: { baseline: number | null | undefin
 
 function PredictionsTable({ markets }: { markets: ProposalMarketSummary[] }) {
   const [showAll, setShowAll] = useState(false);
+  const navigate = useNavigate();
 
   if (markets.length === 0) {
     return <p className="predictions-empty">No impact predictions yet. Click <strong>Inspect</strong> to spawn conditional markets.</p>;
@@ -93,6 +94,10 @@ function PredictionsTable({ markets }: { markets: ProposalMarketSummary[] }) {
 
   const visible = showAll ? markets : markets.filter(m => isNearHorizon(m.targetDate));
   const hidden = markets.length - visible.length;
+
+  const openMarket = (marketId: string) => {
+    navigate(`/markets?marketId=${encodeURIComponent(marketId)}&kind=conditional`);
+  };
 
   return (
     <div className="predictions-wrap">
@@ -109,7 +114,16 @@ function PredictionsTable({ markets }: { markets: ProposalMarketSummary[] }) {
           {visible.map(m => {
             const noSignal = m.tradeCount === 0;
             return (
-              <tr key={m.marketId} className={noSignal ? 'no-signal' : ''}>
+              <tr
+                key={m.marketId}
+                className={`predictions-row${noSignal ? ' no-signal' : ''}`}
+                onClick={() => openMarket(m.marketId)}
+                tabIndex={0}
+                role="button"
+                aria-label={`Open market for ${m.metricName} at ${formatTargetDateDisplay(m.targetDate)}`}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openMarket(m.marketId); } }}
+                style={{ cursor: 'pointer' }}
+              >
                 <td className="metric-name">{m.metricName}</td>
                 <td className="horizon">{formatTargetDateDisplay(m.targetDate)}</td>
                 <td className="num"><ForecastCell baseline={m.baselineConsensus} current={m.consensus} /></td>
