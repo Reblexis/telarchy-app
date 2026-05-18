@@ -38,7 +38,15 @@ export function useMetrics(authenticated: boolean, inspectProposalId?: string | 
 
     const [metricsData, marketsData] = await Promise.all([
       api.getMetrics() as Promise<Metric[]>,
-      api.getMarkets(inspectProposalId || undefined).catch((e: Error) => { console.error('Failed to load markets for metrics page:', e.message); return [] as Market[]; }),
+      api.getMarkets(
+        inspectProposalId || undefined,
+        undefined,
+        // Inspect mode (looking back at a resolved/declined proposal): pull
+        // every conditional market so the per-metric consensus row still
+        // renders. Live metrics view (no inspectProposalId): default
+        // status=open is enough.
+        inspectProposalId ? { status: 'all' } : undefined,
+      ).catch((e: Error) => { console.error('Failed to load markets for metrics page:', e.message); return [] as Market[]; }),
       canViewUpdates
         ? api.getUpdates().then((list: UpdateEntry[]) => {
             const parsed = list.map(u => ({ ...u, timestamp: new Date(u.timestamp) }));
