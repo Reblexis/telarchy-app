@@ -124,7 +124,8 @@ export async function optionalAuthMiddleware(req: Request, _res: Response, next:
 
   const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null);
   if (session?.user) {
-    const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
+    const requestedWorkspaceId = (req.headers['x-workspace-id'] as string | undefined)
+      ?? (typeof req.query.workspaceId === 'string' ? req.query.workspaceId : undefined);
     const result = await resolveUser(session.user.id, requestedWorkspaceId);
     if (result !== null) {
       req.auth = {
@@ -200,7 +201,8 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   // 2. BetterAuth session (cookie or Bearer token)
   const session = await auth.api.getSession({ headers: fromNodeHeaders(req.headers) }).catch(() => null);
   if (session?.user) {
-    const requestedWorkspaceId = req.headers['x-workspace-id'] as string | undefined;
+    const requestedWorkspaceId = (req.headers['x-workspace-id'] as string | undefined)
+      ?? (typeof req.query.workspaceId === 'string' ? req.query.workspaceId : undefined);
     const result = await resolveUser(session.user.id, requestedWorkspaceId);
     if (result === null) {
       if (requestedWorkspaceId) {

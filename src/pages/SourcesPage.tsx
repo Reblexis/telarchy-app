@@ -108,7 +108,9 @@ export function SourcesPage() {
 
   const handleConnectGitHub = () => {
     const base = import.meta.env.VITE_API_URL || '';
-    window.location.href = `${base}/api/sources/github/install`;
+    const wid = workspace?.workspaceId;
+    const qs = wid ? `?workspaceId=${encodeURIComponent(wid)}` : '';
+    window.location.href = `${base}/api/sources/github/install${qs}`;
   };
 
   const handleToggleRepo = (fullName: string) => {
