@@ -119,21 +119,27 @@ export async function createConditionalMarkets(
     const existingConditional = await db.select().from(markets)
       .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.resolved, false)));
 
-    if (existingConditional.length > 0) {
-      const existingKeys = new Set(existingConditional.map(m => `${m.metricId}:${m.targetDate}:${m.branch ?? 'approved'}`));
-      const setsMatch = existingConditional.length === desiredKeys.size &&
-        [...desiredKeys].every(k => existingKeys.has(k));
-      if (setsMatch) return existingConditional.map(m => m.id);
+    const keyOf = (metricId: string, targetDate: string, branch: string) =>
+      `${metricId}:${targetDate}:${branch}`;
+    const existingByKey = new Map<string, typeof existingConditional[number]>();
+    for (const m of existingConditional) {
+      existingByKey.set(keyOf(m.metricId, m.targetDate, m.branch ?? 'approved'), m);
     }
 
-    await voidProposalMarkets(proposalId, workspaceId);
-
+    // Incremental sync: keep existing markets that still belong, spawn the
+    // missing (metric, targetDate, branch) tuples, void only the ones no
+    // longer in the desired set. This preserves trade history on legacy
+    // proposals that had only the approved branch before the dual-branch
+    // migration (the missing declined-branch markets are added on the next
+    // refresh without nuking the already-traded approved-branch markets).
+    const toSpawn: typeof markets.$inferInsert[] = [];
     const conditionalLiquidity = subsidy > 0 ? subsidy / Math.LN2 : 0;
-    const newMarkets: typeof markets.$inferInsert[] = [];
     for (const src of sourceMarkets) {
       for (const branch of CONDITIONAL_BRANCHES) {
+        const key = keyOf(src.metricId, src.targetDate, branch);
+        if (existingByKey.has(key)) continue;
         const marketId = randomUUID();
-        newMarkets.push({
+        toSpawn.push({
           id: marketId, workspaceId,
           metricId: src.metricId, metricName: src.metricName, targetDate: src.targetDate,
           resolved: false, resolvedAt: null, actualValue: null, active: true, proposalId,
@@ -147,6 +153,25 @@ export async function createConditionalMarkets(
       }
     }
 
+    // Anything in existingConditional that is no longer in desiredKeys is a
+    // stale market (its (metric, targetDate) pair was removed from active
+    // leaves). Void those individually.
+    const desiredKeySet = new Set(desiredKeys);
+    for (const m of existingConditional) {
+      const key = keyOf(m.metricId, m.targetDate, m.branch ?? 'approved');
+      if (!desiredKeySet.has(key)) {
+        await voidMarket(m, workspaceId);
+      }
+    }
+
+    if (toSpawn.length === 0) {
+      // Everything desired already exists; return existing ids.
+      return existingConditional
+        .filter(m => desiredKeySet.has(keyOf(m.metricId, m.targetDate, m.branch ?? 'approved')))
+        .map(m => m.id);
+    }
+
+    const newMarkets = toSpawn;
     const totalCost = subsidy > 0 ? Math.round(subsidy * newMarkets.length * 1e6) / 1e6 : 0;
 
     if (newMarkets.length > 0) {
@@ -186,7 +211,12 @@ export async function createConditionalMarkets(
         }
       });
     }
-    return newMarkets.map(m => m.id as string);
+    // Return every market that belongs to the proposal's current desired set:
+    // the newly spawned ones plus the existing ones we kept.
+    const keptIds = existingConditional
+      .filter(m => desiredKeySet.has(keyOf(m.metricId, m.targetDate, m.branch ?? 'approved')))
+      .map(m => m.id);
+    return [...keptIds, ...newMarkets.map(m => m.id as string)];
   } finally {
     await db.insert(systemConfig)
       .values({ key: lockKey, value: { locked: false, expiresAt: 0 } })

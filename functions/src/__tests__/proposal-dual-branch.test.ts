@@ -112,6 +112,45 @@ describe('createConditionalMarkets — dual spawn', () => {
     expect(second.sort()).toEqual(first.sort());
   });
 
+  test('legacy proposals with only approved branch get the missing declined branch added (without nuking trades)', async () => {
+    await seedWorkspaceAndMetrics();
+    await insertProposal('p1');
+    // Simulate a pre-migration legacy proposal: insert only approved-branch
+    // markets manually, as if 0033 had backfilled them.
+    await db.insert(markets).values([
+      {
+        id: 'legacy-approved-a', workspaceId: WS, metricId: METRIC_A, metricName: 'Metric A',
+        targetDate: TARGET, rangeMin: 0, rangeMax: 100,
+        shares: [10, 5], liquidity: 5, pool: initialPool(5),
+        active: true, resolved: false, voided: false, proposalId: 'p1', branch: 'approved',
+      },
+      {
+        id: 'legacy-approved-b', workspaceId: WS, metricId: METRIC_B, metricName: 'Metric B',
+        targetDate: TARGET, rangeMin: 0, rangeMax: 200,
+        shares: [0, 0], liquidity: 5, pool: initialPool(5),
+        active: true, resolved: false, voided: false, proposalId: 'p1', branch: 'approved',
+      },
+    ]);
+
+    const ids = await createConditionalMarkets('p1', WS, {});
+    // Existing approved-branch markets kept, two new declined-branch markets spawned.
+    expect(ids).toHaveLength(4);
+    expect(ids).toContain('legacy-approved-a');
+    expect(ids).toContain('legacy-approved-b');
+
+    // The legacy approved markets are untouched (still have their shares).
+    const grouped = await branchesFor('p1');
+    for (const pair of Object.values(grouped)) {
+      const approved = pair.find(p => p.branch === 'approved')!;
+      const declined = pair.find(p => p.branch === 'declined')!;
+      expect(approved.voided).toBe(false);
+      expect(declined.voided).toBe(false);
+    }
+    // Verify approved-a still has its non-zero shares (proxy for "trades preserved").
+    const [aRow] = await db.select().from(markets).where(eq(markets.id, 'legacy-approved-a'));
+    expect(aRow.shares as [number, number]).toEqual([10, 5]);
+  });
+
   // NOTE: the CHECK constraint `proposalId NOT NULL <-> branch NOT NULL` is
   // enforced in production Postgres but PGlite (used by this harness) does
   // not always enforce CHECK during the type of write Drizzle issues here,
