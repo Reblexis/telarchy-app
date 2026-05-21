@@ -80,8 +80,19 @@ predictionsRouter.post('/trade', requireCapability('trade'), wrap(async (req, re
   //   - omitted (default): match the baseline market (proposalId IS NULL)
   //   - string: match the conditional market for that proposal
   //   - explicit null: same as default (baseline)
+  // branch disambiguates between the two conditional markets under a proposal:
+  //   - omitted (default): 'approved' branch (back-compat for pre-dual-branch
+  //     clients)
+  //   - 'approved' or 'declined': that branch specifically
+  //   - ignored if proposalId is omitted
   if (!marketId) {
-    const { metricName, metricId: reqMetricId, targetDate: reqTargetDate, proposalId: reqProposalId } = req.body;
+    const {
+      metricName,
+      metricId: reqMetricId,
+      targetDate: reqTargetDate,
+      proposalId: reqProposalId,
+      branch: reqBranch,
+    } = req.body;
     if (req.body.market_id !== undefined || req.body.marketID !== undefined) {
       res.status(400).json({ error: 'Use `marketId` (camelCase), not `market_id` or `marketID`.' });
       return;
@@ -102,21 +113,30 @@ predictionsRouter.post('/trade', requireCapability('trade'), wrap(async (req, re
       res.status(400).json({ error: '`proposalId` must be a string (the conditional-market\'s proposal) or omitted/null (baseline market).' });
       return;
     }
+    if (reqBranch !== undefined && reqBranch !== null && reqBranch !== 'approved' && reqBranch !== 'declined') {
+      res.status(400).json({ error: '`branch` must be "approved", "declined", or omitted.' });
+      return;
+    }
     const proposalFilter = typeof reqProposalId === 'string'
       ? eq(markets.proposalId, reqProposalId)
       : isNull(markets.proposalId);
+    const branchValue: 'approved' | 'declined' = (reqBranch === 'declined') ? 'declined' : 'approved';
+    const branchFilter = typeof reqProposalId === 'string'
+      ? eq(markets.branch, branchValue)
+      : isNull(markets.branch);
     const [found] = await db.select({ id: markets.id }).from(markets).where(and(
       eq(markets.workspaceId, workspaceId),
       eq(markets.resolved, false),
       eq(markets.targetDate, reqTargetDate as string),
       reqMetricId ? eq(markets.metricId, reqMetricId as string) : eq(markets.metricName, metricName as string),
       proposalFilter,
+      branchFilter,
     ));
     if (!found) {
       const which = typeof reqProposalId === 'string'
-        ? `conditional market for proposal ${reqProposalId}`
+        ? `${branchValue} conditional market for proposal ${reqProposalId}`
         : 'baseline market';
-      res.status(404).json({ error: `No open ${which} found for that metric + targetDate. Pass marketId directly, or check that proposalId is correct.` });
+      res.status(404).json({ error: `No open ${which} found for that metric + targetDate. Pass marketId directly, or check that proposalId / branch are correct.` });
       return;
     }
     marketId = found.id;

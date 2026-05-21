@@ -146,12 +146,17 @@ proposalsRouter.get('/:proposalId', requireCapability('read'), wrap(async (req, 
   if (!proposal) { res.status(404).json({ error: 'Proposal not found' }); return; }
 
   const proposalMarkets = await getProposalMarketSummariesForProposal(proposal.id, workspaceId);
+  // Each pair currently contains up to two LMSR markets (approved + declined).
+  // branchMarketCount is the count of actually-spawned markets, used by the
+  // frontend to display the real upfront subsidy cost.
+  const branchMarketCount = proposalMarkets.reduce((n, p) => n + (p.approved ? 1 : 0) + (p.declined ? 1 : 0), 0);
   const names = await getParticipantDisplayNames([proposal.proposedBy]);
   res.json({
     ...proposal,
     proposedByName: names.get(proposal.proposedBy) ?? null,
     markets: proposalMarkets,
     marketCount: proposalMarkets.length,
+    branchMarketCount,
   });
 }));
 

@@ -54,12 +54,12 @@ Use this when you need to (a) decide what to put on a canvas / pitch deck / land
 ## Conditional markets and proposals
 
 36. `POST /api/proposals` to propose any action. Free unless `liquiditySubsidy > 0`.
-37. Lazy spawn of conditional markets on first fetch with `?proposalId=`.
-38. Per-metric impact predictions on each proposal.
-39. Approve: conditional markets continue trading and resolve normally.
-40. Decline (good faith): conditional markets voided, stakes refunded, LP refunded.
-41. Decline-as-spam: spam penalty taken from proposer (capped at balance), credited to owner.
-42. Withdraw: proposer-only escape hatch.
+37. Lazy spawn of dual-branch conditional markets on first fetch with `?proposalId=` (one approved branch and one declined branch per active leaf metric).
+38. Per-metric impact predictions on each proposal: `approved.consensus - declined.consensus` as the calibrated causal estimate (not the natural-trajectory baseline, which can be contaminated by traders pricing in expected approval).
+39. Approve: the approved-branch markets stay live and resolve against actual KPI; the declined-branch markets are voided and refunded.
+40. Decline (good faith): the approved-branch markets are voided and refunded; the declined-branch markets stay live and resolve against actual KPI (counterfactual calibration record).
+41. Decline-as-spam: both branches voided; spam penalty taken from proposer (capped at balance), credited to owner.
+42. Withdraw: proposer-only escape hatch. Both branches voided.
 43. Bounty model: optional `proposalReward` paid on approve.
 44. Optional per-participant `maxPendingProposalsPerParticipant` cap (default 0 = off).
 45. Proposal message thread (`/api/proposals/:id/messages`) for proposer-admin negotiation.

@@ -245,6 +245,7 @@ export async function getMarkets(options: GetMarketsOptions | boolean = false, p
       status,
       createdAt: m.createdAt,
       proposalId: m.proposalId ?? undefined,
+      branch: m.branch ?? undefined,
       consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
       probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
       rangeMin: m.rangeMin,

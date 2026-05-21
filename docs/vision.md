@@ -211,11 +211,12 @@ Participants propose proposals; the system evaluates each proposal by running th
 
 **How it works**:
 1. A participant calls `POST /api/proposals` with `{ title, description }`.
-2. When any participant fetches markets with `?proposalId=<id>`, the system auto-creates **conditional markets** (clones of all currently active leaf-metric markets, starting with zero positions, tagged with the `proposalId`).
-3. Participants forecast on conditional markets to signal expected impact: "what will metric X be if this proposal is completed?"
-4. The admin (workspace owner or a participant with `manage` capability) views the proposal detail, which shows: conditional consensus vs baseline consensus for every market, revealing per-metric impact predictions.
-5. **Approve** - the proposal is recorded as approved; conditional markets remain and resolve normally.
-6. **Decline** - conditional markets are voided; all participant stakes are fully refunded.
+2. When any participant fetches markets with `?proposalId=<id>`, the system auto-creates **dual-branch conditional markets**: for every active leaf-metric market, two clones spawn under the proposal, one with `branch="approved"` (priced under "what will metric X be if this proposal is approved?") and one with `branch="declined"` (priced under "what will metric X be if this proposal is declined?").
+3. Participants forecast on both branches. The headline impact a human reads is `approved.consensus - declined.consensus` per metric, which isolates the causal effect of approving rather than the natural-trajectory baseline (which can itself price in expected approval, contaminating the comparison).
+4. The admin (workspace owner or a participant with `manage` capability) views the proposal detail, which shows each metric's decline-counterfactual and approve-counterfactual side by side with the signed delta.
+5. **Approve** - the declined-branch markets are voided and stakes refunded (the counterfactual never materialised); the approved-branch markets stay live and resolve against the actual metric value at the target date.
+6. **Decline** (good faith) - mirror image of approve. The approved-branch markets are voided and refunded; the declined-branch markets stay live and resolve against actual metric, producing a counterfactual calibration record we can score the decision against later.
+7. **Withdraw / decline as spam** - both branches voided, all stakes refunded.
 
 A per-proposal message thread (`proposals/{proposalId}/messages`) enables proposer-admin negotiation before a decision is made.
 

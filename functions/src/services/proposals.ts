@@ -45,11 +45,18 @@ async function getBaselineConsensusMap(marketRows: MarketRow[], workspaceId: str
 }
 
 export interface CreateConditionalMarketsOptions {
-  /** Per-market credit subsidy. 0 means no subsidy; markets ship at zero liquidity. */
+  /**
+   * Per-branch-market credit subsidy. Each proposal spawns two markets per
+   * (metric, targetDate) tuple (approved + declined), so total upfront cost
+   * is subsidyPerMarket * 2 * sourceMarkets.length. 0 means no subsidy.
+   */
   subsidyPerMarket?: number;
   /** LP attribution for the subsidy. Required when subsidyPerMarket > 0. */
   proposerAgentId?: string | null;
 }
+
+export const CONDITIONAL_BRANCHES = ['approved', 'declined'] as const;
+export type ConditionalBranch = typeof CONDITIONAL_BRANCHES[number];
 
 export async function createConditionalMarkets(
   proposalId: string,
@@ -101,13 +108,19 @@ export async function createConditionalMarkets(
       .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
 
     const sourceMarkets = openMarkets.filter(m => m.active !== false && !m.proposalId && leafMetricIds.has(m.metricId));
-    const desiredKeys = new Set(sourceMarkets.map(m => `${m.metricId}:${m.targetDate}`));
+    // Desired set is (metric, targetDate, branch) so both branches are tracked.
+    const desiredKeys = new Set<string>();
+    for (const src of sourceMarkets) {
+      for (const branch of CONDITIONAL_BRANCHES) {
+        desiredKeys.add(`${src.metricId}:${src.targetDate}:${branch}`);
+      }
+    }
 
     const existingConditional = await db.select().from(markets)
       .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.resolved, false)));
 
     if (existingConditional.length > 0) {
-      const existingKeys = new Set(existingConditional.map(m => `${m.metricId}:${m.targetDate}`));
+      const existingKeys = new Set(existingConditional.map(m => `${m.metricId}:${m.targetDate}:${m.branch ?? 'approved'}`));
       const setsMatch = existingConditional.length === desiredKeys.size &&
         [...desiredKeys].every(k => existingKeys.has(k));
       if (setsMatch) return existingConditional.map(m => m.id);
@@ -118,17 +131,20 @@ export async function createConditionalMarkets(
     const conditionalLiquidity = subsidy > 0 ? subsidy / Math.LN2 : 0;
     const newMarkets: typeof markets.$inferInsert[] = [];
     for (const src of sourceMarkets) {
-      const marketId = randomUUID();
-      newMarkets.push({
-        id: marketId, workspaceId,
-        metricId: src.metricId, metricName: src.metricName, targetDate: src.targetDate,
-        resolved: false, resolvedAt: null, actualValue: null, active: true, proposalId,
-        rangeMin: src.rangeMin, rangeMax: src.rangeMax,
-        shares: [0, 0] as [number, number],
-        liquidity: conditionalLiquidity,
-        pool: subsidy > 0 ? subsidy : 0,
-        createdAt: new Date(),
-      });
+      for (const branch of CONDITIONAL_BRANCHES) {
+        const marketId = randomUUID();
+        newMarkets.push({
+          id: marketId, workspaceId,
+          metricId: src.metricId, metricName: src.metricName, targetDate: src.targetDate,
+          resolved: false, resolvedAt: null, actualValue: null, active: true, proposalId,
+          branch,
+          rangeMin: src.rangeMin, rangeMax: src.rangeMax,
+          shares: [0, 0] as [number, number],
+          liquidity: conditionalLiquidity,
+          pool: subsidy > 0 ? subsidy : 0,
+          createdAt: new Date(),
+        });
+      }
     }
 
     const totalCost = subsidy > 0 ? Math.round(subsidy * newMarkets.length * 1e6) / 1e6 : 0;
@@ -181,9 +197,39 @@ export async function createConditionalMarkets(
   }
 }
 
+/**
+ * Void every open conditional market for a proposal regardless of branch.
+ * Used for withdraw / spam-decline where neither branch is realized, so all
+ * stakes are refunded.
+ */
 export async function voidProposalMarkets(proposalId: string, workspaceId: string): Promise<void> {
   const openMarkets = await db.select().from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.resolved, false)));
+
+  for (const market of openMarkets) {
+    await voidMarket(market, workspaceId);
+  }
+}
+
+/**
+ * Void only one branch of a proposal's conditional markets. Used on approve
+ * (void the 'declined' branch, keep 'approved' live until KPI resolution) and
+ * on plain decline (void the 'approved' branch, keep 'declined' live).
+ * Refunds positions at cost via voidMarket, so the unrealized branch behaves
+ * like a futarchy refund-on-non-realization.
+ */
+export async function voidProposalBranch(
+  proposalId: string,
+  workspaceId: string,
+  branch: ConditionalBranch,
+): Promise<void> {
+  const openMarkets = await db.select().from(markets)
+    .where(and(
+      eq(markets.workspaceId, workspaceId),
+      eq(markets.proposalId, proposalId),
+      eq(markets.resolved, false),
+      eq(markets.branch, branch),
+    ));
 
   for (const market of openMarkets) {
     await voidMarket(market, workspaceId);
@@ -199,6 +245,11 @@ export async function approveProposal(
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
   if (!proposal) throw new AppError('Proposal not found', 404);
   if (proposal.status !== 'pending') throw new AppError('Proposal is not pending', 400);
+
+  // The declined-branch counterfactual never materialises once approved, so
+  // void it and refund any positions. The approved branch stays live and
+  // resolves against the actual KPI at target date.
+  await voidProposalBranch(proposalId, workspaceId, 'declined');
 
   const [ws] = await db.select({ proposalReward: workspaces.proposalReward })
     .from(workspaces).where(eq(workspaces.id, workspaceId));
@@ -261,7 +312,11 @@ export async function declineProposal(
   if (!proposal) throw new AppError('Proposal not found', 404);
   if (proposal.status !== 'pending') throw new AppError('Can only decline pending proposals', 400);
 
-  await voidProposalMarkets(proposalId, workspaceId);
+  // The approved-branch counterfactual never materialises once declined, so
+  // void it and refund any positions. The declined branch stays live and
+  // resolves against the actual KPI at target date, giving the counterfactual
+  // record we use to compute calibration on declined proposals.
+  await voidProposalBranch(proposalId, workspaceId, 'approved');
   await db.update(proposals).set({
     status: 'declined',
     resolvedAt: new Date(),
@@ -358,34 +413,101 @@ export async function getProposalMarketSummaries(marketIds: string[], workspaceI
 }
 
 export async function getProposalMarketSummariesForProposal(proposalId: string, workspaceId: string) {
+  // Include voided rows so the post-decision view still shows the
+  // counterfactual branch's price at the moment of refund. The LMSR shares
+  // are not zeroed on void, so consensus() still computes a meaningful
+  // snapshot.
   const rows = await db.select().from(markets)
-    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.resolved, false)));
+    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId)));
   return buildProposalMarketSummariesFromRows(rows, workspaceId);
 }
 
-async function buildProposalMarketSummariesFromRows(rows: MarketRow[], workspaceId: string) {
+/**
+ * Per-branch market state (one row per spawned conditional market).
+ * Used inside the paired summary returned to clients.
+ */
+export interface BranchMarketSummary {
+  marketId: string;
+  consensus: number | null;
+  liquidity: number;
+  tradeCount: number;
+  resolved: boolean;
+  voided: boolean;
+  actualValue: number | null;
+}
+
+/**
+ * Paired summary for one (metric, targetDate) under a proposal: both branches
+ * plus the natural-trajectory baseline as context. `delta` is the headline
+ * impact number: approved.consensus - declined.consensus.
+ */
+export interface PairedProposalMarketSummary {
+  metricId: string;
+  metricName: string;
+  targetDate: string;
+  resolvesOn: string | null;
+  rangeMin: number;
+  rangeMax: number;
+  approved: BranchMarketSummary | null;
+  declined: BranchMarketSummary | null;
+  delta: number | null;
+  baselineConsensus: number | null;
+}
+
+async function buildProposalMarketSummariesFromRows(
+  rows: MarketRow[],
+  workspaceId: string,
+): Promise<PairedProposalMarketSummary[]> {
   const [tradeCountMap, baselineConsensusMap] = await Promise.all([
     getTradeCountMap(rows.map(r => r.id), workspaceId),
     getBaselineConsensusMap(rows, workspaceId),
   ]);
 
-  return rows.map(m => {
-    const shares = (m.shares as [number, number]) || [0, 0];
+  // Group rows by (metric, targetDate). Pre-migration single-branch markets
+  // were backfilled to branch='approved' so they pair with a null declined.
+  const groups = new Map<string, MarketRow[]>();
+  for (const m of rows) {
     const key = `${m.metricId}:${m.targetDate}`;
+    const arr = groups.get(key);
+    if (arr) arr.push(m);
+    else groups.set(key, [m]);
+  }
+
+  const toBranchSummary = (m: MarketRow): BranchMarketSummary => {
+    const shares = (m.shares as [number, number]) || [0, 0];
     return {
       marketId: m.id,
-      metricId: m.metricId,
-      metricName: m.metricName,
-      targetDate: m.targetDate,
-      resolvesOn: endOfPeriod(m.targetDate),
       consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
-      baselineConsensus: baselineConsensusMap.get(key) ?? null,
-      rangeMin: m.rangeMin,
-      rangeMax: m.rangeMax,
       liquidity: m.liquidity,
       tradeCount: tradeCountMap.get(m.id) ?? 0,
       resolved: m.resolved,
+      voided: m.voided,
       actualValue: m.actualValue ?? null,
     };
-  });
+  };
+
+  const out: PairedProposalMarketSummary[] = [];
+  for (const [key, branchRows] of groups) {
+    const first = branchRows[0];
+    const approvedRow = branchRows.find(r => (r.branch ?? 'approved') === 'approved') ?? null;
+    const declinedRow = branchRows.find(r => r.branch === 'declined') ?? null;
+    const approved = approvedRow ? toBranchSummary(approvedRow) : null;
+    const declined = declinedRow ? toBranchSummary(declinedRow) : null;
+    const delta = approved?.consensus != null && declined?.consensus != null
+      ? approved.consensus - declined.consensus
+      : null;
+    out.push({
+      metricId: first.metricId,
+      metricName: first.metricName,
+      targetDate: first.targetDate,
+      resolvesOn: endOfPeriod(first.targetDate),
+      rangeMin: first.rangeMin,
+      rangeMax: first.rangeMax,
+      approved,
+      declined,
+      delta,
+      baselineConsensus: baselineConsensusMap.get(key) ?? null,
+    });
+  }
+  return out;
 }

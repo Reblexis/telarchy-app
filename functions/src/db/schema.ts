@@ -217,6 +217,13 @@ export const markets = pgTable('markets', {
   /** Cumulative traded volume on this market: sum of |cost| across all buy and sell trades. */
   tradedVolume: doublePrecision('traded_volume').notNull().default(0),
   proposalId: text('proposal_id'),
+  /**
+   * Conditional-market branch. NULL on natural-trajectory (non-proposal) markets.
+   * On proposal-conditional markets: 'approved' (priced under the assumption the
+   * proposal is approved) or 'declined' (priced under the assumption it is
+   * declined). The headline impact is approved.consensus - declined.consensus.
+   */
+  branch: text('branch'),
   /** Flagged for the public benchmark surface (/benchmark + /api/marketplace/featured). */
   featured: boolean('featured').notNull().default(false),
 }, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);

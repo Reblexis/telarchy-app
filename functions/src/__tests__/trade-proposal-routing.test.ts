@@ -101,7 +101,7 @@ async function seed() {
       id: CONDITIONAL_MARKET, workspaceId: WS, metricId: METRIC, metricName: 'Routing Metric',
       targetDate: TARGET, rangeMin: RANGE_MIN, rangeMax: RANGE_MAX,
       shares: [0, 0], liquidity: LIQUIDITY, pool: initialPool(LIQUIDITY),
-      active: true, resolved: false, voided: false, proposalId: PROPOSAL_ID,
+      active: true, resolved: false, voided: false, proposalId: PROPOSAL_ID, branch: 'approved',
     },
   ]);
 }

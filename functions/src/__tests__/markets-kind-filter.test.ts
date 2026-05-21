@@ -45,13 +45,13 @@ async function seed() {
       id: CONDITIONAL_MARKET_A, workspaceId: WS, metricId: METRIC, metricName: 'Steam units',
       targetDate: '2028', rangeMin: 0, rangeMax: 100,
       shares: [0, 0], liquidity: 10, pool: initialPool(10),
-      active: true, resolved: false, voided: false, proposalId: 'prop-1',
+      active: true, resolved: false, voided: false, proposalId: 'prop-1', branch: 'approved',
     },
     {
       id: CONDITIONAL_MARKET_B, workspaceId: WS, metricId: METRIC, metricName: 'Steam units',
       targetDate: '2028', rangeMin: 0, rangeMax: 100,
       shares: [0, 0], liquidity: 10, pool: initialPool(10),
-      active: true, resolved: false, voided: false, proposalId: 'prop-2',
+      active: true, resolved: false, voided: false, proposalId: 'prop-2', branch: 'approved',
     },
   ]);
 }

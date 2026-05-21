@@ -550,14 +550,14 @@ The result is per-metric impact predictions: quantitative forecasts of how much 
 
 ## How it works
 
-1. A participant proposes a proposal (\`POST /api/proposals\`) with a title, description, and optional \`liquiditySubsidy\` (credits per conditional market). If omitted, subsidy is 0 — proposing is free.
-2. Conditional markets are auto-created: clones of all active leaf markets, tagged to that proposal, starting at zero positions. If \`liquiditySubsidy > 0\`, the proposer's balance is debited \`liquiditySubsidy * N\` (where N is the number of active leaf markets) and each conditional market gets a real LP row attributed to the proposer. Otherwise markets ship at zero liquidity until an admin injects via \`POST /api/predictions/markets/liquidity/bulk { amount, proposalId }\`.
-3. Participants forecast on conditional markets to signal expected impact.
-4. Admin views the proposal detail: conditional vs baseline consensus for every market, plus a "Forecast subsidy" header showing how much liquidity backs the signal. Admins can top up via the inline **Add liquidity** button or via \`POST /api/predictions/markets/liquidity/bulk { amount, proposalId }\`.
-5. **Approve** - conditional markets keep trading and resolve at the actual metric value when their target date arrives. If the workspace has \`proposalReward\` set, the owner's balance is debited and the proposer is paid the reward (skipped if 0; 409 if owner balance is insufficient).
-6. **Decline** (good faith) - conditional markets are voided; participant stakes are refunded; the proposer's LP contribution is refunded too. No balance changes for the proposer.
-7. **Decline as spam** (\`POST /api/proposals/:id/decline-spam\`) - same voiding as decline, but the proposer is charged up to \`workspace.spamPenalty\` (capped at their available balance) and the workspace owner is credited. This is the spam-suppression lever; the optional per-participant pending cap (\`maxPendingProposalsPerParticipant\`, default 0 = off) is the throughput lever.
-8. **Withdraw** (\`POST /api/proposals/:id/withdraw\`) - proposer-only escape hatch. Voids conditionals, no balance changes. Useful when the proposer has hit a pending cap (if the workspace has one configured) and wants to free a slot.
+1. A participant proposes a proposal (\`POST /api/proposals\`) with a title, description, and optional \`liquiditySubsidy\` (credits per **branch** market). If omitted, subsidy is 0 (proposing is free, but conditional markets ship with zero liquidity and produce no signal).
+2. Conditional markets are auto-created in **dual-branch** form: for every active leaf metric, two markets spawn under the proposal, one with \`branch="approved"\` (priced under the assumption the proposal is approved) and one with \`branch="declined"\` (priced under the assumption it is declined). If \`liquiditySubsidy > 0\`, the proposer is debited \`liquiditySubsidy * leafMetricCount * 2\` (subsidy per branch, two branches per metric) and each market gets a real LP row attributed to the proposer.
+3. Participants forecast on both branches. The headline impact a human reads is \`approved.consensus - declined.consensus\` per metric, which isolates the causal effect of approving and removes contamination from the natural-trajectory baseline (which can itself price in expected approval).
+4. Admin views the proposal detail: each metric row shows the decline-counterfactual and approve-counterfactual side by side with the signed delta. Admins can top up either branch via the inline **Add liquidity** button or via \`POST /api/predictions/markets/liquidity/bulk { amount, proposalId }\` (which injects equally into all branches under the proposal).
+5. **Approve** - the **declined** branch is voided and refunded (the counterfactual never materialised), the **approved** branch stays live and resolves against the actual metric value at the target date. If the workspace has \`proposalReward\` set, the owner is debited and the proposer is paid the reward (skipped if 0; 409 if owner balance is insufficient).
+6. **Decline** (good faith) - mirror image of approve. The **approved** branch is voided and refunded; the **declined** branch stays live and resolves against the actual metric, producing a counterfactual calibration record so we can score the decision later. No balance changes for the proposer.
+7. **Decline as spam** (\`POST /api/proposals/:id/decline-spam\`) - both branches are voided (neither counterfactual materialised), and the proposer is charged up to \`workspace.spamPenalty\` (capped at their available balance) with the workspace owner credited.
+8. **Withdraw** (\`POST /api/proposals/:id/withdraw\`) - proposer-only escape hatch. Voids both branches, no balance changes.
 
 ## Bounty model knobs
 
@@ -619,11 +619,12 @@ The market's consensus is pushed toward \`targetValue\`. If the move costs less 
 
 Alternative identifiers (when you don't have a marketId):
 \`\`\`json
-{ "metricId": "uuid", "targetDate": "2026-06", "targetValue": 750, "maxBudget": 50 }                       // baseline market
-{ "metricId": "uuid", "targetDate": "2026-06", "proposalId": "uuid", "targetValue": 750, "maxBudget": 50 } // conditional market on a proposal
+{ "metricId": "uuid", "targetDate": "2026-06", "targetValue": 750, "maxBudget": 50 }                                              // baseline market
+{ "metricId": "uuid", "targetDate": "2026-06", "proposalId": "uuid", "branch": "approved", "targetValue": 750, "maxBudget": 50 }  // approved-branch conditional market
+{ "metricId": "uuid", "targetDate": "2026-06", "proposalId": "uuid", "branch": "declined", "targetValue": 750, "maxBudget": 50 }  // declined-branch conditional market
 \`\`\`
 
-Without \`proposalId\` the metric+targetDate form resolves to the **baseline** market. Pass \`proposalId\` to trade the conditional market for that proposal.
+Without \`proposalId\` the metric+targetDate form resolves to the **baseline** market. With \`proposalId\` it resolves to the conditional market for that proposal; \`branch\` picks "approved" or "declined" (default "approved" for back-compat with pre-dual-branch clients).
 
 ### Directional form (use when you don't have an estimate)
 
@@ -1148,7 +1149,7 @@ await fetch(\`\${BASE}/api/predictions/trade\`, {
       '',
       '| Method | Path | Auth | Purpose |',
       '| --- | --- | --- | --- |',
-      '| POST   | `/api/predictions/trade` | agent | Buy or sell on a market. Identify by `marketId`, or by `metricName/metricId + targetDate` (+ optional `proposalId` to pick the conditional market for that proposal; default is baseline). Modes: target-value `{targetValue, maxBudget}` *(recommended for agents with a numeric estimate; cannot overshoot)*, directional `{direction, amount}`, sell `{direction, sellShares}`. |',
+      '| POST   | `/api/predictions/trade` | agent | Buy or sell on a market. Identify by `marketId`, or by `metricName/metricId + targetDate` (+ optional `proposalId` to pick a conditional market; default is baseline; `branch: "approved" \\| "declined"` selects the branch, default "approved"). Modes: target-value `{targetValue, maxBudget}` *(recommended for agents with a numeric estimate; cannot overshoot)*, directional `{direction, amount}`, sell `{direction, sellShares}`. |',
       '| GET    | `/api/predictions/positions` | agent/admin | Caller\'s positions. `?marketId=X` to filter. |',
       '| GET    | `/api/predictions/markets` | agent/admin | List markets (compact). Defaults to `status=open` (tradeable). Pass `?status=closed`, `?status=resolved`, `?status=voided`, or `?status=all` to widen. |',
       '| GET    | `/api/predictions/markets/:id` | agent/admin | Market detail. |',

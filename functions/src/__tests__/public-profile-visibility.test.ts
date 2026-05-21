@@ -167,7 +167,7 @@ describe('GET /api/agents/:idOrNickname/public visibility', () => {
   test('conditional markets get status "conditional" and surface proposalId', async () => {
     await seed();
     // Mark mkt-public as conditional (proposalId set, otherwise still live).
-    await db.update(markets).set({ proposalId: 'prop-123' }).where(eq(markets.id, 'mkt-public'));
+    await db.update(markets).set({ proposalId: 'prop-123', branch: 'approved' }).where(eq(markets.id, 'mkt-public'));
     const res = await request(app).get(`/api/agents/${PROFILE_OWNER}/public`);
     const pub = res.body.openPositions.find((p: { marketId: string }) => p.marketId === 'mkt-public');
     expect(pub.status).toBe('conditional');

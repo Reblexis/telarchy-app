@@ -200,6 +200,8 @@ export interface Agent {
 
 export type MarketStatus = 'open' | 'resolved' | 'voided' | 'closed';
 
+export type ConditionalBranch = 'approved' | 'declined';
+
 export interface Market {
   id: string;
   metricId: string;
@@ -219,6 +221,8 @@ export interface Market {
   rangeMax: number;
   liquidity: number;
   proposalId?: string;
+  /** Set on conditional markets only. 'approved' or 'declined'. */
+  branch?: ConditionalBranch;
 }
 
 export type ProposalStatus = 'pending' | 'approved' | 'declined';
@@ -253,22 +257,40 @@ export interface MarketMessage {
   createdAt: string;
 }
 
-export interface ProposalMarketSummary {
+/** Per-branch market state inside a paired proposal-market summary. */
+export interface BranchMarketSummary {
   marketId: string;
+  consensus: number | null;
+  liquidity: number;
+  tradeCount: number;
+  resolved: boolean;
+  voided: boolean;
+  actualValue: number | null;
+}
+
+/**
+ * Paired summary for one (metric, targetDate) under a proposal. Both branches
+ * plus the natural-trajectory baseline. `delta` is the headline impact:
+ * approved.consensus - declined.consensus.
+ */
+export interface ProposalMarketSummary {
   metricId: string;
   metricName: string;
   targetDate: string;
-  consensus: number | null;
-  baselineConsensus?: number | null;
+  resolvesOn: string | null;
   rangeMin: number;
   rangeMax: number;
-  liquidity: number;
-  tradeCount: number;
+  approved: BranchMarketSummary | null;
+  declined: BranchMarketSummary | null;
+  delta: number | null;
+  baselineConsensus: number | null;
 }
 
 export interface ProposalDetailData extends Proposal {
   markets?: ProposalMarketSummary[];
   marketCount?: number;
+  /** Total spawned LMSR markets (approved + declined per metric). */
+  branchMarketCount?: number;
 }
 
 export interface Position {

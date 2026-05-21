@@ -16,12 +16,20 @@ export function enrichMetrics(metrics: Metric[], consensusMap: Record<string, nu
   return metrics;
 }
 
-/** Build a consensus map from market data, optionally filtering by tradeCount. */
+/**
+ * Build a consensus map from market data, optionally filtering by tradeCount.
+ *
+ * Conditional markets have two branches per (metric, targetDate). Inspect
+ * mode answers "what does the metric look like IF the proposal is approved",
+ * so we ignore the 'declined' branch entirely. Baseline markets carry no
+ * branch and are always included.
+ */
 export function buildConsensusMap(markets: Market[], onlyTraded = false): Record<string, number> {
   const map: Record<string, number> = {};
   for (const market of markets) {
     if (market.consensus === null) continue;
     if (onlyTraded && market.tradeCount === 0) continue;
+    if (market.branch === 'declined') continue;
     map[`${market.metricName}:${market.targetDate}`] = market.consensus;
   }
   return map;

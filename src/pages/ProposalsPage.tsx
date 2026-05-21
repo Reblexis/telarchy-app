@@ -35,8 +35,8 @@ function isNearHorizon(targetDate: string): boolean {
 /**
  * One-line summary of how the proposal's conditional markets are pricing the
  * proposal, used in the approve-confirm. Picks up to two largest-magnitude
- * forecast moves (signed % from baseline) so the approver re-sees the
- * signal at the commit moment instead of clicking blind.
+ * forecast moves (signed % between approved and declined branches) so the
+ * approver re-sees the causal-delta signal at the commit moment.
  *
  * Restricted to near-horizon markets so the line agrees with what the
  * approver actually sees in the predictions table; otherwise a thinly
@@ -46,39 +46,60 @@ function isNearHorizon(targetDate: string): boolean {
 function summarizeMarketsForConfirm(markets: ProposalMarketSummary[] | undefined): string {
   if (!markets || markets.length === 0) return '';
   const moves = markets
-    .filter(m => m.tradeCount > 0 && m.consensus != null && m.baselineConsensus != null && (m.baselineConsensus as number) !== 0 && isNearHorizon(m.targetDate))
-    .map(m => {
-      const base = m.baselineConsensus as number;
-      const cur = m.consensus as number;
-      const pct = ((cur - base) / Math.abs(base)) * 100;
-      return { name: m.metricName, pct, cur, base };
+    .filter(m => {
+      if (!isNearHorizon(m.targetDate)) return false;
+      const a = m.approved?.consensus ?? null;
+      const d = m.declined?.consensus ?? null;
+      const traded = (m.approved?.tradeCount ?? 0) + (m.declined?.tradeCount ?? 0);
+      if (a == null || d == null || traded === 0 || d === 0) return false;
+      return true;
     })
-    .sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
+    .map(m => {
+      const a = m.approved!.consensus as number;
+      const d = m.declined!.consensus as number;
+      const pct = ((a - d) / Math.abs(d)) * 100;
+      return { name: m.metricName, pct, a, d };
+    })
+    .sort((x, y) => Math.abs(y.pct) - Math.abs(x.pct));
   if (moves.length === 0) return '';
   const top = moves.slice(0, 2)
-    .map(m => `${m.name}: ${m.pct >= 0 ? '+' : ''}${m.pct.toFixed(1)}% (${formatNumber(m.base)} → ${formatNumber(m.cur)})`)
+    .map(m => `${m.name}: ${m.pct >= 0 ? '+' : ''}${m.pct.toFixed(1)}% (${formatNumber(m.d)} vs ${formatNumber(m.a)})`)
     .join('; ');
   const more = moves.length > 2 ? ` (+${moves.length - 2} more)` : '';
   return `${top}${more}`;
 }
 
-function ForecastCell({ baseline, current }: { baseline: number | null | undefined; current: number | null }) {
-  if (current == null) return <span className="forecast-empty">—</span>;
-  if (baseline == null) {
-    return <span className="forecast-cell"><span className="forecast-after">{formatNumber(current)}</span></span>;
+/**
+ * Side-by-side branch comparison. Shows declined.consensus (counterfactual)
+ * → approved.consensus (with the proposal) with the signed delta. The delta
+ * is the calibrated causal estimate the product is built around.
+ */
+function ForecastCell({
+  approved, declined,
+}: {
+  approved: number | null;
+  declined: number | null;
+}) {
+  if (approved == null && declined == null) return <span className="forecast-empty">—</span>;
+  if (approved == null || declined == null) {
+    return (
+      <span className="forecast-cell">
+        <span className="forecast-after">{formatNumber(approved ?? declined)}</span>
+      </span>
+    );
   }
-  const delta = current - baseline;
+  const delta = approved - declined;
   const deltaClass = Math.abs(delta) < 0.005
     ? 'forecast-delta--flat'
     : delta > 0 ? 'forecast-delta--up' : 'forecast-delta--down';
   const deltaLabel = Math.abs(delta) < 0.005
     ? '±0'
-    : `${delta > 0 ? '+' : '−'}${Math.abs(delta).toFixed(Math.abs(delta) < 10 ? 2 : 1)}`;
+    : `${delta > 0 ? '+' : '-'}${Math.abs(delta).toFixed(Math.abs(delta) < 10 ? 2 : 1)}`;
   return (
-    <span className="forecast-cell">
-      <span className="forecast-before">{formatNumber(baseline)}</span>
+    <span className="forecast-cell" title={`Decline: ${formatNumber(declined)} / Approve: ${formatNumber(approved)}`}>
+      <span className="forecast-before">{formatNumber(declined)}</span>
       <span className="forecast-arrow">→</span>
-      <span className="forecast-after">{formatNumber(current)}</span>
+      <span className="forecast-after">{formatNumber(approved)}</span>
       <span className={`forecast-delta ${deltaClass}`}>{deltaLabel}</span>
     </span>
   );
@@ -95,8 +116,12 @@ function PredictionsTable({ markets }: { markets: ProposalMarketSummary[] }) {
   const visible = showAll ? markets : markets.filter(m => isNearHorizon(m.targetDate));
   const hidden = markets.length - visible.length;
 
-  const openMarket = (marketId: string) => {
-    navigate(`/markets?marketId=${encodeURIComponent(marketId)}&kind=conditional`);
+  // Clicking a row routes to the approved-branch market detail (the primary
+  // view); the market detail page surfaces its sibling declined branch.
+  const openMarket = (m: ProposalMarketSummary) => {
+    const primary = m.approved?.marketId ?? m.declined?.marketId;
+    if (!primary) return;
+    navigate(`/markets?marketId=${encodeURIComponent(primary)}&kind=conditional`);
   };
 
   return (
@@ -106,28 +131,35 @@ function PredictionsTable({ markets }: { markets: ProposalMarketSummary[] }) {
           <tr>
             <th>Metric</th>
             <th>Horizon</th>
-            <th className="num">Forecast</th>
+            <th className="num">Decline → Approve</th>
             <th className="num">Trades</th>
           </tr>
         </thead>
         <tbody>
           {visible.map(m => {
-            const noSignal = m.tradeCount === 0;
+            const tradeCount = (m.approved?.tradeCount ?? 0) + (m.declined?.tradeCount ?? 0);
+            const noSignal = tradeCount === 0;
+            const key = `${m.metricId}:${m.targetDate}`;
             return (
               <tr
-                key={m.marketId}
+                key={key}
                 className={`predictions-row${noSignal ? ' no-signal' : ''}`}
-                onClick={() => openMarket(m.marketId)}
+                onClick={() => openMarket(m)}
                 tabIndex={0}
                 role="button"
                 aria-label={`Open market for ${m.metricName} at ${formatTargetDateDisplay(m.targetDate)}`}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openMarket(m.marketId); } }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openMarket(m); } }}
                 style={{ cursor: 'pointer' }}
               >
                 <td className="metric-name">{m.metricName}</td>
                 <td className="horizon">{formatTargetDateDisplay(m.targetDate)}</td>
-                <td className="num"><ForecastCell baseline={m.baselineConsensus} current={m.consensus} /></td>
-                <td className="num">{noSignal ? <span className="no-signal-label">no signal</span> : m.tradeCount}</td>
+                <td className="num">
+                  <ForecastCell
+                    approved={m.approved?.consensus ?? null}
+                    declined={m.declined?.consensus ?? null}
+                  />
+                </td>
+                <td className="num">{noSignal ? <span className="no-signal-label">no signal</span> : tradeCount}</td>
               </tr>
             );
           })}
@@ -287,8 +319,12 @@ function SubsidyHeader({ proposal, isAdmin, onAdded, onError }: {
   const [showInput, setShowInput] = useState(false);
   const [amount, setAmount] = useState('');
   const subsidy = proposal.liquiditySubsidy ?? 0;
-  const marketCount = proposal.marketCount ?? proposal.markets?.length ?? 0;
-  const total = Math.round(subsidy * marketCount * 100) / 100;
+  const metricCount = proposal.marketCount ?? proposal.markets?.length ?? 0;
+  // Each metric gets two LMSR markets (approved + declined branch). The
+  // subsidy is charged per branch, so total credits debited is subsidy *
+  // metricCount * 2. Use server-supplied branchMarketCount when available.
+  const branchMarketCount = proposal.branchMarketCount ?? metricCount * 2;
+  const total = Math.round(subsidy * branchMarketCount * 100) / 100;
   const isPending = proposal.status === 'pending';
 
   const handleAdd = async () => {
@@ -307,8 +343,8 @@ function SubsidyHeader({ proposal, isAdmin, onAdded, onError }: {
     <div className="proposal-subsidy-line">
       {subsidy > 0 ? (
         <span>
-          Subsidy <span className="proposal-subsidy-num">{subsidy.toFixed(2)}</span>/market &middot;{' '}
-          {marketCount} {marketCount === 1 ? 'market' : 'markets'} &middot;{' '}
+          Subsidy <span className="proposal-subsidy-num">{subsidy.toFixed(2)}</span>/branch &middot;{' '}
+          {metricCount} {metricCount === 1 ? 'metric' : 'metrics'} &times; 2 branches &middot;{' '}
           <span className="proposal-subsidy-num">{total.toFixed(2)} cr</span> total
         </span>
       ) : (
@@ -429,7 +465,7 @@ function ProposalDrawer({ proposal, isAdmin, onClose, onAction, onError }: Propo
               </div>
               <p className="proposal-actions-hint">
                 {isAdmin
-                  ? 'Declining voids conditional markets and refunds stakes.'
+                  ? 'Approving voids the decline-counterfactual branch and refunds those stakes; the approve branch resolves against the actual metric at the target date. Declining is the mirror image.'
                   : 'Only workspace admins can approve or decline. Click Inspect to see how this proposal would shift each metric.'}
               </p>
             </div>
@@ -445,10 +481,12 @@ function ProposalDrawer({ proposal, isAdmin, onClose, onAction, onError }: Propo
             title="Conditional markets"
             body={
               <>
-                Each row is a market forecast for one of your metrics under the
-                assumption this proposal is approved. The spread shows participant
-                disagreement, wider = more uncertain. Use <strong>Inspect</strong>{' '}
-                above to overlay the predicted impact on your Metrics page.
+                Each row pairs two markets: one prices the metric assuming this
+                proposal is approved, the other assuming it is declined. The
+                arrow shows the causal delta, decline to approve. Wider gaps
+                mean traders see this proposal moving the needle. Use{' '}
+                <strong>Inspect</strong> above to overlay the approve-branch
+                impact on your Metrics page.
               </>
             }
           />
@@ -472,7 +510,7 @@ function ProposalDrawer({ proposal, isAdmin, onClose, onAction, onError }: Propo
                 {forecast ? forecast : <em>no market signal yet</em>}
               </p>
               <p className="confirm-modal-note">
-                Conditional markets stay open for post-decision tracking.
+                The approved-branch markets stay live and resolve against the actual metric at the target date. The declined-branch markets void and refund.
               </p>
             </>
           );
@@ -491,7 +529,7 @@ function ProposalDrawer({ proposal, isAdmin, onClose, onAction, onError }: Propo
         title={`Decline "${proposal.title}"?`}
         body={
           <p className="confirm-modal-note">
-            This voids the proposal's conditional markets and refunds any stakes.
+            The approve-branch markets void and refund. The decline-branch markets stay live and resolve against the actual metric at the target date, producing the counterfactual record.
           </p>
         }
         confirmLabel="Decline"
@@ -535,8 +573,10 @@ function NewProposalModal({ open, onClose, onCreated, onError }: NewProposalModa
 
   const subsidyNumber = subsidy.trim() === '' ? 0 : parseFloat(subsidy);
   const subsidyValid = Number.isFinite(subsidyNumber) && subsidyNumber >= 0 && (subsidyNumber === 0 || subsidyNumber >= 0.1);
+  // Each metric spawns two LMSR markets (approved + declined branch), so the
+  // proposer is debited subsidy * metricCount * 2 upfront.
   const totalCost = activeMarketCount != null && subsidyNumber > 0
-    ? Math.round(subsidyNumber * activeMarketCount * 100) / 100
+    ? Math.round(subsidyNumber * activeMarketCount * 2 * 100) / 100
     : 0;
 
   const handleSubmit = async (e: FormEvent) => {
@@ -584,7 +624,7 @@ function NewProposalModal({ open, onClose, onCreated, onError }: NewProposalModa
             />
           </div>
           <div className="form-group">
-            <label htmlFor="newProposalSubsidy">Forecast subsidy (credits per market)</label>
+            <label htmlFor="newProposalSubsidy">Forecast subsidy (credits per branch market)</label>
             <input
               id="newProposalSubsidy"
               type="number"
@@ -599,13 +639,14 @@ function NewProposalModal({ open, onClose, onCreated, onError }: NewProposalModa
                 <span>Counting active markets…</span>
               ) : subsidyNumber > 0 ? (
                 <span>
-                  {subsidyNumber.toFixed(2)} cr/market &times; {activeMarketCount} markets ={' '}
+                  {subsidyNumber.toFixed(2)} cr/branch &times; {activeMarketCount} metrics &times; 2 branches ={' '}
                   <strong>{totalCost.toFixed(2)} credits</strong> debited from your balance.
-                  Refunded if declined; up to {(totalCost * Math.LN2).toFixed(2)} at risk if approved.
+                  Whichever branch (approve or decline) is not realised refunds in full;
+                  the realised branch is at risk for up to {((totalCost / 2) * Math.LN2).toFixed(2)} credits.
                 </span>
               ) : (
                 <span style={{ color: 'var(--accent-text)' }}>
-                  No subsidy &mdash; conditional markets will have zero liquidity, so traders see no point forecasting and the approve screen will say &ldquo;no signal&rdquo;.
+                  No subsidy, conditional markets will have zero liquidity, so traders see no point forecasting and the approve screen will say &ldquo;no signal&rdquo;.
                 </span>
               )}
             </div>

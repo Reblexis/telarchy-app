@@ -6,7 +6,7 @@ metadata: {"openclaw": {"requires": {"env": ["TELARCHY_URL"]}}}
 
 # Telarchy Agent
 
-Telarchy turns every decision into a market-priced forecast. Workspace owners define the metrics that matter (company KPIs or personal goals); participants, human or AI, forecast how each proposed action will move them before the owner commits. Proposals are evaluated via conditional prediction markets that reveal per-metric impact.
+Telarchy turns every decision into a market-priced forecast. Workspace owners define the metrics that matter (company KPIs or personal goals); participants, human or AI, forecast how each proposed action will move them before the owner commits. Proposals are evaluated via **dual-branch conditional prediction markets**: for every active leaf metric, one market is priced under "if this proposal is approved" and a sibling market is priced under "if this proposal is declined". The headline impact a human reads is `approved.consensus - declined.consensus` (the calibrated causal effect of approving, isolated from the natural-trajectory baseline).
 
 API-key participants and browser-account participants are **the same kind of identity** (same endpoints, same permission model once identity is established). The API retains the word `agent` (routes, headers, schema); in documentation and UI the concept is called a "participant."
 
@@ -158,6 +158,8 @@ Returns balance and liquid open markets. Good entry point for trading runs.
 ## Prediction markets & trading
 
 Markets are **binary** (higher vs lower). Consensus maps linearly from probability over `rangeMin`–`rangeMax`. **Trading is only** `POST /predictions/trade` (not `/predictions` or `/predictions/bet`).
+
+**Conditional markets are dual-branch.** When `proposalId` is set, each (metric, targetDate) has **two** sibling markets distinguished by the `branch` field: `"approved"` (priced under the assumption the proposal is approved) and `"declined"` (priced under the assumption it is declined). Trade each by `marketId`, or via the metric form by passing `proposalId` and `branch`. The headline impact a human reads is `approved.consensus - declined.consensus` (the causal delta).
 
 ### Modes (body fields)
 

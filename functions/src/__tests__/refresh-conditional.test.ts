@@ -68,7 +68,7 @@ describe('refreshRelativeDateMarkets and conditional markets', () => {
       },
       {
         id: 'mkt-cond-near', workspaceId: WS, metricId: METRIC, metricName: 'Steam recent review percentage',
-        proposalId: 'stale-proposal-1', targetDate: nearDate, rangeMin: 0, rangeMax: 100,
+        proposalId: 'stale-proposal-1', branch: 'approved', targetDate: nearDate, rangeMin: 0, rangeMax: 100,
         shares: [0, 0], liquidity: 1, pool: 1,
         active: true, resolved: false, voided: false,
       },
