@@ -11,7 +11,7 @@ import { getAllMetrics, getMetricLogs, getUpdates } from '../services/metrics';
 import { resolvePredictions, resolveSingleMarket, getMarkets, type MarketStatus } from '../services/predictions';
 import { refreshRelativeDateMarkets, voidMarket } from '../services/markets';
 import { createConditionalMarkets } from '../services/proposals';
-import { isValidDateFormat, endOfPeriod } from '../lib/date-utils';
+import { isValidDateFormat, endOfPeriod, resolutionInstant } from '../lib/date-utils';
 import { extractMetricReferences } from '../lib/metrics-engine';
 import { consensus, pHigher, directionTradeCost, sharesForBudget, betTowardsValue, directionSellProceeds, lmsrCost, initialPool, AMM_DEFAULTS } from '../lib/amm';
 import { emitEvent } from '../services/events';
@@ -446,7 +446,7 @@ predictionsRouter.get('/markets/:id', requireCapability('read'), wrap(async (req
   const prob = pHigher(shares, market.liquidity);
   res.json({
     id: market.id, metricId: market.metricId, metricName: market.metricName,
-    targetDate: market.targetDate, resolvesOn: endOfPeriod(market.targetDate),
+    targetDate: market.targetDate, resolvesOn: resolutionInstant(market.targetDate),
     resolved: market.resolved,
     resolvedAt: market.resolvedAt ?? null,
     actualValue: market.actualValue ?? null,
@@ -501,7 +501,7 @@ predictionsRouter.get('/markets/:id/context', requireCapability('read'), wrap(as
   res.json({
     market: {
       id: market.id, metricName: market.metricName,
-      targetDate: market.targetDate, resolvesOn: endOfPeriod(market.targetDate),
+      targetDate: market.targetDate, resolvesOn: resolutionInstant(market.targetDate),
       rangeMin: market.rangeMin, rangeMax: market.rangeMax,
       probability: Math.round(pHigher(shares, market.liquidity) * 10000) / 10000,
       consensus: consensus(shares, market.liquidity, market.rangeMin, market.rangeMax) ?? null,
@@ -519,7 +519,7 @@ predictionsRouter.get('/markets/:id/context', requireCapability('read'), wrap(as
       .map(m => {
         const s = (m.shares as [number, number]) || [0, 0];
         return {
-          id: m.id, targetDate: m.targetDate, resolvesOn: endOfPeriod(m.targetDate),
+          id: m.id, targetDate: m.targetDate, resolvesOn: resolutionInstant(m.targetDate),
           consensus: consensus(s, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
           probability: Math.round(pHigher(s, m.liquidity) * 10000) / 10000,
         };

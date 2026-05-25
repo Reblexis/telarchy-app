@@ -4,6 +4,7 @@ import {
   toAbsoluteDate,
   toISOWeekString,
   endOfPeriod,
+  resolutionInstant,
   isValidDateFormat,
 } from '../lib/date-utils';
 
@@ -116,6 +117,30 @@ describe('endOfPeriod', () => {
 
   test('unknown format → returned unchanged', () => {
     expect(endOfPeriod('foo')).toBe('foo');
+  });
+});
+
+// ─── resolutionInstant ───────────────────────────────────────────────────────
+
+describe('resolutionInstant', () => {
+  test('month → 00:00 UTC on the day after period close', () => {
+    // June closes 2026-06-30; the 00:00 UTC resolve run on 2026-07-01 settles it.
+    expect(resolutionInstant('2026-06')).toBe('2026-07-01T00:00:00Z');
+    expect(resolutionInstant('2026-02')).toBe('2026-03-01T00:00:00Z'); // non-leap
+    expect(resolutionInstant('2024-02')).toBe('2024-03-01T00:00:00Z'); // leap
+  });
+
+  test('year → 00:00 UTC on Jan 1 of the next year', () => {
+    expect(resolutionInstant('2026')).toBe('2027-01-01T00:00:00Z');
+  });
+
+  test('ISO week → 00:00 UTC on the Monday after the week closes', () => {
+    // W12 2026 closes Sun 2026-03-22 → settles 2026-03-23T00:00:00Z
+    expect(resolutionInstant('2026-W12')).toBe('2026-03-23T00:00:00Z');
+  });
+
+  test('day → 00:00 UTC the following day', () => {
+    expect(resolutionInstant('2026-03-15')).toBe('2026-03-16T00:00:00Z');
   });
 });
 

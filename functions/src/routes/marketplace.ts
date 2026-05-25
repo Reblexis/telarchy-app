@@ -6,7 +6,7 @@ import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireIdentity } from '../middleware/roles';
 import { consensus, pHigher } from '../lib/amm';
-import { endOfPeriod } from '../lib/date-utils';
+import { endOfPeriod, resolutionInstant } from '../lib/date-utils';
 import { ensureSystemGroups } from './groups';
 import { getGroupMemberIds } from '../lib/participants';
 
@@ -42,7 +42,7 @@ marketplaceRouter.get('/', wrap(async (req, res) => {
         marketId: m.id,
         metricName: m.metricName,
         targetDate: m.targetDate,
-        resolvesOn: endOfPeriod(m.targetDate),
+        resolvesOn: resolutionInstant(m.targetDate),
         consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
         probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
         liquidity: m.liquidity,
@@ -133,7 +133,7 @@ marketplaceRouter.get('/featured', wrap(async (_req, res) => {
       marketId: m.id,
       metricName: m.metricName,
       targetDate: m.targetDate,
-      resolvesOn: endOfPeriod(m.targetDate),
+      resolvesOn: resolutionInstant(m.targetDate),
       consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
       probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
       liquidity: m.liquidity,
@@ -215,7 +215,7 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
       marketId: m.id,
       metricName: m.metricName,
       targetDate: m.targetDate,
-      resolvesOn: endOfPeriod(m.targetDate),
+      resolvesOn: resolutionInstant(m.targetDate),
       consensus: consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null,
       probability: Math.round(pHigher(shares, m.liquidity) * 10000) / 10000,
       liquidity: m.liquidity,

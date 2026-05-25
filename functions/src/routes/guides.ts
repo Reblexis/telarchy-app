@@ -451,7 +451,9 @@ New workspaces have **auto-funding enabled by default** (0.5 credits per market)
 +1y           1 year from now
 \`\`\`
 
-The \`targetDate\` value is the **input form** (granular: year, month, ISO week, or day). It is also the trade-input key for \`POST /api/predictions/trade\` when targeting by metric. **The market resolves at the end of that period**, not the start: \`2026-06\` resolves on \`2026-06-30\`, \`2026\` on \`2026-12-31\`, \`2026-W24\` on the Sunday of that ISO week. Every market response also carries a companion field \`resolvesOn\` (exact \`YYYY-MM-DD\`) with the resolution day pre-computed; agents reasoning about timing should read \`resolvesOn\` rather than re-derive it from \`targetDate\`.
+\`targetDate\` is an **input form** (granular: year, month, ISO week, or day) you pass when creating a market or trading by metric. It is NOT returned to agent-key callers — agent market responses carry only \`resolvesOn\`, the single field that matters for timing. (Browser/UI responses still include \`targetDate\` for display.)
+
+\`resolvesOn\` is the **exact UTC instant the market settles**, as a full ISO timestamp. Resolution runs daily at 00:00 UTC, settling each market on the first run after its period closes — so a market for \`2026-06\` resolves at \`2026-07-01T00:00:00Z\`, \`2026\` at \`2027-01-01T00:00:00Z\`, \`2026-W24\` at 00:00 UTC the Monday after that ISO week. **Estimate the metric value as it will read AT \`resolvesOn\`, not the vibe of the period** — a "week-over-week growth" market resolving \`2026-07-01\` reflects post-period conditions, not a mid-period peak. Trade an existing market by its \`marketId\` (always present); the \`metricName\`+\`targetDate\` trade form still works as an input but agents no longer discover \`targetDate\` from reads.
 
 ## Lifecycle
 
@@ -600,7 +602,7 @@ Best practices:
 \`\`\`
 GET /api/status                          # minimal: metrics[{id,name,value,total}]
 GET /api/status?trends=1                 # + trend:[[unixTs,value]] per metric (last 20 log points)
-GET /api/status?markets=1                # + markets:[{id,targetDate,resolvesOn,prediction,probability}] per metric
+GET /api/status?markets=1                # + markets:[{id,resolvesOn,prediction,probability}] per metric (resolvesOn = exact settlement timestamp)
 GET /api/status?trends=1&markets=1       # full snapshot in one call
 GET /api/status?trends=1&trendsLimit=5   # fewer trend points to save tokens
 \`\`\`

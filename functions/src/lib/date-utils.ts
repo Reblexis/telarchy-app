@@ -131,6 +131,25 @@ export function endOfPeriod(targetDate: string): string {
 }
 
 /**
+ * The exact UTC instant a market settles, as an ISO timestamp.
+ *
+ * Resolution runs daily at 00:00 UTC (the `0 0 * * *` scheduler calling
+ * POST /api/cron/resolve). A market is settled on the first run where
+ * `endOfPeriod(targetDate) < today` — i.e. the 00:00 UTC run on the day AFTER
+ * the period closes. So "2026-06" (period ends 2026-06-30) settles at
+ * "2026-07-01T00:00:00Z"; "2026" at "2027-01-01T00:00:00Z".
+ *
+ * This is the agent-facing `resolvesOn` value: a single, unambiguous moment,
+ * not the coarse `targetDate` period label. Keep `endOfPeriod` (date-only) for
+ * the internal resolution-filter comparison, which must stay a YYYY-MM-DD string.
+ */
+export function resolutionInstant(targetDate: string): string {
+  const d = new Date(`${endOfPeriod(targetDate)}T00:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return `${d.toISOString().slice(0, 19)}Z`;
+}
+
+/**
  * Validate that a string is a recognized absolute date format.
  */
 export function isValidDateFormat(dateStr: string): boolean {

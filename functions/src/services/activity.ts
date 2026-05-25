@@ -12,7 +12,7 @@ import {
   metrics as metricsTable,
 } from '../db/schema';
 import { getParticipantDisplayNames, listParticipantsForWorkspace } from '../lib/participants';
-import { endOfPeriod } from '../lib/date-utils';
+import { resolutionInstant } from '../lib/date-utils';
 
 export const ACTIVITY_TYPES = [
   'trade',
@@ -216,7 +216,7 @@ export async function getActivityFeed(workspaceId: string, opts: ActivityQuery):
         cost: t.cost,
         metricName: mkt?.metricName,
         targetDate: mkt?.targetDate,
-        resolvesOn: mkt?.targetDate ? endOfPeriod(mkt.targetDate) : undefined,
+        resolvesOn: mkt?.targetDate ? resolutionInstant(mkt.targetDate) : undefined,
       },
     });
   }
@@ -255,7 +255,7 @@ export async function getActivityFeed(workspaceId: string, opts: ActivityQuery):
       data: {
         metricName: m.metricName,
         targetDate: m.targetDate,
-        resolvesOn: endOfPeriod(m.targetDate),
+        resolvesOn: resolutionInstant(m.targetDate),
         rangeMin: m.rangeMin,
         rangeMax: m.rangeMax,
       },
@@ -275,7 +275,7 @@ export async function getActivityFeed(workspaceId: string, opts: ActivityQuery):
       data: {
         metricName: m.metricName,
         targetDate: m.targetDate,
-        resolvesOn: endOfPeriod(m.targetDate),
+        resolvesOn: resolutionInstant(m.targetDate),
         actualValue: m.actualValue,
         voided: m.voided,
       },
@@ -341,7 +341,7 @@ export async function getActivityFeed(workspaceId: string, opts: ActivityQuery):
         poolContribution: e.poolContribution,
         metricName: mkt?.metricName,
         targetDate: mkt?.targetDate,
-        resolvesOn: mkt?.targetDate ? endOfPeriod(mkt.targetDate) : undefined,
+        resolvesOn: mkt?.targetDate ? resolutionInstant(mkt.targetDate) : undefined,
       },
     });
   }

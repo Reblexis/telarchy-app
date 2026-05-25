@@ -40,6 +40,36 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Recursively delete a key from an arbitrary JSON value, in place.
+function stripKeyDeep(value: unknown, key: string): void {
+  if (Array.isArray(value)) {
+    for (const v of value) stripKeyDeep(v, key);
+    return;
+  }
+  if (value && typeof value === 'object') {
+    delete (value as Record<string, unknown>)[key];
+    for (const v of Object.values(value as Record<string, unknown>)) stripKeyDeep(v, key);
+  }
+}
+
+// Agents read `resolvesOn` (the exact settlement timestamp); `targetDate` is a
+// UI-only granularity label that misled agents into reasoning about the period
+// ("June") instead of the resolution moment ("2026-07-01T00:00:00Z"), so we
+// strip it from agent-key responses. Browser sessions (uid) and unauthenticated
+// public/UI callers keep it; master-key operators keep it too. The wrapper is
+// installed early but reads req.auth at response time, so it sees the auth each
+// router populates regardless of mount order. Agents trade by `marketId` (still
+// present) or send their own chosen `targetDate` as a trade/create input — that
+// input parsing is unaffected, this only shapes response bodies.
+app.use('/api', (req, res, next) => {
+  const json = res.json.bind(res);
+  res.json = (body: unknown) => {
+    if (req.auth?.agentId && !req.auth?.uid) stripKeyDeep(body, 'targetDate');
+    return json(body);
+  };
+  next();
+});
+
 // RATE_LIMIT_MAX env var lets self-hosters raise or disable the limit.
 // Default: 600/min (generous for single-user; doubled in 2026-Q2 because
 // authed normal flows — page load + a few component fetches — were hitting

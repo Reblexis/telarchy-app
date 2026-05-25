@@ -5,7 +5,7 @@ import { getAllMetrics, buildConsensusMap } from './metrics';
 import { voidMarket, distributeLPLeftover } from './markets';
 import { toUnits } from '../lib/validation';
 import type { Metric } from '../types';
-import { endOfPeriod } from '../lib/date-utils';
+import { endOfPeriod, resolutionInstant } from '../lib/date-utils';
 import { pHigher, consensus, resolutionPayouts } from '../lib/amm';
 import { emitEvent } from './events';
 
@@ -236,7 +236,7 @@ export async function getMarkets(options: GetMarketsOptions | boolean = false, p
       metricId: m.metricId,
       metricName: m.metricName,
       targetDate: m.targetDate,
-      resolvesOn: endOfPeriod(m.targetDate),
+      resolvesOn: resolutionInstant(m.targetDate),
       active: m.active !== false,
       resolved: m.resolved,
       resolvedAt: m.resolvedAt ?? null,
