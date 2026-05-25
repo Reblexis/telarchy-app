@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/client';
-import { workspaces, markets, agents, trades, permissionGroups, proposals } from '../db/schema';
+import { workspaces, markets, metrics, agents, trades, permissionGroups, proposals } from '../db/schema';
 import { eq, and, gt, gte, count, inArray, sql } from 'drizzle-orm';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
@@ -189,6 +189,30 @@ marketplaceRouter.get('/workspaces/public', wrap(async (_req, res) => {
     else if (row.status === 'pending') s.pending += row.n;
   }
 
+  // Activity counts so an agent can tell empty workspaces from active ones in
+  // one call, before joining. metricCount = metrics defined; openMarketCount =
+  // markets still tradeable (active, not resolved/voided).
+  const metricRows = await db.select({
+    workspaceId: metrics.workspaceId,
+    n: sql<number>`count(*)::int`,
+  }).from(metrics)
+    .where(inArray(metrics.workspaceId, wsIds))
+    .groupBy(metrics.workspaceId);
+  const metricCountByWs = new Map<string, number>(metricRows.map(r => [r.workspaceId, r.n]));
+
+  const openMarketRows = await db.select({
+    workspaceId: markets.workspaceId,
+    n: sql<number>`count(*)::int`,
+  }).from(markets)
+    .where(and(
+      inArray(markets.workspaceId, wsIds),
+      eq(markets.active, true),
+      eq(markets.resolved, false),
+      eq(markets.voided, false),
+    ))
+    .groupBy(markets.workspaceId);
+  const openMarketCountByWs = new Map<string, number>(openMarketRows.map(r => [r.workspaceId, r.n]));
+
   res.json(rows.map(r => ({
     workspaceId: r.id,
     name: r.name,
@@ -196,6 +220,8 @@ marketplaceRouter.get('/workspaces/public', wrap(async (_req, res) => {
     proposalReward: r.proposalReward,
     spamPenalty: r.spamPenalty,
     maxPendingProposalsPerParticipant: r.maxPendingProposalsPerParticipant,
+    metricCount: metricCountByWs.get(r.id) ?? 0,
+    openMarketCount: openMarketCountByWs.get(r.id) ?? 0,
     proposalStats: statsByWs.get(r.id)!,
   })));
 }));

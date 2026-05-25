@@ -15,7 +15,14 @@ export function requireCapability(...caps: Capability[]) {
     for (const cap of caps) {
       if (have.has(cap)) return next();
     }
-    return res.status(403).json({ error: 'Forbidden' });
+    // Name the capability the caller is missing so agents can decide
+    // programmatically (request a scope upgrade, skip the workspace, etc.)
+    // instead of getting a bare "Forbidden" with no signal.
+    const need = caps.length === 1 ? `the "${caps[0]}" capability` : `one of these capabilities: ${caps.join(', ')}`;
+    return res.status(403).json({
+      error: `Forbidden: this identity lacks ${need} in this workspace. Capabilities come from your permission-group membership; ask a workspace admin to grant it, or use a workspace where your group has it.`,
+      requiredCapabilities: caps,
+    });
   };
 }
 
