@@ -6,6 +6,7 @@ import { useWorkspace, type WorkspaceInfo } from '../hooks/useWorkspace';
 import { api, agentApi } from '../lib/api';
 import { cacheGet, cacheSet } from '../lib/cache';
 import type { Agent, PermissionGroup, Metric, Source, Capability } from '../types';
+import { isPrivilegedCapability, privilegedCapabilitiesIn, CAPABILITY_GRANTS } from '../lib/capability-confirm';
 
 // ─── Shared formatters ───────────────────────────────────────────────────────
 
@@ -369,6 +370,16 @@ function AgentAdminPage({ user: _user, workspace }: {
   };
 
   const handleAddMemberToGroup = async (group: PermissionGroup, memberId: string) => {
+    // Adding a participant to a group that holds elevated capabilities grants
+    // them those capabilities immediately. Confirm so it isn't a stray click.
+    const elevated = privilegedCapabilitiesIn(group.capabilities);
+    if (elevated.length > 0) {
+      const ok = window.confirm(
+        `Add "${memberId}" to the "${group.name}" group?\n\n` +
+        `This group holds elevated capabilities (${elevated.join(', ')}), so this participant will immediately be able to ${elevated.map(c => CAPABILITY_GRANTS[c]).join('; ')}.`
+      );
+      if (!ok) return;
+    }
     const next = [...new Set([...group.memberIds, memberId])];
     try {
       await api.updateGroup(group.id, { memberIds: next });
@@ -425,6 +436,16 @@ function AgentAdminPage({ user: _user, workspace }: {
 
   const handleToggleCapability = async (group: PermissionGroup, cap: Capability) => {
     const current = group.capabilities ?? [];
+    const adding = !current.includes(cap);
+    // Granting a privileged capability is privilege elevation for every member
+    // of the group; confirm before it applies. Revoking needs no confirmation.
+    if (adding && isPrivilegedCapability(cap)) {
+      const ok = window.confirm(
+        `Grant "${cap}" to the "${group.name}" group?\n\n` +
+        `Every participant in this group will immediately be able to ${CAPABILITY_GRANTS[cap]}.`
+      );
+      if (!ok) return;
+    }
     const next = current.includes(cap) ? current.filter(c => c !== cap) : [...current, cap];
     try {
       await api.updateGroup(group.id, { capabilities: next });
