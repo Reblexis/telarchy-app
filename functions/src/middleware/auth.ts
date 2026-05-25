@@ -261,5 +261,14 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     return next();
   }
 
+  // No credentials resolved. If an X-API-Key was supplied that did not match the
+  // master key (and no X-Agent-Key was present), the caller most likely sent a
+  // participant key in the wrong header. Say so, rather than a bare "Unauthorized"
+  // that sends agents down a generic auth-debugging path.
+  if (apiKey) {
+    return res.status(401).json({
+      error: 'Unauthorized: the X-API-Key header was not recognized as the master key. If this is a participant (agent) key, send it in the X-Agent-Key header instead.',
+    });
+  }
   return res.status(401).json({ error: 'Unauthorized' });
 }
