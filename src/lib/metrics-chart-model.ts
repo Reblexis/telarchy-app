@@ -1,4 +1,5 @@
 import type { GraphInterval, MetricLog } from '../types';
+import { endOfPeriod } from './date-utils';
 
 export interface ChartPoint {
   x: number;
@@ -15,23 +16,17 @@ function startOfISOWeek(d: Date): Date {
   return out;
 }
 
+// A market settles at the END of its target period, and the rest of the UI
+// (market list, market detail, "resolves" labels) dates a market by
+// endOfPeriod(targetDate). Plot the chart marker on that same calendar day so
+// the tooltip and the marker's x-position match what the user sees when they
+// click through to the market. Previously a "2026-07" market plotted on Jul 1
+// (period start), one period off from its Jul 31 resolution date.
 function parseTargetDateToMs(date: string): number {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return new Date(`${date}T00:00:00`).getTime();
-  if (/^\d{4}-W\d{2}$/.test(date)) {
-    const year = parseInt(date.slice(0, 4), 10);
-    const week = parseInt(date.slice(6), 10);
-    const jan4 = new Date(year, 0, 4);
-    const monday = startOfISOWeek(jan4);
-    monday.setDate(monday.getDate() + (week - 1) * 7);
-    return monday.getTime();
-  }
-  if (/^\d{4}-\d{2}$/.test(date)) {
-    const [y, m] = date.split('-').map(Number);
-    return new Date(y, m - 1, 1).getTime();
-  }
-  if (/^\d{4}$/.test(date)) {
-    return new Date(parseInt(date, 10), 0, 1).getTime();
-  }
+  const endDay = endOfPeriod(date);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(endDay)) return new Date(`${endDay}T00:00:00`).getTime();
+  // Fallback for inputs endOfPeriod did not normalize to YYYY-MM-DD (not a
+  // recognized target-date format); should not happen for real markets.
   return Date.parse(date);
 }
 
@@ -67,9 +62,9 @@ export function buildPointsFromTimeSeries(series: Array<{ date: string; value: n
 
   // Merge duplicates by source date string, keeping the latest seen value.
   // Dedup must key on the original label, not the parsed timestamp: distinct
-  // buckets at different granularities can collide on the same calendar day
-  // (e.g. 2026-W23 and 2026-06 both parse to 2026-06-01), and they are
-  // genuinely different markets that should both render.
+  // buckets at different granularities can collide on the same end-of-period
+  // calendar day (e.g. the month 2026-06 and the day 2026-06-30 both resolve on
+  // 2026-06-30), and they are genuinely different markets that should both render.
   const dedup = new Map<string, ChartPoint>();
   for (const p of points) dedup.set(p.label, p);
   return Array.from(dedup.values()).sort((a, b) => a.x - b.x);

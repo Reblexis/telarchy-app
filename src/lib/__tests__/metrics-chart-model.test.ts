@@ -258,17 +258,25 @@ describe('buildPointsFromTimeSeries', () => {
     expect(points[0].y).toBe(20);
   });
 
-  test('keeps distinct labels that parse to the same x (week + month boundary)', () => {
-    // ISO Week 23 of 2026 starts on Monday 2026-06-01 — the same calendar day
-    // 2026-06 parses to. They are different markets at different granularities
-    // and both must appear on the chart; older dedup-by-x silently dropped one.
+  test('plots a period marker on its end-of-period (resolution) day, not the start', () => {
+    // A 2026-07 market resolves on 2026-07-31; the marker (and so its tooltip
+    // date) must sit on Jul 31, matching what the user sees on click, not Jul 1.
+    const [p] = buildPointsFromTimeSeries([{ date: '2026-07', value: 42 }]);
+    expect(p.x).toBe(new Date('2026-07-31T00:00:00').getTime());
+    expect(p.x).not.toBe(new Date('2026-07-01T00:00:00').getTime());
+  });
+
+  test('keeps distinct labels that resolve on the same end-of-period day (month + day boundary)', () => {
+    // The month 2026-06 and the day 2026-06-30 both resolve on 2026-06-30.
+    // They are different markets at different granularities and both must
+    // appear on the chart; dedup-by-x would silently drop one, so we key on label.
     const points = buildPointsFromTimeSeries([
-      { date: '2026-W23', value: 20015.11 },
+      { date: '2026-06-30', value: 20015.11 },
       { date: '2026-06', value: 4853.52 },
     ]);
     expect(points.length).toBe(2);
     const labels = points.map(p => p.label).sort();
-    expect(labels).toEqual(['2026-06', '2026-W23']);
+    expect(labels).toEqual(['2026-06', '2026-06-30']);
     const ys = points.map(p => p.y).sort((a, b) => a - b);
     expect(ys).toEqual([4853.52, 20015.11]);
   });
