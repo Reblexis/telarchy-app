@@ -15,12 +15,34 @@ import { api, setActiveWorkspace } from '../lib/api';
 export function WorkspaceRouteGuard() {
   const { owner, slug } = useParams();
   const { user, loading: authLoading } = useAuth();
+  const { allWorkspaces, loading: wsLoading } = useWorkspace(!!user);
   const navigate = useNavigate();
   const location = useLocation();
+  const [resolvedId, setResolvedId] = useState<string | null>(null);
   const [state, setState] = useState<'resolving' | 'ready' | 'notfound'>('resolving');
+
+  // The guard stays mounted while switching between workspaces (same route
+  // pattern), so the membership list is already loaded and most switches
+  // resolve here instantly with no network call and no loading flash.
+  const local = allWorkspaces.find(w =>
+    !!w.ownerHandle && !!w.slug &&
+    w.ownerHandle.toLowerCase() === (owner ?? '').toLowerCase() &&
+    w.slug.toLowerCase() === (slug ?? '').toLowerCase(),
+  );
 
   useEffect(() => {
     if (authLoading || !user || !owner || !slug) return;
+    // Fast path: the URL points at a workspace the user belongs to.
+    if (local) {
+      setActiveWorkspace(local.id);
+      setResolvedId(local.id);
+      setState('ready');
+      return;
+    }
+    // Not in the membership list: it may be a public workspace, an old
+    // (renamed-away) slug, or the list is still loading. Wait for the list,
+    // then ask the server.
+    if (wsLoading) { setState('resolving'); return; }
     let cancelled = false;
     setState('resolving');
     api.resolveWorkspacePath(owner, slug)
@@ -35,17 +57,21 @@ export function WorkspaceRouteGuard() {
           navigate(next + location.search + location.hash, { replace: true });
           return;
         }
+        setResolvedId(r.workspaceId);
         setState('ready');
       })
       .catch(() => { if (!cancelled) setState('notfound'); });
     return () => { cancelled = true; };
-  }, [owner, slug, user, authLoading, location.pathname, location.search, location.hash, navigate]);
+  }, [owner, slug, user, authLoading, wsLoading, local?.id, location.pathname, location.search, location.hash, navigate]);
 
   if (authLoading) return <div className="loading">Loading...</div>;
   if (!user) return <Navigate to="/" replace />;
   if (state === 'notfound') return <Navigate to="/" replace />;
-  if (state === 'resolving') return <div className="loading">Loading...</div>;
-  return <Outlet />;
+  if (state === 'resolving' || !resolvedId) return <div className="loading">Loading...</div>;
+  // Key the routed content by workspace id so switching workspaces remounts the
+  // page (and its data fetches) instead of leaving stale content. display:contents
+  // keeps the wrapper out of the layout so page styling is unaffected.
+  return <div style={{ display: 'contents' }} key={resolvedId}><Outlet /></div>;
 }
 
 /**

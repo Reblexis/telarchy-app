@@ -199,19 +199,35 @@ export const agentApi = {
     agentRequest('/api/agents/me/withdraw', apiKey, { method: 'POST', body: JSON.stringify({ amount }) }),
 };
 
+const activeWorkspaceListeners = new Set<() => void>();
+
 export function setActiveWorkspace(id: string | null): void {
+  if (id === activeWorkspaceId) return;
   activeWorkspaceId = id;
   if (id === null) {
     localStorage.removeItem('activeWorkspaceId');
   } else {
     localStorage.setItem('activeWorkspaceId', id);
   }
+  // Notify subscribers (useWorkspace instances) so the sidebar and any other
+  // workspace-aware UI refetch for the new workspace without a full page reload.
+  // Guarded by the no-op early-return above so re-setting the same id (e.g. the
+  // profile echo inside the fetch) cannot cause a refetch loop.
+  activeWorkspaceListeners.forEach(l => {
+    try { l(); } catch (e) { console.error('active-workspace listener failed', e); }
+  });
 }
 
 /** The last-used / URL-driven active workspace id. Used to upgrade flat routes
  *  (/metrics) to the namespaced /{ownerHandle}/{slug}/metrics form. */
 export function getActiveWorkspace(): string | null {
   return activeWorkspaceId;
+}
+
+/** Subscribe to active-workspace changes. Returns an unsubscribe function. */
+export function onActiveWorkspaceChange(cb: () => void): () => void {
+  activeWorkspaceListeners.add(cb);
+  return () => { activeWorkspaceListeners.delete(cb); };
 }
 
 async function request(path: string, options: RequestInit = {}, skipWorkspaceHeader = false) {

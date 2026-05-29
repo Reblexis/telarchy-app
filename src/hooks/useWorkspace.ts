@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { api, setActiveWorkspace } from '../lib/api';
+import { useNavigate } from 'react-router-dom';
+import { api, setActiveWorkspace, getActiveWorkspace, onActiveWorkspaceChange } from '../lib/api';
 import type { Capability } from '../types';
 
 export type WorkspaceMemberRole = 'owner' | 'admin' | 'trader' | 'viewer';
@@ -47,31 +48,35 @@ export function useWorkspace(authenticated: boolean = true): {
   loading: boolean;
   error: string | null;
 } {
+  const navigate = useNavigate();
   const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
   const [allWorkspaces, setAllWorkspaces] = useState<WorkspaceListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Mirror of the module-level active workspace id so a change (from a switch or
+  // the route guard) re-runs the fetch effect below for every hook instance.
+  const [activeId, setActiveId] = useState<string | null>(getActiveWorkspace());
+
+  useEffect(() => onActiveWorkspaceChange(() => setActiveId(getActiveWorkspace())), []);
 
   const switchWorkspace = useCallback((id: string, targetPath?: string) => {
     setActiveWorkspace(id);
-    // Navigate to a FLAT path (e.g. /metrics): the active workspace is now the
-    // new one, so the flat-route redirector re-namespaces it to the new
-    // workspace's /{ownerHandle}/{slug}/... URL. Reusing the current namespaced
-    // path would re-encode the workspace we're leaving and the route guard would
-    // switch us right back. When no target is given, keep the current tab.
-    let flatTarget = targetPath;
-    if (!flatTarget) {
+    // Client-side navigation (no full page reload, so no flash of the blank
+    // index shell). The route guard re-resolves the new URL and the
+    // active-workspace change above refetches every workspace-aware view.
+    let target = targetPath;
+    if (!target) {
       const segs = window.location.pathname.split('/').filter(Boolean);
       // Namespaced path is /:owner/:slug/:tab -> keep the tab; otherwise reuse.
       const tab = segs.length >= 3 ? segs[segs.length - 1] : segs[0];
-      flatTarget = tab ? `/${tab}` : '/overview';
+      target = tab ? `/${tab}` : '/overview';
     }
     // Drop ?proposal=: it points at a proposal in the workspace we're leaving,
     // so inspect mode would otherwise persist into the new workspace.
-    const next = new URL(flatTarget, window.location.origin);
+    const next = new URL(target, window.location.origin);
     next.searchParams.delete('proposal');
-    window.location.href = next.pathname + next.search + next.hash;
-  }, []);
+    navigate(next.pathname + next.search + next.hash);
+  }, [navigate]);
 
   useEffect(() => {
     if (!authenticated) { setWorkspace(null); setAllWorkspaces([]); setError(null); setLoading(false); return; }
@@ -137,7 +142,7 @@ export function useWorkspace(authenticated: boolean = true): {
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [authenticated]);
+  }, [authenticated, activeId]);
 
   const activeMeta = allWorkspaces.find(w => w.id === workspace?.workspaceId);
   const ownerHandle = activeMeta?.ownerHandle ?? null;
