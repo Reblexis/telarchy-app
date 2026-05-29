@@ -8,7 +8,7 @@ import { requireIdentity } from '../middleware/roles';
 import { consensus, pHigher } from '../lib/amm';
 import { endOfPeriod, resolutionInstant } from '../lib/date-utils';
 import { ensureSystemGroups } from './groups';
-import { getGroupMemberIds } from '../lib/participants';
+import { getGroupMemberIds, getOwnerHandles } from '../lib/participants';
 
 export const marketplaceRouter = Router();
 
@@ -156,6 +156,8 @@ marketplaceRouter.get('/workspaces/public', wrap(async (_req, res) => {
   const rows = await db.select({
     id: workspaces.id,
     name: workspaces.name,
+    slug: workspaces.slug,
+    createdBy: workspaces.createdBy,
     visibility: workspaces.visibility,
     proposalReward: workspaces.proposalReward,
     spamPenalty: workspaces.spamPenalty,
@@ -163,6 +165,8 @@ marketplaceRouter.get('/workspaces/public', wrap(async (_req, res) => {
   }).from(workspaces).where(eq(workspaces.visibility, 'public'));
 
   if (rows.length === 0) { res.json([]); return; }
+
+  const ownerHandles = await getOwnerHandles(rows.map(r => r.createdBy));
 
   const wsIds = rows.map(r => r.id);
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -216,6 +220,9 @@ marketplaceRouter.get('/workspaces/public', wrap(async (_req, res) => {
   res.json(rows.map(r => ({
     workspaceId: r.id,
     name: r.name,
+    slug: r.slug,
+    ownerId: ownerHandles.get(r.createdBy)?.ownerId ?? null,
+    ownerHandle: ownerHandles.get(r.createdBy)?.ownerHandle ?? null,
     visibility: r.visibility,
     proposalReward: r.proposalReward,
     spamPenalty: r.spamPenalty,

@@ -1,17 +1,21 @@
 import { Router } from 'express';
 import { db } from '../db/client';
 import {
-  workspaces, permissionGroups,
+  workspaces, workspaceSlugAliases, permissionGroups,
   markets, positions, trades, liquidityEvents,
   metrics, proposals, proposalMessages, updates, metricLogs, events,
   hookWatcher, agentApiKeys,
 } from '../db/schema';
-import { eq, and, inArray } from 'drizzle-orm';
+import { eq, and, inArray, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { requireCapability, requireIdentity } from '../middleware/roles';
 import { getAuthWorkspaceMemberships } from '../middleware/auth';
-import { resolveWorkspaceOwnerAgentId, provisionWorkspace } from '../lib/participants';
+import {
+  resolveWorkspaceOwnerAgentId, provisionWorkspace,
+  getOwnerHandles, resolveOwnerSegment,
+} from '../lib/participants';
+import { uniqueSlugForOwner } from '../lib/slug';
 import { voidMarket } from '../services/markets';
 import { ensureMarketsForTimePreference } from '../services/metrics';
 import { getTemplate, getStarterProposal, type TemplateParams } from '../lib/templates';
@@ -26,6 +30,16 @@ async function getMembershipRoleForWorkspace(
 ): Promise<string | null> {
   const memberships = await getAuthWorkspaceMemberships(auth);
   return memberships.find(membership => membership.workspaceId === workspaceId)?.memberRole ?? null;
+}
+
+/** Attach ownerId/ownerHandle (the owner's URL segment) to workspace rows so
+ *  clients can build the /{ownerHandle}/{slug} path without extra round-trips. */
+async function withOwnerHandles<T extends { createdBy: string }>(rows: T[]): Promise<Array<T & { ownerId: string | null; ownerHandle: string | null }>> {
+  const handles = await getOwnerHandles(rows.map(r => r.createdBy));
+  return rows.map(r => {
+    const h = handles.get(r.createdBy);
+    return { ...r, ownerId: h?.ownerId ?? null, ownerHandle: h?.ownerHandle ?? null };
+  });
 }
 
 workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
@@ -147,7 +161,7 @@ workspacesRouter.get('/', requireIdentity, wrap(async (req, res) => {
   // Master API key (no uid/agentId): return all workspaces.
   if (!uid && !agentId) {
     const all = await db.select().from(workspaces);
-    res.json(all); return;
+    res.json(await withOwnerHandles(all)); return;
   }
 
   const memberships = await getAuthWorkspaceMemberships({ uid, agentId });
@@ -157,7 +171,44 @@ workspacesRouter.get('/', requireIdentity, wrap(async (req, res) => {
   const wsRows = await db.select().from(workspaces).where(inArray(workspaces.id, wsIds));
   const roleMap = Object.fromEntries(memberships.map(m => [m.workspaceId, m.memberRole]));
 
-  res.json(wsRows.map(ws => ({ ...ws, memberRole: roleMap[ws.id] })));
+  const enriched = await withOwnerHandles(wsRows);
+  res.json(enriched.map(ws => ({ ...ws, memberRole: roleMap[ws.id] })));
+}));
+
+/**
+ * GET /api/workspaces/resolve?owner=<seg>&slug=<seg>
+ * Maps a GitHub-style path segment pair to a workspace id. `owner` is a custom
+ * id (nickname) or raw agent id; `slug` is current OR historical (renames keep
+ * old slugs in workspace_slug_aliases). Returns the canonical segments and a
+ * `moved` flag so the client can replace the URL when an old slug was used.
+ * Declared before `/:id` so "resolve" isn't captured as an id. Pure path->id
+ * lookup; visibility/membership is still enforced on the data endpoints.
+ */
+workspacesRouter.get('/resolve', requireIdentity, wrap(async (req, res) => {
+  const owner = typeof req.query.owner === 'string' ? req.query.owner : '';
+  const slug = typeof req.query.slug === 'string' ? req.query.slug : '';
+  if (!owner || !slug) { res.status(400).json({ error: 'owner and slug are required' }); return; }
+
+  const ownerAgentId = await resolveOwnerSegment(owner);
+  if (!ownerAgentId) { res.status(404).json({ error: 'Unknown owner' }); return; }
+
+  const [alias] = await db.select({ workspaceId: workspaceSlugAliases.workspaceId })
+    .from(workspaceSlugAliases)
+    .where(and(
+      eq(workspaceSlugAliases.ownerKey, ownerAgentId),
+      sql`LOWER(${workspaceSlugAliases.slug}) = ${slug.toLowerCase()}`,
+    ));
+  if (!alias) { res.status(404).json({ error: 'Unknown workspace' }); return; }
+
+  const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, alias.workspaceId));
+  if (!ws) { res.status(404).json({ error: 'Unknown workspace' }); return; }
+
+  const handles = await getOwnerHandles([ws.createdBy]);
+  const canonicalOwner = handles.get(ws.createdBy)?.ownerHandle ?? ws.createdBy;
+  const canonicalSlug = ws.slug ?? slug;
+  const moved = owner !== canonicalOwner || slug.toLowerCase() !== canonicalSlug.toLowerCase();
+
+  res.json({ workspaceId: ws.id, canonicalOwner, canonicalSlug, moved });
 }));
 
 workspacesRouter.get('/:id/stats', requireIdentity, wrap(async (req, res) => {
@@ -183,7 +234,8 @@ workspacesRouter.get('/:id', requireIdentity, wrap(async (req, res) => {
       res.status(403).json({ error: 'Not a member of this workspace' }); return;
     }
   }
-  res.json(ws);
+  const [enriched] = await withOwnerHandles([ws]);
+  res.json(enriched);
 }));
 
 workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (req, res) => {
@@ -283,12 +335,28 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
     }
   }
 
+  // Renaming regenerates the URL slug (GitHub-repo-rename style). The old slug
+  // stays in workspace_slug_aliases so existing links 301-redirect to the new
+  // one. Reclaiming the workspace's own former slug is allowed (excluded from
+  // the uniqueness check).
+  if (update.name !== undefined && update.name !== ws.name) {
+    const newSlug = await uniqueSlugForOwner(db, ws.createdBy, update.name, wsId);
+    if (newSlug !== ws.slug) update.slug = newSlug;
+  }
+
   if (Object.keys(update).length === 0) {
     res.status(400).json({ error: 'No fields to update' }); return;
   }
 
-  await db.update(workspaces).set(update).where(eq(workspaces.id, wsId));
-  res.json({ ok: true });
+  await db.transaction(async tx => {
+    await tx.update(workspaces).set(update).where(eq(workspaces.id, wsId));
+    if (update.slug) {
+      await tx.insert(workspaceSlugAliases)
+        .values({ workspaceId: wsId, ownerKey: ws.createdBy, slug: update.slug, createdAt: new Date() })
+        .onConflictDoNothing();
+    }
+  });
+  res.json({ ok: true, slug: update.slug ?? ws.slug });
 }));
 
 workspacesRouter.post('/:id/join', requireIdentity, wrap(async (req, res) => {
@@ -422,6 +490,7 @@ workspacesRouter.delete('/:id', requireCapability('manage_workspace'), wrap(asyn
     await tx.delete(permissionGroups).where(eq(permissionGroups.workspaceId, wsId));
     await tx.delete(agentApiKeys).where(eq(agentApiKeys.workspaceId, wsId));
     await tx.delete(hookWatcher).where(eq(hookWatcher.workspaceId, wsId));
+    await tx.delete(workspaceSlugAliases).where(eq(workspaceSlugAliases.workspaceId, wsId));
     await tx.delete(workspaces).where(eq(workspaces.id, wsId));
   });
 
