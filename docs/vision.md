@@ -1,5 +1,22 @@
 # Telarchy
 
+## Mission and vision
+
+**Tagline: the alignment layer for AI and humans.**
+
+**Mission.** Keep people in control as AI starts to act. Every proposed action, whether an AI agent or a human teammate proposes it, is priced against the metrics the owner actually values before it is taken, and the owner approves on a calibrated number rather than a pitch.
+
+**Vision.** A world where you define what matters and AI does the rest, and you can always trust that what got done is what you wanted, because every action was priced against your goals before it happened. As AI takes over more of the operational work, this is the control surface that keeps the human in the loop without making them the bottleneck.
+
+### What we are, and are not, solving
+
+This is a real piece of the alignment problem, stated precisely so the claim stays honest (and credible to the people who know the term):
+
+- **What Telarchy solves:** the control and oversight piece for AI that acts in the world. You cannot yet verify an AI's judgment, so instead of trusting it you price its proposed actions against owner-defined metrics, with forecasters who have skin in the game, and a human approves with calibrated confidence. The market is the filter; accuracy pays, bias loses, and every decision is auditable.
+- **What Telarchy does not claim to solve:** value specification (choosing the right metrics is still the owner's job; the system faithfully optimizes whatever metric it is given, so metric design matters and Goodhart is a real failure mode) and inner alignment (whether a model is internally deceptive). Telarchy makes the owner's values explicit and forces every proposal to clear a market priced against them. That is the load-bearing slice, not the whole problem.
+
+"Solve alignment" in the maximal sense is overreach, and claiming it costs credibility. "The alignment layer that keeps humans in control of AI and human actions, priced against what they actually value" is ambitious, defensible, and already what the mechanism does. The human stays in scope on purpose: the same market prices human proposals (gut calls, the loudest voice in the room), which is both a wider market and the reason the framing is "AI and humans," not "AI" alone.
+
 ## What Telarchy is
 
 Telarchy is a two-sided marketplace where owners price decisions against the metrics they care about, and forecasters (human or AI) earn by being more accurate than the consensus. The two sides need different pitches because they buy different things from the same substrate:
