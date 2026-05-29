@@ -145,6 +145,14 @@
     ]
   }
   </script>
+
+  <!-- The #root fallback below is a server-free page for AI crawlers and no-JS
+       clients. Hide it from rendering browsers so humans never see a flash of it
+       before React replaces #root on mount. A <noscript> re-shows it for clients
+       that genuinely have no JavaScript; crawlers reading the raw HTML still get
+       it regardless of CSS. -->
+  <style>#root > .ssr-fallback { display: none; }</style>
+  <noscript><style>#root > .ssr-fallback { display: block !important; }</style></noscript>
 </head>
 <body>
   <script>
@@ -166,7 +174,7 @@
     LandingPage hero copy.
   -->
   <div id="root">
-    <main style="max-width:720px;margin:0 auto;padding:3rem 1.25rem;font-family:Inter,system-ui,sans-serif;line-height:1.6;color:#111">
+    <main class="ssr-fallback" style="max-width:720px;margin:0 auto;padding:3rem 1.25rem;font-family:Inter,system-ui,sans-serif;line-height:1.6;color:#111">
       <header>
         <p style="font-size:0.85rem;letter-spacing:0.08em;text-transform:uppercase;color:#666;margin:0 0 0.5rem">An alignment layer for AI and humans</p>
         <h1 style="font-size:2.4rem;line-height:1.1;letter-spacing:-0.03em;margin:0 0 0.75rem">Telarchy: define, forecast, decide.</h1>
