@@ -8,10 +8,6 @@ function isLeafMetric(m: Metric): boolean {
   return f === '' || f === '0';
 }
 
-function hasTimePreference(m: Metric): boolean {
-  return !!m.timePreference?.enabled || (m.inheritedHalfLife ?? 0) > 0;
-}
-
 interface GraphModalProps {
   metric: Metric | null;
   interval: GraphInterval;
@@ -22,23 +18,9 @@ interface GraphModalProps {
 
 export function GraphModal({ metric, interval, isInspectMode, loadLogs, onClose }: GraphModalProps) {
   const [points, setPoints] = useState<ReturnType<typeof buildPointsFromLogs>>([]);
-  const [outlookPoints, setOutlookPoints] = useState<ReturnType<typeof buildPointsFromLogs>>([]);
   const [status, setStatus] = useState<'loading' | 'no-data' | 'ready'>('loading');
   const [showFuture, setShowFuture] = useState(false);
   const reqIdRef = useRef(0);
-
-  // We pick which series to render based on metric shape, not on whether the
-  // numbers happen to differ in a given log row:
-  //   - Composite (has formula): outlook only; the raw value column is always 0.
-  //   - Leaf without TP: value only; outlook === value so the second line would
-  //     be redundant.
-  //   - Leaf with TP: both. Value is the user-authored "Now:" number and
-  //     outlook is the value/future-consensus blend.
-  const shape: 'value-only' | 'outlook-only' | 'both' = useMemo(() => {
-    if (!metric) return 'value-only';
-    if (!isLeafMetric(metric)) return 'outlook-only';
-    return hasTimePreference(metric) ? 'both' : 'value-only';
-  }, [metric]);
 
   const futurePoints = useMemo(() => {
     if (!metric?.timeSeries || metric.timeSeries.length === 0) return [];
@@ -47,31 +29,36 @@ export function GraphModal({ metric, interval, isInspectMode, loadLogs, onClose 
   }, [metric?.timeSeries]);
   const hasFuture = futurePoints.length > 0;
 
-  const loadChart = useCallback(async (m: Metric, s: 'value-only' | 'outlook-only' | 'both') => {
+  // The chart draws a single historical line: the metric's realized value over
+  // time. For a leaf that is the user-authored "Now:" number (the `value`
+  // column). For a composite the `value` column is always 0, so we plot the
+  // computed `outlook` (m.total) instead, which is the formula result. We do
+  // not draw the value/future-consensus blend as a separate "outlook" line;
+  // future market consensus is shown on demand via "Show future predictions".
+  const loadChart = useCallback(async (m: Metric) => {
     const reqId = ++reqIdRef.current;
     setStatus('loading');
     try {
       const logs = await loadLogs(m.id);
       if (reqId !== reqIdRef.current) return;
-      const valuePts = s === 'outlook-only' ? [] : buildPointsFromLogs(logs, interval);
-      const outlookPts = s === 'value-only' ? [] : buildOutlookPointsFromLogs(logs, interval);
-      setPoints(valuePts);
-      setOutlookPoints(outlookPts);
-      setStatus(valuePts.length === 0 && outlookPts.length === 0 ? 'no-data' : 'ready');
+      const pts = isLeafMetric(m)
+        ? buildPointsFromLogs(logs, interval)
+        : buildOutlookPointsFromLogs(logs, interval);
+      setPoints(pts);
+      setStatus(pts.length === 0 ? 'no-data' : 'ready');
     } catch (e) {
       if (reqId !== reqIdRef.current) return;
       console.error('GraphModal: failed to load logs', e);
       setPoints([]);
-      setOutlookPoints([]);
       setStatus('no-data');
     }
   }, [interval, loadLogs]);
 
   useEffect(() => {
     if (metric) {
-      loadChart(metric, shape);
+      loadChart(metric);
     }
-  }, [metric, shape, loadChart]);
+  }, [metric, loadChart]);
 
   if (!metric) return null;
 
@@ -80,7 +67,7 @@ export function GraphModal({ metric, interval, isInspectMode, loadLogs, onClose 
   };
 
   const effectiveFuture = showFuture ? futurePoints : undefined;
-  const hasAnyData = points.length > 0 || outlookPoints.length > 0 || (showFuture && hasFuture);
+  const hasAnyData = points.length > 0 || (showFuture && hasFuture);
   const showChart = status !== 'loading' && hasAnyData;
   const showNoData = status === 'no-data' && !hasAnyData;
 
@@ -111,7 +98,6 @@ export function GraphModal({ metric, interval, isInspectMode, loadLogs, onClose 
             <div style={{ position: 'relative', width: '100%', height: '350px' }}>
               <MetricsTimeChart
                 points={points}
-                outlookPoints={outlookPoints}
                 futurePoints={effectiveFuture}
                 mode={isInspectMode ? 'inspect' : 'normal'}
                 variant="modal"

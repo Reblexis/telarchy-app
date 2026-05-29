@@ -134,23 +134,6 @@ describe('MetricsTimeChart', () => {
     expect(container.querySelector('canvas')).not.toBeNull();
   });
 
-  test('renders outlook series alongside current points without crashing', () => {
-    const current = [pt(1, 5), pt(2, 10)];
-    const outlook = [pt(1, 7), pt(2, 12)];
-    const { container } = render(
-      <MetricsTimeChart points={current} outlookPoints={outlook} mode="normal" variant="modal" />
-    );
-    expect(container.querySelector('canvas')).not.toBeNull();
-  });
-
-  test('outlook-only input (no current series) still renders', () => {
-    const outlook = [pt(1, 7), pt(2, 12)];
-    const { container } = render(
-      <MetricsTimeChart points={[]} outlookPoints={outlook} mode="normal" variant="modal" />
-    );
-    expect(container.querySelector('canvas')).not.toBeNull();
-  });
-
   test('renders chart without crashing when interpolated flag mixes with real points', () => {
     const mixed = [
       pt(1, 5, { interpolated: false }),

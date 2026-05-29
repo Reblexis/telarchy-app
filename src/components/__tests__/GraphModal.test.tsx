@@ -8,13 +8,11 @@ import userEvent from '@testing-library/user-event';
 vi.mock('../charts/MetricsTimeChart', () => ({
   MetricsTimeChart: (props: {
     points: { x: number; y: number }[];
-    outlookPoints?: { x: number; y: number }[];
     futurePoints?: { x: number; y: number }[];
   }) => (
     <div
       data-testid="chart-stub"
       data-points={props.points.length}
-      data-outlook={props.outlookPoints?.length ?? 0}
       data-future={props.futurePoints?.length ?? 0}
     />
   ),
@@ -198,7 +196,9 @@ describe('GraphModal', () => {
     expect(await screen.findByRole('heading', { name: /B/ })).toBeInTheDocument();
   });
 
-  test('composite metric renders only the outlook series (no value line)', async () => {
+  test('composite metric plots the computed outlook as its single value line', async () => {
+    // A composite's `value` column is always 0, so the historical line is
+    // sourced from `outlook` (the formula result) and fed as the sole series.
     vi.useRealTimers();
     const loadLogs = vi.fn().mockResolvedValue([
       makeLog('2026-04-20T10:00:00', 0, 42),
@@ -214,11 +214,10 @@ describe('GraphModal', () => {
       />
     );
     const chart = await screen.findByTestId('chart-stub');
-    expect(chart).toHaveAttribute('data-points', '0');
-    expect(Number(chart.getAttribute('data-outlook'))).toBeGreaterThan(0);
+    expect(Number(chart.getAttribute('data-points'))).toBeGreaterThan(0);
   });
 
-  test('leaf without time preference renders only the value series', async () => {
+  test('leaf without time preference renders the value series', async () => {
     vi.useRealTimers();
     const loadLogs = vi.fn().mockResolvedValue([
       makeLog('2026-04-20T10:00:00', 5, 5),
@@ -235,10 +234,11 @@ describe('GraphModal', () => {
     );
     const chart = await screen.findByTestId('chart-stub');
     expect(Number(chart.getAttribute('data-points'))).toBeGreaterThan(0);
-    expect(chart).toHaveAttribute('data-outlook', '0');
   });
 
-  test('leaf with time preference renders both value and outlook series', async () => {
+  test('leaf with time preference renders only the value line (no outlook blend)', async () => {
+    // Time preference makes `value` and `outlook` diverge, but the chart now
+    // shows only the realized value; the outlook blend is not drawn.
     vi.useRealTimers();
     const loadLogs = vi.fn().mockResolvedValue([
       makeLog('2026-04-20T10:00:00', 5, 6),
@@ -258,7 +258,6 @@ describe('GraphModal', () => {
     );
     const chart = await screen.findByTestId('chart-stub');
     expect(Number(chart.getAttribute('data-points'))).toBeGreaterThan(0);
-    expect(Number(chart.getAttribute('data-outlook'))).toBeGreaterThan(0);
   });
 
   test('close button invokes onClose', async () => {
