@@ -453,7 +453,7 @@ export function LandingPage() {
               Say what you want.<br />Watch it get done, on your terms.
             </h1>
             <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 460 }}>
-              Define your goals once. AI proposes the actions, markets price each one against your goals, and you approve. Every move is checked against what you actually want before it happens.
+              Define your goals once. People and AI propose the moves, markets price each one against your goals, and you approve. Every action, whoever proposes it, is checked against what you actually want before it happens.
             </p>
             <div className="lp-hero-ctas">
               <Link to="/signup" className="lp-btn-primary">Get started. 1000 free credits</Link>
@@ -474,8 +474,8 @@ export function LandingPage() {
         <div className="lp-diff-grid">
           {[
             {
-              title: 'It proposes the moves',
-              body: 'AI participants surface decisions and initiatives aimed at your goals, not just answers when you happen to ask.',
+              title: 'Proposals from people and AI',
+              body: 'Anyone, human or AI, can propose a move toward your goals. Good ideas surface without you having to source them all.',
             },
             {
               title: 'Priced against your goals',
@@ -509,8 +509,8 @@ export function LandingPage() {
                 illustration: <GoalTreeIllustration visible={stepVisible[0]} />,
               },
               {
-                n: '2', title: 'Proposals come to you, already priced',
-                body: 'AI and human participants propose actions toward your goals; prediction markets price each one, with credits on the line.',
+                n: '2', title: 'People and AI propose; markets price each move',
+                body: 'Anyone, human or AI, can propose a move toward your goals. A prediction market forecasts its impact, with credits on the line, so the number is honest. Try it:',
                 illustration: <MarketDemo />,
               },
               {
@@ -574,7 +574,7 @@ export function LandingPage() {
               <thead>
                 <tr>
                   <th className="lp-compare-platform">What you'd use instead</th>
-                  <th>See what your<br/>decision will do</th>
+                  <th>Scores moves<br/>against your goals</th>
                   <th>Forecasts<br/>you can trust</th>
                   <th>Runs itself,<br/>24/7</th>
                   <th>Stays<br/>private</th>
@@ -586,7 +586,7 @@ export function LandingPage() {
                     <div className="lp-compare-name">Generic AI chatbots</div>
                     <div className="lp-compare-sub">ask an LLM and hope</div>
                   </td>
-                  <td data-label="See what your decision will do" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">generic guess</span></td>
+                  <td data-label="Scores moves against your goals" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">generic guess</span></td>
                   <td data-label="Forecasts you can trust" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">no accountability</span></td>
                   <td data-label="Runs itself, 24/7" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">ask each time</span></td>
                   <td data-label="Stays private" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">depends on tier</span></td>
@@ -596,7 +596,7 @@ export function LandingPage() {
                     <div className="lp-compare-name">Autonomous AI agents</div>
                     <div className="lp-compare-sub">agent frameworks acting on your behalf</div>
                   </td>
-                  <td data-label="See what your decision will do" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">acts first</span></td>
+                  <td data-label="Scores moves against your goals" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">acts first</span></td>
                   <td data-label="Forecasts you can trust" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">no track record</span></td>
                   <td data-label="Runs itself, 24/7" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">trigger each time</span></td>
                   <td data-label="Stays private" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">depends on stack</span></td>
@@ -606,7 +606,7 @@ export function LandingPage() {
                     <div className="lp-compare-name">Public prediction markets</div>
                     <div className="lp-compare-sub">real-money markets on news</div>
                   </td>
-                  <td data-label="See what your decision will do" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">public events only</span></td>
+                  <td data-label="Scores moves against your goals" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">public events only</span></td>
                   <td data-label="Forecasts you can trust" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">real money on the line</span></td>
                   <td data-label="Runs itself, 24/7" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">needs public liquidity</span></td>
                   <td data-label="Stays private" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">public order book</span></td>
@@ -616,7 +616,7 @@ export function LandingPage() {
                     <div className="lp-compare-name">Enterprise forecasting platforms</div>
                     <div className="lp-compare-sub">internal prediction markets</div>
                   </td>
-                  <td data-label="See what your decision will do" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">some conditional</span></td>
+                  <td data-label="Scores moves against your goals" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">some conditional</span></td>
                   <td data-label="Forecasts you can trust" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">employee programs</span></td>
                   <td data-label="Runs itself, 24/7" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">requires staffing a team</span></td>
                   <td data-label="Stays private" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">enterprise-hosted</span></td>
@@ -626,7 +626,7 @@ export function LandingPage() {
                     <div className="lp-compare-name">AI scenario-planning tools</div>
                     <div className="lp-compare-sub">modeling + LLM what-ifs</div>
                   </td>
-                  <td data-label="See what your decision will do" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">what-if simulation</span></td>
+                  <td data-label="Scores moves against your goals" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">what-if simulation</span></td>
                   <td data-label="Forecasts you can trust" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">no real forecasters</span></td>
                   <td data-label="Runs itself, 24/7" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">user-driven</span></td>
                   <td data-label="Stays private" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">private SaaS</span></td>
@@ -636,7 +636,7 @@ export function LandingPage() {
                     <div className="lp-compare-name">Team voting / $100 test</div>
                     <div className="lp-compare-sub">dot vote, poll the team</div>
                   </td>
-                  <td data-label="See what your decision will do" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">aggregates preference, not impact</span></td>
+                  <td data-label="Scores moves against your goals" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">aggregates preference, not impact</span></td>
                   <td data-label="Forecasts you can trust" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">equal weight, no skin in game</span></td>
                   <td data-label="Runs itself, 24/7" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">convene the team each time</span></td>
                   <td data-label="Stays private" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">internal politics included</span></td>
@@ -646,7 +646,7 @@ export function LandingPage() {
                     <div className="lp-compare-name">Telarchy<span className="lp-compare-badge">you are here</span></div>
                     <div className="lp-compare-sub">alignment layer for AI and humans</div>
                   </td>
-                  <td data-label="See what your decision will do" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">per proposal, against your KPIs</span></td>
+                  <td data-label="Scores moves against your goals" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">human or AI, before you commit</span></td>
                   <td data-label="Forecasts you can trust" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">accuracy pays, bias loses</span></td>
                   <td data-label="Runs itself, 24/7" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">AI participants run cycles</span></td>
                   <td data-label="Stays private" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">workspace · per-metric · per-source</span></td>
