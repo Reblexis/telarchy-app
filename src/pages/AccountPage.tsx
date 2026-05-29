@@ -39,6 +39,11 @@ export function AccountPage() {
   const [changingPassword, setChangingPassword] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  const [nickname, setNickname] = useState('');
+  const [savedNickname, setSavedNickname] = useState('');
+  const [savingNickname, setSavingNickname] = useState(false);
+  const [nicknameMsg, setNicknameMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
   const [copied, setCopied] = useState(false);
   const copyUid = () => {
     if (!user) return;
@@ -51,10 +56,13 @@ export function AccountPage() {
   const load = useCallback(async () => {
     if (!user) return;
     setError('');
-    await api.getProfile().catch((e: Error) => {
+    const profile = await api.getProfile().catch((e: Error) => {
       setError(e.message);
       return null;
     });
+    const nick = (profile as { nickname?: string | null } | null)?.nickname ?? '';
+    setNickname(nick);
+    setSavedNickname(nick);
     const [participant, dep, status] = await Promise.all([
       api.getParticipant().catch((e: Error) => { setError(e.message); return null; }),
       api.getDepositAddress().catch(() => null),
@@ -131,6 +139,21 @@ export function AccountPage() {
     setSavingWallet(false);
   };
 
+  const handleChangeNickname = async (e: FormEvent) => {
+    e.preventDefault();
+    const trimmed = nickname.trim();
+    if (trimmed === savedNickname) return;
+    setSavingNickname(true);
+    setNicknameMsg(null);
+    const result = await api.upsertProfile({ nickname: trimmed })
+      .catch((err: Error) => { setNicknameMsg({ ok: false, text: err.message }); return null; });
+    if (result) {
+      setSavedNickname(trimmed);
+      setNicknameMsg({ ok: true, text: 'Custom ID updated. It now appears in your workspace URLs.' });
+    }
+    setSavingNickname(false);
+  };
+
   const handleChangePassword = async (e: FormEvent) => {
     e.preventDefault();
     setChangingPassword(true);
@@ -186,6 +209,38 @@ export function AccountPage() {
             </div>
           )}
         </div>
+
+        {/* Custom ID (nickname): the public handle that appears in workspace
+            URLs. Optional; falls back to the participant ID when unset. */}
+        <form onSubmit={handleChangeNickname} style={{ marginTop: '1rem' }}>
+          <label htmlFor="custom-id" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
+            Custom ID
+          </label>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <input
+              id="custom-id"
+              type="text"
+              value={nickname}
+              onChange={e => setNickname(e.target.value)}
+              placeholder={agent?.id ?? 'your-handle'}
+              minLength={3}
+              maxLength={30}
+              style={{ ...inputStyle, flex: 1, minWidth: 200, fontFamily: 'monospace' }}
+            />
+            <button type="submit" disabled={savingNickname || nickname.trim() === savedNickname} style={{ whiteSpace: 'nowrap' }}>
+              {savingNickname ? 'Saving…' : savedNickname ? 'Update ID' : 'Set ID'}
+            </button>
+          </div>
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.35rem' }}>
+            3–30 characters: letters, digits, hyphens, underscores. Globally unique. Used in your workspace URLs
+            (telarchy.com/<strong>{savedNickname || agent?.id || 'your-id'}</strong>/workspace). Leave as-is to keep the default ID.
+          </p>
+          {nicknameMsg && (
+            <div className={`message ${nicknameMsg.ok ? 'success' : 'error'} show`} style={{ marginTop: '0.5rem' }}>
+              {nicknameMsg.text}
+            </div>
+          )}
+        </form>
       </div>
 
       {/* Change password */}

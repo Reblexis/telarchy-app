@@ -61,18 +61,23 @@ export function FlatTabRedirect({ tab }: { tab: string }) {
   if (authLoading || wsLoading) return <div className="loading">Loading...</div>;
   if (!user) return <Navigate to="/" replace />;
 
-  if (workspace?.needsWorkspace) {
-    if (workspace.intent === 'trader') return <Navigate to="/marketplace" replace />;
-    if (workspace.intent === 'agent') return <Navigate to="/api-access" replace />;
+  // Only treat the user as workspace-less when they genuinely have none. A
+  // freshly switched-to workspace can momentarily report needsWorkspace before
+  // the profile settles; if the list has any workspace, send them to it rather
+  // than bouncing to the marketplace.
+  if (allWorkspaces.length === 0) {
+    if (workspace?.intent === 'trader') return <Navigate to="/marketplace" replace />;
+    if (workspace?.intent === 'agent') return <Navigate to="/api-access" replace />;
     return <Navigate to="/create-workspace" replace />;
   }
 
-  const meta = allWorkspaces.find(w => w.id === workspace?.workspaceId);
+  // Prefer the active workspace; fall back to the first one the user belongs to.
+  const meta = allWorkspaces.find(w => w.id === workspace?.workspaceId) ?? allWorkspaces[0];
   if (meta?.ownerHandle && meta?.slug) {
     const target = `/${encodeURIComponent(meta.ownerHandle)}/${encodeURIComponent(meta.slug)}/${tab}`;
     return <Navigate to={target + window.location.search + window.location.hash} replace />;
   }
-  // Active workspace isn't in the member list (e.g. not joined yet): send the
-  // user to the marketplace rather than a flat page that no longer exists.
+  // A workspace with no resolvable owner handle/slug should not exist after the
+  // backfill; surface the marketplace rather than a dead flat page.
   return <Navigate to="/marketplace" replace />;
 }

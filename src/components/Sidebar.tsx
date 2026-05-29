@@ -89,7 +89,13 @@ export function Sidebar({ className = '' }: { className?: string }) {
                       return;
                     }
                     setWorkspaceNavOpen(true);
-                    switchWorkspace(ws.id, canAccessWorkspace ? '/overview' : (onWorkspacePath ? undefined : '/metrics'));
+                    // Navigate straight to the clicked workspace's namespaced
+                    // URL (we already have its owner/slug), so we don't bounce
+                    // through the flat redirector.
+                    const target = ws.ownerHandle && ws.slug
+                      ? `/${encodeURIComponent(ws.ownerHandle)}/${encodeURIComponent(ws.slug)}/overview`
+                      : (onWorkspacePath ? undefined : '/metrics');
+                    switchWorkspace(ws.id, target);
                   }}
                 >
                   <span>{ws.name}</span>
