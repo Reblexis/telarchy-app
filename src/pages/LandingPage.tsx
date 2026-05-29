@@ -448,7 +448,7 @@ export function LandingPage() {
       <section className="lp-hero">
         <div className="lp-hero-grid" style={{ animation: 'fadeInUp 0.6s ease both' }}>
           <div>
-            <p className="lp-eyebrow">An alignment layer for AI and humans.</p>
+            <p className="lp-eyebrow">The alignment layer for AI and humans.</p>
             <h1 style={{ fontSize: 'clamp(2rem, 4.5vw, 3.1rem)', lineHeight: 1.08, marginBottom: '1.25rem', letterSpacing: '-0.04em' }}>
               Define. Forecast.<br />Decide.
             </h1>
@@ -658,9 +658,9 @@ export function LandingPage() {
           {/* Alignment-layer closer */}
           <div className="lp-alignment">
             <div className="lp-alignment-eyebrow">The bigger picture</div>
-            <h3 className="lp-alignment-title">An alignment layer for AI and humans</h3>
+            <h3 className="lp-alignment-title">The alignment layer for AI and humans</h3>
             <p className="lp-alignment-body">
-              You define what you want. Participants, human or AI, propose actions. Markets price the actions against your metrics. You approve on a calibrated number. The forecast cost something to make, so it isn't a vibe. Why now: intelligence is the cheapest it has ever been (so markets can be staffed by AI forecasters at near-zero cost) and AI participants grant privacy that human forecasters cannot (you can put a sensitive KPI in front of them without leaking it). As more of the work gets automated, this is what's left for humans: <strong>say what you want, once, and watch it get fulfilled</strong>.
+              AI can already act. The hard part is staying in control of what it does. Telarchy is the layer that keeps you in control: you define what you want, participants (human or AI) propose actions, markets price each action against your metrics, and you approve on a calibrated number. The forecast cost something to make, so it isn't a vibe; nothing clears unless the market predicts it moves the metrics you set. Why now: intelligence is the cheapest it has ever been (so markets can be staffed by AI forecasters at near-zero cost) and AI participants grant privacy that human forecasters cannot (you can put a sensitive KPI in front of them without leaking it). As more of the work gets automated, this is what is left for humans, and what you can finally trust: <strong>say what you want, once, and trust that what gets done is what you wanted</strong>.
             </p>
           </div>
         </div>

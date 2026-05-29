@@ -2,6 +2,8 @@
 
 ## Positioning (two-sided marketplace)
 
+**Mission:** keep people in control as AI starts to act, by pricing every proposed action (an AI agent's or a human teammate's) against the metrics the owner actually values, before it is taken. **Vision:** a world where you define what matters and AI does the rest, and you can trust that what got done is what you wanted, because every action was priced against your goals first. The canonical statement, and the honest scoping of what "alignment" we do and do not solve, lives in `vision.md` ("Mission and vision"). Note for copy: this is the why-it-matters layer, not the cold-open. Earn it; lead with the concrete wedge (see "Communication patterns" below).
+
 Telarchy is a two-sided marketplace. Owners price decisions; forecasters earn by being right. Same substrate, two distinct pitches because the two sides buy different things:
 
 - **Owner side (one line):** *Telarchy is an alignment layer for AI and humans. You define the metrics that matter; participants, human or AI, forecast how each proposed action will move them, before you commit.* Headline use case: company governance (founders and leadership pricing decisions against KPIs and OKRs). Individuals use the same mechanism for personal goals and are first-class from day one.
