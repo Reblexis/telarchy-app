@@ -448,12 +448,12 @@ export function LandingPage() {
       <section className="lp-hero">
         <div className="lp-hero-grid" style={{ animation: 'fadeInUp 0.6s ease both' }}>
           <div>
-            <p className="lp-eyebrow">The alignment layer for AI and humans.</p>
+            <p className="lp-eyebrow">Alignment, in production.</p>
             <h1 style={{ fontSize: 'clamp(2rem, 4.5vw, 3.1rem)', lineHeight: 1.08, marginBottom: '1.25rem', letterSpacing: '-0.04em' }}>
-              See what a decision will do<br />before you make it.
+              Say what you want.<br />Watch it get done, on your terms.
             </h1>
             <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 460 }}>
-              Define the metrics that matter. Telarchy runs a prediction market on every proposal, human- or AI-proposed, and prices its impact on your KPIs. You decide on the forecast, not the loudest voice.
+              Define your goals once. AI proposes the actions, markets price each one against your goals, and you approve. Every move is checked against what you actually want before it happens.
             </p>
             <div className="lp-hero-ctas">
               <Link to="/signup" className="lp-btn-primary">Get started. 1000 free credits</Link>
@@ -474,16 +474,16 @@ export function LandingPage() {
         <div className="lp-diff-grid">
           {[
             {
-              title: 'See the impact before you commit',
-              body: 'Every proposal is priced against your KPIs, so you know its expected effect before you approve it.',
+              title: 'It proposes the moves',
+              body: 'AI participants surface decisions and initiatives aimed at your goals, not just answers when you happen to ask.',
             },
             {
-              title: 'Forecasts with skin in the game',
-              body: 'Participants stake credits on their calls. Accuracy pays, bad calls cost them, so the number is honest.',
+              title: 'Priced against your goals',
+              body: 'Markets forecast the impact each proposal would have on your metrics, by participants who lose credits when they are wrong.',
             },
             {
-              title: 'Decide on the number, not the noise',
-              body: 'Approve or decline on the market forecast, not on whoever sounds most confident in the room.',
+              title: 'You stay in control',
+              body: 'Nothing acts until you approve it on a calibrated number. Your goals are the gate.',
             },
           ].map(({ title, body }) => (
             <div key={title} className="lp-diff-item">
@@ -504,18 +504,18 @@ export function LandingPage() {
           <div className="lp-how-grid">
             {[
               {
-                n: '1', title: 'You say what you want',
-                body: 'List the KPIs that matter. Markets open automatically against each one.',
+                n: '1', title: 'Set your goals',
+                body: 'List the metrics that matter. Markets open automatically against each one.',
                 illustration: <GoalTreeIllustration visible={stepVisible[0]} />,
               },
               {
-                n: '2', title: 'Markets price every proposal',
-                body: 'Participants, human and AI, stake credits on where each KPI is heading. Accuracy pays.',
+                n: '2', title: 'Proposals come to you, already priced',
+                body: 'AI and human participants propose actions toward your goals; prediction markets price each one, with credits on the line.',
                 illustration: <MarketDemo />,
               },
               {
-                n: '3', title: 'You approve, calibrated',
-                body: 'Propose an initiative. Conditional markets price its impact on every KPI before you commit.',
+                n: '3', title: 'You approve, on a number',
+                body: 'See the predicted impact on every goal, then approve. Over time, more clears without you.',
                 illustration: <DecisionIllustration visible={stepVisible[2]} />,
               },
             ].map(({ n, title, body, illustration }, idx) => (
@@ -531,7 +531,7 @@ export function LandingPage() {
           {/* Mid-page CTA */}
           <div style={{ marginTop: '3.5rem', paddingTop: '3rem', borderTop: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
             <div>
-              <div style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.3rem' }}>Ready to price your next decision?</div>
+              <div style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.3rem' }}>Ready to put your goals in charge?</div>
               <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>1000 free credits on signup. No credit card required.</div>
             </div>
             <Link to="/signup" className="lp-btn-primary">Get started. 1000 free credits</Link>
@@ -566,7 +566,7 @@ export function LandingPage() {
             What you're using today, and why it isn't enough
           </h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.7, maxWidth: 640, marginBottom: '2.5rem' }}>
-            Most founders making strategic decisions today reach for a chatbot. It sounds confident, has no skin in the game, and doesn't know your goals.
+            Today you either do the thinking yourself or hand it to a chatbot that sounds confident, has no skin in the game, and does not know your goals. Neither one proposes real moves and proves they will work.
           </p>
 
           <div className="lp-compare-wrap">
@@ -677,7 +677,7 @@ export function LandingPage() {
               <h2 className="lp-card-title">Founders & leadership teams</h2>
               <ul className="lp-card-list">
                 <li>KPIs and OKRs you actually care about. Outcomes, not activity proxies.</li>
-                <li>Market-calibrated forecasts on every goal, around the clock.</li>
+                <li>Proposals aimed at your goals, surfaced for you around the clock.</li>
                 <li>Predicted impact on every initiative before you approve.</li>
               </ul>
               <Link to="/signup" className="lp-btn-sm-primary">Create a workspace</Link>
