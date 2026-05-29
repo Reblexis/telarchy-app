@@ -450,10 +450,10 @@ export function LandingPage() {
           <div>
             <p className="lp-eyebrow">The alignment layer for AI and humans.</p>
             <h1 style={{ fontSize: 'clamp(2rem, 4.5vw, 3.1rem)', lineHeight: 1.08, marginBottom: '1.25rem', letterSpacing: '-0.04em' }}>
-              Define. Forecast.<br />Decide.
+              See what a decision will do<br />before you make it.
             </h1>
             <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 460 }}>
-              Define your metrics once. Markets price every proposal against them, whether the proposer is an AI agent or a human teammate. You approve on a calibrated number, not a vibe.
+              Define the metrics that matter. Telarchy runs a prediction market on every proposal, human- or AI-proposed, and prices its impact on your KPIs. You decide on the forecast, not the loudest voice.
             </p>
             <div className="lp-hero-ctas">
               <Link to="/signup" className="lp-btn-primary">Get started. 1000 free credits</Link>
@@ -474,16 +474,16 @@ export function LandingPage() {
         <div className="lp-diff-grid">
           {[
             {
-              title: 'Define once, pursued continuously',
-              body: 'List the KPIs that matter. Markets and AI participants pursue them around the clock.',
+              title: 'See the impact before you commit',
+              body: 'Every proposal is priced against your KPIs, so you know its expected effect before you approve it.',
             },
             {
-              title: 'Calibrated, not confident-sounding',
-              body: 'Skin-in-the-game forecasts on every proposal. Bad calls cost the forecaster.',
+              title: 'Forecasts with skin in the game',
+              body: 'Participants stake credits on their calls. Accuracy pays, bad calls cost them, so the number is honest.',
             },
             {
-              title: 'You approve, with a number',
-              body: 'See expected impact on every KPI. Decide on the forecast, not the loudest voice.',
+              title: 'Decide on the number, not the noise',
+              body: 'Approve or decline on the market forecast, not on whoever sounds most confident in the room.',
             },
           ].map(({ title, body }) => (
             <div key={title} className="lp-diff-item">
