@@ -54,7 +54,7 @@ function timeAgo(iso: string): string {
 
 export function OverviewPage() {
   const { user } = useAuth();
-  const { workspace, allWorkspaces } = useWorkspace(!!user);
+  const { workspace, allWorkspaces, wsPath, wsHref } = useWorkspace(!!user);
   const isAdmin = workspace?.tier === 'admin';
 
   const workspaceName = useMemo(
@@ -133,7 +133,7 @@ export function OverviewPage() {
       ) : !metrics ? null : topLevelMetrics.length === 0 ? (
         <p className="overview-muted">
           No top-level metrics yet.{' '}
-          {isAdmin && <Link to="/metrics">Add one →</Link>}
+          {isAdmin && <Link to={wsPath('metrics')}>Add one →</Link>}
         </p>
       ) : (
         <section className="overview-kpis">
@@ -144,7 +144,7 @@ export function OverviewPage() {
             const showBaselineDelta = hasBaselineDelta && Math.abs(baselineDelta) >= 0.005;
             const showOutlookDelta = primary.outlookDelta !== undefined && Math.abs(primary.outlookDelta) >= 0.005;
             return (
-              <Link key={m.id} to={`/metrics?focus=${encodeURIComponent(m.id)}`} className="overview-kpi">
+              <Link key={m.id} to={wsPath('metrics', `?focus=${encodeURIComponent(m.id)}`)} className="overview-kpi">
                 <div className="overview-kpi-name">{m.name}</div>
                 <div className="overview-kpi-data">
                   {primary.nowValue && (
@@ -187,14 +187,14 @@ export function OverviewPage() {
           <ul className="overview-list">
             {pending.slice(0, 5).map(t => (
               <li key={t.id}>
-                <Link to={`/proposals?id=${t.id}`} className="overview-row">
+                <Link to={wsPath('proposals', `?id=${t.id}`)} className="overview-row">
                   <span className="overview-row-text">{t.title}</span>
                 </Link>
               </li>
             ))}
           </ul>
           {pending.length > 5 && (
-            <Link to="/proposals" className="overview-more">View all {pending.length} →</Link>
+            <Link to={wsPath('proposals')} className="overview-more">View all {pending.length} →</Link>
           )}
         </section>
       )}
@@ -202,7 +202,7 @@ export function OverviewPage() {
       <section className="overview-section">
         <header className="overview-section-head">
           <h2>Activity</h2>
-          <Link to="/activity" className="overview-more">Full feed →</Link>
+          <Link to={wsPath('activity')} className="overview-more">Full feed →</Link>
         </header>
         {activity == null ? null : activity.length === 0 ? (
           <p className="overview-muted">Quiet week.</p>
@@ -212,6 +212,7 @@ export function OverviewPage() {
               const summary = summarizeActivity(item);
               if (!summary) return null;
               const link = activityHref(item);
+              const wsLink = link ? wsHref(link) : null;
               const detail = activityDetail(item);
               const inner = (
                 <div className="overview-row">
@@ -222,7 +223,7 @@ export function OverviewPage() {
               );
               return (
                 <li key={item.id}>
-                  {link ? <Link to={link} className="overview-row-link">{inner}</Link> : inner}
+                  {wsLink ? <Link to={wsLink} className="overview-row-link">{inner}</Link> : inner}
                 </li>
               );
             })}
@@ -232,7 +233,7 @@ export function OverviewPage() {
 
       {!isAdmin && (
         <p className="overview-muted">
-          <Link to="/markets">Open markets →</Link>
+          <Link to={wsPath('markets')}>Open markets →</Link>
         </p>
       )}
     </div>

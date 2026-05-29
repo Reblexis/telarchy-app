@@ -208,6 +208,12 @@ export function setActiveWorkspace(id: string | null): void {
   }
 }
 
+/** The last-used / URL-driven active workspace id. Used to upgrade flat routes
+ *  (/metrics) to the namespaced /{ownerHandle}/{slug}/metrics form. */
+export function getActiveWorkspace(): string | null {
+  return activeWorkspaceId;
+}
+
 async function request(path: string, options: RequestInit = {}, skipWorkspaceHeader = false) {
   return requestWithWorkspace(path, options, { skipWorkspaceHeader });
 }
@@ -508,6 +514,11 @@ export const api = {
     return request('/api/workspaces', { method: 'POST', body: JSON.stringify(payload) }, true);
   },
   listWorkspaces: () => request('/api/workspaces', {}, true),
+  /** Map a GitHub-style /{owner}/{slug} path to a workspace id. Returns the
+   *  canonical segments + a `moved` flag (true when the slug is a former,
+   *  renamed-away slug and the URL should be replaced). */
+  resolveWorkspacePath: (owner: string, slug: string): Promise<{ workspaceId: string; canonicalOwner: string; canonicalSlug: string; moved: boolean }> =>
+    request(`/api/workspaces/resolve?owner=${encodeURIComponent(owner)}&slug=${encodeURIComponent(slug)}`, {}, true),
   getWorkspace: (id: string) => request(`/api/workspaces/${id}`),
   getWorkspaceStats: (id: string) => request(`/api/workspaces/${id}/stats`),
   updateWorkspaceSettings: (id: string, body: { name?: string; autoFundNewMarkets?: boolean; newMarketLiquidityCredits?: number; visibility?: 'public' | 'unlisted' | 'private'; proposalReward?: number; spamPenalty?: number; maxPendingProposalsPerParticipant?: number }) =>

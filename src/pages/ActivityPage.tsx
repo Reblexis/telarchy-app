@@ -20,7 +20,7 @@ const TIME_RANGES: { label: string; hours: number }[] = [
 
 export function ActivityPage() {
   const { user } = useAuth();
-  const { workspace, loading: wsLoading } = useWorkspace(Boolean(user));
+  const { workspace, loading: wsLoading, wsHref } = useWorkspace(Boolean(user));
 
   const [rangeHours, setRangeHours] = useState<number>(24);
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(
@@ -190,6 +190,7 @@ export function ActivityPage() {
                     hour: '2-digit', minute: '2-digit',
                   });
                   const link = activityHref(item);
+                  const wsLink = link ? wsHref(link) : null;
                   const inner = (
                     <div className="activity-row">
                       <div className="activity-text">
@@ -208,7 +209,7 @@ export function ActivityPage() {
                   );
                   return (
                     <li key={item.id}>
-                      {link ? <Link to={link} className="activity-row-link">{inner}</Link> : inner}
+                      {wsLink ? <Link to={wsLink} className="activity-row-link">{inner}</Link> : inner}
                     </li>
                   );
                 })}

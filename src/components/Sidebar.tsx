@@ -8,7 +8,7 @@ import { Logo } from './Logo';
 
 export function Sidebar({ className = '' }: { className?: string }) {
   const { user, logout } = useAuth();
-  const { workspace, allWorkspaces, switchWorkspace, error } = useWorkspace(!!user);
+  const { workspace, allWorkspaces, switchWorkspace, wsPath, error } = useWorkspace(!!user);
   const location = useLocation();
   const navigate = useNavigate();
   const { theme, cycleTheme } = useTheme();
@@ -37,17 +37,20 @@ export function Sidebar({ className = '' }: { className?: string }) {
   const canAccessWorkspace = workspace?.tier && workspace.tier !== 'none';
   const isAdmin = workspace?.tier === 'admin';
   const workspaceLinks = [
-    { to: '/metrics', label: 'Metrics' },
-    ...(isAdmin ? [{ to: '/check-in', label: 'Check-in' }] : []),
-    { to: '/proposals', label: 'Proposals' },
-    { to: '/markets', label: 'Markets' },
-    ...(isAdmin ? [{ to: '/participants', label: 'Participants' }] : []),
-    { to: '/sources', label: 'Sources' },
-    { to: '/activity', label: 'Activity' },
-    ...(isAdmin ? [{ to: '/settings', label: 'Settings' }] : []),
+    { tab: 'metrics', label: 'Metrics' },
+    ...(isAdmin ? [{ tab: 'check-in', label: 'Check-in' }] : []),
+    { tab: 'proposals', label: 'Proposals' },
+    { tab: 'markets', label: 'Markets' },
+    ...(isAdmin ? [{ tab: 'participants', label: 'Participants' }] : []),
+    { tab: 'sources', label: 'Sources' },
+    { tab: 'activity', label: 'Activity' },
+    ...(isAdmin ? [{ tab: 'settings', label: 'Settings' }] : []),
   ];
-  const workspacePaths = ['/overview', '/metrics', '/check-in', '/proposals', '/markets', '/participants', '/sources', '/activity', '/settings'];
-  const onWorkspacePath = workspacePaths.includes(currentPath);
+  const WORKSPACE_TABS = ['overview', 'metrics', 'check-in', 'proposals', 'markets', 'participants', 'sources', 'activity', 'settings'];
+  // A workspace tab is the last path segment in both the flat (/metrics) and
+  // namespaced (/{owner}/{slug}/metrics) forms.
+  const currentTab = currentPath.split('/').filter(Boolean).pop() ?? '';
+  const onWorkspacePath = WORKSPACE_TABS.includes(currentTab);
 
   useEffect(() => {
     setWorkspaceNavOpen(true);
@@ -79,10 +82,10 @@ export function Sidebar({ className = '' }: { className?: string }) {
             return (
               <div key={ws.id} className="sidebar-workspace-group">
                 <button
-                  className={`sidebar-nav-item sidebar-workspace-name${isSelected ? ' selected' : ''}${isSelected && currentPath === '/overview' ? ' active' : ''}`}
+                  className={`sidebar-nav-item sidebar-workspace-name${isSelected ? ' selected' : ''}${isSelected && currentTab === 'overview' ? ' active' : ''}`}
                   onClick={() => {
                     if (isSelected) {
-                      if (canAccessWorkspace) navigate('/overview');
+                      if (canAccessWorkspace) navigate(wsPath('overview'));
                       return;
                     }
                     setWorkspaceNavOpen(true);
@@ -117,10 +120,10 @@ export function Sidebar({ className = '' }: { className?: string }) {
                     )}
                     {canAccessWorkspace && workspaceLinks.map(link => (
                       <Link
-                        key={link.to}
-                        to={link.to}
-                        data-tour-id={`nav-${link.to.slice(1)}`}
-                        className={`sidebar-nav-item sidebar-subnav-item${currentPath === link.to ? ' active' : ''}`}
+                        key={link.tab}
+                        to={wsPath(link.tab)}
+                        data-tour-id={`nav-${link.tab}`}
+                        className={`sidebar-nav-item sidebar-subnav-item${currentTab === link.tab ? ' active' : ''}`}
                       >
                         {link.label}
                       </Link>
