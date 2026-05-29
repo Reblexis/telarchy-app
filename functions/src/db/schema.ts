@@ -62,6 +62,10 @@ export const authVerification = pgTable('verification', {
 export const workspaces = pgTable('workspaces', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
+  /** URL slug, derived from the name and unique per owner (createdBy). Drives
+   *  the GitHub-style path /{ownerHandle}/{slug}. Nullable only transiently
+   *  during backfill; new workspaces always get one. See migration 0034. */
+  slug: text('slug'),
   createdBy: text('created_by').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   /** 'public' | 'unlisted' | 'private' */
@@ -77,6 +81,21 @@ export const workspaces = pgTable('workspaces', {
   spamPenalty: doublePrecision('spam_penalty').notNull().default(0),
   /** Per-participant cap on simultaneously pending proposals in this workspace. 0 disables the cap. */
   maxPendingProposalsPerParticipant: integer('max_pending_proposals').notNull().default(0),
+});
+
+/**
+ * Historical + current workspace slugs, keyed by owner. One row per slug a
+ * workspace has ever had (created and on every rename). Lets old URLs resolve
+ * and redirect to the current slug, and prevents an owner reusing a slug that
+ * already points elsewhere. Uniqueness is enforced case-insensitively per owner
+ * by a partial index in migration 0034 (not declared here, mirroring how the
+ * nickname LOWER() index lives only in its migration).
+ */
+export const workspaceSlugAliases = pgTable('workspace_slug_aliases', {
+  workspaceId: text('workspace_id').notNull(),
+  ownerKey: text('owner_key').notNull(),
+  slug: text('slug').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
 // ---------------------------------------------------------------------------

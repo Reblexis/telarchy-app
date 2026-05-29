@@ -1,9 +1,10 @@
 import { and, eq, inArray, or, sql, ne } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { db } from '../db/client';
-import { agents, authUser, permissionGroups, workspaces } from '../db/schema';
+import { agents, authUser, permissionGroups, workspaces, workspaceSlugAliases } from '../db/schema';
 import { DEFAULT_MARKET_LIQUIDITY_CREDITS, validateNickname } from './validation';
 import { AppError } from './errors';
+import { uniqueSlugForOwner } from './slug';
 
 type DbOrTx = Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db;
 import type { WorkspaceMemberRole } from '../types';
@@ -84,6 +85,60 @@ export async function resolveWorkspaceOwnerAgentId(workspaceId: string): Promise
 
   // Or it may be a userId — resolve via authUserId
   return resolveParticipantIdForUser(ws.createdBy);
+}
+
+export interface OwnerHandle {
+  /** The owner agent's id (the guaranteed-unique fallback segment). */
+  ownerId: string;
+  /** The public URL segment: the owner's custom id (nickname) when set, else its id. */
+  ownerHandle: string;
+}
+
+/**
+ * Resolve workspace owner keys (workspaces.createdBy, which is an agent id or,
+ * for some legacy rows, a BetterAuth user id) to their public URL handle. The
+ * handle is the owner agent's nickname when set, otherwise its opaque id. Keyed
+ * by the original ownerKey passed in so callers can join back onto workspace rows.
+ */
+export async function getOwnerHandles(ownerKeys: string[]): Promise<Map<string, OwnerHandle>> {
+  const out = new Map<string, OwnerHandle>();
+  const unique = [...new Set(ownerKeys.filter(Boolean))];
+  if (unique.length === 0) return out;
+
+  // Most ownerKeys are already agent ids.
+  const direct = await db
+    .select({ id: agents.id, nickname: agents.nickname })
+    .from(agents)
+    .where(inArray(agents.id, unique));
+  for (const a of direct) out.set(a.id, { ownerId: a.id, ownerHandle: a.nickname ?? a.id });
+
+  // Legacy rows store a userId; resolve those via authUserId.
+  const unresolved = unique.filter(k => !out.has(k));
+  if (unresolved.length > 0) {
+    const byUser = await db
+      .select({ id: agents.id, nickname: agents.nickname, authUserId: agents.authUserId })
+      .from(agents)
+      .where(inArray(agents.authUserId, unresolved));
+    for (const a of byUser) {
+      if (a.authUserId) out.set(a.authUserId, { ownerId: a.id, ownerHandle: a.nickname ?? a.id });
+    }
+  }
+  return out;
+}
+
+/**
+ * Resolve a URL owner segment (a custom id/nickname or a raw agent id) to the
+ * owner agent's id. Mirrors the id-first, then case-insensitive-nickname lookup
+ * used elsewhere (routes/agents.ts). Returns null when nothing matches.
+ */
+export async function resolveOwnerSegment(segment: string): Promise<string | null> {
+  const [byId] = await db.select({ id: agents.id }).from(agents).where(eq(agents.id, segment));
+  if (byId) return byId.id;
+  const [byNick] = await db
+    .select({ id: agents.id })
+    .from(agents)
+    .where(sql`LOWER(${agents.nickname}) = ${segment.toLowerCase()}`);
+  return byNick?.id ?? null;
 }
 
 export async function getParticipantWorkspaceMemberships(participantId: string): Promise<WorkspaceMembership[]> {
@@ -220,14 +275,21 @@ export async function provisionWorkspace(
   const { wsId, name, createdBy, ownerAgentId, visibility } = opts;
   const now = new Date();
 
+  const slug = await uniqueSlugForOwner(tx, createdBy, name);
+
   await tx.insert(workspaces).values({
     id: wsId,
     name,
+    slug,
     createdBy,
     createdAt: now,
     visibility: visibility ?? 'private',
     autoFundNewMarkets: true,
     newMarketLiquidityCredits: DEFAULT_MARKET_LIQUIDITY_CREDITS,
+  });
+
+  await tx.insert(workspaceSlugAliases).values({
+    workspaceId: wsId, ownerKey: createdBy, slug, createdAt: now,
   });
 
   const adminMemberIds = ownerAgentId ? [ownerAgentId] : [];

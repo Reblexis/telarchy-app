@@ -95,7 +95,7 @@ export function CheckInPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isWelcome = searchParams.get('welcome') === '1';
-  const { workspace } = useWorkspace();
+  const { workspace, wsPath } = useWorkspace();
   const isAdmin = workspace?.tier === 'admin';
   const [metrics, setMetrics] = useState<Metric[]>([]);
   const [values, setValues] = useState<Record<string, string>>({});
@@ -205,7 +205,7 @@ export function CheckInPage() {
           marketRangeMax: m.marketRangeMax,
         });
       }
-      navigate('/metrics');
+      navigate(wsPath('metrics'));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -223,7 +223,7 @@ export function CheckInPage() {
           <p className="section-subtitle">
             Only workspace admins can update metric values. You have trader access:
             you can forecast on the markets but not edit the underlying numbers.
-            See the current values and forecasts on the <Link to="/metrics">Metrics page</Link>.
+            See the current values and forecasts on the <Link to={wsPath('metrics')}>Metrics page</Link>.
           </p>
         </div>
       </div>
@@ -306,7 +306,7 @@ export function CheckInPage() {
             </button>
           </div>
           <p className="checkin-footnote">
-            Your workspace is listed on the marketplace and open to participants. Change in <Link to="/settings">Settings</Link>.
+            Your workspace is listed on the marketplace and open to participants. Change in <Link to={wsPath('settings')}>Settings</Link>.
           </p>
         </form>
       ) : (

@@ -7,6 +7,8 @@ import { useWorkspace } from '../hooks/useWorkspace';
 interface WorkspaceDetail {
   id: string;
   name: string;
+  slug?: string | null;
+  ownerHandle?: string | null;
   visibility?: 'public' | 'unlisted' | 'private';
   autoFundNewMarkets?: boolean;
   newMarketLiquidityCredits?: number;
@@ -22,7 +24,7 @@ interface PublicGroupState {
 export function WorkspaceSettingsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { workspace } = useWorkspace(!!user);
+  const { workspace, wsPath } = useWorkspace(!!user);
 
   const [ws, setWs] = useState<WorkspaceDetail | null>(null);
   const [name, setName] = useState('');
@@ -80,8 +82,11 @@ export function WorkspaceSettingsPage() {
     const trimmed = name.trim();
     if (!trimmed || trimmed === ws?.name) return;
     try {
-      await api.updateWorkspaceSettings(wsId, { name: trimmed });
-      setWs(prev => prev ? { ...prev, name: trimmed } : prev);
+      const r = await api.updateWorkspaceSettings(wsId, { name: trimmed }) as { slug?: string };
+      // Renaming regenerates the URL slug server-side; reflect it so the
+      // displayed path matches. The old slug still resolves (redirects), so the
+      // current URL keeps working until the next navigation.
+      setWs(prev => prev ? { ...prev, name: trimmed, slug: r?.slug ?? prev.slug } : prev);
       markSaved();
     } catch (e) { markError(e); }
   };
@@ -174,7 +179,7 @@ export function WorkspaceSettingsPage() {
           <h2>Workspace Settings</h2>
           <p className="section-subtitle">Only workspace admins can manage settings.</p>
         </div>
-        <button type="button" onClick={() => navigate('/metrics')}>Back to metrics</button>
+        <button type="button" onClick={() => navigate(wsPath('metrics'))}>Back to metrics</button>
       </div>
     );
   }
@@ -210,6 +215,11 @@ export function WorkspaceSettingsPage() {
             onBlur={commitName}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); (e.currentTarget as HTMLInputElement).blur(); } }}
           />
+          {ws?.slug && ws?.ownerHandle && (
+            <p className="section-subtitle" style={{ marginTop: '0.4rem', fontFamily: 'monospace', fontSize: '0.8rem' }}>
+              URL: /{ws.ownerHandle}/{ws.slug}
+            </p>
+          )}
         </div>
       </div>
 
@@ -291,7 +301,7 @@ export function WorkspaceSettingsPage() {
           Manage access by adding participants to permission groups in the{' '}
           <button
             type="button"
-            onClick={() => navigate('/participants')}
+            onClick={() => navigate(wsPath('participants'))}
             style={{ background: 'none', border: 'none', padding: 0, color: 'var(--focus-border)', cursor: 'pointer', fontSize: 'inherit', textDecoration: 'underline' }}
           >
             Participants

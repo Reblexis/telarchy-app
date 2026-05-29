@@ -2,7 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-
 import { useEffect } from 'react';
 import { setActiveWorkspace } from './lib/api';
 import { InspectModeProvider } from './hooks/useInspectMode';
-import { RequireAuth, RequireWorkspace, RequireAgentSession } from './components/RequireAuth';
+import { RequireAuth, RequireAgentSession } from './components/RequireAuth';
+import { WorkspaceRouteGuard, FlatTabRedirect } from './components/WorkspaceRoute';
 import { AppLayout } from './components/AppLayout';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
@@ -85,20 +86,33 @@ export function App() {
             <Route element={<RequireAuth />}>
               <Route path="/start" element={<StartPage />} />
               <Route path="/create-workspace" element={<CreateWorkspacePage />} />
-              <Route path="/participants" element={<ParticipantsPage />} />
               <Route path="/admin" element={<AdminPage />} />
               <Route path="/account" element={<AccountPage />} />
               <Route path="/api-access" element={<ApiPage />} />
             </Route>
-            <Route element={<RequireWorkspace />}>
-              <Route path="/overview" element={<OverviewPage />} />
-              <Route path="/settings" element={<WorkspaceSettingsPage />} />
-              <Route path="/check-in" element={<CheckInPage />} />
-              <Route path="/metrics" element={<MetricsPage />} />
-              <Route path="/markets" element={<MarketsPage />} />
-              <Route path="/proposals" element={<ProposalsPage />} />
-              <Route path="/sources" element={<SourcesPage />} />
-              <Route path="/activity" element={<ActivityPage />} />
+            {/* Legacy flat tab paths: redirect to the canonical namespaced URL
+                of the active workspace (and keep the old needs-workspace
+                redirects). Preserves bookmarks and external/marketplace links. */}
+            <Route path="/overview" element={<FlatTabRedirect tab="overview" />} />
+            <Route path="/metrics" element={<FlatTabRedirect tab="metrics" />} />
+            <Route path="/markets" element={<FlatTabRedirect tab="markets" />} />
+            <Route path="/proposals" element={<FlatTabRedirect tab="proposals" />} />
+            <Route path="/sources" element={<FlatTabRedirect tab="sources" />} />
+            <Route path="/activity" element={<FlatTabRedirect tab="activity" />} />
+            <Route path="/settings" element={<FlatTabRedirect tab="settings" />} />
+            <Route path="/check-in" element={<FlatTabRedirect tab="check-in" />} />
+            <Route path="/participants" element={<FlatTabRedirect tab="participants" />} />
+            {/* Canonical GitHub-style workspace routes: /{ownerHandle}/{slug}/<tab> */}
+            <Route path="/:owner/:slug" element={<WorkspaceRouteGuard />}>
+              <Route path="overview" element={<OverviewPage />} />
+              <Route path="metrics" element={<MetricsPage />} />
+              <Route path="markets" element={<MarketsPage />} />
+              <Route path="proposals" element={<ProposalsPage />} />
+              <Route path="sources" element={<SourcesPage />} />
+              <Route path="activity" element={<ActivityPage />} />
+              <Route path="settings" element={<WorkspaceSettingsPage />} />
+              <Route path="check-in" element={<CheckInPage />} />
+              <Route path="participants" element={<ParticipantsPage />} />
             </Route>
           </Route>
         </Routes>
