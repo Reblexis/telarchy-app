@@ -2731,6 +2731,23 @@ body.landing-page {
   margin-bottom: 1rem;
 }
 
+.lp-privacy {
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  padding: 5rem 0;
+}
+
+.lp-privacy-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+@media (max-width: 700px) {
+  .lp-privacy-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 700px) {
   .lp-hero-grid {
     grid-template-columns: 1fr;

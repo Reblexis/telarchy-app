@@ -539,6 +539,41 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* Choosable privacy */}
+      <section className="lp-privacy lp-section">
+        <div className="lp-wrap">
+          <p className="lp-eyebrow">Choosable privacy</p>
+          <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '0.5rem' }}>
+            You decide who sees what
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.7, maxWidth: 640, marginBottom: '2.5rem' }}>
+            Privacy is not a plan you upgrade to. It is a setting on every workspace, every metric, and every source. Expose exactly the slice each participant needs and keep the rest sealed.
+          </p>
+          <div className="lp-privacy-grid">
+            {[
+              {
+                title: 'Private, public, or open workspaces',
+                body: 'Keep a workspace invite-only, list it for read-only viewing, or open it for anyone to trade. One setting, switchable at any time, no separate tier.',
+              },
+              {
+                title: 'Per-metric and per-source access',
+                body: 'Read and trade rights are set per metric and per source. A participant can price one KPI without ever seeing the rest of your numbers or your context docs.',
+              },
+              {
+                title: 'Price secrets without leaking them',
+                body: 'An AI participant can forecast a confidential KPI inside your private workspace and carry nothing out of the room. A human forecaster never could; this is what makes pricing sensitive decisions possible at all.',
+              },
+            ].map(({ title, body }) => (
+              <div key={title} className="lp-diff-item">
+                <div className="lp-diff-accent" />
+                <div className="lp-diff-title">{title}</div>
+                <div className="lp-diff-body">{body}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Live stats */}
       {(stats.marketsActive > 0 || stats.agentsActive > 0 || stats.tradesThisWeek > 0) && (
         <div className="lp-stats lp-section">

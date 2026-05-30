@@ -75,6 +75,16 @@ Two compounding facts make this the right moment:
 
 This framing is load-bearing for positioning, not a tagline. The mechanism (conditional markets + composed metrics + time preference + first-class AI and human participants + open audit) is what makes the alignment-layer story credible. Without those pieces it would be marketing; with them, it is a real control surface for any decision in a business.
 
+### Choosable privacy: per-workspace, per-metric, per-source
+
+Privacy in Telarchy is not a pricing tier or a deployment mode you commit to up front. It is a continuous setting that lives on three levels, and every one of them is the owner's to choose and to change at any time. This is what turns the "why now" privacy-unlock argument above into an actual product feature, and it is one of the main reasons an owner can put a decision they would never expose to human teammates in front of the market.
+
+1. **Per-workspace.** A single Settings picker offers three access levels: **Private** (invite-only, not listed anywhere), **Public** (listed on `/api/marketplace`, joiners can view but not trade), and **Open** (listed, joiners can trade immediately). Under the hood this composes workspace `visibility` with the Public permission group's capabilities; the picker adjusts both atomically. New workspaces created through the UI default to Open so first-time users land on a live market, while the backend default for API-only and self-hosted callers (`provisionWorkspace` with no `visibility`) is the safer Private.
+2. **Per-metric.** Permission groups carry a `permissions` map (`metricId -> { read, trade }`), so a participant can be granted forecasting rights on exactly one KPI while the rest of the workspace's numbers stay invisible to them. Exposure is a per-metric decision, not all-or-nothing per workspace.
+3. **Per-source.** The same model extends to information stores via a `sourcePermissions` map (`sourceId -> { read }`). Context docs, credentials, or a connected GitHub repo can be shared with the precise set of participants that need them and withheld from everyone else.
+
+The owner exposes exactly the slice each participant needs and nothing more. Combined with the AI-participant property from "Why now" (an automated forecaster can be hosted on infrastructure the owner trusts, or run locally, with memory wiped between sessions), this is what lets confidential KPIs, unannounced strategic moves, and sensitive people decisions be priced without anyone carrying the information out of the room. The implementation lives in the workspace-scoped `permissionGroups` table (see "Phase 1b: Permission Groups" and "Sources" below); this section is the positioning view of those primitives.
+
 ### How decision quality compounds with AI progress
 
 The same mechanism that filters bad proposals also routes expertise across participants and absorbs AI progress automatically. Three properties fall out:
