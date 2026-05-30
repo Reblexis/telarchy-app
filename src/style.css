@@ -2274,6 +2274,30 @@ body.landing-page {
   margin-top: 3px;
 }
 
+.lp-stats-links {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0 2rem 1.5rem;
+  font-size: 0.82rem;
+}
+
+.lp-stats-links a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 1px;
+}
+
+.lp-stats-links a:hover {
+  color: var(--text-primary);
+}
+
+.lp-stats-links span {
+  color: var(--text-tertiary);
+}
+
 .lp-how-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

@@ -486,6 +486,11 @@ export function LandingPage() {
               </div>
             ))}
           </div>
+          <div className="lp-stats-links">
+            <Link to="/marketplace">See the live markets</Link>
+            <span aria-hidden="true">·</span>
+            <Link to="/leaderboard">Forecaster leaderboard</Link>
+          </div>
         </div>
       )}
 
