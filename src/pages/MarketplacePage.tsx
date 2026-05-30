@@ -4,7 +4,7 @@ import { api, type MarketplaceListing } from '../lib/api';
 import { TradingPanel } from '../components/TradingPanel';
 import { ProbabilitySlider } from '../components/ProbabilitySlider';
 import { useAuth } from '../hooks/useAuth';
-import { endOfPeriod, formatResolutionLabel, formatTimeRemaining } from '../lib/date-utils';
+import { endOfPeriod, formatTargetDateDisplay, formatTimeRemaining } from '../lib/date-utils';
 import { resolutionPayouts } from '../lib/amm';
 import type { Market, Position } from '../types';
 
@@ -101,7 +101,7 @@ function PositionCard({ row, onTrade, onError }: {
         <div className="market-head-target">
           <span className="market-workspace-tag">{workspaceName}</span>
           <span className="dot">·</span>
-          <span>{formatResolutionLabel(market.targetDate)}</span>
+          <span>{formatTargetDateDisplay(market.targetDate)}</span>
           {time && (
             <>
               <span className="dot">·</span>
@@ -162,7 +162,7 @@ function WorkspaceMarketCard({ row, onTrade, onError }: {
         <div className="market-head-target">
           <span className="market-workspace-tag">{workspaceName}</span>
           <span className="dot">·</span>
-          <span>{formatResolutionLabel(market.targetDate)}</span>
+          <span>{formatTargetDateDisplay(market.targetDate)}</span>
           {time && (
             <>
               <span className="dot">·</span>
@@ -253,7 +253,7 @@ function DiscoverWorkspaceCard({ row, onJoined, onSignup }: {
           {row.preview.map(m => (
             <li key={m.marketId}>
               <span className="discover-preview-name">{m.metricName}</span>
-              <span className="discover-preview-target">{formatResolutionLabel(m.targetDate)}</span>
+              <span className="discover-preview-target">{formatTargetDateDisplay(m.targetDate)}</span>
               <span className="discover-preview-consensus">
                 {m.consensus != null ? compactNumber(m.consensus) : '-'}
               </span>

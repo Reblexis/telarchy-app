@@ -4387,7 +4387,8 @@ code, pre, kbd, samp {
 
 .market-head-target {
   flex: 0 1 auto;
-  min-width: 200px;
+  min-width: 0;
+  overflow: hidden;
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
