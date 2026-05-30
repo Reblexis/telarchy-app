@@ -44,8 +44,8 @@ function compactNumber(value: number | null | undefined): string {
   const abs = Math.abs(value);
   if (abs >= 100) return value.toFixed(2);
   if (abs >= 1) return value.toFixed(4).replace(/\.?0+$/, '');
-  if (abs >= 0.01) return value.toFixed(6).replace(/\.?0+$/, '');
-  return value.toFixed(9).replace(/\.?0+$/, '');
+  if (abs >= 0.01) return value.toFixed(4).replace(/\.?0+$/, '');
+  return value.toFixed(6).replace(/\.?0+$/, '');
 }
 
 function formatSignedDelta(value: number): string {
