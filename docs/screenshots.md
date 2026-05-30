@@ -25,6 +25,41 @@ to **Open**, so the platform bots auto-join and generate real forecast activity
 Do not point the capture at a real workspace (e.g. LookPilot) unless you intend
 to publish real revenue/conversion data.
 
+Kestrel is kept **private** so the platform bots don't trade on it. While it
+was Open, the anchor/stabilizer bots continuously pulled every market's
+consensus back to the current value, which flattened the forecast charts. If
+you re-open it, expect the charts to flatten again within a poll cycle.
+
+### Making the charts realistic (`scripts/seed-demo-metrics.py`)
+
+A fresh template workspace has identical, flat forecast charts: every metric
+has the same time preference (so the same sample dates/shape) and untraded
+markets sit at the current value (so flat lines). `scripts/seed-demo-metrics.py`
+fixes both:
+
+- Sets a **different `halfLife` + `density`** per metric, so each chart spans a
+  different horizon, granularity, and number of points.
+- Moves each market's consensus along a **logical trajectory** (MRR and
+  customers up, churn down, etc.) using the AMM "trade towards value" mode,
+  which sets consensus precisely instead of whipsawing low-liquidity markets.
+
+```bash
+# Full shape (sets time preference + respawns markets + trajectory):
+TELARCHY_KEY=mtrk_... WS_ID=<workspace-uuid> \
+  TELARCHY_EMAIL=you@x.com TELARCHY_PASSWORD=... \
+  python3 scripts/seed-demo-metrics.py
+
+# Only re-apply the trajectory on the existing markets (e.g. after drift),
+# without touching time preference / the market set:
+SKIP_TP=1 TELARCHY_KEY=... WS_ID=... TELARCHY_EMAIL=... TELARCHY_PASSWORD=... \
+  python3 scripts/seed-demo-metrics.py
+```
+
+Edit the `CONFIG` list in the script to change the per-metric horizons and
+trajectories. After shaping, recapture and copy the metrics shot to the landing
+assets (below). The trajectory will slowly drift as calendar time shifts the
+sampled dates; re-run with `SKIP_TP=1` to refresh it.
+
 ## Prerequisites
 
 1. The gstack **`browse`** headless-Chromium CLI (the same tool used for QA).
