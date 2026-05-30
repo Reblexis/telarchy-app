@@ -453,7 +453,7 @@ export function LandingPage() {
               Say what you want.<br />Watch it get done, on your terms.
             </h1>
             <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 460 }}>
-              Define your goals once. People and AI propose the moves, markets price each one against your goals, and you approve. Every action, whoever proposes it, is checked against what you actually want before it happens.
+              Define your goals once. People and AI propose the moves, markets price each one against your goals, and you approve. Every action, whoever proposes it, is checked against what you actually want before it happens. Privately: you choose who sees what.
             </p>
             <div className="lp-hero-ctas">
               <Link to="/signup" className="lp-btn-primary">Get started. 1000 free credits</Link>
