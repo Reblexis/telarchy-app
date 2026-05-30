@@ -5,7 +5,8 @@ import { api } from '../lib/api';
 import { postLoginPath } from '../lib/postLoginPath';
 import { popStashedNextPath } from '../lib/nextPath';
 import { Logo } from '../components/Logo';
-import productDashboard from '../assets/product-dashboard.png';
+import productDashboardLight from '../assets/product-dashboard-light.png';
+import productDashboardDark from '../assets/product-dashboard-dark.png';
 
 // ─── Scroll reveal hook ────────────────────────────────────────────────────
 
@@ -575,7 +576,8 @@ export function LandingPage() {
           </p>
           <div className="lp-product-frame">
             <div className="lp-product-bar"><span /><span /><span /></div>
-            <img src={productDashboard} alt="Telarchy metrics dashboard: tracked KPIs, each with a market forecast" className="lp-product-img" loading="lazy" />
+            <img src={productDashboardLight} alt="Telarchy metrics dashboard: tracked KPIs, each with a market forecast" className="lp-product-img lp-product-img--light" loading="lazy" />
+            <img src={productDashboardDark} alt="Telarchy metrics dashboard: tracked KPIs, each with a market forecast" className="lp-product-img lp-product-img--dark" loading="lazy" />
           </div>
         </div>
       </section>

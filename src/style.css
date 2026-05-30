@@ -2793,6 +2793,18 @@ body.landing-page {
   height: auto;
 }
 
+/* Theme-aware product shot: mirror the logo's light/dark swap (data-theme on
+   <html>, falling back to prefers-color-scheme for the "system" setting). */
+.lp-product-img--dark { display: none; }
+@media (prefers-color-scheme: dark) {
+  .lp-product-img--light { display: none; }
+  .lp-product-img--dark { display: block; }
+}
+[data-theme="light"] .lp-product-img--light { display: block; }
+[data-theme="light"] .lp-product-img--dark { display: none; }
+[data-theme="dark"] .lp-product-img--light { display: none; }
+[data-theme="dark"] .lp-product-img--dark { display: block; }
+
 .lp-privacy {
   border-top: 1px solid var(--border-color);
   background: var(--bg-secondary);
