@@ -7,7 +7,7 @@ Telarchy is an alignment layer for AI and humans. You define the metrics that ma
 - **Scope:** company governance is the headline use case (founders pricing decisions against KPIs and OKRs); individuals use the same mechanism on personal goals and are first-class from day one.
 - **Participant = human or AI:** humans sign up with email or OAuth; automated participants register for an API key. Once identity is established, signup path does not matter. The API and schema keep the word `agent`; in docs, UI, and outward copy use **participant**.
 - **Never write "AI agents" in isolation** in user-facing prose where the same statement applies to humans. Use "participants" or "participants, human or AI." The symmetry is load-bearing. Exception: when a sentence is specifically about the AI moment (e.g. the "why now" line "AI agents can already act, but you cannot tell which actions are good"), naming AI alone is fine.
-- **Do not claim open source today.** Repo is private, no `LICENSE` file yet. Open-sourcing is a possibility we'll evaluate at a later stage; no commitment today. Two reasons: business model is unsettled (open-core is a one-way door), and current security posture has gaps that would be exposed by public release. Public-facing copy should describe Telarchy as a managed hosted service, not as open-core or "planned open core." Revisit only after: (a) Week-4 concierge verdict locks the wedge, (b) `/cso` security pass clears the gaps, (c) business-model conviction increases (e.g., enterprise pilots, transaction-fee data).
+- **Do not claim open source today.** Repo is private, no `LICENSE` file yet. Open-sourcing is a possibility we'll evaluate at a later stage; no commitment today. Two reasons: business model is unsettled (open-core is a one-way door), and current security posture has gaps that would be exposed by public release. Public-facing copy should describe Telarchy as a managed hosted service, not as open-core or "planned open core." Revisit only after: (a) the headline wedge is locked by real customer validation, (b) `/cso` security pass clears the gaps, (c) business-model conviction increases (e.g., enterprise pilots, transaction-fee data).
 - **Alignment layer for AI and humans is the load-bearing positioning.** The mechanism is prediction markets; the product is an alignment layer that prices proposed actions, whether the proposer is an AI agent or a human teammate. Owners say what they want; participants (human or AI) propose actions; markets price the actions against the owner's metrics; owner approves with calibrated confidence. The realistic alternatives a founder uses today are a generic chatbot (for AI proposals) or a gut call / the loudest voice in the room (for human proposals). See `docs/vision.md` ("Telarchy as an alignment layer for AI and humans") and `docs/go-to-market.md` ("Why 'alignment layer' is the load-bearing framing"). Do not drift back to "alignment layer for AI" alone (it understates scope, since the system also prices human proposals) or to "private prediction markets" framing (it loses the wedge).
 - **Why now** (the timing argument, used in marketing copy): two compounding facts. (1) Intelligence is now the cheapest it has ever been; prediction markets thrive in cheap intelligence because every proposal can be evaluated by many forecasters at near-zero per-forecast cost. (2) AI participants grant privacy that human forecasters cannot: a founder will not put a sensitive KPI or unannounced strategic move in front of human teammates or a public market, but an AI participant inside a private workspace can forecast it without leaking it. Together these unlock pricing decisions that previously had no realistic forum.
 
@@ -17,24 +17,7 @@ When rewriting user-facing copy, always check that the four commitments above (d
 
 The product has no users yet. Every feature request or refactor should be evaluated against: "Does this help get the first users?" If the answer is no (or unclear), flag it to the user as potential procrastination and suggest deferring it. Renaming, reorganizing, or polishing things that no users will see is not a priority. Remove this section once the product has real users.
 
-**Active milestone (2026-04-29 to 2026-05-27): founder concierge program.** See `docs/outreach/concierge/program.md`. The plan is to manually onboard a small founder cohort, run real decisions through their workspaces, and use their behavior to lock the headline use case (founder governance) or pivot to AI-agent-eval. All other product motion is gated against this 4-week window. The verdict on 2026-05-27 is binding.
-
-**Position freeze active until 2026-05-27.** The freeze targets one specific failure pattern: solo-loop UI/copy polish on surfaces that no real user has asked about. Concretely:
-
-Forbidden during the freeze (no exceptions without a named real-user trigger):
-- Landing-page rewrites (`LandingPage.tsx`)
-- Sidebar redesigns (`Sidebar.tsx`)
-- "Calmer / sharper / monochrome" visual passes
-- Internal positioning iterations driven by my own taste with no external trigger
-
-Allowed during the freeze:
-- A specific complaint or feedback request from a real concierge founder, investor, or other named external stakeholder. The triggering message goes in the commit body so the chain is auditable.
-- Sharpening investor or outreach artifacts when a specific outreach event needs them: YC application, Lean Canvas, Value Prop Canvas, vision/go-to-market docs being sent to a real person. "Founder X asked to see the lean canvas" is a real trigger; "I want this to read better" is not.
-- Bug fixes, infra, the concierge program operations, anything that ships a working product to a real founder.
-
-The reason for the original freeze still holds: the 30 days before 2026-04-29 saw 5 sidebar redesigns and 3 landing-H1 rewrites without user input. That pattern is solo-loop optimization, not product iteration. If you find yourself opening `LandingPage.tsx` or `Sidebar.tsx` for visual reasons with no founder having asked, close the file.
-
-If you are about to make a positioning commit during the freeze, the commit body should name the external trigger (founder, investor, outreach event). If you cannot name one, do not commit.
+One failure pattern is worth naming on its own: solo-loop UI/copy polish on surfaces no real user has asked about (landing-page rewrites, sidebar redesigns, "calmer / sharper" visual passes, positioning iterations driven by taste alone). These are not product iteration. Before opening `LandingPage.tsx` or `Sidebar.tsx` for visual reasons, name the external trigger (a founder, investor, or outreach event that asked for it). If you cannot name one, leave the file closed.
 
 ## Writing style
 
