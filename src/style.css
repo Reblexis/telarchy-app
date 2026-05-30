@@ -4346,7 +4346,7 @@ code, pre, kbd, samp {
   display: flex;
   align-items: center;
   gap: 0.65rem 1rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   min-width: 0;
 }
 
@@ -4478,6 +4478,9 @@ code, pre, kbd, samp {
 @media (max-width: 640px) {
   .market-card {
     padding: 0.7rem 0.85rem;
+  }
+  .market-card-head {
+    flex-wrap: wrap;
   }
   .market-head-name {
     flex: 1 1 100%;
