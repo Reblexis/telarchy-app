@@ -43,39 +43,109 @@ function useCounter(target: number, duration = 1200) {
 }
 
 // ─── Consensus Ticker Simulation ───────────────────────────────────────────
+// A simulated live prediction market for the hero. It tells the AI-swarm story:
+// the forecaster count climbs from a handful into the thousands, bets speed up
+// as the swarm grows (with bursts and lulls), and periodic market-moving events
+// (approved proposals, signals) visibly push the consensus.
 
-const TICKER_AGENTS = ['Agent_042', 'Agent_107', 'Agent_231', 'Agent_089', 'Agent_315', 'Agent_178'];
-const TICKER_INITIAL: Array<{ id: number; name: string; dir: string }> = [
-  { id: -3, name: 'Agent_231', dir: 'HIGHER' },
-  { id: -2, name: 'Agent_089', dir: 'LOWER'  },
-  { id: -1, name: 'Agent_042', dir: 'HIGHER' },
+type FeedItem = { id: number; name: string; dir: 'HIGHER' | 'LOWER' };
+type SimEvent = { label: string; dir: 1 | -1; mag: number; cohort?: number };
+
+const SIM_EVENTS: SimEvent[] = [
+  { label: 'Proposal approved · $1.0M into paid acquisition', dir: 1, mag: 58, cohort: 180 },
+  { label: 'Proposal approved · Enterprise tier launch', dir: 1, mag: 42 },
+  { label: 'Proposal approved · Annual-billing incentive', dir: 1, mag: 26 },
+  { label: 'Signal · Competitor raised prices 12%', dir: 1, mag: 18 },
+  { label: 'Proposal approved · Sunset underperforming channel', dir: 1, mag: 14 },
+  { label: 'New cohort · 420 AI forecasters online', dir: 1, mag: 5, cohort: 420 },
+  { label: 'Signal · Churn rising in SMB cohort', dir: -1, mag: 24 },
+  { label: 'Proposal declined · Headcount freeze', dir: -1, mag: 16 },
+  { label: 'Signal · Onboarding regression flagged', dir: -1, mag: 12 },
 ];
+
+function simHandle(): string {
+  const r = Math.random();
+  if (r < 0.16) return `Agent_${Math.floor(Math.random() * 900 + 100)}`;
+  if (r < 0.28) return ['claude-sonnet', 'gpt-5', 'swarm-α', 'quant-7', 'llama-q'][Math.floor(Math.random() * 5)];
+  return `node-${Math.floor(Math.random() * 60000 + 4096).toString(16)}`;
+}
+
+function fmtMoney(k: number): string {
+  return k >= 1000 ? `$${(k / 1000).toFixed(2)}M` : `$${Math.round(k)}K`;
+}
 
 function ConsensusTickerSim() {
   const [consensus, setConsensus] = useState(142);
-  const [feed, setFeed] = useState(TICKER_INITIAL);
+  const [participants, setParticipants] = useState(6);
   const [net, setNet] = useState(2);
-  const nextId = useRef(0);
-  const netRef = useRef(net);
+  const [evt, setEvt] = useState<{ id: number; label: string; dir: 1 | -1; impact: number } | null>(null);
+  const [feed, setFeed] = useState<FeedItem[]>([
+    { id: -3, name: 'node-3f2a', dir: 'HIGHER' },
+    { id: -2, name: 'Agent_089', dir: 'LOWER' },
+    { id: -1, name: 'claude-sonnet', dir: 'HIGHER' },
+  ]);
 
-  useEffect(() => { netRef.current = net; }, [net]);
+  const cRef = useRef(142);     // consensus ($K)
+  const pRef = useRef(6);       // participant count
+  const netRef = useRef(2);     // higher/lower sentiment
+  const trendRef = useRef(0);   // event-driven directional bias, decays each tick
+  const burstRef = useRef(0);   // remaining fast-burst ticks
+  const tickRef = useRef(0);
+  const nextEvtRef = useRef(7); // tick index of the next event
+  const nextId = useRef(0);
 
   useEffect(() => {
-    const id = setInterval(() => {
-      const name = TICKER_AGENTS[Math.floor(Math.random() * TICKER_AGENTS.length)];
-      const bias = netRef.current > 3 ? 0.35 : netRef.current < -3 ? 0.65 : 0.5;
-      const dir = Math.random() < bias ? 'HIGHER' : 'LOWER';
-      const delta = dir === 'HIGHER' ? Math.random() * 3 + 1 : -(Math.random() * 3 + 1);
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      tickRef.current += 1;
+      if (burstRef.current > 0) burstRef.current -= 1;
+      trendRef.current = Math.abs(trendRef.current) < 0.05 ? 0 : trendRef.current * 0.82;
 
-      setNet(n => n + (dir === 'HIGHER' ? 1 : -1));
-      setConsensus(c => Math.round(Math.max(120, Math.min(168, c + delta))));
-      setFeed(prev => [{ id: nextId.current++, name, dir }, ...prev].slice(0, 4));
-    }, 1500);
-    return () => clearInterval(id);
+      if (tickRef.current >= nextEvtRef.current && burstRef.current === 0) {
+        // Market-moving event: jump the consensus, maybe add a cohort, set a
+        // directional bias and a burst of follow-on forecasts.
+        const e = SIM_EVENTS[Math.floor(Math.random() * SIM_EVENTS.length)];
+        const impact = Math.round(e.mag * (0.7 + Math.random() * 0.6));
+        cRef.current = Math.max(110, Math.min(1500, cRef.current + e.dir * impact));
+        setConsensus(Math.round(cRef.current));
+        if (e.cohort) { pRef.current += e.cohort; setParticipants(pRef.current); }
+        trendRef.current = e.dir * 0.5;
+        burstRef.current = 7 + Math.floor(Math.random() * 6);
+        setEvt({ id: nextId.current++, label: e.label, dir: e.dir, impact });
+        nextEvtRef.current = tickRef.current + 16 + Math.floor(Math.random() * 14);
+      } else {
+        // Grow the swarm (accelerating) to show the scale AI forecasters reach.
+        if (pRef.current < 40000) {
+          pRef.current += Math.max(2, Math.round(pRef.current * 0.07) + Math.floor(Math.random() * 4));
+          setParticipants(pRef.current);
+        }
+        const bias = 0.5 + trendRef.current * 0.4
+          + (netRef.current < -5 ? 0.13 : netRef.current > 7 ? -0.11 : 0)
+          - (cRef.current > 700 ? 0.06 : 0);
+        const dir: 'HIGHER' | 'LOWER' = Math.random() < bias ? 'HIGHER' : 'LOWER';
+        const step = (dir === 'HIGHER' ? 1 : -1) * (Math.random() * 2.2 + 0.4) * (1 + Math.abs(trendRef.current));
+        cRef.current = Math.max(110, Math.min(1500, cRef.current + step));
+        setConsensus(Math.round(cRef.current));
+        netRef.current = Math.max(-12, Math.min(12, netRef.current + (dir === 'HIGHER' ? 1 : -1)));
+        setNet(netRef.current);
+        setFeed(prev => [{ id: nextId.current++, name: simHandle(), dir }, ...prev].slice(0, 5));
+      }
+
+      // Pacing: faster as the swarm grows, very fast during a burst, occasional lull.
+      let delay: number;
+      if (burstRef.current > 0) {
+        delay = 90 + Math.random() * 70;
+      } else {
+        delay = (1500 / (1 + Math.log10(Math.max(10, pRef.current)))) * (0.7 + Math.random() * 0.7);
+        if (Math.random() < 0.12) delay *= 2.4;
+      }
+      timer = setTimeout(tick, Math.max(80, Math.min(1700, delay)));
+    };
+    timer = setTimeout(tick, 650);
+    return () => clearTimeout(timer);
   }, []);
 
-  const higherCount = feed.filter(f => f.dir === 'HIGHER').length;
-  const pct = Math.round((higherCount / Math.max(feed.length, 1)) * 100);
+  const pct = Math.max(4, Math.min(96, Math.round(((net + 12) / 24) * 100)));
 
   return (
     <div style={{
@@ -105,12 +175,11 @@ function ConsensusTickerSim() {
       <div style={{ padding: '1.25rem 1rem 0.75rem', textAlign: 'center' }}>
         <div style={{
           fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1,
-          transition: 'color 0.3s',
         }}>
-          ${consensus}K
+          {fmtMoney(consensus)}
         </div>
         <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: '0.3rem' }}>
-          predicted by 6 competing participants
+          priced by {participants.toLocaleString()} competing participants
         </div>
       </div>
 
@@ -124,16 +193,32 @@ function ConsensusTickerSim() {
         </div>
       </div>
 
-      {/* Agent feed */}
+      {/* Latest market-moving event */}
+      {evt && (
+        <div key={evt.id} style={{
+          margin: '0 1rem 0.7rem', padding: '0.5rem 0.6rem', borderRadius: 6,
+          background: 'var(--bg-tertiary)',
+          borderLeft: `3px solid ${evt.dir === 1 ? '#22c55e' : '#ef4444'}`,
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.6rem',
+          animation: 'fadeIn 0.3s ease both',
+        }}>
+          <span style={{ fontSize: '0.67rem', color: 'var(--text-secondary)', lineHeight: 1.25 }}>{evt.label}</span>
+          <span style={{ fontSize: '0.67rem', fontWeight: 700, whiteSpace: 'nowrap', color: evt.dir === 1 ? '#22c55e' : '#ef4444' }}>
+            {evt.dir === 1 ? '↑ +' : '↓ −'}{fmtMoney(evt.impact)}
+          </span>
+        </div>
+      )}
+
+      {/* Forecast feed */}
       <div style={{ padding: '0.6rem 1rem 0.75rem', borderTop: '1px solid var(--border-color)' }}>
         <div style={{ fontSize: '0.62rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-tertiary)', marginBottom: '0.4rem' }}>
           Recent forecasts
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          {feed.slice(0, 4).map((item, i) => (
+          {feed.slice(0, 5).map((item, i) => (
             <div key={item.id} style={{
               display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem',
-              opacity: 1 - i * 0.2,
+              opacity: 1 - i * 0.17,
               animation: i === 0 && item.id >= 0 ? 'fadeIn 0.25s ease both' : undefined,
             }}>
               <span style={{ fontFamily: 'monospace', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
