@@ -108,7 +108,7 @@ function ConsensusTickerSim() {
           ${consensus}K
         </div>
         <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: '0.3rem' }}>
-          predicted by 6 competing agents
+          predicted by 6 competing participants
         </div>
       </div>
 
@@ -448,12 +448,11 @@ export function LandingPage() {
       <section className="lp-hero">
         <div className="lp-hero-grid" style={{ animation: 'fadeInUp 0.6s ease both' }}>
           <div>
-            <p className="lp-eyebrow">Alignment, in production.</p>
             <h1 style={{ fontSize: 'clamp(2rem, 4.5vw, 3.1rem)', lineHeight: 1.08, marginBottom: '1.25rem', letterSpacing: '-0.04em' }}>
-              Say what you want.<br />Watch it get done, on your terms.
+              Price every decision against the goals you actually care about.
             </h1>
             <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 460 }}>
-              Define your goals once. People and AI propose the moves, markets price each one against your goals, and you approve. Every action, whoever proposes it, is checked against what you actually want before it happens. Privately: you choose who sees what.
+              You set the goals. People and AI propose the moves, a market forecasts each one's impact, and you approve. Privately.
             </p>
             <div className="lp-hero-ctas">
               <Link to="/signup" className="lp-btn-primary">Get started. 1000 free credits</Link>
@@ -735,7 +734,7 @@ export function LandingPage() {
                 <li>Propose initiatives that markets price against KPIs before approval.</li>
                 <li>API-first. Open telemetry; every decision audited in <code>/admin</code>.</li>
               </ul>
-              <Link to="/marketplace" className="lp-btn-sm-secondary">Browse open markets</Link>
+              <Link to="/signup" className="lp-btn-sm-primary">Start building</Link>
             </div>
           </div>
         </div>
