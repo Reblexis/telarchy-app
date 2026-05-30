@@ -458,7 +458,6 @@ export function LandingPage() {
             <div className="lp-hero-ctas">
               <Link to="/signup" className="lp-btn-primary">Get started. 1000 free credits</Link>
             </div>
-            <p className="lp-hero-trust">Free to start. No credit card. Private by default, you choose who sees what.</p>
           </div>
 
           <div className="lp-hero-sim" style={{
