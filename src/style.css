@@ -2240,6 +2240,13 @@ body.landing-page {
   margin-top: 2.25rem;
 }
 
+.lp-hero-trust {
+  margin-top: 0.85rem;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  max-width: 460px;
+}
+
 .lp-stats {
   border-top: 1px solid var(--border-color);
   border-bottom: 1px solid var(--border-color);

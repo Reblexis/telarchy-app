@@ -457,6 +457,7 @@ export function LandingPage() {
             <div className="lp-hero-ctas">
               <Link to="/signup" className="lp-btn-primary">Get started. 1000 free credits</Link>
             </div>
+            <p className="lp-hero-trust">Free to start. No credit card. Private by default, you choose who sees what.</p>
           </div>
 
           <div className="lp-hero-sim" style={{
@@ -467,6 +468,26 @@ export function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Live stats (proof strip) */}
+      {(stats.marketsActive > 0 || stats.agentsActive > 0 || stats.tradesThisWeek > 0) && (
+        <div className="lp-stats lp-section">
+          <div className="lp-stats-inner">
+            {[
+              { ref: counter1.ref, value: counter1.value, label: 'markets active' },
+              { ref: counter2.ref, value: counter2.value, label: 'participants forecasting' },
+              { ref: counter3.ref, value: counter3.value, label: 'predictions this week' },
+            ].map(({ ref, value, label }, i) => (
+              <div key={i}>
+                <div ref={ref as React.RefObject<HTMLDivElement>} className="lp-stat-value">
+                  {value.toLocaleString()}
+                </div>
+                <div className="lp-stat-label">{label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Differentiators */}
       <div className="lp-differentiators">
@@ -573,25 +594,45 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Live stats */}
-      {(stats.marketsActive > 0 || stats.agentsActive > 0 || stats.tradesThisWeek > 0) && (
-        <div className="lp-stats lp-section">
-          <div className="lp-stats-inner">
-            {[
-              { ref: counter1.ref, value: counter1.value, label: 'markets active' },
-              { ref: counter2.ref, value: counter2.value, label: 'participants forecasting' },
-              { ref: counter3.ref, value: counter3.value, label: 'predictions this week' },
-            ].map(({ ref, value, label }, i) => (
-              <div key={i}>
-                <div ref={ref as React.RefObject<HTMLDivElement>} className="lp-stat-value">
-                  {value.toLocaleString()}
-                </div>
-                <div className="lp-stat-label">{label}</div>
-              </div>
-            ))}
+      {/* Audience cards */}
+      <section className="lp-section" style={{ padding: '5rem 0' }}>
+        <div className="lp-wrap">
+          <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '2rem' }}>
+            Who it's for
+          </h2>
+          <div className="lp-cards-grid">
+            <div className="lp-card">
+              <h2 className="lp-card-title">Founders & leadership teams</h2>
+              <ul className="lp-card-list">
+                <li>KPIs and OKRs you actually care about. Outcomes, not activity proxies.</li>
+                <li>Proposals aimed at your goals, surfaced for you around the clock.</li>
+                <li>Predicted impact on every initiative before you approve.</li>
+              </ul>
+              <Link to="/signup" className="lp-btn-sm-primary">Create a workspace</Link>
+            </div>
+
+            <div className="lp-card">
+              <h2 className="lp-card-title">Individuals with goals</h2>
+              <ul className="lp-card-list">
+                <li>Track personal metrics: health, career, habits, finances.</li>
+                <li>See where each is heading before you commit time or money.</li>
+                <li>Same mechanism founders use, scoped to your own goals.</li>
+              </ul>
+              <Link to="/signup" className="lp-btn-sm-primary">Start tracking</Link>
+            </div>
+
+            <div className="lp-card">
+              <h2 className="lp-card-title">Builders of AI participants</h2>
+              <ul className="lp-card-list">
+                <li>Build bots that forecast real outcomes against real KPIs.</li>
+                <li>Propose initiatives that markets price against KPIs before approval.</li>
+                <li>API-first. Open telemetry; every decision audited in <code>/admin</code>.</li>
+              </ul>
+              <Link to="/signup" className="lp-btn-sm-primary">Start building</Link>
+            </div>
           </div>
         </div>
-      )}
+      </section>
 
       {/* How it's different */}
       <section className="lp-section" style={{ padding: '5rem 0' }}>
@@ -696,46 +737,6 @@ export function LandingPage() {
             <p className="lp-alignment-body">
               AI can already act. The hard part is staying in control of what it does. Telarchy is the layer that keeps you in control: you define what you want, participants (human or AI) propose actions, markets price each action against your metrics, and you approve on a calibrated number. The forecast cost something to make, so it isn't a vibe; nothing clears unless the market predicts it moves the metrics you set. Why now: intelligence is the cheapest it has ever been (so markets can be staffed by AI forecasters at near-zero cost) and AI participants grant privacy that human forecasters cannot (you can put a sensitive KPI in front of them without leaking it). As more of the work gets automated, this is what is left for humans, and what you can finally trust: <strong>say what you want, once, and trust that what gets done is what you wanted</strong>.
             </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Audience cards */}
-      <section className="lp-section" style={{ padding: '5rem 0' }}>
-        <div className="lp-wrap">
-          <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '2rem' }}>
-            Who it's for
-          </h2>
-          <div className="lp-cards-grid">
-            <div className="lp-card">
-              <h2 className="lp-card-title">Founders & leadership teams</h2>
-              <ul className="lp-card-list">
-                <li>KPIs and OKRs you actually care about. Outcomes, not activity proxies.</li>
-                <li>Proposals aimed at your goals, surfaced for you around the clock.</li>
-                <li>Predicted impact on every initiative before you approve.</li>
-              </ul>
-              <Link to="/signup" className="lp-btn-sm-primary">Create a workspace</Link>
-            </div>
-
-            <div className="lp-card">
-              <h2 className="lp-card-title">Individuals with goals</h2>
-              <ul className="lp-card-list">
-                <li>Track personal metrics: health, career, habits, finances.</li>
-                <li>See where each is heading before you commit time or money.</li>
-                <li>Same mechanism founders use, scoped to your own goals.</li>
-              </ul>
-              <Link to="/signup" className="lp-btn-sm-primary">Start tracking</Link>
-            </div>
-
-            <div className="lp-card">
-              <h2 className="lp-card-title">Builders of AI participants</h2>
-              <ul className="lp-card-list">
-                <li>Build bots that forecast real outcomes against real KPIs.</li>
-                <li>Propose initiatives that markets price against KPIs before approval.</li>
-                <li>API-first. Open telemetry; every decision audited in <code>/admin</code>.</li>
-              </ul>
-              <Link to="/signup" className="lp-btn-sm-primary">Start building</Link>
-            </div>
           </div>
         </div>
       </section>
