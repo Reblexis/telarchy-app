@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 import { postLoginPath } from '../lib/postLoginPath';
 import { popStashedNextPath } from '../lib/nextPath';
 import { Logo } from '../components/Logo';
+import productDashboard from '../assets/product-dashboard.png';
 
 // ─── Scroll reveal hook ────────────────────────────────────────────────────
 
@@ -165,7 +166,7 @@ function GoalTreeIllustration({ visible }: { visible: boolean }) {
         borderBottom: '1px solid var(--border-color)',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
-        <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>Acme Inc.</span>
+        <span style={{ fontWeight: 600, fontSize: '0.8rem' }}>Kestrel</span>
         <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#22c55e', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
           <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block', animation: 'pulse 2s ease infinite' }} />
           LIVE
@@ -560,6 +561,22 @@ export function LandingPage() {
               <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>1000 free credits on signup. No credit card required.</div>
             </div>
             <Link to="/signup" className="lp-btn-primary">Get started. 1000 free credits</Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Product shot */}
+      <section className="lp-section lp-product-section">
+        <div className="lp-wrap" style={{ textAlign: 'center' }}>
+          <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '0.5rem' }}>
+            The product, not a pitch
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.7, maxWidth: 560, margin: '0 auto' }}>
+            A live Telarchy workspace. Each metric is tracked, and each one gets its own prediction market forecasting where it is headed.
+          </p>
+          <div className="lp-product-frame">
+            <div className="lp-product-bar"><span /><span /><span /></div>
+            <img src={productDashboard} alt="Telarchy metrics dashboard: tracked KPIs, each with a market forecast" className="lp-product-img" loading="lazy" />
           </div>
         </div>
       </section>

@@ -2762,6 +2762,44 @@ body.landing-page {
   margin-bottom: 1rem;
 }
 
+.lp-product-section {
+  padding: 5rem 0;
+  border-top: 1px solid var(--border-color);
+}
+
+.lp-product-frame {
+  max-width: 620px;
+  margin: 2.75rem auto 0;
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  box-shadow: 0 14px 48px rgba(0, 0, 0, 0.10);
+  background: var(--bg-primary);
+}
+
+.lp-product-bar {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.6rem 0.85rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.lp-product-bar span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--border-color);
+  display: inline-block;
+}
+
+.lp-product-img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
 .lp-privacy {
   border-top: 1px solid var(--border-color);
   background: var(--bg-secondary);
