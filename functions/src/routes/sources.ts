@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { db } from '../db/client';
-import { sources, permissionGroups } from '../db/schema';
+import { sources, permissionGroups, workspaces } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { randomUUID, randomBytes, createPrivateKey, sign } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
-import { getGroupMemberIds } from '../lib/participants';
+import { getGroupMemberIds, getOwnerHandles } from '../lib/participants';
 import { AppError } from '../lib/errors';
 
 export const sourcesRouter = Router();
@@ -83,6 +83,25 @@ async function getSourceToken(source: { config: unknown }): Promise<string> {
   return getInstallationToken(config.installationId, app.appId, app.privateKey);
 }
 
+/**
+ * Where to send the browser back to after the GitHub install round-trip. The
+ * Sources tab now lives at the canonical /{ownerHandle}/{slug}/sources path
+ * (guarded by WorkspaceRouteGuard, which sets the active workspace). Returning
+ * to the legacy flat /sources path went through FlatTabRedirect, which bounces
+ * to /create-workspace whenever the just-reloaded SPA hasn't populated the
+ * workspace list yet, so the repo picker was never reached. Resolve the
+ * workspace's owner handle + slug here so we land directly on the right page
+ * with the ?state= the picker needs. Falls back to the flat path if the
+ * workspace has no resolvable handle/slug (should not happen post-backfill).
+ */
+export async function workspaceSourcesReturnPath(workspaceId: string, state: string): Promise<string> {
+  const q = `?state=${encodeURIComponent(state)}`;
+  const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId));
+  if (!ws?.slug) return `/sources${q}`;
+  const handle = (await getOwnerHandles([ws.createdBy])).get(ws.createdBy)?.ownerHandle ?? ws.createdBy;
+  return `/${encodeURIComponent(handle)}/${encodeURIComponent(ws.slug)}/sources${q}`;
+}
+
 // ---------------------------------------------------------------------------
 // Permission helpers
 // ---------------------------------------------------------------------------
@@ -149,14 +168,33 @@ sourcesRouter.get('/github/install', requireCapability('manage'), wrap(async (re
 }));
 
 sourcesRouter.get('/github/callback', wrap(async (req, res) => {
-  const { code, state } = req.query as { code?: string; state?: string };
-  if (!code || !state) throw new AppError('Missing code or state', 400);
+  const { code, state, installation_id, setup_action } = req.query as {
+    code?: string; state?: string; installation_id?: string; setup_action?: string;
+  };
+  if (!state) throw new AppError('Missing state', 400);
 
   const stateData = installStates.get(state);
   if (!stateData || stateData.expiresAt < Date.now()) throw new AppError('Invalid or expired state', 400);
 
   const app = getGitHubAppConfig();
   if (!app) throw new AppError('GitHub App is not configured', 503);
+
+  const baseUrl = publicBaseUrl(req);
+
+  // Post-install return. When the workspace had no installation yet we send the
+  // user to GitHub's "install app" page; GitHub bounces back here (to the App's
+  // Setup URL) with installation_id + setup_action and no OAuth code. Record the
+  // fresh installation and hand off to the repo picker.
+  if (!code && installation_id && setup_action) {
+    installStates.set(`install:${state}`, {
+      workspaceId: String(installation_id),
+      expiresAt: Date.now() + 5 * 60 * 1000,
+    });
+    res.redirect(`${baseUrl}${await workspaceSourcesReturnPath(stateData.workspaceId, state)}`);
+    return;
+  }
+
+  if (!code) throw new AppError('Missing code or state', 400);
 
   const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
     method: 'POST',
@@ -176,8 +214,6 @@ sourcesRouter.get('/github/callback', wrap(async (req, res) => {
   const installData = await installRes.json() as { installations: Array<{ id: number; account: { login: string } }> };
   const installations = installData.installations || [];
 
-  const baseUrl = publicBaseUrl(req);
-
   if (installations.length === 0) {
     res.redirect(`https://github.com/apps/${app.slug}/installations/new?state=${state}`);
     return;
@@ -190,7 +226,7 @@ sourcesRouter.get('/github/callback', wrap(async (req, res) => {
     expiresAt: Date.now() + 5 * 60 * 1000,
   });
 
-  res.redirect(`${baseUrl}/sources?state=${state}`);
+  res.redirect(`${baseUrl}${await workspaceSourcesReturnPath(stateData.workspaceId, state)}`);
 }));
 
 sourcesRouter.get('/github/repos', requireCapability('manage'), wrap(async (req, res) => {

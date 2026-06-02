@@ -20,9 +20,16 @@ so this spec uses `$B handoff` mid-run.
 
 ## Preconditions
 
-- GitHub App configured: `GITHUB_APP_ID`, `GITHUB_APP_CLIENT_ID`,
-  `GITHUB_APP_CLIENT_SECRET`, `GITHUB_APP_PRIVATE_KEY` env set in the
-  running backend.
+- GitHub App configured: `GITHUB_APP_ID`, `GITHUB_APP_SLUG`,
+  `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`,
+  `GITHUB_APP_PRIVATE_KEY` env set in the running backend.
+- The GitHub App's OAuth "Callback URL" and post-install "Setup URL" both
+  point at `<origin>/api/sources/github/callback`. The callback handles both
+  the OAuth `code` handoff and the post-install `installation_id` /
+  `setup_action` return, then redirects to the canonical
+  `/{ownerHandle}/{slug}/sources?state=` repo picker. For localhost testing
+  add `http://localhost:8080/api/sources/github/callback` to the App's
+  callback URLs, or GitHub rejects the redirect_uri.
 - A real GitHub account with at least one repo.
 
 ## Setup
