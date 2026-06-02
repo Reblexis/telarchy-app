@@ -616,8 +616,16 @@ predictionsRouter.post('/markets/liquidity/bulk', requireCapability('manage'), w
 
   const [agent] = await db.select().from(agents).where(eq(agents.id, agentId));
   if (!agent) { res.status(404).json({ error: 'Agent not found' }); return; }
-  const wsMembers = await listParticipantsForWorkspace(workspaceId);
-  if (!wsMembers.some(m => m.id === agentId)) { res.status(403).json({ error: 'Agent is not in your workspace' }); return; }
+  // Funding your own balance is already authorized by requireCapability('manage')
+  // above; only recheck workspace membership when an admin targets some *other*
+  // agent's balance via bodyAgentId. listParticipantsForWorkspace intentionally
+  // omits platform admins, so without this self-exemption a platform admin (incl.
+  // a workspace owner flagged platformAdmin) could never fund from their own
+  // balance and would hit a spurious "Agent is not in your workspace".
+  if (agentId !== callerAgentId) {
+    const wsMembers = await listParticipantsForWorkspace(workspaceId);
+    if (!wsMembers.some(m => m.id === agentId)) { res.status(403).json({ error: 'Agent is not in your workspace' }); return; }
+  }
 
   let marketRows = await db.select().from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.active, true), eq(markets.resolved, false)));
@@ -679,8 +687,12 @@ predictionsRouter.post('/markets/:id/liquidity', requireCapability('manage'), wr
 
   const [preAgent] = await db.select().from(agents).where(eq(agents.id, agentId));
   if (!preAgent) { res.status(404).json({ error: 'Agent not found' }); return; }
-  const wsMembers = await listParticipantsForWorkspace(workspaceId);
-  if (!wsMembers.some(m => m.id === agentId)) { res.status(403).json({ error: 'Agent is not in your workspace' }); return; }
+  // See the bulk endpoint: self-funding is already authorized by manage; only
+  // recheck membership when targeting another agent's balance via bodyAgentId.
+  if (agentId !== callerAgentId) {
+    const wsMembers = await listParticipantsForWorkspace(workspaceId);
+    if (!wsMembers.some(m => m.id === agentId)) { res.status(403).json({ error: 'Agent is not in your workspace' }); return; }
+  }
 
   try {
     await db.transaction(async tx => {
