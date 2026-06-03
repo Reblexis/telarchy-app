@@ -73,20 +73,36 @@ function summarizeMarketsForConfirm(markets: ProposalMarketSummary[] | undefined
  * Side-by-side branch comparison. Shows declined.consensus (counterfactual)
  * → approved.consensus (with the proposal) with the signed delta. The delta
  * is the calibrated causal estimate the product is built around.
+ *
+ * The two numbers are individually clickable: the decline value opens the
+ * decline-branch market, the approve value opens the approve-branch market,
+ * so the approver can drill into either side rather than always landing on
+ * the approve branch.
  */
 function ForecastCell({
-  approved, declined,
+  approved, declined, onOpenBranch,
 }: {
   approved: number | null;
   declined: number | null;
+  onOpenBranch: (branch: 'approved' | 'declined') => void;
 }) {
   if (approved == null && declined == null) return <span className="forecast-empty">—</span>;
+
+  const branchButton = (branch: 'approved' | 'declined', value: number, cls: string) => (
+    <button
+      type="button"
+      className={`forecast-branch-link ${cls}`}
+      title={branch === 'approved' ? 'Open the approve-branch market' : 'Open the decline-branch market'}
+      onClick={(e) => { e.stopPropagation(); onOpenBranch(branch); }}
+    >
+      {formatNumber(value)}
+    </button>
+  );
+
   if (approved == null || declined == null) {
-    return (
-      <span className="forecast-cell">
-        <span className="forecast-after">{formatNumber(approved ?? declined)}</span>
-      </span>
-    );
+    const branch = approved != null ? 'approved' : 'declined';
+    const value = (approved ?? declined) as number;
+    return <span className="forecast-cell">{branchButton(branch, value, 'forecast-after')}</span>;
   }
   const delta = approved - declined;
   const deltaClass = Math.abs(delta) < 0.005
@@ -97,9 +113,9 @@ function ForecastCell({
     : `${delta > 0 ? '+' : '-'}${Math.abs(delta).toFixed(Math.abs(delta) < 10 ? 2 : 1)}`;
   return (
     <span className="forecast-cell" title={`Decline: ${formatNumber(declined)} / Approve: ${formatNumber(approved)}`}>
-      <span className="forecast-before">{formatNumber(declined)}</span>
+      {branchButton('declined', declined, 'forecast-before')}
       <span className="forecast-arrow">→</span>
-      <span className="forecast-after">{formatNumber(approved)}</span>
+      {branchButton('approved', approved, 'forecast-after')}
       <span className={`forecast-delta ${deltaClass}`}>{deltaLabel}</span>
     </span>
   );
@@ -116,12 +132,18 @@ function PredictionsTable({ markets }: { markets: ProposalMarketSummary[] }) {
   const visible = showAll ? markets : markets.filter(m => isNearHorizon(m.targetDate));
   const hidden = markets.length - visible.length;
 
-  // Clicking a row routes to the approved-branch market detail (the primary
-  // view); the market detail page surfaces its sibling declined branch.
+  // Open a specific branch market. The Markets page labels each conditional
+  // market with an approve/decline branch badge so the approver knows which
+  // side they landed on.
+  const openBranch = (marketId: string | undefined) => {
+    if (!marketId) return;
+    navigate(`/markets?marketId=${encodeURIComponent(marketId)}&kind=conditional`);
+  };
+
+  // Row-level fallback (keyboard / empty-cell click) opens the approve branch,
+  // falling back to the decline branch when there is no approve market.
   const openMarket = (m: ProposalMarketSummary) => {
-    const primary = m.approved?.marketId ?? m.declined?.marketId;
-    if (!primary) return;
-    navigate(`/markets?marketId=${encodeURIComponent(primary)}&kind=conditional`);
+    openBranch(m.approved?.marketId ?? m.declined?.marketId);
   };
 
   return (
@@ -157,6 +179,9 @@ function PredictionsTable({ markets }: { markets: ProposalMarketSummary[] }) {
                   <ForecastCell
                     approved={m.approved?.consensus ?? null}
                     declined={m.declined?.consensus ?? null}
+                    onOpenBranch={(branch) => openBranch(
+                      branch === 'approved' ? m.approved?.marketId : m.declined?.marketId,
+                    )}
                   />
                 </td>
                 <td className="num">{noSignal ? <span className="no-signal-label">no signal</span> : tradeCount}</td>

@@ -4385,6 +4385,25 @@ code, pre, kbd, samp {
 .market-status-voided { background: var(--bg-tertiary); color: var(--text-secondary); }
 .market-status-closed { background: var(--bg-tertiary); color: var(--text-tertiary); }
 
+.market-branch-badge {
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  flex-shrink: 0;
+  border: 1px solid transparent;
+}
+
+.market-branch-approved { background: var(--success-bg); color: var(--success-text); }
+.market-branch-declined {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border-color: var(--border-color);
+}
+
 .market-head-target {
   flex: 0 1 auto;
   min-width: 0;
@@ -5201,6 +5220,25 @@ code, pre, kbd, samp {
 .forecast-delta--up   { background: var(--higher-soft); color: var(--higher); }
 .forecast-delta--down { background: var(--lower-soft);  color: var(--lower); }
 .forecast-delta--flat { color: var(--text-tertiary); background: transparent; }
+
+.forecast-branch-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 2px;
+  transition: text-decoration-color 0.12s ease;
+}
+
+.forecast-branch-link:hover,
+.forecast-branch-link:focus-visible {
+  text-decoration-color: currentColor;
+  outline: none;
+}
 
 .link-button {
   margin-top: 0.6rem;

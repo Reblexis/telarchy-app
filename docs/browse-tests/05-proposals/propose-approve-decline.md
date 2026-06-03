@@ -120,6 +120,33 @@ $B state save "$TT_NS-proposer-session"
 
 **Expected:** All listed.
 
+### T7. Impact table opens the correct branch; market card labels the branch
+
+The Impact-predictions table renders each metric row as `Decline → Approve`,
+where each number is an individual link: the decline value opens the
+decline-branch market, the approve value opens the approve-branch market.
+Conditional market cards carry an `approve branch` / `decline branch` badge so
+the approver always knows which side they are on.
+
+**Steps:**
+1. As Approver, open a proposal with funded conditional markets (subsidy > 0 so
+   both branches exist). The drawer's "Impact predictions" section lists rows.
+2. In the first row, capture both forecast numbers (the `.forecast-before` and
+   `.forecast-after` buttons inside `.predictions-row`).
+3. Click the `.forecast-before` number (the decline value).
+4. `$B wait --networkidle`, then read the expanded market card:
+   `$B js "var c=document.querySelector('.market-card.expanded');var n=c.querySelector('.market-metric-name').textContent;var b=c.querySelector('.market-branch-badge').textContent;n+' / '+b"`.
+5. Go back to the proposal, click the `.forecast-after` number (approve value),
+   and read the expanded card the same way.
+
+**Expected:**
+- Step 4 lands on the same metric with badge text `decline branch`, and the URL
+  `marketId` matches the proposal's `declined.marketId` for that row.
+- Step 5 lands on the same metric with badge text `approve branch`, and the URL
+  `marketId` matches the proposal's `approved.marketId` for that row.
+- Every conditional market card (in `?kind=conditional` view) shows a branch
+  badge; no conditional card is unlabeled.
+
 ## Cleanup
 
 Decline or approve any leftover test proposals rather than leaving them in

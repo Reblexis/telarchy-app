@@ -378,6 +378,16 @@ export function MarketsPage() {
                       <div className="market-head-name">
                         <span className="market-metric-name">{m.metricName}</span>
                         <span className={`market-status-badge market-status-${m.status}`}>{m.status}</span>
+                        {m.branch && (
+                          <span
+                            className={`market-branch-badge market-branch-${m.branch}`}
+                            title={m.branch === 'approved'
+                              ? 'Prices the metric assuming this proposal is approved.'
+                              : 'Prices the metric assuming this proposal is declined (the counterfactual).'}
+                          >
+                            {m.branch === 'approved' ? 'approve branch' : 'decline branch'}
+                          </span>
+                        )}
                         {!inspectProposal && m.proposalId && (() => {
                           const prop = proposalsById.get(m.proposalId);
                           const label = prop ? prop.title : `proposal ${m.proposalId.slice(0, 8)}…`;
