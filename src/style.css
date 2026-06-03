@@ -4214,6 +4214,32 @@ code, pre, kbd, samp {
 
 .markets-chip.active .markets-chip-count { color: var(--accent-text); opacity: 0.75; }
 
+.markets-metric-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+}
+.markets-metric-filter-clear {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--accent-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.1rem 0.3rem;
+  border-radius: var(--radius-xs);
+}
+.markets-metric-filter-clear:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
 .market-proposal-chip {
   padding: 0.15rem 0.55rem;
   font-size: 0.72rem;
@@ -4351,11 +4377,15 @@ code, pre, kbd, samp {
 }
 
 .market-head-name {
-  flex: 1 1 180px;
+  flex: 1 1 240px;
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  /* Wrap the status / branch / proposal chips below the name when the row is
+     tight (conditional markets carry up to three chips), instead of crushing
+     the metric name to a single character. */
+  flex-wrap: wrap;
+  gap: 0.3rem 0.5rem;
 }
 
 .market-metric-name {
@@ -4363,7 +4393,10 @@ code, pre, kbd, samp {
   font-size: 0.95rem;
   letter-spacing: -0.01em;
   color: var(--text-primary);
-  min-width: 0;
+  /* Keep a readable minimum so the name never collapses; it takes the first
+     line on its own and the chips wrap beneath when space runs out. */
+  flex: 0 1 auto;
+  min-width: 5rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -5238,6 +5271,29 @@ code, pre, kbd, samp {
 .forecast-branch-link:focus-visible {
   text-decoration-color: currentColor;
   outline: none;
+}
+
+/* Composite (derived) metric rows in the proposal impact table: no market of
+   their own, so they read as group headers that route to descendant markets. */
+.predictions-row--composite {
+  background: var(--bg-secondary);
+}
+.predictions-row--composite .composite-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.predictions-row--composite .composite-descendants {
+  color: var(--text-tertiary);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.predictions-row--composite .composite-outlook {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
+}
+.predictions-row--composite:hover {
+  background: var(--bg-tertiary);
 }
 
 .link-button {

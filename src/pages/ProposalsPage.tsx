@@ -5,7 +5,8 @@ import { useWorkspace } from '../hooks/useWorkspace';
 import { useInspectMode } from '../hooks/useInspectMode';
 import { api } from '../lib/api';
 import { formatTargetDateDisplay } from '../lib/date-utils';
-import type { Proposal, ProposalMessage, ProposalMarketSummary, ProposalDetailData, ProposalStatus } from '../types';
+import { isCompositeMetric, getLeafDescendantIds } from '../lib/metric-tree';
+import type { Proposal, ProposalMessage, ProposalMarketSummary, ProposalDetailData, ProposalStatus, Metric } from '../types';
 import { FirstSeenHint } from '../components/FirstSeenHint';
 
 function StatusBadge({ status }: { status: ProposalStatus }) {
@@ -121,16 +122,100 @@ function ForecastCell({
   );
 }
 
+/** Indent a row by its position in the metric tree. */
+function depthPad(depth: number): React.CSSProperties {
+  return { paddingLeft: `${0.4 + depth * 1.1}rem` };
+}
+
+/**
+ * One leaf-metric market row: the existing per-(metric, targetDate) Decline ->
+ * Approve forecast with individually clickable branch values.
+ */
+function LeafMarketRow({ m, depth, onOpenBranch }: {
+  m: ProposalMarketSummary;
+  depth: number;
+  onOpenBranch: (marketId: string | undefined) => void;
+}) {
+  const tradeCount = (m.approved?.tradeCount ?? 0) + (m.declined?.tradeCount ?? 0);
+  const noSignal = tradeCount === 0;
+  const openMarket = () => onOpenBranch(m.approved?.marketId ?? m.declined?.marketId);
+  return (
+    <tr
+      className={`predictions-row${noSignal ? ' no-signal' : ''}`}
+      onClick={openMarket}
+      tabIndex={0}
+      role="button"
+      aria-label={`Open market for ${m.metricName} at ${formatTargetDateDisplay(m.targetDate)}`}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openMarket(); } }}
+      style={{ cursor: 'pointer' }}
+    >
+      <td className="metric-name" style={depthPad(depth)}>{m.metricName}</td>
+      <td className="horizon">{formatTargetDateDisplay(m.targetDate)}</td>
+      <td className="num">
+        <ForecastCell
+          approved={m.approved?.consensus ?? null}
+          declined={m.declined?.consensus ?? null}
+          onOpenBranch={(branch) => onOpenBranch(branch === 'approved' ? m.approved?.marketId : m.declined?.marketId)}
+        />
+      </td>
+      <td className="num">{noSignal ? <span className="no-signal-label">no signal</span> : tradeCount}</td>
+    </tr>
+  );
+}
+
+/**
+ * A composite metric has no market of its own; it aggregates its leaf
+ * descendants. We show its computed outlook (read-only) and route a click to
+ * the Markets page filtered to all of its descendant leaf markets.
+ */
+function CompositeRow({ metric, marketCount, onOpenDescendants }: {
+  metric: Metric;
+  marketCount: number;
+  onOpenDescendants: (metricId: string) => void;
+}) {
+  const open = () => onOpenDescendants(metric.id);
+  const outlook = metric.total ?? metric.currentTotal ?? metric.value;
+  return (
+    <tr
+      className="predictions-row predictions-row--composite"
+      onClick={open}
+      tabIndex={0}
+      role="button"
+      aria-label={`Show ${marketCount} descendant market${marketCount === 1 ? '' : 's'} under ${metric.name}`}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } }}
+      style={{ cursor: 'pointer' }}
+    >
+      <td className="metric-name" style={depthPad(metric.depth ?? 0)}>
+        <span className="composite-name">{metric.name}</span>
+      </td>
+      <td className="horizon">
+        <span className="composite-descendants">{marketCount} market{marketCount === 1 ? '' : 's'} &rsaquo;</span>
+      </td>
+      <td className="num"><span className="composite-outlook">{formatNumber(outlook)}</span></td>
+      <td className="num"></td>
+    </tr>
+  );
+}
+
 function PredictionsTable({ markets }: { markets: ProposalMarketSummary[] }) {
   const [showAll, setShowAll] = useState(false);
+  const [metrics, setMetrics] = useState<Metric[]>([]);
   const navigate = useNavigate();
+
+  // The metric tree (composites + ordering) isn't carried on the proposal, so
+  // fetch the workspace metrics. enrichMetrics already returns them in tree
+  // order (depth asc, then order asc) -- the same order the Metrics page shows.
+  useEffect(() => {
+    let cancelled = false;
+    api.getMetrics()
+      .then((rows: Metric[]) => { if (!cancelled) setMetrics(rows); })
+      .catch((e: Error) => console.error('Failed to load metric tree for impact table', e));
+    return () => { cancelled = true; };
+  }, []);
 
   if (markets.length === 0) {
     return <p className="predictions-empty">No impact predictions yet. Click <strong>Inspect</strong> to spawn conditional markets.</p>;
   }
-
-  const visible = showAll ? markets : markets.filter(m => isNearHorizon(m.targetDate));
-  const hidden = markets.length - visible.length;
 
   // Open a specific branch market. The Markets page labels each conditional
   // market with an approve/decline branch badge so the approver knows which
@@ -140,11 +225,55 @@ function PredictionsTable({ markets }: { markets: ProposalMarketSummary[] }) {
     navigate(`/markets?marketId=${encodeURIComponent(marketId)}&kind=conditional`);
   };
 
-  // Row-level fallback (keyboard / empty-cell click) opens the approve branch,
-  // falling back to the decline branch when there is no approve market.
-  const openMarket = (m: ProposalMarketSummary) => {
-    openBranch(m.approved?.marketId ?? m.declined?.marketId);
+  // Composite click: jump to the Markets page filtered to this metric's
+  // descendant leaf markets (conditional kind, matching the impact context).
+  const openDescendants = (metricId: string) => {
+    navigate(`/markets?kind=conditional&metric=${encodeURIComponent(metricId)}`);
   };
+
+  const marketsByMetric = new Map<string, ProposalMarketSummary[]>();
+  for (const m of markets) {
+    const arr = marketsByMetric.get(m.metricId);
+    if (arr) arr.push(m); else marketsByMetric.set(m.metricId, [m]);
+  }
+
+  // Build display rows in metric-tree order: each composite (higher in the
+  // tree) first, then leaf market rows. Leaf rows keep the near-horizon filter.
+  type Row =
+    | { kind: 'composite'; metric: Metric; marketCount: number }
+    | { kind: 'leaf'; market: ProposalMarketSummary; depth: number };
+  const rows: Row[] = [];
+  let hidden = 0;
+
+  const pushLeaves = (summaries: ProposalMarketSummary[], depth: number) => {
+    for (const m of summaries) {
+      if (!showAll && !isNearHorizon(m.targetDate)) { hidden++; continue; }
+      rows.push({ kind: 'leaf', market: m, depth });
+    }
+  };
+
+  if (metrics.length > 0) {
+    for (const metric of metrics) {
+      if (isCompositeMetric(metric)) {
+        const descIds = getLeafDescendantIds(metric.id, metrics);
+        let count = 0;
+        for (const id of descIds) count += marketsByMetric.get(id)?.length ?? 0;
+        if (count > 0) rows.push({ kind: 'composite', metric, marketCount: count });
+      } else {
+        const summaries = marketsByMetric.get(metric.id);
+        if (summaries && summaries.length) pushLeaves(summaries, metric.depth ?? 0);
+      }
+    }
+    // Markets whose metric isn't in the tree (e.g. just deleted) still show,
+    // flat, so the impact table never silently drops a priced market.
+    const known = new Set(metrics.map(m => m.id));
+    for (const [metricId, summaries] of marketsByMetric) {
+      if (!known.has(metricId)) pushLeaves(summaries, 0);
+    }
+  } else {
+    // Metrics not loaded yet: fall back to the flat leaf-only list.
+    pushLeaves(markets, 0);
+  }
 
   return (
     <div className="predictions-wrap">
@@ -158,36 +287,21 @@ function PredictionsTable({ markets }: { markets: ProposalMarketSummary[] }) {
           </tr>
         </thead>
         <tbody>
-          {visible.map(m => {
-            const tradeCount = (m.approved?.tradeCount ?? 0) + (m.declined?.tradeCount ?? 0);
-            const noSignal = tradeCount === 0;
-            const key = `${m.metricId}:${m.targetDate}`;
-            return (
-              <tr
-                key={key}
-                className={`predictions-row${noSignal ? ' no-signal' : ''}`}
-                onClick={() => openMarket(m)}
-                tabIndex={0}
-                role="button"
-                aria-label={`Open market for ${m.metricName} at ${formatTargetDateDisplay(m.targetDate)}`}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openMarket(m); } }}
-                style={{ cursor: 'pointer' }}
-              >
-                <td className="metric-name">{m.metricName}</td>
-                <td className="horizon">{formatTargetDateDisplay(m.targetDate)}</td>
-                <td className="num">
-                  <ForecastCell
-                    approved={m.approved?.consensus ?? null}
-                    declined={m.declined?.consensus ?? null}
-                    onOpenBranch={(branch) => openBranch(
-                      branch === 'approved' ? m.approved?.marketId : m.declined?.marketId,
-                    )}
-                  />
-                </td>
-                <td className="num">{noSignal ? <span className="no-signal-label">no signal</span> : tradeCount}</td>
-              </tr>
-            );
-          })}
+          {rows.map(row => row.kind === 'composite' ? (
+            <CompositeRow
+              key={`c:${row.metric.id}`}
+              metric={row.metric}
+              marketCount={row.marketCount}
+              onOpenDescendants={openDescendants}
+            />
+          ) : (
+            <LeafMarketRow
+              key={`${row.market.metricId}:${row.market.targetDate}`}
+              m={row.market}
+              depth={row.depth}
+              onOpenBranch={openBranch}
+            />
+          ))}
         </tbody>
       </table>
       {hidden > 0 && (
@@ -506,12 +620,13 @@ function ProposalDrawer({ proposal, isAdmin, onClose, onAction, onError }: Propo
             title="Conditional markets"
             body={
               <>
-                Each row pairs two markets: one prices the metric assuming this
-                proposal is approved, the other assuming it is declined. The
-                arrow shows the causal delta, decline to approve. Wider gaps
-                mean traders see this proposal moving the needle. Use{' '}
-                <strong>Inspect</strong> above to overlay the approve-branch
-                impact on your Metrics page.
+                Rows follow your metric tree, higher metrics first. A leaf row
+                pairs two markets: one prices the metric assuming this proposal
+                is approved, the other assuming it is declined, and the arrow is
+                the causal delta (decline to approve). A composite metric has no
+                market of its own, so its row shows the computed outlook; click
+                it to open every descendant market. Use <strong>Inspect</strong>{' '}
+                above to overlay the approve-branch impact on your Metrics page.
               </>
             }
           />

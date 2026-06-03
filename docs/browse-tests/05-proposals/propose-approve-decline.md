@@ -125,8 +125,8 @@ $B state save "$TT_NS-proposer-session"
 The Impact-predictions table renders each metric row as `Decline → Approve`,
 where each number is an individual link: the decline value opens the
 decline-branch market, the approve value opens the approve-branch market.
-Conditional market cards carry an `approve branch` / `decline branch` badge so
-the approver always knows which side they are on.
+Conditional market cards carry an `approve` / `decline` branch badge so the
+approver always knows which side they are on.
 
 **Steps:**
 1. As Approver, open a proposal with funded conditional markets (subsidy > 0 so
@@ -140,12 +140,39 @@ the approver always knows which side they are on.
    and read the expanded card the same way.
 
 **Expected:**
-- Step 4 lands on the same metric with badge text `decline branch`, and the URL
+- Step 4 lands on the same metric with badge text `decline`, and the URL
   `marketId` matches the proposal's `declined.marketId` for that row.
-- Step 5 lands on the same metric with badge text `approve branch`, and the URL
+- Step 5 lands on the same metric with badge text `approve`, and the URL
   `marketId` matches the proposal's `approved.marketId` for that row.
 - Every conditional market card (in `?kind=conditional` view) shows a branch
   badge; no conditional card is unlabeled.
+
+### T8. Impact table follows the metric tree; composites route to descendants
+
+The Impact-predictions table lists rows in metric-tree order (higher metrics
+first, the same order as the Metrics page). Composite metrics (those with a
+formula) appear as their own rows showing the computed outlook, and clicking one
+navigates to the Markets page filtered to its descendant leaf markets.
+
+**Steps:**
+1. Open a proposal whose workspace has at least one composite metric with funded
+   descendant markets (e.g. the personal-utility workspace's "Utility" tree).
+2. Read the impact rows in order:
+   `$B js "Array.from(document.querySelectorAll('.predictions-row')).slice(0,8).map(r=>(r.classList.contains('predictions-row--composite')?'[C] ':'[L] ')+r.querySelector('.metric-name').textContent.trim()).join('|')"`.
+3. Click a composite row (`.predictions-row--composite`).
+4. `$B wait --networkidle` and read the URL plus the filter banner
+   (`.markets-metric-filter`) and the distinct `.market-metric-name` values.
+
+**Expected:**
+- Step 2 shows roots/composites before their descendants, with `[C]` rows
+  carrying a numeric outlook and `[L]` rows carrying a `Decline → Approve` cell.
+- Step 3 navigates to `/markets?kind=conditional&metric=<compositeId>`.
+- The Markets page shows a `Showing markets under <name>` banner, and the listed
+  metrics are exactly the composite's transitive leaf descendants (no unrelated
+  metrics). The `Clear ×` button removes the filter.
+- Metric names in the conditional market cards are fully legible (the branch
+  badge does not crush the name); long names keep the name on its own line and
+  wrap the status/branch/proposal chips beneath it.
 
 ## Cleanup
 

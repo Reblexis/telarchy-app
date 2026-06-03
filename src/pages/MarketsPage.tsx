@@ -8,6 +8,7 @@ import { useInspectMode } from '../hooks/useInspectMode';
 import { previewTrade } from '../lib/amm';
 import { formatTargetDateDisplay, formatTimeRemaining, endOfPeriod } from '../lib/date-utils';
 import { useSortableRows } from '../lib/sort';
+import { getLeafDescendantIds } from '../lib/metric-tree';
 import { HookStatus } from '../components/HookStatus';
 import { TradingPanel } from '../components/TradingPanel';
 import { MarketComments } from '../components/MarketComments';
@@ -110,6 +111,26 @@ export function MarketsPage() {
     return counts;
   }, [markets]);
 
+  // ?metric=<id> scopes the list to one metric's subtree: clicking a composite
+  // metric in a proposal's impact table lands here. Markets live only on
+  // leaves, so we resolve the metric to its transitive leaf descendants (or
+  // itself, if it is already a leaf) and keep only those.
+  const metricFilterId = searchParams.get('metric');
+  const metricFilterName = metricFilterId ? metricsMap.get(metricFilterId)?.name ?? null : null;
+  const metricFilterSet = useMemo(() => {
+    if (!metricFilterId || metricsMap.size === 0) return null;
+    const ids = getLeafDescendantIds(metricFilterId, Array.from(metricsMap.values()));
+    if (ids.size === 0) ids.add(metricFilterId); // leaf: just itself
+    return ids;
+  }, [metricFilterId, metricsMap]);
+  const clearMetricFilter = useCallback(() => {
+    setSearchParams(prev => {
+      const sp = new URLSearchParams(prev);
+      sp.delete('metric');
+      return sp;
+    }, { replace: true });
+  }, [setSearchParams]);
+
   const filteredMarkets = useMemo(() => {
     let result = statusFilter === 'all' ? markets : markets.filter(m => m.status === statusFilter);
     if (filterText) {
@@ -119,8 +140,11 @@ export function MarketsPage() {
     if (targetFilter) {
       result = result.filter(m => m.targetDate === targetFilter);
     }
+    if (metricFilterSet) {
+      result = result.filter(m => metricFilterSet.has(m.metricId));
+    }
     return result;
-  }, [markets, filterText, targetFilter, statusFilter]);
+  }, [markets, filterText, targetFilter, statusFilter, metricFilterSet]);
 
   const { sorted: sortedMarkets, sort: marketSort, toggle: toggleMarketSort } = useSortableRows<Market, SortKey>(
     filteredMarkets,
@@ -236,6 +260,17 @@ export function MarketsPage() {
           Prediction markets for this workspace's metrics. Tap a market to view its trade history and place orders.
         </p>
       </div>
+
+      {metricFilterId && (
+        <div className="markets-metric-filter">
+          <span>
+            Showing markets under <strong>{metricFilterName ?? 'this metric'}</strong>
+          </span>
+          <button type="button" className="markets-metric-filter-clear" onClick={clearMetricFilter}>
+            Clear &times;
+          </button>
+        </div>
+      )}
 
       {isAdmin && <div style={{ marginBottom: '1rem' }}><HookStatus /></div>}
       {error && <div className="message error show">{error}</div>}
@@ -382,10 +417,10 @@ export function MarketsPage() {
                           <span
                             className={`market-branch-badge market-branch-${m.branch}`}
                             title={m.branch === 'approved'
-                              ? 'Prices the metric assuming this proposal is approved.'
-                              : 'Prices the metric assuming this proposal is declined (the counterfactual).'}
+                              ? 'Approve branch: prices the metric assuming this proposal is approved.'
+                              : 'Decline branch: prices the metric assuming this proposal is declined (the counterfactual).'}
                           >
-                            {m.branch === 'approved' ? 'approve branch' : 'decline branch'}
+                            {m.branch === 'approved' ? 'approve' : 'decline'}
                           </span>
                         )}
                         {!inspectProposal && m.proposalId && (() => {
