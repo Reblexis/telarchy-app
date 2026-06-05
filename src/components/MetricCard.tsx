@@ -21,6 +21,7 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
   const navigate = useNavigate();
   const isLeaf = !metric.formula || metric.formula.trim() === '0';
   const hasTP = metric.timePreference?.enabled === true;
+  const hasCustomDates = (metric.timePreference?.customHorizons?.length ?? 0) > 0;
   const overlayHalfLife = hasTP ? metric.timePreference!.halfLife : metric.inheritedHalfLife;
   const [isEditingValue, setIsEditingValue] = useState(false);
   const [editValueStr, setEditValueStr] = useState('');
@@ -172,7 +173,7 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
             ))}
           </div>
         )}
-        {isLeaf && !hasTP && !metric.inheritedHalfLife && (
+        {isLeaf && !hasTP && !hasCustomDates && !metric.inheritedHalfLife && (
           <div
             style={{
               marginTop: '0.5rem', fontSize: '0.75rem',
@@ -181,15 +182,20 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
             }}
             onClick={onEdit}
             role={onEdit ? 'button' : undefined}
-            title="Markets only spawn for metrics with a time preference (or for leaves whose ancestor has one). Click to edit."
+            title="Markets only spawn for metrics with a forecast curve or custom market dates (or for leaves whose ancestor has a curve). Click to edit."
           >
-            No forecasts - enable Time Preference to spawn prediction markets.
+            No forecasts - enable the forecast curve or add custom market dates.
           </div>
         )}
         {metric.missingMarkets?.length ? (
           <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}
             title={`Awaiting first trade on: ${metric.missingMarkets.join(', ')}`}>
             No forecast chart - awaiting {metric.missingMarkets.length === 1 ? metric.missingMarkets[0] : `${metric.missingMarkets.length} markets`}
+          </div>
+        ) : isLeaf && hasCustomDates && !hasTP && (!metric.timeSeries || metric.timeSeries.length === 0) ? (
+          <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}
+            title={`Custom market dates: ${metric.timePreference!.customHorizons!.join(', ')}`}>
+            No forecast chart yet - custom-date markets await their first trade
           </div>
         ) : metric.timeSeries && metric.timeSeries.length > 0 && (
           <div style={{ marginTop: '0.75rem', height: 220 }}>

@@ -217,8 +217,11 @@ export function EditMetricModal({ metric, onClose, onSave }: EditMetricModalProp
           )}
           <div className="form-group tp-row">
             <div className="tp-toggle">
-              <span className="tp-label">
-                Time Preference
+              <span
+                className="tp-label"
+                title="Auto-spawns markets at decay-weighted future dates set by the half-life and blends their consensus into the outlook. Optional: custom market dates below spawn markets on their own, with or without the curve."
+              >
+                Time preference curve
               </span>
               <label className="tp-switch">
                 <input
