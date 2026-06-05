@@ -1478,6 +1478,75 @@ input[type="number"] {
   word-break: break-word;
 }
 
+.tp-horizons {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.tp-horizons > label {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.tp-horizon-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.tp-horizon-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.375rem 0.125rem 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: var(--bg-tertiary);
+}
+
+.tp-horizon-remove {
+  border: none;
+  background: none;
+  padding: 0 0.125rem;
+  font-size: 0.875rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.tp-horizon-remove:hover {
+  opacity: 1;
+}
+
+.tp-horizon-add {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.tp-horizon-add .tp-halflife-input {
+  text-align: left;
+  flex: 1;
+}
+
+.tp-horizon-add-btn {
+  flex-shrink: 0;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.tp-horizon-error {
+  font-size: 0.75rem;
+  color: var(--error-text, #b91c1c);
+}
+
 .tp-halflife-input::-webkit-inner-spin-button,
 .tp-halflife-input::-webkit-outer-spin-button {
   -webkit-appearance: none;

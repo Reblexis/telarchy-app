@@ -2,24 +2,39 @@ import { db } from '../db/client';
 import { metrics, markets, metricLogs, updates } from '../db/schema';
 import { eq, and, asc, desc } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
-import type { Metric, MetricLog, UpdateEntry } from '../types';
+import type { Metric, MetricLog, TimePreference, UpdateEntry } from '../types';
 import { recalculateMetrics, calculateMetricDepths, evaluateFormulaAtTime } from '../lib/metrics-engine';
-import { sampleTimePoints, getLeafDescendantNames } from '../lib/time-preference';
+import { sampleTimePoints, getLeafDescendantNames, desiredMarketDates, generatesMarkets } from '../lib/time-preference';
+import { endOfPeriod } from '../lib/date-utils';
 import { consensus as ammConsensus, AMM_DEFAULTS } from '../lib/amm';
 import { toISOWeekString } from '../lib/date-utils';
 import { emitEvent } from './events';
 import { insertPendingMarkets, type PendingMarket } from './markets';
 
-export function enrichMetrics(rawMetrics: Metric[], consensusMap: Record<string, number> = {}, untradedLeaves: Set<string> = new Set()): Metric[] {
+export function enrichMetrics(rawMetrics: Metric[], consensusMap: Record<string, number> = {}, untradedKeys: Set<string> = new Set()): Metric[] {
   const nameToFormula: Record<string, string> = {};
   rawMetrics.forEach(m => { nameToFormula[m.name] = m.formula || '0'; });
 
-  if (untradedLeaves.size > 0) {
+  if (untradedKeys.size > 0) {
+    // A leaf only counts as "missing markets" when one of its CURVE-desired
+    // dates is untraded; the curve is what feeds the weighted outlook. An
+    // untraded custom-horizon or manual market must not null the outlook.
+    const missingLeaves = new Set<string>();
+    for (const tpMetric of rawMetrics) {
+      const tp = tpMetric.timePreference;
+      if (!tp?.enabled) continue;
+      const curveDates = sampleTimePoints(tp.halfLife, tp.density).map(p => p.date);
+      const tpIsLeaf = !nameToFormula[tpMetric.name] || nameToFormula[tpMetric.name].trim() === '0';
+      const leaves = tpIsLeaf ? [tpMetric.name] : getLeafDescendantNames(tpMetric.name, nameToFormula);
+      for (const leaf of leaves) {
+        if (curveDates.some(d => untradedKeys.has(`${leaf}:${d}`))) missingLeaves.add(leaf);
+      }
+    }
     rawMetrics.forEach(m => {
       const isLeaf = !m.formula || m.formula.trim() === '0';
       const missing = isLeaf
-        ? (untradedLeaves.has(m.name) ? [m.name] : [])
-        : getLeafDescendantNames(m.name, nameToFormula).filter(n => untradedLeaves.has(n));
+        ? (missingLeaves.has(m.name) ? [m.name] : [])
+        : getLeafDescendantNames(m.name, nameToFormula).filter(n => missingLeaves.has(n));
       if (missing.length > 0) m.missingMarkets = missing;
     });
   }
@@ -37,9 +52,10 @@ export function enrichMetrics(rawMetrics: Metric[], consensusMap: Record<string,
   rawMetrics.forEach(m => { nameToFormulaLocal[m.name] = m.formula || '0'; });
 
   for (const tpMetric of rawMetrics) {
-    if (!tpMetric.timePreference?.enabled) continue;
+    if (!generatesMarkets(tpMetric.timePreference)) continue;
     const halfLife = tpMetric.timePreference.halfLife;
-    const timePoints = sampleTimePoints(halfLife, tpMetric.timePreference.density);
+    const curveEnabled = tpMetric.timePreference.enabled;
+    const timePoints = desiredMarketDates(tpMetric.timePreference);
 
     const descendants = new Set<string>();
     const tpIsLeaf = !nameToFormulaLocal[tpMetric.name] || nameToFormulaLocal[tpMetric.name].trim() === '0';
@@ -65,14 +81,14 @@ export function enrichMetrics(rawMetrics: Metric[], consensusMap: Record<string,
       // of whether we can build a time series for it yet. Without this, a leaf whose
       // markets exist but haven't been traded would falsely show "enable Time Preference".
       // Skip the TP metric itself, its own timePreference already drives the overlay.
-      if (name !== tpMetric.name) nameToInheritedHalfLife[name] = halfLife;
+      // The decay overlay only makes sense for the curve, not custom horizons.
+      if (name !== tpMetric.name && curveEnabled) nameToInheritedHalfLife[name] = halfLife;
 
-      if (nameToTimeSeries[name]) continue;
       const formula = nameToFormulaLocal[name] || '0';
       const isLeaf = formula.trim() === '0';
       const series: Array<{ date: string; value: number }> = [];
 
-      for (const { date } of timePoints) {
+      for (const date of timePoints) {
         if (isLeaf) {
           const val = consensusMap[`${name}:${date}`];
           if (val !== undefined) series.push({ date, value: val });
@@ -82,7 +98,18 @@ export function enrichMetrics(rawMetrics: Metric[], consensusMap: Record<string,
       }
 
       if (series.length > 0) {
-        nameToTimeSeries[name] = series;
+        // Merge per date: a leaf can sit under one TP ancestor's curve while
+        // also carrying its own custom horizons. First writer wins per date.
+        const existing = nameToTimeSeries[name];
+        if (!existing) {
+          nameToTimeSeries[name] = series;
+        } else {
+          const seen = new Set(existing.map(p => p.date));
+          for (const p of series) {
+            if (!seen.has(p.date)) existing.push(p);
+          }
+          existing.sort((a, b) => endOfPeriod(a.date).localeCompare(endOfPeriod(b.date)));
+        }
       }
     }
   }
@@ -95,16 +122,19 @@ export function enrichMetrics(rawMetrics: Metric[], consensusMap: Record<string,
   return rawMetrics;
 }
 
-export async function buildConsensusMap(workspaceId: string): Promise<{ map: Record<string, number>; untradedLeaves: Set<string> }> {
+export async function buildConsensusMap(workspaceId: string): Promise<{ map: Record<string, number>; untradedKeys: Set<string> }> {
   const openMarkets = await db.select().from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
 
-  if (openMarkets.length === 0) return { map: {}, untradedLeaves: new Set() };
+  if (openMarkets.length === 0) return { map: {}, untradedKeys: new Set() };
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const map: Record<string, number> = {};
-  const untradedLeaves = new Set<string>();
+  // "metricName:targetDate" keys of active markets with no trades yet. Keyed by
+  // date so callers can scope "missing markets" to the dates that actually feed
+  // the outlook, instead of flagging the whole metric.
+  const untradedKeys = new Set<string>();
 
   for (const m of openMarkets) {
     if (m.proposalId) continue;
@@ -113,7 +143,7 @@ export async function buildConsensusMap(workspaceId: string): Promise<{ map: Rec
     const shares = m.shares as [number, number];
     const c = ammConsensus(shares, m.liquidity ?? 0, m.rangeMin, m.rangeMax);
     if (c === undefined) {
-      untradedLeaves.add(m.metricName);
+      untradedKeys.add(`${m.metricName}:${m.targetDate}`);
       continue;
     }
     map[`${m.metricName}:${m.targetDate}`] = c;
@@ -136,11 +166,11 @@ export async function buildConsensusMap(workspaceId: string): Promise<{ map: Rec
       }
     }
   }
-  return { map, untradedLeaves };
+  return { map, untradedKeys };
 }
 
 export async function getAllMetrics(workspaceId: string): Promise<Metric[]> {
-  const [rows, { map, untradedLeaves }] = await Promise.all([
+  const [rows, { map, untradedKeys }] = await Promise.all([
     db.select().from(metrics).where(eq(metrics.workspaceId, workspaceId)).orderBy(asc(metrics.order), asc(metrics.createdAt)),
     buildConsensusMap(workspaceId),
   ]);
@@ -154,11 +184,11 @@ export async function getAllMetrics(workspaceId: string): Promise<Metric[]> {
     order: row.order || 999,
     depth: 0,
     updatedAt: row.updatedAt?.toISOString(),
-    timePreference: (row.timePreference as { enabled: boolean; halfLife: number } | null)?.enabled
-      ? row.timePreference as { enabled: boolean; halfLife: number }
+    timePreference: generatesMarkets(row.timePreference as TimePreference | null)
+      ? row.timePreference as TimePreference
       : undefined,
     marketRangeMax: row.marketRangeMax ?? undefined,
-  })), map, untradedLeaves);
+  })), map, untradedKeys);
 }
 
 export async function getMetricById(id: string, workspaceId: string): Promise<Metric | null> {
@@ -168,9 +198,8 @@ export async function getMetricById(id: string, workspaceId: string): Promise<Me
 
 export async function ensureMarketsForTimePreference(
   tpMetricId: string,
-  halfLife: number,
+  tp: TimePreference,
   workspaceId: string,
-  density?: number,
 ): Promise<void> {
   const metricRows = await db.select().from(metrics).where(eq(metrics.workspaceId, workspaceId));
   const nameToFormula: Record<string, string> = {};
@@ -198,7 +227,7 @@ export async function ensureMarketsForTimePreference(
     return;
   }
 
-  const timePoints = sampleTimePoints(halfLife, density);
+  const targetDates = desiredMarketDates(tp);
 
   const openMarkets = await db.select({ id: markets.id, metricId: markets.metricId, targetDate: markets.targetDate, active: markets.active })
     .from(markets)
@@ -212,7 +241,7 @@ export async function ensureMarketsForTimePreference(
   for (const leafName of leafNames) {
     const leafId = nameToId.get(leafName);
     if (!leafId) continue;
-    for (const { date } of timePoints) {
+    for (const date of targetDates) {
       desiredKeys.add(`${leafId}:${date}`);
     }
   }
@@ -230,7 +259,7 @@ export async function ensureMarketsForTimePreference(
     if (!leafId) continue;
     const rangeMax = idToRangeMax.get(leafId) ?? AMM_DEFAULTS.rangeMax;
 
-    for (const { date } of timePoints) {
+    for (const date of targetDates) {
       const key = `${leafId}:${date}`;
       if (existingMarkets.has(key)) continue;
       existingMarkets.add(key);
@@ -246,11 +275,10 @@ export async function ensureMarketsForTimePreference(
 
 export async function respawnMarketsForTimePreference(
   tpMetricId: string,
-  halfLife: number,
+  tp: TimePreference,
   workspaceId: string,
-  density?: number,
 ): Promise<void> {
-  await ensureMarketsForTimePreference(tpMetricId, halfLife, workspaceId, density);
+  await ensureMarketsForTimePreference(tpMetricId, tp, workspaceId);
 }
 
 export async function deleteMetric(id: string, workspaceId: string): Promise<void> {

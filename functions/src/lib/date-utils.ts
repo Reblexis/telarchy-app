@@ -158,3 +158,36 @@ export function isValidDateFormat(dateStr: string): boolean {
     ABS_WEEK_RE.test(dateStr) ||
     ABS_DAY_RE.test(dateStr);
 }
+
+/** Number of ISO weeks in a year (52 or 53). Dec 28 is always in the last ISO week. */
+function isoWeeksInYear(year: number): number {
+  // Local-time constructor to match toISOWeekString's local-time getters.
+  const dec28 = new Date(year, 11, 28);
+  return parseInt(toISOWeekString(dec28).split('-W')[1], 10);
+}
+
+/**
+ * Calendar-aware validation on top of the format regexes. Rejects strings that
+ * match a format but name an impossible date: "2026-13", "2026-02-31", "2026-W60".
+ * Used for user-authored config (custom market horizons); `isValidDateFormat`
+ * stays format-only for existing callers.
+ */
+export function isValidCalendarDate(dateStr: string): boolean {
+  if (ABS_YEAR_RE.test(dateStr)) return true;
+  if (ABS_MONTH_RE.test(dateStr)) {
+    const m = parseInt(dateStr.slice(5, 7), 10);
+    return m >= 1 && m <= 12;
+  }
+  if (ABS_WEEK_RE.test(dateStr)) {
+    const [yStr, wStr] = dateStr.split('-W');
+    const w = parseInt(wStr, 10);
+    return w >= 1 && w <= isoWeeksInYear(parseInt(yStr, 10));
+  }
+  if (ABS_DAY_RE.test(dateStr)) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    if (m < 1 || m > 12 || d < 1) return false;
+    const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    return d <= daysInMonth;
+  }
+  return false;
+}

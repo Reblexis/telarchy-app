@@ -141,6 +141,12 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
               TP {metric.timePreference!.halfLife}y
             </span>
           )}
+          {(metric.timePreference?.customHorizons?.length ?? 0) > 0 && (
+            <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', color: 'var(--text-tertiary)' }}
+              title={`Custom market dates: ${metric.timePreference!.customHorizons!.join(', ')}`}>
+              +{metric.timePreference!.customHorizons!.length} date{metric.timePreference!.customHorizons!.length === 1 ? '' : 's'}
+            </span>
+          )}
           {isLeaf && (
             <Link
               to={`/markets?q=${encodeURIComponent(metric.name)}`}

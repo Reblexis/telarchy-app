@@ -1,7 +1,11 @@
 export interface TimePreference {
-  enabled: boolean;
+  enabled: boolean; // gates the exponential curve only; custom horizons work independently
   halfLife: number; // in years
   density?: number; // number of market sample points per metric (default 3)
+  /** Extra market horizons beyond the curve: "+Nd"|"+Nw"|"+Nm"|"+Ny" (rolling,
+   *  re-resolved against today on every refresh) or an absolute "YYYY",
+   *  "YYYY-MM", "YYYY-Www", "YYYY-MM-DD" (one-shot, dropped once past). */
+  customHorizons?: string[];
 }
 
 export interface Metric {

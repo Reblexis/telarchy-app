@@ -358,6 +358,23 @@ The only parameter is **half-life** (in years). It sets the timescale of your co
 
 The blend is a simple average across t=0 and the sampled future points (equal weights). The half-life shapes *where* those samples fall, not how much each one counts. All samples share a single calendar granularity (day, week, month, or year), chosen as the coarsest one whose bucket width is at most the smallest gap between adjacent samples — so two samples can never land in overlapping buckets (no "2026-W23 plus 2026-06 both covering the same day" double counting).
 
+## Custom market dates
+
+Beyond the exponential curve, any metric can carry **custom market horizons**: an explicit list of extra dates to keep markets at. They work with the curve on or off (a metric can have purely manual horizons), and like the curve they propagate to leaf descendants. Two kinds of entry:
+
+- **Rolling offsets** — \`+Nd\`, \`+Nw\`, \`+Nm\`, \`+Ny\` (e.g. \`+3m\`). Re-resolved against "today" on every daily refresh, so there is always a market about that far out. The offset's unit sets the market granularity: \`+3m\` maintains a month-market, \`+2w\` a week-market.
+- **One-shot dates** — \`YYYY\`, \`YYYY-MM\`, \`YYYY-Www\`, or \`YYYY-MM-DD\` (e.g. \`2026-12-31\`). A single market that resolves at that date and is not recreated. Dates already in the past are pruned on save.
+
+Configure them in the metric's edit modal ("Custom market dates"), or via the API: \`timePreference.customHorizons\` is an array of such strings (at most 24), e.g.
+
+\`\`\`json
+{ "timePreference": { "enabled": false, "halfLife": 1, "customHorizons": ["+3m", "2026-12-31"] } }
+\`\`\`
+
+\`enabled\` gates only the exponential curve; custom horizons generate markets regardless. Removing an entry deactivates its market (existing positions are kept and resolve normally). Custom-horizon markets are pure forecasting instruments: they show up in the future-predictions chart but do **not** feed the TP-blended outlook, which stays defined by the curve.
+
+Note the difference from one-off manual markets (\`POST /api/predictions/markets\`): a manual market is a single row not tied to metric config; it survives the daily refresh untouched but is never recreated or rolled. Custom horizons are config: the system keeps the desired markets in existence for you.
+
 ## The "Current X" structural pattern
 
 A common and recommended pattern is to separate the TP node from the current-state calculation using an intermediate "Current X" metric:

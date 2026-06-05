@@ -141,6 +141,7 @@ explains itself.
 | --- | --- |
 | `check-in.md` | `/check-in` auto-save, clamp, theme toggle |
 | `create-edit-delete.md` | `POST/PUT/DELETE /api/metrics` |
+| `custom-horizons.md` | `timePreference.customHorizons` market lifecycle + validation |
 | `formulas.md` | Cross-metric formulas, cycles, NaN, big numbers |
 | `history-and-logs.md` | `/api/metrics/:id/logs`, purge |
 | `unicode-and-injection.md` | RTL, emoji, XSS, SQLi corpus |

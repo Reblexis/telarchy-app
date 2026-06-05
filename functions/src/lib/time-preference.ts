@@ -19,7 +19,8 @@
  * that both cover the same day on the same metric.
  */
 
-import { toISOWeekString } from './date-utils';
+import { toISOWeekString, isRelativeDate, toAbsoluteDate, endOfPeriod } from './date-utils';
+import type { TimePreference } from '../types';
 
 export const WEIGHT_T0 = 1.0; // weight at t = 0 (current)
 
@@ -106,6 +107,52 @@ export function sampleTimePoints(halfLife: number, density?: number, base: Date 
   }
 
   return Array.from(buckets, ([date, weight]) => ({ date, weight }));
+}
+
+/**
+ * Resolve a metric's custom horizon entries to absolute date strings.
+ *
+ * Relative entries ("+3m") are rolling: re-resolved against `base` on every
+ * call, so the desired set advances as time passes. Absolute entries are
+ * one-shot: kept verbatim until their period has fully passed, then dropped.
+ * Defensive on historical jsonb: non-arrays and non-string entries are ignored.
+ */
+export function resolveCustomHorizons(horizons: unknown, base: Date = new Date()): string[] {
+  if (!Array.isArray(horizons)) return [];
+  const today = base.toISOString().slice(0, 10);
+  const out = new Set<string>();
+  for (const entry of horizons) {
+    if (typeof entry !== 'string') continue;
+    const raw = entry.trim();
+    if (!raw) continue;
+    const date = isRelativeDate(raw) ? toAbsoluteDate(raw, base) : raw;
+    if (endOfPeriod(date) <= today) continue; // expired or resolving today
+    out.add(date);
+  }
+  return Array.from(out);
+}
+
+/**
+ * The full set of market dates a TP config wants right now: exponential curve
+ * samples (when enabled) union resolved custom horizons. One `base` is threaded
+ * into both generators so the two halves never disagree about "today".
+ * Sorted chronologically by period end for stable ordering downstream.
+ */
+export function desiredMarketDates(tp: TimePreference, base: Date = new Date()): string[] {
+  const dates = new Set<string>(
+    tp.enabled ? sampleTimePoints(tp.halfLife, tp.density, base).map(p => p.date) : [],
+  );
+  for (const date of resolveCustomHorizons(tp.customHorizons, base)) dates.add(date);
+  return Array.from(dates).sort((a, b) => endOfPeriod(a).localeCompare(endOfPeriod(b)));
+}
+
+/**
+ * Whether this TP config makes the metric's markets system-managed: the curve
+ * is enabled, or at least one custom horizon is currently effective (unexpired).
+ */
+export function generatesMarkets(tp: TimePreference | null | undefined, base: Date = new Date()): tp is TimePreference {
+  if (!tp) return false;
+  return tp.enabled || resolveCustomHorizons(tp.customHorizons, base).length > 0;
 }
 
 /**

@@ -50,6 +50,7 @@ Use this when you need to (a) decide what to put on a canvas / pitch deck / land
 33. TP on computed metrics: markets for all leaf descendants.
 34. One-TP-per-path constraint preventing future-of-future incoherence.
 35. Sibling-TP pattern for different timescales.
+35a. Custom market horizons per metric (`timePreference.customHorizons`): rolling offsets (`+3m`, re-resolved daily) or one-shot absolute dates (`2026-12-31`), independent of the exponential curve (work with the curve off); shown in the future chart but excluded from the outlook blend.
 
 ## Conditional markets and proposals
 

@@ -2,7 +2,8 @@ import { db } from '../db/client';
 import { agents, markets, metrics as metricsTable, positions, liquidityEvents, systemConfig, workspaces } from '../db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
-import { sampleTimePoints, getLeafDescendantNames } from '../lib/time-preference';
+import { getLeafDescendantNames, desiredMarketDates, generatesMarkets } from '../lib/time-preference';
+import type { TimePreference } from '../types';
 import { AMM_DEFAULTS, initialPool } from '../lib/amm';
 import { emitEvent } from './events';
 import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
@@ -247,29 +248,38 @@ export async function refreshRelativeDateMarkets(workspaceId: string, opts: { fo
   const nameToFormula: Record<string, string> = {};
   const nameToId = new Map<string, string>();
   const idToRangeMax = new Map<string, number>();
-  const tpMetrics: { id: string; name: string; halfLife: number; density?: number }[] = [];
+  const tpMetrics: { id: string; name: string; tp: TimePreference }[] = [];
+
+  // One base date for the whole run so the curve samples and custom horizons
+  // never disagree about "today".
+  const base = new Date();
 
   for (const row of metricRows) {
     nameToFormula[row.name] = row.formula || '0';
     nameToId.set(row.name, row.id);
     if (row.marketRangeMax != null) idToRangeMax.set(row.id, row.marketRangeMax);
-    const tp = row.timePreference as { enabled?: boolean; halfLife?: number; density?: number } | null;
-    if (tp?.enabled && tp.halfLife) {
-      tpMetrics.push({ id: row.id, name: row.name, halfLife: tp.halfLife, density: tp.density });
+    const tp = row.timePreference as TimePreference | null;
+    if (generatesMarkets(tp, base)) {
+      tpMetrics.push({ id: row.id, name: row.name, tp });
     }
   }
 
   const desiredRefs = new Map<string, { metricId: string; metricName: string; targetDate: string }>();
-  for (const tp of tpMetrics) {
-    let leafNames = getLeafDescendantNames(tp.name, nameToFormula);
+  // Leaf metricIds whose markets are system-managed (reachable from a
+  // market-generating metric). Markets on other metrics, e.g. manual one-offs
+  // created via POST /api/predictions/markets, are left alone by the refresh.
+  const managedLeafIds = new Set<string>();
+  for (const { name, tp } of tpMetrics) {
+    let leafNames = getLeafDescendantNames(name, nameToFormula);
     // If the TP metric is itself a leaf, it needs markets for itself
-    const tpIsLeaf = !nameToFormula[tp.name] || nameToFormula[tp.name].trim() === '0';
-    if (tpIsLeaf) leafNames = [tp.name];
-    const timePoints = sampleTimePoints(tp.halfLife, tp.density);
+    const tpIsLeaf = !nameToFormula[name] || nameToFormula[name].trim() === '0';
+    if (tpIsLeaf) leafNames = [name];
+    const targetDates = desiredMarketDates(tp, base);
     for (const leafName of leafNames) {
       const leafId = nameToId.get(leafName);
       if (!leafId) continue;
-      for (const { date } of timePoints) {
+      managedLeafIds.add(leafId);
+      for (const date of targetDates) {
         desiredRefs.set(`${leafId}:${date}`, { metricId: leafId, metricName: leafName, targetDate: date });
       }
     }
@@ -296,17 +306,22 @@ export async function refreshRelativeDateMarkets(workspaceId: string, opts: { fo
     if (m.proposalId) continue;
 
     const key = `${m.metricId}:${m.targetDate}`;
+    const isManaged = managedLeafIds.has(m.metricId);
 
     // Void markets whose rangeMax is stale (metric's marketRangeMax has changed).
-    // Skip adding to openKeys so the pending step recreates them with the correct rangeMax.
+    // Skip adding to openKeys so the pending step recreates them with the correct
+    // rangeMax. Managed metrics only: a manual one-off market may use a custom
+    // range on purpose, and voiding it here would destroy it without recreation.
     const expectedRangeMax = idToRangeMax.get(m.metricId);
-    if (expectedRangeMax !== undefined && m.rangeMax !== expectedRangeMax) {
+    if (isManaged && expectedRangeMax !== undefined && m.rangeMax !== expectedRangeMax) {
       toVoid.push(m);
       continue;
     }
 
     openKeys.add(key);
 
+    // Duplicate voiding stays global: two open markets at the same
+    // metricId:targetDate are always wrong, manual or managed.
     const prev = seenNonProposal.get(key);
     if (!prev) {
       seenNonProposal.set(key, { id: m.id, createdAt: m.createdAt });
@@ -318,10 +333,12 @@ export async function refreshRelativeDateMarkets(workspaceId: string, opts: { fo
       toVoid.push(m);
     }
 
+    // Activation lifecycle applies only to managed metrics; manual one-off
+    // markets on unmanaged metrics keep whatever state they were given.
     const shouldBeActive = desiredRefs.has(key);
     if (shouldBeActive && !m.active) {
       toActivate.push(m.id);
-    } else if (!shouldBeActive && m.active) {
+    } else if (isManaged && !shouldBeActive && m.active) {
       toDeactivate.push(m.id);
       deactivated++;
     }

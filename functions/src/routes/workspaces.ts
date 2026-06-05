@@ -108,7 +108,7 @@ workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
 
   // Market creation touches multiple tables and emits events; keep it outside the provisioning transaction.
   for (const { id, halfLife } of metricIdsWithTP) {
-    await ensureMarketsForTimePreference(id, halfLife, wsId);
+    await ensureMarketsForTimePreference(id, { enabled: true, halfLife }, wsId);
   }
 
   // Seed one starter proposal so the workspace is non-empty on first land.
