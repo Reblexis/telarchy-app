@@ -145,6 +145,19 @@ app.get('/api/public-config', (_req, res) => {
   res.json({ usdcSettlementEnabled: process.env.USDC_SETTLEMENT_ENABLED === 'true' });
 });
 
+// Bare probe of the API root. Without this, an unauthenticated GET /api hits
+// the auth middleware and dead-ends on 401 with no hint where the docs live,
+// which sends agents off to crawl the website instead.
+app.get('/api', (_req, res) => {
+  res.json({
+    app: 'Telarchy',
+    help: '/api/help',
+    guides: '/api/guides',
+    openapi: '/openapi.json',
+    llms: '/llms.txt',
+  });
+});
+
 app.get('/api/help', (_req, res) => {
   res.json({
     app: 'Telarchy',

@@ -1523,7 +1523,13 @@ guidesRouter.get('/_categories', (_req, res) => {
 guidesRouter.get('/:section', (req, res) => {
   const section = sectionMap.get(req.params.section);
   if (!section) {
-    res.status(404).json({ error: `Unknown guide section: ${req.params.section}` });
+    // Self-correcting 404: agents often arrive via a stale or guessed link.
+    // Listing the valid ids lets them retry without crawling the website.
+    res.status(404).json({
+      error: `Unknown guide section: ${req.params.section}`,
+      sections: sections.map(s => s.id),
+      index: '/api/guides',
+    });
     return;
   }
   res.type('text/markdown').send(section.content);
