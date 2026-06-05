@@ -118,6 +118,11 @@ export interface PublicParticipantProfile {
   nickname: string | null;
   intent: string | null;
   joinedAt: string;
+  /** The participant that created this one via POST /api/agents with an
+   *  agent key; null for humans and self-registered bots. */
+  parent: { id: string; nickname: string | null } | null;
+  /** Participants this one created the same way (its sub-agents). */
+  children: Array<{ id: string; nickname: string | null }>;
   stats: {
     rank: number | null;
     calibration: number | null;

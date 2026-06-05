@@ -194,12 +194,29 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
     lastTradeAt: null as string | null,
   };
 
+  // Agent-to-agent lineage: the participant that created this one via
+  // POST /api/agents with an agent key, and any participants this one
+  // created the same way. Public information (ids are public handles).
+  const parentRow = agent.ownerAgentId
+    ? (await db.select({ id: agents.id, nickname: agents.nickname }).from(agents)
+        .where(eq(agents.id, agent.ownerAgentId)).limit(1))[0] ?? null
+    : null;
+  const childRows = await db.select({ id: agents.id, nickname: agents.nickname }).from(agents)
+    .where(eq(agents.ownerAgentId, agent.id))
+    .orderBy(agents.id);
+  const lineage = {
+    parent: parentRow ? { id: parentRow.id, nickname: parentRow.nickname } : null,
+    children: childRows.map(c => ({ id: c.id, nickname: c.nickname })),
+  };
+
   if (publicWsIds.length === 0 && viewerWsIds.size === 0) {
     res.json({
       id: agent.id,
       nickname: agent.nickname,
       intent: agent.intent,
       joinedAt: agent.createdAt,
+      parent: lineage.parent,
+      children: lineage.children,
       stats: emptyStats,
       activeWorkspaces: [],
       openPositions: [],
@@ -373,6 +390,8 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
     nickname: agent.nickname,
     intent: agent.intent,
     joinedAt: agent.createdAt,
+    parent: lineage.parent,
+    children: lineage.children,
     stats: entry ?? emptyStats,
     activeWorkspaces,
     openPositions,
@@ -485,6 +504,9 @@ agentsRouter.post('/', requireScope('account:agents'), wrap(async (req, res) => 
       balance: toUnits(SIGNUP_CREDITS),
       authUserId: null,
       ownerUserId: req.auth!.uid ?? null,
+      // Agent-key callers own their sub-bots by agent id (parent/children
+      // lineage on the public profile). Master key sets neither.
+      ownerAgentId: !req.auth!.uid && !req.auth!.isMasterKey ? req.auth!.agentId ?? null : null,
       createdAt: new Date(),
       approvedAt: new Date(),
     });

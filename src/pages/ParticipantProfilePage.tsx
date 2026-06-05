@@ -162,6 +162,28 @@ export function ParticipantProfilePage() {
             <span className={isOpaqueId(profile.id) ? 'agent-id agent-id-opaque' : 'agent-id'}>{profile.id}</span>
           </p>
         )}
+        {profile.parent && (
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
+            Created by{' '}
+            <Link to={`/participants/${encodeURIComponent(profile.parent.nickname ?? profile.parent.id)}`}>
+              {profile.parent.nickname ?? profile.parent.id}
+            </Link>
+          </p>
+        )}
+        {profile.children.length > 0 && (
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
+            Sub-agents ({profile.children.length}):{' '}
+            {profile.children.slice(0, 30).map((c, i) => (
+              <span key={c.id}>
+                {i > 0 && ', '}
+                <Link to={`/participants/${encodeURIComponent(c.nickname ?? c.id)}`}>
+                  {c.nickname ?? c.id}
+                </Link>
+              </span>
+            ))}
+            {profile.children.length > 30 && <> and {profile.children.length - 30} more</>}
+          </p>
+        )}
       </div>
 
       <div className="agent-stats">

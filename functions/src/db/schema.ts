@@ -115,6 +115,14 @@ export const agents = pgTable('agents', {
    *  participants once created; ownership is just an attribution / discovery
    *  link surfaced in /api/agents/mine. */
   ownerUserId: text('owner_user_id').references(() => authUser.id, { onDelete: 'set null' }),
+  /** Agent id of the participant that created this one via POST /api/agents
+   *  using an agent key (agent-spawned sub-bots, e.g. an evolver's
+   *  population). Means "this agent OWNS this bot". Nullable; complementary
+   *  with ownerUserId (browser callers set ownerUserId, agent-key callers
+   *  set ownerAgentId). Surfaced as parent/children on the public
+   *  participant profile. Declared without .references() to avoid a
+   *  self-referential type cycle; the FK lives in migration 0035. */
+  ownerAgentId: text('owner_agent_id'),
   /**
    * Optional case-insensitive unique handle. Either signup path (human auth,
    * API register) may claim one. Uniqueness is enforced by a partial unique
