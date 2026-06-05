@@ -11,7 +11,7 @@ import { getAllMetrics, getMetricLogs, getUpdates } from '../services/metrics';
 import { resolvePredictions, resolveSingleMarket, getMarkets, type MarketStatus } from '../services/predictions';
 import { refreshRelativeDateMarkets, voidMarket } from '../services/markets';
 import { createConditionalMarkets } from '../services/proposals';
-import { isValidDateFormat, endOfPeriod, resolutionInstant } from '../lib/date-utils';
+import { isValidDateFormat, periodEndInstant, resolutionInstant } from '../lib/date-utils';
 import { extractMetricReferences } from '../lib/metrics-engine';
 import { consensus, pHigher, directionTradeCost, sharesForBudget, betTowardsValue, directionSellProceeds, lmsrCost, initialPool, AMM_DEFAULTS } from '../lib/amm';
 import { emitEvent } from '../services/events';
@@ -579,10 +579,9 @@ predictionsRouter.post('/markets', requireCapability('manage'), wrap(async (req,
   const { workspaceId } = req.auth!;
   const { metricId, targetDate, rangeMin, rangeMax, liquidity, skipAutoLiquidity } = req.body;
   if (!metricId || typeof metricId !== 'string') { res.status(400).json({ error: 'metricId is required' }); return; }
-  if (!targetDate || !isValidDateFormat(targetDate)) { res.status(400).json({ error: 'targetDate must be YYYY, YYYY-MM, YYYY-Www, or YYYY-MM-DD' }); return; }
+  if (!targetDate || !isValidDateFormat(targetDate)) { res.status(400).json({ error: 'targetDate must be YYYY, YYYY-MM, YYYY-Www, YYYY-MM-DD, or YYYY-MM-DDTHH (UTC hour)' }); return; }
 
-  const today = new Date().toISOString().slice(0, 10);
-  if (endOfPeriod(targetDate) <= today) { res.status(400).json({ error: 'targetDate period must be in the future' }); return; }
+  if (periodEndInstant(targetDate) <= new Date()) { res.status(400).json({ error: 'targetDate period must not be over yet' }); return; }
 
   const allMetrics = await getAllMetrics(workspaceId);
   const metric = allMetrics.find(m => m.id === metricId);

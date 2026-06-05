@@ -13,6 +13,7 @@ import { eq, and } from 'drizzle-orm';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
 import { workspaces, metrics, markets } from '../db/schema';
 import { refreshRelativeDateMarkets } from '../services/markets';
+import { resolvePredictions } from '../services/predictions';
 import { desiredMarketDates } from '../lib/time-preference';
 import { toAbsoluteDate } from '../lib/date-utils';
 import type { TimePreference } from '../types';
@@ -114,6 +115,37 @@ describe('refreshRelativeDateMarkets with custom horizons', () => {
     expect(manual.resolved).toBe(false);
     expect(manual.voided).toBe(false);
     expect(manual.rangeMax).toBe(50); // not voided/recreated despite the mismatch
+  });
+
+  test('hour horizons: +1h creates an hour market; a passed hour market resolves', async () => {
+    await seedWorkspace();
+    await seedMetric('m-hour', 'Hourly Metric', { enabled: false, halfLife: 1, customHorizons: ['+1h'] });
+
+    await refreshRelativeDateMarkets(WS, { force: true });
+    const rows = await marketsFor('m-hour');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].targetDate).toBe(toAbsoluteDate('+1h'));
+    expect(rows[0].targetDate).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}$/);
+
+    // A market whose hour has fully passed resolves on the next (hourly) run.
+    const past = new Date();
+    past.setUTCHours(past.getUTCHours() - 2);
+    const pastHour = past.toISOString().slice(0, 13);
+    await db.insert(markets).values({
+      id: 'hour-past', workspaceId: WS, metricId: 'm-hour', metricName: 'Hourly Metric',
+      targetDate: pastHour, rangeMin: 0, rangeMax: 100,
+      shares: [0, 0], liquidity: 10, pool: 10,
+      active: true, resolved: false, voided: false,
+    });
+    await resolvePredictions(undefined, WS);
+
+    const [resolvedRow] = await db.select().from(markets)
+      .where(and(eq(markets.workspaceId, WS), eq(markets.id, 'hour-past')));
+    expect(resolvedRow.resolved).toBe(true);
+    // The +1h market's hour has not passed; it stays open.
+    const [openRow] = await db.select().from(markets)
+      .where(and(eq(markets.workspaceId, WS), eq(markets.id, rows[0].id)));
+    expect(openRow.resolved).toBe(false);
   });
 
   test('managed metric with stale rangeMax still gets voided and recreated', async () => {

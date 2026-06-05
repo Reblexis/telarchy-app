@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto';
 import type { Metric, MetricLog, TimePreference, UpdateEntry } from '../types';
 import { recalculateMetrics, calculateMetricDepths, evaluateFormulaAtTime } from '../lib/metrics-engine';
 import { sampleTimePoints, getLeafDescendantNames, desiredMarketDates, generatesMarkets } from '../lib/time-preference';
-import { endOfPeriod } from '../lib/date-utils';
+import { periodEndInstant } from '../lib/date-utils';
 import { consensus as ammConsensus, AMM_DEFAULTS } from '../lib/amm';
 import { toISOWeekString } from '../lib/date-utils';
 import { emitEvent } from './events';
@@ -108,7 +108,7 @@ export function enrichMetrics(rawMetrics: Metric[], consensusMap: Record<string,
           for (const p of series) {
             if (!seen.has(p.date)) existing.push(p);
           }
-          existing.sort((a, b) => endOfPeriod(a.date).localeCompare(endOfPeriod(b.date)));
+          existing.sort((a, b) => periodEndInstant(a.date).getTime() - periodEndInstant(b.date).getTime());
         }
       }
     }

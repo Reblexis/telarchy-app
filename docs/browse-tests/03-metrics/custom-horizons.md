@@ -76,7 +76,7 @@ jq -e '.[] | select(.metricId == "'$ID'") | .targetDate == "2099-12-31"' <<<"$mk
 ### T4. Validation: impossible dates and zero offsets rejected
 
 ```bash
-for bad in '2026-02-31' '2099-13' '2099-W60' '+0d' 'garbage'; do
+for bad in '2026-02-31' '2099-13' '2099-W60' '2099-01-01T24' '+0d' '+0h' 'garbage'; do
   status=$(curl -s -o /dev/null -w '%{http_code}' \
     -H "X-API-Key: $TT_ADMIN_KEY" -H "X-Workspace-Id: $WS" \
     -H 'Content-Type: application/json' \

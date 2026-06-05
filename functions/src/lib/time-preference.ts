@@ -19,7 +19,7 @@
  * that both cover the same day on the same metric.
  */
 
-import { toISOWeekString, isRelativeDate, toAbsoluteDate, endOfPeriod } from './date-utils';
+import { toISOWeekString, isRelativeDate, toAbsoluteDate, periodEndInstant } from './date-utils';
 import type { TimePreference } from '../types';
 
 export const WEIGHT_T0 = 1.0; // weight at t = 0 (current)
@@ -119,14 +119,13 @@ export function sampleTimePoints(halfLife: number, density?: number, base: Date 
  */
 export function resolveCustomHorizons(horizons: unknown, base: Date = new Date()): string[] {
   if (!Array.isArray(horizons)) return [];
-  const today = base.toISOString().slice(0, 10);
   const out = new Set<string>();
   for (const entry of horizons) {
     if (typeof entry !== 'string') continue;
     const raw = entry.trim();
     if (!raw) continue;
     const date = isRelativeDate(raw) ? toAbsoluteDate(raw, base) : raw;
-    if (endOfPeriod(date) <= today) continue; // expired or resolving today
+    if (periodEndInstant(date) <= base) continue; // period fully passed, nothing to trade
     out.add(date);
   }
   return Array.from(out);
@@ -143,7 +142,7 @@ export function desiredMarketDates(tp: TimePreference, base: Date = new Date()):
     tp.enabled ? sampleTimePoints(tp.halfLife, tp.density, base).map(p => p.date) : [],
   );
   for (const date of resolveCustomHorizons(tp.customHorizons, base)) dates.add(date);
-  return Array.from(dates).sort((a, b) => endOfPeriod(a).localeCompare(endOfPeriod(b)));
+  return Array.from(dates).sort((a, b) => periodEndInstant(a).getTime() - periodEndInstant(b).getTime());
 }
 
 /**

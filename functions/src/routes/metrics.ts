@@ -10,7 +10,7 @@ import {
   detectCircularDependency,
 } from '../lib/metrics-engine';
 import { getLeafDescendantNames, desiredMarketDates, generatesMarkets } from '../lib/time-preference';
-import { isValidCalendarDate, endOfPeriod } from '../lib/date-utils';
+import { isValidCalendarDate, periodEndInstant } from '../lib/date-utils';
 import * as svc from '../services/metrics';
 import { voidOpenMarketsForMetrics, recreateMarketsForMetric } from '../services/markets';
 import { emitEvent } from '../services/events';
@@ -355,7 +355,7 @@ metricsRouter.post('/migrate-leaf-types', requireCapability('manage'), wrap(asyn
 // --- Helpers ---
 
 const MAX_CUSTOM_HORIZONS = 24;
-const RELATIVE_HORIZON_RE = /^\+(\d+)(d|w|m|y)$/;
+const RELATIVE_HORIZON_RE = /^\+(\d+)(h|d|w|m|y)$/;
 
 /**
  * Parse the timePreference request field. `undefined` = field absent (no
@@ -384,7 +384,7 @@ export function parseTimePreference(raw: unknown): TimePreference | null | undef
     if (!Array.isArray(obj.customHorizons)) {
       return new Error('timePreference.customHorizons must be an array of date strings');
     }
-    const today = new Date().toISOString().slice(0, 10);
+    const now = new Date();
     const seen = new Set<string>();
     const cleaned: string[] = [];
     for (const rawEntry of obj.customHorizons) {
@@ -398,8 +398,8 @@ export function parseTimePreference(raw: unknown): TimePreference | null | undef
           return new Error(`invalid custom horizon "${entry}": offset must be at least 1`);
         }
       } else if (!isValidCalendarDate(entry)) {
-        return new Error(`invalid custom horizon "${entry}": use +Nd / +Nw / +Nm / +Ny or YYYY, YYYY-MM, YYYY-Www, YYYY-MM-DD`);
-      } else if (endOfPeriod(entry) <= today) {
+        return new Error(`invalid custom horizon "${entry}": use +Nh / +Nd / +Nw / +Nm / +Ny or YYYY, YYYY-MM, YYYY-Www, YYYY-MM-DD, YYYY-MM-DDTHH (UTC)`);
+      } else if (periodEndInstant(entry) <= now) {
         continue; // expired absolute date: prune, don't reject
       }
       if (seen.has(entry)) continue;

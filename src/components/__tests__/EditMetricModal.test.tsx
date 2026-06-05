@@ -23,17 +23,22 @@ describe('customHorizonError', () => {
   test('accepts relative offsets and future absolute dates', () => {
     expect(customHorizonError('+3m')).toBeNull();
     expect(customHorizonError('+1d')).toBeNull();
+    expect(customHorizonError('+12h')).toBeNull();
     expect(customHorizonError('2099-12')).toBeNull();
     expect(customHorizonError('2099-12-31')).toBeNull();
     expect(customHorizonError('2099-W40')).toBeNull();
     expect(customHorizonError('2099')).toBeNull();
+    expect(customHorizonError('2099-12-31T14')).toBeNull();
   });
   test('rejects bad formats, zero offsets, impossible and past dates', () => {
     expect(customHorizonError('garbage')).not.toBeNull();
     expect(customHorizonError('+0d')).not.toBeNull();
+    expect(customHorizonError('+0h')).not.toBeNull();
     expect(customHorizonError('2099-13')).not.toBeNull();
     expect(customHorizonError('2099-02-31')).not.toBeNull();
     expect(customHorizonError('2099-W60')).not.toBeNull();
+    expect(customHorizonError('2099-12-31T24')).not.toBeNull();
+    expect(customHorizonError('2020-01-01T08')).not.toBeNull();
     expect(customHorizonError('2020-01-01')).not.toBeNull();
     expect(customHorizonError('2020')).not.toBeNull();
   });
@@ -64,7 +69,7 @@ describe('EditMetricModal custom market dates', () => {
 
     const input = screen.getByPlaceholderText('+3m or 2026-09-15');
     await user.type(input, 'garbage{Enter}');
-    expect(screen.getByText(/Use \+3m/)).toBeTruthy();
+    expect(screen.getByText(/Use \+12h/)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Remove/ })).toBeNull();
   });
 

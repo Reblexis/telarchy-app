@@ -137,3 +137,26 @@ production always ends up on the latest commit, not a stale intermediate.
   bundle isn't what telarchy.com serves; the production frontend is
   served by the same Cloud Run container as the backend. The gh-pages
   build is for embeddable / docs use cases.
+
+## Cron schedule (Cloud Scheduler)
+
+Two Cloud Scheduler jobs (project `telarchy-e0043`, region `us-central1`,
+legacy `firebase-schedule-*` names) drive the market lifecycle:
+
+| Job | Schedule | Endpoint |
+|---|---|---|
+| `firebase-schedule-dailyResolve-us-central1` | `0 * * * *` (hourly) | `POST /api/cron/resolve` |
+| `firebase-schedule-dailyMarketRefresh-us-central1` | `10 * * * *` (hourly) | `POST /api/cron/refresh` |
+
+Both ran daily until 2026-06-05; they were switched to hourly when
+hour-granularity markets (`YYYY-MM-DDTHH` target dates, `+Nh` custom
+horizons) shipped, since those need hourly resolution and rolling. Both
+endpoints are idempotent and cheap when there is nothing to do, and the
+refresh holds a per-workspace cooldown lock. Rollback to daily:
+
+```bash
+gcloud scheduler jobs update http firebase-schedule-dailyResolve-us-central1 \
+  --location=us-central1 --project=telarchy-e0043 --schedule="0 0 * * *"
+gcloud scheduler jobs update http firebase-schedule-dailyMarketRefresh-us-central1 \
+  --location=us-central1 --project=telarchy-e0043 --schedule="10 0 * * *"
+```

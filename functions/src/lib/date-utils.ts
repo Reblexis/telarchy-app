@@ -1,16 +1,18 @@
 /**
  * Parse and convert date strings with granularity support.
- * Supports: YYYY, YYYY-MM, YYYY-Www, YYYY-MM-DD (absolute)
- * and +Nd, +Nw, +Nm, +Ny (relative)
+ * Supports: YYYY, YYYY-MM, YYYY-Www, YYYY-MM-DD, YYYY-MM-DDTHH (absolute)
+ * and +Nh, +Nd, +Nw, +Nm, +Ny (relative).
+ * Hour-granularity strings are always UTC.
  */
 
-export type DateGranularity = 'year' | 'month' | 'week' | 'day';
+export type DateGranularity = 'year' | 'month' | 'week' | 'day' | 'hour';
 
-const RELATIVE_DATE_RE = /^\+(\d+)(d|w|m|y)$/;
+const RELATIVE_DATE_RE = /^\+(\d+)(h|d|w|m|y)$/;
 const ABS_YEAR_RE = /^\d{4}$/;
 const ABS_MONTH_RE = /^\d{4}-\d{2}$/;
 const ABS_WEEK_RE = /^\d{4}-W\d{2}$/;
 const ABS_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const ABS_HOUR_RE = /^\d{4}-\d{2}-\d{2}T\d{2}$/;
 
 export function isRelativeDate(dateStr: string): boolean {
   return RELATIVE_DATE_RE.test(dateStr);
@@ -28,18 +30,21 @@ export function detectGranularity(dateStr: string): DateGranularity {
       if (u === 'm') return 'month';
       if (u === 'w') return 'week';
       if (u === 'd') return 'day';
+      if (u === 'h') return 'hour';
     }
   }
   if (ABS_YEAR_RE.test(dateStr)) return 'year';
   if (ABS_MONTH_RE.test(dateStr)) return 'month';
   if (ABS_WEEK_RE.test(dateStr)) return 'week';
   if (ABS_DAY_RE.test(dateStr)) return 'day';
+  if (ABS_HOUR_RE.test(dateStr)) return 'hour';
   return 'day';
 }
 
 /**
  * Convert relative date to granularity-appropriate absolute format.
- * +1y -> "2027", +3m -> "2026-05", +2w -> "2026-W09", +14d -> "2026-03-01"
+ * +1y -> "2027", +3m -> "2026-05", +2w -> "2026-W09", +14d -> "2026-03-01",
+ * +6h -> "2026-03-01T14" (UTC hour)
  */
 export function toAbsoluteDate(dateStr: string, baseDate: Date = new Date()): string {
   if (!isRelativeDate(dateStr)) return dateStr;
@@ -48,10 +53,13 @@ export function toAbsoluteDate(dateStr: string, baseDate: Date = new Date()): st
   if (!match) return dateStr;
 
   const amount = parseInt(match[1], 10);
-  const unit = match[2] as 'd' | 'w' | 'm' | 'y';
+  const unit = match[2] as 'h' | 'd' | 'w' | 'm' | 'y';
   const d = new Date(baseDate);
 
   switch (unit) {
+    case 'h':
+      d.setUTCHours(d.getUTCHours() + amount);
+      return d.toISOString().slice(0, 13);
     case 'd':
       d.setDate(d.getDate() + amount);
       return d.toISOString().slice(0, 10);
@@ -101,9 +109,14 @@ export function toISOWeekString(d: Date): string {
 /**
  * Return the last YYYY-MM-DD of the period.
  * "2026" -> "2026-12-31", "2026-05" -> "2026-05-31",
- * "2026-W07" -> Sunday of that ISO week, "2026-05-05" -> "2026-05-05"
+ * "2026-W07" -> Sunday of that ISO week, "2026-05-05" -> "2026-05-05",
+ * "2026-05-05T14" -> "2026-05-05" (an hour period ends within its own day).
+ * Date-only resolution; for exact comparisons use `periodEndInstant`.
  */
 export function endOfPeriod(targetDate: string): string {
+  if (ABS_HOUR_RE.test(targetDate)) {
+    return targetDate.slice(0, 10);
+  }
   if (ABS_YEAR_RE.test(targetDate)) {
     return `${targetDate}-12-31`;
   }
@@ -131,22 +144,39 @@ export function endOfPeriod(targetDate: string): string {
 }
 
 /**
- * The exact UTC instant a market settles, as an ISO timestamp.
+ * The exclusive end of a target-date period as an exact UTC instant: the first
+ * moment that is no longer inside the period. "2026-06" -> 2026-07-01T00:00Z,
+ * "2026-05-05" -> 2026-05-06T00:00Z, "2026-05-05T14" -> 2026-05-05T15:00Z.
  *
- * Resolution runs daily at 00:00 UTC (the `0 0 * * *` scheduler calling
- * POST /api/cron/resolve). A market is settled on the first run where
- * `endOfPeriod(targetDate) < today` — i.e. the 00:00 UTC run on the day AFTER
- * the period closes. So "2026-06" (period ends 2026-06-30) settles at
- * "2026-07-01T00:00:00Z"; "2026" at "2027-01-01T00:00:00Z".
- *
- * This is the agent-facing `resolvesOn` value: a single, unambiguous moment,
- * not the coarse `targetDate` period label. Keep `endOfPeriod` (date-only) for
- * the internal resolution-filter comparison, which must stay a YYYY-MM-DD string.
+ * This is the canonical comparison point for "has this period fully passed":
+ * a market is resolvable, and a custom horizon expired, once
+ * `periodEndInstant(targetDate) <= now`.
  */
-export function resolutionInstant(targetDate: string): string {
+export function periodEndInstant(targetDate: string): Date {
+  if (ABS_HOUR_RE.test(targetDate)) {
+    const d = new Date(`${targetDate}:00:00.000Z`);
+    d.setUTCHours(d.getUTCHours() + 1);
+    return d;
+  }
   const d = new Date(`${endOfPeriod(targetDate)}T00:00:00.000Z`);
   d.setUTCDate(d.getUTCDate() + 1);
-  return `${d.toISOString().slice(0, 19)}Z`;
+  return d;
+}
+
+/**
+ * The exact UTC instant a market settles, as an ISO timestamp.
+ *
+ * Resolution runs hourly at minute 0 (the `0 * * * *` scheduler calling
+ * POST /api/cron/resolve). A market is settled on the first run where its
+ * period has fully passed — i.e. the run at `periodEndInstant`. So "2026-06"
+ * (period ends 2026-06-30) settles at "2026-07-01T00:00:00Z"; "2026" at
+ * "2027-01-01T00:00:00Z"; "2026-05-05T14" at "2026-05-05T15:00:00Z".
+ *
+ * This is the agent-facing `resolvesOn` value: a single, unambiguous moment,
+ * not the coarse `targetDate` period label.
+ */
+export function resolutionInstant(targetDate: string): string {
+  return `${periodEndInstant(targetDate).toISOString().slice(0, 19)}Z`;
 }
 
 /**
@@ -156,7 +186,8 @@ export function isValidDateFormat(dateStr: string): boolean {
   return ABS_YEAR_RE.test(dateStr) ||
     ABS_MONTH_RE.test(dateStr) ||
     ABS_WEEK_RE.test(dateStr) ||
-    ABS_DAY_RE.test(dateStr);
+    ABS_DAY_RE.test(dateStr) ||
+    ABS_HOUR_RE.test(dateStr);
 }
 
 /** Number of ISO weeks in a year (52 or 53). Dec 28 is always in the last ISO week. */
@@ -188,6 +219,10 @@ export function isValidCalendarDate(dateStr: string): boolean {
     if (m < 1 || m > 12 || d < 1) return false;
     const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
     return d <= daysInMonth;
+  }
+  if (ABS_HOUR_RE.test(dateStr)) {
+    const hour = parseInt(dateStr.slice(11, 13), 10);
+    return hour <= 23 && isValidCalendarDate(dateStr.slice(0, 10));
   }
   return false;
 }

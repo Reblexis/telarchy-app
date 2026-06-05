@@ -6,7 +6,7 @@ import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireIdentity } from '../middleware/roles';
 import { consensus, pHigher } from '../lib/amm';
-import { endOfPeriod, resolutionInstant } from '../lib/date-utils';
+import { periodEndInstant, resolutionInstant } from '../lib/date-utils';
 import { ensureSystemGroups } from './groups';
 import { getGroupMemberIds, getOwnerHandles } from '../lib/participants';
 
@@ -56,7 +56,7 @@ marketplaceRouter.get('/', wrap(async (req, res) => {
   // round-robin across workspaces so one prolific workspace doesn't dominate
   // the public marketplace list. Anonymous visitors should see breadth.
   allMarkets.sort((a, b) => {
-    const dateDiff = endOfPeriod(a.targetDate as string).localeCompare(endOfPeriod(b.targetDate as string));
+    const dateDiff = periodEndInstant(a.targetDate as string).getTime() - periodEndInstant(b.targetDate as string).getTime();
     if (dateDiff !== 0) return dateDiff;
     return (b.liquidity as number) - (a.liquidity as number);
   });
@@ -144,7 +144,7 @@ marketplaceRouter.get('/featured', wrap(async (_req, res) => {
   });
 
   out.sort((a, b) => {
-    const dateDiff = endOfPeriod(a.targetDate).localeCompare(endOfPeriod(b.targetDate));
+    const dateDiff = periodEndInstant(a.targetDate).getTime() - periodEndInstant(b.targetDate).getTime();
     if (dateDiff !== 0) return dateDiff;
     return b.liquidity - a.liquidity;
   });
@@ -258,7 +258,7 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
   });
 
   marketList.sort((a, b) => {
-    const dateDiff = endOfPeriod(a.targetDate).localeCompare(endOfPeriod(b.targetDate));
+    const dateDiff = periodEndInstant(a.targetDate).getTime() - periodEndInstant(b.targetDate).getTime();
     if (dateDiff !== 0) return dateDiff;
     return b.liquidity - a.liquidity;
   });

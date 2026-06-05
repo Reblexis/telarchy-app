@@ -5,7 +5,7 @@ import { getAllMetrics, buildConsensusMap } from './metrics';
 import { voidMarket, distributeLPLeftover } from './markets';
 import { toUnits } from '../lib/validation';
 import type { Metric } from '../types';
-import { endOfPeriod, resolutionInstant } from '../lib/date-utils';
+import { periodEndInstant, resolutionInstant } from '../lib/date-utils';
 import { pHigher, consensus, resolutionPayouts } from '../lib/amm';
 import { emitEvent } from './events';
 
@@ -85,12 +85,16 @@ async function resolveMarketRow(
 }
 
 export async function resolvePredictions(targetDate: string | undefined, workspaceId: string): Promise<{ resolved: number; totalPayout: number }> {
-  const today = targetDate || new Date().toISOString().slice(0, 10);
+  // Optional `targetDate` override pins "now" to that day's midnight UTC
+  // (test/backfill use). A market is resolvable once its period has fully
+  // passed; instant-based so hour-granularity markets resolve on the next
+  // hourly cron run instead of waiting for midnight.
+  const now = targetDate ? new Date(`${targetDate}T00:00:00.000Z`) : new Date();
 
   const openMarkets = await db.select().from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
 
-  const marketsToResolve = openMarkets.filter(m => endOfPeriod(m.targetDate) < today);
+  const marketsToResolve = openMarkets.filter(m => periodEndInstant(m.targetDate) <= now);
   if (marketsToResolve.length === 0) return { resolved: 0, totalPayout: 0 };
 
   const allMetrics = await getAllMetrics(workspaceId);
@@ -204,7 +208,7 @@ export async function getMarkets(options: GetMarketsOptions | boolean = false, p
     rows = [...rows].sort((a, b) => (b.liquidity ?? 0) - (a.liquidity ?? 0));
   } else {
     rows = [...rows].sort((a, b) => {
-      const dateDiff = endOfPeriod(a.targetDate).localeCompare(endOfPeriod(b.targetDate));
+      const dateDiff = periodEndInstant(a.targetDate).getTime() - periodEndInstant(b.targetDate).getTime();
       if (dateDiff !== 0) return dateDiff;
       return a.targetDate.localeCompare(b.targetDate);
     });

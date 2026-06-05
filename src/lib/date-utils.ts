@@ -1,16 +1,18 @@
 /**
  * Parse and convert date strings with granularity support.
- * Supports: YYYY, YYYY-MM, YYYY-Www, YYYY-MM-DD (absolute)
- * and +Nd, +Nw, +Nm, +Ny (relative)
+ * Supports: YYYY, YYYY-MM, YYYY-Www, YYYY-MM-DD, YYYY-MM-DDTHH (absolute)
+ * and +Nh, +Nd, +Nw, +Nm, +Ny (relative).
+ * Hour-granularity strings are always UTC.
  */
 
-export type DateGranularity = 'year' | 'month' | 'week' | 'day';
+export type DateGranularity = 'year' | 'month' | 'week' | 'day' | 'hour';
 
-const RELATIVE_DATE_RE = /^\+(\d+)(d|w|m|y)$/;
+const RELATIVE_DATE_RE = /^\+(\d+)(h|d|w|m|y)$/;
 const ABS_YEAR_RE = /^\d{4}$/;
 const ABS_MONTH_RE = /^\d{4}-\d{2}$/;
 const ABS_WEEK_RE = /^\d{4}-W\d{2}$/;
 const ABS_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const ABS_HOUR_RE = /^\d{4}-\d{2}-\d{2}T\d{2}$/;
 
 export function isRelativeDate(dateStr: string): boolean {
   return RELATIVE_DATE_RE.test(dateStr);
@@ -28,12 +30,14 @@ export function detectGranularity(dateStr: string): DateGranularity {
       if (u === 'm') return 'month';
       if (u === 'w') return 'week';
       if (u === 'd') return 'day';
+      if (u === 'h') return 'hour';
     }
   }
   if (ABS_YEAR_RE.test(dateStr)) return 'year';
   if (ABS_MONTH_RE.test(dateStr)) return 'month';
   if (ABS_WEEK_RE.test(dateStr)) return 'week';
   if (ABS_DAY_RE.test(dateStr)) return 'day';
+  if (ABS_HOUR_RE.test(dateStr)) return 'hour';
   return 'day';
 }
 
@@ -48,10 +52,13 @@ export function toAbsoluteDate(dateStr: string, baseDate: Date = new Date()): st
   if (!match) return dateStr;
 
   const amount = parseInt(match[1], 10);
-  const unit = match[2] as 'd' | 'w' | 'm' | 'y';
+  const unit = match[2] as 'h' | 'd' | 'w' | 'm' | 'y';
   const d = new Date(baseDate);
 
   switch (unit) {
+    case 'h':
+      d.setUTCHours(d.getUTCHours() + amount);
+      return d.toISOString().slice(0, 13);
     case 'd':
       d.setDate(d.getDate() + amount);
       return d.toISOString().slice(0, 10);
@@ -104,6 +111,9 @@ export function toISOWeekString(d: Date): string {
  * "2026-W07" -> Sunday of that ISO week, "2026-05-05" -> "2026-05-05"
  */
 export function endOfPeriod(targetDate: string): string {
+  if (ABS_HOUR_RE.test(targetDate)) {
+    return targetDate.slice(0, 10);
+  }
   if (ABS_YEAR_RE.test(targetDate)) {
     return `${targetDate}-12-31`;
   }
@@ -139,6 +149,9 @@ export function formatTargetDateDisplay(dateStr: string): string {
 }
 
 function resolutionDateTime(targetDate: string): Date {
+  if (ABS_HOUR_RE.test(targetDate)) {
+    return new Date(`${targetDate}:59:59Z`);
+  }
   return new Date(`${endOfPeriod(targetDate)}T23:59:59Z`);
 }
 
@@ -164,7 +177,8 @@ export function isValidDateFormat(dateStr: string): boolean {
   return ABS_YEAR_RE.test(dateStr) ||
     ABS_MONTH_RE.test(dateStr) ||
     ABS_WEEK_RE.test(dateStr) ||
-    ABS_DAY_RE.test(dateStr);
+    ABS_DAY_RE.test(dateStr) ||
+    ABS_HOUR_RE.test(dateStr);
 }
 
 export function fmtTime(secs: number): string {

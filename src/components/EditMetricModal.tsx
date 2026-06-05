@@ -25,7 +25,7 @@ function formatHalfLife(years: number): string {
   return round(years);
 }
 
-const HORIZON_REL_RE = /^\+(\d+)(d|w|m|y)$/;
+const HORIZON_REL_RE = /^\+(\d+)(h|d|w|m|y)$/;
 export const MAX_CUSTOM_HORIZONS = 24;
 
 /**
@@ -58,7 +58,14 @@ export function customHorizonError(entry: string): string | null {
     if (m < 1 || m > 12 || d < 1 || d > new Date(y, m, 0).getDate()) return 'Invalid date';
     return entry > today ? null : 'Date must be in the future';
   }
-  return 'Use +3m, +2w, 2026-09, 2026-W40 or 2026-09-15';
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}$/.test(entry)) {
+    const [y, m, d] = entry.slice(0, 10).split('-').map(Number);
+    const h = parseInt(entry.slice(11, 13), 10);
+    if (m < 1 || m > 12 || d < 1 || d > new Date(y, m, 0).getDate() || h > 23) return 'Invalid date';
+    const nowHourUtc = new Date().toISOString().slice(0, 13);
+    return entry >= nowHourUtc ? null : 'Hour is in the past (hours are UTC)';
+  }
+  return 'Use +12h, +3m, +2w, 2026-09, 2026-W40, 2026-09-15 or 2026-09-15T14';
 }
 
 /** Best-effort resolved-date hint for a relative entry ("+3m -> Sep 2026"). */
@@ -68,6 +75,10 @@ function resolveHorizonHint(entry: string): string | null {
   const n = parseInt(rel[1], 10);
   const unit = rel[2];
   const d = new Date();
+  if (unit === 'h') {
+    d.setHours(d.getHours() + n);
+    return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric' });
+  }
   if (unit === 'd') d.setDate(d.getDate() + n);
   if (unit === 'w') d.setDate(d.getDate() + n * 7);
   if (unit === 'm') d.setMonth(d.getMonth() + n);

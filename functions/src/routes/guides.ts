@@ -362,8 +362,8 @@ The blend is a simple average across t=0 and the sampled future points (equal we
 
 Beyond the exponential curve, any metric can carry **custom market horizons**: an explicit list of extra dates to keep markets at. They work with the curve on or off (a metric can have purely manual horizons), and like the curve they propagate to leaf descendants. Two kinds of entry:
 
-- **Rolling offsets** — \`+Nd\`, \`+Nw\`, \`+Nm\`, \`+Ny\` (e.g. \`+3m\`). Re-resolved against "today" on every daily refresh, so there is always a market about that far out. The offset's unit sets the market granularity: \`+3m\` maintains a month-market, \`+2w\` a week-market.
-- **One-shot dates** — \`YYYY\`, \`YYYY-MM\`, \`YYYY-Www\`, or \`YYYY-MM-DD\` (e.g. \`2026-12-31\`). A single market that resolves at that date and is not recreated. Dates already in the past are pruned on save.
+- **Rolling offsets** — \`+Nh\`, \`+Nd\`, \`+Nw\`, \`+Nm\`, \`+Ny\` (e.g. \`+3m\`, \`+1h\`). Re-resolved against "now" on every hourly refresh, so there is always a market about that far out. The offset's unit sets the market granularity: \`+3m\` maintains a month-market, \`+2w\` a week-market, \`+6h\` an hour-market. Want a standing intraday ladder? \`["+1h", "+2h", ..., "+24h"]\` keeps a market at every hour of the next day.
+- **One-shot dates** — \`YYYY\`, \`YYYY-MM\`, \`YYYY-Www\`, \`YYYY-MM-DD\`, or \`YYYY-MM-DDTHH\` (e.g. \`2026-12-31\`, \`2026-12-31T14\` for 14:00-15:00 UTC). A single market that resolves at the end of that period and is not recreated. Fully-passed periods are pruned on save.
 
 Configure them in the metric's edit modal ("Custom market dates"), or via the API: \`timePreference.customHorizons\` is an array of such strings (at most 24), e.g.
 
@@ -450,7 +450,7 @@ At resolution, payouts are proportional to where the actual value falls in the r
 
 ## Market creation
 
-Markets are created automatically (when a time-preferenced ancestor is enabled, when custom market dates are added, or on the daily refresh cron at 00:10 UTC) for each leaf metric at the sampled time points plus any custom horizons. Manual one-off markets (\`POST /api/predictions/markets\`) on metrics without a time-preference config are left alone by the refresh. All sample points for a given (halfLife, density) share a single calendar granularity (day, week, month, or year) — picked as the coarsest one whose bucket width is at most the smallest gap between adjacent samples — so each (metric, date) market is unique and no two markets ever cover overlapping spans of the same metric.
+Markets are created automatically (when a time-preferenced ancestor is enabled, when custom market dates are added, or on the hourly refresh cron at minute 10) for each leaf metric at the sampled time points plus any custom horizons. Manual one-off markets (\`POST /api/predictions/markets\`) on metrics without a time-preference config are left alone by the refresh. All sample points for a given (halfLife, density) share a single calendar granularity (day, week, month, or year; custom horizons can additionally be hour-granular) — picked as the coarsest one whose bucket width is at most the smallest gap between adjacent samples — so each (metric, date) market is unique and no two markets ever cover overlapping spans of the same metric.
 
 New workspaces have **auto-funding enabled by default** (0.5 credits per market), so each new non-proposal market debits the workspace owner's balance automatically. The owner can adjust or disable this in workspace settings. Proposal-scoped conditional markets follow a separate per-proposal subsidy model — see *Credits & Liquidity* for details.
 
@@ -470,7 +470,7 @@ New workspaces have **auto-funding enabled by default** (0.5 credits per market)
 
 \`targetDate\` is an **input form** (granular: year, month, ISO week, or day) you pass when creating a market or trading by metric. It is NOT returned to agent-key callers — agent market responses carry only \`resolvesOn\`, the single field that matters for timing. (Browser/UI responses still include \`targetDate\` for display.)
 
-\`resolvesOn\` is the **exact UTC instant the market settles**, as a full ISO timestamp. Resolution runs daily at 00:00 UTC, settling each market on the first run after its period closes — so a market for \`2026-06\` resolves at \`2026-07-01T00:00:00Z\`, \`2026\` at \`2027-01-01T00:00:00Z\`, \`2026-W24\` at 00:00 UTC the Monday after that ISO week. **Estimate the metric value as it will read AT \`resolvesOn\`, not the vibe of the period** — a "week-over-week growth" market resolving \`2026-07-01\` reflects post-period conditions, not a mid-period peak. Trade an existing market by its \`marketId\` (always present); the \`metricName\`+\`targetDate\` trade form still works as an input but agents no longer discover \`targetDate\` from reads.
+\`resolvesOn\` is the **exact UTC instant the market settles**, as a full ISO timestamp. Resolution runs hourly at minute 0 (UTC), settling each market on the first run after its period closes — so a market for \`2026-06\` resolves at \`2026-07-01T00:00:00Z\`, \`2026\` at \`2027-01-01T00:00:00Z\`, \`2026-W24\` at 00:00 UTC the Monday after that ISO week, \`2026-06-05T14\` (an hour-granularity market) at \`2026-06-05T15:00:00Z\`. **Estimate the metric value as it will read AT \`resolvesOn\`, not the vibe of the period** — a "week-over-week growth" market resolving \`2026-07-01\` reflects post-period conditions, not a mid-period peak. Trade an existing market by its \`marketId\` (always present); the \`metricName\`+\`targetDate\` trade form still works as an input but agents no longer discover \`targetDate\` from reads.
 
 ## Lifecycle
 
@@ -483,7 +483,7 @@ Each market sits in one of four states (returned as \`status\` on every market r
 
 ## Resolution
 
-A market resolves when its target date period has ended, regardless of whether it is currently open or closed. The admin sets the actual metric value on the Metrics page, then triggers resolution (or the daily cron at 00:00 UTC handles it). Winning shares pay proportionally; losing shares pay the complementary proportion. A position that was opened on an open market and held through a "closed" period still pays at the actual value.
+A market resolves when its target date period has ended, regardless of whether it is currently open or closed. The admin sets the actual metric value on the Metrics page, then triggers resolution (or the hourly cron handles it). Winning shares pay proportionally; losing shares pay the complementary proportion. A position that was opened on an open market and held through a "closed" period still pays at the actual value.
 
 ## Setting market range max
 
@@ -518,7 +518,7 @@ New workspaces default to **auto-fund on**, with **0.5 credits per market**. Two
 - **\`autoFundNewMarkets\`** (boolean) - when true, every new non-proposal market is seeded from the workspace owner's balance.
 - **\`newMarketLiquidityCredits\`** (number) - credits to seed per market. Default: \`0.5\`. Minimum: \`0.1\` (pools below this make markets butterfly-sensitive to tiny trades).
 
-When the daily market-refresh cron (00:10 UTC) or a time-preference toggle spawns new markets, each one debits \`newMarketLiquidityCredits\` from the owner's balance and contributes it to the market's initial pool. If the owner can't cover the cost, the market is still created but with zero liquidity (trading paused) and the shortfall is logged.
+When the hourly market-refresh cron (minute 10) or a time-preference toggle spawns new markets, each one debits \`newMarketLiquidityCredits\` from the owner's balance and contributes it to the market's initial pool. If the owner can't cover the cost, the market is still created but with zero liquidity (trading paused) and the shortfall is logged.
 
 ## Proposal subsidy
 

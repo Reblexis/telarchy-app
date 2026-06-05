@@ -11,7 +11,7 @@ jest.mock('../db/client', () => ({ db: {} }));
 import {
   resolveCustomHorizons, desiredMarketDates, generatesMarkets, sampleTimePoints,
 } from '../lib/time-preference';
-import { isValidCalendarDate, toAbsoluteDate, endOfPeriod } from '../lib/date-utils';
+import { isValidCalendarDate, toAbsoluteDate, endOfPeriod, periodEndInstant, resolutionInstant } from '../lib/date-utils';
 import { parseTimePreference } from '../routes/metrics';
 import { enrichMetrics } from '../services/metrics';
 import type { Metric, TimePreference } from '../types';
@@ -44,6 +44,36 @@ describe('isValidCalendarDate', () => {
     expect(isValidCalendarDate('garbage')).toBe(false);
     expect(isValidCalendarDate('+3m')).toBe(false);
   });
+  test('hour format: valid hours on valid days only', () => {
+    expect(isValidCalendarDate('2026-09-15T14')).toBe(true);
+    expect(isValidCalendarDate('2026-09-15T00')).toBe(true);
+    expect(isValidCalendarDate('2026-09-15T23')).toBe(true);
+    expect(isValidCalendarDate('2026-09-15T24')).toBe(false);
+    expect(isValidCalendarDate('2026-02-31T10')).toBe(false);
+  });
+});
+
+describe('periodEndInstant / resolutionInstant', () => {
+  test('exclusive period ends for every granularity', () => {
+    expect(periodEndInstant('2026').toISOString()).toBe('2027-01-01T00:00:00.000Z');
+    expect(periodEndInstant('2026-06').toISOString()).toBe('2026-07-01T00:00:00.000Z');
+    expect(periodEndInstant('2026-05-05').toISOString()).toBe('2026-05-06T00:00:00.000Z');
+    expect(periodEndInstant('2026-05-05T14').toISOString()).toBe('2026-05-05T15:00:00.000Z');
+  });
+  test('week period ends Monday midnight after its Sunday', () => {
+    // 2026-W20: Mon 2026-05-11 .. Sun 2026-05-17
+    expect(endOfPeriod('2026-W20')).toBe('2026-05-17');
+    expect(periodEndInstant('2026-W20').toISOString()).toBe('2026-05-18T00:00:00.000Z');
+  });
+  test('resolutionInstant matches periodEndInstant for all formats', () => {
+    for (const d of ['2026', '2026-06', '2026-W20', '2026-05-05', '2026-05-05T14']) {
+      expect(resolutionInstant(d)).toBe(`${periodEndInstant(d).toISOString().slice(0, 19)}Z`);
+    }
+    expect(resolutionInstant('2026-05-05T14')).toBe('2026-05-05T15:00:00Z');
+  });
+  test('endOfPeriod of an hour string is its own day', () => {
+    expect(endOfPeriod('2026-05-05T14')).toBe('2026-05-05');
+  });
 });
 
 describe('resolveCustomHorizons', () => {
@@ -57,10 +87,17 @@ describe('resolveCustomHorizons', () => {
     expect(resolveCustomHorizons(['+1m'], BASE)).toEqual(['2026-06']);
     expect(resolveCustomHorizons(['+1m'], later)).toEqual(['2026-07']);
   });
-  test('expired and same-day absolute entries are dropped', () => {
+  test('fully-passed periods are dropped; still-open ones are kept', () => {
     expect(resolveCustomHorizons(['2020-01'], BASE)).toEqual([]);
-    expect(resolveCustomHorizons(['2026-05-13'], BASE)).toEqual([]); // resolves today
+    expect(resolveCustomHorizons(['2026-05-12'], BASE)).toEqual([]); // period ended at BASE midnight
+    // Same-day entry: period runs until the next midnight, so it is tradeable.
+    expect(resolveCustomHorizons(['2026-05-13'], BASE)).toEqual(['2026-05-13']);
     expect(resolveCustomHorizons(['2026-05-14'], BASE)).toEqual(['2026-05-14']);
+  });
+  test('hour entries: +Nh rolls in UTC hours, past hours are dropped', () => {
+    expect(resolveCustomHorizons(['+2h'], BASE)).toEqual(['2026-05-13T02']);
+    expect(resolveCustomHorizons(['2026-05-12T23'], BASE)).toEqual([]); // ended at BASE
+    expect(resolveCustomHorizons(['2026-05-13T00'], BASE)).toEqual(['2026-05-13T00']); // current hour, still open
   });
   test('dedupes entries that resolve to the same date', () => {
     expect(resolveCustomHorizons(['+1m', '2026-06'], BASE)).toEqual(['2026-06']);
@@ -134,8 +171,15 @@ describe('parseTimePreference (custom horizons)', () => {
     expect(parseTimePreference({ enabled: false, customHorizons: ['garbage'] })).toBeInstanceOf(Error);
     expect(parseTimePreference({ enabled: false, customHorizons: ['2026-02-31'] })).toBeInstanceOf(Error);
     expect(parseTimePreference({ enabled: false, customHorizons: ['+0d'] })).toBeInstanceOf(Error);
+    expect(parseTimePreference({ enabled: false, customHorizons: ['+0h'] })).toBeInstanceOf(Error);
+    expect(parseTimePreference({ enabled: false, customHorizons: ['2099-01-01T24'] })).toBeInstanceOf(Error);
     expect(parseTimePreference({ enabled: false, customHorizons: [42] })).toBeInstanceOf(Error);
     expect(parseTimePreference({ enabled: false, customHorizons: 'not-array' })).toBeInstanceOf(Error);
+  });
+  test('accepts hour offsets and hour absolutes; prunes past hours', () => {
+    const tp = parseTimePreference({ enabled: false, customHorizons: ['+1h', '+24h', '2099-01-01T08', '2020-01-01T08'] });
+    expect(tp).not.toBeInstanceOf(Error);
+    expect((tp as TimePreference).customHorizons).toEqual(['+1h', '+24h', '2099-01-01T08']);
   });
   test('caps the list at 24 entries', () => {
     const many = Array.from({ length: 25 }, (_, i) => `+${i + 1}d`);

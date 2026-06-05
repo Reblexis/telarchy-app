@@ -23,6 +23,11 @@ function startOfISOWeek(d: Date): Date {
 // click through to the market. Previously a "2026-07" market plotted on Jul 1
 // (period start), one period off from its Jul 31 resolution date.
 function parseTargetDateToMs(date: string): number {
+  // Hour-granularity market ("2026-06-05T14", UTC): plot at the end of its
+  // hour, matching the settle-at-period-end convention below.
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}$/.test(date)) {
+    return new Date(`${date}:00:00Z`).getTime() + 3_600_000;
+  }
   const endDay = endOfPeriod(date);
   if (/^\d{4}-\d{2}-\d{2}$/.test(endDay)) return new Date(`${endDay}T00:00:00`).getTime();
   // Fallback for inputs endOfPeriod did not normalize to YYYY-MM-DD (not a
