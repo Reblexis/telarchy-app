@@ -136,6 +136,27 @@ export function useMetrics(authenticated: boolean, inspectProposalId?: string | 
       .catch((err: Error) => { setMetrics(prev); throw err; });
   };
 
+  const reorderMetrics = async (orderedIdsAtDepth: string[]) => {
+    if (orderedIdsAtDepth.length === 0) return;
+    // 1-based to match the backend; downstream `order || 999` sort sites would
+    // otherwise treat the head metric (order=0) as the tail.
+    const orderById = new Map(orderedIdsAtDepth.map((id, i) => [id, i + 1]));
+    const prev = metrics;
+    const updated = metrics.map(m =>
+      orderById.has(m.id) ? { ...m, order: orderById.get(m.id)! } : { ...m }
+    );
+    updated.sort((a, b) => a.depth !== b.depth ? a.depth - b.depth : (a.order || 999) - (b.order || 999));
+    setMetrics(updated);
+    cacheSet('metrics', updated);
+    try {
+      await api.reorderMetrics(orderedIdsAtDepth);
+    } catch (err) {
+      setMetrics(prev);
+      cacheSet('metrics', prev);
+      throw err;
+    }
+  };
+
   const removeMetric = async (id: string) => {
     if (focusedMetricId === id) {
       setFocusedMetricId(null);
@@ -171,7 +192,7 @@ export function useMetrics(authenticated: boolean, inspectProposalId?: string | 
     metrics, updates, loading, error,
     formulaWarnings,
     focusedMetricId, toggleFocus,
-    addMetric, editMetric, removeMetric,
+    addMetric, editMetric, removeMetric, reorderMetrics,
     loadMetricLogs,
   };
 }

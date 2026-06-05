@@ -21,7 +21,7 @@ export function MetricsPage() {
     metrics, loading: metricsLoading, error,
     formulaWarnings,
     focusedMetricId, toggleFocus,
-    addMetric, editMetric, removeMetric,
+    addMetric, editMetric, removeMetric, reorderMetrics,
     loadMetricLogs,
   } = useMetrics(!!user, inspectProposal?.id, isAdmin);
 
@@ -133,6 +133,7 @@ export function MetricsPage() {
           onDelete={isAdmin ? handleDelete : undefined}
           onValueChange={isAdmin ? handleInlineValueChange : undefined}
           onAddMetric={isAdmin ? handleAddMetric : undefined}
+          onReorder={isAdmin ? reorderMetrics : undefined}
         />
       </div>
       <EditMetricModal
