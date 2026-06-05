@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/client';
 import { agents, markets, marketMessages, positions, trades, liquidityEvents, workspaces, proposals } from '../db/schema';
-import { eq, and, asc, desc, sql, inArray, isNull } from 'drizzle-orm';
+import { eq, and, asc, desc, sql, inArray, isNull, gt } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { AppError } from '../lib/errors';
@@ -373,27 +373,75 @@ predictionsRouter.get('/markets/:id/trades', requireCapability('read'), wrap(asy
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.id, marketId)));
   if (!market) { res.status(404).json({ error: 'Market not found' }); return; }
 
-  let rows = await db.select().from(trades)
+  const rows = await db.select().from(trades)
     .where(and(eq(trades.workspaceId, workspaceId), eq(trades.marketId, marketId)))
     .orderBy(asc(trades.createdAt));
 
+  // Reconstruct the consensus right after each trade. Naively summing trade
+  // shares is wrong: liquidity injections rescale the whole share vector (and
+  // the b parameter) between trades, so the running shares drift from the real
+  // market.shares and the series ends on a value that disagrees with the live
+  // consensus (e.g. trade log showed 768.93 while the header read 790). Replay
+  // trades AND liquidity injections in chronological order, applying each
+  // injection's share scaling, so the final point equals the current market
+  // consensus exactly. See liquidityStateAfterPoolContribution.
+  //
+  // Seed runningLiquidity with the market's current b. For markets that were
+  // never injected (the common case) current b == creation b, so every trade
+  // prices against the right liquidity and the value is non-null. For injected
+  // markets the seed is corrected to the real b at the first injection; that is
+  // exact because no trade precedes a market's first injection (creation leaves
+  // shares [0,0], so the pre-injection scaling is a no-op). 'initial' events are
+  // bookkeeping rows with totalLiquidity 0 and are ignored here.
+  const liqRows = await db.select().from(liquidityEvents)
+    .where(and(
+      eq(liquidityEvents.workspaceId, workspaceId),
+      eq(liquidityEvents.marketId, marketId),
+      gt(liquidityEvents.totalLiquidity, 0),
+    ))
+    .orderBy(asc(liquidityEvents.createdAt));
+
+  type Ev =
+    | { at: number; kind: 'trade'; trade: typeof rows[number] }
+    | { at: number; kind: 'liquidity'; totalLiquidity: number };
+  const events: Ev[] = [
+    ...rows.map(t => ({ at: t.createdAt.getTime(), kind: 'trade' as const, trade: t })),
+    ...liqRows.map(l => ({ at: l.createdAt.getTime(), kind: 'liquidity' as const, totalLiquidity: l.totalLiquidity })),
+  ];
+  // Stable sort by time; at equal timestamps apply the liquidity change before
+  // the trade (liquidity is the market's standing state a trade executes against).
+  events.sort((a, b) => a.at - b.at || (a.kind === b.kind ? 0 : a.kind === 'liquidity' ? -1 : 1));
+
   let runningShares: [number, number] = [0, 0];
-  const tradePoints = rows.map(t => {
+  let runningLiquidity = market.liquidity;
+  const tradePoints: Array<{
+    agentId: string; direction: string; shares: number; cost: number;
+    consensus: number | null; createdAt: Date;
+  }> = [];
+  for (const ev of events) {
+    if (ev.kind === 'liquidity') {
+      if (runningLiquidity > 0 && ev.totalLiquidity > 0) {
+        const ratio = ev.totalLiquidity / runningLiquidity;
+        runningShares = [runningShares[0] * ratio, runningShares[1] * ratio];
+      }
+      runningLiquidity = ev.totalLiquidity;
+      continue;
+    }
+    const t = ev.trade;
     const directionIndex = t.direction === 'higher' ? 1 : 0;
     runningShares = [...runningShares] as [number, number];
     runningShares[directionIndex] += t.shares;
-    return {
+    tradePoints.push({
       agentId: t.agentId,
       direction: t.direction,
       shares: Math.abs(t.shares),
       cost: t.cost,
-      consensus: consensus(runningShares, market.liquidity, market.rangeMin, market.rangeMax) ?? null,
+      consensus: consensus(runningShares, runningLiquidity, market.rangeMin, market.rangeMax) ?? null,
       createdAt: t.createdAt,
-    };
-  });
+    });
+  }
 
   if (last !== undefined) {
-    rows = rows.slice(-last);
     res.json(tradePoints.slice(-last));
     return;
   }
