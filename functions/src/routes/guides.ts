@@ -298,7 +298,7 @@ A metric that only reflects its current value tells you where things stand *righ
 
 Any metric (leaf or computed) can have time preference enabled. When enabled, the system:
 
-1. Samples 10 time points from an exponential curve defined by the half-life
+1. Samples time points from an exponential curve defined by the half-life (count set by *market density*, default 3, configurable 1-50)
 2. Creates prediction markets for the metric's leaf descendants (or itself, if it's a leaf) at those dates
 3. Blends the consensus values at those future dates with the current value (t=0) into a single present-equivalent score
 
@@ -398,7 +398,7 @@ Avoid collapsing these two levels into one. A single TP node with a complex form
 1. Create the metric (leaf or computed).
 2. Open **Edit** on that metric.
 3. Toggle *Time Preference* on and set the half-life in years.
-4. Save. Markets are automatically created at the 10 sampled dates (for the metric itself if it's a leaf, or for all its leaf descendants if it has a formula).
+4. Save. Markets are automatically created at the sampled dates plus any custom market dates (for the metric itself if it's a leaf, or for all its leaf descendants if it has a formula).
 
 ## Example
 
@@ -450,7 +450,7 @@ At resolution, payouts are proportional to where the actual value falls in the r
 
 ## Market creation
 
-Markets are created automatically (when a time-preferenced ancestor is enabled, or on the daily refresh cron at 00:10 UTC) for each leaf metric at the sampled time points. All sample points for a given (halfLife, density) share a single calendar granularity (day, week, month, or year) — picked as the coarsest one whose bucket width is at most the smallest gap between adjacent samples — so each (metric, date) market is unique and no two markets ever cover overlapping spans of the same metric.
+Markets are created automatically (when a time-preferenced ancestor is enabled, when custom market dates are added, or on the daily refresh cron at 00:10 UTC) for each leaf metric at the sampled time points plus any custom horizons. Manual one-off markets (\`POST /api/predictions/markets\`) on metrics without a time-preference config are left alone by the refresh. All sample points for a given (halfLife, density) share a single calendar granularity (day, week, month, or year) — picked as the coarsest one whose bucket width is at most the smallest gap between adjacent samples — so each (metric, date) market is unique and no two markets ever cover overlapping spans of the same metric.
 
 New workspaces have **auto-funding enabled by default** (0.5 credits per market), so each new non-proposal market debits the workspace owner's balance automatically. The owner can adjust or disable this in workspace settings. Proposal-scoped conditional markets follow a separate per-proposal subsidy model — see *Credits & Liquidity* for details.
 
@@ -477,7 +477,7 @@ New workspaces have **auto-funding enabled by default** (0.5 credits per market)
 Each market sits in one of four states (returned as \`status\` on every market row):
 
 - **open** — active and tradable. Buys and sells, both directions, subject to liquidity.
-- **closed** — deactivated, not yet resolved. A time-preference refresh re-samples 10 future dates each time the metric is touched; markets at dropped dates flip from open to closed instead of being voided. Existing positions are kept, and at the target date the market still resolves on the actual metric value. The market accepts **sell-only** trades while closed so participants can exit; new buys are rejected.
+- **closed** — deactivated, not yet resolved. The daily refresh reconciles each managed metric's desired dates (curve samples plus custom horizons); markets at dropped dates — a rolled-past curve sample, or a removed custom horizon — flip from open to closed instead of being voided. Existing positions are kept, and at the target date the market still resolves on the actual metric value. The market accepts **sell-only** trades while closed so participants can exit; new buys are rejected.
 - **resolved** — the target period has ended and payouts have been credited. No trades.
 - **voided** — admin cancelled the market. All positions were refunded at cost and the market is preserved for history. No trades.
 
