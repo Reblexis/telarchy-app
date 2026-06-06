@@ -152,7 +152,17 @@ Both ran daily until 2026-06-05; they were switched to hourly when
 hour-granularity markets (`YYYY-MM-DDTHH` target dates, `+Nh` custom
 horizons) shipped, since those need hourly resolution and rolling. Both
 endpoints are idempotent and cheap when there is nothing to do, and the
-refresh holds a per-workspace cooldown lock. Rollback to daily:
+refresh holds a per-workspace cooldown lock.
+
+Cloud Scheduler invocation time drifts (observed +12s to +80min past the
+hour). Since 2026-06-06 this only delays payout, never changes the settled
+value: resolution settles each market on the metric's value **as of
+`resolvesOn`** (last `metric_logs` row at-or-before the period-end
+boundary), not the live value at cron time. Before that fix, 6 of the
+first 15 hour markets resolved against the wrong hour's reading because
+the cron raced the metric push at the boundary.
+
+Rollback to daily:
 
 ```bash
 gcloud scheduler jobs update http firebase-schedule-dailyResolve-us-central1 \

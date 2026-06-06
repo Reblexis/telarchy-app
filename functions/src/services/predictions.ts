@@ -1,7 +1,7 @@
 import { db } from '../db/client';
 import { agents, markets, positions, proposals, trades } from '../db/schema';
 import { eq, and, inArray, sql, count } from 'drizzle-orm';
-import { getAllMetrics, buildConsensusMap } from './metrics';
+import { getAllMetrics, buildConsensusMap, metricValueAsOf } from './metrics';
 import { voidMarket, distributeLPLeftover } from './markets';
 import { toUnits } from '../lib/validation';
 import type { Metric } from '../types';
@@ -33,9 +33,24 @@ async function resolveMarketRow(
     console.error(`Market ${market.id} (${market.metricName}): metric ${market.metricId} not found, skipping`);
     return { positions: 0, totalPayout: 0, skipped: true };
   }
-  const rawValue = metric.total;
+  // Settle on the metric value as of resolvesOn (the period-end boundary),
+  // not the live value at whatever moment the resolve cron happens to fire.
+  // The cron drifts (observed +12s to +80min), and value-at-cron-time made
+  // hour markets resolve against the previous or next hour's reading
+  // depending on that race. The fixing is deterministic: updates landing
+  // after the boundary count toward the next fixing, never this one.
+  const boundary = periodEndInstant(market.targetDate);
+  let rawValue = await metricValueAsOf(market.metricId, boundary, workspaceId);
+  if (rawValue === null) {
+    // No logged value at-or-before the boundary (metric predates value
+    // logging or was created after the boundary). Fall back to the live
+    // value, but make the gap visible: this is the only path where cron
+    // timing can still affect the settled value.
+    console.error(`Market ${market.id} (${market.metricName}): no metric log at-or-before ${boundary.toISOString()}, falling back to live value ${metric.total}`);
+    rawValue = metric.total;
+  }
   if (rawValue === null || rawValue < 0) {
-    console.error(`Market ${market.id} (${market.metricName}): metric total is ${rawValue}, skipping`);
+    console.error(`Market ${market.id} (${market.metricName}): metric value is ${rawValue}, skipping`);
     return { positions: 0, totalPayout: 0, skipped: true };
   }
 

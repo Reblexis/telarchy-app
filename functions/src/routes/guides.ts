@@ -472,6 +472,8 @@ New workspaces have **auto-funding enabled by default** (0.5 credits per market)
 
 \`resolvesOn\` is the **exact UTC instant the market settles**, as a full ISO timestamp. Resolution runs hourly at minute 0 (UTC), settling each market on the first run after its period closes — so a market for \`2026-06\` resolves at \`2026-07-01T00:00:00Z\`, \`2026\` at \`2027-01-01T00:00:00Z\`, \`2026-W24\` at 00:00 UTC the Monday after that ISO week, \`2026-06-05T14\` (an hour-granularity market) at \`2026-06-05T15:00:00Z\`. **Estimate the metric value as it will read AT \`resolvesOn\`, not the vibe of the period** — a "week-over-week growth" market resolving \`2026-07-01\` reflects post-period conditions, not a mid-period peak. Trade an existing market by its \`marketId\` (always present); the \`metricName\`+\`targetDate\` trade form still works as an input but agents no longer discover \`targetDate\` from reads.
 
+**The settled value is the fixing at \`resolvesOn\`**: the metric's last logged value at-or-before that instant, regardless of when the resolve cron actually runs. The cron's run time only affects payout latency, never the settled value. An update that lands after the boundary — even by one second — counts toward the NEXT fixing, not this one. For push-style metrics that report a period's reading just after the period ends (e.g. an hourly trailing counter pushed at :00:02), this means the fixing for hour H carries the reading pushed during hour H, i.e. the previous period's data; price that lag in, or push the reading just before the boundary.
+
 ## Lifecycle
 
 Each market sits in one of four states (returned as \`status\` on every market row):
@@ -483,7 +485,7 @@ Each market sits in one of four states (returned as \`status\` on every market r
 
 ## Resolution
 
-A market resolves when its target date period has ended, regardless of whether it is currently open or closed. The admin sets the actual metric value on the Metrics page, then triggers resolution (or the hourly cron handles it). Winning shares pay proportionally; losing shares pay the complementary proportion. A position that was opened on an open market and held through a "closed" period still pays at the actual value.
+A market resolves when its target date period has ended, regardless of whether it is currently open or closed. The settled \`actualValue\` is the metric's value **as of \`resolvesOn\`** (its last logged update at-or-before that boundary) — deterministic with respect to when the resolve cron or a manual trigger actually fires. Keep the metric's value updated before the boundary; updates that arrive after it settle the next period's markets instead. Winning shares pay proportionally; losing shares pay the complementary proportion. A position that was opened on an open market and held through a "closed" period still pays at the actual value.
 
 ## Setting market range max
 

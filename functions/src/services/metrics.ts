@@ -1,6 +1,6 @@
 import { db } from '../db/client';
 import { metrics, markets, metricLogs, updates } from '../db/schema';
-import { eq, and, asc, desc } from 'drizzle-orm';
+import { eq, and, asc, desc, lte } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import type { Metric, MetricLog, TimePreference, UpdateEntry } from '../types';
 import { recalculateMetrics, calculateMetricDepths, evaluateFormulaAtTime } from '../lib/metrics-engine';
@@ -283,6 +283,32 @@ export async function respawnMarketsForTimePreference(
 
 export async function deleteMetric(id: string, workspaceId: string): Promise<void> {
   await db.delete(metrics).where(and(eq(metrics.id, id), eq(metrics.workspaceId, workspaceId)));
+}
+
+/**
+ * The metric's value as of a given instant: the last logged update at-or-before
+ * `instant` (outlook when present, i.e. the historical m.total; raw value for
+ * pre-0018 rows). This is the settlement fixing for market resolution: a
+ * market's actualValue is the metric reading at exactly resolvesOn, so the
+ * resolve cron picks the same value whether it runs 12 seconds or 80 minutes
+ * after the boundary. Updates that land after the boundary count toward the
+ * NEXT fixing, never retroactively.
+ *
+ * Returns null when no log exists at-or-before the instant (metric predates
+ * value logging, or was created after the boundary); callers fall back to the
+ * live value and log the gap.
+ */
+export async function metricValueAsOf(metricId: string, instant: Date, workspaceId: string): Promise<number | null> {
+  const [row] = await db.select().from(metricLogs)
+    .where(and(
+      eq(metricLogs.workspaceId, workspaceId),
+      eq(metricLogs.metricId, metricId),
+      lte(metricLogs.timestamp, instant),
+    ))
+    .orderBy(desc(metricLogs.timestamp))
+    .limit(1);
+  if (!row) return null;
+  return row.outlook ?? row.value;
 }
 
 export async function getMetricLogs(metricId: string, workspaceId: string): Promise<MetricLog[]> {
