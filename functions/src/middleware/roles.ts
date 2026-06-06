@@ -72,6 +72,17 @@ export async function requireSelfOrAdmin(req: Request, res: Response, next: Next
   if (!req.auth) return res.status(401).json({ error: 'Unauthorized' });
   if (req.params.id === 'me' && req.auth.agentId) return next();
   if (req.auth.agentId && req.auth.agentId === req.params.id) return next();
+  // Parent-agent management: an agent that created a sub-bot via
+  // POST /api/agents (agents.ownerAgentId) may manage that bot's
+  // account-level resources (keys, spend) the same way a human owner can.
+  if (req.auth.agentId && req.params.id && req.params.id !== 'me') {
+    const { db } = await import('../db/client');
+    const { agents } = await import('../db/schema');
+    const { eq } = await import('drizzle-orm');
+    const [target] = await db.select({ ownerAgentId: agents.ownerAgentId })
+      .from(agents).where(eq(agents.id, req.params.id as string));
+    if (target?.ownerAgentId === req.auth.agentId) return next();
+  }
   if (req.auth.capabilities.has('manage')) {
     const { listParticipantsForWorkspace } = await import('../lib/participants');
     const members = await listParticipantsForWorkspace(req.auth.workspaceId);
