@@ -305,8 +305,20 @@ export const proposals = pgTable('proposals', {
   /** 'pending' | 'approved' | 'declined' | 'declined_spam' | 'withdrawn' */
   status: text('status').notNull().default('pending'),
   conditionalMarketIds: jsonb('conditional_market_ids').notNull().$type<string[]>().default([]),
-  /** Per-market credit subsidy seeded into each conditional market's pool at creation. */
+  /**
+   * Per-branch-market credit subsidy seeded into each conditional market's
+   * pool. Running total of all contributions (proposer at creation plus any
+   * post-hoc admin top-ups); always equals the sum of subsidyContributions.
+   */
   liquiditySubsidy: doublePrecision('liquidity_subsidy').notNull().default(0),
+  /**
+   * Who funds the subsidy: agentId -> credits per branch market. Re-spawned
+   * conditional markets (target-date rollovers) are re-seeded from this map,
+   * debiting each contributor, so top-ups persist instead of evaporating
+   * with the voided market generation. Refunds on void flow back through
+   * per-contributor liquidityEvents rows.
+   */
+  subsidyContributions: jsonb('subsidy_contributions').notNull().$type<Record<string, number>>().default({}),
   /** Reward credits actually paid out on approval. 0 if not approved or workspace had no reward configured. */
   rewardPaid: doublePrecision('reward_paid').notNull().default(0),
   /** Penalty credits actually charged on spam-decline. 0 if not declined as spam. */

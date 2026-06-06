@@ -130,10 +130,7 @@ workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
         liquiditySubsidy: 0,
         createdAt: new Date(),
       });
-      const conditionalMarketIds = await createConditionalMarkets(propId, wsId, {
-        subsidyPerMarket: 0,
-        proposerAgentId: null,
-      });
+      const conditionalMarketIds = await createConditionalMarkets(propId, wsId, {});
       if (conditionalMarketIds.length > 0) {
         await db.update(proposals).set({ conditionalMarketIds })
           .where(and(eq(proposals.id, propId), eq(proposals.workspaceId, wsId)));

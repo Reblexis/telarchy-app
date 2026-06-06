@@ -46,32 +46,54 @@ async function getBaselineConsensusMap(marketRows: MarketRow[], workspaceId: str
 
 export interface CreateConditionalMarketsOptions {
   /**
-   * Per-branch-market credit subsidy. Each proposal spawns two markets per
-   * (metric, targetDate) tuple (approved + declined), so total upfront cost
-   * is subsidyPerMarket * 2 * sourceMarkets.length. 0 means no subsidy.
+   * Per-branch-market credit subsidy by contributor: agentId -> credits per
+   * spawned market. Each proposal spawns two markets per (metric, targetDate)
+   * tuple (approved + declined), so each contributor's upfront cost is
+   * contribution * spawnedMarketCount. Empty/absent means no subsidy.
+   * Source of truth is proposals.subsidyContributions, so rollover re-spawns
+   * re-seed the same per-market amounts (top-ups persist).
    */
-  subsidyPerMarket?: number;
-  /** LP attribution for the subsidy. Required when subsidyPerMarket > 0. */
-  proposerAgentId?: string | null;
+  contributions?: Record<string, number>;
+  /**
+   * When true (creation path), an underfunded contributor aborts with an
+   * AppError so the request fails loudly. When false (rollover re-spawn,
+   * background-ish), underfunded contributors are skipped with a
+   * console.error and the markets spawn with the remaining subsidy.
+   */
+  strict?: boolean;
 }
 
 export const CONDITIONAL_BRANCHES = ['approved', 'declined'] as const;
 export type ConditionalBranch = typeof CONDITIONAL_BRANCHES[number];
+
+/**
+ * Contributions map for a proposal row, falling back to attributing the
+ * legacy liquiditySubsidy to the proposer for rows that predate the
+ * subsidy_contributions column (migration 0037 backfills, this guards the
+ * window where code runs ahead of the migration).
+ */
+export function subsidyContributionsOf(
+  proposal: { subsidyContributions?: Record<string, number> | null; liquiditySubsidy?: number | null; proposedBy: string },
+): Record<string, number> {
+  const map = proposal.subsidyContributions ?? {};
+  if (Object.keys(map).length > 0) return map;
+  const legacy = proposal.liquiditySubsidy ?? 0;
+  return legacy > 0 ? { [proposal.proposedBy]: legacy } : {};
+}
 
 export async function createConditionalMarkets(
   proposalId: string,
   workspaceId: string,
   options: CreateConditionalMarketsOptions = {},
 ): Promise<string[]> {
-  const subsidy = options.subsidyPerMarket ?? 0;
+  const contributions = Object.entries(options.contributions ?? {})
+    .filter(([, perMarket]) => typeof perMarket === 'number' && perMarket > 0);
+  const subsidy = contributions.reduce((sum, [, perMarket]) => sum + perMarket, 0);
   if (subsidy > 0 && subsidy < MIN_LIQUIDITY_CONTRIBUTION) {
     throw new AppError(
       `Liquidity subsidy must be at least ${MIN_LIQUIDITY_CONTRIBUTION} credits per market (LMSR b below this is butterfly-sensitive)`,
       400,
     );
-  }
-  if (subsidy > 0 && !options.proposerAgentId) {
-    throw new AppError('proposerAgentId is required when subsidyPerMarket > 0', 400);
   }
   const lockKey = `lock:proposalMarket:${proposalId}`;
 
@@ -132,8 +154,9 @@ export async function createConditionalMarkets(
     // proposals that had only the approved branch before the dual-branch
     // migration (the missing declined-branch markets are added on the next
     // refresh without nuking the already-traded approved-branch markets).
+    // liquidity/pool are filled in inside the funding transaction below,
+    // once we know which contributors can actually cover this generation.
     const toSpawn: typeof markets.$inferInsert[] = [];
-    const conditionalLiquidity = subsidy > 0 ? subsidy / Math.LN2 : 0;
     for (const src of sourceMarkets) {
       for (const branch of CONDITIONAL_BRANCHES) {
         const key = keyOf(src.metricId, src.targetDate, branch);
@@ -146,8 +169,8 @@ export async function createConditionalMarkets(
           branch,
           rangeMin: src.rangeMin, rangeMax: src.rangeMax,
           shares: [0, 0] as [number, number],
-          liquidity: conditionalLiquidity,
-          pool: subsidy > 0 ? subsidy : 0,
+          liquidity: 0,
+          pool: 0,
           createdAt: new Date(),
         });
       }
@@ -172,45 +195,65 @@ export async function createConditionalMarkets(
     }
 
     const newMarkets = toSpawn;
-    const totalCost = subsidy > 0 ? Math.round(subsidy * newMarkets.length * 1e6) / 1e6 : 0;
 
-    if (newMarkets.length > 0) {
-      await db.transaction(async tx => {
-        if (totalCost > 0) {
-          const proposerId = options.proposerAgentId as string;
-          const [agentRow] = await tx.select().from(agents).where(eq(agents.id, proposerId)).for('update');
-          if (!agentRow) throw new AppError('Proposer agent not found', 404);
-          if (!sufficientBalance(agentRow.balance as number, totalCost)) {
+    await db.transaction(async tx => {
+      // Which contributors can fund this generation? Lock each contributor
+      // row, then either abort (strict, creation path) or skip with a log
+      // (rollover re-spawn) when one cannot cover its share.
+      const funded: Array<[string, number]> = [];
+      for (const [contributorId, perMarket] of contributions) {
+        const cost = Math.round(perMarket * newMarkets.length * 1e6) / 1e6;
+        const [agentRow] = await tx.select().from(agents).where(eq(agents.id, contributorId)).for('update');
+        if (!agentRow) {
+          if (options.strict) throw new AppError('Subsidy contributor agent not found', 404);
+          console.error(`createConditionalMarkets: subsidy contributor ${contributorId} not found; spawning proposal ${proposalId} markets without their share`);
+          continue;
+        }
+        if (!sufficientBalance(agentRow.balance as number, cost)) {
+          if (options.strict) {
             throw new AppError(
-              `Insufficient balance for forecast subsidy: need ${totalCost}, have ${fromUnits(agentRow.balance as number)}`,
+              `Insufficient balance for forecast subsidy: need ${cost}, have ${fromUnits(agentRow.balance as number)}`,
               400,
             );
           }
-          await tx.update(agents).set({
-            balance: sql`${agents.balance} - ${toUnits(totalCost)}`,
-            spentBetting: sql`${agents.spentBetting} + ${totalCost}`,
-          }).where(eq(agents.id, proposerId));
+          console.error(`createConditionalMarkets: subsidy contributor ${contributorId} has ${fromUnits(agentRow.balance as number)} < ${cost} needed; spawning proposal ${proposalId} markets without their share`);
+          continue;
         }
+        funded.push([contributorId, perMarket]);
+      }
 
-        await tx.insert(markets).values(newMarkets);
+      const effectiveSubsidy = funded.reduce((sum, [, perMarket]) => sum + perMarket, 0);
+      const conditionalLiquidity = effectiveSubsidy > 0 ? effectiveSubsidy / Math.LN2 : 0;
+      for (const m of newMarkets) {
+        m.liquidity = conditionalLiquidity;
+        m.pool = effectiveSubsidy;
+      }
 
-        if (totalCost > 0) {
-          const proposerId = options.proposerAgentId as string;
-          const liqRows = newMarkets.map(m => ({
-            id: randomUUID(),
-            workspaceId,
-            marketId: m.id as string,
-            agentId: proposerId,
-            amount: subsidy,
-            poolContribution: subsidy,
-            totalLiquidity: conditionalLiquidity,
-            type: 'proposal-subsidy',
-            createdAt: new Date(),
-          }));
-          await tx.insert(liquidityEvents).values(liqRows);
-        }
-      });
-    }
+      for (const [contributorId, perMarket] of funded) {
+        const cost = Math.round(perMarket * newMarkets.length * 1e6) / 1e6;
+        await tx.update(agents).set({
+          balance: sql`${agents.balance} - ${toUnits(cost)}`,
+          spentBetting: sql`${agents.spentBetting} + ${cost}`,
+        }).where(eq(agents.id, contributorId));
+      }
+
+      await tx.insert(markets).values(newMarkets);
+
+      if (funded.length > 0) {
+        const liqRows = newMarkets.flatMap(m => funded.map(([contributorId, perMarket]) => ({
+          id: randomUUID(),
+          workspaceId,
+          marketId: m.id as string,
+          agentId: contributorId,
+          amount: perMarket,
+          poolContribution: perMarket,
+          totalLiquidity: conditionalLiquidity,
+          type: 'proposal-subsidy',
+          createdAt: new Date(),
+        })));
+        await tx.insert(liquidityEvents).values(liqRows);
+      }
+    });
     // Return every market that belongs to the proposal's current desired set:
     // the newly spawned ones plus the existing ones we kept.
     const keptIds = existingConditional

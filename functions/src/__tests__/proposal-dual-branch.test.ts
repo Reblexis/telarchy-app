@@ -240,8 +240,8 @@ describe('paired summary shape', () => {
     // Subsidy gives both branches positive LMSR liquidity, so consensus()
     // resolves to the midpoint (50/50 prior) instead of returning undefined.
     await createConditionalMarkets('p1', WS, {
-      subsidyPerMarket: 1,
-      proposerAgentId: PROPOSER,
+      contributions: { [PROPOSER]: 1 },
+      strict: true,
     });
 
     const summary = await getProposalMarketSummariesForProposal('p1', WS);

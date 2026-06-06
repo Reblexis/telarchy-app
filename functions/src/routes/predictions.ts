@@ -10,13 +10,13 @@ import { requireCapability } from '../middleware/roles';
 import { getAllMetrics, getMetricLogs, getUpdates } from '../services/metrics';
 import { resolvePredictions, resolveSingleMarket, getMarkets, type MarketStatus } from '../services/predictions';
 import { refreshRelativeDateMarkets, voidMarket } from '../services/markets';
-import { createConditionalMarkets } from '../services/proposals';
+import { createConditionalMarkets, subsidyContributionsOf } from '../services/proposals';
 import { isValidDateFormat, periodEndInstant, resolutionInstant } from '../lib/date-utils';
 import { extractMetricReferences } from '../lib/metrics-engine';
 import { consensus, pHigher, directionTradeCost, sharesForBudget, betTowardsValue, directionSellProceeds, lmsrCost, initialPool, AMM_DEFAULTS } from '../lib/amm';
 import { emitEvent } from '../services/events';
 import { applyAgentLiquidityInjectionTx } from '../services/marketLiquidity';
-import { sufficientBalance, toUnits, fromUnits, validateContent } from '../lib/validation';
+import { sufficientBalance, toUnits, fromUnits, validateContent, MIN_LIQUIDITY_CONTRIBUTION } from '../lib/validation';
 import { getGroupMemberIds, resolveWorkspaceOwnerAgentId, listParticipantsForWorkspace, getParticipantDisplayNames } from '../lib/participants';
 
 export const predictionsRouter = Router();
@@ -332,10 +332,8 @@ predictionsRouter.get('/markets', requireCapability('read'), wrap(async (req, re
     if (proposal) {
       const currentIds = (proposal.conditionalMarketIds as string[]) ?? [];
       if (!currentIds.length) {
-        const subsidy = proposal.liquiditySubsidy ?? 0;
         const marketIds = await createConditionalMarkets(proposalId, workspaceId, {
-          subsidyPerMarket: subsidy,
-          proposerAgentId: subsidy > 0 ? proposal.proposedBy : null,
+          contributions: subsidyContributionsOf(proposal),
         });
         await db.update(proposals).set({ conditionalMarketIds: marketIds })
           .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
@@ -674,6 +672,21 @@ predictionsRouter.post('/markets/liquidity/bulk', requireCapability('manage'), w
     if (!wsMembers.some(m => m.id === agentId)) { res.status(403).json({ error: 'Agent is not in your workspace' }); return; }
   }
 
+  // Proposal top-ups are recorded on the proposal row so rollover re-spawns
+  // re-seed them (otherwise the injection would be refunded and lost when
+  // the conditional markets roll to new target dates).
+  let proposalRow: typeof proposals.$inferSelect | null = null;
+  if (proposalId) {
+    if (amount < MIN_LIQUIDITY_CONTRIBUTION) {
+      res.status(400).json({ error: `amount must be at least ${MIN_LIQUIDITY_CONTRIBUTION} credits per market for proposal subsidies (LMSR b below this is butterfly-sensitive)` });
+      return;
+    }
+    const [row] = await db.select().from(proposals)
+      .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+    if (!row) { res.status(404).json({ error: 'Proposal not found' }); return; }
+    proposalRow = row;
+  }
+
   let marketRows = await db.select().from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.active, true), eq(markets.resolved, false)));
   if (proposalId) marketRows = marketRows.filter(m => m.proposalId === proposalId);
@@ -715,6 +728,19 @@ predictionsRouter.post('/markets/liquidity/bulk', requireCapability('manage'), w
         id: randomUUID(), workspaceId, marketId: market.id, agentId, amount, poolContribution,
         totalLiquidity: newLiquidity, type: 'injection', createdAt: new Date(),
       });
+    }
+
+    // Persist the per-market top-up on a pending proposal so the subsidy
+    // survives market rollovers and the proposal header reflects it. Only
+    // pending proposals re-spawn markets; post-decision injections stay a
+    // one-off boost to the surviving branch.
+    if (proposalRow && proposalRow.status === 'pending') {
+      const contributionsMap = { ...(proposalRow.subsidyContributions ?? {}) };
+      contributionsMap[agentId] = Math.round(((contributionsMap[agentId] ?? 0) + amount) * 1e6) / 1e6;
+      const newSubsidy = Math.round(((proposalRow.liquiditySubsidy ?? 0) + amount) * 1e6) / 1e6;
+      await tx.update(proposals)
+        .set({ subsidyContributions: contributionsMap, liquiditySubsidy: newSubsidy })
+        .where(and(eq(proposals.id, proposalRow.id), eq(proposals.workspaceId, workspaceId)));
     }
   });
 
@@ -811,10 +837,8 @@ predictionsRouter.post('/markets/refresh', requireCapability('manage'), wrap(asy
       .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
     if (!proposal) { res.status(404).json({ error: 'Proposal not found' }); return; }
     const existingIds = (proposal.conditionalMarketIds as string[]) ?? [];
-    const subsidy = proposal.liquiditySubsidy ?? 0;
     const marketIds = await createConditionalMarkets(proposalId, workspaceId, {
-      subsidyPerMarket: subsidy,
-      proposerAgentId: subsidy > 0 ? proposal.proposedBy : null,
+      contributions: subsidyContributionsOf(proposal),
     });
     await db.update(proposals).set({ conditionalMarketIds: marketIds })
       .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));

@@ -74,6 +74,7 @@ proposalsRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
     title, description: description || '',
     status: 'pending', conditionalMarketIds: [],
     liquiditySubsidy: subsidy,
+    subsidyContributions: subsidy > 0 ? { [proposedBy]: subsidy } : {},
     createdAt: new Date(),
   });
 
@@ -85,8 +86,8 @@ proposalsRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
   let conditionalMarketIds: string[] = [];
   try {
     conditionalMarketIds = await createConditionalMarkets(id, workspaceId, {
-      subsidyPerMarket: subsidy,
-      proposerAgentId: subsidy > 0 ? proposedBy : null,
+      contributions: subsidy > 0 ? { [proposedBy]: subsidy } : {},
+      strict: true,
     });
     if (conditionalMarketIds.length > 0) {
       await db.update(proposals).set({ conditionalMarketIds })
