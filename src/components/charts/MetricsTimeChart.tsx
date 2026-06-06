@@ -14,7 +14,7 @@ import {
 import zoomPlugin from 'chartjs-plugin-zoom';
 import { Line } from 'react-chartjs-2';
 import type { ChartPoint } from '../../lib/metrics-chart-model';
-import { formatAxisValue, formatTooltipTitle, formatXAxisTick } from '../../lib/metrics-chart-model';
+import { formatAxisValue, formatTooltipTitle, formatXAxisTick, hasHourGranularity } from '../../lib/metrics-chart-model';
 
 ChartJS.register(LinearScale, PointElement, LineElement, Filler, Tooltip, Legend, zoomPlugin);
 
@@ -72,6 +72,10 @@ export function MetricsTimeChart({
   const xMin = needsWiden ? rawMin - HALF_DAY : rawMin;
   const xMax = needsWiden ? rawMax + HALF_DAY : rawMax;
   const spanMs = Math.max(1, xMax - xMin);
+  // Hour tick labels only when the data actually contains hour-granularity
+  // markets; ordinary day/week/month charts keep their existing labels even
+  // at small spans or when zoomed in.
+  const hourAware = hasHourGranularity([...sorted, ...condSorted, ...futureSorted]);
 
   const pr = variant === 'modal' ? 4 : 3;
   const phr = variant === 'modal' ? 7 : 6;
@@ -315,7 +319,13 @@ export function MetricsTimeChart({
         ticks: {
           color: textColor,
           maxTicksLimit: variant === 'modal' ? 8 : 5,
-          callback: (v) => formatXAxisTick(Number(v), spanMs),
+          // Regular function so `this` is the live scale: zooming into the
+          // hourly cluster shrinks this.max - this.min and upgrades labels to
+          // hour format (only when hourAware; see above).
+          callback: function (v) {
+            const liveSpan = this.max - this.min;
+            return formatXAxisTick(Number(v), Number.isFinite(liveSpan) && liveSpan > 0 ? liveSpan : spanMs, hourAware);
+          },
         },
       },
       y: {

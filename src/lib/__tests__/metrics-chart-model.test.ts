@@ -7,6 +7,7 @@ import {
   formatAxisValue,
   formatXAxisTick,
   formatTooltipTitle,
+  hasHourGranularity,
 } from '../metrics-chart-model';
 
 const DAY = 86400000;
@@ -322,6 +323,17 @@ describe('formatXAxisTick', () => {
     expect(label).toMatch(/2026/);
     expect(label).toMatch(/Apr|4/);
   });
+  test('hourAware + small span shows UTC hour; without the flag, same span stays day-granular', () => {
+    const ms = Date.parse('2026-04-22T14:00:00Z');
+    const hourly = formatXAxisTick(ms, DAY, true);
+    expect(hourly).toMatch(/14:00/);
+    const plain = formatXAxisTick(ms, DAY, false);
+    expect(plain).not.toMatch(/14:00|:/);
+  });
+  test('hourAware has no effect at larger spans (no cramming ordinary charts)', () => {
+    const ms = Date.parse('2026-04-22T14:00:00Z');
+    expect(formatXAxisTick(ms, DAY * 10, true)).not.toMatch(/:/);
+  });
 });
 
 describe('formatTooltipTitle', () => {
@@ -329,6 +341,24 @@ describe('formatTooltipTitle', () => {
     const out = formatTooltipTitle({ x: Date.parse('2026-04-22'), y: 1, label: '2026-04-22' });
     expect(out).toContain('2026-04-22');
     expect(out).toMatch(/\(/);
+  });
+  test('hour-granularity labels show the UTC hour range derived from the label, not from x', () => {
+    // x is the END of the hour; the named range must still be 14:00-15:00.
+    const out = formatTooltipTitle({ x: Date.parse('2026-04-22T15:00:00Z'), y: 1, label: '2026-04-22T14' });
+    expect(out).toContain('2026-04-22T14');
+    expect(out).toContain('14:00-15:00 UTC');
+  });
+  test('hour 23 wraps the range end to 00', () => {
+    const out = formatTooltipTitle({ x: Date.parse('2026-04-23T00:00:00Z'), y: 1, label: '2026-04-22T23' });
+    expect(out).toContain('23:00-00:00 UTC');
+  });
+});
+
+describe('hasHourGranularity', () => {
+  test('true only when an hour-granularity label is present', () => {
+    expect(hasHourGranularity([{ label: '2026-04-22' }, { label: '2026-04-22T14' }])).toBe(true);
+    expect(hasHourGranularity([{ label: '2026-04-22' }, { label: '2026-06' }, { label: '2026-W20' }])).toBe(false);
+    expect(hasHourGranularity([])).toBe(false);
   });
 });
 

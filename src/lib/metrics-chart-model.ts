@@ -47,9 +47,29 @@ export function formatAxisValue(v: number): string {
   return v.toFixed(2);
 }
 
-export function formatXAxisTick(ms: number, spanMs: number): string {
+const HOUR_TARGET_RE = /^\d{4}-\d{2}-\d{2}T\d{2}$/;
+
+/** True when any plotted point is an hour-granularity market. Charts only show
+ *  hour-level tick labels when this holds, so ordinary day/week/month charts
+ *  never get more granular, regardless of how small their span is or how far
+ *  the user zooms in. */
+export function hasHourGranularity(points: Array<{ label: string }>): boolean {
+  return points.some(p => HOUR_TARGET_RE.test(p.label));
+}
+
+export function formatXAxisTick(ms: number, spanMs: number, hourAware = false): string {
   const d = new Date(ms);
   const dayMs = 86400000;
+  // Hour labels only when the data actually contains hour markets AND the
+  // visible window is small enough for hours to be the natural scale. UTC,
+  // matching the UTC-hour targetDate strings ("2026-06-05T14"); a local-time
+  // label could name a different hour, or even a different day.
+  if (hourAware && spanMs <= dayMs * 2) {
+    return d.toLocaleString(undefined, {
+      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+      hour12: false, timeZone: 'UTC',
+    });
+  }
   if (spanMs <= dayMs * 45) {
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   }
@@ -160,5 +180,19 @@ export function buildOutlookPointsFromLogs(logs: MetricLog[], interval: GraphInt
 }
 
 export function formatTooltipTitle(point: ChartPoint): string {
+  // Hour-granularity market: derive the hour range from the canonical
+  // targetDate label (the x is the END of the hour, so deriving from x would
+  // name the wrong hour). Explicitly UTC; these target dates are UTC-hour.
+  const hourMatch = point.label.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2})$/);
+  if (hourMatch) {
+    const [, y, mo, day, h] = hourMatch;
+    const start = new Date(Date.UTC(Number(y), Number(mo) - 1, Number(day), Number(h)));
+    const dayLabel = start.toLocaleDateString(undefined, {
+      year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC',
+    });
+    const hh = String(Number(h)).padStart(2, '0');
+    const hhEnd = String((Number(h) + 1) % 24).padStart(2, '0');
+    return `${point.label} (${dayLabel}, ${hh}:00-${hhEnd}:00 UTC)`;
+  }
   return `${point.label} (${formatDateShort(point.x)})`;
 }
