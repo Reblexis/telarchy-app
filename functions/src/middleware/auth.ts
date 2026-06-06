@@ -5,7 +5,7 @@ import { db } from '../db/client';
 import { agents, agentApiKeys } from '../db/schema';
 import { auth } from '../auth';
 import { eq, sql } from 'drizzle-orm';
-import type { AuthInfo, WorkspaceMemberRole } from '../types';
+import type { AuthInfo, WorkspaceMemberRole, Capability } from '../types';
 import { computeCapabilities } from './capabilities';
 import { intersectWorkspaceCaps } from '../lib/scopes';
 import {
@@ -243,17 +243,20 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
 
     const effectiveWorkspaceId = (req.headers['x-workspace-id'] as string | undefined) ?? keyWorkspaceId;
     const membership = await resolveAgentWorkspace(agentId, effectiveWorkspaceId);
-    if (!membership) {
-      return res.status(403).json({ error: 'Agent is not a member of the specified workspace' });
-    }
-    const fullCaps = await computeCapabilities({
-      workspaceId: membership.workspaceId,
-      agentId,
-    });
+    // A valid key without membership in the effective workspace still
+    // authenticates, with an EMPTY capability set. This is what lets a
+    // freshly created agent bootstrap itself via identity-only routes,
+    // most importantly POST /api/marketplace/:id/join - previously those
+    // 403'd here, making join unreachable for sub-bots created through
+    // POST /api/agents (chicken-and-egg). Every workspace-data route is
+    // capability-gated, so a non-member still cannot read or trade.
+    const fullCaps = membership
+      ? await computeCapabilities({ workspaceId: membership.workspaceId, agentId })
+      : new Set<Capability>();
     req.auth = {
       capabilities: intersectWorkspaceCaps(fullCaps, keyScopes),
       agentId,
-      workspaceId: membership.workspaceId,
+      workspaceId: membership?.workspaceId ?? effectiveWorkspaceId,
       scopes: keyScopes,
       keyId: keyRecord.keyId,
     };
