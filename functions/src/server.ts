@@ -58,6 +58,12 @@ function scheduleDailyUTC(hourUTC: number, minuteUTC: number, label: string, fn:
   console.log(`Scheduled "${label}" daily at ${String(hourUTC).padStart(2, '0')}:${String(minuteUTC).padStart(2, '0')} UTC`);
 }
 
+function scheduleEvery(intervalMs: number, label: string, fn: () => Promise<void>): void {
+  const tick = () => fn().catch(e => console.error(`Scheduled job "${label}" failed:`, e));
+  setInterval(tick, intervalMs);
+  console.log(`Scheduled "${label}" every ${Math.round(intervalMs / 60000)} min`);
+}
+
 async function runDailyResolve(): Promise<void> {
   const { resolvePredictions } = await import('./services/predictions');
   const { cleanupOldEvents } = await import('./services/events');
@@ -90,7 +96,10 @@ import('./app').then(async ({ app }) => {
   runDailyResolve().catch(e => console.error('Startup catch-up resolve failed:', e));
   runDailyRefresh().catch(e => console.error('Startup catch-up refresh failed:', e));
 
-  scheduleDailyUTC(0, 0, 'dailyResolve', runDailyResolve);
+  // Resolve frequently so markets settle close to their resolvesOn instant
+  // (hourly markets exist now; settlement value is pinned as-of resolvesOn,
+  // so running often only reduces payout latency, never changes results).
+  scheduleEvery(10 * 60_000, 'resolve', runDailyResolve);
   scheduleDailyUTC(0, 10, 'dailyMarketRefresh', runDailyRefresh);
 
   // Serve frontend static files when bundled in self-hosted mode
