@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { useTheme } from '../hooks/useTheme';
-import { api } from '../lib/api';
+import { api, onApiMutation } from '../lib/api';
 import { Logo } from './Logo';
 
 export function Sidebar({ className = '' }: { className?: string }) {
@@ -27,10 +27,21 @@ export function Sidebar({ className = '' }: { className?: string }) {
   useEffect(() => {
     if (!user) { setBalance(null); return; }
     let cancelled = false;
-    api.getParticipant()
-      .then(p => { if (!cancelled) setBalance((p as { balance?: number }).balance ?? null); })
-      .catch(err => console.error('Failed to load participant balance', err));
-    return () => { cancelled = true; };
+    const load = () => {
+      api.getParticipant()
+        .then(p => { if (!cancelled) setBalance((p as { balance?: number }).balance ?? null); })
+        .catch(err => console.error('Failed to load participant balance', err));
+    };
+    load();
+    // Credits move through mutating API calls (trades, liquidity top-ups,
+    // proposal subsidies), so refetch right after any of them instead of
+    // waiting for a route change. Debounced to coalesce mutation bursts.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const unsubscribe = onApiMutation(() => {
+      clearTimeout(timer);
+      timer = setTimeout(load, 300);
+    });
+    return () => { cancelled = true; clearTimeout(timer); unsubscribe(); };
   }, [user, location.pathname]);
 
   const currentPath = location.pathname;

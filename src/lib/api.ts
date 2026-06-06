@@ -240,6 +240,25 @@ export function onActiveWorkspaceChange(cb: () => void): () => void {
   return () => { activeWorkspaceListeners.delete(cb); };
 }
 
+/**
+ * Fired after any successful mutating API call. Mutations are how credits
+ * move (trades, liquidity top-ups, proposal subsidies, rewards), so listeners
+ * (the sidebar balance counter) refetch instead of waiting for a route
+ * change. Deliberately coarse: one cheap GET /agents/me per mutation burst
+ * beats enumerating every spend endpoint and missing one.
+ */
+const mutationListeners = new Set<() => void>();
+export function onApiMutation(cb: () => void): () => void {
+  mutationListeners.add(cb);
+  return () => { mutationListeners.delete(cb); };
+}
+
+function notifyMutation() {
+  for (const cb of mutationListeners) {
+    try { cb(); } catch (err) { console.error('onApiMutation listener failed', err); }
+  }
+}
+
 async function request(path: string, options: RequestInit = {}, skipWorkspaceHeader = false) {
   return requestWithWorkspace(path, options, { skipWorkspaceHeader });
 }
@@ -295,6 +314,7 @@ async function requestWithWorkspace(
     return requestWithWorkspace(path, options, requestOptions, false);
   }
   if (!res.ok) throw new Error(data.error || 'API error');
+  if ((options.method ?? 'GET') !== 'GET') notifyMutation();
   return data;
 }
 

@@ -174,6 +174,31 @@ navigates to the Markets page filtered to its descendant leaf markets.
   badge does not crush the name); long names keep the name on its own line and
   wrap the status/branch/proposal chips beneath it.
 
+### T9. Liquidity top-up updates subsidy header and sidebar balance in place
+
+Admin top-ups from the drawer are durable subsidy contributions: the proposal's
+subsidy figure must reflect them on the very next refetch (no yellow "No
+subsidy" warning left behind), and the bottom-left credit counter must drop by
+the spend without any navigation.
+
+**Steps:**
+1. As an admin, open a pending proposal's drawer. Capture the subsidy line and
+   the sidebar balance:
+   `$B js "document.querySelector('.proposal-subsidy-line').innerText"`,
+   `$B js "document.querySelector('.sidebar-bottom a[href=\"/account\"] div div:nth-child(2)').textContent"`.
+2. Click `add liquidity` (zero-subsidy proposal) or `top up`, fill the
+   `.proposal-subsidy-input input` with `0.1`, snapshot scoped to
+   `.proposal-subsidy-line`, click the `add` ref.
+3. Wait ~1.5s (refetch + 300ms balance debounce), then re-read both values and
+   the URL.
+
+**Expected:**
+- The subsidy line shows the increased per-branch figure and total (e.g.
+  `5.00/branch` -> `5.10/branch`); a zero-subsidy proposal flips from the
+  yellow warning to `Subsidy 0.10/branch ...`.
+- The sidebar balance drops by exactly `0.1 x branchMarketCount` credits.
+- The URL is unchanged (both updates happen in place, no navigation).
+
 ## Cleanup
 
 Decline or approve any leftover test proposals rather than leaving them in
