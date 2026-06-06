@@ -23,6 +23,11 @@ export interface MetricsTimeChartProps {
   conditionalPoints?: ChartPoint[];
   /** Forecast points to overlay on top of the main series (rendered as a dashed line with a "now" divider). */
   futurePoints?: ChartPoint[];
+  /** Past market predictions (final consensus of resolved/closed markets),
+   *  rendered as unconnected hollow points so they read as historical
+   *  forecasts against the realized value line. Clickable via onPointClick
+   *  (each carries a marketId). */
+  pastPoints?: ChartPoint[];
   mode: 'normal' | 'inspect';
   variant: 'inline' | 'modal';
   rangeMin?: number;
@@ -37,7 +42,7 @@ export interface MetricsTimeChartProps {
 }
 
 export function MetricsTimeChart({
-  points, conditionalPoints, futurePoints, mode, variant, rangeMin, rangeMax, halfLifeYears, onPointClick, hourTicks,
+  points, conditionalPoints, futurePoints, pastPoints, mode, variant, rangeMin, rangeMax, halfLifeYears, onPointClick, hourTicks,
 }: MetricsTimeChartProps) {
   const currentColor = '#b45309';
   const conditionalColor = '#0f766e';
@@ -58,12 +63,13 @@ export function MetricsTimeChart({
   const isInspect = mode === 'inspect';
   const condSorted = isInspect && conditionalPoints ? [...conditionalPoints].sort((a, b) => a.x - b.x) : [];
   const futureSorted = futurePoints ? [...futurePoints].sort((a, b) => a.x - b.x) : [];
+  const pastSorted = pastPoints ? [...pastPoints].sort((a, b) => a.x - b.x) : [];
 
-  if (sorted.length === 0 && condSorted.length === 0 && futureSorted.length === 0) {
+  if (sorted.length === 0 && condSorted.length === 0 && futureSorted.length === 0 && pastSorted.length === 0) {
     return <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>No time-series points</div>;
   }
 
-  const allX = [...sorted.map(p => p.x), ...condSorted.map(p => p.x), ...futureSorted.map(p => p.x)];
+  const allX = [...sorted.map(p => p.x), ...condSorted.map(p => p.x), ...futureSorted.map(p => p.x), ...pastSorted.map(p => p.x)];
   const rawMin = Math.min(...allX);
   const rawMax = Math.max(...allX);
   // When all points share the same x (degenerate case: one log, or multiple
@@ -122,6 +128,24 @@ export function MetricsTimeChart({
       pointRadius: pr,
       pointHoverRadius: phr,
       pointBackgroundColor: conditionalColor,
+    });
+  }
+
+  if (pastSorted.length > 0) {
+    datasets.push({
+      label: 'Past predictions',
+      data: pastSorted.map(p => ({ x: p.x, y: p.y })),
+      borderColor: conditionalColor,
+      borderWidth: 1.5,
+      showLine: false,
+      fill: false,
+      pointRadius: pr,
+      pointHoverRadius: phr,
+      pointStyle: 'circle',
+      // Hollow points: same teal family as Forecast, but visually "settled".
+      pointBackgroundColor: 'transparent',
+      pointBorderColor: conditionalColor,
+      pointBorderWidth: 1.5,
     });
   }
 
@@ -246,22 +270,26 @@ export function MetricsTimeChart({
           if (!native) return;
           const rect = chart.canvas.getBoundingClientRect();
           const px = native.clientX - rect.left;
+          const py = native.clientY - rect.top;
           if (px < chart.chartArea.left || px > chart.chartArea.right) return;
           const xScale = chart.scales.x;
+          const yScale = chart.scales.y;
           if (!xScale) return;
-          const xValue = xScale.getValueForPixel(px);
-          if (xValue === undefined) return;
+          // Nearest point in pixel space across the clickable sets. The y
+          // component matters when history and past predictions share a date:
+          // they differ in value, and the user is pointing at one of them.
           const pickNearest = (pts: ChartPoint[]) => {
-            if (pts.length === 0) return null;
-            let best = pts[0];
-            let bestDist = Math.abs(pts[0].x - xValue);
-            for (let i = 1; i < pts.length; i++) {
-              const d = Math.abs(pts[i].x - xValue);
-              if (d < bestDist) { best = pts[i]; bestDist = d; }
+            let best: ChartPoint | null = null;
+            let bestDist = Infinity;
+            for (const p of pts) {
+              const dx = xScale.getPixelForValue(p.x) - px;
+              const dy = yScale ? yScale.getPixelForValue(p.y) - py : 0;
+              const d = dx * dx + dy * dy;
+              if (d < bestDist) { best = p; bestDist = d; }
             }
             return best;
           };
-          const point = pickNearest(sorted);
+          const point = pickNearest([...sorted, ...pastSorted]);
           if (point) onPointClick(point);
         }
       : undefined,
@@ -270,7 +298,7 @@ export function MetricsTimeChart({
       // historical line, so "Current" (solid) and "Forecast" (dashed) are
       // distinguishable at a glance, not only on hover.
       legend: {
-        display: futureSorted.length > 0 && sorted.length > 0,
+        display: (futureSorted.length > 0 || pastSorted.length > 0) && sorted.length > 0,
         position: 'bottom' as const,
         labels: { color: textColor, boxWidth: 12, boxHeight: 2, padding: 12 },
       },
@@ -294,7 +322,9 @@ export function MetricsTimeChart({
               ? condSorted
               : item.dataset.label === 'Forecast'
                 ? futureSorted
-                : sorted;
+                : item.dataset.label === 'Past predictions'
+                  ? pastSorted
+                  : sorted;
             const p = source[item.dataIndex];
             return p ? formatTooltipTitle(p) : '';
           },

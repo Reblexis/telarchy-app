@@ -9,13 +9,31 @@ vi.mock('../charts/MetricsTimeChart', () => ({
   MetricsTimeChart: (props: {
     points: { x: number; y: number }[];
     futurePoints?: { x: number; y: number }[];
+    pastPoints?: { x: number; y: number; marketId?: string }[];
+    onPointClick?: (p: { x: number; y: number; label: string; marketId?: string }) => void;
   }) => (
     <div
       data-testid="chart-stub"
       data-points={props.points.length}
       data-future={props.futurePoints?.length ?? 0}
+      data-past={props.pastPoints?.length ?? 0}
+      onClick={() => {
+        const p = props.pastPoints?.[0];
+        if (p && props.onPointClick) props.onPointClick({ ...p, label: 'x' });
+      }}
     />
   ),
+}));
+
+// GraphModal fetches past markets on open; default to none.
+const getMarketsMock = vi.fn().mockResolvedValue([]);
+vi.mock('../../lib/api', () => ({
+  api: { getMarkets: (...args: unknown[]) => getMarketsMock(...args) },
+}));
+
+const navigateMock = vi.fn();
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => navigateMock,
 }));
 
 import { GraphModal } from '../GraphModal';
@@ -183,6 +201,50 @@ describe('GraphModal', () => {
     const toggle = await screen.findByRole('button', { name: /show future predictions/i });
     await user.click(toggle);
     expect(screen.getByTestId('chart-stub')).toHaveAttribute('data-future', '1');
+  });
+
+  test('past-predictions toggle appears when past markets exist; enabling feeds points and clicks navigate', async () => {
+    vi.useRealTimers();
+    const user = userEvent.setup();
+    navigateMock.mockClear();
+    getMarketsMock.mockResolvedValueOnce([
+      // Resolved market in the past: included.
+      { id: 'mkt-past', metricId: 'm1', targetDate: '2020-06-01', status: 'resolved', consensus: 42 },
+      // Voided market: excluded.
+      { id: 'mkt-void', metricId: 'm1', targetDate: '2020-07-01', status: 'voided', consensus: 10 },
+      // Untraded (no consensus): excluded.
+      { id: 'mkt-untraded', metricId: 'm1', targetDate: '2020-08-01', status: 'resolved', consensus: null },
+      // Other metric: excluded.
+      { id: 'mkt-other', metricId: 'm2', targetDate: '2020-09-01', status: 'resolved', consensus: 5 },
+      // Future open market: excluded from PAST predictions.
+      { id: 'mkt-future', metricId: 'm1', targetDate: '2099-01-01', status: 'open', consensus: 7 },
+    ]);
+    const loadLogs = vi.fn().mockResolvedValue([makeLog('2026-04-20T10:00:00', 5)]);
+    render(
+      <GraphModal metric={makeMetric()} interval="day" isInspectMode={false} loadLogs={loadLogs} onClose={vi.fn()} />
+    );
+
+    const toggle = await screen.findByRole('button', { name: /show past predictions/i });
+    const chart = await screen.findByTestId('chart-stub');
+    expect(chart).toHaveAttribute('data-past', '0');
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('chart-stub')).toHaveAttribute('data-past', '1');
+
+    // The chart stub forwards a click on the first past point.
+    await user.click(screen.getByTestId('chart-stub'));
+    expect(navigateMock).toHaveBeenCalledWith('/markets?marketId=mkt-past&status=all');
+  });
+
+  test('no past-predictions toggle when the metric has no past markets', async () => {
+    vi.useRealTimers();
+    const loadLogs = vi.fn().mockResolvedValue([makeLog('2026-04-20T10:00:00', 5)]);
+    render(
+      <GraphModal metric={makeMetric()} interval="day" isInspectMode={false} loadLogs={loadLogs} onClose={vi.fn()} />
+    );
+    await waitFor(() => expect(screen.getByTestId('chart-stub')).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /show past predictions/i })).toBeNull();
   });
 
   test('stale loadLogs response does not overwrite newer metric state', async () => {

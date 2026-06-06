@@ -112,3 +112,7 @@ Auto.
   would: open Graph on a metric with logs, select "Hourly (last 7 days)" in
   the "History granularity" combobox, and assert the chart re-renders with
   more points and the window clamps to the trailing week.
+- The "Show past predictions" toggle (added 2026-06-06: hollow points for the
+  final consensus of resolved/closed markets; clicking one deep-links to
+  /markets?marketId=<id>&status=all) is covered by `GraphModal.test.tsx`, not
+  by a browser pass here.

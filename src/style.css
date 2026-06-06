@@ -1682,6 +1682,14 @@ details > div {
   flex-shrink: 0;
 }
 
+/* Past predictions render as hollow points, not a dashed line. */
+.graph-modal-toggle-swatch--past {
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid #0f766e;
+  border-radius: 50%;
+}
+
 .graph-modal-container {
   position: relative;
   padding: 1rem;

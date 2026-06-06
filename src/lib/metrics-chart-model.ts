@@ -6,6 +6,9 @@ export interface ChartPoint {
   y: number;
   label: string;
   interpolated?: boolean;
+  /** Set on points that represent a specific market (e.g. past predictions);
+   *  click handlers use it to deep-link to that market. */
+  marketId?: string;
 }
 
 function startOfISOWeek(d: Date): Date {
@@ -22,7 +25,7 @@ function startOfISOWeek(d: Date): Date {
 // the tooltip and the marker's x-position match what the user sees when they
 // click through to the market. Previously a "2026-07" market plotted on Jul 1
 // (period start), one period off from its Jul 31 resolution date.
-function parseTargetDateToMs(date: string): number {
+export function parseTargetDateToMs(date: string): number {
   // Hour-granularity market ("2026-06-05T14", UTC): plot at the end of its
   // hour, matching the settle-at-period-end convention below.
   if (/^\d{4}-\d{2}-\d{2}T\d{2}$/.test(date)) {

@@ -53,8 +53,12 @@ export function MarketsPage() {
   // Default to 'open' even when arriving via ?target / ?marketId: a user who
   // clicked a market on the metric chart is interested in the live forecast,
   // not the closed / voided history. The status chips at the top let them
-  // widen if they want.
-  const [statusFilter, setStatusFilter] = useState<MarketStatus | 'all'>('open');
+  // widen if they want. An explicit ?status= overrides the default so deep
+  // links to resolved/closed markets (e.g. past-prediction chart points)
+  // land on a view where the market is actually visible.
+  const parseStatusParam = (raw: string | null): MarketStatus | 'all' =>
+    raw === 'open' || raw === 'closed' || raw === 'resolved' || raw === 'voided' || raw === 'all' ? raw : 'open';
+  const [statusFilter, setStatusFilter] = useState<MarketStatus | 'all'>(() => parseStatusParam(searchParams.get('status')));
   const [kindFilter, setKindFilter] = useState<MarketKind>(() => {
     const raw = searchParams.get('kind');
     return raw === 'conditional' || raw === 'all' ? raw : 'baseline';
@@ -67,6 +71,9 @@ export function MarketsPage() {
     setTargetFilter(t);
     const rawKind = searchParams.get('kind');
     setKindFilter(rawKind === 'conditional' || rawKind === 'all' ? rawKind : 'baseline');
+    if (searchParams.get('status') !== null) {
+      setStatusFilter(parseStatusParam(searchParams.get('status')));
+    }
   }, [searchParams]);
 
   // Deep-link handoff from /participants/:id (and any other source): if

@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import type { Metric, MetricLog, GraphInterval } from '../types';
-import { buildPointsFromLogs, buildOutlookPointsFromLogs, buildPointsFromTimeSeries } from '../lib/metrics-chart-model';
+import { useNavigate } from 'react-router-dom';
+import type { Metric, MetricLog, GraphInterval, Market } from '../types';
+import { buildPointsFromLogs, buildOutlookPointsFromLogs, buildPointsFromTimeSeries, parseTargetDateToMs, type ChartPoint } from '../lib/metrics-chart-model';
 import { MetricsTimeChart } from './charts/MetricsTimeChart';
+import { api } from '../lib/api';
 
 function isLeafMetric(m: Metric): boolean {
   const f = (m.formula || '').trim();
@@ -26,10 +28,13 @@ interface GraphModalProps {
 }
 
 export function GraphModal({ metric, interval: initialInterval, isInspectMode, loadLogs, onClose }: GraphModalProps) {
+  const navigate = useNavigate();
   const [interval, setInterval_] = useState<GraphInterval>(initialInterval);
   const [points, setPoints] = useState<ReturnType<typeof buildPointsFromLogs>>([]);
   const [status, setStatus] = useState<'loading' | 'no-data' | 'ready'>('loading');
   const [showFuture, setShowFuture] = useState(false);
+  const [showPast, setShowPast] = useState(false);
+  const [pastPoints, setPastPoints] = useState<ChartPoint[]>([]);
   const reqIdRef = useRef(0);
 
   const futurePoints = useMemo(() => {
@@ -38,6 +43,33 @@ export function GraphModal({ metric, interval: initialInterval, isInspectMode, l
     return buildPointsFromTimeSeries(metric.timeSeries).filter(p => p.x >= now);
   }, [metric?.timeSeries]);
   const hasFuture = futurePoints.length > 0;
+  const hasPast = pastPoints.length > 0;
+
+  // Past predictions: the final consensus of this metric's markets whose
+  // period has already passed (resolved, closed, or simply elapsed). Voided
+  // markets are excluded (refunded, never settled on a prediction), as are
+  // untraded ones (no consensus to show).
+  useEffect(() => {
+    if (!metric) { setPastPoints([]); setShowPast(false); return; }
+    let cancelled = false;
+    api.getMarkets(undefined, undefined, { status: 'all', kind: 'baseline' })
+      .then((markets: Market[]) => {
+        if (cancelled) return;
+        const now = Date.now();
+        const pts = markets
+          .filter(m => m.metricId === metric.id && m.status !== 'voided' && m.consensus !== null)
+          .map(m => ({
+            x: parseTargetDateToMs(m.targetDate),
+            y: m.consensus as number,
+            label: m.targetDate,
+            marketId: m.id,
+          }))
+          .filter(p => !Number.isNaN(p.x) && p.x < now);
+        setPastPoints(pts);
+      })
+      .catch((e: unknown) => { if (!cancelled) console.error('GraphModal: failed to load past markets', e); });
+    return () => { cancelled = true; };
+  }, [metric]);
 
   // The chart draws a single historical line: the metric's realized value over
   // time. For a leaf that is the user-authored "Now:" number (the `value`
@@ -77,7 +109,8 @@ export function GraphModal({ metric, interval: initialInterval, isInspectMode, l
   };
 
   const effectiveFuture = showFuture ? futurePoints : undefined;
-  const hasAnyData = points.length > 0 || (showFuture && hasFuture);
+  const effectivePast = showPast ? pastPoints : undefined;
+  const hasAnyData = points.length > 0 || (showFuture && hasFuture) || (showPast && hasPast);
   const showChart = status !== 'loading' && hasAnyData;
   const showNoData = status === 'no-data' && !hasAnyData;
 
@@ -101,6 +134,18 @@ export function GraphModal({ metric, interval: initialInterval, isInspectMode, l
               ))}
             </select>
           </label>
+          {hasPast && (
+            <button
+              type="button"
+              className={`graph-modal-toggle${showPast ? ' active' : ''}`}
+              onClick={() => setShowPast(v => !v)}
+              aria-pressed={showPast}
+              title="Final consensus of this metric's resolved and closed markets, plotted against the realized values. Click a point to open its market."
+            >
+              <span className="graph-modal-toggle-swatch graph-modal-toggle-swatch--past" aria-hidden="true" />
+              Show past predictions
+            </button>
+          )}
           {hasFuture && (
             <button
               type="button"
@@ -121,9 +166,16 @@ export function GraphModal({ metric, interval: initialInterval, isInspectMode, l
               <MetricsTimeChart
                 points={points}
                 futurePoints={effectiveFuture}
+                pastPoints={effectivePast}
                 mode={isInspectMode ? 'inspect' : 'normal'}
                 variant="modal"
                 hourTicks={interval === 'hour'}
+                onPointClick={showPast ? (p) => {
+                  // Only past-prediction points carry a marketId; clicks on the
+                  // history line do nothing here. status=all so the resolved /
+                  // closed market is visible when the markets page opens.
+                  if (p.marketId) navigate(`/markets?marketId=${p.marketId}&status=all`);
+                } : undefined}
               />
             </div>
           )}
