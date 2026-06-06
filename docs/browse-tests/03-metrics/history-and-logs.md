@@ -106,3 +106,9 @@ Auto.
   test once `?limit=` is documented.
 - No assertion that log rows attribute the change to the right participant
   (PII consideration: do we expose actor across roles?).
+- The graph modal's granularity dropdown (Hourly last-7-days / Daily / Weekly
+  / Monthly / Yearly, added 2026-06-06) is covered by the frontend component
+  test (`GraphModal.test.tsx`), not by a browser pass here. A browser test
+  would: open Graph on a metric with logs, select "Hourly (last 7 days)" in
+  the "History granularity" combobox, and assert the chart re-renders with
+  more points and the window clamps to the trailing week.
