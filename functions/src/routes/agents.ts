@@ -19,7 +19,7 @@ import {
 import { AppError } from '../lib/errors';
 import { creditsIssuedForUsdcDeposit, depositBuyRateUsd } from '../lib/economy';
 import { resolutionInstant } from '../lib/date-utils';
-import { validateAgentId, validateTxHash, sufficientBalance, toUnits, fromUnits, SIGNUP_CREDITS } from '../lib/validation';
+import { validateAgentId, validateTxHash, sufficientBalance, toUnits, fromUnits, SIGNUP_CREDITS, normalizeBio } from '../lib/validation';
 import { listParticipantsForWorkspace, claimNickname } from '../lib/participants';
 import { isUsdcSettlementEnabled } from '../lib/settlement';
 import { directionSellProceeds, resolutionPayouts, pHigher, consensus } from '../lib/amm';
@@ -45,9 +45,12 @@ function resolveRouteAgentId(req: Request): string | null {
 }
 
 agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => {
-  const { agentId, workspaceId, nickname } = req.body;
+  const { agentId, workspaceId, nickname, bio } = req.body;
   const agentIdError = validateAgentId(agentId);
   if (agentIdError) { res.status(400).json({ error: agentIdError }); return; }
+
+  const normalizedBio = bio !== undefined ? normalizeBio(bio) : null;
+  if (normalizedBio instanceof Error) { res.status(400).json({ error: normalizedBio.message }); return; }
 
   if (!workspaceId || typeof workspaceId !== 'string') {
     res.status(400).json({ error: 'workspaceId is required' }); return;
@@ -66,6 +69,7 @@ agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => 
   await db.transaction(async tx => {
     await tx.insert(agents).values({
       id: agentId, apiKeyHash: keyHash, balance: toUnits(SIGNUP_CREDITS),
+      bio: normalizedBio,
       authUserId: req.auth?.uid ?? null, createdAt: new Date(), approvedAt: new Date(),
     });
     // Third-party registration keeps the legacy wildcard scope so existing
@@ -95,7 +99,7 @@ agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => 
     }
   }
 
-  res.status(201).json({ agentId, apiKey: rawKey, nickname: nickname || null });
+  res.status(201).json({ agentId, apiKey: rawKey, nickname: nickname || null, bio: normalizedBio });
 }));
 
 agentsRouter.get('/mine', authMiddleware, requireIdentity, requireScope('account:read'), wrap(async (req, res) => {
@@ -214,6 +218,7 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
       id: agent.id,
       nickname: agent.nickname,
       intent: agent.intent,
+      bio: agent.bio,
       joinedAt: agent.createdAt,
       parent: lineage.parent,
       children: lineage.children,
@@ -389,6 +394,7 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
     id: agent.id,
     nickname: agent.nickname,
     intent: agent.intent,
+    bio: agent.bio,
     joinedAt: agent.createdAt,
     parent: lineage.parent,
     children: lineage.children,
@@ -417,9 +423,12 @@ agentsRouter.use(authMiddleware);
  *      what a bot is normally for, but can't, for example, drain the wallet.
  */
 agentsRouter.post('/', requireScope('account:agents'), wrap(async (req, res) => {
-  const { agentId, nickname, keyLabel, keyScopes, memberships } = req.body ?? {};
+  const { agentId, nickname, bio, keyLabel, keyScopes, memberships } = req.body ?? {};
   const agentIdError = validateAgentId(agentId);
   if (agentIdError) { res.status(400).json({ error: agentIdError }); return; }
+
+  const normalizedBio = bio !== undefined ? normalizeBio(bio) : null;
+  if (normalizedBio instanceof Error) { res.status(400).json({ error: normalizedBio.message }); return; }
 
   // Caller-can-grant scope check (only meaningful for agent-key callers; users
   // and master keys can grant any scope).
@@ -502,6 +511,7 @@ agentsRouter.post('/', requireScope('account:agents'), wrap(async (req, res) => 
       id: agentId,
       apiKeyHash: keyHash,
       balance: toUnits(SIGNUP_CREDITS),
+      bio: normalizedBio,
       authUserId: null,
       ownerUserId: req.auth!.uid ?? null,
       // Agent-key callers own their sub-bots by agent id (parent/children

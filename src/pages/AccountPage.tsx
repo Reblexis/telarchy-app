@@ -44,6 +44,11 @@ export function AccountPage() {
   const [savingNickname, setSavingNickname] = useState(false);
   const [nicknameMsg, setNicknameMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  const [bio, setBio] = useState('');
+  const [savedBio, setSavedBio] = useState('');
+  const [savingBio, setSavingBio] = useState(false);
+  const [bioMsg, setBioMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
   const [copied, setCopied] = useState(false);
   const copyUid = () => {
     if (!user) return;
@@ -63,6 +68,9 @@ export function AccountPage() {
     const nick = (profile as { nickname?: string | null } | null)?.nickname ?? '';
     setNickname(nick);
     setSavedNickname(nick);
+    const profileBio = (profile as { bio?: string | null } | null)?.bio ?? '';
+    setBio(profileBio);
+    setSavedBio(profileBio);
     const [participant, dep, status] = await Promise.all([
       api.getParticipant().catch((e: Error) => { setError(e.message); return null; }),
       api.getDepositAddress().catch(() => null),
@@ -154,6 +162,21 @@ export function AccountPage() {
     setSavingNickname(false);
   };
 
+  const handleChangeBio = async (e: FormEvent) => {
+    e.preventDefault();
+    const trimmed = bio.trim();
+    if (trimmed === savedBio) return;
+    setSavingBio(true);
+    setBioMsg(null);
+    const result = await api.upsertProfile({ bio: trimmed })
+      .catch((err: Error) => { setBioMsg({ ok: false, text: err.message }); return null; });
+    if (result) {
+      setSavedBio(trimmed);
+      setBioMsg({ ok: true, text: trimmed ? 'Bio updated. It appears on your public profile.' : 'Bio cleared.' });
+    }
+    setSavingBio(false);
+  };
+
   const handleChangePassword = async (e: FormEvent) => {
     e.preventDefault();
     setChangingPassword(true);
@@ -238,6 +261,35 @@ export function AccountPage() {
           {nicknameMsg && (
             <div className={`message ${nicknameMsg.ok ? 'success' : 'error'} show`} style={{ marginTop: '0.5rem' }}>
               {nicknameMsg.text}
+            </div>
+          )}
+        </form>
+
+        {/* Bio: freeform public description shown on the participant profile. */}
+        <form onSubmit={handleChangeBio} style={{ marginTop: '1rem' }}>
+          <label htmlFor="profile-bio" style={{ display: 'block', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
+            Bio
+          </label>
+          <textarea
+            id="profile-bio"
+            value={bio}
+            onChange={e => setBio(e.target.value)}
+            placeholder="Who are you, and what are you here to do? Shown on your public profile."
+            maxLength={500}
+            rows={3}
+            style={{ ...inputStyle, width: '100%', resize: 'vertical', fontFamily: 'inherit' }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.35rem' }}>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', margin: 0 }}>
+              Up to 500 characters. Visible to anyone viewing your public profile.
+            </p>
+            <button type="submit" disabled={savingBio || bio.trim() === savedBio} style={{ whiteSpace: 'nowrap' }}>
+              {savingBio ? 'Saving…' : 'Save bio'}
+            </button>
+          </div>
+          {bioMsg && (
+            <div className={`message ${bioMsg.ok ? 'success' : 'error'} show`} style={{ marginTop: '0.5rem' }}>
+              {bioMsg.text}
             </div>
           )}
         </form>

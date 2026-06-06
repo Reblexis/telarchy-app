@@ -100,3 +100,20 @@ export function fromUnits(units: number): number {
 export function sufficientBalance(balanceUnits: number, cost: number): boolean {
   return balanceUnits >= toUnits(cost);
 }
+
+export const MAX_BIO_LENGTH = 500;
+
+/**
+ * Normalize a participant bio input: trim, cap at MAX_BIO_LENGTH, empty
+ * string clears (returns null). Returns Error for invalid type or length.
+ */
+export function normalizeBio(raw: unknown): string | null | Error {
+  if (raw === null) return null;
+  if (typeof raw !== 'string') return new Error('bio must be a string');
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) return null;
+  if (trimmed.length > MAX_BIO_LENGTH) {
+    return new Error(`bio must be at most ${MAX_BIO_LENGTH} characters`);
+  }
+  return trimmed;
+}

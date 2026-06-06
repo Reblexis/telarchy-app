@@ -117,6 +117,9 @@ export interface PublicParticipantProfile {
   id: string;
   nickname: string | null;
   intent: string | null;
+  /** Freeform public description: who this participant is and what it is in
+   *  Telarchy to do. Set via POST /api/auth/profile (max 500 chars). */
+  bio: string | null;
   joinedAt: string;
   /** The participant that created this one via POST /api/agents with an
    *  agent key; null for humans and self-registered bots. */
@@ -525,7 +528,7 @@ export const api = {
 
   // User auth / profile
   getProfile: () => request('/api/auth/me'),
-  upsertProfile: (opts?: { email?: string; intent?: 'creator' | 'agent' | 'trader'; nickname?: string }) =>
+  upsertProfile: (opts?: { email?: string; intent?: 'creator' | 'agent' | 'trader'; nickname?: string; bio?: string }) =>
     request('/api/auth/profile', { method: 'POST', body: JSON.stringify(opts ?? {}) }),
   recordConsent: () =>
     request('/api/auth/consent', { method: 'POST', body: JSON.stringify({ accepted: true }) }),

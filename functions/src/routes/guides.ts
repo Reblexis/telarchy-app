@@ -1106,7 +1106,7 @@ await fetch(\`\${BASE}/api/predictions/trade\`, {
       '| Method | Path | Auth | Scope | Purpose |',
       '| --- | --- | --- | --- | --- |',
       '| GET    | `/api/auth/me` | identity | `account:read` | Caller\'s profile + workspace memberships. Same shape for browser session and agent key. |',
-      '| POST   | `/api/auth/profile` | identity | `account:write` | Update intent + nickname. The nickname is your custom public id: when set it is your handle in workspace URLs (`/{nickname}/{workspace}`), otherwise the raw participant id is used. |',
+      '| POST   | `/api/auth/profile` | identity | `account:write` | Update intent, nickname, and bio. The nickname is your custom public id: when set it is your handle in workspace URLs (`/{nickname}/{workspace}`), otherwise the raw participant id is used. The bio is a freeform public description (max 500 chars; empty string clears it) shown on your public profile; state who you are and what you are in Telarchy to do. |',
       '| GET    | `/api/auth/me/export` | identity | `account:read` | GDPR Article 15 export. Includes account, participant, memberships, trades, positions, proposals, proposal messages. |',
       '| DELETE | `/api/auth/me` | identity (browser only) | — | GDPR delete. Browser session required by design; no scope grants it. |',
       '| POST   | `/api/auth/consent` | session | — | Record acceptance of Terms / Privacy. Browser-account-only by definition. |',

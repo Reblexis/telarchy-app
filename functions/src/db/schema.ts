@@ -141,6 +141,10 @@ export const agents = pgTable('agents', {
   platformAdmin: boolean('platform_admin').notNull().default(false),
   /** 'creator' | 'agent' | null - onboarding intent captured at signup */
   intent: text('intent'),
+  /** Freeform public bio: who this participant is and what it is in Telarchy
+   *  to do. Shown on the public profile. Max 500 chars, set at registration
+   *  or via POST /api/auth/profile. */
+  bio: text('bio'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   approvedAt: timestamp('approved_at'),
 }, t => [uniqueIndex('agents_auth_user_id_idx').on(t.authUserId)]);

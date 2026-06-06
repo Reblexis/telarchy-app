@@ -162,6 +162,11 @@ export function ParticipantProfilePage() {
             <span className={isOpaqueId(profile.id) ? 'agent-id agent-id-opaque' : 'agent-id'}>{profile.id}</span>
           </p>
         )}
+        {profile.bio && (
+          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.6rem', maxWidth: '60ch', whiteSpace: 'pre-wrap' }}>
+            {profile.bio}
+          </p>
+        )}
         {profile.parent && (
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
             Created by{' '}

@@ -8,7 +8,7 @@ import { wrap } from '../lib/wrap';
 import { requireUser, requireIdentity, requireScope } from '../middleware/roles';
 import { hashKey } from '../middleware/auth';
 import { getAuthWorkspaceMemberships, getUserWorkspaceMemberships } from '../middleware/auth';
-import { toUnits, SIGNUP_CREDITS } from '../lib/validation';
+import { toUnits, SIGNUP_CREDITS, normalizeBio } from '../lib/validation';
 import { claimNickname } from '../lib/participants';
 
 export const userauthRouter = Router();
@@ -102,6 +102,7 @@ userauthRouter.get('/me', requireIdentity, requireScope('account:read'), wrap(as
     email: null, // BetterAuth session has the email; frontend reads from authClient.useSession()
     intent: agent?.intent ?? null,
     nickname: agent?.nickname ?? null,
+    bio: agent?.bio ?? null,
     participantId,
     workspaceId,
     authRole: effectiveAuthRole,
@@ -138,9 +139,11 @@ userauthRouter.post('/consent', requireUser, wrap(async (req, res) => {
 
 /**
  * POST /api/auth/profile
- * Upserts the caller's participant profile (intent + nickname). Works for both
- * browser sessions and agent API keys; uses whichever identity is present on
- * req.auth and updates that participant's row.
+ * Upserts the caller's participant profile (intent + nickname + bio). Works
+ * for both browser sessions and agent API keys; uses whichever identity is
+ * present on req.auth and updates that participant's row. `bio` is a freeform
+ * public description (max 500 chars; empty string or null clears it) shown on
+ * the public participant profile.
  */
 userauthRouter.post('/profile', requireIdentity, requireScope('account:write'), wrap(async (req, res) => {
   const participantId = await resolveCallerParticipantId(req);
@@ -149,9 +152,16 @@ userauthRouter.post('/profile', requireIdentity, requireScope('account:write'), 
     return;
   }
 
-  const { intent, nickname } = req.body;
+  const { intent, nickname, bio } = req.body;
   if (intent !== undefined && !['creator', 'agent', 'trader'].includes(intent)) {
     res.status(400).json({ error: 'intent must be "creator", "agent", or "trader"' }); return;
+  }
+
+  let normalizedBio: string | null | undefined;
+  if (bio !== undefined) {
+    const result = normalizeBio(bio);
+    if (result instanceof Error) { res.status(400).json({ error: result.message }); return; }
+    normalizedBio = result;
   }
 
   if (nickname !== undefined) {
@@ -169,6 +179,10 @@ userauthRouter.post('/profile', requireIdentity, requireScope('account:write'), 
 
   if (intent !== undefined) {
     await db.update(agents).set({ intent }).where(eq(agents.id, participantId));
+  }
+
+  if (normalizedBio !== undefined) {
+    await db.update(agents).set({ bio: normalizedBio }).where(eq(agents.id, participantId));
   }
 
   if (nickname !== undefined) {
