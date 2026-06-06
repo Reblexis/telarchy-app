@@ -31,10 +31,13 @@ export interface MetricsTimeChartProps {
   halfLifeYears?: number;
   /** Invoked when the user clicks a data point. Receives the underlying ChartPoint. */
   onPointClick?: (point: ChartPoint) => void;
+  /** Force hour-tier tick labels (used by hour-bucketed history charts, whose
+   *  point labels are display strings the hour-market detection can't see). */
+  hourTicks?: boolean;
 }
 
 export function MetricsTimeChart({
-  points, conditionalPoints, futurePoints, mode, variant, rangeMin, rangeMax, halfLifeYears, onPointClick,
+  points, conditionalPoints, futurePoints, mode, variant, rangeMin, rangeMax, halfLifeYears, onPointClick, hourTicks,
 }: MetricsTimeChartProps) {
   const currentColor = '#b45309';
   const conditionalColor = '#0f766e';
@@ -73,9 +76,10 @@ export function MetricsTimeChart({
   const xMax = needsWiden ? rawMax + HALF_DAY : rawMax;
   const spanMs = Math.max(1, xMax - xMin);
   // Hour tick labels only when the data actually contains hour-granularity
-  // markets; ordinary day/week/month charts keep their existing labels even
-  // at small spans or when zoomed in.
-  const hourAware = hasHourGranularity([...sorted, ...condSorted, ...futureSorted]);
+  // markets (or the caller opted in for hour-bucketed history); ordinary
+  // day/week/month charts keep their existing labels even at small spans or
+  // when zoomed in.
+  const hourAware = hourTicks || hasHourGranularity([...sorted, ...condSorted, ...futureSorted]);
 
   const pr = variant === 'modal' ? 4 : 3;
   const phr = variant === 'modal' ? 7 : 6;

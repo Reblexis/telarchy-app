@@ -8,15 +8,25 @@ function isLeafMetric(m: Metric): boolean {
   return f === '' || f === '0';
 }
 
+const INTERVAL_OPTIONS: Array<{ value: GraphInterval; label: string }> = [
+  { value: 'hour', label: 'Hourly (last 7 days)' },
+  { value: 'day', label: 'Daily' },
+  { value: 'week', label: 'Weekly' },
+  { value: 'month', label: 'Monthly' },
+  { value: 'year', label: 'Yearly' },
+];
+
 interface GraphModalProps {
   metric: Metric | null;
+  /** Initial history bucketing; the user can change it via the dropdown. */
   interval: GraphInterval;
   isInspectMode: boolean;
   loadLogs: (metricId: string) => Promise<MetricLog[]>;
   onClose: () => void;
 }
 
-export function GraphModal({ metric, interval, isInspectMode, loadLogs, onClose }: GraphModalProps) {
+export function GraphModal({ metric, interval: initialInterval, isInspectMode, loadLogs, onClose }: GraphModalProps) {
+  const [interval, setInterval_] = useState<GraphInterval>(initialInterval);
   const [points, setPoints] = useState<ReturnType<typeof buildPointsFromLogs>>([]);
   const [status, setStatus] = useState<'loading' | 'no-data' | 'ready'>('loading');
   const [showFuture, setShowFuture] = useState(false);
@@ -78,8 +88,20 @@ export function GraphModal({ metric, interval, isInspectMode, loadLogs, onClose 
           <h3>{metric.name} - Progress Graph</h3>
           <button className="modal-close" onClick={onClose}>&times;</button>
         </div>
-        {hasFuture && (
-          <div className="graph-modal-toolbar">
+        <div className="graph-modal-toolbar">
+          <label className="graph-modal-interval">
+            <span>Granularity</span>
+            <select
+              value={interval}
+              onChange={e => setInterval_(e.target.value as GraphInterval)}
+              aria-label="History granularity"
+            >
+              {INTERVAL_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </label>
+          {hasFuture && (
             <button
               type="button"
               className={`graph-modal-toggle${showFuture ? ' active' : ''}`}
@@ -89,8 +111,8 @@ export function GraphModal({ metric, interval, isInspectMode, loadLogs, onClose 
               <span className="graph-modal-toggle-swatch" aria-hidden="true" />
               Show future predictions
             </button>
-          </div>
-        )}
+          )}
+        </div>
         <div className="graph-modal-container">
           {status === 'loading' && <div className="graph-loading">Loading graph...</div>}
           {showNoData && <div className="graph-no-data">No data yet. Values will be logged as they change.</div>}
@@ -101,6 +123,7 @@ export function GraphModal({ metric, interval, isInspectMode, loadLogs, onClose 
                 futurePoints={effectiveFuture}
                 mode={isInspectMode ? 'inspect' : 'normal'}
                 variant="modal"
+                hourTicks={interval === 'hour'}
               />
             </div>
           )}

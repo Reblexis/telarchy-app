@@ -58,6 +58,37 @@ describe('buildPointsFromLogs', () => {
     expect(points[0].interpolated).toBe(false);
   });
 
+  test('hour interval buckets per hour with UTC labels', () => {
+    const points = buildPointsFromLogs([
+      log('2026-04-22T08:10:00', 10),
+      log('2026-04-22T08:40:00', 15), // same hour: last value wins
+      log('2026-04-22T10:05:00', 30),
+    ], 'hour');
+    // 08:00 through 12:00 local-now = 5 hourly buckets (08,09,10,11,12).
+    expect(points.length).toBe(5);
+    expect(points[0].y).toBe(15);
+    expect(points[0].interpolated).toBe(false);
+    expect(points[1].y).toBe(15);
+    expect(points[1].interpolated).toBe(true);
+    expect(points[2].y).toBe(30);
+    expect(points.every(p => p.label.endsWith('UTC'))).toBe(true);
+  });
+
+  test('hour interval windows to the trailing week and seeds carry-forward from older logs', () => {
+    const points = buildPointsFromLogs([
+      log('2026-03-01T08:00:00', 7),   // far outside the 7-day window
+      log('2026-04-22T10:00:00', 30),
+    ], 'hour');
+    // First bucket is the window start (now - 7d), not March 1.
+    expect(points[0].x).toBeGreaterThanOrEqual(new Date('2026-04-15T00:00:00').getTime());
+    // ~7 days of hourly buckets, not ~52 days worth.
+    expect(points.length).toBeLessThanOrEqual(7 * 24 + 2);
+    // Carry-forward seeded from the pre-window log.
+    expect(points[0].y).toBe(7);
+    expect(points[0].interpolated).toBe(true);
+    expect(points[points.length - 1].y).toBe(30);
+  });
+
   test('logs across days produce one point per day', () => {
     const points = buildPointsFromLogs([
       log('2026-04-20T10:00:00', 10),

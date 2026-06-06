@@ -100,6 +100,9 @@ function alignTimestamp(date: Date, interval: GraphInterval): Date {
   aligned.setMilliseconds(0);
   aligned.setSeconds(0);
   aligned.setMinutes(0);
+  // An hour boundary is the same instant in every whole-hour timezone, so no
+  // UTC/local distinction is needed here; only the label is zone-sensitive.
+  if (interval === 'hour') return aligned;
   aligned.setHours(0);
   if (interval === 'day') return aligned;
   if (interval === 'week') return startOfISOWeek(aligned);
@@ -111,7 +114,8 @@ function alignTimestamp(date: Date, interval: GraphInterval): Date {
 
 function nextIntervalStart(date: Date, interval: GraphInterval): Date {
   const d = new Date(date);
-  if (interval === 'day') d.setDate(d.getDate() + 1);
+  if (interval === 'hour') d.setHours(d.getHours() + 1);
+  else if (interval === 'day') d.setDate(d.getDate() + 1);
   else if (interval === 'week') d.setDate(d.getDate() + 7);
   else if (interval === 'month') d.setMonth(d.getMonth() + 1);
   else d.setFullYear(d.getFullYear() + 1);
@@ -119,11 +123,24 @@ function nextIntervalStart(date: Date, interval: GraphInterval): Date {
 }
 
 function intervalLabel(d: Date, interval: GraphInterval): string {
+  // UTC for hour buckets, matching hour-granularity market labels and the
+  // hour-tier x-axis ticks; everything coarser stays in local time.
+  if (interval === 'hour') {
+    return `${d.toLocaleString(undefined, {
+      year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+      hour12: false, timeZone: 'UTC',
+    })} UTC`;
+  }
   if (interval === 'day') return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
   if (interval === 'week') return `Week of ${d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}`;
   if (interval === 'month') return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short' });
   return d.toLocaleDateString(undefined, { year: 'numeric' });
 }
+
+/** Hour-bucketed history is windowed to the trailing week. Without a cap, a
+ *  year of logs becomes ~8760 mostly-interpolated points; nobody reads hourly
+ *  detail that far back, and the coarser intervals cover it. */
+export const HOUR_INTERVAL_WINDOW_MS = 7 * 86400000;
 
 type LogPicker = (log: MetricLog) => number | null | undefined;
 
@@ -138,13 +155,25 @@ function buildPointsPicking(logs: MetricLog[], interval: GraphInterval, pick: Lo
     return typeof v === 'number' && !Number.isNaN(v);
   });
   if (firstPickable === -1) return [];
-  const start = alignTimestamp(sorted[firstPickable].timestamp, interval);
+  let start = alignTimestamp(sorted[firstPickable].timestamp, interval);
   const end = new Date();
+  if (interval === 'hour') {
+    const windowStart = alignTimestamp(new Date(end.getTime() - HOUR_INTERVAL_WINDOW_MS), interval);
+    if (windowStart.getTime() > start.getTime()) start = windowStart;
+  }
 
   const points: ChartPoint[] = [];
   let cursor = new Date(start);
   let i = firstPickable;
   let lastKnown: number | null = null;
+
+  // Seed the carry-forward value from logs before the visible window so the
+  // first hour bucket reflects the value the metric actually held entering it.
+  while (i < sorted.length && sorted[i].timestamp.getTime() < start.getTime()) {
+    const v = pick(sorted[i]);
+    if (typeof v === 'number' && !Number.isNaN(v)) lastKnown = v;
+    i++;
+  }
 
   while (cursor.getTime() <= end.getTime()) {
     const intervalStart = cursor.getTime();

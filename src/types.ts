@@ -49,7 +49,7 @@ export interface UpdateEntry {
   timestamp: Date;
 }
 
-export type GraphInterval = 'day' | 'week' | 'month' | 'year';
+export type GraphInterval = 'hour' | 'day' | 'week' | 'month' | 'year';
 
 export type AgentRole = 'admin' | 'agent' | 'member' | 'pending';
 

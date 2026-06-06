@@ -65,6 +65,30 @@ describe('GraphModal', () => {
     await waitFor(() => expect(screen.getByTestId('chart-stub')).toBeInTheDocument());
   });
 
+  test('granularity dropdown re-buckets history: hourly yields more points than daily', async () => {
+    vi.useRealTimers();
+    const user = userEvent.setup();
+    const recent = new Date(Date.now() - 3 * 3600000);
+    const loadLogs = vi.fn().mockResolvedValue([
+      makeLog(recent.toISOString(), 5),
+    ]);
+    render(
+      <GraphModal metric={makeMetric()} interval="day" isInspectMode={false} loadLogs={loadLogs} onClose={vi.fn()} />
+    );
+    await waitFor(() => expect(screen.getByTestId('chart-stub')).toBeInTheDocument());
+    const dailyPoints = Number(screen.getByTestId('chart-stub').getAttribute('data-points'));
+
+    await user.selectOptions(screen.getByRole('combobox', { name: /history granularity/i }), 'hour');
+    await waitFor(() => {
+      const hourlyPoints = Number(screen.getByTestId('chart-stub').getAttribute('data-points'));
+      expect(hourlyPoints).toBeGreaterThan(dailyPoints);
+    });
+    // A log from 3h ago forward-fills hourly to now: ~4 buckets.
+    const hourlyPoints = Number(screen.getByTestId('chart-stub').getAttribute('data-points'));
+    expect(hourlyPoints).toBeGreaterThanOrEqual(3);
+    expect(hourlyPoints).toBeLessThanOrEqual(6);
+  });
+
   test('shows no-data state when logs are empty and no future is available', async () => {
     vi.useRealTimers();
     const loadLogs = vi.fn().mockResolvedValue([]);
