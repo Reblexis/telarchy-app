@@ -1,7 +1,7 @@
 import { Router, type Request } from 'express';
 import { db } from '../db/client';
-import { agents, agentApiKeys, deposits, withdrawals, systemConfig, workspaces, positions, trades, markets, permissionGroups } from '../db/schema';
-import { eq, and, sql, inArray, desc } from 'drizzle-orm';
+import { agents, agentApiKeys, agentBalanceSnapshots, deposits, withdrawals, systemConfig, workspaces, positions, trades, markets, permissionGroups } from '../db/schema';
+import { eq, and, sql, inArray, desc, asc } from 'drizzle-orm';
 import { randomBytes } from 'crypto';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
@@ -213,6 +213,18 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
     children: childRows.map(c => ({ id: c.id, nickname: c.nickname })),
   };
 
+  // Balance history: daily snapshots (written by the hourly resolve cron)
+  // plus a live "now" point so the graph reflects the current balance even
+  // before today's snapshot lands. Platform-level, like the leaderboard's
+  // earnings aggregate; balances are public information in the credit game.
+  const snapRows = await db.select().from(agentBalanceSnapshots)
+    .where(eq(agentBalanceSnapshots.agentId, agent.id))
+    .orderBy(asc(agentBalanceSnapshots.day));
+  const balanceHistory = [
+    ...snapRows.map(r => ({ at: `${r.day}T00:00:00Z`, balance: fromUnits(r.balance) })),
+    { at: new Date().toISOString(), balance: fromUnits(agent.balance as number) },
+  ];
+
   if (publicWsIds.length === 0 && viewerWsIds.size === 0) {
     res.json({
       id: agent.id,
@@ -226,6 +238,8 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
       activeWorkspaces: [],
       openPositions: [],
       recentTrades: [],
+      balanceHistory,
+      pnlHistory: [],
     });
     return;
   }
@@ -249,6 +263,7 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
         shares: markets.shares,
         active: markets.active,
         resolved: markets.resolved,
+        resolvedAt: markets.resolvedAt,
         actualValue: markets.actualValue,
         proposalId: markets.proposalId,
       }).from(markets).where(and(
@@ -390,6 +405,35 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
       };
     });
 
+  // Cumulative realized PnL: for every resolved (non-voided) market this
+  // participant traded, the net trade cash plus the resolution payout lands
+  // at the market's resolvedAt. Scoped to viewer-visible workspaces, same as
+  // openPositions / recentTrades (public ones plus any the caller can read).
+  const pnlByMarket = new Map<string, number>();
+  for (const t of tradeRows) {
+    if (t.agentId !== agent.id || !viewerWsIds.has(t.workspaceId)) continue;
+    const m = marketById.get(t.marketId);
+    if (!m?.resolved || m.actualValue === null || !m.resolvedAt) continue;
+    pnlByMarket.set(t.marketId, (pnlByMarket.get(t.marketId) ?? 0) - t.cost);
+  }
+  for (const pos of positionRows) {
+    if (pos.agentId !== agent.id || pos.shares <= 0 || !viewerWsIds.has(pos.workspaceId)) continue;
+    const m = marketById.get(pos.marketId);
+    if (!m?.resolved || m.actualValue === null || !m.resolvedAt) continue;
+    const [lowerPay, higherPay] = resolutionPayouts(Math.min(m.actualValue, m.rangeMax), m.rangeMin, m.rangeMax);
+    const factor = pos.direction === 'higher' ? higherPay : lowerPay;
+    pnlByMarket.set(pos.marketId, (pnlByMarket.get(pos.marketId) ?? 0) + pos.shares * factor);
+  }
+  let cumulativePnl = 0;
+  const pnlHistory = Array.from(pnlByMarket, ([mId, delta]) => ({
+    at: marketById.get(mId)!.resolvedAt as Date, delta,
+  }))
+    .sort((a, b) => a.at.getTime() - b.at.getTime())
+    .map(e => {
+      cumulativePnl += e.delta;
+      return { at: e.at.toISOString(), cumulative: Math.round(cumulativePnl * 100) / 100 };
+    });
+
   res.json({
     id: agent.id,
     nickname: agent.nickname,
@@ -402,6 +446,8 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
     activeWorkspaces,
     openPositions,
     recentTrades,
+    balanceHistory,
+    pnlHistory,
   });
 }));
 

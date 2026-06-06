@@ -2,6 +2,24 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, type PublicParticipantProfile, type PublicProfilePosition, type PublicProfileTrade } from '../lib/api';
 import { formatTargetDateDisplay } from '../lib/date-utils';
+import { MetricsTimeChart } from '../components/charts/MetricsTimeChart';
+import type { ChartPoint } from '../lib/metrics-chart-model';
+
+/** History charts: balance snapshots and cumulative realized PnL. Rendered
+ *  only with two or more points (the balance series accrues one snapshot per
+ *  day from the hourly cron, so brand-new participants start without it). */
+function HistoryChart({ title, subtitle, points }: { title: string; subtitle: string; points: ChartPoint[] }) {
+  if (points.length < 2) return null;
+  return (
+    <div style={{ flex: '1 1 320px', minWidth: 280 }}>
+      <h3 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', margin: '0 0 0.15rem' }}>{title}</h3>
+      <p style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', margin: '0 0 0.5rem' }}>{subtitle}</p>
+      <div style={{ height: 180 }}>
+        <MetricsTimeChart points={points} mode="normal" variant="inline" />
+      </div>
+    </div>
+  );
+}
 
 function timeAgo(iso: string | null): string {
   if (!iso) return '-';
@@ -223,6 +241,29 @@ export function ParticipantProfilePage() {
           hint="Most recent trade in any public workspace."
         />
       </div>
+
+      {(profile.balanceHistory.length >= 2 || profile.pnlHistory.length >= 2) && (
+        <div className="section">
+          <div className="section-header">
+            <h2>History</h2>
+            <p className="section-subtitle">
+              Balance is platform-wide; realized PnL covers resolved markets in workspaces visible to you.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+            <HistoryChart
+              title="Balance"
+              subtitle="Daily snapshots, in credits"
+              points={profile.balanceHistory.map(b => ({ x: Date.parse(b.at), y: b.balance, label: b.at.slice(0, 10) }))}
+            />
+            <HistoryChart
+              title="Cumulative realized PnL"
+              subtitle="Net trade cash + payouts, at each market's resolution"
+              points={profile.pnlHistory.map(e => ({ x: Date.parse(e.at), y: e.cumulative, label: e.at.slice(0, 10) }))}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="section">
         <div className="section-header">

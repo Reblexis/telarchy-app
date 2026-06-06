@@ -42,6 +42,7 @@ cronRouter.post('/resolve', wrap(async (req, res) => {
 
   const { resolvePredictions } = await import('../services/predictions');
   const { cleanupOldEvents } = await import('../services/events');
+  const { snapshotAgentBalances } = await import('../services/balances');
 
   const wsIds = req.body?.workspaceId ? [req.body.workspaceId as string] : await allWorkspaceIds();
   const results = [];
@@ -51,7 +52,12 @@ cronRouter.post('/resolve', wrap(async (req, res) => {
     results.push({ workspaceId: wsId, ...resolved, eventsCleaned: cleaned });
   }
 
-  res.json({ ok: true, workspaces: results });
+  // Platform-wide (not per-workspace): one balance snapshot per participant
+  // per UTC day, taken on the first hourly run of the day. Powers the
+  // balance graph on public profiles.
+  const balanceSnapshots = await snapshotAgentBalances();
+
+  res.json({ ok: true, balanceSnapshots, workspaces: results });
 }));
 
 cronRouter.post('/refresh', wrap(async (req, res) => {

@@ -138,6 +138,12 @@ export interface PublicParticipantProfile {
   activeWorkspaces: Array<{ id: string; name: string }>;
   openPositions: PublicProfilePosition[];
   recentTrades: PublicProfileTrade[];
+  /** Daily balance snapshots (credits) plus a live "now" point. Snapshots are
+   *  written by the hourly resolve cron, one per UTC day. */
+  balanceHistory: Array<{ at: string; balance: number }>;
+  /** Cumulative realized PnL over time: per resolved market, net trade cash +
+   *  resolution payout at resolvedAt. Viewer-scoped like openPositions. */
+  pnlHistory: Array<{ at: string; cumulative: number }>;
 }
 
 export interface MarketplaceListing {

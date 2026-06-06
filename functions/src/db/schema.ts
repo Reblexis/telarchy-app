@@ -149,6 +149,21 @@ export const agents = pgTable('agents', {
   approvedAt: timestamp('approved_at'),
 }, t => [uniqueIndex('agents_auth_user_id_idx').on(t.authUserId)]);
 
+/**
+ * Daily balance snapshots per participant, written by the hourly resolve cron
+ * (first run of each UTC day; idempotent via the composite PK). Exists because
+ * balance mutations have no unified ledger (payouts, LP leftovers, and credit
+ * grants update agents.balance directly), so a balance-over-time graph cannot
+ * be reconstructed after the fact. Balance is in nanocredits, like
+ * agents.balance. Powers the balance graph on the public participant profile.
+ */
+export const agentBalanceSnapshots = pgTable('agent_balance_snapshots', {
+  agentId: text('agent_id').notNull(),
+  /** UTC day, YYYY-MM-DD. */
+  day: text('day').notNull(),
+  balance: bigint('balance', { mode: 'number' }).notNull(),
+}, t => [primaryKey({ columns: [t.agentId, t.day] })]);
+
 export const agentApiKeys = pgTable('agent_api_keys', {
   hash: text('hash').primaryKey(),
   /** Opaque public handle (uuid). Used in management URLs so the hash never leaves the DB. */
