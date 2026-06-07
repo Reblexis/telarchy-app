@@ -42,9 +42,12 @@ export function triggerPending(c: AgentControl | undefined): boolean {
 
 /** A heartbeat is stale when the runner missed its own next-cycle estimate by
  *  a wide margin (or never reported). Cadences are hours here, so the margin
- *  is generous: 15 minutes past nextCycleAt, or 7h without any update. */
+ *  is generous: 15 minutes past nextCycleAt, or 7h without any update.
+ *  A running cycle legitimately outlasts its own (already due) next-cycle
+ *  estimate, so a fresh `running` heartbeat is never stale. */
 export function isStale(hb: AgentHeartbeat | undefined): boolean {
   if (!hb) return true;
+  if (hb.status === 'running' && Date.now() - new Date(hb.updatedAt).getTime() < 30 * 60 * 1000) return false;
   if (hb.nextCycleAt) return Date.now() - new Date(hb.nextCycleAt).getTime() > 15 * 60 * 1000;
   return Date.now() - new Date(hb.updatedAt).getTime() > 7 * 60 * 60 * 1000;
 }
