@@ -178,6 +178,7 @@ explains itself.
 | File | Surface |
 | --- | --- |
 | `bot-agents-panel.md` | `/admin` Bot agents + decision traces (gold standard) |
+| `agents-control-pages.md` | `/agents` picker + `/agents/:id` detail (pause/resume, run now) |
 | `activity-feed.md` | `GET /api/admin/activity` |
 | `treasury-and-credit.md` | `/api/agents/treasury` + manual credit/spend |
 | `reset-economy.md` | `POST /api/reset-economy` |

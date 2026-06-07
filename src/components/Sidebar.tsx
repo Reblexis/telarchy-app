@@ -182,6 +182,11 @@ export function Sidebar({ className = '' }: { className?: string }) {
         <Link to="/guides" data-tour-id="nav-guides" className={`sidebar-nav-item${currentPath === '/guides' ? ' active' : ''}`}>
           Guides
         </Link>
+        {workspace?.platformAdmin && (
+          <Link to="/agents" className={`sidebar-nav-item${currentPath.startsWith('/agents') ? ' active' : ''}`}>
+            Agents
+          </Link>
+        )}
       </div>
 
       <div className="sidebar-spacer" />

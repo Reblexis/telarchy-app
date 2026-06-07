@@ -62,6 +62,8 @@ function fmtNum(n: number | null | undefined, digits = 2): string {
 interface Props {
   workspaceId: string;
   isPlatformAdmin?: boolean;
+  /** Restrict the panel to a single agent (used by the /agents/:id page). */
+  agentId?: string;
 }
 
 /** Resolve workspace name for display. Backend joins on the workspaces
@@ -73,7 +75,7 @@ function workspaceLabel(id: string | null | undefined, name: string | null | und
   return id.slice(0, 8);
 }
 
-export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
+export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin, agentId }: Props) {
   const [heartbeats, setHeartbeats] = useState<AgentHeartbeat[]>([]);
   const [traces, setTraces] = useState<AgentTrace[]>([]);
   const [error, setError] = useState('');
@@ -112,9 +114,9 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
       const tracesScope = isPlatformAdmin && scopeAll ? 'all' : undefined;
       const [hb, tr] = await Promise.all([
         api.getAgentHeartbeats(workspaceId),
-        api.getAgentTraces({ limit: 30, scopeWorkspaceId: tracesScope }, workspaceId),
+        api.getAgentTraces({ limit: 30, scopeWorkspaceId: tracesScope, agentId }, workspaceId),
       ]);
-      setHeartbeats(hb.heartbeats);
+      setHeartbeats(agentId ? hb.heartbeats.filter(h => h.agentId === agentId) : hb.heartbeats);
       setTraces(tr.traces);
       setError('');
     } catch (e) {
@@ -122,7 +124,7 @@ export function AgentTelemetryPanel({ workspaceId, isPlatformAdmin }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [workspaceId, isPlatformAdmin, scopeAll]);
+  }, [workspaceId, isPlatformAdmin, scopeAll, agentId]);
 
   useEffect(() => {
     let cancelled = false;

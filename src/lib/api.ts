@@ -30,6 +30,15 @@ export interface AgentHeartbeat {
   updatedAt: string;
 }
 
+/** Desired-state row for an out-of-process agent runner (see /agents). */
+export interface AgentControl {
+  agentId: string;
+  desiredState: 'enabled' | 'paused';
+  triggerRequestedAt: string | null;
+  triggerAckedAt: string | null;
+  updatedAt: string;
+}
+
 export interface AgentTraceEntry {
   marketId: string;
   metric: string;
@@ -511,6 +520,16 @@ export const api = {
     const qs = q.toString() ? `?${q}` : '';
     return requestWithWorkspace(`/api/admin/agent-traces${qs}`, {}, { workspaceId });
   },
+
+  // Agent control plane (platform admin / master key; see /agents)
+  getAgentControls: (): Promise<{ controls: AgentControl[] }> =>
+    request('/api/admin/agent-controls'),
+
+  setAgentControl: (params: { agentId: string; desiredState?: 'enabled' | 'paused'; trigger?: boolean }): Promise<AgentControl> =>
+    request('/api/admin/agent-control', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    }),
 
   // Marketplace (public, no auth)
   getStats: async (): Promise<{ marketsActive: number; agentsActive: number; tradesThisWeek: number }> => {

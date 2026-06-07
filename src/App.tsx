@@ -19,6 +19,8 @@ import { ProposalsPage } from './pages/ProposalsPage';
 import { WaitlistPage } from './pages/WaitlistPage';
 import { StartPage } from './pages/StartPage';
 import { AdminPage } from './pages/AdminPage';
+import { AgentsPage } from './pages/AgentsPage';
+import { AgentDetailPage } from './pages/AgentDetailPage';
 import { AccountPage } from './pages/AccountPage';
 import { AgentLoginPage } from './pages/AgentLoginPage';
 import { AgentPortalPage } from './pages/AgentPortalPage';
@@ -87,6 +89,8 @@ export function App() {
               <Route path="/start" element={<StartPage />} />
               <Route path="/create-workspace" element={<CreateWorkspacePage />} />
               <Route path="/admin" element={<AdminPage />} />
+              <Route path="/agents" element={<AgentsPage />} />
+              <Route path="/agents/:id" element={<AgentDetailPage />} />
               <Route path="/account" element={<AccountPage />} />
               <Route path="/api-access" element={<ApiPage />} />
             </Route>
