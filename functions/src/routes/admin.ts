@@ -3,7 +3,7 @@ import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
 import { getActivityFeed, ACTIVITY_TYPES, type ActivityType } from '../services/activity';
 import { db } from '../db/client';
-import { agents, agentTraces, agentHeartbeats, markets, workspaces } from '../db/schema';
+import { agents, agentTraces, agentHeartbeats, agentControls, markets, workspaces } from '../db/schema';
 import { and, desc, eq, gte, lte, inArray } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { AppError } from '../lib/errors';
@@ -249,6 +249,49 @@ adminRouter.get('/agent-heartbeats', requireCapability('manage'), wrap(async (re
   const enriched = rows.map(r => ({ ...r, workspaceName: r.workspaceId ? (nameById[r.workspaceId] ?? null) : null }));
 
   res.json({ heartbeats: enriched, isPlatformAdmin: isPlatform });
+}));
+
+// ---------------------------------------------------------------------------
+// Agent control plane: desired state (enabled/paused) + cycle triggers for
+// the out-of-process agent runners. The /agents admin UI writes; each runner
+// polls GET /agent-controls every tick and obeys. Pull-based so the server
+// never needs inbound access to the host running the agents. A trigger fires
+// when triggerRequestedAt > triggerAckedAt; the runner acks after firing.
+// ---------------------------------------------------------------------------
+
+adminRouter.get('/agent-controls', wrap(async (req, res) => {
+  if (!(await isPlatformAuthorized(req))) {
+    throw new AppError('Platform admin or master key required', 403);
+  }
+  const rows = await db.select().from(agentControls).orderBy(agentControls.agentId);
+  res.json({ controls: rows });
+}));
+
+adminRouter.post('/agent-control', wrap(async (req, res) => {
+  if (!(await isPlatformAuthorized(req))) {
+    throw new AppError('Platform admin or master key required', 403);
+  }
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const agentId = reqStr(body, 'agentId');
+
+  const set: Partial<typeof agentControls.$inferInsert> = { updatedAt: new Date() };
+  if (body.desiredState !== undefined) {
+    if (body.desiredState !== 'enabled' && body.desiredState !== 'paused') {
+      throw new AppError("desiredState must be 'enabled' or 'paused'", 400);
+    }
+    set.desiredState = body.desiredState;
+  }
+  if (body.trigger === true) set.triggerRequestedAt = new Date();
+  if (body.ackTrigger === true) set.triggerAckedAt = new Date();
+  if (set.desiredState === undefined && set.triggerRequestedAt === undefined && set.triggerAckedAt === undefined) {
+    throw new AppError('Nothing to do: pass desiredState, trigger, or ackTrigger', 400);
+  }
+
+  const [row] = await db.insert(agentControls)
+    .values({ agentId, ...set })
+    .onConflictDoUpdate({ target: agentControls.agentId, set })
+    .returning();
+  res.json(row);
 }));
 
 /**

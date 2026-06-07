@@ -504,6 +504,24 @@ export const feedback = pgTable('feedback', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
+/**
+ * Desired-state control plane for out-of-process agents (the telarchy-agents
+ * runners). The admin UI at /agents writes rows; each agent's runner polls
+ * GET /api/admin/agent-controls every tick and obeys. This direction (agents
+ * pull, server never connects to the agent host) means no inbound access to
+ * the box running the agents is ever needed.
+ */
+export const agentControls = pgTable('agent_controls', {
+  agentId: text('agent_id').primaryKey(),
+  /** 'enabled' | 'paused'. Paused runners skip cycle bodies but keep heartbeating. */
+  desiredState: text('desired_state').notNull().default('enabled'),
+  /** Set by the UI to request an immediate cycle. */
+  triggerRequestedAt: timestamp('trigger_requested_at'),
+  /** Set by the runner when it fires the requested cycle (fires when requested > acked). */
+  triggerAckedAt: timestamp('trigger_acked_at'),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
 export const agentHeartbeats = pgTable('agent_heartbeats', {
   /** One row per bot agent (e.g. bot-anchor, bot-ai-analyst). */
   agentId: text('agent_id').primaryKey(),
