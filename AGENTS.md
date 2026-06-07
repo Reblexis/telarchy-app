@@ -179,13 +179,12 @@ Important: always rebuild functions before checking compiled output (`npm run bu
 
 ## Bot trading agents
 
-The market-making / forecasting bots live in a separate repo: **`~/src/telarchy-agents`**. It is a small Node/TypeScript service (systemd units under `~/src/telarchy-agents/systemd/`) that polls the Telarchy API, auto-discovers public workspaces, joins them as bot participants, and runs deterministic + LLM strategies (`anchor`, `momentum`, `stabilizer`, `blended`, `ai-analyst`, `ai-researcher`).
+The production Telarchy agents live in a separate repo: **`~/src/telarchy/telarchy-agents`** (umbrella submodule). The main fleet is `cli-agents/` (prose/script agents: `impact-analyst`, `external-researcher`, `skeptic`, `market-evolver`), which since 2026-06-07 runs **on the kpi-sync Hetzner box** (5.75.140.10, `telarchy` Linux user) as per-agent systemd units `telarchy-agent@<name>` - see `telarchy-agents/deploy/bootstrap-vps.md` for host setup and ops commands. They are managed from the platform-admin **/agents** page on telarchy.com (live health, pause/resume, run-now, per-agent traces), backed by `GET/POST /api/admin/agent-control(s)` plus the agent-telemetry endpoints.
 
-- Service runs under the user's systemd session: `telarchy-agents-prod.service` targets `https://telarchy.com`; `telarchy-agents.service` targets local dev. Check status with `systemctl --user status telarchy-agents-prod.service` and logs at `/tmp/telarchy-agents-prod.log`.
-- Config via `.env.production` / `.env` in that repo (`TELARCHY_URL`, `TELARCHY_ADMIN_KEY`, `MULTI_WORKSPACE=1`, `POLL_INTERVAL_SECONDS`, etc.).
-- Multi-workspace mode discovers public workspaces via `GET /api/marketplace/workspaces/public` and joins each one via `POST /api/marketplace/:id/join` using each bot's own `X-Agent-Key`, the same flow any third-party agent uses. Trading rights come from the workspace's Public-group capabilities (Open workspaces grant Trader inherently); bots do not self-promote via admin key.
+- The older Node/TypeScript service (`src/`, strategies `anchor`, `momentum`, `stabilizer`, `blended`, `ai-analyst`, `ai-researcher`) still exists with local systemd units (`telarchy-agents-prod.service`); its bots push the same telemetry but do NOT poll the control plane, so /agents controls are inert for them.
+- Multi-workspace discovery joins public workspaces via `GET /api/marketplace/workspaces/public` + `POST /api/marketplace/:id/join` using each bot's own `X-Agent-Key`, the same flow any third-party agent uses. Trading rights come from the workspace's Public-group capabilities; bots do not self-promote via admin key.
 
-There is no openclaw-based bot trading (the `~/.openclaw` scaffolding is unrelated; the earlier hook-watcher / skill references point at a deprecated integration path). If you need to change bot behaviour, edit `~/src/telarchy-agents/src/strategies/*.ts` and restart the service: `systemctl --user restart telarchy-agents-prod.service`.
+There is no openclaw-based bot trading (the `~/.openclaw` scaffolding is unrelated; the earlier hook-watcher / skill references point at a deprecated integration path). To change cli-agent behaviour, edit the agent's `strategy.md` (or `run` script), push, then `git pull` + `systemctl --user restart 'telarchy-agent@*'` on the box.
 
 
 If modifying the api capabilities or otherwise changing behaviour of the backend relevant to api communication, always update the documentation and api help endpoint correspondingly as well as the skill description.
