@@ -1,6 +1,6 @@
 import {
   pgTable, text, boolean, integer, bigint, doublePrecision,
-  timestamp, jsonb, primaryKey, uniqueIndex,
+  timestamp, jsonb, primaryKey, uniqueIndex, index,
 } from 'drizzle-orm/pg-core';
 
 // ---------------------------------------------------------------------------
@@ -201,6 +201,29 @@ export const deposits = pgTable('deposits', {
   buyRate: doublePrecision('buy_rate').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
+
+/**
+ * Participant-to-participant credit transfers (POST /api/agents/transfer).
+ * Why: credits previously moved only via trading, deposits, payouts, and
+ * admin crediting; external economic systems built on top of Telarchy (e.g.
+ * the agent-economy bank's credit<->compute-credit exchange) need a plain
+ * "pay another participant" primitive, and both parties need a visible
+ * ledger of those moves. Amounts are stored in credits (display units);
+ * balance mutations themselves happen in integer nanocredits.
+ */
+export const creditTransfers = pgTable('credit_transfers', {
+  id: text('id').primaryKey(),
+  fromAgentId: text('from_agent_id').notNull().references(() => agents.id),
+  toAgentId: text('to_agent_id').notNull().references(() => agents.id),
+  credits: doublePrecision('credits').notNull(),
+  /** Freeform reference set by the sender (max 200 chars), e.g. an exchange
+   *  or invoice id in an external system. */
+  memo: text('memo').notNull().default(''),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, t => [
+  index('credit_transfers_from_idx').on(t.fromAgentId),
+  index('credit_transfers_to_idx').on(t.toAgentId),
+]);
 
 export const withdrawals = pgTable('withdrawals', {
   id: text('id').primaryKey(),

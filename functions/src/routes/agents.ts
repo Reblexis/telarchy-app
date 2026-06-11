@@ -1,7 +1,7 @@
 import { Router, type Request } from 'express';
 import { db } from '../db/client';
-import { agents, agentApiKeys, agentBalanceSnapshots, deposits, withdrawals, systemConfig, workspaces, positions, trades, markets, permissionGroups } from '../db/schema';
-import { eq, and, sql, inArray, desc, asc } from 'drizzle-orm';
+import { agents, agentApiKeys, agentBalanceSnapshots, creditTransfers, deposits, withdrawals, systemConfig, workspaces, positions, trades, markets, permissionGroups } from '../db/schema';
+import { eq, and, or, sql, inArray, desc, asc, gte } from 'drizzle-orm';
 import { randomBytes } from 'crypto';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
@@ -123,6 +123,88 @@ agentsRouter.get('/mine', authMiddleware, requireIdentity, requireScope('account
     const { apiKeyHash: _, ...data } = agent;
     res.json([{ ...data, balance: fromUnits(data.balance as number) }]);
   }
+}));
+
+/**
+ * Move credits from the caller's own participant to another participant.
+ * Why: credits previously moved only via trading, deposits, payouts, and
+ * admin crediting. This is the wallet primitive that lets external economic
+ * systems built on Telarchy (e.g. an agent economy's credit<->compute
+ * exchange) settle between participants without Telarchy hosting any
+ * banking logic. Strictly self-initiated: the sender is always the
+ * authenticated identity (the master key cannot move someone else's funds).
+ */
+agentsRouter.post('/transfer', authMiddleware, requireIdentity, requireScope('account:wallet'), wrap(async (req, res) => {
+  const fromId = req.auth?.agentId;
+  if (!fromId) throw new AppError('Transfers require a participant identity', 403);
+
+  const { toAgent, amount, memo } = (req.body ?? {}) as { toAgent?: string; amount?: number; memo?: string };
+  if (typeof toAgent !== 'string' || !toAgent.trim()) throw new AppError('toAgent (id or nickname) is required', 400);
+  if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0) {
+    throw new AppError('amount must be a positive number of credits', 400);
+  }
+  if (memo !== undefined && (typeof memo !== 'string' || memo.length > 200)) {
+    throw new AppError('memo must be a string of at most 200 characters', 400);
+  }
+
+  const target = toAgent.trim();
+  let [recipient] = await db.select({ id: agents.id }).from(agents).where(eq(agents.id, target)).limit(1);
+  if (!recipient) {
+    [recipient] = await db.select({ id: agents.id }).from(agents)
+      .where(sql`LOWER(${agents.nickname}) = ${target.toLowerCase()}`)
+      .limit(1);
+  }
+  if (!recipient) throw new AppError('Recipient participant not found', 404);
+  if (recipient.id === fromId) throw new AppError('Cannot transfer to yourself', 400);
+
+  const units = toUnits(amount);
+  const transferId = randomUUID();
+  const createdAt = new Date();
+  await db.transaction(async tx => {
+    // Conditional debit doubles as the balance check: zero rows updated
+    // means insufficient funds, and the transaction never touches the
+    // recipient. No read-then-write race.
+    const debited = await tx.update(agents)
+      .set({ balance: sql`${agents.balance} - ${units}` })
+      .where(and(eq(agents.id, fromId), gte(agents.balance, units)))
+      .returning({ id: agents.id });
+    if (debited.length === 0) throw new AppError('Insufficient balance', 409);
+    await tx.update(agents)
+      .set({ balance: sql`${agents.balance} + ${units}` })
+      .where(eq(agents.id, recipient.id));
+    await tx.insert(creditTransfers).values({
+      id: transferId, fromAgentId: fromId, toAgentId: recipient.id,
+      credits: amount, memo: memo ?? '', createdAt,
+    });
+  });
+
+  res.status(201).json({
+    id: transferId, fromAgent: fromId, toAgent: recipient.id,
+    amount, memo: memo ?? '', createdAt: createdAt.toISOString(),
+  });
+}));
+
+/**
+ * Transfer history involving the caller (or, for the master key, a named
+ * participant). Receivers use this to verify an inbound payment by id
+ * before releasing something in an external system.
+ */
+agentsRouter.get('/transfers', authMiddleware, requireIdentity, requireScope('account:read'), wrap(async (req, res) => {
+  const me = req.auth?.agentId
+    ?? (req.auth?.isMasterKey && typeof req.query.agentId === 'string' ? req.query.agentId : null);
+  if (!me) throw new AppError('Transfers require a participant identity (master key: pass ?agentId=)', 403);
+
+  const direction = typeof req.query.direction === 'string' ? req.query.direction : 'all';
+  const limit = Math.min(Number(req.query.limit) || 50, 200);
+  const where = direction === 'in' ? eq(creditTransfers.toAgentId, me)
+    : direction === 'out' ? eq(creditTransfers.fromAgentId, me)
+    : or(eq(creditTransfers.fromAgentId, me), eq(creditTransfers.toAgentId, me));
+  const rows = await db.select().from(creditTransfers).where(where)
+    .orderBy(desc(creditTransfers.createdAt)).limit(limit);
+  res.json(rows.map(r => ({
+    id: r.id, fromAgent: r.fromAgentId, toAgent: r.toAgentId,
+    amount: r.credits, memo: r.memo, createdAt: (r.createdAt as Date).toISOString(),
+  })));
 }));
 
 /** Public: treasury receive address for USDC deposits (no balances; does not require auth). */

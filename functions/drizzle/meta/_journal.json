@@ -281,6 +281,13 @@
       "when": 1781000600000,
       "tag": "0039_agent_controls",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1781179412895,
+      "tag": "0040_credit_transfers",
+      "breakpoints": true
     }
   ]
 }
