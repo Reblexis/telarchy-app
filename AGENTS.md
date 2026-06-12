@@ -160,11 +160,12 @@ gcloud run services logs read api --region us-central1 --limit 20
 When uncertain about a bug or data state, use the live API directly before making code changes. Do not guess; verify.
 
 **Base URL**: `https://telarchy.com/api`
-**Auth header**: `X-API-Key: mtrk_a7f3x9kL2pQw8vNdR4jY6mBs`
+**Auth header**: `X-API-Key: $TELARCHY_MASTER_KEY` - the master key is NOT committed to this repo (it may be open-sourced someday). Canonical source: the private `Reblexis/keyring` repo (`keyring/telarchy/master.env` in the telarchy umbrella; `source` it or read it from `cli-agents/_runner/registrars.json`).
 
 Example:
 ```bash
-curl -s -H "X-API-Key: mtrk_a7f3x9kL2pQw8vNdR4jY6mBs" \
+source ../keyring/telarchy/master.env   # umbrella checkout; sets TELARCHY_MASTER_KEY
+curl -s -H "X-API-Key: $TELARCHY_MASTER_KEY" \
   "https://telarchy.com/api/predictions/markets?limit=5"
 ```
 

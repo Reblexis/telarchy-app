@@ -68,7 +68,7 @@ Required env (set once per session):
 ```bash
 export TT_BASE_URL=http://localhost:8080            # backend
 export TT_FRONTEND_URL=http://localhost:5173        # vite
-export TT_ADMIN_KEY=mtrk_a7f3x9kL2pQw8vNdR4jY6mBs   # master key (see AGENTS.md)
+export TT_ADMIN_KEY=$TELARCHY_MASTER_KEY            # from keyring/telarchy/master.env (see AGENTS.md)
 ```
 
 ## What you get back
