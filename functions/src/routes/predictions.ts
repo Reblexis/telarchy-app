@@ -329,9 +329,21 @@ predictionsRouter.get('/markets', requireCapability('read'), wrap(async (req, re
   if (proposalId) {
     const [proposal] = await db.select().from(proposals)
       .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
-    if (proposal) {
-      const currentIds = (proposal.conditionalMarketIds as string[]) ?? [];
-      if (!currentIds.length) {
+    if (proposal && proposal.status === 'pending') {
+      // Re-spawn lazily when the proposal has no LIVE conditional markets, not
+      // merely when its id list is empty. Relative-date rollover can void every
+      // conditional market while conditionalMarketIds still references the dead
+      // rows; gating on an empty list left such proposals permanently without
+      // markets. Restricted to pending proposals: approved/declined ones void a
+      // branch on purpose, so a zero-live-market state there is not a bug to heal.
+      const [{ live } = { live: 0 }] = await db.select({ live: sql<number>`count(*)::int` })
+        .from(markets)
+        .where(and(
+          eq(markets.workspaceId, workspaceId),
+          eq(markets.proposalId, proposalId),
+          eq(markets.resolved, false),
+        ));
+      if (live === 0) {
         const marketIds = await createConditionalMarkets(proposalId, workspaceId, {
           contributions: subsidyContributionsOf(proposal),
         });

@@ -1,5 +1,5 @@
 import { db } from '../db/client';
-import { agents, markets, metrics as metricsTable, positions, liquidityEvents, systemConfig, workspaces } from '../db/schema';
+import { agents, markets, metrics as metricsTable, positions, liquidityEvents, systemConfig, workspaces, proposals as proposalsTable } from '../db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { getLeafDescendantNames, desiredMarketDates, generatesMarkets } from '../lib/time-preference';
@@ -236,11 +236,11 @@ async function releaseLock(lockKey: string): Promise<void> {
     });
 }
 
-export async function refreshRelativeDateMarkets(workspaceId: string, opts: { force?: boolean } = {}): Promise<{ created: number; deactivated: number; deduplicated: number }> {
+export async function refreshRelativeDateMarkets(workspaceId: string, opts: { force?: boolean } = {}): Promise<{ created: number; deactivated: number; deduplicated: number; conditionalRespawned: number }> {
   const lockKey = `lock:marketRefresh:${workspaceId}`;
   if (!opts.force) {
     const acquired = await acquireLock(lockKey, 120_000);
-    if (!acquired) return { created: 0, deactivated: 0, deduplicated: 0 };
+    if (!acquired) return { created: 0, deactivated: 0, deduplicated: 0, conditionalRespawned: 0 };
   }
 
   const metricRows = await db.select().from(metricsTable).where(eq(metricsTable.workspaceId, workspaceId));
@@ -414,8 +414,45 @@ export async function refreshRelativeDateMarkets(workspaceId: string, opts: { fo
   for (const m of toVoid) await voidMarket(m, workspaceId);
   const deduplicated = toVoid.length;
 
+  // Reconcile conditional markets for pending proposals. Relative-date markets
+  // roll their target dates forward over time, and when a baseline date rolls
+  // off, a proposal's conditional markets at that date are voided as stale. Left
+  // alone, a pending proposal can end up with zero live conditional markets while
+  // its conditionalMarketIds still references the (now dead) rows. The lazy
+  // re-spawn on the per-proposal fetch was keyed on an empty id list, so it never
+  // fired in that state and the proposal showed no conditional markets forever
+  // (observed on lookpilot-growth: 3 pending proposals, ~24 voided conditionals
+  // each, conditional markets list permanently empty). createConditionalMarkets
+  // is an idempotent incremental sync (spawn missing, void stale, keep current),
+  // so running it here re-aligns each pending proposal's conditional set with the
+  // live baselines and re-seeds the subsidy from subsidyContributions. Only
+  // pending proposals are reconciled: approved/declined proposals void one branch
+  // on purpose, and re-spawning it would resurrect the dead counterfactual.
+  let conditionalRespawned = 0;
+  const pendingProposals = await db.select().from(proposalsTable)
+    .where(and(eq(proposalsTable.workspaceId, workspaceId), eq(proposalsTable.status, 'pending')));
+  if (pendingProposals.length > 0) {
+    const { createConditionalMarkets, subsidyContributionsOf } = await import('./proposals');
+    for (const proposal of pendingProposals) {
+      try {
+        const marketIds = await createConditionalMarkets(proposal.id, workspaceId, {
+          contributions: subsidyContributionsOf(proposal),
+        });
+        const prevIds = (proposal.conditionalMarketIds as string[]) ?? [];
+        const changed = marketIds.length !== prevIds.length || marketIds.some(id => !prevIds.includes(id));
+        if (changed) {
+          await db.update(proposalsTable).set({ conditionalMarketIds: marketIds })
+            .where(and(eq(proposalsTable.id, proposal.id), eq(proposalsTable.workspaceId, workspaceId)));
+          conditionalRespawned++;
+        }
+      } catch (e) {
+        console.error(`refreshRelativeDateMarkets: conditional respawn failed for proposal ${proposal.id}:`, e);
+      }
+    }
+  }
+
   // Hold lock as cooldown for 5 minutes
   if (!opts.force) await setLockCooldown(lockKey, 5 * 60 * 1000);
 
-  return { created, deactivated, deduplicated };
+  return { created, deactivated, deduplicated, conditionalRespawned };
 }
