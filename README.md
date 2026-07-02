@@ -31,7 +31,7 @@ cd functions && npm install && cd ..
 
 # Configure environment
 cp functions/.env.example functions/.env
-# Set API_KEY, ADMIN_EMAILS, DATABASE_URL, ALLOWED_ORIGIN, BETTER_AUTH_URL,
+# Set API_KEY, INITIAL_ADMIN_EMAIL, DATABASE_URL, ALLOWED_ORIGIN, BETTER_AUTH_URL,
 # TREASURY_PRIVATE_KEY (asserted at boot; a throwaway EVM key is fine for a
 # play-money instance, never a funded wallet)
 
@@ -42,7 +42,7 @@ cd functions && npx drizzle-kit migrate && cd ..
 docker compose up
 ```
 
-The app runs at the configured origin. Create your first browser account, add that email to `ADMIN_EMAILS`, restart, and log in to reach the admin UI.
+The app runs at the configured origin. Set `INITIAL_ADMIN_EMAIL` before first boot to make your first sign-in (email or OAuth) a platform admin; on an existing database a restart elevates the matching user. Without it, first boot creates an `admin@localhost` account and prints its password to stdout.
 
 For the full vision and architecture, see `docs/vision.md`. For the managed instance, see `telarchy.com`.
 
