@@ -27,6 +27,9 @@ services:
       DATABASE_URL: postgres://telarchy:${DB_PASSWORD:-changeme}@db:5432/telarchy
       API_KEY: ${API_KEY}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      # Required at boot (server.ts asserts a parseable key). A play-money
+      # instance can use a throwaway EVM key; never reuse a funded wallet.
+      TREASURY_PRIVATE_KEY: ${TREASURY_PRIVATE_KEY}
       ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-*}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:8080}
       AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-}

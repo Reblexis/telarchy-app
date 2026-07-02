@@ -31,7 +31,9 @@ cd functions && npm install && cd ..
 
 # Configure environment
 cp functions/.env.example functions/.env
-# Set API_KEY, ADMIN_EMAILS, DATABASE_URL, ALLOWED_ORIGIN, BETTER_AUTH_URL
+# Set API_KEY, ADMIN_EMAILS, DATABASE_URL, ALLOWED_ORIGIN, BETTER_AUTH_URL,
+# TREASURY_PRIVATE_KEY (asserted at boot; a throwaway EVM key is fine for a
+# play-money instance, never a funded wallet)
 
 # Run database migrations
 cd functions && npx drizzle-kit migrate && cd ..
