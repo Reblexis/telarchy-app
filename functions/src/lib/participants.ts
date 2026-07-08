@@ -173,17 +173,24 @@ export async function getParticipantWorkspaceMemberships(participantId: string):
 
 export async function getUserWorkspaceMemberships(userId: string): Promise<WorkspaceMembership[]> {
   const participantId = await resolveParticipantIdForUser(userId);
-  if (!participantId) return [];
 
-  const memberships = await getParticipantWorkspaceMemberships(participantId);
+  // A freshly-signed-up user may own workspaces before any participant
+  // (agents) row exists for them - workspace creation does not call
+  // ensureParticipant. Do NOT early-return on a missing participantId, or the
+  // creator loses membership (and thus capabilities) on their own workspace.
+  const memberships = participantId
+    ? await getParticipantWorkspaceMemberships(participantId)
+    : [];
 
   // Permission groups cap at 'admin'. Upgrade to 'owner' for any workspace where
   // the user (or their participantId) is the workspace creator.
-  // Also include workspaces the user created but isn't in any permission group for.
+  // Also include workspaces the user created but isn't in any permission group
+  // for - including when they have no participant row yet.
+  const ownerCreators = participantId ? [userId, participantId] : [userId];
   const ownedRows = await db
     .select({ id: workspaces.id })
     .from(workspaces)
-    .where(or(eq(workspaces.createdBy, userId), eq(workspaces.createdBy, participantId)));
+    .where(inArray(workspaces.createdBy, ownerCreators));
 
   if (ownedRows.length === 0) return memberships;
 
@@ -201,8 +208,11 @@ export async function getUserWorkspaceMemberships(userId: string): Promise<Works
     for (const wsId of missingWsIds) {
       result.push({ workspaceId: wsId, memberRole: 'owner' });
     }
-    // Fire-and-forget: add to admin groups so future lookups work directly
-    db.select().from(permissionGroups)
+    // Fire-and-forget: add to admin groups so future lookups work directly.
+    // Only possible once the owner has a participant row; until then the
+    // 'owner' membership above (plus the createdBy owner-shortcut in
+    // computeCapabilities) already grants full access.
+    if (participantId) db.select().from(permissionGroups)
       .where(and(inArray(permissionGroups.workspaceId, missingWsIds), eq(permissionGroups.type, 'admin')))
       .then(groups => {
         for (const group of groups) {
