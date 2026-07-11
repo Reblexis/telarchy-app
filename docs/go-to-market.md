@@ -166,6 +166,8 @@ Telarchy vs each of these (canonical landing matrix in `src/pages/LandingPage.ts
 
 **Positioning one-liner:** Telarchy is an alignment layer for AI and humans. Markets price what any participant proposes, against the metrics you define.
 
+**Updated 2026-07-11 (Viktor):** the outward headline is now **"the approval layer for AI agents"**: your agent proposes an action, a market prices its expected impact on your KPI, and you approve on a calibrated number. Never lead with "prediction markets" (reads as gambling/crypto and pulls the regulatory question to the front of every conversation). The alignment-layer framing above remains the mission-level story. Beachhead order (agent builders first) and audience-specific one-liners live in the SF master plan record (telarchy umbrella, `notes/sf-master-plan-2026-07.md`).
+
 ### Why Telarchy is not the $100-test antipattern
 
 A common and substantive objection from anyone who has read modern strategy literature (Roger Martin, Richard Rumelt, Patrick Lencioni, "The $100 Test" criticism): Telarchy can sound like decision-making by vote. If the team allocates fake money across strategic options, the system smooths bold bets into safe averages, removes single-point accountability, and lets the company hide behind "the team decided." Strategy is an act of conviction; voting destroys it.

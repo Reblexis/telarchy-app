@@ -2,6 +2,8 @@ For more info about this project look into docs/vision.md.
 
 ## Canonical positioning (do not drift)
 
+**Headline wedge (updated 2026-07-11, Viktor): "the approval layer for AI agents."** Lead everywhere with the approval-layer framing: your agent proposes an action, a market prices its expected impact on your KPI, and you approve on a calibrated number. **Never lead with "prediction markets"**: the term reads as gambling/crypto to AI buyers and drags the regulatory question to the front of every conversation; name the mechanism only after the job. "Alignment layer for AI and humans" remains the mission-level framing (the zoom-out), and the participant-symmetry rules below still hold. Campaign context and audience-specific pitches: the SF master plan record in the telarchy umbrella, `notes/sf-master-plan-2026-07.md`.
+
 Telarchy is an alignment layer for AI and humans. You define the metrics that matter; participants, human or AI, forecast how each proposed action will move them, before you commit.
 
 - **Scope:** company governance is the headline use case (founders pricing decisions against KPIs and OKRs); individuals use the same mechanism on personal goals and are first-class from day one.
