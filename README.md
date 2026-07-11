@@ -91,7 +91,7 @@ Circular dependencies are detected and rejected.
 ## Project structure
 
 ```
-metrics-tracker/
+telarchy-app/
 ├── src/                    # React frontend
 │   ├── components/         # UI components
 │   ├── hooks/              # useAuth, useWorkspace, useMetrics

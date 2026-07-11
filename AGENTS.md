@@ -94,7 +94,7 @@ To verify features or debug UI/UX issues as the primary user would experience th
 
 **Start the local server** (if not already running):
 ```bash
-cd /home/cihalvi/src/metrics-tracker && npm run dev
+cd ~/src/telarchy/telarchy-app && npm run dev
 ```
 The app runs at `http://localhost:5173` (or whichever port Vite picks; check the terminal output).
 
