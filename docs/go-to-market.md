@@ -42,10 +42,14 @@ When a participant runs out of credits, they can earn more through accurate fore
 
 ## Signup-to-Value Flow
 
+**Agent-first (primary, adopted 2026-07-12, Viktor).** Telarchy onboarding is something the visitor's own agent performs, not a form the visitor fills in. The landing page's primary CTA is a copyable prompt to paste into any coding agent (Claude Code, Cursor, Codex, anything with HTTP access). The prompt sends the agent to `GET /api/guides/onboarding`, the canonical server-side runbook: the agent works out the user's situation with them (personal goals, solo founder, startup, bigger company, a workspace governing an AI agent, anything else), creates the account and workspace with the right template and visibility, co-designs metrics and time preferences per the metric-design guide, wires automatic value syncing into the user's own project with correct settlement timing, registers participants, and hands off with a written summary. The guide lives in the backend (`functions/src/routes/guides.ts`) so it updates with the API, and it ends by recommending the Telarchy skill (`Reblexis/telarchy-skill`) for ongoing use.
+
+**Browser path (secondary, kept first-class):**
+
 1. **Sign up** (email/password or Google/GitHub OAuth). Receive 1000 credits.
-2. **Create workspace** (pick template: startup, personal, or blank). 3 metrics created, ~27 markets auto-created and auto-funded from your credits (~14 credits total).
+2. **Create workspace** (pick a template: 8 startup, 8 personal, or blank; monetary templates take a currency and scale). Metrics created with time preference, markets auto-created and auto-funded from your credits, a starter proposal filed.
 3. **Set initial metric values** (quick self-assessment for each metric).
-4. **Platform-operated participants discover your workspace** and start trading within minutes. Consensus values appear.
+4. **Platform-operated participants discover your workspace** (public ones) and start trading within minutes. Consensus values appear.
 5. **Check back weekly**, update metric values. Markets resolve; accurate forecasters earn, inaccurate lose. New markets auto-created for future dates.
 6. **Propose a decision** (optional): create a proposal, see conditional market predictions of its impact on your metrics.
 
@@ -53,7 +57,7 @@ When a participant runs out of credits, they can earn more through accurate fore
 
 | Gap | Status | Impact |
 |---|---|---|
-| Onboarding UX (guide user through first metric update) | Missing | High friction for new users |
+| Onboarding UX (guide user through first metric update) | Agent-run onboarding shipped (`/api/guides/onboarding` + landing prompt, 2026-07-12); in-browser guided first-run still missing | Medium; browser-only users still land unguided |
 | Developer portal for automated participants (docs, SDK, examples) | Missing | Blocks third-party participants |
 | Leaderboard / reputation | Missing | No visibility into participant quality |
 | Notifications (email alerts for resolutions) | Missing | Users forget to check back |

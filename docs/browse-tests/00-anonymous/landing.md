@@ -60,6 +60,19 @@ $B reload && $B wait --networkidle
 $B is visible 'a[href*="/signup"], a[href*="/marketplace"], button:has-text("Sign up"), button:has-text("Get started")'
 ```
 
+### T2b. Agent onboarding prompt is the hero CTA
+
+The primary signup path is agent-first (2026-07-12): the hero carries a
+copyable prompt that sends the visitor's agent to `/api/guides/onboarding`.
+
+```bash
+grep -q "api/guides/onboarding" "/tmp/$TT_NS-landing.txt"
+grep -qi "give this to your agent" "/tmp/$TT_NS-landing.txt"
+$B is visible 'button:has-text("Copy")'
+# The guide the prompt points at must actually be live:
+curl -sf "$TT_BASE_URL/api/guides/onboarding" | grep -qi "agent onboarding"
+```
+
 ### T3. No console errors on first paint
 
 ```bash

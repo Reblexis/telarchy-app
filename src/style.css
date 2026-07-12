@@ -2920,6 +2920,22 @@ body.landing-page {
   }
 }
 
+/* Two-up trust cards ("why you can trust the number"). Reuses .lp-diff-accent
+   / .lp-diff-title / .lp-diff-body for the card internals; this only owns the
+   grid so the section is not forced into the 3-column privacy grid. */
+.lp-trust-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 2.5rem;
+}
+
+@media (max-width: 700px) {
+  .lp-trust-grid {
+    grid-template-columns: 1fr;
+    gap: 1.75rem;
+  }
+}
+
 @media (max-width: 700px) {
   .lp-hero-grid {
     grid-template-columns: 1fr;

@@ -5,42 +5,6 @@ import { api } from '../lib/api';
 import { postLoginPath } from '../lib/postLoginPath';
 import { popStashedNextPath } from '../lib/nextPath';
 import { Logo } from '../components/Logo';
-import productDashboardLight from '../assets/product-dashboard-light.png';
-import productDashboardDark from '../assets/product-dashboard-dark.png';
-
-// ─── Scroll reveal hook ────────────────────────────────────────────────────
-
-// ─── Animated counter hook ─────────────────────────────────────────────────
-function useCounter(target: number, duration = 1200) {
-  // Default to the target so screenshot tools, prefers-reduced-motion users,
-  // and anyone the IntersectionObserver never fires for see a real number
-  // instead of a stuck "0". When the strip scrolls into view we re-animate
-  // from 0 → target as a polish-only flourish.
-  const [value, setValue] = useState(target);
-  const ref = useRef<HTMLElement>(null);
-  useEffect(() => {
-    setValue(target);
-    const el = ref.current;
-    if (!el) return;
-    if (typeof IntersectionObserver === 'undefined') return;
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
-    const obs = new IntersectionObserver(([entry]) => {
-      if (!entry.isIntersecting) return;
-      obs.unobserve(el);
-      setValue(0);
-      const start = performance.now();
-      const tick = (now: number) => {
-        const p = Math.min((now - start) / duration, 1);
-        setValue(Math.round(p * target));
-        if (p < 1) requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-    }, { threshold: 0.5 });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [target, duration]);
-  return { ref, value };
-}
 
 // ─── Consensus Ticker Simulation ───────────────────────────────────────────
 // A simulated live prediction market for the hero. It tells the AI-swarm story:
@@ -242,7 +206,7 @@ function GoalTreeIllustration({ visible }: { visible: boolean }) {
   const rows = [
     { name: 'Overall', value: '74.2', note: 'computed', indent: 0, root: true,  change: '+5.1', up: true  },
     { name: 'NPS',     value: '62',    note: '',        indent: 1, root: false, change: '+4',   up: true  },
-    { name: 'Retention', value: '87%', note: '',        indent: 1, root: false, change: '\u22122%',  up: false },
+    { name: 'Retention', value: '87%', note: '',        indent: 1, root: false, change: '−2%',  up: false },
     { name: 'Eng. Velocity', value: '81', note: '',     indent: 1, root: false, change: '+3%',  up: true  },
   ];
   return (
@@ -269,7 +233,7 @@ function GoalTreeIllustration({ visible }: { visible: boolean }) {
           transition: `opacity 0.4s ease ${0.08 + i * 0.11}s, transform 0.4s ease ${0.08 + i * 0.11}s`,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            {row.indent > 0 && <span style={{ color: 'var(--text-tertiary)', fontSize: '0.78rem' }}>{'\u2514'}</span>}
+            {row.indent > 0 && <span style={{ color: 'var(--text-tertiary)', fontSize: '0.78rem' }}>{'└'}</span>}
             <span style={{ fontWeight: row.root ? 700 : 500 }}>{row.name}</span>
             {row.note && <span style={{ fontSize: '0.62rem', color: 'var(--text-tertiary)', background: 'var(--bg-tertiary)', padding: '0.1rem 0.35rem', borderRadius: '0.2rem' }}>{row.note}</span>}
           </div>
@@ -307,7 +271,7 @@ function DecisionIllustration({ visible }: { visible: boolean }) {
       {/* Impact table */}
       <div style={{ padding: '0.6rem 1rem 0.5rem' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto auto auto', gap: '0.5rem 0.75rem', fontSize: '0.67rem', color: 'var(--text-tertiary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', paddingBottom: '0.35rem' }}>
-          <span>Metric</span><span>Now</span><span>Predicted</span><span>{'\u0394'}</span>
+          <span>Metric</span><span>Now</span><span>Predicted</span><span>{'Δ'}</span>
         </div>
         {impacts.map(({ metric, now, predicted, delta }, i) => (
           <div key={metric} style={{
@@ -405,7 +369,7 @@ function MarketDemo() {
           <div style={{ height: '100%', width: `${p * 100}%`, background: '#22c55e', borderRadius: 4, transition: 'width 0.4s cubic-bezier(0.4,0,0.2,1)' }} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.3rem', fontSize: '0.68rem', color: 'var(--text-tertiary)' }}>
-          <span>{'\u2190'} lower  8K</span><span>22K  higher {'\u2192'}</span>
+          <span>{'←'} lower  8K</span><span>22K  higher {'→'}</span>
         </div>
       </div>
 
@@ -413,11 +377,11 @@ function MarketDemo() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', borderBottom: '1px solid var(--border-color)' }}>
         <button onClick={() => bet('lower')} className="demo-btn demo-btn--secondary"
           style={{ borderRadius: 0, borderRight: '1px solid var(--border-color)', padding: '0.9rem', fontSize: '0.95rem' }}>
-          {'\u2193'} Predict Lower
+          {'↓'} Predict Lower
         </button>
         <button onClick={() => bet('higher')} className="demo-btn demo-btn--primary"
           style={{ borderRadius: 0, padding: '0.9rem', fontSize: '0.95rem' }}>
-          {'\u2191'} Predict Higher
+          {'↑'} Predict Higher
         </button>
       </div>
 
@@ -435,7 +399,7 @@ function MarketDemo() {
                 {item.name}
               </span>
               <span style={{ fontWeight: 700, color: item.dir === 'HIGHER' ? '#22c55e' : '#ef4444' }}>
-                {item.dir === 'HIGHER' ? '\u2191' : '\u2193'} {item.dir}
+                {item.dir === 'HIGHER' ? '↑' : '↓'} {item.dir}
               </span>
             </div>
           ))}
@@ -445,7 +409,63 @@ function MarketDemo() {
   );
 }
 
+// ─── Agent prompt CTA ───────────────────────────────────────────────────────
+// The primary signup path is agent-first (owner decision, 2026-07-12): the
+// hero hands the visitor a prompt to paste into their coding agent, which
+// then runs the guided onboarding from GET /api/guides/onboarding. Browser
+// signup stays as the secondary path. Keep the prompt short enough to read
+// at a glance and keep the guide URL literal (agents follow it verbatim).
+
+const AGENT_ONBOARDING_PROMPT =
+  'Set up Telarchy for me. Fetch https://telarchy.com/api/guides/onboarding and follow it end to end: '
+  + 'work out with me what I actually care about, create my account and workspace, '
+  + 'design the metrics and time preferences with me, and wire up automatic value syncing.';
+
+function AgentPrompt({ centered }: { centered?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    void navigator.clipboard.writeText(AGENT_ONBOARDING_PROMPT).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+  return (
+    <div style={{ maxWidth: 520, ...(centered ? { marginInline: 'auto', textAlign: 'left' } : {}) }}>
+      <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>
+        Give this to your agent
+      </div>
+      <div style={{
+        display: 'flex', gap: '0.5rem', alignItems: 'flex-start',
+        border: '1px solid var(--border-color)', borderRadius: 8,
+        background: 'var(--bg-secondary)', padding: '0.75rem 0.85rem',
+      }}>
+        <code style={{ fontSize: '0.78rem', lineHeight: 1.55, flex: 1, minWidth: 0, whiteSpace: 'pre-wrap', background: 'transparent' }}>
+          {AGENT_ONBOARDING_PROMPT}
+        </code>
+        <button type="button" onClick={copy} className="btn-copy" style={{ flexShrink: 0 }}>
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+      <p style={{ fontSize: '0.85rem', color: 'var(--text-tertiary)', marginTop: '0.6rem' }}>
+        Your agent signs you up and builds the workspace with you. 1000 free credits.{' '}
+        No agent handy? <Link to="/signup" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)', textDecoration: 'none' }}>Sign up in the browser</Link>.
+      </p>
+    </div>
+  );
+}
+
 // ─── Main page ─────────────────────────────────────────────────────────────
+// Structure (kept deliberately minimal, clarity-first per YC landing guidance):
+//   1. Hero + live market demo   (what it is, made tangible; agent-prompt CTA)
+//   2. Why this exists           (the status quo it replaces)
+//   3. How it works              (the 3-step spine)
+//   4. Why you can trust it      (skin in the game + the privacy unlock)
+//   5. The bigger picture        (alignment layer; the emotional close)
+//   6. Final CTA                 (convert; dual-scope audience one-liner)
+// Earlier versions also carried a stats strip, differentiator cards, a product
+// screenshot, audience cards, and a six-competitor comparison table. Those were
+// cut to keep the front door minimal; the copy and the matrix styling remain in
+// git history / style.css if a /why page or outreach asset wants them back.
 
 export function LandingPage() {
   const navigate = useNavigate();
@@ -493,24 +513,6 @@ export function LandingPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const [stats, setStats] = useState({ marketsActive: 0, agentsActive: 0, tradesThisWeek: 0 });
-  useEffect(() => {
-    let cancelled = false;
-    api.getStats().then(s => { if (!cancelled) setStats(s); }).catch(e => {
-      // Aborted-on-navigation produces "Failed to fetch" on most browsers.
-      // Don't log it — it'd show up as a console error on every page change
-      // for browse-driven QA tools and obscure real failures.
-      if (e?.name === 'AbortError') return;
-      if (typeof e?.message === 'string' && /failed to fetch|networkerror/i.test(e.message)) return;
-      console.error('Failed to fetch stats:', e);
-    });
-    return () => { cancelled = true; };
-  }, []);
-
-  const counter1 = useCounter(stats.marketsActive);
-  const counter2 = useCounter(stats.agentsActive);
-  const counter3 = useCounter(stats.tradesThisWeek, 1600);
-
   if (loading || user) return <div className="loading">Loading...</div>;
 
   return (
@@ -531,18 +533,18 @@ export function LandingPage() {
         </div>
       </header>
 
-      {/* Hero */}
+      {/* 1. Hero */}
       <section className="lp-hero">
         <div className="lp-hero-grid" style={{ animation: 'fadeInUp 0.6s ease both' }}>
           <div>
             <h1 style={{ fontSize: 'clamp(2rem, 4.5vw, 3.1rem)', lineHeight: 1.08, marginBottom: '1.25rem', letterSpacing: '-0.04em' }}>
-              Price every decision against the goals you actually care about.
+              Price every move against your goals, before anyone acts.
             </h1>
             <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 460 }}>
-              You set the goals. People and AI propose the moves, a market forecasts each one's impact, and you approve. Privately.
+              You set the goals. People and AI propose the moves, a market with skin in the game forecasts each one's impact, and you approve on a number.
             </p>
             <div className="lp-hero-ctas">
-              <Link to="/signup" className="lp-btn-primary">Get started. 1000 free credits</Link>
+              <AgentPrompt />
             </div>
           </div>
 
@@ -555,58 +557,22 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Live stats (proof strip) */}
-      {(stats.marketsActive > 0 || stats.agentsActive > 0 || stats.tradesThisWeek > 0) && (
-        <div className="lp-stats lp-section">
-          <div className="lp-stats-inner">
-            {[
-              { ref: counter1.ref, value: counter1.value, label: 'markets active' },
-              { ref: counter2.ref, value: counter2.value, label: 'participants forecasting' },
-              { ref: counter3.ref, value: counter3.value, label: 'predictions this week' },
-            ].map(({ ref, value, label }, i) => (
-              <div key={i}>
-                <div ref={ref as React.RefObject<HTMLDivElement>} className="lp-stat-value">
-                  {value.toLocaleString()}
-                </div>
-                <div className="lp-stat-label">{label}</div>
-              </div>
-            ))}
-          </div>
-          <div className="lp-stats-links">
-            <Link to="/marketplace">See the live markets</Link>
-            <span aria-hidden="true">·</span>
-            <Link to="/leaderboard">Forecaster leaderboard</Link>
-          </div>
+      {/* 2. Why this exists */}
+      <section className="lp-section" style={{ borderTop: '1px solid var(--border-color)', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
+        <div className="lp-wrap" style={{ padding: '4rem 2rem', maxWidth: 780 }}>
+          <p style={{ fontSize: 'clamp(1.15rem, 2.4vw, 1.5rem)', fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.4, marginBottom: '1rem' }}>
+            Every decision is a bet on your goals.
+          </p>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', lineHeight: 1.7, marginBottom: '1.25rem' }}>
+            Today you place that bet on a gut call, on whoever argues loudest in the room, or on a chatbot that sounds confident, has no stake in being right, and never knew your goals. None of them have to be correct about what you actually care about.
+          </p>
+          <p style={{ fontSize: '1.05rem', fontWeight: 600, lineHeight: 1.6 }}>
+            Telarchy makes every proposed move clear a market priced against your goals before you commit to it.
+          </p>
         </div>
-      )}
+      </section>
 
-      {/* Differentiators */}
-      <div className="lp-differentiators">
-        <div className="lp-diff-grid">
-          {[
-            {
-              title: 'Proposals from people and AI',
-              body: 'Anyone, human or AI, can propose a move toward your goals. Good ideas surface without you having to source them all.',
-            },
-            {
-              title: 'Priced against your goals',
-              body: 'Markets forecast the impact each proposal would have on your metrics, by participants who lose credits when they are wrong.',
-            },
-            {
-              title: 'You stay in control',
-              body: 'Nothing acts until you approve it on a calibrated number. Your goals are the gate.',
-            },
-          ].map(({ title, body }) => (
-            <div key={title} className="lp-diff-item">
-              <div className="lp-diff-accent" />
-              <div className="lp-diff-title">{title}</div>
-              <div className="lp-diff-body">{body}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* How it works */}
+      {/* 3. How it works */}
       <section className="lp-section" style={{ padding: '5rem 0' }}>
         <div className="lp-wrap">
           <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '2.5rem' }}>
@@ -616,7 +582,7 @@ export function LandingPage() {
             {[
               {
                 n: '1', title: 'Set your goals',
-                body: 'List the metrics that matter. Markets open automatically against each one.',
+                body: 'List the metrics that matter. A market opens against each one automatically.',
                 illustration: <GoalTreeIllustration visible={stepVisible[0]} />,
               },
               {
@@ -638,214 +604,63 @@ export function LandingPage() {
               </div>
             ))}
           </div>
-
-          {/* Mid-page CTA */}
-          <div style={{ marginTop: '3.5rem', paddingTop: '3rem', borderTop: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.3rem' }}>Ready to put your goals in charge?</div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>1000 free credits on signup. No credit card required.</div>
-            </div>
-            <Link to="/signup" className="lp-btn-primary">Get started. 1000 free credits</Link>
-          </div>
         </div>
       </section>
 
-      {/* Product shot */}
-      <section className="lp-section lp-product-section">
-        <div className="lp-wrap" style={{ textAlign: 'center' }}>
-          <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '0.5rem' }}>
-            The product, not a pitch
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.7, maxWidth: 560, margin: '0 auto' }}>
-            A live Telarchy workspace. Each metric is tracked, and each one gets its own prediction market forecasting where it is headed.
-          </p>
-          <div className="lp-product-frame">
-            <div className="lp-product-bar"><span /><span /><span /></div>
-            <img src={productDashboardLight} alt="Telarchy metrics dashboard: tracked KPIs, each with a market forecast" className="lp-product-img lp-product-img--light" loading="lazy" />
-            <img src={productDashboardDark} alt="Telarchy metrics dashboard: tracked KPIs, each with a market forecast" className="lp-product-img lp-product-img--dark" loading="lazy" />
-          </div>
-        </div>
-      </section>
-
-      {/* Choosable privacy */}
+      {/* 4. Why you can trust the number */}
       <section className="lp-privacy lp-section">
         <div className="lp-wrap">
-          <p className="lp-eyebrow">Choosable privacy</p>
           <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '0.5rem' }}>
-            You decide who sees what
+            Why you can trust the number
           </h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.7, maxWidth: 640, marginBottom: '2.5rem' }}>
-            Privacy is not a plan you upgrade to. It is a setting on every workspace, every metric, and every source. Expose exactly the slice each participant needs and keep the rest sealed.
+            A market price is only worth approving on if the people setting it have something to lose, and if you can put your real decisions in front of it.
           </p>
-          <div className="lp-privacy-grid">
-            {[
-              {
-                title: 'Private, public, or open workspaces',
-                body: 'Keep a workspace invite-only, list it for read-only viewing, or open it for anyone to trade. One setting, switchable at any time, no separate tier.',
-              },
-              {
-                title: 'Per-metric and per-source access',
-                body: 'Read and trade rights are set per metric and per source. A participant can price one KPI without ever seeing the rest of your numbers or your context docs.',
-              },
-              {
-                title: 'Price secrets without leaking them',
-                body: 'An AI participant can forecast a confidential KPI inside your private workspace and carry nothing out of the room. A human forecaster never could; this is what makes pricing sensitive decisions possible at all.',
-              },
-            ].map(({ title, body }) => (
-              <div key={title} className="lp-diff-item">
-                <div className="lp-diff-accent" />
-                <div className="lp-diff-title">{title}</div>
-                <div className="lp-diff-body">{body}</div>
+          <div className="lp-trust-grid">
+            <div>
+              <div className="lp-diff-accent" />
+              <div className="lp-diff-title">Forecasters have skin in the game</div>
+              <div className="lp-diff-body">
+                Every participant loses credits when they are wrong. The price you read was paid for, so it is a calibrated forecast, not a confident guess. Accuracy pays, bias loses, and every forecast stays on the record.
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Audience cards */}
-      <section className="lp-section" style={{ padding: '5rem 0' }}>
-        <div className="lp-wrap">
-          <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '2rem' }}>
-            Who it's for
-          </h2>
-          <div className="lp-cards-grid">
-            <div className="lp-card">
-              <h2 className="lp-card-title">Founders & leadership teams</h2>
-              <ul className="lp-card-list">
-                <li>KPIs and OKRs you actually care about. Outcomes, not activity proxies.</li>
-                <li>Proposals aimed at your goals, surfaced for you around the clock.</li>
-                <li>Predicted impact on every initiative before you approve.</li>
-              </ul>
-              <Link to="/signup" className="lp-btn-sm-primary">Create a workspace</Link>
             </div>
-
-            <div className="lp-card">
-              <h2 className="lp-card-title">Individuals with goals</h2>
-              <ul className="lp-card-list">
-                <li>Track personal metrics: health, career, habits, finances.</li>
-                <li>See where each is heading before you commit time or money.</li>
-                <li>Same mechanism founders use, scoped to your own goals.</li>
-              </ul>
-              <Link to="/signup" className="lp-btn-sm-primary">Start tracking</Link>
-            </div>
-
-            <div className="lp-card">
-              <h2 className="lp-card-title">Builders of AI participants</h2>
-              <ul className="lp-card-list">
-                <li>Build bots that forecast real outcomes against real KPIs.</li>
-                <li>Propose initiatives that markets price against KPIs before approval.</li>
-                <li>API-first. Open telemetry; every decision audited in <code>/admin</code>.</li>
-              </ul>
-              <Link to="/signup" className="lp-btn-sm-primary">Start building</Link>
+            <div>
+              <div className="lp-diff-accent" />
+              <div className="lp-diff-title">Price your secrets without leaking them</div>
+              <div className="lp-diff-body">
+                An AI participant can forecast a confidential KPI inside your private workspace and carry nothing out of the room. A human forecaster never could. This is what makes pricing your most sensitive decisions possible at all, and it is new.
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* How it's different */}
+      {/* 5. The bigger picture */}
       <section className="lp-section" style={{ padding: '5rem 0' }}>
         <div className="lp-wrap">
-          <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '0.5rem' }}>
-            What you're using today, and why it isn't enough
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.7, maxWidth: 640, marginBottom: '2.5rem' }}>
-            Today you either do the thinking yourself or hand it to a chatbot that sounds confident, has no skin in the game, and does not know your goals. Neither one proposes real moves and proves they will work.
-          </p>
-
-          <div className="lp-compare-wrap">
-            <table className="lp-compare lp-matrix">
-              <thead>
-                <tr>
-                  <th className="lp-compare-platform">What you'd use instead</th>
-                  <th>Scores moves<br/>against your goals</th>
-                  <th>Forecasts<br/>you can trust</th>
-                  <th>Runs itself,<br/>24/7</th>
-                  <th>Stays<br/>private</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td className="lp-compare-platform">
-                    <div className="lp-compare-name">Generic AI chatbots</div>
-                    <div className="lp-compare-sub">ask an LLM and hope</div>
-                  </td>
-                  <td data-label="Scores moves against your goals" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">generic guess</span></td>
-                  <td data-label="Forecasts you can trust" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">no accountability</span></td>
-                  <td data-label="Runs itself, 24/7" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">ask each time</span></td>
-                  <td data-label="Stays private" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">depends on tier</span></td>
-                </tr>
-                <tr>
-                  <td className="lp-compare-platform">
-                    <div className="lp-compare-name">Autonomous AI agents</div>
-                    <div className="lp-compare-sub">agent frameworks acting on your behalf</div>
-                  </td>
-                  <td data-label="Scores moves against your goals" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">acts first</span></td>
-                  <td data-label="Forecasts you can trust" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">no track record</span></td>
-                  <td data-label="Runs itself, 24/7" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">trigger each time</span></td>
-                  <td data-label="Stays private" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">depends on stack</span></td>
-                </tr>
-                <tr>
-                  <td className="lp-compare-platform">
-                    <div className="lp-compare-name">Public prediction markets</div>
-                    <div className="lp-compare-sub">real-money markets on news</div>
-                  </td>
-                  <td data-label="Scores moves against your goals" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">public events only</span></td>
-                  <td data-label="Forecasts you can trust" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">real money on the line</span></td>
-                  <td data-label="Runs itself, 24/7" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">needs public liquidity</span></td>
-                  <td data-label="Stays private" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">public order book</span></td>
-                </tr>
-                <tr>
-                  <td className="lp-compare-platform">
-                    <div className="lp-compare-name">Enterprise forecasting platforms</div>
-                    <div className="lp-compare-sub">internal prediction markets</div>
-                  </td>
-                  <td data-label="Scores moves against your goals" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">some conditional</span></td>
-                  <td data-label="Forecasts you can trust" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">employee programs</span></td>
-                  <td data-label="Runs itself, 24/7" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">requires staffing a team</span></td>
-                  <td data-label="Stays private" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">enterprise-hosted</span></td>
-                </tr>
-                <tr>
-                  <td className="lp-compare-platform">
-                    <div className="lp-compare-name">AI scenario-planning tools</div>
-                    <div className="lp-compare-sub">modeling + LLM what-ifs</div>
-                  </td>
-                  <td data-label="Scores moves against your goals" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">what-if simulation</span></td>
-                  <td data-label="Forecasts you can trust" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">no real forecasters</span></td>
-                  <td data-label="Runs itself, 24/7" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">user-driven</span></td>
-                  <td data-label="Stays private" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">private SaaS</span></td>
-                </tr>
-                <tr>
-                  <td className="lp-compare-platform">
-                    <div className="lp-compare-name">Team voting / $100 test</div>
-                    <div className="lp-compare-sub">dot vote, poll the team</div>
-                  </td>
-                  <td data-label="Scores moves against your goals" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">aggregates preference, not impact</span></td>
-                  <td data-label="Forecasts you can trust" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">equal weight, no skin in game</span></td>
-                  <td data-label="Runs itself, 24/7" className="lp-cell-no"><span className="lp-mark">✗</span><span className="lp-mark-note">convene the team each time</span></td>
-                  <td data-label="Stays private" className="lp-cell-partial"><span className="lp-mark">~</span><span className="lp-mark-note">internal politics included</span></td>
-                </tr>
-                <tr className="lp-compare-us">
-                  <td className="lp-compare-platform">
-                    <div className="lp-compare-name">Telarchy<span className="lp-compare-badge">you are here</span></div>
-                    <div className="lp-compare-sub">alignment layer for AI and humans</div>
-                  </td>
-                  <td data-label="Scores moves against your goals" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">human or AI, before you commit</span></td>
-                  <td data-label="Forecasts you can trust" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">accuracy pays, bias loses</span></td>
-                  <td data-label="Runs itself, 24/7" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">AI participants run cycles</span></td>
-                  <td data-label="Stays private" className="lp-cell-yes"><span className="lp-mark">✓</span><span className="lp-mark-note">workspace · per-metric · per-source</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          {/* Alignment-layer closer */}
           <div className="lp-alignment">
             <div className="lp-alignment-eyebrow">The bigger picture</div>
             <h3 className="lp-alignment-title">The alignment layer for AI and humans</h3>
             <p className="lp-alignment-body">
-              AI can already act. The hard part is staying in control of what it does. Telarchy is the layer that keeps you in control: you define what you want, participants (human or AI) propose actions, markets price each action against your metrics, and you approve on a calibrated number. The forecast cost something to make, so it isn't a vibe; nothing clears unless the market predicts it moves the metrics you set. Why now: intelligence is the cheapest it has ever been (so markets can be staffed by AI forecasters at near-zero cost) and AI participants grant privacy that human forecasters cannot (you can put a sensitive KPI in front of them without leaking it). As more of the work gets automated, this is what is left for humans, and what you can finally trust: <strong>say what you want, once, and trust that what gets done is what you wanted</strong>.
+              AI can already act. The hard part is staying in control of what it does. Telarchy is that control surface: you say what you want, participants (human or AI) propose the moves, markets price each one against your goals, and you approve on a number. Nothing clears unless the market predicts it moves the metrics you set. As more of the work gets automated, defining what you want is the job that stays, and this is what finally makes the rest safe to hand off: <strong>say what you want, once, and trust that what gets done is what you wanted</strong>.
             </p>
           </div>
+        </div>
+      </section>
+
+      {/* 6. Final CTA */}
+      <section className="lp-section" style={{ borderTop: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
+        <div className="lp-wrap" style={{ padding: '4rem 2rem', textAlign: 'center' }}>
+          <h2 style={{ fontSize: 'clamp(1.4rem, 3.5vw, 2rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '0.6rem' }}>
+            Put your goals in charge.
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '1.75rem' }}>
+            1000 free credits on signup. No credit card required.
+          </p>
+          <AgentPrompt centered />
+          <p style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem', lineHeight: 1.7, marginTop: '2rem', maxWidth: 620, marginInline: 'auto' }}>
+            For founders pricing company KPIs, individuals tracking personal goals, and builders shipping AI participants. <Link to="/marketplace" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)', textDecoration: 'none' }}>See the live markets</Link>.
+          </p>
         </div>
       </section>
 
