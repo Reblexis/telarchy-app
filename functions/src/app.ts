@@ -12,6 +12,7 @@ import { predictionsRouter } from './routes/predictions';
 import { eventsRouter } from './routes/events';
 import { proposalsRouter } from './routes/proposals';
 import { waitlistRouter } from './routes/waitlist';
+import { onboardRouter } from './routes/onboard';
 import { workspacesRouter } from './routes/workspaces';
 import { userauthRouter } from './routes/userauth';
 import { marketplaceRouter } from './routes/marketplace';
@@ -189,7 +190,7 @@ app.get('/api/help', (_req, res) => {
       api_key: 'Set X-API-Key header with your secret key (admin access).',
       session_cookie: 'Browser sessions use cookie-based auth via BetterAuth. Sign in at POST /api/auth/sign-in/email. Credentials are managed at /api/auth/* (handled by BetterAuth). Browser-account signup creates or attaches to the same participant identity used for browser trading and API-key trading.',
       agent_key: 'Set X-Agent-Key header with your agent API key. Agent-key auth and browser auth resolve to the same effective permissions for the same participant.',
-      note: 'All endpoints except /api/help, /api/guides, GET /api/agents/deposit-address, GET /api/marketplace, GET /api/marketplace/stats, GET /api/leaderboard, POST /api/agents/register, and POST /api/waitlist require authentication.',
+      note: 'All endpoints except /api/help, /api/guides, GET /api/agents/deposit-address, GET /api/marketplace, GET /api/marketplace/stats, GET /api/leaderboard, POST /api/agents/register, POST /api/onboard, GET /api/onboard/claim/:token, and POST /api/waitlist require authentication.',
       workspace_switching: 'Pass X-Workspace-Id: <workspaceId> header on all workspace-scoped requests. Your effective capabilities are the union of the capabilities[] arrays on every permission group you belong to in that workspace. There is no default workspace; omitting the header uses your highest-priority membership.',
       auth_field_legend: 'The "auth" field on each endpoint below is a shorthand for the capabilities required: "agent/admin" = requires the read capability, "agent" = requires the trade capability, "admin" = requires the manage capability, "self/admin" = the caller may target their own ID with trade, or anyone\'s ID with manage, "identity" = any authenticated participant (browser session OR agent key), "session" = browser account session only, by design (e.g. recording acceptance of Terms; programmatic agents are exempt from that gate), "optional" = no auth required, but if credentials are present they widen what the response includes (e.g. the public profile expands per-position detail to workspaces the caller can read), false = no auth required.',
       scope_field_legend: 'The optional "scope" field on each endpoint is the per-key scope an agent-key caller needs (in addition to whatever capability the "auth" field requires). Browser sessions and the master API key bypass scope checks. Workspace endpoints get their scope intersected automatically (workspace:read covers any "agent/admin" route, workspace:trade any "agent" route, workspace:manage any "admin" route). Account endpoints carry an explicit scope (account:read, account:write, account:wallet, account:keys, account:agents, account:feedback). Endpoints with no scope field require none beyond what auth implies.',
@@ -199,6 +200,9 @@ app.get('/api/help', (_req, res) => {
       { method: 'GET', path: '/api/guides', auth: false, description: 'Index of guide sections. Returns [{id, title, description, path}]. No auth required.' },
       { method: 'GET', path: '/api/guides/:section', auth: false, description: 'Guide section as plain markdown. Sections: overview, metric-design, creating, formulas, time-preference, markets, credits, proposals, agent-api, auth-and-keys, recipes, api-reference, sources, agent-telemetry, feedback. No auth required.' },
       { method: 'POST', path: '/api/waitlist', auth: false, description: 'Join the waitlist. Body: { email: string }. Returns 201 on success, 409 if already registered.' },
+      { method: 'POST', path: '/api/onboard', auth: false, description: 'Key-first onboarding: create a workspace-owning participant with no browser account, in one call. Body: { workspace: { name (required), template?, templateParams?, visibility? }, agentId?, nickname?, bio? }. Returns 201 { participantId, nickname, apiKey (shown once), keyId, scopes, credits, creditsAfterClaim, workspace: { id, name, slug, ownerHandle, visibility, template, metricsCreated, starterProposalId }, claimUrl }. The claimUrl is a one-time link the human opens to attach their email/OAuth account later (web UI access + credit top-up to the full signup grant); consent to the terms happens there. Unclaimed identities receive a reduced credit grant (UNCLAIMED_SIGNUP_CREDITS, default 100). Rate-limited like registration.' },
+      { method: 'GET', path: '/api/onboard/claim/:token', auth: false, description: 'Preview what a claim token unlocks before signing in: { participantId, nickname, workspaces: [{id, name, slug}] }. 404 for unknown or already-used tokens.' },
+      { method: 'POST', path: '/api/onboard/claim', auth: 'session', description: 'Bind the signed-in browser account to a key-first identity. Body: { token }. Tops the balance up to the full signup grant and consumes the token. The account must be fresh (no active participant of its own); its zero-activity auto-provisioned participant is removed so the claim is credit-neutral. Returns { ok, participantId, creditsToppedUp, workspaces }.' },
       { method: 'GET', path: '/api/status', auth: 'agent/admin', description: 'Compact workspace summary. Returns: creditValueUsd, metrics[{id, name, value, total}]. Optional query params: ?trends=1 adds trend:[[unixTs,value]] (last 20 log points, configurable via ?trendsLimit=N max 90); ?markets=1 adds markets:[{id,targetDate,resolvesOn,prediction,probability,rangeMin,rangeMax}] per metric (open non-proposal active markets; resolvesOn is the exact YYYY-MM-DD the market resolves on, end of the targetDate period; prediction=consensus value, probability=(consensus-rangeMin)/(rangeMax-rangeMin); rangeMin/rangeMax let a bot size thresholds and budgets relative to the range). Both can be combined. Use ?trends=1&markets=1 for a full one-call snapshot.' },
       { method: 'POST', path: '/api/reset-economy', auth: 'admin', description: 'Reset all agent balances and stats to zero, wipe all market AMM state (liquidity + shares), and delete all positions, trades, deposits, and withdrawals. Markets themselves are kept. Irreversible.' },
       { method: 'GET', path: '/api/metrics', auth: 'agent/admin', description: 'List all metrics with computed totals and depths, sorted by depth then order.' },
@@ -322,6 +326,8 @@ app.get('/api/help', (_req, res) => {
 
 app.use('/api/cron', cronRouter);
 app.use('/api/waitlist', registrationLimiter, waitlistRouter);
+// Key-first onboarding shares the registration throttle: it mints identities.
+app.use('/api/onboard', registrationLimiter, onboardRouter);
 app.use('/api/agents', agentsRouter);
 app.use('/api/predictions/trade', strictLimiter);
 app.use('/api/predictions', predictionsRouter);

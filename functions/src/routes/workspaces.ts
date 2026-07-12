@@ -17,9 +17,7 @@ import {
 } from '../lib/participants';
 import { uniqueSlugForOwner } from '../lib/slug';
 import { voidMarket } from '../services/markets';
-import { ensureMarketsForTimePreference } from '../services/metrics';
-import { getTemplate, getStarterProposal, type TemplateParams } from '../lib/templates';
-import { createConditionalMarkets } from '../services/proposals';
+import { createWorkspaceFromTemplate, WorkspaceCreateError } from '../services/workspace-create';
 import { parseVisibility, MIN_LIQUIDITY_CONTRIBUTION } from '../lib/validation';
 
 export const workspacesRouter = Router();
@@ -48,113 +46,32 @@ workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
   const identity = uid ?? agentId ?? (isMasterKey ? 'admin' : undefined);
   if (!identity) { res.status(403).json({ error: 'Identity required to create a workspace' }); return; }
 
-  const { name, template: templateId, templateParams, visibility: visibilityInput } = req.body;
-  if (!name || typeof name !== 'string' || name.trim().length === 0) {
-    res.status(400).json({ error: 'name is required' }); return;
-  }
-
-  let visibility: 'public' | 'unlisted' | 'private' = 'private';
-  if (visibilityInput !== undefined) {
-    const parsed = parseVisibility(visibilityInput);
-    if (!parsed.ok) { res.status(400).json({ error: parsed.error }); return; }
-    visibility = parsed.value;
-  }
-
-  let template;
-  try {
-    template = getTemplate(templateId);
-  } catch (err) {
-    res.status(400).json({ error: (err as Error).message });
-    return;
-  }
-
-  const params: TemplateParams = templateParams && typeof templateParams === 'object' ? templateParams : {};
-  const templateMetrics = template.metrics(params);
-
-  const wsId = randomUUID();
-  const metricIdsWithTP: Array<{ id: string; halfLife: number }> = [];
-
   // For browser users, agentId may not be on req.auth if resolveUser returned null
   // (e.g. timing edge case). The identity string (uid) is the same as the agent ID
   // since ensureParticipant sets id = uid. Use it as fallback.
   const ownerAgentId = agentId ?? (uid ? uid : undefined);
 
-  let slug = '';
-  await db.transaction(async tx => {
-    slug = await provisionWorkspace(tx, {
-      wsId, name: name.trim(), createdBy: identity,
-      ownerAgentId, visibility,
+  let created;
+  try {
+    created = await createWorkspaceFromTemplate({
+      identity,
+      ownerAgentId,
+      name: req.body.name,
+      templateId: req.body.template,
+      templateParams: req.body.templateParams,
+      visibility: req.body.visibility,
     });
-
-    const now = new Date();
-    for (let i = 0; i < templateMetrics.length; i++) {
-      const spec = templateMetrics[i];
-      const id = randomUUID();
-      await tx.insert(metrics).values({
-        id,
-        workspaceId: wsId,
-        name: spec.name,
-        value: spec.initialValue,
-        formula: '0',
-        description: spec.description,
-        order: i,
-        timePreference: { enabled: true, halfLife: spec.timePreferenceHalfLifeYears },
-        marketRangeMax: spec.marketRangeMax,
-        createdAt: now,
-        updatedAt: now,
-      });
-      metricIdsWithTP.push({ id, halfLife: spec.timePreferenceHalfLifeYears });
-    }
-  });
-
-  // Market creation touches multiple tables and emits events; keep it outside the provisioning transaction.
-  for (const { id, halfLife } of metricIdsWithTP) {
-    await ensureMarketsForTimePreference(id, { enabled: true, halfLife }, wsId);
-  }
-
-  // Seed one starter proposal so the workspace is non-empty on first land.
-  // The product tour points at this proposal; without it, a brand new
-  // workspace cannot demonstrate the proposal -> market -> approval flow.
-  let starterProposalId: string | null = null;
-  if (ownerAgentId) {
-    try {
-      const starter = getStarterProposal(template);
-      const propId = randomUUID();
-      await db.insert(proposals).values({
-        id: propId,
-        workspaceId: wsId,
-        proposedBy: ownerAgentId,
-        title: starter.title,
-        description: starter.description,
-        status: 'pending',
-        conditionalMarketIds: [],
-        liquiditySubsidy: 0,
-        createdAt: new Date(),
-      });
-      const conditionalMarketIds = await createConditionalMarkets(propId, wsId, {});
-      if (conditionalMarketIds.length > 0) {
-        await db.update(proposals).set({ conditionalMarketIds })
-          .where(and(eq(proposals.id, propId), eq(proposals.workspaceId, wsId)));
-      }
-      starterProposalId = propId;
-    } catch (err) {
-      // Starter proposal is non-fatal: workspace creation must still succeed.
-      console.error(`Failed to seed starter proposal for workspace ${wsId}:`, err);
-    }
+  } catch (err) {
+    if (err instanceof WorkspaceCreateError) { res.status(400).json({ error: err.message }); return; }
+    throw err;
   }
 
   // slug + ownerHandle let the caller build the /{ownerHandle}/{slug} URL
   // straight from this response (onboarding agents hand it off to the user).
   const handles = await getOwnerHandles([identity]);
   res.status(201).json({
-    id: wsId,
-    name: name.trim(),
-    slug,
+    ...created,
     ownerHandle: handles.get(identity)?.ownerHandle ?? null,
-    visibility,
-    template: template.id,
-    metricsCreated: templateMetrics.length,
-    starterProposalId,
   });
 }));
 

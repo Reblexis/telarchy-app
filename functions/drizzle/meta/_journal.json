@@ -288,6 +288,13 @@
       "when": 1781179412895,
       "tag": "0040_credit_transfers",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1783871274944,
+      "tag": "0041_onboard_claim_token",
+      "breakpoints": true
     }
   ]
 }

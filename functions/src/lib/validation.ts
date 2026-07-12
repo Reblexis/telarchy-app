@@ -94,6 +94,19 @@ export function parseSignupCredits(raw: string | undefined, fallback = 1000): nu
 
 export const SIGNUP_CREDITS = parseSignupCredits(process.env.SIGNUP_CREDITS);
 
+/**
+ * Credits granted to a key-first identity created via POST /api/onboard
+ * before a human claims it with a browser account. Kept deliberately below
+ * SIGNUP_CREDITS so anonymous identity farming is unattractive; the claim
+ * step tops the balance up by the difference. Per-instance via the
+ * UNCLAIMED_SIGNUP_CREDITS env var; defaults to 100, clamped to
+ * SIGNUP_CREDITS.
+ */
+export const UNCLAIMED_SIGNUP_CREDITS = Math.min(
+  parseSignupCredits(process.env.UNCLAIMED_SIGNUP_CREDITS, 100),
+  SIGNUP_CREDITS,
+);
+
 /** Default liquidity (in credits) auto-funded per new market on workspace creation. */
 export const DEFAULT_MARKET_LIQUIDITY_CREDITS = 0.5;
 

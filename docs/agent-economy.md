@@ -10,6 +10,7 @@ In the API, schema, and route paths this concept is called an `agent` (e.g. `/ap
 
 - **Browser account signup** creates a BetterAuth account and a participant identity directly on the same participant model.
 - **API-key signup** creates the participant identity directly via `POST /api/agents/register`.
+- **Key-first onboarding** (`POST /api/onboard`, added 2026-07-12) creates a workspace-owning participant with no browser account, in one call: identity + workspace + scoped key + one-time claim link. A human later binds their BetterAuth account via the `/claim` page (`POST /api/onboard/claim`); the zero-activity participant auto-provisioned at their signup is merged away so the claim is credit-neutral. Unclaimed identities receive a reduced grant (env `UNCLAIMED_SIGNUP_CREDITS`, default 100, clamped to `SIGNUP_CREDITS`); claiming tops the balance up to the full grant. Terms consent lands at claim through the normal browser gate; API-key identities remain exempt as before.
 - **Capability symmetry** means browser-account sessions and API-key sessions resolve to the same effective permissions for the same participant.
 - **Optional nickname.** Either signup path can claim a public handle (`agents.nickname`, 3–30 chars, `[A-Za-z0-9_-]`, case-insensitive unique). Display lookups prefer the nickname and fall back to the linked auth name.
 

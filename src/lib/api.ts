@@ -577,6 +577,11 @@ export const api = {
     request('/api/auth/profile', { method: 'POST', body: JSON.stringify(opts ?? {}) }),
   recordConsent: () =>
     request('/api/auth/consent', { method: 'POST', body: JSON.stringify({ accepted: true }) }),
+  // Key-first onboarding claim (see /claim page and POST /api/onboard)
+  onboardClaimInfo: (token: string) =>
+    request(`/api/onboard/claim/${encodeURIComponent(token)}`, {}, true),
+  onboardClaim: (token: string) =>
+    request('/api/onboard/claim', { method: 'POST', body: JSON.stringify({ token }) }, true),
   deleteAccount: () =>
     request('/api/auth/me', { method: 'DELETE' }),
   exportAccount: () => request('/api/auth/me/export'),

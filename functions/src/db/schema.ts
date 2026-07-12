@@ -129,6 +129,11 @@ export const agents = pgTable('agents', {
    * index on LOWER(nickname); see migration 0020.
    */
   nickname: text('nickname'),
+  /** SHA-256 of the one-time claim token minted by POST /api/onboard. A human
+   *  presents the raw token (via the /claim page) to bind their browser
+   *  account to this key-first identity; consumed (nulled) on claim. Null for
+   *  identities not created through onboarding or already claimed. */
+  claimTokenHash: text('claim_token_hash'),
   /** Balance in nanocredits (1 credit = 1_000_000_000 units) */
   balance: bigint('balance', { mode: 'number' }).notNull().default(0),
   earnedBetting: doublePrecision('earned_betting').notNull().default(0),
