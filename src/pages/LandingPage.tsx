@@ -413,42 +413,39 @@ function MarketDemo() {
 // The primary signup path is agent-first (owner decision, 2026-07-12): the
 // hero hands the visitor a prompt to paste into their coding agent, which
 // then runs the guided onboarding from GET /api/guides/onboarding. Browser
-// signup stays as the secondary path. Keep the prompt short enough to read
-// at a glance and keep the guide URL literal (agents follow it verbatim).
+// signup stays as the secondary path. The prompt is deliberately ONE sentence
+// (owner decision, 2026-07-12): all behavior lives in the server-side guide,
+// so improving onboarding means editing the guide, never this string. Keep
+// the guide URL literal; agents follow it verbatim.
 
 const AGENT_ONBOARDING_PROMPT =
-  'Set up Telarchy for me. Fetch https://telarchy.com/api/guides/onboarding and follow it end to end: '
-  + 'work out with me what I actually care about, create my account and workspace, '
-  + 'design the metrics and time preferences with me, and wire up automatic value syncing.';
+  'Set up Telarchy with me: fetch https://telarchy.com/api/guides/onboarding and follow it.';
 
-function AgentPrompt({ centered }: { centered?: boolean }) {
+// The single CTA on the page. A terminal-style card, always centered, with
+// one prominent copy button; everything else around it stays quiet.
+function AgentPrompt() {
   const [copied, setCopied] = useState(false);
   const copy = () => {
     void navigator.clipboard.writeText(AGENT_ONBOARDING_PROMPT).then(() => {
       setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      setTimeout(() => setCopied(false), 2000);
     });
   };
   return (
-    <div style={{ maxWidth: 520, ...(centered ? { marginInline: 'auto', textAlign: 'left' } : {}) }}>
-      <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>
-        Give this to your agent
-      </div>
-      <div style={{
-        display: 'flex', gap: '0.5rem', alignItems: 'flex-start',
-        border: '1px solid var(--border-color)', borderRadius: 8,
-        background: 'var(--bg-secondary)', padding: '0.75rem 0.85rem',
-      }}>
-        <code style={{ fontSize: '0.78rem', lineHeight: 1.55, flex: 1, minWidth: 0, whiteSpace: 'pre-wrap', background: 'transparent' }}>
+    <div className="lp-agent-prompt">
+      <div className="lp-agent-prompt-card">
+        <div className="lp-agent-prompt-label">Give this to your agent</div>
+        <div className="lp-agent-prompt-text">
+          <span aria-hidden="true" className="lp-agent-prompt-chevron">&gt;&nbsp;</span>
           {AGENT_ONBOARDING_PROMPT}
-        </code>
-        <button type="button" onClick={copy} className="btn-copy" style={{ flexShrink: 0 }}>
-          {copied ? 'Copied' : 'Copy'}
+        </div>
+        <button type="button" onClick={copy} className="lp-btn-primary lp-agent-prompt-copy">
+          {copied ? 'Copied. Paste it into your agent' : 'Copy prompt'}
         </button>
       </div>
-      <p style={{ fontSize: '0.85rem', color: 'var(--text-tertiary)', marginTop: '0.6rem' }}>
-        Your agent signs you up and builds the workspace with you. 1000 free credits.{' '}
-        No agent handy? <Link to="/signup" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)', textDecoration: 'none' }}>Sign up in the browser</Link>.
+      <p className="lp-agent-prompt-footnote">
+        Works with Claude Code, Cursor, Codex, or any agent with web access. 1000 free credits.{' '}
+        No agent? <Link to="/signup">Sign up in the browser</Link>.
       </p>
     </div>
   );
@@ -533,27 +530,26 @@ export function LandingPage() {
         </div>
       </header>
 
-      {/* 1. Hero */}
-      <section className="lp-hero">
-        <div className="lp-hero-grid" style={{ animation: 'fadeInUp 0.6s ease both' }}>
-          <div>
-            <h1 style={{ fontSize: 'clamp(2rem, 4.5vw, 3.1rem)', lineHeight: 1.08, marginBottom: '1.25rem', letterSpacing: '-0.04em' }}>
-              Price every move against your goals, before anyone acts.
-            </h1>
-            <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 460 }}>
-              You set the goals. People and AI propose the moves, a market with skin in the game forecasts each one's impact, and you approve on a number.
-            </p>
-            <div className="lp-hero-ctas">
-              <AgentPrompt />
-            </div>
+      {/* 1. Hero: one centered column, one CTA (the agent prompt). */}
+      <section className="lp-hero lp-hero-centered">
+        <div style={{ animation: 'fadeInUp 0.6s ease both' }}>
+          <h1 style={{ fontSize: 'clamp(2rem, 4.5vw, 3.1rem)', lineHeight: 1.08, marginBottom: '1.25rem', letterSpacing: '-0.04em' }}>
+            Price every move against your goals, before anyone acts.
+          </h1>
+          <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 560, marginInline: 'auto' }}>
+            You set the goals. People and AI propose the moves, a market with skin in the game forecasts each one's impact, and you approve on a number.
+          </p>
+          <div style={{ marginTop: '2.5rem' }}>
+            <AgentPrompt />
           </div>
+        </div>
+      </section>
 
-          <div className="lp-hero-sim" style={{
-            display: 'flex', justifyContent: 'center', alignItems: 'center',
-            animation: 'fadeIn 0.8s ease 0.2s both',
-          }}>
-            <ConsensusTickerSim />
-          </div>
+      {/* 1b. Live market sim: kept as the "this is a live product" signal,
+          below the fold's single CTA so it no longer competes with it. */}
+      <section className="lp-section" style={{ paddingBottom: '3.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', animation: 'fadeIn 0.8s ease 0.2s both' }}>
+          <ConsensusTickerSim />
         </div>
       </section>
 
@@ -657,7 +653,7 @@ export function LandingPage() {
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '1.75rem' }}>
             1000 free credits on signup. No credit card required.
           </p>
-          <AgentPrompt centered />
+          <AgentPrompt />
           <p style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem', lineHeight: 1.7, marginTop: '2rem', maxWidth: 620, marginInline: 'auto' }}>
             For founders pricing company KPIs, individuals tracking personal goals, and builders shipping AI participants. <Link to="/marketplace" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)', textDecoration: 'none' }}>See the live markets</Link>.
           </p>

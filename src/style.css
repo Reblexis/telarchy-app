@@ -2324,6 +2324,71 @@ body.landing-page {
   margin: 0 auto;
 }
 
+/* Agent-first hero: one centered column, one CTA (the agent prompt card). */
+.lp-hero-centered {
+  text-align: center;
+  padding-top: 5rem;
+}
+
+.lp-agent-prompt {
+  max-width: 640px;
+  margin-inline: auto;
+}
+
+.lp-agent-prompt-card {
+  text-align: left;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  padding: 1.1rem 1.25rem 1.25rem;
+  box-shadow: var(--shadow-md);
+}
+
+.lp-agent-prompt-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.75rem;
+}
+
+.lp-agent-prompt-text {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.85rem;
+  line-height: 1.65;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin-bottom: 1rem;
+}
+
+.lp-agent-prompt-chevron {
+  color: var(--text-tertiary);
+  user-select: none;
+}
+
+.lp-agent-prompt-copy {
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  width: 100%;
+  text-align: center;
+}
+
+.lp-agent-prompt-footnote {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  margin-top: 0.85rem;
+  text-align: center;
+}
+
+.lp-agent-prompt-footnote a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border-color);
+}
+
 .lp-hero-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
