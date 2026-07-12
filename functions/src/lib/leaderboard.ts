@@ -25,6 +25,20 @@ export interface LeaderboardPosition {
   shares: number;
 }
 
+/** Per-agent trade aggregates, computed in SQL so the route never loads the
+ *  full trades table into memory (348k+ rows OOM-killed the instance and the
+ *  endpoint returned 503; the leaderboard needs only these three numbers per
+ *  agent). */
+export interface LeaderboardTradeAggregate {
+  agentId: string;
+  /** Count of trades on non-voided public-workspace markets. */
+  totalTrades: number;
+  lastTradeAt: Date | string | null;
+  /** Sum of trade costs on resolved (actualValue-bearing) markets; the cost
+   *  side of realized PnL. */
+  costOnResolved: number;
+}
+
 export interface LeaderboardEntry {
   rank: number | null;
   id: string;
@@ -89,15 +103,55 @@ export function computeLeaderboard(
   nicknameById: Map<string, string | null>,
   limit: number,
 ): LeaderboardEntry[] {
+  // Derive the per-agent aggregates the way the SQL route does, then share
+  // the assembly path. Kept so the math stays unit-testable from raw rows.
   const marketByKey = new Map<string, LeaderboardMarket>();
-  const resolvedFactorsByKey = new Map<string, [number, number]>();
+  const resolvedKeys = new Set<string>();
   for (const m of marketsList) {
     const k = marketKey(m.workspaceId, m.id);
     marketByKey.set(k, m);
-    if (m.resolved && m.actualValue !== null) {
-      const actual = Math.min(m.actualValue, m.rangeMax);
-      resolvedFactorsByKey.set(k, resolutionPayouts(actual, m.rangeMin, m.rangeMax));
+    if (m.resolved && m.actualValue !== null) resolvedKeys.add(k);
+  }
+
+  const aggById = new Map<string, LeaderboardTradeAggregate>();
+  for (const t of tradesList) {
+    const k = marketKey(t.workspaceId, t.marketId);
+    if (!marketByKey.has(k)) continue;
+    let agg = aggById.get(t.agentId);
+    if (!agg) {
+      agg = { agentId: t.agentId, totalTrades: 0, lastTradeAt: null, costOnResolved: 0 };
+      aggById.set(t.agentId, agg);
     }
+    agg.totalTrades += 1;
+    if (t.createdAt && (!agg.lastTradeAt || t.createdAt > new Date(agg.lastTradeAt))) {
+      agg.lastTradeAt = t.createdAt;
+    }
+    if (resolvedKeys.has(k)) agg.costOnResolved += t.cost;
+  }
+
+  const resolvedMarkets = marketsList.filter(m => m.resolved && m.actualValue !== null);
+  return computeLeaderboardFromAggregates(
+    resolvedMarkets, Array.from(aggById.values()), positionsList, nicknameById, limit,
+  );
+}
+
+/**
+ * Assemble the leaderboard from pre-aggregated trade stats plus raw position
+ * rows on resolved markets. This is the shape the route feeds after SQL-side
+ * aggregation; only resolved markets and their positions are needed here.
+ */
+export function computeLeaderboardFromAggregates(
+  resolvedMarkets: LeaderboardMarket[],
+  tradeAggs: LeaderboardTradeAggregate[],
+  positionsList: LeaderboardPosition[],
+  nicknameById: Map<string, string | null>,
+  limit: number,
+): LeaderboardEntry[] {
+  const resolvedFactorsByKey = new Map<string, [number, number]>();
+  for (const m of resolvedMarkets) {
+    if (!m.resolved || m.actualValue === null) continue;
+    const actual = Math.min(m.actualValue, m.rangeMax);
+    resolvedFactorsByKey.set(marketKey(m.workspaceId, m.id), resolutionPayouts(actual, m.rangeMin, m.rangeMax));
   }
 
   const stats = new Map<string, AgentStats>();
@@ -107,17 +161,12 @@ export function computeLeaderboard(
     return s;
   };
 
-  for (const t of tradesList) {
-    const k = marketKey(t.workspaceId, t.marketId);
-    if (!marketByKey.has(k)) continue;
-    const s = ensure(t.agentId);
-    s.totalTrades += 1;
-    if (t.createdAt && (!s.lastTradeAt || t.createdAt > s.lastTradeAt)) {
-      s.lastTradeAt = t.createdAt;
-    }
-    if (resolvedFactorsByKey.has(k)) {
-      s.realizedPnl -= t.cost;
-    }
+  for (const agg of tradeAggs) {
+    const s = ensure(agg.agentId);
+    s.totalTrades += agg.totalTrades;
+    const at = agg.lastTradeAt ? new Date(agg.lastTradeAt) : null;
+    if (at && (!s.lastTradeAt || at > s.lastTradeAt)) s.lastTradeAt = at;
+    s.realizedPnl -= agg.costOnResolved;
   }
 
   for (const p of positionsList) {

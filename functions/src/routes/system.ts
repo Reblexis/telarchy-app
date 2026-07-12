@@ -74,6 +74,10 @@ systemRouter.get('/status', requireCapability('read'), wrap(async (req, res) => 
             resolvesOn: resolutionInstant(mk.targetDate),
             prediction: consensus(s, mk.liquidity, mk.rangeMin, mk.rangeMax) ?? null,
             probability: Math.round(pHigher(s, mk.liquidity) * 10000) / 10000,
+            // Bots size trades and thresholds relative to the range; without
+            // these the one-call snapshot cannot drive a trade decision.
+            rangeMin: mk.rangeMin,
+            rangeMax: mk.rangeMax,
           };
         });
       result.markets = mrkts;

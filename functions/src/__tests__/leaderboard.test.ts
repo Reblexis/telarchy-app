@@ -255,3 +255,40 @@ describe('computeLeaderboard', () => {
     expect(result[0].calibration).toBeCloseTo(0.5);
   });
 });
+
+// The route now feeds SQL-side aggregates; make sure the aggregate entry
+// point behaves like the raw-row wrapper, including string timestamps as
+// returned by a raw SQL max().
+import { computeLeaderboardFromAggregates } from '../lib/leaderboard';
+
+describe('computeLeaderboardFromAggregates', () => {
+  test('matches computeLeaderboard on the same underlying data', () => {
+    const markets = [
+      m({ id: 'm1', resolved: true, actualValue: 800 }),
+      m({ id: 'm2' }),
+    ];
+    const trades = [
+      t({ agentId: 'a', marketId: 'm1', cost: 10, createdAt: new Date('2026-01-02T00:00:00Z') }),
+      t({ agentId: 'a', marketId: 'm2', cost: 5, createdAt: new Date('2026-01-03T00:00:00Z') }),
+      t({ agentId: 'b', marketId: 'm1', cost: 2, createdAt: new Date('2026-01-01T00:00:00Z') }),
+    ];
+    const posns = [
+      p({ agentId: 'a', marketId: 'm1', shares: 20, direction: 'higher' }),
+      p({ agentId: 'b', marketId: 'm1', shares: 4, direction: 'lower' }),
+    ];
+    const nick = new Map<string, string | null>([['a', 'alpha'], ['b', null]]);
+
+    const viaRaw = computeLeaderboard(markets, trades, posns, nick, 100);
+    const viaAgg = computeLeaderboardFromAggregates(
+      markets.filter(x => x.resolved && x.actualValue !== null),
+      [
+        { agentId: 'a', totalTrades: 2, lastTradeAt: '2026-01-03T00:00:00Z', costOnResolved: 10 },
+        { agentId: 'b', totalTrades: 1, lastTradeAt: '2026-01-01T00:00:00Z', costOnResolved: 2 },
+      ],
+      posns,
+      nick,
+      100,
+    );
+    expect(viaAgg).toEqual(viaRaw);
+  });
+});
