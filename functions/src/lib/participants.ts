@@ -281,7 +281,7 @@ export async function provisionWorkspace(
     ownerAgentId?: string;
     visibility?: 'public' | 'unlisted' | 'private';
   },
-): Promise<void> {
+): Promise<string> {
   const { wsId, name, createdBy, ownerAgentId, visibility } = opts;
   const now = new Date();
 
@@ -325,6 +325,8 @@ export async function provisionWorkspace(
       memberIds: [], permissions: {}, capabilities: ['read', 'trade'], createdAt: now,
     },
   ]);
+
+  return slug;
 }
 
 export async function listParticipantsForWorkspace(workspaceId: string) {

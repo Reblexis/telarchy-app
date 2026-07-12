@@ -50,3 +50,7 @@ qa-runs/
 qa-results.md
 ux-grade.md
 
+
+# Concierge program PII (real founder names) stays local
+docs/outreach/concierge/tracking.md
+docs/outreach/concierge/candidates.md

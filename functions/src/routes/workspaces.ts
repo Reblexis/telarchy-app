@@ -79,8 +79,9 @@ workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
   // since ensureParticipant sets id = uid. Use it as fallback.
   const ownerAgentId = agentId ?? (uid ? uid : undefined);
 
+  let slug = '';
   await db.transaction(async tx => {
-    await provisionWorkspace(tx, {
+    slug = await provisionWorkspace(tx, {
       wsId, name: name.trim(), createdBy: identity,
       ownerAgentId, visibility,
     });
@@ -142,9 +143,14 @@ workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
     }
   }
 
+  // slug + ownerHandle let the caller build the /{ownerHandle}/{slug} URL
+  // straight from this response (onboarding agents hand it off to the user).
+  const handles = await getOwnerHandles([identity]);
   res.status(201).json({
     id: wsId,
     name: name.trim(),
+    slug,
+    ownerHandle: handles.get(identity)?.ownerHandle ?? null,
     visibility,
     template: template.id,
     metricsCreated: templateMetrics.length,

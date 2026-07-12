@@ -60,7 +60,7 @@ async function getUserWorkspaceMembershipsFromParticipant(userId: string): Promi
   return getUserWorkspaceMembershipsForParticipant(userId);
 }
 
-async function resolveUser(
+export async function resolveUser(
   userId: string,
   requestedWorkspaceId?: string,
 ): Promise<{ workspaceId: string; agentId?: string } | null> {
@@ -75,7 +75,11 @@ async function resolveUser(
 
   const memberships = await getUserWorkspaceMemberships(userId, agentId);
   const effective = selectEffectiveWorkspaceId(memberships, requestedWorkspaceId);
-  if (!effective) return null;
+  // No workspace yet, but the participant row may already exist (provisioned
+  // by /api/auth/profile). Keep the identity so self-targeted routes such as
+  // GET /api/agents/me/keys work before the first workspace is created;
+  // capabilities stay empty because there is no workspace to scope them to.
+  if (!effective) return agentId ? { workspaceId: '', agentId } : null;
   if (requestedWorkspaceId && effective !== requestedWorkspaceId) {
     console.warn(`[auth] user ${userId} sent X-Workspace-Id=${requestedWorkspaceId} (not a membership); using ${effective}`);
   }
