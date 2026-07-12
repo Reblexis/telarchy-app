@@ -4,6 +4,8 @@ For more info about this project look into docs/vision.md.
 
 **Headline wedge (updated 2026-07-11, Viktor): "the approval layer for AI agents."** Lead everywhere with the approval-layer framing: your agent proposes an action, a market prices its expected impact on your KPI, and you approve on a calibrated number. **Never lead with "prediction markets"**: the term reads as gambling/crypto to AI buyers and drags the regulatory question to the front of every conversation; name the mechanism only after the job. "Alignment layer for AI and humans" remains the mission-level framing (the zoom-out), and the participant-symmetry rules below still hold. Campaign context and audience-specific pitches: the SF master plan record in the telarchy umbrella, `notes/sf-master-plan-2026-07.md`.
 
+**Confirmed 2026-07-12 (Viktor): the wedge never stands alone.** "Approval layer" spoken bare collides with the permission-gating / HITL-approval-queue category and undersells the market. Whenever the wedge is used, the calibrated-number clause is mandatory in the same breath ("...and you approve on a calibrated number", or equivalent naming that the approval is priced, not a checkbox). Alignment stays the mission framing; approval stays the wedge; a swap is only on the table if real conversations keep triggering the permission-gating read despite the full sentence.
+
 Telarchy is an alignment layer for AI and humans. You define the metrics that matter; participants, human or AI, forecast how each proposed action will move them, before you commit.
 
 - **Scope:** company governance is the headline use case (founders pricing decisions against KPIs and OKRs); individuals use the same mechanism on personal goals and are first-class from day one.
