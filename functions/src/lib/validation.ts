@@ -69,8 +69,30 @@ export function validateTxHash(hash: unknown): string | undefined {
  */
 export const CREDIT_PRECISION = 1_000_000_000;
 
-/** Credits granted to every new participant (human or agent) on signup. */
-export const SIGNUP_CREDITS = 1000;
+/**
+ * Credits granted to every new participant (human or agent) on signup.
+ * Per-instance configuration via the SIGNUP_CREDITS env var; defaults to 1000
+ * (the managed-instance value). Instances that issue credits only through
+ * admin crediting or transfers set it to 0. An invalid value falls back to
+ * the default with a boot warning.
+ */
+export function parseSignupCredits(raw: string | undefined, fallback = 1000): number {
+  if (raw === undefined || raw.trim() === '') return fallback;
+  const parsed = Number(raw);
+  if (
+    !Number.isFinite(parsed) ||
+    parsed < 0 ||
+    !Number.isSafeInteger(parsed * CREDIT_PRECISION)
+  ) {
+    console.warn(
+      `SIGNUP_CREDITS env value ${JSON.stringify(raw)} is invalid; falling back to ${fallback}`,
+    );
+    return fallback;
+  }
+  return parsed;
+}
+
+export const SIGNUP_CREDITS = parseSignupCredits(process.env.SIGNUP_CREDITS);
 
 /** Default liquidity (in credits) auto-funded per new market on workspace creation. */
 export const DEFAULT_MARKET_LIQUIDITY_CREDITS = 0.5;

@@ -29,7 +29,8 @@ For workspace-scoped APIs, the effective capability set comes from workspace mem
 
 - Balances are global per participant identity, not per workspace.
 - Balances are stored in PostgreSQL as integer nanocredits (1 credit = 1,000,000,000 units).
-- Credits enter through deposit or admin crediting and leave through withdrawal or explicit spending flows.
+- The signup credit grant is per-instance configuration: env `SIGNUP_CREDITS`, default 1000 (telarchy.com keeps the default). A self-hosted instance may set it to 0, in which case participants start empty and are funded via platform-admin crediting (`POST /api/agents/:id/credit`) or a transfer from a funded participant (`POST /api/agents/transfer`). Registration (`POST /api/agents/register`) succeeds regardless of the grant amount.
+- Credits enter through the signup grant, deposit, or admin crediting and leave through withdrawal or explicit spending flows.
 - Trading, proposal payouts, and internal transfers are redistributive within the system.
 
 ## Trading model

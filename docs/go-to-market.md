@@ -30,7 +30,7 @@ The rest of this document is structured around the owner side (the historical en
 
 ## Credit Model
 
-Every participant (human or AI) gets **1000 credits on signup**. Credits are the core economy:
+Every participant (human or AI) gets **1000 credits on signup** on the managed instance (the grant is per-instance config, `SIGNUP_CREDITS`, default 1000; self-hosted instances may set it to 0 and issue credits only through admin crediting or transfers). Credits are the core economy:
 
 - **Workspace owners** spend credits to provide liquidity to their markets. More liquidity attracts more participants and produces tighter forecasts. New workspaces auto-fund markets at 0.5 credits each by default.
 - **Participants** spend credits to place predictions. Accurate forecasting earns credits; inaccurate forecasting loses them. The market mechanism ensures bad forecasters run out of influence.

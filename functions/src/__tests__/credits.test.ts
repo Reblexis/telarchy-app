@@ -1,6 +1,6 @@
 import {
   toUnits, fromUnits, sufficientBalance,
-  CREDIT_PRECISION, SIGNUP_CREDITS, DEFAULT_MARKET_LIQUIDITY_CREDITS,
+  CREDIT_PRECISION, SIGNUP_CREDITS, parseSignupCredits, DEFAULT_MARKET_LIQUIDITY_CREDITS,
   MIN_LIQUIDITY_CONTRIBUTION,
 } from '../lib/validation';
 
@@ -68,8 +68,22 @@ describe('sufficientBalance', () => {
 });
 
 describe('signup and workspace creation constants', () => {
-  test('SIGNUP_CREDITS is 1000', () => {
+  test('SIGNUP_CREDITS defaults to 1000 when the env var is unset', () => {
+    expect(parseSignupCredits(undefined)).toBe(1000);
+    expect(parseSignupCredits('')).toBe(1000);
+    // The test environment does not set SIGNUP_CREDITS, so the constant is the default.
     expect(SIGNUP_CREDITS).toBe(1000);
+  });
+
+  test('parseSignupCredits accepts 0 (zero-grant instances)', () => {
+    expect(parseSignupCredits('0')).toBe(0);
+  });
+
+  test('parseSignupCredits falls back to the default on invalid values', () => {
+    expect(parseSignupCredits('garbage')).toBe(1000);
+    expect(parseSignupCredits('-5')).toBe(1000);
+    expect(parseSignupCredits('Infinity')).toBe(1000);
+    expect(parseSignupCredits('99999999999')).toBe(1000);
   });
 
   test('SIGNUP_CREDITS converts to a safe integer in nanocredits', () => {

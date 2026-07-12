@@ -42,6 +42,8 @@ cd functions && npx drizzle-kit migrate && cd ..
 docker compose up
 ```
 
+The signup credit grant is per-instance config: `SIGNUP_CREDITS` (default 1000). Set it to 0 for an instance where credits enter only through platform-admin crediting or participant transfers.
+
 The app runs at the configured origin. Set `INITIAL_ADMIN_EMAIL` before first boot to make your first sign-in (email or OAuth) a platform admin; on an existing database a restart elevates the matching user. Without it, first boot creates an `admin@localhost` account and prints its password to stdout.
 
 For the full vision and architecture, see `docs/vision.md`. For the managed instance, see `telarchy.com`.

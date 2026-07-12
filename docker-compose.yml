@@ -40,6 +40,9 @@ services:
       AUTH_COOKIE_DOMAIN: ${AUTH_COOKIE_DOMAIN:-}
       TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:-}
       ALLOW_LOCALHOST_CORS: ${ALLOW_LOCALHOST_CORS:-}
+      # Signup credit grant (default 1000; set 0 to issue credits only
+      # through admin crediting or transfers).
+      SIGNUP_CREDITS: ${SIGNUP_CREDITS:-}
       INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-}
       INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
