@@ -59,7 +59,7 @@ When a participant runs out of credits, they can earn more through accurate fore
 
 | Gap | Status | Impact |
 |---|---|---|
-| Onboarding UX (guide user through first metric update) | Agent-run onboarding shipped (`/api/guides/onboarding` + landing prompt, 2026-07-12); in-browser guided first-run still missing | Medium; browser-only users still land unguided |
+| Onboarding UX (guide user through first metric update) | Shipped both paths 2026-07-12: agent-run (`/api/guides/onboarding` + landing prompt) and in-browser (persona picker + guided end-to-end tour re-enabled after QA: create-workspace redirect race fixed, tour meets the welcome check-in, steps auto-skip when already satisfied, persona recovered from profile intent on new devices) | Low; both entry paths guided |
 | Developer portal for automated participants (docs, SDK, examples) | Missing | Blocks third-party participants |
 | Leaderboard / reputation | Missing | No visibility into participant quality |
 | Notifications (email alerts for resolutions) | Missing | Users forget to check back |

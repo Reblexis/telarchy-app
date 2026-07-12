@@ -1,7 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTutorial, AUTO_TUTORIALS_ENABLED } from '../hooks/useTutorial';
 import { api } from '../lib/api';
 import type { Persona } from '../tutorials/types';
+
+const INTENT_TO_PERSONA: Record<string, Persona> = {
+  creator: 'builder',
+  trader: 'trader',
+  agent: 'agent',
+};
 
 const OPTIONS: Array<{ id: Persona; intent: 'creator' | 'trader' | 'agent'; title: string; blurb: string }> = [
   {
@@ -25,11 +31,45 @@ const OPTIONS: Array<{ id: Persona; intent: 'creator' | 'trader' | 'agent'; titl
 ];
 
 export function PersonaPicker() {
-  const { needsPersona, setPersona, skipPersona } = useTutorial();
+  const { needsPersona, setPersona, adoptPersona, skipPersona } = useTutorial();
   const [submitting, setSubmitting] = useState<Persona | null>(null);
+  // null = still deciding; the picker must not flash while we check the
+  // server, so nothing renders until this resolves to true.
+  const [shouldShow, setShouldShow] = useState<boolean | null>(null);
+
+  // localStorage is per-device, but the persona choice is written to the
+  // profile as `intent`. Recover it before prompting: a returning user on a
+  // new browser (or after clearing storage) gets their track back silently,
+  // and anyone who already runs workspaces is never interrupted with a
+  // first-visit question.
+  useEffect(() => {
+    if (!AUTO_TUTORIALS_ENABLED || !needsPersona) { setShouldShow(false); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const [profile, workspaces] = await Promise.all([
+          api.getProfile() as Promise<{ intent?: string | null }>,
+          api.listWorkspaces().catch(() => []) as Promise<unknown[]>,
+        ]);
+        if (cancelled) return;
+        const recovered = profile.intent ? INTENT_TO_PERSONA[profile.intent] : undefined;
+        if (recovered) { adoptPersona(recovered); setShouldShow(false); return; }
+        if (Array.isArray(workspaces) && workspaces.length > 0) {
+          // Existing account from before personas: don't nag; default silently.
+          adoptPersona('builder');
+          setShouldShow(false);
+          return;
+        }
+        setShouldShow(true);
+      } catch {
+        if (!cancelled) setShouldShow(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [needsPersona, adoptPersona]);
 
   if (!AUTO_TUTORIALS_ENABLED) return null;
-  if (!needsPersona) return null;
+  if (!needsPersona || shouldShow !== true) return null;
 
   const onPick = async (option: typeof OPTIONS[number]) => {
     setSubmitting(option.id);

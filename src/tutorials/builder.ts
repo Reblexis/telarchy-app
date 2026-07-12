@@ -39,9 +39,10 @@ export const builderTutorial: Tutorial = {
       id: 'create-workspace',
       kind: 'coach',
       navigate: '/create-workspace',
-      target: 'form input[type="text"], input[name="name"], input[placeholder*="name" i]',
-      title: 'Name your workspace',
-      body: () => "Give your workspace a name (your company, your project, or your goals). Pick the template that fits. I'll wait while you submit.",
+      // No target: the create-workspace wizard has three sub-steps and no
+      // stable anchor, so the coach floats bottom-right across all of them.
+      title: 'Create your workspace',
+      body: () => "Pick what you want to track, choose the template that fits, and name it. Templates seed sensible starter metrics; you can reshape everything afterwards. I'll wait while you finish.",
       capture: async () => null,
       waitFor: async () => {
         try {
@@ -54,43 +55,20 @@ export const builderTutorial: Tutorial = {
     },
 
     {
-      id: 'add-metric',
-      kind: 'coach',
-      navigate: '/metrics',
-      target: '[data-tour-id="metric-add-ghost"]',
-      title: 'Add your first metric',
-      body: () => "Click the + Add metric card and define one KPI. Pick whatever you actually want to track. I'll wait while you save.",
-      capture: async () => {
-        try {
-          const ms = await api.getMetrics();
-          return Array.isArray(ms) ? (ms as Array<{ id: string }>).length : null;
-        } catch { return null; }
-      },
-      waitFor: async (initial) => {
-        if (initial === null) return false;
-        try {
-          const ms = await api.getMetrics();
-          const n = Array.isArray(ms) ? (ms as Array<{ id: string }>).length : 0;
-          return n > (initial as number);
-        } catch { return false; }
-      },
-      pollMs: 2500,
-      waitOnly: true,
-    },
-
-    {
       id: 'check-in',
       kind: 'coach',
       navigate: '/check-in',
       target: '[data-tour-id="nav-check-in"]',
-      title: 'Log a current value',
-      body: () => "On the Check-in page, type today's value for the metric you just added. Auto-saves, so a number is enough.",
+      title: 'Set your starting point',
+      body: () => "Type today's real value for each metric. Auto-saves; honest numbers beat nice ones, forecasts build from here.",
+      // Skips itself when the workspace has no metrics yet (blank template):
+      // capture returns null and waitFor immediately reports done, so scratch
+      // users go straight to defining their first metric instead.
       capture: async () => {
         try {
           const ms = await api.getMetrics();
-          if (!Array.isArray(ms)) return 0;
+          if (!Array.isArray(ms) || ms.length === 0) return null;
           const list = ms as Array<{ updatedAt?: string }>;
-          // Use max updatedAt timestamp as a "last touched" signal.
           let max = 0;
           for (const m of list) {
             if (m.updatedAt) {
@@ -99,9 +77,10 @@ export const builderTutorial: Tutorial = {
             }
           }
           return max;
-        } catch { return 0; }
+        } catch { return null; }
       },
       waitFor: async (initial) => {
+        if (initial === null) return true;
         try {
           const ms = await api.getMetrics();
           if (!Array.isArray(ms)) return false;
@@ -114,6 +93,26 @@ export const builderTutorial: Tutorial = {
             }
           }
           return max > (initial as number);
+        } catch { return false; }
+      },
+      pollMs: 2500,
+      waitOnly: true,
+    },
+
+    {
+      id: 'add-metric',
+      kind: 'coach',
+      navigate: '/metrics',
+      target: '[data-tour-id="metric-add-ghost"]',
+      title: 'Define your first metric',
+      body: () => "Click the + Add metric card and define one thing you actually want to track. I'll wait while you save.",
+      // Auto-skips for template workspaces (metrics already exist); only
+      // scratch workspaces stop here.
+      capture: async () => null,
+      waitFor: async () => {
+        try {
+          const ms = await api.getMetrics();
+          return Array.isArray(ms) && ms.length >= 1;
         } catch { return false; }
       },
       pollMs: 2500,

@@ -6410,6 +6410,11 @@ code, pre, kbd, samp {
   border-bottom: 1px solid var(--border-color);
 }
 
+/* Floating variant: no anchor element, so no arrow; sits bottom-right. */
+.tour-coach-floating::before {
+  display: none;
+}
+
 .tour-coach-arrow-left::before {
   top: 50%;
   left: -7px;

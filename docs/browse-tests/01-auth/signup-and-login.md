@@ -42,6 +42,14 @@ $B wait --networkidle
 $B screenshot "/tmp/$TT_NS-signup-baseline.png"
 ```
 
+## Note: first-run surfaces (2026-07-12)
+
+Auto-tutorials are enabled: a fresh signup shows the persona picker modal
+("What do you want to do here?") right after account creation, and picking a
+track starts a guided tour. Specs that click through signup must either pick
+a persona or dismiss with the "Skip" button before interacting with the page
+underneath.
+
 ## Tests
 
 ### T1. Signup form has the documented fields

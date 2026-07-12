@@ -12,7 +12,7 @@ const COMPLETED_KEY = 'telarchy.tutorial.completed.v3';
  * to re-enable. Manual launches from /guides > Interactive tutorials
  * still work either way, so the tutorial system stays alive for testing.
  */
-export const AUTO_TUTORIALS_ENABLED = false;
+export const AUTO_TUTORIALS_ENABLED = true;
 
 interface TutorialState {
   persona: Persona | null;
@@ -25,6 +25,10 @@ interface TutorialState {
   /** Which tutorials the user has completed (or skipped). */
   completed: TutorialId[];
   setPersona: (persona: Persona) => void;
+  /** Record a persona WITHOUT launching its tutorial. Used when the choice is
+   *  recovered from the server profile (returning user, new device) so we
+   *  neither re-prompt nor surprise them with a tour they already did. */
+  adoptPersona: (persona: Persona) => void;
   startTutorial: (id: TutorialId) => void;
   next: () => void;
   prev: () => void;
@@ -123,6 +127,10 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     setStepIndex(0);
   }, []);
 
+  const adoptPersona = useCallback((p: Persona) => {
+    setPersonaState(p);
+  }, []);
+
   const skipPersona = useCallback(() => {
     // "Skip" without picking still records SOMETHING so we don't reprompt.
     // Use 'builder' as the analytics default but do NOT start a tutorial.
@@ -156,8 +164,8 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<TutorialState>(() => ({
     persona, needsPersona, activeId, stepIndex, completed,
-    setPersona, startTutorial, next, prev, goTo, finishActive, skipActive, skipPersona,
-  }), [persona, needsPersona, activeId, stepIndex, completed, setPersona, startTutorial, next, prev, goTo, finishActive, skipActive, skipPersona]);
+    setPersona, adoptPersona, startTutorial, next, prev, goTo, finishActive, skipActive, skipPersona,
+  }), [persona, needsPersona, activeId, stepIndex, completed, setPersona, adoptPersona, startTutorial, next, prev, goTo, finishActive, skipActive, skipPersona]);
 
   return <Context.Provider value={value}>{children}</Context.Provider>;
 }

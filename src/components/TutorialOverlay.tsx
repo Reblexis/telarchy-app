@@ -81,7 +81,13 @@ export function TutorialOverlay() {
 
       if (cancelled) return;
 
-      if (step.navigate && window.location.pathname !== step.navigate) {
+      // step.navigate is a flat tab path ('/check-in'); the app may already
+      // be on its namespaced form ('/{owner}/{slug}/check-in'). Navigating
+      // then would bounce through the flat-path redirect, aborting the
+      // page's in-flight fetches and leaving it stuck on a dead load state.
+      const alreadyThere = window.location.pathname === step.navigate
+        || window.location.pathname.endsWith(step.navigate ?? '');
+      if (step.navigate && !alreadyThere) {
         navigate(step.navigate);
       }
       if (step.onEnter) {
@@ -213,9 +219,15 @@ export function TutorialOverlay() {
     );
   }
 
-  // Target hasn't mounted yet; render nothing rather than a dim layer.
-  if (!rect) return null;
-  const pos = computePosition(rect);
+  // Coach card position: anchored beside the target when it exists, and a
+  // fixed bottom-right float otherwise. Never render nothing: an invisible
+  // step reads as "the tutorial broke" (targets legitimately go missing on
+  // multi-step wizards and while a page is still loading).
+  const pos = rect ? computePosition(rect) : null;
+  const coachClass = pos ? `tour-coach tour-coach-arrow-${pos.arrow}` : 'tour-coach tour-coach-floating';
+  const coachStyle = pos
+    ? { top: pos.top, left: pos.left }
+    : { top: 'auto' as const, bottom: 24, left: 'auto' as const, right: 24 };
 
   return (
     <>
@@ -225,10 +237,10 @@ export function TutorialOverlay() {
           would. The orange-pulse outline on the highlighted target and
           the coachmark card itself are sufficient cues. */}
       <div
-        className={`tour-coach tour-coach-arrow-${pos.arrow}`}
+        className={coachClass}
         role="dialog"
         aria-modal="false"
-        style={{ top: pos.top, left: pos.left }}
+        style={coachStyle}
       >
         <div className="tour-eyebrow">Step {stepIndex + 1} of {totalSteps}</div>
         {step.title && <h3 className="tour-coach-title">{step.title}</h3>}

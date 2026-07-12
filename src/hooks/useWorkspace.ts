@@ -52,6 +52,13 @@ export function useWorkspace(authenticated: boolean = true): {
   const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
   const [allWorkspaces, setAllWorkspaces] = useState<WorkspaceListItem[]>([]);
   const [loading, setLoading] = useState(true);
+  // True once a fetch for the CURRENT authenticated session has completed.
+  // Guards the render gap right after auth resolves but before the fetch
+  // effect runs: `loading` is still false from the unauthenticated branch
+  // then, and consumers like FlatTabRedirect would misread the empty
+  // workspace list as "user has no workspaces" and bounce new users to
+  // /create-workspace instead of their freshly created workspace.
+  const [resolved, setResolved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   // Mirror of the module-level active workspace id so a change (from a switch or
   // the route guard) re-runs the fetch effect below for every hook instance.
@@ -79,7 +86,7 @@ export function useWorkspace(authenticated: boolean = true): {
   }, [navigate]);
 
   useEffect(() => {
-    if (!authenticated) { setWorkspace(null); setAllWorkspaces([]); setError(null); setLoading(false); return; }
+    if (!authenticated) { setWorkspace(null); setAllWorkspaces([]); setError(null); setLoading(false); setResolved(false); return; }
     setLoading(true);
     let cancelled = false;
 
@@ -139,7 +146,7 @@ export function useWorkspace(authenticated: boolean = true): {
         setWorkspace(null);
         setAllWorkspaces([]);
       })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      .finally(() => { if (!cancelled) { setLoading(false); setResolved(true); } });
 
     return () => { cancelled = true; };
   }, [authenticated, activeId]);
@@ -160,5 +167,9 @@ export function useWorkspace(authenticated: boolean = true): {
     return `/${encodeURIComponent(ownerHandle)}/${encodeURIComponent(slug)}/${m[1]}${m[2]}`;
   }, [ownerHandle, slug]);
 
-  return { workspace, allWorkspaces, switchWorkspace, wsPath, wsHref, loading, error };
+  return {
+    workspace, allWorkspaces, switchWorkspace, wsPath, wsHref,
+    loading: loading || (authenticated && !resolved),
+    error,
+  };
 }
