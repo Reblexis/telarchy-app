@@ -38,7 +38,7 @@ function fmtMoney(k: number): string {
   return k >= 1000 ? `$${(k / 1000).toFixed(2)}M` : `$${Math.round(k)}K`;
 }
 
-function ConsensusTickerSim({ compact = false }: { compact?: boolean }) {
+function ConsensusTickerSim() {
   const [consensus, setConsensus] = useState(142);
   const [participants, setParticipants] = useState(6);
   const [net, setNet] = useState(2);
@@ -114,9 +114,8 @@ function ConsensusTickerSim({ compact = false }: { compact?: boolean }) {
   return (
     <div style={{
       border: '1px solid var(--border-color)', borderRadius: '0.75rem', overflow: 'hidden',
-      width: '100%', maxWidth: compact ? 380 : 340,
-      background: 'var(--bg-primary)',
-      boxShadow: compact ? 'var(--shadow-md)' : undefined,
+      width: '100%', maxWidth: 360,
+      background: 'var(--bg-primary)', boxShadow: 'var(--shadow-md)',
     }}>
       {/* Header */}
       <div style={{
@@ -175,9 +174,7 @@ function ConsensusTickerSim({ compact = false }: { compact?: boolean }) {
         </div>
       )}
 
-      {/* Forecast feed (hidden in compact mode: keeps the above-headline
-          chip short so the headline stays high on the page). */}
-      {!compact && (
+      {/* Forecast feed */}
       <div style={{ padding: '0.6rem 1rem 0.75rem', borderTop: '1px solid var(--border-color)' }}>
         <div style={{ fontSize: '0.62rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-tertiary)', marginBottom: '0.4rem' }}>
           Recent forecasts
@@ -199,7 +196,6 @@ function ConsensusTickerSim({ compact = false }: { compact?: boolean }) {
           ))}
         </div>
       </div>
-      )}
     </div>
   );
 }
@@ -536,21 +532,21 @@ export function LandingPage() {
         </div>
       </header>
 
-      {/* 1. Hero: a compact live market panel leads (the "this is a real,
-          running product" hook), then the headline, then the CTA. */}
-      <section className="lp-hero lp-hero-centered">
-        <div style={{ animation: 'fadeInUp 0.6s ease both' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem', animation: 'fadeIn 0.8s ease 0.1s both' }}>
-            <ConsensusTickerSim compact />
+      {/* 1. Hero: two-column split (agentmail.to style, owner direction
+          2026-07-13). Text left, the live market panel right. */}
+      <section className="lp-hero">
+        <div className="lp-hero-grid" style={{ animation: 'fadeInUp 0.6s ease both' }}>
+          <div className="lp-hero-copy">
+            <h1 style={{ fontSize: 'clamp(2rem, 4.2vw, 3.2rem)', lineHeight: 1.07, marginBottom: '1.25rem', letterSpacing: '-0.04em' }}>
+              Price every move against your goals, before anyone acts.
+            </h1>
+            <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 480, marginBottom: '2.25rem' }}>
+              You set the goals. People and AI propose the moves, a market with skin in the game forecasts each one's impact, and you approve on a number.
+            </p>
+            <HeroCta />
           </div>
-          <h1 style={{ fontSize: 'clamp(2rem, 4.5vw, 3.1rem)', lineHeight: 1.08, marginBottom: '1.25rem', letterSpacing: '-0.04em' }}>
-            Price every move against your goals, before anyone acts.
-          </h1>
-          <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 560, marginInline: 'auto' }}>
-            You set the goals. People and AI propose the moves, a market with skin in the game forecasts each one's impact, and you approve on a number.
-          </p>
-          <div style={{ marginTop: '2.5rem' }}>
-            <HeroCta centered />
+          <div className="lp-hero-visual" style={{ animation: 'fadeIn 0.8s ease 0.15s both' }}>
+            <ConsensusTickerSim />
           </div>
         </div>
       </section>

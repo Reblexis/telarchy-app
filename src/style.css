@@ -2378,9 +2378,16 @@ body.landing-page {
 
 .lp-hero-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
   gap: 3.5rem;
   align-items: center;
+}
+
+/* Two-column hero: left copy, right live panel. */
+.lp-hero-copy { text-align: left; }
+.lp-hero-visual {
+  display: flex;
+  justify-content: center;
 }
 
 .lp-hero-ctas {
@@ -2988,13 +2995,23 @@ body.landing-page {
   }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 820px) {
   .lp-hero-grid {
     grid-template-columns: 1fr;
+    gap: 2.25rem;
   }
-  .lp-hero-sim {
+  /* Stack: copy first, then the live panel, both centered. */
+  .lp-hero-copy { text-align: center; }
+  .lp-hero-copy .lp-hero-cta-row { justify-content: center; }
+  .lp-hero-copy .lp-hero-cta-note { margin-inline: auto; text-align: center; }
+  .lp-hero-copy p { margin-inline: auto; }
+  .lp-hero-sim,
+  .lp-hero-visual {
     justify-content: center;
   }
+}
+
+@media (max-width: 700px) {
   .lp-stats-inner {
     grid-template-columns: 1fr;
   }
