@@ -59,7 +59,7 @@ When a participant runs out of credits, they can earn more through accurate fore
 
 | Gap | Status | Impact |
 |---|---|---|
-| Onboarding UX (guide user through first metric update) | Shipped both paths 2026-07-12: agent-run (`/api/guides/onboarding` + landing prompt) and in-browser (persona picker + guided end-to-end tour re-enabled after QA: create-workspace redirect race fixed, tour meets the welcome check-in, steps auto-skip when already satisfied, persona recovered from profile intent on new devices) | Low; both entry paths guided |
+| Onboarding UX (guide user through first metric update) | Shipped both paths. Agent-run: `/api/guides/onboarding` + landing prompt. In-browser (2026-07-13): a cinematic first-run canvas at `/welcome` (full-screen, one action per beat, near-zero text, premium-minimal motion) replaces the persona-picker + coach-tour for new owners; it takes intent -> template -> name (creates the workspace) -> calibrate metrics with live gauges -> a concept slider showing how a decision gets priced, then drops into the real workspace. Traders/agent-builders route to marketplace/API from beat 1. | Low; both entry paths guided |
 | Developer portal for automated participants (docs, SDK, examples) | Missing | Blocks third-party participants |
 | Leaderboard / reputation | Missing | No visibility into participant quality |
 | Notifications (email alerts for resolutions) | Missing | Users forget to check back |

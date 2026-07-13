@@ -123,7 +123,8 @@ export function WelcomePage() {
       for (const m of ms) if (isLeaf(m)) init[m.id] = String(m.value);
       setValues(init);
       // Blank template: nothing to calibrate, nothing to price. Straight in.
-      setBeat(ms.some(isLeaf) ? 'calibrate' : 'loop');
+      if (ms.some(isLeaf)) setBeat('calibrate');
+      else gotoWorkspace(created);
     } catch (err) {
       setError((err as Error).message || 'Could not create your workspace');
       setCreating(false);
@@ -146,13 +147,14 @@ export function WelcomePage() {
     } catch (e) { console.error('welcome: saveValue failed', e); }
   };
 
-  const enterWorkspace = () => {
-    const path = ws?.ownerHandle && ws?.slug
-      ? `/${encodeURIComponent(ws.ownerHandle)}/${encodeURIComponent(ws.slug)}/metrics`
+  const gotoWorkspace = (w: CreatedWorkspace | null) => {
+    const path = w?.ownerHandle && w?.slug
+      ? `/${encodeURIComponent(w.ownerHandle)}/${encodeURIComponent(w.slug)}/metrics`
       : '/metrics';
     // Full reload so the sidebar/workspace hooks re-fetch from a clean slate.
     window.location.href = path;
   };
+  const enterWorkspace = () => gotoWorkspace(ws);
 
   if (loading || !user) return <div className="loading">Loading...</div>;
 

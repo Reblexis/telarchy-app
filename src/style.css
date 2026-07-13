@@ -6959,7 +6959,9 @@ code, pre, kbd, samp {
 }
 
 /* Name beat */
-.wc-name-input {
+/* Higher specificity (.wc-root prefix) so the clean centered underline wins
+   over the global input box/focus-ring styles. */
+.wc-root .wc-name-input {
   width: 100%;
   font: inherit;
   font-size: clamp(1.3rem, 3vw, 1.8rem);
@@ -6967,12 +6969,20 @@ code, pre, kbd, samp {
   padding: 0.65rem 0.5rem;
   border: none;
   border-bottom: 2px solid var(--border-color);
+  border-radius: 0;
+  box-shadow: none;
   background: transparent;
   color: var(--text-primary);
   margin-bottom: 1.75rem;
   transition: border-color 0.2s;
 }
-.wc-name-input:focus { outline: none; border-bottom-color: var(--accent); }
+.wc-root .wc-name-input:focus {
+  outline: none;
+  box-shadow: none;
+  border-color: transparent;
+  border-bottom-color: var(--accent);
+}
+.wc-root .wc-name-input::placeholder { color: var(--text-tertiary); }
 
 /* Building interstitial */
 .wc-building { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
