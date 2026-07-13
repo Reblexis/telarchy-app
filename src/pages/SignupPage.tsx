@@ -55,7 +55,7 @@ export function SignupPage() {
     }
 
     setSubmitting(false);
-    navigate(next ?? '/create-workspace');
+    navigate(next ?? '/welcome');
   };
 
   const handleOAuthConsentGate = () => {

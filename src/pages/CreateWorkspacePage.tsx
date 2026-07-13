@@ -3,40 +3,9 @@ import { Link } from 'react-router-dom';
 import { api, setActiveWorkspace } from '../lib/api';
 import { clearCache } from '../lib/cache';
 import { useAuth } from '../hooks/useAuth';
+import { TEMPLATES, CURRENCIES, type TemplateId, type TemplateCategory } from '../lib/workspace-templates';
 
-type Category = 'startup' | 'personal';
-type TemplateId =
-  | 'saas' | 'ecommerce' | 'marketplace' | 'consumer-app' | 'agency' | 'creator' | 'oss'
-  | 'wellbeing' | 'health-fitness' | 'career' | 'learning' | 'relationships' | 'creative-project' | 'financial-independence'
-  | 'blank';
-
-interface TemplateInfo {
-  id: TemplateId;
-  category: Category | 'blank';
-  label: string;
-  blurb: string;
-  needsCurrency: boolean;
-  revenueScale?: { label: string; default: number };
-}
-
-const TEMPLATES: TemplateInfo[] = [
-  { id: 'saas', category: 'startup', label: 'SaaS startup', blurb: 'MRR, paying customers, churn, trial conversion.', needsCurrency: true, revenueScale: { label: 'MRR target', default: 100000 } },
-  { id: 'ecommerce', category: 'startup', label: 'E-commerce / DTC', blurb: 'Weekly revenue, orders, AOV, repeat customers.', needsCurrency: true, revenueScale: { label: 'Weekly revenue target', default: 100000 } },
-  { id: 'marketplace', category: 'startup', label: 'Marketplace', blurb: 'GMV, active buyers and sellers, take rate.', needsCurrency: true, revenueScale: { label: 'Weekly GMV target', default: 250000 } },
-  { id: 'consumer-app', category: 'startup', label: 'Consumer app', blurb: 'WAU, day-7 retention, installs, store rating.', needsCurrency: false },
-  { id: 'agency', category: 'startup', label: 'Agency / consulting', blurb: 'Billable hours, retainer MRR, win rate.', needsCurrency: true, revenueScale: { label: 'Retainer MRR target', default: 50000 } },
-  { id: 'creator', category: 'startup', label: 'Content creator', blurb: 'Subscribers, views, monetization, cadence.', needsCurrency: true, revenueScale: { label: 'Weekly revenue target', default: 5000 } },
-  { id: 'oss', category: 'startup', label: 'Open source project', blurb: 'Stars, downloads, contributors, open issues.', needsCurrency: false },
-  { id: 'wellbeing', category: 'personal', label: 'Overall wellbeing', blurb: 'Self-reported happiness, health, career.', needsCurrency: false },
-  { id: 'health-fitness', category: 'personal', label: 'Health & fitness', blurb: 'Weight, exercise, sleep, energy.', needsCurrency: false },
-  { id: 'career', category: 'personal', label: 'Career growth', blurb: 'Income, deep work hours, satisfaction.', needsCurrency: true, revenueScale: { label: 'Annual income target', default: 150000 } },
-  { id: 'learning', category: 'personal', label: 'Learning', blurb: 'Study hours, books, courses, mastery.', needsCurrency: false },
-  { id: 'relationships', category: 'personal', label: 'Relationships', blurb: 'Time with people, depth of contact.', needsCurrency: false },
-  { id: 'creative-project', category: 'personal', label: 'Creative project', blurb: 'Creation hours, finished pieces, audience.', needsCurrency: false },
-  { id: 'financial-independence', category: 'personal', label: 'Financial independence', blurb: 'Net worth, savings rate, expenses, runway.', needsCurrency: true, revenueScale: { label: 'Net worth target', default: 1000000 } },
-];
-
-const CURRENCIES = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CHF', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'INR', 'BRL', 'MXN', 'SGD', 'NZD', 'ZAR'];
+type Category = TemplateCategory;
 
 const cardStyle: CSSProperties = {
   padding: '0.75rem 1rem',

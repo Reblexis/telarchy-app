@@ -18,6 +18,7 @@ import { MarketsPage } from './pages/MarketsPage';
 import { ProposalsPage } from './pages/ProposalsPage';
 import { WaitlistPage } from './pages/WaitlistPage';
 import { ClaimPage } from './pages/ClaimPage';
+import { WelcomePage } from './pages/WelcomePage';
 import { StartPage } from './pages/StartPage';
 import { AdminPage } from './pages/AdminPage';
 import { AgentsPage } from './pages/AgentsPage';
@@ -69,6 +70,8 @@ export function App() {
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/waitlist" element={<WaitlistPage />} />
           <Route path="/claim" element={<ClaimPage />} />
+          {/* Cinematic first-run canvas: full-screen (no sidebar), self-gates auth. */}
+          <Route path="/welcome" element={<WelcomePage />} />
           <Route path="/agent-login" element={<AgentLoginPage />} />
           <Route path="/terms" element={<LegalPage document="terms" />} />
           <Route path="/privacy" element={<LegalPage document="privacy" />} />

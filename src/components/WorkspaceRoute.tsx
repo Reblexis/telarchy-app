@@ -94,7 +94,9 @@ export function FlatTabRedirect({ tab }: { tab: string }) {
   if (allWorkspaces.length === 0) {
     if (workspace?.intent === 'trader') return <Navigate to="/marketplace" replace />;
     if (workspace?.intent === 'agent') return <Navigate to="/api-access" replace />;
-    return <Navigate to="/create-workspace" replace />;
+    // Brand-new owners get the cinematic first-run canvas, which itself
+    // creates the workspace and calibrates it before handing off.
+    return <Navigate to="/welcome" replace />;
   }
 
   // Prefer the active workspace; fall back to the first one the user belongs to.
