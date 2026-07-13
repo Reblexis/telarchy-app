@@ -111,12 +111,16 @@ export const UNCLAIMED_SIGNUP_CREDITS = Math.min(
 export const DEFAULT_MARKET_LIQUIDITY_CREDITS = 0.5;
 
 /**
- * Minimum credits for a single liquidity injection. Below this, the LMSR b
- * parameter is so small that any trade (even a sub-cent one) swings consensus
- * by hundreds of points, producing butterfly-sensitive markets. Any attempt to
- * inject less is rejected to prevent that failure mode.
+ * No policy minimum on a liquidity injection (operator decision, Viktor
+ * 2026-07-13): credits are 1:1 with CC, so an absolute credit floor like 0.1 is
+ * arbitrary. The only floor is the storage precision itself - one nanocredit
+ * (1e-9 credits) - so an amount cannot round down to zero nanocredits and
+ * create a degenerate zero-liquidity market. Anything at or above one
+ * nanocredit is allowed; a thin market is the proposer's own risk to take, not
+ * something the platform forbids. LMSR stays well-behaved because b and trade
+ * sizes scale together in the same credit unit.
  */
-export const MIN_LIQUIDITY_CONTRIBUTION = 0.1;
+export const MIN_LIQUIDITY_CONTRIBUTION = 1e-9;
 
 /** Convert decimal credits → integer nanocredits for Firestore storage. */
 export function toUnits(credits: number): number {
