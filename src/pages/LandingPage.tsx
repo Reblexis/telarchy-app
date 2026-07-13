@@ -38,7 +38,7 @@ function fmtMoney(k: number): string {
   return k >= 1000 ? `$${(k / 1000).toFixed(2)}M` : `$${Math.round(k)}K`;
 }
 
-function ConsensusTickerSim() {
+function ConsensusTickerSim({ compact = false }: { compact?: boolean }) {
   const [consensus, setConsensus] = useState(142);
   const [participants, setParticipants] = useState(6);
   const [net, setNet] = useState(2);
@@ -114,7 +114,9 @@ function ConsensusTickerSim() {
   return (
     <div style={{
       border: '1px solid var(--border-color)', borderRadius: '0.75rem', overflow: 'hidden',
-      width: '100%', maxWidth: 340,
+      width: '100%', maxWidth: compact ? 380 : 340,
+      background: 'var(--bg-primary)',
+      boxShadow: compact ? 'var(--shadow-md)' : undefined,
     }}>
       {/* Header */}
       <div style={{
@@ -173,7 +175,9 @@ function ConsensusTickerSim() {
         </div>
       )}
 
-      {/* Forecast feed */}
+      {/* Forecast feed (hidden in compact mode: keeps the above-headline
+          chip short so the headline stays high on the page). */}
+      {!compact && (
       <div style={{ padding: '0.6rem 1rem 0.75rem', borderTop: '1px solid var(--border-color)' }}>
         <div style={{ fontSize: '0.62rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-tertiary)', marginBottom: '0.4rem' }}>
           Recent forecasts
@@ -195,6 +199,7 @@ function ConsensusTickerSim() {
           ))}
         </div>
       </div>
+      )}
     </div>
   );
 }
@@ -531,9 +536,13 @@ export function LandingPage() {
         </div>
       </header>
 
-      {/* 1. Hero: one centered column, one CTA (the agent prompt). */}
+      {/* 1. Hero: a compact live market panel leads (the "this is a real,
+          running product" hook), then the headline, then the CTA. */}
       <section className="lp-hero lp-hero-centered">
         <div style={{ animation: 'fadeInUp 0.6s ease both' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '2rem', animation: 'fadeIn 0.8s ease 0.1s both' }}>
+            <ConsensusTickerSim compact />
+          </div>
           <h1 style={{ fontSize: 'clamp(2rem, 4.5vw, 3.1rem)', lineHeight: 1.08, marginBottom: '1.25rem', letterSpacing: '-0.04em' }}>
             Price every move against your goals, before anyone acts.
           </h1>
@@ -543,14 +552,6 @@ export function LandingPage() {
           <div style={{ marginTop: '2.5rem' }}>
             <HeroCta centered />
           </div>
-        </div>
-      </section>
-
-      {/* 1b. Live market sim: kept as the "this is a live product" signal,
-          below the fold's single CTA so it no longer competes with it. */}
-      <section className="lp-section" style={{ paddingBottom: '3.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', animation: 'fadeIn 0.8s ease 0.2s both' }}>
-          <ConsensusTickerSim />
         </div>
       </section>
 
