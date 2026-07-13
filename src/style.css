@@ -2330,64 +2330,51 @@ body.landing-page {
   padding-top: 5rem;
 }
 
-.lp-agent-prompt {
-  max-width: 640px;
-  margin-inline: auto;
+/* Hero CTA (agentphone.ai style): a primary button beside a compact
+   "Copy prompt" pill. The agent prompt stays hidden behind the pill. */
+.lp-hero-cta { max-width: 640px; }
+.lp-hero-cta-centered { margin-inline: auto; }
+
+.lp-hero-cta-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.lp-hero-cta-centered .lp-hero-cta-row { justify-content: center; }
+
+.lp-hero-cta-primary {
+  padding: 0.7rem 1.5rem;
+  font-size: 0.95rem;
 }
 
-.lp-agent-prompt-card {
-  text-align: left;
+.lp-copy-prompt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.62rem 1rem;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  background: var(--bg-secondary);
-  padding: 1.1rem 1.25rem 1.25rem;
-  box-shadow: var(--shadow-md);
-}
-
-.lp-agent-prompt-label {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--text-tertiary);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 0.75rem;
-}
-
-.lp-agent-prompt-text {
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-  font-size: 0.85rem;
-  line-height: 1.65;
-  color: var(--text-primary);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  margin-bottom: 1rem;
-}
-
-.lp-agent-prompt-chevron {
-  color: var(--text-tertiary);
-  user-select: none;
-}
-
-.lp-agent-prompt-copy {
-  border: none;
   cursor: pointer;
-  font-family: inherit;
-  width: 100%;
-  text-align: center;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
+.lp-copy-prompt:hover {
+  border-color: var(--text-tertiary);
+  color: var(--text-primary);
+}
+.lp-copy-prompt svg { flex-shrink: 0; opacity: 0.75; }
 
-.lp-agent-prompt-footnote {
+.lp-hero-cta-note {
   font-size: 0.85rem;
   color: var(--text-tertiary);
-  margin-top: 0.85rem;
-  text-align: center;
+  margin-top: 0.9rem;
+  max-width: 460px;
 }
-
-.lp-agent-prompt-footnote a {
-  color: var(--text-secondary);
-  text-decoration: none;
-  border-bottom: 1px solid var(--border-color);
-}
+.lp-hero-cta-centered .lp-hero-cta-note { margin-inline: auto; text-align: center; }
 
 .lp-hero-grid {
   display: grid;

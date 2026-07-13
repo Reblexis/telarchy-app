@@ -409,21 +409,18 @@ function MarketDemo() {
   );
 }
 
-// ─── Agent prompt CTA ───────────────────────────────────────────────────────
-// The primary signup path is agent-first (owner decision, 2026-07-12): the
-// hero hands the visitor a prompt to paste into their coding agent, which
-// then runs the guided onboarding from GET /api/guides/onboarding. Browser
-// signup stays as the secondary path. The prompt is deliberately ONE sentence
-// (owner decision, 2026-07-12): all behavior lives in the server-side guide,
-// so improving onboarding means editing the guide, never this string. Keep
-// the guide URL literal; agents follow it verbatim.
+// ─── Hero CTA ────────────────────────────────────────────────────────────────
+// Two CTAs, agentphone.ai style (owner direction, 2026-07-13): a primary
+// "Get started" (the browser signup -> cinematic canvas) beside a compact
+// "Copy prompt" pill. The agent onboarding prompt is HIDDEN behind that pill,
+// not shown as a big card, so it no longer dominates the hero. The prompt is
+// one sentence; all behavior lives in the server-side guide, so improving
+// onboarding means editing the guide, never this string.
 
 const AGENT_ONBOARDING_PROMPT =
   'Set up Telarchy with me: fetch https://telarchy.com/api/guides/onboarding and follow it.';
 
-// The single CTA on the page. A terminal-style card, always centered, with
-// one prominent copy button; everything else around it stays quiet.
-function AgentPrompt() {
+function HeroCta({ centered }: { centered?: boolean }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
     void navigator.clipboard.writeText(AGENT_ONBOARDING_PROMPT).then(() => {
@@ -432,20 +429,24 @@ function AgentPrompt() {
     });
   };
   return (
-    <div className="lp-agent-prompt">
-      <div className="lp-agent-prompt-card">
-        <div className="lp-agent-prompt-label">Give this to your agent</div>
-        <div className="lp-agent-prompt-text">
-          <span aria-hidden="true" className="lp-agent-prompt-chevron">&gt;&nbsp;</span>
-          {AGENT_ONBOARDING_PROMPT}
-        </div>
-        <button type="button" onClick={copy} className="lp-btn-primary lp-agent-prompt-copy">
-          {copied ? 'Copied. Paste it into your agent' : 'Copy prompt'}
+    <div className={`lp-hero-cta${centered ? ' lp-hero-cta-centered' : ''}`}>
+      <div className="lp-hero-cta-row">
+        <Link to="/signup" className="lp-btn-primary lp-hero-cta-primary">Get started</Link>
+        <button
+          type="button"
+          onClick={copy}
+          className="lp-copy-prompt"
+          aria-label="Copy the setup prompt for your coding agent"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          </svg>
+          <span>{copied ? 'Copied' : 'Copy agent prompt'}</span>
         </button>
       </div>
-      <p className="lp-agent-prompt-footnote">
-        Works with Claude Code, Cursor, Codex, or any agent with web access. 1000 free credits.{' '}
-        No agent? <Link to="/signup">Sign up in the browser</Link>.
+      <p className="lp-hero-cta-note">
+        1000 free credits. The prompt sets Telarchy up from Claude Code, Cursor, Codex, or any agent.
       </p>
     </div>
   );
@@ -540,7 +541,7 @@ export function LandingPage() {
             You set the goals. People and AI propose the moves, a market with skin in the game forecasts each one's impact, and you approve on a number.
           </p>
           <div style={{ marginTop: '2.5rem' }}>
-            <AgentPrompt />
+            <HeroCta centered />
           </div>
         </div>
       </section>
@@ -653,7 +654,7 @@ export function LandingPage() {
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '1.75rem' }}>
             1000 free credits on signup. No credit card required.
           </p>
-          <AgentPrompt />
+          <HeroCta centered />
           <p style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem', lineHeight: 1.7, marginTop: '2rem', maxWidth: 620, marginInline: 'auto' }}>
             For founders pricing company KPIs, individuals tracking personal goals, and builders shipping AI participants. <Link to="/marketplace" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)', textDecoration: 'none' }}>See the live markets</Link>.
           </p>

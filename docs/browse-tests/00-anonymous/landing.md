@@ -60,16 +60,16 @@ $B reload && $B wait --networkidle
 $B is visible 'a[href*="/signup"], a[href*="/marketplace"], button:has-text("Sign up"), button:has-text("Get started")'
 ```
 
-### T2b. Agent onboarding prompt is the hero CTA
+### T2b. Hero has "Get started" + a compact "Copy agent prompt" pill
 
-The primary signup path is agent-first (2026-07-12): the hero carries a
-copyable prompt that sends the visitor's agent to `/api/guides/onboarding`.
+The hero is agentphone.ai-style (2026-07-13): a primary "Get started" beside a
+compact "Copy agent prompt" pill. The prompt itself is HIDDEN behind the pill
+(copied to clipboard on click), not rendered as text on the page.
 
 ```bash
-grep -q "api/guides/onboarding" "/tmp/$TT_NS-landing.txt"
-grep -qi "give this to your agent" "/tmp/$TT_NS-landing.txt"
-$B is visible 'button:has-text("Copy")'
-# The guide the prompt points at must actually be live:
+$B is visible 'a:has-text("Get started")'
+$B is visible 'button:has-text("Copy agent prompt")'
+# The prompt copies the onboarding-guide setup sentence; that guide must be live:
 curl -sf "$TT_BASE_URL/api/guides/onboarding" | grep -qi "agent onboarding"
 ```
 
