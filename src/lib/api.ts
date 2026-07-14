@@ -592,6 +592,11 @@ export const api = {
     return request('/api/workspaces', { method: 'POST', body: JSON.stringify(payload) }, true);
   },
   listWorkspaces: () => request('/api/workspaces', {}, true),
+  /** Persist the caller's personal sidebar order for the workspace list.
+   *  `ids` is every workspace id in the desired order; ids the caller no longer
+   *  belongs to are ignored server-side. Returns { ok, order }. */
+  reorderWorkspaces: (ids: string[]): Promise<{ ok: boolean; order: string[] }> =>
+    request('/api/workspaces/order', { method: 'PUT', body: JSON.stringify({ ids }) }, true),
   /** Map a GitHub-style /{owner}/{slug} path to a workspace id. Returns the
    *  canonical segments + a `moved` flag (true when the slug is a former,
    *  renamed-away slug and the URL should be replaced). */

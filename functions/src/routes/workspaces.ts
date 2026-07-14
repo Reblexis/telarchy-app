@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/client';
 import {
-  workspaces, workspaceSlugAliases, permissionGroups,
+  workspaces, workspaceSlugAliases, workspaceOrderings, permissionGroups,
   markets, positions, trades, liquidityEvents,
   metrics, proposals, proposalMessages, updates, metricLogs, events,
   hookWatcher, agentApiKeys,
@@ -91,8 +91,66 @@ workspacesRouter.get('/', requireIdentity, wrap(async (req, res) => {
   const wsRows = await db.select().from(workspaces).where(inArray(workspaces.id, wsIds));
   const roleMap = Object.fromEntries(memberships.map(m => [m.workspaceId, m.memberRole]));
 
-  const enriched = await withOwnerHandles(wsRows);
+  // Apply the caller's personal display order (set via PUT /api/workspaces/order).
+  // Ordering is keyed by the same identity used to resolve memberships (uid for
+  // a browser account, else the agent id). Workspaces without a saved position
+  // sort after the ordered ones, oldest first, so a freshly joined workspace
+  // lands at the bottom rather than jumping around.
+  const orderIdentity = uid ?? agentId!;
+  const orderRows = await db.select().from(workspaceOrderings)
+    .where(eq(workspaceOrderings.identity, orderIdentity));
+  const posMap = new Map(orderRows.map(r => [r.workspaceId, r.position]));
+  const sorted = [...wsRows].sort((a, b) => {
+    const pa = posMap.has(a.id) ? posMap.get(a.id)! : Number.POSITIVE_INFINITY;
+    const pb = posMap.has(b.id) ? posMap.get(b.id)! : Number.POSITIVE_INFINITY;
+    if (pa !== pb) return pa - pb;
+    return a.createdAt.getTime() - b.createdAt.getTime();
+  });
+
+  const enriched = await withOwnerHandles(sorted);
   res.json(enriched.map(ws => ({ ...ws, memberRole: roleMap[ws.id] })));
+}));
+
+/**
+ * PUT /api/workspaces/order
+ * Set the caller's personal display order for the workspace list (the sidebar).
+ * Body: { ids: string[] } in the desired order. Per-participant, so it needs no
+ * manage capability and never affects other members; ids the caller does not
+ * belong to are silently dropped. GET /api/workspaces then returns rows in this
+ * order. See docs/ui-conventions.md ("Sidebar").
+ */
+workspacesRouter.put('/order', requireIdentity, wrap(async (req, res) => {
+  const { uid, agentId } = req.auth!;
+  const identity = uid ?? agentId;
+  if (!identity) {
+    res.status(403).json({ error: 'Personal workspace order requires a participant identity; the master API key has none.' });
+    return;
+  }
+
+  const ids: unknown = req.body?.ids;
+  if (!Array.isArray(ids) || ids.some(id => typeof id !== 'string')) {
+    res.status(400).json({ error: 'Body must be { ids: string[] }.' });
+    return;
+  }
+
+  // Only order workspaces the caller actually belongs to; drop unknown ids and
+  // duplicates (keeping first occurrence) so a stale client cannot poison order.
+  const memberSet = new Set((await getAuthWorkspaceMemberships({ uid, agentId })).map(m => m.workspaceId));
+  const seen = new Set<string>();
+  const order = (ids as string[]).filter(id => memberSet.has(id) && !seen.has(id) && (seen.add(id), true));
+
+  // Replace this identity's ordering wholesale so workspaces omitted from the
+  // list (e.g. one the caller just left) don't linger with a stale position.
+  await db.transaction(async tx => {
+    await tx.delete(workspaceOrderings).where(eq(workspaceOrderings.identity, identity));
+    if (order.length > 0) {
+      await tx.insert(workspaceOrderings).values(
+        order.map((workspaceId, position) => ({ identity, workspaceId, position })),
+      );
+    }
+  });
+
+  res.json({ ok: true, order });
 }));
 
 /**

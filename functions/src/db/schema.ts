@@ -98,6 +98,21 @@ export const workspaceSlugAliases = pgTable('workspace_slug_aliases', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 
+/**
+ * Per-participant display order of the workspace list (the sidebar). Membership
+ * is many-to-many, so ordering is a personal view preference, not a property of
+ * the workspace: it is keyed by the caller's auth identity (`identity` = uid for
+ * a browser account, else the agent id, matching how memberships resolve). Rows
+ * are upserted by PUT /api/workspaces/order; GET /api/workspaces sorts by
+ * position and appends any workspace lacking a row (e.g. newly joined) after the
+ * ordered ones. See migration 0042.
+ */
+export const workspaceOrderings = pgTable('workspace_orderings', {
+  identity: text('identity').notNull(),
+  workspaceId: text('workspace_id').notNull(),
+  position: integer('position').notNull().default(0),
+}, t => [primaryKey({ columns: [t.identity, t.workspaceId] })]);
+
 // ---------------------------------------------------------------------------
 // Agents
 // ---------------------------------------------------------------------------

@@ -100,6 +100,12 @@ on the left, no per-item border. Reorder of subnav: data-creating
 tabs first (Metrics, Proposals, Markets), then secondary (Participants,
 Sources, Activity), then administrative (Settings).
 
+The workspace rows are drag-reorderable: grab a row and drop it to
+reorder the list. Order is a personal preference, persisted per
+participant via `PUT /api/workspaces/order` and reflected in the order
+`GET /api/workspaces` returns, so it follows the account across devices
+and never affects other members of a shared workspace.
+
 ## Activity feed
 
 Each activity log row carries:

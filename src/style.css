@@ -316,6 +316,18 @@ body:has(.app-layout) {
   margin-top: 0.05rem;
 }
 
+/* Drag-to-reorder of the workspace list (see Sidebar.tsx). */
+.sidebar-workspace-group[draggable='true'] .sidebar-workspace-name {
+  cursor: grab;
+}
+.sidebar-workspace-group.dragging {
+  opacity: 0.4;
+}
+.sidebar-workspace-group.drag-over {
+  box-shadow: inset 0 2px 0 0 var(--focus-border);
+  border-radius: 2px;
+}
+
 .sidebar-workspace-name {
   font-size: 0.875rem;
   font-weight: 500;

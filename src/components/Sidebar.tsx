@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
@@ -15,6 +15,34 @@ export function Sidebar({ className = '' }: { className?: string }) {
   const [workspaceNavOpen, setWorkspaceNavOpen] = useState(true);
   const [usdcEnabled, setUsdcEnabled] = useState(false);
   const [balance, setBalance] = useState<number | null>(null);
+
+  // Personal drag-to-reorder of the workspace list. `localOrder` is the ordered
+  // list of ids the user has dragged this session; it overrides the API order
+  // optimistically (the list refetch on switch returns the same persisted order,
+  // so there is no flash back). New/removed workspaces are reconciled below.
+  const [localOrder, setLocalOrder] = useState<string[] | null>(null);
+  const dragId = useRef<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  const displayWorkspaces = useMemo(() => {
+    if (!localOrder) return allWorkspaces;
+    const byId = new Map(allWorkspaces.map(w => [w.id, w]));
+    const known = new Set(localOrder);
+    const ordered = localOrder.map(id => byId.get(id)).filter((w): w is typeof allWorkspaces[number] => Boolean(w));
+    const extra = allWorkspaces.filter(w => !known.has(w.id));
+    return [...ordered, ...extra];
+  }, [allWorkspaces, localOrder]);
+
+  const reorderWorkspaces = (sourceId: string, targetId: string) => {
+    if (!sourceId || sourceId === targetId) return;
+    const ids = displayWorkspaces.map(w => w.id);
+    const from = ids.indexOf(sourceId);
+    if (from < 0 || ids.indexOf(targetId) < 0) return;
+    ids.splice(from, 1);
+    ids.splice(ids.indexOf(targetId), 0, sourceId); // drop source just above the target
+    setLocalOrder(ids);
+    api.reorderWorkspaces(ids).catch(err => console.error('Failed to persist workspace order', err));
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -87,11 +115,36 @@ export function Sidebar({ className = '' }: { className?: string }) {
       {allWorkspaces.length > 0 && (
         <div className="sidebar-section">
           <div className="sidebar-section-label">Workspaces</div>
-          {allWorkspaces.map(ws => {
+          {displayWorkspaces.map(ws => {
             const isSelected = ws.id === workspace?.workspaceId;
             const showSubnav = isSelected && workspaceNavOpen;
+            const draggable = displayWorkspaces.length > 1;
             return (
-              <div key={ws.id} className="sidebar-workspace-group">
+              <div
+                key={ws.id}
+                className={`sidebar-workspace-group${dragOverId === ws.id ? ' drag-over' : ''}${dragId.current === ws.id ? ' dragging' : ''}`}
+                draggable={draggable}
+                onDragStart={e => {
+                  dragId.current = ws.id;
+                  e.dataTransfer.effectAllowed = 'move';
+                  // Some browsers require data to be set for the drag to start.
+                  e.dataTransfer.setData('text/plain', ws.id);
+                }}
+                onDragOver={e => {
+                  if (!dragId.current || dragId.current === ws.id) return;
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  if (dragOverId !== ws.id) setDragOverId(ws.id);
+                }}
+                onDragLeave={() => { if (dragOverId === ws.id) setDragOverId(null); }}
+                onDrop={e => {
+                  e.preventDefault();
+                  if (dragId.current) reorderWorkspaces(dragId.current, ws.id);
+                  dragId.current = null;
+                  setDragOverId(null);
+                }}
+                onDragEnd={() => { dragId.current = null; setDragOverId(null); }}
+              >
                 <button
                   className={`sidebar-nav-item sidebar-workspace-name${isSelected ? ' selected' : ''}${isSelected && currentTab === 'overview' ? ' active' : ''}`}
                   onClick={() => {
