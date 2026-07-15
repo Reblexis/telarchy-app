@@ -161,6 +161,7 @@ export function MarketsPage() {
       prediction: m => m.consensus ?? -Infinity,
     },
     { key: 'target', dir: 'asc' },
+    m => m.id,
   );
 
   const load = useCallback(async () => {
@@ -418,7 +419,10 @@ export function MarketsPage() {
                   >
                     <div className="market-card-head">
                       <div className="market-head-name">
-                        <span className="market-metric-name">{m.metricName}</span>
+                        <span
+                          className="market-metric-name"
+                          title={metricsMap.get(m.metricId)?.description || undefined}
+                        >{m.metricName}</span>
                         <span className={`market-status-badge market-status-${m.status}`}>{m.status}</span>
                         {m.branch && (
                           <span

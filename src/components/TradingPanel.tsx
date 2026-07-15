@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '../lib/api';
 import { cacheGet, cacheSet } from '../lib/cache';
-import { previewTrade } from '../lib/amm';
+import { previewTrade, previewTargetBet } from '../lib/amm';
 import { MarketActivityPanel } from './MarketActivityPanel';
 import type { Market, Position, LiquidityEvent } from '../types';
 
@@ -23,6 +23,8 @@ export function TradingPanel({ market, workspaceId, showLiquidityControls = true
   onTrade: () => void; onError: (msg: string) => void;
 }) {
   const [tradeAmount, setTradeAmount] = useState('');
+  const [targetValue, setTargetValue] = useState('');
+  const [targetBudget, setTargetBudget] = useState('');
   const [liqAmount, setLiqAmount] = useState('');
   const [trading, setTrading] = useState(false);
   const [lastResult, setLastResult] = useState<{ direction: string; shares: number; cost: number; consensus: number } | null>(null);
@@ -49,6 +51,13 @@ export function TradingPanel({ market, workspaceId, showLiquidityControls = true
     return { higher, lower };
   }, [amount, market.probability, market.liquidity]);
 
+  const targetVal = parseFloat(targetValue);
+  const targetBud = parseFloat(targetBudget);
+  const targetPreview = useMemo(() => {
+    if (isNaN(targetVal) || isNaN(targetBud) || targetBud <= 0 || market.probability == null) return null;
+    return previewTargetBet(market.probability, market.liquidity, market.rangeMin, market.rangeMax, targetVal, targetBud);
+  }, [targetVal, targetBud, market.probability, market.liquidity, market.rangeMin, market.rangeMax]);
+
   const refreshPositions = () => api.getPositions(market.id, undefined, workspaceId).then(data => {
     cacheSet(`positions:${market.id}:me`, data);
     setPositions(data);
@@ -73,6 +82,22 @@ export function TradingPanel({ market, workspaceId, showLiquidityControls = true
     if (result) {
       setLastResult({ direction, shares: result.shares, cost: result.cost, consensus: result.consensus });
       setTradeAmount('');
+      void refreshTrades();
+      refreshPositions();
+      onTrade();
+    }
+  };
+
+  const handleBetToward = async () => {
+    if (isNaN(targetVal) || isNaN(targetBud) || targetBud <= 0) return;
+    setTrading(true);
+    const result = await api.trade({ marketId: market.id, targetValue: targetVal, maxBudget: targetBud }, workspaceId)
+      .catch((e: Error) => { onError(e.message); return null; });
+    setTrading(false);
+    if (result) {
+      setLastResult({ direction: result.direction, shares: result.shares, cost: result.cost, consensus: result.consensus });
+      setTargetValue('');
+      setTargetBudget('');
       void refreshTrades();
       refreshPositions();
       onTrade();
@@ -190,6 +215,31 @@ export function TradingPanel({ market, workspaceId, showLiquidityControls = true
             <button className="btn-small" onClick={handleLiquidity}>Inject</button>
           </div>
         )}
+      </div>
+      )}
+
+      {market.status === 'open' && (
+      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)' }}>
+        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', alignSelf: 'center' }}>Bet toward:</span>
+        <div>
+          <label style={labelStyle}>Target value ({market.rangeMin} to {market.rangeMax})</label>
+          <input type="number" value={targetValue} onChange={e => setTargetValue(e.target.value)} placeholder="e.g. 100" style={{ ...inputStyle, width: '110px' }} min={market.rangeMin} max={market.rangeMax} step="any" />
+        </div>
+        <div>
+          <label style={labelStyle}>Max budget ($)</label>
+          <input type="number" value={targetBudget} onChange={e => setTargetBudget(e.target.value)} placeholder="0.01" style={{ ...inputStyle, width: '90px' }} min="0.000001" step="any" />
+        </div>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>
+            {targetPreview
+              ? `${targetPreview.direction === 'higher' ? '▲' : '▼'} ~${formatCompactNumber(targetPreview.shares)} sh → ${formatCompactNumber(market.rangeMin + targetPreview.newProb * (market.rangeMax - market.rangeMin))} (~$${formatCompactNumber(targetPreview.cost)})`
+              : ' '}
+          </div>
+          <button className="btn-small" disabled={trading || !targetValue || !targetBudget} onClick={handleBetToward}
+            style={{ height: '30px', padding: '0 0.85rem', fontSize: '0.8rem', fontWeight: 600 }}>
+            {trading ? '…' : '→ Bet toward'}
+          </button>
+        </div>
       </div>
       )}
 

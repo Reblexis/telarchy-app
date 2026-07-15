@@ -14,6 +14,11 @@ export function useSortableRows<T, K extends string>(
   rows: T[],
   keyFns: Record<K, (row: T) => unknown>,
   initial: SortState<K>,
+  // Optional stable tie-break applied when the primary key ties. Keeps
+  // equal-key rows in a fixed order across re-fetches (e.g. many markets share
+  // the same target date), so reloading the list after a trade does not
+  // reshuffle them. Direction-independent: ties always break ascending.
+  tieBreak?: (row: T) => unknown,
 ) {
   const [sort, setSort] = useState<SortState<K>>(initial);
   const toggle = (key: K) =>
@@ -24,7 +29,9 @@ export function useSortableRows<T, K extends string>(
     const copy = [...rows];
     copy.sort((a, b) => {
       const c = compare(fn(a), fn(b));
-      return sort.dir === 'asc' ? c : -c;
+      const primary = sort.dir === 'asc' ? c : -c;
+      if (primary !== 0 || !tieBreak) return primary;
+      return compare(tieBreak(a), tieBreak(b));
     });
     return copy;
     // eslint-disable-next-line react-hooks/exhaustive-deps

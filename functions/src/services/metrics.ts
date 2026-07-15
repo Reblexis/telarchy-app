@@ -372,6 +372,9 @@ export function getStatus(allMetrics: Metric[]) {
     metrics: allMetrics.map(m => ({
       id: m.id,
       name: m.name,
+      // description lets clients show the metric's specified meaning without a
+      // second fetch (e.g. the Markets tab tooltips the metric name with it).
+      description: m.description,
       value: m.value,
       total: m.total,
       formula: m.formula,
