@@ -88,7 +88,21 @@ real interactive surface (form, modal, tooltip).
 .activity-list li:last-child { border-bottom: 1px solid var(--border-color); }
 ```
 
-## Sidebar
+## Markets trade panel
+
+The expanded market card places the order controls in a single bordered
+surface (`.trade-form`) — one of the interactive-surface exceptions to
+"hairlines, not cards". Inside it, sections are separated by hairlines and
+introduced by a tiny uppercase label (`Place a trade`, `or aim for a value`,
+`Your position`), the same tracked-caps treatment as page section headings.
+
+Amounts use a `.trade-money` field: a `$` affordance inside one bordered pill,
+not a bare number input. The two direction buttons (`.trade-dir`) are the one
+place a whole control is tinted: **Higher** carries `--success-text`, **Lower**
+`--error-text` (label colour plus a matching hover fill), because up/down is
+the load-bearing distinction a forecaster reads first. This is the sanctioned
+use of the semantic green/red pair beyond small trend deltas; do not extend
+per-direction colour to whole rows or to the history/positions tables.
 
 Workspace names use the same 0.875rem / weight 500 type scale as the
 Platform section. The selected workspace gets a `bg-tertiary` fill and

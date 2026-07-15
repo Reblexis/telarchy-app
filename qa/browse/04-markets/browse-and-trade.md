@@ -67,13 +67,15 @@ $B screenshot "/tmp/$TT_NS-markets-baseline.png"
 **Steps:**
 1. `$B snapshot -i` and find a market card.
 2. `$B click <ref>`
-3. `$B is visible ".trading-panel, [data-testid='trading-panel']"`.
+3. `$B is visible ".trade-panel"` (the expanded card's order surface).
 4. `$B screenshot /tmp/markets-detail.png`.
 
 **Expected:**
 - Panel shows current consensus, range, range slider / probability slider.
-- "Buy higher" / "Buy lower" buttons are visible.
-- A "history" or "trades" subsection is present.
+- Under a "Place a trade" label: an "Amount to spend" `$` field and two
+  direction buttons `.trade-dir-lower` ("▼ Lower") / `.trade-dir-higher`
+  ("▲ Higher"), each with a preview caption.
+- The "PREDICTION HISTORY" (trades) subsection is present.
 
 ### T4. Directional trade moves consensus the right way
 
@@ -122,8 +124,9 @@ $B screenshot "/tmp/$TT_NS-markets-baseline.png"
 ### T8. Bet toward a value moves consensus to the target
 
 **Steps:**
-1. In the expanded trading panel find the "Bet toward" row: a "Target value"
-   input, a "Max budget ($)" input, and a "→ Bet toward" button.
+1. In the expanded trading panel, under the "or aim for a value" label, find
+   the "Target value" input, the "Max budget" `$` field, and the
+   `button.trade-toward-btn` ("Bet toward").
 2. Capture the current consensus.
 3. `$B fill <target-ref>` with a value on the far side of the range from the
    current consensus (e.g. `800` when consensus is ~500 on a 0..1000 market).

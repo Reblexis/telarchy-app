@@ -5,9 +5,6 @@ import { previewTrade, previewTargetBet } from '../lib/amm';
 import { MarketActivityPanel } from './MarketActivityPanel';
 import type { Market, Position, LiquidityEvent } from '../types';
 
-const inputStyle = { width: '80px', height: '30px', fontSize: '0.85rem' } as const;
-const labelStyle = { display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.15rem' } as const;
-
 function formatCompactNumber(value: number | null | undefined): string {
   if (value == null || Number.isNaN(value)) return '-';
   const abs = Math.abs(value);
@@ -145,9 +142,10 @@ export function TradingPanel({ market, workspaceId, showLiquidityControls = true
     return market.rangeMin + p * (market.rangeMax - market.rangeMin);
   };
   const previewShares = (dir: 'higher' | 'lower') => preview ? (dir === 'higher' ? preview.higher.shares : preview.lower.shares) : null;
+  const targetConsensus = targetPreview ? market.rangeMin + targetPreview.newProb * (market.rangeMax - market.rangeMin) : null;
 
   return (
-    <div style={{ padding: '0.75rem 0.5rem 0.5rem' }}>
+    <div className="trade-panel">
       <MarketActivityPanel
         market={market}
         workspaceId={workspaceId}
@@ -157,104 +155,116 @@ export function TradingPanel({ market, workspaceId, showLiquidityControls = true
       />
 
       {market.status === 'closed' && (
-        <div style={{ fontSize: '0.8rem', padding: '0.5rem 0.75rem', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', borderLeft: '3px solid var(--text-secondary)', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+        <div className="trade-note">
           This market is closed: trading is paused until it resolves at the target date. You can still sell positions you already hold below.
         </div>
       )}
 
       {market.status === 'resolved' && (
-        <div style={{ fontSize: '0.8rem', padding: '0.5rem 0.75rem', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', borderLeft: '3px solid var(--text-secondary)', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+        <div className="trade-note">
           {`Resolved at ${market.actualValue?.toFixed(2) ?? 'N/A'}${market.resolvedAt ? ` on ${new Date(market.resolvedAt).toLocaleDateString()}` : ''}.`}
         </div>
       )}
 
       {market.status === 'voided' && (
-        <div style={{ fontSize: '0.8rem', padding: '0.5rem 0.75rem', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', borderLeft: '3px solid var(--text-secondary)', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+        <div className="trade-note">
           This market was cancelled. All positions were refunded at cost.
         </div>
       )}
 
       {market.status === 'open' && (
-      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <div>
-          <label style={labelStyle}>Amount ($)</label>
-          <input type="number" value={tradeAmount} onChange={e => setTradeAmount(e.target.value)} placeholder="0.01" style={{ ...inputStyle, width: '90px' }} min="0.000001" step="any" />
-        </div>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>
-              {preview ? `~${formatCompactNumber(previewShares('lower'))} shares → ${formatCompactNumber(previewConsensus('lower'))}` : '\u00a0'}
-            </div>
-            <button className="btn-small" disabled={trading || !tradeAmount} onClick={() => handleBetDirection('lower')}
-              style={{ background: 'var(--error-text)', color: '#fff', borderColor: 'var(--error-text)', height: '30px', padding: '0 0.85rem', fontSize: '0.8rem', fontWeight: 600 }}>
-              {trading ? '…' : '▼ Lower'}
-            </button>
-          </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>
-              {preview ? `~${formatCompactNumber(previewShares('higher'))} shares → ${formatCompactNumber(previewConsensus('higher'))}` : '\u00a0'}
-            </div>
-            <button className="btn-small" disabled={trading || !tradeAmount} onClick={() => handleBetDirection('higher')}
-              style={{ background: 'var(--success-text)', color: '#fff', borderColor: 'var(--success-text)', height: '30px', padding: '0 0.85rem', fontSize: '0.8rem', fontWeight: 600 }}>
-              {trading ? '…' : '▲ Higher'}
-            </button>
-          </div>
-        </div>
-        {lastResult && (
-          <div style={{ fontSize: '0.8rem', padding: '0.4rem 0.75rem', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', borderLeft: `3px solid ${lastResult.direction === 'higher' ? 'var(--success-text)' : 'var(--error-text)'}` }}>
-            <strong>{lastResult.direction === 'higher' ? '▲' : '▼'} {formatCompactNumber(lastResult.shares)} shares</strong>
-            {' '}{lastResult.cost < 0 ? `sold for $${formatCompactNumber(-lastResult.cost)}` : `for $${formatCompactNumber(lastResult.cost)}`} → consensus <strong>{formatCompactNumber(lastResult.consensus)}</strong>
-          </div>
-        )}
-        {showLiquidityControls && (
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.4rem', alignItems: 'flex-end' }}>
-            <div>
-              <label style={labelStyle}>Add liquidity (b={market.liquidity})</label>
-              <input type="number" value={liqAmount} onChange={e => setLiqAmount(e.target.value)} placeholder="+" style={{ ...inputStyle, width: '60px' }} min="0.000001" step="any" />
-            </div>
-            <button className="btn-small" onClick={handleLiquidity}>Inject</button>
-          </div>
-        )}
-      </div>
-      )}
+        <div className="trade-form">
+          <div className="trade-form-label">Place a trade</div>
 
-      {market.status === 'open' && (
-      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)' }}>
-        <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', alignSelf: 'center' }}>Bet toward:</span>
-        <div>
-          <label style={labelStyle}>Target value ({market.rangeMin} to {market.rangeMax})</label>
-          <input type="number" value={targetValue} onChange={e => setTargetValue(e.target.value)} placeholder="e.g. 100" style={{ ...inputStyle, width: '110px' }} min={market.rangeMin} max={market.rangeMax} step="any" />
-        </div>
-        <div>
-          <label style={labelStyle}>Max budget ($)</label>
-          <input type="number" value={targetBudget} onChange={e => setTargetBudget(e.target.value)} placeholder="0.01" style={{ ...inputStyle, width: '90px' }} min="0.000001" step="any" />
-        </div>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>
-            {targetPreview
-              ? `${targetPreview.direction === 'higher' ? '▲' : '▼'} ~${formatCompactNumber(targetPreview.shares)} sh → ${formatCompactNumber(market.rangeMin + targetPreview.newProb * (market.rangeMax - market.rangeMin))} (~$${formatCompactNumber(targetPreview.cost)})`
-              : ' '}
+          <div className="trade-buy">
+            <div className="trade-field">
+              <label>Amount to spend</label>
+              <div className="trade-money">
+                <span className="trade-money-sign">$</span>
+                <input type="number" className="trade-money-input" value={tradeAmount}
+                  onChange={e => setTradeAmount(e.target.value)} placeholder="0.00" min="0.000001" step="any" />
+              </div>
+            </div>
+
+            <div className="trade-dirs">
+              <button type="button" className="trade-dir trade-dir-lower" disabled={trading || !tradeAmount}
+                onClick={() => handleBetDirection('lower')}>
+                <span className="trade-dir-name">{trading ? '…' : '▼ Lower'}</span>
+                <span className="trade-dir-sub">
+                  {preview ? `${formatCompactNumber(previewShares('lower'))} sh → ${formatCompactNumber(previewConsensus('lower'))}` : 'value ends lower'}
+                </span>
+              </button>
+              <button type="button" className="trade-dir trade-dir-higher" disabled={trading || !tradeAmount}
+                onClick={() => handleBetDirection('higher')}>
+                <span className="trade-dir-name">{trading ? '…' : '▲ Higher'}</span>
+                <span className="trade-dir-sub">
+                  {preview ? `${formatCompactNumber(previewShares('higher'))} sh → ${formatCompactNumber(previewConsensus('higher'))}` : 'value ends higher'}
+                </span>
+              </button>
+            </div>
           </div>
-          <button className="btn-small" disabled={trading || !targetValue || !targetBudget} onClick={handleBetToward}
-            style={{ height: '30px', padding: '0 0.85rem', fontSize: '0.8rem', fontWeight: 600 }}>
-            {trading ? '…' : '→ Bet toward'}
-          </button>
+
+          <div className="trade-toward">
+            <div className="trade-toward-head">or aim for a value</div>
+            <div className="trade-toward-controls">
+              <div className="trade-field">
+                <label>Target value</label>
+                <input type="number" className="trade-input" value={targetValue}
+                  onChange={e => setTargetValue(e.target.value)} placeholder={`${market.rangeMin} to ${market.rangeMax}`}
+                  min={market.rangeMin} max={market.rangeMax} step="any" />
+              </div>
+              <div className="trade-field">
+                <label>Max budget</label>
+                <div className="trade-money">
+                  <span className="trade-money-sign">$</span>
+                  <input type="number" className="trade-money-input" value={targetBudget}
+                    onChange={e => setTargetBudget(e.target.value)} placeholder="0.00" min="0.000001" step="any" />
+                </div>
+              </div>
+              <button type="button" className="btn-small trade-toward-btn"
+                disabled={trading || !targetValue || !targetBudget} onClick={handleBetToward}>
+                {trading ? '…' : 'Bet toward'}
+              </button>
+            </div>
+            <div className="trade-toward-preview">
+              {targetPreview
+                ? `${targetPreview.direction === 'higher' ? '▲' : '▼'} ${formatCompactNumber(targetPreview.shares)} sh → ${formatCompactNumber(targetConsensus)} · costs $${formatCompactNumber(targetPreview.cost)}`
+                : ' '}
+            </div>
+          </div>
+
+          {lastResult && (
+            <div className={`trade-result ${lastResult.direction === 'higher' ? 'pos' : 'neg'}`}>
+              <strong>{lastResult.direction === 'higher' ? '▲' : '▼'} {formatCompactNumber(lastResult.shares)} shares</strong>
+              {' '}{lastResult.cost < 0 ? `sold for $${formatCompactNumber(-lastResult.cost)}` : `for $${formatCompactNumber(lastResult.cost)}`} → consensus <strong>{formatCompactNumber(lastResult.consensus)}</strong>
+            </div>
+          )}
+
+          {showLiquidityControls && (
+            <div className="trade-liquidity">
+              <label>Add liquidity (b={market.liquidity})</label>
+              <div className="trade-money">
+                <span className="trade-money-sign">$</span>
+                <input type="number" className="trade-money-input" value={liqAmount}
+                  onChange={e => setLiqAmount(e.target.value)} placeholder="0.00" min="0.000001" step="any" />
+              </div>
+              <button type="button" className="btn-small" onClick={handleLiquidity}>Inject</button>
+            </div>
+          )}
         </div>
-      </div>
       )}
 
       {(market.status === 'open' || market.status === 'closed') && positions.length > 0 && (
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)' }}>
-          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', alignSelf: 'center' }}>Sell position:</span>
+        <div className="trade-sell">
+          <div className="trade-sell-head">Your position</div>
           {positions.map(pos => (
-            <div key={pos.direction} style={{ display: 'flex', gap: '0.25rem', alignItems: 'flex-end' }}>
-              <div>
-                <label style={labelStyle}>{pos.direction === 'higher' ? '▲' : '▼'} {formatCompactNumber(pos.shares)} shares</label>
-                <input type="number" value={sellInputs[pos.direction] || ''} onChange={e => setSellInputs(prev => ({ ...prev, [pos.direction]: e.target.value }))}
-                  placeholder="shares" style={{ ...inputStyle, width: '70px' }} min="0.000001" max={pos.shares} step="any" />
-              </div>
-              <button className="btn-small" disabled={trading || !sellInputs[pos.direction]} onClick={() => handleSell(pos.direction)}
-                style={{ background: 'var(--text-secondary)', color: '#fff', borderColor: 'var(--text-secondary)' }}>
+            <div key={pos.direction} className="trade-sell-row">
+              <span className="trade-sell-side">{pos.direction === 'higher' ? '▲' : '▼'} {formatCompactNumber(pos.shares)} shares</span>
+              <input type="number" className="trade-input trade-input-sm" value={sellInputs[pos.direction] || ''}
+                onChange={e => setSellInputs(prev => ({ ...prev, [pos.direction]: e.target.value }))}
+                placeholder="shares to sell" min="0.000001" max={pos.shares} step="any" />
+              <button type="button" className="btn-small trade-sell-btn" disabled={trading || !sellInputs[pos.direction]}
+                onClick={() => handleSell(pos.direction)}>
                 {trading ? '…' : 'Sell'}
               </button>
             </div>

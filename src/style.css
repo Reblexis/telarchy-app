@@ -4666,9 +4666,10 @@ code, pre, kbd, samp {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
-  font-size: 0.92rem;
+  font-size: 1.02rem;
+  letter-spacing: -0.01em;
   color: var(--text-primary);
-  min-width: 3.2rem;
+  min-width: 3.4rem;
   text-align: right;
   flex-shrink: 0;
 }
@@ -4721,6 +4722,207 @@ code, pre, kbd, samp {
   background: var(--bg-secondary);
   border: 1px dashed var(--border-color);
   border-radius: var(--radius-md);
+}
+
+/* ===== Market trade panel (expanded card) ===== */
+.trade-panel { padding-top: 0.25rem; }
+
+.trade-note {
+  font-size: 0.82rem;
+  line-height: 1.45;
+  padding: 0.6rem 0.8rem;
+  margin-top: 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--text-tertiary);
+  color: var(--text-secondary);
+}
+
+/* The trade form is a real interactive surface, so a light panel is allowed
+   (see ui-conventions.md "Hairlines, not cards" exception). */
+.trade-form {
+  margin-top: 0.85rem;
+  padding: 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.trade-form-label,
+.trade-toward-head,
+.trade-sell-head {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+
+.trade-buy { display: flex; flex-direction: column; gap: 0.7rem; }
+
+.trade-field { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
+.trade-field > label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* Money field: a $ affordance sitting inside a single bordered pill. */
+.trade-money {
+  display: inline-flex;
+  align-items: center;
+  max-width: 190px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.trade-money:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.trade-money-sign {
+  padding-left: 0.65rem;
+  color: var(--text-tertiary);
+  font-size: 0.9rem;
+}
+.trade-money-input,
+.trade-input {
+  font: inherit;
+  font-size: 0.92rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.trade-money-input {
+  border: none;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  padding: 0.5rem 0.6rem 0.5rem 0.35rem;
+}
+.trade-input {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  padding: 0.5rem 0.6rem;
+  max-width: 170px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+.trade-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.trade-input-sm { max-width: 120px; }
+
+/* Two roomy direction buttons with a preview caption underneath. */
+.trade-dirs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+.trade-dir {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  min-height: 3.1rem;
+  padding: 0.5rem 0.6rem;
+  font: inherit;
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+.trade-dir-name { font-weight: 600; font-size: 0.92rem; }
+.trade-dir-sub {
+  font-size: 0.66rem;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.trade-dir-higher .trade-dir-name { color: var(--success-text); }
+.trade-dir-lower .trade-dir-name { color: var(--error-text); }
+.trade-dir-higher:hover:not(:disabled) { background: var(--success-bg); border-color: var(--success-text); }
+.trade-dir-lower:hover:not(:disabled) { background: var(--error-bg); border-color: var(--error-text); }
+.trade-dir:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.trade-toward {
+  border-top: 1px solid var(--border-color);
+  padding-top: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.trade-toward-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+.trade-toward-btn { white-space: nowrap; height: 36px; }
+.trade-toward-preview {
+  min-height: 1rem;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.trade-result {
+  font-size: 0.82rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  border-left: 3px solid var(--border-hover);
+}
+.trade-result.pos { border-left-color: var(--success-text); }
+.trade-result.neg { border-left-color: var(--error-text); }
+
+.trade-liquidity {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--border-color);
+}
+.trade-liquidity > label {
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+  align-self: center;
+}
+
+.trade-sell {
+  margin-top: 0.75rem;
+  padding-top: 0.7rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+.trade-sell-row {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+.trade-sell-side {
+  min-width: 9rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .trade-dirs { grid-template-columns: 1fr; }
+  .trade-toward-controls { align-items: stretch; }
+  .trade-money { max-width: none; }
 }
 
 @media (max-width: 640px) {

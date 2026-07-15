@@ -117,7 +117,7 @@ export function MarketActivityPanel({
 
   return (
     <div style={{ marginTop: '0.75rem', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', padding: '0.5rem 0.5rem 0' }}>
-      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', paddingLeft: '0.25rem' }}>
+      <div style={{ fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', marginBottom: '0.3rem', paddingLeft: '0.25rem' }}>
         Prediction history
       </div>
 
@@ -229,7 +229,7 @@ function PositionsBreakdown({ positions, market, metricValue }: {
 
   return (
     <div style={{ marginTop: '0.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.25rem' }}>
-      <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '0.25rem', paddingLeft: '0.25rem' }}>
+      <div style={{ fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-tertiary)', marginBottom: '0.3rem', paddingLeft: '0.25rem' }}>
         Positions
         {isResolved && resolvedValue != null && (
           <span style={{ marginLeft: '0.5rem' }}>(resolved at {formatCompactNumber(market.actualValue)})</span>
