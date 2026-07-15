@@ -1,6 +1,6 @@
 # User-flow audit plan
 
-Repeatable script for walking the first-time-user flow end-to-end with the gstack `browse` headless browser (`$B`), screenshotting each step, and noting every friction point. Run this before every launch-adjacent push. Designed for one human + one AI agent pair: the AI drives, the human skims screenshots. The previous Playwright MCP commands referenced here map 1:1 to `$B` (see `docs/browse-tests/README.md` for the cheat sheet).
+Repeatable script for walking the first-time-user flow end-to-end with the gstack `browse` headless browser (`$B`), screenshotting each step, and noting every friction point. Run this before every launch-adjacent push. Designed for one human + one AI agent pair: the AI drives, the human skims screenshots. The previous Playwright MCP commands referenced here map 1:1 to `$B` (see `qa/browse/README.md` for the cheat sheet).
 
 ## Why this exists
 

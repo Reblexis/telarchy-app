@@ -79,16 +79,22 @@ Do not leave outdated, superseded, historical, or migration-era documentation in
 
 ## Browser-driven test specs
 
-When verifying UI features, prefer the structured specs in
-`docs/browse-tests/` over ad-hoc browsing. Each file is a per-feature script
-of `browse` (`$B`) commands and expected results, runnable end-to-end
-without inferring intent. The master index is `docs/browse-tests/README.md`.
+`qa/browse/` is the repo's browser-driven acceptance-test suite: a derived
+test artifact (spec scripts plus the `_runner/`), not governing docs, which
+is why it lives under `qa/` and not `./docs` (per the docs-driven practice,
+tests live outside `./docs`; the behavioral guarantees they enforce belong
+in the governing docs). When verifying UI features, prefer these structured
+specs over ad-hoc browsing. Each file is a per-feature script of `browse`
+(`$B`) commands and expected results, runnable end-to-end without inferring
+intent. The master index is `qa/browse/README.md`.
 
 When you ship a UI-affecting change, either update the relevant existing
 spec or add a new one (use `07-admin/bot-agents-panel.md` as the
-gold-standard template). Specs are organised by category subdirectory
+gold-standard template), and, when the change adds or alters a behavioral
+guarantee, promote that guarantee into the governing doc that owns it (not
+only into the test). Specs are organised by category subdirectory
 (`00-anonymous` … `13-infra-and-abuse`) and run in parallel via
-`_runner/run.sh`; see `docs/browse-tests/README.md` for the full index.
+`_runner/run.sh`; see `qa/browse/README.md` for the full index.
 Coverage gaps in that directory should match the "Known gaps" notes at
 the bottom of each spec; if they don't, fix it in the same commit.
 

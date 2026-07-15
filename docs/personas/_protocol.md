@@ -24,7 +24,7 @@ Severity tags for findings: **blocker** (persona would bounce), **high** (person
 
 ## Tooling
 
-Use gstack `browse` (`$B`) as the canonical browser-driver for these scripts. It's a persistent headless Chromium with the same primitives Playwright MCP exposed (goto, click, fill, snapshot, console, network, screenshot, viewport resize). The previous `browser_navigate` / `browser_console_messages` references in this directory map directly to `$B goto` / `$B console`. See `docs/browse-tests/README.md` for the command cheat sheet and per-feature scripts.
+Use gstack `browse` (`$B`) as the canonical browser-driver for these scripts. It's a persistent headless Chromium with the same primitives Playwright MCP exposed (goto, click, fill, snapshot, console, network, screenshot, viewport resize). The previous `browser_navigate` / `browser_console_messages` references in this directory map directly to `$B goto` / `$B console`. See `qa/browse/README.md` for the command cheat sheet and per-feature scripts.
 
 ## How to execute
 

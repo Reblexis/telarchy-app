@@ -11,7 +11,7 @@ Compiled 2026-04-19. Every item lists: **what** to check, **how** (automation la
 | Capability | Tool | Scope |
 | --- | --- | --- |
 | HTTP API calls | `Bash` / `curl` | Any documented endpoint against local or prod, any auth method, concurrency, rate limit behaviour |
-| Real browser automation | gstack `browse` (preferred) or Playwright MCP | Click, fill, screenshot, keyboard, viewport resize, console/network intercept, navigation — i.e. everything a user does with a mouse and keyboard. See `docs/browse-tests/README.md` for the per-feature, browse-runnable test scripts. |
+| Real browser automation | gstack `browse` (preferred) or Playwright MCP | Click, fill, screenshot, keyboard, viewport resize, console/network intercept, navigation — i.e. everything a user does with a mouse and keyboard. See `qa/browse/README.md` for the per-feature, browse-runnable test scripts. |
 | Backend test suite | `npm test` | 176 existing Jest tests; can add/modify |
 | Typecheck | `tsc --noEmit` | Frontend and functions |
 | Code audit | `Grep` / `Read` | Static analysis: secret leaks, silent catches, style violations |
@@ -319,7 +319,7 @@ agents that trade against every workspace. These checks live alongside the
 existing activity feed coverage but specifically target the Bot agents panel
 that the `telarchy-agents` service feeds via `POST /api/admin/agent-heartbeat`
 and `POST /api/admin/agent-traces`. Detailed step-by-step browse script lives
-in `docs/browse-tests/07-admin/bot-agents-panel.md`.
+in `qa/browse/07-admin/bot-agents-panel.md`.
 
 | # | Check | How | Pass |
 | --- | --- | --- | --- |

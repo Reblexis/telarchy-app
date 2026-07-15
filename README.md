@@ -107,7 +107,9 @@ telarchy-app/
 │       ├── services/       # Business/domain operations
 │       └── lib/            # Formula engine, AMM, helpers
 ├── docker-compose.yml      # Self-hosted stack (backend + frontend + PostgreSQL)
-└── docs/                   # Product and system docs
+├── qa/                     # Derived test artifacts (browser acceptance suite + runner)
+│   └── browse/             # Per-feature browse specs, run via qa/browse/_runner/run.sh
+└── docs/                   # Governing product and system docs (source of truth; no tests)
 ```
 
 ## License
