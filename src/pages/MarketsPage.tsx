@@ -118,8 +118,11 @@ export function MarketsPage() {
     return counts;
   }, [markets]);
 
-  // ?metric=<id> scopes the list to one metric's subtree: clicking a composite
-  // metric in a proposal's impact table lands here. Markets live only on
+  // ?metric=<id> scopes the list to one metric's subtree. Two entry points
+  // land here: clicking a composite metric in a proposal's impact table, and
+  // clicking a point on a metric's forecast chart (MetricCard), which pairs
+  // ?metric with ?target so you see that metric's own / child markets at the
+  // clicked date, not every market that shares the date. Markets live only on
   // leaves, so we resolve the metric to its transitive leaf descendants (or
   // itself, if it is already a leaf) and keep only those.
   const metricFilterId = searchParams.get('metric');

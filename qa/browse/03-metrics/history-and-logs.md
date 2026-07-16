@@ -116,3 +116,8 @@ Auto.
   final consensus of resolved/closed markets; clicking one deep-links to
   /markets?marketId=<id>&status=all) is covered by `GraphModal.test.tsx`, not
   by a browser pass here.
+- Clicking a point on the inline metric card's forecast chart deep-links to
+  `/markets?metric=<metricId>&target=<date>` (scopes the markets list to that
+  metric's own / child markets at the clicked date, not every market on the
+  date). The scoping assertion lives in `qa/browse/04-markets/browse-and-trade.md`
+  T11; the click-to-URL wiring is `MetricCard`'s `onPointClick`.

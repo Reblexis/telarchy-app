@@ -399,7 +399,7 @@ export function MarketplacePage() {
 
   // Share-link handoff: ?workspace=<id> pre-fills the search so the targeted
   // workspace is the only thing on screen. Kept for backwards-compat with
-  // existing share URLs (see docs/browse-tests/00-anonymous/marketplace-public.md T4).
+  // existing share URLs (see qa/browse/00-anonymous/marketplace-public.md T4).
   useEffect(() => {
     const wsId = new URLSearchParams(window.location.search).get('workspace');
     if (!wsId) return;

@@ -168,6 +168,32 @@ sort.
 description as a native tooltip. Metrics with an empty description have no
 `title`.
 
+### T11. `?metric=<id>&target=` scopes to the metric's subtree, not the whole date
+
+This is where a click on a metric's forecast chart (MetricCard) lands: it
+pairs the clicked metric's id with the clicked point's date so the list shows
+that metric's own market (leaf) or its child markets (composite), never every
+market that happens to share the target date.
+
+**Steps:**
+1. Pull metrics: `curl -s -b <cookie> https://telarchy.com/api/status | jq '.metrics'`.
+   Pick a composite metric `C` (non-empty `formula`, not `"0"`) and a target
+   date `D` at which several *unrelated* metrics also have markets.
+2. `$B goto "$TT_FRONTEND_URL/markets?target=$D"` and count
+   `.market-metric-name` rows (the unscoped baseline: all metrics at `D`).
+3. `$B goto "$TT_FRONTEND_URL/markets?metric=<C.id>&target=$D"` and count again.
+
+**Expected:**
+- A "Showing markets under `<C.name>`" filter chip and a "Target: `D`" chip
+  are both present.
+- Every visible row's metric is `C` itself or a transitive child of `C`
+  (cross-check against `getLeafDescendantIds` semantics: the leaf metrics whose
+  formulas roll up into `C`). No unrelated metric from the date-only view
+  survives.
+- Scoping by a *leaf* metric id yields exactly that one metric's row; scoping
+  by a composite in a disjoint subtree yields zero rows at `D`.
+- `$B console --errors` is empty.
+
 ## Cleanup
 
 Trades are recorded; you can leave them or `psql` to reverse the row +

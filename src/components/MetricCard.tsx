@@ -208,8 +208,13 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
               rangeMax={metric.marketRangeMax}
               halfLifeYears={overlayHalfLife}
               onPointClick={(point) => {
+                // Scope to THIS metric's subtree (exact id), not a fuzzy name
+                // match. ?metric=<id> resolves a composite to its leaf
+                // descendants (or the leaf itself), so clicking a forecast
+                // point lands on that metric's own markets / its child
+                // markets, not every market that happens to share the date.
                 const params = new URLSearchParams();
-                if (isLeaf) params.set('q', metric.name);
+                params.set('metric', metric.id);
                 params.set('target', point.label);
                 navigate(`/markets?${params.toString()}`);
               }}
