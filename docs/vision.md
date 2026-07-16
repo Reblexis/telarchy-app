@@ -128,7 +128,7 @@ This expresses itself in three places that operators and traders care about dire
 
 2. **Per-workspace prioritization by liquidity.** Owners allocate liquidity by importance. Metrics the owner cares about most get rich pools (`autoFundNewMarkets` plus targeted `POST /predictions/markets/:id/liquidity` injections), pulling tight forecasts. Less critical metrics get smaller pools and looser consensus. Priorities become a continuous knob, not a binary "track or do not track" choice. The pool you put on a metric is itself a legible signal of how much you care.
 
-3. **Per-proposal conviction-weighted influence.** A trader confident in a conditional forecast can fund that market more heavily via `liquiditySubsidy` on `POST /api/proposals` (or, for an admin or any participant, via `POST /predictions/markets/liquidity/bulk`). Their conviction translates to influence in two ways: the trader's own position size, plus the LP subsidy that pulls other forecasters in to compete on the now-more-tradable market. High-conviction calls become high-signal markets, which is precisely the right thing.
+3. **Per-proposal conviction-weighted influence.** A trader confident in a conditional forecast can fund that market more heavily via `liquiditySubsidy` on `POST /api/proposals`, or via `POST /predictions/markets/:id/liquidity` on the specific market (any participant with the `trade` capability, funded from their own balance); admins can bulk-fund every market under a proposal via `POST /predictions/markets/liquidity/bulk`. Their conviction translates to influence in two ways: the trader's own position size, plus the LP subsidy that pulls other forecasters in to compete on the now-more-tradable market. High-conviction calls become high-signal markets, which is precisely the right thing.
 
 The pair to the AI-progress-compounding argument: AI progress makes forecaster *quality* approach free; capital scaling makes forecaster *attention* allocatable to anywhere the operator or trader wants it. Decision quality scales on two independent axes, both gracefully, both without ceiling. The bottleneck is neither AI capability (which keeps getting cheaper) nor user count (which Telarchy does not depend on linearly); the bottleneck is willingness to allocate, and that is exactly where the operator's prioritization signal lives.
 
@@ -280,9 +280,9 @@ C(q) = b * ln(exp(q_lower / b) + exp(q_higher / b))
 tradeCost = C(q_after) - C(q_before)
 p(higher) = 1 / (1 + exp(-(q_higher - q_lower) / b))
 ```
-`b` (liquidity parameter; admin injects liquidity to enable trading) controls price sensitivity.
+`b` (liquidity parameter) controls price sensitivity. Any participant with the `trade` capability can inject liquidity into a market to enable or deepen trading, funded from their own balance, via `POST /predictions/markets/:id/liquidity`. It is a first-class trader action, not an admin-only one: providing liquidity is a genuine (refundable) LP position, not a donation. Funding another participant's balance, or bulk-funding many markets at once, still requires `manage`.
 
-**LP accounting**: liquidity providers are charged only `poolIncrease` (what actually enters the pool), not the full liquidity parameter, which prevents ~30% overcharge on fresh markets. At resolution and void, any pool leftover is distributed back to LPs proportionally based on `poolContribution` recorded in `liquidityEvents`.
+**LP accounting**: liquidity providers are charged only `poolIncrease` (what actually enters the pool), not the full liquidity parameter, which prevents ~30% overcharge on fresh markets. At resolution and void, any pool leftover is distributed back to LPs proportionally based on `poolContribution` recorded in `liquidityEvents`. Because that refund path runs at both real resolution and void, an injection is a real LP position: the injector recovers their stake minus whatever informed traders extracted from the pool.
 
 **Key details**:
 - `Market` stores: `rangeMin`, `rangeMax`, `shares: [lower, higher]`, `liquidity`

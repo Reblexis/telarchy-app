@@ -37,6 +37,15 @@ export function MarketsPage() {
   const { inspectProposal, setInspectProposal } = useInspectMode();
   const { workspace, allWorkspaces, switchWorkspace } = useWorkspace(!!user);
   const isAdmin = workspace?.tier === 'admin';
+  // Providing liquidity is a first-class trader action, not admin-only: anyone
+  // who can trade this workspace's markets can also deepen them.
+  const canTrade = workspace?.capabilities.includes('trade') ?? false;
+  // A market whose liquidity b is below this is butterfly-thin: a typical bet
+  // slams consensus to a range extreme. pool = b*ln2, so this is ~0.1 CC pool,
+  // the practical floor from the auto-fund guide. Markets with b <= 0 already
+  // render consensus as "-" (no liquidity), so this flags only the tiny-but-
+  // nonzero trap.
+  const THIN_LIQUIDITY_B = 0.1 / Math.LN2;
   const [markets, setMarkets] = useState<Market[]>([]);
   const [metricsMap, setMetricsMap] = useState<Map<string, Metric>>(new Map());
   const [mainMarketsMap, setMainMarketsMap] = useState<Map<string, Market>>(new Map());
@@ -477,6 +486,12 @@ export function MarketsPage() {
                           />
                         </div>
                         <span className="market-consensus">{m.consensus ?? '-'}</span>
+                        {m.liquidity > 0 && m.liquidity < THIN_LIQUIDITY_B && (
+                          <span
+                            className="market-thin"
+                            title="Thin liquidity: a small trade can swing this number to a range extreme. Anyone who can trade may add liquidity to stabilize it."
+                          >thin</span>
+                        )}
                         {delta !== null && main && main.consensus !== null && (
                           <span className={`market-delta ${delta > 0 ? 'pos' : 'neg'}`}>
                             {delta > 0 ? '▲' : '▼'}{Math.abs(delta).toFixed(2)}
@@ -491,7 +506,7 @@ export function MarketsPage() {
                       <div className="market-card-expanded" onClick={e => e.stopPropagation()}>
                         <TradingPanel
                           market={m}
-                          showLiquidityControls={isAdmin}
+                          showLiquidityControls={canTrade}
                           metricValue={metricsMap.get(m.metricId)?.total}
                           onTrade={() => { void load(); }}
                           onError={setError}

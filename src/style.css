@@ -4689,6 +4689,22 @@ code, pre, kbd, samp {
   margin-left: 0.2rem;
 }
 
+/* Butterfly-thin market: liquidity too low for a stable consensus. Purely a
+   visual cue (no trading is blocked); anyone who can trade may top it up. */
+.market-thin {
+  font-size: 0.62rem;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--warning-text, var(--error-text));
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  padding: 0 0.28rem;
+  opacity: 0.85;
+  white-space: nowrap;
+  cursor: help;
+}
+
 .market-head-actions {
   flex: 0 0 auto;
   margin-left: auto;

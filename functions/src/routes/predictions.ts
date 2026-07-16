@@ -759,7 +759,7 @@ predictionsRouter.post('/markets/liquidity/bulk', requireCapability('manage'), w
   res.json({ markets: marketRows.length, totalCost, amountPerMarket: amount });
 }));
 
-predictionsRouter.post('/markets/:id/liquidity', requireCapability('manage'), wrap(async (req, res) => {
+predictionsRouter.post('/markets/:id/liquidity', requireCapability('trade'), wrap(async (req, res) => {
   const { workspaceId, agentId: callerAgentId } = req.auth!;
   const { amount, agentId: bodyAgentId } = req.body;
   if (typeof amount !== 'number' || amount <= 0) { res.status(400).json({ error: 'amount must be a positive number' }); return; }
@@ -772,9 +772,14 @@ predictionsRouter.post('/markets/:id/liquidity', requireCapability('manage'), wr
 
   const [preAgent] = await db.select().from(agents).where(eq(agents.id, agentId));
   if (!preAgent) { res.status(404).json({ error: 'Agent not found' }); return; }
-  // See the bulk endpoint: self-funding is already authorized by manage; only
-  // recheck membership when targeting another agent's balance via bodyAgentId.
+  // Injecting from your own balance only needs `trade` (any participant can
+  // provide liquidity to a market they can trade in). Funding *another*
+  // participant's balance spends someone else's money, so it stays an admin
+  // action: require `manage` and confirm the target is a workspace member.
   if (agentId !== callerAgentId) {
+    if (!req.auth!.capabilities.has('manage')) {
+      res.status(403).json({ error: 'Funding another participant\'s balance requires the "manage" capability; omit agentId to inject from your own balance.' }); return;
+    }
     const wsMembers = await listParticipantsForWorkspace(workspaceId);
     if (!wsMembers.some(m => m.id === agentId)) { res.status(403).json({ error: 'Agent is not in your workspace' }); return; }
   }
