@@ -14,7 +14,7 @@ import {
 import zoomPlugin from 'chartjs-plugin-zoom';
 import { Line } from 'react-chartjs-2';
 import type { ChartPoint } from '../../lib/metrics-chart-model';
-import { formatAxisValue, formatTooltipTitle, formatXAxisTick, hasHourGranularity } from '../../lib/metrics-chart-model';
+import { computeYAxisRange, formatAxisValue, formatTooltipTitle, formatXAxisTick, hasHourGranularity } from '../../lib/metrics-chart-model';
 
 ChartJS.register(LinearScale, PointElement, LineElement, Filler, Tooltip, Legend, zoomPlugin);
 
@@ -363,24 +363,7 @@ export function MetricsTimeChart({
         },
       },
       y: {
-        ...(() => {
-          const allY = [...sorted, ...condSorted, ...futureSorted].map(p => p.y);
-          const dataMin = Math.min(...allY);
-          const dataMax = Math.max(...allY);
-          const dataSpan = dataMax - dataMin;
-          if (dataSpan > 0) return rangeMin !== undefined && rangeMax !== undefined ? { min: rangeMin, max: rangeMax } : {};
-          // All points are the same value; enforce a minimum visible span
-          const center = dataMin;
-          const minSpan = rangeMin !== undefined && rangeMax !== undefined
-            ? (rangeMax !== rangeMin ? (rangeMax - rangeMin) * 0.1 : Math.abs(rangeMax) * 0.1 || 1)
-            : Math.abs(center) * 0.1 || 1;
-          const yLo = center - minSpan / 2;
-          const yHi = center + minSpan / 2;
-          if (rangeMin !== undefined && rangeMax !== undefined) {
-            return { min: Math.max(rangeMin, yLo), max: Math.min(rangeMax, yHi) };
-          }
-          return { min: yLo, max: yHi };
-        })(),
+        ...computeYAxisRange([...sorted, ...condSorted, ...futureSorted].map(p => p.y), rangeMin, rangeMax),
         grid: { color: gridColor },
         ticks: {
           color: textColor,

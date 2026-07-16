@@ -204,8 +204,14 @@ export function MetricCard({ metric, isInspectMode, warnings, isFocused, onFocus
               conditionalPoints={conditionalPoints}
               mode={isInspectMode ? 'inspect' : 'normal'}
               variant="inline"
-              rangeMin={metric.marketRangeMax !== undefined ? 0 : undefined}
-              rangeMax={metric.marketRangeMax}
+              // Only leaves render against their full market band [0, max]: the
+              // value reads relative to what its market can price. A composite
+              // has no market of its own, and its formula output can exceed any
+              // child's range (e.g. a sum of valuations), so clamping to
+              // marketRangeMax clips the line off the top. Composites auto-scale
+              // to fit their own data.
+              rangeMin={isLeaf && metric.marketRangeMax !== undefined ? 0 : undefined}
+              rangeMax={isLeaf ? metric.marketRangeMax : undefined}
               halfLifeYears={overlayHalfLife}
               onPointClick={(point) => {
                 // Scope to THIS metric's subtree (exact id), not a fuzzy name

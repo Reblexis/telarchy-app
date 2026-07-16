@@ -228,3 +228,44 @@ export function formatTooltipTitle(point: ChartPoint): string {
   }
   return `${point.label} (${formatDateShort(point.x)})`;
 }
+
+/**
+ * Compute the y-axis `{ min, max }` for the time chart.
+ *
+ * `rangeMin`/`rangeMax` are the metric's market band (leaf metrics render
+ * against their full tradeable band so the value reads relative to it). The
+ * band is a floor on what's shown, never a ceiling on the data: it is UNIONED
+ * with the data extent, never clamped inward. Clamping inward was a real bug -
+ * a value above `rangeMax` (a composite formula output, or a logged value
+ * beyond its market band) got clipped off the top, and in the flat-line case
+ * the returned range inverted (min > max) and Chart.js drew the line off-canvas.
+ *
+ * Returns `{}` (Chart.js auto-scale) when there is no band, or no data.
+ */
+export function computeYAxisRange(
+  ys: number[],
+  rangeMin?: number,
+  rangeMax?: number,
+): { min?: number; max?: number } {
+  if (ys.length === 0) return {};
+  const banded = rangeMin !== undefined && rangeMax !== undefined;
+  const dataMin = Math.min(...ys);
+  const dataMax = Math.max(...ys);
+  if (dataMax - dataMin > 0) {
+    if (!banded) return {};
+    // Union the band with the data extent so nothing is ever clipped.
+    return { min: Math.min(rangeMin, dataMin), max: Math.max(rangeMax, dataMax) };
+  }
+  // All points share one value: enforce a minimum visible span around it.
+  const center = dataMin;
+  const minSpan = banded
+    ? (rangeMax !== rangeMin ? (rangeMax - rangeMin) * 0.1 : Math.abs(rangeMax) * 0.1 || 1)
+    : Math.abs(center) * 0.1 || 1;
+  const yLo = center - minSpan / 2;
+  const yHi = center + minSpan / 2;
+  if (banded) {
+    // Union again, so a flat line beyond the band stays inside the range.
+    return { min: Math.min(rangeMin, yLo), max: Math.max(rangeMax, yHi) };
+  }
+  return { min: yLo, max: yHi };
+}

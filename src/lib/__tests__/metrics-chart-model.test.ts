@@ -4,6 +4,7 @@ import {
   buildPointsFromLogs,
   buildOutlookPointsFromLogs,
   buildPointsFromTimeSeries,
+  computeYAxisRange,
   formatAxisValue,
   formatXAxisTick,
   formatTooltipTitle,
@@ -390,6 +391,57 @@ describe('hasHourGranularity', () => {
     expect(hasHourGranularity([{ label: '2026-04-22' }, { label: '2026-04-22T14' }])).toBe(true);
     expect(hasHourGranularity([{ label: '2026-04-22' }, { label: '2026-06' }, { label: '2026-W20' }])).toBe(false);
     expect(hasHourGranularity([])).toBe(false);
+  });
+
+  describe('computeYAxisRange', () => {
+    test('no band: auto-scales (empty object) when data varies', () => {
+      expect(computeYAxisRange([10, 20, 30])).toEqual({});
+    });
+
+    test('band contains data: shows the full band', () => {
+      // Leaf metric, value 20..80 within its [0,100] market band.
+      expect(computeYAxisRange([20, 80], 0, 100)).toEqual({ min: 0, max: 100 });
+    });
+
+    test('varying data above the band expands the axis to include it (no clip)', () => {
+      // The Monetary wealth case: composite value exceeds marketRangeMax.
+      expect(computeYAxisRange([9_000_000, 12_613_446], 0, 10_000_000))
+        .toEqual({ min: 0, max: 12_613_446 });
+    });
+
+    test('flat line ABOVE the band never inverts min/max, and stays visible', () => {
+      // The exact regression: flat 12.6M on a [0,10M] band used to yield
+      // { min: 12.1M, max: 10M } (inverted) so the line drew off-canvas.
+      const r = computeYAxisRange([12_613_446.24], 0, 10_000_000);
+      expect(r.min!).toBeLessThanOrEqual(12_613_446.24);
+      expect(r.max!).toBeGreaterThanOrEqual(12_613_446.24);
+      expect(r.min!).toBeLessThan(r.max!);
+    });
+
+    test('flat line inside the band keeps the full band', () => {
+      expect(computeYAxisRange([50], 0, 100)).toEqual({ min: 0, max: 100 });
+    });
+
+    test('flat line, no band: opens a symmetric window around the value', () => {
+      const r = computeYAxisRange([50]);
+      expect(r.min!).toBeLessThan(50);
+      expect(r.max!).toBeGreaterThan(50);
+    });
+
+    test('flat line at zero, no band: still produces a non-degenerate span', () => {
+      const r = computeYAxisRange([0]);
+      expect(r.min!).toBeLessThan(r.max!);
+    });
+
+    test('empty data auto-scales instead of producing NaN bounds', () => {
+      expect(computeYAxisRange([], 0, 100)).toEqual({});
+      expect(computeYAxisRange([])).toEqual({});
+    });
+
+    test('negative composite values are not floored at the band min', () => {
+      // Composite formula can go negative; the axis must reach below rangeMin.
+      expect(computeYAxisRange([-40, 10], 0, 100)).toEqual({ min: -40, max: 100 });
+    });
   });
 });
 

@@ -120,6 +120,23 @@ participant via `PUT /api/workspaces/order` and reflected in the order
 `GET /api/workspaces` returns, so it follows the account across devices
 and never affects other members of a shared workspace.
 
+## Metric charts (y-axis)
+
+The inline metric-card chart scales its y-axis by metric kind:
+
+- A **leaf** metric renders against its full market band `[0, marketRangeMax]`,
+  so the value reads relative to what its market can actually price.
+- A **composite** metric (has a formula) has no market of its own; its value is
+  a formula output that can exceed any child's range (e.g. a sum of
+  valuations). It **auto-scales to fit its own data** - clamping it to a band
+  clips the line off the top.
+
+Whenever a band is supplied it is a floor on what's shown, never a ceiling:
+`computeYAxisRange` (in `lib/metrics-chart-model.ts`) unions the band with the
+data extent, so a value beyond the band expands the axis instead of being
+clipped (and the flat-line case can never invert to `min > max`). The graph
+modal passes no band at all, so it always auto-scales.
+
 ## Activity feed
 
 Each activity log row carries:
