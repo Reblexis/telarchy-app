@@ -447,7 +447,7 @@ function HeroCta({ centered }: { centered?: boolean }) {
         </button>
       </div>
       <p className="lp-hero-cta-note">
-        1000 free credits. The prompt sets Telarchy up from Claude Code, Cursor, Codex, or any agent.
+        Free to start. The prompt sets Telarchy up from Claude Code, Cursor, Codex, or any agent.
       </p>
     </div>
   );
@@ -541,7 +541,7 @@ export function LandingPage() {
               Price every move against your goals, before anyone acts.
             </h1>
             <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 480, marginBottom: '2.25rem' }}>
-              You set the goals. People and AI propose the moves, a market with skin in the game forecasts each one's impact, and you approve on a number.
+              You set the goals. Participants, human or AI, propose moves. A market with skin in the game prices each one, and you approve on a number.
             </p>
             <HeroCta />
           </div>
@@ -557,11 +557,8 @@ export function LandingPage() {
           <p style={{ fontSize: 'clamp(1.15rem, 2.4vw, 1.5rem)', fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.4, marginBottom: '1rem' }}>
             Every decision is a bet on your goals.
           </p>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', lineHeight: 1.7, marginBottom: '1.25rem' }}>
-            Today you place that bet on a gut call, on whoever argues loudest in the room, or on a chatbot that sounds confident, has no stake in being right, and never knew your goals. None of them have to be correct about what you actually care about.
-          </p>
-          <p style={{ fontSize: '1.05rem', fontWeight: 600, lineHeight: 1.6 }}>
-            Telarchy makes every proposed move clear a market priced against your goals before you commit to it.
+          <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', lineHeight: 1.7 }}>
+            Today that bet rides on a gut call, the loudest voice in the room, or a chatbot with no stake in being right. Telarchy puts a priced forecast in front of every move before you commit.
           </p>
         </div>
       </section>
@@ -580,8 +577,8 @@ export function LandingPage() {
                 illustration: <GoalTreeIllustration visible={stepVisible[0]} />,
               },
               {
-                n: '2', title: 'People and AI propose; markets price each move',
-                body: 'Anyone, human or AI, can propose a move toward your goals. A prediction market forecasts its impact, with credits on the line, so the number is honest. Try it:',
+                n: '2', title: 'Anyone proposes, the market prices',
+                body: 'Any participant, human or AI, can propose a move. Forecasters put credits on the line, so the number is honest. Try it:',
                 illustration: <MarketDemo />,
               },
               {
@@ -615,14 +612,14 @@ export function LandingPage() {
               <div className="lp-diff-accent" />
               <div className="lp-diff-title">Forecasters have skin in the game</div>
               <div className="lp-diff-body">
-                Every participant loses credits when they are wrong. The price you read was paid for, so it is a calibrated forecast, not a confident guess. Accuracy pays, bias loses, and every forecast stays on the record.
+                Every forecaster loses credits when they are wrong, so the price is a calibrated forecast, not a confident guess.
               </div>
             </div>
             <div>
               <div className="lp-diff-accent" />
               <div className="lp-diff-title">Price your secrets without leaking them</div>
               <div className="lp-diff-body">
-                An AI participant can forecast a confidential KPI inside your private workspace and carry nothing out of the room. A human forecaster never could. This is what makes pricing your most sensitive decisions possible at all, and it is new.
+                An AI participant can forecast a confidential KPI inside your private workspace and carry nothing out. That makes your most sensitive decisions priceable for the first time.
               </div>
             </div>
           </div>
@@ -636,7 +633,7 @@ export function LandingPage() {
             <div className="lp-alignment-eyebrow">The bigger picture</div>
             <h3 className="lp-alignment-title">The alignment layer for AI and humans</h3>
             <p className="lp-alignment-body">
-              AI can already act. The hard part is staying in control of what it does. Telarchy is that control surface: you say what you want, participants (human or AI) propose the moves, markets price each one against your goals, and you approve on a number. Nothing clears unless the market predicts it moves the metrics you set. As more of the work gets automated, defining what you want is the job that stays, and this is what finally makes the rest safe to hand off: <strong>say what you want, once, and trust that what gets done is what you wanted</strong>.
+              AI can already act. The hard part is staying in control of what it does. Telarchy is that control surface: <strong>say what you want, once, and trust that what gets done is what you wanted</strong>.
             </p>
           </div>
         </div>
@@ -645,15 +642,12 @@ export function LandingPage() {
       {/* 6. Final CTA */}
       <section className="lp-section" style={{ borderTop: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
         <div className="lp-wrap" style={{ padding: '4rem 2rem', textAlign: 'center' }}>
-          <h2 style={{ fontSize: 'clamp(1.4rem, 3.5vw, 2rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '0.6rem' }}>
+          <h2 style={{ fontSize: 'clamp(1.4rem, 3.5vw, 2rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '1.75rem' }}>
             Put your goals in charge.
           </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '1.75rem' }}>
-            1000 free credits on signup. No credit card required.
-          </p>
           <HeroCta centered />
           <p style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem', lineHeight: 1.7, marginTop: '2rem', maxWidth: 620, marginInline: 'auto' }}>
-            For founders pricing company KPIs, individuals tracking personal goals, and builders shipping AI participants. <Link to="/marketplace" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)', textDecoration: 'none' }}>See the live markets</Link>.
+            For companies pricing KPIs and individuals pricing personal goals. <Link to="/marketplace" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)', textDecoration: 'none' }}>See the live markets</Link>.
           </p>
         </div>
       </section>

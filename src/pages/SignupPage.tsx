@@ -69,7 +69,7 @@ export function SignupPage() {
       <div className="container" style={{ maxWidth: 400 }}>
         <h1>Create account</h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '-0.5rem', marginBottom: '1.25rem' }}>
-          1000 free credits on signup. No credit card required.
+          Free to start. No credit card required.
         </p>
 
         <OAuthButtons

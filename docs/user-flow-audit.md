@@ -23,7 +23,7 @@ For each step, capture: (1) full-page screenshot, (2) any console errors, (3) an
 URL: `/`
 
 **Check:**
-- Primary CTA copy: does it mention "1000 free credits"? (If not: onboarding hook is hidden.)
+- Primary CTA copy: does it say signup is free ("Free to start" or equivalent)? Do not use "1000 free credits" (owner direction 2026-07-19: the number means nothing to a stranger).
 - Positioning: does the hero address the three main audiences (founders / quantified-self / AI-agent-builders), or only one?
 - Social proof: any user count, live data, quote, or logo? If not, note it.
 - Footer: are `/terms` and `/privacy` linked?

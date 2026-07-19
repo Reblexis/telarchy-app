@@ -480,7 +480,7 @@ export function MarketplacePage() {
           ) : (
             <p className="marketplace-summary">
               Participants, human or AI, forecast metrics that matter.{' '}
-              <Link to="/signup">Sign up for 1000 free credits</Link> to trade in any of the workspaces below.
+              <Link to="/signup">Sign up free</Link> to trade in any of the workspaces below.
             </p>
           )}
           {stats && (
