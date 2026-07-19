@@ -2647,42 +2647,6 @@ body.landing-page {
 .lp-matrix .lp-compare-us .lp-cell-yes .lp-mark { color: #15803d; }
 .lp-matrix .lp-compare-us .lp-cell-yes .lp-mark-note { color: var(--text-primary); font-weight: 500; }
 
-/* Alignment-layer closer below the matrix: vision-level callout that
-   anchors "this is what Telarchy fundamentally is" without competing
-   visually with the matrix. Soft amber wash + accent eyebrow. */
-.lp-alignment {
-  margin-top: 2.5rem;
-  padding: 2rem 2.25rem;
-  border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border-color));
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--accent) 4%, var(--bg-primary));
-}
-.lp-alignment-eyebrow {
-  font-size: 0.65rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--accent);
-  font-weight: 700;
-  margin-bottom: 0.5rem;
-}
-.lp-alignment-title {
-  font-size: 1.15rem;
-  font-weight: 700;
-  margin: 0 0 0.65rem;
-  color: var(--text-primary);
-  letter-spacing: -0.015em;
-}
-.lp-alignment-body {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.92rem;
-  line-height: 1.7;
-  max-width: 720px;
-}
-.lp-alignment-body strong {
-  color: var(--text-primary);
-}
-
 /* Mobile: stack each row as a card with field labels above each value
    instead of forcing horizontal scroll on a 6-column table. */
 @media (max-width: 720px) {

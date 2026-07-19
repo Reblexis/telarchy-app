@@ -421,7 +421,7 @@ function MarketDemo() {
 const AGENT_ONBOARDING_PROMPT =
   'Set up Telarchy with me: fetch https://telarchy.com/api/guides/onboarding and follow it.';
 
-function HeroCta({ centered }: { centered?: boolean }) {
+function HeroCta({ centered, hideNote }: { centered?: boolean; hideNote?: boolean }) {
   const [copied, setCopied] = useState(false);
   const copy = () => {
     void navigator.clipboard.writeText(AGENT_ONBOARDING_PROMPT).then(() => {
@@ -446,9 +446,11 @@ function HeroCta({ centered }: { centered?: boolean }) {
           <span>{copied ? 'Copied' : 'Copy agent prompt'}</span>
         </button>
       </div>
-      <p className="lp-hero-cta-note">
-        Free to start. The prompt sets Telarchy up from Claude Code, Cursor, Codex, or any agent.
-      </p>
+      {!hideNote && (
+        <p className="lp-hero-cta-note">
+          Free to start. The prompt sets Telarchy up from Claude Code, Cursor, Codex, or any agent.
+        </p>
+      )}
     </div>
   );
 }
@@ -459,12 +461,13 @@ function HeroCta({ centered }: { centered?: boolean }) {
 //   2. Why this exists           (the status quo it replaces)
 //   3. How it works              (the 3-step spine)
 //   4. Why you can trust it      (skin in the game + the privacy unlock)
-//   5. The bigger picture        (alignment layer; the emotional close)
-//   6. Final CTA                 (convert; dual-scope audience one-liner)
+//   5. Final CTA                 (convert; the alignment close + dual-scope line)
 // Earlier versions also carried a stats strip, differentiator cards, a product
-// screenshot, audience cards, and a six-competitor comparison table. Those were
-// cut to keep the front door minimal; the copy and the matrix styling remain in
-// git history / style.css if a /why page or outreach asset wants them back.
+// screenshot, audience cards, a six-competitor comparison table, and a
+// standalone "bigger picture" alignment band. Those were cut to keep the front
+// door minimal (the alignment framing now lives in the final CTA subtext and
+// the footer tagline); the copy and the matrix styling remain in git history /
+// style.css if a /why page or outreach asset wants them back.
 
 export function LandingPage() {
   const navigate = useNavigate();
@@ -601,12 +604,9 @@ export function LandingPage() {
       {/* 4. Why you can trust the number */}
       <section className="lp-privacy lp-section">
         <div className="lp-wrap">
-          <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '0.5rem' }}>
+          <h2 style={{ fontSize: 'clamp(1.25rem, 3vw, 1.75rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '2.5rem' }}>
             Why you can trust the number
           </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: 1.7, maxWidth: 640, marginBottom: '2.5rem' }}>
-            A market price is only worth approving on if the people setting it have something to lose, and if you can put your real decisions in front of it.
-          </p>
           <div className="lp-trust-grid">
             <div>
               <div className="lp-diff-accent" />
@@ -626,26 +626,16 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* 5. The bigger picture */}
-      <section className="lp-section" style={{ padding: '5rem 0' }}>
-        <div className="lp-wrap">
-          <div className="lp-alignment">
-            <div className="lp-alignment-eyebrow">The bigger picture</div>
-            <h3 className="lp-alignment-title">The alignment layer for AI and humans</h3>
-            <p className="lp-alignment-body">
-              AI can already act. The hard part is staying in control of what it does. Telarchy is that control surface: <strong>say what you want, once, and trust that what gets done is what you wanted</strong>.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* 6. Final CTA */}
+      {/* 5. Final CTA (carries the alignment close) */}
       <section className="lp-section" style={{ borderTop: '1px solid var(--border-color)', background: 'var(--bg-secondary)' }}>
         <div className="lp-wrap" style={{ padding: '4rem 2rem', textAlign: 'center' }}>
-          <h2 style={{ fontSize: 'clamp(1.4rem, 3.5vw, 2rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '1.75rem' }}>
+          <h2 style={{ fontSize: 'clamp(1.4rem, 3.5vw, 2rem)', fontWeight: 800, letterSpacing: '-0.03em', marginBottom: '0.6rem' }}>
             Put your goals in charge.
           </h2>
-          <HeroCta centered />
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginBottom: '1.75rem' }}>
+            Say what you want, once, and trust that what gets done is what you wanted.
+          </p>
+          <HeroCta centered hideNote />
           <p style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem', lineHeight: 1.7, marginTop: '2rem', maxWidth: 620, marginInline: 'auto' }}>
             For companies pricing KPIs and individuals pricing personal goals. <Link to="/marketplace" style={{ color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)', textDecoration: 'none' }}>See the live markets</Link>.
           </p>
@@ -655,7 +645,7 @@ export function LandingPage() {
       {/* Footer */}
       <footer className="lp-footer lp-section">
         <div className="lp-footer-inner">
-          <span>Telarchy: governance by purpose</span>
+          <span>Telarchy: the alignment layer for AI and humans</span>
           <nav className="lp-footer-links">
             <Link to="/marketplace">Marketplace</Link>
             <Link to="/agent-login">API Key Portal</Link>
