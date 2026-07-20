@@ -5,6 +5,7 @@ import { useWorkspace } from '../hooks/useWorkspace';
 import { useInspectMode } from '../hooks/useInspectMode';
 import { api } from '../lib/api';
 import { formatTargetDateDisplay } from '../lib/date-utils';
+import { linkify } from '../lib/linkify';
 import { isCompositeMetric, getLeafDescendantIds } from '../lib/metric-tree';
 import type { Proposal, ProposalMessage, ProposalMarketSummary, ProposalDetailData, ProposalStatus, Metric } from '../types';
 import { FirstSeenHint } from '../components/FirstSeenHint';
@@ -371,7 +372,7 @@ function ChatPanel({ proposalId }: { proposalId: string }) {
               >
                 {author}
               </span>
-              <span className="proposal-chat-content">{msg.content}</span>
+              <span className="proposal-chat-content">{linkify(msg.content)}</span>
             </div>
           );
         })}
@@ -567,7 +568,7 @@ function ProposalDrawer({ proposal, isAdmin, onClose, onAction, onError }: Propo
         </header>
 
         <div className="proposal-drawer-body">
-          {proposal.description && <p className="proposal-description">{proposal.description}</p>}
+          {proposal.description && <p className="proposal-description">{linkify(proposal.description)}</p>}
 
           <SubsidyHeader proposal={proposal} isAdmin={isAdmin} onAdded={onAction} onError={onError} />
 
