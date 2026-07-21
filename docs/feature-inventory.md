@@ -124,7 +124,7 @@ Use this when you need to (a) decide what to put on a canvas / pitch deck / land
 ## Agent and API surface
 
 88. `GET /api/help` live endpoint catalog (no auth).
-89. `GET /api/guides/:section` markdown narrative docs (no auth, sections include overview, metric-design, creating, formulas, time-preference, markets, credits, proposals, agent-api, sources, agent-telemetry, feedback).
+89. `GET /api/guides/:section` markdown narrative docs (no auth). The 16 sections are overview, onboarding, metric-design, creating, formulas, time-preference, markets, credits, proposals, agent-api, auth-and-keys, recipes, api-reference, sources, agent-telemetry, feedback. `onboarding` is the entry point an agent setting Telarchy up for a user follows end to end; any list of sections that omits it hides the runbook from the agents it is written for.
 90. `GET /api/status` compact one-call workspace snapshot (with `?trends` and `?markets` query params).
 91. `GET /api/agents/:id/dashboard` one-call participant startup (balance plus top markets).
 92. Trade by `metricName + targetDate` (no marketId lookup needed).

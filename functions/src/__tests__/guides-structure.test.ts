@@ -15,6 +15,31 @@ import { resolve, join } from 'path';
 
 const REPO_ROOT = resolve(__dirname, '../../..');
 const GUIDES_TS = join(REPO_ROOT, 'functions/src/routes/guides.ts');
+const APP_TS = join(REPO_ROOT, 'functions/src/app.ts');
+
+/**
+ * The /api/help catalog advertises the guide sections in two places: the root
+ * discovery payload and the GET /api/guides/:section entry. Both are
+ * hand-maintained prose, so they drift silently when a section is added --
+ * which is how `onboarding` came to be listed in one and missing from the
+ * other while being the runbook agents are told to follow end to end. A
+ * section absent from the catalog is undiscoverable to an API-only consumer,
+ * so pin both lists to the sections that actually exist.
+ */
+function parseAdvertisedSections(): { root: string[]; endpoint: string[] } {
+  const src = readFileSync(APP_TS, 'utf8');
+  const between = (haystack: string, start: string, end: string): string[] => {
+    const from = haystack.indexOf(start);
+    if (from === -1) throw new Error(`app.ts: could not locate "${start}" -- the help catalog wording changed; update this test`);
+    const to = haystack.indexOf(end, from + start.length);
+    if (to === -1) throw new Error(`app.ts: could not locate "${end}" after "${start}"`);
+    return haystack.slice(from + start.length, to).split(',').map(s => s.trim()).filter(Boolean);
+  };
+  return {
+    root: between(src, 'markdown for a specific section (', ')'),
+    endpoint: between(src, 'Guide section as plain markdown. Sections: ', '. No auth required.'),
+  };
+}
 
 function parseSections(): Array<{ id: string; category: string; order: number; title: string }> {
   const src = readFileSync(GUIDES_TS, 'utf8');
@@ -105,5 +130,19 @@ describe('/api/guides structure', () => {
   test('the metrics category leads with metric-design (theory before mechanics)', () => {
     const inMetrics = sections.filter(s => s.category === 'metrics').sort((a, b) => a.order - b.order);
     expect(inMetrics[0]?.id).toBe('metric-design');
+  });
+
+  test('/api/help advertises every guide section, in both of its lists', () => {
+    const advertised = parseAdvertisedSections();
+    const actual = sections.map(s => s.id).sort();
+    expect([...advertised.root].sort()).toEqual(actual);
+    expect([...advertised.endpoint].sort()).toEqual(actual);
+  });
+
+  test('the onboarding runbook is advertised (an agent-first product cannot hide it)', () => {
+    const advertised = parseAdvertisedSections();
+    expect(sections.map(s => s.id)).toContain('onboarding');
+    expect(advertised.root).toContain('onboarding');
+    expect(advertised.endpoint).toContain('onboarding');
   });
 });
