@@ -7310,3 +7310,180 @@ code, pre, kbd, samp {
   .wc-building-orb { animation-duration: 1.6s; }
   .wc-reveal { opacity: 1; transform: none; }
 }
+
+/* ---------------------------------------------------------------------------
+   Public workspace page (/marketplace/:workspaceId)
+
+   The destination for a shared workspace link, read logged out. Same 1080px
+   standard tier and hairline-list treatment as the workspace tabs, so the
+   page a stranger lands on looks like the product they are about to join.
+   --------------------------------------------------------------------------- */
+
+.public-ws {
+  padding: 0.5rem 0 3rem;
+}
+
+.public-ws-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.public-ws-title {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.public-ws-meta {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.public-ws-lede {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  max-width: 60ch;
+}
+
+.public-ws-lede a,
+.public-ws-foot a {
+  color: var(--text-primary);
+  text-decoration: underline;
+  text-decoration-color: var(--border-color);
+  text-underline-offset: 0.18em;
+}
+
+.public-ws-lede a:hover,
+.public-ws-foot a:hover {
+  text-decoration-color: var(--text-tertiary);
+}
+
+/* The join CTA is the one place on the page with a real interactive surface. */
+.public-ws-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 0.9rem;
+  margin: 1.6rem 0 0;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+
+.public-ws-cta-note {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  max-width: 46ch;
+}
+
+.public-ws-cta-err {
+  font-size: 0.75rem;
+  color: var(--error-text);
+}
+
+.public-ws-section {
+  margin-top: 2.2rem;
+}
+
+.public-ws-section h2 {
+  margin: 0 0 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+
+/* The charter is prose the owner wrote and a forecaster is deciding whether to
+   trust, so it gets reading measure rather than the compact meta type. */
+.public-ws-charter {
+  max-width: 68ch;
+}
+
+.public-ws-charter p {
+  margin: 0 0 0.7rem;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+
+.public-ws-charter p:last-child {
+  margin-bottom: 0;
+}
+
+.public-ws-markets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.public-ws-markets li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--border-color);
+}
+
+.public-ws-markets li:last-child {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.public-ws-market-name {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
+.public-ws-market-value {
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.public-ws-market-when {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  min-width: 5ch;
+  text-align: right;
+}
+
+/* Neutral, not alarm-coloured: a thin market is a fact about depth, not an
+   error, and per ui-conventions.md the product does not colour-code categories. */
+.public-ws-thin {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.public-ws-empty {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-tertiary);
+}
+
+.public-ws-foot {
+  margin: 2.6rem 0 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  max-width: 68ch;
+}
+
+.public-ws-more {
+  margin-top: 0.7rem;
+}

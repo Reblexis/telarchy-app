@@ -170,6 +170,57 @@ export interface MarketplaceListing {
   rangeMax: number;
 }
 
+export interface ProposalStats {
+  total: number;
+  approved: number;
+  declined: number;
+  declinedSpam: number;
+  withdrawn: number;
+  pending: number;
+}
+
+/**
+ * What a logged-out visitor sees at /marketplace/:workspaceId. Deliberately
+ * counts, not contents: metric names and market consensus are public, but
+ * logged metric values, proposal text, and chat still require membership.
+ */
+export interface PublicWorkspace {
+  workspaceId: string;
+  name: string;
+  slug: string | null;
+  ownerId: string | null;
+  /** Equal to ownerId when the owner never set a nickname; do not print a raw
+   *  participant id as if it were a name. */
+  ownerHandle: string | null;
+  description: string | null;
+  /** The owner's public commitment about what they will do with the number. */
+  charter: string | null;
+  visibility: string;
+  proposalReward: number;
+  spamPenalty: number;
+  /** What pressing join actually grants, per the Public group's capabilities. */
+  joinAs: 'trader' | 'viewer';
+  metricCount: number;
+  openMarketCount: number;
+  participantCount: number;
+  proposalStats: ProposalStats;
+  markets: PublicWorkspaceMarket[];
+}
+
+/** A market row on the public workspace page. No workspace fields: the page
+ *  already knows which workspace it is showing. */
+export interface PublicWorkspaceMarket {
+  marketId: string;
+  metricName: string;
+  targetDate: string;
+  resolvesOn: string;
+  consensus: number | null;
+  probability: number;
+  liquidity: number;
+  rangeMin: number;
+  rangeMax: number;
+}
+
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 let activeWorkspaceId: string | null = localStorage.getItem('activeWorkspaceId');
@@ -542,7 +593,7 @@ export const api = {
     if (!res.ok) throw new Error(`Marketplace request failed: ${res.status}`);
     return res.json();
   },
-  getMarketplaceWorkspace: async (workspaceId: string): Promise<{ workspaceId: string; name: string; visibility: string; markets: MarketplaceListing[] }> => {
+  getMarketplaceWorkspace: async (workspaceId: string): Promise<PublicWorkspace> => {
     const res = await fetch(`${API_BASE}/api/marketplace/${encodeURIComponent(workspaceId)}`);
     if (!res.ok) throw new Error(`Marketplace workspace request failed: ${res.status}`);
     return res.json();

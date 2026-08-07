@@ -1,0 +1,21 @@
+-- 0043: Public workspace identity: description and charter.
+--
+-- Why: a public workspace had no way to say what it is or what joining buys
+-- you. A shared link landed on a card showing a name and a market count, which
+-- is not something a stranger will act on.
+--
+-- `description` is the one-line summary shown on the marketplace card and the
+-- public workspace page.
+--
+-- `charter` is the load-bearing one: the owner's public commitment about what
+-- they will actually do with the number the market produces, plus the
+-- pre-declared reasons they may decline anyway. An open workspace's credibility
+-- is not its metrics, it is whether the owner honours the result; a workspace
+-- that invites outside forecasters without stating what their work buys them is
+-- asking for free labour, and forecasters correctly refuse.
+--
+-- Both are nullable (existing workspaces have neither) and are only exposed on
+-- public and unlisted workspaces.
+ALTER TABLE "workspaces" ADD COLUMN IF NOT EXISTS "description" text;
+--> statement-breakpoint
+ALTER TABLE "workspaces" ADD COLUMN IF NOT EXISTS "charter" text;

@@ -151,6 +151,32 @@ The activity toolbar exposes a search input (filters summary, tags,
 and actor), a 1h/24h/7d/30d segmented range, and per-type text-only
 filter toggles (underline = active).
 
+## Public workspace page
+
+`/marketplace/:workspaceId` (`PublicWorkspacePage`) is the only page a
+stranger reliably sees before signing up, since it is where a shared
+workspace link lands. It follows the standard tier (1080px) and the
+normal type scale so the page reads as the product the visitor is
+about to join, not as a separate marketing surface.
+
+Two deliberate departures, both narrow:
+
+- The join CTA sits in a single bordered surface (`.public-ws-cta`),
+  the same interactive-surface exception the markets trade panel takes.
+  It is the only call to action on the page, and its label states what
+  joining actually grants (trading vs read-only) rather than promising
+  rights the Public group may not hold.
+- The charter (`.public-ws-charter`) gets a 68ch reading measure and
+  1.6 line-height. It is prose a forecaster is deciding whether to
+  trust, so it is set for reading, not as compact meta type.
+
+The market list is capped at 12 rows, soonest-resolving first, with
+"and N more" beneath. Workspaces routinely carry dozens of markets
+(LookPilot has 66) and an uncapped list buries everything else on the
+page. Thin markets carry a neutral `THIN` chip, never a red one: low
+depth is a fact about the book, not an error, and per the color rules
+above the product does not color-code categories.
+
 ## When in doubt
 
 - Strip color before adding it.

@@ -158,6 +158,7 @@ marketplaceRouter.get('/workspaces/public', wrap(async (_req, res) => {
     name: workspaces.name,
     slug: workspaces.slug,
     createdBy: workspaces.createdBy,
+    description: workspaces.description,
     visibility: workspaces.visibility,
     proposalReward: workspaces.proposalReward,
     spamPenalty: workspaces.spamPenalty,
@@ -223,6 +224,7 @@ marketplaceRouter.get('/workspaces/public', wrap(async (_req, res) => {
     slug: r.slug,
     ownerId: ownerHandles.get(r.createdBy)?.ownerId ?? null,
     ownerHandle: ownerHandles.get(r.createdBy)?.ownerHandle ?? null,
+    description: r.description,
     visibility: r.visibility,
     proposalReward: r.proposalReward,
     spamPenalty: r.spamPenalty,
@@ -263,7 +265,66 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
     return b.liquidity - a.liquidity;
   });
 
-  res.json({ workspaceId, name: ws.name, visibility: ws.visibility, markets: marketList });
+  // Everything below is what a logged-out stranger sees when they open a shared
+  // workspace link. It deliberately stops short of anything a member sees:
+  // metric names and market consensus are public (they already were), but
+  // logged metric values, proposal text, and chat still require the `read`
+  // capability, i.e. membership. Counts, not contents.
+  const [owner] = [...(await getOwnerHandles([ws.createdBy])).values()];
+
+  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const proposalRows = await db.select({ status: proposals.status, n: sql<number>`count(*)::int` })
+    .from(proposals)
+    .where(and(eq(proposals.workspaceId, workspaceId), gte(proposals.createdAt, since)))
+    .groupBy(proposals.status);
+  const proposalStats = { total: 0, approved: 0, declined: 0, declinedSpam: 0, withdrawn: 0, pending: 0 };
+  for (const row of proposalRows) {
+    proposalStats.total += row.n;
+    if (row.status === 'approved') proposalStats.approved += row.n;
+    else if (row.status === 'declined') proposalStats.declined += row.n;
+    else if (row.status === 'declined_spam') proposalStats.declinedSpam += row.n;
+    else if (row.status === 'withdrawn') proposalStats.withdrawn += row.n;
+    else if (row.status === 'pending') proposalStats.pending += row.n;
+  }
+
+  const [metricCountRow] = await db.select({ n: sql<number>`count(*)::int` })
+    .from(metrics).where(eq(metrics.workspaceId, workspaceId));
+
+  // Distinct participants across every group, so the page can say whether
+  // anyone is actually here. Identities stay unlisted; this is a count only.
+  const groupRows = await db.select({ memberIds: permissionGroups.memberIds })
+    .from(permissionGroups).where(eq(permissionGroups.workspaceId, workspaceId));
+  const participantIds = new Set<string>();
+  for (const g of groupRows) for (const id of getGroupMemberIds(g)) participantIds.add(id);
+
+  // What a visitor gets if they press join, so the CTA can be honest about it
+  // rather than promising trading rights the Public group does not hold.
+  const publicGroup = groupRows.length
+    ? (await db.select().from(permissionGroups)
+        .where(and(eq(permissionGroups.workspaceId, workspaceId), eq(permissionGroups.type, 'public'))))[0]
+    : undefined;
+  const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
+
+  res.json({
+    workspaceId,
+    name: ws.name,
+    slug: ws.slug,
+    ownerId: owner?.ownerId ?? null,
+    // Equal to ownerId when the owner never set a nickname. Callers should not
+    // print a raw 32-char participant id as if it were a name; compare the two.
+    ownerHandle: owner?.ownerHandle ?? null,
+    description: ws.description,
+    charter: ws.charter,
+    visibility: ws.visibility,
+    proposalReward: ws.proposalReward,
+    spamPenalty: ws.spamPenalty,
+    joinAs: publicCaps.includes('trade') ? 'trader' : 'viewer',
+    metricCount: metricCountRow?.n ?? 0,
+    openMarketCount: marketList.length,
+    participantCount: participantIds.size,
+    proposalStats,
+    markets: marketList,
+  });
 }));
 
 marketplaceRouter.post('/:workspaceId/join', authMiddleware, requireIdentity, wrap(async (req, res) => {
@@ -271,6 +332,10 @@ marketplaceRouter.post('/:workspaceId/join', authMiddleware, requireIdentity, wr
   const { workspaceId } = req.params as { workspaceId: string };
   const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId));
   if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
+  // Visibility is the access boundary, not knowledge of the UUID. A private
+  // workspace is populated by an admin adding members; nobody self-joins it.
+  // 404 rather than 403 so this cannot be used to probe for private IDs.
+  if (ws.visibility === 'private') { res.status(404).json({ error: 'Workspace not found' }); return; }
 
   await ensureSystemGroups(workspaceId);
   const groups = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, workspaceId));

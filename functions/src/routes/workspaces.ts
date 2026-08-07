@@ -238,8 +238,30 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
     res.status(403).json({ error: 'These settings require the manage_workspace capability' }); return;
   }
 
-  const { name, autoFundNewMarkets, newMarketLiquidityCredits, visibility, proposalReward, spamPenalty, maxPendingProposalsPerParticipant } = req.body;
+  const { name, description, charter, autoFundNewMarkets, newMarketLiquidityCredits, visibility, proposalReward, spamPenalty, maxPendingProposalsPerParticipant } = req.body;
   const update: Partial<typeof workspaces.$inferInsert> = {};
+
+  // description (one-liner) and charter (the owner's public commitment about
+  // what they will do with the number) are the public identity of a workspace.
+  // Both accept null to clear. They are plain `manage`, not manage_workspace:
+  // editing the pitch is not a lifecycle change.
+  for (const [key, value, max] of [
+    ['description', description, 280],
+    ['charter', charter, 20000],
+  ] as const) {
+    if (value === undefined) continue;
+    if (value === null || (typeof value === 'string' && value.trim().length === 0)) {
+      update[key] = null;
+      continue;
+    }
+    if (typeof value !== 'string') {
+      res.status(400).json({ error: `${key} must be a string or null` }); return;
+    }
+    if (value.length > max) {
+      res.status(400).json({ error: `${key} must be at most ${max} characters` }); return;
+    }
+    update[key] = value.trim();
+  }
 
   if (hasVisibilityKey) {
     const parsed = parseVisibility(visibility);
@@ -333,6 +355,21 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
         .values({ workspaceId: wsId, ownerKey: ws.createdBy, slug: update.slug, createdAt: new Date() })
         .onConflictDoNothing();
     }
+    // Going private revokes open trading. Otherwise the Public group keeps the
+    // `trade` capability it was granted while the workspace was Open, and the
+    // next person added to that group silently gets trading rights the owner
+    // believes they took away. The settings UI used to do this client-side with
+    // a second call, which left every API-driven flip carrying the stale cap.
+    if (update.visibility === 'private' && ws.visibility !== 'private') {
+      const [publicGroup] = await tx.select().from(permissionGroups)
+        .where(and(eq(permissionGroups.workspaceId, wsId), eq(permissionGroups.type, 'public')));
+      const caps = (publicGroup?.capabilities as string[] | null) ?? [];
+      if (publicGroup && caps.includes('trade')) {
+        await tx.update(permissionGroups)
+          .set({ capabilities: caps.filter(c => c !== 'trade') })
+          .where(eq(permissionGroups.id, publicGroup.id));
+      }
+    }
   });
   res.json({ ok: true, slug: update.slug ?? ws.slug });
 }));
@@ -343,6 +380,9 @@ workspacesRouter.post('/:id/join', requireIdentity, wrap(async (req, res) => {
 
   const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, wsId));
   if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
+  // Same rule as POST /marketplace/:workspaceId/join: visibility is the access
+  // boundary, and a private workspace 404s so the UUID cannot be probed.
+  if (ws.visibility === 'private') { res.status(404).json({ error: 'Workspace not found' }); return; }
 
   const groups = await db.select().from(permissionGroups).where(eq(permissionGroups.workspaceId, wsId));
   const publicGroup = groups.find(g => g.type === 'public');

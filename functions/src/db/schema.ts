@@ -68,6 +68,19 @@ export const workspaces = pgTable('workspaces', {
   slug: text('slug'),
   createdBy: text('created_by').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
+  /** One-line summary of what this workspace governs. Shown on the marketplace
+   *  card and the public workspace page, so a stranger can tell what they are
+   *  looking at before joining. Public on public/unlisted workspaces. */
+  description: text('description'),
+  /** The owner's public commitment: what they will actually do with the number
+   *  the market produces, and the pre-declared reasons they may decline anyway.
+   *
+   *  This exists because an open workspace's credibility is not its metrics, it
+   *  is whether the owner honours the result. A workspace that invites outside
+   *  forecasters without saying what their work buys them is asking for free
+   *  labour, and forecasters correctly refuse. Rendered on the public workspace
+   *  page above the markets. Public on public/unlisted workspaces. */
+  charter: text('charter'),
   /** 'public' | 'unlisted' | 'private' */
   visibility: text('visibility').notNull().default('private'),
   tradedVolume: doublePrecision('traded_volume').notNull().default(0),

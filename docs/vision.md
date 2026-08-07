@@ -256,8 +256,19 @@ Per-workspace access control via a workspace-scoped `permissionGroups` table. Gr
 - **Types**: `public`, `admin`, `trader`, `custom`. Type is purely a seeding hint; once created, every group's capabilities can be edited freely. System groups (`Public`, `Admin`, `Trader`) are bootstrapped on workspace creation with capability presets `['read']`, `['read','trade','manage']`, and `['read','trade']` respectively, and cannot be renamed or deleted (their capabilities can still be edited).
 - **Unified access model**: Groups use canonical `memberIds[]` participant membership. Every route guard calls `requireCapability('read' | 'trade' | 'manage')` against the caller's unioned capability set; there are no hardcoded role checks. The master API key and the workspace creator/owner are granted all capabilities automatically.
 - **Per-metric and per-source permissions**: groups additionally carry a `permissions` map (`metricId -> { read, trade }`) and a `sourcePermissions` map (`sourceId -> { read }`) for resource-level access. These gate specific metrics or sources for members of groups that include the corresponding workspace-level capability.
-- **Workspace joining**: any authenticated participant can join any workspace via `POST /workspaces/:id/join`, which adds them to the Public group (read-only by default). Admins then add the participant to the Trader or Admin group (or any custom group) to expand capabilities.
+- **Workspace joining**: any authenticated participant can self-join a **public or unlisted** workspace via `POST /workspaces/:id/join` or `POST /marketplace/:workspaceId/join`, which adds them to the Public group (read-only by default). Admins then add the participant to the Trader or Admin group (or any custom group) to expand capabilities. Private workspaces cannot be self-joined (404, indistinguishable from a missing workspace, so the endpoint is not a probe for private ids); their members are added by an admin. Taking a workspace private also drops `trade` from its Public group, so trading rights granted while it was Open do not survive the change. **revised 2026-08-07**: visibility was previously not checked at all, which made a leaked workspace UUID sufficient to enter a private workspace.
 - **API**: `GET /groups` (requires `read`), `POST /groups`, `PUT /groups/:id`, `DELETE /groups/:id` (all require `manage`). POST/PUT bodies accept a `capabilities: string[]` field.
+
+### Public workspace identity and the charter (Implemented 2026-08-07)
+
+A public workspace is only useful if a stranger who opens its link can tell what it governs and whether contributing is worth their time. Two fields on the workspace carry that, both nullable, both exposed only on public and unlisted workspaces:
+
+- `description`: a one-line summary (<=280 chars), shown on the marketplace card and at the top of the public workspace page.
+- `charter`: the owner's public commitment (<=20000 chars) about what they will actually do with the number the market produces, plus the reasons they may decline a winning proposal, declared in advance so they cannot be invented after the fact.
+
+The charter is the load-bearing one, and it is a product claim, not decoration. An open workspace's credibility is not its metrics; it is whether the owner honours the result. Forecasters asked to price a stranger's decisions with no stated commitment are being asked for free labour, and they correctly refuse. Telarchy's answer is that every workspace inviting outside participants states, in public and in advance, what their work buys them.
+
+`GET /api/marketplace/:workspaceId` serves this profile to logged-out visitors, and `/marketplace/:workspaceId` renders it. The disclosure line is **counts, not contents**: metric names, market consensus, participant and proposal counts are public; logged metric values, proposal text, and proposal chat still require the `read` capability, i.e. membership.
 
 ### Sources (Implemented)
 

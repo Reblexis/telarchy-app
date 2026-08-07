@@ -36,11 +36,11 @@ import { ActivityPage } from './pages/ActivityPage';
 import { ApiPage } from './pages/ApiPage';
 import { LeaderboardPage } from './pages/LeaderboardPage';
 import { BenchmarkPage } from './pages/BenchmarkPage';
+import { PublicWorkspacePage } from './pages/PublicWorkspacePage';
 
-function MarketplaceWorkspaceRedirect() {
-  const { workspaceId } = useParams();
-  return <Navigate to={`/marketplace?workspace=${encodeURIComponent(workspaceId ?? '')}`} replace />;
-}
+// /marketplace/:workspaceId is the destination for a shared workspace link, so
+// it renders a real public workspace page rather than bouncing into the generic
+// list with the search box pre-filled. See PublicWorkspacePage for why.
 
 // /marketplace/:workspaceId/:tab — deep-link a workspace into a specific page.
 // Sets the active workspace (so /proposals, /markets, etc. find their context)
@@ -82,7 +82,7 @@ export function App() {
           {/* Authenticated routes, all wrapped in AppLayout (sidebar) */}
           <Route element={<AppLayout />}>
             <Route path="/marketplace" element={<MarketplacePage />} />
-            <Route path="/marketplace/:workspaceId" element={<MarketplaceWorkspaceRedirect />} />
+            <Route path="/marketplace/:workspaceId" element={<PublicWorkspacePage />} />
             <Route path="/marketplace/:workspaceId/:tab" element={<MarketplaceTabRedirect />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
             <Route path="/benchmark" element={<BenchmarkPage />} />

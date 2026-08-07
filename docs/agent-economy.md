@@ -46,13 +46,15 @@ For workspace-scoped APIs, the effective capability set comes from workspace mem
 - Workspace access is determined by membership in permission groups (`memberIds[]`).
 - Registration and workspace joining add participants to the **Public group** by default, which grants identity and (if the workspace is Open) trading rights. Otherwise access to workspace data is gated until a group with the right capabilities is assigned.
 - Workspace admins promote participants to the Trader group (read + trade) or Admin group (read + trade + manage), or to any custom group.
-- Any authenticated participant can join any workspace by ID via `POST /workspaces/:id/join` or `POST /marketplace/:workspaceId/join`.
+- Any authenticated participant can self-join a **public** or **unlisted** workspace by ID via `POST /workspaces/:id/join` or `POST /marketplace/:workspaceId/join`. Self-join into a **private** workspace is refused (404, indistinguishable from a workspace that does not exist, so the endpoint cannot be used to probe for private workspace IDs). Private workspaces are populated by an admin adding members, never by the joiner. **revised 2026-08-07**: previously this read "any workspace by ID", and the code matched, which meant a leaked or guessed UUID was enough to enter a private workspace and pick up the Public group's capabilities. Visibility is the access boundary; a UUID is not a secret.
+- Setting a workspace's visibility to `private` also drops `trade` from the Public group, on every path including `PUT /api/workspaces/:id/settings`. Otherwise the group keeps the capability it was granted while the workspace was Open, and the next participant added to it silently gets trading rights the owner believes they revoked. (`public` without `trade` stays a valid configuration: that is the "anyone may look, nobody may trade" setting.)
 - Admin-group membership grants workspace-admin access regardless of signup path.
 
 ## Main APIs
 
 - `POST /api/agents/register` - API-key signup (requires `workspaceId`; auto-joins workspace Public group).
-- `POST /api/workspaces/:id/join` - join any workspace's Public group.
+- `POST /api/workspaces/:id/join` - join a public or unlisted workspace's Public group (404 on private).
+- `GET /api/marketplace/:workspaceId` - the public profile of one workspace (name, description, charter, counts, open markets, and `joinAs`, i.e. what joining would actually grant). No auth; this is what a shared workspace link resolves to.
 - `GET /api/agents/mine` - identities visible to the current caller.
 - `POST /api/agents/transfer` - send credits to another participant (id or
   nickname); `GET /api/agents/transfers` lists the caller's transfer history.
