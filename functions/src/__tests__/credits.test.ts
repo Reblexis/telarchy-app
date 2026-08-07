@@ -96,9 +96,13 @@ describe('signup and workspace creation constants', () => {
     expect(DEFAULT_MARKET_LIQUIDITY_CREDITS).toBe(0.5);
   });
 
-  test('MIN_LIQUIDITY_CONTRIBUTION is at least 0.1 and below the default', () => {
-    // Floor below which LMSR b is too small to be usable.
-    expect(MIN_LIQUIDITY_CONTRIBUTION).toBeGreaterThanOrEqual(0.1);
+  test('MIN_LIQUIDITY_CONTRIBUTION only rules out a zero-liquidity market', () => {
+    // The floor exists to stop a degenerate b=0 market, not to enforce a
+    // minimum depth: a thin market is the proposer's risk to take, not
+    // something the platform forbids. One nanocredit is the storage
+    // granularity, so it is the smallest contribution that can exist.
+    expect(MIN_LIQUIDITY_CONTRIBUTION).toBe(1 / CREDIT_PRECISION);
+    expect(MIN_LIQUIDITY_CONTRIBUTION).toBeGreaterThan(0);
     expect(MIN_LIQUIDITY_CONTRIBUTION).toBeLessThan(DEFAULT_MARKET_LIQUIDITY_CREDITS);
   });
 

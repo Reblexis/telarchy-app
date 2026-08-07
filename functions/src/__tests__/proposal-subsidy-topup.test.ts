@@ -149,11 +149,16 @@ describe('bulk injection with proposalId records a durable contribution', () => 
     expect(proposal.subsidyContributions).toEqual({ [PROPOSER]: 1, [OWNER]: 2.5 });
   });
 
-  test('amount below 0.1 is rejected for proposal top-ups', async () => {
+  // There is no minimum depth for a top-up: a thin market is the proposer's
+  // risk to take. The floor only rules out a degenerate zero-liquidity market,
+  // so 0.05 is accepted and only a non-positive amount is refused.
+  test('a small top-up is accepted; only a non-positive amount is rejected', async () => {
     await seed();
-    const res = await bulkFund(OWNER, { amount: 0.05, proposalId: PROPOSAL });
-    expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/at least 0.1/);
+    const small = await bulkFund(OWNER, { amount: 0.05, proposalId: PROPOSAL });
+    expect(small.status).toBe(200);
+
+    const zero = await bulkFund(OWNER, { amount: 0, proposalId: PROPOSAL });
+    expect(zero.status).toBe(400);
   });
 
   test('unknown proposalId is a 404, no injection happens', async () => {
