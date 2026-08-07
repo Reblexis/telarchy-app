@@ -109,6 +109,7 @@ explains itself.
 | --- | --- |
 | `landing.md` | `/` first paint, footer links, viewport coverage |
 | `marketplace-public.md` | Anonymous `/marketplace`, share-link, OG meta |
+| `public-workspace-page.md` | Anonymous `/marketplace/:workspaceId`: charter, join CTA, market cap, counts-not-contents boundary |
 | `leaderboard.md` | Anonymous `/leaderboard`, calibration ranking, register CTA |
 | `legal.md` | `/terms`, `/privacy`, ToS clauses |
 | `waitlist.md` | `POST /api/waitlist` + dedup + rate limit |
