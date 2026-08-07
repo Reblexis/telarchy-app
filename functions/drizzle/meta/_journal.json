@@ -309,6 +309,13 @@
 			"when": 1786138566227,
 			"tag": "0043_workspace_description_charter",
 			"breakpoints": true
+		},
+		{
+			"idx": 44,
+			"version": "7",
+			"when": 1786139735403,
+			"tag": "0044_proposal_decline_reason",
+			"breakpoints": true
 		}
 	]
 }

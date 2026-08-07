@@ -240,6 +240,10 @@ export interface Proposal {
   status: ProposalStatus;
   conditionalMarketIds: string[];
   liquiditySubsidy: number;
+  /** Why the owner declined, published permanently on the proposal. Set only
+   *  on declined proposals, and required by the backend when the workspace
+   *  publishes a charter, since that is what the charter promises. */
+  declineReason?: string | null;
   createdAt: string;
 }
 

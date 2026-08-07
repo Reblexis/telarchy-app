@@ -7487,3 +7487,51 @@ code, pre, kbd, samp {
 .public-ws-more {
   margin-top: 0.7rem;
 }
+
+/* Decline reason on a proposal. Hairline-led, not a warning box: the reason is
+   the owner keeping a promise, not an error state. */
+.proposal-decline-reason {
+  margin: 0 0 1rem;
+  padding-left: 0.9rem;
+  border-left: 2px solid var(--border-color);
+}
+
+.proposal-decline-reason h4 {
+  margin: 0 0 0.3rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+
+.proposal-decline-reason p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+}
+
+.confirm-modal-label {
+  display: block;
+  margin: 0.9rem 0 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+
+.confirm-modal-textarea {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  resize: vertical;
+}

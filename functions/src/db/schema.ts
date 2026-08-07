@@ -398,6 +398,19 @@ export const proposals = pgTable('proposals', {
   resolvedAt: timestamp('resolved_at'),
   /** Participant id who approved/declined/spam-declined; equals proposedBy on withdraw. */
   resolvedBy: text('resolved_by'),
+  /**
+   * Why this proposal was declined, in the owner's own words, kept permanently
+   * on the proposal.
+   *
+   * A workspace that publishes a charter is promising participants that a
+   * proposal the market ranked highest either ships or gets a written reason.
+   * Without somewhere durable to put that reason it degrades into a chat
+   * message nobody can find three months later, which is the same as not
+   * having promised anything. So it is required on decline exactly when the
+   * workspace has a charter: making the public commitment is what turns the
+   * field on. See workspaces.charter.
+   */
+  declineReason: text('decline_reason'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
 

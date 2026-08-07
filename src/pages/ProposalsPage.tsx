@@ -521,6 +521,7 @@ function ProposalDrawer({ proposal, isAdmin, onClose, onAction, onError }: Propo
   const { inspectProposal, setInspectProposal } = useInspectMode();
   const [acting, setActing] = useState(false);
   const [confirmAction, setConfirmAction] = useState<null | 'approve' | 'decline'>(null);
+  const [declineReason, setDeclineReason] = useState('');
 
   useEffect(() => {
     if (!proposal) return;
@@ -569,6 +570,16 @@ function ProposalDrawer({ proposal, isAdmin, onClose, onAction, onError }: Propo
 
         <div className="proposal-drawer-body">
           {proposal.description && <p className="proposal-description">{linkify(proposal.description)}</p>}
+
+          {/* The written reason is the half of the charter's promise that is
+              visible when the answer is no, so it sits with the proposal
+              itself rather than in the activity log. */}
+          {proposal.declineReason && (
+            <div className="proposal-decline-reason">
+              <h4>Declined because</h4>
+              <p>{linkify(proposal.declineReason)}</p>
+            </div>
+          )}
 
           <SubsidyHeader proposal={proposal} isAdmin={isAdmin} onAdded={onAction} onError={onError} />
 
@@ -669,16 +680,31 @@ function ProposalDrawer({ proposal, isAdmin, onClose, onAction, onError }: Propo
         open={confirmAction === 'decline'}
         title={`Decline "${proposal.title}"?`}
         body={
-          <p className="confirm-modal-note">
-            The approve-branch markets void and refund. The decline-branch markets stay live and resolve against the actual metric at the target date, producing the counterfactual record.
-          </p>
+          <>
+            <p className="confirm-modal-note">
+              The approve-branch markets void and refund. The decline-branch markets stay live and resolve against the actual metric at the target date, producing the counterfactual record.
+            </p>
+            <label className="confirm-modal-label" htmlFor="decline-reason">Why (published on the proposal, permanently)</label>
+            <textarea
+              id="decline-reason"
+              className="confirm-modal-textarea"
+              rows={3}
+              value={declineReason}
+              onChange={e => setDeclineReason(e.target.value)}
+              placeholder="The reason participants will read instead of seeing this ship."
+            />
+            <p className="confirm-modal-note">
+              Required when the workspace publishes a charter: a written reason is what the charter promises.
+            </p>
+          </>
         }
         confirmLabel="Decline"
         confirmClass="btn-decline"
         onCancel={() => setConfirmAction(null)}
         onConfirm={() => {
           setConfirmAction(null);
-          handle(() => api.declineProposal(proposal.id));
+          handle(() => api.declineProposal(proposal.id, declineReason));
+          setDeclineReason('');
         }}
       />
     </>

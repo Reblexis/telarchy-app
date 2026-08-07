@@ -135,6 +135,10 @@ proposalsRouter.get('/', requireCapability('read'), wrap(async (req, res) => {
     penaltyCharged: t.penaltyCharged,
     resolvedAt: t.resolvedAt,
     resolvedBy: t.resolvedBy,
+    // Not truncated like description: the reason is short by nature and a
+    // client showing "why not" needs the whole sentence, not the first 150
+    // characters of it.
+    declineReason: t.declineReason,
     createdAt: t.createdAt,
   })));
 }));
@@ -174,7 +178,11 @@ proposalsRouter.post('/:proposalId/approve', requireCapability('manage'), wrap(a
 proposalsRouter.post('/:proposalId/decline', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId, agentId } = req.auth!;
   const proposalId = req.params.proposalId as string;
-  await declineProposal(proposalId, workspaceId, agentId ?? null);
+  const { declineReason } = req.body ?? {};
+  if (declineReason !== undefined && declineReason !== null && typeof declineReason !== 'string') {
+    res.status(400).json({ error: 'declineReason must be a string' }); return;
+  }
+  await declineProposal(proposalId, workspaceId, agentId ?? null, declineReason ?? null);
   emitEvent('proposal:status_changed', {
     proposalId, fromStatus: 'pending', toStatus: 'declined', decidedBy: agentId ?? null,
   }, workspaceId).catch(e => console.error('emitEvent failed:', e));

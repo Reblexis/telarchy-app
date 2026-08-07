@@ -375,15 +375,39 @@ export async function approveProposal(
   return { rewardPaid: reward };
 }
 
+/** Longest decline reason we store. Generous: an owner explaining why the
+ *  market's pick is not shipping should not be fighting a character limit. */
+export const MAX_DECLINE_REASON = 4000;
+
 export async function declineProposal(
   proposalId: string,
   workspaceId: string,
   resolvedBy?: string | null,
+  reason?: string | null,
 ): Promise<void> {
   const [proposal] = await db.select().from(proposals)
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
   if (!proposal) throw new AppError('Proposal not found', 404);
   if (proposal.status !== 'pending') throw new AppError('Can only decline pending proposals', 400);
+
+  // A charter is a public promise that a declined proposal gets a written
+  // reason. Enforce it here rather than trusting the caller to remember: the
+  // whole value of the promise is that it cannot be quietly skipped on the one
+  // decline that is embarrassing to explain.
+  const trimmed = typeof reason === 'string' ? reason.trim() : '';
+  if (trimmed.length > MAX_DECLINE_REASON) {
+    throw new AppError(`declineReason must be at most ${MAX_DECLINE_REASON} characters`, 400);
+  }
+  if (!trimmed) {
+    const [ws] = await db.select({ charter: workspaces.charter }).from(workspaces)
+      .where(eq(workspaces.id, workspaceId));
+    if (ws?.charter) {
+      throw new AppError(
+        'This workspace publishes a charter, so declining a proposal requires a written declineReason.',
+        400,
+      );
+    }
+  }
 
   // The approved-branch counterfactual never materialises once declined, so
   // void it and refund any positions. The declined branch stays live and
@@ -394,6 +418,7 @@ export async function declineProposal(
     status: 'declined',
     resolvedAt: new Date(),
     resolvedBy: resolvedBy ?? null,
+    declineReason: trimmed || null,
   }).where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
 }
 

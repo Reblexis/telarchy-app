@@ -485,8 +485,13 @@ export const api = {
     request('/api/proposals', { method: 'POST', body: JSON.stringify(body) }),
   approveProposal: (id: string) =>
     request(`/api/proposals/${id}/approve`, { method: 'POST' }),
-  declineProposal: (id: string) =>
-    request(`/api/proposals/${id}/decline`, { method: 'POST' }),
+  /** `declineReason` is published permanently on the proposal. Required by the
+   *  backend when the workspace has a charter, since that is the promise. */
+  declineProposal: (id: string, declineReason?: string) =>
+    request(`/api/proposals/${id}/decline`, {
+      method: 'POST',
+      body: JSON.stringify({ declineReason: declineReason?.trim() || null }),
+    }),
   getProposalMessages: (id: string) => request(`/api/proposals/${id}/messages`),
   sendProposalMessage: (id: string, content: string) =>
     request(`/api/proposals/${id}/messages`, { method: 'POST', body: JSON.stringify({ content }) }),
