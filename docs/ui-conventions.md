@@ -164,11 +164,14 @@ conventions (1080px tier, dense lists) because its job is different: one
 narrow centered column (~660px), one action, and radical reduction.
 
 Hierarchy, top to bottom: minimal top bar (wordmark + log in), workspace
-name in Fraunces, one-line description, then **the instrument**: the
-soonest-resolving market's consensus as the largest element on the page
-(JetBrains Mono, tabular), sitting on a hairline range rail with an amber
-tick at the consensus. The number outranks the product name on purpose;
-the product's claim is that a price, not a pitch, decides. One black pill
+name in Fraunces, one-line description, then **the market chart as the
+centerpiece** (`MarketChart`, hand-rolled SVG, breaks out of the reading
+column to min(92vw, 840px)): the metric's real logged history in ink with
+a gradient fill, the market's call in amber, a shaded future zone, and a
+dashed amber reach to the settle dot. Above it the consensus reads as a
+large mono price with a green/red delta chip vs the latest real value.
+The number outranks the product name on purpose; the product's claim is
+that a price, not a pitch, decides. One black pill
 CTA follows with two small lines: the terms fine print and the whole
 mechanism in one breath ("propose → everyone bets → the winner ships",
 amber arrows). The ballot (when proposals exist), decided items, and the

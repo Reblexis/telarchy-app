@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, setActiveWorkspace, type PublicWorkspace, type PublicProposal } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { previewTrade } from '../lib/amm';
+import { MarketChart } from '../components/MarketChart';
 import { linkify } from '../lib/linkify';
 
 /**
@@ -29,11 +30,6 @@ function formatValue(v: number): string {
   const abs = Math.abs(v);
   const decimals = abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
   return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-}
-
-function formatCompact(v: number): string {
-  if (Math.abs(v) >= 1000) return `${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 })}k`;
-  return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
 function formatDelta(delta: number): string {
@@ -78,26 +74,6 @@ function useCountUp(target: number | null, from: number | null): number | null {
     return () => cancelAnimationFrame(raf);
   }, [target, from]);
   return value ?? target;
-}
-
-/** The evidence line: the hero metric's real logged history as a bare
- *  polyline. No axes, no chart library; the shape is the message. */
-function Sparkline({ points }: { points: Array<{ at: string; value: number }> }) {
-  if (points.length < 2) return null;
-  const w = 220, h = 40, pad = 2;
-  const vals = points.map(p => p.value);
-  const min = Math.min(...vals), max = Math.max(...vals);
-  const span = max - min || 1;
-  const d = points.map((p, i) => {
-    const x = pad + (i / (points.length - 1)) * (w - 2 * pad);
-    const y = h - pad - ((p.value - min) / span) * (h - 2 * pad);
-    return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(' ');
-  return (
-    <svg className="pubws-spark" viewBox={`0 0 ${w} ${h}`} role="img" aria-label={`Recent history, ${formatValue(min)} to ${formatValue(max)}`}>
-      <path d={d} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
-    </svg>
-  );
 }
 
 interface HeroPosition { direction: 'higher' | 'lower'; shares: number; totalCost: number }
@@ -244,14 +220,11 @@ export function TradePage() {
   }, [ws]);
 
   const hero = ws?.markets[0] ?? null;
+  const lastReal = ws?.heroHistory?.length ? ws.heroHistory[ws.heroHistory.length - 1].value : null;
   const displayConsensus = heroConsensus ?? hero?.consensus ?? null;
   const mid = hero ? (hero.rangeMin + hero.rangeMax) / 2 : null;
   const shown = useCountUp(hero?.consensus ?? null, mid);
   const liveShown = heroConsensus !== null && heroConsensus !== hero?.consensus ? displayConsensus : shown;
-  const tickPct = hero && liveShown !== null && hero.rangeMax > hero.rangeMin
-    ? Math.min(100, Math.max(0, ((liveShown - hero.rangeMin) / (hero.rangeMax - hero.rangeMin)) * 100))
-    : 50;
-
   if (error) {
     return (
       <div className="pubws">
@@ -293,24 +266,29 @@ export function TradePage() {
             <div className="pubws-instrument-label">
               market&rsquo;s bet · {hero.metricName}
             </div>
-            <div className="pubws-price">{liveShown !== null ? formatValue(liveShown) : '–'}</div>
-            <div className="pubws-rail" role="img" aria-label={`Market range ${hero.rangeMin} to ${hero.rangeMax}, current consensus ${formatValue(displayConsensus)}`}>
-              <span className="pubws-rail-min">{formatCompact(hero.rangeMin)}</span>
-              <span className="pubws-rail-track"><span className="pubws-rail-tick" style={{ left: `${tickPct}%` }} /></span>
-              <span className="pubws-rail-max">{formatCompact(hero.rangeMax)}</span>
+            <div className="pubws-headline">
+              <span className="pubws-price">{liveShown !== null ? formatValue(liveShown) : '–'}</span>
+              {lastReal !== null && displayConsensus !== null && (
+                <span className={`pubws-delta-chip ${displayConsensus >= lastReal ? 'is-up' : 'is-down'}`}>
+                  {displayConsensus >= lastReal ? '▲' : '▼'} {formatDelta(displayConsensus - lastReal)} vs today
+                </span>
+              )}
             </div>
+            {(ws.heroHistory?.length ?? 0) >= 2 ? (
+              <MarketChart
+                history={ws.heroHistory!}
+                marketHistory={ws.marketHistory ?? []}
+                consensus={displayConsensus}
+                resolvesOn={hero.resolvesOn}
+              />
+            ) : null}
             <div className="pubws-instrument-sub">
               settles {settleDate(hero.resolvesOn)}
               {ws.markets.length > 1 && <> · one of {ws.markets.length} open markets</>}
               {(ws.tradesThisWeek ?? 0) > 0 && <> · {ws.tradesThisWeek} trades this week</>}
             </div>
-            {(ws.heroHistory?.length ?? 0) >= 2 && (
-              <div className="pubws-evidence">
-                <Sparkline points={ws.heroHistory!} />
-                {ws.heroMetricDescription && (
-                  <div className="pubws-provenance">{linkify(ws.heroMetricDescription)}</div>
-                )}
-              </div>
+            {ws.heroMetricDescription && (
+              <div className="pubws-provenance">{linkify(ws.heroMetricDescription)}</div>
             )}
           </section>
         )}

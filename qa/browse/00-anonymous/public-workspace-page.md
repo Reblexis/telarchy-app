@@ -115,22 +115,23 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
   is the fine print, not the pitch.
 - If `charter` is null: the element is absent entirely.
 
-### T5. The instrument shows the soonest market over its real range
+### T5. The market chart is the centerpiece
 
 **Steps:**
-1. `$B text ".pubws-instrument"`
-2. `curl -s "$TT_API_URL/api/marketplace/$WS" | jq '.markets[0] | {metricName, consensus, rangeMin, rangeMax, resolvesOn}'`
+1. `$B is visible ".mchart-svg"` and `$B text ".pubws-instrument"`
+2. `curl -s "$TT_API_URL/api/marketplace/$WS" | jq '{consensus: .markets[0].consensus, hist: (.heroHistory|length), mkt: (.marketHistory|length)}'`
 
 **Expected:**
-- The large mono price equals the first (soonest-resolving) market's
-  consensus, formatted without decimals when >= 100.
-- The label carries the metric name; the sub-line carries the settle date
-  and, when more than one market is open, "one of N open markets".
-- The rail's min/max labels match rangeMin/rangeMax (compact form), and the
-  amber tick sits at (consensus - rangeMin) / (rangeMax - rangeMin) of the
-  track width.
-- There is no markets table: a single market IS the hero, and additional
-  markets are a count, not a list.
+- The large mono price equals the soonest market's consensus, with a
+  green/red delta chip against the latest real value ("vs today").
+- The SVG chart renders two series: the metric's real logged history (ink
+  line with gradient fill) and the market's call (amber), with a shaded
+  future zone and a dashed amber reach to the settle dot labeled with the
+  consensus. Y gridlines sit on round numbers; month ticks on the x axis.
+- Hovering (pointer) shows a crosshair with a date and per-series values.
+- The legend is three tiny keys: real value, market's call, settles here.
+- There is no range rail and no markets table: the chart IS the instrument,
+  and additional markets are a count in the sub-line, not a list.
 
 ### T6. Disclosure boundary: the ballot on Open workspaces, counts elsewhere
 

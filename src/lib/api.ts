@@ -220,6 +220,8 @@ export interface PublicWorkspace {
   /** The metric's own description: the owner's provenance statement. */
   heroMetricDescription?: string | null;
   tradesThisWeek?: number;
+  /** The market's call after each trade of the hero market (the amber line). */
+  marketHistory?: Array<{ at: string; consensus: number | null }>;
 }
 
 export interface PublicProposalMarketPair {

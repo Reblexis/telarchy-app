@@ -1,6 +1,6 @@
 import { db } from '../db/client';
-import { agents, markets, positions, proposals, trades } from '../db/schema';
-import { eq, and, inArray, sql, count } from 'drizzle-orm';
+import { agents, markets, positions, proposals, trades, liquidityEvents } from '../db/schema';
+import { eq, and, inArray, sql, count, asc, gt } from 'drizzle-orm';
 import { getAllMetrics, buildConsensusMap, metricValueAsOf } from './metrics';
 import { voidMarket, distributeLPLeftover } from './markets';
 import { toUnits } from '../lib/validation';
@@ -275,4 +275,79 @@ export async function getMarkets(options: GetMarketsOptions | boolean = false, p
       tradedVolume: m.tradedVolume ?? 0,
     };
   });
+}
+
+export interface MarketTradePoint {
+  agentId: string;
+  direction: string;
+  shares: number;
+  cost: number;
+  consensus: number | null;
+  createdAt: Date;
+}
+
+/**
+ * Reconstruct the consensus right after each trade of a market. Naively
+ * summing trade shares is wrong: liquidity injections rescale the whole share
+ * vector (and b) between trades, so trades AND injections are replayed in
+ * chronological order; the final point equals the live consensus exactly.
+ * Seeding runningLiquidity with the market's current b is exact for
+ * never-injected markets, and corrected at the first injection otherwise
+ * (creation leaves shares [0,0], so pre-injection scaling is a no-op).
+ *
+ * Shared by GET /markets/:id/trades (the members' trade log) and the public
+ * trading floor's consensus series (the amber line on the hero chart).
+ */
+export async function replayMarketTradePoints(marketId: string, workspaceId: string): Promise<MarketTradePoint[]> {
+  const [market] = await db.select().from(markets)
+    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.id, marketId)));
+  if (!market) return [];
+
+  const rows = await db.select().from(trades)
+    .where(and(eq(trades.workspaceId, workspaceId), eq(trades.marketId, marketId)))
+    .orderBy(asc(trades.createdAt));
+
+  const liqRows = await db.select().from(liquidityEvents)
+    .where(and(
+      eq(liquidityEvents.workspaceId, workspaceId),
+      eq(liquidityEvents.marketId, marketId),
+      gt(liquidityEvents.totalLiquidity, 0),
+    ))
+    .orderBy(asc(liquidityEvents.createdAt));
+
+  type Ev =
+    | { at: number; kind: 'trade'; trade: typeof rows[number] }
+    | { at: number; kind: 'liquidity'; totalLiquidity: number };
+  const events: Ev[] = [
+    ...rows.map(t => ({ at: t.createdAt.getTime(), kind: 'trade' as const, trade: t })),
+    ...liqRows.map(l => ({ at: l.createdAt.getTime(), kind: 'liquidity' as const, totalLiquidity: l.totalLiquidity })),
+  ];
+  events.sort((a, b) => a.at - b.at || (a.kind === b.kind ? 0 : a.kind === 'liquidity' ? -1 : 1));
+
+  let runningShares: [number, number] = [0, 0];
+  let runningLiquidity = market.liquidity;
+  const tradePoints: MarketTradePoint[] = [];
+  for (const ev of events) {
+    if (ev.kind === 'liquidity') {
+      if (runningLiquidity > 0 && ev.totalLiquidity > 0) {
+        const ratio = ev.totalLiquidity / runningLiquidity;
+        runningShares = [runningShares[0] * ratio, runningShares[1] * ratio];
+      }
+      runningLiquidity = ev.totalLiquidity;
+      continue;
+    }
+    const t = ev.trade;
+    const directionIndex = t.direction === 'higher' ? 1 : 0;
+    runningShares = [...runningShares] as [number, number];
+    runningShares[directionIndex] += t.shares;
+    tradePoints.push({
+      agentId: t.agentId,
+      direction: t.direction,
+      shares: Math.abs(t.shares),
+      cost: t.cost,
+      consensus: consensus(runningShares, runningLiquidity, market.rangeMin, market.rangeMax) ?? null,
+      createdAt: t.createdAt,
+    });
+  }
+  return tradePoints;
 }

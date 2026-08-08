@@ -6,6 +6,7 @@ import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireIdentity } from '../middleware/roles';
 import { consensus, pHigher } from '../lib/amm';
+import { replayMarketTradePoints } from '../services/predictions';
 import { periodEndInstant, resolutionInstant } from '../lib/date-utils';
 import { ensureSystemGroups } from './groups';
 import { getGroupMemberIds, getOwnerHandles, getParticipantDisplayNames } from '../lib/participants';
@@ -344,7 +345,13 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
   let heroHistory: Array<{ at: Date | null; value: number }> | undefined;
   let heroMetricDescription: string | null | undefined;
   let tradesThisWeek: number | undefined;
+  let marketHistory: Array<{ at: Date; consensus: number | null }> | undefined;
   if (publicCaps.includes('read')) {
+    const heroMarketId = marketList[0]?.marketId as string | undefined;
+    if (heroMarketId) {
+      const points = await replayMarketTradePoints(heroMarketId, workspaceId);
+      marketHistory = points.slice(-500).map(pt => ({ at: pt.createdAt, consensus: pt.consensus }));
+    }
     const heroMetricId = marketList[0]?.metricId as string | undefined;
     if (heroMetricId) {
       const [metricRow] = await db.select({ description: metrics.description })
@@ -467,6 +474,7 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
       heroHistory,
       heroMetricDescription,
       tradesThisWeek,
+      marketHistory,
     } : {}),
   });
 }));
