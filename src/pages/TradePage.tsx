@@ -316,7 +316,7 @@ export function TradePage() {
               <div className="pubws-position">
                 {positions.map(p => (
                   <span key={p.direction}>
-                    you hold {p.shares.toFixed(1)} sh {p.direction} (in for {p.totalCost.toFixed(0)} cr)
+                    you hold {p.shares.toFixed(1)} sh {p.direction}
                     {' '}
                     <button className="pubws-sell" disabled={tradeBusy !== null} onClick={() => sellPosition(p)}>
                       {tradeBusy === `sell-${p.direction}` ? 'selling…' : 'sell'}
