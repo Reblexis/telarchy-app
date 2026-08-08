@@ -9,6 +9,12 @@
  * auto-provisioned participant so the claim is credit-neutral.
  */
 
+// This suite tests the key-first onboarding flow itself, which is PAUSED in
+// production behind the trader-first gate (vision.md, 2026-08-08). Open the
+// gate for these tests; the closed-gate behavior is pinned in
+// workspace-creation-gate.test.ts.
+process.env.OWNER_ONBOARDING_OPEN = '1';
+
 jest.mock('../db/client', () => require('./harness/test-db'));
 
 // Simulated browser session: tests set SESSION_UID to control req.auth.uid.

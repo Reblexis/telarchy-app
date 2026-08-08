@@ -75,16 +75,26 @@ export function Sidebar({ className = '' }: { className?: string }) {
   const currentPath = location.pathname;
   const canAccessWorkspace = workspace?.tier && workspace.tier !== 'none';
   const isAdmin = workspace?.tier === 'admin';
-  const workspaceLinks = [
-    { tab: 'metrics', label: 'Metrics' },
-    ...(isAdmin ? [{ tab: 'check-in', label: 'Check-in' }] : []),
-    { tab: 'proposals', label: 'Proposals' },
-    { tab: 'markets', label: 'Markets' },
-    ...(isAdmin ? [{ tab: 'participants', label: 'Participants' }] : []),
-    { tab: 'sources', label: 'Sources' },
-    { tab: 'activity', label: 'Activity' },
-    ...(isAdmin ? [{ tab: 'settings', label: 'Settings' }] : []),
-  ];
+  // Trader-first (vision.md, 2026-08-08): a trader's subnav leads with the
+  // tradeable surfaces and hides owner plumbing entirely (sources, check-in,
+  // participants, settings). Admins keep the full management order.
+  const workspaceLinks = isAdmin
+    ? [
+        { tab: 'metrics', label: 'Metrics' },
+        { tab: 'check-in', label: 'Check-in' },
+        { tab: 'proposals', label: 'Proposals' },
+        { tab: 'markets', label: 'Markets' },
+        { tab: 'participants', label: 'Participants' },
+        { tab: 'sources', label: 'Sources' },
+        { tab: 'activity', label: 'Activity' },
+        { tab: 'settings', label: 'Settings' },
+      ]
+    : [
+        { tab: 'markets', label: 'Markets' },
+        { tab: 'proposals', label: 'Proposals' },
+        { tab: 'metrics', label: 'Metrics' },
+        { tab: 'activity', label: 'Activity' },
+      ];
   const WORKSPACE_TABS = ['overview', 'metrics', 'check-in', 'proposals', 'markets', 'participants', 'sources', 'activity', 'settings'];
   // A workspace tab is the last path segment in both the flat (/metrics) and
   // namespaced (/{owner}/{slug}/metrics) forms.
@@ -203,9 +213,15 @@ export function Sidebar({ className = '' }: { className?: string }) {
               </div>
             );
           })}
-          <Link to="/create-workspace" className="sidebar-nav-item sidebar-nav-muted">
-            + Create workspace
-          </Link>
+          {workspace?.platformAdmin ? (
+            <Link to="/create-workspace" className="sidebar-nav-item sidebar-nav-muted">
+              + Create workspace
+            </Link>
+          ) : (
+            <Link to="/manage" className="sidebar-nav-item sidebar-nav-muted">
+              Run your own workspace →
+            </Link>
+          )}
         </div>
       )}
 

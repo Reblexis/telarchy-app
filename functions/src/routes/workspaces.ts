@@ -4,7 +4,7 @@ import {
   workspaces, workspaceSlugAliases, workspaceOrderings, permissionGroups,
   markets, positions, trades, liquidityEvents,
   metrics, proposals, proposalMessages, updates, metricLogs, events,
-  hookWatcher, agentApiKeys,
+  hookWatcher, agentApiKeys, agents,
 } from '../db/schema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
@@ -45,6 +45,24 @@ workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
   // Master API key has no real identity; use a synthetic one.
   const identity = uid ?? agentId ?? (isMasterKey ? 'admin' : undefined);
   if (!identity) { res.status(403).json({ error: 'Identity required to create a workspace' }); return; }
+
+  // Trader-first sequencing (vision.md, owner decision 2026-08-08): every
+  // account is a trader; workspace creation is waitlisted until trader demand
+  // is proven. Platform admins and the master key provision workspaces for
+  // design partners by hand; everyone else is pointed at the waitlist.
+  if (!isMasterKey) {
+    const callerId = agentId ?? uid;
+    const [caller] = callerId
+      ? await db.select({ platformAdmin: agents.platformAdmin }).from(agents).where(eq(agents.id, callerId))
+      : [];
+    if (caller?.platformAdmin !== true) {
+      res.status(403).json({
+        error: 'Workspace creation is currently invite-only while Telarchy is trader-first. Join the owner waitlist.',
+        waitlist: 'https://telarchy.com/manage',
+      });
+      return;
+    }
+  }
 
   // For browser users, agentId may not be on req.auth if resolveUser returned null
   // (e.g. timing edge case). The identity string (uid) is the same as the agent ID

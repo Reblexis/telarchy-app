@@ -1,5 +1,5 @@
-import { useState, FormEvent, CSSProperties } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, FormEvent, CSSProperties } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { api, setActiveWorkspace } from '../lib/api';
 import { clearCache } from '../lib/cache';
 import { useAuth } from '../hooks/useAuth';
@@ -40,6 +40,20 @@ function clickable(onPick: () => void, extra: CSSProperties = {}): React.HTMLAtt
 
 export function CreateWorkspacePage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+
+  // Trader-first (vision.md, 2026-08-08): workspace creation is invite-only,
+  // so only platform admins reach this form; everyone else lands on the
+  // owner waitlist. The backend enforces the same gate on POST /api/workspaces.
+  useEffect(() => {
+    if (!user) return;
+    api.getProfile()
+      .then((p: { platformAdmin?: boolean }) => {
+        if (p.platformAdmin !== true) navigate('/manage', { replace: true });
+      })
+      .catch(e => { console.error('profile check failed:', e); navigate('/manage', { replace: true }); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const [step, setStep] = useState<'category' | 'template' | 'config'>('category');
   const [category, setCategory] = useState<Category | null>(null);

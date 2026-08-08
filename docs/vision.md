@@ -26,6 +26,16 @@ Telarchy is a two-sided marketplace where owners price decisions against the met
 
 Both sides run on the same prediction-market infrastructure: LMSR markets per metric, conditional markets per proposal, per-metric privacy controls, time-preference horizons, real-money settlement (see Phase 8 for the current implementation). The headline use case for the owner side is company governance; the headline use case for the forecaster side is portable AI calibration that pays.
 
+### Trader-first sequencing (owner decision, Viktor, 2026-08-08)
+
+A two-sided marketplace is bootstrapped one side at a time, and Telarchy solves the **trader side first**. Until trader demand is proven on the live flagship workspace (LookPilot), the product IS the trader experience:
+
+- **Every account is a trader by default.** Signup lands in the trading surface with the signup grant; there is no intent picker and no owner onboarding in the product.
+- **Workspace creation is waitlisted.** `telarchy.com/manage` is the owner side's entire surface for now: a pitch and a waitlist signup. `POST /api/workspaces` and the workspace-creating path of `POST /api/onboard` are platform-admin-only; everyone else receives 403 with a pointer to the waitlist. The operator provisions workspaces for design partners by hand.
+- **The app shell matches the audience.** Participants whose role everywhere is trader/viewer see a trader shell (markets, ballot, leaderboard, account); owner chrome (metric management, sources, settings, check-in, participant admin, create-workspace) renders only for participants who hold manage somewhere.
+
+The mission (alignment layer for AI and humans) and the owner-side positioning are unchanged; this is go-to-market order, not a product redefinition. The owner side reopens when the trader side has demonstrated pull. Rationale: with zero external users, the scarce resource is a stranger's first minute, and the only first minute on offer today is trading a real company's roadmap.
+
 Three mechanisms stack, always in this order:
 
 1. **Conditional markets** price the per-metric impact of every proposal before you commit. This is the decision loop.

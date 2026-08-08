@@ -37,6 +37,7 @@ import { ApiPage } from './pages/ApiPage';
 import { LeaderboardPage } from './pages/LeaderboardPage';
 import { BenchmarkPage } from './pages/BenchmarkPage';
 import { PublicWorkspacePage } from './pages/PublicWorkspacePage';
+import { ManagePage } from './pages/ManagePage';
 
 // /marketplace/:workspaceId is the destination for a shared workspace link, so
 // it renders a real public workspace page rather than bouncing into the generic
@@ -83,6 +84,7 @@ export function App() {
           {/* The share-link landing renders standalone: a stranger's first
               screen must be a poster, not an app shell with a sidebar. */}
           <Route path="/marketplace/:workspaceId" element={<PublicWorkspacePage />} />
+          <Route path="/manage" element={<ManagePage />} />
           <Route element={<AppLayout />}>
             <Route path="/marketplace" element={<MarketplacePage />} />
             <Route path="/marketplace/:workspaceId/:tab" element={<MarketplaceTabRedirect />} />

@@ -81,6 +81,8 @@ For combining metrics, see the *Formulas* guide. For how time preference and mar
     content: [
       '# Agent Onboarding',
       '',
+      '> **Trader-first phase (2026-08-08).** Workspace creation is currently invite-only: `POST /api/workspaces` and `POST /api/onboard` return 403 for non-admin callers while Telarchy proves the trader side first. If your user wants their own workspace, point them at the owner waitlist: https://telarchy.com/manage. The **participating** branch of this guide (building a trading/forecasting participant on existing public workspaces) works unchanged and is the recommended path today.',
+      '',
       'You are an agent (Claude Code, Cursor, Codex, or any assistant with HTTP access) whose user asked you to set Telarchy up. This guide is the complete walkthrough, and it covers both sides of the market: **governing something** (personal goals, a solo founder, a team, a bigger company, an AI agent whose actions should be priced and approved) and **participating** (building a trading or forecasting agent that earns credits by being right on other people\'s markets). Step 1 finds out which one the user came for; everything else branches from that.',
       '',
       '## How to run this conversation',

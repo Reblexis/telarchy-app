@@ -7695,3 +7695,30 @@ code, pre, kbd, samp {
 
 .pubws-foot a { color: var(--text-secondary); text-decoration: none; }
 .pubws-foot a:hover { color: var(--text-primary); }
+
+/* Owner waitlist form on /manage: one input, one button, same pill language. */
+.pubws-waitform {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  max-width: 30rem;
+  margin: 0 auto;
+}
+
+.pubws-waitform input {
+  flex: 1;
+  min-width: 14rem;
+  padding: 0.85rem 1.1rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.95rem;
+}
+
+.pubws-waitform input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}

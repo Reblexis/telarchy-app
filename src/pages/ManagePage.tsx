@@ -1,0 +1,81 @@
+import { useState, FormEvent } from 'react';
+import { Link } from 'react-router-dom';
+
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
+/**
+ * The owner side's entire surface while Telarchy is trader-first
+ * (vision.md, owner decision 2026-08-08): a pitch and a waitlist form.
+ * Workspace creation is invite-only until trader demand is proven, so
+ * everything that used to funnel into create-workspace points here instead.
+ * Reuses the share-link landing's design language (.pubws-*): same poster
+ * discipline, one action.
+ */
+export function ManagePage() {
+  const [email, setEmail] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [done, setDone] = useState(false);
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setSubmitting(true);
+    const res = await fetch(`${API_BASE}/api/waitlist`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok && res.status !== 409) {
+      setError(data.error || 'Something went wrong');
+      setSubmitting(false);
+      return;
+    }
+    // 409 = already on the list; from the visitor's side that IS success.
+    setDone(true);
+    setSubmitting(false);
+  };
+
+  return (
+    <div className="pubws">
+      <nav className="pubws-topbar">
+        <Link to="/" className="pubws-wordmark">Telarchy</Link>
+        <Link to="/login" className="pubws-login">Log in</Link>
+      </nav>
+      <main className="pubws-main">
+        <header className="pubws-hero">
+          <h1 className="pubws-name">Run your own workspace</h1>
+          <p className="pubws-pitch">Your metrics. Your proposals. A market prices every move before you make it.</p>
+        </header>
+
+        <section className="pubws-act">
+          {done ? (
+            <p className="pubws-pitch">You&rsquo;re on the list. We open workspaces one at a time and you&rsquo;ll hear from us directly.</p>
+          ) : (
+            <form className="pubws-waitform" onSubmit={handleSubmit}>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="you@company.com"
+                aria-label="Email"
+              />
+              <button className="pubws-cta" type="submit" disabled={submitting}>
+                {submitting ? 'Joining…' : 'Join the waitlist'}
+              </button>
+            </form>
+          )}
+          <p className="pubws-fineprint">
+            Workspaces are invite-only while we grow the trader side. Waitlist first, invited in order.
+          </p>
+        </section>
+
+        <footer className="pubws-foot">
+          Just want to trade? <Link to="/marketplace">The live markets are open</Link>.
+        </footer>
+      </main>
+    </div>
+  );
+}

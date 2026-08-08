@@ -60,9 +60,19 @@ export function PersonaPicker() {
           setShouldShow(false);
           return;
         }
-        setShouldShow(true);
+        // Trader-first (vision.md, 2026-08-08): every new account IS a trader,
+        // so nobody is asked. The picker stays in the codebase for when the
+        // owner side reopens; until then the choice is made for the user,
+        // silently, the same way onPick would have.
+        api.upsertProfile({ intent: 'trader' })
+          .catch(e => console.error('PersonaPicker: upsertProfile failed', e));
+        adoptPersona('trader');
+        setShouldShow(false);
       } catch {
-        if (!cancelled) setShouldShow(true);
+        if (!cancelled) {
+          adoptPersona('trader');
+          setShouldShow(false);
+        }
       }
     })();
     return () => { cancelled = true; };

@@ -13,6 +13,8 @@ Telarchy is a two-sided marketplace. Owners price decisions; forecasters earn by
 
 The rest of this document is structured around the owner side (the historical entry point and the headline use case for the next 12 months). The forecaster side is treated as a first-class adjacent surface, not a side audience; see `docs/canvas/value-prop-canvas.html` Pages 3-4 for the forecaster-side detail.
 
+**Revised 2026-08-08 (Viktor): trader-first sequencing.** The live product leads with the forecaster/trader side until trader demand is proven on the flagship public workspace (LookPilot). Every account is a trader by default; workspace creation is waitlisted behind `telarchy.com/manage`; the owner-side funnel in this document (agent-prompt onboarding, template-driven workspace creation) is paused rather than deleted and reopens once the trader side pulls. Decision detail: `vision.md`, "Trader-first sequencing".
+
 ## What's Already Built
 
 - Full LMSR prediction market engine with binary trading (buy/sell, AMM shares, balance deduction)

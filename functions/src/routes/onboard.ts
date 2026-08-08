@@ -34,7 +34,29 @@ function publicOrigin(): string {
   return process.env.BETTER_AUTH_URL?.trim() || 'https://telarchy.com';
 }
 
+/**
+ * Trader-first sequencing (vision.md, owner decision 2026-08-08): this
+ * endpoint's job is key-first OWNER onboarding (identity + workspace in one
+ * unauthenticated call), and the owner side is waitlisted until trader demand
+ * is proven. The flow is paused, not deleted; flipping this constant reopens
+ * it, and vision.md owns the decision to do so. Traders sign up through the
+ * normal signup or POST /api/agents/register; admins provision workspaces via
+ * POST /api/workspaces with the master key.
+ *
+ * Env-driven (OWNER_ONBOARDING_OPEN=1) rather than a code constant so the
+ * reopen is an operational flip, and so the paused flow's tests keep running
+ * against the real handlers.
+ */
+const OWNER_ONBOARDING_OPEN = process.env.OWNER_ONBOARDING_OPEN === '1';
+
 onboardRouter.post('/', wrap(async (req, res) => {
+  if (!OWNER_ONBOARDING_OPEN) {
+    res.status(403).json({
+      error: 'Workspace creation is currently invite-only while Telarchy is trader-first. Join the owner waitlist, or sign up as a trader instead.',
+      waitlist: 'https://telarchy.com/manage',
+    });
+    return;
+  }
   const { agentId: requestedId, nickname, bio, workspace } = req.body ?? {};
 
   let participantId: string;

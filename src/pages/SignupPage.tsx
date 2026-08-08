@@ -55,7 +55,7 @@ export function SignupPage() {
     }
 
     setSubmitting(false);
-    navigate(next ?? '/welcome');
+    navigate(next ?? '/marketplace');
   };
 
   const handleOAuthConsentGate = () => {

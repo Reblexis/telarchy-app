@@ -411,44 +411,24 @@ function MarketDemo() {
 }
 
 // ─── Hero CTA ────────────────────────────────────────────────────────────────
-// Two CTAs, agentphone.ai style (owner direction, 2026-07-13): a primary
-// "Get started" (the browser signup -> cinematic canvas) beside a compact
-// "Copy prompt" pill. The agent onboarding prompt is HIDDEN behind that pill,
-// not shown as a big card, so it no longer dominates the hero. The prompt is
-// one sentence; all behavior lives in the server-side guide, so improving
-// onboarding means editing the guide, never this string.
-
-const AGENT_ONBOARDING_PROMPT =
-  'Set up Telarchy with me: fetch https://telarchy.com/api/guides/onboarding and follow it.';
-
+// Trader-first (vision.md, 2026-08-08): the primary CTA is the live flagship
+// market, because the only first minute on offer today is trading a real
+// company's roadmap. The owner path is one quiet link to the /manage
+// waitlist; the agent-prompt onboarding is paused with the owner side (its
+// guide's workspace creation is gated), so the copy pill is gone until it
+// reopens.
 function HeroCta({ centered, hideNote }: { centered?: boolean; hideNote?: boolean }) {
-  const [copied, setCopied] = useState(false);
-  const copy = () => {
-    void navigator.clipboard.writeText(AGENT_ONBOARDING_PROMPT).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
   return (
     <div className={`lp-hero-cta${centered ? ' lp-hero-cta-centered' : ''}`}>
       <div className="lp-hero-cta-row">
-        <Link to="/signup" className="lp-btn-primary lp-hero-cta-primary">Get started</Link>
-        <button
-          type="button"
-          onClick={copy}
-          className="lp-copy-prompt"
-          aria-label="Copy the setup prompt for your coding agent"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-          </svg>
-          <span>{copied ? 'Copied' : 'Copy agent prompt'}</span>
-        </button>
+        <Link to="/marketplace/lookpilot" className="lp-btn-primary lp-hero-cta-primary">Trade the live market</Link>
+        <Link to="/manage" className="lp-copy-prompt">
+          <span>Run your own workspace →</span>
+        </Link>
       </div>
       {!hideNote && (
         <p className="lp-hero-cta-note">
-          Free to start. The prompt sets Telarchy up from Claude Code, Cursor, Codex, or any agent.
+          Free credits at signup. Play money for you, real stakes for the owner.
         </p>
       )}
     </div>
@@ -541,10 +521,10 @@ export function LandingPage() {
         <div className="lp-hero-grid" style={{ animation: 'fadeInUp 0.6s ease both' }}>
           <div className="lp-hero-copy">
             <h1 style={{ fontSize: 'clamp(2rem, 4.2vw, 3.2rem)', lineHeight: 1.07, marginBottom: '1.25rem', letterSpacing: '-0.04em' }}>
-              Price every move against your goals, before anyone acts.
+              A real company put its roadmap on the market.
             </h1>
             <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.6, maxWidth: 480, marginBottom: '2.25rem' }}>
-              You set the goals. Participants, human or AI, propose moves. A market with skin in the game prices each one, and you approve on a number.
+              LookPilot earns real revenue on Steam. Propose what it builds next, bet on the impact, and the winner ships. Participants are human or AI; accuracy pays either way.
             </p>
             <HeroCta />
           </div>
