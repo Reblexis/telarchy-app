@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, setActiveWorkspace, type PublicWorkspace, type PublicProposal } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
+import { previewTrade } from '../lib/amm';
+import { linkify } from '../lib/linkify';
 
 /**
  * The trading floor at telarchy.com/<slug> (owner decision, 2026-08-08):
@@ -76,6 +78,26 @@ function useCountUp(target: number | null, from: number | null): number | null {
     return () => cancelAnimationFrame(raf);
   }, [target, from]);
   return value ?? target;
+}
+
+/** The evidence line: the hero metric's real logged history as a bare
+ *  polyline. No axes, no chart library; the shape is the message. */
+function Sparkline({ points }: { points: Array<{ at: string; value: number }> }) {
+  if (points.length < 2) return null;
+  const w = 220, h = 40, pad = 2;
+  const vals = points.map(p => p.value);
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const span = max - min || 1;
+  const d = points.map((p, i) => {
+    const x = pad + (i / (points.length - 1)) * (w - 2 * pad);
+    const y = h - pad - ((p.value - min) / span) * (h - 2 * pad);
+    return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  return (
+    <svg className="pubws-spark" viewBox={`0 0 ${w} ${h}`} role="img" aria-label={`Recent history, ${formatValue(min)} to ${formatValue(max)}`}>
+      <path d={d} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 interface HeroPosition { direction: 'higher' | 'lower'; shares: number; totalCost: number }
@@ -201,7 +223,11 @@ export function TradePage() {
     setPErr('');
     setPBusy(true);
     try {
-      await api.createProposal({ title: pTitle.trim(), description: pDesc.trim() });
+      // The listing stake seeds the proposal's own markets (20 cr per branch)
+      // so a fresh proposal is priceable the moment it appears, instead of
+      // spawning the dead b=0 pair the UX audit caught. It is an LP position,
+      // not a fee: refunded pro-rata when the markets resolve or void.
+      await api.createProposal({ title: pTitle.trim(), description: pDesc.trim(), liquiditySubsidy: 20 });
       setPTitle(''); setPDesc(''); setProposeOpen(false);
       reload();
     } catch (e) {
@@ -259,7 +285,7 @@ export function TradePage() {
       <main className="pubws-main">
         <header className="pubws-hero">
           <h1 className="pubws-name">{ws.name}</h1>
-          {ws.description && <p className="pubws-pitch">{ws.description}</p>}
+          {ws.description && <p className="pubws-pitch">{linkify(ws.description)}</p>}
         </header>
 
         {hero && displayConsensus !== null && (
@@ -276,7 +302,16 @@ export function TradePage() {
             <div className="pubws-instrument-sub">
               settles {settleDate(hero.resolvesOn)}
               {ws.markets.length > 1 && <> · one of {ws.markets.length} open markets</>}
+              {(ws.tradesThisWeek ?? 0) > 0 && <> · {ws.tradesThisWeek} trades this week</>}
             </div>
+            {(ws.heroHistory?.length ?? 0) >= 2 && (
+              <div className="pubws-evidence">
+                <Sparkline points={ws.heroHistory!} />
+                {ws.heroMetricDescription && (
+                  <div className="pubws-provenance">{linkify(ws.heroMetricDescription)}</div>
+                )}
+              </div>
+            )}
           </section>
         )}
 
@@ -309,9 +344,16 @@ export function TradePage() {
                 {tradeBusy === 'hero-higher' ? '…' : '▲ Higher'}
               </button>
             </div>
-            <p className="pubws-fineprint">
-              think it ends {displayConsensus !== null ? `above or below ${formatValue(displayConsensus)}` : 'higher or lower'}? put credits on it
-            </p>
+            {hero && amountNum > 0 && (() => {
+              const up = previewTrade(hero.probability, hero.liquidity, 'higher', amountNum).shares;
+              const down = previewTrade(hero.probability, hero.liquidity, 'lower', amountNum).shares;
+              return (
+                <p className="pubws-fineprint">
+                  {amountNum} cr pays up to <span className="pubws-pay">{formatValue(up)}</span> on higher
+                  {' '}· <span className="pubws-pay">{formatValue(down)}</span> on lower
+                </p>
+              );
+            })()}
             {positions.length > 0 && (
               <div className="pubws-position">
                 {positions.map(p => (
@@ -421,10 +463,13 @@ export function TradePage() {
                   />
                   <div className="pubws-propose-row">
                     <button className="pubws-cta pubws-cta--small" disabled={pBusy} onClick={() => void submitProposal()}>
-                      {pBusy ? 'Submitting…' : 'Put it on the ballot'}
+                      {pBusy ? 'Submitting…' : 'Put it on the ballot · 40 cr stake'}
                     </button>
                     <button className="pubws-ghost" onClick={() => setProposeOpen(false)}>Cancel</button>
                   </div>
+                  <p className="pubws-proposal-meta">
+                    The stake seeds your proposal&rsquo;s own market so it is priceable immediately; it is a liquidity position, refunded pro-rata at resolution, not a fee.
+                  </p>
                   {pErr && <p className="pubws-joinerr">{pErr}</p>}
                 </div>
               ) : (
@@ -457,7 +502,7 @@ export function TradePage() {
           <details className="pubws-deal">
             <summary>The full deal</summary>
             <div className="pubws-deal-body">
-              {ws.charter.split('\n\n').map((para, i) => <p key={i}>{para}</p>)}
+              {ws.charter.split('\n\n').map((para, i) => <p key={i}>{linkify(para)}</p>)}
             </div>
           </details>
         )}

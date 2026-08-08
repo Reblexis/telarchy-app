@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/client';
-import { workspaces, markets, metrics, agents, trades, permissionGroups, proposals } from '../db/schema';
+import { workspaces, markets, metrics, metricLogs, agents, trades, permissionGroups, proposals } from '../db/schema';
 import { eq, and, gt, gte, count, desc, inArray, sql } from 'drizzle-orm';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
@@ -269,6 +269,7 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
     const shares = (m.shares as [number, number]) || [0, 0];
     return {
       marketId: m.id,
+      metricId: m.metricId,
       metricName: m.metricName,
       targetDate: m.targetDate,
       resolvesOn: resolutionInstant(m.targetDate),
@@ -335,6 +336,33 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
   // `read` keep the counts-only boundary.
   let openProposals: Array<Record<string, unknown>> | undefined;
   let decidedProposals: Array<Record<string, unknown>> | undefined;
+  // Trader context, same Open-workspace disclosure rule as the ballot: the
+  // hero metric's logged history (what a forecaster prices against), its
+  // description (the owner's provenance statement: where the number comes
+  // from), and a simple activity pulse. Without these the page asks people
+  // to bet on a number with no evidence, which serious forecasters refuse.
+  let heroHistory: Array<{ at: Date | null; value: number }> | undefined;
+  let heroMetricDescription: string | null | undefined;
+  let tradesThisWeek: number | undefined;
+  if (publicCaps.includes('read')) {
+    const heroMetricId = marketList[0]?.metricId as string | undefined;
+    if (heroMetricId) {
+      const [metricRow] = await db.select({ description: metrics.description })
+        .from(metrics).where(and(eq(metrics.workspaceId, workspaceId), eq(metrics.id, heroMetricId)));
+      heroMetricDescription = metricRow?.description ?? null;
+      const logs = await db.select({ at: metricLogs.timestamp, value: metricLogs.value })
+        .from(metricLogs)
+        .where(and(eq(metricLogs.workspaceId, workspaceId), eq(metricLogs.metricId, heroMetricId)))
+        .orderBy(desc(metricLogs.timestamp))
+        .limit(90);
+      heroHistory = logs.reverse();
+    }
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const [tradeCount] = await db.select({ n: sql<number>`count(*)::int` })
+      .from(trades)
+      .where(and(eq(trades.workspaceId, workspaceId), gte(trades.createdAt, weekAgo)));
+    tradesThisWeek = tradeCount?.n ?? 0;
+  }
   if (publicCaps.includes('read')) {
     const pending = await db.select().from(proposals)
       .where(and(eq(proposals.workspaceId, workspaceId), eq(proposals.status, 'pending')))
@@ -433,7 +461,13 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
     participantCount: participantIds.size,
     proposalStats,
     markets: marketList,
-    ...(openProposals !== undefined ? { proposals: openProposals, decided: decidedProposals } : {}),
+    ...(openProposals !== undefined ? {
+      proposals: openProposals,
+      decided: decidedProposals,
+      heroHistory,
+      heroMetricDescription,
+      tradesThisWeek,
+    } : {}),
   });
 }));
 

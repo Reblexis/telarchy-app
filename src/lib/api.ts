@@ -214,6 +214,12 @@ export interface PublicWorkspace {
    *  (an Open workspace, where contents are one free self-join away anyway). */
   proposals?: PublicProposal[];
   decided?: PublicDecidedProposal[];
+  /** Hero-metric logged history (oldest first), the evidence a forecaster
+   *  prices against. Same Open-workspace disclosure rule as the ballot. */
+  heroHistory?: Array<{ at: string; value: number }>;
+  /** The metric's own description: the owner's provenance statement. */
+  heroMetricDescription?: string | null;
+  tradesThisWeek?: number;
 }
 
 export interface PublicProposalMarketPair {
@@ -248,6 +254,7 @@ export interface PublicDecidedProposal {
  *  already knows which workspace it is showing. */
 export interface PublicWorkspaceMarket {
   marketId: string;
+  metricId: string;
   metricName: string;
   targetDate: string;
   resolvesOn: string;

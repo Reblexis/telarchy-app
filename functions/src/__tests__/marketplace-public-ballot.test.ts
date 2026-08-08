@@ -113,6 +113,28 @@ describe('public ballot disclosure gate', () => {
     expect(res.body.decided[0].declineReason).toBe('Costs more than 20 hours of work.');
   });
 
+  test('an Open workspace ships trader context: history, provenance, pulse', async () => {
+    await seed(['read', 'trade']);
+    // The hero context keys off the soonest baseline market; the shared seed
+    // only creates the conditional pair, so add the baseline here.
+    await db.insert(markets).values({
+      id: 'mkt-base', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
+      targetDate: '2028', rangeMin: 0, rangeMax: 100,
+      shares: [0, 0], liquidity: 100, pool: initialPool(100),
+      active: true, resolved: false, voided: false, proposalId: null,
+    });
+    const { metricLogs } = require('../db/schema');
+    await db.insert(metricLogs).values([
+      { id: 'log1', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue', value: 40, timestamp: new Date(Date.now() - 2 * 86400e3) },
+      { id: 'log2', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue', value: 50, timestamp: new Date(Date.now() - 1 * 86400e3) },
+    ]);
+
+    const res = await request(app).get(`/api/marketplace/${WS}`);
+    expect(res.status).toBe(200);
+    expect(res.body.heroHistory.map((h: { value: number }) => h.value)).toEqual([40, 50]);
+    expect(res.body.tradesThisWeek).toBe(0);
+  });
+
   test('a read-only-by-invitation workspace keeps the counts-only boundary', async () => {
     await seed([]);
 
@@ -121,6 +143,8 @@ describe('public ballot disclosure gate', () => {
 
     expect(res.body.proposals).toBeUndefined();
     expect(res.body.decided).toBeUndefined();
+    expect(res.body.heroHistory).toBeUndefined();
+    expect(res.body.tradesThisWeek).toBeUndefined();
     // Counts still present, contents absent from the whole payload.
     expect(res.body.proposalStats.total).toBe(2);
     expect(JSON.stringify(res.body)).not.toContain('Ship offline mode');

@@ -7923,3 +7923,33 @@ code, pre, kbd, samp {
 .pubws-ghost:hover { color: var(--text-primary); }
 
 .pubws-propose-open { margin-top: 0.9rem; }
+
+/* The evidence line: real history under the instrument. Ink at low opacity so
+   it reads as context, not a second chart competing with the price. */
+.pubws-evidence {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pubws-spark {
+  width: 220px;
+  height: 40px;
+  color: var(--text-secondary);
+  opacity: 0.85;
+}
+
+.pubws-provenance {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  max-width: 40ch;
+  text-align: center;
+}
+
+.pubws-pay {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
