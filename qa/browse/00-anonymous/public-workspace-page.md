@@ -70,19 +70,18 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
 - The workspace name renders as the page `h1`, matching `.name` from
   `curl -s /api/marketplace/<id>`.
 
-### T2. The meta line reports real counts, and never a raw participant id
+### T2. The meta line reports real counts and no owner handle
 
 **Steps:**
 1. `$B text ".public-ws-meta"`
-2. `curl -s "$TT_API_URL/api/marketplace/$WS" | jq '{ownerId, ownerHandle, participantCount, openMarketCount, metricCount}'`
+2. `curl -s "$TT_API_URL/api/marketplace/$WS" | jq '{participantCount, openMarketCount, metricCount}'`
 
 **Expected:**
 - Participant, open-market and metric counts match the API.
-- When the API returns `ownerHandle == ownerId` (the owner never set a
-  nickname) the "run by ..." clause is ABSENT. A 32-char hex id printed as
-  if it were a person's name reads as a bug to the exact audience this page
-  is for.
-- When `ownerHandle != ownerId`, the handle is shown.
+- There is no "run by ..." clause at all (owner decision, 2026-08-08): the
+  charter speaks in the owner's first person, and a platform handle next to
+  it reads as a third party, while a raw 32-char id reads as a bug. The
+  ownerId/ownerHandle fields stay in the API for clients that want them.
 
 ### T3. The join CTA states what joining actually grants
 

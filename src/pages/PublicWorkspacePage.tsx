@@ -117,9 +117,6 @@ export function PublicWorkspacePage() {
 
   const { proposalStats } = ws;
   const canTrade = ws.joinAs === 'trader';
-  // Suppress the raw participant id when the owner never set a nickname; a
-  // 32-char hex string reads as a bug, not a name (docs/user-flow-audit.md).
-  const ownerName = ws.ownerHandle && ws.ownerHandle !== ws.ownerId ? ws.ownerHandle : null;
   const hasBallot = ws.proposals !== undefined;
   const decided = ws.decided ?? [];
   // Markets arrive soonest-resolving first. A workspace with dozens of them
@@ -150,8 +147,10 @@ export function PublicWorkspacePage() {
     <div className="public-ws page">
       <header className="public-ws-head">
         <h1 className="public-ws-title">{ws.name}</h1>
+        {/* No "run by <handle>" clause: the charter speaks in the owner's own
+            first person, and a platform handle next to it reads as a third
+            party (a raw id reads as a bug). The identity lives in the charter. */}
         <p className="public-ws-meta">
-          {ownerName && <>run by {ownerName} · </>}
           {ws.participantCount} {ws.participantCount === 1 ? 'participant' : 'participants'} ·{' '}
           {ws.openMarketCount} open {ws.openMarketCount === 1 ? 'market' : 'markets'} ·{' '}
           {ws.metricCount} {ws.metricCount === 1 ? 'metric' : 'metrics'}
