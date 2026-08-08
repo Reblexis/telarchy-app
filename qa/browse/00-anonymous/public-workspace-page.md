@@ -189,6 +189,31 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
 
 None. This spec only reads.
 
+### T10. Slug share link and unfurl meta
+
+**Steps:**
+1. `SLUG=$(curl -s "$TT_API_URL/api/marketplace/$WS" | jq -r .slug)`
+2. `curl -s "$TT_API_URL/api/marketplace/$SLUG" | jq -r .workspaceId`
+3. `curl -s "$TT_FRONTEND_URL/marketplace/$SLUG" | grep -E 'og:title|og:description|<title>'`
+4. `$B goto "$TT_FRONTEND_URL/marketplace/$SLUG"` then `$B text`
+
+**Expected:**
+- The API resolves the slug to the same `workspaceId` as the id form.
+- The served HTML contains `<title><name> · Telarchy</title>` and og:title /
+  og:description carrying the workspace's own name and description (link
+  scrapers do not run JavaScript, so this must be server-injected).
+- The page renders identically to the id form.
+
+### T11. `?join=1` auto-joins a signed-in visitor
+
+**Steps (needs a throwaway account):**
+1. Sign up fresh, then `$B goto "$TT_FRONTEND_URL/marketplace/$SLUG?join=1"`.
+2. `$B url` after network idle.
+
+**Expected:** the page joins without a click and navigates to `/proposals`
+when open proposals exist, else `/markets`. Re-visiting with `?join=1` while
+already a member is idempotent (alreadyMember join, same navigation).
+
 ## Known gaps
 
 - No coverage of the join click-through itself (needs an account, so it

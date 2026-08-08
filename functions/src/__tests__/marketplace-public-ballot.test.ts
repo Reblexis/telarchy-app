@@ -134,4 +134,26 @@ describe('public ballot disclosure gate', () => {
     expect(res.body.maxPositionCostPerMarket).toBe(0);
     expect(res.body.joinAs).toBe('trader');
   });
+
+  test('the share-link slug form resolves to the same workspace', async () => {
+    await seed(['read', 'trade']);
+    const byId = await request(app).get(`/api/marketplace/${WS}`);
+    const slug = byId.body.slug as string;
+    expect(slug).toBeTruthy();
+
+    const bySlug = await request(app).get(`/api/marketplace/${slug.toUpperCase()}`);
+    expect(bySlug.status).toBe(200);
+    expect(bySlug.body.workspaceId).toBe(WS);
+  });
+
+  test('a slug never resolves to a private workspace', async () => {
+    await seed(['read', 'trade']);
+    const { workspaces } = require('../db/schema');
+    await db.update(workspaces).set({ visibility: 'private' }).where(eq(workspaces.id, WS));
+
+    const byId = await request(app).get(`/api/marketplace/${WS}`);
+    expect(byId.status).toBe(403);
+    const bySlug = await request(app).get('/api/marketplace/ballot-test');
+    expect(bySlug.status).toBe(404);
+  });
 });

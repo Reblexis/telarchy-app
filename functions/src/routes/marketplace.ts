@@ -236,11 +236,31 @@ marketplaceRouter.get('/workspaces/public', wrap(async (_req, res) => {
   })));
 }));
 
+/**
+ * Resolve a share-link segment to a non-private workspace: by id first, then
+ * by slug among public/unlisted workspaces. The slug form exists because the
+ * share link is the product's front door and a UUID in it reads as machinery;
+ * `telarchy.com/marketplace/lookpilot` is what an owner actually posts. Slugs
+ * are unique per owner, not globally, so an ambiguous slug (two public
+ * workspaces, different owners, same slug) resolves to none rather than to
+ * whichever the query returned first.
+ */
+export async function resolvePublicWorkspace(idOrSlug: string) {
+  const [byId] = await db.select().from(workspaces).where(eq(workspaces.id, idOrSlug));
+  if (byId) return byId;
+  const bySlug = await db.select().from(workspaces)
+    .where(and(
+      sql`lower(${workspaces.slug}) = lower(${idOrSlug})`,
+      inArray(workspaces.visibility, ['public', 'unlisted']),
+    ));
+  return bySlug.length === 1 ? bySlug[0] : undefined;
+}
+
 marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
-  const { workspaceId } = req.params as { workspaceId: string };
-  const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId));
+  const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
   if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
   if (ws.visibility === 'private') { res.status(403).json({ error: 'This workspace is private' }); return; }
+  const workspaceId = ws.id;
 
   const wsMarkets = await db.select().from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false), eq(markets.active, true)));

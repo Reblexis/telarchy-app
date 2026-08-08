@@ -112,9 +112,28 @@ import('./app').then(async ({ app }) => {
     // `/api-access`) still fall through to the SPA. The Express API router
     // mounts on `/api` and only matches when the next char is `/` or the
     // path is exactly `/api`, matching this boundary.
-    app.get('*', (req, res) => {
+    app.get('*', async (req, res) => {
       if (req.path === '/api' || req.path.startsWith('/api/')) return;
-      res.sendFile(path.join(publicDir, 'index.html'));
+      const indexPath = path.join(publicDir, 'index.html');
+      // Workspace share links get their own unfurl card: link scrapers do not
+      // run JavaScript, so the workspace name/description must be in the HTML
+      // the server sends. Any failure falls back to the plain SPA shell.
+      const shareMatch = req.path.match(/^\/marketplace\/([^/]+)$/);
+      if (shareMatch) {
+        try {
+          const { resolvePublicWorkspace } = await import('./routes/marketplace');
+          const ws = await resolvePublicWorkspace(decodeURIComponent(shareMatch[1]));
+          if (ws && ws.visibility !== 'private') {
+            const { injectWorkspaceMeta } = await import('./lib/share-meta');
+            const html = fs.readFileSync(indexPath, 'utf8');
+            res.type('html').send(injectWorkspaceMeta(html, ws, `https://telarchy.com${req.path}`));
+            return;
+          }
+        } catch (e) {
+          console.error('share-meta injection failed:', e);
+        }
+      }
+      res.sendFile(indexPath);
     });
   }
 

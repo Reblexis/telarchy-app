@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api, setActiveWorkspace, type PublicWorkspace, type PublicProposal } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 
@@ -61,38 +61,61 @@ function headlineDelta(p: PublicProposal): number | null {
 }
 
 export function PublicWorkspacePage() {
-  const { workspaceId } = useParams();
+  // The param may be a slug (the share-link form, /marketplace/lookpilot) or
+  // a raw id; every mutation below uses ws.workspaceId from the API payload,
+  // which is always the real id.
+  const { workspaceId: idOrSlug } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [ws, setWs] = useState<PublicWorkspace | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [joinState, setJoinState] = useState<'idle' | 'joining' | 'error'>('idle');
   const [joinError, setJoinError] = useState('');
+  const autoJoined = useRef(false);
 
   useEffect(() => {
-    if (!workspaceId) return;
-    api.getMarketplaceWorkspace(workspaceId)
+    if (!idOrSlug) return;
+    api.getMarketplaceWorkspace(idOrSlug)
       .then(setWs)
       .catch(e => {
         console.error('public workspace fetch failed:', e);
         setError(e instanceof Error ? e.message : 'Failed to load workspace');
       });
-  }, [workspaceId]);
+  }, [idOrSlug]);
 
-  const handleJoin = async () => {
-    if (!workspaceId) return;
-    if (!user) { navigate(`/signup?next=${encodeURIComponent(`/marketplace/${workspaceId}`)}`); return; }
+  const handleJoin = async (target?: PublicWorkspace) => {
+    const w = target ?? ws;
+    if (!w) return;
+    if (!user) {
+      // Come back here after signup and join without another click: the
+      // signup CTA promised "one minute to your first trade", so the flow
+      // must not end back on this page waiting for a second button press.
+      navigate(`/signup?next=${encodeURIComponent(`/marketplace/${idOrSlug}?join=1`)}`);
+      return;
+    }
     setJoinState('joining');
     try {
-      await api.joinWorkspace(workspaceId);
-      setActiveWorkspace(workspaceId);
-      // The ballot is the product, so land members on it.
-      navigate('/proposals');
+      await api.joinWorkspace(w.workspaceId);
+      setActiveWorkspace(w.workspaceId);
+      // Land on whatever is actually tradeable: the ballot when proposals
+      // exist, else the baseline markets. An empty proposals tab as the first
+      // member screen is a dead end.
+      navigate((w.proposals?.length ?? 0) > 0 ? '/proposals' : '/markets');
     } catch (err) {
       setJoinError((err as Error).message || 'Failed to join');
       setJoinState('error');
     }
   };
+
+  // Post-signup completion of the join the visitor already asked for.
+  useEffect(() => {
+    if (!ws || !user || autoJoined.current) return;
+    if (searchParams.get('join') !== '1') return;
+    autoJoined.current = true;
+    handleJoin(ws);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ws, user, searchParams]);
 
   // The metric context for delta numbers. When every priced pair shares one
   // metric (the deliberate single-metric workspace shape), name it once in
@@ -127,7 +150,7 @@ export function PublicWorkspacePage() {
   const hiddenMarkets = ws.markets.length - shownMarkets.length;
 
   const joinButton = (
-    <button className="btn" onClick={handleJoin} disabled={joinState === 'joining'}>
+    <button className="btn" onClick={() => handleJoin()} disabled={joinState === 'joining'}>
       {joinState === 'joining' ? 'joining…'
         : !user ? 'Sign up free to join'
         : canTrade ? 'Join and start trading'
