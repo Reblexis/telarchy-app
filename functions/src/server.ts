@@ -118,7 +118,20 @@ import('./app').then(async ({ app }) => {
       // Workspace share links get their own unfurl card: link scrapers do not
       // run JavaScript, so the workspace name/description must be in the HTML
       // the server sends. Any failure falls back to the plain SPA shell.
-      const shareMatch = req.path.match(/^\/marketplace\/([^/]+)$/);
+      // Single-segment paths that are app routes, never workspace slugs. A
+      // slug colliding with one of these is unreachable by design (creation
+      // is admin-only; do not name a workspace after an app route).
+      const RESERVED = new Set([
+        'login', 'signup', 'waitlist', 'claim', 'welcome', 'agent-login',
+        'terms', 'privacy', 'agent', 'manage', 'marketplace', 'leaderboard',
+        'benchmark', 'guides', 'tutorials', 'start', 'create-workspace',
+        'admin', 'agents', 'account', 'api-access', 'overview', 'metrics',
+        'markets', 'proposals', 'sources', 'activity', 'settings', 'check-in',
+        'participants',
+      ]);
+      const rootMatch = req.path.match(/^\/([^/.]+)$/);
+      const shareMatch = req.path.match(/^\/marketplace\/([^/]+)$/)
+        ?? (rootMatch && !RESERVED.has(rootMatch[1]) ? rootMatch : null);
       if (shareMatch) {
         try {
           const { resolvePublicWorkspace } = await import('./routes/marketplace');

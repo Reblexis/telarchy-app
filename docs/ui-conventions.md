@@ -151,11 +151,15 @@ The activity toolbar exposes a search input (filters summary, tags,
 and actor), a 1h/24h/7d/30d segmented range, and per-type text-only
 filter toggles (underline = active).
 
-## Share-link landing (public workspace page)
+## Trading floor (root slug page)
 
-`/marketplace/:idOrSlug` (`PublicWorkspacePage`, `.pubws-*` styles) renders
-**standalone**, outside `AppLayout`: a stranger's first screen is a poster,
-not an app shell with a sidebar. It deliberately breaks the workspace-tab
+`telarchy.com/<slug>` (`TradePage`, `.pubws-*` styles; `/marketplace/:idOrSlug`
+canonicalizes here) renders **standalone**, outside `AppLayout`: a stranger's
+first screen is a poster, not an app shell with a sidebar, and for a signed-in
+trader the same poster grows inline controls (amount + Lower/Higher under the
+instrument, position + sell, propose form, per-branch trading in expanded
+ballot rows) instead of navigating to the app. The direction pair uses the
+sanctioned green/red; everything else stays monochrome. It deliberately breaks the workspace-tab
 conventions (1080px tier, dense lists) because its job is different: one
 narrow centered column (~660px), one action, and radical reduction.
 

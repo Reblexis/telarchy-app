@@ -36,7 +36,7 @@ import { ActivityPage } from './pages/ActivityPage';
 import { ApiPage } from './pages/ApiPage';
 import { LeaderboardPage } from './pages/LeaderboardPage';
 import { BenchmarkPage } from './pages/BenchmarkPage';
-import { PublicWorkspacePage } from './pages/PublicWorkspacePage';
+import { TradePage } from './pages/TradePage';
 import { ManagePage } from './pages/ManagePage';
 
 // /marketplace/:workspaceId is the destination for a shared workspace link, so
@@ -83,7 +83,7 @@ export function App() {
           {/* Authenticated routes, all wrapped in AppLayout (sidebar) */}
           {/* The share-link landing renders standalone: a stranger's first
               screen must be a poster, not an app shell with a sidebar. */}
-          <Route path="/marketplace/:workspaceId" element={<PublicWorkspacePage />} />
+          <Route path="/marketplace/:workspaceId" element={<TradePage />} />
           <Route path="/manage" element={<ManagePage />} />
           <Route element={<AppLayout />}>
             <Route path="/marketplace" element={<MarketplacePage />} />
@@ -128,6 +128,10 @@ export function App() {
               <Route path="participants" element={<ParticipantsPage />} />
             </Route>
           </Route>
+          {/* Root-level slug: telarchy.com/<slug> IS the workspace's trading
+              floor (trader-first flip, 2026-08-08). Last so every static
+              route above wins; two-segment console routes are unaffected. */}
+          <Route path="/:slug" element={<TradePage />} />
         </Routes>
       </InspectModeProvider>
     </BrowserRouter>

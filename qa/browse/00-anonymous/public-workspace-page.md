@@ -13,7 +13,7 @@ goal-statement: |
   would grant me. All without an account.
 ---
 
-# Browse test: Public workspace page (`/marketplace/:workspaceId`)
+# Browse test: Trading floor (`telarchy.com/<slug>`)
 
 ## What this tests
 
@@ -57,16 +57,17 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
 
 ## Tests
 
-### T1. The URL stays put and the workspace is named
+### T1. Canonical URL is the root slug
 
 **Steps:**
-1. `$B url`
-2. `$B text`
+1. `$B goto "$TT_FRONTEND_URL/$SLUG"` then `$B url`
+2. `$B goto "$TT_FRONTEND_URL/marketplace/$WS"`, wait, then `$B url`
 
 **Expected:**
-- The URL is still `/marketplace/<id>`. It must NOT rewrite to
-  `/marketplace?workspace=<id>`: a shared link that loses its identity on
-  load cannot be linked to, bookmarked, or unfurled.
+- The root form loads directly and the URL stays `/<slug>`.
+- The legacy `/marketplace/<id-or-slug>` form still renders and
+  canonicalizes (replace-navigate) to `/<slug>` once the payload arrives, so
+  already-shared links keep working.
 - The workspace name renders as the page `h1`, matching `.name` from
   `curl -s /api/marketplace/<id>`.
 
@@ -209,15 +210,18 @@ None. This spec only reads.
   scrapers do not run JavaScript, so this must be server-injected).
 - The page renders identically to the id form.
 
-### T11. `?join=1` auto-joins a signed-in visitor
+### T11. Signed-in visitors trade in place (silent join)
 
 **Steps (needs a throwaway account):**
 1. Sign up fresh, then `$B goto "$TT_FRONTEND_URL/marketplace/$SLUG?join=1"`.
 2. `$B url` after network idle.
 
-**Expected:** the page joins without a click and navigates to `/proposals`
-when open proposals exist, else `/markets`. Re-visiting with `?join=1` while
-already a member is idempotent (alreadyMember join, same navigation).
+**Expected:** any signed-in visit to an Open workspace's trading floor joins
+silently (no `?join=1` needed, no navigation away); the page grows the trade
+controls in place: amount + Lower/Higher under the instrument, position line
+with sell after a trade, "+ Propose something" under the ballot, and
+per-branch trade buttons inside an expanded ballot row. Re-visits are
+idempotent (alreadyMember).
 
 ## Known gaps
 

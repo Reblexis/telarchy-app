@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { authClient } from '../lib/auth-client';
 import { OAuthButtons } from '../components/OAuthButtons';
 import { api } from '../lib/api';
-import { postLoginPath } from '../lib/postLoginPath';
+import { tradeHome } from '../lib/tradeHome';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -26,7 +26,7 @@ export function LoginPage() {
 
     const profile = await api.getProfile().catch(() => ({}));
     setSubmitting(false);
-    navigate(postLoginPath(profile as { authRole?: string }));
+    navigate(await tradeHome());
   };
 
   return (

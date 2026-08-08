@@ -1,5 +1,7 @@
-import { useState, FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState, FormEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { api } from '../lib/api';
+import { useAuth } from '../hooks/useAuth';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -12,7 +14,20 @@ const API_BASE = import.meta.env.VITE_API_URL || '';
  * discipline, one action.
  */
 export function ManagePage() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
+
+  // /manage is the owner door: the waitlist pitch for strangers, the real
+  // management console for platform admins (trader-first flip, 2026-08-08).
+  useEffect(() => {
+    if (!user) return;
+    api.getProfile()
+      .then((p: { platformAdmin?: boolean }) => {
+        if (p.platformAdmin === true) navigate('/overview', { replace: true });
+      })
+      .catch(e => console.error('profile check failed:', e));
+  }, [user, navigate]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);

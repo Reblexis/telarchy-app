@@ -15,7 +15,7 @@ export function OAuthButtons({ onError, beforeSignIn, disabled: disabledProp }: 
     if (beforeSignIn && !beforeSignIn()) return;
     setLoading(provider);
     // OAuth is a full-page redirect. The callbackURL is where the browser lands after auth.
-    // LandingPage (at "/") auto-redirects logged-in users via postLoginPath.
+    // LandingPage (at "/") auto-redirects logged-in users via tradeHome().
     const { error } = await authClient.signIn.social({
       provider,
       callbackURL: '/',

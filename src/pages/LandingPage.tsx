@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/api';
-import { postLoginPath } from '../lib/postLoginPath';
+import { tradeHome } from '../lib/tradeHome';
 import { popStashedNextPath } from '../lib/nextPath';
 import { Logo } from '../components/Logo';
 
@@ -421,7 +421,7 @@ function HeroCta({ centered, hideNote }: { centered?: boolean; hideNote?: boolea
   return (
     <div className={`lp-hero-cta${centered ? ' lp-hero-cta-centered' : ''}`}>
       <div className="lp-hero-cta-row">
-        <Link to="/marketplace/lookpilot" className="lp-btn-primary lp-hero-cta-primary">Trade the live market</Link>
+        <Link to="/lookpilot" className="lp-btn-primary lp-hero-cta-primary">Trade the live market</Link>
         <Link to="/manage" className="lp-copy-prompt">
           <span>Run your own workspace →</span>
         </Link>
@@ -469,10 +469,10 @@ export function LandingPage() {
     const stashedNext = popStashedNextPath();
     consentPromise.then(() =>
       api.getProfile()
-        .then((profile: { authRole?: string }) => {
-          navigate(stashedNext ?? postLoginPath(profile), { replace: true });
+        .then(async () => {
+          navigate(stashedNext ?? await tradeHome(), { replace: true });
         })
-        .catch(() => navigate(stashedNext ?? '/start', { replace: true }))
+        .catch(() => navigate(stashedNext ?? '/marketplace', { replace: true }))
     );
   }, [user, loading, navigate]);
 

@@ -4,6 +4,7 @@ import { authClient } from '../lib/auth-client';
 import { api } from '../lib/api';
 import { OAuthButtons } from '../components/OAuthButtons';
 import { readNextFromSearch, stashNextPath } from '../lib/nextPath';
+import { tradeHome } from '../lib/tradeHome';
 
 export function SignupPage() {
   const navigate = useNavigate();
@@ -55,7 +56,7 @@ export function SignupPage() {
     }
 
     setSubmitting(false);
-    navigate(next ?? '/marketplace');
+    navigate(next ?? await tradeHome());
   };
 
   const handleOAuthConsentGate = () => {

@@ -7722,3 +7722,204 @@ code, pre, kbd, samp {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+
+/* Trading floor controls (TradePage, logged-in state). The direction pair is
+   the sanctioned green/red use: up/down is the load-bearing distinction. */
+.pubws-topbar-me {
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+}
+
+.pubws-balance {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.pubws-tradebar {
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.pubws-amount {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0 0.9rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+}
+
+.pubws-amount input {
+  width: 4.2rem;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: right;
+  padding: 0.8rem 0;
+}
+
+.pubws-amount input:focus { outline: none; }
+.pubws-amount:focus-within { border-color: var(--accent); }
+
+.pubws-amount span {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.pubws-dir {
+  padding: 0.8rem 1.5rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.pubws-dir--higher { color: var(--higher); }
+.pubws-dir--lower { color: var(--lower); }
+.pubws-dir--higher:hover:not(:disabled) { background: var(--higher-soft); border-color: var(--higher); }
+.pubws-dir--lower:hover:not(:disabled) { background: var(--lower-soft); border-color: var(--lower); }
+.pubws-dir:disabled { opacity: 0.5; cursor: default; }
+.pubws-dir:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.pubws-dir--mini {
+  padding: 0.25rem 0.7rem;
+  font-size: 0.8rem;
+}
+
+.pubws-position {
+  margin-top: 0.9rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.pubws-sell {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 0.15em;
+}
+
+.pubws-ballot-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pubws-ballot li { display: block; }
+
+.pubws-ballot-detail { padding: 0.5rem 0 0.3rem; }
+
+.pubws-branches {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.pubws-branch {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-size: 0.85rem;
+}
+
+.pubws-branch-label {
+  min-width: 6.5rem;
+  color: var(--text-secondary);
+}
+
+.pubws-branch-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  min-width: 4.5rem;
+}
+
+.pubws-branch-btns { display: inline-flex; gap: 0.35rem; }
+
+.pubws-proposal-meta {
+  margin: 0.5rem 0 0;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+
+.pubws-propose {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.pubws-propose input,
+.pubws-propose textarea {
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.pubws-propose input:focus-visible,
+.pubws-propose textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.pubws-propose-row {
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.pubws-cta--small {
+  padding: 0.6rem 1.4rem;
+  font-size: 0.9rem;
+}
+
+.pubws-ghost {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.pubws-ghost:hover { color: var(--text-primary); }
+
+.pubws-propose-open { margin-top: 0.9rem; }
