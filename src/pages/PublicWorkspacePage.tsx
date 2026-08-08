@@ -4,66 +4,80 @@ import { api, setActiveWorkspace, type PublicWorkspace, type PublicProposal } fr
 import { useAuth } from '../hooks/useAuth';
 
 /**
- * The destination for a shared workspace link: /marketplace/:workspaceId.
+ * The share-link landing: /marketplace/:idOrSlug, rendered standalone (no app
+ * shell). One screen answers a stranger's three questions in order: what is
+ * this (name + one line), what is at stake (the market's call, rendered as an
+ * instrument over its real range), and what do I do (one button). The
+ * mechanism is three numbered lines; the full charter folds away until asked
+ * for. Everything else on the old page (meta counts, empty sections, a second
+ * CTA box, a markets table for a single market) was complexity a first-time
+ * visitor paid for and never spent.
  *
- * This page is most visitors' first and only impression, so it shows the
- * product, not a teaser. For an Open workspace (Public group grants read) the
- * API ships the ballot: pending proposals with their conditional-market
- * deltas, and recent decisions with their published decline reasons. The page
- * leads with that ballot, because "here is what is being decided and what the
- * market currently says" is the thing a stranger can act on; the charter and
- * the raw market list are the supporting material.
- *
- * The CTA states the actual terms (free credit grant, what joining grants,
- * the per-market buy cap) so fairness is a stated rule rather than something
- * taken on faith. Non-Open workspaces fall back to the counts-only view.
+ * The number is deliberately the largest element on the page, larger than the
+ * product's own name: the product's claim is that a market price, not a
+ * pitch, decides what ships. The range rail under it is the one signature
+ * element, and it encodes the true mechanism (an LMSR market over
+ * [rangeMin, rangeMax] whose consensus is the tick).
  */
 
-function formatConsensus(v: number | null, rangeMin: number, rangeMax: number): string {
-  if (v === null) return 'no price';
-  const span = rangeMax - rangeMin;
-  const decimals = span >= 100 ? 0 : span >= 10 ? 1 : 2;
-  return v.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+function formatValue(v: number): string {
+  const abs = Math.abs(v);
+  // A big price wears no decimals: "6,672", not "6,672.0". Precision only
+  // where the number is genuinely small.
+  const decimals = abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
+  return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+function formatCompact(v: number): string {
+  if (Math.abs(v) >= 1000) return `${(v / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 })}k`;
+  return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
 function formatDelta(delta: number): string {
   const abs = Math.abs(delta);
   const decimals = abs >= 100 ? 0 : abs >= 1 ? 1 : 2;
-  const num = abs.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  const num = abs.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
   return `${delta > 0 ? '+' : delta < 0 ? '-' : ''}${num}`;
 }
 
-function resolvesIn(iso: string): string {
-  const ms = new Date(iso).getTime() - Date.now();
-  if (!Number.isFinite(ms)) return '';
-  if (ms <= 0) return 'resolving';
-  const hours = ms / 3600000;
-  if (hours < 48) return `in ${Math.round(hours)}h`;
-  const days = hours / 24;
-  if (days < 60) return `in ${Math.round(days)}d`;
-  return `in ${Math.round(days / 30)}mo`;
+function settleDate(iso: string): string {
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return '';
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
 }
 
-/** A market nobody can meaningfully price: the first bet would slam the
- *  consensus to a rail. Saying so is better than showing a confident number
- *  that is really an untouched default. Mirrors the thin badge on the markets
- *  tab; see notes/market-liquidity-limit-orders-2026-07-16.md in the umbrella. */
-function isThin(liquidity: number, rangeMin: number, rangeMax: number): boolean {
-  const span = rangeMax - rangeMin;
-  return span > 0 && liquidity / span < 0.01;
-}
-
-/** The one delta a row leads with: the pair whose priced impact is largest. */
 function headlineDelta(p: PublicProposal): number | null {
   const deltas = p.markets.map(m => m.delta).filter((d): d is number => d !== null);
   if (deltas.length === 0) return null;
   return deltas.reduce((a, b) => (Math.abs(b) > Math.abs(a) ? b : a), deltas[0]);
 }
 
+/** Count-up for the hero price: the tick sliding to the market's call is the
+ *  page's one motion moment. Skipped entirely under prefers-reduced-motion. */
+function useCountUp(target: number | null, from: number | null): number | null {
+  const [value, setValue] = useState<number | null>(null);
+  const done = useRef(false);
+  useEffect(() => {
+    if (target === null || done.current) return;
+    done.current = true;
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced || from === null || from === target) { setValue(target); return; }
+    const t0 = performance.now();
+    const dur = 700;
+    let raf = 0;
+    const tick = (t: number) => {
+      const k = Math.min(1, (t - t0) / dur);
+      const ease = 1 - Math.pow(1 - k, 3);
+      setValue(from + (target - from) * ease);
+      if (k < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, from]);
+  return value ?? target;
+}
+
 export function PublicWorkspacePage() {
-  // The param may be a slug (the share-link form, /marketplace/lookpilot) or
-  // a raw id; every mutation below uses ws.workspaceId from the API payload,
-  // which is always the real id.
   const { workspaceId: idOrSlug } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -88,9 +102,6 @@ export function PublicWorkspacePage() {
     const w = target ?? ws;
     if (!w) return;
     if (!user) {
-      // Come back here after signup and join without another click: the
-      // signup CTA promised "one minute to your first trade", so the flow
-      // must not end back on this page waiting for a second button press.
       navigate(`/signup?next=${encodeURIComponent(`/marketplace/${idOrSlug}?join=1`)}`);
       return;
     }
@@ -98,9 +109,6 @@ export function PublicWorkspacePage() {
     try {
       await api.joinWorkspace(w.workspaceId);
       setActiveWorkspace(w.workspaceId);
-      // Land on whatever is actually tradeable: the ballot when proposals
-      // exist, else the baseline markets. An empty proposals tab as the first
-      // member screen is a dead end.
       navigate((w.proposals?.length ?? 0) > 0 ? '/proposals' : '/markets');
     } catch (err) {
       setJoinError((err as Error).message || 'Failed to join');
@@ -108,7 +116,6 @@ export function PublicWorkspacePage() {
     }
   };
 
-  // Post-signup completion of the join the visitor already asked for.
   useEffect(() => {
     if (!ws || !user || autoJoined.current) return;
     if (searchParams.get('join') !== '1') return;
@@ -117,9 +124,17 @@ export function PublicWorkspacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ws, user, searchParams]);
 
-  // The metric context for delta numbers. When every priced pair shares one
-  // metric (the deliberate single-metric workspace shape), name it once in
-  // the section header instead of repeating it per row.
+  // The instrument reads the soonest-resolving market (the list arrives in
+  // that order). The count-up starts from the range midpoint: the untouched
+  // LMSR prior, i.e. what the number was before anyone priced it.
+  const hero = ws?.markets[0] ?? null;
+  const consensus = hero?.consensus ?? null;
+  const mid = hero ? (hero.rangeMin + hero.rangeMax) / 2 : null;
+  const shown = useCountUp(consensus, mid);
+  const tickPct = hero && shown !== null && hero.rangeMax > hero.rangeMin
+    ? Math.min(100, Math.max(0, ((shown - hero.rangeMin) / (hero.rangeMax - hero.rangeMin)) * 100))
+    : 50;
+
   const soleMetricName = useMemo(() => {
     const names = new Set<string>();
     for (const p of ws?.proposals ?? []) for (const m of p.markets) names.add(m.metricName);
@@ -128,181 +143,139 @@ export function PublicWorkspacePage() {
 
   if (error) {
     return (
-      <div className="public-ws page">
-        <h1 className="public-ws-title">Workspace unavailable</h1>
-        <p className="public-ws-lede">{error}</p>
-        <p className="public-ws-lede"><Link to="/marketplace">Browse public workspaces</Link></p>
+      <div className="pubws">
+        <TopBar />
+        <main className="pubws-main">
+          <h1 className="pubws-name">Workspace unavailable</h1>
+          <p className="pubws-pitch">{error}</p>
+          <p className="pubws-pitch"><Link to="/marketplace">Browse public workspaces</Link></p>
+        </main>
       </div>
     );
   }
 
-  if (!ws) return <div className="public-ws page"><p className="public-ws-lede">Loading…</p></div>;
+  if (!ws) {
+    return (
+      <div className="pubws">
+        <TopBar />
+        <main className="pubws-main"><p className="pubws-pitch">Loading…</p></main>
+      </div>
+    );
+  }
 
-  const { proposalStats } = ws;
   const canTrade = ws.joinAs === 'trader';
-  const hasBallot = ws.proposals !== undefined;
-  const decided = ws.decided ?? [];
-  // Markets arrive soonest-resolving first. A workspace with dozens of them
-  // turns the page into a wall nobody reads, so show the ones a visitor could
-  // act on now and count the rest.
-  const MARKET_PREVIEW = 12;
-  const shownMarkets = ws.markets.slice(0, MARKET_PREVIEW);
-  const hiddenMarkets = ws.markets.length - shownMarkets.length;
-
-  const joinButton = (
-    <button className="btn" onClick={() => handleJoin()} disabled={joinState === 'joining'}>
-      {joinState === 'joining' ? 'joining…'
-        : !user ? 'Sign up free to join'
-        : canTrade ? 'Join and start trading'
-        : 'Join to watch'}
-    </button>
-  );
-
-  const ctaTerms = [
-    `${ws.signupCredits.toLocaleString()} free credits at signup`,
-    canTrade ? 'trading rights immediately' : 'read-only until the owner grants trading',
-    ...(ws.maxPositionCostPerMarket > 0
-      ? [`no account can put more than ${ws.maxPositionCostPerMarket.toLocaleString()} credits into one market`]
-      : []),
-  ].join(' · ');
+  const proposals = ws.proposals ?? [];
+  const decided = (ws.decided ?? []).filter(d => d.status === 'declined' ? d.declineReason : true);
 
   return (
-    <div className="public-ws page">
-      <header className="public-ws-head">
-        <h1 className="public-ws-title">{ws.name}</h1>
-        {/* No "run by <handle>" clause: the charter speaks in the owner's own
-            first person, and a platform handle next to it reads as a third
-            party (a raw id reads as a bug). The identity lives in the charter. */}
-        <p className="public-ws-meta">
-          {ws.participantCount} {ws.participantCount === 1 ? 'participant' : 'participants'} ·{' '}
-          {ws.openMarketCount} open {ws.openMarketCount === 1 ? 'market' : 'markets'} ·{' '}
-          {ws.metricCount} {ws.metricCount === 1 ? 'metric' : 'metrics'}
-        </p>
-        {ws.description && <p className="public-ws-lede">{ws.description}</p>}
-      </header>
+    <div className="pubws">
+      <TopBar />
+      <main className="pubws-main">
+        <header className="pubws-hero">
+          <h1 className="pubws-name">{ws.name}</h1>
+          {ws.description && <p className="pubws-pitch">{ws.description}</p>}
+        </header>
 
-      <section className="public-ws-cta">
-        {joinButton}
-        <span className="public-ws-cta-note">{ctaTerms}</span>
-        {joinState === 'error' && <span className="public-ws-cta-err">{joinError}</span>}
-      </section>
+        {hero && consensus !== null && (
+          <section className="pubws-instrument" aria-label="The market's current call">
+            <div className="pubws-instrument-label">
+              the market&rsquo;s call · {hero.metricName}
+            </div>
+            <div className="pubws-price">{shown !== null ? formatValue(shown) : '–'}</div>
+            <div className="pubws-rail" role="img" aria-label={`Market range ${hero.rangeMin} to ${hero.rangeMax}, current consensus ${formatValue(consensus)}`}>
+              <span className="pubws-rail-min">{formatCompact(hero.rangeMin)}</span>
+              <span className="pubws-rail-track"><span className="pubws-rail-tick" style={{ left: `${tickPct}%` }} /></span>
+              <span className="pubws-rail-max">{formatCompact(hero.rangeMax)}</span>
+            </div>
+            <div className="pubws-instrument-sub">
+              settles {settleDate(hero.resolvesOn)}
+              {ws.markets.length > 1 && <> · one of {ws.markets.length} open markets</>}
+            </div>
+          </section>
+        )}
 
-      {hasBallot && (
-        <section className="public-ws-section">
-          <h2>
-            Open proposals
-            {soleMetricName && <span className="public-ws-h2-context"> · priced impact on {soleMetricName}</span>}
-          </h2>
-          {(ws.proposals ?? []).length === 0 ? (
-            <p className="public-ws-empty">No open proposals right now. Join and propose something.</p>
-          ) : (
-            <ul className="public-ws-proposals">
-              {(ws.proposals ?? []).map(p => {
+        <section className="pubws-act">
+          <button className="pubws-cta" onClick={() => handleJoin()} disabled={joinState === 'joining'}>
+            {joinState === 'joining' ? 'Joining…'
+              : !user ? (canTrade ? 'Join free and move the number' : 'Join free and watch')
+              : canTrade ? 'Join and start trading'
+              : 'Join to watch'}
+          </button>
+          <p className="pubws-fineprint">
+            {ws.signupCredits.toLocaleString()} free credits · play money, cash never involved
+          </p>
+          {joinState === 'error' && <p className="pubws-joinerr">{joinError}</p>}
+        </section>
+
+        {proposals.length > 0 && (
+          <section className="pubws-section">
+            <h2 className="pubws-h2">On the ballot{soleMetricName && <span className="pubws-h2-note"> · priced impact on {soleMetricName}</span>}</h2>
+            <ul className="pubws-ballot">
+              {proposals.map(p => {
                 const delta = headlineDelta(p);
                 return (
                   <li key={p.id}>
-                    <div className="public-ws-proposal-head">
-                      <span className="public-ws-proposal-title">{p.title}</span>
-                      {delta === null ? (
-                        <span className="public-ws-delta public-ws-delta--none">unpriced</span>
-                      ) : delta === 0 ? (
-                        <span className="public-ws-delta public-ws-delta--zero" title="Both branches are priced equally so far. Your trade sets the first signal.">±0 · be first</span>
-                      ) : (
-                        <span className={`public-ws-delta ${delta > 0 ? 'public-ws-delta--up' : 'public-ws-delta--down'}`}>
-                          {formatDelta(delta)}{!soleMetricName && p.markets[0] ? ` on ${p.markets[0].metricName}` : ''} if shipped
-                        </span>
-                      )}
-                    </div>
-                    {p.description && <p className="public-ws-proposal-desc">{p.description}</p>}
+                    <span className="pubws-ballot-title">{p.title}</span>
+                    {delta === null || delta === 0
+                      ? <span className="pubws-ballot-delta pubws-ballot-delta--open">open</span>
+                      : <span className={`pubws-ballot-delta ${delta > 0 ? 'is-up' : 'is-down'}`}>{formatDelta(delta)}</span>}
                   </li>
                 );
               })}
             </ul>
-          )}
-        </section>
-      )}
-
-      {decided.length > 0 && (
-        <section className="public-ws-section">
-          <h2>Decisions so far</h2>
-          <ul className="public-ws-decided">
-            {decided.map(d => (
-              <li key={d.id}>
-                <div className="public-ws-proposal-head">
-                  <span className="public-ws-proposal-title">{d.title}</span>
-                  <span className={`public-ws-status public-ws-status--${d.status}`}>{d.status}</span>
-                </div>
-                {d.declineReason && <p className="public-ws-decline-reason">{d.declineReason}</p>}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {ws.charter && (
-        <section className="public-ws-section">
-          <h2>The deal</h2>
-          <div className="public-ws-charter">
-            {ws.charter.split('\n\n').map((para, i) => <p key={i}>{para}</p>)}
-          </div>
-        </section>
-      )}
-
-      <section className="public-ws-section">
-        <h2>Open markets{ws.markets.length > 0 && <>, resolving soonest</>}</h2>
-        {ws.markets.length === 0 ? (
-          <p className="public-ws-empty">No open markets right now.</p>
-        ) : (
-          <ul className="public-ws-markets">
-            {shownMarkets.map(m => (
-              <li key={m.marketId}>
-                <span className="public-ws-market-name">{m.metricName}</span>
-                <span className="public-ws-market-value">
-                  {formatConsensus(m.consensus, m.rangeMin, m.rangeMax)}
-                  {isThin(m.liquidity, m.rangeMin, m.rangeMax) && (
-                    <span className="public-ws-thin" title="Too little liquidity to price: the next bet would move this to an extreme.">thin</span>
-                  )}
-                </span>
-                <span className="public-ws-market-when">{resolvesIn(m.resolvesOn)}</span>
-              </li>
-            ))}
-          </ul>
+          </section>
         )}
-        {hiddenMarkets > 0 && (
-          <p className="public-ws-empty public-ws-more">and {hiddenMarkets} more, visible once you join.</p>
+
+        {canTrade && (
+          <section className="pubws-section">
+            <h2 className="pubws-h2">How it works</h2>
+            <ol className="pubws-steps">
+              <li><span className="pubws-step-n">1</span>Propose what the owner should do next.</li>
+              <li><span className="pubws-step-n">2</span>Everyone bets on what each idea does to the number above.</li>
+              <li><span className="pubws-step-n">3</span>The highest-priced idea ships, or the owner publishes why not.</li>
+            </ol>
+          </section>
         )}
-      </section>
 
-      {!hasBallot && (
-        <section className="public-ws-section">
-          <h2>Proposals, last 30 days</h2>
-          <p className="public-ws-lede">
-            {proposalStats.total === 0
-              ? 'No proposals yet. Participants propose actions; the market prices each one against the metrics above.'
-              : <>
-                  {proposalStats.total} submitted · {proposalStats.approved} approved ·{' '}
-                  {proposalStats.declined + proposalStats.declinedSpam} declined ·{' '}
-                  {proposalStats.pending} awaiting a decision.
-                </>}
-            {ws.proposalReward > 0 && <> Approved proposals pay the proposer {ws.proposalReward} credits.</>}
-            {' '}Join to read them.
-          </p>
-        </section>
-      )}
+        {decided.length > 0 && (
+          <section className="pubws-section">
+            <h2 className="pubws-h2">Decided</h2>
+            <ul className="pubws-decided">
+              {decided.map(d => (
+                <li key={d.id}>
+                  <div className="pubws-decided-head">
+                    <span className="pubws-ballot-title">{d.title}</span>
+                    <span className={`pubws-verdict pubws-verdict--${d.status}`}>{d.status === 'approved' ? 'shipped' : 'declined'}</span>
+                  </div>
+                  {d.declineReason && <p className="pubws-reason">{d.declineReason}</p>}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
-      <section className="public-ws-cta public-ws-cta--footer">
-        {joinButton}
-        <span className="public-ws-cta-note">
-          {canTrade
-            ? 'Free credits, real stakes for the owner, one minute to your first trade.'
-            : 'Free to watch; the owner grants trading rights.'}
-        </span>
-      </section>
+        {ws.charter && (
+          <details className="pubws-deal">
+            <summary>The full deal</summary>
+            <div className="pubws-deal-body">
+              {ws.charter.split('\n\n').map((para, i) => <p key={i}>{para}</p>)}
+            </div>
+          </details>
+        )}
 
-      <p className="public-ws-foot">
-        Telarchy prices proposed actions against the metrics an owner actually cares about.{' '}
-        <Link to="/marketplace">Other public workspaces</Link> · <Link to="/leaderboard">Leaderboard</Link>
-      </p>
+        <footer className="pubws-foot">
+          Priced on <Link to="/">Telarchy</Link> · <Link to="/leaderboard">leaderboard</Link> · <Link to="/terms">terms</Link>
+        </footer>
+      </main>
     </div>
+  );
+}
+
+function TopBar() {
+  return (
+    <nav className="pubws-topbar">
+      <Link to="/" className="pubws-wordmark">Telarchy</Link>
+      <Link to="/login" className="pubws-login">Log in</Link>
+    </nav>
   );
 }

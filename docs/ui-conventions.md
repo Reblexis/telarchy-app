@@ -151,31 +151,27 @@ The activity toolbar exposes a search input (filters summary, tags,
 and actor), a 1h/24h/7d/30d segmented range, and per-type text-only
 filter toggles (underline = active).
 
-## Public workspace page
+## Share-link landing (public workspace page)
 
-`/marketplace/:workspaceId` (`PublicWorkspacePage`) is the only page a
-stranger reliably sees before signing up, since it is where a shared
-workspace link lands. It follows the standard tier (1080px) and the
-normal type scale so the page reads as the product the visitor is
-about to join, not as a separate marketing surface.
+`/marketplace/:idOrSlug` (`PublicWorkspacePage`, `.pubws-*` styles) renders
+**standalone**, outside `AppLayout`: a stranger's first screen is a poster,
+not an app shell with a sidebar. It deliberately breaks the workspace-tab
+conventions (1080px tier, dense lists) because its job is different: one
+narrow centered column (~660px), one action, and radical reduction.
 
-Two deliberate departures, both narrow:
+Hierarchy, top to bottom: minimal top bar (wordmark + log in), workspace
+name in Fraunces, one-line description, then **the instrument**: the
+soonest-resolving market's consensus as the largest element on the page
+(JetBrains Mono, tabular), sitting on a hairline range rail with an amber
+tick at the consensus. The number outranks the product name on purpose;
+the product's claim is that a price, not a pitch, decides. One black pill
+CTA with a single fine-print line follows; the ballot (when proposals
+exist), three numbered how-it-works lines, decided items, and the charter
+folded in a `<details>` complete the page. Empty sections never render.
 
-- The join CTA sits in a single bordered surface (`.public-ws-cta`),
-  the same interactive-surface exception the markets trade panel takes.
-  It is the only call to action on the page, and its label states what
-  joining actually grants (trading vs read-only) rather than promising
-  rights the Public group may not hold.
-- The charter (`.public-ws-charter`) gets a 68ch reading measure and
-  1.6 line-height. It is prose a forecaster is deciding whether to
-  trust, so it is set for reading, not as compact meta type.
-
-The market list is capped at 12 rows, soonest-resolving first, with
-"and N more" beneath. Workspaces routinely carry dozens of markets
-(LookPilot has 66) and an uncapped list buries everything else on the
-page. Thin markets carry a neutral `THIN` chip, never a red one: low
-depth is a fact about the book, not an error, and per the color rules
-above the product does not color-code categories.
+The one motion moment: on load the price counts up from the range midpoint
+(the untouched LMSR prior) to the consensus while the tick slides. Skipped
+under `prefers-reduced-motion`.
 
 ## When in doubt
 

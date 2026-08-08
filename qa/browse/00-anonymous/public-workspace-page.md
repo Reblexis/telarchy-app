@@ -70,61 +70,64 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
 - The workspace name renders as the page `h1`, matching `.name` from
   `curl -s /api/marketplace/<id>`.
 
-### T2. The meta line reports real counts and no owner handle
+### T2. Standalone poster, no app shell, no counts clutter
 
 **Steps:**
-1. `$B text ".public-ws-meta"`
-2. `curl -s "$TT_API_URL/api/marketplace/$WS" | jq '{participantCount, openMarketCount, metricCount}'`
+1. `$B text` and `$B is visible ".pubws-topbar"`
+2. `$B js "!!document.querySelector('.sidebar, .page-content')"`
 
 **Expected:**
-- Participant, open-market and metric counts match the API.
-- There is no "run by ..." clause at all (owner decision, 2026-08-08): the
-  charter speaks in the owner's first person, and a platform handle next to
-  it reads as a third party, while a raw 32-char id reads as a bug. The
-  ownerId/ownerHandle fields stay in the API for clients that want them.
+- The page renders standalone: minimal top bar (wordmark + Log in), NO app
+  sidebar and no `.page-content` shell (redesign decision, 2026-08-08: a
+  stranger's first screen is a poster, not an admin tool).
+- No participant/market/metric counts line and no "run by <handle>" clause;
+  the charter speaks in the owner's first person. The fields stay in the API.
 
 ### T3. The join CTA states what joining actually grants
 
 **Steps:**
-1. `$B is visible ".public-ws-cta"`
-2. `$B text ".public-ws-cta"`
+1. `$B is visible ".pubws-cta"`
+2. `$B text ".pubws-act"`
 3. `curl -s "$TT_API_URL/api/marketplace/$WS" | jq -r '.joinAs'`
 
 **Expected:**
-- The CTA block is visible.
-- Anonymous copy is `Sign up free to join`.
-- The note matches `joinAs`: `trader` says joining grants trading rights
-  immediately; `viewer` says the workspace is read-only for new joiners.
-  The CTA must never promise trading rights the Public group does not hold.
+- Exactly one CTA button is visible above the fold.
+- Anonymous copy is `Join free and move the number` when `joinAs` is
+  `trader`, and `Join free and watch` when `viewer`; the button never
+  promises trading rights the Public group does not hold.
+- The fine print is a single line: the signup credit grant and the
+  play-money disclaimer. The position cap and everything else live in
+  "The full deal".
 
 ### T4. The charter renders when set
 
 **Steps:**
 1. `curl -s "$TT_API_URL/api/marketplace/$WS" | jq -r '.charter'`
-2. `$B is visible ".public-ws-charter"` and `$B text ".public-ws-charter"`
+2. `$B is visible ".pubws-deal"`, `$B click ".pubws-deal summary"`, `$B text ".pubws-deal-body"`
 
 **Expected:**
-- If `charter` is non-null: the section heading `THE DEAL` is present, the
-  charter body is visible, and blank-line-separated paragraphs render as
-  separate `<p>` elements rather than one run-on block.
-- If `charter` is null: the section is absent entirely (no empty heading).
+- If `charter` is non-null: a collapsed "The full deal" `<details>` is
+  present; opening it shows the charter with blank-line-separated paragraphs
+  as separate `<p>` elements. It renders collapsed by default: the charter
+  is the fine print, not the pitch.
+- If `charter` is null: the element is absent entirely.
 
-### T5. Markets are capped, ordered soonest-first, and thin ones are marked
+### T5. The instrument shows the soonest market over its real range
 
 **Steps:**
-1. `$B text ".public-ws-markets"`
-2. `$B js "document.querySelectorAll('.public-ws-markets li').length"`
-3. `curl -s "$TT_API_URL/api/marketplace/$WS" | jq '.markets | length'`
+1. `$B text ".pubws-instrument"`
+2. `curl -s "$TT_API_URL/api/marketplace/$WS" | jq '.markets[0] | {metricName, consensus, rangeMin, rangeMax, resolvesOn}'`
 
 **Expected:**
-- At most 12 rows render regardless of how many markets the API returns
-  (LookPilot carries 66; an uncapped list buries the rest of the page).
-- When the API returns more than 12, an "and N more, visible once you join."
-  line follows, with N equal to `length - 12`.
-- Rows are ordered by resolution date, soonest first.
-- A market whose `liquidity / (rangeMax - rangeMin)` is below 0.01 carries a
-  `THIN` chip. The chip is neutral grey, never red: low depth is a fact
-  about the book, not an error state (see `docs/ui-conventions.md`).
+- The large mono price equals the first (soonest-resolving) market's
+  consensus, formatted without decimals when >= 100.
+- The label carries the metric name; the sub-line carries the settle date
+  and, when more than one market is open, "one of N open markets".
+- The rail's min/max labels match rangeMin/rangeMax (compact form), and the
+  amber tick sits at (consensus - rangeMin) / (rangeMax - rangeMin) of the
+  track width.
+- There is no markets table: a single market IS the hero, and additional
+  markets are a count, not a list.
 
 ### T6. Disclosure boundary: the ballot on Open workspaces, counts elsewhere
 
@@ -137,9 +140,10 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
 **Expected:**
 - When the workspace's Public group grants `read` (typically `joinAs` is
   `trader`): the page shows an "Open proposals" section with proposal titles,
-  descriptions, and a delta per row (signed number, `unpriced`, or
-  `±0 · be first`), and, when any proposal has been decided, a "Decisions so
-  far" section where declined items carry their published decline reason.
+  and a right-aligned mono delta per row (signed number; `open` when the
+  pair is unpriced or even), and, when any proposal has been decided, a
+  "Decided" section where declined items carry their published reason and
+  approved ones read `shipped`.
   This is deliberate: membership is one free click, so hiding the ballot is
   friction, not privacy.
 - When the Public group lacks `read`: the proposal section shows only counts
@@ -148,9 +152,8 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
 - In both cases: no logged metric value appears. Market `consensus` values DO
   appear and are expected; the thing that must not leak is the metric's
   actual current value, which is a different number.
-- The CTA terms line states the signup credit grant, and, when
-  `maxPositionCostPerMarket` > 0, the per-market cap ("no account can put
-  more than N credits into one market").
+- The fine-print line states the signup credit grant; the per-market cap is
+  stated inside "The full deal" (the charter), not in the CTA line.
 
 ### T7. A private workspace id does not render a page
 

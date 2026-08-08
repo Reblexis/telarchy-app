@@ -80,9 +80,11 @@ export function App() {
             <Route path="/agent" element={<AgentPortalPage />} />
           </Route>
           {/* Authenticated routes, all wrapped in AppLayout (sidebar) */}
+          {/* The share-link landing renders standalone: a stranger's first
+              screen must be a poster, not an app shell with a sidebar. */}
+          <Route path="/marketplace/:workspaceId" element={<PublicWorkspacePage />} />
           <Route element={<AppLayout />}>
             <Route path="/marketplace" element={<MarketplacePage />} />
-            <Route path="/marketplace/:workspaceId" element={<PublicWorkspacePage />} />
             <Route path="/marketplace/:workspaceId/:tab" element={<MarketplaceTabRedirect />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
             <Route path="/benchmark" element={<BenchmarkPage />} />

@@ -7311,182 +7311,29 @@ code, pre, kbd, samp {
   .wc-reveal { opacity: 1; transform: none; }
 }
 
-/* ---------------------------------------------------------------------------
-   Public workspace page (/marketplace/:workspaceId)
-
-   The destination for a shared workspace link, read logged out. Same 1080px
-   standard tier and hairline-list treatment as the workspace tabs, so the
-   page a stranger lands on looks like the product they are about to join.
-   --------------------------------------------------------------------------- */
-
-.public-ws {
-  padding: 0.5rem 0 3rem;
-}
-
-.public-ws-head {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.public-ws-title {
-  margin: 0;
-  font-size: 1.6rem;
-  font-weight: 600;
-  letter-spacing: -0.025em;
-}
-
-.public-ws-meta {
-  margin: 0;
-  font-size: 0.75rem;
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
-
-.public-ws-lede {
-  margin: 0;
-  font-size: 0.88rem;
-  color: var(--text-secondary);
-  max-width: 60ch;
-}
-
-.public-ws-lede a,
-.public-ws-foot a {
-  color: var(--text-primary);
-  text-decoration: underline;
-  text-decoration-color: var(--border-color);
-  text-underline-offset: 0.18em;
-}
-
-.public-ws-lede a:hover,
-.public-ws-foot a:hover {
-  text-decoration-color: var(--text-tertiary);
-}
 
 /* The join CTA is the one place on the page with a real interactive surface. */
-.public-ws-cta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.6rem 0.9rem;
-  margin: 1.6rem 0 0;
-  padding: 1rem;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-}
 
-.public-ws-cta-note {
-  font-size: 0.75rem;
-  color: var(--text-tertiary);
-  max-width: 46ch;
-}
 
-.public-ws-cta-err {
-  font-size: 0.75rem;
-  color: var(--error-text);
-}
 
-.public-ws-section {
-  margin-top: 2.2rem;
-}
 
-.public-ws-section h2 {
-  margin: 0 0 0.7rem;
-  font-size: 0.78rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-tertiary);
-}
 
 /* The charter is prose the owner wrote and a forecaster is deciding whether to
    trust, so it gets reading measure rather than the compact meta type. */
-.public-ws-charter {
-  max-width: 68ch;
-}
 
-.public-ws-charter p {
-  margin: 0 0 0.7rem;
-  font-size: 0.875rem;
-  line-height: 1.6;
-  color: var(--text-primary);
-}
 
-.public-ws-charter p:last-child {
-  margin-bottom: 0;
-}
 
-.public-ws-markets {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
 
-.public-ws-markets li {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  align-items: baseline;
-  gap: 1rem;
-  padding: 0.55rem 0;
-  border-top: 1px solid var(--border-color);
-}
 
-.public-ws-markets li:last-child {
-  border-bottom: 1px solid var(--border-color);
-}
 
-.public-ws-market-name {
-  font-size: 0.875rem;
-  color: var(--text-primary);
-}
 
-.public-ws-market-value {
-  font-size: 0.875rem;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
-}
 
-.public-ws-market-when {
-  font-size: 0.75rem;
-  color: var(--text-tertiary);
-  font-variant-numeric: tabular-nums;
-  min-width: 5ch;
-  text-align: right;
-}
 
 /* Neutral, not alarm-coloured: a thin market is a fact about depth, not an
    error, and per ui-conventions.md the product does not colour-code categories. */
-.public-ws-thin {
-  margin-left: 0.4rem;
-  padding: 0.05rem 0.3rem;
-  border-radius: 3px;
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  font-size: 0.68rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
 
-.public-ws-empty {
-  margin: 0;
-  font-size: 0.875rem;
-  color: var(--text-tertiary);
-}
 
-.public-ws-foot {
-  margin: 2.6rem 0 0;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-color);
-  font-size: 0.75rem;
-  color: var(--text-tertiary);
-  max-width: 68ch;
-}
 
-.public-ws-more {
-  margin-top: 0.7rem;
-}
 
 /* Decline reason on a proposal. Hairline-led, not a warning box: the reason is
    the owner keeping a promise, not an error state. */
@@ -7536,97 +7383,323 @@ code, pre, kbd, samp {
   resize: vertical;
 }
 
-/* Public workspace page: the ballot. Hairline rows like every other list; the
-   delta is the one number a visitor reads first, so it gets the semantic
-   green/red pair at small size (the sanctioned trend-delta use, never rows). */
-.public-ws-h2-context {
-  text-transform: none;
-  letter-spacing: normal;
+
+/* ---------------------------------------------------------------------------
+   Share-link landing (/marketplace/:idOrSlug) — the `pubws` block.
+
+   A poster, not a document: standalone (no app shell), one narrow column,
+   and the market's call as the largest element on the page, above the
+   product's own name in the hierarchy, because the product's claim is that
+   a price, not a pitch, decides what ships. The range rail beneath it is
+   the page's one signature element and encodes the real mechanism: an LMSR
+   market over [rangeMin, rangeMax] whose consensus is the tick.
+   --------------------------------------------------------------------------- */
+
+.pubws {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.pubws-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  max-width: 660px;
+  margin: 0 auto;
+  padding: 1.4rem 1.25rem 0;
+}
+
+.pubws-wordmark {
+  font-family: 'Fraunces', serif;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.pubws-login {
+  font-size: 0.8rem;
   font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+
+.pubws-login:hover { color: var(--text-primary); }
+
+.pubws-main {
+  max-width: 660px;
+  margin: 0 auto;
+  padding: clamp(2.5rem, 7vh, 4.5rem) 1.25rem 3rem;
+}
+
+.pubws-hero { text-align: center; }
+
+.pubws-name {
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-optical-sizing: auto;
+  font-weight: 700;
+  font-size: clamp(2rem, 6vw, 2.6rem);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.pubws-pitch {
+  margin: 0.7rem auto 0;
+  max-width: 34rem;
+  font-size: 1rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.pubws-pitch a { color: var(--text-primary); }
+
+/* The instrument. Mono digits: this is a price, not prose. */
+.pubws-instrument {
+  margin-top: clamp(2.2rem, 6vh, 3.4rem);
+  text-align: center;
+}
+
+.pubws-instrument-label,
+.pubws-instrument-sub {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
   color: var(--text-tertiary);
 }
 
-.public-ws-proposals,
-.public-ws-decided {
+.pubws-price {
+  margin: 0.4rem 0 0.2rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  font-size: clamp(3.4rem, 13vw, 5.6rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.pubws-rail {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  max-width: 26rem;
+  margin: 0.9rem auto 0.55rem;
+}
+
+.pubws-rail-min,
+.pubws-rail-max {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+}
+
+.pubws-rail-track {
+  position: relative;
+  flex: 1;
+  height: 2px;
+  background: var(--border-strong);
+}
+
+.pubws-rail-tick {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 3px;
+  height: 16px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+/* One action. Black, wide, unmissable. */
+.pubws-act {
+  margin-top: clamp(2rem, 5vh, 3rem);
+  text-align: center;
+}
+
+.pubws-cta {
+  display: inline-block;
+  padding: 0.95rem 2.2rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--button-bg);
+  color: var(--button-text);
+  font-family: inherit;
+  font-size: 1.02rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, transform 120ms ease;
+}
+
+.pubws-cta:hover { background: var(--button-bg-hover); transform: translateY(-1px); }
+.pubws-cta:active { transform: translateY(0); }
+.pubws-cta:disabled { opacity: 0.6; cursor: default; }
+.pubws-cta:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.pubws-fineprint {
+  margin: 0.7rem 0 0;
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+}
+
+.pubws-joinerr {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: var(--error-text);
+}
+
+.pubws-section { margin-top: clamp(2.6rem, 7vh, 3.8rem); }
+
+.pubws-h2 {
+  margin: 0 0 0.8rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-tertiary);
+}
+
+.pubws-h2-note { text-transform: none; letter-spacing: normal; font-weight: 500; }
+
+/* The ballot: hairline rows, mono deltas. Green/red only on the number. */
+.pubws-ballot,
+.pubws-decided {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.public-ws-proposals li,
-.public-ws-decided li {
-  padding: 0.7rem 0;
+.pubws-ballot li,
+.pubws-decided li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0;
   border-top: 1px solid var(--border-color);
 }
 
-.public-ws-proposals li:last-child,
-.public-ws-decided li:last-child {
-  border-bottom: 1px solid var(--border-color);
-}
+.pubws-ballot li:last-child,
+.pubws-decided li:last-child { border-bottom: 1px solid var(--border-color); }
 
-.public-ws-proposal-head {
+.pubws-decided li { display: block; }
+
+.pubws-decided-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
 }
 
-.public-ws-proposal-title {
-  font-size: 0.875rem;
+.pubws-ballot-title {
+  font-size: 0.92rem;
   font-weight: 500;
+}
+
+.pubws-ballot-delta {
+  flex-shrink: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.pubws-ballot-delta.is-up { color: var(--higher); }
+.pubws-ballot-delta.is-down { color: var(--lower); }
+.pubws-ballot-delta--open { color: var(--text-tertiary); font-weight: 400; }
+
+.pubws-verdict {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.pubws-verdict--approved { color: var(--higher); }
+
+.pubws-reason {
+  margin: 0.35rem 0 0;
+  padding-left: 0.8rem;
+  border-left: 2px solid var(--border-color);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* The mechanism: three numbered lines. The numbers are a real sequence. */
+.pubws-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pubws-steps li {
+  display: flex;
+  gap: 0.9rem;
+  align-items: baseline;
+  padding: 0.45rem 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
   color: var(--text-primary);
 }
 
-.public-ws-delta {
+.pubws-step-n {
   flex-shrink: 0;
-  font-size: 0.8rem;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
+  font-family: 'Fraunces', serif;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--accent);
 }
 
-.public-ws-delta--up { color: #16a34a; }
-.public-ws-delta--down { color: #dc2626; }
+/* The charter folds away until asked for. */
+.pubws-deal {
+  margin-top: clamp(2.6rem, 7vh, 3.8rem);
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
 
-.public-ws-delta--none,
-.public-ws-delta--zero {
+.pubws-deal summary {
+  padding: 0.85rem 0;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.pubws-deal summary::-webkit-details-marker { display: none; }
+
+.pubws-deal summary::after {
+  content: '+';
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1rem;
   color: var(--text-tertiary);
-  font-weight: 400;
 }
 
-.public-ws-proposal-desc {
-  margin: 0.3rem 0 0;
-  font-size: 0.8rem;
-  line-height: 1.5;
+.pubws-deal[open] summary::after { content: '−'; }
+
+.pubws-deal-body { padding: 0 0 1.1rem; }
+
+.pubws-deal-body p {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  line-height: 1.6;
   color: var(--text-secondary);
-  max-width: 68ch;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  max-width: 60ch;
 }
 
-.public-ws-status {
-  flex-shrink: 0;
-  padding: 0.05rem 0.35rem;
-  border-radius: 3px;
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  font-size: 0.68rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.pubws-deal-body p:last-child { margin-bottom: 0; }
+
+.pubws-foot {
+  margin-top: 2.6rem;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  text-align: center;
 }
 
-.public-ws-decline-reason {
-  margin: 0.3rem 0 0;
-  padding-left: 0.9rem;
-  border-left: 2px solid var(--border-color);
-  font-size: 0.8rem;
-  line-height: 1.5;
-  color: var(--text-secondary);
-  max-width: 68ch;
-}
-
-.public-ws-cta--footer {
-  margin-top: 2.2rem;
-}
+.pubws-foot a { color: var(--text-secondary); text-decoration: none; }
+.pubws-foot a:hover { color: var(--text-primary); }
