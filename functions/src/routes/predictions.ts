@@ -242,6 +242,36 @@ predictionsRouter.post('/trade', requireCapability('trade'), wrap(async (req, re
       if (proceeds <= 0) throw new AppError('Trade too small', 400);
     } else {
       if (cost > 0 && !sufficientBalance(balanceUnits, cost)) throw new AppError('Insufficient balance', 400, { balance: fromUnits(balanceUnits), cost });
+
+      // Manipulation bound (workspaces.maxPositionCostPerMarket): cumulative
+      // buy cost per participant per market, both directions summed. Free
+      // signup credits mean one person with several accounts could otherwise
+      // decide a market alone; the cap forces that to require many distinct
+      // identities, which is detectable coordination. Sells never refund cap
+      // headroom (cumulative, not net), so churning cannot stretch it. The
+      // epsilon keeps a final exactly-at-cap trade from failing on float dust.
+      if (cost > 0) {
+        const [wsCap] = await tx.select({ cap: workspaces.maxPositionCostPerMarket })
+          .from(workspaces).where(eq(workspaces.id, workspaceId));
+        const cap = wsCap?.cap ?? 0;
+        if (cap > 0) {
+          const [spentRow] = await tx.select({ total: sql<number>`coalesce(sum(${positions.totalCost}), 0)` })
+            .from(positions)
+            .where(and(
+              eq(positions.workspaceId, workspaceId),
+              eq(positions.marketId, marketId),
+              eq(positions.agentId, agentId),
+            ));
+          const spent = Number(spentRow?.total ?? 0);
+          if (spent + cost > cap + 1e-9) {
+            throw new AppError(
+              `Position cap reached: this workspace limits each participant to ${cap} credits of buys per market (you have used ${Math.round(spent * 100) / 100}).`,
+              400,
+              { cap, spent, attempted: cost },
+            );
+          }
+        }
+      }
     }
 
     const newShares: [number, number] = [shares[0], shares[1]];

@@ -1,0 +1,11 @@
+-- 0045: Per-participant buy-cost cap per market.
+--
+-- Why: signup grants free credits to every account, so in an Open workspace
+-- one person with a handful of email addresses can deploy enough into a
+-- single market to decide its outcome, and a public ship-what-the-market-says
+-- commitment becomes buyable. The cap bounds cumulative buy cost (both
+-- directions summed) per participant per market; moving a market far then
+-- requires many distinct identities, which is coordination the owner can
+-- detect and, per charter, void. Cumulative rather than net: selling does not
+-- refund cap headroom, so churning cannot stretch it. 0 = disabled (default).
+ALTER TABLE "workspaces" ADD COLUMN IF NOT EXISTS "max_position_cost_per_market" double precision NOT NULL DEFAULT 0;

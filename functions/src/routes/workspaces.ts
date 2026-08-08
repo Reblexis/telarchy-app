@@ -228,7 +228,8 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
   const hasProposalRewardKey = Object.prototype.hasOwnProperty.call(req.body, 'proposalReward');
   const hasSpamPenaltyKey = Object.prototype.hasOwnProperty.call(req.body, 'spamPenalty');
   const hasMaxPendingKey = Object.prototype.hasOwnProperty.call(req.body, 'maxPendingProposalsPerParticipant');
-  const touchesLifecycleFields = hasAutoFundKey || hasCreditsKey || hasVisibilityKey || hasProposalRewardKey || hasSpamPenaltyKey || hasMaxPendingKey;
+  const hasPositionCapKey = Object.prototype.hasOwnProperty.call(req.body, 'maxPositionCostPerMarket');
+  const touchesLifecycleFields = hasAutoFundKey || hasCreditsKey || hasVisibilityKey || hasProposalRewardKey || hasSpamPenaltyKey || hasMaxPendingKey || hasPositionCapKey;
 
   // Lifecycle-shaped fields (visibility, auto-fund, liquidity defaults) are
   // gated by the granular `manage_workspace` capability, which the Admin group
@@ -238,7 +239,7 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
     res.status(403).json({ error: 'These settings require the manage_workspace capability' }); return;
   }
 
-  const { name, description, charter, autoFundNewMarkets, newMarketLiquidityCredits, visibility, proposalReward, spamPenalty, maxPendingProposalsPerParticipant } = req.body;
+  const { name, description, charter, autoFundNewMarkets, newMarketLiquidityCredits, visibility, proposalReward, spamPenalty, maxPendingProposalsPerParticipant, maxPositionCostPerMarket } = req.body;
   const update: Partial<typeof workspaces.$inferInsert> = {};
 
   // description (one-liner) and charter (the owner's public commitment about
@@ -313,6 +314,13 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
       res.status(400).json({ error: 'maxPendingProposalsPerParticipant must be a non-negative integer (0 disables the cap)' }); return;
     }
     update.maxPendingProposalsPerParticipant = maxPendingProposalsPerParticipant;
+  }
+
+  if (hasPositionCapKey) {
+    if (typeof maxPositionCostPerMarket !== 'number' || !Number.isFinite(maxPositionCostPerMarket) || maxPositionCostPerMarket < 0) {
+      res.status(400).json({ error: 'maxPositionCostPerMarket must be a non-negative number of credits (0 disables the cap)' }); return;
+    }
+    update.maxPositionCostPerMarket = maxPositionCostPerMarket;
   }
 
   if (nextAuto && nextCredits <= 0) {

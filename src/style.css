@@ -7535,3 +7535,98 @@ code, pre, kbd, samp {
   line-height: 1.5;
   resize: vertical;
 }
+
+/* Public workspace page: the ballot. Hairline rows like every other list; the
+   delta is the one number a visitor reads first, so it gets the semantic
+   green/red pair at small size (the sanctioned trend-delta use, never rows). */
+.public-ws-h2-context {
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.public-ws-proposals,
+.public-ws-decided {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.public-ws-proposals li,
+.public-ws-decided li {
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--border-color);
+}
+
+.public-ws-proposals li:last-child,
+.public-ws-decided li:last-child {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.public-ws-proposal-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.public-ws-proposal-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.public-ws-delta {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.public-ws-delta--up { color: #16a34a; }
+.public-ws-delta--down { color: #dc2626; }
+
+.public-ws-delta--none,
+.public-ws-delta--zero {
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+
+.public-ws-proposal-desc {
+  margin: 0.3rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  max-width: 68ch;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.public-ws-status {
+  flex-shrink: 0;
+  padding: 0.05rem 0.35rem;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.public-ws-decline-reason {
+  margin: 0.3rem 0 0;
+  padding-left: 0.9rem;
+  border-left: 2px solid var(--border-color);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  max-width: 68ch;
+}
+
+.public-ws-cta--footer {
+  margin-top: 2.2rem;
+}

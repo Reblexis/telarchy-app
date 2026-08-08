@@ -1,0 +1,137 @@
+/**
+ * The public ballot on GET /api/marketplace/:workspaceId.
+ *
+ * Disclosure rule: when a workspace's Public group grants `read`, its contents
+ * are one free self-join away from any visitor, so hiding proposals behind
+ * signup is friction theater, not privacy. The endpoint therefore ships the
+ * ballot (pending proposals with conditional-market deltas, plus recent
+ * decisions with their published decline reasons). When the Public group lacks
+ * `read`, the counts-only boundary holds and no proposal content leaks.
+ */
+
+jest.mock('../db/client', () => require('./harness/test-db'));
+
+// The router imports the auth middleware (for its join route), which pulls in
+// better-auth's ESM build; the endpoint under test is anonymous, so stub it.
+jest.mock('../middleware/auth', () => ({
+  hashKey: (raw: string) => raw,
+  authMiddleware: (_req: any, _res: any, next: any) => next(),
+  optionalAuthMiddleware: (_req: any, _res: any, next: any) => next(),
+}));
+
+import request from 'supertest';
+import express from 'express';
+import { and, eq } from 'drizzle-orm';
+import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import { agents, markets, metrics, permissionGroups, proposals } from '../db/schema';
+import { provisionWorkspace } from '../lib/participants';
+import { initialPool } from '../lib/amm';
+import { marketplaceRouter } from '../routes/marketplace';
+import { AppError } from '../lib/errors';
+
+const app = express();
+app.use(express.json());
+app.use('/api/marketplace', marketplaceRouter);
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+app.use((err: Error, _req: any, res: any, _next: any) => {
+  const status = err instanceof AppError ? err.status : 500;
+  res.status(status).json({ error: err.message });
+});
+
+beforeAll(async () => { await ensureMigrations(); });
+beforeEach(async () => { await truncateAll(); });
+
+const WS = 'ws-ballot';
+const OWNER = 'agent-ballot-owner';
+const PROPOSER = 'agent-ballot-proposer';
+
+async function seed(publicCaps: string[]) {
+  await db.insert(agents).values([
+    { id: OWNER, apiKeyHash: 'h-bo', balance: 0 },
+    { id: PROPOSER, apiKeyHash: 'h-bp', balance: 0, nickname: 'kragnour-fan' },
+  ]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await provisionWorkspace(db as any, {
+    wsId: WS, name: 'Ballot Test', createdBy: OWNER, ownerAgentId: OWNER, visibility: 'public',
+  });
+  const [publicGroup] = await db.select().from(permissionGroups)
+    .where(and(eq(permissionGroups.workspaceId, WS), eq(permissionGroups.type, 'public')));
+  await db.update(permissionGroups).set({ capabilities: publicCaps })
+    .where(eq(permissionGroups.id, publicGroup.id));
+
+  await db.insert(metrics).values({
+    id: 'metric-ballot', workspaceId: WS, name: 'Revenue', value: 50, formula: '0', marketRangeMax: 100,
+  });
+  await db.insert(proposals).values([
+    {
+      id: 'prop-open', workspaceId: WS, proposedBy: PROPOSER,
+      title: 'Ship offline mode', description: 'Asked by three people.', status: 'pending',
+    },
+    {
+      id: 'prop-declined', workspaceId: WS, proposedBy: PROPOSER,
+      title: 'Rewrite in Rust', description: 'why not', status: 'declined',
+      resolvedAt: new Date(), declineReason: 'Costs more than 20 hours of work.',
+    },
+  ]);
+  // Conditional pair for the pending proposal: approved priced above declined.
+  await db.insert(markets).values([
+    {
+      id: 'mkt-appr', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
+      targetDate: '2028', rangeMin: 0, rangeMax: 100,
+      shares: [0, 10], liquidity: 100, pool: initialPool(100),
+      active: true, resolved: false, voided: false, proposalId: 'prop-open', branch: 'approved',
+    },
+    {
+      id: 'mkt-decl', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
+      targetDate: '2028', rangeMin: 0, rangeMax: 100,
+      shares: [0, 0], liquidity: 100, pool: initialPool(100),
+      active: true, resolved: false, voided: false, proposalId: 'prop-open', branch: 'declined',
+    },
+  ]);
+}
+
+describe('public ballot disclosure gate', () => {
+  test('an Open workspace (Public group has read) ships the ballot with deltas and decline reasons', async () => {
+    await seed(['read', 'trade']);
+
+    const res = await request(app).get(`/api/marketplace/${WS}`);
+    expect(res.status).toBe(200);
+
+    expect(res.body.proposals).toHaveLength(1);
+    const p = res.body.proposals[0];
+    expect(p.title).toBe('Ship offline mode');
+    expect(p.description).toBe('Asked by three people.');
+    expect(p.proposedByName).toBe('kragnour-fan');
+    expect(p.markets).toHaveLength(1);
+    const pair = p.markets[0];
+    expect(pair.metricName).toBe('Revenue');
+    expect(pair.approvedConsensus).toBeGreaterThan(pair.declinedConsensus);
+    expect(pair.delta).toBeCloseTo(pair.approvedConsensus - pair.declinedConsensus, 6);
+
+    expect(res.body.decided).toHaveLength(1);
+    expect(res.body.decided[0].status).toBe('declined');
+    expect(res.body.decided[0].declineReason).toBe('Costs more than 20 hours of work.');
+  });
+
+  test('a read-only-by-invitation workspace keeps the counts-only boundary', async () => {
+    await seed([]);
+
+    const res = await request(app).get(`/api/marketplace/${WS}`);
+    expect(res.status).toBe(200);
+
+    expect(res.body.proposals).toBeUndefined();
+    expect(res.body.decided).toBeUndefined();
+    // Counts still present, contents absent from the whole payload.
+    expect(res.body.proposalStats.total).toBe(2);
+    expect(JSON.stringify(res.body)).not.toContain('Ship offline mode');
+    expect(JSON.stringify(res.body)).not.toContain('Costs more than 20 hours');
+  });
+
+  test('the fairness numbers a visitor needs are in the payload', async () => {
+    await seed(['read', 'trade']);
+    const res = await request(app).get(`/api/marketplace/${WS}`);
+    expect(res.body.signupCredits).toBeGreaterThan(0);
+    expect(res.body.maxPositionCostPerMarket).toBe(0);
+    expect(res.body.joinAs).toBe('trader');
+  });
+});

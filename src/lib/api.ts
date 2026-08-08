@@ -200,11 +200,48 @@ export interface PublicWorkspace {
   spamPenalty: number;
   /** What pressing join actually grants, per the Public group's capabilities. */
   joinAs: 'trader' | 'viewer';
+  /** Per-participant buy cap per market in credits; 0 = none. Shown so the
+   *  fairness bound is a stated rule, not something taken on faith. */
+  maxPositionCostPerMarket: number;
+  /** The platform signup grant, so the page can say what you start with. */
+  signupCredits: number;
   metricCount: number;
   openMarketCount: number;
   participantCount: number;
   proposalStats: ProposalStats;
   markets: PublicWorkspaceMarket[];
+  /** The ballot: present only when the workspace's Public group grants read
+   *  (an Open workspace, where contents are one free self-join away anyway). */
+  proposals?: PublicProposal[];
+  decided?: PublicDecidedProposal[];
+}
+
+export interface PublicProposalMarketPair {
+  metricName: string;
+  targetDate: string;
+  approvedConsensus: number | null;
+  declinedConsensus: number | null;
+  /** approved minus declined consensus: the priced causal impact of approving. */
+  delta: number | null;
+}
+
+export interface PublicProposal {
+  id: string;
+  title: string;
+  description: string;
+  proposedByName: string | null;
+  createdAt: string;
+  /** Total conditional pairs; `markets` carries only the largest-impact few. */
+  marketPairCount: number;
+  markets: PublicProposalMarketPair[];
+}
+
+export interface PublicDecidedProposal {
+  id: string;
+  title: string;
+  status: 'approved' | 'declined';
+  resolvedAt: string | null;
+  declineReason: string | null;
 }
 
 /** A market row on the public workspace page. No workspace fields: the page

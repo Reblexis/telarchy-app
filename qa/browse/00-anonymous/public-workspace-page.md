@@ -127,22 +127,31 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
   `THIN` chip. The chip is neutral grey, never red: low depth is a fact
   about the book, not an error state (see `docs/ui-conventions.md`).
 
-### T6. Counts, not contents (the disclosure boundary)
+### T6. Disclosure boundary: the ballot on Open workspaces, counts elsewhere
 
 **Steps:**
-1. `$B text`
-2. Pick a metric that has a logged value and a proposal title from the same
-   workspace using a credentialed call:
-   `curl -s -H "X-API-Key: $TELARCHY_MASTER_KEY" -H "X-Workspace-Id: $WS" "$TT_API_URL/api/metrics"`
-   and `.../api/proposals`.
+1. `curl -s "$TT_API_URL/api/marketplace/$WS" | jq '{joinAs, proposals: (.proposals|length?), decided: (.decided|length?)}'`
+2. `$B text`
+3. For the counts-only branch, use (or configure) a public workspace whose
+   Public group has no `read` capability.
 
 **Expected:**
-- The proposal section shows only counts ("N submitted, N approved, ...")
-  plus "Join to read them."
-- No proposal title or description text appears anywhere in the page text.
-- No logged metric value appears. Market `consensus` values DO appear and
-  are expected; the thing that must not leak is the metric's actual current
-  value, which is a different number.
+- When the workspace's Public group grants `read` (typically `joinAs` is
+  `trader`): the page shows an "Open proposals" section with proposal titles,
+  descriptions, and a delta per row (signed number, `unpriced`, or
+  `±0 · be first`), and, when any proposal has been decided, a "Decisions so
+  far" section where declined items carry their published decline reason.
+  This is deliberate: membership is one free click, so hiding the ballot is
+  friction, not privacy.
+- When the Public group lacks `read`: the proposal section shows only counts
+  ("N submitted, N approved, ...") plus "Join to read them", and no proposal
+  title or description appears anywhere in the page text.
+- In both cases: no logged metric value appears. Market `consensus` values DO
+  appear and are expected; the thing that must not leak is the metric's
+  actual current value, which is a different number.
+- The CTA terms line states the signup credit grant, and, when
+  `maxPositionCostPerMarket` > 0, the per-market cap ("no account can put
+  more than N credits into one market").
 
 ### T7. A private workspace id does not render a page
 

@@ -1,21 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { api, setActiveWorkspace, type PublicWorkspace } from '../lib/api';
+import { api, setActiveWorkspace, type PublicWorkspace, type PublicProposal } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 
 /**
  * The destination for a shared workspace link: /marketplace/:workspaceId.
  *
- * This page exists because a link posted somewhere public is the first and
- * often only thing a stranger sees. It used to redirect into the generic
- * marketplace list with the search box pre-filled, which showed a name, a
- * market count, and nothing that would make anyone act. A workspace inviting
- * outside forecasters has to be able to say what it governs, what the owner
- * commits to doing with the number, and what pressing join actually grants.
+ * This page is most visitors' first and only impression, so it shows the
+ * product, not a teaser. For an Open workspace (Public group grants read) the
+ * API ships the ballot: pending proposals with their conditional-market
+ * deltas, and recent decisions with their published decline reasons. The page
+ * leads with that ballot, because "here is what is being decided and what the
+ * market currently says" is the thing a stranger can act on; the charter and
+ * the raw market list are the supporting material.
  *
- * Deliberately readable logged out. It shows only what the public marketplace
- * API already exposes (metric names, market consensus, counts); logged metric
- * values, proposal text, and chat still require membership.
+ * The CTA states the actual terms (free credit grant, what joining grants,
+ * the per-market buy cap) so fairness is a stated rule rather than something
+ * taken on faith. Non-Open workspaces fall back to the counts-only view.
  */
 
 function formatConsensus(v: number | null, rangeMin: number, rangeMax: number): string {
@@ -23,6 +24,13 @@ function formatConsensus(v: number | null, rangeMin: number, rangeMax: number): 
   const span = rangeMax - rangeMin;
   const decimals = span >= 100 ? 0 : span >= 10 ? 1 : 2;
   return v.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+function formatDelta(delta: number): string {
+  const abs = Math.abs(delta);
+  const decimals = abs >= 100 ? 0 : abs >= 1 ? 1 : 2;
+  const num = abs.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  return `${delta > 0 ? '+' : delta < 0 ? '-' : ''}${num}`;
 }
 
 function resolvesIn(iso: string): string {
@@ -45,13 +53,20 @@ function isThin(liquidity: number, rangeMin: number, rangeMax: number): boolean 
   return span > 0 && liquidity / span < 0.01;
 }
 
+/** The one delta a row leads with: the pair whose priced impact is largest. */
+function headlineDelta(p: PublicProposal): number | null {
+  const deltas = p.markets.map(m => m.delta).filter((d): d is number => d !== null);
+  if (deltas.length === 0) return null;
+  return deltas.reduce((a, b) => (Math.abs(b) > Math.abs(a) ? b : a), deltas[0]);
+}
+
 export function PublicWorkspacePage() {
   const { workspaceId } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [ws, setWs] = useState<PublicWorkspace | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [joinState, setJoinState] = useState<'idle' | 'joining' | 'joined' | 'error'>('idle');
+  const [joinState, setJoinState] = useState<'idle' | 'joining' | 'error'>('idle');
   const [joinError, setJoinError] = useState('');
 
   useEffect(() => {
@@ -70,15 +85,23 @@ export function PublicWorkspacePage() {
     setJoinState('joining');
     try {
       await api.joinWorkspace(workspaceId);
-      setJoinState('joined');
       setActiveWorkspace(workspaceId);
-      // Straight into the markets, which is what they came for.
-      navigate('/markets');
+      // The ballot is the product, so land members on it.
+      navigate('/proposals');
     } catch (err) {
       setJoinError((err as Error).message || 'Failed to join');
       setJoinState('error');
     }
   };
+
+  // The metric context for delta numbers. When every priced pair shares one
+  // metric (the deliberate single-metric workspace shape), name it once in
+  // the section header instead of repeating it per row.
+  const soleMetricName = useMemo(() => {
+    const names = new Set<string>();
+    for (const p of ws?.proposals ?? []) for (const m of p.markets) names.add(m.metricName);
+    return names.size === 1 ? [...names][0] : null;
+  }, [ws]);
 
   if (error) {
     return (
@@ -97,12 +120,31 @@ export function PublicWorkspacePage() {
   // Suppress the raw participant id when the owner never set a nickname; a
   // 32-char hex string reads as a bug, not a name (docs/user-flow-audit.md).
   const ownerName = ws.ownerHandle && ws.ownerHandle !== ws.ownerId ? ws.ownerHandle : null;
+  const hasBallot = ws.proposals !== undefined;
+  const decided = ws.decided ?? [];
   // Markets arrive soonest-resolving first. A workspace with dozens of them
-  // (LookPilot has 66) turns the page into a wall nobody reads, so show the
-  // ones a visitor could act on now and count the rest.
+  // turns the page into a wall nobody reads, so show the ones a visitor could
+  // act on now and count the rest.
   const MARKET_PREVIEW = 12;
   const shownMarkets = ws.markets.slice(0, MARKET_PREVIEW);
   const hiddenMarkets = ws.markets.length - shownMarkets.length;
+
+  const joinButton = (
+    <button className="btn" onClick={handleJoin} disabled={joinState === 'joining'}>
+      {joinState === 'joining' ? 'joining…'
+        : !user ? 'Sign up free to join'
+        : canTrade ? 'Join and start trading'
+        : 'Join to watch'}
+    </button>
+  );
+
+  const ctaTerms = [
+    `${ws.signupCredits.toLocaleString()} free credits at signup`,
+    canTrade ? 'trading rights immediately' : 'read-only until the owner grants trading',
+    ...(ws.maxPositionCostPerMarket > 0
+      ? [`no account can put more than ${ws.maxPositionCostPerMarket.toLocaleString()} credits into one market`]
+      : []),
+  ].join(' · ');
 
   return (
     <div className="public-ws page">
@@ -118,19 +160,62 @@ export function PublicWorkspacePage() {
       </header>
 
       <section className="public-ws-cta">
-        <button className="btn" onClick={handleJoin} disabled={joinState === 'joining'}>
-          {joinState === 'joining' ? 'joining…'
-            : !user ? 'Sign up free to join'
-            : canTrade ? 'Join and start trading'
-            : 'Join to watch'}
-        </button>
-        <span className="public-ws-cta-note">
-          {canTrade
-            ? 'Joining grants trading rights immediately. Anyone can join, human or AI.'
-            : 'This workspace is read-only for new joiners; the owner grants trading rights.'}
-        </span>
+        {joinButton}
+        <span className="public-ws-cta-note">{ctaTerms}</span>
         {joinState === 'error' && <span className="public-ws-cta-err">{joinError}</span>}
       </section>
+
+      {hasBallot && (
+        <section className="public-ws-section">
+          <h2>
+            Open proposals
+            {soleMetricName && <span className="public-ws-h2-context"> · priced impact on {soleMetricName}</span>}
+          </h2>
+          {(ws.proposals ?? []).length === 0 ? (
+            <p className="public-ws-empty">No open proposals right now. Join and propose something.</p>
+          ) : (
+            <ul className="public-ws-proposals">
+              {(ws.proposals ?? []).map(p => {
+                const delta = headlineDelta(p);
+                return (
+                  <li key={p.id}>
+                    <div className="public-ws-proposal-head">
+                      <span className="public-ws-proposal-title">{p.title}</span>
+                      {delta === null ? (
+                        <span className="public-ws-delta public-ws-delta--none">unpriced</span>
+                      ) : delta === 0 ? (
+                        <span className="public-ws-delta public-ws-delta--zero" title="Both branches are priced equally so far. Your trade sets the first signal.">±0 · be first</span>
+                      ) : (
+                        <span className={`public-ws-delta ${delta > 0 ? 'public-ws-delta--up' : 'public-ws-delta--down'}`}>
+                          {formatDelta(delta)}{!soleMetricName && p.markets[0] ? ` on ${p.markets[0].metricName}` : ''} if shipped
+                        </span>
+                      )}
+                    </div>
+                    {p.description && <p className="public-ws-proposal-desc">{p.description}</p>}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      )}
+
+      {decided.length > 0 && (
+        <section className="public-ws-section">
+          <h2>Decisions so far</h2>
+          <ul className="public-ws-decided">
+            {decided.map(d => (
+              <li key={d.id}>
+                <div className="public-ws-proposal-head">
+                  <span className="public-ws-proposal-title">{d.title}</span>
+                  <span className={`public-ws-status public-ws-status--${d.status}`}>{d.status}</span>
+                </div>
+                {d.declineReason && <p className="public-ws-decline-reason">{d.declineReason}</p>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {ws.charter && (
         <section className="public-ws-section">
@@ -166,19 +251,30 @@ export function PublicWorkspacePage() {
         )}
       </section>
 
-      <section className="public-ws-section">
-        <h2>Proposals, last 30 days</h2>
-        <p className="public-ws-lede">
-          {proposalStats.total === 0
-            ? 'No proposals yet. Participants propose actions; the market prices each one against the metrics above.'
-            : <>
-                {proposalStats.total} submitted · {proposalStats.approved} approved ·{' '}
-                {proposalStats.declined + proposalStats.declinedSpam} declined ·{' '}
-                {proposalStats.pending} awaiting a decision.
-              </>}
-          {ws.proposalReward > 0 && <> Approved proposals pay the proposer {ws.proposalReward} credits.</>}
-          {' '}Join to read them.
-        </p>
+      {!hasBallot && (
+        <section className="public-ws-section">
+          <h2>Proposals, last 30 days</h2>
+          <p className="public-ws-lede">
+            {proposalStats.total === 0
+              ? 'No proposals yet. Participants propose actions; the market prices each one against the metrics above.'
+              : <>
+                  {proposalStats.total} submitted · {proposalStats.approved} approved ·{' '}
+                  {proposalStats.declined + proposalStats.declinedSpam} declined ·{' '}
+                  {proposalStats.pending} awaiting a decision.
+                </>}
+            {ws.proposalReward > 0 && <> Approved proposals pay the proposer {ws.proposalReward} credits.</>}
+            {' '}Join to read them.
+          </p>
+        </section>
+      )}
+
+      <section className="public-ws-cta public-ws-cta--footer">
+        {joinButton}
+        <span className="public-ws-cta-note">
+          {canTrade
+            ? 'Free credits, real stakes for the owner, one minute to your first trade.'
+            : 'Free to watch; the owner grants trading rights.'}
+        </span>
       </section>
 
       <p className="public-ws-foot">

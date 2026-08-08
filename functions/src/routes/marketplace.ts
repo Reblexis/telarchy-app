@@ -1,14 +1,15 @@
 import { Router } from 'express';
 import { db } from '../db/client';
 import { workspaces, markets, metrics, agents, trades, permissionGroups, proposals } from '../db/schema';
-import { eq, and, gt, gte, count, inArray, sql } from 'drizzle-orm';
+import { eq, and, gt, gte, count, desc, inArray, sql } from 'drizzle-orm';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireIdentity } from '../middleware/roles';
 import { consensus, pHigher } from '../lib/amm';
 import { periodEndInstant, resolutionInstant } from '../lib/date-utils';
 import { ensureSystemGroups } from './groups';
-import { getGroupMemberIds, getOwnerHandles } from '../lib/participants';
+import { getGroupMemberIds, getOwnerHandles, getParticipantDisplayNames } from '../lib/participants';
+import { SIGNUP_CREDITS } from '../lib/validation';
 
 export const marketplaceRouter = Router();
 
@@ -305,6 +306,89 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
     : undefined;
   const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
 
+  // The ballot. When the Public group grants `read`, workspace contents are one
+  // free self-join away from any visitor, so hiding proposals behind signup is
+  // friction theater, not privacy. Show them: pending proposals with their
+  // conditional-market deltas (the thing a visitor is being invited to price)
+  // and recent decisions with their published decline reasons (the owner's
+  // charter accountability on display). Workspaces whose Public group lacks
+  // `read` keep the counts-only boundary.
+  let openProposals: Array<Record<string, unknown>> | undefined;
+  let decidedProposals: Array<Record<string, unknown>> | undefined;
+  if (publicCaps.includes('read')) {
+    const pending = await db.select().from(proposals)
+      .where(and(eq(proposals.workspaceId, workspaceId), eq(proposals.status, 'pending')))
+      .orderBy(desc(proposals.createdAt))
+      .limit(20);
+    const names = await getParticipantDisplayNames(pending.map(p => p.proposedBy));
+
+    const pendingIds = pending.map(p => p.id);
+    const branchMarkets = pendingIds.length
+      ? await db.select().from(markets)
+          .where(and(
+            eq(markets.workspaceId, workspaceId),
+            inArray(markets.proposalId, pendingIds),
+            eq(markets.active, true),
+            eq(markets.resolved, false),
+            eq(markets.voided, false),
+          ))
+      : [];
+    // Group per proposal x (metric, targetDate); the delta a visitor reads is
+    // approved consensus minus declined consensus, the causal impact of saying
+    // yes. tradeCount would need the trades table; presence of both branch
+    // prices is enough for the public page.
+    const byProposal = new Map<string, Map<string, { metricName: string; targetDate: string; approved: number | null; declined: number | null }>>();
+    for (const m of branchMarkets) {
+      if (!m.proposalId || !m.branch) continue;
+      const shares = (m.shares as [number, number]) || [0, 0];
+      const c = consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null;
+      const groups = byProposal.get(m.proposalId) ?? new Map();
+      const key = `${m.metricId}|${m.targetDate}`;
+      const g = groups.get(key) ?? { metricName: m.metricName, targetDate: m.targetDate, approved: null, declined: null };
+      if (m.branch === 'approved') g.approved = c; else if (m.branch === 'declined') g.declined = c;
+      groups.set(key, g);
+      byProposal.set(m.proposalId, groups);
+    }
+
+    openProposals = pending.map(p => {
+      const pairs = [...(byProposal.get(p.id)?.values() ?? [])].map(g => ({
+        metricName: g.metricName,
+        targetDate: g.targetDate,
+        approvedConsensus: g.approved,
+        declinedConsensus: g.declined,
+        delta: g.approved != null && g.declined != null ? g.approved - g.declined : null,
+      }));
+      // A many-metric workspace spawns a pair per metric x horizon; the public
+      // page reads only the headline, so ship the largest-impact few and the
+      // total count instead of the whole matrix.
+      pairs.sort((a, b) => Math.abs(b.delta ?? 0) - Math.abs(a.delta ?? 0));
+      return {
+        id: p.id,
+        title: p.title,
+        description: p.description,
+        proposedByName: names.get(p.proposedBy) ?? null,
+        createdAt: p.createdAt,
+        marketPairCount: pairs.length,
+        markets: pairs.slice(0, 3),
+      };
+    });
+
+    const decided = await db.select().from(proposals)
+      .where(and(
+        eq(proposals.workspaceId, workspaceId),
+        inArray(proposals.status, ['approved', 'declined']),
+      ))
+      .orderBy(desc(proposals.resolvedAt))
+      .limit(10);
+    decidedProposals = decided.map(p => ({
+      id: p.id,
+      title: p.title,
+      status: p.status,
+      resolvedAt: p.resolvedAt,
+      declineReason: p.declineReason,
+    }));
+  }
+
   res.json({
     workspaceId,
     name: ws.name,
@@ -319,11 +403,17 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
     proposalReward: ws.proposalReward,
     spamPenalty: ws.spamPenalty,
     joinAs: publicCaps.includes('trade') ? 'trader' : 'viewer',
+    // The manipulation bound, surfaced so the page can state the fairness rule
+    // ("no account can put more than N credits into one market") instead of
+    // asking visitors to take it on faith. 0 = no cap.
+    maxPositionCostPerMarket: ws.maxPositionCostPerMarket,
+    signupCredits: SIGNUP_CREDITS,
     metricCount: metricCountRow?.n ?? 0,
     openMarketCount: marketList.length,
     participantCount: participantIds.size,
     proposalStats,
     markets: marketList,
+    ...(openProposals !== undefined ? { proposals: openProposals, decided: decidedProposals } : {}),
   });
 }));
 
