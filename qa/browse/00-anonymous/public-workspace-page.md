@@ -95,9 +95,11 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
 - Anonymous copy is `Join free and move the number` when `joinAs` is
   `trader`, and `Join free and watch` when `viewer`; the button never
   promises trading rights the Public group does not hold.
-- The fine print is a single line: the signup credit grant and the
-  play-money disclaimer. The position cap and everything else live in
-  "The full deal".
+- The fine print is a single line (signup credit grant, play-money
+  disclaimer) followed by the one-line mechanism ("propose -> everyone bets
+  -> the winner ships") for trader workspaces. The position cap and
+  everything else live in "The full deal". There is no "How it works"
+  section: the mechanism line is the whole explanation.
 
 ### T4. The charter renders when set
 

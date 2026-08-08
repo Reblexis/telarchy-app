@@ -165,9 +165,13 @@ soonest-resolving market's consensus as the largest element on the page
 (JetBrains Mono, tabular), sitting on a hairline range rail with an amber
 tick at the consensus. The number outranks the product name on purpose;
 the product's claim is that a price, not a pitch, decides. One black pill
-CTA with a single fine-print line follows; the ballot (when proposals
-exist), three numbered how-it-works lines, decided items, and the charter
-folded in a `<details>` complete the page. Empty sections never render.
+CTA follows with two small lines: the terms fine print and the whole
+mechanism in one breath ("propose → everyone bets → the winner ships",
+amber arrows). The ballot (when proposals exist), decided items, and the
+charter folded in a `<details>` complete the page. Empty sections never
+render. The owner's `description` renders as the headline deck in
+Fraunces, so it should be written as one short claim (~8 words), not a
+paragraph; the long-form pitch belongs in the charter.
 
 The one motion moment: on load the price counts up from the range midpoint
 (the untouched LMSR prior) to the consensus while the tick slides. Skipped

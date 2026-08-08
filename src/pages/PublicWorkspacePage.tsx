@@ -179,7 +179,7 @@ export function PublicWorkspacePage() {
         {hero && consensus !== null && (
           <section className="pubws-instrument" aria-label="The market's current call">
             <div className="pubws-instrument-label">
-              the market&rsquo;s call · {hero.metricName}
+              market&rsquo;s bet · {hero.metricName}
             </div>
             <div className="pubws-price">{shown !== null ? formatValue(shown) : '–'}</div>
             <div className="pubws-rail" role="img" aria-label={`Market range ${hero.rangeMin} to ${hero.rangeMax}, current consensus ${formatValue(consensus)}`}>
@@ -202,8 +202,13 @@ export function PublicWorkspacePage() {
               : 'Join to watch'}
           </button>
           <p className="pubws-fineprint">
-            {ws.signupCredits.toLocaleString()} free credits · play money, cash never involved
+            {ws.signupCredits.toLocaleString()} free credits · play money
           </p>
+          {canTrade && (
+            <p className="pubws-mechanism">
+              propose <span className="pubws-arrow">→</span> everyone bets <span className="pubws-arrow">→</span> the winner ships
+            </p>
+          )}
           {joinState === 'error' && <p className="pubws-joinerr">{joinError}</p>}
         </section>
 
@@ -223,17 +228,6 @@ export function PublicWorkspacePage() {
                 );
               })}
             </ul>
-          </section>
-        )}
-
-        {canTrade && (
-          <section className="pubws-section">
-            <h2 className="pubws-h2">How it works</h2>
-            <ol className="pubws-steps">
-              <li><span className="pubws-step-n">1</span>Propose what the owner should do next.</li>
-              <li><span className="pubws-step-n">2</span>Everyone bets on what each idea does to the number above.</li>
-              <li><span className="pubws-step-n">3</span>The highest-priced idea ships, or the owner publishes why not.</li>
-            </ol>
           </section>
         )}
 
