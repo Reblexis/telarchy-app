@@ -243,9 +243,21 @@ export function TradePage() {
               onPreview={setTicketPreview}
             />
           </section>
-        ) : canTrade && !user && !authLoading ? (
-          <section className="pubws-act pubws-enter pubws-enter--3" aria-label="Join and trade">
-            <Link to="/signup" className="pubws-cta">Make your call</Link>
+        ) : canTrade && !user && !authLoading && hero ? (
+          /* Newcomers get the same ticket in demo mode: they can compose a
+             bet and watch its impact ghost onto the chart; the confirm is
+             the signup door. The ticket is the pitch. */
+          <section className="pubws-act pubws-enter pubws-enter--3" aria-label="Try a trade">
+            <TradeTicket
+              probability={hero.probability}
+              liquidity={hero.liquidity}
+              positions={[]}
+              balance={null}
+              onTrade={async () => {}}
+              onSell={async () => {}}
+              onPreview={setTicketPreview}
+              onRequireSignup={() => navigate('/signup')}
+            />
           </section>
         ) : null}
       </main>

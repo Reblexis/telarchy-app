@@ -118,6 +118,14 @@ export function MarketChart({ series, consensus, unit = '', preview = null, heig
   const { extended, d, areaPath, end, x, y, gridVals, ticks, fmt } = model;
   const cNum = (v: number) => `${unit}${compactNum(v)}`;
   const fNum = (v: number) => `${unit}${fullNum(v)}`;
+  // The call and ghost labels live at the right edge; when a label is too
+  // wide for the remaining canvas (dollar values usually are), anchor it on
+  // the left side of its dot instead of letting it run off the edge.
+  // 6.8 units/char approximates the 11px mono glyph width.
+  const edgeLabel = (dotX: number, text: string) =>
+    dotX + 9 + text.length * 6.8 <= W
+      ? { x: dotX + 9, anchor: 'start' as const }
+      : { x: dotX - 9, anchor: 'end' as const };
 
   const onMove = (e: React.PointerEvent) => {
     const rect = svgRef.current?.getBoundingClientRect();
@@ -177,9 +185,14 @@ export function MarketChart({ series, consensus, unit = '', preview = null, heig
           <path d={d} className="mchart-mline" pathLength={1} />
           <circle cx={x(end.t)} cy={y(end.v)} r="5" className="mchart-callhalo" />
           <circle cx={x(end.t)} cy={y(end.v)} r="5" className="mchart-calldot" />
-          <text className="mchart-calllabel" x={x(end.t) + 9} y={y(end.v) + 4} textAnchor="start">
-            {fNum(consensus)}
-          </text>
+          {(() => {
+            const lb = edgeLabel(x(end.t), fNum(consensus));
+            return (
+              <text className="mchart-calllabel" x={lb.x} y={y(end.v) + 4} textAnchor={lb.anchor}>
+                {fNum(consensus)}
+              </text>
+            );
+          })()}
         </g>
 
         {preview && (() => {
@@ -187,12 +200,14 @@ export function MarketChart({ series, consensus, unit = '', preview = null, heig
           const cy0 = y(end.v);
           // Keep the ghost label clear of the live call label on tiny moves.
           const labelY = Math.abs(py - cy0) < 15 ? cy0 + (preview.direction === 'higher' ? -15 : 15) : py;
+          const text = `${preview.direction === 'higher' ? '▲' : '▼'} ${fNum(preview.value)}`;
+          const lb = edgeLabel(x(end.t), text);
           return (
             <g className={`mchart-ghost mchart-ghost--${preview.direction}`}>
               <line className="mchart-ghost-line" x1={x(end.t)} x2={x(end.t)} y1={cy0} y2={py} />
               <circle className="mchart-ghost-dot" cx={x(end.t)} cy={py} r="4.5" />
-              <text className="mchart-ghost-label" x={x(end.t) + 9} y={labelY + 4} textAnchor="start">
-                {preview.direction === 'higher' ? '▲' : '▼'} {fNum(preview.value)}
+              <text className="mchart-ghost-label" x={lb.x} y={labelY + 4} textAnchor={lb.anchor}>
+                {text}
               </text>
             </g>
           );

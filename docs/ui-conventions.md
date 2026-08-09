@@ -176,8 +176,11 @@ the CTA fits a 900px-tall desktop viewport; phones get a taller, narrower
 canvas chosen at mount). The page is two-tier by intent (owner decision,
 2026-08-09): the anonymous view is a poster free of explanatory context
 (no hook sentence, no settle fineprint, no captions) with exactly one
-action under the chart, a "Make your call" pill into signup; signing up IS
-the intent signal, and the signed-in view becomes the trader's desk. The
+action under the chart: the trade ticket itself, in demo mode. A newcomer
+composes a real bet (side, amount, payout line, the impact ghost on the
+chart all work), and only the confirm differs: it reads "Sign up to bet"
+and routes to /signup. The ticket is the pitch; signing up IS the intent
+signal, and the signed-in view becomes the trader's desk. The
 desk adds, around the trade ticket only: a mono facts strip above it
 ("Actual <value> · updated <ago> · <n> trades this week", the anchor the
 market predicts against plus its freshness; the trades pulse renders only

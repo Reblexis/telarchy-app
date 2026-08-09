@@ -93,12 +93,14 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
 3. `curl -s "$TT_API_URL/api/marketplace/$WS" | jq -r '.joinAs'`
 
 **Expected:**
-- Exactly one CTA button is visible above the fold at 1280x900: an ink pill
-  reading `Make your call`, linking to /signup, rendered only for anonymous
-  visitors on trader workspaces (`joinAs: trader`). Signed-in visitors get
-  the tradebar in its place; viewer workspaces get neither.
-- No fine print under the button; the only supporting line on the page is
-  the settle fineprint at the bottom.
+- Anonymous visitors on trader workspaces (`joinAs: trader`) see the trade
+  ticket in demo mode: side + amount compose normally, the payout line and
+  the chart's impact ghost work, and the confirm reads `Pick a side` until
+  a direction is chosen, then `Sign up to bet`; pressing it navigates to
+  /signup. No position rows, no balance line. Viewer workspaces get no
+  ticket at all.
+- The whole poster including the ticket's confirm fits above the fold at
+  1280x900.
 
 ### T4. The charter renders when set
 
@@ -223,8 +225,8 @@ None. This spec only reads.
 2. `$B url` after network idle.
 
 **Expected:** any signed-in visit to an Open workspace's trading floor joins
-silently (no `?join=1` needed, no navigation away); the page swaps the
-anonymous "Make your call" pill for the trade ticket (`.ticket`) in place:
+silently (no `?join=1` needed, no navigation away); the demo ticket becomes
+the live one in place:
 Lower/Higher segmented pair, amount input with 10/25/100/250 chips, one
 confirm button that reads "Pick a side" (disabled) until a direction is
 chosen and then "Place <n> cr on <Side>". The payout line appears only

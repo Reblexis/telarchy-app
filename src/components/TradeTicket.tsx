@@ -27,6 +27,10 @@ interface Props {
       probability it would move the market to, or null when nothing is
       composed. The page projects it onto the chart. */
   onPreview?: (preview: { direction: 'higher' | 'lower'; newProb: number } | null) => void;
+  /** Anonymous demo mode: the whole ticket composes normally (side,
+      amount, payout, chart ghost), but the confirm reads "Sign up to bet"
+      and fires this instead of trading. The ticket itself is the pitch. */
+  onRequireSignup?: () => void;
 }
 
 const PRESETS = [10, 25, 100, 250];
@@ -36,7 +40,7 @@ function fmt(v: number): string {
   return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
-export function TradeTicket({ probability, liquidity, positions, balance, onTrade, onSell, onPreview }: Props) {
+export function TradeTicket({ probability, liquidity, positions, balance, onTrade, onSell, onPreview, onRequireSignup }: Props) {
   const [dir, setDir] = useState<'higher' | 'lower' | null>(null);
   const [amount, setAmount] = useState('25');
   const [busy, setBusy] = useState<string | null>(null);
@@ -58,6 +62,10 @@ export function TradeTicket({ probability, liquidity, positions, balance, onTrad
 
   const place = async () => {
     if (!dir || amountNum <= 0 || busy) return;
+    if (onRequireSignup) {
+      onRequireSignup();
+      return;
+    }
     setError('');
     setBusy('place');
     try {
@@ -174,9 +182,11 @@ export function TradeTicket({ probability, liquidity, positions, balance, onTrad
           ? 'Placing…'
           : placed
             ? '✓ Placed'
-            : dir
-              ? `Place ${amountNum} cr on ${dir === 'higher' ? 'Higher' : 'Lower'}`
-              : 'Pick a side'}
+            : !dir
+              ? 'Pick a side'
+              : onRequireSignup
+                ? 'Sign up to bet'
+                : `Place ${amountNum} cr on ${dir === 'higher' ? 'Higher' : 'Lower'}`}
       </button>
 
       {payout !== null && !placed && (
