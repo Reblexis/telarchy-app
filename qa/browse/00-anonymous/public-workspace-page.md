@@ -80,10 +80,12 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
 **Expected:**
 - The page renders standalone: minimal top bar (logo lockup + Log in when
   signed out), NO app sidebar and no `.page-content` shell.
-- Minimal phase (2026-08-09): no name h1, no pitch, no counts line; the
-  headline `.pubws-instrument-title` ("<metric> @ <settle date>", Fraunces,
-  settle date a register quieter) is the page's only title. All removed
-  fields stay in the API.
+- Minimal phase (2026-08-09): no name h1, no counts line; the headline
+  `.pubws-instrument-title` ("<metric> @ <settle date>", Fraunces, settle
+  date a register quieter) is the page's only title, with the workspace's
+  own one-sentence `description` as the hook line under it (hidden when
+  empty) and the settle fineprint ("Settles <date> on the real number.") at
+  the bottom. All other removed fields stay in the API.
 
 ### T3. The join CTA states what joining actually grants
 
@@ -93,15 +95,12 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
 3. `curl -s "$TT_API_URL/api/marketplace/$WS" | jq -r '.joinAs'`
 
 **Expected:**
-- Exactly one CTA button is visible above the fold.
-- Anonymous copy is `Join free and move the number` when `joinAs` is
-  `trader`, and `Join free and watch` when `viewer`; the button never
-  promises trading rights the Public group does not hold.
-- The fine print is a single line (signup credit grant, play-money
-  disclaimer) followed by the one-line mechanism ("propose -> everyone bets
-  -> the winner ships") for trader workspaces. The position cap and
-  everything else live in "The full deal". There is no "How it works"
-  section: the mechanism line is the whole explanation.
+- Exactly one CTA button is visible above the fold at 1280x900: an ink pill
+  reading `Make your call`, linking to /signup, rendered only for anonymous
+  visitors on trader workspaces (`joinAs: trader`). Signed-in visitors get
+  the tradebar in its place; viewer workspaces get neither.
+- No fine print under the button; the only supporting line on the page is
+  the settle fineprint at the bottom.
 
 ### T4. The charter renders when set
 
@@ -226,11 +225,11 @@ None. This spec only reads.
 2. `$B url` after network idle.
 
 **Expected:** any signed-in visit to an Open workspace's trading floor joins
-silently (no `?join=1` needed, no navigation away), but the page does NOT
-change: the minimal phase is view-only, so a signed-in visitor sees the same
-headline + price + chart as an anonymous one, minus the "Log in" link. The
-join is bookkeeping (workspace membership + signup credits) for when trading
-turns back on. Re-visits are idempotent (alreadyMember).
+silently (no `?join=1` needed, no navigation away); the page swaps the
+anonymous "Make your call" pill for the trade controls in place: amount +
+Lower/Higher under the chart, position line with sell once a position is
+held. No payout preview, no per-branch ballot trading (the ballot is not
+rendered in this phase). Re-visits are idempotent (alreadyMember).
 
 ## Known gaps
 

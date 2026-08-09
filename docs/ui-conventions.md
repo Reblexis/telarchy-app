@@ -171,19 +171,23 @@ when the trimmed parenthetical tail names one, e.g. "USD" -> "$"; the same
 prefix runs through every numeral in the chart), and the prediction
 chart (`MarketChart`: one amber step line of the market's call over its
 lifetime, gradient fill, labeled end dot, crosshair; breaks out of the
-column to min(92vw, 840px); phones get a taller, narrower canvas chosen at
-mount). The composition is a poster: the market sits in the optical center
-of the viewport. Motion is one entrance pass (label, then price, then the
-line drawing itself) plus a soft perpetual ripple on the call dot; loading
-is the amber call dot rippling where the market will appear; everything stops
-under prefers-reduced-motion. The page is view-only in this phase: no trade
-controls even when signed in, no CTA button, no caption line, no balance
-readout. Understanding the market is the page's entire job; trading returns
-as a render change when the owner turns it back on. Signed-in visits still
-join silently, so every account that has seen the page is already a member
-then. The ballot, charter, decided list, pitch and footer are deliberately not
-rendered in this phase; the API still ships them, so each returns as a
-render change.
+column to min(92vw, 760px), capped so the whole poster through the CTA fits
+a 900px-tall desktop viewport; phones get a taller, narrower canvas chosen
+at mount). The composition is a poster answering a newcomer's three
+questions in order, and nothing else: what am I looking at (headline + one
+hook sentence under it, rendered from the workspace's own `description` and
+hidden when empty; it is what tells a stranger the number is a live
+forecast by traders, not a measurement), is it real (the settle fineprint
+at the bottom: "Settles <date> on the real number."), and what can I do
+(exactly one action: a "Make your call" pill into signup when anonymous;
+the amount + Lower/Higher tradebar with position and sell when signed in;
+no payout preview). Motion is one entrance pass (label, then price, then
+the line drawing itself) plus a soft perpetual ripple on the call dot;
+loading is the amber call dot rippling where the market will appear;
+everything stops under prefers-reduced-motion. Signed-in visits join
+silently. The ballot, charter, decided list, pitch and footer are
+deliberately not rendered in this phase; the API still ships them, so each
+returns as a render change.
 
 ## When in doubt
 

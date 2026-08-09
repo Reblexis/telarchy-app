@@ -7494,6 +7494,24 @@ code, pre, kbd, samp {
   color: var(--text-secondary);
 }
 
+/* The hook: one owner-authored sentence that tells a stranger the number
+   below is a live forecast by traders, not a measurement. */
+.pubws-hook {
+  margin: 0.55rem auto 0;
+  max-width: 46ch;
+  font-size: 0.98rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* The trust anchor: what the market resolves against, and when. */
+.pubws-settle {
+  margin: 1rem 0 0;
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+}
+
 .pubws-price {
   margin: 0.4rem 0 0.2rem;
   font-family: 'JetBrains Mono', monospace;
@@ -7510,7 +7528,7 @@ code, pre, kbd, samp {
 
 /* One action. Black, wide, unmissable. */
 .pubws-act {
-  margin-top: clamp(2rem, 5vh, 3rem);
+  margin-top: clamp(1.3rem, 3vh, 1.9rem);
   text-align: center;
 }
 
@@ -7524,6 +7542,7 @@ code, pre, kbd, samp {
   font-family: inherit;
   font-size: 1.02rem;
   font-weight: 600;
+  text-decoration: none;
   cursor: pointer;
   transition: background 120ms ease, transform 120ms ease;
 }
@@ -7946,8 +7965,10 @@ code, pre, kbd, samp {
   position: relative;
   margin: 1.1rem auto 0;
   /* The centerpiece breaks out of the reading column: as wide as the
-     viewport comfortably allows, up to 840px. */
-  width: min(92vw, 840px);
+     viewport comfortably allows. Capped at 760px so the whole poster
+     (headline through the CTA and settle line) fits a 900px-tall desktop
+     viewport without scrolling; the action must be above the fold. */
+  width: min(92vw, 760px);
   margin-left: 50%;
   transform: translateX(-50%);
 }
@@ -8118,7 +8139,7 @@ code, pre, kbd, samp {
   justify-content: center;
   width: 100%;
   padding-top: 0;
-  padding-bottom: clamp(3rem, 10vh, 6rem);
+  padding-bottom: clamp(1.5rem, 5vh, 3rem);
 }
 .pubws--center .pubws-instrument { margin-top: 0; }
 
