@@ -156,14 +156,16 @@ filter toggles (underline = active).
 `telarchy.com/<slug>` (`TradePage`, `.pubws-*` styles; `/marketplace/:idOrSlug`
 canonicalizes here) renders **standalone**, outside `AppLayout`, and in the
 minimal phase (owner decision, 2026-08-09) it renders **the market and
-nothing else**: minimal top bar (wordmark + log in, balance + account when
-signed in), the label line, the consensus as a large mono price with a
-since-open chip, the prediction chart (`MarketChart`: one amber step line of
-the market's call over its lifetime, gradient fill, labeled end dot,
-crosshair; breaks out of the column to min(92vw, 840px)), a one-line caption
-(settle date, trades pulse), and the single action: the join CTA when logged
-out, the amount + Lower/Higher pair with payout hint, position and sell when
-in. The ballot, charter, decided list, pitch and footer are deliberately not
+nothing else**: minimal top bar (the Telarchy logo lockup linking home; a
+Log in link only when signed out), one headline line naming the prediction
+("<metric> @ <settle date>", the metric's parenthetical unit tail trimmed
+for display), the consensus as a large mono price with a since-open chip,
+and the prediction chart (`MarketChart`: one amber step line of the market's
+call over its lifetime, gradient fill, labeled end dot, crosshair; breaks
+out of the column to min(92vw, 840px)). Signed-in traders additionally get
+the amount + Lower/Higher pair with payout hint, position and sell. There
+is no CTA button, no caption line, no balance readout: understanding the
+market is the page's entire job in this phase. The ballot, charter, decided list, pitch and footer are deliberately not
 rendered in this phase; the API still ships them, so each returns as a
 render change.
 

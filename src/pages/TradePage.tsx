@@ -4,6 +4,7 @@ import { api, setActiveWorkspace, type PublicWorkspace } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { previewTrade } from '../lib/amm';
 import { MarketChart } from '../components/MarketChart';
+import { Logo } from '../components/Logo';
 
 /**
  * telarchy.com/<slug>: the market, and nothing else (owner decision,
@@ -49,7 +50,6 @@ export function TradePage() {
   const [ws, setWs] = useState<PublicWorkspace | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [joined, setJoined] = useState(false);
-  const [balance, setBalance] = useState<number | null>(null);
   const [amount, setAmount] = useState('25');
   const [tradeErr, setTradeErr] = useState('');
   const [tradeBusy, setTradeBusy] = useState<string | null>(null);
@@ -93,9 +93,6 @@ export function TradePage() {
 
   const heroMarketId = ws?.markets[0]?.marketId ?? null;
   const refreshMoney = () => {
-    api.getParticipant()
-      .then((p: { balance?: number }) => setBalance(p.balance ?? null))
-      .catch(e => console.error('balance fetch failed:', e));
     if (heroMarketId && ws) {
       api.getPositions(heroMarketId, undefined, ws.workspaceId)
         .then((rows: Array<{ direction: 'higher' | 'lower'; shares: number; totalCost: number }>) =>
@@ -141,7 +138,7 @@ export function TradePage() {
   if (error) {
     return (
       <div className="pubws">
-        <TopBar user={!!user} balance={balance} />
+        <TopBar user={!!user} />
         <main className="pubws-main">
           <p className="pubws-pitch">{error}</p>
           <p className="pubws-pitch"><Link to="/">Back to Telarchy</Link></p>
@@ -153,7 +150,7 @@ export function TradePage() {
   if (!ws) {
     return (
       <div className="pubws">
-        <TopBar user={!!user} balance={balance} />
+        <TopBar user={!!user} />
         <main className="pubws-main"><p className="pubws-pitch">Loading…</p></main>
       </div>
     );
@@ -164,12 +161,16 @@ export function TradePage() {
 
   return (
     <div className="pubws">
-      <TopBar user={!!user} balance={balance} />
+      <TopBar user={!!user} />
       <main className="pubws-main">
         {hero && displayConsensus !== null && (
           <section className="pubws-instrument" aria-label="The market">
+            {/* The whole title: what is being predicted, as of when. The
+                metric's parenthetical unit tail is trimmed for display only
+                (the full name stays in the API); renaming the metric itself
+                would void the live market by the definition-change invariant. */}
             <div className="pubws-instrument-label">
-              market&rsquo;s bet · {hero.metricName}
+              {hero.metricName.replace(/\s*\(.*\)\s*$/, '')} @ {settleDate(hero.resolvesOn)}
             </div>
             <div className="pubws-headline">
               <span className="pubws-price">{formatValue(displayConsensus)}</span>
@@ -182,10 +183,6 @@ export function TradePage() {
             {(ws.marketHistory?.length ?? 0) > 0 && (
               <MarketChart series={ws.marketHistory!} consensus={displayConsensus} />
             )}
-            <div className="pubws-instrument-sub">
-              settles {settleDate(hero.resolvesOn)}
-              {(ws.tradesThisWeek ?? 0) > 0 && <> · {ws.tradesThisWeek} trades this week</>}
-            </div>
           </section>
         )}
 
@@ -243,39 +240,19 @@ export function TradePage() {
             )}
             {tradeErr && <p className="pubws-joinerr">{tradeErr}</p>}
           </section>
-        ) : (
-          <section className="pubws-act">
-            <button
-              className="pubws-cta"
-              onClick={() => {
-                if (!user) navigate(`/signup?next=${encodeURIComponent(`/${ws.slug ?? idOrSlug}`)}`);
-              }}
-              disabled={!!user && !canTrade}
-            >
-              {!user ? (canTrade ? 'Join free and move the number' : 'Join free and watch') : 'Read-only workspace'}
-            </button>
-            <p className="pubws-fineprint">
-              {ws.signupCredits.toLocaleString()} free credits · play money
-            </p>
-          </section>
-        )}
+        ) : null}
       </main>
     </div>
   );
 }
 
-function TopBar({ user, balance }: { user: boolean; balance: number | null }) {
+function TopBar({ user }: { user: boolean }) {
   return (
     <nav className="pubws-topbar">
-      <Link to="/" className="pubws-wordmark">Telarchy</Link>
-      {user ? (
-        <span className="pubws-topbar-me">
-          {balance !== null && <span className="pubws-balance">{balance.toFixed(0)} cr</span>}
-          <Link to="/account" className="pubws-login">Account</Link>
-        </span>
-      ) : (
-        <Link to="/login" className="pubws-login">Log in</Link>
-      )}
+      <Link to="/" className="pubws-logolink" aria-label="Telarchy">
+        <Logo variant="lockup" height="1.6rem" />
+      </Link>
+      {!user && <Link to="/login" className="pubws-login">Log in</Link>}
     </nav>
   );
 }
