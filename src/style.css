@@ -7404,10 +7404,12 @@ code, pre, kbd, samp {
 .pubws-topbar {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  /* center, not baseline: the left side is the logo image, and an image's
+     baseline is its bottom edge */
+  align-items: center;
   max-width: 660px;
   margin: 0 auto;
-  padding: 1.4rem 1.25rem 0;
+  padding: 1.1rem 1.25rem 0;
 }
 
 .pubws-wordmark {

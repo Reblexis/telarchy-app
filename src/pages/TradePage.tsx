@@ -9,16 +9,17 @@ import { Logo } from '../components/Logo';
  * telarchy.com/<slug>: the market, and nothing else (owner decision,
  * 2026-08-09: minimal first, add more later). The page renders exactly one
  * object, the prediction: the headline ("<metric> @ <settle date>"), the
- * price, and the Manifold-style step chart of the market's call. Signed-in
- * traders get the amount + Lower/Higher pair, position and sell; anonymous
- * visitors get only "Log in" in the top bar. The CTA, captions, payout
- * preview, ballot, charter, decided list, pitch and footer are deliberately
- * NOT rendered in this phase; the API still ships what it shipped, so
+ * price, and the Manifold-style step chart of the market's call. That is
+ * the whole page; it is view-only in this phase. No trade controls, no CTA,
+ * no captions; an anonymous visitor additionally gets "Log in" in the top
+ * bar. The tradebar, ballot, charter, decided list, pitch and footer are
+ * deliberately NOT rendered; the API still ships what it shipped, so
  * bringing each back is a render change, not a feature.
  *
  * /marketplace/:idOrSlug still resolves here and canonicalizes to /<slug>.
  * A signed-in visitor on an Open workspace is joined silently; membership is
- * bookkeeping, not a decision.
+ * bookkeeping, not a decision, and it means every account that has seen the
+ * page is already a member the day trading turns back on.
  */
 
 function formatValue(v: number): string {
@@ -40,8 +41,6 @@ function settleDate(iso: string): string {
   return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
 }
 
-interface HeroPosition { direction: 'higher' | 'lower'; shares: number; totalCost: number }
-
 export function TradePage() {
   const params = useParams();
   const idOrSlug = params.slug ?? params.workspaceId;
@@ -50,25 +49,17 @@ export function TradePage() {
   const location = useLocation();
   const [ws, setWs] = useState<PublicWorkspace | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [joined, setJoined] = useState(false);
-  const [amount, setAmount] = useState('25');
-  const [tradeErr, setTradeErr] = useState('');
-  const [tradeBusy, setTradeBusy] = useState<string | null>(null);
-  const [heroConsensus, setHeroConsensus] = useState<number | null>(null);
-  const [positions, setPositions] = useState<HeroPosition[]>([]);
   const joinTried = useRef(false);
 
-  const reload = () => {
+  useEffect(() => {
     if (!idOrSlug) return;
     api.getMarketplaceWorkspace(idOrSlug)
-      .then(w => { setWs(w); setHeroConsensus(w.markets[0]?.consensus ?? null); })
+      .then(setWs)
       .catch(e => {
         console.error('trade page fetch failed:', e);
         setError(e instanceof Error ? e.message : 'Failed to load workspace');
       });
-  };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(reload, [idOrSlug]);
+  }, [idOrSlug]);
 
   // Canonical URL is the root-level slug; shared /marketplace/<x> links
   // keep working and quietly become /<slug>.
@@ -85,56 +76,15 @@ export function TradePage() {
     if (ws.joinAs !== 'trader') return;
     joinTried.current = true;
     api.joinWorkspace(ws.workspaceId)
-      .then(() => {
-        setActiveWorkspace(ws.workspaceId);
-        setJoined(true);
-      })
+      .then(() => setActiveWorkspace(ws.workspaceId))
       .catch(e => console.error('silent join failed:', e));
   }, [ws, user]);
-
-  const heroMarketId = ws?.markets[0]?.marketId ?? null;
-  const refreshMoney = () => {
-    if (heroMarketId && ws) {
-      api.getPositions(heroMarketId, undefined, ws.workspaceId)
-        .then((rows: Array<{ direction: 'higher' | 'lower'; shares: number; totalCost: number }>) =>
-          setPositions((rows ?? []).filter(r => r.shares > 1e-9)))
-        .catch(e => console.error('positions fetch failed:', e));
-    }
-  };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (joined) refreshMoney(); }, [joined, heroMarketId]);
-
-  const doTrade = async (body: Record<string, unknown>, busyKey: string) => {
-    if (!ws) return;
-    setTradeErr('');
-    setTradeBusy(busyKey);
-    try {
-      const r = await api.trade(body, ws.workspaceId) as { consensus?: number | null };
-      if (typeof r.consensus === 'number' && body.marketId === heroMarketId) setHeroConsensus(r.consensus);
-      refreshMoney();
-      reload();
-    } catch (e) {
-      setTradeErr((e as Error).message || 'Trade failed');
-    } finally {
-      setTradeBusy(null);
-    }
-  };
-
-  const amountNum = Math.max(0, parseFloat(amount) || 0);
-  const heroTrade = (direction: 'higher' | 'lower') => {
-    if (!heroMarketId || amountNum <= 0) return;
-    void doTrade({ marketId: heroMarketId, direction, amount: amountNum }, `hero-${direction}`);
-  };
-  const sellPosition = (p: HeroPosition) => {
-    if (!heroMarketId) return;
-    void doTrade({ marketId: heroMarketId, direction: p.direction, sellShares: p.shares }, `sell-${p.direction}`);
-  };
 
   const hero = ws?.markets[0] ?? null;
   // The prediction's own movement: current call vs the call after the
   // market's first trade. About the market, not the metric.
   const marketOpen = ws?.marketHistory?.length ? ws.marketHistory.find(p => p.consensus !== null)?.consensus ?? null : null;
-  const displayConsensus = heroConsensus ?? hero?.consensus ?? null;
+  const consensus = hero?.consensus ?? null;
 
   if (error) {
     return (
@@ -157,14 +107,11 @@ export function TradePage() {
     );
   }
 
-  const canTrade = ws.joinAs === 'trader';
-  const trading = !!user && joined && canTrade;
-
   return (
     <div className="pubws">
       <TopBar user={!!user} />
       <main className="pubws-main">
-        {hero && displayConsensus !== null && (
+        {hero && consensus !== null && (
           <section className="pubws-instrument" aria-label="The market">
             {/* The whole title: what is being predicted, as of when. The
                 metric's parenthetical unit tail is trimmed for display only
@@ -174,64 +121,18 @@ export function TradePage() {
               {hero.metricName.replace(/\s*\(.*\)\s*$/, '')} @ {settleDate(hero.resolvesOn)}
             </div>
             <div className="pubws-headline">
-              <span className="pubws-price">{formatValue(displayConsensus)}</span>
-              {marketOpen !== null && displayConsensus !== marketOpen && (
-                <span className={`pubws-delta-chip ${displayConsensus >= marketOpen ? 'is-up' : 'is-down'}`}>
-                  {displayConsensus >= marketOpen ? '▲' : '▼'} {formatDelta(displayConsensus - marketOpen)} since open
+              <span className="pubws-price">{formatValue(consensus)}</span>
+              {marketOpen !== null && consensus !== marketOpen && (
+                <span className={`pubws-delta-chip ${consensus >= marketOpen ? 'is-up' : 'is-down'}`}>
+                  {consensus >= marketOpen ? '▲' : '▼'} {formatDelta(consensus - marketOpen)} since open
                 </span>
               )}
             </div>
             {(ws.marketHistory?.length ?? 0) > 0 && (
-              <MarketChart series={ws.marketHistory!} consensus={displayConsensus} />
+              <MarketChart series={ws.marketHistory!} consensus={consensus} />
             )}
           </section>
         )}
-
-        {trading ? (
-          <section className="pubws-act" aria-label="Place a trade">
-            <div className="pubws-tradebar">
-              <label className="pubws-amount">
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={amount}
-                  onChange={e => setAmount(e.target.value)}
-                  aria-label="Credits to spend"
-                />
-                <span>cr</span>
-              </label>
-              <button
-                className="pubws-dir pubws-dir--lower"
-                disabled={tradeBusy !== null || amountNum <= 0}
-                onClick={() => heroTrade('lower')}
-              >
-                {tradeBusy === 'hero-lower' ? '…' : '▼ Lower'}
-              </button>
-              <button
-                className="pubws-dir pubws-dir--higher"
-                disabled={tradeBusy !== null || amountNum <= 0}
-                onClick={() => heroTrade('higher')}
-              >
-                {tradeBusy === 'hero-higher' ? '…' : '▲ Higher'}
-              </button>
-            </div>
-            {positions.length > 0 && (
-              <div className="pubws-position">
-                {positions.map(p => (
-                  <span key={p.direction}>
-                    you hold {p.shares.toFixed(1)} sh {p.direction}
-                    {' '}
-                    <button className="pubws-sell" disabled={tradeBusy !== null} onClick={() => sellPosition(p)}>
-                      {tradeBusy === `sell-${p.direction}` ? 'selling…' : 'sell'}
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-            {tradeErr && <p className="pubws-joinerr">{tradeErr}</p>}
-          </section>
-        ) : null}
       </main>
     </div>
   );
@@ -241,7 +142,9 @@ function TopBar({ user }: { user: boolean }) {
   return (
     <nav className="pubws-topbar">
       <Link to="/" className="pubws-logolink" aria-label="Telarchy">
-        <Logo variant="lockup" height="1.6rem" />
+        {/* Same lockup treatment as the landing nav (3rem), so the page
+            reads as the same site. */}
+        <Logo variant="lockup" height="3rem" />
       </Link>
       {!user && <Link to="/login" className="pubws-login">Log in</Link>}
     </nav>

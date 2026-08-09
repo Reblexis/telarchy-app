@@ -215,11 +215,11 @@ None. This spec only reads.
 2. `$B url` after network idle.
 
 **Expected:** any signed-in visit to an Open workspace's trading floor joins
-silently (no `?join=1` needed, no navigation away); the page grows the trade
-controls in place: amount + Lower/Higher under the instrument, position line
-with sell after a trade, "+ Propose something" under the ballot, and
-per-branch trade buttons inside an expanded ballot row. Re-visits are
-idempotent (alreadyMember).
+silently (no `?join=1` needed, no navigation away), but the page does NOT
+change: the minimal phase is view-only, so a signed-in visitor sees the same
+headline + price + chart as an anonymous one, minus the "Log in" link. The
+join is bookkeeping (workspace membership + signup credits) for when trading
+turns back on. Re-visits are idempotent (alreadyMember).
 
 ## Known gaps
 

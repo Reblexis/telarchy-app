@@ -156,16 +156,19 @@ filter toggles (underline = active).
 `telarchy.com/<slug>` (`TradePage`, `.pubws-*` styles; `/marketplace/:idOrSlug`
 canonicalizes here) renders **standalone**, outside `AppLayout`, and in the
 minimal phase (owner decision, 2026-08-09) it renders **the market and
-nothing else**: minimal top bar (the Telarchy logo lockup linking home; a
-Log in link only when signed out), one headline line naming the prediction
-("<metric> @ <settle date>", the metric's parenthetical unit tail trimmed
-for display), the consensus as a large mono price with a since-open chip,
-and the prediction chart (`MarketChart`: one amber step line of the market's
-call over its lifetime, gradient fill, labeled end dot, crosshair; breaks
-out of the column to min(92vw, 840px)). Signed-in traders additionally get
-the amount + Lower/Higher pair, position and sell. There is no CTA button,
-no caption line, no balance readout, no payout preview: understanding the
-market is the page's entire job in this phase. The ballot, charter, decided list, pitch and footer are deliberately not
+nothing else**: minimal top bar (the Telarchy logo lockup at the landing
+nav's 3rem, linking home, vertically centered; a Log in link only when
+signed out), one headline line naming the prediction ("<metric> @ <settle
+date>", the metric's parenthetical unit tail trimmed for display), the
+consensus as a large mono price with a since-open chip, and the prediction
+chart (`MarketChart`: one amber step line of the market's call over its
+lifetime, gradient fill, labeled end dot, crosshair; breaks out of the
+column to min(92vw, 840px)). The page is view-only in this phase: no trade
+controls even when signed in, no CTA button, no caption line, no balance
+readout. Understanding the market is the page's entire job; trading returns
+as a render change when the owner turns it back on. Signed-in visits still
+join silently, so every account that has seen the page is already a member
+then. The ballot, charter, decided list, pitch and footer are deliberately not
 rendered in this phase; the API still ships them, so each returns as a
 render change.
 
