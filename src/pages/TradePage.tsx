@@ -6,6 +6,7 @@ import { MarketChart } from '../components/MarketChart';
 import { TradeTicket, type TicketPosition } from '../components/TradeTicket';
 import { JobsBoard, splitAsk } from '../components/JobsBoard';
 import { ActivityRail, LeaderboardRail, type ActivityItem } from '../components/FloorRails';
+import { AccountMenu } from '../components/AccountMenu';
 import { Logo } from '../components/Logo';
 import type { LeaderboardEntry } from '../lib/api';
 
@@ -422,7 +423,9 @@ function TopBar({ user, ready }: { user: boolean; ready: boolean }) {
       {/* Rendered only after the session check settles: while it is
           pending, user is still null, and a signed-in visitor would see
           "Log in" flash and vanish. Anonymous visitors get it fading in. */}
-      {ready && !user && <Link to="/login" className="pubws-login pubws-fade">Log in</Link>}
+      {ready && (user
+        ? <div className="pubws-fade"><AccountMenu /></div>
+        : <Link to="/login" className="pubws-login pubws-fade">Log in</Link>)}
     </nav>
   );
 }

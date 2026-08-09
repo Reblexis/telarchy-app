@@ -7,6 +7,10 @@ export interface AppUser {
   id: string;
   email: string | null | undefined;
   name?: string | null;
+  /** Avatar URL: set by an OAuth provider at sign-in, or by the account
+   *  menu via POST /api/auth/profile { image }. */
+  image?: string | null;
+  emailVerified?: boolean;
 }
 
 export function useAuth() {
@@ -17,10 +21,16 @@ export function useAuth() {
   // deps that include `user` to fire on every render → infinite API call loops.
   const user: AppUser | null = useMemo(
     () => session?.user
-      ? { id: session.user.id, email: session.user.email, name: session.user.name }
+      ? {
+          id: session.user.id,
+          email: session.user.email,
+          name: session.user.name,
+          image: session.user.image ?? null,
+          emailVerified: session.user.emailVerified,
+        }
       : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [session?.user?.id, session?.user?.email, session?.user?.name],
+    [session?.user?.id, session?.user?.email, session?.user?.name, session?.user?.image, session?.user?.emailVerified],
   );
 
   const prevUidRef = useRef<string | null>(null);

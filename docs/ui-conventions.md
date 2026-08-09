@@ -158,9 +158,16 @@ canonicalizes here) renders **standalone**, outside `AppLayout`, and in the
 minimal phase (owner decision, 2026-08-09) it renders **the market and
 nothing else**: full-bleed top bar pinned to the viewport corners (the
 Telarchy logo lockup at the landing nav's 3rem in the top-left, linking
-home, vertically centered; a Log in link top-right only when signed out,
-rendered only after the session check settles and faded in, so signed-in
-visitors never see it flash; the bar deliberately ignores the 660px content
+home, vertically centered; top-right, after the session check settles and
+faded in so signed-in visitors never see a flash, either a Log in link or,
+when signed in, the account menu: a round avatar (the account's `image`,
+which OAuth providers populate and the menu can set, else initials)
+opening a small panel with the handle and email, credits to trade and
+credits earned, a picture setter, a link to /account and Log out. The
+picture is a URL, not an upload (no blob store in this stack), saved via
+POST /api/auth/profile { image } which accepts http(s) only so the value
+can never become a javascript: or data: vector in an img src. The bar owns
+a stacking layer above the floor rails so the panel paints over them; the bar deliberately ignores the 660px content
 column, which left the logo floating aligned to nothing), one headline naming the prediction ("<metric> @ <settle
 date>", the metric's parenthetical unit tail trimmed for display) set in
 the Fraunces display face with the instrument in ink and the settle date a

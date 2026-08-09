@@ -152,7 +152,7 @@ userauthRouter.post('/profile', requireIdentity, requireScope('account:write'), 
     return;
   }
 
-  const { intent, nickname, bio } = req.body;
+  const { intent, nickname, bio, image } = req.body;
   if (intent !== undefined && !['creator', 'agent', 'trader'].includes(intent)) {
     res.status(400).json({ error: 'intent must be "creator", "agent", or "trader"' }); return;
   }
@@ -162,6 +162,30 @@ userauthRouter.post('/profile', requireIdentity, requireScope('account:write'), 
     const result = normalizeBio(bio);
     if (result instanceof Error) { res.status(400).json({ error: result.message }); return; }
     normalizedBio = result;
+  }
+
+  // Avatar: a URL, not an upload. There is no blob store in this stack, and
+  // the auth user row already carries `image` (OAuth providers populate it),
+  // so a self-set picture is the same field. http(s) only, so the value can
+  // never become a javascript: or data: vector in an <img src>.
+  let normalizedImage: string | null | undefined;
+  if (image !== undefined) {
+    if (image === null || (typeof image === 'string' && image.trim().length === 0)) {
+      normalizedImage = null;
+    } else if (typeof image !== 'string') {
+      res.status(400).json({ error: 'image must be a URL string or null' }); return;
+    } else {
+      const trimmed = image.trim();
+      if (trimmed.length > 500) {
+        res.status(400).json({ error: 'image URL must be at most 500 characters' }); return;
+      }
+      let parsed: URL;
+      try { parsed = new URL(trimmed); } catch { res.status(400).json({ error: 'image must be a valid URL' }); return; }
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+        res.status(400).json({ error: 'image URL must be http or https' }); return;
+      }
+      normalizedImage = trimmed;
+    }
   }
 
   if (nickname !== undefined) {
@@ -187,6 +211,14 @@ userauthRouter.post('/profile', requireIdentity, requireScope('account:write'), 
 
   if (nickname !== undefined) {
     await claimNickname(db, participantId, nickname.trim());
+  }
+
+  if (normalizedImage !== undefined) {
+    // The picture lives on the browser account row; an API-key participant
+    // has no such row, so say so rather than silently dropping the write.
+    const uid = req.auth?.uid;
+    if (!uid) { res.status(400).json({ error: 'Setting a picture requires a browser account' }); return; }
+    await db.update(authUser).set({ image: normalizedImage, updatedAt: new Date() }).where(eq(authUser.id, uid));
   }
 
   res.json({ ok: true, participantId, agentId: participantId });
