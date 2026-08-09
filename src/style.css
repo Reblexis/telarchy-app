@@ -7876,6 +7876,41 @@ code, pre, kbd, samp {
   gap: 0.6rem;
 }
 
+/* Row anatomy: title over a facts line (proposer, ask, both branch
+   values), with the labeled impact stacked on the right. The impact IS
+   the difference between the two branches; the label says so. */
+.pubws-ballot-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+  text-align: left;
+}
+
+.pubws-ballot-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.9rem;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.pubws-ballot-impact {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  flex: none;
+}
+
+.pubws-ballot-impact-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-tertiary);
+}
+
 /* The USD ask sits beside the title: narrow, mono, unmistakably money. */
 .pubws-propose-row input { flex: 1; }
 .pubws-propose-row input.pubws-propose-ask {
@@ -8109,6 +8144,108 @@ code, pre, kbd, samp {
 .pubws-delta-chip.is-down { color: var(--lower); }
 
 .pubws-logolink { display: inline-flex; align-items: center; }
+
+/* The trading floor: rails beside the poster on wide screens (top traders
+   left, action log right), stacked under it on narrow ones. The center
+   column caps the chart instead of letting it break out over the rails. */
+.pubws-main--floor { max-width: 1340px; }
+
+@media (min-width: 1120px) {
+  .pubws--center .pubws-main.pubws-main--floor {
+    display: grid;
+    grid-template-columns: 230px minmax(0, 720px) 260px;
+    gap: clamp(1.6rem, 3vw, 3.2rem);
+    justify-content: center;
+    align-content: center;
+    align-items: start;
+  }
+  .pubws-main--floor .pubws-center { min-width: 0; }
+  .pubws-main--floor .mchart {
+    width: 100%;
+    margin-left: 0;
+    transform: none;
+  }
+  .pubws-rail { position: sticky; top: 1.4rem; }
+}
+
+@media (max-width: 1119.98px) {
+  .pubws-main--floor .pubws-center { order: 1; }
+  .pubws-rail--left { order: 2; }
+  .pubws-rail--right { order: 3; }
+  .pubws-rail {
+    width: 100%;
+    max-width: 660px;
+    margin: 2.4rem auto 0;
+  }
+}
+
+.pubws-lb, .pubws-log {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+}
+
+.pubws-lb-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.82rem;
+}
+.pubws-lb-row:last-child { border-bottom: none; }
+
+.pubws-lb-rank {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  min-width: 1.1rem;
+}
+
+.pubws-lb-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pubws-lb-score {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.pubws-log-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.8rem;
+}
+.pubws-log-item:last-child { border-bottom: none; }
+
+.pubws-log-time {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  min-width: 2rem;
+  text-align: right;
+}
+
+.pubws-log-text {
+  min-width: 0;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pubws-log-item--approved .pubws-log-text { color: var(--higher); }
+.pubws-log-item--declined .pubws-log-text { color: var(--lower); }
+.pubws-log-item--proposal .pubws-log-text { color: var(--text-primary); }
 
 /* The trade ticket: the one interactive object on the trading floor.
    A bordered card is deliberate here (the hairline-not-cards rule is for

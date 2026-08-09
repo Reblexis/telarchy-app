@@ -197,7 +197,16 @@ inline form: a narrow mono USD ask field beside the title (the ask is
 composed into the title as "$N: ...", the charter's round-1 text
 convention; no API change), a description prompting for proof of
 capability, and the 40 cr listing-stake submit. The board is signed-in
-only; the anonymous poster stays clean. While a bet is composed in the
+only; the anonymous poster stays clean. On viewports >=1120px the page
+becomes the trading floor proper: a three-column grid with the top-traders
+rail on the left (public /api/leaderboard: rank, nickname-or-id, earnings
+in cr or trade count) and the action log on the right (composed
+client-side from the public payload: new jobs, approve/decline decisions
+color-coded --higher/--lower, and market moves; newest first, capped at
+12). Both rails render for both tiers, hide entirely when empty, sit
+sticky beside the poster, and the chart stops breaking out (100% of the
+center column). Below 1120px the rails stack under the poster,
+leaderboard first. While a bet is composed in the
 ticket (side + amount picked, not yet placed), the chart draws its impact
 as a ghost: a dashed vertical off the
 live call dot to a hollow dot at the value the call would move to, tinted

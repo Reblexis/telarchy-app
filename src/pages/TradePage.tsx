@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, setActiveWorkspace, type PublicWorkspace } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { MarketChart } from '../components/MarketChart';
 import { TradeTicket, type TicketPosition } from '../components/TradeTicket';
 import { JobsBoard } from '../components/JobsBoard';
+import { ActivityRail, LeaderboardRail, type ActivityItem } from '../components/FloorRails';
 import { Logo } from '../components/Logo';
+import type { LeaderboardEntry } from '../lib/api';
 
 /**
  * telarchy.com/<slug>: the market and one action, nothing else (owner
@@ -73,6 +75,7 @@ export function TradePage() {
   const [positions, setPositions] = useState<TicketPosition[]>([]);
   const [balance, setBalance] = useState<number | null>(null);
   const [ticketPreview, setTicketPreview] = useState<{ direction: 'higher' | 'lower'; newProb: number } | null>(null);
+  const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
   const joinTried = useRef(false);
 
   const reload = () => {
@@ -108,6 +111,12 @@ export function TradePage() {
       })
       .catch(e => console.error('silent join failed:', e));
   }, [ws, user]);
+
+  useEffect(() => {
+    api.getLeaderboard(8)
+      .then(r => setLeaders(r.participants ?? []))
+      .catch(e => console.error('leaderboard fetch failed:', e));
+  }, []);
 
   const heroMarketId = ws?.markets[0]?.marketId ?? null;
   const refreshMoney = () => {
@@ -160,6 +169,28 @@ export function TradePage() {
     ? { direction: ticketPreview.direction, value: hero.rangeMin + ticketPreview.newProb * (hero.rangeMax - hero.rangeMin) }
     : null;
 
+  // The action log, composed from the public payload: new jobs, decisions,
+  // and the market's own movement. Newest first, capped so the rail stays
+  // a glance, not a feed.
+  const activity = useMemo<ActivityItem[]>(() => {
+    if (!ws) return [];
+    const items: ActivityItem[] = [];
+    for (const p of ws.proposals ?? []) {
+      const t = new Date(p.createdAt).getTime();
+      if (Number.isFinite(t)) items.push({ at: t, kind: 'proposal', text: `new job · ${p.title}` });
+    }
+    for (const d of ws.decided ?? []) {
+      const t = d.resolvedAt ? new Date(d.resolvedAt).getTime() : NaN;
+      if (Number.isFinite(t)) items.push({ at: t, kind: d.status, text: `${d.status} · ${d.title}` });
+    }
+    const traded = (ws.marketHistory ?? []).filter(pt => pt.consensus !== null);
+    for (const pt of traded.slice(1).slice(-8)) {
+      const t = new Date(pt.at).getTime();
+      if (Number.isFinite(t)) items.push({ at: t, kind: 'trade', text: `market moved to ${unit}${formatValue(pt.consensus as number)}` });
+    }
+    return items.sort((a, b) => b.at - a.at).slice(0, 12);
+  }, [ws, unit]);
+
   if (error) {
     return (
       <div className="pubws pubws--center">
@@ -195,7 +226,9 @@ export function TradePage() {
   return (
     <div className="pubws pubws--center">
       <TopBar user={!!user} ready={!authLoading} />
-      <main className="pubws-main">
+      <main className="pubws-main pubws-main--floor">
+        <LeaderboardRail entries={leaders} />
+        <div className="pubws-center">
         {hero && consensus !== null && (
           <section className="pubws-instrument" aria-label="The market">
             {/* The whole title: what is being predicted, as of when. The
@@ -289,6 +322,8 @@ export function TradePage() {
             />
           </section>
         ) : null}
+        </div>
+        <ActivityRail items={activity} />
       </main>
     </div>
   );

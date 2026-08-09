@@ -31,6 +31,13 @@ function fmtDelta(d: number, unit: string): string {
   return `${d > 0 ? '+' : d < 0 ? '-' : ''}${fmtVal(Math.abs(d), unit).replace(/^([+-])?/, '')}`;
 }
 
+/** Round-1 convention: the USD ask is composed into the title ("$80: ...").
+    Parse it back out so the row can show cost as a structured field. */
+function splitAsk(title: string): { ask: number | null; rest: string } {
+  const m = title.match(/^\$(\d+):\s*(.*)$/s);
+  return m ? { ask: parseInt(m[1], 10), rest: m[2] } : { ask: null, rest: title };
+}
+
 function headlineDelta(p: PublicProposal): number | null {
   const deltas = p.markets.map(m => m.delta).filter((d): d is number => d !== null);
   if (deltas.length === 0) return null;
@@ -65,8 +72,10 @@ export function JobsBoard({ proposals, unit, metricName, onBranchTrade, onPropos
   const submit = async () => {
     if (!title.trim()) { setFormErr('Say what you will do.'); return; }
     const askNum = Math.max(0, Math.floor(parseFloat(ask) || 0));
-    // The charter's round-1 convention: the ask lives in the proposal text.
-    const fullTitle = askNum > 0 ? `$${askNum}: ${title.trim()}` : title.trim();
+    // Every proposal is a job with a price (charter, 2026-08-09): the ask
+    // is required. The round-1 convention composes it into the title.
+    if (askNum <= 0) { setFormErr('Name your price in USD. Every job has one.'); return; }
+    const fullTitle = `$${askNum}: ${title.trim()}`;
     setFormErr('');
     setFormBusy(true);
     try {
@@ -94,13 +103,26 @@ export function JobsBoard({ proposals, unit, metricName, onBranchTrade, onPropos
             const delta = headlineDelta(p);
             const expanded = open === p.id;
             const pair = p.markets[0];
+            const { ask: askUsd, rest: titleRest } = splitAsk(p.title);
             return (
               <li key={p.id} className={expanded ? 'is-open' : ''}>
                 <button className="pubws-ballot-row" onClick={() => setOpen(expanded ? null : p.id)}>
-                  <span className="pubws-ballot-title">{p.title}</span>
-                  {delta === null || delta === 0
-                    ? <span className="pubws-ballot-delta pubws-ballot-delta--open">open</span>
-                    : <span className={`pubws-ballot-delta ${delta > 0 ? 'is-up' : 'is-down'}`}>{fmtDelta(delta, unit)}</span>}
+                  <span className="pubws-ballot-main">
+                    <span className="pubws-ballot-title">{titleRest}</span>
+                    <span className="pubws-ballot-facts">
+                      {p.proposedByName && <span>by {p.proposedByName}</span>}
+                      {askUsd !== null && <span>asks ${askUsd}</span>}
+                      {pair && pair.approvedConsensus !== null && pair.declinedConsensus !== null && (
+                        <span>if paid {fmtVal(pair.approvedConsensus, unit)} / if not {fmtVal(pair.declinedConsensus, unit)}</span>
+                      )}
+                    </span>
+                  </span>
+                  <span className="pubws-ballot-impact">
+                    {delta === null || delta === 0
+                      ? <span className="pubws-ballot-delta pubws-ballot-delta--open">open</span>
+                      : <span className={`pubws-ballot-delta ${delta > 0 ? 'is-up' : 'is-down'}`}>{fmtDelta(delta, unit)}</span>}
+                    <span className="pubws-ballot-impact-label">impact</span>
+                  </span>
                 </button>
                 {expanded && (
                   <div className="pubws-ballot-detail">
@@ -145,7 +167,8 @@ export function JobsBoard({ proposals, unit, metricName, onBranchTrade, onPropos
               onChange={e => setAsk(e.target.value.replace(/[^0-9]/g, ''))}
               placeholder="$ ask"
               inputMode="numeric"
-              aria-label="Your price in USD"
+              aria-label="Your price in USD (required)"
+              required
             />
             <input
               value={title}
