@@ -119,11 +119,6 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
                       : <span className={`pubws-ballot-delta ${delta > 0 ? 'is-up' : 'is-down'}`}>{fmtDelta(delta, unit)}</span>}
                   </span>
                 </button>
-                {selected && p.description && (
-                  <div className="pubws-ballot-detail">
-                    <p className="pubws-proposal-desc">{p.description}</p>
-                  </div>
-                )}
               </li>
             );
           })}

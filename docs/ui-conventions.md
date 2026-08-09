@@ -200,17 +200,20 @@ by impact, since the ballot is a ranking the owner acts on. **The board is
 a selector, not a second trading surface** (owner decision, 2026-08-09):
 selecting a job re-points the page's ONE market view and ONE ticket at that
 job's approved conditional branch, rather than growing a smaller market
-underneath. In that mode the headline stays the same metric, an amber
-condition pill above it names the job and dismisses back to the baseline,
-the price is the conditional call, the chip becomes the impact (approved
+underneath. In that mode the headline becomes the question the
+market actually prices, naming who is paid and how much ("What is
+<metric> @ <date> if <proposer> is paid $<ask> to do: <task>", the task in
+ink and the rest a register quieter), the job's own description sits under
+it as the details, a small "← <metric> @ <date>" link above returns to the
+baseline, the price is the conditional call, the chip becomes the impact (approved
 minus declined) instead of "since open", and the chart draws the branch's
 own history (fetched per market from
 `/api/marketplace/:id/markets/:marketId/history`). The ticket trades that
 branch: its probability and liquidity must come from the active market, not
 the baseline, or payouts, the bet ghost and position worth are all computed
-against the wrong curve. Selecting also shows the job's pitch under its row;
-positions refetch on every switch, because they belong to the market on
-screen. "+ Suggest a job"
+against the wrong curve. The description is NOT repeated under the job row;
+it belongs with the question. Positions refetch on every switch, because
+they belong to the market on screen. "+ Suggest a job"
 opens the inline form: a narrow mono USD ask field beside the title,
 required (every job has a price), composed into the title as "$N: ..." per
 the charter's round-1 text convention (no API change), a description

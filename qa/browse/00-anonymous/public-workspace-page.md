@@ -239,10 +239,11 @@ ticket ("Jobs": hairline rows carrying title, proposer and USD ask, with
 ONE number each, the impact (if-done minus if-not-done) under a single
 right-aligned "impact if done" column label; ranked by impact; selecting a row
 re-points the page's single market view and ticket at that job's
-conditional branch (amber condition pill above the headline dismisses back
-to the baseline, price becomes the conditional call, the chip reads
-"impact", the chart draws the branch's own history, and the ticket trades
-it) rather than growing a second market underneath; and the "+ Suggest a
+conditional branch (the headline becomes the question, "What is <metric> @
+<date> if <proposer> is paid $<ask> to do: <task>", with the job's
+description under it and a "← <metric> @ <date>" link back to the
+baseline; price becomes the conditional call, the chip reads "impact", the
+chart draws the branch's own history, and the ticket trades it) rather than growing a second market underneath; and the "+ Suggest a
 job" form whose USD ask is required and composes into the title as
 "$N: ..."). None of these render for anonymous visitors, whose poster
 stays context-free. Exception: the side rails (top traders left from

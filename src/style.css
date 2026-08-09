@@ -7915,29 +7915,40 @@ code, pre, kbd, samp {
   color: var(--text-tertiary);
 }
 
-/* The condition banner: what the one market view is currently showing,
-   and the way back to the baseline. */
-.pubws-condition {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  max-width: 100%;
+/* Conditional mode: the way back to the plain market, then the question
+   itself as the headline. */
+.pubws-back {
+  display: block;
   margin: 0 auto 0.5rem;
-  padding: 0.3rem 0.8rem;
-  border: 1px solid var(--accent);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--accent);
+  padding: 0;
+  border: none;
+  background: none;
   font: inherit;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 600;
+  color: var(--text-tertiary);
   cursor: pointer;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
-.pubws-condition:hover { background: var(--accent); color: var(--bg-primary); }
-.pubws-condition-x { font-size: 0.95rem; line-height: 1; }
+.pubws-back:hover { color: var(--text-primary); }
+
+.pubws-question {
+  max-width: 34ch;
+  margin-left: auto;
+  margin-right: auto;
+  font-size: clamp(1.15rem, 3.4vw, 1.45rem);
+  color: var(--text-secondary);
+}
+.pubws-question-task { color: var(--text-primary); }
+
+/* The job's own words, where the question is: the row below stops
+   repeating them. */
+.pubws-details {
+  max-width: 52ch;
+  margin: 0.6rem auto 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+}
 
 /* A selected job row is the one driving the view above. */
 .pubws-ballot-row.is-selected .pubws-ballot-title { color: var(--accent); }

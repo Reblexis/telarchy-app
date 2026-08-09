@@ -127,6 +127,7 @@ export function TradePage() {
 
   const hero = ws?.markets[0] ?? null;
   const unit = hero ? currencyOf(hero.metricName) : '';
+  const metricLabel = hero ? hero.metricName.replace(/\s*\(.*\)\s*$/, '') : '';
   const selectedJob = ws?.proposals?.find(p => p.id === selectedJobId) ?? null;
   const pair = selectedJob?.markets[0] ?? null;
   // The one market the page is showing and the ticket is trading: the
@@ -292,21 +293,38 @@ export function TradePage() {
             {/* Selecting a job re-points this one view at its conditional
                 market; the condition is stated above the same headline so
                 the page never grows a second market. */}
-            {selectedJob && (
-              <button className="pubws-condition" onClick={() => setSelectedJobId(null)}>
-                <span className="pubws-condition-x" aria-hidden="true">×</span>
-                if done: {splitAsk(selectedJob.title).rest}
-              </button>
-            )}
             {/* The whole title: what is being predicted, as of when. The
                 metric's parenthetical unit tail is trimmed for display only
                 (the full name stays in the API); renaming the metric itself
-                would void the live market by the definition-change invariant. */}
-            <h1 className="pubws-instrument-title pubws-enter pubws-enter--1">
-              {hero.metricName.replace(/\s*\(.*\)\s*$/, '')}
-              {' '}
-              <span className="pubws-instrument-when">@ {settleDate(hero.resolvesOn)}</span>
-            </h1>
+                would void the live market by the definition-change invariant.
+                With a job selected the title becomes the actual question the
+                conditional market prices, naming who gets paid and how much,
+                because that is the whole bet. */}
+            {selectedJob ? (
+              <>
+                <button className="pubws-back" onClick={() => setSelectedJobId(null)}>
+                  ← {metricLabel} @ {settleDate(hero.resolvesOn)}
+                </button>
+                <h1 className="pubws-instrument-title pubws-question pubws-enter pubws-enter--1">
+                  What is {metricLabel} @ {settleDate(pair?.resolvesOn ?? hero.resolvesOn)} if{' '}
+                  {selectedJob.proposedByName ?? 'someone'}
+                  {splitAsk(selectedJob.title).ask !== null
+                    ? ` is paid $${splitAsk(selectedJob.title).ask} to do:`
+                    : ' does:'}
+                  {' '}
+                  <span className="pubws-question-task">{splitAsk(selectedJob.title).rest}</span>
+                </h1>
+                {selectedJob.description && (
+                  <p className="pubws-details pubws-enter pubws-enter--1">{selectedJob.description}</p>
+                )}
+              </>
+            ) : (
+              <h1 className="pubws-instrument-title pubws-enter pubws-enter--1">
+                {metricLabel}
+                {' '}
+                <span className="pubws-instrument-when">@ {settleDate(hero.resolvesOn)}</span>
+              </h1>
+            )}
             <div className="pubws-headline pubws-enter pubws-enter--2">
               <span className="pubws-price">{unit}{formatValue(consensus)}</span>
               {marketOpen !== null && consensus !== marketOpen && (
