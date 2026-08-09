@@ -239,7 +239,10 @@ ticket ("Jobs on the ballot": hairline proposal rows with priced-gap
 chips, expandable to the pitch and per-branch 25 cr quick trades, and the
 "+ Suggest a job" form whose USD ask composes into the title as
 "$N: ..."). None of these render for anonymous visitors, whose poster
-stays context-free. While a side and
+stays context-free. Exception: the side rails (top traders left from
+/api/leaderboard, action log right composed from the public payload) are
+visible to both tiers on viewports >=1120px, stack below the poster on
+narrow ones, and are absent entirely when empty. While a side and
 amount are composed, the chart shows the bet's impact as a dashed ghost
 (hollow dot at the would-be call, direction-tinted, live-updating);
 deselecting the side removes it. No per-branch ballot trading (the ballot is not rendered in this
