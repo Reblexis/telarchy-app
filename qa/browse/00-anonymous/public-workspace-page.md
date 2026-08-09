@@ -133,13 +133,15 @@ the phase when it returns.
   ripples softly forever (the market is live); a narrow viewport (<520 CSS
   px at mount) gets a taller, narrower canvas instead of a shrunken copy of
   the wide one. All motion is off under prefers-reduced-motion.
-- Before data arrives the page shows the brand mark breathing in the center
-  (no spinner, no "Loading" text).
+- Before data arrives the page shows the amber call dot rippling in the
+  center (no spinner, no "Loading" text, no logo).
 - Y gridlines sit on round numbers; ~4 time ticks label by market age
   (times under 48h, dates beyond). When the metric's parenthetical tail
   names a currency (USD), every numeral on the page (price, delta chip,
   gridlines, call label, crosshair tip) carries the "$" prefix.
-- Hovering (pointer) shows a crosshair with the call in force at that time.
+- Hovering (pointer) shows a crosshair with the call in force at that time;
+  the crosshair sits exactly under the pointer (the pointer maps through the
+  plot area between the axis paddings, not the full svg width).
 - There is no legend, no range rail, and no markets table: the chart IS the
   instrument; additional markets are a count in the sub-line.
 

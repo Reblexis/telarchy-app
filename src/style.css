@@ -8100,9 +8100,17 @@ code, pre, kbd, samp {
   flex-direction: column;
   min-height: 100dvh;
 }
-/* In a flex column, margin:0 auto shrinks the bar to its content; keep it
-   full width so space-between still pushes the corners apart. */
-.pubws--center .pubws-topbar { width: 100%; }
+/* The poster's top bar is full-bleed: the logo belongs to the viewport's
+   top-left corner and Log in to the top-right, like any site header. Tied
+   to the 660px column it floated a third of the way in, aligned to nothing
+   (the chart below breaks out wider than the column anyway). In a flex
+   column, margin:0 auto would also shrink the bar to its content. */
+.pubws--center .pubws-topbar {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 1.3rem clamp(1.25rem, 3vw, 2.25rem) 0;
+}
 .pubws--center .pubws-main {
   flex: 1;
   display: flex;
@@ -8116,15 +8124,30 @@ code, pre, kbd, samp {
 
 .pubws-status { text-align: center; }
 
-/* Loading screen: the brand mark breathing where the market will appear. */
+/* Loading screen: the market's own motif, the amber call dot, rippling
+   where the market will appear. */
 .pubws-loading {
   display: flex;
   justify-content: center;
-  animation: pubws-breathe 1.8s ease-in-out infinite;
 }
-@keyframes pubws-breathe {
-  0%, 100% { opacity: 0.25; }
-  50% { opacity: 0.75; }
+.pubws-loading-dot {
+  position: relative;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.pubws-loading-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pubws-ripple 1.5s ease-out infinite;
+}
+@keyframes pubws-ripple {
+  0% { transform: scale(1); opacity: 0.4; }
+  100% { transform: scale(3.6); opacity: 0; }
 }
 
 /* Entrance: label, then price, then the chart draws itself. One pass on
@@ -8150,7 +8173,7 @@ code, pre, kbd, samp {
 @keyframes pubws-fadein { to { opacity: 1; } }
 
 @media (prefers-reduced-motion: reduce) {
-  .pubws-loading { animation: none; opacity: 0.5; }
+  .pubws-loading-dot::after { animation: none; opacity: 0; }
   .pubws-enter { animation: none; opacity: 1; }
   .pubws-fade { animation: none; opacity: 1; }
 }

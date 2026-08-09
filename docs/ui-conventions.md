@@ -156,10 +156,12 @@ filter toggles (underline = active).
 `telarchy.com/<slug>` (`TradePage`, `.pubws-*` styles; `/marketplace/:idOrSlug`
 canonicalizes here) renders **standalone**, outside `AppLayout`, and in the
 minimal phase (owner decision, 2026-08-09) it renders **the market and
-nothing else**: minimal top bar (the Telarchy logo lockup at the landing
-nav's 3rem, linking home, vertically centered; a Log in link only when
-signed out, rendered only after the session check settles and faded in, so
-signed-in visitors never see it flash), one headline naming the prediction ("<metric> @ <settle
+nothing else**: full-bleed top bar pinned to the viewport corners (the
+Telarchy logo lockup at the landing nav's 3rem in the top-left, linking
+home, vertically centered; a Log in link top-right only when signed out,
+rendered only after the session check settles and faded in, so signed-in
+visitors never see it flash; the bar deliberately ignores the 660px content
+column, which left the logo floating aligned to nothing), one headline naming the prediction ("<metric> @ <settle
 date>", the metric's parenthetical unit tail trimmed for display) set in
 the Fraunces display face with the instrument in ink and the settle date a
 register quieter (an exception to the tiny-uppercase-label rule: it is the
@@ -173,7 +175,7 @@ column to min(92vw, 840px); phones get a taller, narrower canvas chosen at
 mount). The composition is a poster: the market sits in the optical center
 of the viewport. Motion is one entrance pass (label, then price, then the
 line drawing itself) plus a soft perpetual ripple on the call dot; loading
-is the brand mark breathing where the market will appear; everything stops
+is the amber call dot rippling where the market will appear; everything stops
 under prefers-reduced-motion. The page is view-only in this phase: no trade
 controls even when signed in, no CTA button, no caption line, no balance
 readout. Understanding the market is the page's entire job; trading returns

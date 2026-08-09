@@ -111,7 +111,11 @@ export function MarketChart({ series, consensus, unit = '', height }: Props) {
   const onMove = (e: React.PointerEvent) => {
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const frac = (e.clientX - rect.left) / rect.width;
+    // Map the pointer through the plot area, not the whole svg: the x scale
+    // spans [PAD_L, W - PAD_R], so treating the full width as the time axis
+    // would land the crosshair closer to center than the mouse.
+    const mouseX = ((e.clientX - rect.left) / rect.width) * W;
+    const frac = (mouseX - PAD_L) / (W - PAD_L - PAD_R);
     setCursor(model.t0 + Math.max(0, Math.min(1, frac)) * model.span);
   };
 

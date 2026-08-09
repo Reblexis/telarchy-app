@@ -110,14 +110,14 @@ export function TradePage() {
   }
 
   if (!ws) {
-    // The loading screen is the brand mark breathing where the market is
-    // about to appear; no spinner, no text, no layout shift.
+    // The loading screen is the market's own motif (the amber call dot,
+    // rippling) where the market is about to appear; no spinner, no text.
     return (
       <div className="pubws pubws--center">
         <TopBar user={!!user} ready={!authLoading} />
         <main className="pubws-main">
           <div className="pubws-loading" role="status" aria-label="Loading">
-            <Logo variant="mark" height="2.4rem" />
+            <span className="pubws-loading-dot" />
           </div>
         </main>
       </div>
