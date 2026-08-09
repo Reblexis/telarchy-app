@@ -8368,6 +8368,9 @@ code, pre, kbd, samp {
     transform: none;
   }
   .pubws-rail { position: sticky; top: 1.4rem; }
+  /* The left rail starts below the wordmark, or its heading reads as part
+     of the logo. */
+  .pubws-rail--left { margin-top: 2.2rem; }
 }
 
 @media (max-width: 1119.98px) {
@@ -8454,16 +8457,16 @@ code, pre, kbd, samp {
    lists); this is a control, and its boundary is what makes the two-step
    pick-then-confirm read as one object. */
 .ticket {
-  width: min(100%, 400px);
+  width: min(100%, 380px);
   margin: 0 auto;
-  padding: 1rem;
+  padding: 1rem 1.1rem 1.1rem;
   border: 1px solid var(--border-color);
-  border-radius: 20px;
+  border-radius: 18px;
   background: var(--bg-elevated);
   box-shadow: 0 1px 2px rgba(23, 23, 28, 0.04), 0 8px 24px rgba(23, 23, 28, 0.05);
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.85rem;
   text-align: center;
 }
 
@@ -8509,45 +8512,43 @@ code, pre, kbd, samp {
 .ticket-sell:hover:not(:disabled) { border-color: var(--border-hover); }
 .ticket-sell:disabled { opacity: 0.5; cursor: default; }
 
+/* One control, not two boxes: a segmented pair sharing a single hairline,
+   so picking a side reads as a switch rather than as two buttons. */
 .ticket-seg {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  overflow: hidden;
 }
 
 .ticket-side {
   padding: 0.8rem 0;
-  border: 1px solid var(--border-strong);
-  border-radius: 12px;
+  border: none;
+  border-radius: 0;
   background: transparent;
   font: inherit;
   font-size: 0.98rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  transition: background 120ms ease, color 120ms ease;
 }
+.ticket-side + .ticket-side { border-left: 1px solid var(--border-color); }
 .ticket-side--higher { color: var(--higher); }
 .ticket-side--lower { color: var(--lower); }
 .ticket-side--higher:hover:not(.is-active) { background: var(--higher-soft); }
 .ticket-side--lower:hover:not(.is-active) { background: var(--lower-soft); }
-.ticket-side--higher.is-active {
-  background: var(--higher-soft);
-  border-color: var(--higher);
-  box-shadow: inset 0 0 0 1px var(--higher);
-}
-.ticket-side--lower.is-active {
-  background: var(--lower-soft);
-  border-color: var(--lower);
-  box-shadow: inset 0 0 0 1px var(--lower);
-}
-.ticket-side:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ticket-side--higher.is-active { background: var(--higher-soft); }
+.ticket-side--lower.is-active { background: var(--lower-soft); }
+.ticket-side:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
 .ticket-amount-row {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: 0.8rem;
   flex-wrap: wrap;
+  padding: 0 0.15rem;
 }
 
 .ticket-amount {
@@ -8579,43 +8580,49 @@ code, pre, kbd, samp {
   color: var(--text-tertiary);
 }
 
-.ticket-chips { display: flex; gap: 0.35rem; }
+.ticket-chips { display: flex; gap: 0.55rem; }
 
+/* Presets are text, not pills: four more bordered boxes on a page that is
+   trying to have almost none. */
 .ticket-chip {
-  padding: 0.35rem 0.65rem;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: transparent;
+  padding: 0.3rem 0.4rem;
+  border: none;
+  background: none;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  color: var(--text-secondary);
+  color: var(--text-tertiary);
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  transition: color 120ms ease;
 }
-.ticket-chip:hover:not(.is-active) { border-color: var(--border-hover); color: var(--text-primary); }
-.ticket-chip.is-active {
-  background: var(--button-bg);
-  border-color: var(--button-bg);
-  color: var(--button-text);
-}
+.ticket-chip:hover:not(.is-active) { color: var(--text-primary); }
+.ticket-chip.is-active { color: var(--accent); }
+.ticket-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
 
 .ticket-go {
-  padding: 0.9rem;
-  border: none;
+  padding: 0.85rem;
+  border: 1px solid transparent;
   border-radius: 999px;
   background: var(--button-bg);
   color: var(--button-text);
   font: inherit;
-  font-size: 1rem;
+  font-size: 0.98rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 120ms ease, transform 120ms ease, opacity 120ms ease;
+  transition: background 120ms ease, color 120ms ease, transform 120ms ease;
 }
 .ticket-go:hover:not(:disabled) { background: var(--button-bg-hover); transform: translateY(-1px); }
 .ticket-go:active:not(:disabled) { transform: translateY(0); }
-.ticket-go:disabled { opacity: 0.45; cursor: default; }
-.ticket-go.is-placed { background: var(--higher); }
+/* Waiting for a side is not an action, so it stops looking like a filled
+   button: a dimmed slab is the loudest thing on the card and says nothing.
+   The transparent border above keeps the size identical across states. */
+.ticket-go:disabled {
+  background: transparent;
+  border-color: var(--border-color);
+  color: var(--text-tertiary);
+  cursor: default;
+}
+.ticket-go.is-placed { background: var(--higher); color: #fff; }
 .ticket-go:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 .ticket-pays {

@@ -243,11 +243,15 @@ amount and vanishing when the side is deselected or the trade placed. The
 y domain stretches to include the ghost so a big bet's reach is visible. The ticket
 (`TradeTicket`, a bordered card; the hairline-not-cards rule is for lists,
 and the card boundary is what makes the control read as one object) is a
-deliberate two-step: pick a side (Lower/Higher segmented pair tinted with
---lower/--higher when active), pick an amount (mono input plus 10/25/100/250
-preset chips), then one full-width ink confirm that always states what it
-will do ("Place 25 cr on Higher"; "Pick a side" disabled until a side is
-chosen). The payout line appears under the confirm only once a side is
+deliberate two-step: pick a side (Lower/Higher as ONE segmented pill
+sharing a single hairline and a divider, not two boxes; the chosen side
+fills with --higher-soft/--lower-soft), pick an amount (mono input plus
+borderless 10/50/cap preset numerals, active in accent), then one
+full-width confirm that always states what it will do ("Place 25 cr on
+Higher"). Until a side is chosen that confirm is a hairline ghost reading
+"Pick a side", never a dimmed filled slab: a disabled fill is the loudest
+element on the card and says nothing, which is glaring in dark mode where
+the button ink is bone. The payout line appears under the confirm only once a side is
 picked; success flashes "Placed" on the button itself; errors render inside
 the ticket. Held positions sit at the top of the ticket as rows (tinted
 direction, mono payout, a Sell pill). Motion is one entrance pass (label, then price, then
