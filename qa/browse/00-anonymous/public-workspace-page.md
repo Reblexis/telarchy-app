@@ -234,8 +234,12 @@ after a side is picked; a placed trade flashes "Placed" on the button and
 the position row (direction, live worth with a green/red delta, Sell pill)
 appears at the top of the ticket. The desk also shows a mono facts strip
 above the ticket (actual value, updated-ago, trades pulse when nonzero)
-and the balance line inside the ticket; none of these render for
-anonymous visitors, whose poster stays context-free. While a side and
+and the balance line inside the ticket, plus the jobs board under the
+ticket ("Jobs on the ballot": hairline proposal rows with priced-gap
+chips, expandable to the pitch and per-branch 25 cr quick trades, and the
+"+ Suggest a job" form whose USD ask composes into the title as
+"$N: ..."). None of these render for anonymous visitors, whose poster
+stays context-free. While a side and
 amount are composed, the chart shows the bet's impact as a dashed ghost
 (hollow dot at the would-be call, direction-tinted, live-updating);
 deselecting the side removes it. No per-branch ballot trading (the ballot is not rendered in this

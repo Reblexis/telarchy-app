@@ -7876,9 +7876,19 @@ code, pre, kbd, samp {
   gap: 0.6rem;
 }
 
+/* The USD ask sits beside the title: narrow, mono, unmistakably money. */
+.pubws-propose-row input { flex: 1; }
+.pubws-propose-row input.pubws-propose-ask {
+  flex: none;
+  width: 5.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  text-align: right;
+}
+
 .pubws-propose input,
 .pubws-propose textarea {
   padding: 0.7rem 0.9rem;
+  min-width: 0;
   border: 1px solid var(--border-strong);
   border-radius: 8px;
   background: var(--bg-elevated);

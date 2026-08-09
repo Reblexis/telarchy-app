@@ -4,6 +4,7 @@ import { api, setActiveWorkspace, type PublicWorkspace } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { MarketChart } from '../components/MarketChart';
 import { TradeTicket, type TicketPosition } from '../components/TradeTicket';
+import { JobsBoard } from '../components/JobsBoard';
 import { Logo } from '../components/Logo';
 
 /**
@@ -243,7 +244,35 @@ export function TradePage() {
               onPreview={setTicketPreview}
             />
           </section>
-        ) : canTrade && !user && !authLoading && hero ? (
+        ) : null}
+
+        {/* Paid-jobs round 1 (charter 2026-08-09): the proposal side is a
+            jobs board. Signed-in only; the anonymous poster stays clean. */}
+        {trading && ws.proposals !== undefined && hero && (
+          <JobsBoard
+            proposals={ws.proposals}
+            unit={unit}
+            metricName={hero.metricName.replace(/\s*\(.*\)\s*$/, '')}
+            onBranchTrade={async (p, branch, direction, amount) => {
+              const pair = p.markets[0];
+              if (!pair) return;
+              await doTrade({
+                metricName: pair.metricName,
+                targetDate: pair.targetDate,
+                proposalId: p.id,
+                branch,
+                direction,
+                amount,
+              });
+            }}
+            onPropose={async (title, description) => {
+              await api.createProposal({ title, description, liquiditySubsidy: 20 });
+              reload();
+            }}
+          />
+        )}
+
+        {canTrade && !user && !authLoading && hero ? (
           /* Newcomers get the same ticket in demo mode: they can compose a
              bet and watch its impact ghost onto the chart; the confirm is
              the signup door. The ticket is the pitch. */

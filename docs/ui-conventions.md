@@ -187,8 +187,19 @@ market predicts against plus its freshness; the trades pulse renders only
 when nonzero), the trader's balance inside the ticket ("1,000 cr
 available"), and live position worth on each held row ("worth 31.2 cr
 +6.2", green/red delta, computed client-side via the AMM sell preview).
-While a bet is composed in the ticket (side + amount picked, not yet
-placed), the chart draws its impact as a ghost: a dashed vertical off the
+Below the ticket, the desk shows the jobs board (paid-jobs
+round 1, owner charter of 2026-08-09): "Jobs on the ballot" as a hairline
+list, each row a proposal with its priced gap chip (largest-magnitude
+conditional delta, green/red, "open" while unpriced); expanding shows the
+pitch, "if paid" / "if not" branch values with mini lower/higher buttons
+(fixed 25 cr per tap), and the proposer. "+ Suggest a job" opens the
+inline form: a narrow mono USD ask field beside the title (the ask is
+composed into the title as "$N: ...", the charter's round-1 text
+convention; no API change), a description prompting for proof of
+capability, and the 40 cr listing-stake submit. The board is signed-in
+only; the anonymous poster stays clean. While a bet is composed in the
+ticket (side + amount picked, not yet placed), the chart draws its impact
+as a ghost: a dashed vertical off the
 live call dot to a hollow dot at the value the call would move to, tinted
 --higher/--lower, labeled with the would-be value, updating live with the
 amount and vanishing when the side is deselected or the trade placed. The
