@@ -7914,11 +7914,6 @@ code, pre, kbd, samp {
 
 .pubws-provenance a { color: var(--text-secondary); }
 
-.pubws-pay {
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
 
 /* ---------------------------------------------------------------------------
    The market chart: the page's centerpiece. Reality is ink with a soft

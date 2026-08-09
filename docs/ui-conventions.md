@@ -163,8 +163,8 @@ for display), the consensus as a large mono price with a since-open chip,
 and the prediction chart (`MarketChart`: one amber step line of the market's
 call over its lifetime, gradient fill, labeled end dot, crosshair; breaks
 out of the column to min(92vw, 840px)). Signed-in traders additionally get
-the amount + Lower/Higher pair with payout hint, position and sell. There
-is no CTA button, no caption line, no balance readout: understanding the
+the amount + Lower/Higher pair, position and sell. There is no CTA button,
+no caption line, no balance readout, no payout preview: understanding the
 market is the page's entire job in this phase. The ballot, charter, decided list, pitch and footer are deliberately not
 rendered in this phase; the API still ships them, so each returns as a
 render change.

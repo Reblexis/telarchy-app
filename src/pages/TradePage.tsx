@@ -2,17 +2,18 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, setActiveWorkspace, type PublicWorkspace } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
-import { previewTrade } from '../lib/amm';
 import { MarketChart } from '../components/MarketChart';
 import { Logo } from '../components/Logo';
 
 /**
  * telarchy.com/<slug>: the market, and nothing else (owner decision,
  * 2026-08-09: minimal first, add more later). The page renders exactly one
- * object, the prediction: label, price, the Manifold-style step chart of the
- * market's call, a one-line caption, and the single action (join when logged
- * out, trade when in). The ballot, charter, decided list, pitch and footer
- * are deliberately NOT rendered in this phase; the API still ships them, so
+ * object, the prediction: the headline ("<metric> @ <settle date>"), the
+ * price, and the Manifold-style step chart of the market's call. Signed-in
+ * traders get the amount + Lower/Higher pair, position and sell; anonymous
+ * visitors get only "Log in" in the top bar. The CTA, captions, payout
+ * preview, ballot, charter, decided list, pitch and footer are deliberately
+ * NOT rendered in this phase; the API still ships what it shipped, so
  * bringing each back is a render change, not a feature.
  *
  * /marketplace/:idOrSlug still resolves here and canonicalizes to /<slug>.
@@ -215,16 +216,6 @@ export function TradePage() {
                 {tradeBusy === 'hero-higher' ? '…' : '▲ Higher'}
               </button>
             </div>
-            {hero && amountNum > 0 && (() => {
-              const up = previewTrade(hero.probability, hero.liquidity, 'higher', amountNum).shares;
-              const down = previewTrade(hero.probability, hero.liquidity, 'lower', amountNum).shares;
-              return (
-                <p className="pubws-fineprint">
-                  {amountNum} cr pays up to <span className="pubws-pay">{formatValue(up)}</span> on higher
-                  {' '}· <span className="pubws-pay">{formatValue(down)}</span> on lower
-                </p>
-              );
-            })()}
             {positions.length > 0 && (
               <div className="pubws-position">
                 {positions.map(p => (
