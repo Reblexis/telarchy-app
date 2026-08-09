@@ -164,12 +164,15 @@ conventions (1080px tier, dense lists) because its job is different: one
 narrow centered column (~660px), one action, and radical reduction.
 
 Hierarchy, top to bottom: minimal top bar (wordmark + log in), workspace
-name in Fraunces, one-line description, then **the market chart as the
+name in Fraunces, one-line description, then **the prediction as the
 centerpiece** (`MarketChart`, hand-rolled SVG, breaks out of the reading
-column to min(92vw, 840px)): the metric's real logged history in ink with
-a gradient fill, the market's call in amber, a shaded future zone, and a
-dashed amber reach to the settle dot. Above it the consensus reads as a
-large mono price with a green/red delta chip vs the latest real value.
+column to min(92vw, 840px)): one amber step line, Manifold-style, tracing
+the market's call from its first trade to now over a soft amber gradient,
+ending in a labeled dot at the current call. Consensus is piecewise
+constant between trades, so steps are trades; the metric's own history is
+deliberately absent (that is the measured thing's past, not the market).
+Above it the consensus reads as a large mono price with a green/red chip
+for the prediction's own movement since open.
 The number outranks the product name on purpose; the product's claim is
 that a price, not a pitch, decides. One black pill
 CTA follows with two small lines: the terms fine print and the whole

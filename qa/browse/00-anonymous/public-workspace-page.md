@@ -123,15 +123,19 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
 
 **Expected:**
 - The large mono price equals the soonest market's consensus, with a
-  green/red delta chip against the latest real value ("vs today").
-- The SVG chart renders two series: the metric's real logged history (ink
-  line with gradient fill) and the market's call (amber), with a shaded
-  future zone and a dashed amber reach to the settle dot labeled with the
-  consensus. Y gridlines sit on round numbers; month ticks on the x axis.
-- Hovering (pointer) shows a crosshair with a date and per-series values.
-- The legend is three tiny keys: real value, market's call, settles here.
-- There is no range rail and no markets table: the chart IS the instrument,
-  and additional markets are a count in the sub-line, not a list.
+  green/red delta chip showing the prediction's own movement ("since open"),
+  hidden while the call has not moved.
+- The SVG chart is the PREDICTION only, Manifold-style: one amber step line
+  (consensus is piecewise constant between trades; every step is a trade)
+  from the market's first trade to now, with a soft amber gradient fill,
+  ending in a labeled dot at the current call. No metric history, no second
+  series, no future zone: the x domain is the market's lifetime, and the
+  settle date is the caption below, not chart space.
+- Y gridlines sit on round numbers; ~4 time ticks label by market age
+  (times under 48h, dates beyond).
+- Hovering (pointer) shows a crosshair with the call in force at that time.
+- There is no legend, no range rail, and no markets table: the chart IS the
+  instrument; additional markets are a count in the sub-line.
 
 ### T6. Disclosure boundary: the ballot on Open workspaces, counts elsewhere
 

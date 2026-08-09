@@ -1,33 +1,31 @@
 import { useMemo, useRef, useState } from 'react';
 
 /**
- * The trading floor's centerpiece: one financial chart carrying the whole
- * story. Two series share one canvas because the product IS their
- * relationship: the ink line is reality (the metric's synced history), the
- * amber line is the market's call as it moved with every trade, and the
- * dashed reach into the shaded future zone ends at the settle dot, the number
- * the market currently believes. A stranger reads it with no legend text
- * beyond two swatches: it's been growing, it's here now, the market says
- * there next month. Agreeing or disagreeing with the dot is the trade.
+ * The prediction, visualized: the market's call over the market's lifetime,
+ * Manifold-style. One series only, because the page is about one thing: what
+ * the market currently believes and how it got there. Consensus is piecewise
+ * constant between trades, so the line steps; every step is someone's trade.
+ * It ends at the current call, marked with a dot and the value.
  *
- * Hand-rolled SVG: full control of the brand (bone/ink/amber, mono numerals),
- * no chart library, crosshair via pointer events so it works with touch.
+ * Deliberately NOT here: the metric's own history (that is the past of the
+ * measured thing, not the market), future zones, second series. The x domain
+ * runs from the first trade to now; the settle date is a caption under the
+ * chart, not chart space.
+ *
+ * Hand-rolled SVG: brand control (bone/amber, mono numerals), no library,
+ * crosshair via pointer events so touch works.
  */
 
-export interface ChartPoint { at: string; value: number }
-
 interface Props {
-  history: ChartPoint[];
-  marketHistory: Array<{ at: string; consensus: number | null }>;
+  series: Array<{ at: string; consensus: number | null }>;
   consensus: number;
-  resolvesOn: string;
   height?: number;
 }
 
 const W = 720;
 const PAD_L = 46;
-const PAD_R = 16;
-const PAD_T = 14;
+const PAD_R = 58;
+const PAD_T = 16;
 const PAD_B = 24;
 
 function compactNum(v: number): string {
@@ -39,91 +37,80 @@ function fullNum(v: number): string {
   return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
-function monthLabel(t: number): string {
-  return new Date(t).toLocaleDateString('en-US', { month: 'short' });
-}
-
-export function MarketChart({ history, marketHistory, consensus, resolvesOn, height = 280 }: Props) {
+export function MarketChart({ series, consensus, height = 260 }: Props) {
   const H = height;
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const [cursor, setCursor] = useState<number | null>(null); // time under pointer
+  const [cursor, setCursor] = useState<number | null>(null);
 
   const model = useMemo(() => {
-    const hist = history.map(p => ({ t: new Date(p.at).getTime(), v: p.value }))
-      .filter(p => Number.isFinite(p.t)).sort((a, b) => a.t - b.t);
-    const mkt = marketHistory
+    const pts = series
       .filter(p => p.consensus !== null)
       .map(p => ({ t: new Date(p.at).getTime(), v: p.consensus as number }))
-      .filter(p => Number.isFinite(p.t)).sort((a, b) => a.t - b.t);
-    const settleT = new Date(resolvesOn).getTime();
+      .filter(p => Number.isFinite(p.t))
+      .sort((a, b) => a.t - b.t);
+    if (pts.length === 0) return null;
     const now = Date.now();
-    if (hist.length < 2 || !Number.isFinite(settleT)) return null;
+    // The call holds between trades and since the last one: extend to now.
+    const extended = [...pts, { t: Math.max(now, pts[pts.length - 1].t), v: consensus }];
 
-    const t0 = Math.min(hist[0].t, mkt[0]?.t ?? Infinity);
-    const t1 = settleT + (settleT - t0) * 0.03;
-    const values = [...hist.map(p => p.v), ...mkt.map(p => p.v), consensus];
+    const t0 = extended[0].t;
+    const t1 = extended[extended.length - 1].t;
+    const span = Math.max(t1 - t0, 60_000);
+    const values = extended.map(p => p.v);
     const vMin0 = Math.min(...values);
     const vMax0 = Math.max(...values);
-    const vPad = (vMax0 - vMin0 || vMax0 * 0.1 || 1) * 0.12;
+    const vPad = (vMax0 - vMin0 || vMax0 * 0.08 || 1) * 0.25;
     const vMin = Math.max(0, vMin0 - vPad);
     const vMax = vMax0 + vPad;
 
-    const x = (t: number) => PAD_L + ((t - t0) / (t1 - t0)) * (W - PAD_L - PAD_R);
+    const x = (t: number) => PAD_L + ((t - t0) / span) * (W - PAD_L - PAD_R);
     const y = (v: number) => PAD_T + (1 - (v - vMin) / (vMax - vMin)) * (H - PAD_T - PAD_B);
 
-    const line = (pts: Array<{ t: number; v: number }>) =>
-      pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(p.t).toFixed(1)},${y(p.v).toFixed(1)}`).join(' ');
+    // Step path: hold each value until the next trade changes it.
+    let d = `M${x(extended[0].t).toFixed(1)},${y(extended[0].v).toFixed(1)}`;
+    for (let i = 1; i < extended.length; i++) {
+      d += ` L${x(extended[i].t).toFixed(1)},${y(extended[i - 1].v).toFixed(1)}`;
+      d += ` L${x(extended[i].t).toFixed(1)},${y(extended[i].v).toFixed(1)}`;
+    }
+    const end = extended[extended.length - 1];
+    const areaPath = `${d} L${x(end.t).toFixed(1)},${(H - PAD_B).toFixed(1)} L${x(extended[0].t).toFixed(1)},${(H - PAD_B).toFixed(1)} Z`;
 
-    const histPath = line(hist);
-    const lastHist = hist[hist.length - 1];
-    const areaPath = `${histPath} L${x(lastHist.t).toFixed(1)},${(H - PAD_B).toFixed(1)} L${x(hist[0].t).toFixed(1)},${(H - PAD_B).toFixed(1)} Z`;
-
-    // The market line starts where the market started; the dashed segment
-    // carries the CURRENT call from the last trade (or from now) to the dot.
-    const mktPath = mkt.length >= 2 ? line(mkt) : '';
-    const dashFrom = mkt.length > 0 ? mkt[mkt.length - 1] : { t: Math.min(now, settleT), v: consensus };
-
-    // Y gridlines on round numbers: pick a clean step (1/2/2.5/5 x 10^k)
-    // near a quarter of the domain, then draw the multiples that fall inside.
+    // Round-number gridlines.
     const rawStep = (vMax - vMin) / 4;
     const mag = Math.pow(10, Math.floor(Math.log10(rawStep || 1)));
     const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(sv => sv >= rawStep) ?? rawStep;
     const gridVals: number[] = [];
     for (let v = Math.ceil(vMin / step) * step; v < vMax; v += step) {
-      if (v > vMin + (vMax - vMin) * 0.03 && v < vMax - (vMax - vMin) * 0.03) gridVals.push(v);
+      if (v > vMin + (vMax - vMin) * 0.04 && v < vMax - (vMax - vMin) * 0.04) gridVals.push(v);
     }
 
-    // X ticks: month starts within domain.
-    const ticks: number[] = [];
-    const d = new Date(t0); d.setDate(1); d.setHours(0, 0, 0, 0);
-    d.setMonth(d.getMonth() + 1);
-    while (d.getTime() < t1) { ticks.push(d.getTime()); d.setMonth(d.getMonth() + 1); }
+    // Time ticks: ~4, labeled by how long the market has lived.
+    const fmt = (t: number) => span < 48 * 3600e3
+      ? new Date(t).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: false })
+      : new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const ticks = [0.08, 0.38, 0.68, 0.95].map(f => t0 + f * span);
 
-    return { hist, mkt, histPath, areaPath, mktPath, dashFrom, settleT, now: Math.min(now, settleT), t0, t1, vMin, vMax, x, y, gridVals, ticks, lastHist };
-  }, [history, marketHistory, consensus, resolvesOn, H]);
+    return { pts, extended, d, areaPath, end, t0, t1: t0 + span, span, x, y, gridVals, ticks, fmt, open: extended[0] };
+  }, [series, consensus, H]);
 
   if (!model) return null;
-  const { hist, mkt, histPath, areaPath, mktPath, dashFrom, settleT, now, x, y, gridVals, ticks, lastHist } = model;
+  const { extended, d, areaPath, end, x, y, gridVals, ticks, fmt } = model;
 
   const onMove = (e: React.PointerEvent) => {
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect) return;
     const frac = (e.clientX - rect.left) / rect.width;
-    const t = model.t0 + frac * (model.t1 - model.t0);
-    setCursor(Math.max(model.t0, Math.min(model.t1, t)));
+    setCursor(model.t0 + Math.max(0, Math.min(1, frac)) * model.span);
   };
 
-  // Nearest readings under the crosshair.
-  const nearest = (pts: Array<{ t: number; v: number }>, t: number) => {
-    if (pts.length === 0) return null;
-    let best = pts[0];
-    for (const p of pts) if (Math.abs(p.t - t) < Math.abs(best.t - t)) best = p;
-    return Math.abs(best.t - t) < (model.t1 - model.t0) * 0.08 ? best : null;
+  // The call in force at a moment = the last step at or before it.
+  const valueAt = (t: number) => {
+    let v = extended[0].v;
+    for (const p of extended) { if (p.t <= t) v = p.v; else break; }
+    return v;
   };
-  const curHist = cursor !== null ? nearest(hist, cursor) : null;
-  const curMkt = cursor !== null ? nearest(mkt, cursor) : null;
   const tipX = cursor !== null ? x(cursor) : 0;
-  const tipRight = cursor !== null && tipX > W * 0.62;
+  const tipRight = cursor !== null && tipX > W * 0.6;
 
   return (
     <div className="mchart">
@@ -134,19 +121,17 @@ export function MarketChart({ history, marketHistory, consensus, resolvesOn, hei
         onPointerMove={onMove}
         onPointerLeave={() => setCursor(null)}
         role="img"
-        aria-label={`Real value history and the market's call, settling at ${fullNum(consensus)}`}
+        aria-label={`The market's call over time, currently ${fullNum(consensus)}`}
       >
         <defs>
           <linearGradient id="mchart-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="currentColor" stopOpacity="0.14" />
-            <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+            {/* currentColor inside <defs> resolves against the svg root, not
+                the referencing group, so name the accent explicitly. */}
+            <stop offset="0%" style={{ stopColor: 'var(--accent)' }} stopOpacity="0.14" />
+            <stop offset="100%" style={{ stopColor: 'var(--accent)' }} stopOpacity="0" />
           </linearGradient>
         </defs>
 
-        {/* future zone */}
-        <rect className="mchart-future" x={x(now)} y={PAD_T} width={Math.max(0, x(model.t1) - x(now))} height={H - PAD_T - PAD_B} />
-
-        {/* gridlines + y labels */}
         {gridVals.map(v => (
           <g key={v}>
             <line className="mchart-grid" x1={PAD_L} x2={W - PAD_R} y1={y(v)} y2={y(v)} />
@@ -154,56 +139,33 @@ export function MarketChart({ history, marketHistory, consensus, resolvesOn, hei
           </g>
         ))}
 
-        {/* x ticks */}
         {ticks.map(t => (
-          <text key={t} className="mchart-xlabel" x={x(t)} y={H - 8}>{monthLabel(t)}</text>
+          <text key={t} className="mchart-xlabel" x={x(t)} y={H - 8}>{fmt(t)}</text>
         ))}
 
-        {/* reality: area + line */}
-        <g className="mchart-real">
-          <path d={areaPath} fill="url(#mchart-fill)" stroke="none" />
-          <path d={histPath} className="mchart-line" />
-          <circle cx={x(lastHist.t)} cy={y(lastHist.v)} r="3" className="mchart-nowdot" />
-        </g>
-
-        {/* the market's call: solid where it traded, dashed to the settle dot */}
         <g className="mchart-market">
-          {mktPath && <path d={mktPath} className="mchart-mline" />}
-          <path
-            d={`M${x(dashFrom.t).toFixed(1)},${y(dashFrom.v).toFixed(1)} L${x(settleT).toFixed(1)},${y(consensus).toFixed(1)}`}
-            className="mchart-dash"
-          />
-          <circle cx={x(settleT)} cy={y(consensus)} r="5" className="mchart-calldot" />
-          <text className="mchart-calllabel" x={x(settleT) - 8} y={y(consensus) - 10} textAnchor="end">
+          <path d={areaPath} fill="url(#mchart-fill)" stroke="none" />
+          <path d={d} className="mchart-mline" />
+          <circle cx={x(end.t)} cy={y(end.v)} r="5" className="mchart-calldot" />
+          <text className="mchart-calllabel" x={x(end.t) + 9} y={y(end.v) + 4} textAnchor="start">
             {fullNum(consensus)}
           </text>
         </g>
 
-        {/* crosshair */}
-        {cursor !== null && (curHist || curMkt) && (
+        {cursor !== null && (
           <g className="mchart-cross">
             <line x1={tipX} x2={tipX} y1={PAD_T} y2={H - PAD_B} />
-            {curHist && <circle cx={x(curHist.t)} cy={y(curHist.v)} r="3.5" className="mchart-cross-real" />}
-            {curMkt && <circle cx={x(curMkt.t)} cy={y(curMkt.v)} r="3.5" className="mchart-cross-mkt" />}
+            <circle cx={tipX} cy={y(valueAt(cursor))} r="3.5" className="mchart-cross-mkt" />
           </g>
         )}
       </svg>
 
-      {cursor !== null && (curHist || curMkt) && (
+      {cursor !== null && (
         <div className={`mchart-tip${tipRight ? ' is-right' : ''}`} style={{ left: `${(tipX / W) * 100}%` }}>
-          <div className="mchart-tip-date">
-            {new Date((curHist ?? curMkt)!.t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-          </div>
-          {curHist && <div>real <span className="mchart-tip-v">{fullNum(curHist.v)}</span></div>}
-          {curMkt && <div>market <span className="mchart-tip-v mchart-tip-v--mkt">{fullNum(curMkt.v)}</span></div>}
+          <div className="mchart-tip-date">{fmt(cursor)}</div>
+          <div>market <span className="mchart-tip-v mchart-tip-v--mkt">{fullNum(valueAt(cursor))}</span></div>
         </div>
       )}
-
-      <div className="mchart-legend">
-        <span className="mchart-key mchart-key--real">real value</span>
-        <span className="mchart-key mchart-key--mkt">market&rsquo;s call</span>
-        <span className="mchart-key mchart-key--settle">◉ settles here</span>
-      </div>
     </div>
   );
 }

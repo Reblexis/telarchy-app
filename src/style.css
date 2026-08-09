@@ -7943,10 +7943,6 @@ code, pre, kbd, samp {
   touch-action: pan-y;
 }
 
-.mchart-future {
-  fill: var(--bg-secondary);
-  opacity: 0.55;
-}
 
 .mchart-grid {
   stroke: var(--border-color);
@@ -7964,32 +7960,16 @@ code, pre, kbd, samp {
 .mchart-ylabel { text-anchor: end; }
 .mchart-xlabel { text-anchor: middle; }
 
-.mchart-real { color: var(--text-primary); }
-
-.mchart-line {
-  fill: none;
-  stroke: var(--text-primary);
-  stroke-width: 1.8;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-}
-
-.mchart-nowdot { fill: var(--text-primary); }
+.mchart-market { color: var(--accent); }
 
 .mchart-mline {
   fill: none;
   stroke: var(--accent);
-  stroke-width: 1.6;
+  stroke-width: 2;
   stroke-linejoin: round;
-}
-
-.mchart-dash {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 1.6;
-  stroke-dasharray: 4 5;
   stroke-linecap: round;
 }
+
 
 .mchart-calldot {
   fill: var(--accent);
@@ -8009,7 +7989,6 @@ code, pre, kbd, samp {
   stroke-width: 1;
 }
 
-.mchart-cross-real { fill: var(--text-primary); stroke: var(--bg-primary); stroke-width: 1.5; }
 .mchart-cross-mkt { fill: var(--accent); stroke: var(--bg-primary); stroke-width: 1.5; }
 
 .mchart-tip {
@@ -8043,29 +8022,8 @@ code, pre, kbd, samp {
 
 .mchart-tip-v--mkt { color: var(--accent); }
 
-.mchart-legend {
-  display: flex;
-  justify-content: center;
-  gap: 1.2rem;
-  margin-top: 0.4rem;
-  font-size: 0.7rem;
-  color: var(--text-tertiary);
-}
 
-.mchart-key::before {
-  content: '';
-  display: inline-block;
-  width: 14px;
-  height: 2px;
-  border-radius: 1px;
-  vertical-align: middle;
-  margin-right: 0.35rem;
-}
 
-.mchart-key--real::before { background: var(--text-primary); }
-.mchart-key--mkt::before { background: var(--accent); }
-.mchart-key--settle::before { display: none; }
-.mchart-key--settle { color: var(--accent); }
 
 /* Headline row: the price with its delta chip, stock-app style. */
 .pubws-headline {

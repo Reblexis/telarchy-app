@@ -220,7 +220,9 @@ export function TradePage() {
   }, [ws]);
 
   const hero = ws?.markets[0] ?? null;
-  const lastReal = ws?.heroHistory?.length ? ws.heroHistory[ws.heroHistory.length - 1].value : null;
+  // The prediction's own change: current call vs the call after the market's
+  // first trade (its open). This is about the market, not the metric.
+  const marketOpen = ws?.marketHistory?.length ? ws.marketHistory.find(p => p.consensus !== null)?.consensus ?? null : null;
   const displayConsensus = heroConsensus ?? hero?.consensus ?? null;
   const mid = hero ? (hero.rangeMin + hero.rangeMax) / 2 : null;
   const shown = useCountUp(hero?.consensus ?? null, mid);
@@ -268,28 +270,23 @@ export function TradePage() {
             </div>
             <div className="pubws-headline">
               <span className="pubws-price">{liveShown !== null ? formatValue(liveShown) : '–'}</span>
-              {lastReal !== null && displayConsensus !== null && (
-                <span className={`pubws-delta-chip ${displayConsensus >= lastReal ? 'is-up' : 'is-down'}`}>
-                  {displayConsensus >= lastReal ? '▲' : '▼'} {formatDelta(displayConsensus - lastReal)} vs today
+              {marketOpen !== null && displayConsensus !== null && displayConsensus !== marketOpen && (
+                <span className={`pubws-delta-chip ${displayConsensus >= marketOpen ? 'is-up' : 'is-down'}`}>
+                  {displayConsensus >= marketOpen ? '▲' : '▼'} {formatDelta(displayConsensus - marketOpen)} since open
                 </span>
               )}
             </div>
-            {(ws.heroHistory?.length ?? 0) >= 2 ? (
+            {(ws.marketHistory?.length ?? 0) > 0 && (
               <MarketChart
-                history={ws.heroHistory!}
-                marketHistory={ws.marketHistory ?? []}
+                series={ws.marketHistory!}
                 consensus={displayConsensus}
-                resolvesOn={hero.resolvesOn}
               />
-            ) : null}
+            )}
             <div className="pubws-instrument-sub">
               settles {settleDate(hero.resolvesOn)}
               {ws.markets.length > 1 && <> · one of {ws.markets.length} open markets</>}
               {(ws.tradesThisWeek ?? 0) > 0 && <> · {ws.tradesThisWeek} trades this week</>}
             </div>
-            {ws.heroMetricDescription && (
-              <div className="pubws-provenance">{linkify(ws.heroMetricDescription)}</div>
-            )}
           </section>
         )}
 
