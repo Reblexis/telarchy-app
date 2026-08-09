@@ -49,6 +49,16 @@ function settleDate(iso: string): string {
   return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
 }
 
+function timeAgo(at: string | Date): string {
+  const t = new Date(at).getTime();
+  if (!Number.isFinite(t)) return '';
+  const mins = Math.max(0, Math.round((Date.now() - t) / 60_000));
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 48) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
+
 export function TradePage() {
   const params = useParams();
   const idOrSlug = params.slug ?? params.workspaceId;
@@ -60,6 +70,7 @@ export function TradePage() {
   const [joined, setJoined] = useState(false);
   const [heroConsensus, setHeroConsensus] = useState<number | null>(null);
   const [positions, setPositions] = useState<TicketPosition[]>([]);
+  const [balance, setBalance] = useState<number | null>(null);
   const joinTried = useRef(false);
 
   const reload = () => {
@@ -104,6 +115,9 @@ export function TradePage() {
           setPositions((rows ?? []).filter(r => r.shares > 1e-9)))
         .catch(e => console.error('positions fetch failed:', e));
     }
+    api.getParticipant()
+      .then(pt => setBalance((pt as { balance?: number }).balance ?? null))
+      .catch(e => console.error('participant fetch failed:', e));
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (joined) refreshMoney(); }, [joined, heroMarketId]);
@@ -133,6 +147,11 @@ export function TradePage() {
   // market's first trade. About the market, not the metric.
   const marketOpen = ws?.marketHistory?.length ? ws.marketHistory.find(p => p.consensus !== null)?.consensus ?? null : null;
   const consensus = heroConsensus ?? hero?.consensus ?? null;
+  // The desk facts: the real value the market predicts against, and its
+  // freshness. Intent-gated (signed-in only): the anonymous poster stays
+  // free of context, but a trader deciding Higher or Lower needs the
+  // anchor and proof it is being kept current.
+  const lastActual = ws?.heroHistory?.length ? ws.heroHistory[ws.heroHistory.length - 1] : null;
 
   if (error) {
     return (
@@ -199,10 +218,20 @@ export function TradePage() {
 
         {trading && hero ? (
           <section className="pubws-act pubws-enter pubws-enter--3" aria-label="Place a trade">
+            {lastActual && (
+              <div className="pubws-facts">
+                <span>Actual {unit}{formatValue(lastActual.value)}</span>
+                {lastActual.at && <span className="pubws-facts-sep">·</span>}
+                {lastActual.at && <span>updated {timeAgo(lastActual.at)}</span>}
+                {(ws.tradesThisWeek ?? 0) > 0 && <span className="pubws-facts-sep">·</span>}
+                {(ws.tradesThisWeek ?? 0) > 0 && <span>{ws.tradesThisWeek} trades this week</span>}
+              </div>
+            )}
             <TradeTicket
               probability={hero.probability}
               liquidity={hero.liquidity}
               positions={positions}
+              balance={balance}
               onTrade={placeTrade}
               onSell={sellPosition}
             />

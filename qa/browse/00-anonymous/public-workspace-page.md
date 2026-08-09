@@ -229,8 +229,11 @@ Lower/Higher segmented pair, amount input with 10/25/100/250 chips, one
 confirm button that reads "Pick a side" (disabled) until a direction is
 chosen and then "Place <n> cr on <Side>". The payout line appears only
 after a side is picked; a placed trade flashes "Placed" on the button and
-the position row (direction, payout, Sell pill) appears at the top of the
-ticket. No per-branch ballot trading (the ballot is not rendered in this
+the position row (direction, live worth with a green/red delta, Sell pill)
+appears at the top of the ticket. The desk also shows a mono facts strip
+above the ticket (actual value, updated-ago, trades pulse when nonzero)
+and the balance line inside the ticket; none of these render for
+anonymous visitors, whose poster stays context-free. No per-branch ballot trading (the ballot is not rendered in this
 phase). Re-visits are idempotent (alreadyMember).
 
 ## Known gaps

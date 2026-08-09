@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { previewTrade } from '../lib/amm';
+import { previewSell, previewTrade } from '../lib/amm';
 
 /**
  * The trade ticket: the one interactive object on the trading floor.
@@ -17,6 +17,10 @@ interface Props {
   probability: number;
   liquidity: number;
   positions: TicketPosition[];
+  /** Spendable credits, or null while unknown; rendered inside the ticket
+      because the trader's wallet is part of the trade decision, not page
+      chrome. */
+  balance: number | null;
   onTrade: (direction: 'higher' | 'lower', amount: number) => Promise<void>;
   onSell: (p: TicketPosition) => Promise<void>;
 }
@@ -28,7 +32,7 @@ function fmt(v: number): string {
   return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
-export function TradeTicket({ probability, liquidity, positions, onTrade, onSell }: Props) {
+export function TradeTicket({ probability, liquidity, positions, balance, onTrade, onSell }: Props) {
   const [dir, setDir] = useState<'higher' | 'lower' | null>(null);
   const [amount, setAmount] = useState('25');
   const [busy, setBusy] = useState<string | null>(null);
@@ -77,21 +81,32 @@ export function TradeTicket({ probability, liquidity, positions, onTrade, onSell
     <div className="ticket" aria-label="Place a trade">
       {positions.length > 0 && (
         <div className="ticket-pos">
-          {positions.map(p => (
-            <div key={p.direction} className="ticket-pos-row">
-              <span className={`ticket-pos-dir ticket-pos-dir--${p.direction}`}>
-                {p.direction === 'higher' ? '▲' : '▼'} {p.direction}
-              </span>
-              <span className="ticket-pos-detail">pays up to {fmt(p.shares)} cr</span>
-              <button
-                className="ticket-sell"
-                disabled={busy !== null}
-                onClick={() => void sell(p)}
-              >
-                {busy === `sell-${p.direction}` ? 'Selling…' : 'Sell'}
-              </button>
-            </div>
-          ))}
+          {positions.map(p => {
+            // Live worth: what the position would fetch right now vs what
+            // it cost. This moving number is the reason to come back.
+            const worth = previewSell(probability, liquidity, p.direction, p.shares);
+            const delta = worth - p.totalCost;
+            return (
+              <div key={p.direction} className="ticket-pos-row">
+                <span className={`ticket-pos-dir ticket-pos-dir--${p.direction}`}>
+                  {p.direction === 'higher' ? '▲' : '▼'} {p.direction}
+                </span>
+                <span className="ticket-pos-detail">
+                  worth {fmt(worth)} cr{' '}
+                  <span className={`ticket-pos-delta ${delta >= 0 ? 'is-up' : 'is-down'}`}>
+                    {delta >= 0 ? '+' : '-'}{fmt(Math.abs(delta))}
+                  </span>
+                </span>
+                <button
+                  className="ticket-sell"
+                  disabled={busy !== null}
+                  onClick={() => void sell(p)}
+                >
+                  {busy === `sell-${p.direction}` ? 'Selling…' : 'Sell'}
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -155,6 +170,11 @@ export function TradeTicket({ probability, liquidity, positions, onTrade, onSell
         <p className="ticket-pays">Pays up to {fmt(payout)} cr if you're right.</p>
       )}
       {error && <p className="ticket-err">{error}</p>}
+      {balance !== null && (
+        <p className="ticket-balance">
+          {balance.toLocaleString('en-US', { maximumFractionDigits: 0 })} cr available
+        </p>
+      )}
     </div>
   );
 }

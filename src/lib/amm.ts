@@ -28,6 +28,23 @@ export function previewTrade(prob: number, liquidity: number, direction: 'higher
 }
 
 /**
+ * What a held position would fetch if sold right now, in credits. Mirrors
+ * previewTrade's relative-state model (client approximation; the server
+ * response on an actual sell is authoritative). Used for the live "worth
+ * now" readout on positions.
+ */
+export function previewSell(prob: number, liquidity: number, direction: 'higher' | 'lower', shares: number): number {
+  const b = liquidity;
+  const p = Math.max(0.001, Math.min(0.999, prob));
+  const q1 = b * Math.log(p / (1 - p));
+  const q0 = 0;
+  const value = direction === 'higher'
+    ? lmsrCost(q0, q1, b) - lmsrCost(q0, q1 - shares, b)
+    : lmsrCost(q0, q1, b) - lmsrCost(q0 - shares, q1, b);
+  return Math.max(0, Math.round(value * 1_000_000_000) / 1_000_000_000);
+}
+
+/**
  * Client-side preview of a "bet toward a value" trade (server modes:
  * {targetValue, maxBudget}). Mirrors the backend `betTowardsValue`: buys in the
  * direction that moves consensus toward `targetValue`, buying exactly enough to

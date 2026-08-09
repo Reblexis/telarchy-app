@@ -173,10 +173,17 @@ chart (`MarketChart`: one amber step line of the market's call over its
 lifetime, gradient fill, labeled end dot, crosshair; breaks out of the
 column to min(92vw, 760px), capped so the whole anonymous poster through
 the CTA fits a 900px-tall desktop viewport; phones get a taller, narrower
-canvas chosen at mount). The composition is a poster free of explanatory
-context (owner decision: no hook sentence, no settle fineprint, no
-captions) with exactly one action under the chart: a "Make your call" pill
-into signup when anonymous, the trade ticket when signed in. The ticket
+canvas chosen at mount). The page is two-tier by intent (owner decision,
+2026-08-09): the anonymous view is a poster free of explanatory context
+(no hook sentence, no settle fineprint, no captions) with exactly one
+action under the chart, a "Make your call" pill into signup; signing up IS
+the intent signal, and the signed-in view becomes the trader's desk. The
+desk adds, around the trade ticket only: a mono facts strip above it
+("Actual <value> · updated <ago> · <n> trades this week", the anchor the
+market predicts against plus its freshness; the trades pulse renders only
+when nonzero), the trader's balance inside the ticket ("1,000 cr
+available"), and live position worth on each held row ("worth 31.2 cr
++6.2", green/red delta, computed client-side via the AMM sell preview). The ticket
 (`TradeTicket`, a bordered card; the hairline-not-cards rule is for lists,
 and the card boundary is what makes the control read as one object) is a
 deliberate two-step: pick a side (Lower/Higher segmented pair tinted with

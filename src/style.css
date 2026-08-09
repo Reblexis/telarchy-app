@@ -8277,6 +8277,30 @@ code, pre, kbd, samp {
   color: var(--lower);
 }
 
+.ticket-balance {
+  margin: -0.25rem 0 0;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.ticket-pos-delta { font-weight: 600; }
+.ticket-pos-delta.is-up { color: var(--higher); }
+.ticket-pos-delta.is-down { color: var(--lower); }
+
+/* The desk facts: signed-in only, the anchor the market predicts against
+   plus its freshness and the trade pulse. */
+.pubws-facts {
+  display: flex;
+  justify-content: center;
+  gap: 0.45rem;
+  margin-bottom: 0.8rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.pubws-facts-sep { color: var(--text-tertiary); }
+
 /* Poster layout (trade page only): the market sits in the optical center of
    the viewport, a touch above true center. ManagePage shares .pubws-* but
    not this modifier. */
