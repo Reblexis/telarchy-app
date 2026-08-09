@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 /**
  * The prediction, visualized: the market's call over the market's lifetime,
@@ -30,8 +30,9 @@ interface Props {
 // Two geometries for one chart: the wide 720-unit canvas reads well from
 // ~520 CSS px up; below that the svg scales down until its type is
 // illegible, so phones get a narrower, taller canvas instead of a shrunken
-// copy of the desktop one. Chosen once at mount (orientation changes are
-// rare and a reload fixes them).
+// copy of the desktop one. Tracked live via matchMedia so window resizes
+// and orientation changes swap geometry instead of leaving a squished
+// chart behind.
 const GEOM = {
   wide: { W: 720, PAD_L: 46, PAD_R: 58, H: 260 },
   compact: { W: 400, PAD_L: 40, PAD_R: 50, H: 300 },
@@ -49,7 +50,13 @@ function fullNum(v: number): string {
 }
 
 export function MarketChart({ series, consensus, unit = '', preview = null, height }: Props) {
-  const [compact] = useState(() => typeof window !== 'undefined' && window.innerWidth < 520);
+  const [compact, setCompact] = useState(() => typeof window !== 'undefined' && window.innerWidth < 520);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 519px)');
+    const onChange = () => setCompact(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
   const { W, PAD_L, PAD_R, H: geomH } = GEOM[compact ? 'compact' : 'wide'];
   const H = height ?? geomH;
   const svgRef = useRef<SVGSVGElement | null>(null);

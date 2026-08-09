@@ -7961,6 +7961,10 @@ code, pre, kbd, samp {
   width: 100%;
   height: auto;
   touch-action: pan-y;
+  /* An svg clips at its border by default; the call and ghost labels sit
+     in the right padding and long values (a "$6,700" with an arrow) were
+     losing their tails. */
+  overflow: visible;
 }
 
 
@@ -8291,8 +8295,9 @@ code, pre, kbd, samp {
    plus its freshness and the trade pulse. */
 .pubws-facts {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-  gap: 0.45rem;
+  gap: 0.2rem 0.45rem;
   margin-bottom: 0.8rem;
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.78rem;
