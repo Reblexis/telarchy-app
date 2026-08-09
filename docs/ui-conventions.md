@@ -171,17 +171,22 @@ when the trimmed parenthetical tail names one, e.g. "USD" -> "$"; the same
 prefix runs through every numeral in the chart), and the prediction
 chart (`MarketChart`: one amber step line of the market's call over its
 lifetime, gradient fill, labeled end dot, crosshair; breaks out of the
-column to min(92vw, 760px), capped so the whole poster through the CTA fits
-a 900px-tall desktop viewport; phones get a taller, narrower canvas chosen
-at mount). The composition is a poster answering a newcomer's three
-questions in order, and nothing else: what am I looking at (headline + one
-hook sentence under it, rendered from the workspace's own `description` and
-hidden when empty; it is what tells a stranger the number is a live
-forecast by traders, not a measurement), is it real (the settle fineprint
-at the bottom: "Settles <date> on the real number."), and what can I do
-(exactly one action: a "Make your call" pill into signup when anonymous;
-the amount + Lower/Higher tradebar with position and sell when signed in;
-no payout preview). Motion is one entrance pass (label, then price, then
+column to min(92vw, 760px), capped so the whole anonymous poster through
+the CTA fits a 900px-tall desktop viewport; phones get a taller, narrower
+canvas chosen at mount). The composition is a poster free of explanatory
+context (owner decision: no hook sentence, no settle fineprint, no
+captions) with exactly one action under the chart: a "Make your call" pill
+into signup when anonymous, the trade ticket when signed in. The ticket
+(`TradeTicket`, a bordered card; the hairline-not-cards rule is for lists,
+and the card boundary is what makes the control read as one object) is a
+deliberate two-step: pick a side (Lower/Higher segmented pair tinted with
+--lower/--higher when active), pick an amount (mono input plus 10/25/100/250
+preset chips), then one full-width ink confirm that always states what it
+will do ("Place 25 cr on Higher"; "Pick a side" disabled until a side is
+chosen). The payout line appears under the confirm only once a side is
+picked; success flashes "Placed" on the button itself; errors render inside
+the ticket. Held positions sit at the top of the ticket as rows (tinted
+direction, mono payout, a Sell pill). Motion is one entrance pass (label, then price, then
 the line drawing itself) plus a soft perpetual ripple on the call dot;
 loading is the amber call dot rippling where the market will appear;
 everything stops under prefers-reduced-motion. Signed-in visits join

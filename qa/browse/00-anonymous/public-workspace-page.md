@@ -80,12 +80,10 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
 **Expected:**
 - The page renders standalone: minimal top bar (logo lockup + Log in when
   signed out), NO app sidebar and no `.page-content` shell.
-- Minimal phase (2026-08-09): no name h1, no counts line; the headline
-  `.pubws-instrument-title` ("<metric> @ <settle date>", Fraunces, settle
-  date a register quieter) is the page's only title, with the workspace's
-  own one-sentence `description` as the hook line under it (hidden when
-  empty) and the settle fineprint ("Settles <date> on the real number.") at
-  the bottom. All other removed fields stay in the API.
+- Minimal phase (2026-08-09): no name h1, no counts line, no hook line, no
+  settle fineprint; the headline `.pubws-instrument-title` ("<metric> @
+  <settle date>", Fraunces, settle date a register quieter) is the page's
+  only text besides the price. All removed fields stay in the API.
 
 ### T3. The join CTA states what joining actually grants
 
@@ -226,10 +224,14 @@ None. This spec only reads.
 
 **Expected:** any signed-in visit to an Open workspace's trading floor joins
 silently (no `?join=1` needed, no navigation away); the page swaps the
-anonymous "Make your call" pill for the trade controls in place: amount +
-Lower/Higher under the chart, position line with sell once a position is
-held. No payout preview, no per-branch ballot trading (the ballot is not
-rendered in this phase). Re-visits are idempotent (alreadyMember).
+anonymous "Make your call" pill for the trade ticket (`.ticket`) in place:
+Lower/Higher segmented pair, amount input with 10/25/100/250 chips, one
+confirm button that reads "Pick a side" (disabled) until a direction is
+chosen and then "Place <n> cr on <Side>". The payout line appears only
+after a side is picked; a placed trade flashes "Placed" on the button and
+the position row (direction, payout, Sell pill) appears at the top of the
+ticket. No per-branch ballot trading (the ballot is not rendered in this
+phase). Re-visits are idempotent (alreadyMember).
 
 ## Known gaps
 

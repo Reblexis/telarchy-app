@@ -7494,23 +7494,6 @@ code, pre, kbd, samp {
   color: var(--text-secondary);
 }
 
-/* The hook: one owner-authored sentence that tells a stranger the number
-   below is a live forecast by traders, not a measurement. */
-.pubws-hook {
-  margin: 0.55rem auto 0;
-  max-width: 46ch;
-  font-size: 0.98rem;
-  line-height: 1.5;
-  color: var(--text-secondary);
-}
-
-/* The trust anchor: what the market resolves against, and when. */
-.pubws-settle {
-  margin: 1rem 0 0;
-  text-align: center;
-  font-size: 0.78rem;
-  color: var(--text-tertiary);
-}
 
 .pubws-price {
   margin: 0.4rem 0 0.2rem;
@@ -8112,6 +8095,187 @@ code, pre, kbd, samp {
 .pubws-delta-chip.is-down { color: var(--lower); }
 
 .pubws-logolink { display: inline-flex; align-items: center; }
+
+/* The trade ticket: the one interactive object on the trading floor.
+   A bordered card is deliberate here (the hairline-not-cards rule is for
+   lists); this is a control, and its boundary is what makes the two-step
+   pick-then-confirm read as one object. */
+.ticket {
+  width: min(100%, 400px);
+  margin: 0 auto;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  background: var(--bg-elevated);
+  box-shadow: 0 1px 2px rgba(23, 23, 28, 0.04), 0 8px 24px rgba(23, 23, 28, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  text-align: center;
+}
+
+.ticket-pos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.ticket-pos-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+}
+
+.ticket-pos-dir { font-weight: 600; text-transform: capitalize; }
+.ticket-pos-dir--higher { color: var(--higher); }
+.ticket-pos-dir--lower { color: var(--lower); }
+
+.ticket-pos-detail {
+  flex: 1;
+  text-align: left;
+  color: var(--text-secondary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+}
+
+.ticket-sell {
+  padding: 0.3rem 0.85rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: transparent;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.ticket-sell:hover:not(:disabled) { border-color: var(--border-hover); }
+.ticket-sell:disabled { opacity: 0.5; cursor: default; }
+
+.ticket-seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.ticket-side {
+  padding: 0.8rem 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: transparent;
+  font: inherit;
+  font-size: 0.98rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+.ticket-side--higher { color: var(--higher); }
+.ticket-side--lower { color: var(--lower); }
+.ticket-side--higher:hover:not(.is-active) { background: var(--higher-soft); }
+.ticket-side--lower:hover:not(.is-active) { background: var(--lower-soft); }
+.ticket-side--higher.is-active {
+  background: var(--higher-soft);
+  border-color: var(--higher);
+  box-shadow: inset 0 0 0 1px var(--higher);
+}
+.ticket-side--lower.is-active {
+  background: var(--lower-soft);
+  border-color: var(--lower);
+  box-shadow: inset 0 0 0 1px var(--lower);
+}
+.ticket-side:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.ticket-amount-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.ticket-amount {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  padding: 0 0.15rem 0.1rem;
+  border-bottom: 1px solid var(--border-strong);
+  transition: border-color 120ms ease;
+}
+.ticket-amount:focus-within { border-color: var(--accent); }
+
+.ticket-amount input {
+  width: 4.2rem;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.45rem;
+  font-weight: 600;
+  text-align: right;
+  padding: 0;
+}
+.ticket-amount input:focus { outline: none; }
+
+.ticket-cr {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+
+.ticket-chips { display: flex; gap: 0.35rem; }
+
+.ticket-chip {
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: transparent;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.ticket-chip:hover:not(.is-active) { border-color: var(--border-hover); color: var(--text-primary); }
+.ticket-chip.is-active {
+  background: var(--button-bg);
+  border-color: var(--button-bg);
+  color: var(--button-text);
+}
+
+.ticket-go {
+  padding: 0.9rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--button-bg);
+  color: var(--button-text);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, transform 120ms ease, opacity 120ms ease;
+}
+.ticket-go:hover:not(:disabled) { background: var(--button-bg-hover); transform: translateY(-1px); }
+.ticket-go:active:not(:disabled) { transform: translateY(0); }
+.ticket-go:disabled { opacity: 0.45; cursor: default; }
+.ticket-go.is-placed { background: var(--higher); }
+.ticket-go:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.ticket-pays {
+  margin: -0.15rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}
+
+.ticket-err {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--lower);
+}
 
 /* Poster layout (trade page only): the market sits in the optical center of
    the viewport, a touch above true center. ManagePage shares .pubws-* but

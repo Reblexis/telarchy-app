@@ -3,21 +3,19 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, setActiveWorkspace, type PublicWorkspace } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { MarketChart } from '../components/MarketChart';
+import { TradeTicket, type TicketPosition } from '../components/TradeTicket';
 import { Logo } from '../components/Logo';
 
 /**
- * telarchy.com/<slug>: the market, and only what a newcomer needs (owner
- * decision, 2026-08-09). The composition answers a first-time visitor's
- * three questions in order and nothing else:
- *   1. What am I looking at? The headline ("<metric> @ <settle date>") and
- *      the hook line under it (the workspace's own one-sentence description,
- *      owner-authored via the API, hidden when empty).
- *   2. Is it real? The settle fineprint under the fold ("Settles <date> on
- *      the real number.").
- *   3. What can I do? Exactly one action: "Make your call" into signup when
- *      anonymous; the amount + Lower/Higher tradebar (position and sell once
- *      held) when signed in. No payout preview, no ballot, no charter; those
- *      stay in the API and return as render changes.
+ * telarchy.com/<slug>: the market and one action, nothing else (owner
+ * decision, 2026-08-09: the poster stays free of explanatory context).
+ * Composition: headline ("<metric> @ <settle date>"), price, the
+ * Manifold-style step chart, and exactly one action: a "Make your call"
+ * pill into signup when anonymous, the trade ticket (TradeTicket: pick a
+ * side, pick an amount, one confirm) when signed in. The workspace
+ * description, settle fineprint, ballot, charter, decided list, pitch and
+ * footer are NOT rendered; the API still ships them, so each returns as a
+ * render change.
  *
  * /marketplace/:idOrSlug still resolves here and canonicalizes to /<slug>.
  * A signed-in visitor on an Open workspace is joined silently; membership is
@@ -51,8 +49,6 @@ function settleDate(iso: string): string {
   return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
 }
 
-interface HeroPosition { direction: 'higher' | 'lower'; shares: number; totalCost: number }
-
 export function TradePage() {
   const params = useParams();
   const idOrSlug = params.slug ?? params.workspaceId;
@@ -62,11 +58,8 @@ export function TradePage() {
   const [ws, setWs] = useState<PublicWorkspace | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [joined, setJoined] = useState(false);
-  const [amount, setAmount] = useState('25');
-  const [tradeErr, setTradeErr] = useState('');
-  const [tradeBusy, setTradeBusy] = useState<string | null>(null);
   const [heroConsensus, setHeroConsensus] = useState<number | null>(null);
-  const [positions, setPositions] = useState<HeroPosition[]>([]);
+  const [positions, setPositions] = useState<TicketPosition[]>([]);
   const joinTried = useRef(false);
 
   const reload = () => {
@@ -115,30 +108,23 @@ export function TradePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (joined) refreshMoney(); }, [joined, heroMarketId]);
 
-  const doTrade = async (body: Record<string, unknown>, busyKey: string) => {
+  // The ticket owns busy/error/flash UI state; the page owns the money
+  // plumbing. Errors propagate by throwing so the ticket can show them
+  // where the finger is.
+  const doTrade = async (body: Record<string, unknown>) => {
     if (!ws) return;
-    setTradeErr('');
-    setTradeBusy(busyKey);
-    try {
-      const r = await api.trade(body, ws.workspaceId) as { consensus?: number | null };
-      if (typeof r.consensus === 'number' && body.marketId === heroMarketId) setHeroConsensus(r.consensus);
-      refreshMoney();
-      reload();
-    } catch (e) {
-      setTradeErr((e as Error).message || 'Trade failed');
-    } finally {
-      setTradeBusy(null);
-    }
+    const r = await api.trade(body, ws.workspaceId) as { consensus?: number | null };
+    if (typeof r.consensus === 'number' && body.marketId === heroMarketId) setHeroConsensus(r.consensus);
+    refreshMoney();
+    reload();
   };
-
-  const amountNum = Math.max(0, parseFloat(amount) || 0);
-  const heroTrade = (direction: 'higher' | 'lower') => {
-    if (!heroMarketId || amountNum <= 0) return;
-    void doTrade({ marketId: heroMarketId, direction, amount: amountNum }, `hero-${direction}`);
-  };
-  const sellPosition = (p: HeroPosition) => {
+  const placeTrade = async (direction: 'higher' | 'lower', amount: number) => {
     if (!heroMarketId) return;
-    void doTrade({ marketId: heroMarketId, direction: p.direction, sellShares: p.shares }, `sell-${p.direction}`);
+    await doTrade({ marketId: heroMarketId, direction, amount });
+  };
+  const sellPosition = async (p: TicketPosition) => {
+    if (!heroMarketId) return;
+    await doTrade({ marketId: heroMarketId, direction: p.direction, sellShares: p.shares });
   };
 
   const hero = ws?.markets[0] ?? null;
@@ -195,12 +181,6 @@ export function TradePage() {
               {' '}
               <span className="pubws-instrument-when">@ {settleDate(hero.resolvesOn)}</span>
             </h1>
-            {/* The hook: the workspace's own one-sentence description. It is
-                what tells a stranger the number below is a live forecast by
-                traders, not a measurement. */}
-            {ws.description && (
-              <p className="pubws-hook pubws-enter pubws-enter--1">{ws.description}</p>
-            )}
             <div className="pubws-headline pubws-enter pubws-enter--2">
               <span className="pubws-price">{unit}{formatValue(consensus)}</span>
               {marketOpen !== null && consensus !== marketOpen && (
@@ -217,61 +197,21 @@ export function TradePage() {
           </section>
         )}
 
-        {trading ? (
+        {trading && hero ? (
           <section className="pubws-act pubws-enter pubws-enter--3" aria-label="Place a trade">
-            <div className="pubws-tradebar">
-              <label className="pubws-amount">
-                <input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={amount}
-                  onChange={e => setAmount(e.target.value)}
-                  aria-label="Credits to spend"
-                />
-                <span>cr</span>
-              </label>
-              <button
-                className="pubws-dir pubws-dir--lower"
-                disabled={tradeBusy !== null || amountNum <= 0}
-                onClick={() => heroTrade('lower')}
-              >
-                {tradeBusy === 'hero-lower' ? '…' : '▼ Lower'}
-              </button>
-              <button
-                className="pubws-dir pubws-dir--higher"
-                disabled={tradeBusy !== null || amountNum <= 0}
-                onClick={() => heroTrade('higher')}
-              >
-                {tradeBusy === 'hero-higher' ? '…' : '▲ Higher'}
-              </button>
-            </div>
-            {positions.length > 0 && (
-              <div className="pubws-position">
-                {positions.map(p => (
-                  <span key={p.direction}>
-                    you hold {p.shares.toFixed(1)} sh {p.direction}
-                    {' '}
-                    <button className="pubws-sell" disabled={tradeBusy !== null} onClick={() => sellPosition(p)}>
-                      {tradeBusy === `sell-${p.direction}` ? 'selling…' : 'sell'}
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-            {tradeErr && <p className="pubws-joinerr">{tradeErr}</p>}
+            <TradeTicket
+              probability={hero.probability}
+              liquidity={hero.liquidity}
+              positions={positions}
+              onTrade={placeTrade}
+              onSell={sellPosition}
+            />
           </section>
         ) : canTrade && !user && !authLoading ? (
           <section className="pubws-act pubws-enter pubws-enter--3" aria-label="Join and trade">
             <Link to="/signup" className="pubws-cta">Make your call</Link>
           </section>
         ) : null}
-
-        {hero && (
-          <p className="pubws-settle pubws-enter pubws-enter--3">
-            Settles {settleDate(hero.resolvesOn)} on the real number.
-          </p>
-        )}
       </main>
     </div>
   );
