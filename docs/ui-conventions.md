@@ -182,25 +182,33 @@ chart all work), and only the confirm differs: it reads "Sign up to bet"
 and routes to /signup. The ticket is the pitch; signing up IS the intent
 signal, and the signed-in view becomes the trader's desk. The
 desk adds, around the trade ticket only: a mono facts strip above it
-("Actual <value> · updated <ago> · <n> trades this week", the anchor the
-market predicts against plus its freshness; the trades pulse renders only
-when nonzero), the trader's balance inside the ticket ("1,000 cr
-available"), and live position worth on each held row ("worth 31.2 cr
-+6.2", green/red delta, computed client-side via the AMM sell preview).
+("Actual <value> · updated <ago>": the anchor the market predicts against
+plus its freshness, and nothing else; the trade pulse lives in the activity
+rail), the trader's balance inside the ticket ("1,000 cr available",
+compacted to "991k" past five figures), and live position worth on each
+held row ("worth 31.2 cr +6.2", green/red delta from the AMM sell preview,
+the delta hidden while it is still zero). The amount presets are three, not
+four (10 / 50 / the position cap).
 Below the ticket, the desk shows the jobs board (paid-jobs
-round 1, owner charter of 2026-08-09): "Jobs on the ballot" as a hairline
-list, each row a proposal with its priced gap chip (largest-magnitude
-conditional delta, green/red, "open" while unpriced); expanding shows the
-pitch, "if paid" / "if not" branch values with mini lower/higher buttons
-(fixed 25 cr per tap), and the proposer. "+ Suggest a job" opens the
-inline form: a narrow mono USD ask field beside the title (the ask is
-composed into the title as "$N: ...", the charter's round-1 text
-convention; no API change), a description prompting for proof of
-capability, and the 40 cr listing-stake submit. The board is signed-in
+round 1, owner charter of 2026-08-09) under a bare "Jobs" label. **One
+number per job** (owner decision: as few numbers as possible): the impact,
+which is if-done minus if-not-done, green/red, "open" while unpriced, under
+a single right-aligned column label ("impact if done") rather than a label
+per row. The two branch values are not shown. Rows carry the title, the
+proposer, and the USD ask (the two required facts of a job), and are ranked
+by impact, since the ballot is a ranking the owner acts on. Expanding shows
+the pitch and one control, "Is the impact bigger or smaller?" with a
+lower/higher pair at 25 cr a tap, which trades the approved branch (that is
+what moves the single number; the declined branch holds the seeded
+counterfactual and the API still supports trading it). "+ Suggest a job"
+opens the inline form: a narrow mono USD ask field beside the title,
+required (every job has a price), composed into the title as "$N: ..." per
+the charter's round-1 text convention (no API change), a description
+prompting for proof of capability, and the 40 cr listing-stake submit. The board is signed-in
 only; the anonymous poster stays clean. On viewports >=1120px the page
 becomes the trading floor proper: a three-column grid with the top-traders
 rail on the left (public /api/leaderboard: rank, nickname-or-id, earnings
-in cr or trade count) and the action log on the right (composed
+in cr or trade count; never-traded rows skipped, five shown) and the action log on the right (composed
 client-side from the public payload: new jobs, approve/decline decisions
 color-coded --higher/--lower, and market moves; newest first, capped at
 12). Both rails render for both tiers, hide entirely when empty, sit

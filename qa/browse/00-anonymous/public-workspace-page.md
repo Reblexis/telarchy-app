@@ -235,10 +235,12 @@ the position row (direction, live worth with a green/red delta, Sell pill)
 appears at the top of the ticket. The desk also shows a mono facts strip
 above the ticket (actual value, updated-ago, trades pulse when nonzero)
 and the balance line inside the ticket, plus the jobs board under the
-ticket ("Jobs on the ballot": hairline proposal rows with priced-gap
-chips, expandable to the pitch and per-branch 25 cr quick trades, and the
-"+ Suggest a job" form whose USD ask composes into the title as
-"$N: ..."). None of these render for anonymous visitors, whose poster
+ticket ("Jobs": hairline rows carrying title, proposer and USD ask, with
+ONE number each, the impact (if-done minus if-not-done) under a single
+right-aligned "impact if done" column label; ranked by impact; expandable
+to the pitch and one bigger/smaller control at 25 cr a tap; and the
+"+ Suggest a job" form whose USD ask is required and composes into the
+title as "$N: ..."). None of these render for anonymous visitors, whose poster
 stays context-free. Exception: the side rails (top traders left from
 /api/leaderboard, action log right composed from the public payload) are
 visible to both tiers on viewports >=1120px, stack below the poster on
