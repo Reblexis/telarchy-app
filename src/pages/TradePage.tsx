@@ -44,7 +44,7 @@ function settleDate(iso: string): string {
 export function TradePage() {
   const params = useParams();
   const idOrSlug = params.slug ?? params.workspaceId;
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [ws, setWs] = useState<PublicWorkspace | null>(null);
@@ -89,7 +89,7 @@ export function TradePage() {
   if (error) {
     return (
       <div className="pubws pubws--center">
-        <TopBar user={!!user} />
+        <TopBar user={!!user} ready={!authLoading} />
         <main className="pubws-main">
           <section className="pubws-status">
             <p className="pubws-pitch">{error}</p>
@@ -105,7 +105,7 @@ export function TradePage() {
     // about to appear; no spinner, no text, no layout shift.
     return (
       <div className="pubws pubws--center">
-        <TopBar user={!!user} />
+        <TopBar user={!!user} ready={!authLoading} />
         <main className="pubws-main">
           <div className="pubws-loading" role="status" aria-label="Loading">
             <Logo variant="mark" height="2.4rem" />
@@ -117,7 +117,7 @@ export function TradePage() {
 
   return (
     <div className="pubws pubws--center">
-      <TopBar user={!!user} />
+      <TopBar user={!!user} ready={!authLoading} />
       <main className="pubws-main">
         {hero && consensus !== null && (
           <section className="pubws-instrument" aria-label="The market">
@@ -148,7 +148,7 @@ export function TradePage() {
   );
 }
 
-function TopBar({ user }: { user: boolean }) {
+function TopBar({ user, ready }: { user: boolean; ready: boolean }) {
   return (
     <nav className="pubws-topbar">
       <Link to="/" className="pubws-logolink" aria-label="Telarchy">
@@ -156,7 +156,10 @@ function TopBar({ user }: { user: boolean }) {
             reads as the same site. */}
         <Logo variant="lockup" height="3rem" />
       </Link>
-      {!user && <Link to="/login" className="pubws-login">Log in</Link>}
+      {/* Rendered only after the session check settles: while it is
+          pending, user is still null, and a signed-in visitor would see
+          "Log in" flash and vanish. Anonymous visitors get it fading in. */}
+      {ready && !user && <Link to="/login" className="pubws-login pubws-fade">Log in</Link>}
     </nav>
   );
 }

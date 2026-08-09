@@ -158,7 +158,8 @@ canonicalizes here) renders **standalone**, outside `AppLayout`, and in the
 minimal phase (owner decision, 2026-08-09) it renders **the market and
 nothing else**: minimal top bar (the Telarchy logo lockup at the landing
 nav's 3rem, linking home, vertically centered; a Log in link only when
-signed out), one headline line naming the prediction ("<metric> @ <settle
+signed out, rendered only after the session check settles and faded in, so
+signed-in visitors never see it flash), one headline line naming the prediction ("<metric> @ <settle
 date>", the metric's parenthetical unit tail trimmed for display), the
 consensus as a large mono price with a since-open chip, and the prediction
 chart (`MarketChart`: one amber step line of the market's call over its
