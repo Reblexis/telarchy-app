@@ -125,9 +125,11 @@ export function TradePage() {
                 metric's parenthetical unit tail is trimmed for display only
                 (the full name stays in the API); renaming the metric itself
                 would void the live market by the definition-change invariant. */}
-            <div className="pubws-instrument-label pubws-enter pubws-enter--1">
-              {hero.metricName.replace(/\s*\(.*\)\s*$/, '')} @ {settleDate(hero.resolvesOn)}
-            </div>
+            <h1 className="pubws-instrument-title pubws-enter pubws-enter--1">
+              {hero.metricName.replace(/\s*\(.*\)\s*$/, '')}
+              {' '}
+              <span className="pubws-instrument-when">@ {settleDate(hero.resolvesOn)}</span>
+            </h1>
             <div className="pubws-headline pubws-enter pubws-enter--2">
               <span className="pubws-price">{formatValue(consensus)}</span>
               {marketOpen !== null && consensus !== marketOpen && (

@@ -78,11 +78,12 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
 2. `$B js "!!document.querySelector('.sidebar, .page-content')"`
 
 **Expected:**
-- The page renders standalone: minimal top bar (wordmark + Log in), NO app
-  sidebar and no `.page-content` shell.
+- The page renders standalone: minimal top bar (logo lockup + Log in when
+  signed out), NO app sidebar and no `.page-content` shell.
 - Minimal phase (2026-08-09): no name h1, no pitch, no counts line; the
-  label line ("market's bet · <metricName>") is the page's only title. All
-  removed fields stay in the API.
+  headline `.pubws-instrument-title` ("<metric> @ <settle date>", Fraunces,
+  settle date a register quieter) is the page's only title. All removed
+  fields stay in the API.
 
 ### T3. The join CTA states what joining actually grants
 

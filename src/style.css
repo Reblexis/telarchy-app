@@ -7475,6 +7475,25 @@ code, pre, kbd, samp {
   color: var(--text-tertiary);
 }
 
+/* The headline is the page's only statement of what the market is, so it
+   gets the display face, not an eyebrow: instrument in ink, settle date a
+   register quieter. */
+.pubws-instrument-title {
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: clamp(1.35rem, 4.5vw, 1.75rem);
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+.pubws-instrument-when {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
 .pubws-price {
   margin: 0.4rem 0 0.2rem;
   font-family: 'JetBrains Mono', monospace;

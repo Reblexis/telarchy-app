@@ -159,9 +159,12 @@ minimal phase (owner decision, 2026-08-09) it renders **the market and
 nothing else**: minimal top bar (the Telarchy logo lockup at the landing
 nav's 3rem, linking home, vertically centered; a Log in link only when
 signed out, rendered only after the session check settles and faded in, so
-signed-in visitors never see it flash), one headline line naming the prediction ("<metric> @ <settle
-date>", the metric's parenthetical unit tail trimmed for display), the
-consensus as a large mono price with a since-open chip, and the prediction
+signed-in visitors never see it flash), one headline naming the prediction ("<metric> @ <settle
+date>", the metric's parenthetical unit tail trimmed for display) set in
+the Fraunces display face with the instrument in ink and the settle date a
+register quieter (an exception to the tiny-uppercase-label rule: it is the
+page's only statement of what the market is), the consensus as a large mono
+price with a since-open chip, and the prediction
 chart (`MarketChart`: one amber step line of the market's call over its
 lifetime, gradient fill, labeled end dot, crosshair; breaks out of the
 column to min(92vw, 840px); phones get a taller, narrower canvas chosen at
