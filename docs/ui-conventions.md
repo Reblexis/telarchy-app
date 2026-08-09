@@ -154,38 +154,18 @@ filter toggles (underline = active).
 ## Trading floor (root slug page)
 
 `telarchy.com/<slug>` (`TradePage`, `.pubws-*` styles; `/marketplace/:idOrSlug`
-canonicalizes here) renders **standalone**, outside `AppLayout`: a stranger's
-first screen is a poster, not an app shell with a sidebar, and for a signed-in
-trader the same poster grows inline controls (amount + Lower/Higher under the
-instrument, position + sell, propose form, per-branch trading in expanded
-ballot rows) instead of navigating to the app. The direction pair uses the
-sanctioned green/red; everything else stays monochrome. It deliberately breaks the workspace-tab
-conventions (1080px tier, dense lists) because its job is different: one
-narrow centered column (~660px), one action, and radical reduction.
-
-Hierarchy, top to bottom: minimal top bar (wordmark + log in), workspace
-name in Fraunces, one-line description, then **the prediction as the
-centerpiece** (`MarketChart`, hand-rolled SVG, breaks out of the reading
-column to min(92vw, 840px)): one amber step line, Manifold-style, tracing
-the market's call from its first trade to now over a soft amber gradient,
-ending in a labeled dot at the current call. Consensus is piecewise
-constant between trades, so steps are trades; the metric's own history is
-deliberately absent (that is the measured thing's past, not the market).
-Above it the consensus reads as a large mono price with a green/red chip
-for the prediction's own movement since open.
-The number outranks the product name on purpose; the product's claim is
-that a price, not a pitch, decides. One black pill
-CTA follows with two small lines: the terms fine print and the whole
-mechanism in one breath ("propose → everyone bets → the winner ships",
-amber arrows). The ballot (when proposals exist), decided items, and the
-charter folded in a `<details>` complete the page. Empty sections never
-render. The owner's `description` renders as the headline deck in
-Fraunces, so it should be written as one short claim (~8 words), not a
-paragraph; the long-form pitch belongs in the charter.
-
-The one motion moment: on load the price counts up from the range midpoint
-(the untouched LMSR prior) to the consensus while the tick slides. Skipped
-under `prefers-reduced-motion`.
+canonicalizes here) renders **standalone**, outside `AppLayout`, and in the
+minimal phase (owner decision, 2026-08-09) it renders **the market and
+nothing else**: minimal top bar (wordmark + log in, balance + account when
+signed in), the label line, the consensus as a large mono price with a
+since-open chip, the prediction chart (`MarketChart`: one amber step line of
+the market's call over its lifetime, gradient fill, labeled end dot,
+crosshair; breaks out of the column to min(92vw, 840px)), a one-line caption
+(settle date, trades pulse), and the single action: the join CTA when logged
+out, the amount + Lower/Higher pair with payout hint, position and sell when
+in. The ballot, charter, decided list, pitch and footer are deliberately not
+rendered in this phase; the API still ships them, so each returns as a
+render change.
 
 ## When in doubt
 

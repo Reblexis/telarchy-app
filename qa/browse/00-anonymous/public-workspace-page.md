@@ -79,10 +79,10 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
 
 **Expected:**
 - The page renders standalone: minimal top bar (wordmark + Log in), NO app
-  sidebar and no `.page-content` shell (redesign decision, 2026-08-08: a
-  stranger's first screen is a poster, not an admin tool).
-- No participant/market/metric counts line and no "run by <handle>" clause;
-  the charter speaks in the owner's first person. The fields stay in the API.
+  sidebar and no `.page-content` shell.
+- Minimal phase (2026-08-09): no name h1, no pitch, no counts line; the
+  label line ("market's bet · <metricName>") is the page's only title. All
+  removed fields stay in the API.
 
 ### T3. The join CTA states what joining actually grants
 
@@ -108,12 +108,9 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
 1. `curl -s "$TT_API_URL/api/marketplace/$WS" | jq -r '.charter'`
 2. `$B is visible ".pubws-deal"`, `$B click ".pubws-deal summary"`, `$B text ".pubws-deal-body"`
 
-**Expected:**
-- If `charter` is non-null: a collapsed "The full deal" `<details>` is
-  present; opening it shows the charter with blank-line-separated paragraphs
-  as separate `<p>` elements. It renders collapsed by default: the charter
-  is the fine print, not the pitch.
-- If `charter` is null: the element is absent entirely.
+**Expected (minimal phase):** the charter is NOT rendered at all, whatever
+the API returns; `.pubws-deal` is absent. The field stays in the payload for
+the phase when it returns.
 
 ### T5. The market chart is the centerpiece
 
@@ -146,14 +143,10 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
    Public group has no `read` capability.
 
 **Expected:**
-- When the workspace's Public group grants `read` (typically `joinAs` is
-  `trader`): the page shows an "Open proposals" section with proposal titles,
-  and a right-aligned mono delta per row (signed number; `open` when the
-  pair is unpriced or even), and, when any proposal has been decided, a
-  "Decided" section where declined items carry their published reason and
-  approved ones read `shipped`.
-  This is deliberate: membership is one free click, so hiding the ballot is
-  friction, not privacy.
+- Minimal phase (2026-08-09): the ballot and Decided sections are NOT
+  rendered regardless of the payload; `.pubws-ballot` and `.pubws-decided`
+  are absent. The API still ships proposals/decided under the Open-workspace
+  rule for the phase when they return.
 - When the Public group lacks `read`: the proposal section shows only counts
   ("N submitted, N approved, ...") plus "Join to read them", and no proposal
   title or description appears anywhere in the page text.
