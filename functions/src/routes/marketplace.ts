@@ -392,15 +392,52 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
     // approved consensus minus declined consensus, the causal impact of saying
     // yes. tradeCount would need the trades table; presence of both branch
     // prices is enough for the public page.
-    const byProposal = new Map<string, Map<string, { metricName: string; targetDate: string; approved: number | null; declined: number | null }>>();
+    // The pair ships enough for the page to make the conditional market the
+    // main view when a job is selected: not just both consensus values, but
+    // the approved branch's id and price shape, so the same chart and the
+    // same ticket can render and trade it.
+    interface PairGroup {
+      metricName: string;
+      targetDate: string;
+      approved: number | null;
+      declined: number | null;
+      approvedMarketId: string | null;
+      declinedMarketId: string | null;
+      approvedProbability: number | null;
+      approvedLiquidity: number | null;
+      rangeMin: number;
+      rangeMax: number;
+    }
+    const byProposal = new Map<string, Map<string, PairGroup>>();
     for (const m of branchMarkets) {
       if (!m.proposalId || !m.branch) continue;
       const shares = (m.shares as [number, number]) || [0, 0];
       const c = consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null;
-      const groups = byProposal.get(m.proposalId) ?? new Map();
+      const groups = byProposal.get(m.proposalId) ?? new Map<string, PairGroup>();
       const key = `${m.metricId}|${m.targetDate}`;
-      const g = groups.get(key) ?? { metricName: m.metricName, targetDate: m.targetDate, approved: null, declined: null };
-      if (m.branch === 'approved') g.approved = c; else if (m.branch === 'declined') g.declined = c;
+      const g: PairGroup = groups.get(key) ?? {
+        metricName: m.metricName,
+        targetDate: m.targetDate,
+        approved: null,
+        declined: null,
+        approvedMarketId: null,
+        declinedMarketId: null,
+        approvedProbability: null,
+        approvedLiquidity: null,
+        rangeMin: m.rangeMin,
+        rangeMax: m.rangeMax,
+      };
+      if (m.branch === 'approved') {
+        g.approved = c;
+        g.approvedMarketId = m.id;
+        g.approvedProbability = Math.round(pHigher(shares, m.liquidity) * 10000) / 10000;
+        g.approvedLiquidity = m.liquidity;
+        g.rangeMin = m.rangeMin;
+        g.rangeMax = m.rangeMax;
+      } else if (m.branch === 'declined') {
+        g.declined = c;
+        g.declinedMarketId = m.id;
+      }
       groups.set(key, g);
       byProposal.set(m.proposalId, groups);
     }
@@ -409,9 +446,16 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
       const pairs = [...(byProposal.get(p.id)?.values() ?? [])].map(g => ({
         metricName: g.metricName,
         targetDate: g.targetDate,
+        resolvesOn: resolutionInstant(g.targetDate),
         approvedConsensus: g.approved,
         declinedConsensus: g.declined,
         delta: g.approved != null && g.declined != null ? g.approved - g.declined : null,
+        approvedMarketId: g.approvedMarketId,
+        declinedMarketId: g.declinedMarketId,
+        approvedProbability: g.approvedProbability,
+        approvedLiquidity: g.approvedLiquidity,
+        rangeMin: g.rangeMin,
+        rangeMax: g.rangeMax,
       }));
       // A many-metric workspace spawns a pair per metric x horizon; the public
       // page reads only the headline, so ship the largest-impact few and the
@@ -477,6 +521,32 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
       marketHistory,
     } : {}),
   });
+}));
+
+/**
+ * A single market's price history on a public workspace, replayed the same
+ * way the hero market's is. Exists so the trading floor can make a
+ * proposal's conditional market the main view (select a job, the chart and
+ * the ticket switch to it) instead of growing a second, smaller market UI
+ * underneath the first. Same Open-workspace disclosure rule as the ballot:
+ * if the Public group cannot `read`, neither can this.
+ */
+marketplaceRouter.get('/:workspaceId/markets/:marketId/history', wrap(async (req, res) => {
+  const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
+  if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
+  if (ws.visibility === 'private') { res.status(403).json({ error: 'This workspace is private' }); return; }
+
+  const [publicGroup] = await db.select().from(permissionGroups)
+    .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
+  const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
+  if (!publicCaps.includes('read')) { res.status(403).json({ error: 'Not public' }); return; }
+
+  const [market] = await db.select({ id: markets.id }).from(markets)
+    .where(and(eq(markets.id, req.params.marketId as string), eq(markets.workspaceId, ws.id)));
+  if (!market) { res.status(404).json({ error: 'Market not found' }); return; }
+
+  const points = await replayMarketTradePoints(market.id, ws.id);
+  res.json({ history: points.slice(-500).map(pt => ({ at: pt.createdAt, consensus: pt.consensus })) });
 }));
 
 marketplaceRouter.post('/:workspaceId/join', authMiddleware, requireIdentity, wrap(async (req, res) => {

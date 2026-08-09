@@ -227,10 +227,19 @@ export interface PublicWorkspace {
 export interface PublicProposalMarketPair {
   metricName: string;
   targetDate: string;
+  resolvesOn: string;
   approvedConsensus: number | null;
   declinedConsensus: number | null;
   /** approved minus declined consensus: the priced causal impact of approving. */
   delta: number | null;
+  /** The approved branch's id and price shape, so a client can make the
+   *  conditional market its main view and trade it directly. */
+  approvedMarketId: string | null;
+  declinedMarketId: string | null;
+  approvedProbability: number | null;
+  approvedLiquidity: number | null;
+  rangeMin: number;
+  rangeMax: number;
 }
 
 export interface PublicProposal {
@@ -663,6 +672,15 @@ export const api = {
     const res = await fetch(`${API_BASE}/api/leaderboard?limit=${limit}`);
     if (!res.ok) throw new Error(`Leaderboard request failed: ${res.status}`);
     return res.json();
+  },
+  /** One market's consensus history on a public workspace: the series the
+   *  chart draws, addressable per market so a proposal's conditional branch
+   *  can become the page's main view. */
+  getPublicMarketHistory: async (workspaceIdOrSlug: string, marketId: string): Promise<Array<{ at: string; consensus: number | null }>> => {
+    const res = await fetch(`${API_BASE}/api/marketplace/${encodeURIComponent(workspaceIdOrSlug)}/markets/${encodeURIComponent(marketId)}/history`);
+    if (!res.ok) throw new Error(`Market history request failed: ${res.status}`);
+    const body = await res.json();
+    return body.history ?? [];
   },
   getPublicProfile: async (idOrNickname: string): Promise<PublicParticipantProfile> => {
     const res = await fetch(`${API_BASE}/api/agents/${encodeURIComponent(idOrNickname)}/public`);

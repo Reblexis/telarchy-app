@@ -7915,22 +7915,32 @@ code, pre, kbd, samp {
   color: var(--text-tertiary);
 }
 
-/* One control for the one number: bigger or smaller than the market says.
-   It trades the approved branch, which is what moves the impact. */
-.pubws-impact-trade {
-  display: flex;
+/* The condition banner: what the one market view is currently showing,
+   and the way back to the baseline. */
+.pubws-condition {
+  display: inline-flex;
   align-items: center;
-  gap: 0.7rem;
-  flex-wrap: wrap;
-  margin-top: 0.7rem;
+  gap: 0.45rem;
+  max-width: 100%;
+  margin: 0 auto 0.5rem;
+  padding: 0.3rem 0.8rem;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+.pubws-condition:hover { background: var(--accent); color: var(--bg-primary); }
+.pubws-condition-x { font-size: 0.95rem; line-height: 1; }
 
-.pubws-impact-ask {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-}
-
-.pubws-impact-trade .pubws-proposal-meta { margin: 0; }
+/* A selected job row is the one driving the view above. */
+.pubws-ballot-row.is-selected .pubws-ballot-title { color: var(--accent); }
 
 /* The USD ask sits beside the title: narrow, mono, unmistakably money. */
 .pubws-propose-row input { flex: 1; }

@@ -196,11 +196,21 @@ which is if-done minus if-not-done, green/red, "open" while unpriced, under
 a single right-aligned column label ("impact if done") rather than a label
 per row. The two branch values are not shown. Rows carry the title, the
 proposer, and the USD ask (the two required facts of a job), and are ranked
-by impact, since the ballot is a ranking the owner acts on. Expanding shows
-the pitch and one control, "Is the impact bigger or smaller?" with a
-lower/higher pair at 25 cr a tap, which trades the approved branch (that is
-what moves the single number; the declined branch holds the seeded
-counterfactual and the API still supports trading it). "+ Suggest a job"
+by impact, since the ballot is a ranking the owner acts on. **The board is
+a selector, not a second trading surface** (owner decision, 2026-08-09):
+selecting a job re-points the page's ONE market view and ONE ticket at that
+job's approved conditional branch, rather than growing a smaller market
+underneath. In that mode the headline stays the same metric, an amber
+condition pill above it names the job and dismisses back to the baseline,
+the price is the conditional call, the chip becomes the impact (approved
+minus declined) instead of "since open", and the chart draws the branch's
+own history (fetched per market from
+`/api/marketplace/:id/markets/:marketId/history`). The ticket trades that
+branch: its probability and liquidity must come from the active market, not
+the baseline, or payouts, the bet ghost and position worth are all computed
+against the wrong curve. Selecting also shows the job's pitch under its row;
+positions refetch on every switch, because they belong to the market on
+screen. "+ Suggest a job"
 opens the inline form: a narrow mono USD ask field beside the title,
 required (every job has a price), composed into the title as "$N: ..." per
 the charter's round-1 text convention (no API change), a description

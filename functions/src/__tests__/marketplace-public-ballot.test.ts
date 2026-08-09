@@ -170,6 +170,35 @@ describe('public ballot disclosure gate', () => {
     expect(bySlug.body.workspaceId).toBe(WS);
   });
 
+  test('the pair carries the approved branch id and price shape', async () => {
+    await seed(['read', 'trade']);
+    const res = await request(app).get(`/api/marketplace/${WS}`);
+    const pair = res.body.proposals[0].markets[0];
+    expect(pair.approvedMarketId).toBe('mkt-appr');
+    expect(pair.declinedMarketId).toBe('mkt-decl');
+    expect(pair.approvedProbability).toBeGreaterThan(0);
+    expect(pair.approvedLiquidity).toBe(100);
+    expect(pair.rangeMax).toBe(100);
+    expect(pair.resolvesOn).toBeTruthy();
+  });
+
+  test('a conditional market history is fetchable and gated like the ballot', async () => {
+    await seed(['read', 'trade']);
+    const ok = await request(app).get(`/api/marketplace/${WS}/markets/mkt-appr/history`);
+    expect(ok.status).toBe(200);
+    expect(Array.isArray(ok.body.history)).toBe(true);
+
+    // A market in another workspace is not reachable through this one.
+    const foreign = await request(app).get(`/api/marketplace/${WS}/markets/does-not-exist/history`);
+    expect(foreign.status).toBe(404);
+  });
+
+  test('market history keeps the counts-only boundary when Public lacks read', async () => {
+    await seed([]);
+    const res = await request(app).get(`/api/marketplace/${WS}/markets/mkt-appr/history`);
+    expect(res.status).toBe(403);
+  });
+
   test('a slug never resolves to a private workspace', async () => {
     await seed(['read', 'trade']);
     const { workspaces } = require('../db/schema');

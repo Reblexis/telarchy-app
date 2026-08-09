@@ -8,23 +8,23 @@ import type { PublicProposal } from '../lib/api';
  * pair prices what happens to the metric if the money is sent.
  *
  * One number per job (owner decision 2026-08-09: as few numbers as
- * possible): the impact, which IS if-done minus if-not-done. The two
- * branch values are no longer shown, and the expanded row trades the
- * approved branch only, so "bigger/smaller" moves that single number.
- * The declined branch holds the seeded counterfactual; the API still
- * supports trading it directly.
+ * possible): the impact, which IS if-done minus if-not-done.
+ *
+ * The board is a SELECTOR, not a second trading surface (owner decision,
+ * same day): picking a job re-points the page's one market view and its
+ * one ticket at that job's conditional market. Nothing here trades.
  *
  * The form asks for the USD ask separately and composes it into the title,
  * so the API stays untouched (round 1 encodes the ask as a text
  * convention). The ask is required: every job has a price.
  */
 
-const BRANCH_TRADE_CR = 25;
-
 interface Props {
   proposals: PublicProposal[];
   unit: string;
-  onBranchTrade: (p: PublicProposal, branch: 'approved' | 'declined', dir: 'higher' | 'lower', amount: number) => Promise<void>;
+  /** The job whose conditional market the page is currently showing. */
+  selectedId: string | null;
+  onSelect: (id: string) => void;
   onPropose: (title: string, description: string) => Promise<void>;
 }
 
@@ -39,7 +39,7 @@ function fmtDelta(d: number, unit: string): string {
 
 /** Round-1 convention: the USD ask is composed into the title ("$80: ...").
     Parse it back out so the row can show cost as a structured field. */
-function splitAsk(title: string): { ask: number | null; rest: string } {
+export function splitAsk(title: string): { ask: number | null; rest: string } {
   const m = title.match(/^\$(\d+):\s*(.*)$/s);
   return m ? { ask: parseInt(m[1], 10), rest: m[2] } : { ask: null, rest: title };
 }
@@ -50,10 +50,7 @@ function headlineDelta(p: PublicProposal): number | null {
   return deltas.reduce((a, b) => (Math.abs(b) > Math.abs(a) ? b : a), deltas[0]);
 }
 
-export function JobsBoard({ proposals, unit, onBranchTrade, onPropose }: Props) {
-  const [open, setOpen] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [tradeErr, setTradeErr] = useState('');
+export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: Props) {
   const [formOpen, setFormOpen] = useState(false);
   const [ask, setAsk] = useState('');
   const [title, setTitle] = useState('');
@@ -68,20 +65,6 @@ export function JobsBoard({ proposals, unit, onBranchTrade, onPropose }: Props) 
     const db = headlineDelta(b) ?? 0;
     return db - da;
   });
-
-  const trade = async (p: PublicProposal, branch: 'approved' | 'declined', dir: 'higher' | 'lower') => {
-    if (busy) return;
-    const key = `${p.id}-${branch}-${dir}`;
-    setTradeErr('');
-    setBusy(key);
-    try {
-      await onBranchTrade(p, branch, dir, BRANCH_TRADE_CR);
-    } catch (e) {
-      setTradeErr((e as Error).message || 'Trade failed');
-    } finally {
-      setBusy(null);
-    }
-  };
 
   const submit = async () => {
     if (!title.trim()) { setFormErr('Say what you will do.'); return; }
@@ -114,12 +97,15 @@ export function JobsBoard({ proposals, unit, onBranchTrade, onPropose }: Props) 
           <li className="pubws-ballot-head" aria-hidden="true"><span>impact if done</span></li>
           {ranked.map(p => {
             const delta = headlineDelta(p);
-            const expanded = open === p.id;
-            const pair = p.markets[0];
+            const selected = selectedId === p.id;
             const { ask: askUsd, rest: titleRest } = splitAsk(p.title);
             return (
-              <li key={p.id} className={expanded ? 'is-open' : ''}>
-                <button className="pubws-ballot-row" onClick={() => setOpen(expanded ? null : p.id)}>
+              <li key={p.id} className={selected ? 'is-open' : ''}>
+                <button
+                  className={`pubws-ballot-row${selected ? ' is-selected' : ''}`}
+                  aria-pressed={selected}
+                  onClick={() => onSelect(p.id)}
+                >
                   <span className="pubws-ballot-main">
                     <span className="pubws-ballot-title">{titleRest}</span>
                     <span className="pubws-ballot-facts">
@@ -133,31 +119,9 @@ export function JobsBoard({ proposals, unit, onBranchTrade, onPropose }: Props) 
                       : <span className={`pubws-ballot-delta ${delta > 0 ? 'is-up' : 'is-down'}`}>{fmtDelta(delta, unit)}</span>}
                   </span>
                 </button>
-                {expanded && (
+                {selected && p.description && (
                   <div className="pubws-ballot-detail">
-                    {p.description && <p className="pubws-proposal-desc">{p.description}</p>}
-                    {pair && (
-                      <div className="pubws-impact-trade">
-                        <span className="pubws-impact-ask">Is the impact bigger or smaller?</span>
-                        <span className="pubws-branch-btns">
-                          <button
-                            className="pubws-dir pubws-dir--lower pubws-dir--mini"
-                            disabled={busy !== null}
-                            onClick={() => void trade(p, 'approved', 'lower')}
-                          >
-                            {busy === `${p.id}-approved-lower` ? '…' : '▼'}
-                          </button>
-                          <button
-                            className="pubws-dir pubws-dir--higher pubws-dir--mini"
-                            disabled={busy !== null}
-                            onClick={() => void trade(p, 'approved', 'higher')}
-                          >
-                            {busy === `${p.id}-approved-higher` ? '…' : '▲'}
-                          </button>
-                        </span>
-                        <span className="pubws-proposal-meta">{BRANCH_TRADE_CR} cr a tap</span>
-                      </div>
-                    )}
+                    <p className="pubws-proposal-desc">{p.description}</p>
                   </div>
                 )}
               </li>
@@ -165,8 +129,6 @@ export function JobsBoard({ proposals, unit, onBranchTrade, onPropose }: Props) 
           })}
         </ul>
       )}
-      {tradeErr && <p className="pubws-joinerr">{tradeErr}</p>}
-
       {formOpen ? (
         <div className="pubws-propose">
           <div className="pubws-propose-row">

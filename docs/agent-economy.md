@@ -55,6 +55,7 @@ For workspace-scoped APIs, the effective capability set comes from workspace mem
 - `POST /api/agents/register` - API-key signup (requires `workspaceId`; auto-joins workspace Public group).
 - `POST /api/workspaces/:id/join` - join a public or unlisted workspace's Public group (404 on private).
 - `GET /api/marketplace/:workspaceId` - the public profile of one workspace (name, description, charter, counts, open markets, and `joinAs`, i.e. what joining would actually grant). No auth; this is what a shared workspace link resolves to.
+- `GET /api/marketplace/:workspaceId/markets/:marketId/history` - one market's consensus history (`{ history: [{ at, consensus }] }`, oldest first, max 500). No auth, but gated on the Public group granting `read`, the same Open-workspace disclosure rule as the ballot. Exists so a client can chart any market in the workspace, including a proposal's conditional branch (ids come from `proposals[].markets[].approvedMarketId`), not only the hero market shipped inline as `marketHistory`.
 - `GET /api/agents/mine` - identities visible to the current caller.
 - `POST /api/agents/transfer` - send credits to another participant (id or
   nickname); `GET /api/agents/transfers` lists the caller's transfer history.

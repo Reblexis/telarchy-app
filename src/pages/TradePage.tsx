@@ -4,7 +4,7 @@ import { api, setActiveWorkspace, type PublicWorkspace } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { MarketChart } from '../components/MarketChart';
 import { TradeTicket, type TicketPosition } from '../components/TradeTicket';
-import { JobsBoard } from '../components/JobsBoard';
+import { JobsBoard, splitAsk } from '../components/JobsBoard';
 import { ActivityRail, LeaderboardRail, type ActivityItem } from '../components/FloorRails';
 import { Logo } from '../components/Logo';
 import type { LeaderboardEntry } from '../lib/api';
@@ -71,17 +71,24 @@ export function TradePage() {
   const [ws, setWs] = useState<PublicWorkspace | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [joined, setJoined] = useState(false);
-  const [heroConsensus, setHeroConsensus] = useState<number | null>(null);
   const [positions, setPositions] = useState<TicketPosition[]>([]);
   const [balance, setBalance] = useState<number | null>(null);
   const [ticketPreview, setTicketPreview] = useState<{ direction: 'higher' | 'lower'; newProb: number } | null>(null);
   const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
+  // Selecting a job switches the ONE market view to that job's conditional
+  // market (owner decision 2026-08-09: no second market underneath). null
+  // means the baseline market is showing.
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [condHistory, setCondHistory] = useState<Array<{ at: string; consensus: number | null }> | null>(null);
+  // The price straight from a trade response, so the headline moves before
+  // the reload lands. Keyed by market so it never leaks across a switch.
+  const [livePrice, setLivePrice] = useState<{ marketId: string; value: number } | null>(null);
   const joinTried = useRef(false);
 
   const reload = () => {
     if (!idOrSlug) return;
     api.getMarketplaceWorkspace(idOrSlug)
-      .then(w => { setWs(w); setHeroConsensus(w.markets[0]?.consensus ?? null); })
+      .then(setWs)
       .catch(e => {
         console.error('trade page fetch failed:', e);
         setError(e instanceof Error ? e.message : 'Failed to load workspace');
@@ -118,10 +125,51 @@ export function TradePage() {
       .catch(e => console.error('leaderboard fetch failed:', e));
   }, []);
 
-  const heroMarketId = ws?.markets[0]?.marketId ?? null;
+  const hero = ws?.markets[0] ?? null;
+  const unit = hero ? currencyOf(hero.metricName) : '';
+  const selectedJob = ws?.proposals?.find(p => p.id === selectedJobId) ?? null;
+  const pair = selectedJob?.markets[0] ?? null;
+  // The one market the page is showing and the ticket is trading: the
+  // baseline, or the selected job's approved branch.
+  const active = pair && pair.approvedMarketId
+    ? {
+        marketId: pair.approvedMarketId,
+        consensus: pair.approvedConsensus,
+        probability: pair.approvedProbability ?? 0.5,
+        liquidity: pair.approvedLiquidity ?? 1,
+        rangeMin: pair.rangeMin,
+        rangeMax: pair.rangeMax,
+        history: condHistory ?? [],
+      }
+    : hero
+      ? {
+          marketId: hero.marketId,
+          consensus: hero.consensus,
+          probability: hero.probability,
+          liquidity: hero.liquidity,
+          rangeMin: hero.rangeMin,
+          rangeMax: hero.rangeMax,
+          history: ws?.marketHistory ?? [],
+        }
+      : null;
+  const activeMarketId = active?.marketId ?? null;
+
+  // The conditional branch's own history, fetched when a job is selected so
+  // the main chart keeps meaning something after the switch.
+  useEffect(() => {
+    setCondHistory(null);
+    const mid = pair?.approvedMarketId;
+    if (!mid || !ws) return;
+    let cancelled = false;
+    api.getPublicMarketHistory(ws.slug || ws.workspaceId, mid)
+      .then(h => { if (!cancelled) setCondHistory(h); })
+      .catch(e => console.error('conditional history fetch failed:', e));
+    return () => { cancelled = true; };
+  }, [pair?.approvedMarketId, ws]);
+
   const refreshMoney = () => {
-    if (heroMarketId && ws) {
-      api.getPositions(heroMarketId, undefined, ws.workspaceId)
+    if (activeMarketId && ws) {
+      api.getPositions(activeMarketId, undefined, ws.workspaceId)
         .then((rows: Array<{ direction: 'higher' | 'lower'; shares: number; totalCost: number }>) =>
           setPositions((rows ?? []).filter(r => r.shares > 1e-9)))
         .catch(e => console.error('positions fetch failed:', e));
@@ -130,8 +178,9 @@ export function TradePage() {
       .then(pt => setBalance((pt as { balance?: number }).balance ?? null))
       .catch(e => console.error('participant fetch failed:', e));
   };
+  // Positions belong to the market on screen, so they refetch on a switch.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (joined) refreshMoney(); }, [joined, heroMarketId]);
+  useEffect(() => { setPositions([]); if (joined) refreshMoney(); }, [joined, activeMarketId]);
 
   // The ticket owns busy/error/flash UI state; the page owns the money
   // plumbing. Errors propagate by throwing so the ticket can show them
@@ -139,25 +188,34 @@ export function TradePage() {
   const doTrade = async (body: Record<string, unknown>) => {
     if (!ws) return;
     const r = await api.trade(body, ws.workspaceId) as { consensus?: number | null };
-    if (typeof r.consensus === 'number' && body.marketId === heroMarketId) setHeroConsensus(r.consensus);
+    if (typeof r.consensus === 'number' && typeof body.marketId === 'string') {
+      setLivePrice({ marketId: body.marketId, value: r.consensus });
+    }
     refreshMoney();
     reload();
+    if (pair?.approvedMarketId) {
+      api.getPublicMarketHistory(ws.slug || ws.workspaceId, pair.approvedMarketId)
+        .then(setCondHistory)
+        .catch(e => console.error('conditional history refresh failed:', e));
+    }
   };
   const placeTrade = async (direction: 'higher' | 'lower', amount: number) => {
-    if (!heroMarketId) return;
-    await doTrade({ marketId: heroMarketId, direction, amount });
+    if (!activeMarketId) return;
+    await doTrade({ marketId: activeMarketId, direction, amount });
   };
   const sellPosition = async (p: TicketPosition) => {
-    if (!heroMarketId) return;
-    await doTrade({ marketId: heroMarketId, direction: p.direction, sellShares: p.shares });
+    if (!activeMarketId) return;
+    await doTrade({ marketId: activeMarketId, direction: p.direction, sellShares: p.shares });
   };
 
-  const hero = ws?.markets[0] ?? null;
-  const unit = hero ? currencyOf(hero.metricName) : '';
-  // The prediction's own movement: current call vs the call after the
-  // market's first trade. About the market, not the metric.
-  const marketOpen = ws?.marketHistory?.length ? ws.marketHistory.find(p => p.consensus !== null)?.consensus ?? null : null;
-  const consensus = heroConsensus ?? hero?.consensus ?? null;
+  // The prediction's own movement: for the baseline, the call vs the call
+  // after its first trade; for a conditional, the impact itself (approved
+  // minus declined), which is the one number a job is about.
+  const marketOpen = pair
+    ? pair.declinedConsensus
+    : ws?.marketHistory?.length ? ws.marketHistory.find(p => p.consensus !== null)?.consensus ?? null : null;
+  const consensus = (livePrice && livePrice.marketId === activeMarketId ? livePrice.value : null)
+    ?? active?.consensus ?? null;
   // The desk facts: the real value the market predicts against, and its
   // freshness. Intent-gated (signed-in only): the anonymous poster stays
   // free of context, but a trader deciding Higher or Lower needs the
@@ -165,8 +223,8 @@ export function TradePage() {
   const lastActual = ws?.heroHistory?.length ? ws.heroHistory[ws.heroHistory.length - 1] : null;
   // The composed bet's impact, projected from probability space onto the
   // metric's range so the chart can draw where the call would move.
-  const chartPreview = hero && ticketPreview
-    ? { direction: ticketPreview.direction, value: hero.rangeMin + ticketPreview.newProb * (hero.rangeMax - hero.rangeMin) }
+  const chartPreview = active && ticketPreview
+    ? { direction: ticketPreview.direction, value: active.rangeMin + ticketPreview.newProb * (active.rangeMax - active.rangeMin) }
     : null;
 
   // The action log, composed from the public payload: new jobs, decisions,
@@ -229,8 +287,17 @@ export function TradePage() {
       <main className="pubws-main pubws-main--floor">
         <LeaderboardRail entries={leaders} />
         <div className="pubws-center">
-        {hero && consensus !== null && (
+        {hero && active && consensus !== null && (
           <section className="pubws-instrument" aria-label="The market">
+            {/* Selecting a job re-points this one view at its conditional
+                market; the condition is stated above the same headline so
+                the page never grows a second market. */}
+            {selectedJob && (
+              <button className="pubws-condition" onClick={() => setSelectedJobId(null)}>
+                <span className="pubws-condition-x" aria-hidden="true">×</span>
+                if done: {splitAsk(selectedJob.title).rest}
+              </button>
+            )}
             {/* The whole title: what is being predicted, as of when. The
                 metric's parenthetical unit tail is trimmed for display only
                 (the full name stays in the API); renaming the metric itself
@@ -244,19 +311,26 @@ export function TradePage() {
               <span className="pubws-price">{unit}{formatValue(consensus)}</span>
               {marketOpen !== null && consensus !== marketOpen && (
                 <span className={`pubws-delta-chip ${consensus >= marketOpen ? 'is-up' : 'is-down'}`}>
-                  {consensus >= marketOpen ? '▲' : '▼'} {formatDelta(consensus - marketOpen, unit)} since open
+                  {consensus >= marketOpen ? '▲' : '▼'} {formatDelta(consensus - marketOpen, unit)}
+                  {' '}{selectedJob ? 'impact' : 'since open'}
                 </span>
               )}
             </div>
-            {(ws.marketHistory?.length ?? 0) > 0 && (
+            {active.history.length > 0 && (
               <div className="pubws-enter pubws-enter--3">
-                <MarketChart series={ws.marketHistory!} consensus={consensus} unit={unit} preview={chartPreview} />
+                <MarketChart
+                  key={active.marketId}
+                  series={active.history}
+                  consensus={consensus}
+                  unit={unit}
+                  preview={chartPreview}
+                />
               </div>
             )}
           </section>
         )}
 
-        {trading && hero ? (
+        {trading && active ? (
           <section className="pubws-act pubws-enter pubws-enter--3" aria-label="Place a trade">
             {/* Two facts only: the anchor and its freshness. The trade
                 pulse lives in the activity rail; it does not need a second
@@ -269,8 +343,8 @@ export function TradePage() {
               </div>
             )}
             <TradeTicket
-              probability={hero.probability}
-              liquidity={hero.liquidity}
+              probability={active.probability}
+              liquidity={active.liquidity}
               positions={positions}
               balance={balance}
               onTrade={placeTrade}
@@ -286,18 +360,8 @@ export function TradePage() {
           <JobsBoard
             proposals={ws.proposals}
             unit={unit}
-            onBranchTrade={async (p, branch, direction, amount) => {
-              const pair = p.markets[0];
-              if (!pair) return;
-              await doTrade({
-                metricName: pair.metricName,
-                targetDate: pair.targetDate,
-                proposalId: p.id,
-                branch,
-                direction,
-                amount,
-              });
-            }}
+            selectedId={selectedJobId}
+            onSelect={id => setSelectedJobId(cur => (cur === id ? null : id))}
             onPropose={async (title, description) => {
               await api.createProposal({ title, description, liquiditySubsidy: 20 });
               reload();
@@ -305,14 +369,14 @@ export function TradePage() {
           />
         )}
 
-        {canTrade && !user && !authLoading && hero ? (
+        {canTrade && !user && !authLoading && active ? (
           /* Newcomers get the same ticket in demo mode: they can compose a
              bet and watch its impact ghost onto the chart; the confirm is
              the signup door. The ticket is the pitch. */
           <section className="pubws-act pubws-enter pubws-enter--3" aria-label="Try a trade">
             <TradeTicket
-              probability={hero.probability}
-              liquidity={hero.liquidity}
+              probability={active.probability}
+              liquidity={active.liquidity}
               positions={[]}
               balance={null}
               onTrade={async () => {}}
