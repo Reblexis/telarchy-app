@@ -71,6 +71,7 @@ export function TradePage() {
   const [heroConsensus, setHeroConsensus] = useState<number | null>(null);
   const [positions, setPositions] = useState<TicketPosition[]>([]);
   const [balance, setBalance] = useState<number | null>(null);
+  const [ticketPreview, setTicketPreview] = useState<{ direction: 'higher' | 'lower'; newProb: number } | null>(null);
   const joinTried = useRef(false);
 
   const reload = () => {
@@ -152,6 +153,11 @@ export function TradePage() {
   // free of context, but a trader deciding Higher or Lower needs the
   // anchor and proof it is being kept current.
   const lastActual = ws?.heroHistory?.length ? ws.heroHistory[ws.heroHistory.length - 1] : null;
+  // The composed bet's impact, projected from probability space onto the
+  // metric's range so the chart can draw where the call would move.
+  const chartPreview = hero && ticketPreview
+    ? { direction: ticketPreview.direction, value: hero.rangeMin + ticketPreview.newProb * (hero.rangeMax - hero.rangeMin) }
+    : null;
 
   if (error) {
     return (
@@ -210,7 +216,7 @@ export function TradePage() {
             </div>
             {(ws.marketHistory?.length ?? 0) > 0 && (
               <div className="pubws-enter pubws-enter--3">
-                <MarketChart series={ws.marketHistory!} consensus={consensus} unit={unit} />
+                <MarketChart series={ws.marketHistory!} consensus={consensus} unit={unit} preview={chartPreview} />
               </div>
             )}
           </section>
@@ -234,6 +240,7 @@ export function TradePage() {
               balance={balance}
               onTrade={placeTrade}
               onSell={sellPosition}
+              onPreview={setTicketPreview}
             />
           </section>
         ) : canTrade && !user && !authLoading ? (

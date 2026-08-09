@@ -183,7 +183,13 @@ desk adds, around the trade ticket only: a mono facts strip above it
 market predicts against plus its freshness; the trades pulse renders only
 when nonzero), the trader's balance inside the ticket ("1,000 cr
 available"), and live position worth on each held row ("worth 31.2 cr
-+6.2", green/red delta, computed client-side via the AMM sell preview). The ticket
++6.2", green/red delta, computed client-side via the AMM sell preview).
+While a bet is composed in the ticket (side + amount picked, not yet
+placed), the chart draws its impact as a ghost: a dashed vertical off the
+live call dot to a hollow dot at the value the call would move to, tinted
+--higher/--lower, labeled with the would-be value, updating live with the
+amount and vanishing when the side is deselected or the trade placed. The
+y domain stretches to include the ghost so a big bet's reach is visible. The ticket
 (`TradeTicket`, a bordered card; the hairline-not-cards rule is for lists,
 and the card boundary is what makes the control read as one object) is a
 deliberate two-step: pick a side (Lower/Higher segmented pair tinted with

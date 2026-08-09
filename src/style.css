@@ -8301,6 +8301,31 @@ code, pre, kbd, samp {
 
 .pubws-facts-sep { color: var(--text-tertiary); }
 
+/* The ghost: where the composed bet would move the call. Dashed and
+   hollow so it cannot be mistaken for the live line. */
+.mchart-ghost--higher { color: var(--higher); }
+.mchart-ghost--lower { color: var(--lower); }
+
+.mchart-ghost-line {
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-dasharray: 3 4;
+  opacity: 0.75;
+}
+
+.mchart-ghost-dot {
+  fill: var(--bg-primary);
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+.mchart-ghost-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  fill: currentColor;
+}
+
 /* Poster layout (trade page only): the market sits in the optical center of
    the viewport, a touch above true center. ManagePage shares .pubws-* but
    not this modifier. */

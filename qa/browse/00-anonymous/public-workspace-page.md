@@ -233,7 +233,10 @@ the position row (direction, live worth with a green/red delta, Sell pill)
 appears at the top of the ticket. The desk also shows a mono facts strip
 above the ticket (actual value, updated-ago, trades pulse when nonzero)
 and the balance line inside the ticket; none of these render for
-anonymous visitors, whose poster stays context-free. No per-branch ballot trading (the ballot is not rendered in this
+anonymous visitors, whose poster stays context-free. While a side and
+amount are composed, the chart shows the bet's impact as a dashed ghost
+(hollow dot at the would-be call, direction-tinted, live-updating);
+deselecting the side removes it. No per-branch ballot trading (the ballot is not rendered in this
 phase). Re-visits are idempotent (alreadyMember).
 
 ## Known gaps

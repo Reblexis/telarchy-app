@@ -21,6 +21,9 @@ interface Props {
   consensus: number;
   /** Currency prefix for every numeral ('$' or ''), inferred by the caller. */
   unit?: string;
+  /** A composed-but-unplaced bet's impact: where the call would move. Drawn
+      as a dashed ghost off the live dot, tinted by direction. */
+  preview?: { value: number; direction: 'higher' | 'lower' } | null;
   height?: number;
 }
 
@@ -45,7 +48,7 @@ function fullNum(v: number): string {
   return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
-export function MarketChart({ series, consensus, unit = '', height }: Props) {
+export function MarketChart({ series, consensus, unit = '', preview = null, height }: Props) {
   const [compact] = useState(() => typeof window !== 'undefined' && window.innerWidth < 520);
   const { W, PAD_L, PAD_R, H: geomH } = GEOM[compact ? 'compact' : 'wide'];
   const H = height ?? geomH;
@@ -67,6 +70,7 @@ export function MarketChart({ series, consensus, unit = '', height }: Props) {
     const t1 = extended[extended.length - 1].t;
     const span = Math.max(t1 - t0, 60_000);
     const values = extended.map(p => p.v);
+    if (preview) values.push(preview.value);
     const vMin0 = Math.min(...values);
     const vMax0 = Math.max(...values);
     const vPad = (vMax0 - vMin0 || vMax0 * 0.08 || 1) * 0.25;
@@ -101,7 +105,7 @@ export function MarketChart({ series, consensus, unit = '', height }: Props) {
     const ticks = [0.08, 0.38, 0.68, 0.95].map(f => t0 + f * span);
 
     return { pts, extended, d, areaPath, end, t0, t1: t0 + span, span, x, y, gridVals, ticks, fmt, open: extended[0] };
-  }, [series, consensus, H, W, PAD_L, PAD_R]);
+  }, [series, consensus, preview, H, W, PAD_L, PAD_R]);
 
   if (!model) return null;
   const { extended, d, areaPath, end, x, y, gridVals, ticks, fmt } = model;
@@ -170,6 +174,22 @@ export function MarketChart({ series, consensus, unit = '', height }: Props) {
             {fNum(consensus)}
           </text>
         </g>
+
+        {preview && (() => {
+          const py = y(preview.value);
+          const cy0 = y(end.v);
+          // Keep the ghost label clear of the live call label on tiny moves.
+          const labelY = Math.abs(py - cy0) < 15 ? cy0 + (preview.direction === 'higher' ? -15 : 15) : py;
+          return (
+            <g className={`mchart-ghost mchart-ghost--${preview.direction}`}>
+              <line className="mchart-ghost-line" x1={x(end.t)} x2={x(end.t)} y1={cy0} y2={py} />
+              <circle className="mchart-ghost-dot" cx={x(end.t)} cy={py} r="4.5" />
+              <text className="mchart-ghost-label" x={x(end.t) + 9} y={labelY + 4} textAnchor="start">
+                {preview.direction === 'higher' ? '▲' : '▼'} {fNum(preview.value)}
+              </text>
+            </g>
+          );
+        })()}
 
         {cursor !== null && (
           <g className="mchart-cross">

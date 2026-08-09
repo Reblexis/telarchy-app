@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { previewSell, previewTrade } from '../lib/amm';
 
 /**
@@ -23,6 +23,10 @@ interface Props {
   balance: number | null;
   onTrade: (direction: 'higher' | 'lower', amount: number) => Promise<void>;
   onSell: (p: TicketPosition) => Promise<void>;
+  /** Fires whenever the composed (not yet placed) bet changes: the market
+      probability it would move the market to, or null when nothing is
+      composed. The page projects it onto the chart. */
+  onPreview?: (preview: { direction: 'higher' | 'lower'; newProb: number } | null) => void;
 }
 
 const PRESETS = [10, 25, 100, 250];
@@ -32,7 +36,7 @@ function fmt(v: number): string {
   return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
-export function TradeTicket({ probability, liquidity, positions, balance, onTrade, onSell }: Props) {
+export function TradeTicket({ probability, liquidity, positions, balance, onTrade, onSell, onPreview }: Props) {
   const [dir, setDir] = useState<'higher' | 'lower' | null>(null);
   const [amount, setAmount] = useState('25');
   const [busy, setBusy] = useState<string | null>(null);
@@ -41,7 +45,16 @@ export function TradeTicket({ probability, liquidity, positions, balance, onTrad
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const amountNum = Math.max(0, Math.floor(parseFloat(amount) || 0));
-  const payout = dir && amountNum > 0 ? previewTrade(probability, liquidity, dir, amountNum).shares : null;
+  const composed = dir && amountNum > 0 ? previewTrade(probability, liquidity, dir, amountNum) : null;
+  const payout = composed?.shares ?? null;
+
+  useEffect(() => {
+    onPreview?.(composed && dir ? { direction: dir, newProb: composed.newProb } : null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dir, amountNum, probability, liquidity]);
+  // Clear the ghost when the ticket unmounts.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => () => onPreview?.(null), []);
 
   const place = async () => {
     if (!dir || amountNum <= 0 || busy) return;
