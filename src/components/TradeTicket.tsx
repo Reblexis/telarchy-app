@@ -3,12 +3,19 @@ import { previewSell, previewTrade } from '../lib/amm';
 
 /**
  * The trade ticket: the one interactive object on the trading floor.
- * Deliberate two-step interaction (pick a side, then confirm) because the
- * old bar traded instantly on the direction click, which read as an
- * accident. The confirm button always says exactly what it will do
- * ("Place 25 cr on Higher"), the payout appears only once a side is
- * picked (it answers "why press this"), and success flashes on the button
- * itself so the feedback is where the finger is.
+ *
+ * It is NOT a panel (owner decision 2026-08-09: blend it into the page).
+ * The rest of the poster is type floating on the background, so a bordered
+ * card here read as app furniture bolted onto a printed page. Everything is
+ * type now, and exactly one element carries a fill: the confirm, which is
+ * therefore unmistakably the action.
+ *
+ * The interaction stays two-step (pick a side, then confirm) because the
+ * original bar traded instantly on the direction click, which read as an
+ * accident. The confirm always says exactly what it will do ("Place 25 cr
+ * on Higher"), the payout appears only once a side is picked (it answers
+ * "why press this"), and success flashes on the button itself so the
+ * feedback is where the finger is.
  */
 
 export interface TicketPosition { direction: 'higher' | 'lower'; shares: number; totalCost: number }
@@ -145,19 +152,19 @@ export function TradeTicket({ probability, liquidity, positions, balance, onTrad
           aria-pressed={dir === 'lower'}
           onClick={() => pick('lower')}
         >
-          ▼ Lower
+          <span className="ticket-arrow" aria-hidden="true">▼</span> Lower
         </button>
         <button
           className={`ticket-side ticket-side--higher${dir === 'higher' ? ' is-active' : ''}`}
           aria-pressed={dir === 'higher'}
           onClick={() => pick('higher')}
         >
-          ▲ Higher
+          <span className="ticket-arrow" aria-hidden="true">▲</span> Higher
         </button>
       </div>
 
       <div className="ticket-amount-row">
-        <div className="ticket-amount">
+        <label className="ticket-amount">
           <input
             type="text"
             inputMode="numeric"
@@ -167,7 +174,7 @@ export function TradeTicket({ probability, liquidity, positions, balance, onTrad
             aria-label="Credits to spend"
           />
           <span className="ticket-cr">cr</span>
-        </div>
+        </label>
         <div className="ticket-chips">
           {PRESETS.map(v => (
             <button
@@ -197,18 +204,21 @@ export function TradeTicket({ probability, liquidity, positions, balance, onTrad
                 : `Place ${amountNum} cr on ${dir === 'higher' ? 'Higher' : 'Lower'}`}
       </button>
 
-      {payout !== null && !placed && (
-        <p className="ticket-pays">Pays up to {fmt(payout)} cr if you're right.</p>
-      )}
-      {error && <p className="ticket-err">{error}</p>}
-      {balance !== null && (
-        <p className="ticket-balance">
-          {/* Compact: a six-digit balance is noise, not information. */}
-          {balance >= 10_000
-            ? `${Math.round(balance / 1000).toLocaleString('en-US')}k`
-            : balance.toLocaleString('en-US', { maximumFractionDigits: 0 })} cr available
+      {/* One line of fine print, not two: what it pays and what you have. */}
+      {(payout !== null || balance !== null) && !placed && (
+        <p className="ticket-foot">
+          {payout !== null && <>pays up to {fmt(payout)} cr</>}
+          {payout !== null && balance !== null && <span className="ticket-foot-sep"> · </span>}
+          {balance !== null && (
+            <>
+              {balance >= 10_000
+                ? `${Math.round(balance / 1000).toLocaleString('en-US')}k`
+                : balance.toLocaleString('en-US', { maximumFractionDigits: 0 })} cr to spend
+            </>
+          )}
         </p>
       )}
+      {error && <p className="ticket-err">{error}</p>}
     </div>
   );
 }

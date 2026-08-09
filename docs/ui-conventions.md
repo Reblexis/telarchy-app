@@ -241,17 +241,22 @@ live call dot to a hollow dot at the value the call would move to, tinted
 --higher/--lower, labeled with the would-be value, updating live with the
 amount and vanishing when the side is deselected or the trade placed. The
 y domain stretches to include the ghost so a big bet's reach is visible. The ticket
-(`TradeTicket`, a bordered card; the hairline-not-cards rule is for lists,
-and the card boundary is what makes the control read as one object) is a
-deliberate two-step: pick a side (Lower/Higher as ONE segmented pill
-sharing a single hairline and a divider, not two boxes; the chosen side
-fills with --higher-soft/--lower-soft), pick an amount (mono input plus
-borderless 10/50/cap preset numerals, active in accent), then one
-full-width confirm that always states what it will do ("Place 25 cr on
-Higher"). Until a side is chosen that confirm is a hairline ghost reading
-"Pick a side", never a dimmed filled slab: a disabled fill is the loudest
-element on the card and says nothing, which is glaring in dark mode where
-the button ink is bone. The payout line appears under the confirm only once a side is
+(`TradeTicket`) is **not a panel**: the poster around it is type floating on
+the background, so a bordered card read as app furniture bolted onto a
+printed page. It is a centered column of type in which exactly ONE element
+carries a fill, the confirm, which is what makes that button unmistakably
+the action. The interaction stays a deliberate two-step: pick a side
+(Lower/Higher as two words, not boxes; state carried by colour and a 2px
+rule under the chosen one, with the ▲/▼ glyph keeping its --higher/--lower
+colour even while the word is quiet, since direction is the fastest thing
+on the page to read), pick an amount (large mono numerals typed straight
+onto the background, with borderless 10/50/cap presets under them, active
+in accent), then the confirm, which always states what it will do ("Place
+25 cr on Higher"). Until a side is chosen the confirm is plain quiet text
+reading "Pick a side", never a dimmed filled slab: a disabled fill is the
+loudest thing on the page and says nothing, which dark mode makes glaring
+because the button ink is bone. One line of fine print carries the payout
+and the wallet together. The payout line appears under the confirm only once a side is
 picked; success flashes "Placed" on the button itself; errors render inside
 the ticket. Held positions sit at the top of the ticket as rows (tinted
 direction, mono payout, a Sell pill). Motion is one entrance pass (label, then price, then
