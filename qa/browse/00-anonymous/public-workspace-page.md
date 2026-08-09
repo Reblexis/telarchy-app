@@ -136,7 +136,9 @@ the phase when it returns.
 - Before data arrives the page shows the brand mark breathing in the center
   (no spinner, no "Loading" text).
 - Y gridlines sit on round numbers; ~4 time ticks label by market age
-  (times under 48h, dates beyond).
+  (times under 48h, dates beyond). When the metric's parenthetical tail
+  names a currency (USD), every numeral on the page (price, delta chip,
+  gridlines, call label, crosshair tip) carries the "$" prefix.
 - Hovering (pointer) shows a crosshair with the call in force at that time.
 - There is no legend, no range rail, and no markets table: the chart IS the
   instrument; additional markets are a count in the sub-line.

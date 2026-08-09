@@ -28,11 +28,19 @@ function formatValue(v: number): string {
   return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
-function formatDelta(delta: number): string {
+function formatDelta(delta: number, unit = ''): string {
   const abs = Math.abs(delta);
   const decimals = abs >= 100 ? 0 : abs >= 1 ? 1 : 2;
   const num = abs.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-  return `${delta > 0 ? '+' : delta < 0 ? '-' : ''}${num}`;
+  return `${delta > 0 ? '+' : delta < 0 ? '-' : ''}${unit}${num}`;
+}
+
+// The currency lives in the metric name's parenthetical tail ("LookPilot
+// revenue (monthly, USD)"): display-only inference, so metrics without a
+// currency in the tail stay bare numbers and nothing new enters the API.
+function currencyOf(metricName: string): string {
+  const tail = metricName.match(/\(([^)]*)\)\s*$/)?.[1] ?? '';
+  return /\busd\b|\$/i.test(tail) ? '$' : '';
 }
 
 function settleDate(iso: string): string {
@@ -81,6 +89,7 @@ export function TradePage() {
   }, [ws, user]);
 
   const hero = ws?.markets[0] ?? null;
+  const unit = hero ? currencyOf(hero.metricName) : '';
   // The prediction's own movement: current call vs the call after the
   // market's first trade. About the market, not the metric.
   const marketOpen = ws?.marketHistory?.length ? ws.marketHistory.find(p => p.consensus !== null)?.consensus ?? null : null;
@@ -131,16 +140,16 @@ export function TradePage() {
               <span className="pubws-instrument-when">@ {settleDate(hero.resolvesOn)}</span>
             </h1>
             <div className="pubws-headline pubws-enter pubws-enter--2">
-              <span className="pubws-price">{formatValue(consensus)}</span>
+              <span className="pubws-price">{unit}{formatValue(consensus)}</span>
               {marketOpen !== null && consensus !== marketOpen && (
                 <span className={`pubws-delta-chip ${consensus >= marketOpen ? 'is-up' : 'is-down'}`}>
-                  {consensus >= marketOpen ? '▲' : '▼'} {formatDelta(consensus - marketOpen)} since open
+                  {consensus >= marketOpen ? '▲' : '▼'} {formatDelta(consensus - marketOpen, unit)} since open
                 </span>
               )}
             </div>
             {(ws.marketHistory?.length ?? 0) > 0 && (
               <div className="pubws-enter pubws-enter--3">
-                <MarketChart series={ws.marketHistory!} consensus={consensus} />
+                <MarketChart series={ws.marketHistory!} consensus={consensus} unit={unit} />
               </div>
             )}
           </section>

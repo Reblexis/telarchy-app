@@ -19,6 +19,8 @@ import { useMemo, useRef, useState } from 'react';
 interface Props {
   series: Array<{ at: string; consensus: number | null }>;
   consensus: number;
+  /** Currency prefix for every numeral ('$' or ''), inferred by the caller. */
+  unit?: string;
   height?: number;
 }
 
@@ -43,7 +45,7 @@ function fullNum(v: number): string {
   return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
-export function MarketChart({ series, consensus, height }: Props) {
+export function MarketChart({ series, consensus, unit = '', height }: Props) {
   const [compact] = useState(() => typeof window !== 'undefined' && window.innerWidth < 520);
   const { W, PAD_L, PAD_R, H: geomH } = GEOM[compact ? 'compact' : 'wide'];
   const H = height ?? geomH;
@@ -103,6 +105,8 @@ export function MarketChart({ series, consensus, height }: Props) {
 
   if (!model) return null;
   const { extended, d, areaPath, end, x, y, gridVals, ticks, fmt } = model;
+  const cNum = (v: number) => `${unit}${compactNum(v)}`;
+  const fNum = (v: number) => `${unit}${fullNum(v)}`;
 
   const onMove = (e: React.PointerEvent) => {
     const rect = svgRef.current?.getBoundingClientRect();
@@ -129,7 +133,7 @@ export function MarketChart({ series, consensus, height }: Props) {
         onPointerMove={onMove}
         onPointerLeave={() => setCursor(null)}
         role="img"
-        aria-label={`The market's call over time, currently ${fullNum(consensus)}`}
+        aria-label={`The market's call over time, currently ${fNum(consensus)}`}
       >
         <defs>
           <linearGradient id="mchart-fill" x1="0" y1="0" x2="0" y2="1">
@@ -143,7 +147,7 @@ export function MarketChart({ series, consensus, height }: Props) {
         {gridVals.map(v => (
           <g key={v}>
             <line className="mchart-grid" x1={PAD_L} x2={W - PAD_R} y1={y(v)} y2={y(v)} />
-            <text className="mchart-ylabel" x={PAD_L - 6} y={y(v) + 3}>{compactNum(v)}</text>
+            <text className="mchart-ylabel" x={PAD_L - 6} y={y(v) + 3}>{cNum(v)}</text>
           </g>
         ))}
 
@@ -159,7 +163,7 @@ export function MarketChart({ series, consensus, height }: Props) {
           <circle cx={x(end.t)} cy={y(end.v)} r="5" className="mchart-callhalo" />
           <circle cx={x(end.t)} cy={y(end.v)} r="5" className="mchart-calldot" />
           <text className="mchart-calllabel" x={x(end.t) + 9} y={y(end.v) + 4} textAnchor="start">
-            {fullNum(consensus)}
+            {fNum(consensus)}
           </text>
         </g>
 
@@ -174,7 +178,7 @@ export function MarketChart({ series, consensus, height }: Props) {
       {cursor !== null && (
         <div className={`mchart-tip${tipRight ? ' is-right' : ''}`} style={{ left: `${(tipX / W) * 100}%` }}>
           <div className="mchart-tip-date">{fmt(cursor)}</div>
-          <div>market <span className="mchart-tip-v mchart-tip-v--mkt">{fullNum(valueAt(cursor))}</span></div>
+          <div>market <span className="mchart-tip-v mchart-tip-v--mkt">{fNum(valueAt(cursor))}</span></div>
         </div>
       )}
     </div>

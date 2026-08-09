@@ -164,7 +164,9 @@ date>", the metric's parenthetical unit tail trimmed for display) set in
 the Fraunces display face with the instrument in ink and the settle date a
 register quieter (an exception to the tiny-uppercase-label rule: it is the
 page's only statement of what the market is), the consensus as a large mono
-price with a since-open chip, and the prediction
+price with a since-open chip (both carrying the metric's currency symbol
+when the trimmed parenthetical tail names one, e.g. "USD" -> "$"; the same
+prefix runs through every numeral in the chart), and the prediction
 chart (`MarketChart`: one amber step line of the market's call over its
 lifetime, gradient fill, labeled end dot, crosshair; breaks out of the
 column to min(92vw, 840px); phones get a taller, narrower canvas chosen at
