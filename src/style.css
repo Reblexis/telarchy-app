@@ -7965,13 +7965,30 @@ code, pre, kbd, samp {
   stroke-width: 2;
   stroke-linejoin: round;
   stroke-linecap: round;
+  /* Entrance: the line draws itself left to right (path normalized to
+     length 1 via pathLength); a full-length dash is a solid line after. */
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: mchart-draw 1s cubic-bezier(0.4, 0, 0.2, 1) 0.45s forwards;
 }
 
+
+.mchart-fill-area { animation: mchart-appear 0.9s ease-out 0.9s both; }
 
 .mchart-calldot {
   fill: var(--accent);
   stroke: var(--bg-primary);
   stroke-width: 2;
+  animation: mchart-appear 0.4s ease-out 1.3s both;
+}
+
+/* The market is live: a soft ripple off the call dot. */
+.mchart-callhalo {
+  fill: var(--accent);
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mchart-pulse 2.8s ease-out 1.9s infinite;
 }
 
 .mchart-calllabel {
@@ -7979,6 +7996,20 @@ code, pre, kbd, samp {
   font-size: 11px;
   font-weight: 600;
   fill: var(--accent);
+  animation: mchart-appear 0.4s ease-out 1.3s both;
+}
+
+@keyframes mchart-draw { to { stroke-dashoffset: 0; } }
+@keyframes mchart-appear { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mchart-pulse {
+  0% { opacity: 0.35; transform: scale(1); }
+  70%, 100% { opacity: 0; transform: scale(3.2); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mchart-mline { animation: none; stroke-dasharray: none; stroke-dashoffset: 0; }
+  .mchart-fill-area, .mchart-calldot, .mchart-calllabel { animation: none; }
+  .mchart-callhalo { display: none; }
 }
 
 .mchart-cross line {
@@ -8041,3 +8072,57 @@ code, pre, kbd, samp {
 .pubws-delta-chip.is-down { color: var(--lower); }
 
 .pubws-logolink { display: inline-flex; align-items: center; }
+
+/* Poster layout (trade page only): the market sits in the optical center of
+   the viewport, a touch above true center. ManagePage shares .pubws-* but
+   not this modifier. */
+.pubws--center {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+/* In a flex column, margin:0 auto shrinks the bar to its content; keep it
+   full width so space-between still pushes the corners apart. */
+.pubws--center .pubws-topbar { width: 100%; }
+.pubws--center .pubws-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  padding-top: 0;
+  padding-bottom: clamp(3rem, 10vh, 6rem);
+}
+.pubws--center .pubws-instrument { margin-top: 0; }
+
+.pubws-status { text-align: center; }
+
+/* Loading screen: the brand mark breathing where the market will appear. */
+.pubws-loading {
+  display: flex;
+  justify-content: center;
+  animation: pubws-breathe 1.8s ease-in-out infinite;
+}
+@keyframes pubws-breathe {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 0.75; }
+}
+
+/* Entrance: label, then price, then the chart draws itself. One pass on
+   load; nothing loops except the call dot's soft pulse. */
+.pubws-enter {
+  opacity: 0;
+  animation: pubws-rise 0.55s cubic-bezier(0.2, 0.6, 0.2, 1) forwards;
+}
+.pubws-enter--1 { animation-delay: 0.05s; }
+.pubws-enter--2 { animation-delay: 0.16s; }
+.pubws-enter--3 { animation-delay: 0.3s; }
+@keyframes pubws-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pubws-loading { animation: none; opacity: 0.5; }
+  .pubws-enter { animation: none; opacity: 1; }
+}

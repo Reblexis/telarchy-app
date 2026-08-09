@@ -88,27 +88,35 @@ export function TradePage() {
 
   if (error) {
     return (
-      <div className="pubws">
+      <div className="pubws pubws--center">
         <TopBar user={!!user} />
         <main className="pubws-main">
-          <p className="pubws-pitch">{error}</p>
-          <p className="pubws-pitch"><Link to="/">Back to Telarchy</Link></p>
+          <section className="pubws-status">
+            <p className="pubws-pitch">{error}</p>
+            <p className="pubws-pitch"><Link to="/">Back to Telarchy</Link></p>
+          </section>
         </main>
       </div>
     );
   }
 
   if (!ws) {
+    // The loading screen is the brand mark breathing where the market is
+    // about to appear; no spinner, no text, no layout shift.
     return (
-      <div className="pubws">
+      <div className="pubws pubws--center">
         <TopBar user={!!user} />
-        <main className="pubws-main"><p className="pubws-pitch">Loading…</p></main>
+        <main className="pubws-main">
+          <div className="pubws-loading" role="status" aria-label="Loading">
+            <Logo variant="mark" height="2.4rem" />
+          </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="pubws">
+    <div className="pubws pubws--center">
       <TopBar user={!!user} />
       <main className="pubws-main">
         {hero && consensus !== null && (
@@ -117,10 +125,10 @@ export function TradePage() {
                 metric's parenthetical unit tail is trimmed for display only
                 (the full name stays in the API); renaming the metric itself
                 would void the live market by the definition-change invariant. */}
-            <div className="pubws-instrument-label">
+            <div className="pubws-instrument-label pubws-enter pubws-enter--1">
               {hero.metricName.replace(/\s*\(.*\)\s*$/, '')} @ {settleDate(hero.resolvesOn)}
             </div>
-            <div className="pubws-headline">
+            <div className="pubws-headline pubws-enter pubws-enter--2">
               <span className="pubws-price">{formatValue(consensus)}</span>
               {marketOpen !== null && consensus !== marketOpen && (
                 <span className={`pubws-delta-chip ${consensus >= marketOpen ? 'is-up' : 'is-down'}`}>
@@ -129,7 +137,9 @@ export function TradePage() {
               )}
             </div>
             {(ws.marketHistory?.length ?? 0) > 0 && (
-              <MarketChart series={ws.marketHistory!} consensus={consensus} />
+              <div className="pubws-enter pubws-enter--3">
+                <MarketChart series={ws.marketHistory!} consensus={consensus} />
+              </div>
             )}
           </section>
         )}

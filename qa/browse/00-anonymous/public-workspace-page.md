@@ -127,7 +127,13 @@ the phase when it returns.
   from the market's first trade to now, with a soft amber gradient fill,
   ending in a labeled dot at the current call. No metric history, no second
   series, no future zone: the x domain is the market's lifetime, and the
-  settle date is the caption below, not chart space.
+  settle date lives in the headline, not chart space.
+- On load the line draws itself left to right (~1s) and the call dot then
+  ripples softly forever (the market is live); a narrow viewport (<520 CSS
+  px at mount) gets a taller, narrower canvas instead of a shrunken copy of
+  the wide one. All motion is off under prefers-reduced-motion.
+- Before data arrives the page shows the brand mark breathing in the center
+  (no spinner, no "Loading" text).
 - Y gridlines sit on round numbers; ~4 time ticks label by market age
   (times under 48h, dates beyond).
 - Hovering (pointer) shows a crosshair with the call in force at that time.

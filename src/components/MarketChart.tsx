@@ -22,9 +22,15 @@ interface Props {
   height?: number;
 }
 
-const W = 720;
-const PAD_L = 46;
-const PAD_R = 58;
+// Two geometries for one chart: the wide 720-unit canvas reads well from
+// ~520 CSS px up; below that the svg scales down until its type is
+// illegible, so phones get a narrower, taller canvas instead of a shrunken
+// copy of the desktop one. Chosen once at mount (orientation changes are
+// rare and a reload fixes them).
+const GEOM = {
+  wide: { W: 720, PAD_L: 46, PAD_R: 58, H: 260 },
+  compact: { W: 400, PAD_L: 40, PAD_R: 50, H: 300 },
+};
 const PAD_T = 16;
 const PAD_B = 24;
 
@@ -37,8 +43,10 @@ function fullNum(v: number): string {
   return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
-export function MarketChart({ series, consensus, height = 260 }: Props) {
-  const H = height;
+export function MarketChart({ series, consensus, height }: Props) {
+  const [compact] = useState(() => typeof window !== 'undefined' && window.innerWidth < 520);
+  const { W, PAD_L, PAD_R, H: geomH } = GEOM[compact ? 'compact' : 'wide'];
+  const H = height ?? geomH;
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [cursor, setCursor] = useState<number | null>(null);
 
@@ -91,7 +99,7 @@ export function MarketChart({ series, consensus, height = 260 }: Props) {
     const ticks = [0.08, 0.38, 0.68, 0.95].map(f => t0 + f * span);
 
     return { pts, extended, d, areaPath, end, t0, t1: t0 + span, span, x, y, gridVals, ticks, fmt, open: extended[0] };
-  }, [series, consensus, H]);
+  }, [series, consensus, H, W, PAD_L, PAD_R]);
 
   if (!model) return null;
   const { extended, d, areaPath, end, x, y, gridVals, ticks, fmt } = model;
@@ -144,8 +152,11 @@ export function MarketChart({ series, consensus, height = 260 }: Props) {
         ))}
 
         <g className="mchart-market">
-          <path d={areaPath} fill="url(#mchart-fill)" stroke="none" />
-          <path d={d} className="mchart-mline" />
+          <path d={areaPath} className="mchart-fill-area" fill="url(#mchart-fill)" stroke="none" />
+          {/* pathLength=1 normalizes the dash math so the entrance draw
+              (stroke-dashoffset 1 -> 0 in CSS) works for any path. */}
+          <path d={d} className="mchart-mline" pathLength={1} />
+          <circle cx={x(end.t)} cy={y(end.v)} r="5" className="mchart-callhalo" />
           <circle cx={x(end.t)} cy={y(end.v)} r="5" className="mchart-calldot" />
           <text className="mchart-calllabel" x={x(end.t) + 9} y={y(end.v) + 4} textAnchor="start">
             {fullNum(consensus)}

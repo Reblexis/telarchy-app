@@ -163,7 +163,12 @@ date>", the metric's parenthetical unit tail trimmed for display), the
 consensus as a large mono price with a since-open chip, and the prediction
 chart (`MarketChart`: one amber step line of the market's call over its
 lifetime, gradient fill, labeled end dot, crosshair; breaks out of the
-column to min(92vw, 840px)). The page is view-only in this phase: no trade
+column to min(92vw, 840px); phones get a taller, narrower canvas chosen at
+mount). The composition is a poster: the market sits in the optical center
+of the viewport. Motion is one entrance pass (label, then price, then the
+line drawing itself) plus a soft perpetual ripple on the call dot; loading
+is the brand mark breathing where the market will appear; everything stops
+under prefers-reduced-motion. The page is view-only in this phase: no trade
 controls even when signed in, no CTA button, no caption line, no balance
 readout. Understanding the market is the page's entire job; trading returns
 as a render change when the owner turns it back on. Signed-in visits still
