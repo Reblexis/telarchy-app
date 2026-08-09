@@ -22,7 +22,9 @@ function timeAgo(t: number): string {
   return `${Math.round(hours / 24)}d`;
 }
 
-export function LeaderboardRail({ entries }: { entries: LeaderboardEntry[] }) {
+export function LeaderboardRail({ entries: all }: { entries: LeaderboardEntry[] }) {
+  // A row for someone who has never traded is a name and a zero: noise.
+  const entries = all.filter(e => e.totalTrades > 0).slice(0, 5);
   if (entries.length === 0) return null;
   return (
     <aside className="pubws-rail pubws-rail--left" aria-label="Top traders">

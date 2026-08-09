@@ -113,7 +113,7 @@ export function TradePage() {
   }, [ws, user]);
 
   useEffect(() => {
-    api.getLeaderboard(8)
+    api.getLeaderboard(5)
       .then(r => setLeaders(r.participants ?? []))
       .catch(e => console.error('leaderboard fetch failed:', e));
   }, []);
@@ -258,13 +258,14 @@ export function TradePage() {
 
         {trading && hero ? (
           <section className="pubws-act pubws-enter pubws-enter--3" aria-label="Place a trade">
+            {/* Two facts only: the anchor and its freshness. The trade
+                pulse lives in the activity rail; it does not need a second
+                home here. */}
             {lastActual && (
               <div className="pubws-facts">
                 <span>Actual {unit}{formatValue(lastActual.value)}</span>
                 {lastActual.at && <span className="pubws-facts-sep">·</span>}
                 {lastActual.at && <span>updated {timeAgo(lastActual.at)}</span>}
-                {(ws.tradesThisWeek ?? 0) > 0 && <span className="pubws-facts-sep">·</span>}
-                {(ws.tradesThisWeek ?? 0) > 0 && <span>{ws.tradesThisWeek} trades this week</span>}
               </div>
             )}
             <TradeTicket
@@ -285,7 +286,6 @@ export function TradePage() {
           <JobsBoard
             proposals={ws.proposals}
             unit={unit}
-            metricName={hero.metricName.replace(/\s*\(.*\)\s*$/, '')}
             onBranchTrade={async (p, branch, direction, amount) => {
               const pair = p.markets[0];
               if (!pair) return;

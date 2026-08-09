@@ -33,7 +33,9 @@ interface Props {
   onRequireSignup?: () => void;
 }
 
-const PRESETS = [10, 25, 100, 250];
+// Three, not four: min / mid / the position cap. Every extra preset is
+// another number on a page that is trying to have very few.
+const PRESETS = [10, 50, 250];
 
 function fmt(v: number): string {
   const decimals = Math.abs(v) >= 100 ? 0 : 1;
@@ -113,10 +115,16 @@ export function TradeTicket({ probability, liquidity, positions, balance, onTrad
                   {p.direction === 'higher' ? '▲' : '▼'} {p.direction}
                 </span>
                 <span className="ticket-pos-detail">
-                  worth {fmt(worth)} cr{' '}
-                  <span className={`ticket-pos-delta ${delta >= 0 ? 'is-up' : 'is-down'}`}>
-                    {delta >= 0 ? '+' : '-'}{fmt(Math.abs(delta))}
-                  </span>
+                  worth {fmt(worth)} cr
+                  {/* The delta is only worth a number once it has moved. */}
+                  {Math.abs(delta) >= 0.5 && (
+                    <>
+                      {' '}
+                      <span className={`ticket-pos-delta ${delta >= 0 ? 'is-up' : 'is-down'}`}>
+                        {delta >= 0 ? '+' : '-'}{fmt(Math.abs(delta))}
+                      </span>
+                    </>
+                  )}
                 </span>
                 <button
                   className="ticket-sell"
@@ -195,7 +203,10 @@ export function TradeTicket({ probability, liquidity, positions, balance, onTrad
       {error && <p className="ticket-err">{error}</p>}
       {balance !== null && (
         <p className="ticket-balance">
-          {balance.toLocaleString('en-US', { maximumFractionDigits: 0 })} cr available
+          {/* Compact: a six-digit balance is noise, not information. */}
+          {balance >= 10_000
+            ? `${Math.round(balance / 1000).toLocaleString('en-US')}k`
+            : balance.toLocaleString('en-US', { maximumFractionDigits: 0 })} cr available
         </p>
       )}
     </div>

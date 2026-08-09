@@ -7903,13 +7903,34 @@ code, pre, kbd, samp {
   flex: none;
 }
 
-.pubws-ballot-impact-label {
+/* text-align, not flex: `.pubws-ballot li { display: block }` outranks a
+   single-class rule, so justify-content would never apply. */
+.pubws-ballot-head {
+  text-align: right;
+  padding-bottom: 0.35rem;
   font-size: 0.6rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.09em;
   color: var(--text-tertiary);
 }
+
+/* One control for the one number: bigger or smaller than the market says.
+   It trades the approved branch, which is what moves the impact. */
+.pubws-impact-trade {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  margin-top: 0.7rem;
+}
+
+.pubws-impact-ask {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.pubws-impact-trade .pubws-proposal-meta { margin: 0; }
 
 /* The USD ask sits beside the title: narrow, mono, unmistakably money. */
 .pubws-propose-row input { flex: 1; }
