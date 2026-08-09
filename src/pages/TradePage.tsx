@@ -381,8 +381,8 @@ export function TradePage() {
             unit={unit}
             selectedId={selectedJobId}
             onSelect={id => setSelectedJobId(cur => (cur === id ? null : id))}
-            onPropose={async (title, description) => {
-              await api.createProposal({ title, description, liquiditySubsidy: 20 });
+            onPropose={async (title, description, askUsd) => {
+              await api.createProposal({ title, description, liquiditySubsidy: 20, askUsd });
               reload();
             }}
           />

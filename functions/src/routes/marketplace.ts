@@ -465,6 +465,7 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
         id: p.id,
         title: p.title,
         description: p.description,
+        askUsd: p.askUsd ?? null,
         proposedByName: names.get(p.proposedBy) ?? null,
         createdAt: p.createdAt,
         marketPairCount: pairs.length,

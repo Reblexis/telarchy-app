@@ -425,6 +425,14 @@ export const proposals = pgTable('proposals', {
    * field on. See workspaces.charter.
    */
   declineReason: text('decline_reason'),
+  /**
+   * The job's price in whole USD (paid-jobs charter, 2026-08-09). Stored
+   * rather than parsed back out of the title, because burn (the summed cost
+   * of approved jobs) is subtracted inside the resolving metric: a number
+   * that reaches the metric through prose can break silently or be edited.
+   * Null for proposals that predate the field or that carry no ask.
+   */
+  askUsd: integer('ask_usd'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
 

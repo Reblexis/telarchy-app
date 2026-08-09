@@ -25,13 +25,26 @@ proposalsRouter.use(authMiddleware);
 
 proposalsRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
-  const { title, description, liquiditySubsidy } = req.body;
+  const { title, description, liquiditySubsidy, askUsd } = req.body;
   if (!title || typeof title !== 'string') { res.status(400).json({ error: 'title is required' }); return; }
   const titleError = validateContent(title, 'title', 200);
   if (titleError) { res.status(400).json({ error: titleError }); return; }
   if (description !== undefined) {
     const descError = validateContent(description, 'description');
     if (descError) { res.status(400).json({ error: descError }); return; }
+  }
+
+  // The job's price, stored as a number. Under the paid-jobs charter this
+  // feeds burn inside the resolving metric, so it must not reach the metric
+  // through prose: a title the parser does not expect makes the metric
+  // silently wrong, and titles are mutable in a way the metric must not be.
+  let ask: number | null = null;
+  if (askUsd !== undefined && askUsd !== null) {
+    if (typeof askUsd !== 'number' || !Number.isInteger(askUsd) || askUsd < 0) {
+      res.status(400).json({ error: 'askUsd must be a non-negative whole number of USD' }); return;
+    }
+    if (askUsd > 1_000_000) { res.status(400).json({ error: 'askUsd is implausibly large' }); return; }
+    ask = askUsd;
   }
 
   const proposedBy = req.auth!.agentId;
@@ -72,6 +85,7 @@ proposalsRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
   await db.insert(proposals).values({
     id, workspaceId, proposedBy,
     title, description: description || '',
+    askUsd: ask,
     status: 'pending', conditionalMarketIds: [],
     liquiditySubsidy: subsidy,
     subsidyContributions: subsidy > 0 ? { [proposedBy]: subsidy } : {},

@@ -222,8 +222,12 @@ against the wrong curve. The description is NOT repeated under the job row;
 it belongs with the question. Positions refetch on every switch, because
 they belong to the market on screen. "+ Suggest a job"
 opens the inline form: a narrow mono USD ask field beside the title,
-required (every job has a price), composed into the title as "$N: ..." per
-the charter's round-1 text convention (no API change), a description
+required (every job has a price). The number is sent as `askUsd` and stored
+on the proposal; it is *also* composed into the title as "$N: ..." because
+that reads well and travels into the activity log and share text, but the
+stored column is what anything financial reads. Rows prefer `askUsd` and
+fall back to parsing the title only for proposals created before the column
+existed, a description
 prompting for proof of capability, and the 40 cr listing-stake submit. The board is signed-in
 only; the anonymous poster stays clean. On viewports >=1120px the page
 becomes the trading floor proper: a three-column grid with the top-traders

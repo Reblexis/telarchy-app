@@ -246,6 +246,10 @@ export interface PublicProposal {
   id: string;
   title: string;
   description: string;
+  /** The job's price in whole USD, stored rather than parsed from the title
+   *  (it feeds burn inside the resolving metric). Null on proposals that
+   *  predate the field. */
+  askUsd?: number | null;
   proposedByName: string | null;
   createdAt: string;
   /** Total conditional pairs; `markets` carries only the largest-impact few. */
@@ -536,7 +540,7 @@ export const api = {
   // Proposals
   getProposals: (status?: string) => request(`/api/proposals${status ? `?status=${encodeURIComponent(status)}` : ''}`),
   getProposal: (id: string) => request(`/api/proposals/${id}`),
-  createProposal: (body: { title: string; description: string; liquiditySubsidy?: number }) =>
+  createProposal: (body: { title: string; description: string; liquiditySubsidy?: number; askUsd?: number }) =>
     request('/api/proposals', { method: 'POST', body: JSON.stringify(body) }),
   approveProposal: (id: string) =>
     request(`/api/proposals/${id}/approve`, { method: 'POST' }),

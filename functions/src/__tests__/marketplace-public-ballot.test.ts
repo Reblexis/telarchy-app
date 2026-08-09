@@ -170,6 +170,22 @@ describe('public ballot disclosure gate', () => {
     expect(bySlug.body.workspaceId).toBe(WS);
   });
 
+  test('the stored ask ships on the ballot, and a legacy proposal reports null', async () => {
+    await seed(['read', 'trade']);
+    // 'prop-open' predates the column in this fixture, so it stands in for
+    // every proposal created before the ask was a number.
+    await db.update(proposals).set({ askUsd: 80 }).where(eq(proposals.id, 'prop-open'));
+    await db.insert(proposals).values({
+      id: 'prop-legacy', workspaceId: WS, proposedBy: PROPOSER,
+      title: '$40: legacy, ask only in the title', description: '', status: 'pending',
+    });
+
+    const res = await request(app).get(`/api/marketplace/${WS}`);
+    const byId = Object.fromEntries(res.body.proposals.map((p: { id: string; askUsd: number | null }) => [p.id, p.askUsd]));
+    expect(byId['prop-open']).toBe(80);
+    expect(byId['prop-legacy']).toBeNull();
+  });
+
   test('the pair carries the approved branch id and price shape', async () => {
     await seed(['read', 'trade']);
     const res = await request(app).get(`/api/marketplace/${WS}`);

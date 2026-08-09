@@ -25,7 +25,7 @@ interface Props {
   /** The job whose conditional market the page is currently showing. */
   selectedId: string | null;
   onSelect: (id: string) => void;
-  onPropose: (title: string, description: string) => Promise<void>;
+  onPropose: (title: string, description: string, askUsd: number) => Promise<void>;
 }
 
 function fmtVal(v: number, unit: string): string {
@@ -72,11 +72,14 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
     // Every proposal is a job with a price (charter, 2026-08-09): the ask
     // is required. The round-1 convention composes it into the title.
     if (askNum <= 0) { setFormErr('Name your price in USD. Every job has one.'); return; }
+    // The title still carries the price because it reads well and travels
+    // (activity log, share text); the number is also sent separately, and
+    // that copy is the one anything financial reads.
     const fullTitle = `$${askNum}: ${title.trim()}`;
     setFormErr('');
     setFormBusy(true);
     try {
-      await onPropose(fullTitle, desc.trim());
+      await onPropose(fullTitle, desc.trim(), askNum);
       setAsk(''); setTitle(''); setDesc(''); setFormOpen(false);
     } catch (e) {
       setFormErr((e as Error).message || 'Failed to submit');
@@ -98,7 +101,10 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
           {ranked.map(p => {
             const delta = headlineDelta(p);
             const selected = selectedId === p.id;
-            const { ask: askUsd, rest: titleRest } = splitAsk(p.title);
+            // Prefer the stored number; fall back to the title convention
+            // only for proposals created before the column existed.
+            const { ask: parsedAsk, rest: titleRest } = splitAsk(p.title);
+            const askUsd = p.askUsd ?? parsedAsk;
             return (
               <li key={p.id} className={selected ? 'is-open' : ''}>
                 <button
