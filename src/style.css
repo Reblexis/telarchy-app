@@ -8663,112 +8663,104 @@ code, pre, kbd, samp {
 
 .ticket-label {
   margin: 0;
-  font-size: 0.82rem;
-  color: var(--text-secondary);
-}
-
-/* The boxed input row: amount (or limit price) left, steppers right. */
-.ticket-amt-box {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.55rem 0.6rem 0.55rem 0.9rem;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
-}
-.ticket-amt-box:focus-within { border-color: var(--accent); }
-
-.ticket-amount {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.35rem;
-  flex: 1;
-  min-width: 0;
-  cursor: text;
-}
-
-.ticket-amount input {
-  width: 100%;
-  min-width: 3ch;
-  padding: 0;
-  border: none;
-  background: none;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-.ticket-amount input:focus { outline: none; }
-
-.ticket-cr {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.85rem;
+  text-align: center;
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
   color: var(--text-tertiary);
 }
 
-.ticket-steps { display: flex; gap: 0.4rem; }
-
-.ticket-step {
-  padding: 0.35rem 0.7rem;
-  border: none;
-  border-radius: 8px;
-  background: var(--bg-tertiary);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.8rem;
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: background 120ms ease;
+/* The amount is one number and nothing else: no box, no chrome. The
+   underline is the whole input; it hugs the digits (width set in ch from
+   the component) and warms to the accent on focus. */
+.ticket-amt {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.4rem;
+  cursor: text;
 }
-.ticket-step:hover { background: var(--border-strong); }
-.ticket-step:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* The slider, quiet: a hairline track with a plain thumb. */
+.ticket-amt input {
+  min-width: 2ch;
+  max-width: 12ch;
+  padding: 0 0 0.1rem;
+  border: none;
+  border-bottom: 2px solid var(--border-strong);
+  background: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--text-primary);
+  text-align: center;
+  transition: border-color 120ms ease;
+}
+.ticket-amt input:focus { outline: none; border-bottom-color: var(--accent); }
+
+.ticket-amt-unit {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9rem;
+  color: var(--text-tertiary);
+}
+
+/* The limit price: same object, quieter size, unit in front ($65,000). */
+.ticket-amt--price input { font-size: 1.4rem; }
+
+/* The same amount again, as a track in the chosen side's colour. The fill
+   fraction comes from the component (--slider-pct). */
 .ticket-slider {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 3px;
+  height: 4px;
+  margin: 0.15rem 0;
+  border: none;
   border-radius: 2px;
-  background: var(--border-strong);
+  --slider-fill: var(--accent);
+  background: linear-gradient(to right, var(--slider-fill) var(--slider-pct, 0%), var(--border-color) var(--slider-pct, 0%));
   cursor: pointer;
 }
+.ticket-slider--higher { --slider-fill: var(--higher); }
+.ticket-slider--lower { --slider-fill: var(--lower); }
 .ticket-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background: var(--text-secondary);
-  border: none;
+  background: var(--slider-fill);
+  border: 2px solid var(--bg-secondary);
+  box-shadow: 0 0 0 1px var(--slider-fill);
 }
 .ticket-slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: var(--text-secondary);
-  border: none;
+  background: var(--slider-fill);
+  border: 2px solid var(--bg-secondary);
+  box-shadow: 0 0 0 1px var(--slider-fill);
 }
 .ticket-slider:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 
-/* The answer rows: key quiet, value loud. */
+/* The answers, as a small ruled table: quiet keys left, mono values right.
+   Hairlines rather than bare rows, so the numbers read as one object. */
 .ticket-facts {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  margin-top: 0.2rem;
 }
 
 .ticket-fact {
   display: flex;
   align-items: baseline;
+  justify-content: space-between;
   gap: 0.8rem;
-  font-size: 0.9rem;
+  padding: 0.42rem 0.1rem;
+  font-size: 0.86rem;
 }
+.ticket-fact + .ticket-fact { border-top: 1px solid var(--border-color); }
 
-.ticket-fact-k {
-  min-width: 6.5rem;
-  color: var(--text-tertiary);
-}
+.ticket-fact-k { color: var(--text-tertiary); }
 
 .ticket-fact-v {
   font-family: 'JetBrains Mono', monospace;

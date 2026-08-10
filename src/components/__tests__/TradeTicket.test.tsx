@@ -36,17 +36,41 @@ describe('progressive disclosure', () => {
     expect(screen.getByLabelText('Credits to spend')).toBeTruthy();
     expect(screen.getByText('Quick')).toBeTruthy();
     expect(screen.getByText('Limit')).toBeTruthy();
-    // The confirm names the payout, Manifold-style.
-    expect(screen.getByText(/Buy HIGHER to win [\d.,]+ cr/)).toBeTruthy();
-    // And the answer rows say where the market would land and what it pays.
+    expect(screen.getByText('Bet 25 cr on Higher')).toBeTruthy();
+    // The answer rows: where the market would land, where the bet starts
+    // winning, and what each further step pays. Payout is linear in the
+    // settled value, so breakeven + slope IS the whole payout, stated
+    // without the misleading at-the-range-edge maximum.
     expect(screen.getByText('New value')).toBeTruthy();
-    expect(screen.getByText('To win')).toBeTruthy();
+    expect(screen.getByText('Wins above')).toBeTruthy();
+    expect(screen.getByText('Each $10k beyond')).toBeTruthy();
   });
 
   test('the Limit toggle stays hidden when the market cannot take orders', () => {
     render(<TradeTicket {...base} />);
     fireEvent.click(screen.getByText('Higher'));
     expect(screen.queryByText('Limit')).toBeNull();
+  });
+});
+
+describe('win facts', () => {
+  test('a limit order breaks even exactly at its own price', () => {
+    render(<TradeTicket {...base} onPlaceLimit={async () => {}} />);
+    fireEvent.click(screen.getByText('Higher'));
+    fireEvent.click(screen.getByText('Limit'));
+    fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '40000' } });
+
+    // Filled at $40,000 the average price is 40000/500000 = 0.08, so 25 cr
+    // buys 312.5 shares: breakeven at the limit, +6.25 cr per further $10k.
+    expect(screen.getByText('Once filled, wins above')).toBeTruthy();
+    expect(screen.getByText('$40,000')).toBeTruthy();
+    expect(screen.getByText('+6.3 cr')).toBeTruthy();
+  });
+
+  test('a lower bet wins below its breakeven', () => {
+    render(<TradeTicket {...base} />);
+    fireEvent.click(screen.getByText('Lower'));
+    expect(screen.getByText('Wins below')).toBeTruthy();
   });
 });
 

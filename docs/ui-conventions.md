@@ -198,16 +198,20 @@ ticket (owner direction 2026-08-10).
 
 The ticket itself follows Manifold's bet-panel layout (owner direction
 2026-08-10, superseding the 2026-08-09 "not a panel" decision): a card
-(`--bg-secondary`, 14px radius) with the Lower/Higher pills top left, a
-Quick/Limit toggle top right, a boxed amount with -10/+10/+50 steppers
-and a slider to the 250 cr cap, then answer rows ("New value" with the
-delta the bet would cause, "To win" with the payout and percent gain),
-and one full-width confirm tinted by the chosen side that names the
-payout ("Buy HIGHER to win 106 cr"). Progressive disclosure survives the
-card: an untouched ticket is only the two side pills, and the card grows
-when a side is picked. Limit mode swaps the answer rows for a price box
-and the confirm becomes the whole instruction ("Buy Higher with 25 cr
-under $65,000"); see docs/limit-orders.md.
+(`--bg-secondary`, 14px radius) with the Lower/Higher pills top left and
+a Quick/Limit toggle top right. The amount is one bare underlined mono
+numeral (no boxed field, no stepper chips; owner direction same day)
+with a slider to the 250 cr cap under it, its fill in the chosen side's
+colour. The win is stated as breakeven plus slope, never as the
+at-the-range-edge maximum: payout is linear in the settled value, so the
+rows read "New value" (with the delta the bet would cause), "Wins above
+$74,300", "Each $10k beyond +3.1 cr", as a small hairline-ruled table.
+The confirm is full width, tinted by the side ("Bet 25 cr on Higher").
+Progressive disclosure survives the card: an untouched ticket is only
+the two side pills, and the card grows when a side is picked. Limit mode
+swaps in a price input in the same underlined register and the confirm
+becomes the whole instruction ("Buy Higher with 25 cr under $65,000"),
+with breakeven exactly at the limit; see docs/limit-orders.md.
 Below the ticket, the desk shows the jobs board (paid-jobs
 round 1, owner charter of 2026-08-09) under a bare "Jobs" label. **One
 number per job** (owner decision: as few numbers as possible): the impact,

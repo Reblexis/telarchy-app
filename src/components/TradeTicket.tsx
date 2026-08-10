@@ -3,18 +3,25 @@ import { previewSell, previewTrade } from '../lib/amm';
 import type { LimitOrder } from '../lib/api';
 
 /**
- * The trade ticket, in Manifold's layout (owner direction 2026-08-10, from a
- * screenshot of Manifold's bet panel): a card, the two sides as pills top
- * left, a Quick / Limit toggle top right, a boxed amount with steppers and a
- * slider, then two answer rows ("New value", "To win") and one full-width
- * confirm that names the payout ("Buy HIGHER to win 106 cr").
+ * The trade ticket, in Manifold's layout (owner direction 2026-08-10): a
+ * card with the two sides as pills top left and a Quick / Limit toggle top
+ * right. The amount is one bare underlined numeral with a slider in the
+ * side's colour under it (owner direction, same day: no boxed field, no
+ * stepper chips), then the answer rows, then one full-width confirm tinted
+ * by the chosen side.
+ *
+ * The win is stated as breakeven + slope, never as the at-the-range-edge
+ * maximum: a share's payout is linear in the settled value, so "to win X"
+ * (X being the payout only if the year ends at the range ceiling) reads as
+ * a riddle. "Wins above $74,300 / each $10k beyond +3.1 cr" is the same
+ * line, said in full.
  *
  * Progressive disclosure survives the redesign: an untouched ticket shows
  * only the two side pills, and the rest of the card exists once a side is
- * picked. Limit mode swaps the answer rows for a price box and turns the
- * confirm into the whole instruction ("Buy Higher with 25 cr under
- * $65,000"), because an instruction the trader cannot read back is an
- * instruction they did not give. Design: docs/limit-orders.md.
+ * picked. Limit mode swaps in a price input and turns the confirm into the
+ * whole instruction ("Buy Higher with 25 cr under $65,000"), because an
+ * instruction the trader cannot read back is an instruction they did not
+ * give. Design: docs/limit-orders.md.
  */
 
 export interface TicketPosition { direction: 'higher' | 'lower'; shares: number; totalCost: number }
@@ -46,10 +53,20 @@ interface Props {
   onCancelLimit?: (id: string) => Promise<void>;
 }
 
-// Steppers, Manifold-style: nudge and leap. The slider covers the rest of
-// the range up to the position cap.
-const STEPS = [-10, 10, 50];
 const MAX_BET = 250;
+
+/** A round metric-space step for the "each X beyond" line: ~1/50 of the
+    range snapped to 1/2/5, so a $0..500k market speaks in $10k steps. */
+function niceStep(span: number): number {
+  const raw = span / 50;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw || 1)));
+  const c = [1, 2, 5, 10].find(m => m * mag >= raw) ?? 10;
+  return c * mag;
+}
+
+function stepLabel(step: number): string {
+  return step >= 1000 ? `${step / 1000}k` : String(step);
+}
 
 function fmt(v: number): string {
   const decimals = Math.abs(v) >= 100 ? 0 : 1;
@@ -104,14 +121,27 @@ export function TradeTicket({
 
   const limitReady = isLimit && limitNum !== null && Number.isFinite(limitNum) && !limitError;
 
-  // What a fill at the limit would pay: shares priced at the limit itself,
-  // which is exactly where a limit order buys. An estimate, and labelled so.
-  const limitPayout = (() => {
-    if (!limitReady || span === null || rangeMin === undefined || limitNum === null || !dir) return null;
-    const p = (limitNum - rangeMin) / span;
-    const price = dir === 'higher' ? p : 1 - p;
-    if (price <= 0.001) return null;
-    return amountNum / price;
+  // The win, said comprehensibly. A share's payout is linear in the settled
+  // value, so "to win X" (the payout at the range's very edge) reads as a
+  // riddle. Two numbers define the whole line instead: the settled value at
+  // which the bet breaks even, and what each further round step pays.
+  const step = span !== null ? niceStep(span) : null;
+  const winFacts = (() => {
+    if (!dir || span === null || rangeMin === undefined || step === null) return null;
+    if (isLimit) {
+      // A fill happens at the limit itself, so the limit IS the breakeven,
+      // which is the whole appeal of naming your price.
+      if (!limitReady || limitNum === null) return null;
+      const p = (limitNum - rangeMin) / span;
+      const price = dir === 'higher' ? p : 1 - p;
+      if (price <= 0.001) return null;
+      const shares = amountNum / price;
+      return { breakeven: limitNum, slope: (shares * step) / span };
+    }
+    if (!composed || composed.shares <= 0 || amountNum <= 0) return null;
+    const avg = amountNum / composed.shares;
+    const breakeven = dir === 'higher' ? rangeMin + avg * span : rangeMin + (1 - avg) * span;
+    return { breakeven, slope: (composed.shares * step) / span };
   })();
 
   useEffect(() => {
@@ -208,12 +238,8 @@ export function TradeTicket({
       // The whole instruction, in one readable sentence.
       return `Buy ${sideWord} with ${amountNum} cr ${dir === 'higher' ? 'under' : 'over'} ${unit}${fmtValue(limitNum)}`;
     }
-    return payout !== null
-      ? `Buy ${sideWord.toUpperCase()} to win ${fmt(payout)} cr`
-      : `Buy ${sideWord.toUpperCase()}`;
+    return `Bet ${amountNum} cr on ${sideWord}`;
   };
-
-  const step = (delta: number) => setAmount(String(Math.max(1, Math.min(MAX_BET, amountNum + delta))));
 
   return (
     <div className={`ticket${dir ? ' is-open' : ''}`} aria-label="Place a trade">
@@ -325,33 +351,28 @@ export function TradeTicket({
 
       {dir && (
       <>
-      <p className="ticket-label">Bet amount</p>
-      <div className="ticket-amt-box">
-        <label className="ticket-amount">
-          <span className="ticket-cr">cr</span>
-          <input
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            value={amount}
-            onChange={e => setAmount(e.target.value.replace(/[^0-9]/g, ''))}
-            aria-label="Credits to spend"
-          />
-        </label>
-        <div className="ticket-steps">
-          {STEPS.map(v => (
-            <button key={v} className="ticket-step" onClick={() => step(v)}>
-              {v > 0 ? `+${v}` : v}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* The amount is one number, typed or slid, and nothing else: no box,
+          no stepper chips. The underline is the input; the slider under it
+          is the same value in the side's colour. */}
+      <label className="ticket-amt">
+        <input
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          value={amount}
+          style={{ width: `${Math.max(1, amount.length)}ch` }}
+          onChange={e => setAmount(e.target.value.replace(/[^0-9]/g, ''))}
+          aria-label="Credits to spend"
+        />
+        <span className="ticket-amt-unit">cr</span>
+      </label>
       <input
-        className="ticket-slider"
+        className={`ticket-slider ticket-slider--${dir}`}
         type="range"
         min={1}
         max={MAX_BET}
         value={Math.min(MAX_BET, Math.max(1, amountNum))}
+        style={{ ['--slider-pct' as string]: `${((Math.min(MAX_BET, Math.max(1, amountNum)) - 1) / (MAX_BET - 1)) * 100}%` }}
         onChange={e => setAmount(e.target.value)}
         aria-label="Bet amount slider"
       />
@@ -359,20 +380,19 @@ export function TradeTicket({
       {isLimit && (
         <>
           <p className="ticket-label">
-            {dir === 'higher' ? 'Buy when the market is under' : 'Buy when the market is over'}
+            {dir === 'higher' ? 'buy when the market is under' : 'buy when the market is over'}
           </p>
-          <div className="ticket-amt-box">
-            <label className="ticket-amount">
-              <span className="ticket-cr">{unit || '#'}</span>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={limit}
-                onChange={e => setLimit(e.target.value.replace(/[^0-9.]/g, ''))}
-                aria-label={`Limit price in ${unit || 'metric units'}`}
-              />
-            </label>
-          </div>
+          <label className="ticket-amt ticket-amt--price">
+            <span className="ticket-amt-unit">{unit || '#'}</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={limit}
+              style={{ width: `${Math.max(1, limit.length)}ch` }}
+              onChange={e => setLimit(e.target.value.replace(/[^0-9.]/g, ''))}
+              aria-label={`Limit price in ${unit || 'metric units'}`}
+            />
+          </label>
           {limitError && <p className="ticket-err">{limitError}</p>}
         </>
       )}
@@ -389,28 +409,21 @@ export function TradeTicket({
             </span>
           </div>
         )}
-        {!isLimit && payout !== null && (
-          <div className="ticket-fact">
-            <span className="ticket-fact-k">To win</span>
-            <span className="ticket-fact-v">
-              {fmt(payout)} cr
-              {amountNum > 0 && payout > amountNum && (
-                <span className="ticket-fact-d is-up"> +{Math.round(((payout - amountNum) / amountNum) * 100)}%</span>
-              )}
-            </span>
-          </div>
-        )}
-        {isLimit && limitPayout !== null && (
-          <div className="ticket-fact">
-            <span className="ticket-fact-k">If filled</span>
-            <span className="ticket-fact-v">
-              wins up to {fmt(limitPayout)} cr
-            </span>
-          </div>
+        {winFacts && step !== null && (
+          <>
+            <div className="ticket-fact">
+              <span className="ticket-fact-k">{isLimit ? 'Once filled, wins' : 'Wins'} {dir === 'higher' ? 'above' : 'below'}</span>
+              <span className="ticket-fact-v">{unit}{fmtValue(winFacts.breakeven)}</span>
+            </div>
+            <div className="ticket-fact">
+              <span className="ticket-fact-k">Each {unit}{stepLabel(step)} beyond</span>
+              <span className="ticket-fact-v"><span className="ticket-fact-d is-up">+{fmt(winFacts.slope)} cr</span></span>
+            </div>
+          </>
         )}
         {isLimit && !limitError && (
           <div className="ticket-fact">
-            <span className="ticket-fact-k">Until then</span>
+            <span className="ticket-fact-k">Until filled</span>
             <span className="ticket-fact-v">{amountNum} cr waits, cancel anytime</span>
           </div>
         )}
