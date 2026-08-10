@@ -74,6 +74,23 @@ describe('win facts', () => {
   });
 });
 
+describe('dialog mode', () => {
+  test('initialDir opens with the side chosen and the amount visible', () => {
+    render(<TradeTicket {...base} initialDir="higher" />);
+    expect(screen.getByLabelText('Credits to spend')).toBeTruthy();
+    expect(screen.getByText('Bet 25 cr on Higher')).toBeTruthy();
+  });
+
+  test('the X calls onClose instead of collapsing', () => {
+    const onClose = vi.fn();
+    render(<TradeTicket {...base} initialDir="lower" onClose={onClose} />);
+    fireEvent.click(screen.getByLabelText('Close'));
+    expect(onClose).toHaveBeenCalled();
+    // Still expanded: closing is the dialog's job, not the card's.
+    expect(screen.getByLabelText('Credits to spend')).toBeTruthy();
+  });
+});
+
 describe('limit mode', () => {
   test('the confirm restates the whole instruction', () => {
     render(<TradeTicket {...base} onPlaceLimit={async () => {}} />);

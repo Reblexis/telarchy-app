@@ -51,6 +51,11 @@ interface Props {
   orders?: LimitOrder[];
   onPlaceLimit?: (direction: 'higher' | 'lower', limitValue: number, budgetCredits: number) => Promise<void>;
   onCancelLimit?: (id: string) => Promise<void>;
+  /** Open with a side already chosen (the floor's Lower/Higher buttons
+      preselect it when they spawn the ticket in a dialog). */
+  initialDir?: 'higher' | 'lower';
+  /** In a dialog, the X closes the dialog instead of collapsing the card. */
+  onClose?: () => void;
 }
 
 const MAX_BET = 250;
@@ -83,8 +88,9 @@ function fmtValue(v: number): string {
 export function TradeTicket({
   probability, liquidity, positions, onTrade, onSell, onPreview, onRequireSignup,
   unit = '', consensus = null, rangeMin, rangeMax, orders = [], onPlaceLimit, onCancelLimit,
+  initialDir, onClose,
 }: Props) {
-  const [dir, setDir] = useState<'higher' | 'lower' | null>(null);
+  const [dir, setDir] = useState<'higher' | 'lower' | null>(initialDir ?? null);
   const [amount, setAmount] = useState('25');
   const [mode, setMode] = useState<'quick' | 'limit'>('quick');
   const [limit, setLimit] = useState('');
@@ -347,8 +353,8 @@ export function TradeTicket({
             </button>
           </div>
         )}
-        {dir && (
-          <button className="ticket-close" aria-label="Close" onClick={() => setDir(null)}>×</button>
+        {(dir || onClose) && (
+          <button className="ticket-close" aria-label="Close" onClick={() => (onClose ? onClose() : setDir(null))}>×</button>
         )}
       </div>
 

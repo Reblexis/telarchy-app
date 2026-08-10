@@ -1,3 +1,4 @@
+import { FloorModal } from './FloorModal';
 import { useState } from 'react';
 import type { PublicProposal } from '../lib/api';
 
@@ -135,48 +136,56 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
           })}
         </ul>
       )}
-      {formOpen ? (
-        <div className="pubws-propose">
-          <div className="pubws-propose-row">
-            <input
-              className="pubws-propose-ask"
-              value={ask}
-              onChange={e => setAsk(e.target.value.replace(/[^0-9]/g, ''))}
-              placeholder="$ ask"
-              inputMode="numeric"
-              aria-label="Your price in USD (required)"
-              required
+      <button className="pubws-ghost pubws-propose-open" onClick={() => setFormOpen(true)}>
+        + Suggest a job
+      </button>
+      {/* The form is a dialog, not a rail squeeze (owner direction
+          2026-08-10): a job pitch deserves room, and the rail column does
+          not have it. Title capped at 80 to match the backend: a task
+          name, not a pitch; the description holds the rest. */}
+      {formOpen && (
+        <FloorModal onClose={() => setFormOpen(false)} label="Suggest a job">
+          <div className="pubws-propose pubws-propose--modal">
+            <h3 className="floor-modal-title">Suggest a job</h3>
+            <div className="pubws-propose-row">
+              <input
+                className="pubws-propose-ask"
+                value={ask}
+                onChange={e => setAsk(e.target.value.replace(/[^0-9]/g, ''))}
+                placeholder="$ ask"
+                inputMode="numeric"
+                aria-label="Your price in USD (required)"
+                required
+              />
+              <input
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="What will you do?"
+                maxLength={70}
+                aria-label="Job title"
+              />
+            </div>
+            {/* 70 + the "$<ask>: " prefix stays under the backend's 80. */}
+            <span className={`pubws-propose-count${title.length >= 60 ? ' is-near' : ''}`}>{title.length}/70</span>
+            <textarea
+              value={desc}
+              onChange={e => setDesc(e.target.value)}
+              placeholder="Why it moves the number, and proof you can deliver (links to your channel, portfolio, prior work). Payment handle here or after approval."
+              rows={5}
+              aria-label="Job description"
             />
-            <input
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="What will you do?"
-              maxLength={110}
-              aria-label="Job title"
-            />
+            <div className="pubws-propose-row">
+              <button className="pubws-cta pubws-cta--small" disabled={formBusy} onClick={() => void submit()}>
+                {formBusy ? 'Submitting…' : 'Put it on the ballot · 500 cr stake'}
+              </button>
+              <button className="pubws-ghost" onClick={() => setFormOpen(false)}>Cancel</button>
+            </div>
+            <p className="pubws-proposal-meta">
+              The 500 cr stake seeds your job&rsquo;s two markets so it is priceable at once, and comes back in full the moment the owner decides, approved or declined. Approval pays your ask and grants nothing else.
+            </p>
+            {formErr && <p className="pubws-joinerr">{formErr}</p>}
           </div>
-          <textarea
-            value={desc}
-            onChange={e => setDesc(e.target.value)}
-            placeholder="Why it moves the number, and proof you can deliver (links to your channel, portfolio, prior work). Payment handle here or after approval."
-            rows={4}
-            aria-label="Job description"
-          />
-          <div className="pubws-propose-row">
-            <button className="pubws-cta pubws-cta--small" disabled={formBusy} onClick={() => void submit()}>
-              {formBusy ? 'Submitting…' : 'Put it on the ballot · 500 cr stake'}
-            </button>
-            <button className="pubws-ghost" onClick={() => setFormOpen(false)}>Cancel</button>
-          </div>
-          <p className="pubws-proposal-meta">
-            The 500 cr stake seeds your job&rsquo;s two markets so it is priceable at once, and comes back in full the moment the owner decides, approved or declined. Approval pays your ask and grants nothing else.
-          </p>
-          {formErr && <p className="pubws-joinerr">{formErr}</p>}
-        </div>
-      ) : (
-        <button className="pubws-ghost pubws-propose-open" onClick={() => setFormOpen(true)}>
-          + Suggest a job
-        </button>
+        </FloorModal>
       )}
     </section>
   );

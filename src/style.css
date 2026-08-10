@@ -8094,6 +8094,104 @@ code, pre, kbd, samp {
   color: var(--lower);
 }
 
+/* The floor's dialog: everything focused happens here. */
+.floor-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: color-mix(in srgb, var(--text-primary) 32%, transparent);
+  backdrop-filter: blur(3px);
+  animation: modal-fade 160ms ease-out;
+}
+
+.floor-modal {
+  width: min(30rem, 100%);
+  max-height: min(88vh, 44rem);
+  overflow-y: auto;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 1.2rem 1.3rem 1.3rem;
+  animation: modal-lift 200ms ease-out;
+}
+
+.floor-modal-title {
+  margin: 0 0 0.9rem;
+  font-family: 'Fraunces', serif;
+  font-size: 1.15rem;
+  color: var(--text-primary);
+}
+
+@keyframes modal-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modal-lift { from { opacity: 0; transform: translateY(10px) scale(0.985); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .floor-modal-overlay, .floor-modal { animation: none; }
+}
+
+/* Inside the dialog the ticket loses its own card chrome: one card is
+   enough. */
+.floor-modal .ticket.is-open {
+  padding: 0;
+  background: none;
+  border: none;
+}
+
+/* The floor's two bet buttons, and the position summary line under them. */
+.pubws-bet {
+  display: flex;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.pubws-pos-summary {
+  display: block;
+  margin: 0.7rem auto 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+.pubws-pos-summary:hover { color: var(--accent); }
+
+/* The propose dialog body reuses the rail form styles at dialog width. */
+.pubws-propose--modal { display: flex; flex-direction: column; gap: 0.7rem; }
+.pubws-propose-count {
+  align-self: flex-end;
+  margin-top: -0.5rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+}
+.pubws-propose-count.is-near { color: var(--accent); }
+
+/* A selected job's pitch clamps at four lines; the full text is one click
+   away. Long pitches must not push the chart below the fold. */
+.pubws-details.is-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.pubws-details-more {
+  display: block;
+  margin: 0.25rem auto 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+.pubws-details-more:hover { color: var(--text-primary); }
+
 /* Conditional mode: the way back to the plain market, then the question
    itself as the headline. */
 .pubws-back {

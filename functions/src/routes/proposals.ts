@@ -27,7 +27,10 @@ proposalsRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const { title, description, liquiditySubsidy, askUsd } = req.body;
   if (!title || typeof title !== 'string') { res.status(400).json({ error: 'title is required' }); return; }
-  const titleError = validateContent(title, 'title', 200);
+  // 80 characters: a job title is a task name, not a pitch. It must fit
+  // the rail row and the conditional headline without swallowing either
+  // (owner direction 2026-08-10); the description field holds the rest.
+  const titleError = validateContent(title, 'title', 80);
   if (titleError) { res.status(400).json({ error: titleError }); return; }
   if (description !== undefined) {
     const descError = validateContent(description, 'description');

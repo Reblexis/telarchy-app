@@ -87,6 +87,18 @@ function submit(agentId: string, body: Record<string, unknown>) {
     .send(body);
 }
 
+describe('listing validation', () => {
+  test('an overlong title is refused: 80 characters is the cap', async () => {
+    await seed();
+    const res = await request(app).post('/api/proposals')
+      .set('X-Test-Agent-Id', RICH).set('X-Workspace-Id', WS)
+      .set('Content-Type', 'application/json')
+      .send({ title: 'x'.repeat(81), description: '', liquiditySubsidy: 20 });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/80/);
+  });
+});
+
 describe('listing-stake atomicity', () => {
   test('a funded stake creates the proposal, debits the stake, and seeds both branches', async () => {
     await seed();

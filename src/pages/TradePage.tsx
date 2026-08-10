@@ -4,6 +4,7 @@ import { api, setActiveWorkspace, type PublicWorkspace } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { MarketChart } from '../components/MarketChart';
 import { TradeTicket, type TicketPosition } from '../components/TradeTicket';
+import { FloorModal } from '../components/FloorModal';
 import { useAnimatedNumber } from '../lib/useAnimatedNumber';
 import { JobsBoard, splitAsk } from '../components/JobsBoard';
 import { LeaderboardRail } from '../components/FloorRails';
@@ -26,6 +27,10 @@ import type { LeaderboardEntry, LimitOrder } from '../lib/api';
  * A signed-in visitor on an Open workspace is joined silently; membership is
  * bookkeeping, not a decision.
  */
+
+function fmtShares(v: number): string {
+  return v >= 100 ? Math.round(v).toLocaleString('en-US') : v.toFixed(1);
+}
 
 function formatValue(v: number): string {
   const abs = Math.abs(v);
@@ -92,6 +97,11 @@ export function TradePage() {
   // The price straight from a trade response, so the headline moves before
   // the reload lands. Keyed by market so it never leaks across a switch.
   const [livePrice, setLivePrice] = useState<{ marketId: string; value: number } | null>(null);
+  // The bet dialog (owner direction 2026-08-10, after Manifold): the floor
+  // shows two buttons; composing the bet happens in a modal. null = closed,
+  // 'manage' = opened from the position summary with no side preset.
+  const [betModal, setBetModal] = useState<'higher' | 'lower' | 'manage' | null>(null);
+  const [descExpanded, setDescExpanded] = useState(false);
   const joinTried = useRef(false);
 
   const reload = () => {
@@ -182,6 +192,7 @@ export function TradePage() {
   useEffect(() => {
     setCondHistory(null);
     setBranch('approved');
+    setDescExpanded(false);
     const aid = pair?.approvedMarketId;
     const did = pair?.declinedMarketId;
     if (!aid || !ws) return;
@@ -360,7 +371,16 @@ export function TradePage() {
                   <span className="pubws-question-task">{splitAsk(selectedJob.title).rest}</span>
                 </h1>
                 {selectedJob.description && (
-                  <p className="pubws-details pubws-enter pubws-enter--1">{selectedJob.description}</p>
+                  <>
+                    <p className={`pubws-details pubws-enter pubws-enter--1${descExpanded ? '' : ' is-clamped'}`}>
+                      {selectedJob.description}
+                    </p>
+                    {selectedJob.description.length > 220 && (
+                      <button className="pubws-details-more" onClick={() => setDescExpanded(v => !v)}>
+                        {descExpanded ? 'less' : 'more'}
+                      </button>
+                    )}
+                  </>
                 )}
               </>
             ) : (
@@ -448,49 +468,27 @@ export function TradePage() {
           </section>
         )}
 
-        {trading && active ? (
+        {active && (trading || (canTrade && !user && !authLoading)) ? (
           <section className="pubws-act pubws-enter pubws-enter--3" aria-label="Place a trade">
-            <TradeTicket
-              probability={active.probability}
-              liquidity={active.liquidity}
-              positions={positions}
-              onTrade={placeTrade}
-              onSell={sellPosition}
-              onPreview={setTicketPreview}
-              unit={unit}
-              consensus={consensus}
-              rangeMin={active.rangeMin}
-              rangeMax={active.rangeMax}
-              orders={orders}
-              onPlaceLimit={placeLimit}
-              onCancelLimit={cancelLimit}
-            />
+            <div className="pubws-bet" role="group" aria-label="Bet">
+              <button className="ticket-side ticket-side--lower" onClick={() => setBetModal('lower')}>Lower</button>
+              <button className="ticket-side ticket-side--higher" onClick={() => setBetModal('higher')}>Higher</button>
+            </div>
+            {/* The held position stays visible on the floor; managing it
+                (selling, cancelling orders) happens in the same dialog. */}
+            {(positions.length > 0 || orders.length > 0) && (
+              <button className="pubws-pos-summary" onClick={() => setBetModal('manage')}>
+                {positions.map(p => `${p.direction === 'higher' ? '▲' : '▼'} ${fmtShares(p.shares)} ${p.direction}`).join(' · ')}
+                {positions.length > 0 && orders.length > 0 ? ' · ' : ''}
+                {orders.length > 0 ? `${orders.length} resting order${orders.length > 1 ? 's' : ''}` : ''}
+                {' '}→ manage
+              </button>
+            )}
           </section>
         ) : null}
 
 
 
-        {canTrade && !user && !authLoading && active ? (
-          /* Newcomers get the same ticket in demo mode: they can compose a
-             bet and watch its impact ghost onto the chart; the confirm is
-             the signup door. The ticket is the pitch. */
-          <section className="pubws-act pubws-enter pubws-enter--3" aria-label="Try a trade">
-            <TradeTicket
-              probability={active.probability}
-              liquidity={active.liquidity}
-              positions={[]}
-              onTrade={async () => {}}
-              onSell={async () => {}}
-              onPreview={setTicketPreview}
-              onRequireSignup={() => navigate('/signup')}
-              unit={unit}
-              consensus={consensus}
-              rangeMin={active.rangeMin}
-              rangeMax={active.rangeMax}
-              onPlaceLimit={async () => {}}
-            />
-          </section>
-        ) : null}
         {/* Two questions, two sections (owner direction 2026-08-10):
             "What is this market?" is the metric's stored definition,
             verbatim, because it is the settlement text and changing it
@@ -563,6 +561,29 @@ export function TradePage() {
           <aside className="pubws-rail pubws-rail--right" aria-hidden="true" />
         )}
       </main>
+
+      {betModal && active && (
+        <FloorModal onClose={() => setBetModal(null)} label="Place a trade">
+          <TradeTicket
+            probability={active.probability}
+            liquidity={active.liquidity}
+            positions={trading ? positions : []}
+            onTrade={placeTrade}
+            onSell={sellPosition}
+            onPreview={setTicketPreview}
+            unit={unit}
+            consensus={consensus}
+            rangeMin={active.rangeMin}
+            rangeMax={active.rangeMax}
+            orders={trading ? orders : []}
+            onPlaceLimit={trading ? placeLimit : async () => {}}
+            onCancelLimit={trading ? cancelLimit : undefined}
+            onRequireSignup={trading ? undefined : () => navigate('/signup')}
+            initialDir={betModal === 'manage' ? undefined : betModal}
+            onClose={() => setBetModal(null)}
+          />
+        </FloorModal>
+      )}
 
       {/* Below the floor: why this exists, in three drawings and three
           sentences (owner direction 2026-08-10: about section under the
