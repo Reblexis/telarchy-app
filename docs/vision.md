@@ -275,25 +275,56 @@ proposal is a note to self with a market attached.
 | Fix pricing | Release the new pricing page to production |
 | Get a vendor contract in place | Sign and return the $5,000 vendor contract |
 
-Three mechanisms make approval self-executing, in descending order of how clean they are:
+**Only a mechanism makes approval self-executing. Everything else is a promise.** This distinction is
+easy to blur and worth stating flatly: "pay the vendor" is not an approve-time act, because approving
+is followed by opening a banking site. "Publish the post" is not one either. Each is *soon* after the
+press, which is not the same as *at* it, and the gap is exactly where follow-through risk lives.
 
-1. **Money moves on approve.** A payment is irreversible the moment it is sent, so the market prices
-   consequences only. This is why spending decisions are the most natural proposals a market can
-   govern, and why an owner with no other automation can still run this loop honestly.
+Approval executes only when something other than the owner's later attention carries it out:
+
+1. **The platform moves the money.** Approving a paid job on a workspace that settles payments *is*
+   the payment, because the system performs it. Nothing sits between the button and the transfer.
 2. **A participant executes on approve.** With AI participants this is the end state: the proposer
-   carries out the action, so the owner's press is the last human step. Approval and execution become
-   the same event by construction.
-3. **A discrete act performed at approval time.** Publishing, sending, booking, signing up. Cheap,
-   requires no machinery, and works for any owner willing to do the thing in the same sitting.
+   carries out the action, so the owner's press is the last human step and approval and execution
+   are the same event by construction.
+3. **An integration fires.** A deploy, a wire, a work order issued into a system that acts on it.
 
-**The honest limit.** Not every worthwhile action fits. Sustained behaviour change (a habit, a
-practice, a training regime) cannot be completed by a button, and forcing it into this shape usually
-turns it into "buy something", which is a different proposal with a different effect. Two options
-when that happens, and they should be chosen deliberately rather than by default: convert the
-willpower into a purchase or a delegation and accept that it is now a different action, or keep the
-behavioural proposal and **state in the description that execution risk is inside the price**, so
-readers know the number is a joint forecast of the owner and the world rather than of the world
-alone.
+If none of these exists for a given workspace, **no wording makes approval self-executing**, and
+pretending otherwise produces the worst kind of proposal: one that looks decisive and is a note to
+self.
+
+#### When there is no mechanism, propose the commitment
+
+The right move is not to fake execution but to change what is being approved.
+
+> **`Commit to X`.** Pressing Approve makes the commitment, and the commitment is the one thing a
+> press can create with certainty. Whether it is honoured is then a real, priced uncertainty rather
+> than an ambiguity sitting outside the market.
+
+This does not eliminate follow-through risk. **It locates it.** The object being priced becomes
+well-defined: a commitment, whose value already includes the probability that it is kept. Compare the
+two failure states it replaces:
+
+| Shape | What Approve guarantees | Where follow-through risk sits |
+|---|---|---|
+| `Improve onboarding` | Nothing | Nowhere. Unpriceable |
+| `Ship the onboarding rewrite this sprint` | Nothing, but it reads as if it does | Hidden, and the price silently absorbs it |
+| **`Commit to shipping the onboarding rewrite this sprint`** | **The commitment exists** | **Inside the price, by construction** |
+
+Two things follow, and both are worth building for.
+
+**Log the outcome on the proposal.** A commitment that is never resolved is back to being a note to
+self. Recording *kept* or *failed* when the window closes is what makes the whole thing evidence.
+
+**Repeated commitments calibrate the owner.** Once outcomes are logged, the market learns the
+organisation's or the individual's actual keep-rate, and prices every subsequent commitment against
+it. That number is genuinely new information: most owners have never measured what fraction of their
+stated intentions they complete. A workspace can make it a metric in its own right.
+
+**The honest limit.** Sustained behaviour change cannot be completed by a button and often cannot be
+bought either. Converting it into a purchase is legitimate but produces a *different* action with a
+different effect, so it should be chosen knowingly rather than reached for because it fits the
+template.
 
 ## Multi-workspace and domain metrics
 

@@ -163,6 +163,12 @@ export function TradeTicket({ probability, liquidity, positions, balance, onTrad
         </button>
       </div>
 
+      {/* Nothing but the side until a side is chosen (owner direction,
+          2026-08-10, following Manifold): an untouched ticket asks one
+          question, and the amount, the confirm and the price mode only
+          exist once that question is answered. */}
+      {dir && (
+      <>
       <div className="ticket-amount-row">
         <label className="ticket-amount">
           <input
@@ -190,18 +196,16 @@ export function TradeTicket({ probability, liquidity, positions, balance, onTrad
 
       <button
         className={`ticket-go${placed ? ' is-placed' : ''}`}
-        disabled={!dir || amountNum <= 0 || busy !== null}
+        disabled={amountNum <= 0 || busy !== null}
         onClick={() => void place()}
       >
         {busy === 'place'
           ? 'Placing…'
           : placed
             ? '✓ Placed'
-            : !dir
-              ? 'Pick a side'
-              : onRequireSignup
-                ? 'Sign up to bet'
-                : `Place ${amountNum} cr on ${dir === 'higher' ? 'Higher' : 'Lower'}`}
+            : onRequireSignup
+              ? 'Sign up to bet'
+              : `Place ${amountNum} cr on ${dir === 'higher' ? 'Higher' : 'Lower'}`}
       </button>
 
       {/* One line of fine print, not two: what it pays and what you have. */}
@@ -217,6 +221,8 @@ export function TradeTicket({ probability, liquidity, positions, balance, onTrad
             </>
           )}
         </p>
+      )}
+      </>
       )}
       {error && <p className="ticket-err">{error}</p>}
     </div>

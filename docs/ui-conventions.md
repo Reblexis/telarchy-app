@@ -260,7 +260,11 @@ y domain stretches to include the ghost so a big bet's reach is visible. The tic
 the background, so a bordered card read as app furniture bolted onto a
 printed page. It is a centered column of type in which exactly ONE element
 carries a fill, the confirm, which is what makes that button unmistakably
-the action. The interaction stays a deliberate two-step: pick a side
+the action. The ticket opens showing ONLY the side pair (owner direction, 2026-08-10,
+following Manifold): the amount, the confirm, the fine print and, when it
+exists, the price mode all appear once a side is chosen, so an untouched
+ticket asks exactly one question. The interaction stays a deliberate
+two-step: pick a side
 (Lower/Higher as two words, not boxes; state carried by colour and a 2px
 rule under the chosen one, with the ▲/▼ glyph keeping its --higher/--lower
 colour even while the word is quiet, since direction is the fastest thing
