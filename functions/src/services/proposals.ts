@@ -365,6 +365,15 @@ export async function approveProposal(
   // resolves against the actual KPI at target date.
   await voidProposalBranch(proposalId, workspaceId, 'declined');
 
+  // The proposer's stake comes back the moment the owner decides (owner
+  // decision 2026-08-10), not at resolution: the declined half just came
+  // back via the void above, and here the owner buys the proposer out of
+  // the approved branch's LP position, so the market keeps its depth while
+  // the proposer is made whole. If the owner cannot cover it, the swap is
+  // skipped with a log and the proposer's claim stays where it was, paid
+  // at resolution like before; a broke owner must not block an approval.
+  await buyOutProposerLiquidity(proposalId, workspaceId, proposal.proposedBy);
+
   const [ws] = await db.select({ proposalReward: workspaces.proposalReward })
     .from(workspaces).where(eq(workspaces.id, workspaceId));
   const reward = ws?.proposalReward ?? 0;
@@ -649,4 +658,48 @@ async function buildProposalMarketSummariesFromRows(
     });
   }
   return out;
+}
+
+
+/** Owner takes over the proposer's LP rows on the proposal's still-open
+ *  markets, refunding the stake at decision time instead of resolution. */
+async function buyOutProposerLiquidity(
+  proposalId: string,
+  workspaceId: string,
+  proposerId: string,
+): Promise<void> {
+  const ownerAgentId = await resolveWorkspaceOwnerAgentId(workspaceId);
+  if (!ownerAgentId || ownerAgentId === proposerId) return;
+
+  const openMarkets = await db.select({ id: markets.id }).from(markets)
+    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId), eq(markets.resolved, false)));
+  if (openMarkets.length === 0) return;
+  const marketIds = openMarkets.map(m => m.id);
+
+  await db.transaction(async tx => {
+    const rows = await tx.select().from(liquidityEvents)
+      .where(and(
+        eq(liquidityEvents.workspaceId, workspaceId),
+        inArray(liquidityEvents.marketId, marketIds),
+        eq(liquidityEvents.agentId, proposerId),
+      ))
+      .for('update');
+    const stake = rows.reduce((sum, r) => sum + (r.poolContribution ?? 0), 0);
+    if (stake <= 0) return;
+
+    const [owner] = await tx.select().from(agents).where(eq(agents.id, ownerAgentId)).for('update');
+    if (!owner || !sufficientBalance(owner.balance as number, stake)) {
+      console.error(`buyOutProposerLiquidity: owner ${ownerAgentId} cannot cover ${stake} for proposal ${proposalId}; proposer's LP claim stays until resolution`);
+      return;
+    }
+
+    await tx.update(agents).set({ balance: sql`${agents.balance} - ${toUnits(stake)}` })
+      .where(eq(agents.id, ownerAgentId));
+    await tx.update(agents).set({ balance: sql`${agents.balance} + ${toUnits(stake)}` })
+      .where(eq(agents.id, proposerId));
+    for (const row of rows) {
+      await tx.update(liquidityEvents).set({ agentId: ownerAgentId })
+        .where(eq(liquidityEvents.id, row.id));
+    }
+  });
 }

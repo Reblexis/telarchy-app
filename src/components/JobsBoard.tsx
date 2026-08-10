@@ -164,12 +164,12 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
           />
           <div className="pubws-propose-row">
             <button className="pubws-cta pubws-cta--small" disabled={formBusy} onClick={() => void submit()}>
-              {formBusy ? 'Submitting…' : 'Put it on the ballot · 40 cr stake'}
+              {formBusy ? 'Submitting…' : 'Put it on the ballot · 500 cr stake'}
             </button>
             <button className="pubws-ghost" onClick={() => setFormOpen(false)}>Cancel</button>
           </div>
           <p className="pubws-proposal-meta">
-            The stake seeds your job&rsquo;s market so it is priceable at once; it is refunded at resolution, not a fee. Approval pays your ask and grants nothing else.
+            The 500 cr stake seeds your job&rsquo;s two markets so it is priceable at once, and comes back in full the moment the owner decides, approved or declined. Approval pays your ask and grants nothing else.
           </p>
           {formErr && <p className="pubws-joinerr">{formErr}</p>}
         </div>

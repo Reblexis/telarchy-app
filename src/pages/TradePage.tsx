@@ -6,7 +6,7 @@ import { MarketChart } from '../components/MarketChart';
 import { TradeTicket, type TicketPosition } from '../components/TradeTicket';
 import { useAnimatedNumber } from '../lib/useAnimatedNumber';
 import { JobsBoard, splitAsk } from '../components/JobsBoard';
-import { ActivityRail, LeaderboardRail, type ActivityItem } from '../components/FloorRails';
+import { LeaderboardRail } from '../components/FloorRails';
 import { AccountMenu } from '../components/AccountMenu';
 import { Logo } from '../components/Logo';
 import type { LeaderboardEntry, LimitOrder } from '../lib/api';
@@ -43,6 +43,21 @@ function formatDelta(delta: number, unit = ''): string {
 // The currency lives in the metric name's parenthetical tail ("LookPilot
 // revenue (monthly, USD)"): display-only inference, so metrics without a
 // currency in the tail stay bare numbers and nothing new enters the API.
+// The day the market settles, from its target period: '2026' and
+// '2026-12' both end on 31 December 2026. Shown in the title (owner
+// direction 2026-08-10: "@ 31 December 2026"); the END of the period, so
+// the year boundary never reads a day late.
+function settleDayOf(targetDate: string): string | null {
+  const m = targetDate.match(/^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?$/);
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = m[2] ? Number(m[2]) : 12;
+  const day = m[3] ? Number(m[3]) : new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString('en-GB', {
+    day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
+  });
+}
+
 function currencyOf(metricName: string): string {
   const tail = metricName.match(/\(([^)]*)\)\s*$/)?.[1] ?? '';
   return /\busd\b|\$/i.test(tail) ? '$' : '';
@@ -264,28 +279,6 @@ export function TradePage() {
     ? { direction: ticketPreview.direction, value: active.rangeMin + ticketPreview.newProb * (active.rangeMax - active.rangeMin) }
     : null;
 
-  // The action log, composed from the public payload: new jobs, decisions,
-  // and the market's own movement. Newest first, capped so the rail stays
-  // a glance, not a feed.
-  const activity = useMemo<ActivityItem[]>(() => {
-    if (!ws) return [];
-    const items: ActivityItem[] = [];
-    for (const p of ws.proposals ?? []) {
-      const t = new Date(p.createdAt).getTime();
-      if (Number.isFinite(t)) items.push({ at: t, kind: 'proposal', text: `new job · ${p.title}` });
-    }
-    for (const d of ws.decided ?? []) {
-      const t = d.resolvedAt ? new Date(d.resolvedAt).getTime() : NaN;
-      if (Number.isFinite(t)) items.push({ at: t, kind: d.status, text: `${d.status} · ${d.title}` });
-    }
-    const traded = (ws.marketHistory ?? []).filter(pt => pt.consensus !== null);
-    for (const pt of traded.slice(1).slice(-8)) {
-      const t = new Date(pt.at).getTime();
-      if (Number.isFinite(t)) items.push({ at: t, kind: 'trade', text: `market moved to ${unit}${formatValue(pt.consensus as number)}` });
-    }
-    return items.sort((a, b) => b.at - a.at).slice(0, 12);
-  }, [ws, unit]);
-
   if (error) {
     return (
       <div className="pubws pubws--center">
@@ -359,7 +352,12 @@ export function TradePage() {
                  settle date beside it was redundant and, at the year
                  boundary, off by a day: the 2026 period ends at the instant
                  January 1 begins. */
-              <h1 className="pubws-instrument-title pubws-enter pubws-enter--1">{metricLabel}</h1>
+              <h1 className="pubws-instrument-title pubws-enter pubws-enter--1">
+                {metricLabel}
+                {settleDayOf(hero.targetDate) && (
+                  <span className="pubws-settle"> @ {settleDayOf(hero.targetDate)}</span>
+                )}
+              </h1>
             )}
             <div className="pubws-headline pubws-enter pubws-enter--2">
               <span className="pubws-price">{unit}{formatValue(shownConsensus ?? consensus)}</span>
@@ -430,15 +428,6 @@ export function TradePage() {
                   : null}
               />
             </div>
-            {/* What the number IS and when it settles, in the metric's own
-                stored words (owner ask 2026-08-10: "right now there's
-                nothing, which is just weird"). Shown for the baseline only;
-                a job view carries its own question. Never edited from here:
-                the description is part of the metric's definition, and
-                changing the definition voids the open market. */}
-            {!selectedJob && ws.heroMetricDescription && (
-              <p className="pubws-metric-desc pubws-enter pubws-enter--3">{ws.heroMetricDescription}</p>
-            )}
           </section>
         )}
 
@@ -462,20 +451,6 @@ export function TradePage() {
           </section>
         ) : null}
 
-        {/* Paid-jobs round 1 (charter 2026-08-09): the proposal side is a
-            jobs board. Signed-in only; the anonymous poster stays clean. */}
-        {trading && ws.proposals !== undefined && hero && (
-          <JobsBoard
-            proposals={ws.proposals}
-            unit={unit}
-            selectedId={selectedJobId}
-            onSelect={id => setSelectedJobId(cur => (cur === id ? null : id))}
-            onPropose={async (title, description, askUsd) => {
-              await api.createProposal({ title, description, liquiditySubsidy: 20, askUsd });
-              reload();
-            }}
-          />
-        )}
 
 
         {canTrade && !user && !authLoading && active ? (
@@ -506,6 +481,14 @@ export function TradePage() {
             links are the floor's provenance, not a member perk. */}
         <section className="pubws-know pubws-enter pubws-enter--3" aria-label="Know the startup">
           <h2 className="pubws-know-head">Know LookPilot, trade it better</h2>
+          {/* The metric's own stored definition, verbatim: what the number
+              is and when it settles. Grouped with the sources (owner
+              direction 2026-08-10), because together they are one unit:
+              what you are trading, and where to verify it. Never edited or
+              paraphrased here; changing the definition voids the market. */}
+          {ws.heroMetricDescription && (
+            <p className="pubws-metric-desc">{ws.heroMetricDescription}</p>
+          )}
           <div className="pubws-know-grid">
             <a href="https://lookpilot.app/data-room/" target="_blank" rel="noreferrer">
               <span className="pubws-know-name">data room</span>
@@ -522,7 +505,29 @@ export function TradePage() {
           </div>
         </section>
         </div>
-        <ActivityRail items={activity} />
+        {/* The jobs board IS the right rail (owner direction 2026-08-10:
+            jobs where the activity log was). The log's information lives
+            on in the chart and the board itself; the rail slot goes to the
+            thing a visitor can act on. */}
+        {ws.proposals !== undefined && hero ? (
+          <aside className="pubws-rail pubws-rail--right" aria-label="Jobs">
+            <JobsBoard
+              proposals={ws.proposals}
+              unit={unit}
+              selectedId={selectedJobId}
+              onSelect={id => setSelectedJobId(cur => (cur === id ? null : id))}
+              onPropose={async (title, description, askUsd) => {
+                // Anonymous proposers go through the signup door; the board
+                // itself is public information (Open workspace ballot).
+                if (!user) { navigate('/signup'); return; }
+                await api.createProposal({ title, description, liquiditySubsidy: 250, askUsd });
+                reload();
+              }}
+            />
+          </aside>
+        ) : (
+          <aside className="pubws-rail pubws-rail--right" aria-hidden="true" />
+        )}
       </main>
 
       {/* Below the floor: why this exists, in three drawings and three

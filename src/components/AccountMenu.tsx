@@ -46,6 +46,12 @@ export function AccountMenu() {
   const [imageUrl, setImageUrl] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // The Manifold import: a two-step inline flow (name the account, put the
+  // code in its bio, verify). null = closed; 'ask' = username field;
+  // otherwise the pending code to verify against.
+  const [manifold, setManifold] = useState<null | 'ask' | { code: string; username: string }>(null);
+  const [manifoldName, setManifoldName] = useState('');
+  const [manifoldMsg, setManifoldMsg] = useState('');
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const image = savedImage ?? user?.image ?? null;
@@ -91,6 +97,37 @@ export function AccountMenu() {
 
   const label = participant?.nickname || user?.name || user?.email || 'Account';
   const earned = participant?.earnedBetting ?? null;
+
+  const manifoldStart = async () => {
+    if (busy) return;
+    setBusy(true); setError(''); setManifoldMsg('');
+    try {
+      const r = await fetch('/api/import/manifold/start', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: manifoldName }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Could not start');
+      setManifold({ code: d.code, username: d.username });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally { setBusy(false); }
+  };
+
+  const manifoldClaim = async () => {
+    if (busy) return;
+    setBusy(true); setError(''); setManifoldMsg('');
+    try {
+      const r = await fetch('/api/import/manifold/claim', { method: 'POST' });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Could not verify');
+      setManifoldMsg(`Imported @${d.username}: +${d.granted.toLocaleString('en-US')} cr (net worth M${d.netWorth.toLocaleString('en-US')}, cap ${d.cap.toLocaleString('en-US')})`);
+      setManifold(null);
+      load();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally { setBusy(false); }
+  };
 
   return (
     <div className="acctmenu" ref={rootRef}>
@@ -156,6 +193,46 @@ export function AccountMenu() {
               {image ? 'Change picture' : 'Set a picture'}
             </button>
           )}
+
+          {/* Bring a Manifold record: proven calibration starts with more
+              than the signup grant (1 mana = 1 cr, capped). Two steps, all
+              inline: name the account, put the code in its bio, verify. */}
+          {manifold === null && !manifoldMsg && (
+            <button className="acctmenu-item" onClick={() => { setManifold('ask'); setError(''); }}>
+              Import Manifold balance
+            </button>
+          )}
+          {manifold === 'ask' && (
+            <div className="acctmenu-edit">
+              <input
+                value={manifoldName}
+                onChange={e => setManifoldName(e.target.value)}
+                placeholder="your Manifold username"
+                aria-label="Manifold username"
+              />
+              <div className="acctmenu-edit-row">
+                <button className="acctmenu-save" disabled={busy || !manifoldName.trim()} onClick={() => void manifoldStart()}>
+                  {busy ? 'Checking…' : 'Next'}
+                </button>
+                <button className="acctmenu-item" onClick={() => { setManifold(null); setError(''); }}>Cancel</button>
+              </div>
+            </div>
+          )}
+          {manifold !== null && manifold !== 'ask' && (
+            <div className="acctmenu-edit">
+              <p className="acctmenu-hint">
+                Add <code>{manifold.code}</code> to @{manifold.username}&rsquo;s bio on
+                manifold.markets, then verify. You can remove it right after.
+              </p>
+              <div className="acctmenu-edit-row">
+                <button className="acctmenu-save" disabled={busy} onClick={() => void manifoldClaim()}>
+                  {busy ? 'Verifying…' : 'Verify'}
+                </button>
+                <button className="acctmenu-item" onClick={() => { setManifold(null); setError(''); }}>Cancel</button>
+              </div>
+            </div>
+          )}
+          {manifoldMsg && <p className="acctmenu-ok">{manifoldMsg}</p>}
 
           {/* The console is behind the alpha wall; a public trader's whole
               account IS this menu until it opens. */}

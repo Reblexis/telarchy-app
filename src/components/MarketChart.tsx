@@ -58,7 +58,19 @@ function fullNum(v: number): string {
   return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
+// The zoom row, Manifold-style: fixed windows ending now. A window longer
+// than the market's whole life shows nothing ALL does not, so it is
+// disabled rather than lying about having more to show.
+const RANGES: Array<{ key: string; ms: number }> = [
+  { key: '1H', ms: 3600e3 },
+  { key: '6H', ms: 6 * 3600e3 },
+  { key: '1D', ms: 24 * 3600e3 },
+  { key: '1W', ms: 7 * 24 * 3600e3 },
+  { key: '1M', ms: 30 * 24 * 3600e3 },
+];
+
 export function MarketChart({ series, consensus, unit = '', preview = null, orders = [], secondary = null, height }: Props) {
+  const [range, setRange] = useState<number | null>(null);
   const [compact, setCompact] = useState(() => typeof window !== 'undefined' && window.innerWidth < 520);
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 519px)');
@@ -72,23 +84,38 @@ export function MarketChart({ series, consensus, unit = '', preview = null, orde
   const [cursor, setCursor] = useState<number | null>(null);
 
   const model = useMemo(() => {
-    const pts = series
+    let pts = series
       .filter(p => p.consensus !== null)
       .map(p => ({ t: new Date(p.at).getTime(), v: p.consensus as number }))
       .filter(p => Number.isFinite(p.t))
       .sort((a, b) => a.t - b.t);
     if (pts.length === 0) return null;
     const now = Date.now();
+    const fullSpan = now - pts[0].t;
+    if (range !== null) {
+      const cutoff = now - range;
+      // The call in force AT the window's left edge, so the step line
+      // enters the window at its true level instead of starting mid-air.
+      const carried = [...pts].reverse().find(p => p.t <= cutoff);
+      const inside = pts.filter(p => p.t > cutoff);
+      pts = carried ? [{ t: cutoff, v: carried.v }, ...inside] : (inside.length ? inside : pts);
+    }
     // The call holds between trades and since the last one: extend to now.
     const extended = [...pts, { t: Math.max(now, pts[pts.length - 1].t), v: consensus }];
 
     // The secondary branch shares the domain: two lines are only comparable
     // when they share axes, and the gap between them is the point.
-    const secPts = (secondary?.series ?? [])
+    let secPts = (secondary?.series ?? [])
       .filter(p => p.consensus !== null)
       .map(p => ({ t: new Date(p.at).getTime(), v: p.consensus as number }))
       .filter(p => Number.isFinite(p.t))
       .sort((a, b) => a.t - b.t);
+    if (range !== null && secPts.length > 0) {
+      const cutoff = now - range;
+      const carried = [...secPts].reverse().find(p => p.t <= cutoff);
+      const inside = secPts.filter(p => p.t > cutoff);
+      secPts = carried ? [{ t: cutoff, v: carried.v }, ...inside] : inside;
+    }
 
     const t0 = Math.min(extended[0].t, secPts[0]?.t ?? extended[0].t);
     const t1 = extended[extended.length - 1].t;
@@ -150,8 +177,8 @@ export function MarketChart({ series, consensus, unit = '', preview = null, orde
       : new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const ticks = [0.08, 0.38, 0.68, 0.95].map(f => t0 + f * span);
 
-    return { pts, extended, d, areaPath, end, secD, secEnd, t0, t1: t0 + span, span, x, y, gridVals, ticks, fmt, open: extended[0] };
-  }, [series, consensus, preview, orders, secondary, H, W, PAD_L, PAD_R]);
+    return { pts, extended, d, areaPath, end, secD, secEnd, t0, t1: t0 + span, span, fullSpan, x, y, gridVals, ticks, fmt, open: extended[0] };
+  }, [series, consensus, preview, orders, secondary, range, H, W, PAD_L, PAD_R]);
 
   if (!model) return null;
   const { extended, d, areaPath, end, secD, secEnd, x, y, gridVals, ticks, fmt } = model;
@@ -188,6 +215,26 @@ export function MarketChart({ series, consensus, unit = '', preview = null, orde
 
   return (
     <div className="mchart">
+      <div className="mchart-ranges" role="group" aria-label="Time range">
+        {RANGES.map(r => (
+          <button
+            key={r.key}
+            className={`mchart-range${range === r.ms ? ' is-active' : ''}`}
+            disabled={r.ms >= model.fullSpan}
+            aria-pressed={range === r.ms}
+            onClick={() => setRange(cur => (cur === r.ms ? null : r.ms))}
+          >
+            {r.key}
+          </button>
+        ))}
+        <button
+          className={`mchart-range${range === null ? ' is-active' : ''}`}
+          aria-pressed={range === null}
+          onClick={() => setRange(null)}
+        >
+          ALL
+        </button>
+      </div>
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}

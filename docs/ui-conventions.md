@@ -335,3 +335,24 @@ returns as a render change.
 - Add whitespace before adding a divider.
 - Use a hairline before using a card.
 - Match an existing pattern before inventing one.
+
+
+**Revised 2026-08-10 (Viktor), floor layout round 3.** The baseline title
+carries the settle day ("LookPilot net 2026 @ 31 December 2026", the END
+of the target period so the year boundary never reads a day late), set a
+register quieter than the name (`.pubws-settle`). The chart has a zoom row
+(`.mchart-ranges`: 1H/6H/1D/1W/1M/ALL, Manifold-style); windows longer
+than the market's life are disabled, not hidden, and a windowed view
+enters at the call in force at its left edge so the step line never starts
+mid-air. The jobs board moved into the RIGHT RAIL, replacing the activity
+log (the log's information lives on in the chart and the board); it
+renders for everyone, with proposing routed to /signup when anonymous. The
+metric's stored description moved from under the chart into the
+"Know LookPilot" section, above the source links: description and sources
+are one unit, what you are trading and where to verify it. The proposal
+stake is 500 cr total (250 per branch market) and comes back in full at
+decision time: declined refunds via the void, approved via the owner
+buying out the proposer's LP position (see notes in the telarchy
+umbrella). The account menu gained "Import Manifold balance": net worth at
+1 mana = 1 cr, capped at 10,000, once per account pair, verified by a
+one-time code in the Manifold bio.
