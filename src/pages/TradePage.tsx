@@ -355,7 +355,6 @@ export function TradePage() {
               probability={active.probability}
               liquidity={active.liquidity}
               positions={positions}
-              balance={balance}
               onTrade={placeTrade}
               onSell={sellPosition}
               onPreview={setTicketPreview}
@@ -406,7 +405,6 @@ export function TradePage() {
               probability={active.probability}
               liquidity={active.liquidity}
               positions={[]}
-              balance={null}
               onTrade={async () => {}}
               onSell={async () => {}}
               onPreview={setTicketPreview}

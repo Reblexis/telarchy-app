@@ -24,10 +24,6 @@ interface Props {
   probability: number;
   liquidity: number;
   positions: TicketPosition[];
-  /** Spendable credits, or null while unknown; rendered inside the ticket
-      because the trader's wallet is part of the trade decision, not page
-      chrome. */
-  balance: number | null;
   onTrade: (direction: 'higher' | 'lower', amount: number) => Promise<void>;
   onSell: (p: TicketPosition) => Promise<void>;
   /** Fires whenever the composed (not yet placed) bet changes: the market
@@ -49,7 +45,7 @@ function fmt(v: number): string {
   return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
-export function TradeTicket({ probability, liquidity, positions, balance, onTrade, onSell, onPreview, onRequireSignup }: Props) {
+export function TradeTicket({ probability, liquidity, positions, onTrade, onSell, onPreview, onRequireSignup }: Props) {
   const [dir, setDir] = useState<'higher' | 'lower' | null>(null);
   const [amount, setAmount] = useState('25');
   const [busy, setBusy] = useState<string | null>(null);
@@ -208,19 +204,10 @@ export function TradeTicket({ probability, liquidity, positions, balance, onTrad
               : `Place ${amountNum} cr on ${dir === 'higher' ? 'Higher' : 'Lower'}`}
       </button>
 
-      {/* One line of fine print, not two: what it pays and what you have. */}
-      {(payout !== null || balance !== null) && !placed && (
-        <p className="ticket-foot">
-          {payout !== null && <>pays up to {fmt(payout)} cr</>}
-          {payout !== null && balance !== null && <span className="ticket-foot-sep"> · </span>}
-          {balance !== null && (
-            <>
-              {balance >= 10_000
-                ? `${Math.round(balance / 1000).toLocaleString('en-US')}k`
-                : balance.toLocaleString('en-US', { maximumFractionDigits: 0 })} cr to spend
-            </>
-          )}
-        </p>
+      {/* What the bet pays, and nothing else: the wallet belongs in the
+          account menu, not under every bet. */}
+      {payout !== null && !placed && (
+        <p className="ticket-foot">pays up to {fmt(payout)} cr</p>
       )}
       </>
       )}
