@@ -8097,6 +8097,130 @@ code, pre, kbd, samp {
   color: var(--lower);
 }
 
+/* The job form, designed for the dialog rather than inherited from the
+   rail: ONE field skin (page background, hairline border, 10px radius),
+   a small label over every field with the counter on the label line, one
+   full-width primary, and the fine print a clear register below. */
+.jobform {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.jobform-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.jobform-head .floor-modal-title { margin: 0; }
+
+.jobform-x {
+  padding: 0 0.2rem;
+  border: none;
+  background: none;
+  font-size: 1.35rem;
+  line-height: 1;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+.jobform-x:hover { color: var(--text-primary); }
+
+.jobform-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.jobform-labelrow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.jobform-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.jobform-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+}
+.jobform-count.is-near { color: var(--accent); }
+
+.jobform-input,
+.jobform-ask {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.9rem;
+  transition: border-color 120ms ease;
+}
+.jobform-input:focus { outline: none; border-color: var(--accent); }
+textarea.jobform-input { resize: none; line-height: 1.5; }
+
+/* The price: same skin, sized to a price, the $ living inside the box. */
+.jobform-ask {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  width: 8rem;
+  cursor: text;
+}
+.jobform-ask:focus-within { border-color: var(--accent); }
+.jobform-ask span {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+.jobform-ask input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9rem;
+}
+.jobform-ask input:focus { outline: none; }
+
+.jobform-go {
+  width: 100%;
+  margin-top: 0.2rem;
+  padding: 0.8rem 1.2rem;
+  border: none;
+  border-radius: 10px;
+  background: var(--button-bg);
+  color: var(--button-text);
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 120ms ease;
+}
+.jobform-go:hover:not(:disabled) { filter: brightness(1.1); }
+.jobform-go:disabled { opacity: 0.6; cursor: default; }
+
+.jobform-fine {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.55;
+  color: var(--text-tertiary);
+}
+
+.jobform-err {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--lower);
+}
+
 /* The floor's dialog: everything focused happens here. */
 .floor-modal-overlay {
   position: fixed;
@@ -8163,29 +8287,6 @@ code, pre, kbd, samp {
 }
 .pubws-pos-summary:hover { color: var(--accent); }
 
-/* The propose dialog body reuses the rail form styles at dialog width. */
-.pubws-propose--modal { display: flex; flex-direction: column; gap: 0.7rem; }
-.pubws-propose--modal textarea {
-  resize: none;
-  border-radius: 8px;
-}
-.pubws-propose--modal input,
-.pubws-propose--modal textarea {
-  transition: border-color 120ms ease;
-}
-.pubws-propose--modal input:focus,
-.pubws-propose--modal textarea:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-.pubws-propose-count {
-  align-self: flex-end;
-  margin-top: -0.5rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.68rem;
-  color: var(--text-tertiary);
-}
-.pubws-propose-count.is-near { color: var(--accent); }
 
 /* A selected job's pitch clamps at four lines; the full text is one click
    away. Long pitches must not push the chart below the fold. */

@@ -141,50 +141,66 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
         + Suggest a job
       </button>
       {/* The form is a dialog, not a rail squeeze (owner direction
-          2026-08-10): a job pitch deserves room, and the rail column does
-          not have it. Title capped at 80 to match the backend: a task
-          name, not a pitch; the description holds the rest. */}
+          2026-08-10, reworked same day after a review: one field skin, a
+          label over every field, the counter on the label line instead of
+          dangling, one full-width primary, and the close lives in the
+          corner like every dialog; Escape and the backdrop also close). */}
       {formOpen && (
         <FloorModal onClose={() => setFormOpen(false)} label="Suggest a job">
-          <div className="pubws-propose pubws-propose--modal">
-            <h3 className="floor-modal-title">Suggest a job</h3>
-            <div className="pubws-propose-row">
+          <div className="jobform">
+            <div className="jobform-head">
+              <h3 className="floor-modal-title">Suggest a job</h3>
+              <button className="jobform-x" aria-label="Close" onClick={() => setFormOpen(false)}>×</button>
+            </div>
+            <div className="jobform-field">
+              <div className="jobform-labelrow">
+                <span className="jobform-label">What will you do?</span>
+                <span className={`jobform-count${title.length >= 60 ? ' is-near' : ''}`}>{title.length}/70</span>
+              </div>
+              {/* 70 + the "$<ask>: " prefix stays under the backend's 80. */}
               <input
-                className="pubws-propose-ask"
-                value={ask}
-                onChange={e => setAsk(e.target.value.replace(/[^0-9]/g, ''))}
-                placeholder="$ ask"
-                inputMode="numeric"
-                aria-label="Your price in USD (required)"
-                required
-              />
-              <input
+                className="jobform-input"
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                placeholder="What will you do?"
+                placeholder="Stream LookPilot to my viewers for an hour"
                 maxLength={70}
                 aria-label="Job title"
               />
             </div>
-            {/* 70 + the "$<ask>: " prefix stays under the backend's 80. */}
-            <span className={`pubws-propose-count${title.length >= 60 ? ' is-near' : ''}`}>{title.length}/70</span>
-            <textarea
-              value={desc}
-              onChange={e => setDesc(e.target.value)}
-              placeholder="Why it moves the number, and proof you can deliver (links to your channel, portfolio, prior work). Payment handle here or after approval."
-              rows={5}
-              aria-label="Job description"
-            />
-            <div className="pubws-propose-row">
-              <button className="pubws-cta pubws-cta--small" disabled={formBusy} onClick={() => void submit()}>
-                {formBusy ? 'Submitting…' : 'Put it on the ballot · 500 cr stake'}
-              </button>
-              <button className="pubws-ghost" onClick={() => setFormOpen(false)}>Cancel</button>
+            <div className="jobform-field">
+              <span className="jobform-label">Your price, paid on approval</span>
+              <label className="jobform-ask">
+                <span aria-hidden="true">$</span>
+                <input
+                  value={ask}
+                  onChange={e => setAsk(e.target.value.replace(/[^0-9]/g, ''))}
+                  placeholder="0"
+                  inputMode="numeric"
+                  aria-label="Your price in USD (required)"
+                  required
+                />
+              </label>
             </div>
-            <p className="pubws-proposal-meta">
-              The 500 cr stake seeds your job&rsquo;s two markets so it is priceable at once, and comes back in full the moment the owner decides, approved or declined. Approval pays your ask and grants nothing else.
+            <div className="jobform-field">
+              <span className="jobform-label">Why you, and why it moves the number</span>
+              <textarea
+                className="jobform-input"
+                value={desc}
+                onChange={e => setDesc(e.target.value)}
+                placeholder="Links to your channel, portfolio, prior work. Payment handle here or after approval."
+                rows={4}
+                aria-label="Job description"
+              />
+            </div>
+            <button className="jobform-go" disabled={formBusy} onClick={() => void submit()}>
+              {formBusy ? 'Submitting…' : 'Put it on the ballot · 500 cr stake'}
+            </button>
+            <p className="jobform-fine">
+              The stake seeds your job&rsquo;s two markets and comes back in
+              full when the owner decides, approved or declined. Approval pays
+              your ask and grants nothing else.
             </p>
-            {formErr && <p className="pubws-joinerr">{formErr}</p>}
+            {formErr && <p className="jobform-err">{formErr}</p>}
           </div>
         </FloorModal>
       )}
