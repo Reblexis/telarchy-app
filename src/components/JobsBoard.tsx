@@ -169,10 +169,14 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
             </div>
             <div className="jobform-field">
               <span className="jobform-label">Your price, paid on approval</span>
-              <label className="jobform-ask">
+              {/* The ticket's own input language: a bare mono numeral on an
+                  underline, the dollar sign standing beside it. One visual
+                  system across both dialogs. */}
+              <label className="jobform-price">
                 <span aria-hidden="true">$</span>
                 <input
                   value={ask}
+                  style={{ width: `${Math.max(1, ask.length)}ch` }}
                   onChange={e => setAsk(e.target.value.replace(/[^0-9]/g, ''))}
                   placeholder="0"
                   inputMode="numeric"
