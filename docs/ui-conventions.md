@@ -266,7 +266,10 @@ center column). Below 1120px the rails stack under the poster,
 leaderboard first. At the bottom of the floor column sits
 "Know LookPilot, trade it better" (`.pubws-know`, owner direction
 2026-08-10; it replaced first the copied metric-value evidence row and
-then a bare "sources" label that explained nothing): three described
+then a bare "sources" label that explained nothing): one sentence on what
+the product IS (from LookPilot's own positioning: webcam head tracker for
+sims, best-reviewed on Steam, no hardware, $14.99 once), then the metric's
+stored definition a register quieter, then three described
 links a forecaster can audit without trusting this page: the data room
 ("the official numbers this market settles on"), the Steam store page
 ("the product, as players see it"), and SteamDB ("third-party sales

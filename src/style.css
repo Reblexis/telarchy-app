@@ -8877,10 +8877,21 @@ code, pre, kbd, samp {
    Three quiet columns, type only. */
 /* The metric's own definition, under the chart: what the number is and
    when it settles, in the words that would void the market if changed. */
+/* The product, in its own words: one sentence, a register up from the
+   definition below it. */
+.pubws-know-what {
+  max-width: 56ch;
+  margin: 0 auto 0.8rem;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  text-align: center;
+  color: var(--text-primary);
+}
+
 .pubws-metric-desc {
   max-width: 56ch;
   margin: 0 auto 1.2rem;
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   line-height: 1.6;
   text-align: center;
   color: var(--text-secondary);

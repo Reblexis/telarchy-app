@@ -481,6 +481,13 @@ export function TradePage() {
             links are the floor's provenance, not a member perk. */}
         <section className="pubws-know pubws-enter pubws-enter--3" aria-label="Know the startup">
           <h2 className="pubws-know-head">Know LookPilot, trade it better</h2>
+          {/* What the startup IS, before what its number is: one sentence,
+              taken from LookPilot's own positioning (owner ask 2026-08-10). */}
+          <p className="pubws-know-what">
+            LookPilot is a webcam head tracker for flight, trucking and racing
+            sims, the best-reviewed one on Steam: look around in the game by
+            moving your head, no hardware, $14.99 once.
+          </p>
           {/* The metric's own stored definition, verbatim: what the number
               is and when it settles. Grouped with the sources (owner
               direction 2026-08-10), because together they are one unit:
