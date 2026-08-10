@@ -575,7 +575,7 @@ export const api = {
   // Proposals
   getProposals: (status?: string) => request(`/api/proposals${status ? `?status=${encodeURIComponent(status)}` : ''}`),
   getProposal: (id: string) => request(`/api/proposals/${id}`),
-  createProposal: (body: { title: string; description: string; liquiditySubsidy?: number; askUsd?: number }) =>
+  createProposal: (body: { title: string; description: string; liquiditySubsidy?: number; askUsd?: number; payoutHandle?: string }) =>
     request('/api/proposals', { method: 'POST', body: JSON.stringify(body) }),
   approveProposal: (id: string) =>
     request(`/api/proposals/${id}/approve`, { method: 'POST' }),

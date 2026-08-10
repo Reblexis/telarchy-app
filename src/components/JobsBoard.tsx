@@ -26,7 +26,7 @@ interface Props {
   /** The job whose conditional market the page is currently showing. */
   selectedId: string | null;
   onSelect: (id: string) => void;
-  onPropose: (title: string, description: string, askUsd: number) => Promise<void>;
+  onPropose: (title: string, description: string, askUsd: number, payoutHandle: string) => Promise<void>;
 }
 
 function fmtVal(v: number, unit: string): string {
@@ -56,6 +56,7 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
   const [ask, setAsk] = useState('');
   const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
+  const [payout, setPayout] = useState('');
   const [formBusy, setFormBusy] = useState(false);
   const [formErr, setFormErr] = useState('');
 
@@ -73,6 +74,9 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
     // Every proposal is a job with a price (charter, 2026-08-09): the ask
     // is required. The round-1 convention composes it into the title.
     if (askNum <= 0) { setFormErr('Name your price in USD. Every job has one.'); return; }
+    // A paid job needs somewhere for the money to go, or approval is a
+    // promise the owner cannot keep. Enforced server-side too.
+    if (payout.trim().length < 5) { setFormErr('Say where the money should go: a PayPal email, IBAN, or crypto address.'); return; }
     // The title still carries the price because it reads well and travels
     // (activity log, share text); the number is also sent separately, and
     // that copy is the one anything financial reads.
@@ -80,8 +84,8 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
     setFormErr('');
     setFormBusy(true);
     try {
-      await onPropose(fullTitle, desc.trim(), askNum);
-      setAsk(''); setTitle(''); setDesc(''); setFormOpen(false);
+      await onPropose(fullTitle, desc.trim(), askNum, payout.trim());
+      setAsk(''); setTitle(''); setDesc(''); setPayout(''); setFormOpen(false);
     } catch (e) {
       setFormErr((e as Error).message || 'Failed to submit');
     } finally {
@@ -180,6 +184,15 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
                 required
               />
             </label>
+            <p className="ticket-label">Where the money goes if approved</p>
+            <input
+              className="jobform-line jobform-line--title"
+              value={payout}
+              onChange={e => setPayout(e.target.value)}
+              placeholder="PayPal email, IBAN, or crypto address"
+              maxLength={200}
+              aria-label="Payout handle"
+            />
             <p className="ticket-label">Why you, and why it moves the number</p>
             <textarea
               className="jobform-line jobform-line--desc"

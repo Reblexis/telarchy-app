@@ -105,7 +105,22 @@ import('./app').then(async ({ app }) => {
   // Serve frontend static files when bundled in self-hosted mode
   const publicDir = path.join(__dirname, 'public');
   if (fs.existsSync(publicDir)) {
-    app.use(express.static(publicDir));
+    // Cache policy (root cause of every "I deployed but still see the old
+    // UI" report, 2026-08-10): the HTML shell must ALWAYS revalidate
+    // (no-cache + the ETag makes that a 304 when nothing changed), because
+    // it is the pointer to the hashed bundles; without an explicit header,
+    // browsers heuristically cache it and serve stale bundles for hours.
+    // The hashed assets themselves are immutable by construction and cache
+    // for a year.
+    app.use(express.static(publicDir, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'no-cache');
+        } else if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+      },
+    }));
     // SPA fallback: serve index.html for all non-API routes. The exclusion
     // checks for `/api/` (with trailing slash) so SPA routes whose path
     // happens to begin with the literal characters "/api" (e.g.
@@ -139,6 +154,7 @@ import('./app').then(async ({ app }) => {
           if (ws && ws.visibility !== 'private') {
             const { injectWorkspaceMeta } = await import('./lib/share-meta');
             const html = fs.readFileSync(indexPath, 'utf8');
+            res.setHeader('Cache-Control', 'no-cache');
             res.type('html').send(injectWorkspaceMeta(html, ws, `https://telarchy.com${req.path}`));
             return;
           }
@@ -146,6 +162,7 @@ import('./app').then(async ({ app }) => {
           console.error('share-meta injection failed:', e);
         }
       }
+      res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(indexPath);
     });
   }

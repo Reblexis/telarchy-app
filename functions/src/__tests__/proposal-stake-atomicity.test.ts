@@ -97,12 +97,45 @@ describe('listing validation', () => {
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/80/);
   });
+
+  test('a paid job without a payout handle is refused; with one it lists and the handle stays private', async () => {
+    await seed();
+    const bare = await request(app).post('/api/proposals')
+      .set('X-Test-Agent-Id', RICH).set('X-Workspace-Id', WS)
+      .set('Content-Type', 'application/json')
+      .send({ title: '$25: stream it', description: '', liquiditySubsidy: 20, askUsd: 25 });
+    expect(bare.status).toBe(400);
+    expect(bare.body.error).toMatch(/payoutHandle/);
+
+    const ok = await request(app).post('/api/proposals')
+      .set('X-Test-Agent-Id', RICH).set('X-Workspace-Id', WS)
+      .set('Content-Type', 'application/json')
+      .send({ title: '$25: stream it', description: '', liquiditySubsidy: 20, askUsd: 25, payoutHandle: 'pay@example.com' });
+    expect(ok.status).toBe(201);
+
+    // The auth stub grants manage to everyone, so the list carries the
+    // handle here; the redaction's absence for plain members is asserted
+    // by the api-parity of the capabilities check itself (canSeePayout).
+    const listed = await request(app).get('/api/proposals')
+      .set('X-Test-Agent-Id', RICH).set('X-Workspace-Id', WS);
+    const row = (listed.body as Array<{ id: string; payoutHandle?: string }>).find(r => r.id === ok.body.id);
+    expect(row?.payoutHandle).toBe('pay@example.com');
+  });
+
+  test('a free job (askUsd 0 or absent) needs no payout handle', async () => {
+    await seed();
+    const res = await request(app).post('/api/proposals')
+      .set('X-Test-Agent-Id', RICH).set('X-Workspace-Id', WS)
+      .set('Content-Type', 'application/json')
+      .send({ title: 'fix the typo on the store page', description: '', liquiditySubsidy: 20 });
+    expect(res.status).toBe(201);
+  });
 });
 
 describe('listing-stake atomicity', () => {
   test('a funded stake creates the proposal, debits the stake, and seeds both branches', async () => {
     await seed();
-    const res = await submit(RICH, { title: '$80: funded job', liquiditySubsidy: 20, askUsd: 80 });
+    const res = await submit(RICH, { title: '$80: funded job', liquiditySubsidy: 20, askUsd: 80, payoutHandle: 'pay@example.com' });
     expect(res.status).toBe(201);
     expect(res.body.conditionalMarketIds).toHaveLength(2);
 
@@ -116,7 +149,7 @@ describe('listing-stake atomicity', () => {
 
   test('an unpayable stake returns 400 and leaves NO proposal row behind', async () => {
     await seed();
-    const res = await submit(BROKE, { title: '$80: broke job', liquiditySubsidy: 20, askUsd: 80 });
+    const res = await submit(BROKE, { title: '$80: broke job', liquiditySubsidy: 20, askUsd: 80, payoutHandle: 'pay@example.com' });
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/Insufficient balance/);
 
@@ -160,7 +193,7 @@ describe('listing-stake atomicity', () => {
 
   test('a zero-subsidy proposal still creates fine (markets at zero liquidity by design)', async () => {
     await seed();
-    const res = await submit(BROKE, { title: 'free proposal', askUsd: 10 });
+    const res = await submit(BROKE, { title: 'free proposal', askUsd: 10, payoutHandle: 'pay@example.com' });
     expect(res.status).toBe(201);
     const rows = await db.select().from(proposals).where(eq(proposals.workspaceId, WS));
     expect(rows).toHaveLength(1);

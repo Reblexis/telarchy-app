@@ -25,7 +25,7 @@ proposalsRouter.use(authMiddleware);
 
 proposalsRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
-  const { title, description, liquiditySubsidy, askUsd } = req.body;
+  const { title, description, liquiditySubsidy, askUsd, payoutHandle } = req.body;
   if (!title || typeof title !== 'string') { res.status(400).json({ error: 'title is required' }); return; }
   // 80 characters: a job title is a task name, not a pitch. It must fit
   // the rail row and the conditional headline without swallowing either
@@ -47,6 +47,16 @@ proposalsRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
       res.status(400).json({ error: 'askUsd must be a non-negative whole number of USD' }); return;
     }
     if (askUsd > 1_000_000) { res.status(400).json({ error: 'askUsd is implausibly large' }); return; }
+    // A non-zero ask is a payment the owner must be able to make the moment
+    // they approve; a job with no way to receive it is a stuck promise.
+    if (askUsd > 0) {
+      if (typeof payoutHandle !== 'string' || payoutHandle.trim().length < 5) {
+        res.status(400).json({ error: 'payoutHandle is required for a paid job: where should the money go? (PayPal email, IBAN, or crypto address; at least 5 characters)' }); return;
+      }
+      if (payoutHandle.trim().length > 200) {
+        res.status(400).json({ error: 'payoutHandle must be at most 200 characters' }); return;
+      }
+    }
     ask = askUsd;
   }
 
@@ -88,6 +98,7 @@ proposalsRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
   await db.insert(proposals).values({
     id, workspaceId, proposedBy,
     title, description: description || '',
+    payoutHandle: typeof payoutHandle === 'string' && payoutHandle.trim() ? payoutHandle.trim() : null,
     askUsd: ask,
     status: 'pending', conditionalMarketIds: [],
     liquiditySubsidy: subsidy,
@@ -145,10 +156,13 @@ proposalsRouter.get('/', requireCapability('read'), wrap(async (req, res) => {
   if (status) rows = rows.filter(t => t.status === status);
 
   const names = await getParticipantDisplayNames(rows.map(t => t.proposedBy));
+  // Payment information goes to the person who pays, nobody else.
+  const canSeePayout = req.auth!.capabilities.has('manage');
 
   res.json(rows.map(t => ({
     id: t.id,
     title: t.title,
+    ...(canSeePayout ? { payoutHandle: t.payoutHandle ?? null } : {}),
     description: typeof t.description === 'string' && t.description.length > 150
       ? t.description.slice(0, 150) + '…'
       : (t.description ?? ''),
@@ -181,8 +195,13 @@ proposalsRouter.get('/:proposalId', requireCapability('read'), wrap(async (req, 
   // frontend to display the real upfront subsidy cost.
   const branchMarketCount = proposalMarkets.reduce((n, p) => n + (p.approved ? 1 : 0) + (p.declined ? 1 : 0), 0);
   const names = await getParticipantDisplayNames([proposal.proposedBy]);
+  // Payment information goes to the person who pays (and its owner),
+  // nobody else: strip the handle from the spread for plain members.
+  const canSeePayout = req.auth!.capabilities.has('manage') || req.auth!.agentId === proposal.proposedBy;
+  const { payoutHandle: rawHandle, ...publicRow } = proposal;
   res.json({
-    ...proposal,
+    ...publicRow,
+    ...(canSeePayout ? { payoutHandle: rawHandle ?? null } : {}),
     proposedByName: names.get(proposal.proposedBy) ?? null,
     markets: proposalMarkets,
     marketCount: proposalMarkets.length,

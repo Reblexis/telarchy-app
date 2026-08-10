@@ -418,6 +418,10 @@ export const proposals = pgTable('proposals', {
   description: text('description').notNull().default(''),
   /** 'pending' | 'approved' | 'declined' | 'declined_spam' | 'withdrawn' */
   status: text('status').notNull().default('pending'),
+  /** Where approval's real-dollar payment goes (PayPal email, IBAN, crypto
+   *  address; free text). Required at listing for a non-zero ask; returned
+   *  only to manage-capability callers, never in member/public payloads. */
+  payoutHandle: text('payout_handle'),
   conditionalMarketIds: jsonb('conditional_market_ids').notNull().$type<string[]>().default([]),
   /**
    * Per-branch-market credit subsidy seeded into each conditional market's
