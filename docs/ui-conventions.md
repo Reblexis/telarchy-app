@@ -360,3 +360,17 @@ buying out the proposer's LP position (see notes in the telarchy
 umbrella). The account menu gained "Import Manifold balance": net worth at
 1 mana = 1 cr, capped at 10,000, once per account pair, verified by a
 one-time code in the Manifold bio.
+
+
+**Revised 2026-08-10 (Viktor), floor round 4.** In the conditional
+headline, the paid phrase IS the world toggle (`.pubws-world`): green
+"is paid $X" in the approved branch, red "is not paid $X" in the declined
+one, dotted underline as the click affordance, and clicking it flips the
+branch. Both phrases stack in one grid cell so the headline sizes to the
+longer phrase and never reflows on a switch, whatever the ask's width;
+the inactive phrase waits a step below at opacity 0 and rises in on a
+240ms crossfade (reduced-motion snaps). The chart carries a top-left
+corner note on the zoom row's line: "resolves <settle day>". The know
+block split into two labeled sections: "What is this market?" (the
+stored definition, verbatim) above "What is LookPilot?" (the product
+sentence plus the three described source links).

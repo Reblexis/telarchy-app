@@ -8164,6 +8164,47 @@ code, pre, kbd, samp {
 }
 .pubws-question-task { color: var(--text-primary); }
 
+/* The paid / not-paid phrase as the world toggle. Both phrases stack in
+   one grid cell so the width is the longer phrase's and a switch never
+   reflows the headline; the inactive one waits a step below at opacity 0
+   and rises in on the crossfade. */
+.pubws-world {
+  display: inline-grid;
+  justify-items: center;
+  vertical-align: baseline;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+}
+.pubws-world--live { cursor: pointer; }
+
+.pubws-world-opt {
+  grid-area: 1 / 1;
+  white-space: nowrap;
+  font-weight: 600;
+  transition: opacity 240ms ease, transform 240ms ease;
+}
+.pubws-world-opt--approved { color: var(--higher); }
+.pubws-world-opt--declined { color: var(--lower); }
+
+/* The clickable phrase says so: a dotted underline in its own colour. */
+.pubws-world--live .pubws-world-opt { border-bottom: 2px dotted currentColor; }
+.pubws-world--live:hover .pubws-world-opt { filter: brightness(1.15); }
+
+.pubws-world--approved .pubws-world-opt--declined,
+.pubws-world--declined .pubws-world-opt--approved {
+  opacity: 0;
+  transform: translateY(0.45em);
+  pointer-events: none;
+}
+
+.pubws-world--live:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pubws-world-opt { transition: none; }
+}
+
 /* The job's own words, where the question is: the row below stops
    repeating them. */
 .pubws-details {
@@ -8283,10 +8324,20 @@ code, pre, kbd, samp {
    clickable; a window wider than the market's life shows everything. */
 .mchart-ranges {
   display: flex;
+  align-items: baseline;
   justify-content: flex-end;
   gap: 0.15rem;
-  padding-right: 3.6rem;
+  padding: 0 3.6rem 0 2.9rem;
   margin-bottom: 0.15rem;
+}
+
+/* The settle date, top-left of the plot: the one market fact that lives
+   on the visualization itself. */
+.mchart-note {
+  margin-right: auto;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
 }
 
 .mchart-range {

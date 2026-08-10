@@ -21,6 +21,9 @@ interface Props {
   consensus: number;
   /** Currency prefix for every numeral ('$' or ''), inferred by the caller. */
   unit?: string;
+  /** Top-left corner note ("resolves 31 December 2026"): the one market
+      fact that belongs on the visualization itself. */
+  note?: string;
   /** A composed-but-unplaced bet's impact: where the call would move. Drawn
       as a dashed ghost off the live dot, tinted by direction. */
   preview?: { value: number; direction: 'higher' | 'lower' } | null;
@@ -70,7 +73,7 @@ const RANGES: Array<{ key: string; ms: number }> = [
   { key: '1M', ms: 30 * 24 * 3600e3 },
 ];
 
-export function MarketChart({ series, consensus, unit = '', preview = null, orders = [], secondary = null, height }: Props) {
+export function MarketChart({ series, consensus, unit = '', note, preview = null, orders = [], secondary = null, height }: Props) {
   const [range, setRange] = useState<number | null>(null);
   const [compact, setCompact] = useState(() => typeof window !== 'undefined' && window.innerWidth < 520);
   useEffect(() => {
@@ -216,6 +219,7 @@ export function MarketChart({ series, consensus, unit = '', preview = null, orde
   return (
     <div className="mchart">
       <div className="mchart-ranges" role="group" aria-label="Time range">
+        {note && <span className="mchart-note">{note}</span>}
         {RANGES.map(r => (
           <button
             key={r.key}

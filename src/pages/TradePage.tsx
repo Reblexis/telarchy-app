@@ -336,10 +336,26 @@ export function TradePage() {
                 </button>
                 <h1 className="pubws-instrument-title pubws-question pubws-enter pubws-enter--1">
                   What is {metricLabel} if{' '}
-                  {selectedJob.proposedByName ?? 'someone'}
-                  {splitAsk(selectedJob.title).ask !== null
-                    ? ` is paid $${splitAsk(selectedJob.title).ask} to do:`
-                    : ' does:'}
+                  {selectedJob.proposedByName ?? 'someone'}{' '}
+                  {/* The phrase IS the world: green "is paid" in the
+                      approved branch, red "is not paid" in the declined one,
+                      and clicking it flips to the other world (owner
+                      direction 2026-08-10). Both phrases share one grid
+                      cell, so the headline sizes to the longer one and
+                      never reflows on a switch, whatever the ask's width. */}
+                  <WorldWord
+                    branch={branch}
+                    approvedText={splitAsk(selectedJob.title).ask !== null
+                      ? `is paid $${splitAsk(selectedJob.title).ask}`
+                      : 'does'}
+                    declinedText={splitAsk(selectedJob.title).ask !== null
+                      ? `is not paid $${splitAsk(selectedJob.title).ask}`
+                      : 'does not do'}
+                    onToggle={pair?.declinedMarketId
+                      ? () => setBranch(b => (b === 'approved' ? 'declined' : 'approved'))
+                      : null}
+                  />
+                  {splitAsk(selectedJob.title).ask !== null ? ' to do:' : ':'}
                   {' '}
                   <span className="pubws-question-task">{splitAsk(selectedJob.title).rest}</span>
                 </h1>
@@ -416,6 +432,7 @@ export function TradePage() {
                   : [{ at: new Date().toISOString(), consensus }]}
                 consensus={consensus}
                 unit={unit}
+                note={settleDayOf(hero.targetDate) ? `resolves ${settleDayOf(hero.targetDate)}` : undefined}
                 preview={chartPreview}
                 orders={orders.map(o => ({ id: o.id, direction: o.direction, limitValue: o.limitValue }))}
                 secondary={selectedJob && otherBranch && otherBranch.consensus !== null
@@ -474,28 +491,25 @@ export function TradePage() {
             />
           </section>
         ) : null}
-        {/* Know the startup (owner direction 2026-08-10: a bare "sources"
-            word with three naked links explained nothing). Each primary
-            source says what it is for, because the pitch is literal: know
-            the startup better, trade it better. Shown to everyone; the
-            links are the floor's provenance, not a member perk. */}
-        <section className="pubws-know pubws-enter pubws-enter--3" aria-label="Know the startup">
-          <h2 className="pubws-know-head">Know LookPilot, trade it better</h2>
-          {/* What the startup IS, before what its number is: one sentence,
-              taken from LookPilot's own positioning (owner ask 2026-08-10). */}
+        {/* Two questions, two sections (owner direction 2026-08-10):
+            "What is this market?" is the metric's stored definition,
+            verbatim, because it is the settlement text and changing it
+            voids the market. "What is LookPilot?" is the product in its
+            own words plus the primary sources; know the startup, trade it
+            better. */}
+        {ws.heroMetricDescription && (
+          <section className="pubws-know pubws-enter pubws-enter--3" aria-label="What is this market">
+            <h2 className="pubws-know-head">What is this market?</h2>
+            <p className="pubws-metric-desc">{ws.heroMetricDescription}</p>
+          </section>
+        )}
+        <section className="pubws-know pubws-enter pubws-enter--3" aria-label="What is LookPilot">
+          <h2 className="pubws-know-head">What is LookPilot?</h2>
           <p className="pubws-know-what">
             LookPilot is a webcam head tracker for flight, trucking and racing
             sims, the best-reviewed one on Steam: look around in the game by
             moving your head, no hardware, $14.99 once.
           </p>
-          {/* The metric's own stored definition, verbatim: what the number
-              is and when it settles. Grouped with the sources (owner
-              direction 2026-08-10), because together they are one unit:
-              what you are trading, and where to verify it. Never edited or
-              paraphrased here; changing the definition voids the market. */}
-          {ws.heroMetricDescription && (
-            <p className="pubws-metric-desc">{ws.heroMetricDescription}</p>
-          )}
           <div className="pubws-know-grid">
             <a href="https://lookpilot.app/data-room/" target="_blank" rel="noreferrer">
               <span className="pubws-know-name">data room</span>
@@ -595,6 +609,40 @@ function TopBar({ user, ready }: { user: boolean; ready: boolean }) {
         ? <div className="pubws-fade"><AccountMenu /></div>
         : <Link to="/login" className="pubws-login pubws-fade">Log in</Link>)}
     </nav>
+  );
+}
+
+/**
+ * The paid / not-paid phrase in the conditional headline, as the world
+ * toggle itself. Both phrases occupy the same grid cell (the button sizes
+ * to the longer one, so any text length is layout-stable); the active one
+ * stands, the other waits below it, and a click crossfades them and
+ * re-points the whole view at the other branch.
+ */
+function WorldWord({ branch, approvedText, declinedText, onToggle }: {
+  branch: 'approved' | 'declined';
+  approvedText: string;
+  declinedText: string;
+  onToggle: (() => void) | null;
+}) {
+  const inner = (
+    <>
+      <span className="pubws-world-opt pubws-world-opt--approved" aria-hidden={branch !== 'approved'}>{approvedText}</span>
+      <span className="pubws-world-opt pubws-world-opt--declined" aria-hidden={branch !== 'declined'}>{declinedText}</span>
+    </>
+  );
+  if (!onToggle) {
+    return <span className={`pubws-world pubws-world--${branch}`}>{inner}</span>;
+  }
+  return (
+    <button
+      type="button"
+      className={`pubws-world pubws-world--${branch} pubws-world--live`}
+      onClick={onToggle}
+      aria-label={`Switch to the world where this job is ${branch === 'approved' ? 'declined' : 'approved'}`}
+    >
+      {inner}
+    </button>
   );
 }
 
