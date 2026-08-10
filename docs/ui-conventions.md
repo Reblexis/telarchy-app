@@ -279,8 +279,8 @@ external, new tab.
 Below the floor (outside the rails column) sits the about section
 (`.pubws-about`, owner direction 2026-08-10): three drawings in the
 chart's own vocabulary (step line, branch pair, priced gap plus check),
-one Fraunces sentence each, the mission line ("Telarchy is the approval
-layer for a startup's decisions"), and one door: an inline email field
+one Fraunces sentence each, the mission line (alignment framing, per canon: the mission slot speaks
+the mission), and one door: an inline email field
 with a "Get set up" button (owner direction 2026-08-10: never call it a
 waitlist; entering an email is a request answered within days, and the
 confirmation says "Got it. We will get back to you within a few days",

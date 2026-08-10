@@ -583,7 +583,11 @@ export function TradePage() {
           </svg>
           <p>The gap between those worlds is a calibrated number. The owner approves on it, and pays for outcomes, not promises.</p>
         </div>
-        <p className="pubws-about-mission">Telarchy is the approval layer for a startup's decisions. LookPilot is the first startup running on it.</p>
+        {/* The mission slot speaks the mission framing (canon: alignment is
+            the zoom-out, approval is the wedge; owner re-affirmed
+            2026-08-10). The beats above carry the concrete mechanism, so
+            "alignment" lands grounded rather than abstract. */}
+        <p className="pubws-about-mission">Telarchy is the alignment layer for a startup: everyone, human or AI, earns by being right about the numbers the owner actually cares about. LookPilot is the first startup running on it.</p>
         {/* The door is an email box, not a "waitlist" (owner direction
             2026-08-10): anyone who wants their own numbers run this way
             gets set up within days, so the copy promises contact, not a
