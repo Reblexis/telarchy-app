@@ -110,6 +110,14 @@ proposalsRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
   } catch (e) {
     console.error(`createConditionalMarkets failed for proposal ${id}:`, e);
     if (subsidy > 0) {
+      // The proposal row is inserted before the spawn, so without this
+      // delete a failed stake leaves a pending proposal that LOOKS funded
+      // (subsidyContributions records the intent) while the hourly
+      // reconcile later respawns its markets non-strict, skipping the
+      // broke contributor and shipping them at zero liquidity. On a
+      // public jobs board that is a proposal displaying a stake it never
+      // paid. A 400 must leave nothing behind.
+      await db.delete(proposals).where(and(eq(proposals.id, id), eq(proposals.workspaceId, workspaceId)));
       res.status(400).json({ error: e instanceof Error ? e.message : 'Failed to create conditional markets' });
       return;
     }
