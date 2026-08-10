@@ -30,7 +30,10 @@ export const manifoldRouter = Router();
 manifoldRouter.use(authMiddleware);
 
 const MANIFOLD_API = 'https://api.manifold.markets/v0';
-export const MANIFOLD_GRANT_CAP = 10_000;
+// 100k (owner decision 2026-08-10, raised from 10k): a top Manifold record
+// should translate into real weight here, not a rounding error above the
+// 1000-credit signup grant.
+export const MANIFOLD_GRANT_CAP = 100_000;
 
 const pendingKey = (agentId: string) => `manifold-claim:${agentId}`;
 const claimedUserKey = (manifoldUserId: string) => `manifold-claimed:user:${manifoldUserId}`;
