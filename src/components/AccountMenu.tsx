@@ -216,6 +216,10 @@ export function AccountMenu() {
                 </button>
                 <button className="acctmenu-item" onClick={() => { setManifold(null); setError(''); }}>Cancel</button>
               </div>
+              {/* Every step answers where it failed, right where it failed:
+                  an unknown handle, a Manifold outage, an already-claimed
+                  account each say so here, and the input stays for a fix. */}
+              {error && <p className="acctmenu-err">{error}</p>}
             </div>
           )}
           {manifold !== null && manifold !== 'ask' && (
@@ -230,6 +234,9 @@ export function AccountMenu() {
                 </button>
                 <button className="acctmenu-item" onClick={() => { setManifold(null); setError(''); }}>Cancel</button>
               </div>
+              {/* The bio-not-yet message names the exact code to add and
+                  says the edit can lag a minute; verify again stays live. */}
+              {error && <p className="acctmenu-err">{error}</p>}
             </div>
           )}
           {manifoldMsg && <p className="acctmenu-ok">{manifoldMsg}</p>}
