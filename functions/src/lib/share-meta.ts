@@ -33,7 +33,7 @@ function fallbackDescription(ws: ShareMetaWorkspace): string {
   return 'Propose actions, trade on their impact, and see what the owner ships.';
 }
 
-export function injectWorkspaceMeta(html: string, ws: ShareMetaWorkspace, url: string): string {
+export function injectWorkspaceMeta(html: string, ws: ShareMetaWorkspace, url: string, cardUrl?: string): string {
   const title = escapeHtml(`${ws.name} · Telarchy`);
   const description = escapeHtml(fallbackDescription(ws));
   const tags = [
@@ -41,7 +41,16 @@ export function injectWorkspaceMeta(html: string, ws: ShareMetaWorkspace, url: s
     `<meta property="og:description" content="${description}">`,
     `<meta property="og:type" content="website">`,
     `<meta property="og:url" content="${escapeHtml(url)}">`,
-    `<meta name="twitter:card" content="summary">`,
+    // The card (owner direction 2026-08-10): a server-drawn picture of the
+    // floor, so the unfurl leads with the live number and the chart, not
+    // text. summary_large_image makes Twitter/Discord show it full-width.
+    ...(cardUrl ? [
+      `<meta property="og:image" content="${escapeHtml(cardUrl)}">`,
+      `<meta property="og:image:width" content="1200">`,
+      `<meta property="og:image:height" content="630">`,
+    ] : []),
+    `<meta name="twitter:card" content="${cardUrl ? 'summary_large_image' : 'summary'}">`,
+    ...(cardUrl ? [`<meta name="twitter:image" content="${escapeHtml(cardUrl)}">`] : []),
     `<meta name="twitter:title" content="${title}">`,
     `<meta name="twitter:description" content="${description}">`,
     `<meta name="description" content="${description}">`,

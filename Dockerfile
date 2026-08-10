@@ -34,6 +34,8 @@ WORKDIR /app
 COPY functions/package*.json ./
 RUN npm ci --omit=dev
 COPY --from=backend-builder /app/functions/lib ./lib
+# Fonts for the server-drawn share card (lib/lib/share-card.js resolves ../../assets)
+COPY functions/assets ./assets
 # Serve frontend static files — server.ts expects them at __dirname/public = lib/public
 COPY --from=frontend-builder /app/dist ./lib/public
 

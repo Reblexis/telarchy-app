@@ -155,7 +155,10 @@ import('./app').then(async ({ app }) => {
             const { injectWorkspaceMeta } = await import('./lib/share-meta');
             const html = fs.readFileSync(indexPath, 'utf8');
             res.setHeader('Cache-Control', 'no-cache');
-            res.type('html').send(injectWorkspaceMeta(html, ws, `https://telarchy.com${req.path}`));
+            res.type('html').send(injectWorkspaceMeta(
+              html, ws, `https://telarchy.com${req.path}`,
+              `https://telarchy.com/api/marketplace/${encodeURIComponent(shareMatch[1])}/card.png`,
+            ));
             return;
           }
         } catch (e) {

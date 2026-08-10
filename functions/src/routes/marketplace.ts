@@ -561,6 +561,54 @@ marketplaceRouter.get('/:workspaceId/markets/:marketId/history', wrap(async (req
   res.json({ history: points.slice(-500).map(pt => ({ at: pt.createdAt, consensus: pt.consensus })) });
 }));
 
+/**
+ * The workspace's og:image (owner direction 2026-08-10: graphics over
+ * text in the unfurl). One picture of the floor: the hero market's live
+ * consensus huge, its step-line history, the resolution date. Discovery
+ * data only (market consensus is already public on this page), so no
+ * `read` gate; five-minute cache keeps scraper storms off the replay.
+ */
+marketplaceRouter.get('/:workspaceId/card.png', wrap(async (req, res) => {
+  const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
+  if (!ws || ws.visibility === 'private') { res.status(404).json({ error: 'Workspace not found' }); return; }
+
+  const wsMarkets = await db.select().from(markets)
+    .where(and(eq(markets.workspaceId, ws.id), eq(markets.resolved, false), eq(markets.active, true)));
+  const baseline = wsMarkets.filter(m => !m.proposalId);
+  baseline.sort((a, b) => {
+    const dateDiff = periodEndInstant(a.targetDate).getTime() - periodEndInstant(b.targetDate).getTime();
+    if (dateDiff !== 0) return dateDiff;
+    return b.liquidity - a.liquidity;
+  });
+  const hero = baseline[0];
+
+  let history: number[] = [];
+  let heroConsensus: number | null = null;
+  let metricLabel = ws.name;
+  let unit = '';
+  let resolvesOn: string | null = null;
+  if (hero) {
+    const shares = (hero.shares as [number, number]) || [0, 0];
+    heroConsensus = consensus(shares, hero.liquidity, hero.rangeMin, hero.rangeMax) ?? null;
+    metricLabel = hero.metricName.replace(/\s*\(.*\)\s*$/, '');
+    unit = hero.metricName.match(/\(([^)]*)\)\s*$/)?.[1] ?? '';
+    resolvesOn = resolutionInstant(hero.targetDate)
+      ? new Date(periodEndInstant(hero.targetDate).getTime() - 1).toLocaleDateString('en-GB', {
+          day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
+        })
+      : null;
+    const points = await replayMarketTradePoints(hero.id, ws.id);
+    history = points.map(pt => pt.consensus).filter((c): c is number => c !== null).slice(-120);
+  }
+
+  const { renderShareCardPng } = await import('../lib/share-card');
+  const png = renderShareCardPng({
+    name: ws.name, metricLabel, unit, consensus: heroConsensus, resolvesOn, history,
+  });
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  res.type('png').send(png);
+}));
+
 marketplaceRouter.post('/:workspaceId/join', authMiddleware, requireIdentity, wrap(async (req, res) => {
   const { uid, agentId } = req.auth!;
   const { workspaceId } = req.params as { workspaceId: string };

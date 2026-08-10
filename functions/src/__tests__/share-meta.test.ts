@@ -66,3 +66,20 @@ describe('injectWorkspaceMeta', () => {
     expect(out).toContain('&quot;hi&quot; &amp; left');
   });
 });
+
+describe('the og:image card', () => {
+  test('a card URL upgrades the unfurl to a large image', () => {
+    const out = injectWorkspaceMeta(HTML, {
+      name: 'LookPilot', description: 'd', charter: null,
+    }, 'https://telarchy.com/lookpilot', 'https://telarchy.com/api/marketplace/lookpilot/card.png');
+    expect(out).toContain('og:image" content="https://telarchy.com/api/marketplace/lookpilot/card.png"');
+    expect(out).toContain('twitter:card" content="summary_large_image"');
+    expect(out).toContain('og:image:width" content="1200"');
+  });
+
+  test('without a card URL the unfurl stays a summary', () => {
+    const out = injectWorkspaceMeta(HTML, { name: 'WS', description: 'd', charter: null }, 'https://telarchy.com/x');
+    expect(out).not.toContain('og:image');
+    expect(out).toContain('twitter:card" content="summary"');
+  });
+});
