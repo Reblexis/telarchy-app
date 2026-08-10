@@ -381,6 +381,35 @@ export const liquidityEvents = pgTable('liquidity_events', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
 
+/**
+ * A resting instruction: buy `direction` in this market with up to
+ * `budgetCredits`, but only while consensus sits at or beyond `limitValue`.
+ *
+ * `budgetCredits` is debited at placement, so a row here is reserved money
+ * rather than an intention; cancelling or expiring refunds the unfilled
+ * remainder. Fills happen inside the transaction of whatever trade crossed
+ * the limit (no matching engine, no cron), and an order never moves the
+ * price past its own limit, which is what makes it a limit order rather
+ * than a delayed market order. Design: docs/limit-orders.md.
+ */
+export const limitOrders = pgTable('limit_orders', {
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
+  marketId: text('market_id').notNull(),
+  agentId: text('agent_id').notNull(),
+  /** 'higher' | 'lower' */
+  direction: text('direction').notNull(),
+  /** Metric space (dollars), not probability: the page speaks dollars. */
+  limitValue: doublePrecision('limit_value').notNull(),
+  budgetCredits: doublePrecision('budget_credits').notNull(),
+  filledCredits: doublePrecision('filled_credits').notNull().default(0),
+  /** 'open' | 'filled' | 'cancelled' | 'expired' */
+  status: text('status').notNull().default('open'),
+  expiresAt: timestamp('expires_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
 export const proposals = pgTable('proposals', {
   id: text('id').notNull(),
   workspaceId: text('workspace_id').notNull(),

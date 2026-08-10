@@ -330,6 +330,13 @@
       "when": 1786190421176,
       "tag": "0046_proposal_ask_usd",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1786190421177,
+      "tag": "0047_limit_orders",
+      "breakpoints": true
     }
   ]
 }
