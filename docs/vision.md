@@ -191,6 +191,63 @@ The distinction between metrics and proposals is foundational.
 
 **Proposals** are hypothesis tests. Any time you are uncertain whether an action will improve a metric, that uncertainty belongs in a proposal, not in the metric definition. Conditional markets answer the question "what would metrics look like if this proposal were completed?" and the crowd's money resolves the uncertainty. This extends to metric structure itself: a participant can propose a proposal such as *"Create a new metric X and evaluate its relationship to our goals"*, letting the market judge whether adding that measurement will produce useful signal before the owner commits to a structural change.
 
+### What makes a well-formed proposal: bound the action, price the outcome
+
+A proposal is only useful if **its execution is near-certain and its outcome is uncertain.** The
+market exists to price the second thing. Every unit of doubt about the first is doubt the market has
+to price as well, and it cannot tell the owner which kind of doubt produced the number.
+
+Three shapes fail, and they fail in increasing order of subtlety.
+
+**1. The outcome dressed as a proposal.** *"Reach $1M ARR this year."* Nobody can decide to do this.
+The conditional market ends up pricing the goal itself, which the owner already has a metric for, and
+the proposal suggests no action to take or decline.
+
+**2. The unbounded action.** *"Improve onboarding."* *"Do more sales outreach."* These are real
+actions, but with no stated quantity. Two participants writing the same title mean different things,
+the market prices an unknown amount of effort, and the owner cannot tell what they are approving.
+
+**3. The action with doubtful execution.** *"Hire a senior infrastructure engineer this month."*
+*"Sign a distribution partnership with a named vendor."* *"Close the Series A."* These are specific
+and bounded, and they are still malformed, because **completing them requires someone else to say
+yes.** A low price now means either "this would not help" or "this will not happen", and the owner
+has no way to separate them. Worse, the proposer usually knows more about the second than the market
+does, so the market is absorbing adverse selection rather than discovering a price.
+
+**The fix is to bound the action by something the proposer controls.** Four bounds cover nearly
+everything:
+
+| Bound | Malformed | Well-formed |
+|---|---|---|
+| **Time** | Improve onboarding | Spend 20 engineering hours rewriting the onboarding flow |
+| **Money** | Grow through paid acquisition | Spend $5,000 on one named channel over 30 days |
+| **Count** | Talk to customers | Interview 20 churned customers |
+| **Discrete act** | Fix pricing | Publish the new pricing page |
+
+And the counterparty cases become tractable the moment they are bounded by effort rather than by
+result:
+
+| Instead of | Propose |
+|---|---|
+| Hire a senior infrastructure engineer | Run a two-week sourcing sprint and interview 10 candidates |
+| Close the Series A | Send the deck to 30 investors and take every meeting offered |
+| Sign the distribution partnership | Spend 15 hours preparing and pitching the named vendor |
+
+Each of these the owner can guarantee to complete. Whether it produces a hire, a round, or a
+partnership is exactly the uncertainty the market should be paid to price.
+
+**The one-line test:** *at the moment of approval, could you commit to completing this action
+regardless of how it turns out?* If yes, the proposal is well-formed. If completing it depends on
+another party agreeing, on a skill you may not have, or on an amount of effort you have not named,
+it is an outcome wearing an action's clothes.
+
+**Why this is worth enforcing rather than leaving to taste.** A market on a doubtful action is a
+market about a person, not about the business, and it corrupts three things at once: the price stops
+being a forecast of impact, the decline record stops being readable (*"I never got round to it"*
+becomes indistinguishable from *"the market was wrong"*), and liquidity is spent on a question the
+owner could have answered for free. Bounded actions also make post-hoc evaluation honest, because a
+completed action that failed is evidence, whereas an uncompleted one is nothing.
+
 ## Multi-workspace and domain metrics
 
 Telarchy workspaces are composable. A common pattern for individuals: one personal workspace defining personal goals, and one or more domain workspaces (a startup, a project, a team) with their own metrics. For a company, a single workspace usually holds the top-level KPIs and OKRs, with nested or linked workspaces for individual teams or products.

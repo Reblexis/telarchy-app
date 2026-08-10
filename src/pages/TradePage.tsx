@@ -47,22 +47,6 @@ function currencyOf(metricName: string): string {
   return /\busd\b|\$/i.test(tail) ? '$' : '';
 }
 
-function settleDate(iso: string): string {
-  const d = new Date(iso);
-  if (!Number.isFinite(d.getTime())) return '';
-  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
-}
-
-function timeAgo(at: string | Date): string {
-  const t = new Date(at).getTime();
-  if (!Number.isFinite(t)) return '';
-  const mins = Math.max(0, Math.round((Date.now() - t) / 60_000));
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 48) return `${hours}h ago`;
-  return `${Math.round(hours / 24)}d ago`;
-}
-
 export function TradePage() {
   const params = useParams();
   const idOrSlug = params.slug ?? params.workspaceId;
@@ -235,11 +219,6 @@ export function TradePage() {
     : ws?.marketHistory?.length ? ws.marketHistory.find(p => p.consensus !== null)?.consensus ?? null : null;
   const consensus = (livePrice && livePrice.marketId === activeMarketId ? livePrice.value : null)
     ?? active?.consensus ?? null;
-  // The desk facts: the real value the market predicts against, and its
-  // freshness. Intent-gated (signed-in only): the anonymous poster stays
-  // free of context, but a trader deciding Higher or Lower needs the
-  // anchor and proof it is being kept current.
-  const lastActual = ws?.heroHistory?.length ? ws.heroHistory[ws.heroHistory.length - 1] : null;
   // The composed bet's impact, projected from probability space onto the
   // metric's range so the chart can draw where the call would move.
   const chartPreview = active && ticketPreview
@@ -321,10 +300,10 @@ export function TradePage() {
             {selectedJob ? (
               <>
                 <button className="pubws-back" onClick={() => setSelectedJobId(null)}>
-                  ← {metricLabel} @ {settleDate(hero.resolvesOn)}
+                  ← {metricLabel}
                 </button>
                 <h1 className="pubws-instrument-title pubws-question pubws-enter pubws-enter--1">
-                  What is {metricLabel} @ {settleDate(pair?.resolvesOn ?? hero.resolvesOn)} if{' '}
+                  What is {metricLabel} if{' '}
                   {selectedJob.proposedByName ?? 'someone'}
                   {splitAsk(selectedJob.title).ask !== null
                     ? ` is paid $${splitAsk(selectedJob.title).ask} to do:`
@@ -337,11 +316,11 @@ export function TradePage() {
                 )}
               </>
             ) : (
-              <h1 className="pubws-instrument-title pubws-enter pubws-enter--1">
-                {metricLabel}
-                {' '}
-                <span className="pubws-instrument-when">@ {settleDate(hero.resolvesOn)}</span>
-              </h1>
+              /* The metric name carries its own horizon ("net 2026"), so a
+                 settle date beside it was redundant and, at the year
+                 boundary, off by a day: the 2026 period ends at the instant
+                 January 1 begins. */
+              <h1 className="pubws-instrument-title pubws-enter pubws-enter--1">{metricLabel}</h1>
             )}
             <div className="pubws-headline pubws-enter pubws-enter--2">
               <span className="pubws-price">{unit}{formatValue(consensus)}</span>
@@ -352,32 +331,26 @@ export function TradePage() {
                 </span>
               )}
             </div>
-            {active.history.length > 0 && (
-              <div className="pubws-enter pubws-enter--3">
-                <MarketChart
-                  key={active.marketId}
-                  series={active.history}
-                  consensus={consensus}
-                  unit={unit}
-                  preview={chartPreview}
-                />
-              </div>
-            )}
+            {/* A market nobody has traded yet has no replayed history, which
+                used to mean no chart at all: selecting a fresh job showed a
+                price and blank space. A market always has a call, so fall
+                back to that single point and let the chart hold it. */}
+            <div className="pubws-enter pubws-enter--3">
+              <MarketChart
+                key={active.marketId}
+                series={active.history.length > 0
+                  ? active.history
+                  : [{ at: new Date().toISOString(), consensus }]}
+                consensus={consensus}
+                unit={unit}
+                preview={chartPreview}
+              />
+            </div>
           </section>
         )}
 
         {trading && active ? (
           <section className="pubws-act pubws-enter pubws-enter--3" aria-label="Place a trade">
-            {/* Two facts only: the anchor and its freshness. The trade
-                pulse lives in the activity rail; it does not need a second
-                home here. */}
-            {lastActual && (
-              <div className="pubws-facts">
-                <span>Actual {unit}{formatValue(lastActual.value)}</span>
-                {lastActual.at && <span className="pubws-facts-sep">·</span>}
-                {lastActual.at && <span>updated {timeAgo(lastActual.at)}</span>}
-              </div>
-            )}
             <TradeTicket
               probability={active.probability}
               liquidity={active.liquidity}
