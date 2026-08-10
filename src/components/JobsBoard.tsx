@@ -111,6 +111,7 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
                 <button
                   className={`pubws-ballot-row${selected ? ' is-selected' : ''}`}
                   aria-pressed={selected}
+                  title={titleRest}
                   onClick={() => onSelect(p.id)}
                 >
                   <span className="pubws-ballot-main">

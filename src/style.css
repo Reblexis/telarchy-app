@@ -49,6 +49,7 @@
 
   /* Market directions */
   --higher: #12693d;
+  --on-signal: #ffffff;    /* text on a higher/lower fill */
   --lower: #a5192c;
   --higher-soft: rgba(18, 105, 61, 0.10);
   --lower-soft: rgba(165, 25, 44, 0.09);
@@ -112,6 +113,7 @@
     --success-text: #86efac;
 
     --higher: #4ade80;
+    --on-signal: #101013;
     --lower: #f87171;
     --higher-soft: rgba(74, 222, 128, 0.12);
     --lower-soft: rgba(248, 113, 113, 0.12);
@@ -150,6 +152,7 @@
   --success-bg: rgba(18, 105, 61, 0.14);
   --success-text: #86efac;
   --higher: #4ade80;
+  --on-signal: #101013;
   --lower: #f87171;
   --higher-soft: rgba(74, 222, 128, 0.12);
   --lower-soft: rgba(248, 113, 113, 0.12);
@@ -8162,6 +8165,19 @@ code, pre, kbd, samp {
 
 /* The propose dialog body reuses the rail form styles at dialog width. */
 .pubws-propose--modal { display: flex; flex-direction: column; gap: 0.7rem; }
+.pubws-propose--modal textarea {
+  resize: none;
+  border-radius: 8px;
+}
+.pubws-propose--modal input,
+.pubws-propose--modal textarea {
+  transition: border-color 120ms ease;
+}
+.pubws-propose--modal input:focus,
+.pubws-propose--modal textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
 .pubws-propose-count {
   align-self: flex-end;
   margin-top: -0.5rem;
@@ -8452,6 +8468,7 @@ code, pre, kbd, samp {
 }
 .mchart-range:hover:not(:disabled):not(.is-active) { color: var(--text-primary); }
 .mchart-range.is-active { background: var(--bg-tertiary); color: var(--text-primary); }
+.mchart-range:disabled { opacity: 0.35; cursor: default; }
 .mchart-range:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* A resting order, drawn where it sits in the price. Faint enough to stay
@@ -8831,12 +8848,12 @@ code, pre, kbd, samp {
 .ticket-side--higher.is-active {
   background: var(--higher);
   border-color: var(--higher);
-  color: #fff;
+  color: var(--on-signal);
 }
 .ticket-side--lower.is-active {
   background: var(--lower);
   border-color: var(--lower);
-  color: #fff;
+  color: var(--on-signal);
 }
 .ticket-side:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
@@ -9006,15 +9023,15 @@ code, pre, kbd, samp {
   cursor: pointer;
   transition: background 120ms ease, filter 120ms ease;
 }
-.ticket-go--higher:not(:disabled) { background: var(--higher); color: #fff; }
-.ticket-go--lower:not(:disabled) { background: var(--lower); color: #fff; }
+.ticket-go--higher:not(:disabled) { background: var(--higher); color: var(--on-signal); }
+.ticket-go--lower:not(:disabled) { background: var(--lower); color: var(--on-signal); }
 .ticket-go:hover:not(:disabled) { filter: brightness(1.08); }
 .ticket-go:disabled {
   background: var(--bg-tertiary);
   color: var(--text-tertiary);
   cursor: default;
 }
-.ticket-go.is-placed { background: var(--higher); color: #fff; }
+.ticket-go.is-placed { background: var(--higher); color: var(--on-signal); }
 .ticket-go:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 .ticket-err {
@@ -9056,6 +9073,20 @@ code, pre, kbd, samp {
 /* The jobs board inside the right rail: same object, rail-sized. */
 .pubws-rail .pubws-ballot-row { font-size: 0.8rem; }
 .pubws-rail .pubws-ballot-title { font-size: 0.85rem; }
+
+/* A title with no spaces ("5555...", a pasted URL) must neither run over
+   the impact column nor be lost: two clamped lines here, breaking
+   anywhere, and the full name lives in the row's tooltip and in the
+   question headline once selected. */
+.pubws-ballot-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.pubws-question-task { overflow-wrap: anywhere; }
+.pubws-question { overflow-wrap: anywhere; }
 .pubws-rail .pubws-ballot-facts { font-size: 0.72rem; }
 
 .pubws-know {
