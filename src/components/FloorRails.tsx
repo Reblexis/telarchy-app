@@ -33,8 +33,9 @@ export function LeaderboardRail({ entries: all }: { entries: LeaderboardEntry[] 
         {entries.map((e, i) => (
           <li key={e.id} className="pubws-lb-row">
             <span className="pubws-lb-rank">{e.rank ?? i + 1}</span>
-            {/* Same fallback as the leaderboard page: nickname, else id. */}
-            <span className="pubws-lb-name">{e.nickname || e.id}</span>
+            {/* The API resolves nickname or account name; when neither
+                exists, "anonymous" beats printing a 32-char key id. */}
+            <span className="pubws-lb-name">{e.nickname || 'anonymous'}</span>
             <span className="pubws-lb-score">
               {e.totalEarnings >= 1
                 ? `+${Math.round(e.totalEarnings)} cr`

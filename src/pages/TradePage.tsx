@@ -4,6 +4,7 @@ import { api, setActiveWorkspace, type PublicWorkspace } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { MarketChart } from '../components/MarketChart';
 import { TradeTicket, type TicketPosition } from '../components/TradeTicket';
+import { useAnimatedNumber } from '../lib/useAnimatedNumber';
 import { JobsBoard, splitAsk } from '../components/JobsBoard';
 import { ActivityRail, LeaderboardRail, type ActivityItem } from '../components/FloorRails';
 import { AccountMenu } from '../components/AccountMenu';
@@ -270,6 +271,10 @@ export function TradePage() {
     : null;
   const consensus = (livePrice && livePrice.marketId === activeMarketId ? livePrice.value : null)
     ?? active?.consensus ?? null;
+  // The number rolls to its new value (trade, branch switch, job select)
+  // instead of teleporting; everything downstream (chart, ticket) uses the
+  // true value, only the headline shows the tween.
+  const shownConsensus = useAnimatedNumber(consensus);
   // The composed bet's impact, projected from probability space onto the
   // metric's range so the chart can draw where the call would move.
   const chartPreview = active && ticketPreview
@@ -374,17 +379,26 @@ export function TradePage() {
               <h1 className="pubws-instrument-title pubws-enter pubws-enter--1">{metricLabel}</h1>
             )}
             <div className="pubws-headline pubws-enter pubws-enter--2">
-              <span className="pubws-price">{unit}{formatValue(consensus)}</span>
+              <span className="pubws-price">{unit}{formatValue(shownConsensus ?? consensus)}</span>
               {!selectedJob && marketOpen !== null && consensus !== marketOpen && (
-                <span className={`pubws-delta-chip ${consensus >= marketOpen ? 'is-up' : 'is-down'}`}>
+                <span key={`open-${Math.round(consensus - marketOpen)}`} className={`pubws-delta-chip ${consensus >= marketOpen ? 'is-up' : 'is-down'}`}>
                   {consensus >= marketOpen ? '▲' : '▼'} {formatDelta(consensus - marketOpen, unit)}
                   {' '}since open
                 </span>
               )}
-              {selectedJob && jobImpact !== null && jobImpact !== 0 && (
-                <span className={`pubws-delta-chip ${jobImpact >= 0 ? 'is-up' : 'is-down'}`}>
-                  {jobImpact >= 0 ? '▲' : '▼'} {formatDelta(jobImpact, unit)} impact
-                </span>
+              {/* The impact is the job's one number, so it is always said:
+                  priced, zero-so-far, or not yet priced. Silence read as a
+                  broken page. */}
+              {selectedJob && (
+                jobImpact === null ? (
+                  <span className="pubws-delta-chip">impact not yet priced</span>
+                ) : jobImpact === 0 ? (
+                  <span className="pubws-delta-chip">±{unit}0 impact so far</span>
+                ) : (
+                  <span key={`imp-${Math.round(jobImpact)}`} className={`pubws-delta-chip ${jobImpact >= 0 ? 'is-up' : 'is-down'}`}>
+                    {jobImpact >= 0 ? '▲' : '▼'} {formatDelta(jobImpact, unit)} impact
+                  </span>
+                )
               )}
             </div>
             {/* A market nobody has traded yet has no replayed history, which

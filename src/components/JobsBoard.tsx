@@ -120,9 +120,14 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
                     </span>
                   </span>
                   <span className="pubws-ballot-impact">
-                    {delta === null || delta === 0
+                    {/* "open" = nobody has priced it yet; a hard 0 means the
+                        two worlds are priced the same, which is a statement,
+                        not an absence. */}
+                    {delta === null
                       ? <span className="pubws-ballot-delta pubws-ballot-delta--open">open</span>
-                      : <span className={`pubws-ballot-delta ${delta > 0 ? 'is-up' : 'is-down'}`}>{fmtDelta(delta, unit)}</span>}
+                      : delta === 0
+                        ? <span className="pubws-ballot-delta pubws-ballot-delta--open">±{unit}0</span>
+                        : <span className={`pubws-ballot-delta ${delta > 0 ? 'is-up' : 'is-down'}`}>{fmtDelta(delta, unit)}</span>}
                   </span>
                 </button>
               </li>

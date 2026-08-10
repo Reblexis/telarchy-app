@@ -95,6 +95,9 @@ export function TradeTicket({
 
   const amountNum = Math.max(0, Math.floor(parseFloat(amount) || 0));
   const limitNum = limit.trim() === '' ? null : parseFloat(limit.replace(/,/g, ''));
+  const limitDisplay = limitNum !== null && Number.isFinite(limitNum) && !limit.endsWith('.')
+    ? limitNum.toLocaleString('en-US', { maximumFractionDigits: 2 })
+    : limit;
   const canLimit = !!onPlaceLimit && consensus !== null && rangeMin !== undefined && rangeMax !== undefined;
   const isLimit = mode === 'limit' && canLimit;
   const composed = dir && amountNum > 0 ? previewTrade(probability, liquidity, dir, amountNum) : null;
@@ -372,7 +375,12 @@ export function TradeTicket({
         min={1}
         max={MAX_BET}
         value={Math.min(MAX_BET, Math.max(1, amountNum))}
-        style={{ ['--slider-pct' as string]: `${((Math.min(MAX_BET, Math.max(1, amountNum)) - 1) / (MAX_BET - 1)) * 100}%` }}
+        style={(() => {
+          // The thumb's center travels [7px, width-7px], not [0, width], so
+          // the fill must land under the thumb, not merely at value%.
+          const p = ((Math.min(MAX_BET, Math.max(1, amountNum)) - 1) / (MAX_BET - 1)) * 100;
+          return { ['--slider-pct' as string]: `calc(${p.toFixed(2)}% + ${((0.5 - p / 100) * 14).toFixed(1)}px)` };
+        })()}
         onChange={e => setAmount(e.target.value)}
         aria-label="Bet amount slider"
       />
@@ -384,11 +392,13 @@ export function TradeTicket({
           </p>
           <label className="ticket-amt ticket-amt--price">
             <span className="ticket-amt-unit">{unit || '#'}</span>
+            {/* Shown with thousands separators ("63,600" reads as a price,
+                "63600" reads as a serial number); the state stays raw. */}
             <input
               type="text"
               inputMode="decimal"
-              value={limit}
-              style={{ width: `${Math.max(1, limit.length)}ch` }}
+              value={limitDisplay}
+              style={{ width: `${Math.max(1, limitDisplay.length)}ch` }}
               onChange={e => setLimit(e.target.value.replace(/[^0-9.]/g, ''))}
               aria-label={`Limit price in ${unit || 'metric units'}`}
             />

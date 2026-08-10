@@ -8125,6 +8125,17 @@ code, pre, kbd, samp {
 }
 .pubws-branch-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+/* A chip that changes value re-mounts (keyed) and slides in, so a moved
+   impact is seen moving. */
+.pubws-delta-chip { animation: chip-in 260ms ease-out; }
+@keyframes chip-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pubws-delta-chip { animation: none; }
+}
+
 .pubws-question {
   max-width: 34ch;
   margin-left: auto;
@@ -8280,7 +8291,17 @@ code, pre, kbd, samp {
   font-family: 'JetBrains Mono', monospace;
   font-size: 10px;
   fill: currentColor;
-  opacity: 0.75;
+  opacity: 0.9;
+}
+
+/* Every end label gets a bone halo (paint-order draws the stroke UNDER the
+   glyphs), so a label that lands on a line stays legible instead of being
+   struck through by it. */
+.mchart-calllabel, .mchart-ghost-label, .mchart-branch-label, .mchart-order-label {
+  paint-order: stroke;
+  stroke: var(--bg-primary);
+  stroke-width: 3.5px;
+  stroke-linejoin: round;
 }
 .mchart-branch--higher { color: var(--higher); }
 .mchart-branch--lower { color: var(--lower); }
@@ -8681,10 +8702,14 @@ code, pre, kbd, samp {
 }
 
 .ticket-amt input {
+  appearance: none;
+  -webkit-appearance: none;
   min-width: 2ch;
   max-width: 12ch;
   padding: 0 0 0.1rem;
   border: none;
+  border-radius: 0;
+  box-shadow: none;
   border-bottom: 2px solid var(--border-strong);
   background: none;
   font-family: 'JetBrains Mono', monospace;

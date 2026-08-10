@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { and, eq, gt, inArray, isNotNull, sql } from 'drizzle-orm';
 import { db } from '../db/client';
+import { getParticipantDisplayNames } from '../lib/participants';
 import { agents, markets, positions, trades, workspaces } from '../db/schema';
 import { wrap } from '../lib/wrap';
 import { computeLeaderboardFromAggregates } from '../lib/leaderboard';
@@ -91,9 +92,13 @@ leaderboardRouter.get('/', wrap(async (req, res) => {
   for (const p of positionRows) agentIdsSeen.add(p.agentId);
   if (agentIdsSeen.size === 0) { res.json({ participants: [] }); return; }
 
-  const agentRows = await db.select({ id: agents.id, nickname: agents.nickname })
-    .from(agents).where(inArray(agents.id, Array.from(agentIdsSeen)));
-  const nicknameById = new Map(agentRows.map(a => [a.id, a.nickname]));
+  // Resolve display names the same way the proposals payload does: agent
+  // nickname, else the linked browser account's name. A raw 32-char agent
+  // id printed as a trader's name on the public floor is a bug, not a
+  // fallback (observed 2026-08-10: the top-traders rail led with one).
+  const displayNames = await getParticipantDisplayNames(Array.from(agentIdsSeen));
+  const nicknameById = new Map<string, string | null>();
+  for (const id of agentIdsSeen) nicknameById.set(id, displayNames.get(id) ?? null);
 
   const ranked = computeLeaderboardFromAggregates(
     resolvedMarkets,
