@@ -405,6 +405,8 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
       declinedMarketId: string | null;
       approvedProbability: number | null;
       approvedLiquidity: number | null;
+      declinedProbability: number | null;
+      declinedLiquidity: number | null;
       rangeMin: number;
       rangeMax: number;
     }
@@ -424,6 +426,8 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
         declinedMarketId: null,
         approvedProbability: null,
         approvedLiquidity: null,
+        declinedProbability: null,
+        declinedLiquidity: null,
         rangeMin: m.rangeMin,
         rangeMax: m.rangeMax,
       };
@@ -440,6 +444,8 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
       } else if (m.branch === 'declined') {
         g.declined = c;
         g.declinedMarketId = m.id;
+        g.declinedProbability = m.liquidity > 0 ? Math.round(pHigher(shares, m.liquidity) * 10000) / 10000 : null;
+        g.declinedLiquidity = m.liquidity;
       }
       groups.set(key, g);
       byProposal.set(m.proposalId, groups);
@@ -457,6 +463,8 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
         declinedMarketId: g.declinedMarketId,
         approvedProbability: g.approvedProbability,
         approvedLiquidity: g.approvedLiquidity,
+        declinedProbability: g.declinedProbability,
+        declinedLiquidity: g.declinedLiquidity,
         rangeMin: g.rangeMin,
         rangeMax: g.rangeMax,
       }));

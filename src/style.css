@@ -8091,6 +8091,40 @@ code, pre, kbd, samp {
 }
 .pubws-back:hover { color: var(--text-primary); }
 
+/* The two worlds of a job, and which one you are betting in. Green is the
+   approved world, red the declined one, matching the chart's lines. */
+.pubws-branch {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 0.8rem 0 0.2rem;
+}
+
+.pubws-branch-opt {
+  padding: 0.3rem 0.9rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: none;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+.pubws-branch-opt:hover:not(.is-active) { color: var(--text-primary); }
+.pubws-branch-opt--approved.is-active {
+  border-color: var(--higher);
+  color: var(--higher);
+  background: color-mix(in srgb, var(--higher) 10%, transparent);
+}
+.pubws-branch-opt--declined.is-active {
+  border-color: var(--lower);
+  color: var(--lower);
+  background: color-mix(in srgb, var(--lower) 10%, transparent);
+}
+.pubws-branch-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 .pubws-question {
   max-width: 34ch;
   margin-left: auto;
@@ -8231,6 +8265,25 @@ code, pre, kbd, samp {
 }
 .mchart-order--higher { color: var(--higher); }
 .mchart-order--lower { color: var(--lower); }
+
+/* The other branch of a conditional pair: a quiet second line in the
+   direction's colour. The primary line stays the loud one; the vertical
+   gap between them is the priced impact of approving. */
+.mchart-branch-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  opacity: 0.5;
+}
+.mchart-branch-dot { fill: currentColor; opacity: 0.6; }
+.mchart-branch-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  fill: currentColor;
+  opacity: 0.75;
+}
+.mchart-branch--higher { color: var(--higher); }
+.mchart-branch--lower { color: var(--lower); }
 
 .mchart-grid {
   stroke: var(--border-color);

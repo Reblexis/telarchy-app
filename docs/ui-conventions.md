@@ -217,15 +217,22 @@ per row. The two branch values are not shown. Rows carry the title, the
 proposer, and the USD ask (the two required facts of a job), and are ranked
 by impact, since the ballot is a ranking the owner acts on. **The board is
 a selector, not a second trading surface** (owner decision, 2026-08-09):
-selecting a job re-points the page's ONE market view and ONE ticket at that
-job's approved conditional branch, rather than growing a smaller market
-underneath. In that mode the headline becomes the question the
+selecting a job re-points the page's ONE market view and ONE ticket at
+that job's conditional pair, rather than growing a smaller market
+underneath. Both branches are on the page (owner decision 2026-08-10:
+every proposal branches into two worlds and both are visible): an
+"if approved" / "if declined" pill toggle under the headline picks which
+branch the view shows and the ticket trades (approved by default, green
+for approved, red for declined, matching the chart), and the chart draws
+the OTHER branch as a quieter line in its colour, so the vertical gap
+between the two lines is the priced impact of approving. In that mode the headline becomes the question the
 market actually prices, naming who is paid and how much ("What is
 <metric> @ <date> if <proposer> is paid $<ask> to do: <task>", the task in
 ink and the rest a register quieter), the job's own description sits under
 it as the details, a small "← <metric> @ <date>" link above returns to the
-baseline, the price is the conditional call, the chip becomes the impact (approved
-minus declined) instead of "since open", and the chart draws the branch's
+baseline, the price is the selected branch's call, the chip becomes the impact
+(approved minus declined, the same number whichever branch is on screen)
+instead of "since open", and the chart draws the branch's
 own history (fetched per market from
 `/api/marketplace/:id/markets/:marketId/history`, falling back to the
 market's current call as a single point when nobody has traded it yet, so a

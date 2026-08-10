@@ -28,6 +28,11 @@ interface Props {
       limits. Seeing your order sitting in the price is what makes the
       abstraction concrete, and it costs one line each. */
   orders?: Array<{ id: string; direction: 'higher' | 'lower'; limitValue: number }>;
+  /** The other branch of a conditional pair, drawn as a second, quieter
+      line (owner decision 2026-08-10: both branches on the page, the gap
+      between them IS the priced impact). `tone` colours it; the primary
+      series stays the loud one. */
+  secondary?: { series: Array<{ at: string; consensus: number | null }>; consensus: number; label: string; tone: 'higher' | 'lower' } | null;
   height?: number;
 }
 
@@ -53,7 +58,7 @@ function fullNum(v: number): string {
   return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
-export function MarketChart({ series, consensus, unit = '', preview = null, orders = [], height }: Props) {
+export function MarketChart({ series, consensus, unit = '', preview = null, orders = [], secondary = null, height }: Props) {
   const [compact, setCompact] = useState(() => typeof window !== 'undefined' && window.innerWidth < 520);
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 519px)');
@@ -77,7 +82,15 @@ export function MarketChart({ series, consensus, unit = '', preview = null, orde
     // The call holds between trades and since the last one: extend to now.
     const extended = [...pts, { t: Math.max(now, pts[pts.length - 1].t), v: consensus }];
 
-    const t0 = extended[0].t;
+    // The secondary branch shares the domain: two lines are only comparable
+    // when they share axes, and the gap between them is the point.
+    const secPts = (secondary?.series ?? [])
+      .filter(p => p.consensus !== null)
+      .map(p => ({ t: new Date(p.at).getTime(), v: p.consensus as number }))
+      .filter(p => Number.isFinite(p.t))
+      .sort((a, b) => a.t - b.t);
+
+    const t0 = Math.min(extended[0].t, secPts[0]?.t ?? extended[0].t);
     const t1 = extended[extended.length - 1].t;
     const span = Math.max(t1 - t0, 60_000);
     const values = extended.map(p => p.v);
@@ -85,6 +98,11 @@ export function MarketChart({ series, consensus, unit = '', preview = null, orde
     // Resting orders join the y domain, or an order below the traded range
     // would be drawn off-canvas and read as no order at all.
     for (const o of orders) values.push(o.limitValue);
+
+    if (secondary) {
+      for (const p of secPts) values.push(p.v);
+      values.push(secondary.consensus);
+    }
     const vMin0 = Math.min(...values);
     const vMax0 = Math.max(...values);
     const vPad = (vMax0 - vMin0 || vMax0 * 0.08 || 1) * 0.25;
@@ -103,6 +121,20 @@ export function MarketChart({ series, consensus, unit = '', preview = null, orde
     const end = extended[extended.length - 1];
     const areaPath = `${d} L${x(end.t).toFixed(1)},${(H - PAD_B).toFixed(1)} L${x(extended[0].t).toFixed(1)},${(H - PAD_B).toFixed(1)} Z`;
 
+    let secD: string | null = null;
+    let secEnd: { t: number; v: number } | null = null;
+    if (secondary) {
+      const sec = secPts.length > 0
+        ? [...secPts, { t: t0 + span, v: secondary.consensus }]
+        : [{ t: t0, v: secondary.consensus }, { t: t0 + span, v: secondary.consensus }];
+      secD = `M${x(sec[0].t).toFixed(1)},${y(sec[0].v).toFixed(1)}`;
+      for (let i = 1; i < sec.length; i++) {
+        secD += ` L${x(sec[i].t).toFixed(1)},${y(sec[i - 1].v).toFixed(1)}`;
+        secD += ` L${x(sec[i].t).toFixed(1)},${y(sec[i].v).toFixed(1)}`;
+      }
+      secEnd = sec[sec.length - 1];
+    }
+
     // Round-number gridlines.
     const rawStep = (vMax - vMin) / 4;
     const mag = Math.pow(10, Math.floor(Math.log10(rawStep || 1)));
@@ -118,11 +150,11 @@ export function MarketChart({ series, consensus, unit = '', preview = null, orde
       : new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const ticks = [0.08, 0.38, 0.68, 0.95].map(f => t0 + f * span);
 
-    return { pts, extended, d, areaPath, end, t0, t1: t0 + span, span, x, y, gridVals, ticks, fmt, open: extended[0] };
-  }, [series, consensus, preview, orders, H, W, PAD_L, PAD_R]);
+    return { pts, extended, d, areaPath, end, secD, secEnd, t0, t1: t0 + span, span, x, y, gridVals, ticks, fmt, open: extended[0] };
+  }, [series, consensus, preview, orders, secondary, H, W, PAD_L, PAD_R]);
 
   if (!model) return null;
-  const { extended, d, areaPath, end, x, y, gridVals, ticks, fmt } = model;
+  const { extended, d, areaPath, end, secD, secEnd, x, y, gridVals, ticks, fmt } = model;
   const cNum = (v: number) => `${unit}${compactNum(v)}`;
   const fNum = (v: number) => `${unit}${fullNum(v)}`;
   // The call and ghost labels live at the right edge; when a label is too
@@ -184,6 +216,22 @@ export function MarketChart({ series, consensus, unit = '', preview = null, orde
         {ticks.map(t => (
           <text key={t} className="mchart-xlabel" x={x(t)} y={H - 8}>{fmt(t)}</text>
         ))}
+
+        {secondary && secD && secEnd && (() => {
+          // Keep the two end labels apart when the branches sit close.
+          const py = y(secEnd.v);
+          const cy0 = y(end.v);
+          const labelY = Math.abs(py - cy0) < 15 ? py + (py >= cy0 ? 15 : -15) : py;
+          const text = `${fNum(secondary.consensus)} ${secondary.label}`;
+          const lb = edgeLabel(x(secEnd.t), text);
+          return (
+            <g className={`mchart-branch mchart-branch--${secondary.tone}`}>
+              <path d={secD} className="mchart-branch-line" />
+              <circle cx={x(secEnd.t)} cy={py} r="3.5" className="mchart-branch-dot" />
+              <text className="mchart-branch-label" x={lb.x} y={labelY + 4} textAnchor={lb.anchor}>{text}</text>
+            </g>
+          );
+        })()}
 
         <g className="mchart-market">
           <path d={areaPath} className="mchart-fill-area" fill="url(#mchart-fill)" stroke="none" />

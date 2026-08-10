@@ -256,6 +256,10 @@ export interface PublicProposalMarketPair {
   declinedMarketId: string | null;
   approvedProbability: number | null;
   approvedLiquidity: number | null;
+  /** The declined branch's price shape too: saying no is also a world, and
+   *  the page lets you bet in it. Null probability = unpriced (liquidity 0). */
+  declinedProbability: number | null;
+  declinedLiquidity: number | null;
   rangeMin: number;
   rangeMax: number;
 }

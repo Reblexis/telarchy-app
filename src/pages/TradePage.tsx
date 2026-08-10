@@ -69,7 +69,14 @@ export function TradePage() {
   // market (owner decision 2026-08-09: no second market underneath). null
   // means the baseline market is showing.
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const [condHistory, setCondHistory] = useState<Array<{ at: string; consensus: number | null }> | null>(null);
+  // Which world the one view is showing (owner decision 2026-08-10: both
+  // branches are on the page; the toggle picks which one the ticket trades,
+  // and the chart draws the other as a quiet second line).
+  const [branch, setBranch] = useState<'approved' | 'declined'>('approved');
+  const [condHistory, setCondHistory] = useState<{
+    approved: Array<{ at: string; consensus: number | null }>;
+    declined: Array<{ at: string; consensus: number | null }>;
+  } | null>(null);
   // The price straight from a trade response, so the headline moves before
   // the reload lands. Keyed by market so it never leaks across a switch.
   const [livePrice, setLivePrice] = useState<{ marketId: string; value: number } | null>(null);
@@ -120,49 +127,63 @@ export function TradePage() {
   const metricLabel = hero ? hero.metricName.replace(/\s*\(.*\)\s*$/, '') : '';
   const selectedJob = ws?.proposals?.find(p => p.id === selectedJobId) ?? null;
   const pair = selectedJob?.markets[0] ?? null;
+  // The selected branch's market id/price shape, and the other branch's for
+  // the chart's second line. A branch market can exist without a price
+  // (liquidity 0: the proposer could not fund the subsidy before the
+  // auto-fund fallback existed); its honest prior is the baseline call, not
+  // a vanished chart.
+  const branchShape = (b: 'approved' | 'declined') => {
+    if (!pair) return null;
+    const marketId = b === 'approved' ? pair.approvedMarketId : pair.declinedMarketId;
+    if (!marketId) return null;
+    return {
+      marketId,
+      consensus: (b === 'approved' ? pair.approvedConsensus : pair.declinedConsensus) ?? hero?.consensus ?? null,
+      probability: (b === 'approved' ? pair.approvedProbability : pair.declinedProbability) ?? hero?.probability ?? 0.5,
+      liquidity: ((b === 'approved' ? pair.approvedLiquidity : pair.declinedLiquidity) ?? 0) > 0
+        ? ((b === 'approved' ? pair.approvedLiquidity : pair.declinedLiquidity) as number)
+        : (hero?.liquidity ?? 1),
+      rangeMin: pair.rangeMin,
+      rangeMax: pair.rangeMax,
+      history: condHistory?.[b] ?? [],
+    };
+  };
   // The one market the page is showing and the ticket is trading: the
-  // baseline, or the selected job's approved branch.
-  const active = pair && pair.approvedMarketId
+  // baseline, or the selected branch of the selected job.
+  const active = branchShape(branch) ?? (hero
     ? {
-        marketId: pair.approvedMarketId,
-        // A branch market can exist without a price (liquidity 0: the
-        // proposer could not fund the subsidy and no fallback caught it).
-        // Its honest prior is the baseline call, not a vanished chart,
-        // which is what a null consensus used to do to the whole
-        // instrument. The backend now auto-funds these, so this is a
-        // belt for old rows, not the expected path.
-        consensus: pair.approvedConsensus ?? hero?.consensus ?? null,
-        probability: pair.approvedProbability ?? hero?.probability ?? 0.5,
-        liquidity: (pair.approvedLiquidity ?? 0) > 0 ? (pair.approvedLiquidity as number) : (hero?.liquidity ?? 1),
-        rangeMin: pair.rangeMin,
-        rangeMax: pair.rangeMax,
-        history: condHistory ?? [],
+        marketId: hero.marketId,
+        consensus: hero.consensus,
+        probability: hero.probability,
+        liquidity: hero.liquidity,
+        rangeMin: hero.rangeMin,
+        rangeMax: hero.rangeMax,
+        history: ws?.marketHistory ?? [],
       }
-    : hero
-      ? {
-          marketId: hero.marketId,
-          consensus: hero.consensus,
-          probability: hero.probability,
-          liquidity: hero.liquidity,
-          rangeMin: hero.rangeMin,
-          rangeMax: hero.rangeMax,
-          history: ws?.marketHistory ?? [],
-        }
-      : null;
+    : null);
+  const otherBranch = pair ? branchShape(branch === 'approved' ? 'declined' : 'approved') : null;
   const activeMarketId = active?.marketId ?? null;
 
-  // The conditional branch's own history, fetched when a job is selected so
-  // the main chart keeps meaning something after the switch.
+  // Both branches' own histories, fetched when a job is selected so the
+  // main chart keeps meaning something after the switch. Selecting a job
+  // always starts in the approved world.
   useEffect(() => {
     setCondHistory(null);
-    const mid = pair?.approvedMarketId;
-    if (!mid || !ws) return;
+    setBranch('approved');
+    const aid = pair?.approvedMarketId;
+    const did = pair?.declinedMarketId;
+    if (!aid || !ws) return;
     let cancelled = false;
-    api.getPublicMarketHistory(ws.slug || ws.workspaceId, mid)
-      .then(h => { if (!cancelled) setCondHistory(h); })
+    const slug = ws.slug || ws.workspaceId;
+    Promise.all([
+      api.getPublicMarketHistory(slug, aid),
+      did ? api.getPublicMarketHistory(slug, did) : Promise.resolve([]),
+    ])
+      .then(([a, d]) => { if (!cancelled) setCondHistory({ approved: a, declined: d }); })
       .catch(e => console.error('conditional history fetch failed:', e));
     return () => { cancelled = true; };
-  }, [pair?.approvedMarketId, ws]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pair?.approvedMarketId, pair?.declinedMarketId, ws]);
 
   const refreshMoney = () => {
     if (activeMarketId && ws) {
@@ -207,8 +228,12 @@ export function TradePage() {
     refreshMoney();
     reload();
     if (pair?.approvedMarketId) {
-      api.getPublicMarketHistory(ws.slug || ws.workspaceId, pair.approvedMarketId)
-        .then(setCondHistory)
+      const slug = ws.slug || ws.workspaceId;
+      Promise.all([
+        api.getPublicMarketHistory(slug, pair.approvedMarketId),
+        pair.declinedMarketId ? api.getPublicMarketHistory(slug, pair.declinedMarketId) : Promise.resolve([]),
+      ])
+        .then(([a, d]) => setCondHistory({ approved: a, declined: d }))
         .catch(e => console.error('conditional history refresh failed:', e));
     }
   };
@@ -234,11 +259,15 @@ export function TradePage() {
   };
 
   // The prediction's own movement: for the baseline, the call vs the call
-  // after its first trade; for a conditional, the impact itself (approved
-  // minus declined), which is the one number a job is about.
+  // after its first trade. For a job, the chip shows the impact itself
+  // (approved minus declined), which is the one number the job is about,
+  // and it stays the same whichever branch is on screen.
   const marketOpen = pair
-    ? pair.declinedConsensus
+    ? null
     : ws?.marketHistory?.length ? ws.marketHistory.find(p => p.consensus !== null)?.consensus ?? null : null;
+  const jobImpact = pair && pair.approvedConsensus !== null && pair.declinedConsensus !== null
+    ? pair.approvedConsensus - pair.declinedConsensus
+    : null;
   const consensus = (livePrice && livePrice.marketId === activeMarketId ? livePrice.value : null)
     ?? active?.consensus ?? null;
   // The composed bet's impact, projected from probability space onto the
@@ -346,10 +375,15 @@ export function TradePage() {
             )}
             <div className="pubws-headline pubws-enter pubws-enter--2">
               <span className="pubws-price">{unit}{formatValue(consensus)}</span>
-              {marketOpen !== null && consensus !== marketOpen && (
+              {!selectedJob && marketOpen !== null && consensus !== marketOpen && (
                 <span className={`pubws-delta-chip ${consensus >= marketOpen ? 'is-up' : 'is-down'}`}>
                   {consensus >= marketOpen ? '▲' : '▼'} {formatDelta(consensus - marketOpen, unit)}
-                  {' '}{selectedJob ? 'impact' : 'since open'}
+                  {' '}since open
+                </span>
+              )}
+              {selectedJob && jobImpact !== null && jobImpact !== 0 && (
+                <span className={`pubws-delta-chip ${jobImpact >= 0 ? 'is-up' : 'is-down'}`}>
+                  {jobImpact >= 0 ? '▲' : '▼'} {formatDelta(jobImpact, unit)} impact
                 </span>
               )}
             </div>
@@ -357,6 +391,28 @@ export function TradePage() {
                 used to mean no chart at all: selecting a fresh job showed a
                 price and blank space. A market always has a call, so fall
                 back to that single point and let the chart hold it. */}
+            {/* Every proposal branches into two worlds and both are on the
+                page (owner decision 2026-08-10): the toggle picks which one
+                the ticket trades, the chart draws the other as a quiet
+                second line, and the gap between the lines is the impact. */}
+            {selectedJob && pair?.declinedMarketId && (
+              <div className="pubws-branch pubws-enter pubws-enter--2" role="group" aria-label="Branch">
+                <button
+                  className={`pubws-branch-opt pubws-branch-opt--approved${branch === 'approved' ? ' is-active' : ''}`}
+                  aria-pressed={branch === 'approved'}
+                  onClick={() => setBranch('approved')}
+                >
+                  if approved
+                </button>
+                <button
+                  className={`pubws-branch-opt pubws-branch-opt--declined${branch === 'declined' ? ' is-active' : ''}`}
+                  aria-pressed={branch === 'declined'}
+                  onClick={() => setBranch('declined')}
+                >
+                  if declined
+                </button>
+              </div>
+            )}
             <div className="pubws-enter pubws-enter--3">
               <MarketChart
                 key={active.marketId}
@@ -367,6 +423,14 @@ export function TradePage() {
                 unit={unit}
                 preview={chartPreview}
                 orders={orders.map(o => ({ id: o.id, direction: o.direction, limitValue: o.limitValue }))}
+                secondary={selectedJob && otherBranch && otherBranch.consensus !== null
+                  ? {
+                      series: otherBranch.history,
+                      consensus: otherBranch.consensus,
+                      label: branch === 'approved' ? 'if declined' : 'if approved',
+                      tone: branch === 'approved' ? 'lower' : 'higher',
+                    }
+                  : null}
               />
             </div>
           </section>
