@@ -497,12 +497,25 @@ export function TradePage() {
             voids the market. "What is LookPilot?" is the product in its
             own words plus the primary sources; know the startup, trade it
             better. */}
-        {ws.heroMetricDescription && (
-          <section className="pubws-know pubws-enter pubws-enter--3" aria-label="What is this market">
-            <h2 className="pubws-know-head">What is this market?</h2>
-            <p className="pubws-metric-desc">{ws.heroMetricDescription}</p>
-          </section>
-        )}
+        <section className="pubws-know pubws-enter pubws-enter--3" aria-label="What is this market">
+          <h2 className="pubws-know-head">What is this market?</h2>
+          {/* A human explanation first (owner direction 2026-08-10: "describe
+              it normally, no weird jabber"), the exact settlement text
+              beneath it. The explainer talks mechanics, so it never
+              paraphrases the definition and cannot drift from it. */}
+          <p className="pubws-know-what">
+            A prediction market on LookPilot&rsquo;s 2026 profit. The big
+            number is what traders currently believe the year will end at.
+            Think it&rsquo;s too low? Bet Higher. Too high? Bet Lower. The
+            closer the real year-end number lands to your side, the more you
+            win.
+          </p>
+          {ws.heroMetricDescription && (
+            <p className="pubws-metric-desc">
+              Exactly what counts: {ws.heroMetricDescription}
+            </p>
+          )}
+        </section>
         <section className="pubws-know pubws-enter pubws-enter--3" aria-label="What is LookPilot">
           <h2 className="pubws-know-head">What is LookPilot?</h2>
           <p className="pubws-know-what">
