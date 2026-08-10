@@ -170,3 +170,21 @@ gcloud scheduler jobs update http firebase-schedule-dailyResolve-us-central1 \
 gcloud scheduler jobs update http firebase-schedule-dailyMarketRefresh-us-central1 \
   --location=us-central1 --project=telarchy-e0043 --schedule="10 0 * * *"
 ```
+
+## Owner notifications (Resend)
+
+The `api` service sends owner notification emails (new waitlist signup,
+new proposal) through Resend (`functions/src/lib/notify.ts`). Two pieces
+of service config, set once on Cloud Run and inherited by every CI deploy
+(the workflow passes no env flags, so revisions keep them):
+
+- `RESEND_API_KEY`: mounted from Secret Manager secret `resend-api-key`
+  (source of truth: the keyring repo, `laptop/secrets/resend.env`).
+- `OWNER_NOTIFY_EMAIL`: plain env var, the owner's inbox.
+
+Set up 2026-08-10 via `gcloud secrets create resend-api-key` +
+`gcloud run services update api --update-secrets=RESEND_API_KEY=resend-api-key:latest
+--update-env-vars=OWNER_NOTIFY_EMAIL=...`. With either unset the
+notifier is silently off (local dev, tests); it never fails the calling
+request either way. The sending domain `telarchy.com` is verified in
+Resend.
