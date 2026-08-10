@@ -591,7 +591,10 @@ marketplaceRouter.get('/:workspaceId/card.png', wrap(async (req, res) => {
     const shares = (hero.shares as [number, number]) || [0, 0];
     heroConsensus = consensus(shares, hero.liquidity, hero.rangeMin, hero.rangeMax) ?? null;
     metricLabel = hero.metricName.replace(/\s*\(.*\)\s*$/, '');
-    unit = hero.metricName.match(/\(([^)]*)\)\s*$/)?.[1] ?? '';
+    // Same mapping the floor's currencyOf uses: the "(USD)" tail becomes
+    // the $ prefix; any other tail stays off the headline number.
+    const unitTail = hero.metricName.match(/\(([^)]*)\)\s*$/)?.[1] ?? '';
+    unit = /\busd\b|\$/i.test(unitTail) ? '$' : '';
     resolvesOn = resolutionInstant(hero.targetDate)
       ? new Date(periodEndInstant(hero.targetDate).getTime() - 1).toLocaleDateString('en-GB', {
           day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
