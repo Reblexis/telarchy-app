@@ -271,7 +271,9 @@ in accent), then the confirm, which always states what it will do ("Place
 reading "Pick a side", never a dimmed filled slab: a disabled fill is the
 loudest thing on the page and says nothing, which dark mode makes glaring
 because the button ink is bone. One line of fine print carries the payout
-and the wallet together. The payout line appears under the confirm only once a side is
+and the wallet together. Limit orders enter as an optional third question
+inside the same ticket (an `at any price` / `at my price` toggle, default
+off), never as a second panel; the spec is `docs/limit-orders.md`. The payout line appears under the confirm only once a side is
 picked; success flashes "Placed" on the button itself; errors render inside
 the ticket. Held positions sit at the top of the ticket as rows (tinted
 direction, mono payout, a Sell pill). Motion is one entrance pass (label, then price, then
