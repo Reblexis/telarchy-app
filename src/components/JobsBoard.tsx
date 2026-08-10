@@ -152,59 +152,52 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
               <h3 className="floor-modal-title">Suggest a job</h3>
               <button className="jobform-x" aria-label="Close" onClick={() => setFormOpen(false)}>×</button>
             </div>
-            <div className="jobform-field">
-              <div className="jobform-labelrow">
-                <span className="jobform-label">What will you do?</span>
-                <span className={`jobform-count${title.length >= 60 ? ' is-near' : ''}`}>{title.length}/70</span>
-              </div>
-              {/* 70 + the "$<ask>: " prefix stays under the backend's 80. */}
+            {/* The ticket's technique, verbatim (owner direction 2026-08-10:
+                same styling as the betting UI): centered quiet labels, bare
+                inputs on underlines, no boxes anywhere, the one filled
+                element is the confirm. */}
+            <p className="ticket-label">
+              What will you do? <span className={`jobform-count${title.length >= 60 ? ' is-near' : ''}`}>{title.length}/70</span>
+            </p>
+            <input
+              className="jobform-line jobform-line--title"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="Stream LookPilot to my viewers for an hour"
+              maxLength={70}
+              aria-label="Job title"
+            />
+            <p className="ticket-label">Your price, paid on approval</p>
+            <label className="jobform-price">
+              <span aria-hidden="true">$</span>
               <input
-                className="jobform-input"
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                placeholder="Stream LookPilot to my viewers for an hour"
-                maxLength={70}
-                aria-label="Job title"
+                value={ask}
+                style={{ width: `${Math.max(1, ask.length)}ch` }}
+                onChange={e => setAsk(e.target.value.replace(/[^0-9]/g, ''))}
+                placeholder="0"
+                inputMode="numeric"
+                aria-label="Your price in USD (required)"
+                required
               />
-            </div>
-            <div className="jobform-field">
-              <span className="jobform-label">Your price, paid on approval</span>
-              {/* The ticket's own input language: a bare mono numeral on an
-                  underline, the dollar sign standing beside it. One visual
-                  system across both dialogs. */}
-              <label className="jobform-price">
-                <span aria-hidden="true">$</span>
-                <input
-                  value={ask}
-                  style={{ width: `${Math.max(1, ask.length)}ch` }}
-                  onChange={e => setAsk(e.target.value.replace(/[^0-9]/g, ''))}
-                  placeholder="0"
-                  inputMode="numeric"
-                  aria-label="Your price in USD (required)"
-                  required
-                />
-              </label>
-            </div>
-            <div className="jobform-field">
-              <span className="jobform-label">Why you, and why it moves the number</span>
-              <textarea
-                className="jobform-input"
-                value={desc}
-                onChange={e => setDesc(e.target.value)}
-                placeholder="Links to your channel, portfolio, prior work. Payment handle here or after approval."
-                rows={4}
-                aria-label="Job description"
-              />
-            </div>
+            </label>
+            <p className="ticket-label">Why you, and why it moves the number</p>
+            <textarea
+              className="jobform-line jobform-line--desc"
+              value={desc}
+              onChange={e => setDesc(e.target.value)}
+              placeholder="Links to your channel, portfolio, prior work. Payment handle here or after approval."
+              rows={4}
+              aria-label="Job description"
+            />
             <button className="jobform-go" disabled={formBusy} onClick={() => void submit()}>
               {formBusy ? 'Submitting…' : 'Put it on the ballot · 500 cr stake'}
             </button>
-            <p className="jobform-fine">
+            <p className="ticket-foot jobform-fine">
               The stake seeds your job&rsquo;s two markets and comes back in
-              full when the owner decides, approved or declined. Approval pays
-              your ask and grants nothing else.
+              full when the owner decides. Approval pays your ask and grants
+              nothing else.
             </p>
-            {formErr && <p className="jobform-err">{formErr}</p>}
+            {formErr && <p className="ticket-err">{formErr}</p>}
           </div>
         </FloorModal>
       )}

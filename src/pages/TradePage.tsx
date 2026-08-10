@@ -470,9 +470,13 @@ export function TradePage() {
 
         {active && (trading || (canTrade && !user && !authLoading)) ? (
           <section className="pubws-act pubws-enter pubws-enter--3" aria-label="Place a trade">
+            {/* Prominent, Manifold-style (owner direction 2026-08-10):
+                the two filled verbs ARE the floor's call to action, green
+                up first like the reference. The dialog they open keeps its
+                own side pills for switching. */}
             <div className="pubws-bet" role="group" aria-label="Bet">
-              <button className="ticket-side ticket-side--lower" onClick={() => setBetModal('lower')}>Lower</button>
-              <button className="ticket-side ticket-side--higher" onClick={() => setBetModal('higher')}>Higher</button>
+              <button className="pubws-bet-btn pubws-bet-btn--higher" onClick={() => setBetModal('higher')}>Bet Higher ↑</button>
+              <button className="pubws-bet-btn pubws-bet-btn--lower" onClick={() => setBetModal('lower')}>Bet Lower ↓</button>
             </div>
             {/* The held position stays visible on the floor; managing it
                 (selling, cancelling orders) happens in the same dialog. */}
