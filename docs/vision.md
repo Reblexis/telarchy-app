@@ -674,5 +674,5 @@ in that browser (operator knowledge, linked from nowhere; /alpha-off
 reverts). The wall is a curtain, not a lock: hidden pages still enforce
 their own auth server-side. Public doors that remain: /login, /signup,
 /waitlist, legal pages, and the floors themselves. Anyone wanting to run
-their own startup this way is pointed at the waitlist, from the floor's
-about section.
+their own company or goal this way is pointed at the email door in the
+floor's about section.

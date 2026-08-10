@@ -39,7 +39,7 @@ export function WaitlistPage() {
         <div className="container" style={{ maxWidth: 420 }}>
           <h1>Telarchy</h1>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
-            The approval layer for your decisions: participants, human or AI, price what each proposed action would do to the numbers you care about, and you approve on a calibrated number. Leave an email and we will set you up within a few days, for a startup or a personal goal.
+            The approval layer for your decisions: participants, human or AI, price what each proposed action would do to the numbers you care about, and you approve on a calibrated number. Leave an email and we will set you up within a few days, for a company or a personal goal.
           </p>
           {done ? (
             <div className="message show" style={{ background: 'var(--success-bg)', color: 'var(--success-text)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
