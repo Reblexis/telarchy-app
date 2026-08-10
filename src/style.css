@@ -8827,23 +8827,35 @@ code, pre, kbd, samp {
   font-size: 0.8rem;
   color: var(--lower);
 }
-/* Evidence: the market-less series a forecaster prices against. One quiet
-   wrapping line; the names carry the meaning. */
-.pubws-evidence {
+/* Sources: where a forecaster verifies the number without trusting this
+   page. One quiet line of links; replaces the copied-value evidence strip
+   (owner decision 2026-08-10). */
+.pubws-sources {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 0.3rem 1.4rem;
+  align-items: baseline;
+  gap: 0.3rem 1.6rem;
   margin-top: clamp(2rem, 5vh, 2.8rem);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
+}
+
+.pubws-sources-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
   color: var(--text-tertiary);
 }
 
-.pubws-evidence-value {
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 600;
+.pubws-sources a {
   color: var(--text-secondary);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border-strong);
+  padding-bottom: 1px;
+  transition: color 120ms ease, border-color 120ms ease;
 }
+.pubws-sources a:hover { color: var(--accent); border-color: var(--accent); }
 
 /* The desk facts: signed-in only, the anchor the market predicts against
    plus its freshness and the trade pulse. */

@@ -275,7 +275,7 @@ export function TradeTicket({
                   disabled={busy !== null}
                   onClick={() => void sell(p)}
                 >
-                  {busy === `sell-${p.direction}` ? 'Selling…' : 'Sell'}
+                  {busy === `sell-${p.direction}` ? 'Selling…' : 'Sell all'}
                 </button>
               </div>
             );

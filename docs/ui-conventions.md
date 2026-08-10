@@ -263,15 +263,14 @@ color-coded --higher/--lower, and market moves; newest first, capped at
 12). Both rails render for both tiers, hide entirely when empty, sit
 sticky beside the poster, and the chart stops breaking out (100% of the
 center column). Below 1120px the rails stack under the poster,
-leaderboard first. Under the jobs board sits the evidence row
-(`.pubws-evidence`): the workspace's market-less metrics (for LookPilot:
-Steam units 30d, standalone purchases, weekly active users, tracking hours,
-recent review percentage) as one quiet wrapping mono line, value then
-lowercased name, capped at six entries so a many-metric workspace cannot
-flood the desk. The series are pushed by the same daily sync as the traded
-number, so their provenance claim is the metric's own; the disclosure line
-they implement (product telemetry in aggregate, never user-level, never
-personal, never negotiations) lives in the campaign design record.
+leaderboard first. Under the jobs board sits the sources
+line (`.pubws-sources`, owner decision 2026-08-10, replacing the copied
+metric-value evidence row, which went stale between syncs and
+second-guessed the chart): a tiny uppercase "sources" label and three
+links a forecaster can audit without trusting this page: the official
+data room (lookpilot.app/data-room), the Steam store page, and SteamDB.
+Links are quiet text with a hairline underline that warms to the accent
+on hover; external, opening in a new tab.
 While a bet is composed in the
 ticket (side + amount picked, not yet placed), the chart draws its impact
 as a ghost: a dashed vertical off the
