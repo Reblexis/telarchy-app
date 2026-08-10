@@ -142,7 +142,7 @@ describe('payment details', () => {
 
     const short = await request(app).post('/api/auth/profile').send({ payoutHandle: 'abc' });
     expect(short.status).toBe(400);
-    expect(short.body.error).toMatch(/at least 5/);
+    expect(short.body.error).toMatch(/at least a few words/);
     expect(await storedPayout()).toBeNull();
   });
 });
@@ -165,5 +165,43 @@ describe('inline data-URL picture', () => {
       .send({ image: 'data:image/png;base64,' + 'A'.repeat(97_000) });
     expect(big.status).toBe(400);
     expect(await storedImage()).toBeNull();
+  });
+});
+
+describe('structured payment method', () => {
+  async function storedPayment(): Promise<{ handle: string | null; method: unknown }> {
+    const [row] = await db.select().from(agents).where(eq(agents.id, AGENT));
+    return { handle: row?.payoutHandle ?? null, method: row?.payoutMethod ?? null };
+  }
+
+  test('a valid method stores the object and derives the summary', async () => {
+    const res = await request(app).post('/api/auth/profile')
+      .send({ payoutMethod: { provider: 'bank', iban: 'DE89 3704 0044 0532 0130 00', holder: 'Jan Novak' } });
+    expect(res.status).toBe(200);
+    const { handle, method } = await storedPayment();
+    expect(method).toEqual({ provider: 'bank', iban: 'DE89370400440532013000', holder: 'Jan Novak' });
+    expect(handle).toBe('Bank (IBAN): DE89370400440532013000, holder Jan Novak');
+  });
+
+  test('an invalid method is refused with the provider-specific reason', async () => {
+    const res = await request(app).post('/api/auth/profile')
+      .send({ payoutMethod: { provider: 'bank', iban: 'DE00WRONG', holder: 'Jan' } });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/IBAN/);
+    expect((await storedPayment()).method).toBeNull();
+  });
+
+  test('null clears both columns; a legacy bare handle becomes the other provider', async () => {
+    await request(app).post('/api/auth/profile')
+      .send({ payoutMethod: { provider: 'paypal', email: 'p@x.com' } });
+    const cleared = await request(app).post('/api/auth/profile').send({ payoutMethod: null });
+    expect(cleared.status).toBe(200);
+    expect(await storedPayment()).toEqual({ handle: null, method: null });
+
+    const legacy = await request(app).post('/api/auth/profile').send({ payoutHandle: 'pay me by carrier pigeon' });
+    expect(legacy.status).toBe(200);
+    const { handle, method } = await storedPayment();
+    expect(method).toEqual({ provider: 'other', details: 'pay me by carrier pigeon' });
+    expect(handle).toBe('pay me by carrier pigeon');
   });
 });

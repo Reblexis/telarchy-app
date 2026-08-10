@@ -83,6 +83,15 @@ export interface AgentTrace {
  * A resting instruction to buy while the market sits at or beyond a price.
  * `limitValue` is in the metric's own units (dollars here), never probability.
  */
+/** Structured payment details; mirrors functions/src/lib/payout.ts. */
+export type PayoutMethod =
+  | { provider: 'paypal'; email: string }
+  | { provider: 'bank'; iban: string; holder: string }
+  | { provider: 'crypto'; network: 'ethereum' | 'bitcoin' | 'solana'; address: string }
+  | { provider: 'revolut'; handle: string }
+  | { provider: 'wise'; email: string }
+  | { provider: 'other'; details: string };
+
 export interface LimitOrder {
   id: string;
   marketId: string;
@@ -732,7 +741,7 @@ export const api = {
 
   // User auth / profile
   getProfile: () => request('/api/auth/me'),
-  upsertProfile: (opts?: { email?: string; intent?: 'creator' | 'agent' | 'trader'; nickname?: string; bio?: string; image?: string | null; payoutHandle?: string | null }) =>
+  upsertProfile: (opts?: { email?: string; intent?: 'creator' | 'agent' | 'trader'; nickname?: string; bio?: string; image?: string | null; payoutHandle?: string | null; payoutMethod?: PayoutMethod | null }) =>
     request('/api/auth/profile', { method: 'POST', body: JSON.stringify(opts ?? {}) }),
   recordConsent: () =>
     request('/api/auth/consent', { method: 'POST', body: JSON.stringify({ accepted: true }) }),

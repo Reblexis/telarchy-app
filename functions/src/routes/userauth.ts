@@ -10,6 +10,7 @@ import { hashKey } from '../middleware/auth';
 import { getAuthWorkspaceMemberships, getUserWorkspaceMemberships } from '../middleware/auth';
 import { toUnits, SIGNUP_CREDITS, normalizeBio } from '../lib/validation';
 import { claimNickname } from '../lib/participants';
+import { normalizePayoutMethod, payoutSummary, type PayoutMethod } from '../lib/payout';
 
 export const userauthRouter = Router();
 
@@ -143,9 +144,12 @@ userauthRouter.post('/consent', requireUser, wrap(async (req, res) => {
  * payoutHandle). Works for both browser sessions and agent API keys; uses
  * whichever identity is present on req.auth and updates that participant's
  * row. `bio` is a freeform public description (max 500 chars; empty string
- * or null clears it) shown on the public participant profile. `payoutHandle`
- * (5-200 chars; empty/null clears) is the account's payment details, read by
- * paid-job proposals; it is payment info, never shown publicly.
+ * or null clears it) shown on the public participant profile. `payoutMethod`
+ * is the account's structured payment details ({ provider, ...fields },
+ * validated per provider in lib/payout.ts; null clears); its human-readable
+ * summary is derived into `payoutHandle`, which paid-job proposals snapshot.
+ * A bare `payoutHandle` string from older clients still works (stored as the
+ * "other" provider). Payment info is never shown publicly.
  */
 userauthRouter.post('/profile', requireIdentity, requireScope('account:write'), wrap(async (req, res) => {
   const participantId = await resolveCallerParticipantId(req);
@@ -154,25 +158,42 @@ userauthRouter.post('/profile', requireIdentity, requireScope('account:write'), 
     return;
   }
 
-  const { intent, nickname, bio, image, payoutHandle } = req.body;
+  const { intent, nickname, bio, image, payoutHandle, payoutMethod } = req.body;
   if (intent !== undefined && !['creator', 'agent', 'trader'].includes(intent)) {
     res.status(400).json({ error: 'intent must be "creator", "agent", or "trader"' }); return;
   }
 
   // Payment details (owner decision 2026-08-10): where job money goes
-  // lives on the account, not on each proposal. A paid job reads this at
-  // creation time and snapshots it. Empty string or null clears it.
+  // lives on the account, not on each proposal, and it is STRUCTURED
+  // (owner direction, same day: providers, not one broad text field).
+  // payoutMethod is the source of truth ({ provider, ...fields },
+  // validated per provider in lib/payout.ts); the human-readable summary
+  // is derived into payout_handle for proposal snapshots and the owner's
+  // payout view. A bare payoutHandle string is still accepted from older
+  // clients and stored as the "other" provider. null/empty clears both.
   let normalizedPayout: string | null | undefined;
-  if (payoutHandle !== undefined) {
+  let normalizedMethod: PayoutMethod | null | undefined;
+  if (payoutMethod !== undefined) {
+    if (payoutMethod === null) {
+      normalizedMethod = null;
+      normalizedPayout = null;
+    } else {
+      const result = normalizePayoutMethod(payoutMethod);
+      if (result instanceof Error) { res.status(400).json({ error: result.message }); return; }
+      normalizedMethod = result;
+      normalizedPayout = payoutSummary(result);
+    }
+  } else if (payoutHandle !== undefined) {
     if (payoutHandle === null || (typeof payoutHandle === 'string' && payoutHandle.trim().length === 0)) {
       normalizedPayout = null;
+      normalizedMethod = null;
     } else if (typeof payoutHandle !== 'string') {
       res.status(400).json({ error: 'payoutHandle must be a string or null' }); return;
     } else {
-      const trimmed = payoutHandle.trim();
-      if (trimmed.length < 5) { res.status(400).json({ error: 'payoutHandle must be at least 5 characters (a PayPal email, IBAN, or crypto address)' }); return; }
-      if (trimmed.length > 200) { res.status(400).json({ error: 'payoutHandle must be at most 200 characters' }); return; }
-      normalizedPayout = trimmed;
+      const result = normalizePayoutMethod({ provider: 'other', details: payoutHandle });
+      if (result instanceof Error) { res.status(400).json({ error: result.message }); return; }
+      normalizedMethod = result;
+      normalizedPayout = payoutSummary(result);
     }
   }
 
@@ -243,7 +264,8 @@ userauthRouter.post('/profile', requireIdentity, requireScope('account:write'), 
   }
 
   if (normalizedPayout !== undefined) {
-    await db.update(agents).set({ payoutHandle: normalizedPayout }).where(eq(agents.id, participantId));
+    await db.update(agents).set({ payoutHandle: normalizedPayout, payoutMethod: normalizedMethod ?? null })
+      .where(eq(agents.id, participantId));
   }
 
   if (nickname !== undefined) {

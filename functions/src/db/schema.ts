@@ -145,10 +145,15 @@ export const workspaceOrderings = pgTable('workspace_orderings', {
 // ---------------------------------------------------------------------------
 
 export const agents = pgTable('agents', {
-  /** How this participant receives real money (PayPal email, IBAN, crypto
-   *  address). Set once in the account; required to post any paid job.
-   *  Snapshotted onto each proposal at listing. */
+  /** How this participant receives real money, as a human-readable summary
+   *  ("PayPal: x@y.com"). DERIVED from payoutMethod when that is set; kept
+   *  as its own column because proposal snapshots and the owner's payout
+   *  view read it. Required (via payoutMethod) to post any paid job. */
   payoutHandle: text('payout_handle'),
+  /** The structured payment method: { provider, ...provider fields },
+   *  validated per provider in POST /api/auth/profile (lib/payout.ts).
+   *  Source of truth for payment details; payoutHandle is its summary. */
+  payoutMethod: jsonb('payout_method'),
   id: text('id').primaryKey(),
   apiKeyHash: text('api_key_hash').notNull(),
   /** BetterAuth user ID for browser-authenticated participants. Means "this

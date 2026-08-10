@@ -267,8 +267,24 @@ stored column is what anything financial reads. Rows prefer `askUsd` and fall ba
 parsing the title only for proposals created before the column existed.
 There is no paid-to field
 (owner direction 2026-08-10, second pass: payment details belong in
-account settings, not in a job): the account menu edits them, and the
-server refuses a paid job without them. The board is signed-in
+account settings, not in a job): the account settings dialog edits them,
+and the server refuses a paid job without them.
+
+The account itself is a full dialog (`AccountDialog`, owner direction
+2026-08-10: the corner popover got too cramped for management; spawn a
+whole dialog like the proposal one). The avatar's popover keeps only a
+glance (name, credits, "Account settings", console link behind alpha,
+log out); the dialog carries the picture (the avatar IS the control:
+click, pick a file, saved), the username, structured payment details,
+and the Manifold import, all in the ticket language. Payment details are
+STRUCTURED (owner direction, same day: providers, not one broad text
+field): a pill row picks the provider (PayPal, Bank, Crypto, Revolut,
+Wise, Other), each provider asks only for its own fields (crypto adds a
+network pill row), and the server validates per provider (IBAN mod-97,
+per-network address shapes) with the refusal surfacing verbatim beside
+the save. The stored object lives in `agents.payout_method`; its
+human-readable summary is derived into `agents.payout_handle`, which is
+what paid-job proposals snapshot. The board is signed-in
 only; the anonymous poster stays clean. On viewports >=1120px the page
 becomes the trading floor proper: a three-column grid with the top-traders
 rail on the left (public /api/leaderboard: rank, nickname-or-id, earnings
