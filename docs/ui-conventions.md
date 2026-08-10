@@ -341,10 +341,11 @@ returns as a render change.
 carries the settle day ("LookPilot net 2026 @ 31 December 2026", the END
 of the target period so the year boundary never reads a day late), set a
 register quieter than the name (`.pubws-settle`). The chart has a zoom row
-(`.mchart-ranges`: 1H/6H/1D/1W/1M/ALL, Manifold-style); windows longer
-than the market's life are disabled, not hidden, and a windowed view
-enters at the call in force at its left edge so the step line never starts
-mid-air. The jobs board moved into the RIGHT RAIL, replacing the activity
+(`.mchart-ranges`: 1H/6H/1D/1W/1M/ALL, Manifold-style); every window is
+always clickable (a young market with every button disabled read as
+broken; a window wider than the market's life just shows everything), and
+a windowed view enters at the call in force at its left edge so the step
+line never starts mid-air. The jobs board moved into the RIGHT RAIL, replacing the activity
 log (the log's information lives on in the chart and the board); it
 renders for everyone, with proposing routed to /signup when anonymous. The
 metric's stored description moved from under the chart into the

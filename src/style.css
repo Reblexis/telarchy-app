@@ -8279,9 +8279,8 @@ code, pre, kbd, samp {
 }
 
 
-/* The zoom row: quiet mono pills, right-aligned over the plot. Windows
-   longer than the market's life are disabled, not hidden: the row keeps
-   its shape while the market grows into it. */
+/* The zoom row: quiet mono pills, right-aligned over the plot. Always
+   clickable; a window wider than the market's life shows everything. */
 .mchart-ranges {
   display: flex;
   justify-content: flex-end;
@@ -8304,7 +8303,6 @@ code, pre, kbd, samp {
 }
 .mchart-range:hover:not(:disabled):not(.is-active) { color: var(--text-primary); }
 .mchart-range.is-active { background: var(--bg-tertiary); color: var(--text-primary); }
-.mchart-range:disabled { opacity: 0.35; cursor: default; }
 .mchart-range:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* A resting order, drawn where it sits in the price. Faint enough to stay

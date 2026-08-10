@@ -58,9 +58,10 @@ function fullNum(v: number): string {
   return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
-// The zoom row, Manifold-style: fixed windows ending now. A window longer
-// than the market's whole life shows nothing ALL does not, so it is
-// disabled rather than lying about having more to show.
+// The zoom row, Manifold-style: fixed windows ending now. Every window is
+// always clickable (owner direction 2026-08-10: a young market had every
+// button disabled, which read as broken): a window longer than the
+// market's life simply shows the whole history, same as ALL.
 const RANGES: Array<{ key: string; ms: number }> = [
   { key: '1H', ms: 3600e3 },
   { key: '6H', ms: 6 * 3600e3 },
@@ -91,7 +92,6 @@ export function MarketChart({ series, consensus, unit = '', preview = null, orde
       .sort((a, b) => a.t - b.t);
     if (pts.length === 0) return null;
     const now = Date.now();
-    const fullSpan = now - pts[0].t;
     if (range !== null) {
       const cutoff = now - range;
       // The call in force AT the window's left edge, so the step line
@@ -177,7 +177,7 @@ export function MarketChart({ series, consensus, unit = '', preview = null, orde
       : new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const ticks = [0.08, 0.38, 0.68, 0.95].map(f => t0 + f * span);
 
-    return { pts, extended, d, areaPath, end, secD, secEnd, t0, t1: t0 + span, span, fullSpan, x, y, gridVals, ticks, fmt, open: extended[0] };
+    return { pts, extended, d, areaPath, end, secD, secEnd, t0, t1: t0 + span, span, x, y, gridVals, ticks, fmt, open: extended[0] };
   }, [series, consensus, preview, orders, secondary, range, H, W, PAD_L, PAD_R]);
 
   if (!model) return null;
@@ -220,7 +220,6 @@ export function MarketChart({ series, consensus, unit = '', preview = null, orde
           <button
             key={r.key}
             className={`mchart-range${range === r.ms ? ' is-active' : ''}`}
-            disabled={r.ms >= model.fullSpan}
             aria-pressed={range === r.ms}
             onClick={() => setRange(cur => (cur === r.ms ? null : r.ms))}
           >
