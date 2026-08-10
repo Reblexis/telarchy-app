@@ -322,59 +322,67 @@ export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId:
     }
     if (budget <= 0.01) { blocked.add(next.id); continue; }
 
-    // Release the reservation so the shared trade path can debit it like any
-    // other spend, then re-reserve whatever the fill did not use.
-    await tx.update(agents).set({ balance: sql`${agents.balance} + ${toUnits(budget)}` })
-      .where(eq(agents.id, next.agentId));
-
-    let outcome: TradeOutcome;
+    // The whole fill runs in a savepoint. If anything in it fails, only the
+    // fill unwinds: the trade that triggered this pass, and every fill before
+    // it, still stand. Someone else's resting order must never be able to
+    // fail your trade.
+    let filled: { cost: number; shares: number; consensus: number | null; closed: boolean } | null = null;
     try {
-      outcome = await executeTradeInTx(tx, {
-        workspaceId,
-        agentId: next.agentId,
-        marketId,
-        mode: { type: 'targetValue', targetValue: next.limitValue, maxBudget: budget },
+      await tx.transaction(async sp => {
+        // Release the reservation so the shared trade path can debit it like
+        // any other spend, then re-reserve whatever the fill did not use.
+        await sp.update(agents).set({ balance: sql`${agents.balance} + ${toUnits(budget)}` })
+          .where(eq(agents.id, next!.agentId));
+
+        const outcome = await executeTradeInTx(sp, {
+          workspaceId,
+          agentId: next!.agentId,
+          marketId,
+          mode: { type: 'targetValue', targetValue: next!.limitValue, maxBudget: budget },
+        });
+
+        if (outcome.direction !== next!.direction) {
+          // Buying toward the limit would move the price the wrong way for
+          // this order. Crossed implies the direction matches, so this is a
+          // bug in the crossing test rather than a state to absorb silently.
+          throw new AppError(`limit fill direction mismatch on order ${next!.id}`, 500);
+        }
+
+        const unused = budget - outcome.cost;
+        if (unused > 0) {
+          await sp.update(agents).set({ balance: sql`${agents.balance} - ${toUnits(unused)}` })
+            .where(eq(agents.id, next!.agentId));
+        }
+
+        const left = (remaining.get(next!.id) ?? 0) - outcome.cost;
+        const closed = left <= 0.01;
+        await sp.update(limitOrders).set({
+          filledCredits: sql`${limitOrders.filledCredits} + ${outcome.cost}`,
+          status: closed ? 'filled' : 'open',
+          updatedAt: new Date(),
+        }).where(eq(limitOrders.id, next!.id));
+
+        filled = { cost: outcome.cost, shares: outcome.shares, consensus: outcome.consensus, closed };
       });
-    } catch {
-      // This order cannot fill right now (trade too small, agent gone). Undo
-      // the release and leave it resting; the trade that triggered us stands.
-      await tx.update(agents).set({ balance: sql`${agents.balance} - ${toUnits(budget)}` })
-        .where(eq(agents.id, next.agentId));
+    } catch (e) {
+      // Nothing to undo: the savepoint took the reservation release with it.
+      console.error('limit order fill skipped', { orderId: next.id, marketId, error: (e as Error).message });
       blocked.add(next.id);
       continue;
     }
+    if (!filled) { blocked.add(next.id); continue; }
+    const done = filled as { cost: number; shares: number; consensus: number | null; closed: boolean };
 
-    if (outcome.direction !== next.direction) {
-      // Buying toward the limit would move the price the wrong way for this
-      // order. Should be unreachable (crossed implies the direction matches),
-      // so it is a bug rather than a state to absorb silently.
-      console.error('limit fill direction mismatch', { orderId: next.id, want: next.direction, got: outcome.direction });
-    }
-
-    const unused = budget - outcome.cost;
-    if (unused > 0) {
-      await tx.update(agents).set({ balance: sql`${agents.balance} - ${toUnits(unused)}` })
-        .where(eq(agents.id, next.agentId));
-    }
-
-    const left = (remaining.get(next.id) ?? 0) - outcome.cost;
-    remaining.set(next.id, left);
-    const closed = left <= 0.01;
-    await tx.update(limitOrders).set({
-      filledCredits: sql`${limitOrders.filledCredits} + ${outcome.cost}`,
-      status: closed ? 'filled' : 'open',
-      updatedAt: new Date(),
-    }).where(eq(limitOrders.id, next.id));
-
+    remaining.set(next.id, (remaining.get(next.id) ?? 0) - done.cost);
     fills.push({
       orderId: next.id,
       agentId: next.agentId,
       direction: next.direction as 'higher' | 'lower',
       limitValue: next.limitValue,
-      cost: outcome.cost,
-      shares: outcome.shares,
-      consensus: outcome.consensus,
-      closed,
+      cost: done.cost,
+      shares: done.shares,
+      consensus: done.consensus,
+      closed: done.closed,
     });
   }
 

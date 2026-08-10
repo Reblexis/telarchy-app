@@ -83,10 +83,11 @@ by resting orders it knows will fill.
 Two properties the implementation must keep, because losing either turns a
 limit order into something else:
 
-- **A stranger's order can never fail your trade.** An order that cannot fill
-  right now (no cap headroom, agent gone, amount rounds to nothing) is left
-  resting and skipped; the fill pass never propagates its failure into the
-  transaction of the trade that triggered it.
+- **A stranger's order can never fail your trade.** Each fill runs in its own
+  savepoint inside the triggering trade's transaction. An order that cannot
+  fill right now (no cap headroom, agent gone, amount rounds to nothing)
+  unwinds to that savepoint and is left resting; the trade that triggered the
+  pass, and every fill before it, still stand.
 - **A fill spends reserved credits, not fresh balance.** The reservation is
   released to the participant's balance immediately before the fill and the
   unused part is re-reserved after it, so a fill leaves spendable balance
