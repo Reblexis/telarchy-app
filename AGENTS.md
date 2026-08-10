@@ -115,9 +115,9 @@ The app runs at `http://localhost:5173` (or whichever port Vite picks; check the
 **The public trading floor** (the `telarchy.com/lookpilot` page) can be
 iterated locally with hot reload instead of a ~8 minute deploy per look:
 `node scripts/seed-local-floor.mjs` (dev servers running) seeds a local
-mirror workspace — slug `lookpilot`, hero metric with the production range
+mirror workspace (slug `lookpilot`, hero metric with the production range
 and horizon, seeded price history, an open Public group so silent-join
-grants trading, and one sample job with branch markets — then iterate at
+grants trading, and one sample job with branch markets); then iterate at
 `http://localhost:5173/lookpilot`. The script is resume-safe; its market
 maker's key persists in `scripts/.local-floor-maker.json` (gitignored).
 
