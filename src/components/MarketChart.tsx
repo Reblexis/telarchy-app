@@ -99,9 +99,14 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
       const cutoff = now - range;
       // The call in force AT the window's left edge, so the step line
       // enters the window at its true level instead of starting mid-air.
+      // A market younger than the window keeps all its points and the line
+      // simply starts mid-window: the WINDOW defines the axis (fixed
+      // below), never the data, or 1H on a young market looks identical
+      // to ALL and the whole row reads as dead (owner report 2026-08-10).
       const carried = [...pts].reverse().find(p => p.t <= cutoff);
       const inside = pts.filter(p => p.t > cutoff);
-      pts = carried ? [{ t: cutoff, v: carried.v }, ...inside] : (inside.length ? inside : pts);
+      pts = carried ? [{ t: cutoff, v: carried.v }, ...inside] : inside;
+      if (pts.length === 0) pts = [{ t: now, v: consensus }];
     }
     // The call holds between trades and since the last one: extend to now.
     const extended = [...pts, { t: Math.max(now, pts[pts.length - 1].t), v: consensus }];
@@ -120,9 +125,13 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
       secPts = carried ? [{ t: cutoff, v: carried.v }, ...inside] : inside;
     }
 
-    const t0 = Math.min(extended[0].t, secPts[0]?.t ?? extended[0].t);
-    const t1 = extended[extended.length - 1].t;
-    const span = Math.max(t1 - t0, 60_000);
+    // A selected window pins the axis to [now - range, now] regardless of
+    // where the data starts; ALL spans the data.
+    const t0 = range !== null
+      ? now - range
+      : Math.min(extended[0].t, secPts[0]?.t ?? extended[0].t);
+    const t1 = Math.max(now, extended[extended.length - 1].t);
+    const span = range !== null ? range : Math.max(t1 - t0, 60_000);
     const values = extended.map(p => p.v);
     if (preview) values.push(preview.value);
     // Resting orders join the y domain, or an order below the traded range
