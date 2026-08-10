@@ -183,10 +183,12 @@ userauthRouter.post('/profile', requireIdentity, requireScope('account:write'), 
     normalizedBio = result;
   }
 
-  // Avatar: a URL, not an upload. There is no blob store in this stack, and
-  // the auth user row already carries `image` (OAuth providers populate it),
-  // so a self-set picture is the same field. http(s) only, so the value can
-  // never become a javascript: or data: vector in an <img src>.
+  // Avatar: an http(s) URL (what OAuth providers populate) or a small
+  // inline data:image (what the account menu's file picker produces after
+  // client-side resizing; there is no blob store in this stack, so the
+  // resized picture IS the stored value). The whitelist is exact: only
+  // base64 png/jpeg/webp data URLs pass, so the value can never become a
+  // javascript: or data:text/html vector in an <img src>.
   let normalizedImage: string | null | undefined;
   if (image !== undefined) {
     if (image === null || (typeof image === 'string' && image.trim().length === 0)) {
@@ -195,15 +197,27 @@ userauthRouter.post('/profile', requireIdentity, requireScope('account:write'), 
       res.status(400).json({ error: 'image must be a URL string or null' }); return;
     } else {
       const trimmed = image.trim();
-      if (trimmed.length > 500) {
-        res.status(400).json({ error: 'image URL must be at most 500 characters' }); return;
+      if (trimmed.startsWith('data:')) {
+        if (!/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(trimmed)) {
+          res.status(400).json({ error: 'inline images must be base64 png, jpeg, or webp' }); return;
+        }
+        // ~96KB encoded (~72KB decoded): plenty for a 256px avatar, small
+        // enough to live in the account row without weighing sessions down.
+        if (trimmed.length > 96_000) {
+          res.status(400).json({ error: 'inline image too large; resize to 256px or smaller' }); return;
+        }
+        normalizedImage = trimmed;
+      } else {
+        if (trimmed.length > 500) {
+          res.status(400).json({ error: 'image URL must be at most 500 characters' }); return;
+        }
+        let parsed: URL;
+        try { parsed = new URL(trimmed); } catch { res.status(400).json({ error: 'image must be a valid URL' }); return; }
+        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+          res.status(400).json({ error: 'image URL must be http or https' }); return;
+        }
+        normalizedImage = trimmed;
       }
-      let parsed: URL;
-      try { parsed = new URL(trimmed); } catch { res.status(400).json({ error: 'image must be a valid URL' }); return; }
-      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-        res.status(400).json({ error: 'image URL must be http or https' }); return;
-      }
-      normalizedImage = trimmed;
     }
   }
 

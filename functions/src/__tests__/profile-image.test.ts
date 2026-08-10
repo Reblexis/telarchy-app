@@ -146,3 +146,24 @@ describe('payment details', () => {
     expect(await storedPayout()).toBeNull();
   });
 });
+
+describe('inline data-URL picture', () => {
+  test('a base64 jpeg data URL is stored', async () => {
+    const dataUrl = 'data:image/jpeg;base64,' + 'A'.repeat(400);
+    const res = await request(app).post('/api/auth/profile').send({ image: dataUrl });
+    expect(res.status).toBe(200);
+    expect(await storedImage()).toBe(dataUrl);
+  });
+
+  test('non-image data URLs and oversized images are refused', async () => {
+    const html = await request(app).post('/api/auth/profile')
+      .send({ image: 'data:text/html;base64,PHNjcmlwdD4=' });
+    expect(html.status).toBe(400);
+    expect(await storedImage()).toBeNull();
+
+    const big = await request(app).post('/api/auth/profile')
+      .send({ image: 'data:image/png;base64,' + 'A'.repeat(97_000) });
+    expect(big.status).toBe(400);
+    expect(await storedImage()).toBeNull();
+  });
+});

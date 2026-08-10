@@ -43,10 +43,13 @@ export function AccountMenu() {
   // Local override so a saved picture shows immediately, before the session
   // object catches up.
   const [savedImage, setSavedImage] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false);
-  const [imageUrl, setImageUrl] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  // Username (nickname) editing, in place: the account is managed through
+  // this dialog for public traders (owner direction 2026-08-10).
+  const [nickEditing, setNickEditing] = useState(false);
+  const [nickValue, setNickValue] = useState('');
   // The Manifold import: a two-step inline flow (name the account, put the
   // code in its bio, verify). null = closed; 'ask' = username field;
   // otherwise the pending code to verify against.
@@ -67,7 +70,6 @@ export function AccountMenu() {
       .catch(e => console.error('participant fetch failed:', e));
   };
   useEffect(load, []);
-  useEffect(() => { setImageUrl(user?.image ?? ''); }, [user?.image]);
 
   // Click-away and Escape: a corner menu that traps the page is worse than
   // no menu at all.
@@ -85,16 +87,51 @@ export function AccountMenu() {
     };
   }, [open]);
 
-  const savePicture = async () => {
+  // The picture is a file pick, not a URL paste (owner direction
+  // 2026-08-10): the chosen image is resized to a 256px square on a canvas
+  // client-side and stored as a small data URL, since the stack has no
+  // blob store. Picking IS saving; no second step.
+  const pickPicture = async (file: File) => {
     setError('');
     setBusy(true);
     try {
-      const next = imageUrl.trim();
-      await api.upsertProfile({ image: next });
-      setSavedImage(next || null);
-      setEditing(false);
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const SIZE = 256;
+            const canvas = document.createElement('canvas');
+            canvas.width = SIZE; canvas.height = SIZE;
+            const ctx = canvas.getContext('2d');
+            if (!ctx) { reject(new Error('Your browser blocked image processing')); return; }
+            // Cover-crop the shorter side so faces stay centered.
+            const side = Math.min(img.width, img.height);
+            ctx.drawImage(img, (img.width - side) / 2, (img.height - side) / 2, side, side, 0, 0, SIZE, SIZE);
+            resolve(canvas.toDataURL('image/jpeg', 0.85));
+          } finally { URL.revokeObjectURL(url); }
+        };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('That file does not look like an image')); };
+        img.src = url;
+      });
+      await api.upsertProfile({ image: dataUrl });
+      setSavedImage(dataUrl);
     } catch (e) {
       setError((e as Error).message || 'Could not save that picture');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveNickname = async () => {
+    setError('');
+    setBusy(true);
+    try {
+      await api.upsertProfile({ nickname: nickValue.trim() });
+      setParticipant(p => (p ? { ...p, nickname: nickValue.trim() } : p));
+      setNickEditing(false);
+    } catch (e) {
+      setError((e as Error).message || 'Could not change the username');
     } finally {
       setBusy(false);
     }
@@ -190,27 +227,53 @@ export function AccountMenu() {
             </span>
           </div>
 
-          {editing ? (
+          {/* Picking a file IS setting the picture: the OS picker opens,
+              the image is resized client-side, and the avatar updates.
+              No URL pasting, no second step (owner direction 2026-08-10). */}
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={e => {
+              const f = e.target.files?.[0];
+              if (f) void pickPicture(f);
+              e.target.value = '';
+            }}
+          />
+          <button className="acctmenu-item" disabled={busy} onClick={() => fileRef.current?.click()}>
+            {busy ? 'Saving…' : image ? 'Change picture' : 'Set a picture'}
+          </button>
+          {/* A failed pick has no editor panel of its own to report into. */}
+          {error && !nickEditing && !payoutEditing && manifold === null && (
+            <p className="acctmenu-err">{error}</p>
+          )}
+
+          {nickEditing ? (
             <div className="acctmenu-edit">
               <input
-                value={imageUrl}
-                onChange={e => setImageUrl(e.target.value)}
-                placeholder="https://… image URL"
-                aria-label="Profile picture URL"
+                value={nickValue}
+                onChange={e => setNickValue(e.target.value)}
+                placeholder="your-username"
+                maxLength={30}
+                aria-label="Username"
               />
               <div className="acctmenu-edit-row">
-                <button className="acctmenu-save" disabled={busy} onClick={() => void savePicture()}>
+                <button className="acctmenu-save" disabled={busy || !nickValue.trim()} onClick={() => void saveNickname()}>
                   {busy ? 'Saving…' : 'Save'}
                 </button>
-                <button className="acctmenu-item" onClick={() => { setEditing(false); setError(''); setImageUrl(image ?? ''); }}>
+                <button className="acctmenu-item" onClick={() => { setNickEditing(false); setError(''); }}>
                   Cancel
                 </button>
               </div>
               {error && <p className="acctmenu-err">{error}</p>}
             </div>
           ) : (
-            <button className="acctmenu-item" onClick={() => setEditing(true)}>
-              {image ? 'Change picture' : 'Set a picture'}
+            <button
+              className="acctmenu-item"
+              onClick={() => { setNickValue(participant?.nickname ?? ''); setNickEditing(true); setError(''); }}
+            >
+              {participant?.nickname ? 'Change username' : 'Set a username'}
             </button>
           )}
 
