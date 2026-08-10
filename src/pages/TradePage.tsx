@@ -552,11 +552,13 @@ export function TradePage() {
               unit={unit}
               selectedId={selectedJobId}
               onSelect={id => setSelectedJobId(cur => (cur === id ? null : id))}
-              onPropose={async (title, description, askUsd, payoutHandle) => {
+              onPropose={async (title, description, askUsd) => {
                 // Anonymous proposers go through the signup door; the board
                 // itself is public information (Open workspace ballot).
+                // Payment details come from the account (owner decision
+                // 2026-08-10): the server reads and snapshots them.
                 if (!user) { navigate('/signup'); return; }
-                await api.createProposal({ title, description, liquiditySubsidy: 250, askUsd, payoutHandle });
+                await api.createProposal({ title, description, liquiditySubsidy: 250, askUsd });
                 reload();
               }}
             />

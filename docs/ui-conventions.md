@@ -263,10 +263,12 @@ job has a price), sent as `askUsd` and stored on the proposal; it is
 travels into the activity log and share text, but the stored column is
 what anything financial reads. Rows prefer `askUsd` and fall back to
 parsing the title only for proposals created before the column existed.
-The paid-to field prefills from the account's payment details
-(`agents.payout_handle`, owner decision 2026-08-10: payment setup lives
-on the account, editable in the account menu) and saves back to the
-account on submit, so a second job never asks again. The board is signed-in
+There is no paid-to field
+(owner direction 2026-08-10, second pass: payment details belong in
+account settings, not in a job): the facts table REPORTS the account's
+payment details ("Paid to" shows the stored handle, or "add it in your
+account menu" when unset), the account menu edits them, and the server
+refuses a paid job without them. The board is signed-in
 only; the anonymous poster stays clean. On viewports >=1120px the page
 becomes the trading floor proper: a three-column grid with the top-traders
 rail on the left (public /api/leaderboard: rank, nickname-or-id, earnings

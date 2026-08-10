@@ -27,7 +27,7 @@ interface Props {
   /** The job whose conditional market the page is currently showing. */
   selectedId: string | null;
   onSelect: (id: string) => void;
-  onPropose: (title: string, description: string, askUsd: number, payoutHandle: string) => Promise<void>;
+  onPropose: (title: string, description: string, askUsd: number) => Promise<void>;
 }
 
 function fmtVal(v: number, unit: string): string {
@@ -57,21 +57,21 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
   const [ask, setAsk] = useState('');
   const [title, setTitle] = useState('');
   const [desc, setDesc] = useState('');
-  const [payout, setPayout] = useState('');
   const [formBusy, setFormBusy] = useState(false);
   const [formErr, setFormErr] = useState('');
   const [placed, setPlaced] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Payment setup lives on the account (owner decision 2026-08-10): the
-  // handle prefills here from the profile and saves back to it on submit,
-  // so a second job never asks again and the account menu can edit it.
+  // Payment details live in account settings, not in the job form (owner
+  // direction 2026-08-10). The form only REPORTS them, as a facts row:
+  // set means the job can be paid, unset points at the account menu, and
+  // the server enforces it either way at creation.
+  const [accountPayout, setAccountPayout] = useState<string | null | undefined>(undefined);
   useEffect(() => {
-    if (!formOpen || payout) return;
+    if (!formOpen) return;
     api.getParticipant()
-      .then(p => { const h = (p as { payoutHandle?: string | null }).payoutHandle; if (h) setPayout(h); })
-      .catch(e => console.error('participant fetch failed:', e));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      .then(p => setAccountPayout((p as { payoutHandle?: string | null }).payoutHandle ?? null))
+      .catch(e => { console.error('participant fetch failed:', e); setAccountPayout(null); });
   }, [formOpen]);
   useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
 
@@ -86,27 +86,22 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
   // The confirm stays disabled until these hold, so the short errors
   // below are a fallback for the server, not the primary guardrail.
   const askNum = Math.max(0, Math.floor(parseFloat(ask) || 0));
-  const formValid = title.trim().length > 0 && askNum > 0 && payout.trim().length >= 5;
+  const formValid = title.trim().length > 0 && askNum > 0;
 
   const submit = async () => {
     if (!title.trim()) { setFormErr('Add a job.'); return; }
     // Every proposal is a job with a price (charter, 2026-08-09): the ask
     // is required. The round-1 convention composes it into the title.
     if (askNum <= 0) { setFormErr('Add a price.'); return; }
-    // A paid job needs somewhere for the money to go, or approval is a
-    // promise the owner cannot keep. Enforced server-side too.
-    if (payout.trim().length < 5) { setFormErr('Add a payout handle.'); return; }
     // The title still carries the price because it reads well and travels
     // (activity log, share text); the number is also sent separately, and
-    // that copy is the one anything financial reads.
+    // that copy is the one anything financial reads. Where the money goes
+    // comes from the account; the server refuses a paid job without it.
     const fullTitle = `$${askNum}: ${title.trim()}`;
     setFormErr('');
     setFormBusy(true);
     try {
-      await onPropose(fullTitle, desc.trim(), askNum, payout.trim());
-      // Remember the handle on the account so the next job never asks.
-      api.upsertProfile({ payoutHandle: payout.trim() })
-        .catch(e => console.error('payout handle save failed:', e));
+      await onPropose(fullTitle, desc.trim(), askNum);
       // The green moment: the one place the form earns its color.
       setPlaced(true);
       closeTimer.current = setTimeout(() => {
@@ -212,18 +207,6 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
             </label>
 
             <label className="jobform-field">
-              <span className="ticket-label">Paid to</span>
-              <input
-                className="jobform-line"
-                value={payout}
-                onChange={e => setPayout(e.target.value)}
-                placeholder="PayPal email, IBAN, or crypto address"
-                maxLength={200}
-                aria-label="Payout handle"
-              />
-            </label>
-
-            <label className="jobform-field">
               <span className="ticket-label">Pitch</span>
               <textarea
                 className="jobform-line jobform-line--desc"
@@ -241,6 +224,12 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
               <div className="ticket-fact">
                 <span className="ticket-fact-k">On the ballot</span>
                 <span className="ticket-fact-v jobform-fact-title">${askNum}: {title.trim() || '…'}</span>
+              </div>
+              <div className="ticket-fact">
+                <span className="ticket-fact-k">Paid to</span>
+                <span className="ticket-fact-v jobform-fact-title">
+                  {accountPayout === undefined ? '…' : accountPayout ?? 'add it in your account menu'}
+                </span>
               </div>
               <div className="ticket-fact">
                 <span className="ticket-fact-k">Stake</span>
