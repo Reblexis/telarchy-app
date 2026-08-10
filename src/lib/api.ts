@@ -79,6 +79,24 @@ export interface AgentTrace {
   createdAt: string;
 }
 
+/**
+ * A resting instruction to buy while the market sits at or beyond a price.
+ * `limitValue` is in the metric's own units (dollars here), never probability.
+ */
+export interface LimitOrder {
+  id: string;
+  marketId: string;
+  agentId: string;
+  direction: 'higher' | 'lower';
+  limitValue: number;
+  budgetCredits: number;
+  filledCredits: number;
+  remainingCredits: number;
+  status: 'open' | 'filled' | 'cancelled' | 'expired' | 'voided';
+  expiresAt: string | null;
+  createdAt: string;
+}
+
 export interface LeaderboardEntry {
   rank: number | null;
   id: string;
@@ -532,6 +550,19 @@ export const api = {
     const qs = params.toString() ? `?${params.toString()}` : '';
     return requestWithWorkspace(`/api/predictions/positions${qs}`, {}, { workspaceId });
   },
+  /** Resting orders. `limitValue` is in the metric's own units, not
+      probability, because that is what the page shows. See docs/limit-orders.md. */
+  placeLimitOrder: (
+    body: { marketId: string; direction: 'higher' | 'lower'; limitValue: number; budgetCredits: number; expiresAt?: string },
+    workspaceId?: string,
+  ) => requestWithWorkspace('/api/predictions/limit-orders', { method: 'POST', body: JSON.stringify(body) }, { workspaceId }),
+  getLimitOrders: (marketId?: string, workspaceId?: string): Promise<LimitOrder[]> => {
+    const qs = marketId ? `?marketId=${encodeURIComponent(marketId)}` : '';
+    return requestWithWorkspace(`/api/predictions/limit-orders${qs}`, {}, { workspaceId }) as Promise<LimitOrder[]>;
+  },
+  cancelLimitOrder: (id: string, workspaceId?: string) =>
+    requestWithWorkspace(`/api/predictions/limit-orders/${encodeURIComponent(id)}`, { method: 'DELETE' }, { workspaceId }),
+
   injectLiquidity: (marketId: string, amount: number) =>
     request(`/api/predictions/markets/${marketId}/liquidity`, { method: 'POST', body: JSON.stringify({ amount }) }),
   injectLiquidityBulk: (amount: number, proposalId?: string) =>

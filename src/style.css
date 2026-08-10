@@ -8215,6 +8215,23 @@ code, pre, kbd, samp {
 }
 
 
+/* A resting order, drawn where it sits in the price. Faint enough to stay
+   behind the market line, legible enough to prove the order is real. */
+.mchart-order-line {
+  stroke: currentColor;
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+  opacity: 0.55;
+}
+.mchart-order-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  fill: currentColor;
+  opacity: 0.75;
+}
+.mchart-order--higher { color: var(--higher); }
+.mchart-order--lower { color: var(--lower); }
+
 .mchart-grid {
   stroke: var(--border-color);
   stroke-width: 1;
@@ -8632,6 +8649,73 @@ code, pre, kbd, samp {
   margin: 0;
   font-size: 0.8rem;
   color: var(--lower);
+}
+
+/* The third question, and the only optional one: at what price. It stays in
+   the quietest register on the ticket (chip-sized, tertiary) so the common
+   case, "at any price", costs nothing to read past. */
+.ticket-price {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: -0.15rem;
+}
+
+.ticket-mode { display: flex; gap: 1rem; }
+
+.ticket-mode-opt {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.76rem;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+.ticket-mode-opt:hover:not(.is-active) { color: var(--text-primary); }
+.ticket-mode-opt.is-active { color: var(--accent); }
+.ticket-mode-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
+/* The limit reads as a sentence fragment, "buy under $65,000", so the words
+   and the number sit on one baseline instead of becoming a labelled field. */
+.ticket-limit {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  cursor: text;
+}
+
+.ticket-limit-word {
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+}
+
+.ticket-limit-unit {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+}
+
+.ticket-limit input {
+  width: 6.5ch;
+  padding: 0;
+  border: none;
+  border-bottom: 1px solid var(--border-strong);
+  background: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: left;
+}
+.ticket-limit input:focus { outline: none; border-bottom-color: var(--accent); }
+
+.ticket-hint {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--text-tertiary);
 }
 
 /* Conditional mode: the way back to the plain market, then the question

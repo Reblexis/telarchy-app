@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { previewSell, previewTrade } from '../lib/amm';
+import type { LimitOrder } from '../lib/api';
 
 /**
  * The trade ticket: the one interactive object on the trading floor.
@@ -10,12 +11,13 @@ import { previewSell, previewTrade } from '../lib/amm';
  * type now, and exactly one element carries a fill: the confirm, which is
  * therefore unmistakably the action.
  *
- * The interaction stays two-step (pick a side, then confirm) because the
- * original bar traded instantly on the direction click, which read as an
- * accident. The confirm always says exactly what it will do ("Place 25 cr
- * on Higher"), the payout appears only once a side is picked (it answers
- * "why press this"), and success flashes on the button itself so the
- * feedback is where the finger is.
+ * The ticket asks its questions one at a time (owner direction 2026-08-10,
+ * following Manifold): side first, and nothing else exists until that is
+ * answered. Then amount, then price. Price is the optional third question:
+ * "at any price" is the default and costs nothing to read, and "at my price"
+ * reveals one input and turns the confirm into a full sentence, because an
+ * instruction the trader cannot read back is an instruction they did not
+ * give. Design: docs/limit-orders.md.
  */
 
 export interface TicketPosition { direction: 'higher' | 'lower'; shares: number; totalCost: number }
@@ -34,6 +36,17 @@ interface Props {
       amount, payout, chart ghost), but the confirm reads "Sign up to bet"
       and fires this instead of trading. The ticket itself is the pitch. */
   onRequireSignup?: () => void;
+  /** The market in its own units, so the price question can be asked in
+      dollars rather than probability. Without these the ticket hides the
+      price mode entirely and behaves exactly as it did before. */
+  unit?: string;
+  consensus?: number | null;
+  rangeMin?: number;
+  rangeMax?: number;
+  /** The caller's own resting orders on this market. */
+  orders?: LimitOrder[];
+  onPlaceLimit?: (direction: 'higher' | 'lower', limitValue: number, budgetCredits: number) => Promise<void>;
+  onCancelLimit?: (id: string) => Promise<void>;
 }
 
 // Three, not four: min / mid / the position cap. Every extra preset is
@@ -45,28 +58,67 @@ function fmt(v: number): string {
   return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
-export function TradeTicket({ probability, liquidity, positions, onTrade, onSell, onPreview, onRequireSignup }: Props) {
+/** Metric-space values, formatted the way the headline formats them. */
+function fmtValue(v: number): string {
+  const abs = Math.abs(v);
+  const decimals = abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
+  return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+export function TradeTicket({
+  probability, liquidity, positions, onTrade, onSell, onPreview, onRequireSignup,
+  unit = '', consensus = null, rangeMin, rangeMax, orders = [], onPlaceLimit, onCancelLimit,
+}: Props) {
   const [dir, setDir] = useState<'higher' | 'lower' | null>(null);
   const [amount, setAmount] = useState('25');
+  const [atMyPrice, setAtMyPrice] = useState(false);
+  const [limit, setLimit] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [placed, setPlaced] = useState(false);
   const [error, setError] = useState('');
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const amountNum = Math.max(0, Math.floor(parseFloat(amount) || 0));
+  const limitNum = limit.trim() === '' ? null : parseFloat(limit.replace(/,/g, ''));
+  const canLimit = !!onPlaceLimit && consensus !== null && rangeMin !== undefined && rangeMax !== undefined;
   const composed = dir && amountNum > 0 ? previewTrade(probability, liquidity, dir, amountNum) : null;
   const payout = composed?.shares ?? null;
 
+  // A resting order is only resting if the market has not already reached it.
+  // Buying higher means waiting for a cheaper price, so the limit sits below
+  // the current call; buying lower waits for a dearer one, so it sits above.
+  const limitError = (() => {
+    if (!atMyPrice || limitNum === null || consensus === null) return null;
+    if (!Number.isFinite(limitNum)) return 'Enter a number';
+    if (rangeMin !== undefined && rangeMax !== undefined && (limitNum <= rangeMin || limitNum >= rangeMax)) {
+      return `Between ${unit}${fmtValue(rangeMin)} and ${unit}${fmtValue(rangeMax)}`;
+    }
+    if (dir === 'higher' && limitNum >= consensus) return `Below ${unit}${fmtValue(consensus)}, or it fills right now`;
+    if (dir === 'lower' && limitNum <= consensus) return `Above ${unit}${fmtValue(consensus)}, or it fills right now`;
+    return null;
+  })();
+
+  const limitReady = atMyPrice && limitNum !== null && Number.isFinite(limitNum) && !limitError;
+
   useEffect(() => {
-    onPreview?.(composed && dir ? { direction: dir, newProb: composed.newProb } : null);
+    // A resting order does not move the price today, so it casts no ghost.
+    const show = composed && dir && !atMyPrice;
+    onPreview?.(show ? { direction: dir, newProb: composed.newProb } : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dir, amountNum, probability, liquidity]);
+  }, [dir, amountNum, probability, liquidity, atMyPrice]);
   // Clear the ghost when the ticket unmounts.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => () => onPreview?.(null), []);
 
+  const flash = () => {
+    setPlaced(true);
+    if (flashTimer.current) clearTimeout(flashTimer.current);
+    flashTimer.current = setTimeout(() => setPlaced(false), 1600);
+  };
+
   const place = async () => {
     if (!dir || amountNum <= 0 || busy) return;
+    if (atMyPrice && !limitReady) return;
     if (onRequireSignup) {
       onRequireSignup();
       return;
@@ -74,10 +126,14 @@ export function TradeTicket({ probability, liquidity, positions, onTrade, onSell
     setError('');
     setBusy('place');
     try {
-      await onTrade(dir, amountNum);
-      setPlaced(true);
-      if (flashTimer.current) clearTimeout(flashTimer.current);
-      flashTimer.current = setTimeout(() => setPlaced(false), 1600);
+      if (atMyPrice && onPlaceLimit && limitNum !== null) {
+        await onPlaceLimit(dir, limitNum, amountNum);
+        setLimit('');
+        setAtMyPrice(false);
+      } else {
+        await onTrade(dir, amountNum);
+      }
+      flash();
     } catch (e) {
       setError((e as Error).message || 'Trade failed');
     } finally {
@@ -98,9 +154,34 @@ export function TradeTicket({ probability, liquidity, positions, onTrade, onSell
     }
   };
 
+  const cancelOrder = async (id: string) => {
+    if (busy || !onCancelLimit) return;
+    setError('');
+    setBusy(`cancel-${id}`);
+    try {
+      await onCancelLimit(id);
+    } catch (e) {
+      setError((e as Error).message || 'Cancel failed');
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const pick = (d: 'higher' | 'lower') => {
     setDir(cur => (cur === d ? null : d));
     setError('');
+    setLimit('');
+  };
+
+  const confirmLabel = () => {
+    if (busy === 'place') return atMyPrice ? 'Placing order…' : 'Placing…';
+    if (placed) return atMyPrice ? '✓ Order resting' : '✓ Placed';
+    if (onRequireSignup) return 'Sign up to bet';
+    const side = dir === 'higher' ? 'Higher' : 'Lower';
+    if (!atMyPrice) return `Place ${amountNum} cr on ${side}`;
+    if (limitNum === null || limitError) return `Set a price for ${side}`;
+    // The whole instruction, in one readable sentence.
+    return `Buy ${side} with ${amountNum} cr ${dir === 'higher' ? 'under' : 'over'} ${unit}${fmtValue(limitNum)}`;
   };
 
   return (
@@ -139,6 +220,31 @@ export function TradeTicket({ probability, liquidity, positions, onTrade, onSell
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Resting orders read in the same register as a held position: what
+          you told the market to do while you were away. */}
+      {orders.length > 0 && (
+        <div className="ticket-pos">
+          {orders.map(o => (
+            <div key={o.id} className="ticket-pos-row">
+              <span className={`ticket-pos-dir ticket-pos-dir--${o.direction}`}>
+                {o.direction === 'higher' ? '▲' : '▼'} {o.direction}
+              </span>
+              <span className="ticket-pos-detail">
+                {o.direction === 'higher' ? 'under' : 'over'} {unit}{fmtValue(o.limitValue)}
+                {' · '}{fmt(o.remainingCredits)} cr waiting
+              </span>
+              <button
+                className="ticket-sell"
+                disabled={busy !== null}
+                onClick={() => void cancelOrder(o.id)}
+              >
+                {busy === `cancel-${o.id}` ? 'Cancelling…' : 'Cancel'}
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
@@ -190,23 +296,73 @@ export function TradeTicket({ probability, liquidity, positions, onTrade, onSell
         </div>
       </div>
 
+      {canLimit && (
+        <div className="ticket-price">
+          <div className="ticket-mode" role="group" aria-label="Price">
+            <button
+              className={`ticket-mode-opt${!atMyPrice ? ' is-active' : ''}`}
+              aria-pressed={!atMyPrice}
+              onClick={() => { setAtMyPrice(false); setError(''); }}
+            >
+              at any price
+            </button>
+            <button
+              className={`ticket-mode-opt${atMyPrice ? ' is-active' : ''}`}
+              aria-pressed={atMyPrice}
+              onClick={() => {
+                setAtMyPrice(true);
+                setError('');
+                // Prefill just inside the current call, on the side that
+                // rests, so the field opens with a legal answer rather than
+                // an error the trader has to clear first.
+                if (!limit && consensus !== null) {
+                  const step = Math.max((rangeMax! - rangeMin!) * 0.02, 1);
+                  const seed = dir === 'higher' ? consensus - step : consensus + step;
+                  setLimit(String(Math.round(Math.min(rangeMax! - 1, Math.max(rangeMin! + 1, seed)))));
+                }
+              }}
+            >
+              at my price
+            </button>
+          </div>
+
+          {atMyPrice && (
+            <>
+              <label className="ticket-limit">
+                <span className="ticket-limit-word">
+                  {dir === 'higher' ? 'buy under' : 'buy over'}
+                </span>
+                <span className="ticket-limit-unit">{unit}</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={limit}
+                  onChange={e => setLimit(e.target.value.replace(/[^0-9.]/g, ''))}
+                  aria-label={`Limit price in ${unit || 'metric units'}`}
+                />
+              </label>
+              <p className="ticket-hint">
+                {limitError
+                  ? limitError
+                  : `${amountNum} cr waits here until the market reaches it.`}
+              </p>
+            </>
+          )}
+        </div>
+      )}
+
       <button
         className={`ticket-go${placed ? ' is-placed' : ''}`}
-        disabled={amountNum <= 0 || busy !== null}
+        disabled={amountNum <= 0 || busy !== null || (atMyPrice && !limitReady && !onRequireSignup)}
         onClick={() => void place()}
       >
-        {busy === 'place'
-          ? 'Placing…'
-          : placed
-            ? '✓ Placed'
-            : onRequireSignup
-              ? 'Sign up to bet'
-              : `Place ${amountNum} cr on ${dir === 'higher' ? 'Higher' : 'Lower'}`}
+        {confirmLabel()}
       </button>
 
       {/* What the bet pays, and nothing else: the wallet belongs in the
-          account menu, not under every bet. */}
-      {payout !== null && !placed && (
+          account menu, not under every bet. A resting order has no payout
+          yet, so it says nothing rather than guessing. */}
+      {payout !== null && !placed && !atMyPrice && (
         <p className="ticket-foot">pays up to {fmt(payout)} cr</p>
       )}
       </>

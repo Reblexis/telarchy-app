@@ -155,6 +155,7 @@ explains itself.
 | `liquidity-management.md` | Add/remove liquidity, bulk |
 | `void-and-resolve.md` | Resolve at metric value, void + refund |
 | `conditional-markets.md` | Proposal-linked conditional lifecycle |
+| `limit-orders.md` | Resting orders: reserve, fill at the limit, cancel, refund |
 
 ### 05-proposals
 

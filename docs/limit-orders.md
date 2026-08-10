@@ -1,8 +1,7 @@
 # Limit orders
 
-**Status: specified, not built (2026-08-10).** Owner asked for limit orders
-on the trading floor. This is the design; the code conforms to it, not the
-other way round.
+**Status: built (2026-08-10).** Owner asked for limit orders on the trading
+floor. This is the design; the code conforms to it, not the other way round.
 
 ## Why they matter here more than on a normal exchange
 
@@ -75,9 +74,26 @@ price:
 
 Fills are ordinary trades: same position rows, same cap accounting, same
 `replayMarketTradePoints` history, so the chart shows them like any other
-step. **The per-account position cap applies to the total of filled credits
-plus open reservations**, or an account could exceed the cap by resting
-orders it knows will fill.
+step. This is enforced structurally rather than by discipline: there is one
+`executeTradeInTx` in `services/trading.ts`, and both the trade route and the
+fill pass call it. **The per-account position cap applies to the total of
+filled credits plus open reservations**, or an account could exceed the cap
+by resting orders it knows will fill.
+
+Two properties the implementation must keep, because losing either turns a
+limit order into something else:
+
+- **A stranger's order can never fail your trade.** An order that cannot fill
+  right now (no cap headroom, agent gone, amount rounds to nothing) is left
+  resting and skipped; the fill pass never propagates its failure into the
+  transaction of the trade that triggered it.
+- **A fill spends reserved credits, not fresh balance.** The reservation is
+  released to the participant's balance immediately before the fill and the
+  unused part is re-reserved after it, so a fill leaves spendable balance
+  untouched and cannot overdraw.
+
+A market that resolves or is voided refunds every resting order's remainder,
+so credits are never stranded in a market that can no longer trade.
 
 Self-trading is impossible by construction (the AMM is the counterparty),
 so no anti-wash rule is needed; the existing cap and the charter's
@@ -98,14 +114,20 @@ Inside the ticket, which stays one object (see `ui-conventions.md`). The
 ticket already asks two questions, side and amount; limit adds a third that
 is optional and hidden until wanted:
 
-- A quiet `at any price` / `at my price` toggle under the side pair. Default
-  is `at any price`, i.e. today's behaviour, so the common case gains
-  nothing to read.
+- A quiet `at any price` / `at my price` toggle, revealed with the amount
+  once a side is picked. Default is `at any price`, i.e. today's behaviour,
+  so the common case gains nothing to read.
 - Choosing `at my price` reveals one mono input in metric space, prefilled
   with the current call, and the confirm restates the whole instruction:
   **"Buy higher with 25 cr while under $65,000"**. The confirm never says
   "place order" alone; an instruction the trader cannot read back is an
   instruction they did not give.
+- Choosing `at my price` prefills a legal limit just inside the current call
+  on the side that rests, so the field opens with an answer rather than an
+  error to clear. A limit on the wrong side of the call is refused in the
+  ticket, before it is sent, naming which side it belongs on.
+- A composed limit order casts no ghost on the chart, because it moves no
+  price today. The ghost is reserved for what a confirm would do immediately.
 - Resting orders list under the ticket as one quiet line each, in the same
   register as a held position: direction, limit, remaining budget, and a
   cancel. Filled and cancelled orders do not linger; they are in the

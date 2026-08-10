@@ -8,7 +8,7 @@ import { JobsBoard, splitAsk } from '../components/JobsBoard';
 import { ActivityRail, LeaderboardRail, type ActivityItem } from '../components/FloorRails';
 import { AccountMenu } from '../components/AccountMenu';
 import { Logo } from '../components/Logo';
-import type { LeaderboardEntry } from '../lib/api';
+import type { LeaderboardEntry, LimitOrder } from '../lib/api';
 
 /**
  * telarchy.com/<slug>: the market and one action, nothing else (owner
@@ -57,6 +57,7 @@ export function TradePage() {
   const [error, setError] = useState<string | null>(null);
   const [joined, setJoined] = useState(false);
   const [positions, setPositions] = useState<TicketPosition[]>([]);
+  const [orders, setOrders] = useState<LimitOrder[]>([]);
   const [balance, setBalance] = useState<number | null>(null);
   const [ticketPreview, setTicketPreview] = useState<{ direction: 'higher' | 'lower'; newProb: number } | null>(null);
   const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
@@ -163,6 +164,9 @@ export function TradePage() {
         .then((rows: Array<{ direction: 'higher' | 'lower'; shares: number; totalCost: number }>) =>
           setPositions((rows ?? []).filter(r => r.shares > 1e-9)))
         .catch(e => console.error('positions fetch failed:', e));
+      api.getLimitOrders(activeMarketId, ws.workspaceId)
+        .then(rows => setOrders(rows ?? []))
+        .catch(e => console.error('limit orders fetch failed:', e));
     }
     api.getParticipant()
       .then(pt => setBalance((pt as { balance?: number }).balance ?? null))
@@ -183,7 +187,7 @@ export function TradePage() {
 
   // Positions belong to the market on screen, so they refetch on a switch.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { setPositions([]); if (joined) refreshMoney(); }, [joined, activeMarketId]);
+  useEffect(() => { setPositions([]); setOrders([]); if (joined) refreshMoney(); }, [joined, activeMarketId]);
 
   // The ticket owns busy/error/flash UI state; the page owns the money
   // plumbing. Errors propagate by throwing so the ticket can show them
@@ -209,6 +213,18 @@ export function TradePage() {
   const sellPosition = async (p: TicketPosition) => {
     if (!activeMarketId) return;
     await doTrade({ marketId: activeMarketId, direction: p.direction, sellShares: p.shares });
+  };
+  // A resting order changes no price today, so it refreshes the money but
+  // does not touch the chart's history.
+  const placeLimit = async (direction: 'higher' | 'lower', limitValue: number, budgetCredits: number) => {
+    if (!activeMarketId || !ws) return;
+    await api.placeLimitOrder({ marketId: activeMarketId, direction, limitValue, budgetCredits }, ws.workspaceId);
+    refreshMoney();
+  };
+  const cancelLimit = async (id: string) => {
+    if (!ws) return;
+    await api.cancelLimitOrder(id, ws.workspaceId);
+    refreshMoney();
   };
 
   // The prediction's own movement: for the baseline, the call vs the call
@@ -344,6 +360,7 @@ export function TradePage() {
                 consensus={consensus}
                 unit={unit}
                 preview={chartPreview}
+                orders={orders.map(o => ({ id: o.id, direction: o.direction, limitValue: o.limitValue }))}
               />
             </div>
           </section>
@@ -358,6 +375,13 @@ export function TradePage() {
               onTrade={placeTrade}
               onSell={sellPosition}
               onPreview={setTicketPreview}
+              unit={unit}
+              consensus={consensus}
+              rangeMin={active.rangeMin}
+              rangeMax={active.rangeMax}
+              orders={orders}
+              onPlaceLimit={placeLimit}
+              onCancelLimit={cancelLimit}
             />
           </section>
         ) : null}
@@ -409,6 +433,11 @@ export function TradePage() {
               onSell={async () => {}}
               onPreview={setTicketPreview}
               onRequireSignup={() => navigate('/signup')}
+              unit={unit}
+              consensus={consensus}
+              rangeMin={active.rangeMin}
+              rangeMax={active.rangeMax}
+              onPlaceLimit={async () => {}}
             />
           </section>
         ) : null}

@@ -8,6 +8,7 @@ import type { Metric } from '../types';
 import { periodEndInstant, resolutionInstant } from '../lib/date-utils';
 import { pHigher, consensus, resolutionPayouts } from '../lib/amm';
 import { emitEvent } from './events';
+import { releaseLimitOrdersForMarket } from './trading';
 
 type MarketRow = typeof markets.$inferSelect;
 
@@ -83,6 +84,10 @@ async function resolveMarketRow(
     if (totalPayout > pool + 0.01) {
       console.error(`Market ${market.id}: totalPayout ${totalPayout} exceeds pool ${pool} - LMSR invariant violated`);
     }
+
+    // Orders resting when the answer arrives never get to fill, so their
+    // reserved credits are refunded rather than resolved along with the market.
+    await releaseLimitOrdersForMarket(tx, market.id, 'cancelled');
 
     // Cap leftover at 0 so a violated invariant can never subtract from LPs.
     const poolLeftover = Math.max(0, Math.round((pool - totalPayout) * 100) / 100);

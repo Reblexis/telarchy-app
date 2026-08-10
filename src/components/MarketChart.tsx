@@ -24,6 +24,10 @@ interface Props {
   /** A composed-but-unplaced bet's impact: where the call would move. Drawn
       as a dashed ghost off the live dot, tinted by direction. */
   preview?: { value: number; direction: 'higher' | 'lower' } | null;
+  /** The viewer's own resting limit orders, drawn as faint rules at their
+      limits. Seeing your order sitting in the price is what makes the
+      abstraction concrete, and it costs one line each. */
+  orders?: Array<{ id: string; direction: 'higher' | 'lower'; limitValue: number }>;
   height?: number;
 }
 
@@ -49,7 +53,7 @@ function fullNum(v: number): string {
   return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
-export function MarketChart({ series, consensus, unit = '', preview = null, height }: Props) {
+export function MarketChart({ series, consensus, unit = '', preview = null, orders = [], height }: Props) {
   const [compact, setCompact] = useState(() => typeof window !== 'undefined' && window.innerWidth < 520);
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 519px)');
@@ -78,6 +82,9 @@ export function MarketChart({ series, consensus, unit = '', preview = null, heig
     const span = Math.max(t1 - t0, 60_000);
     const values = extended.map(p => p.v);
     if (preview) values.push(preview.value);
+    // Resting orders join the y domain, or an order below the traded range
+    // would be drawn off-canvas and read as no order at all.
+    for (const o of orders) values.push(o.limitValue);
     const vMin0 = Math.min(...values);
     const vMax0 = Math.max(...values);
     const vPad = (vMax0 - vMin0 || vMax0 * 0.08 || 1) * 0.25;
@@ -112,7 +119,7 @@ export function MarketChart({ series, consensus, unit = '', preview = null, heig
     const ticks = [0.08, 0.38, 0.68, 0.95].map(f => t0 + f * span);
 
     return { pts, extended, d, areaPath, end, t0, t1: t0 + span, span, x, y, gridVals, ticks, fmt, open: extended[0] };
-  }, [series, consensus, preview, H, W, PAD_L, PAD_R]);
+  }, [series, consensus, preview, orders, H, W, PAD_L, PAD_R]);
 
   if (!model) return null;
   const { extended, d, areaPath, end, x, y, gridVals, ticks, fmt } = model;
@@ -194,6 +201,15 @@ export function MarketChart({ series, consensus, unit = '', preview = null, heig
             );
           })()}
         </g>
+
+        {orders.map(o => (
+          <g key={o.id} className={`mchart-order mchart-order--${o.direction}`}>
+            <line className="mchart-order-line" x1={PAD_L} x2={W - PAD_R} y1={y(o.limitValue)} y2={y(o.limitValue)} />
+            <text className="mchart-order-label" x={PAD_L + 4} y={y(o.limitValue) - 4}>
+              {o.direction === 'higher' ? '▲' : '▼'} your order {cNum(o.limitValue)}
+            </text>
+          </g>
+        ))}
 
         {preview && (() => {
           const py = y(preview.value);

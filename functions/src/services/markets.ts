@@ -9,6 +9,7 @@ import { emitEvent } from './events';
 import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
 import { applyAgentLiquidityInjectionTx } from './marketLiquidity';
 import { sufficientBalance, toUnits, MIN_LIQUIDITY_CONTRIBUTION } from '../lib/validation';
+import { releaseLimitOrdersForMarket } from './trading';
 
 type MarketRow = typeof markets.$inferSelect;
 
@@ -84,6 +85,10 @@ export async function voidMarket(
         })
         .where(eq(agents.id, pos.agentId));
     }
+
+    // Credits reserved by orders that will now never fill go back to their
+    // owners, or voiding a market would quietly strand them.
+    refunded += await releaseLimitOrdersForMarket(tx, market.id, 'voided');
 
     const lpLeftover = Math.round((pool - refunded) * 100) / 100;
     await distributeLPLeftover(tx, market.id, lpLeftover, workspaceId);

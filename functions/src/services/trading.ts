@@ -1,0 +1,412 @@
+import { and, eq, sql } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
+import { db } from '../db/client';
+import { agents, limitOrders, markets, positions, trades, workspaces } from '../db/schema';
+import { AppError } from '../lib/errors';
+import { betTowardsValue, consensus, directionSellProceeds, pHigher, sharesForBudget } from '../lib/amm';
+import { fromUnits, sufficientBalance, toUnits } from '../lib/validation';
+
+/**
+ * The one place a trade happens.
+ *
+ * This used to live inline in POST /predictions/trade. It moved here so that
+ * limit-order fills execute through the *identical* path as a hand-placed
+ * trade: same position rows, same cap accounting, same trades table (which is
+ * what `replayMarketTradePoints` reads, so fills appear on the chart like any
+ * other step). A second, parallel "fill" implementation would have been the
+ * obvious way to drift the two apart. Design: docs/limit-orders.md.
+ */
+
+/** The drizzle transaction handle, as handed to `db.transaction(cb)`. */
+export type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+export type TradeMode =
+  | { type: 'targetValue'; targetValue: number; maxBudget: number }
+  | { type: 'sell'; direction: 0 | 1; dirLabel: 'higher' | 'lower'; sellShares: number }
+  | { type: 'buy'; direction: 0 | 1; dirLabel: 'higher' | 'lower'; amount: number };
+
+export interface TradeOutcome {
+  tradeId: string;
+  marketId: string;
+  metricName: string;
+  direction: 'higher' | 'lower';
+  shares: number;
+  /** Buys only. */
+  cost: number;
+  /** Sells only. */
+  proceeds: number;
+  isSell: boolean;
+  probability: number;
+  consensus: number | null;
+  /** Consensus before this trade, so callers can see the interval crossed. */
+  prevConsensus: number | null;
+}
+
+/**
+ * Execute one trade inside an open transaction. Locks the market and the
+ * participant, enforces balance and the per-market position cap, writes the
+ * market/agent/position/trade rows, and returns what moved.
+ *
+ * Throws AppError on every refusal; the caller's transaction rolls back.
+ */
+export async function executeTradeInTx(tx: Tx, opts: {
+  workspaceId: string;
+  agentId: string;
+  marketId: string;
+  mode: TradeMode;
+  tradeId?: string;
+}): Promise<TradeOutcome> {
+  const { workspaceId, agentId, marketId, mode } = opts;
+  const tradeId = opts.tradeId ?? randomUUID();
+
+  const [market] = await tx.select().from(markets)
+    .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)))
+    .for('update');
+  if (!market) throw new AppError('Market not found', 404);
+  if (market.resolved) throw new AppError('Market is resolved', 400);
+  if (market.voided) throw new AppError('Market is voided; positions were refunded', 400);
+  if (!market.active && mode.type !== 'sell') {
+    throw new AppError('Market is closed; only selling existing positions is allowed', 400);
+  }
+
+  const shares = (market.shares as [number, number]) || [0, 0];
+  const b = market.liquidity;
+  if (b <= 0) throw new AppError('Market has no liquidity. Admin must inject liquidity before trading.', 400);
+  const prevConsensus = consensus(shares, b, market.rangeMin, market.rangeMax) ?? null;
+
+  const [agentRow] = await tx.select().from(agents).where(eq(agents.id, agentId)).for('update');
+  if (!agentRow) throw new AppError('Agent not found', 404);
+  const balanceUnits = agentRow.balance as number;
+
+  let direction: 0 | 1;
+  let amount: number;
+  let cost = 0;
+  let isSell = false;
+  let dirLabel: 'higher' | 'lower';
+
+  if (mode.type === 'targetValue') {
+    if (mode.targetValue < market.rangeMin || mode.targetValue > market.rangeMax) {
+      throw new AppError(`targetValue/value must be between ${market.rangeMin} and ${market.rangeMax}`, 400);
+    }
+    const r = betTowardsValue(shares, b, market.rangeMin, market.rangeMax, mode.targetValue, mode.maxBudget);
+    direction = r.direction; amount = r.amount; cost = r.cost;
+    dirLabel = direction === 1 ? 'higher' : 'lower';
+  } else if (mode.type === 'sell') {
+    direction = mode.direction; dirLabel = mode.dirLabel;
+    amount = mode.sellShares; isSell = true;
+  } else {
+    direction = mode.direction; dirLabel = mode.dirLabel;
+    const r = sharesForBudget(shares, direction, mode.amount, b);
+    amount = r.amount; cost = r.cost;
+  }
+
+  if (amount <= 0) throw new AppError('Trade too small', 400);
+
+  const resolvedPosId = `${agentId}_${marketId}_${dirLabel}`;
+  const [posRow] = await tx.select().from(positions)
+    .where(and(eq(positions.id, resolvedPosId), eq(positions.workspaceId, workspaceId)));
+
+  let proceeds = 0;
+  if (isSell) {
+    const posShares = posRow?.shares ?? 0;
+    if (posShares < amount) throw new AppError('Insufficient shares to sell', 400, { available: posShares });
+    proceeds = directionSellProceeds(shares, direction, amount, b);
+    if (proceeds <= 0) throw new AppError('Trade too small', 400);
+  } else {
+    if (cost > 0 && !sufficientBalance(balanceUnits, cost)) throw new AppError('Insufficient balance', 400, { balance: fromUnits(balanceUnits), cost });
+
+    // Manipulation bound (workspaces.maxPositionCostPerMarket): cumulative
+    // buy cost per participant per market, both directions summed. Free
+    // signup credits mean one person with several accounts could otherwise
+    // decide a market alone; the cap forces that to require many distinct
+    // identities, which is detectable coordination. Sells never refund cap
+    // headroom (cumulative, not net), so churning cannot stretch it. Credits
+    // reserved by open limit orders count too, or an account could exceed the
+    // cap by resting orders it knows will fill. The epsilon keeps a final
+    // exactly-at-cap trade from failing on float dust.
+    if (cost > 0) {
+      const cap = await positionCap(tx, workspaceId);
+      if (cap > 0) {
+        const used = await capUsage(tx, workspaceId, marketId, agentId);
+        if (used + cost > cap + 1e-9) {
+          throw new AppError(
+            `Position cap reached: this workspace limits each participant to ${cap} credits of buys per market (you have used ${Math.round(used * 100) / 100}).`,
+            400,
+            { cap, spent: used, attempted: cost },
+          );
+        }
+      }
+    }
+  }
+
+  const newShares: [number, number] = [shares[0], shares[1]];
+  newShares[direction] += isSell ? -amount : amount;
+  const newConsensus = consensus(newShares, b, market.rangeMin, market.rangeMax) ?? null;
+  const newProbability = Math.round(pHigher(newShares, b) * 10000) / 10000;
+
+  if (isSell) {
+    await tx.update(markets).set({
+      shares: newShares,
+      pool: sql`${markets.pool} - ${proceeds}`,
+      tradedVolume: sql`${markets.tradedVolume} + ${proceeds}`,
+    }).where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
+    await tx.update(agents).set({
+      balance: sql`${agents.balance} + ${toUnits(proceeds)}`,
+      earnedBetting: sql`${agents.earnedBetting} + ${proceeds}`,
+    }).where(eq(agents.id, agentId));
+    await tx.update(positions).set({ shares: sql`${positions.shares} - ${amount}` })
+      .where(and(eq(positions.id, resolvedPosId), eq(positions.workspaceId, workspaceId)));
+  } else {
+    await tx.update(markets).set({
+      shares: newShares,
+      pool: sql`${markets.pool} + ${cost}`,
+      tradedVolume: sql`${markets.tradedVolume} + ${cost}`,
+    }).where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
+    await tx.update(agents).set({
+      balance: sql`${agents.balance} - ${toUnits(cost)}`,
+      spentBetting: sql`${agents.spentBetting} + ${cost}`,
+    }).where(eq(agents.id, agentId));
+
+    if (posRow) {
+      await tx.update(positions).set({
+        shares: sql`${positions.shares} + ${amount}`,
+        totalCost: sql`${positions.totalCost} + ${cost}`,
+      }).where(and(eq(positions.id, resolvedPosId), eq(positions.workspaceId, workspaceId)));
+    } else {
+      await tx.insert(positions).values({
+        id: resolvedPosId, workspaceId, agentId, marketId,
+        direction: dirLabel, shares: amount, totalCost: cost,
+      });
+    }
+
+    if (cost > 0) {
+      await tx.update(workspaces).set({ tradedVolume: sql`${workspaces.tradedVolume} + ${cost}` })
+        .where(eq(workspaces.id, workspaceId));
+    }
+  }
+
+  await tx.insert(trades).values({
+    id: tradeId, workspaceId, agentId, marketId, direction: dirLabel,
+    shares: isSell ? -amount : amount,
+    cost: isSell ? -proceeds : cost,
+    createdAt: new Date(),
+  });
+
+  return {
+    tradeId, marketId, metricName: market.metricName, direction: dirLabel,
+    shares: amount, cost, proceeds, isSell,
+    probability: newProbability, consensus: newConsensus, prevConsensus,
+  };
+}
+
+/** The workspace's per-participant, per-market cap on cumulative buy cost. */
+export async function positionCap(tx: Tx, workspaceId: string): Promise<number> {
+  const [row] = await tx.select({ cap: workspaces.maxPositionCostPerMarket })
+    .from(workspaces).where(eq(workspaces.id, workspaceId));
+  return row?.cap ?? 0;
+}
+
+/**
+ * How much of the cap this participant has consumed in this market: credits
+ * already spent on positions, plus credits reserved by their open limit
+ * orders. Reserved money counts because it is money that will become a
+ * position without asking permission again.
+ */
+export async function capUsage(tx: Tx, workspaceId: string, marketId: string, agentId: string): Promise<number> {
+  const [spentRow] = await tx.select({ total: sql<number>`coalesce(sum(${positions.totalCost}), 0)` })
+    .from(positions)
+    .where(and(
+      eq(positions.workspaceId, workspaceId),
+      eq(positions.marketId, marketId),
+      eq(positions.agentId, agentId),
+    ));
+  const [reservedRow] = await tx.select({
+    total: sql<number>`coalesce(sum(${limitOrders.budgetCredits} - ${limitOrders.filledCredits}), 0)`,
+  })
+    .from(limitOrders)
+    .where(and(
+      eq(limitOrders.workspaceId, workspaceId),
+      eq(limitOrders.marketId, marketId),
+      eq(limitOrders.agentId, agentId),
+      eq(limitOrders.status, 'open'),
+    ));
+  return Number(spentRow?.total ?? 0) + Number(reservedRow?.total ?? 0);
+}
+
+export interface FillOutcome {
+  orderId: string;
+  agentId: string;
+  direction: 'higher' | 'lower';
+  limitValue: number;
+  cost: number;
+  shares: number;
+  consensus: number | null;
+  /** True when the order's whole budget is now spent. */
+  closed: boolean;
+}
+
+/** Whether the market price has reached or passed an order's limit. */
+function isCrossed(direction: string, limitValue: number, current: number, eps: number): boolean {
+  return direction === 'higher' ? current <= limitValue + eps : current >= limitValue - eps;
+}
+
+/**
+ * Run the fill pass for one market, inside the transaction of the trade that
+ * just moved its price.
+ *
+ * Each fill buys toward the order's own limit and no further, which is what
+ * separates a limit order from a delayed market order: filling an order can
+ * uncross it, and then the loop stops. An order that cannot fill right now
+ * (no cap headroom left) is left resting rather than cancelled, and never
+ * aborts the trade that triggered the pass: a stranger's order must not be
+ * able to fail your trade.
+ */
+export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId: string): Promise<FillOutcome[]> {
+  const [market] = await tx.select().from(markets)
+    .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
+  if (!market || market.resolved || market.voided || !market.active || market.liquidity <= 0) return [];
+
+  const open = await tx.select().from(limitOrders)
+    .where(and(
+      eq(limitOrders.workspaceId, workspaceId),
+      eq(limitOrders.marketId, marketId),
+      eq(limitOrders.status, 'open'),
+    ))
+    .for('update');
+  if (open.length === 0) return [];
+
+  const now = new Date();
+  const live: typeof open = [];
+  for (const order of open) {
+    if (order.expiresAt && order.expiresAt <= now) {
+      await closeLimitOrderInTx(tx, order, 'expired');
+      continue;
+    }
+    live.push(order);
+  }
+  if (live.length === 0) return [];
+
+  const eps = Math.max((market.rangeMax - market.rangeMin) * 1e-6, 1e-9);
+  const fills: FillOutcome[] = [];
+  // Money left in each order, tracked in memory so the loop sees its own fills.
+  const remaining = new Map(live.map(o => [o.id, o.budgetCredits - o.filledCredits]));
+  const blocked = new Set<string>();
+
+  // One iteration per fill. The bound is a backstop against a pathological
+  // rounding loop, not an expected limit; each pass either uncrosses an order
+  // or exhausts its budget.
+  for (let step = 0; step < 50; step++) {
+    const [fresh] = await tx.select().from(markets).where(eq(markets.id, marketId));
+    const current = consensus((fresh!.shares as [number, number]) || [0, 0], fresh!.liquidity, fresh!.rangeMin, fresh!.rangeMax);
+    if (current === undefined) break;
+
+    // The order the price passed furthest is the one it reached first.
+    let next: typeof live[number] | null = null;
+    let bestDepth = 0;
+    for (const order of live) {
+      if (blocked.has(order.id)) continue;
+      if ((remaining.get(order.id) ?? 0) <= 0.01) continue;
+      if (!isCrossed(order.direction, order.limitValue, current, eps)) continue;
+      const depth = Math.abs(current - order.limitValue);
+      if (!next || depth > bestDepth) { next = order; bestDepth = depth; }
+    }
+    if (!next) break;
+
+    let budget = remaining.get(next.id) ?? 0;
+    const cap = await positionCap(tx, workspaceId);
+    if (cap > 0) {
+      // capUsage counts this order's own reservation, which is exactly the
+      // money about to be spent, so it must not be double-counted.
+      const used = await capUsage(tx, workspaceId, marketId, next.agentId) - budget;
+      budget = Math.min(budget, Math.max(0, cap - used));
+    }
+    if (budget <= 0.01) { blocked.add(next.id); continue; }
+
+    // Release the reservation so the shared trade path can debit it like any
+    // other spend, then re-reserve whatever the fill did not use.
+    await tx.update(agents).set({ balance: sql`${agents.balance} + ${toUnits(budget)}` })
+      .where(eq(agents.id, next.agentId));
+
+    let outcome: TradeOutcome;
+    try {
+      outcome = await executeTradeInTx(tx, {
+        workspaceId,
+        agentId: next.agentId,
+        marketId,
+        mode: { type: 'targetValue', targetValue: next.limitValue, maxBudget: budget },
+      });
+    } catch {
+      // This order cannot fill right now (trade too small, agent gone). Undo
+      // the release and leave it resting; the trade that triggered us stands.
+      await tx.update(agents).set({ balance: sql`${agents.balance} - ${toUnits(budget)}` })
+        .where(eq(agents.id, next.agentId));
+      blocked.add(next.id);
+      continue;
+    }
+
+    if (outcome.direction !== next.direction) {
+      // Buying toward the limit would move the price the wrong way for this
+      // order. Should be unreachable (crossed implies the direction matches),
+      // so it is a bug rather than a state to absorb silently.
+      console.error('limit fill direction mismatch', { orderId: next.id, want: next.direction, got: outcome.direction });
+    }
+
+    const unused = budget - outcome.cost;
+    if (unused > 0) {
+      await tx.update(agents).set({ balance: sql`${agents.balance} - ${toUnits(unused)}` })
+        .where(eq(agents.id, next.agentId));
+    }
+
+    const left = (remaining.get(next.id) ?? 0) - outcome.cost;
+    remaining.set(next.id, left);
+    const closed = left <= 0.01;
+    await tx.update(limitOrders).set({
+      filledCredits: sql`${limitOrders.filledCredits} + ${outcome.cost}`,
+      status: closed ? 'filled' : 'open',
+      updatedAt: new Date(),
+    }).where(eq(limitOrders.id, next.id));
+
+    fills.push({
+      orderId: next.id,
+      agentId: next.agentId,
+      direction: next.direction as 'higher' | 'lower',
+      limitValue: next.limitValue,
+      cost: outcome.cost,
+      shares: outcome.shares,
+      consensus: outcome.consensus,
+      closed,
+    });
+  }
+
+  return fills;
+}
+
+/**
+ * Close an order and refund its unfilled remainder. Used by cancel, expiry,
+ * and by market resolution/voiding, where a resting order must not strand
+ * credits in a market that can no longer trade.
+ */
+export async function closeLimitOrderInTx(
+  tx: Tx,
+  order: { id: string; agentId: string; budgetCredits: number; filledCredits: number },
+  status: 'cancelled' | 'expired' | 'voided',
+): Promise<number> {
+  const refund = Math.max(0, order.budgetCredits - order.filledCredits);
+  if (refund > 0) {
+    await tx.update(agents).set({ balance: sql`${agents.balance} + ${toUnits(refund)}` })
+      .where(eq(agents.id, order.agentId));
+  }
+  await tx.update(limitOrders).set({ status, updatedAt: new Date() })
+    .where(eq(limitOrders.id, order.id));
+  return refund;
+}
+
+/** Refund and close every open order on a market (resolution, voiding). */
+export async function releaseLimitOrdersForMarket(tx: Tx, marketId: string, status: 'cancelled' | 'voided' = 'voided'): Promise<number> {
+  const open = await tx.select().from(limitOrders)
+    .where(and(eq(limitOrders.marketId, marketId), eq(limitOrders.status, 'open')))
+    .for('update');
+  let total = 0;
+  for (const order of open) total += await closeLimitOrderInTx(tx, order, status);
+  return total;
+}
