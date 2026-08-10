@@ -112,6 +112,15 @@ The app runs at `http://localhost:5173` (or whichever port Vite picks; check the
 - Email: `viktor.cihal@gmail.com`
 - Password: `TestAdmin99!`
 
+**The public trading floor** (the `telarchy.com/lookpilot` page) can be
+iterated locally with hot reload instead of a ~8 minute deploy per look:
+`node scripts/seed-local-floor.mjs` (dev servers running) seeds a local
+mirror workspace — slug `lookpilot`, hero metric with the production range
+and horizon, seeded price history, an open Public group so silent-join
+grants trading, and one sample job with branch markets — then iterate at
+`http://localhost:5173/lookpilot`. The script is resume-safe; its market
+maker's key persists in `scripts/.local-floor-maker.json` (gitignored).
+
 Use a browser or a headless tool to navigate the app as this user. This account has admin/owner access to the primary workspace, so all features should be accessible.
 
 When debugging a UI bug or feature, always reproduce it at this URL with these credentials before drawing conclusions from code alone.
