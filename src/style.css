@@ -8097,39 +8097,39 @@ code, pre, kbd, samp {
   color: var(--lower);
 }
 
-/* The job form IS the ticket's technique (owner direction 2026-08-10):
-   a centered column, quiet centered labels (.ticket-label), bare inputs
-   on underlines with the global input chrome stripped, and exactly one
-   filled element, the confirm. No boxes anywhere. */
+/* The job form is the ticket's STRUCTURE, not just its underlines (Codex
+   redesign 2026-08-10): the ask is the hero numeric at the top exactly
+   like the bet amount, the text fields are quiet left-aligned underlines,
+   the consequences live in the same ruled .ticket-facts table, and color
+   only speaks as state: accent on focus, red on errors and the full
+   counter, green only on the placed flash (.ticket-go.is-placed). The
+   confirm is the ticket's own neutral .ticket-go. */
 .jobform {
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 0.85rem;
-  text-align: center;
 }
 
-.jobform-head {
+/* Head: the ask where the ticket puts its amount, close at the edge. */
+.jobform-head { align-items: flex-start; }
+
+.jobform-askblock {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  width: 100%;
-  margin-bottom: 0.2rem;
+  flex-direction: column;
+  gap: 0.3rem;
 }
-.jobform-head .floor-modal-title { margin: 0; }
+.jobform-askblock .ticket-label { text-align: left; }
 
-.jobform-x {
-  padding: 0 0.2rem;
-  border: none;
-  background: none;
-  font-size: 1.35rem;
-  line-height: 1;
-  color: var(--text-tertiary);
-  cursor: pointer;
+.jobform-ask { justify-content: flex-start; }
+
+.jobform-head .ticket-close { margin-left: auto; }
+
+.jobform-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
-.jobform-x:hover { color: var(--text-primary); }
-
-.jobform .ticket-label { margin-top: 0.35rem; }
+.jobform-field .ticket-label { text-align: left; }
 
 .jobform-count {
   font-family: 'JetBrains Mono', monospace;
@@ -8137,11 +8137,13 @@ code, pre, kbd, samp {
   color: var(--text-tertiary);
 }
 .jobform-count.is-near { color: var(--accent); }
+.jobform-count.is-max { color: var(--lower); }
 
-/* The underline is the input, exactly as in the ticket. Every scrap of
-   the app-wide input chrome (36px box, radius, background, focus ring)
-   is stripped explicitly; that chrome inside dialogs was the
-   double-border joke of 2026-08-10. */
+/* The underline is the input, exactly as in the ticket, but prose reads
+   left-aligned; only the ask gets the centered mono treatment. Every
+   scrap of the app-wide input chrome (36px box, radius, background,
+   focus ring) is stripped explicitly; that chrome inside dialogs was
+   the double-border joke of 2026-08-10. */
 .jobform-line {
   appearance: none;
   -webkit-appearance: none;
@@ -8155,8 +8157,8 @@ code, pre, kbd, samp {
   box-shadow: none;
   color: var(--text-primary);
   font: inherit;
-  font-size: 0.95rem;
-  text-align: center;
+  font-size: 0.92rem;
+  text-align: left;
   transition: border-color 120ms ease;
 }
 .jobform-line:focus {
@@ -8167,69 +8169,26 @@ code, pre, kbd, samp {
 }
 .jobform-line::placeholder { color: var(--text-tertiary); }
 
+.jobform-line--title {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
 textarea.jobform-line--desc {
   resize: none;
-  line-height: 1.55;
-  text-align: left;
+  min-height: 4rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
 }
 
-.jobform-price {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.3rem;
-  cursor: text;
+/* The composed ballot line can be long; it truncates rather than wraps
+   so the facts table keeps the ticket's one-row rhythm. */
+.jobform-fact-title {
+  max-width: 58%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.jobform-price span {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.95rem;
-  color: var(--higher);
-}
-.jobform-price input {
-  appearance: none;
-  -webkit-appearance: none;
-  width: auto;
-  min-width: 2ch;
-  max-width: 10ch;
-  height: auto;
-  padding: 0 0 0.1rem;
-  border: none;
-  border-bottom: 2px solid var(--border-strong);
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-  color: var(--text-primary);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 1.3rem;
-  font-weight: 600;
-  text-align: center;
-  transition: border-color 120ms ease;
-}
-.jobform-price input:focus {
-  outline: none;
-  box-shadow: none;
-  border-color: transparent;
-  border-bottom-color: var(--accent);
-}
-
-/* The confirm: the ticket's own. */
-.jobform-go {
-  width: 100%;
-  margin-top: 0.3rem;
-  padding: 0.85rem 1.2rem;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  background: var(--higher);
-  color: var(--on-signal);
-  font: inherit;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: filter 120ms ease;
-}
-.jobform-go:hover:not(:disabled) { filter: brightness(1.08); }
-.jobform-go:disabled { opacity: 0.6; cursor: default; }
-
-.jobform-fine { max-width: 46ch; }
 
 /* The floor's dialog: everything focused happens here. */
 .floor-modal-overlay {

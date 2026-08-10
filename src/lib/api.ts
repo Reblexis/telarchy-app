@@ -732,7 +732,7 @@ export const api = {
 
   // User auth / profile
   getProfile: () => request('/api/auth/me'),
-  upsertProfile: (opts?: { email?: string; intent?: 'creator' | 'agent' | 'trader'; nickname?: string; bio?: string; image?: string | null }) =>
+  upsertProfile: (opts?: { email?: string; intent?: 'creator' | 'agent' | 'trader'; nickname?: string; bio?: string; image?: string | null; payoutHandle?: string | null }) =>
     request('/api/auth/profile', { method: 'POST', body: JSON.stringify(opts ?? {}) }),
   recordConsent: () =>
     request('/api/auth/consent', { method: 'POST', body: JSON.stringify({ accepted: true }) }),

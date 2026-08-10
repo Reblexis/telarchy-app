@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/client';
-import { proposals, proposalMessages, workspaces } from '../db/schema';
+import { agents, proposals, proposalMessages, workspaces } from '../db/schema';
 import { eq, and, desc, asc } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
@@ -47,11 +47,9 @@ proposalsRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
       res.status(400).json({ error: 'askUsd must be a non-negative whole number of USD' }); return;
     }
     if (askUsd > 1_000_000) { res.status(400).json({ error: 'askUsd is implausibly large' }); return; }
-    // A non-zero ask is a payment the owner must be able to make the moment
-    // they approve; a job with no way to receive it is a stuck promise.
-    if (askUsd > 0) {
-      if (typeof payoutHandle !== 'string' || payoutHandle.trim().length < 5) {
-        res.status(400).json({ error: 'payoutHandle is required for a paid job: where should the money go? (PayPal email, IBAN, or crypto address; at least 5 characters)' }); return;
+    if (askUsd > 0 && typeof payoutHandle === 'string' && payoutHandle.trim().length > 0) {
+      if (payoutHandle.trim().length < 5) {
+        res.status(400).json({ error: 'payoutHandle must be at least 5 characters (a PayPal email, IBAN, or crypto address)' }); return;
       }
       if (payoutHandle.trim().length > 200) {
         res.status(400).json({ error: 'payoutHandle must be at most 200 characters' }); return;
@@ -62,6 +60,22 @@ proposalsRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
 
   const proposedBy = req.auth!.agentId;
   if (!proposedBy) { res.status(403).json({ error: 'Proposal creation requires a participant identity. Visit your account page to finish setup.' }); return; }
+
+  // A non-zero ask is a payment the owner must be able to make the moment
+  // they approve; a job with no way to receive it is a stuck promise. The
+  // handle lives on the account (owner decision 2026-08-10, set via
+  // POST /api/auth/profile { payoutHandle } or the account menu) and is
+  // snapshotted onto the proposal here; a handle passed in the body wins
+  // for this proposal without touching the account.
+  let payout: string | null = typeof payoutHandle === 'string' && payoutHandle.trim() ? payoutHandle.trim() : null;
+  if ((ask ?? 0) > 0 && !payout) {
+    const [proposerRow] = await db.select({ payoutHandle: agents.payoutHandle })
+      .from(agents).where(eq(agents.id, proposedBy));
+    payout = proposerRow?.payoutHandle ?? null;
+    if (!payout) {
+      res.status(400).json({ error: 'A paid job needs payment details on your account first: where should the money go? Set it in the account menu ("Set payment details") or via POST /api/auth/profile { payoutHandle } (PayPal email, IBAN, or crypto address).' }); return;
+    }
+  }
 
   const [wsForCap] = await db.select({
     maxPending: workspaces.maxPendingProposalsPerParticipant,
@@ -98,7 +112,7 @@ proposalsRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
   await db.insert(proposals).values({
     id, workspaceId, proposedBy,
     title, description: description || '',
-    payoutHandle: typeof payoutHandle === 'string' && payoutHandle.trim() ? payoutHandle.trim() : null,
+    payoutHandle: payout,
     askUsd: ask,
     status: 'pending', conditionalMarketIds: [],
     liquiditySubsidy: subsidy,

@@ -1,5 +1,6 @@
 import { FloorModal } from './FloorModal';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { api } from '../lib/api';
 import type { PublicProposal } from '../lib/api';
 
 /**
@@ -59,6 +60,20 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
   const [payout, setPayout] = useState('');
   const [formBusy, setFormBusy] = useState(false);
   const [formErr, setFormErr] = useState('');
+  const [placed, setPlaced] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Payment setup lives on the account (owner decision 2026-08-10): the
+  // handle prefills here from the profile and saves back to it on submit,
+  // so a second job never asks again and the account menu can edit it.
+  useEffect(() => {
+    if (!formOpen || payout) return;
+    api.getParticipant()
+      .then(p => { const h = (p as { payoutHandle?: string | null }).payoutHandle; if (h) setPayout(h); })
+      .catch(e => console.error('participant fetch failed:', e));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formOpen]);
+  useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
 
   // The ballot is a ranking: the owner acts on it, so the biggest priced
   // impact belongs at the top and the unpriced ones below.
@@ -68,15 +83,19 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
     return db - da;
   });
 
+  // The confirm stays disabled until these hold, so the short errors
+  // below are a fallback for the server, not the primary guardrail.
+  const askNum = Math.max(0, Math.floor(parseFloat(ask) || 0));
+  const formValid = title.trim().length > 0 && askNum > 0 && payout.trim().length >= 5;
+
   const submit = async () => {
-    if (!title.trim()) { setFormErr('Say what you will do.'); return; }
-    const askNum = Math.max(0, Math.floor(parseFloat(ask) || 0));
+    if (!title.trim()) { setFormErr('Add a job.'); return; }
     // Every proposal is a job with a price (charter, 2026-08-09): the ask
     // is required. The round-1 convention composes it into the title.
-    if (askNum <= 0) { setFormErr('Name your price in USD. Every job has one.'); return; }
+    if (askNum <= 0) { setFormErr('Add a price.'); return; }
     // A paid job needs somewhere for the money to go, or approval is a
     // promise the owner cannot keep. Enforced server-side too.
-    if (payout.trim().length < 5) { setFormErr('Say where the money should go: a PayPal email, IBAN, or crypto address.'); return; }
+    if (payout.trim().length < 5) { setFormErr('Add a payout handle.'); return; }
     // The title still carries the price because it reads well and travels
     // (activity log, share text); the number is also sent separately, and
     // that copy is the one anything financial reads.
@@ -85,7 +104,14 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
     setFormBusy(true);
     try {
       await onPropose(fullTitle, desc.trim(), askNum, payout.trim());
-      setAsk(''); setTitle(''); setDesc(''); setPayout(''); setFormOpen(false);
+      // Remember the handle on the account so the next job never asks.
+      api.upsertProfile({ payoutHandle: payout.trim() })
+        .catch(e => console.error('payout handle save failed:', e));
+      // The green moment: the one place the form earns its color.
+      setPlaced(true);
+      closeTimer.current = setTimeout(() => {
+        setAsk(''); setTitle(''); setDesc(''); setPlaced(false); setFormOpen(false);
+      }, 900);
     } catch (e) {
       setFormErr((e as Error).message || 'Failed to submit');
     } finally {
@@ -144,70 +170,96 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
       <button className="pubws-ghost pubws-propose-open" onClick={() => setFormOpen(true)}>
         + Suggest a job
       </button>
-      {/* The form is a dialog, not a rail squeeze (owner direction
-          2026-08-10, reworked same day after a review: one field skin, a
-          label over every field, the counter on the label line instead of
-          dangling, one full-width primary, and the close lives in the
-          corner like every dialog; Escape and the backdrop also close). */}
+      {/* The form is the ticket's structure, not just its underlines
+          (Codex redesign 2026-08-10): the ask is the hero numeric at the
+          top like the bet amount, the consequences live in the same ruled
+          facts table, and color only speaks as state, red for errors and
+          green for the placed flash. Escape and the backdrop close. */}
       {formOpen && (
         <FloorModal onClose={() => setFormOpen(false)} label="Suggest a job">
           <div className="jobform">
-            <div className="jobform-head">
-              <h3 className="floor-modal-title">Suggest a job</h3>
-              <button className="jobform-x" aria-label="Close" onClick={() => setFormOpen(false)}>×</button>
+            <div className="ticket-head jobform-head">
+              <div className="jobform-askblock">
+                <p className="ticket-label">Ask</p>
+                <label className="ticket-amt ticket-amt--price jobform-ask">
+                  <span className="ticket-amt-unit">$</span>
+                  <input
+                    value={ask}
+                    style={{ width: `${Math.max(2, ask.length)}ch` }}
+                    onChange={e => setAsk(e.target.value.replace(/[^0-9]/g, ''))}
+                    placeholder="0"
+                    inputMode="numeric"
+                    aria-label="Price in USD (required)"
+                    required
+                  />
+                </label>
+              </div>
+              <button className="ticket-close" aria-label="Close" onClick={() => setFormOpen(false)}>×</button>
             </div>
-            {/* The ticket's technique, verbatim (owner direction 2026-08-10:
-                same styling as the betting UI): centered quiet labels, bare
-                inputs on underlines, no boxes anywhere, the one filled
-                element is the confirm. */}
-            <p className="ticket-label">
-              The job <span className={`jobform-count${title.length >= 60 ? ' is-near' : ''}`}>{title.length}/70</span>
-            </p>
-            <input
-              className="jobform-line jobform-line--title"
-              value={title}
-              onChange={e => setTitle(e.target.value)}
-              placeholder="Stream LookPilot to my viewers for an hour"
-              maxLength={70}
-              aria-label="Job title"
-            />
-            <p className="ticket-label">Your price</p>
-            <label className="jobform-price">
-              <span aria-hidden="true">$</span>
+
+            <label className="jobform-field">
+              <span className="ticket-label">
+                Job <span className={`jobform-count${title.length >= 70 ? ' is-max' : title.length >= 60 ? ' is-near' : ''}`}>{title.length}/70</span>
+              </span>
               <input
-                value={ask}
-                style={{ width: `${Math.max(1, ask.length)}ch` }}
-                onChange={e => setAsk(e.target.value.replace(/[^0-9]/g, ''))}
-                placeholder="0"
-                inputMode="numeric"
-                aria-label="Your price in USD (required)"
-                required
+                className="jobform-line jobform-line--title"
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="Stream LookPilot to my viewers for an hour"
+                maxLength={70}
+                aria-label="Job title"
               />
             </label>
-            <p className="ticket-label">Paid to</p>
-            <input
-              className="jobform-line jobform-line--title"
-              value={payout}
-              onChange={e => setPayout(e.target.value)}
-              placeholder="PayPal email, IBAN, or crypto address"
-              maxLength={200}
-              aria-label="Payout handle"
-            />
-            <p className="ticket-label">Your pitch</p>
-            <textarea
-              className="jobform-line jobform-line--desc"
-              value={desc}
-              onChange={e => setDesc(e.target.value)}
-              placeholder="Links: channel, portfolio, prior work."
-              rows={4}
-              aria-label="Job description"
-            />
-            <button className="jobform-go" disabled={formBusy} onClick={() => void submit()}>
-              {formBusy ? 'Submitting…' : 'Put it on the ballot · 500 cr stake'}
-            </button>
-            {/* One line: the one fact that removes the fear of staking. */}
-            <p className="ticket-foot jobform-fine">Stake returns in full when the owner decides.</p>
+
+            <label className="jobform-field">
+              <span className="ticket-label">Paid to</span>
+              <input
+                className="jobform-line"
+                value={payout}
+                onChange={e => setPayout(e.target.value)}
+                placeholder="PayPal email, IBAN, or crypto address"
+                maxLength={200}
+                aria-label="Payout handle"
+              />
+            </label>
+
+            <label className="jobform-field">
+              <span className="ticket-label">Pitch</span>
+              <textarea
+                className="jobform-line jobform-line--desc"
+                value={desc}
+                onChange={e => setDesc(e.target.value)}
+                placeholder="Links: channel, portfolio, prior work."
+                rows={3}
+                aria-label="Job description"
+              />
+            </label>
+
+            {/* The composed order, ticket-style: what goes on the ballot,
+                what it costs to say it, and when that comes back. */}
+            <div className="ticket-facts jobform-facts">
+              <div className="ticket-fact">
+                <span className="ticket-fact-k">On the ballot</span>
+                <span className="ticket-fact-v jobform-fact-title">${askNum}: {title.trim() || '…'}</span>
+              </div>
+              <div className="ticket-fact">
+                <span className="ticket-fact-k">Stake</span>
+                <span className="ticket-fact-v">500 cr</span>
+              </div>
+              <div className="ticket-fact">
+                <span className="ticket-fact-k">Returned</span>
+                <span className="ticket-fact-v">when the owner decides</span>
+              </div>
+            </div>
+
             {formErr && <p className="ticket-err">{formErr}</p>}
+            <button
+              className={`ticket-go${placed ? ' is-placed' : ''}`}
+              disabled={formBusy || (!placed && !formValid)}
+              onClick={() => void submit()}
+            >
+              {placed ? 'Added to ballot' : formBusy ? 'Submitting…' : formValid ? `Suggest job for $${askNum}` : 'Suggest job'}
+            </button>
           </div>
         </FloorModal>
       )}

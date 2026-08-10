@@ -139,11 +139,13 @@ userauthRouter.post('/consent', requireUser, wrap(async (req, res) => {
 
 /**
  * POST /api/auth/profile
- * Upserts the caller's participant profile (intent + nickname + bio). Works
- * for both browser sessions and agent API keys; uses whichever identity is
- * present on req.auth and updates that participant's row. `bio` is a freeform
- * public description (max 500 chars; empty string or null clears it) shown on
- * the public participant profile.
+ * Upserts the caller's participant profile (intent + nickname + bio +
+ * payoutHandle). Works for both browser sessions and agent API keys; uses
+ * whichever identity is present on req.auth and updates that participant's
+ * row. `bio` is a freeform public description (max 500 chars; empty string
+ * or null clears it) shown on the public participant profile. `payoutHandle`
+ * (5-200 chars; empty/null clears) is the account's payment details, read by
+ * paid-job proposals; it is payment info, never shown publicly.
  */
 userauthRouter.post('/profile', requireIdentity, requireScope('account:write'), wrap(async (req, res) => {
   const participantId = await resolveCallerParticipantId(req);
@@ -152,9 +154,26 @@ userauthRouter.post('/profile', requireIdentity, requireScope('account:write'), 
     return;
   }
 
-  const { intent, nickname, bio, image } = req.body;
+  const { intent, nickname, bio, image, payoutHandle } = req.body;
   if (intent !== undefined && !['creator', 'agent', 'trader'].includes(intent)) {
     res.status(400).json({ error: 'intent must be "creator", "agent", or "trader"' }); return;
+  }
+
+  // Payment details (owner decision 2026-08-10): where job money goes
+  // lives on the account, not on each proposal. A paid job reads this at
+  // creation time and snapshots it. Empty string or null clears it.
+  let normalizedPayout: string | null | undefined;
+  if (payoutHandle !== undefined) {
+    if (payoutHandle === null || (typeof payoutHandle === 'string' && payoutHandle.trim().length === 0)) {
+      normalizedPayout = null;
+    } else if (typeof payoutHandle !== 'string') {
+      res.status(400).json({ error: 'payoutHandle must be a string or null' }); return;
+    } else {
+      const trimmed = payoutHandle.trim();
+      if (trimmed.length < 5) { res.status(400).json({ error: 'payoutHandle must be at least 5 characters (a PayPal email, IBAN, or crypto address)' }); return; }
+      if (trimmed.length > 200) { res.status(400).json({ error: 'payoutHandle must be at most 200 characters' }); return; }
+      normalizedPayout = trimmed;
+    }
   }
 
   let normalizedBio: string | null | undefined;
@@ -207,6 +226,10 @@ userauthRouter.post('/profile', requireIdentity, requireScope('account:write'), 
 
   if (normalizedBio !== undefined) {
     await db.update(agents).set({ bio: normalizedBio }).where(eq(agents.id, participantId));
+  }
+
+  if (normalizedPayout !== undefined) {
+    await db.update(agents).set({ payoutHandle: normalizedPayout }).where(eq(agents.id, participantId));
   }
 
   if (nickname !== undefined) {

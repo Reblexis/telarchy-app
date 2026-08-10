@@ -120,3 +120,29 @@ describe('profile picture', () => {
     expect(row.bio).toBe('I price things.');
   });
 });
+
+describe('payment details', () => {
+  async function storedPayout(): Promise<string | null> {
+    const [row] = await db.select().from(agents).where(eq(agents.id, AGENT));
+    return row?.payoutHandle ?? null;
+  }
+
+  test('a handle is stored on the participant row', async () => {
+    const res = await request(app).post('/api/auth/profile')
+      .send({ payoutHandle: '  pay@example.com  ' });
+    expect(res.status).toBe(200);
+    expect(await storedPayout()).toBe('pay@example.com');
+  });
+
+  test('empty string and null clear it; a too-short handle is refused', async () => {
+    await request(app).post('/api/auth/profile').send({ payoutHandle: 'pay@example.com' });
+    const cleared = await request(app).post('/api/auth/profile').send({ payoutHandle: '' });
+    expect(cleared.status).toBe(200);
+    expect(await storedPayout()).toBeNull();
+
+    const short = await request(app).post('/api/auth/profile').send({ payoutHandle: 'abc' });
+    expect(short.status).toBe(400);
+    expect(short.body.error).toMatch(/at least 5/);
+    expect(await storedPayout()).toBeNull();
+  });
+});

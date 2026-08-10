@@ -246,14 +246,27 @@ the baseline, or payouts, the bet ghost and position worth are all computed
 against the wrong curve. The description is NOT repeated under the job row;
 it belongs with the question. Positions refetch on every switch, because
 they belong to the market on screen. "+ Suggest a job"
-opens the inline form: a narrow mono USD ask field beside the title,
-required (every job has a price). The number is sent as `askUsd` and stored
-on the proposal; it is *also* composed into the title as "$N: ..." because
-that reads well and travels into the activity log and share text, but the
-stored column is what anything financial reads. Rows prefer `askUsd` and
-fall back to parsing the title only for proposals created before the column
-existed, a description
-prompting for proof of capability, and the 40 cr listing-stake submit. The board is signed-in
+opens a dialog that is the ticket's STRUCTURE, not just its underlines
+(Codex redesign, revised 2026-08-10): the USD ask is the hero numeric at
+the top exactly where the ticket puts its bet amount ($ unit, mono,
+auto-width underline), the title / paid-to / pitch fields are quiet
+left-aligned underlines with small left labels, and the consequences live
+in the same ruled `.ticket-facts` table ("On the ballot" showing the
+composed "$N: title" live, "Stake 500 cr", "Returned when the owner
+decides"). Color only speaks as state: accent focus, red errors and the
+full title counter, green ONLY on the placed flash; the confirm is the
+neutral `.ticket-go` whose label progresses "Suggest job" (disabled,
+invalid) to "Suggest job for $N" (ready) to "Submitting..." to "Added to
+ballot" (green flash, then the dialog closes). The ask is required (every
+job has a price), sent as `askUsd` and stored on the proposal; it is
+*also* composed into the title as "$N: ..." because that reads well and
+travels into the activity log and share text, but the stored column is
+what anything financial reads. Rows prefer `askUsd` and fall back to
+parsing the title only for proposals created before the column existed.
+The paid-to field prefills from the account's payment details
+(`agents.payout_handle`, owner decision 2026-08-10: payment setup lives
+on the account, editable in the account menu) and saves back to the
+account on submit, so a second job never asks again. The board is signed-in
 only; the anonymous poster stays clean. On viewports >=1120px the page
 becomes the trading floor proper: a three-column grid with the top-traders
 rail on the left (public /api/leaderboard: rank, nickname-or-id, earnings

@@ -18,6 +18,7 @@ interface Participant {
   nickname: string | null;
   balance: number | null;
   earnedBetting: number | null;
+  payoutHandle: string | null;
 }
 
 function initials(name: string | null, email: string | null): string {
@@ -52,6 +53,10 @@ export function AccountMenu() {
   const [manifold, setManifold] = useState<null | 'ask' | { code: string; username: string }>(null);
   const [manifoldName, setManifoldName] = useState('');
   const [manifoldMsg, setManifoldMsg] = useState('');
+  // Payment details (owner decision 2026-08-10): where job money goes
+  // lives on the account, and this menu is where a public trader edits it.
+  const [payoutEditing, setPayoutEditing] = useState(false);
+  const [payoutValue, setPayoutValue] = useState('');
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const image = savedImage ?? user?.image ?? null;
@@ -97,6 +102,21 @@ export function AccountMenu() {
 
   const label = participant?.nickname || user?.name || user?.email || 'Account';
   const earned = participant?.earnedBetting ?? null;
+
+  const savePayout = async () => {
+    setError('');
+    setBusy(true);
+    try {
+      const next = payoutValue.trim();
+      await api.upsertProfile({ payoutHandle: next || null });
+      setParticipant(p => (p ? { ...p, payoutHandle: next || null } : p));
+      setPayoutEditing(false);
+    } catch (e) {
+      setError((e as Error).message || 'Could not save payment details');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const manifoldStart = async () => {
     if (busy) return;
@@ -191,6 +211,36 @@ export function AccountMenu() {
           ) : (
             <button className="acctmenu-item" onClick={() => setEditing(true)}>
               {image ? 'Change picture' : 'Set a picture'}
+            </button>
+          )}
+
+          {/* Where job money goes: a paid job needs this set before it can
+              go on the ballot; the job dialog prefills from here. */}
+          {payoutEditing ? (
+            <div className="acctmenu-edit">
+              <input
+                value={payoutValue}
+                onChange={e => setPayoutValue(e.target.value)}
+                placeholder="PayPal email, IBAN, or crypto address"
+                maxLength={200}
+                aria-label="Payment details"
+              />
+              <div className="acctmenu-edit-row">
+                <button className="acctmenu-save" disabled={busy} onClick={() => void savePayout()}>
+                  {busy ? 'Saving…' : 'Save'}
+                </button>
+                <button className="acctmenu-item" onClick={() => { setPayoutEditing(false); setError(''); }}>
+                  Cancel
+                </button>
+              </div>
+              {error && <p className="acctmenu-err">{error}</p>}
+            </div>
+          ) : (
+            <button
+              className="acctmenu-item"
+              onClick={() => { setPayoutValue(participant?.payoutHandle ?? ''); setPayoutEditing(true); setError(''); }}
+            >
+              {participant?.payoutHandle ? 'Payment details' : 'Set payment details'}
             </button>
           )}
 

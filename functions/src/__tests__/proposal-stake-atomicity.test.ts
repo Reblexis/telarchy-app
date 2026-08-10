@@ -98,14 +98,16 @@ describe('listing validation', () => {
     expect(res.body.error).toMatch(/80/);
   });
 
-  test('a paid job without a payout handle is refused; with one it lists and the handle stays private', async () => {
+  test('a paid job without payment details anywhere is refused; a body handle works and stays private', async () => {
     await seed();
+    // No handle in the body and none on the account: the error points at
+    // the account-level payment setup (owner decision 2026-08-10).
     const bare = await request(app).post('/api/proposals')
       .set('X-Test-Agent-Id', RICH).set('X-Workspace-Id', WS)
       .set('Content-Type', 'application/json')
       .send({ title: '$25: stream it', description: '', liquiditySubsidy: 20, askUsd: 25 });
     expect(bare.status).toBe(400);
-    expect(bare.body.error).toMatch(/payoutHandle/);
+    expect(bare.body.error).toMatch(/payment details on your account/);
 
     const ok = await request(app).post('/api/proposals')
       .set('X-Test-Agent-Id', RICH).set('X-Workspace-Id', WS)
@@ -120,6 +122,22 @@ describe('listing validation', () => {
       .set('X-Test-Agent-Id', RICH).set('X-Workspace-Id', WS);
     const row = (listed.body as Array<{ id: string; payoutHandle?: string }>).find(r => r.id === ok.body.id);
     expect(row?.payoutHandle).toBe('pay@example.com');
+  });
+
+  test('a paid job reads the account payout handle when the body has none, and snapshots it', async () => {
+    await seed();
+    await db.update(agents).set({ payoutHandle: 'account@example.com' }).where(eq(agents.id, RICH));
+
+    const res = await request(app).post('/api/proposals')
+      .set('X-Test-Agent-Id', RICH).set('X-Workspace-Id', WS)
+      .set('Content-Type', 'application/json')
+      .send({ title: '$25: stream it', description: '', liquiditySubsidy: 20, askUsd: 25 });
+    expect(res.status).toBe(201);
+
+    // Snapshotted at creation: a later account edit must not rewrite where
+    // an already-listed job's money goes.
+    const [row] = await db.select().from(proposals).where(eq(proposals.id, res.body.id));
+    expect(row.payoutHandle).toBe('account@example.com');
   });
 
   test('a free job (askUsd 0 or absent) needs no payout handle', async () => {
