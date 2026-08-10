@@ -8830,6 +8830,17 @@ code, pre, kbd, samp {
 /* Know the startup: the primary sources, each saying what it is for
    (owner direction 2026-08-10: a bare "sources" word explained nothing).
    Three quiet columns, type only. */
+/* The metric's own definition, under the chart: what the number is and
+   when it settles, in the words that would void the market if changed. */
+.pubws-metric-desc {
+  max-width: 58ch;
+  margin: 0.9rem auto 0;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  text-align: center;
+  color: var(--text-tertiary);
+}
+
 .pubws-know {
   margin-top: clamp(2.4rem, 6vh, 3.6rem);
   text-align: center;
@@ -8931,19 +8942,69 @@ code, pre, kbd, samp {
   max-width: 34ch;
 }
 
-.pubws-about-cta {
-  padding: 0.7rem 1.4rem;
+/* The door: one email field, one verb. No queue language (owner
+   direction 2026-08-10): entering an email is a request we answer within
+   days, not a line to stand in. */
+.pubws-setup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+}
+
+.pubws-setup-lead {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.pubws-setup-row {
+  display: flex;
+  gap: 0.5rem;
+  width: min(26rem, 100%);
+}
+
+.pubws-setup-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.65rem 0.9rem;
   border: 1px solid var(--border-strong);
   border-radius: 999px;
-  font-size: 0.92rem;
-  font-weight: 600;
+  background: var(--bg-primary);
+  font: inherit;
+  font-size: 0.9rem;
   color: var(--text-primary);
-  text-decoration: none;
-  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
 }
-.pubws-about-cta:hover {
-  color: var(--accent);
-  border-color: var(--accent);
+.pubws-setup-row input:focus { outline: none; border-color: var(--accent); }
+
+.pubws-setup-row button {
+  padding: 0.65rem 1.2rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--button-bg);
+  color: var(--button-text);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 120ms ease;
+}
+.pubws-setup-row button:hover:not(:disabled) { filter: brightness(1.1); }
+.pubws-setup-row button:disabled { opacity: 0.6; cursor: default; }
+
+.pubws-setup-done {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--higher);
+}
+
+.pubws-setup-err {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--lower);
 }
 
 /* The desk facts: signed-in only, the anchor the market predicts against

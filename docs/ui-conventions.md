@@ -277,9 +277,19 @@ Below the floor (outside the rails column) sits the about section
 (`.pubws-about`, owner direction 2026-08-10): three drawings in the
 chart's own vocabulary (step line, branch pair, priced gap plus check),
 one Fraunces sentence each, the mission line ("Telarchy is the approval
-layer for a startup's decisions"), and one door: "Run your startup this
-way -> join the waitlist" to /waitlist. Minimal text is the constraint;
-the drawings reuse product vocabulary, never stock decoration.
+layer for a startup's decisions"), and one door: an inline email field
+with a "Get set up" button (owner direction 2026-08-10: never call it a
+waitlist; entering an email is a request answered within days, and the
+confirmation says "Got it. We will get back to you within a few days",
+not queue language). Minimal text is the constraint; the drawings reuse
+product vocabulary, never stock decoration.
+
+Under the chart, baseline view only, sits the metric's own stored
+description (`.pubws-metric-desc`): what the number is and when it
+settles, verbatim from the metric row. It is never edited from the page
+and never paraphrased in the UI, because the description is part of the
+metric's definition and changing the definition voids the open market;
+the words shown are exactly the words the market settles on.
 While a bet is composed in the
 ticket (side + amount picked, not yet placed), the chart draws its impact
 as a ghost: a dashed vertical off the

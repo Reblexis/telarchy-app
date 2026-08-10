@@ -430,6 +430,15 @@ export function TradePage() {
                   : null}
               />
             </div>
+            {/* What the number IS and when it settles, in the metric's own
+                stored words (owner ask 2026-08-10: "right now there's
+                nothing, which is just weird"). Shown for the baseline only;
+                a job view carries its own question. Never edited from here:
+                the description is part of the metric's definition, and
+                changing the definition voids the open market. */}
+            {!selectedJob && ws.heroMetricDescription && (
+              <p className="pubws-metric-desc pubws-enter pubws-enter--3">{ws.heroMetricDescription}</p>
+            )}
           </section>
         )}
 
@@ -549,7 +558,11 @@ export function TradePage() {
           <p>The gap between those worlds is a calibrated number. The owner approves on it, and pays for outcomes, not promises.</p>
         </div>
         <p className="pubws-about-mission">Telarchy is the approval layer for a startup's decisions. LookPilot is the first startup running on it.</p>
-        <Link className="pubws-about-cta" to="/waitlist">Run your startup this way → join the waitlist</Link>
+        {/* The door is an email box, not a "waitlist" (owner direction
+            2026-08-10): anyone who wants their own numbers run this way
+            gets set up within days, so the copy promises contact, not a
+            queue. One field, zero friction. */}
+        <SetupForm />
       </section>
     </div>
   );
@@ -570,5 +583,55 @@ function TopBar({ user, ready }: { user: boolean; ready: boolean }) {
         ? <div className="pubws-fade"><AccountMenu /></div>
         : <Link to="/login" className="pubws-login pubws-fade">Log in</Link>)}
     </nav>
+  );
+}
+
+/** One email in, one promise out: we set you up, no queue language. */
+function SetupForm() {
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (busy) return;
+    setError('');
+    setBusy(true);
+    try {
+      const res = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { error?: string }).error || 'Something went wrong');
+      setDone(true);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (done) {
+    return <p className="pubws-setup-done">Got it. We will get back to you within a few days.</p>;
+  }
+  return (
+    <form className="pubws-setup" onSubmit={e => void submit(e)}>
+      <p className="pubws-setup-lead">Want this for your own goals, a startup or a personal one?</p>
+      <div className="pubws-setup-row">
+        <input
+          type="email"
+          required
+          placeholder="you@example.com"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          aria-label="Your email"
+        />
+        <button type="submit" disabled={busy}>{busy ? 'Sending…' : 'Get set up'}</button>
+      </div>
+      {error && <p className="pubws-setup-err">{error}</p>}
+    </form>
   );
 }

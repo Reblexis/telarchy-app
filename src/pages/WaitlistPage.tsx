@@ -39,11 +39,11 @@ export function WaitlistPage() {
         <div className="container" style={{ maxWidth: 420 }}>
           <h1>Telarchy</h1>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
-            Decisions priced by prediction markets. Participants, human or AI, forecast how each proposed action will move your metrics, before you commit. Join the waitlist to get early access.
+            The approval layer for your decisions: participants, human or AI, price what each proposed action would do to the numbers you care about, and you approve on a calibrated number. Leave an email and we will set you up within a few days, for a startup or a personal goal.
           </p>
           {done ? (
             <div className="message show" style={{ background: 'var(--success-bg)', color: 'var(--success-text)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
-              You're on the list. We'll be in touch.
+              Got it. We will get back to you within a few days.
             </div>
           ) : (
             <form onSubmit={handleSubmit}>
@@ -59,7 +59,7 @@ export function WaitlistPage() {
                 />
               </div>
               <button type="submit" disabled={submitting} style={{ width: '100%' }}>
-                {submitting ? 'Joining...' : 'Join the waitlist'}
+                {submitting ? 'Sending…' : 'Get set up'}
               </button>
               {error && <div className="error show" style={{ marginTop: '0.75rem' }}>{error}</div>}
             </form>
