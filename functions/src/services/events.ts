@@ -10,7 +10,12 @@ export type EventType =
   | 'metric:updated'
   | 'trade:executed'
   | 'proposal:created'
-  | 'proposal:status_changed';
+  | 'proposal:status_changed'
+  /** A conditional-market respawn skipped a subsidy contributor who could
+   *  not pay, so the generation shipped with less liquidity than the
+   *  proposal record advertises. Emitted so an unpriceable market is a
+   *  visible fact instead of a console line nobody reads. */
+  | 'proposal:subsidy_skipped';
 
 export async function emitEvent(
   type: EventType,

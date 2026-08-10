@@ -34,10 +34,11 @@ import request from 'supertest';
 import express from 'express';
 import { eq } from 'drizzle-orm';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, markets, metrics, proposals, workspaces } from '../db/schema';
+import { agents, events, markets, metrics, proposals, workspaces } from '../db/schema';
 import { initialPool } from '../lib/amm';
 import { toUnits, fromUnits } from '../lib/validation';
 import { proposalsRouter } from '../routes/proposals';
+import { createConditionalMarkets } from '../services/proposals';
 import { AppError } from '../lib/errors';
 
 const app = express();
@@ -117,6 +118,32 @@ describe('listing-stake atomicity', () => {
     // And the broke proposer was not debited.
     const [agent] = await db.select().from(agents).where(eq(agents.id, BROKE));
     expect(fromUnits(agent.balance as number)).toBeCloseTo(5, 3);
+  });
+
+  test('a non-strict respawn that skips a broke contributor emits a visible event', async () => {
+    await seed();
+    // A rollover-style respawn (strict: false) for a proposal whose recorded
+    // contributor cannot pay: the platform's stated behavior is to spawn
+    // anyway at reduced liquidity, and the new guarantee is that doing so
+    // is an event, not just a console line.
+    await db.insert(proposals).values({
+      id: 'prop-rollover', workspaceId: WS, proposedBy: BROKE,
+      title: '$50: rollover job', description: '', status: 'pending',
+      conditionalMarketIds: [], liquiditySubsidy: 20,
+      subsidyContributions: { [BROKE]: 20 },
+    });
+    const ids = await createConditionalMarkets('prop-rollover', WS, {
+      contributions: { [BROKE]: 20 },
+      strict: false,
+    });
+    expect(ids).toHaveLength(2);
+
+    const evRows = await db.select().from(events).where(eq(events.workspaceId, WS));
+    const skip = evRows.find(e => e.type === 'proposal:subsidy_skipped');
+    expect(skip).toBeDefined();
+    const data = skip!.data as { proposalId: string; skipped: Array<{ contributorId: string }> };
+    expect(data.proposalId).toBe('prop-rollover');
+    expect(data.skipped[0].contributorId).toBe(BROKE);
   });
 
   test('a zero-subsidy proposal still creates fine (markets at zero liquidity by design)', async () => {

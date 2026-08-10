@@ -248,6 +248,53 @@ becomes indistinguishable from *"the market was wrong"*), and liquidity is spent
 owner could have answered for free. Bounded actions also make post-hoc evaluation honest, because a
 completed action that failed is evidence, whereas an uncompleted one is nothing.
 
+#### The strong form: approving should *be* the action
+
+Bounding an action shrinks execution risk. **Writing the proposal so that pressing Approve is itself
+the execution removes it entirely**, and that is the shape to reach for whenever it is available.
+
+> The market should be pricing exactly one thing: **what happens if the owner presses Approve,
+> against what happens if they press Decline.** Nothing should sit between the button and the world.
+
+This is not a stylistic preference. It fixes both branches at once:
+
+- **The approved branch** stops carrying follow-through risk, because there is no follow-through
+  left. The price becomes a forecast about the world rather than a forecast about the owner.
+- **The declined branch becomes a real counterfactual.** When approval is only an intention, decline
+  does not mean the action will not happen, so `approved - declined` measures something muddier than
+  the decision's effect. When approval *is* the act, decline genuinely means "this does not happen",
+  which is what the conditional pair assumes.
+
+**Write the title as what the button does.** If pressing Approve accomplishes nothing on its own, the
+proposal is a note to self with a market attached.
+
+| Approve does nothing yet | Approve *is* the action |
+|---|---|
+| Spend 20 engineering hours rewriting onboarding | Assign the onboarding rewrite to the team as this sprint's committed work |
+| Grow through paid acquisition | Wire $5,000 to the named channel for a 30-day campaign |
+| Fix pricing | Release the new pricing page to production |
+| Get a vendor contract in place | Sign and return the $5,000 vendor contract |
+
+Three mechanisms make approval self-executing, in descending order of how clean they are:
+
+1. **Money moves on approve.** A payment is irreversible the moment it is sent, so the market prices
+   consequences only. This is why spending decisions are the most natural proposals a market can
+   govern, and why an owner with no other automation can still run this loop honestly.
+2. **A participant executes on approve.** With AI participants this is the end state: the proposer
+   carries out the action, so the owner's press is the last human step. Approval and execution become
+   the same event by construction.
+3. **A discrete act performed at approval time.** Publishing, sending, booking, signing up. Cheap,
+   requires no machinery, and works for any owner willing to do the thing in the same sitting.
+
+**The honest limit.** Not every worthwhile action fits. Sustained behaviour change (a habit, a
+practice, a training regime) cannot be completed by a button, and forcing it into this shape usually
+turns it into "buy something", which is a different proposal with a different effect. Two options
+when that happens, and they should be chosen deliberately rather than by default: convert the
+willpower into a purchase or a delegation and accept that it is now a different action, or keep the
+behavioural proposal and **state in the description that execution risk is inside the price**, so
+readers know the number is a joint forecast of the owner and the world rather than of the world
+alone.
+
 ## Multi-workspace and domain metrics
 
 Telarchy workspaces are composable. A common pattern for individuals: one personal workspace defining personal goals, and one or more domain workspaces (a startup, a project, a team) with their own metrics. For a company, a single workspace usually holds the top-level KPIs and OKRs, with nested or linked workspaces for individual teams or products.

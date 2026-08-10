@@ -6,6 +6,7 @@ import { consensus } from '../lib/amm';
 import { voidMarket } from './markets';
 import { AppError } from '../lib/errors';
 import { MIN_LIQUIDITY_CONTRIBUTION, sufficientBalance, toUnits, fromUnits } from '../lib/validation';
+import { emitEvent } from './events';
 import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
 import { resolutionInstant } from '../lib/date-utils';
 
@@ -196,6 +197,7 @@ export async function createConditionalMarkets(
 
     const newMarkets = toSpawn;
 
+    const skipped: Array<{ contributorId: string; needed: number; had: number }> = [];
     await db.transaction(async tx => {
       // Which contributors can fund this generation? Lock each contributor
       // row, then either abort (strict, creation path) or skip with a log
@@ -207,6 +209,7 @@ export async function createConditionalMarkets(
         if (!agentRow) {
           if (options.strict) throw new AppError('Subsidy contributor agent not found', 404);
           console.error(`createConditionalMarkets: subsidy contributor ${contributorId} not found; spawning proposal ${proposalId} markets without their share`);
+          skipped.push({ contributorId, needed: cost, had: 0 });
           continue;
         }
         if (!sufficientBalance(agentRow.balance as number, cost)) {
@@ -217,6 +220,7 @@ export async function createConditionalMarkets(
             );
           }
           console.error(`createConditionalMarkets: subsidy contributor ${contributorId} has ${fromUnits(agentRow.balance as number)} < ${cost} needed; spawning proposal ${proposalId} markets without their share`);
+          skipped.push({ contributorId, needed: cost, had: fromUnits(agentRow.balance as number) });
           continue;
         }
         funded.push([contributorId, perMarket]);
@@ -254,6 +258,17 @@ export async function createConditionalMarkets(
         await tx.insert(liquidityEvents).values(liqRows);
       }
     });
+
+    // A skipped contribution means this generation carries less liquidity
+    // than the proposal record advertises. Surface it as an event so an
+    // unpriceable market is a visible fact, not a console line: on the
+    // strict creation path this is unreachable (insufficiency throws and
+    // the route deletes the proposal), so anything landing here came from
+    // a rollover respawn.
+    if (skipped.length > 0) {
+      emitEvent('proposal:subsidy_skipped', { proposalId, skipped }, workspaceId)
+        .catch(e => console.error('emitEvent failed:', e));
+    }
     // Return every market that belongs to the proposal's current desired set:
     // the newly spawned ones plus the existing ones we kept.
     const keptIds = existingConditional
