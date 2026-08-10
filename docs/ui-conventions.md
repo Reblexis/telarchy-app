@@ -250,25 +250,25 @@ opens a dialog that is the ticket's STRUCTURE, not just its underlines
 (Codex redesign, revised 2026-08-10): the USD ask is the hero numeric at
 the top exactly where the ticket puts its bet amount ($ unit, mono,
 auto-width underline), the title / paid-to / pitch fields are quiet
-left-aligned underlines with small left labels, and the consequences live
-in the same ruled `.ticket-facts` table ("On the ballot" showing the
-composed "$N: title" live, "Stake 500 cr", "Returned when the owner
-decides"). Color only speaks as state: accent focus, red errors and the
+left-aligned underlines with small left labels, and the whole deal is one
+quiet line under the fields, "Costs 500 cr to post. 1,000 cr back if
+approved." (owner direction 2026-08-10: no facts table; the 1,000 is the
+500 stake returned plus the workspace's 500 proposal reward). Color only speaks as state: accent focus, red errors and the
 full title counter, green ONLY on the placed flash; the confirm is the
 neutral `.ticket-go` whose label progresses "Suggest job" (disabled,
 invalid) to "Suggest job for $N" (ready) to "Submitting..." to "Added to
-ballot" (green flash, then the dialog closes). The ask is required (every
-job has a price), sent as `askUsd` and stored on the proposal; it is
-*also* composed into the title as "$N: ..." because that reads well and
-travels into the activity log and share text, but the stored column is
-what anything financial reads. Rows prefer `askUsd` and fall back to
+ballot" (green flash, then the dialog closes). A $0 job is a valid job
+(owner decision 2026-08-10) and needs no payment details; a non-zero ask
+with no account payment details shows a warning and disables the
+confirm. The ask is sent as `askUsd` and stored on the proposal; when
+non-zero it is *also* composed into the title as "$N: ..." because that
+reads well and travels into the activity log and share text, but the
+stored column is what anything financial reads. Rows prefer `askUsd` and fall back to
 parsing the title only for proposals created before the column existed.
 There is no paid-to field
 (owner direction 2026-08-10, second pass: payment details belong in
-account settings, not in a job): the facts table REPORTS the account's
-payment details ("Paid to" shows the stored handle, or "add it in your
-account menu" when unset), the account menu edits them, and the server
-refuses a paid job without them. The board is signed-in
+account settings, not in a job): the account menu edits them, and the
+server refuses a paid job without them. The board is signed-in
 only; the anonymous poster stays clean. On viewports >=1120px the page
 becomes the trading floor proper: a three-column grid with the top-traders
 rail on the left (public /api/leaderboard: rank, nickname-or-id, earnings

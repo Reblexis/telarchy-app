@@ -8181,13 +8181,12 @@ textarea.jobform-line--desc {
   line-height: 1.45;
 }
 
-/* The composed ballot line can be long; it truncates rather than wraps
-   so the facts table keeps the ticket's one-row rhythm. */
-.jobform-fact-title {
-  max-width: 58%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+/* The whole deal, one quiet line under the fields: cost and the
+   approval payout, nothing else (owner direction 2026-08-10). */
+.jobform-terms {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
 }
 
 /* The floor's dialog: everything focused happens here. */

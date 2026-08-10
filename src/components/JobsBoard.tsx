@@ -84,20 +84,21 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
   });
 
   // The confirm stays disabled until these hold, so the short errors
-  // below are a fallback for the server, not the primary guardrail.
+  // below are a fallback for the server, not the primary guardrail. A $0
+  // job needs no payment details (owner decision 2026-08-10); a paid one
+  // is blocked, with a warning, until the account has them.
   const askNum = Math.max(0, Math.floor(parseFloat(ask) || 0));
-  const formValid = title.trim().length > 0 && askNum > 0;
+  const needsPayout = askNum > 0 && accountPayout === null;
+  const formValid = title.trim().length > 0 && !needsPayout;
 
   const submit = async () => {
     if (!title.trim()) { setFormErr('Add a job.'); return; }
-    // Every proposal is a job with a price (charter, 2026-08-09): the ask
-    // is required. The round-1 convention composes it into the title.
-    if (askNum <= 0) { setFormErr('Add a price.'); return; }
-    // The title still carries the price because it reads well and travels
+    // The title carries the price because it reads well and travels
     // (activity log, share text); the number is also sent separately, and
-    // that copy is the one anything financial reads. Where the money goes
-    // comes from the account; the server refuses a paid job without it.
-    const fullTitle = `$${askNum}: ${title.trim()}`;
+    // that copy is the one anything financial reads. A free job keeps a
+    // clean title. Where the money goes comes from the account; the
+    // server refuses a paid job without it.
+    const fullTitle = askNum > 0 ? `$${askNum}: ${title.trim()}` : title.trim();
     setFormErr('');
     setFormBusy(true);
     try {
@@ -218,36 +219,21 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
               />
             </label>
 
-            {/* The composed order, ticket-style: what goes on the ballot,
-                what it costs to say it, and when that comes back. */}
-            <div className="ticket-facts jobform-facts">
-              <div className="ticket-fact">
-                <span className="ticket-fact-k">On the ballot</span>
-                <span className="ticket-fact-v jobform-fact-title">${askNum}: {title.trim() || '…'}</span>
-              </div>
-              <div className="ticket-fact">
-                <span className="ticket-fact-k">Paid to</span>
-                <span className="ticket-fact-v jobform-fact-title">
-                  {accountPayout === undefined ? '…' : accountPayout ?? 'add it in your account menu'}
-                </span>
-              </div>
-              <div className="ticket-fact">
-                <span className="ticket-fact-k">Stake</span>
-                <span className="ticket-fact-v">500 cr</span>
-              </div>
-              <div className="ticket-fact">
-                <span className="ticket-fact-k">Returned</span>
-                <span className="ticket-fact-v">when the owner decides</span>
-              </div>
-            </div>
+            {/* The whole deal in one quiet line (owner direction
+                2026-08-10: no facts table): what it costs, what approval
+                pays. */}
+            <p className="jobform-terms">Costs 500 cr to post. 1,000 cr back if approved.</p>
 
+            {/* A paid job cannot go up without somewhere for the money to
+                go; the warning names the fix and the confirm stays off. */}
+            {needsPayout && <p className="ticket-err">Paid jobs need payment details first: add them in your account menu.</p>}
             {formErr && <p className="ticket-err">{formErr}</p>}
             <button
               className={`ticket-go${placed ? ' is-placed' : ''}`}
               disabled={formBusy || (!placed && !formValid)}
               onClick={() => void submit()}
             >
-              {placed ? 'Added to ballot' : formBusy ? 'Submitting…' : formValid ? `Suggest job for $${askNum}` : 'Suggest job'}
+              {placed ? 'Added to ballot' : formBusy ? 'Submitting…' : formValid && askNum > 0 ? `Suggest job for $${askNum}` : 'Suggest job'}
             </button>
           </div>
         </FloorModal>
