@@ -161,7 +161,7 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
                 inputs on underlines, no boxes anywhere, the one filled
                 element is the confirm. */}
             <p className="ticket-label">
-              What will you do? <span className={`jobform-count${title.length >= 60 ? ' is-near' : ''}`}>{title.length}/70</span>
+              The job <span className={`jobform-count${title.length >= 60 ? ' is-near' : ''}`}>{title.length}/70</span>
             </p>
             <input
               className="jobform-line jobform-line--title"
@@ -171,7 +171,7 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
               maxLength={70}
               aria-label="Job title"
             />
-            <p className="ticket-label">Your price, paid on approval</p>
+            <p className="ticket-label">Your price</p>
             <label className="jobform-price">
               <span aria-hidden="true">$</span>
               <input
@@ -184,7 +184,7 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
                 required
               />
             </label>
-            <p className="ticket-label">Where the money goes if approved</p>
+            <p className="ticket-label">Paid to</p>
             <input
               className="jobform-line jobform-line--title"
               value={payout}
@@ -193,23 +193,20 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
               maxLength={200}
               aria-label="Payout handle"
             />
-            <p className="ticket-label">Why you, and why it moves the number</p>
+            <p className="ticket-label">Your pitch</p>
             <textarea
               className="jobform-line jobform-line--desc"
               value={desc}
               onChange={e => setDesc(e.target.value)}
-              placeholder="Links to your channel, portfolio, prior work. Payment handle here or after approval."
+              placeholder="Links: channel, portfolio, prior work."
               rows={4}
               aria-label="Job description"
             />
             <button className="jobform-go" disabled={formBusy} onClick={() => void submit()}>
               {formBusy ? 'Submitting…' : 'Put it on the ballot · 500 cr stake'}
             </button>
-            <p className="ticket-foot jobform-fine">
-              The stake seeds your job&rsquo;s two markets and comes back in
-              full when the owner decides. Approval pays your ask and grants
-              nothing else.
-            </p>
+            {/* One line: the one fact that removes the fear of staking. */}
+            <p className="ticket-foot jobform-fine">Stake returns in full when the owner decides.</p>
             {formErr && <p className="ticket-err">{formErr}</p>}
           </div>
         </FloorModal>

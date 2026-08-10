@@ -8182,7 +8182,7 @@ textarea.jobform-line--desc {
 .jobform-price span {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.95rem;
-  color: var(--text-tertiary);
+  color: var(--higher);
 }
 .jobform-price input {
   appearance: none;
@@ -8218,8 +8218,8 @@ textarea.jobform-line--desc {
   padding: 0.85rem 1.2rem;
   border: 1px solid transparent;
   border-radius: 10px;
-  background: var(--button-bg);
-  color: var(--button-text);
+  background: var(--higher);
+  color: var(--on-signal);
   font: inherit;
   font-size: 0.95rem;
   font-weight: 600;
