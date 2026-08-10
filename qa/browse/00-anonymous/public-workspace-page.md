@@ -245,7 +245,9 @@ description under it and a "← <metric> @ <date>" link back to the
 baseline; price becomes the conditional call, the chip reads "impact", the
 chart draws the branch's own history, and the ticket trades it) rather than growing a second market underneath; and the "+ Suggest a
 job" form whose USD ask is required and composes into the title as
-"$N: ..."). None of these render for anonymous visitors, whose poster
+"$N: ..."), and the evidence row (`.pubws-evidence`: the workspace's
+market-less metrics as one quiet mono line, capped at six). None of these
+render for anonymous visitors, whose poster
 stays context-free. Exception: the side rails (top traders left from
 /api/leaderboard, action log right composed from the public payload) are
 visible to both tiers on viewports >=1120px, stack below the poster on
