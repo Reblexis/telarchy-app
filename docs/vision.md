@@ -664,3 +664,15 @@ BASE_URL=http://localhost:8080 API_KEY=<master-key> node scripts/test-integratio
 Or via npm: `npm run test:integration` (set env vars first).
 
 The integration tests create their own workspace and data, and clean up after themselves. They are designed to pass on a fresh instance and to be extended by adding new `test()` calls in the appropriate `suite()` block.
+
+
+**DONE 2026-08-10 (Viktor): the alpha wall.** Until the management console
+leaves alpha, the only public surface is the trading floor: telarchy.com
+redirects to /lookpilot, and every other route (landing, app shell,
+console, account settings, admin) renders only after visiting /alpha once
+in that browser (operator knowledge, linked from nowhere; /alpha-off
+reverts). The wall is a curtain, not a lock: hidden pages still enforce
+their own auth server-side. Public doors that remain: /login, /signup,
+/waitlist, legal pages, and the floors themselves. Anyone wanting to run
+their own startup this way is pointed at the waitlist, from the floor's
+about section.

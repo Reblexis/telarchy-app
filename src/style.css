@@ -8827,35 +8827,124 @@ code, pre, kbd, samp {
   font-size: 0.8rem;
   color: var(--lower);
 }
-/* Sources: where a forecaster verifies the number without trusting this
-   page. One quiet line of links; replaces the copied-value evidence strip
-   (owner decision 2026-08-10). */
-.pubws-sources {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: baseline;
-  gap: 0.3rem 1.6rem;
-  margin-top: clamp(2rem, 5vh, 2.8rem);
-  font-size: 0.8rem;
+/* Know the startup: the primary sources, each saying what it is for
+   (owner direction 2026-08-10: a bare "sources" word explained nothing).
+   Three quiet columns, type only. */
+.pubws-know {
+  margin-top: clamp(2.4rem, 6vh, 3.6rem);
+  text-align: center;
 }
 
-.pubws-sources-label {
-  font-size: 0.68rem;
+.pubws-know-head {
+  margin: 0 0 1rem;
+  font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-tertiary);
 }
 
-.pubws-sources a {
-  color: var(--text-secondary);
+.pubws-know-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem 2.8rem;
+}
+
+.pubws-know-grid a {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
   text-decoration: none;
+}
+
+.pubws-know-name {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
   border-bottom: 1px solid var(--border-strong);
   padding-bottom: 1px;
+  align-self: center;
   transition: color 120ms ease, border-color 120ms ease;
 }
-.pubws-sources a:hover { color: var(--accent); border-color: var(--accent); }
+.pubws-know-grid a:hover .pubws-know-name { color: var(--accent); border-color: var(--accent); }
+
+.pubws-know-desc {
+  font-size: 0.76rem;
+  color: var(--text-tertiary);
+  max-width: 20ch;
+}
+
+/* The about: three drawings in the chart's own vocabulary, three
+   sentences, one door (owner direction 2026-08-10: below the floor,
+   strong visuals, minimal text). */
+.pubws-about {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(2rem, 5vh, 3rem);
+  max-width: 560px;
+  margin: 0 auto;
+  padding: clamp(4rem, 10vh, 7rem) 1.5rem clamp(4rem, 9vh, 6rem);
+}
+
+.pubws-about-beat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  text-align: center;
+}
+
+.pubws-about-beat svg {
+  width: 120px;
+  height: 48px;
+  overflow: visible;
+}
+
+.pubws-about-beat p {
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-size: 1.08rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  max-width: 42ch;
+}
+
+.ab-line { fill: none; stroke: var(--accent); stroke-width: 2; }
+.ab-up { fill: none; stroke: var(--higher); stroke-width: 2; }
+.ab-down { fill: none; stroke: var(--lower); stroke-width: 2; stroke-dasharray: 3 4; }
+.ab-gap { stroke: var(--text-tertiary); stroke-width: 1.5; stroke-dasharray: 2 4; }
+.ab-check { fill: none; stroke: var(--higher); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.ab-dot { fill: var(--accent); }
+.ab-dot--up { fill: var(--higher); }
+.ab-dot--down { fill: var(--lower); }
+
+.pubws-about-mission {
+  margin: 0.5rem 0 0;
+  font-family: 'Fraunces', serif;
+  font-size: clamp(1.15rem, 2.6vw, 1.4rem);
+  font-weight: 600;
+  text-align: center;
+  color: var(--text-primary);
+  max-width: 34ch;
+}
+
+.pubws-about-cta {
+  padding: 0.7rem 1.4rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+.pubws-about-cta:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
 
 /* The desk facts: signed-in only, the anchor the market predicts against
    plus its freshness and the trade pulse. */

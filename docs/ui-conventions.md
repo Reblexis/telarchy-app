@@ -263,14 +263,23 @@ color-coded --higher/--lower, and market moves; newest first, capped at
 12). Both rails render for both tiers, hide entirely when empty, sit
 sticky beside the poster, and the chart stops breaking out (100% of the
 center column). Below 1120px the rails stack under the poster,
-leaderboard first. Under the jobs board sits the sources
-line (`.pubws-sources`, owner decision 2026-08-10, replacing the copied
-metric-value evidence row, which went stale between syncs and
-second-guessed the chart): a tiny uppercase "sources" label and three
-links a forecaster can audit without trusting this page: the official
-data room (lookpilot.app/data-room), the Steam store page, and SteamDB.
-Links are quiet text with a hairline underline that warms to the accent
-on hover; external, opening in a new tab.
+leaderboard first. At the bottom of the floor column sits
+"Know LookPilot, trade it better" (`.pubws-know`, owner direction
+2026-08-10; it replaced first the copied metric-value evidence row and
+then a bare "sources" label that explained nothing): three described
+links a forecaster can audit without trusting this page: the data room
+("the official numbers this market settles on"), the Steam store page
+("the product, as players see it"), and SteamDB ("third-party sales
+estimates"). Mono names with hairline underlines that warm to the accent;
+external, new tab.
+
+Below the floor (outside the rails column) sits the about section
+(`.pubws-about`, owner direction 2026-08-10): three drawings in the
+chart's own vocabulary (step line, branch pair, priced gap plus check),
+one Fraunces sentence each, the mission line ("Telarchy is the approval
+layer for a startup's decisions"), and one door: "Run your startup this
+way -> join the waitlist" to /waitlist. Minimal text is the constraint;
+the drawings reuse product vocabulary, never stock decoration.
 While a bet is composed in the
 ticket (side + amount picked, not yet placed), the chart draws its impact
 as a ghost: a dashed vertical off the

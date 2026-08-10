@@ -1,6 +1,7 @@
-import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useParams } from 'react-router-dom';
 import { useEffect } from 'react';
 import { setActiveWorkspace } from './lib/api';
+import { grantAlphaAccess, hasAlphaAccess, revokeAlphaAccess } from './lib/alpha';
 import { InspectModeProvider } from './hooks/useInspectMode';
 import { RequireAuth, RequireAgentSession } from './components/RequireAuth';
 import { WorkspaceRouteGuard, FlatTabRedirect } from './components/WorkspaceRoute';
@@ -61,29 +62,52 @@ function MarketplaceTabRedirect() {
   return <Navigate to={`/${tab}`} replace />;
 }
 
+// The public floor telarchy.com IS: root and everything hidden by the
+// alpha wall land here. One startup for now; a list when there are more.
+const DEFAULT_FLOOR = '/lookpilot';
+
+/** See lib/alpha.ts: the console stays dark until it leaves alpha. */
+function AlphaGate() {
+  return hasAlphaAccess() ? <Outlet /> : <Navigate to={DEFAULT_FLOOR} replace />;
+}
+
+function AlphaSwitch({ on }: { on: boolean }) {
+  if (on) grantAlphaAccess(); else revokeAlphaAccess();
+  return <Navigate to={on ? '/marketplace' : DEFAULT_FLOOR} replace />;
+}
+
 export function App() {
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || '/'}>
       <InspectModeProvider>
         <Routes>
-          <Route path="/" element={<LandingPage />} />
+          {/* The alpha wall (owner decision 2026-08-10): the public surface
+              is the trading floor and the doors into it (login, signup,
+              waitlist, legal), nothing else. The root IS the floor. The
+              landing page, app shell, console, and account pages stay in
+              the tree but render only behind the wall. */}
+          <Route path="/" element={<Navigate to={DEFAULT_FLOOR} replace />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/waitlist" element={<WaitlistPage />} />
+          <Route path="/terms" element={<LegalPage document="terms" />} />
+          <Route path="/privacy" element={<LegalPage document="privacy" />} />
+          {/* Operator switch, linked from nowhere. */}
+          <Route path="/alpha" element={<AlphaSwitch on />} />
+          <Route path="/alpha-off" element={<AlphaSwitch on={false} />} />
+          {/* The share-link landing renders standalone: a stranger's first
+              screen must be a poster, not an app shell with a sidebar. */}
+          <Route path="/marketplace/:workspaceId" element={<TradePage />} />
+          <Route element={<AlphaGate />}>
+          <Route path="/home" element={<LandingPage />} />
           <Route path="/claim" element={<ClaimPage />} />
           {/* Cinematic first-run canvas: full-screen (no sidebar), self-gates auth. */}
           <Route path="/welcome" element={<WelcomePage />} />
           <Route path="/agent-login" element={<AgentLoginPage />} />
-          <Route path="/terms" element={<LegalPage document="terms" />} />
-          <Route path="/privacy" element={<LegalPage document="privacy" />} />
           {/* Agent portal: requires agent session (agent ID + API key), not Firebase */}
           <Route element={<RequireAgentSession />}>
             <Route path="/agent" element={<AgentPortalPage />} />
           </Route>
-          {/* Authenticated routes, all wrapped in AppLayout (sidebar) */}
-          {/* The share-link landing renders standalone: a stranger's first
-              screen must be a poster, not an app shell with a sidebar. */}
-          <Route path="/marketplace/:workspaceId" element={<TradePage />} />
           <Route path="/manage" element={<ManagePage />} />
           <Route element={<AppLayout />}>
             <Route path="/marketplace" element={<MarketplacePage />} />
@@ -127,6 +151,7 @@ export function App() {
               <Route path="check-in" element={<CheckInPage />} />
               <Route path="participants" element={<ParticipantsPage />} />
             </Route>
+          </Route>
           </Route>
           {/* Root-level slug: telarchy.com/<slug> IS the workspace's trading
               floor (trader-first flip, 2026-08-08). Last so every static

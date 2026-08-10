@@ -1,3 +1,4 @@
+import { hasAlphaAccess } from '../lib/alpha';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
@@ -116,7 +117,9 @@ export function AccountMenu() {
                   {user.emailVerified === false && <span className="acctmenu-tag">unverified</span>}
                 </span>
               )
-              : <a className="acctmenu-email acctmenu-link" href="/account">connect an email</a>}
+              : hasAlphaAccess()
+                ? <a className="acctmenu-email acctmenu-link" href="/account">connect an email</a>
+                : <span className="acctmenu-email">no email connected</span>}
           </div>
 
           <div className="acctmenu-stats">
@@ -154,7 +157,9 @@ export function AccountMenu() {
             </button>
           )}
 
-          <a className="acctmenu-item" href="/account">Account settings</a>
+          {/* The console is behind the alpha wall; a public trader's whole
+              account IS this menu until it opens. */}
+          {hasAlphaAccess() && <a className="acctmenu-item" href="/account">Account settings</a>}
           <button className="acctmenu-item acctmenu-item--out" onClick={() => void logout()}>Log out</button>
         </div>
       )}

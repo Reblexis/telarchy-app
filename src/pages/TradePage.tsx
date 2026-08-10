@@ -468,19 +468,6 @@ export function TradePage() {
           />
         )}
 
-        {/* Sources, not snapshots (owner decision 2026-08-10): the strip of
-            copied metric values went stale between syncs and second-guessed
-            the chart. A forecaster gets the primary sources instead: the
-            official data room, and the two public Steam surfaces anyone can
-            audit without trusting this page. */}
-        {trading && (
-          <section className="pubws-sources" aria-label="Sources">
-            <span className="pubws-sources-label">sources</span>
-            <a href="https://lookpilot.app/data-room/" target="_blank" rel="noreferrer">data room</a>
-            <a href="https://store.steampowered.com/app/3326890/LookPilot/" target="_blank" rel="noreferrer">steam page</a>
-            <a href="https://steamdb.info/app/3326890/" target="_blank" rel="noreferrer">steamdb</a>
-          </section>
-        )}
 
         {canTrade && !user && !authLoading && active ? (
           /* Newcomers get the same ticket in demo mode: they can compose a
@@ -503,9 +490,67 @@ export function TradePage() {
             />
           </section>
         ) : null}
+        {/* Know the startup (owner direction 2026-08-10: a bare "sources"
+            word with three naked links explained nothing). Each primary
+            source says what it is for, because the pitch is literal: know
+            the startup better, trade it better. Shown to everyone; the
+            links are the floor's provenance, not a member perk. */}
+        <section className="pubws-know pubws-enter pubws-enter--3" aria-label="Know the startup">
+          <h2 className="pubws-know-head">Know LookPilot, trade it better</h2>
+          <div className="pubws-know-grid">
+            <a href="https://lookpilot.app/data-room/" target="_blank" rel="noreferrer">
+              <span className="pubws-know-name">data room</span>
+              <span className="pubws-know-desc">the official numbers this market settles on</span>
+            </a>
+            <a href="https://store.steampowered.com/app/3326890/LookPilot/" target="_blank" rel="noreferrer">
+              <span className="pubws-know-name">steam page</span>
+              <span className="pubws-know-desc">the product, as players see it</span>
+            </a>
+            <a href="https://steamdb.info/app/3326890/" target="_blank" rel="noreferrer">
+              <span className="pubws-know-name">steamdb</span>
+              <span className="pubws-know-desc">third-party sales estimates</span>
+            </a>
+          </div>
+        </section>
         </div>
         <ActivityRail items={activity} />
       </main>
+
+      {/* Below the floor: why this exists, in three drawings and three
+          sentences (owner direction 2026-08-10: about section under the
+          main view, strong visuals, minimal text). The drawings reuse the
+          chart's own vocabulary: the step line, the branch pair, the
+          priced gap; nothing here is decoration from outside the product. */}
+      <section className="pubws-about" aria-label="About Telarchy">
+        <div className="pubws-about-beat">
+          <svg viewBox="0 0 120 48" aria-hidden="true">
+            <path className="ab-line" d="M6,40 L36,40 L36,28 L66,28 L66,14 L106,14" />
+            <circle className="ab-dot" cx="106" cy="14" r="3.5" />
+          </svg>
+          <p>A real startup, run in the open. One number says how it is going.</p>
+        </div>
+        <div className="pubws-about-beat">
+          <svg viewBox="0 0 120 48" aria-hidden="true">
+            <path className="ab-line" d="M6,24 L46,24" />
+            <path className="ab-up" d="M46,24 L106,10" />
+            <path className="ab-down" d="M46,24 L106,38" />
+            <circle className="ab-dot ab-dot--up" cx="106" cy="10" r="3.5" />
+            <circle className="ab-dot ab-dot--down" cx="106" cy="38" r="3.5" />
+          </svg>
+          <p>Anyone proposes a job with a price. Participants, human or AI, bet on both worlds: done, and not done.</p>
+        </div>
+        <div className="pubws-about-beat">
+          <svg viewBox="0 0 120 48" aria-hidden="true">
+            <line className="ab-gap" x1="60" y1="12" x2="60" y2="36" />
+            <circle className="ab-dot ab-dot--up" cx="60" cy="12" r="3.5" />
+            <circle className="ab-dot ab-dot--down" cx="60" cy="36" r="3.5" />
+            <path className="ab-check" d="M78,22 L84,28 L96,14" />
+          </svg>
+          <p>The gap between those worlds is a calibrated number. The owner approves on it, and pays for outcomes, not promises.</p>
+        </div>
+        <p className="pubws-about-mission">Telarchy is the approval layer for a startup's decisions. LookPilot is the first startup running on it.</p>
+        <Link className="pubws-about-cta" to="/waitlist">Run your startup this way → join the waitlist</Link>
+      </section>
     </div>
   );
 }
