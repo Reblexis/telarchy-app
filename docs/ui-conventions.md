@@ -168,11 +168,13 @@ picture is a URL, not an upload (no blob store in this stack), saved via
 POST /api/auth/profile { image } which accepts http(s) only so the value
 can never become a javascript: or data: vector in an img src. The bar owns
 a stacking layer above the floor rails so the panel paints over them; the bar deliberately ignores the 660px content
-column, which left the logo floating aligned to nothing), one headline naming the prediction ("<metric> @ <settle
-date>", the metric's parenthetical unit tail trimmed for display) set in
-the Fraunces display face with the instrument in ink and the settle date a
-register quieter (an exception to the tiny-uppercase-label rule: it is the
-page's only statement of what the market is), the consensus as a large mono
+column, which left the logo floating aligned to nothing), one headline naming the prediction (the metric's
+name alone, its parenthetical unit tail trimmed for display; no settle date
+beside it, since the name carries its own horizon and at a year boundary a
+settle date reads a day late, the 2026 period ending at the instant January
+1 begins) set in the Fraunces display face (an exception to the
+tiny-uppercase-label rule: it is the page's only statement of what the
+market is), the consensus as a large mono
 price with a since-open chip (both carrying the metric's currency symbol
 when the trimmed parenthetical tail names one, e.g. "USD" -> "$"; the same
 prefix runs through every numeral in the chart), and the prediction
@@ -188,10 +190,8 @@ composes a real bet (side, amount, payout line, the impact ghost on the
 chart all work), and only the confirm differs: it reads "Sign up to bet"
 and routes to /signup. The ticket is the pitch; signing up IS the intent
 signal, and the signed-in view becomes the trader's desk. The
-desk adds, around the trade ticket only: a mono facts strip above it
-("Actual <value> · updated <ago>": the anchor the market predicts against
-plus its freshness, and nothing else; the trade pulse lives in the activity
-rail), the trader's balance inside the ticket ("1,000 cr available",
+desk adds, around the trade ticket only: the trader's balance inside the
+ticket ("1,000 cr available",
 compacted to "991k" past five figures), and live position worth on each
 held row ("worth 31.2 cr +6.2", green/red delta from the AMM sell preview,
 the delta hidden while it is still zero). The amount presets are three, not
@@ -215,7 +215,9 @@ it as the details, a small "← <metric> @ <date>" link above returns to the
 baseline, the price is the conditional call, the chip becomes the impact (approved
 minus declined) instead of "since open", and the chart draws the branch's
 own history (fetched per market from
-`/api/marketplace/:id/markets/:marketId/history`). The ticket trades that
+`/api/marketplace/:id/markets/:marketId/history`, falling back to the
+market's current call as a single point when nobody has traded it yet, so a
+fresh job shows a chart rather than blank space). The ticket trades that
 branch: its probability and liquidity must come from the active market, not
 the baseline, or payouts, the bet ghost and position worth are all computed
 against the wrong curve. The description is NOT repeated under the job row;
