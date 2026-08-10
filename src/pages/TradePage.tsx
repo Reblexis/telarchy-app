@@ -76,6 +76,10 @@ export function TradePage() {
   const [balance, setBalance] = useState<number | null>(null);
   const [ticketPreview, setTicketPreview] = useState<{ direction: 'higher' | 'lower'; newProb: number } | null>(null);
   const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
+  // Evidence series: the workspace's market-less metrics (units, active
+  // users, tracking hours, review percentage), synced by the same daily
+  // pipe as the traded number. Signed-in only, like the rest of the desk.
+  const [evidence, setEvidence] = useState<Array<{ id: string; name: string; value: number }>>([]);
   // Selecting a job switches the ONE market view to that job's conditional
   // market (owner decision 2026-08-09: no second market underneath). null
   // means the baseline market is showing.
@@ -180,6 +184,19 @@ export function TradePage() {
       .then(pt => setBalance((pt as { balance?: number }).balance ?? null))
       .catch(e => console.error('participant fetch failed:', e));
   };
+  useEffect(() => {
+    if (!joined || !ws) return;
+    api.getMetrics()
+      .then(r => {
+        const list = (Array.isArray(r) ? r : (r as { metrics?: unknown[] })?.metrics ?? []) as Array<{ id: string; name: string; value: number }>;
+        // Cap hard: the row is a glance, and a workspace with many metrics
+        // (a personal one viewed via its slug, say) must not flood the desk.
+        setEvidence(list.filter(m => m.id !== hero?.metricId && typeof m.value === 'number').slice(0, 6));
+      })
+      .catch(e => console.error('evidence fetch failed:', e));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [joined, ws?.workspaceId]);
+
   // Positions belong to the market on screen, so they refetch on a switch.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { setPositions([]); if (joined) refreshMoney(); }, [joined, activeMarketId]);
@@ -386,6 +403,25 @@ export function TradePage() {
               reload();
             }}
           />
+        )}
+
+        {/* Evidence: the numbers a forecaster prices against, one quiet
+            mono line. Names carry the meaning; values stay compact. */}
+        {trading && evidence.length > 0 && (
+          <section className="pubws-evidence" aria-label="Evidence">
+            {evidence.map(m => (
+              <span key={m.id} className="pubws-evidence-item">
+                <span className="pubws-evidence-value">
+                  {m.value >= 10_000
+                    ? `${(m.value / 1000).toLocaleString('en-US', { maximumFractionDigits: 1 })}k`
+                    : m.value.toLocaleString('en-US', { maximumFractionDigits: m.value < 100 ? 1 : 0 })}
+                  {/percent|%/i.test(m.name) ? '%' : ''}
+                </span>
+                {' '}
+                {m.name.replace(/\s*\(.*\)\s*$/, '').toLowerCase()}
+              </span>
+            ))}
+          </section>
         )}
 
         {canTrade && !user && !authLoading && active ? (
