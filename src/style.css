@@ -8469,33 +8469,40 @@ code, pre, kbd, samp {
 .pubws-log-item--declined .pubws-log-text { color: var(--lower); }
 .pubws-log-item--proposal .pubws-log-text { color: var(--text-primary); }
 
-/* The trade ticket: type on the page, not a panel (owner decision
-   2026-08-09). The poster around it is borderless, so a card here read as
-   app furniture bolted onto a printed page. Exactly one element carries a
-   fill, the confirm, which makes it unmistakably the action. */
+/* The trade ticket, in Manifold's layout (owner direction 2026-08-10): a
+   card with the sides as pills top left, Quick / Limit top right, a boxed
+   amount with steppers and a slider, answer rows, and one full-width
+   confirm that names the payout. An untouched ticket still shows only the
+   side pills; the card grows when a side is picked. */
 .ticket {
-  width: min(100%, 340px);
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.9rem;
-  text-align: center;
+  gap: 0.85rem;
+  width: min(30rem, 100%);
+  margin: 0 auto;
 }
 
-/* Held position: a quiet line above the controls, no container. */
+/* Open = a side is picked = the card exists. */
+.ticket.is-open {
+  padding: 1.1rem 1.2rem 1.2rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+}
+
 .ticket-pos {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.4rem;
 }
 
 .ticket-pos-row {
   display: flex;
   align-items: baseline;
-  justify-content: center;
-  gap: 0.5rem;
-  font-size: 0.8rem;
+  gap: 0.6rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
 }
 
 .ticket-pos-dir { font-weight: 600; text-transform: capitalize; }
@@ -8503,9 +8510,8 @@ code, pre, kbd, samp {
 .ticket-pos-dir--lower { color: var(--lower); }
 
 .ticket-pos-detail {
-  color: var(--text-tertiary);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.76rem;
+  flex: 1;
+  color: var(--text-secondary);
 }
 
 .ticket-pos-delta { font-weight: 600; }
@@ -8513,588 +8519,244 @@ code, pre, kbd, samp {
 .ticket-pos-delta.is-down { color: var(--lower); }
 
 .ticket-sell {
-  padding: 0;
-  border: none;
+  padding: 0.1rem 0.55rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
   background: none;
   font: inherit;
-  font-size: 0.76rem;
-  font-weight: 600;
-  color: var(--text-tertiary);
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
   cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
 }
 .ticket-sell:hover:not(:disabled) { color: var(--text-primary); }
 .ticket-sell:disabled { opacity: 0.5; cursor: default; }
 
-/* The side choice is two words, not two boxes: weight and colour carry the
-   state, and the chosen one gets a rule under it. */
+/* Header: side pills left, order type right, close at the edge. */
+.ticket-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .ticket-seg {
   display: flex;
-  justify-content: center;
-  gap: 2.2rem;
+  gap: 0.5rem;
+  margin: 0 auto;
 }
+.ticket.is-open .ticket-seg { margin: 0; }
 
 .ticket-side {
-  padding: 0.2rem 0.1rem;
-  border: none;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  background: none;
+  padding: 0.5rem 1.3rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: transparent;
   font: inherit;
-  font-size: 1.05rem;
+  font-size: 0.92rem;
   font-weight: 600;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   cursor: pointer;
-  transition: color 120ms ease, border-color 120ms ease;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
 }
-/* The arrow keeps its colour even while the word is quiet: without it the
-   two choices are indistinguishable grey until you hover, and direction is
-   the fastest thing on the page to read. */
-.ticket-side--higher .ticket-arrow { color: var(--higher); }
-.ticket-side--lower .ticket-arrow { color: var(--lower); }
-
-.ticket-side--higher:hover, .ticket-side--higher.is-active { color: var(--higher); }
-.ticket-side--lower:hover, .ticket-side--lower.is-active { color: var(--lower); }
-.ticket-side--higher.is-active { border-bottom-color: var(--higher); }
-.ticket-side--lower.is-active { border-bottom-color: var(--lower); }
+.ticket-side:hover { color: var(--text-primary); border-color: var(--border-hover); }
+.ticket-side--higher.is-active {
+  background: var(--higher);
+  border-color: var(--higher);
+  color: #fff;
+}
+.ticket-side--lower.is-active {
+  background: var(--lower);
+  border-color: var(--lower);
+  color: #fff;
+}
 .ticket-side:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
-.ticket-amount-row {
+/* Quick / Limit, Manifold's top-right toggle. */
+.ticket-mode {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.35rem;
+  gap: 0.25rem;
+  margin-left: auto;
 }
 
-/* The amount is the second-biggest number on the page after the call, and
-   it is typed straight onto the background. */
+.ticket-mode-opt {
+  padding: 0.35rem 0.8rem;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.ticket-mode-opt:hover:not(.is-active) { color: var(--text-primary); }
+.ticket-mode-opt.is-active {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+.ticket-mode-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.ticket-close {
+  padding: 0 0.2rem;
+  border: none;
+  background: none;
+  font-size: 1.3rem;
+  line-height: 1;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+.ticket-close:hover { color: var(--text-primary); }
+
+.ticket-label {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+/* The boxed input row: amount (or limit price) left, steppers right. */
+.ticket-amt-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.6rem 0.55rem 0.9rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+}
+.ticket-amt-box:focus-within { border-color: var(--accent); }
+
 .ticket-amount {
   display: inline-flex;
   align-items: baseline;
-  gap: 0.3rem;
+  gap: 0.35rem;
+  flex: 1;
+  min-width: 0;
   cursor: text;
 }
 
 .ticket-amount input {
-  width: 3.4rem;
-  border: none;
-  background: transparent;
-  color: var(--text-primary);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 1.8rem;
-  font-weight: 600;
-  text-align: right;
-  padding: 0;
-}
-.ticket-amount input:focus { outline: none; }
-
-.ticket-cr {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--text-tertiary);
-}
-
-.ticket-chips { display: flex; gap: 0.75rem; }
-
-.ticket-chip {
+  width: 100%;
+  min-width: 3ch;
   padding: 0;
   border: none;
   background: none;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.76rem;
+  font-size: 1.25rem;
   font-weight: 600;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  transition: color 120ms ease;
+  color: var(--text-primary);
 }
-.ticket-chip:hover:not(.is-active) { color: var(--text-primary); }
-.ticket-chip.is-active { color: var(--accent); }
-.ticket-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+.ticket-amount input:focus { outline: none; }
 
-/* The one filled thing on the page. */
+.ticket-cr {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+
+.ticket-steps { display: flex; gap: 0.4rem; }
+
+.ticket-step {
+  padding: 0.35rem 0.7rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--bg-tertiary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.ticket-step:hover { background: var(--border-strong); }
+.ticket-step:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* The slider, quiet: a hairline track with a plain thumb. */
+.ticket-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border-strong);
+  cursor: pointer;
+}
+.ticket-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  border: none;
+}
+.ticket-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  border: none;
+}
+.ticket-slider:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+
+/* The answer rows: key quiet, value loud. */
+.ticket-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.ticket-fact {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+  font-size: 0.9rem;
+}
+
+.ticket-fact-k {
+  min-width: 6.5rem;
+  color: var(--text-tertiary);
+}
+
+.ticket-fact-v {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ticket-fact-d { font-weight: 600; font-size: 0.82rem; }
+.ticket-fact-d.is-up { color: var(--higher); }
+.ticket-fact-d.is-down { color: var(--lower); }
+
+/* The one action, full width, tinted by the chosen side. */
 .ticket-go {
-  padding: 0.8rem 1.2rem;
+  width: 100%;
+  padding: 0.85rem 1.2rem;
   border: 1px solid transparent;
-  border-radius: 999px;
+  border-radius: 10px;
   background: var(--button-bg);
   color: var(--button-text);
   font: inherit;
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease, transform 120ms ease;
+  transition: background 120ms ease, filter 120ms ease;
 }
-.ticket-go:hover:not(:disabled) { background: var(--button-bg-hover); transform: translateY(-1px); }
-.ticket-go:active:not(:disabled) { transform: translateY(0); }
-/* Waiting for a side is not an action, so it stops being a filled button:
-   a dimmed slab is the loudest thing on the page and says nothing. */
+.ticket-go--higher:not(:disabled) { background: var(--higher); color: #fff; }
+.ticket-go--lower:not(:disabled) { background: var(--lower); color: #fff; }
+.ticket-go:hover:not(:disabled) { filter: brightness(1.08); }
 .ticket-go:disabled {
-  background: transparent;
-  border-color: transparent;
+  background: var(--bg-tertiary);
   color: var(--text-tertiary);
   cursor: default;
 }
 .ticket-go.is-placed { background: var(--higher); color: #fff; }
 .ticket-go:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
-.ticket-foot {
-  margin: -0.35rem 0 0;
-  font-size: 0.74rem;
-  color: var(--text-tertiary);
-}
-.ticket-foot-sep { opacity: 0.5; }
-
 .ticket-err {
   margin: 0;
   font-size: 0.8rem;
   color: var(--lower);
 }
-
-/* The third question, and the only optional one: at what price. It stays in
-   the quietest register on the ticket (chip-sized, tertiary) so the common
-   case, "at any price", costs nothing to read past. */
-.ticket-price {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: -0.15rem;
-}
-
-.ticket-mode { display: flex; gap: 1rem; }
-
-.ticket-mode-opt {
-  padding: 0;
-  border: none;
-  background: none;
-  font: inherit;
-  font-size: 0.76rem;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  transition: color 120ms ease;
-}
-.ticket-mode-opt:hover:not(.is-active) { color: var(--text-primary); }
-.ticket-mode-opt.is-active { color: var(--accent); }
-.ticket-mode-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
-
-/* The limit reads as a sentence fragment, "buy under $65,000", so the words
-   and the number sit on one baseline instead of becoming a labelled field. */
-.ticket-limit {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 0.3rem;
-  cursor: text;
-}
-
-.ticket-limit-word {
-  font-size: 0.86rem;
-  color: var(--text-secondary);
-}
-
-.ticket-limit-unit {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 1.05rem;
-  color: var(--text-secondary);
-}
-
-.ticket-limit input {
-  width: 6.5ch;
-  padding: 0;
-  border: none;
-  border-bottom: 1px solid var(--border-strong);
-  background: none;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 1.05rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  text-align: left;
-}
-.ticket-limit input:focus { outline: none; border-bottom-color: var(--accent); }
-
-.ticket-hint {
-  margin: 0;
-  font-size: 0.74rem;
-  color: var(--text-tertiary);
-}
-
-/* Conditional mode: the way back to the plain market, then the question
-   itself as the headline. */
-.pubws-back {
-  display: block;
-  margin: 0 auto 0.5rem;
-  padding: 0;
-  border: none;
-  background: none;
-  font: inherit;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-tertiary);
-  cursor: pointer;
-}
-.pubws-back:hover { color: var(--text-primary); }
-
-.pubws-question {
-  max-width: 34ch;
-  margin-left: auto;
-  margin-right: auto;
-  font-size: clamp(1.15rem, 3.4vw, 1.45rem);
-  color: var(--text-secondary);
-}
-.pubws-question-task { color: var(--text-primary); }
-
-/* The job's own words, where the question is: the row below stops
-   repeating them. */
-.pubws-details {
-  max-width: 52ch;
-  margin: 0.6rem auto 0;
-  font-size: 0.85rem;
-  line-height: 1.5;
-  color: var(--text-tertiary);
-}
-
-/* A selected job row is the one driving the view above. */
-.pubws-ballot-row.is-selected .pubws-ballot-title { color: var(--accent); }
-
-/* The USD ask sits beside the title: narrow, mono, unmistakably money. */
-.pubws-propose-row input { flex: 1; }
-.pubws-propose-row input.pubws-propose-ask {
-  flex: none;
-  width: 5.5rem;
-  font-family: 'JetBrains Mono', monospace;
-  text-align: right;
-}
-
-.pubws-propose input,
-.pubws-propose textarea {
-  padding: 0.7rem 0.9rem;
-  min-width: 0;
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  font: inherit;
-  font-size: 0.9rem;
-}
-
-.pubws-propose input:focus-visible,
-.pubws-propose textarea:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-
-.pubws-propose-row {
-  display: flex;
-  gap: 0.8rem;
-  align-items: center;
-}
-
-.pubws-cta--small {
-  padding: 0.6rem 1.4rem;
-  font-size: 0.9rem;
-}
-
-.pubws-ghost {
-  border: none;
-  background: none;
-  padding: 0;
-  font: inherit;
-  font-size: 0.88rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  cursor: pointer;
-}
-
-.pubws-ghost:hover { color: var(--text-primary); }
-
-.pubws-propose-open { margin-top: 0.9rem; }
-
-/* The evidence line: real history under the instrument. Ink at low opacity so
-   it reads as context, not a second chart competing with the price. */
-
-
-.pubws-provenance {
-  margin: 0.4rem auto 0;
-  font-size: 0.72rem;
-  color: var(--text-tertiary);
-  max-width: 52ch;
-  text-align: center;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.pubws-provenance a { color: var(--text-secondary); }
-
-
-/* ---------------------------------------------------------------------------
-   The market chart: the page's centerpiece. Reality is ink with a soft
-   gradient; the market's call is amber; the future zone is a whisper of
-   bg-secondary ending at the settle dot. Mono numerals everywhere.
-   --------------------------------------------------------------------------- */
-
-.mchart {
-  position: relative;
-  margin: 1.1rem auto 0;
-  /* The centerpiece breaks out of the reading column: as wide as the
-     viewport comfortably allows. Capped at 760px so the whole poster
-     (headline through the CTA and settle line) fits a 900px-tall desktop
-     viewport without scrolling; the action must be above the fold. */
-  width: min(92vw, 760px);
-  margin-left: 50%;
-  transform: translateX(-50%);
-}
-
-.mchart-svg {
-  display: block;
-  width: 100%;
-  height: auto;
-  touch-action: pan-y;
-  /* An svg clips at its border by default; the call and ghost labels sit
-     in the right padding and long values (a "$6,700" with an arrow) were
-     losing their tails. */
-  overflow: visible;
-}
-
-
-.mchart-grid {
-  stroke: var(--border-color);
-  stroke-width: 1;
-  stroke-dasharray: 1 4;
-}
-
-.mchart-ylabel,
-.mchart-xlabel {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  fill: var(--text-tertiary);
-}
-
-.mchart-ylabel { text-anchor: end; }
-.mchart-xlabel { text-anchor: middle; }
-
-.mchart-market { color: var(--accent); }
-
-.mchart-mline {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 2;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-  /* Entrance: the line draws itself left to right (path normalized to
-     length 1 via pathLength); a full-length dash is a solid line after. */
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: mchart-draw 1s cubic-bezier(0.4, 0, 0.2, 1) 0.45s forwards;
-}
-
-
-.mchart-fill-area { animation: mchart-appear 0.9s ease-out 0.9s both; }
-
-.mchart-calldot {
-  fill: var(--accent);
-  stroke: var(--bg-primary);
-  stroke-width: 2;
-  animation: mchart-appear 0.4s ease-out 1.3s both;
-}
-
-/* The market is live: a soft ripple off the call dot. */
-.mchart-callhalo {
-  fill: var(--accent);
-  opacity: 0;
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: mchart-pulse 2.8s ease-out 1.9s infinite;
-}
-
-.mchart-calllabel {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  font-weight: 600;
-  fill: var(--accent);
-  animation: mchart-appear 0.4s ease-out 1.3s both;
-}
-
-@keyframes mchart-draw { to { stroke-dashoffset: 0; } }
-@keyframes mchart-appear { from { opacity: 0; } to { opacity: 1; } }
-@keyframes mchart-pulse {
-  0% { opacity: 0.35; transform: scale(1); }
-  70%, 100% { opacity: 0; transform: scale(3.2); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .mchart-mline { animation: none; stroke-dasharray: none; stroke-dashoffset: 0; }
-  .mchart-fill-area, .mchart-calldot, .mchart-calllabel { animation: none; }
-  .mchart-callhalo { display: none; }
-}
-
-.mchart-cross line {
-  stroke: var(--border-strong);
-  stroke-width: 1;
-}
-
-.mchart-cross-mkt { fill: var(--accent); stroke: var(--bg-primary); stroke-width: 1.5; }
-
-.mchart-tip {
-  position: absolute;
-  top: 6px;
-  transform: translateX(10px);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 0.4rem 0.6rem;
-  font-size: 0.72rem;
-  color: var(--text-secondary);
-  pointer-events: none;
-  white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(23, 23, 28, 0.06);
-}
-
-.mchart-tip.is-right { transform: translateX(calc(-100% - 10px)); }
-
-.mchart-tip-date {
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 0.15rem;
-}
-
-.mchart-tip-v {
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.mchart-tip-v--mkt { color: var(--accent); }
-
-
-
-
-/* Headline row: the price with its delta chip, stock-app style. */
-.pubws-headline {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: 0.8rem;
-  flex-wrap: wrap;
-}
-
-.pubws-delta-chip {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-.pubws-delta-chip.is-up { color: var(--higher); }
-.pubws-delta-chip.is-down { color: var(--lower); }
-
-.pubws-logolink { display: inline-flex; align-items: center; }
-
-/* The trading floor: rails beside the poster on wide screens (top traders
-   left, action log right), stacked under it on narrow ones. The center
-   column caps the chart instead of letting it break out over the rails. */
-.pubws-main--floor { max-width: 1340px; }
-
-@media (min-width: 1120px) {
-  .pubws--center .pubws-main.pubws-main--floor {
-    display: grid;
-    grid-template-columns: 230px minmax(0, 720px) 260px;
-    gap: clamp(1.6rem, 3vw, 3.2rem);
-    justify-content: center;
-    align-content: center;
-    align-items: start;
-  }
-  .pubws-main--floor .pubws-center { min-width: 0; }
-  .pubws-main--floor .mchart {
-    width: 100%;
-    margin-left: 0;
-    transform: none;
-  }
-  .pubws-rail { position: sticky; top: 1.4rem; }
-  /* The left rail starts below the wordmark, or its heading reads as part
-     of the logo. */
-  .pubws-rail--left { margin-top: 2.2rem; }
-}
-
-@media (max-width: 1119.98px) {
-  .pubws-main--floor .pubws-center { order: 1; }
-  .pubws-rail--left { order: 2; }
-  .pubws-rail--right { order: 3; }
-  .pubws-rail {
-    width: 100%;
-    max-width: 660px;
-    margin: 2.4rem auto 0;
-  }
-}
-
-.pubws-lb, .pubws-log {
-  list-style: none;
-  margin: 0.6rem 0 0;
-  padding: 0;
-}
-
-.pubws-lb-row {
-  display: flex;
-  align-items: baseline;
-  gap: 0.6rem;
-  padding: 0.45rem 0;
-  border-bottom: 1px solid var(--border-color);
-  font-size: 0.82rem;
-}
-.pubws-lb-row:last-child { border-bottom: none; }
-
-.pubws-lb-rank {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
-  color: var(--text-tertiary);
-  min-width: 1.1rem;
-}
-
-.pubws-lb-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pubws-lb-score {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-
-.pubws-log-item {
-  display: flex;
-  align-items: baseline;
-  gap: 0.6rem;
-  padding: 0.45rem 0;
-  border-bottom: 1px solid var(--border-color);
-  font-size: 0.8rem;
-}
-.pubws-log-item:last-child { border-bottom: none; }
-
-.pubws-log-time {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.7rem;
-  color: var(--text-tertiary);
-  min-width: 2rem;
-  text-align: right;
-}
-
-.pubws-log-text {
-  min-width: 0;
-  color: var(--text-secondary);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.pubws-log-item--approved .pubws-log-text { color: var(--higher); }
-.pubws-log-item--declined .pubws-log-text { color: var(--lower); }
-.pubws-log-item--proposal .pubws-log-text { color: var(--text-primary); }
-
 /* Evidence: the market-less series a forecaster prices against. One quiet
    wrapping line; the names carry the meaning. */
 .pubws-evidence {

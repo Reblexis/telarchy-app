@@ -430,7 +430,10 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
       if (m.branch === 'approved') {
         g.approved = c;
         g.approvedMarketId = m.id;
-        g.approvedProbability = Math.round(pHigher(shares, m.liquidity) * 10000) / 10000;
+        // pHigher returns 0 (not undefined) at zero liquidity, and a fake
+        // "0% probability" is worse than an honest null: the page falls
+        // back to the baseline's shape for unpriced branches.
+        g.approvedProbability = m.liquidity > 0 ? Math.round(pHigher(shares, m.liquidity) * 10000) / 10000 : null;
         g.approvedLiquidity = m.liquidity;
         g.rangeMin = m.rangeMin;
         g.rangeMax = m.rangeMax;

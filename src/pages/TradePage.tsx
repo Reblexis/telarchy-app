@@ -125,9 +125,15 @@ export function TradePage() {
   const active = pair && pair.approvedMarketId
     ? {
         marketId: pair.approvedMarketId,
-        consensus: pair.approvedConsensus,
-        probability: pair.approvedProbability ?? 0.5,
-        liquidity: pair.approvedLiquidity ?? 1,
+        // A branch market can exist without a price (liquidity 0: the
+        // proposer could not fund the subsidy and no fallback caught it).
+        // Its honest prior is the baseline call, not a vanished chart,
+        // which is what a null consensus used to do to the whole
+        // instrument. The backend now auto-funds these, so this is a
+        // belt for old rows, not the expected path.
+        consensus: pair.approvedConsensus ?? hero?.consensus ?? null,
+        probability: pair.approvedProbability ?? hero?.probability ?? 0.5,
+        liquidity: (pair.approvedLiquidity ?? 0) > 0 ? (pair.approvedLiquidity as number) : (hero?.liquidity ?? 1),
         rangeMin: pair.rangeMin,
         rangeMax: pair.rangeMax,
         history: condHistory ?? [],

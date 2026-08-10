@@ -3,21 +3,18 @@ import { previewSell, previewTrade } from '../lib/amm';
 import type { LimitOrder } from '../lib/api';
 
 /**
- * The trade ticket: the one interactive object on the trading floor.
+ * The trade ticket, in Manifold's layout (owner direction 2026-08-10, from a
+ * screenshot of Manifold's bet panel): a card, the two sides as pills top
+ * left, a Quick / Limit toggle top right, a boxed amount with steppers and a
+ * slider, then two answer rows ("New value", "To win") and one full-width
+ * confirm that names the payout ("Buy HIGHER to win 106 cr").
  *
- * It is NOT a panel (owner decision 2026-08-09: blend it into the page).
- * The rest of the poster is type floating on the background, so a bordered
- * card here read as app furniture bolted onto a printed page. Everything is
- * type now, and exactly one element carries a fill: the confirm, which is
- * therefore unmistakably the action.
- *
- * The ticket asks its questions one at a time (owner direction 2026-08-10,
- * following Manifold): side first, and nothing else exists until that is
- * answered. Then amount, then price. Price is the optional third question:
- * "at any price" is the default and costs nothing to read, and "at my price"
- * reveals one input and turns the confirm into a full sentence, because an
- * instruction the trader cannot read back is an instruction they did not
- * give. Design: docs/limit-orders.md.
+ * Progressive disclosure survives the redesign: an untouched ticket shows
+ * only the two side pills, and the rest of the card exists once a side is
+ * picked. Limit mode swaps the answer rows for a price box and turns the
+ * confirm into the whole instruction ("Buy Higher with 25 cr under
+ * $65,000"), because an instruction the trader cannot read back is an
+ * instruction they did not give. Design: docs/limit-orders.md.
  */
 
 export interface TicketPosition { direction: 'higher' | 'lower'; shares: number; totalCost: number }
@@ -36,9 +33,9 @@ interface Props {
       amount, payout, chart ghost), but the confirm reads "Sign up to bet"
       and fires this instead of trading. The ticket itself is the pitch. */
   onRequireSignup?: () => void;
-  /** The market in its own units, so the price question can be asked in
-      dollars rather than probability. Without these the ticket hides the
-      price mode entirely and behaves exactly as it did before. */
+  /** The market in its own units, so the price rows speak dollars rather
+      than probability. Without these the Limit toggle hides and the ticket
+      degrades to Quick-only. */
   unit?: string;
   consensus?: number | null;
   rangeMin?: number;
@@ -49,9 +46,10 @@ interface Props {
   onCancelLimit?: (id: string) => Promise<void>;
 }
 
-// Three, not four: min / mid / the position cap. Every extra preset is
-// another number on a page that is trying to have very few.
-const PRESETS = [10, 50, 250];
+// Steppers, Manifold-style: nudge and leap. The slider covers the rest of
+// the range up to the position cap.
+const STEPS = [-10, 10, 50];
+const MAX_BET = 250;
 
 function fmt(v: number): string {
   const decimals = Math.abs(v) >= 100 ? 0 : 1;
@@ -71,7 +69,7 @@ export function TradeTicket({
 }: Props) {
   const [dir, setDir] = useState<'higher' | 'lower' | null>(null);
   const [amount, setAmount] = useState('25');
-  const [atMyPrice, setAtMyPrice] = useState(false);
+  const [mode, setMode] = useState<'quick' | 'limit'>('quick');
   const [limit, setLimit] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [placed, setPlaced] = useState(false);
@@ -81,14 +79,20 @@ export function TradeTicket({
   const amountNum = Math.max(0, Math.floor(parseFloat(amount) || 0));
   const limitNum = limit.trim() === '' ? null : parseFloat(limit.replace(/,/g, ''));
   const canLimit = !!onPlaceLimit && consensus !== null && rangeMin !== undefined && rangeMax !== undefined;
+  const isLimit = mode === 'limit' && canLimit;
   const composed = dir && amountNum > 0 ? previewTrade(probability, liquidity, dir, amountNum) : null;
   const payout = composed?.shares ?? null;
+  const span = rangeMin !== undefined && rangeMax !== undefined ? rangeMax - rangeMin : null;
+  // Where the market's call would land if this bet were placed now.
+  const newValue = composed && span !== null && rangeMin !== undefined
+    ? rangeMin + composed.newProb * span
+    : null;
 
   // A resting order is only resting if the market has not already reached it.
   // Buying higher means waiting for a cheaper price, so the limit sits below
   // the current call; buying lower waits for a dearer one, so it sits above.
   const limitError = (() => {
-    if (!atMyPrice || limitNum === null || consensus === null) return null;
+    if (!isLimit || limitNum === null || consensus === null) return null;
     if (!Number.isFinite(limitNum)) return 'Enter a number';
     if (rangeMin !== undefined && rangeMax !== undefined && (limitNum <= rangeMin || limitNum >= rangeMax)) {
       return `Between ${unit}${fmtValue(rangeMin)} and ${unit}${fmtValue(rangeMax)}`;
@@ -98,14 +102,24 @@ export function TradeTicket({
     return null;
   })();
 
-  const limitReady = atMyPrice && limitNum !== null && Number.isFinite(limitNum) && !limitError;
+  const limitReady = isLimit && limitNum !== null && Number.isFinite(limitNum) && !limitError;
+
+  // What a fill at the limit would pay: shares priced at the limit itself,
+  // which is exactly where a limit order buys. An estimate, and labelled so.
+  const limitPayout = (() => {
+    if (!limitReady || span === null || rangeMin === undefined || limitNum === null || !dir) return null;
+    const p = (limitNum - rangeMin) / span;
+    const price = dir === 'higher' ? p : 1 - p;
+    if (price <= 0.001) return null;
+    return amountNum / price;
+  })();
 
   useEffect(() => {
     // A resting order does not move the price today, so it casts no ghost.
-    const show = composed && dir && !atMyPrice;
+    const show = composed && dir && !isLimit;
     onPreview?.(show ? { direction: dir, newProb: composed.newProb } : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dir, amountNum, probability, liquidity, atMyPrice]);
+  }, [dir, amountNum, probability, liquidity, isLimit]);
   // Clear the ghost when the ticket unmounts.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => () => onPreview?.(null), []);
@@ -118,7 +132,7 @@ export function TradeTicket({
 
   const place = async () => {
     if (!dir || amountNum <= 0 || busy) return;
-    if (atMyPrice && !limitReady) return;
+    if (isLimit && !limitReady) return;
     if (onRequireSignup) {
       onRequireSignup();
       return;
@@ -126,10 +140,10 @@ export function TradeTicket({
     setError('');
     setBusy('place');
     try {
-      if (atMyPrice && onPlaceLimit && limitNum !== null) {
+      if (isLimit && onPlaceLimit && limitNum !== null) {
         await onPlaceLimit(dir, limitNum, amountNum);
         setLimit('');
-        setAtMyPrice(false);
+        setMode('quick');
       } else {
         await onTrade(dir, amountNum);
       }
@@ -170,22 +184,39 @@ export function TradeTicket({
   const pick = (d: 'higher' | 'lower') => {
     setDir(cur => (cur === d ? null : d));
     setError('');
-    setLimit('');
   };
 
-  const confirmLabel = () => {
-    if (busy === 'place') return atMyPrice ? 'Placing order…' : 'Placing…';
-    if (placed) return atMyPrice ? '✓ Order resting' : '✓ Placed';
-    if (onRequireSignup) return 'Sign up to bet';
-    const side = dir === 'higher' ? 'Higher' : 'Lower';
-    if (!atMyPrice) return `Place ${amountNum} cr on ${side}`;
-    if (limitNum === null || limitError) return `Set a price for ${side}`;
-    // The whole instruction, in one readable sentence.
-    return `Buy ${side} with ${amountNum} cr ${dir === 'higher' ? 'under' : 'over'} ${unit}${fmtValue(limitNum)}`;
+  const enterLimit = () => {
+    setMode('limit');
+    setError('');
+    // Prefill just inside the current call, on the side that rests, so the
+    // field opens with a legal answer rather than an error to clear first.
+    if (!limit && consensus !== null && span !== null && rangeMin !== undefined && rangeMax !== undefined) {
+      const step = Math.max(span * 0.02, 1);
+      const seed = dir === 'higher' ? consensus - step : consensus + step;
+      setLimit(String(Math.round(Math.min(rangeMax - 1, Math.max(rangeMin + 1, seed)))));
+    }
   };
+
+  const sideWord = dir === 'higher' ? 'Higher' : 'Lower';
+  const confirmLabel = () => {
+    if (busy === 'place') return isLimit ? 'Placing order…' : 'Placing…';
+    if (placed) return isLimit ? '✓ Order resting' : '✓ Placed';
+    if (onRequireSignup) return 'Sign up to bet';
+    if (isLimit) {
+      if (limitNum === null || limitError) return `Set a price for ${sideWord}`;
+      // The whole instruction, in one readable sentence.
+      return `Buy ${sideWord} with ${amountNum} cr ${dir === 'higher' ? 'under' : 'over'} ${unit}${fmtValue(limitNum)}`;
+    }
+    return payout !== null
+      ? `Buy ${sideWord.toUpperCase()} to win ${fmt(payout)} cr`
+      : `Buy ${sideWord.toUpperCase()}`;
+  };
+
+  const step = (delta: number) => setAmount(String(Math.max(1, Math.min(MAX_BET, amountNum + delta))));
 
   return (
-    <div className="ticket" aria-label="Place a trade">
+    <div className={`ticket${dir ? ' is-open' : ''}`} aria-label="Place a trade">
       {positions.length > 0 && (
         <div className="ticket-pos">
           {positions.map(p => {
@@ -248,31 +279,56 @@ export function TradeTicket({
         </div>
       )}
 
-      <div className="ticket-seg" role="group" aria-label="Direction">
-        <button
-          className={`ticket-side ticket-side--lower${dir === 'lower' ? ' is-active' : ''}`}
-          aria-pressed={dir === 'lower'}
-          onClick={() => pick('lower')}
-        >
-          <span className="ticket-arrow" aria-hidden="true">▼</span> Lower
-        </button>
-        <button
-          className={`ticket-side ticket-side--higher${dir === 'higher' ? ' is-active' : ''}`}
-          aria-pressed={dir === 'higher'}
-          onClick={() => pick('higher')}
-        >
-          <span className="ticket-arrow" aria-hidden="true">▲</span> Higher
-        </button>
+      <div className="ticket-head">
+        <div className="ticket-seg" role="group" aria-label="Direction">
+          <button
+            className={`ticket-side ticket-side--lower${dir === 'lower' ? ' is-active' : ''}`}
+            aria-pressed={dir === 'lower'}
+            onClick={() => pick('lower')}
+          >
+            Lower
+          </button>
+          <button
+            className={`ticket-side ticket-side--higher${dir === 'higher' ? ' is-active' : ''}`}
+            aria-pressed={dir === 'higher'}
+            onClick={() => pick('higher')}
+          >
+            Higher
+          </button>
+        </div>
+
+        {/* The price question lives in the header, Manifold-style, but only
+            once a side exists to ask it about (owner direction 2026-08-10:
+            an untouched ticket asks one question). */}
+        {dir && canLimit && (
+          <div className="ticket-mode" role="group" aria-label="Order type">
+            <button
+              className={`ticket-mode-opt${!isLimit ? ' is-active' : ''}`}
+              aria-pressed={!isLimit}
+              onClick={() => { setMode('quick'); setError(''); }}
+            >
+              Quick
+            </button>
+            <button
+              className={`ticket-mode-opt${isLimit ? ' is-active' : ''}`}
+              aria-pressed={isLimit}
+              onClick={enterLimit}
+            >
+              Limit
+            </button>
+          </div>
+        )}
+        {dir && (
+          <button className="ticket-close" aria-label="Close" onClick={() => setDir(null)}>×</button>
+        )}
       </div>
 
-      {/* Nothing but the side until a side is chosen (owner direction,
-          2026-08-10, following Manifold): an untouched ticket asks one
-          question, and the amount, the confirm and the price mode only
-          exist once that question is answered. */}
       {dir && (
       <>
-      <div className="ticket-amount-row">
+      <p className="ticket-label">Bet amount</p>
+      <div className="ticket-amt-box">
         <label className="ticket-amount">
+          <span className="ticket-cr">cr</span>
           <input
             type="text"
             inputMode="numeric"
@@ -281,90 +337,92 @@ export function TradeTicket({
             onChange={e => setAmount(e.target.value.replace(/[^0-9]/g, ''))}
             aria-label="Credits to spend"
           />
-          <span className="ticket-cr">cr</span>
         </label>
-        <div className="ticket-chips">
-          {PRESETS.map(v => (
-            <button
-              key={v}
-              className={`ticket-chip${amountNum === v ? ' is-active' : ''}`}
-              onClick={() => setAmount(String(v))}
-            >
-              {v}
+        <div className="ticket-steps">
+          {STEPS.map(v => (
+            <button key={v} className="ticket-step" onClick={() => step(v)}>
+              {v > 0 ? `+${v}` : v}
             </button>
           ))}
         </div>
       </div>
+      <input
+        className="ticket-slider"
+        type="range"
+        min={1}
+        max={MAX_BET}
+        value={Math.min(MAX_BET, Math.max(1, amountNum))}
+        onChange={e => setAmount(e.target.value)}
+        aria-label="Bet amount slider"
+      />
 
-      {canLimit && (
-        <div className="ticket-price">
-          <div className="ticket-mode" role="group" aria-label="Price">
-            <button
-              className={`ticket-mode-opt${!atMyPrice ? ' is-active' : ''}`}
-              aria-pressed={!atMyPrice}
-              onClick={() => { setAtMyPrice(false); setError(''); }}
-            >
-              at any price
-            </button>
-            <button
-              className={`ticket-mode-opt${atMyPrice ? ' is-active' : ''}`}
-              aria-pressed={atMyPrice}
-              onClick={() => {
-                setAtMyPrice(true);
-                setError('');
-                // Prefill just inside the current call, on the side that
-                // rests, so the field opens with a legal answer rather than
-                // an error the trader has to clear first.
-                if (!limit && consensus !== null) {
-                  const step = Math.max((rangeMax! - rangeMin!) * 0.02, 1);
-                  const seed = dir === 'higher' ? consensus - step : consensus + step;
-                  setLimit(String(Math.round(Math.min(rangeMax! - 1, Math.max(rangeMin! + 1, seed)))));
-                }
-              }}
-            >
-              at my price
-            </button>
+      {isLimit && (
+        <>
+          <p className="ticket-label">
+            {dir === 'higher' ? 'Buy when the market is under' : 'Buy when the market is over'}
+          </p>
+          <div className="ticket-amt-box">
+            <label className="ticket-amount">
+              <span className="ticket-cr">{unit || '#'}</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={limit}
+                onChange={e => setLimit(e.target.value.replace(/[^0-9.]/g, ''))}
+                aria-label={`Limit price in ${unit || 'metric units'}`}
+              />
+            </label>
           </div>
-
-          {atMyPrice && (
-            <>
-              <label className="ticket-limit">
-                <span className="ticket-limit-word">
-                  {dir === 'higher' ? 'buy under' : 'buy over'}
-                </span>
-                <span className="ticket-limit-unit">{unit}</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={limit}
-                  onChange={e => setLimit(e.target.value.replace(/[^0-9.]/g, ''))}
-                  aria-label={`Limit price in ${unit || 'metric units'}`}
-                />
-              </label>
-              <p className="ticket-hint">
-                {limitError
-                  ? limitError
-                  : `${amountNum} cr waits here until the market reaches it.`}
-              </p>
-            </>
-          )}
-        </div>
+          {limitError && <p className="ticket-err">{limitError}</p>}
+        </>
       )}
 
+      <div className="ticket-facts">
+        {!isLimit && newValue !== null && consensus !== null && (
+          <div className="ticket-fact">
+            <span className="ticket-fact-k">New value</span>
+            <span className="ticket-fact-v">
+              {unit}{fmtValue(newValue)}
+              <span className={`ticket-fact-d ${newValue >= consensus ? 'is-up' : 'is-down'}`}>
+                {' '}{newValue >= consensus ? '↑' : '↓'}{unit}{fmtValue(Math.abs(newValue - consensus))}
+              </span>
+            </span>
+          </div>
+        )}
+        {!isLimit && payout !== null && (
+          <div className="ticket-fact">
+            <span className="ticket-fact-k">To win</span>
+            <span className="ticket-fact-v">
+              {fmt(payout)} cr
+              {amountNum > 0 && payout > amountNum && (
+                <span className="ticket-fact-d is-up"> +{Math.round(((payout - amountNum) / amountNum) * 100)}%</span>
+              )}
+            </span>
+          </div>
+        )}
+        {isLimit && limitPayout !== null && (
+          <div className="ticket-fact">
+            <span className="ticket-fact-k">If filled</span>
+            <span className="ticket-fact-v">
+              wins up to {fmt(limitPayout)} cr
+            </span>
+          </div>
+        )}
+        {isLimit && !limitError && (
+          <div className="ticket-fact">
+            <span className="ticket-fact-k">Until then</span>
+            <span className="ticket-fact-v">{amountNum} cr waits, cancel anytime</span>
+          </div>
+        )}
+      </div>
+
       <button
-        className={`ticket-go${placed ? ' is-placed' : ''}`}
-        disabled={amountNum <= 0 || busy !== null || (atMyPrice && !limitReady && !onRequireSignup)}
+        className={`ticket-go${placed ? ' is-placed' : ''} ticket-go--${dir}`}
+        disabled={amountNum <= 0 || busy !== null || (isLimit && !limitReady && !onRequireSignup)}
         onClick={() => void place()}
       >
         {confirmLabel()}
       </button>
-
-      {/* What the bet pays, and nothing else: the wallet belongs in the
-          account menu, not under every bet. A resting order has no payout
-          yet, so it says nothing rather than guessing. */}
-      {payout !== null && !placed && !atMyPrice && (
-        <p className="ticket-foot">pays up to {fmt(payout)} cr</p>
-      )}
       </>
       )}
       {error && <p className="ticket-err">{error}</p>}

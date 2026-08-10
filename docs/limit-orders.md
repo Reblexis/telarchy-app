@@ -115,15 +115,15 @@ Inside the ticket, which stays one object (see `ui-conventions.md`). The
 ticket already asks two questions, side and amount; limit adds a third that
 is optional and hidden until wanted:
 
-- A quiet `at any price` / `at my price` toggle, revealed with the amount
-  once a side is picked. Default is `at any price`, i.e. today's behaviour,
-  so the common case gains nothing to read.
+- A `Quick` / `Limit` toggle in the ticket's header, Manifold-style,
+  revealed once a side is picked. Default is `Quick`, i.e. today's
+  behaviour, so the common case gains nothing to read.
 - Choosing `at my price` reveals one mono input in metric space, prefilled
   with the current call, and the confirm restates the whole instruction:
   **"Buy higher with 25 cr while under $65,000"**. The confirm never says
   "place order" alone; an instruction the trader cannot read back is an
   instruction they did not give.
-- Choosing `at my price` prefills a legal limit just inside the current call
+- Choosing `Limit` prefills a legal limit just inside the current call
   on the side that rests, so the field opens with an answer rather than an
   error to clear. A limit on the wrong side of the call is refused in the
   ticket, before it is sent, naming which side it belongs on.

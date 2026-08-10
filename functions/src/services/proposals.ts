@@ -226,6 +226,32 @@ export async function createConditionalMarkets(
         funded.push([contributorId, perMarket]);
       }
 
+      // A branch market with liquidity 0 has no price at all: consensus is
+      // undefined, the public page has nothing to chart, and the pair reads
+      // as broken rather than merely thin. When no listed contributor could
+      // fund this generation (a proposer with an empty balance, typically),
+      // fall back to the workspace auto-fund owner, exactly as baseline
+      // markets do in insertPendingMarkets. Only if that fails too do the
+      // markets spawn unfunded, which then needs an admin liquidity
+      // injection, same as an unfunded baseline market.
+      if (funded.length === 0) {
+        const [wsRow] = await tx.select().from(workspaces).where(eq(workspaces.id, workspaceId));
+        const credits = wsRow?.newMarketLiquidityCredits ?? 0;
+        if (wsRow?.autoFundNewMarkets && credits >= MIN_LIQUIDITY_CONTRIBUTION) {
+          const ownerAgentId = await resolveWorkspaceOwnerAgentId(workspaceId);
+          if (ownerAgentId) {
+            const cost = Math.round(credits * newMarkets.length * 1e6) / 1e6;
+            const [ownerRow] = await tx.select().from(agents).where(eq(agents.id, ownerAgentId)).for('update');
+            if (ownerRow && sufficientBalance(ownerRow.balance as number, cost)) {
+              funded.push([ownerAgentId, credits]);
+              console.error(`createConditionalMarkets: no subsidy contributor could fund proposal ${proposalId}; auto-funded ${credits}/market from workspace owner ${ownerAgentId}`);
+            } else {
+              console.error(`createConditionalMarkets: auto-fund fallback for proposal ${proposalId} failed too (owner ${ownerAgentId} cannot cover ${cost}); markets spawn with zero liquidity`);
+            }
+          }
+        }
+      }
+
       const effectiveSubsidy = funded.reduce((sum, [, perMarket]) => sum + perMarket, 0);
       const conditionalLiquidity = effectiveSubsidy > 0 ? effectiveSubsidy / Math.LN2 : 0;
       for (const m of newMarkets) {

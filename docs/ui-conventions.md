@@ -189,13 +189,25 @@ action under the chart: the trade ticket itself, in demo mode. A newcomer
 composes a real bet (side, amount, payout line, the impact ghost on the
 chart all work), and only the confirm differs: it reads "Sign up to bet"
 and routes to /signup. The ticket is the pitch; signing up IS the intent
-signal, and the signed-in view becomes the trader's desk. The
-desk adds, around the trade ticket only: the trader's balance inside the
-ticket ("1,000 cr available",
-compacted to "991k" past five figures), and live position worth on each
-held row ("worth 31.2 cr +6.2", green/red delta from the AMM sell preview,
-the delta hidden while it is still zero). The amount presets are three, not
-four (10 / 50 / the position cap).
+signal, and the signed-in view becomes the trader's desk. The desk adds,
+around the trade ticket only, live position worth on each held row
+("worth 31.2 cr +6.2", green/red delta from the AMM sell preview, the
+delta hidden while it is still zero) and the trader's resting limit
+orders. The wallet balance lives in the account menu, not under the
+ticket (owner direction 2026-08-10).
+
+The ticket itself follows Manifold's bet-panel layout (owner direction
+2026-08-10, superseding the 2026-08-09 "not a panel" decision): a card
+(`--bg-secondary`, 14px radius) with the Lower/Higher pills top left, a
+Quick/Limit toggle top right, a boxed amount with -10/+10/+50 steppers
+and a slider to the 250 cr cap, then answer rows ("New value" with the
+delta the bet would cause, "To win" with the payout and percent gain),
+and one full-width confirm tinted by the chosen side that names the
+payout ("Buy HIGHER to win 106 cr"). Progressive disclosure survives the
+card: an untouched ticket is only the two side pills, and the card grows
+when a side is picked. Limit mode swaps the answer rows for a price box
+and the confirm becomes the whole instruction ("Buy Higher with 25 cr
+under $65,000"); see docs/limit-orders.md.
 Below the ticket, the desk shows the jobs board (paid-jobs
 round 1, owner charter of 2026-08-09) under a bare "Jobs" label. **One
 number per job** (owner decision: as few numbers as possible): the impact,

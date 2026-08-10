@@ -17,7 +17,7 @@ goal-statement: |
 
 ## What this tests
 
-The `at any price` / `at my price` question in the trade ticket, the resting
+The `Quick` / `Limit` toggle in the trade ticket, the resting
 order line under it, the faint rule the chart draws at the limit, and the
 three endpoints behind them (`POST` / `GET` / `DELETE
 /api/predictions/limit-orders`). Design and invariants: `docs/limit-orders.md`.
@@ -60,14 +60,15 @@ BAL0=$(curl -s -b "$TT_COOKIE" "$TT_API/agents/me" | jq -r '.balance')
 **Steps:**
 1. `$B text` the ticket region.
 
-**Expect:** `Lower` and `Higher` are present; `at any price` and `at my price`
-are NOT. Picking a side reveals the amount, both price options, and a confirm
-reading `Place 25 cr on Higher`.
+**Expect:** `Lower` and `Higher` are present; `Quick` and `Limit` are NOT.
+Picking a side grows the card: the boxed amount with steppers and slider, the
+Quick/Limit toggle top right, the `New value` and `To win` rows, and a
+confirm reading `Buy HIGHER to win <payout> cr`.
 
-### T2. "at my price" opens with a legal limit, not an error
+### T2. Limit mode opens with a legal limit, not an error
 
 **Steps:**
-1. `$B click` `Higher`, then `$B click` `at my price`.
+1. `$B click` `Higher`, then `$B click` `Limit`.
 2. `$B text` the limit field.
 
 **Expect:** the field is prefilled just BELOW the current call (a `higher`

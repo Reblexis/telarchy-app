@@ -27,29 +27,34 @@ describe('progressive disclosure', () => {
     render(<TradeTicket {...base} />);
     expect(screen.getByText('Higher')).toBeTruthy();
     expect(screen.queryByLabelText('Credits to spend')).toBeNull();
-    expect(screen.queryByText('at my price')).toBeNull();
+    expect(screen.queryByText('Limit')).toBeNull();
   });
 
-  test('picking a side reveals the amount, the price mode, and the confirm', () => {
+  test('picking a side reveals the amount, the order type, and the confirm', () => {
     render(<TradeTicket {...base} onPlaceLimit={async () => {}} />);
     fireEvent.click(screen.getByText('Higher'));
     expect(screen.getByLabelText('Credits to spend')).toBeTruthy();
-    expect(screen.getByText('at any price')).toBeTruthy();
-    expect(screen.getByText('Place 25 cr on Higher')).toBeTruthy();
+    expect(screen.getByText('Quick')).toBeTruthy();
+    expect(screen.getByText('Limit')).toBeTruthy();
+    // The confirm names the payout, Manifold-style.
+    expect(screen.getByText(/Buy HIGHER to win [\d.,]+ cr/)).toBeTruthy();
+    // And the answer rows say where the market would land and what it pays.
+    expect(screen.getByText('New value')).toBeTruthy();
+    expect(screen.getByText('To win')).toBeTruthy();
   });
 
-  test('the price mode stays hidden when the market cannot take orders', () => {
+  test('the Limit toggle stays hidden when the market cannot take orders', () => {
     render(<TradeTicket {...base} />);
     fireEvent.click(screen.getByText('Higher'));
-    expect(screen.queryByText('at my price')).toBeNull();
+    expect(screen.queryByText('Limit')).toBeNull();
   });
 });
 
-describe('at my price', () => {
+describe('limit mode', () => {
   test('the confirm restates the whole instruction', () => {
     render(<TradeTicket {...base} onPlaceLimit={async () => {}} />);
     fireEvent.click(screen.getByText('Higher'));
-    fireEvent.click(screen.getByText('at my price'));
+    fireEvent.click(screen.getByText('Limit'));
     const input = screen.getByLabelText('Limit price in $') as HTMLInputElement;
     fireEvent.change(input, { target: { value: '40000' } });
     expect(screen.getByText('Buy Higher with 25 cr under $40,000')).toBeTruthy();
@@ -59,7 +64,7 @@ describe('at my price', () => {
     const onPlaceLimit = vi.fn(async () => {});
     render(<TradeTicket {...base} onPlaceLimit={onPlaceLimit} />);
     fireEvent.click(screen.getByText('Higher'));
-    fireEvent.click(screen.getByText('at my price'));
+    fireEvent.click(screen.getByText('Limit'));
     fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '60000' } });
 
     expect(screen.getByText(/fills right now/)).toBeTruthy();
@@ -72,7 +77,7 @@ describe('at my price', () => {
   test('a lower order wants a limit above the call', () => {
     render(<TradeTicket {...base} onPlaceLimit={async () => {}} />);
     fireEvent.click(screen.getByText('Lower'));
-    fireEvent.click(screen.getByText('at my price'));
+    fireEvent.click(screen.getByText('Limit'));
     fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '70000' } });
     expect(screen.getByText('Buy Lower with 25 cr over $70,000')).toBeTruthy();
   });
@@ -82,7 +87,7 @@ describe('at my price', () => {
     const onPlaceLimit = vi.fn(async () => {});
     render(<TradeTicket {...base} onTrade={onTrade} onPlaceLimit={onPlaceLimit} />);
     fireEvent.click(screen.getByText('Higher'));
-    fireEvent.click(screen.getByText('at my price'));
+    fireEvent.click(screen.getByText('Limit'));
     fireEvent.change(screen.getByLabelText('Limit price in $'), { target: { value: '40000' } });
     fireEvent.click(screen.getByText('Buy Higher with 25 cr under $40,000'));
 
@@ -96,7 +101,7 @@ describe('at my price', () => {
     fireEvent.click(screen.getByText('Higher'));
     expect(onPreview).toHaveBeenLastCalledWith(expect.objectContaining({ direction: 'higher' }));
 
-    fireEvent.click(screen.getByText('at my price'));
+    fireEvent.click(screen.getByText('Limit'));
     expect(onPreview).toHaveBeenLastCalledWith(null);
   });
 });
