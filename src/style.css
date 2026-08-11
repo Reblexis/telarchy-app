@@ -7436,6 +7436,41 @@ code, pre, kbd, samp {
 
 .pubws-login:hover { color: var(--text-primary); }
 
+.pubws-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+/* Join Discord (owner ask 2026-08-11): a quiet transparent glyph that
+   grows a label on hover/focus. The label width animates so at rest it
+   is icon-only and does not crowd the account area. */
+.pubws-discord {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-tertiary);
+  text-decoration: none;
+  transition: color 120ms ease;
+}
+.pubws-discord:hover,
+.pubws-discord:focus-visible { color: #5865F2; /* Discord blurple */ outline: none; }
+.pubws-discord-icon { display: block; flex: none; }
+.pubws-discord-label {
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  font-weight: 500;
+  opacity: 0;
+  transition: max-width 200ms ease, opacity 160ms ease;
+}
+.pubws-discord:hover .pubws-discord-label,
+.pubws-discord:focus-visible .pubws-discord-label {
+  max-width: 7rem;
+  opacity: 1;
+}
+
 .pubws-main {
   max-width: 660px;
   margin: 0 auto;
