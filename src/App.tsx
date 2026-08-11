@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet, useParams } from 'react-router-dom';
-import { useEffect } from 'react';
-import { setActiveWorkspace } from './lib/api';
+import { useEffect, useState } from 'react';
+import { api, setActiveWorkspace } from './lib/api';
 import { grantAlphaAccess, hasAlphaAccess, revokeAlphaAccess } from './lib/alpha';
 import { InspectModeProvider } from './hooks/useInspectMode';
 import { RequireAuth, RequireAgentSession } from './components/RequireAuth';
@@ -66,9 +66,29 @@ function MarketplaceTabRedirect() {
 // alpha wall land here. One startup for now; a list when there are more.
 const DEFAULT_FLOOR = '/lookpilot';
 
-/** See lib/alpha.ts: the console stays dark until it leaves alpha. */
+/** See lib/alpha.ts: the console stays dark until it leaves alpha. A
+    signed-in PLATFORM ADMIN passes without the /alpha handshake (owner
+    report 2026-08-11: /admin bounced the owner to the floor): the wall
+    exists for the public, not for the operator, and every page behind it
+    still enforces auth server-side. The check grants the flag so it runs
+    once per browser. */
 function AlphaGate() {
-  return hasAlphaAccess() ? <Outlet /> : <Navigate to={DEFAULT_FLOOR} replace />;
+  const [checked, setChecked] = useState(hasAlphaAccess());
+  const [allowed, setAllowed] = useState(hasAlphaAccess());
+  useEffect(() => {
+    if (checked) return;
+    api.getProfile()
+      .then(p => {
+        if ((p as { platformAdmin?: boolean }).platformAdmin === true) {
+          grantAlphaAccess();
+          setAllowed(true);
+        }
+      })
+      .catch(() => { /* anonymous: stays public */ })
+      .finally(() => setChecked(true));
+  }, [checked]);
+  if (!checked) return null;
+  return allowed ? <Outlet /> : <Navigate to={DEFAULT_FLOOR} replace />;
 }
 
 function AlphaSwitch({ on }: { on: boolean }) {

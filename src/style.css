@@ -9609,15 +9609,6 @@ textarea.jobform-line--desc {
 .ab-dot--up { fill: var(--higher); }
 .ab-dot--down { fill: var(--lower); }
 
-.pubws-about-mission {
-  margin: 0.5rem 0 0;
-  font-family: 'Fraunces', serif;
-  font-size: clamp(1.15rem, 2.6vw, 1.4rem);
-  font-weight: 600;
-  text-align: center;
-  color: var(--text-primary);
-  max-width: 34ch;
-}
 
 /* The door: one email field, one verb. No queue language (owner
    direction 2026-08-10): entering an email is a request we answer within

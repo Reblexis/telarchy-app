@@ -8,6 +8,8 @@ For more info about this project look into docs/vision.md.
 
 **Revised 2026-08-10 (Viktor): the mission names COMPANIES, and "startup" is out.** The mission framing is "the alignment layer for companies", not "for a startup" or "for startups": there is no reason to narrow the claim to startups specifically. And LookPilot is described as "a real company, run in the open"; user-facing copy avoids the word "startup" (internal template ids and historical docs are unaffected).
 
+**Revised 2026-08-11 (Viktor): the floor carries no mission line.** The about section's closing sentence ("Telarchy is the alignment layer for companies... LookPilot is the first company running on it") was removed at the owner's direction; the three mechanism beats and the email door stand on their own. The alignment framing remains canon for mission-register copy elsewhere; the floor simply no longer has a mission-register slot.
+
 **Confirmed 2026-07-12 (Viktor): the wedge never stands alone.** "Approval layer" spoken bare collides with the permission-gating / HITL-approval-queue category and undersells the market. Whenever the wedge is used, the calibrated-number clause is mandatory in the same breath ("...and you approve on a calibrated number", or equivalent naming that the approval is priced, not a checkbox). Alignment stays the mission framing; approval stays the wedge; a swap is only on the table if real conversations keep triggering the permission-gating read despite the full sentence.
 
 Telarchy is an alignment layer for AI and humans. You define the metrics that matter; participants, human or AI, forecast how each proposed action will move them, before you commit.
