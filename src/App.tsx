@@ -66,6 +66,19 @@ function MarketplaceTabRedirect() {
 // alpha wall land here. One startup for now; a list when there are more.
 const DEFAULT_FLOOR = '/lookpilot';
 
+/** telarchy.com/local hops to the dev server (owner ask 2026-08-11): a
+    muscle-memory shortcut for iterating, carrying the rest of the path
+    (/local/admin -> localhost/admin). Works only where a dev server
+    runs, which is the point; for anyone else it just fails to connect
+    on their own machine. */
+function LocalRedirect() {
+  useEffect(() => {
+    const rest = window.location.pathname.replace(/^\/local\/?/, '');
+    window.location.replace(`http://localhost:5173/${rest || DEFAULT_FLOOR.slice(1)}${window.location.search}`);
+  }, []);
+  return null;
+}
+
 /** See lib/alpha.ts: the console stays dark until it leaves alpha. A
     signed-in PLATFORM ADMIN passes without the /alpha handshake (owner
     report 2026-08-11: /admin bounced the owner to the floor): the wall
@@ -113,6 +126,8 @@ export function App() {
           <Route path="/terms" element={<LegalPage document="terms" />} />
           <Route path="/privacy" element={<LegalPage document="privacy" />} />
           {/* Operator switch, linked from nowhere. */}
+          <Route path="/local" element={<LocalRedirect />} />
+          <Route path="/local/*" element={<LocalRedirect />} />
           <Route path="/alpha" element={<AlphaSwitch on />} />
           <Route path="/alpha-off" element={<AlphaSwitch on={false} />} />
           {/* The share-link landing renders standalone: a stranger's first

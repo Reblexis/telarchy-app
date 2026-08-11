@@ -154,7 +154,7 @@ import('./app').then(async ({ app }) => {
       // slug colliding with one of these is unreachable by design (creation
       // is admin-only; do not name a workspace after an app route).
       const RESERVED = new Set([
-        'login', 'signup', 'waitlist', 'claim', 'welcome', 'agent-login',
+        'local', 'login', 'signup', 'waitlist', 'claim', 'welcome', 'agent-login',
         'terms', 'privacy', 'agent', 'manage', 'marketplace', 'leaderboard',
         'benchmark', 'guides', 'tutorials', 'start', 'create-workspace',
         'admin', 'agents', 'account', 'api-access', 'overview', 'metrics',
