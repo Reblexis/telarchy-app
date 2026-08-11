@@ -9270,7 +9270,7 @@ textarea.jobform-line--desc {
 
 .pubws-lb-row {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.6rem;
   padding: 0.45rem 0;
   border-bottom: 1px solid var(--border-color);
@@ -9285,13 +9285,38 @@ textarea.jobform-line--desc {
   min-width: 1.1rem;
 }
 
-.pubws-lb-name {
+/* Avatar + name + optional Manifold badge, one clickable unit. */
+.pubws-lb-who {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.pubws-lb-avatar {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  display: grid;
+  place-items: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+}
+.pubws-lb-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.pubws-lb-name {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.pubws-lb-manifold { flex: none; display: inline-flex; line-height: 0; }
 
 .pubws-lb-score {
   font-family: 'JetBrains Mono', monospace;

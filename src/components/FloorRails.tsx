@@ -30,22 +30,37 @@ export function LeaderboardRail({ entries: all }: { entries: LeaderboardEntry[] 
     <aside className="pubws-rail pubws-rail--left" aria-label="Top traders">
       <h2 className="pubws-h2">Top traders</h2>
       <ol className="pubws-lb">
-        {entries.map((e, i) => (
-          <li key={e.id} className="pubws-lb-row">
-            <span className="pubws-lb-rank">{e.rank ?? i + 1}</span>
-            {/* The API resolves nickname or account name; when neither
-                exists, "anonymous" beats printing a 32-char key id. The
-                name links to the public profile (owner ask 2026-08-11). */}
-            <a className="pubws-lb-name pubws-name-link" href={`/participants/${encodeURIComponent(e.nickname ?? e.id)}`}>
-              {e.nickname || 'anonymous'}
-            </a>
-            <span className="pubws-lb-score">
-              {e.totalEarnings >= 1
-                ? `+${Math.round(e.totalEarnings)} cr`
-                : `${e.totalTrades} trade${e.totalTrades === 1 ? '' : 's'}`}
-            </span>
-          </li>
-        ))}
+        {entries.map((e, i) => {
+          const name = e.nickname || 'anonymous';
+          const initial = name.replace(/^@/, '')[0]?.toUpperCase() ?? '?';
+          return (
+            <li key={e.id} className="pubws-lb-row">
+              <span className="pubws-lb-rank">{e.rank ?? i + 1}</span>
+              {/* Avatar + name link to the public profile (owner ask
+                  2026-08-11: show the face; a Manifold logo marks imported
+                  traders). */}
+              <a className="pubws-lb-who pubws-name-link" href={`/participants/${encodeURIComponent(e.nickname ?? e.id)}`}>
+                <span className="pubws-lb-avatar">
+                  {e.image ? <img src={e.image} alt="" /> : <span>{initial}</span>}
+                </span>
+                <span className="pubws-lb-name">{name}</span>
+                {e.manifoldUsername && (
+                  <span className="pubws-lb-manifold" title={`Imported from Manifold: @${e.manifoldUsername}`}>
+                    <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">
+                      <rect x="2" y="2" width="20" height="20" rx="5" fill="#4337c9" />
+                      <path d="M6 15l3-6 3 4 2-3 4 5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </span>
+                )}
+              </a>
+              <span className="pubws-lb-score">
+                {e.totalEarnings >= 1
+                  ? `+${Math.round(e.totalEarnings)} cr`
+                  : `${e.totalTrades} trade${e.totalTrades === 1 ? '' : 's'}`}
+              </span>
+            </li>
+          );
+        })}
       </ol>
     </aside>
   );

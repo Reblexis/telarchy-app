@@ -110,6 +110,10 @@ export interface LeaderboardEntry {
   rank: number | null;
   id: string;
   nickname: string | null;
+  /** Account picture, for the rail avatar. */
+  image?: string | null;
+  /** Manifold username if this trader imported a record. */
+  manifoldUsername?: string | null;
   calibration: number | null;
   accuracy: number | null;
   totalEarnings: number;

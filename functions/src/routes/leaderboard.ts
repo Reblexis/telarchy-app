@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { and, eq, gt, inArray, isNotNull, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { getParticipantDisplayNames } from '../lib/participants';
-import { agents, markets, positions, trades, workspaces } from '../db/schema';
+import { agents, authUser, systemConfig, markets, positions, trades, workspaces } from '../db/schema';
 import { wrap } from '../lib/wrap';
 import { computeLeaderboardFromAggregates } from '../lib/leaderboard';
 
@@ -107,5 +107,40 @@ leaderboardRouter.get('/', wrap(async (req, res) => {
     nicknameById,
     limit,
   );
+
+  // Enrich the ranked slice with the picture and the Manifold badge (owner
+  // ask 2026-08-11): the rail shows a face, and a Manifold logo for
+  // imported traders. Only for the entries actually returned, so the
+  // lookups stay small.
+  const rankedIds = ranked.map(e => e.id);
+  if (rankedIds.length > 0) {
+    const agentRows = await db.select({ id: agents.id, authUserId: agents.authUserId })
+      .from(agents).where(inArray(agents.id, rankedIds));
+    const uidByAgent = new Map(agentRows.map(r => [r.id, r.authUserId]));
+    const uids = agentRows.map(r => r.authUserId).filter((u): u is string => !!u);
+    const imageByUid = new Map<string, string | null>();
+    if (uids.length > 0) {
+      const userRows = await db.select({ id: authUser.id, image: authUser.image })
+        .from(authUser).where(inArray(authUser.id, uids));
+      for (const u of userRows) imageByUid.set(u.id, u.image);
+    }
+    const manifoldRows = await db.select({ key: systemConfig.key, value: systemConfig.value })
+      .from(systemConfig)
+      .where(inArray(systemConfig.key, rankedIds.map(id => `manifold-claimed:agent:${id}`)));
+    const manifoldByAgent = new Map<string, string>();
+    for (const r of manifoldRows) {
+      const agentId = r.key.replace('manifold-claimed:agent:', '');
+      const uname = (r.value as { username?: string } | undefined)?.username;
+      if (uname) manifoldByAgent.set(agentId, uname);
+    }
+    for (const e of ranked) {
+      const uid = uidByAgent.get(e.id);
+      (e as typeof e & { image?: string | null; manifoldUsername?: string | null }).image =
+        uid ? imageByUid.get(uid) ?? null : null;
+      (e as typeof e & { image?: string | null; manifoldUsername?: string | null }).manifoldUsername =
+        manifoldByAgent.get(e.id) ?? null;
+    }
+  }
+
   res.json({ participants: ranked });
 }));
