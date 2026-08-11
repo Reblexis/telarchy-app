@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FloorModal } from './FloorModal';
+import { ManifoldLogo } from './ManifoldLogo';
 
 /**
  * Import your Manifold balance (owner ask 2026-08-11: make it a
@@ -9,15 +10,6 @@ import { FloorModal } from './FloorModal';
  * converts to starting credits (1 mana = 1 cr, capped). Anonymous
  * visitors are routed to sign up first (the grant needs an account).
  */
-
-function ManifoldMark({ size = 18 }: { size?: number }) {
-  return (
-    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
-      <rect x="2" y="2" width="20" height="20" rx="5" fill="currentColor" />
-      <path d="M6 15l3-6 3 4 2-3 4 5" stroke="var(--bg-primary)" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 
 export function ManifoldButton({ signedIn, onRequireSignup }: { signedIn: boolean; onRequireSignup: () => void }) {
   const [open, setOpen] = useState(false);
@@ -63,7 +55,7 @@ export function ManifoldButton({ signedIn, onRequireSignup }: { signedIn: boolea
         aria-label="Import your Manifold balance"
         onClick={() => (signedIn ? setOpen(true) : onRequireSignup())}
       >
-        <span className="pubws-manifold-icon"><ManifoldMark /></span>
+        <span className="pubws-manifold-icon"><ManifoldLogo size={18} color="currentColor" /></span>
         <span className="pubws-manifold-label">Import Manifold</span>
       </button>
 
@@ -71,7 +63,7 @@ export function ManifoldButton({ signedIn, onRequireSignup }: { signedIn: boolea
         <FloorModal onClose={close} label="Import Manifold balance">
           <div className="mfimport">
             <div className="ticket-head mfimport-head">
-              <h3 className="mfimport-title"><ManifoldMark size={22} /> Import your Manifold balance</h3>
+              <h3 className="mfimport-title"><ManifoldLogo size={22} /> Import your Manifold balance</h3>
               <button className="ticket-close" aria-label="Close" onClick={close}>×</button>
             </div>
 

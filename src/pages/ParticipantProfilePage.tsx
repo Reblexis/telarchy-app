@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, type PublicParticipantProfile, type PublicProfilePosition, type PublicProfileTrade, type ProfileProposedJob } from '../lib/api';
 import { Logo } from '../components/Logo';
+import { ManifoldLogo } from '../components/ManifoldLogo';
 
 /**
  * A participant's public profile, reworked to be a profile (owner
@@ -150,7 +151,7 @@ export function ParticipantProfilePage() {
                       rel="noreferrer noopener"
                       title={`Imported from Manifold: @${profile.manifoldUsername}`}
                     >
-                      <ManifoldMark /> @{profile.manifoldUsername}
+                      <ManifoldLogo size={14} /> @{profile.manifoldUsername}
                     </a>
                   )}
                 </h1>
@@ -183,12 +184,3 @@ export function ParticipantProfilePage() {
   );
 }
 
-/** Small Manifold glyph for the imported-from badge. */
-function ManifoldMark() {
-  return (
-    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" style={{ verticalAlign: '-2px' }}>
-      <rect x="2" y="2" width="20" height="20" rx="5" fill="#4337c9" />
-      <path d="M6 15l3-6 3 4 2-3 4 5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}

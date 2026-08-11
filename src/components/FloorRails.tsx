@@ -1,4 +1,5 @@
 import type { LeaderboardEntry } from '../lib/api';
+import { ManifoldLogo } from './ManifoldLogo';
 
 /**
  * The trading floor's side rails (owner decision 2026-08-09): top traders
@@ -46,10 +47,7 @@ export function LeaderboardRail({ entries: all }: { entries: LeaderboardEntry[] 
                 <span className="pubws-lb-name">{name}</span>
                 {e.manifoldUsername && (
                   <span className="pubws-lb-manifold" title={`Imported from Manifold: @${e.manifoldUsername}`}>
-                    <svg viewBox="0 0 24 24" width="12" height="12" aria-hidden="true">
-                      <rect x="2" y="2" width="20" height="20" rx="5" fill="#4337c9" />
-                      <path d="M6 15l3-6 3 4 2-3 4 5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
+                    <ManifoldLogo size={13} strokeWidth={1.6} />
                   </span>
                 )}
               </a>
