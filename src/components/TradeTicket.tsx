@@ -31,7 +31,11 @@ interface Props {
   liquidity: number;
   positions: TicketPosition[];
   onTrade: (direction: 'higher' | 'lower', amount: number) => Promise<void>;
-  onSell: (p: TicketPosition) => Promise<void>;
+  /** Sell `shares` of the held position (defaults to the whole thing). */
+  onSell: (p: TicketPosition, shares: number) => Promise<void>;
+  /** Credits available to spend, so the bet slider scales to what the
+      trader can actually afford instead of a fixed cap. */
+  balance?: number | null;
   /** Fires whenever the composed (not yet placed) bet changes: the market
       probability it would move the market to, or null when nothing is
       composed. The page projects it onto the chart. */
@@ -58,7 +62,6 @@ interface Props {
   onClose?: () => void;
 }
 
-const MAX_BET = 250;
 
 /** A round metric-space step for the "each X beyond" line: ~1/50 of the
     range snapped to 1/2/5, so a $0..500k market speaks in $10k steps. */
@@ -71,6 +74,11 @@ function niceStep(span: number): number {
 
 function stepLabel(step: number): string {
   return step >= 1000 ? `${step / 1000}k` : String(step);
+}
+
+/** Shares are fractional; show enough to read a partial sale. */
+function fmtShares(v: number): string {
+  return v >= 100 ? Math.round(v).toLocaleString('en-US') : v.toFixed(1);
 }
 
 function fmt(v: number): string {
@@ -86,7 +94,7 @@ function fmtValue(v: number): string {
 }
 
 export function TradeTicket({
-  probability, liquidity, positions, onTrade, onSell, onPreview, onRequireSignup,
+  probability, liquidity, positions, onTrade, onSell, balance, onPreview, onRequireSignup,
   unit = '', consensus = null, rangeMin, rangeMax, orders = [], onPlaceLimit, onCancelLimit,
   initialDir, onClose,
 }: Props) {
@@ -97,12 +105,22 @@ export function TradeTicket({
   // Betting towards a value (owner direction 2026-08-11) without a new
   // field: the "New value" row is editable while focused. Typing a target
   // sets the side and the amount to whatever reaches it (capped at
-  // MAX_BET); blurring returns the row to the derived display.
+  // the affordable maxBet); blurring returns the row to the derived display.
   const [targetDraft, setTargetDraft] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [placed, setPlaced] = useState(false);
   const [error, setError] = useState('');
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Selling a specific amount (owner ask 2026-08-11): a row expands into a
+  // shares slider instead of only "sell all". Keyed by direction; the draft
+  // is the shares count being sold.
+  const [sellDir, setSellDir] = useState<'higher' | 'lower' | null>(null);
+  const [sellShares, setSellShares] = useState(0);
+
+  // The bet ceiling is what the trader can afford (owner removed the
+  // per-market cap 2026-08-11); fall back to a sane default before the
+  // balance loads. The slider maxes here.
+  const maxBet = Math.max(1, Math.floor(balance != null && balance > 0 ? balance : 250));
 
   const amountNum = Math.max(0, Math.floor(parseFloat(amount) || 0));
   const limitNum = limit.trim() === '' ? null : parseFloat(limit.replace(/,/g, ''));
@@ -199,12 +217,13 @@ export function TradeTicket({
     }
   };
 
-  const sell = async (p: TicketPosition) => {
+  const sell = async (p: TicketPosition, shares: number) => {
     if (busy) return;
     setError('');
     setBusy(`sell-${p.direction}`);
     try {
-      await onSell(p);
+      await onSell(p, shares);
+      setSellDir(null);
     } catch (e) {
       setError((e as Error).message || 'Sell failed');
     } finally {
@@ -264,30 +283,75 @@ export function TradeTicket({
             // it cost. This moving number is the reason to come back.
             const worth = previewSell(probability, liquidity, p.direction, p.shares);
             const delta = worth - p.totalCost;
+            const selling = sellDir === p.direction;
+            // How many shares the slider is selling, and what they fetch.
+            const sharesToSell = Math.min(p.shares, Math.max(0, sellShares));
+            const sellWorth = previewSell(probability, liquidity, p.direction, sharesToSell);
+            const sellPct = p.shares > 0 ? (sharesToSell / p.shares) * 100 : 0;
             return (
-              <div key={p.direction} className="ticket-pos-row">
-                <span className={`ticket-pos-dir ticket-pos-dir--${p.direction}`}>
-                  {p.direction === 'higher' ? '▲' : '▼'} {p.direction}
-                </span>
-                <span className="ticket-pos-detail">
-                  worth {fmt(worth)} cr
-                  {/* The delta is only worth a number once it has moved. */}
-                  {Math.abs(delta) >= 0.5 && (
-                    <>
-                      {' '}
-                      <span className={`ticket-pos-delta ${delta >= 0 ? 'is-up' : 'is-down'}`}>
-                        {delta >= 0 ? '+' : '-'}{fmt(Math.abs(delta))}
-                      </span>
-                    </>
-                  )}
-                </span>
-                <button
-                  className="ticket-sell"
-                  disabled={busy !== null}
-                  onClick={() => void sell(p)}
-                >
-                  {busy === `sell-${p.direction}` ? 'Selling…' : 'Sell all'}
-                </button>
+              <div key={p.direction} className={`ticket-pos-row${selling ? ' is-selling' : ''}`}>
+                <div className="ticket-pos-head">
+                  <span className={`ticket-pos-dir ticket-pos-dir--${p.direction}`}>
+                    {p.direction === 'higher' ? '▲' : '▼'} {p.direction}
+                  </span>
+                  <span className="ticket-pos-detail">
+                    worth {fmt(worth)} cr
+                    {/* The delta is only worth a number once it has moved. */}
+                    {Math.abs(delta) >= 0.5 && (
+                      <>
+                        {' '}
+                        <span className={`ticket-pos-delta ${delta >= 0 ? 'is-up' : 'is-down'}`}>
+                          {delta >= 0 ? '+' : '-'}{fmt(Math.abs(delta))}
+                        </span>
+                      </>
+                    )}
+                  </span>
+                  <button
+                    className="ticket-sell"
+                    disabled={busy !== null}
+                    onClick={() => {
+                      if (selling) { setSellDir(null); return; }
+                      setSellDir(p.direction);
+                      setSellShares(p.shares); // default to the whole thing
+                    }}
+                  >
+                    {selling ? 'Cancel' : 'Sell'}
+                  </button>
+                </div>
+
+                {/* Pick how much to sell: a shares slider (owner ask
+                    2026-08-11, replacing sell-all-only), the proceeds
+                    preview, and one confirm. */}
+                {selling && (
+                  <div className="ticket-sell-panel">
+                    <input
+                      type="range"
+                      className={`ticket-slider ticket-slider--${p.direction}`}
+                      min={0}
+                      max={p.shares}
+                      step={p.shares / 200 || 1}
+                      value={sharesToSell}
+                      style={{ ['--slider-pct' as string]: `${sellPct}%` }}
+                      onChange={e => setSellShares(parseFloat(e.target.value))}
+                      aria-label={`Shares of ${p.direction} to sell`}
+                    />
+                    <div className="ticket-sell-facts">
+                      <span>{Math.round(sellPct)}% · {fmtShares(sharesToSell)} shares</span>
+                      <span>≈ {fmt(sellWorth)} cr</span>
+                    </div>
+                    <button
+                      className={`ticket-go ticket-go--${p.direction === 'higher' ? 'lower' : 'higher'}`}
+                      disabled={busy !== null || sharesToSell <= 0}
+                      onClick={() => void sell(p, sharesToSell)}
+                    >
+                      {busy === `sell-${p.direction}`
+                        ? 'Selling…'
+                        : sharesToSell >= p.shares
+                          ? `Sell all for ${fmt(sellWorth)} cr`
+                          : `Sell ${fmtShares(sharesToSell)} for ${fmt(sellWorth)} cr`}
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -384,12 +448,12 @@ export function TradeTicket({
         className={`ticket-slider ticket-slider--${dir}`}
         type="range"
         min={1}
-        max={MAX_BET}
-        value={Math.min(MAX_BET, Math.max(1, amountNum))}
+        max={maxBet}
+        value={Math.min(maxBet, Math.max(1, amountNum))}
         style={(() => {
           // The thumb's center travels [7px, width-7px], not [0, width], so
           // the fill must land under the thumb, not merely at value%.
-          const p = ((Math.min(MAX_BET, Math.max(1, amountNum)) - 1) / (MAX_BET - 1)) * 100;
+          const p = ((Math.min(maxBet, Math.max(1, amountNum)) - 1) / (maxBet - 1)) * 100;
           return { ['--slider-pct' as string]: `calc(${p.toFixed(2)}% + ${((0.5 - p / 100) * 14).toFixed(1)}px)` };
         })()}
         onChange={e => setAmount(e.target.value)}
@@ -448,7 +512,7 @@ export function TradeTicket({
                   const clamped = Math.min(rangeMin + span * 0.999, Math.max(rangeMin + span * 0.001, t));
                   const { direction, cost } = costToMove(probability, liquidity, (clamped - rangeMin) / span);
                   setDir(direction);
-                  setAmount(String(Math.min(MAX_BET, Math.max(1, Math.ceil(cost)))));
+                  setAmount(String(Math.min(maxBet, Math.max(1, Math.ceil(cost)))));
                 }}
                 inputMode="decimal"
                 aria-label={`Bet the market to this value in ${unit || 'metric units'}`}

@@ -47,6 +47,13 @@ export function AccountMenu() {
       .catch(e => console.error('participant fetch failed:', e));
   };
   useEffect(load, []);
+  // The balance sits beside the avatar (owner ask 2026-08-11), so it must
+  // not go stale after a bet: refresh on every open, plus a slow poll.
+  useEffect(() => { if (open) load(); }, [open]);
+  useEffect(() => {
+    const t = setInterval(load, 30_000);
+    return () => clearInterval(t);
+  }, []);
 
   // Click-away and Escape: a corner menu that traps the page is worse than
   // no menu at all.
@@ -69,6 +76,9 @@ export function AccountMenu() {
 
   return (
     <div className="acctmenu" ref={rootRef}>
+      {participant?.balance != null && (
+        <span className="acctmenu-credits" title="Your credits">{fmtCr(participant.balance)} cr</span>
+      )}
       <button
         className="acctmenu-avatar"
         aria-haspopup="menu"

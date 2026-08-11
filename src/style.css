@@ -7927,7 +7927,22 @@ code, pre, kbd, samp {
 }
 
 /* The account corner: an avatar that opens what a trader needs here. */
-.acctmenu { position: relative; }
+.acctmenu {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+/* The balance beside the avatar (owner ask 2026-08-11): always visible,
+   mono, quiet; the popover repeats it with the earned line. */
+.acctmenu-credits {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
 
 .acctmenu-avatar {
   display: grid;
@@ -9188,10 +9203,36 @@ textarea.jobform-line--desc {
 
 .ticket-pos-row {
   display: flex;
-  align-items: baseline;
-  gap: 0.6rem;
+  flex-direction: column;
+  gap: 0.5rem;
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.78rem;
+}
+.ticket-pos-row.is-selling {
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+}
+
+.ticket-pos-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+/* The partial-sell panel (owner ask 2026-08-11): a shares slider, a
+   percent/proceeds line, and one confirm in the opposite side's colour
+   (selling higher is a lower-ward move). Reuses .ticket-slider. */
+.ticket-sell-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.ticket-sell-facts {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
 }
 
 .ticket-pos-dir { font-weight: 600; text-transform: capitalize; }

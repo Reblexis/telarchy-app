@@ -288,9 +288,9 @@ export function TradePage() {
     if (!activeMarketId) return;
     await doTrade({ marketId: activeMarketId, direction, amount });
   };
-  const sellPosition = async (p: TicketPosition) => {
+  const sellPosition = async (p: TicketPosition, shares: number) => {
     if (!activeMarketId) return;
-    await doTrade({ marketId: activeMarketId, direction: p.direction, sellShares: p.shares });
+    await doTrade({ marketId: activeMarketId, direction: p.direction, sellShares: Math.min(p.shares, shares) });
   };
   // A resting order changes no price today, so it refreshes the money but
   // does not touch the chart's history.
@@ -673,6 +673,7 @@ export function TradePage() {
             positions={trading ? positions : []}
             onTrade={placeTrade}
             onSell={sellPosition}
+            balance={balance}
             onPreview={setTicketPreview}
             unit={unit}
             consensus={consensus}
