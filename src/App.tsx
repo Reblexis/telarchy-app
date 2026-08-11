@@ -79,28 +79,25 @@ function LocalRedirect() {
   return null;
 }
 
-/** See lib/alpha.ts: the console stays dark until it leaves alpha. A
-    signed-in PLATFORM ADMIN passes without the /alpha handshake (owner
-    report 2026-08-11: /admin bounced the owner to the floor): the wall
-    exists for the public, not for the operator, and every page behind it
-    still enforces auth server-side. The check grants the flag so it runs
-    once per browser. */
+/** The old console is ADMIN-ONLY (owner direction 2026-08-11,
+    tightened from the localStorage curtain of 2026-08-10): every route
+    behind this gate verifies the signed-in account is a platform admin,
+    every time; anyone else, flag or no flag, lands on the floor. The
+    localStorage flag survives only as an optimistic cache that skips the
+    blank frame for the operator; it grants nothing by itself. Server-side
+    auth on every hidden endpoint still holds regardless. */
 function AlphaGate() {
-  const [checked, setChecked] = useState(hasAlphaAccess());
-  const [allowed, setAllowed] = useState(hasAlphaAccess());
+  const [allowed, setAllowed] = useState<boolean | null>(hasAlphaAccess() ? true : null);
   useEffect(() => {
-    if (checked) return;
     api.getProfile()
       .then(p => {
-        if ((p as { platformAdmin?: boolean }).platformAdmin === true) {
-          grantAlphaAccess();
-          setAllowed(true);
-        }
+        const isAdmin = (p as { platformAdmin?: boolean }).platformAdmin === true;
+        if (isAdmin) grantAlphaAccess(); else revokeAlphaAccess();
+        setAllowed(isAdmin);
       })
-      .catch(() => { /* anonymous: stays public */ })
-      .finally(() => setChecked(true));
-  }, [checked]);
-  if (!checked) return null;
+      .catch(() => { revokeAlphaAccess(); setAllowed(false); });
+  }, []);
+  if (allowed === null) return null;
   return allowed ? <Outlet /> : <Navigate to={DEFAULT_FLOOR} replace />;
 }
 

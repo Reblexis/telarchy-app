@@ -669,10 +669,10 @@ The integration tests create their own workspace and data, and clean up after th
 **DONE 2026-08-10 (Viktor): the alpha wall.** Until the management console
 leaves alpha, the only public surface is the trading floor: telarchy.com
 redirects to /lookpilot, and every other route (landing, app shell,
-console, account settings, admin) renders only after visiting /alpha once
-in that browser (operator knowledge, linked from nowhere; /alpha-off
-reverts). The wall is a curtain, not a lock: hidden pages still enforce
-their own auth server-side. Public doors that remain: /login, /signup,
+console, account settings, admin) renders only for a signed-in PLATFORM
+ADMIN (tightened 2026-08-11 from the earlier visit-/alpha-once
+localStorage curtain: the old UI is invisible to everyone else, flag or
+no flag). Hidden pages additionally enforce their own auth server-side. Public doors that remain: /login, /signup,
 /waitlist, legal pages, and the floors themselves. Anyone wanting to run
 their own company or goal this way is pointed at the email door in the
 floor's about section.
