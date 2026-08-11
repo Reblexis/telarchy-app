@@ -2,23 +2,28 @@ import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 
 /**
- * The conversation under the one market view (owner ask 2026-08-11):
- * a quiet "Comments (N)" toggle that expands the thread in place. The
- * subject follows the page: the baseline market normally, the selected
- * job's proposal thread when one is open. Reading is public (the floor
- * route); writing needs a signed-in trader and goes through the same
- * authenticated message endpoints the API participants use.
+ * The panel under the one market view (owner ask 2026-08-11): three
+ * toggles side by side, Comments, Positions, and Trades, each expanding
+ * in place. Comments is the conversation (post if signed in). Positions
+ * shows who holds what in the market on screen; Trades shows its history.
+ * All three read publicly on Open workspaces; posting a comment needs a
+ * signed-in trader. The subject follows the page: the baseline market
+ * normally, the selected job's market/thread when one is open.
  */
 
 interface Comment { id: string; fromName: string; content: string; createdAt: string }
+interface Holder { handle: string; id: string; direction: 'higher' | 'lower'; shares: number; cost: number; worth: number | null }
+interface TradeItem { id: string; handle: string; direction: 'higher' | 'lower'; kind: 'buy' | 'sell'; shares: number; cost: number; createdAt: string }
 
 interface Props {
   idOrSlug: string;
+  /** marketId drives positions/trades; proposalId routes the comment thread. */
   subject: { marketId?: string; proposalId?: string };
-  /** Signed-in and joined: the composer posts. Otherwise it invites. */
   canPost: boolean;
   onRequireSignup: () => void;
 }
+
+type Tab = 'comments' | 'positions' | 'trades' | null;
 
 function timeAgo(iso: string): string {
   const s = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -27,24 +32,43 @@ function timeAgo(iso: string): string {
   if (s < 129600) return `${Math.round(s / 3600)}h ago`;
   return `${Math.round(s / 86400)}d ago`;
 }
+function fmtShares(v: number): string { return v >= 100 ? Math.round(v).toLocaleString('en-US') : v.toFixed(1); }
+function fmtCr(v: number): string { return Math.round(v).toLocaleString('en-US'); }
+
+function profileHref(handle: string, id: string): string {
+  return `/participants/${encodeURIComponent(handle && handle !== id ? handle : id)}`;
+}
 
 export function FloorComments({ idOrSlug, subject, canPost, onRequireSignup }: Props) {
-  const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<Tab>(null);
   const [comments, setComments] = useState<Comment[] | null>(null);
+  const [activity, setActivity] = useState<{ positions: Holder[]; trades: TradeItem[] } | null>(null);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const subjectKey = subject.proposalId ?? subject.marketId ?? '';
+  const marketKey = subject.marketId ?? '';
+  const threadKey = subject.proposalId ?? subject.marketId ?? '';
 
+  // Comments load on subject change (the count shows in the toggle).
   useEffect(() => {
-    if (!subjectKey) return;
+    if (!threadKey) return;
     setComments(null);
     api.getFloorComments(idOrSlug, subject)
       .then(setComments)
       .catch(e => { console.error('comments fetch failed:', e); setComments([]); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idOrSlug, subjectKey]);
+  }, [idOrSlug, threadKey]);
+
+  // Positions/trades load on subject change too, so counts are ready.
+  useEffect(() => {
+    if (!marketKey) { setActivity(null); return; }
+    setActivity(null);
+    api.getMarketActivity(idOrSlug, marketKey)
+      .then(a => setActivity({ positions: a.positions, trades: a.trades }))
+      .catch(e => { console.error('market activity fetch failed:', e); setActivity({ positions: [], trades: [] }); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idOrSlug, marketKey]);
 
   const post = async () => {
     const content = draft.trim();
@@ -63,20 +87,31 @@ export function FloorComments({ idOrSlug, subject, canPost, onRequireSignup }: P
     }
   };
 
-  if (!subjectKey) return null;
-  const count = comments?.length ?? null;
+  if (!threadKey) return null;
+  const toggle = (t: Tab) => setTab(cur => (cur === t ? null : t));
+  const cCount = comments?.length ?? null;
+  const pCount = activity?.positions.length ?? null;
+  const tCount = activity?.trades.length ?? null;
 
   return (
     <div className="pubws-comments">
-      <button
-        className="pubws-comments-toggle"
-        aria-expanded={open}
-        onClick={() => setOpen(o => !o)}
-      >
-        Comments{count !== null ? ` (${count})` : ''}
-      </button>
+      <div className="pubws-panel-tabs">
+        <button className={`pubws-comments-toggle${tab === 'comments' ? ' is-active' : ''}`} aria-expanded={tab === 'comments'} onClick={() => toggle('comments')}>
+          Comments{cCount !== null ? ` (${cCount})` : ''}
+        </button>
+        {marketKey && (
+          <>
+            <button className={`pubws-comments-toggle${tab === 'positions' ? ' is-active' : ''}`} aria-expanded={tab === 'positions'} onClick={() => toggle('positions')}>
+              Positions{pCount !== null ? ` (${pCount})` : ''}
+            </button>
+            <button className={`pubws-comments-toggle${tab === 'trades' ? ' is-active' : ''}`} aria-expanded={tab === 'trades'} onClick={() => toggle('trades')}>
+              Trades{tCount !== null ? ` (${tCount})` : ''}
+            </button>
+          </>
+        )}
+      </div>
 
-      {open && (
+      {tab === 'comments' && (
         <div className="pubws-comments-body">
           {comments === null ? (
             <p className="pubws-comments-empty">…</p>
@@ -95,7 +130,6 @@ export function FloorComments({ idOrSlug, subject, canPost, onRequireSignup }: P
               ))}
             </ul>
           )}
-
           {canPost ? (
             <div className="pubws-comments-composer">
               <textarea
@@ -117,6 +151,48 @@ export function FloorComments({ idOrSlug, subject, canPost, onRequireSignup }: P
             </button>
           )}
           {error && <p className="ticket-err">{error}</p>}
+        </div>
+      )}
+
+      {tab === 'positions' && (
+        <div className="pubws-comments-body">
+          {activity === null ? (
+            <p className="pubws-comments-empty">…</p>
+          ) : activity.positions.length === 0 ? (
+            <p className="pubws-comments-empty">Nobody holds this market yet.</p>
+          ) : (
+            <ul className="pubws-mkt-list">
+              {activity.positions.map((p, i) => (
+                <li key={`${p.id}-${p.direction}-${i}`} className="pubws-mkt-row">
+                  <span className={`prof-dir prof-dir--${p.direction}`}>{p.direction === 'higher' ? '▲' : '▼'}</span>
+                  <a className="pubws-mkt-who pubws-name-link" href={profileHref(p.handle, p.id)}>{p.handle}</a>
+                  <span className="pubws-mkt-val">{fmtShares(p.shares)} sh{p.worth !== null ? ` · ${fmtCr(p.worth)} cr` : ''}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {tab === 'trades' && (
+        <div className="pubws-comments-body">
+          {activity === null ? (
+            <p className="pubws-comments-empty">…</p>
+          ) : activity.trades.length === 0 ? (
+            <p className="pubws-comments-empty">No trades yet.</p>
+          ) : (
+            <ul className="pubws-mkt-list">
+              {activity.trades.map(t => (
+                <li key={t.id} className="pubws-mkt-row">
+                  <span className={`prof-dir prof-dir--${t.direction}`}>{t.direction === 'higher' ? '▲' : '▼'}</span>
+                  <a className="pubws-mkt-who pubws-name-link" href={profileHref(t.handle, t.handle)}>{t.handle}</a>
+                  <span className="pubws-mkt-act">{t.kind === 'buy' ? 'bought' : 'sold'} {fmtShares(t.shares)}</span>
+                  <span className="pubws-mkt-val">{fmtCr(t.cost)} cr</span>
+                  <span className="pubws-mkt-time">{timeAgo(t.createdAt)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </div>

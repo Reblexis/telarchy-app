@@ -8573,9 +8573,15 @@ textarea.jobform-line--desc {
   text-align: left;
 }
 
+/* Three toggles in a row (owner ask 2026-08-11: Positions and Trades
+   beside Comments). */
+.pubws-panel-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
 .pubws-comments-toggle {
-  display: block;
-  margin: 0 auto;
   padding: 0.3rem 0.8rem;
   border: none;
   background: none;
@@ -8587,7 +8593,36 @@ textarea.jobform-line--desc {
   transition: color 120ms ease;
 }
 .pubws-comments-toggle:hover { color: var(--text-primary); }
-.pubws-comments-toggle[aria-expanded="true"] { color: var(--text-primary); }
+.pubws-comments-toggle.is-active { color: var(--text-primary); }
+
+/* Positions/trades rows: quiet ruled lines, mono values. */
+.pubws-mkt-list { list-style: none; margin: 0; padding: 0; }
+.pubws-mkt-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  padding: 0.45rem 0.1rem;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.85rem;
+}
+.pubws-mkt-row:first-child { border-top: none; }
+.pubws-mkt-who {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+}
+.pubws-mkt-act { font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; }
+.pubws-mkt-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.pubws-mkt-time { font-size: 0.74rem; color: var(--text-tertiary); white-space: nowrap; min-width: 4rem; text-align: right; }
 
 .pubws-comments-body {
   margin-top: 0.5rem;

@@ -630,6 +630,15 @@ export const api = {
   getFloorComments: (idOrSlug: string, q: { marketId?: string; proposalId?: string }): Promise<Array<{ id: string; fromName: string; content: string; createdAt: string }>> =>
     request(`/api/marketplace/${encodeURIComponent(idOrSlug)}/comments?${q.proposalId ? `proposalId=${encodeURIComponent(q.proposalId)}` : `marketId=${encodeURIComponent(q.marketId ?? '')}`}`, {}, true),
 
+  /** Public floor read: who holds what and the trade history for a
+      market, no account needed (Open workspaces only). */
+  getMarketActivity: (idOrSlug: string, marketId: string): Promise<{
+    consensus: number | null;
+    positions: Array<{ handle: string; id: string; direction: 'higher' | 'lower'; shares: number; cost: number; worth: number | null }>;
+    trades: Array<{ id: string; handle: string; direction: 'higher' | 'lower'; kind: 'buy' | 'sell'; shares: number; cost: number; createdAt: string }>;
+  }> =>
+    request(`/api/marketplace/${encodeURIComponent(idOrSlug)}/market-activity?marketId=${encodeURIComponent(marketId)}`, {}, true),
+
   getMarketMessages: (marketId: string) =>
     request(`/api/predictions/markets/${encodeURIComponent(marketId)}/messages`),
   sendMarketMessage: (marketId: string, content: string) =>

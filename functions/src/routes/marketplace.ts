@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/client';
-import { workspaces, markets, metrics, metricLogs, agents, trades, permissionGroups, proposals, proposalMessages, marketMessages } from '../db/schema';
+import { workspaces, markets, metrics, metricLogs, agents, trades, positions, permissionGroups, proposals, proposalMessages, marketMessages } from '../db/schema';
 import { eq, and, gt, gte, count, desc, asc, inArray, sql } from 'drizzle-orm';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
@@ -602,6 +602,67 @@ marketplaceRouter.get('/:workspaceId/comments', wrap(async (req, res) => {
   res.json(rows.slice(-200).map(m => ({
     id: m.id, fromName: names.get(m.from) ?? 'anonymous', content: m.content, createdAt: m.createdAt,
   })));
+}));
+
+/**
+ * Who holds what, and the trade history, for a market on a public floor
+ * (owner ask 2026-08-11: a way to view positions and trades for the
+ * market, right beside the comments). Public read on Open workspaces,
+ * same disclosure rule as comments; identities are the same public
+ * handles the leaderboard shows. Marks each holder's position to the
+ * market's current consensus so the worth reads live.
+ */
+marketplaceRouter.get('/:workspaceId/market-activity', wrap(async (req, res) => {
+  const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
+  if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
+  if (ws.visibility === 'private') { res.status(403).json({ error: 'This workspace is private' }); return; }
+
+  const [publicGroup] = await db.select().from(permissionGroups)
+    .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
+  const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
+  if (!publicCaps.includes('read')) { res.status(403).json({ error: 'Not public' }); return; }
+
+  const marketId = typeof req.query.marketId === 'string' ? req.query.marketId : null;
+  if (!marketId) { res.status(400).json({ error: 'Pass marketId' }); return; }
+
+  const [market] = await db.select().from(markets)
+    .where(and(eq(markets.id, marketId), eq(markets.workspaceId, ws.id)));
+  if (!market) { res.status(404).json({ error: 'Market not found' }); return; }
+
+  const c = consensus((market.shares as [number, number]) || [0, 0], market.liquidity, market.rangeMin, market.rangeMax);
+  const p = c === undefined ? null : Math.max(0, Math.min(1, (c - market.rangeMin) / (market.rangeMax - market.rangeMin)));
+
+  const posRows = await db.select({
+    agentId: positions.agentId, direction: positions.direction, shares: positions.shares, totalCost: positions.totalCost,
+  }).from(positions)
+    .where(and(eq(positions.workspaceId, ws.id), eq(positions.marketId, marketId), gt(positions.shares, 0)))
+    .orderBy(desc(positions.shares)).limit(50);
+
+  const tradeRows = await db.select({
+    id: trades.id, agentId: trades.agentId, direction: trades.direction, shares: trades.shares,
+    cost: trades.cost, createdAt: trades.createdAt,
+  }).from(trades)
+    .where(and(eq(trades.workspaceId, ws.id), eq(trades.marketId, marketId)))
+    .orderBy(desc(trades.createdAt)).limit(50);
+
+  const ids = [...new Set([...posRows.map(r => r.agentId), ...tradeRows.map(r => r.agentId)])];
+  const names = await getParticipantDisplayNames(ids);
+  const handle = (id: string) => names.get(id) ?? id;
+
+  res.json({
+    consensus: c ?? null,
+    positions: posRows.map(r => ({
+      handle: handle(r.agentId), id: r.agentId,
+      direction: r.direction, shares: r.shares, cost: r.totalCost,
+      // Worth = shares marked to current price (the EV payout factor).
+      worth: p === null ? null : Math.round(r.shares * (r.direction === 'higher' ? p : 1 - p) * 100) / 100,
+    })),
+    trades: tradeRows.map(r => ({
+      id: r.id, handle: handle(r.agentId), direction: r.direction,
+      // A negative cost is a sell (proceeds); the sign carries the kind.
+      kind: r.cost < 0 ? 'sell' : 'buy', shares: Math.abs(r.shares), cost: Math.abs(r.cost), createdAt: r.createdAt,
+    })),
+  });
 }));
 
 /**
