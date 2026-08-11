@@ -100,6 +100,13 @@ import('./app').then(async ({ app }) => {
   // (hourly markets exist now; settlement value is pinned as-of resolvesOn,
   // so running often only reduces payout latency, never changes results).
   scheduleEvery(10 * 60_000, 'resolve', runDailyResolve);
+  // Sweep resting limit orders often so a crossed order fills promptly
+  // even without a fresh trade to trigger it (owner report 2026-08-11).
+  scheduleEvery(12_000, 'limitSweep', async () => {
+    const { sweepLimitOrders } = await import('./services/trading');
+    const r = await sweepLimitOrders();
+    if (r.fills > 0) console.log('Limit sweep:', r);
+  });
   scheduleDailyUTC(0, 10, 'dailyMarketRefresh', runDailyRefresh);
 
   // Serve frontend static files when bundled in self-hosted mode

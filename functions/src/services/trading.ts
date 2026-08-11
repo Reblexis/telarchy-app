@@ -418,3 +418,30 @@ export async function releaseLimitOrdersForMarket(tx: Tx, marketId: string, stat
   for (const order of open) total += await closeLimitOrderInTx(tx, order, status);
   return total;
 }
+
+/**
+ * Fill any crossed resting limit orders across active markets (owner
+ * report 2026-08-11: limit orders did not apply in real time). Orders
+ * fill inside a triggering trade's transaction, but a price can also sit
+ * past a limit with no fresh trade to sweep it, so this runs on a timer.
+ * One transaction per market that has open orders; a failure on one
+ * market never blocks the others. Returns the number of markets touched.
+ */
+export async function sweepLimitOrders(): Promise<{ marketsSwept: number; fills: number }> {
+  const marketsWithOrders = await db
+    .selectDistinct({ marketId: limitOrders.marketId, workspaceId: limitOrders.workspaceId })
+    .from(limitOrders)
+    .where(eq(limitOrders.status, 'open'));
+
+  let fills = 0;
+  let marketsSwept = 0;
+  for (const { marketId, workspaceId } of marketsWithOrders) {
+    try {
+      const outcome = await db.transaction(async tx => fillLimitOrdersInTx(tx, workspaceId, marketId));
+      if (outcome.length > 0) { fills += outcome.length; marketsSwept += 1; }
+    } catch (e) {
+      console.error(`sweepLimitOrders: market ${marketId} failed:`, e);
+    }
+  }
+  return { marketsSwept, fills };
+}
