@@ -207,6 +207,15 @@ at-the-range-edge maximum: payout is linear in the settled value, so the
 rows read "New value" (with the delta the bet would cause), "Wins above
 $74,300", "Each $10k beyond +3.1 cr", as a small hairline-ruled table.
 The confirm is full width, tinted by the side ("Bet 25 cr on Higher").
+A manage-capable session (the owner) gets a decision bar on a selected
+job (owner ask 2026-08-11): "Approve, pay $N" as the one money-colored
+pill, and Decline, which opens the published-reason field in place (the
+charter promises the reason lands on the proposal, so the confirm stays
+off until a reason is typed). Nobody else ever renders the bar; the
+backend enforces manage regardless. Both rails carry the same top margin
+on desktop so the "Top traders" and "Jobs" headings sit at the same
+height (owner direction 2026-08-11: symmetry).
+
 The "New value" fact row is an INPUT (owner direction 2026-08-11:
 betting towards a value without a new field): the numeral that answers
 "where does my bet leave the market" also accepts the answer as the

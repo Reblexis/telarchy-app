@@ -8376,6 +8376,65 @@ textarea.jobform-line--desc {
   border: none;
 }
 
+/* The owner's decision bar on a selected job (owner ask 2026-08-11):
+   quiet pills, only approve carries the money color, and decline opens
+   the published-reason field in place. Only manage-capable sessions
+   ever render it. */
+.pubws-ownerbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+}
+
+.pubws-decide {
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: none;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.pubws-decide:hover:not(:disabled) { color: var(--text-primary); border-color: var(--border-hover); }
+.pubws-decide:disabled { opacity: 0.55; cursor: default; }
+.pubws-decide--approve {
+  background: var(--higher);
+  border-color: var(--higher);
+  color: var(--on-signal);
+}
+.pubws-decide--approve:hover:not(:disabled) { color: var(--on-signal); filter: brightness(1.08); }
+.pubws-decide--decline:hover:not(:disabled) { color: var(--lower); border-color: var(--lower); }
+
+.pubws-decide-reason {
+  appearance: none;
+  -webkit-appearance: none;
+  height: auto;
+  min-width: 16rem;
+  padding: 0.4rem 0 0.35rem;
+  border: none;
+  border-bottom: 2px solid var(--border-strong);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.88rem;
+  transition: border-color 120ms ease;
+}
+.pubws-decide-reason:focus {
+  outline: none;
+  box-shadow: none;
+  border-color: transparent;
+  border-bottom-color: var(--accent);
+}
+.pubws-decide-reason::placeholder { color: var(--text-tertiary); }
+
 /* The floor's two bet buttons: big filled verbs, Manifold-style (owner
    direction 2026-08-10), the loudest thing below the chart. */
 .pubws-bet {
@@ -8902,9 +8961,10 @@ textarea.jobform-line--desc {
     transform: none;
   }
   .pubws-rail { position: sticky; top: 1.4rem; }
-  /* The left rail starts below the wordmark, or its heading reads as part
-     of the logo. */
-  .pubws-rail--left { margin-top: 2.2rem; }
+  /* Both rails start below the top bar line: the left one clears the
+     wordmark, and the right one matches it so the two rail headings sit
+     at the same height (owner direction 2026-08-11: symmetry). */
+  .pubws-rail--left, .pubws-rail--right { margin-top: 2.2rem; }
 }
 
 @media (max-width: 1119.98px) {

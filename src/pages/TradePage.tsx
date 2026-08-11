@@ -103,6 +103,13 @@ export function TradePage() {
   const [betModal, setBetModal] = useState<'higher' | 'lower' | 'manage' | null>(null);
   const [descExpanded, setDescExpanded] = useState(false);
   const joinTried = useRef(false);
+  // The owner's decision controls (owner ask 2026-08-11: approve from the
+  // floor). manage capability on this workspace reveals them on a selected
+  // job; everyone else never sees the bar.
+  const [canManage, setCanManage] = useState(false);
+  const [declineReason, setDeclineReason] = useState<string | null>(null); // null = decline not open
+  const [decideBusy, setDecideBusy] = useState(false);
+  const [decideErr, setDecideErr] = useState('');
 
   const reload = () => {
     if (!idOrSlug) return;
@@ -143,6 +150,35 @@ export function TradePage() {
       .then(r => setLeaders(r.participants ?? []))
       .catch(e => console.error('leaderboard fetch failed:', e));
   }, []);
+
+  // Once joined (the workspace header is set), ask who we are HERE: an
+  // owner/admin membership reveals the decision bar on selected jobs.
+  useEffect(() => {
+    if (!user || !joined) return;
+    api.getProfile()
+      .then(p => setCanManage((p as { authRole?: string }).authRole === 'admin'))
+      .catch(e => console.error('profile fetch failed:', e));
+  }, [user, joined]);
+
+  const decide = async (action: 'approve' | 'decline') => {
+    if (!selectedJobId || !ws) return;
+    setDecideErr('');
+    setDecideBusy(true);
+    try {
+      if (action === 'approve') {
+        await api.approveProposal(selectedJobId);
+      } else {
+        await api.declineProposal(selectedJobId, (declineReason ?? '').trim());
+      }
+      setDeclineReason(null);
+      setSelectedJobId(null);
+      reload();
+    } catch (e) {
+      setDecideErr((e as Error).message || 'Could not record the decision');
+    } finally {
+      setDecideBusy(false);
+    }
+  };
 
   const hero = ws?.markets[0] ?? null;
   const unit = hero ? currencyOf(hero.metricName) : '';
@@ -381,6 +417,55 @@ export function TradePage() {
                       </button>
                     )}
                   </>
+                )}
+                {/* The owner's press, on the floor itself (owner ask
+                    2026-08-11). Approve is the money verb, green; decline
+                    asks for the reason the charter promises to publish. */}
+                {canManage && (
+                  <div className="pubws-ownerbar pubws-enter pubws-enter--1">
+                    {declineReason === null ? (
+                      <>
+                        <button
+                          className="pubws-decide pubws-decide--approve"
+                          disabled={decideBusy}
+                          onClick={() => void decide('approve')}
+                        >
+                          {decideBusy ? 'Deciding…' : splitAsk(selectedJob.title).ask !== null
+                            ? `Approve, pay $${splitAsk(selectedJob.title).ask}`
+                            : 'Approve'}
+                        </button>
+                        <button
+                          className="pubws-decide pubws-decide--decline"
+                          disabled={decideBusy}
+                          onClick={() => setDeclineReason('')}
+                        >
+                          Decline
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <input
+                          className="pubws-decide-reason"
+                          value={declineReason}
+                          onChange={e => setDeclineReason(e.target.value)}
+                          placeholder="Why not, published on the job"
+                          aria-label="Decline reason"
+                          autoFocus
+                        />
+                        <button
+                          className="pubws-decide pubws-decide--decline"
+                          disabled={decideBusy || declineReason.trim().length === 0}
+                          onClick={() => void decide('decline')}
+                        >
+                          {decideBusy ? 'Deciding…' : 'Confirm decline'}
+                        </button>
+                        <button className="pubws-decide" onClick={() => { setDeclineReason(null); setDecideErr(''); }}>
+                          Cancel
+                        </button>
+                      </>
+                    )}
+                    {decideErr && <p className="ticket-err">{decideErr}</p>}
+                  </div>
                 )}
               </>
             ) : (
