@@ -225,6 +225,16 @@ backend enforces manage regardless. Both rails carry the same top margin
 on desktop so the "Top traders" and "Jobs" headings sit at the same
 height (owner direction 2026-08-11: symmetry).
 
+A trader holds ONE net side (owner decision 2026-08-11): buying the side
+opposite to a position you already hold first closes that position, so
+nobody ends up holding both higher and lower (a guaranteed-return bond
+bought at a doubled spread, pure value leakage to the market). This is
+engine behavior (`executeTradeInTx` netting, functions/src/services/
+trading.ts), not UI: the trade path sells your opposite position before
+executing the buy, and the proceeds return to your balance. Limit fills
+skip netting (they build a position mechanically). Buying the SAME side
+you hold just accumulates.
+
 The "New value" fact row is an INPUT (owner direction 2026-08-11:
 betting towards a value without a new field): the numeral that answers
 "where does my bet leave the market" also accepts the answer as the

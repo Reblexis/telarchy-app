@@ -55,9 +55,45 @@ export async function executeTradeInTx(tx: Tx, opts: {
   marketId: string;
   mode: TradeMode;
   tradeId?: string;
+  /** Skip opposite-side netting. Set by internal callers (limit fills)
+   *  that build a position mechanically and must not have it unwound when
+   *  a fill iteration briefly overshoots and flips the target direction. */
+  skipNetting?: boolean;
 }): Promise<TradeOutcome> {
   const { workspaceId, agentId, marketId, mode } = opts;
   const tradeId = opts.tradeId ?? randomUUID();
+
+  // Netting (owner decision 2026-08-11): a trader holds ONE net side. A
+  // buy on the side opposite to a position you already hold first closes
+  // that position, so nobody ends up holding both higher and lower, which
+  // is guaranteed-return dead weight bought at a doubled spread. Runs
+  // before the buy below reads the book, so the buy prices against the
+  // post-close market. The recursive sell has mode.type === 'sell', which
+  // skips this block, so there is no recursion loop. Sell trades never
+  // net (you are reducing, not flipping).
+  if (mode.type !== 'sell' && !opts.skipNetting) {
+    let buyDir: 0 | 1;
+    if (mode.type === 'buy') {
+      buyDir = mode.direction;
+    } else {
+      const [m0] = await tx.select().from(markets)
+        .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
+      const mid = m0 ? m0.rangeMin + (m0.rangeMax - m0.rangeMin) / 2 : 0;
+      const c0 = m0 ? consensus((m0.shares as [number, number]) || [0, 0], m0.liquidity, m0.rangeMin, m0.rangeMax) ?? mid : mid;
+      buyDir = mode.targetValue >= c0 ? 1 : 0;
+    }
+    const oppDir: 0 | 1 = buyDir === 1 ? 0 : 1;
+    const oppLabel: 'higher' | 'lower' = oppDir === 1 ? 'higher' : 'lower';
+    const oppPosId = `${agentId}_${marketId}_${oppLabel}`;
+    const [oppPos] = await tx.select().from(positions)
+      .where(and(eq(positions.id, oppPosId), eq(positions.workspaceId, workspaceId)));
+    if (oppPos && (oppPos.shares as number) > 1e-9) {
+      await executeTradeInTx(tx, {
+        workspaceId, agentId, marketId,
+        mode: { type: 'sell', direction: oppDir, dirLabel: oppLabel, sellShares: oppPos.shares as number },
+      });
+    }
+  }
 
   const [market] = await tx.select().from(markets)
     .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)))
@@ -339,6 +375,7 @@ export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId:
           agentId: next!.agentId,
           marketId,
           mode: { type: 'targetValue', targetValue: next!.limitValue, maxBudget: budget },
+          skipNetting: true,
         });
 
         if (outcome.direction !== next!.direction) {
