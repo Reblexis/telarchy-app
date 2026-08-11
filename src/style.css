@@ -7564,6 +7564,72 @@ code, pre, kbd, samp {
   text-align: right;
 }
 
+/* Import Manifold (owner ask 2026-08-11): a Manifold glyph beside the
+   Discord one, same quiet grow-a-label treatment; the import was too
+   buried in the account dialog. */
+.pubws-manifold {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+.pubws-manifold:hover,
+.pubws-manifold:focus-visible { color: #4337c9; outline: none; }
+.pubws-manifold-icon { display: block; flex: none; line-height: 0; }
+.pubws-manifold-label {
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  font-weight: 500;
+  opacity: 0;
+  transition: max-width 200ms ease, opacity 160ms ease;
+}
+.pubws-manifold:hover .pubws-manifold-label,
+.pubws-manifold:focus-visible .pubws-manifold-label {
+  max-width: 9rem;
+  opacity: 1;
+}
+
+/* The Manifold import dialog. */
+.mfimport { display: flex; flex-direction: column; gap: 0.85rem; }
+.mfimport-head { align-items: flex-start; }
+.mfimport-title {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+.mfimport-head .ticket-close { margin-left: auto; }
+.mfimport-lead {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.mfimport-lead code {
+  font-family: 'JetBrains Mono', monospace;
+  background: var(--bg-tertiary);
+  padding: 0.1rem 0.35rem;
+  border-radius: 5px;
+  color: var(--text-primary);
+}
+.mfimport-done {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--higher);
+}
+
 /* Join Discord (owner ask 2026-08-11): a quiet transparent glyph that
    grows a label on hover/focus. The label width animates so at rest it
    is icon-only and does not crowd the account area. */

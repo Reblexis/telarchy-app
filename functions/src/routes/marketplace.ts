@@ -712,7 +712,12 @@ marketplaceRouter.get('/:workspaceId/card.png', wrap(async (req, res) => {
   const png = renderShareCardPng({
     name: ws.name, metricLabel, unit, consensus: heroConsensus, resolvesOn, history,
   });
-  res.setHeader('Cache-Control', 'public, max-age=300');
+  // Short cache so a shared card stays close to the live price (owner ask
+  // 2026-08-11: the shared link should show the current price). The big
+  // number already renders the current consensus; this keeps re-fetches
+  // fresh. Platforms cache og:images on their own side too, which we
+  // cannot control.
+  res.setHeader('Cache-Control', 'public, max-age=60');
   res.type('png').send(png);
 }));
 

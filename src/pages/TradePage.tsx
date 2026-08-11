@@ -11,6 +11,7 @@ import { FloorComments } from '../components/FloorComments';
 import { LeaderboardRail } from '../components/FloorRails';
 import { AccountMenu } from '../components/AccountMenu';
 import { DiscordButton } from '../components/DiscordButton';
+import { ManifoldButton } from '../components/ManifoldButton';
 import { Logo } from '../components/Logo';
 import type { LeaderboardEntry, LimitOrder } from '../lib/api';
 
@@ -750,6 +751,7 @@ export function TradePage() {
 }
 
 function TopBar({ user, ready }: { user: boolean; ready: boolean }) {
+  const navigate = useNavigate();
   return (
     <nav className="pubws-topbar">
       <Link to="/" className="pubws-logolink" aria-label="Telarchy">
@@ -758,6 +760,7 @@ function TopBar({ user, ready }: { user: boolean; ready: boolean }) {
         <Logo variant="lockup" height="3rem" />
       </Link>
       <div className="pubws-topbar-right">
+        <ManifoldButton signedIn={user} onRequireSignup={() => navigate('/signup')} />
         <DiscordButton />
         {/* Rendered only after the session check settles: while it is
             pending, user is still null, and a signed-in visitor would see
