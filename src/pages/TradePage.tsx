@@ -147,11 +147,12 @@ export function TradePage() {
       .catch(e => console.error('silent join failed:', e));
   }, [ws, user]);
 
-  useEffect(() => {
+  const loadLeaders = () => {
     api.getLeaderboard(5)
       .then(r => setLeaders(r.participants ?? []))
       .catch(e => console.error('leaderboard fetch failed:', e));
-  }, []);
+  };
+  useEffect(loadLeaders, []);
 
   // Once joined (the workspace header is set), ask who we are HERE: an
   // owner/admin membership reveals the decision bar on selected jobs.
@@ -263,6 +264,22 @@ export function TradePage() {
   // Positions belong to the market on screen, so they refetch on a switch.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { setPositions([]); setOrders([]); if (joined) refreshMoney(); }, [joined, activeMarketId]);
+
+  // Live updates (owner ask 2026-08-11: the market updates in real time
+  // for viewers and traders). The floor polls every few seconds so a
+  // price move, a filled limit order, or a new job appears without a
+  // reload. A ref holds the latest closures so the interval never runs a
+  // stale one. Paused while the tab is hidden; a fresh pull the instant it
+  // comes back, so returning to the tab is never stale.
+  const pollRef = useRef<() => void>(() => {});
+  pollRef.current = () => { reload(); loadLeaders(); if (joined) refreshMoney(); };
+  useEffect(() => {
+    const tick = () => { if (typeof document === 'undefined' || !document.hidden) pollRef.current(); };
+    const interval = setInterval(tick, 5000);
+    const onVisible = () => { if (!document.hidden) pollRef.current(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', onVisible); };
+  }, []);
 
   // The ticket owns busy/error/flash UI state; the page owns the money
   // plumbing. Errors propagate by throwing so the ticket can show them

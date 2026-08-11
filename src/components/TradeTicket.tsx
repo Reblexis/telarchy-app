@@ -364,6 +364,7 @@ export function TradeTicket({
         <div className="ticket-pos">
           {orders.map(o => (
             <div key={o.id} className="ticket-pos-row">
+              <div className="ticket-pos-head">
               <span className={`ticket-pos-dir ticket-pos-dir--${o.direction}`}>
                 {o.direction === 'higher' ? '▲' : '▼'} {o.direction}
               </span>
@@ -378,6 +379,7 @@ export function TradeTicket({
               >
                 {busy === `cancel-${o.id}` ? 'Cancelling…' : 'Cancel'}
               </button>
+              </div>
             </div>
           ))}
         </div>
