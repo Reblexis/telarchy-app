@@ -46,24 +46,56 @@ function parseTypes(raw: unknown): ActivityType[] | undefined {
 adminRouter.get('/floor-stats', requireCapability('manage'), wrap(async (_req, res) => {
   const monthAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000);
   const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 3600 * 1000);
+  const dayAgo = new Date(Date.now() - 24 * 3600 * 1000);
   await db.delete(pageVisits).where(lt(pageVisits.ts, monthAgo));
+
+  // Human filter (owner ask 2026-08-11): before launch the log is almost
+  // all crawlers and vuln scanners, so a raw count is meaningless. Drop
+  // anything whose user-agent looks like a bot, and the scanner probe
+  // paths (/wp-admin, /.env, /.git). This is a heuristic, not perfect,
+  // but it turns the numbers into "did a person show up".
+  const humanish = and(
+    sql`coalesce(${pageVisits.userAgent}, '') !~* '(bot|crawl|spider|slurp|bingpreview|facebookexternalhit|python-requests|curl/|wget|headless|scan)'`,
+    sql`${pageVisits.path} !~* '(wp-admin|wp-login|\\.env|\\.git|phpmyadmin|xmlrpc)'`,
+  );
+
+  const window = (base: Date) => and(gte(pageVisits.ts, base), humanish);
 
   const visitsByDay = await db.select({
     day: sql<string>`to_char(${pageVisits.ts}, 'YYYY-MM-DD')`,
     visits: sql<number>`count(*)::int`,
     uniques: sql<number>`count(distinct ${pageVisits.ip})::int`,
-  }).from(pageVisits).where(gte(pageVisits.ts, twoWeeksAgo))
+  }).from(pageVisits).where(window(twoWeeksAgo))
     .groupBy(sql`1`).orderBy(sql`1`);
+
+  // Referer grouped by DOMAIN so a launch channel (manifold.markets,
+  // reddit.com, news.ycombinator.com, discord) aggregates into one row
+  // rather than scattering across full URLs. Own-domain and empty referers
+  // collapse to "direct / on-site".
+  const topReferers = await db.select({
+    source: sql<string>`
+      case
+        when ${pageVisits.referer} is null or ${pageVisits.referer} = '' then 'direct'
+        when ${pageVisits.referer} ~* 'telarchy\\.com' then 'direct'
+        else coalesce(substring(${pageVisits.referer} from '://([^/]+)'), ${pageVisits.referer})
+      end`,
+    visits: sql<number>`count(*)::int`,
+  }).from(pageVisits).where(window(twoWeeksAgo))
+    .groupBy(sql`1`).orderBy(desc(sql`count(*)`)).limit(12);
 
   const topPaths = await db.select({
     path: pageVisits.path, visits: sql<number>`count(*)::int`,
-  }).from(pageVisits).where(gte(pageVisits.ts, twoWeeksAgo))
+  }).from(pageVisits).where(window(twoWeeksAgo))
     .groupBy(pageVisits.path).orderBy(desc(sql`count(*)`)).limit(10);
 
-  const topReferers = await db.select({
-    referer: pageVisits.referer, visits: sql<number>`count(*)::int`,
-  }).from(pageVisits).where(and(gte(pageVisits.ts, twoWeeksAgo), sql`${pageVisits.referer} IS NOT NULL`))
-    .groupBy(pageVisits.referer).orderBy(desc(sql`count(*)`)).limit(10);
+  const [{ visits: visits24h, uniques: uniques24h }] = await db.select({
+    visits: sql<number>`count(*)::int`,
+    uniques: sql<number>`count(distinct ${pageVisits.ip})::int`,
+  }).from(pageVisits).where(window(dayAgo));
+
+  const [{ botVisits }] = await db.select({
+    botVisits: sql<number>`count(*)::int`,
+  }).from(pageVisits).where(and(gte(pageVisits.ts, twoWeeksAgo), sql`not (${humanish})`));
 
   const signupsByDay = await db.select({
     day: sql<string>`to_char(${authUser.createdAt}, 'YYYY-MM-DD')`,
@@ -80,7 +112,8 @@ adminRouter.get('/floor-stats', requireCapability('manage'), wrap(async (_req, r
   const [{ n: totalUsers }] = await db.select({ n: sql<number>`count(*)::int` }).from(authUser);
 
   res.json({
-    visitsByDay, topPaths, topReferers,
+    visits24h: Number(visits24h), uniques24h: Number(uniques24h), botVisits: Number(botVisits),
+    visitsByDay, topReferers, topPaths,
     signupsByDay, recentSignups, totalUsers,
     waitlist: waitlistRows,
   });
