@@ -141,9 +141,13 @@ export async function createConditionalMarkets(
     // already be a bullish claim. Traders then price the upside from an
     // honest zero point. An unfunded baseline has no price; those pairs
     // still open at the center.
-    const [proposalRowForAsk] = await db.select({ askUsd: proposals.askUsd }).from(proposals)
+    const [proposalRowForAsk] = await db.select({ askUsd: proposals.askUsd, title: proposals.title }).from(proposals)
       .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
-    const askUsd = proposalRowForAsk?.askUsd ?? 0;
+    // Rows that predate the askUsd column carry the price only as the
+    // "$N: ..." title convention; parse it back so their approved branch
+    // still opens ask-adjusted.
+    const titleAsk = proposalRowForAsk?.title?.match(/^\$(\d+):/)?.[1];
+    const askUsd = proposalRowForAsk?.askUsd ?? (titleAsk ? parseInt(titleAsk, 10) : 0);
     const anchorFor = (src: typeof sourceMarkets[number], branch: ConditionalBranch): number | null => {
       const c0 = consensus(src.shares as [number, number], src.liquidity, src.rangeMin, src.rangeMax);
       if (c0 === undefined) return null;

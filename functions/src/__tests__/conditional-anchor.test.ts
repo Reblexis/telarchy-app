@@ -79,8 +79,9 @@ function propose(body: Record<string, unknown>) {
 }
 
 async function branchMarkets(proposalId: string) {
-  const rows = await db.select().from(markets)
-    .where(and(eq(markets.workspaceId, WS), eq(markets.proposalId, proposalId)));
+  const rows = (await db.select().from(markets)
+    .where(and(eq(markets.workspaceId, WS), eq(markets.proposalId, proposalId))))
+    .filter(m => !m.resolved);
   const val = (m: typeof rows[number]) =>
     consensus(m.shares as [number, number], m.liquidity, m.rangeMin, m.rangeMax);
   return {
@@ -146,5 +147,25 @@ describe('anchored open solvency', () => {
     const cost = directionTradeCost(shares, 1, 1, b);
     expect(cost).toBeGreaterThan(0.4);
     expect(cost).toBeLessThan(0.6);
+  });
+});
+
+describe('legacy title-priced proposals', () => {
+  test('a "$N:" title with no askUsd column still opens ask-adjusted', async () => {
+    await seed();
+    const res = await propose({ title: '$20: legacy job', description: '', liquiditySubsidy: 20, askUsd: 20, payoutHandle: 'pay@example.com' });
+    expect(res.status).toBe(201);
+    // Simulate the pre-column row: null askUsd, price only in the title.
+    const { proposals: proposalsTable } = require('../db/schema');
+    await db.update(proposalsTable).set({ askUsd: null }).where(eq(proposalsTable.id, res.body.id));
+    // Void the pair and respawn (the rollover path every legacy row takes).
+    const { markets: marketsTable } = require('../db/schema');
+    await db.update(marketsTable).set({ resolved: true, active: false })
+      .where(and(eq(marketsTable.workspaceId, WS), eq(marketsTable.proposalId, res.body.id)));
+    const { createConditionalMarkets } = require('../services/proposals');
+    await createConditionalMarkets(res.body.id, WS, { contributions: { [PROPOSER]: 20 } });
+    const { approved, declined, val } = await branchMarkets(res.body.id);
+    expect(val(approved)).toBeCloseTo(40, 0);
+    expect(val(declined)).toBeCloseTo(60, 0);
   });
 });
