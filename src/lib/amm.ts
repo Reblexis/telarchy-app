@@ -98,3 +98,24 @@ export function resolutionPayouts(actualValue: number, rangeMin: number, rangeMa
   const p = Math.max(0, Math.min(1, (actualValue - rangeMin) / (rangeMax - rangeMin)));
   return [Math.round((1 - p) * 10000) / 10000, Math.round(p * 10000) / 10000];
 }
+
+/**
+ * Credits needed to move the market's probability from `prob` to
+ * `targetProb` (the inverse of previewTrade). Powers betting towards a
+ * value by editing the ticket's "New value" row (owner direction
+ * 2026-08-11): the row that answers "where does my bet leave the
+ * market" also accepts the answer as the question.
+ */
+export function costToMove(prob: number, liquidity: number, targetProb: number): { direction: 'higher' | 'lower'; cost: number } {
+  const b = liquidity;
+  const p = Math.max(0.001, Math.min(0.999, prob));
+  const t = Math.max(0.001, Math.min(0.999, targetProb));
+  const q1 = b * Math.log(p / (1 - p));
+  const direction: 'higher' | 'lower' = t >= p ? 'higher' : 'lower';
+  // Moving higher raises q1 to the target diff; moving lower raises q0.
+  const targetDiff = b * Math.log(t / (1 - t));
+  const cost = direction === 'higher'
+    ? lmsrCost(0, targetDiff, b) - lmsrCost(0, q1, b)
+    : lmsrCost(q1 - targetDiff, q1, b) - lmsrCost(0, q1, b);
+  return { direction, cost: Math.max(0, cost) };
+}

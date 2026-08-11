@@ -167,3 +167,31 @@ describe('resting orders', () => {
     await waitFor(() => expect(onCancelLimit).toHaveBeenCalledWith('ord-1'));
   });
 });
+
+describe('betting towards a value', () => {
+  test('typing a target into New value sets the side and the cost to reach it', () => {
+    render(<TradeTicket {...base} />);
+    fireEvent.click(screen.getByText('Higher'));
+    const target = screen.getByLabelText('Bet the market to this value in $');
+    // Ask for a value below the current call (base probability 0.5 maps
+    // to 250k on this range): the ticket flips to Lower and prices it.
+    fireEvent.focus(target);
+    fireEvent.change(target, { target: { value: '100000' } });
+    const amountInput = screen.getByLabelText('Credits to spend') as HTMLInputElement;
+    expect(Number(amountInput.value)).toBeGreaterThan(0);
+    expect(screen.getByText(/Bet \d+ cr on Lower/)).toBeTruthy();
+    // And above: flips back to Higher.
+    fireEvent.change(target, { target: { value: '400000' } });
+    expect(screen.getByText(/Bet \d+ cr on Higher/)).toBeTruthy();
+  });
+
+  test('an unreachable target caps the amount at the per-market maximum', () => {
+    render(<TradeTicket {...base} />);
+    fireEvent.click(screen.getByText('Higher'));
+    const target = screen.getByLabelText('Bet the market to this value in $');
+    fireEvent.focus(target);
+    fireEvent.change(target, { target: { value: '499000' } });
+    const amountInput = screen.getByLabelText('Credits to spend') as HTMLInputElement;
+    expect(Number(amountInput.value)).toBe(250);
+  });
+});

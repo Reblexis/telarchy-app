@@ -2,7 +2,7 @@ import { db } from '../db/client';
 import { agents, markets, metrics as metricsTable, proposals, trades, systemConfig, liquidityEvents, workspaces } from '../db/schema';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
-import { consensus } from '../lib/amm';
+import { consensus, anchoredMarketState } from '../lib/amm';
 import { voidMarket } from './markets';
 import { AppError } from '../lib/errors';
 import { MIN_LIQUIDITY_CONTRIBUTION, sufficientBalance, toUnits, fromUnits } from '../lib/validation';
@@ -131,6 +131,26 @@ export async function createConditionalMarkets(
       .where(and(eq(markets.workspaceId, workspaceId), eq(markets.resolved, false)));
 
     const sourceMarkets = openMarkets.filter(m => m.active !== false && !m.proposalId && leafMetricIds.has(m.metricId));
+
+    // The anchor (owner decision 2026-08-11): a fresh conditional pair
+    // opens at the BASELINE market's current value, not the range
+    // midpoint, because a pair sitting at the center reads as a forecast
+    // nobody made. The approved branch additionally opens at baseline
+    // minus the job's ask: approving a $200 job burns $200 into the
+    // resolving metric the day it is paid, so "same as baseline" would
+    // already be a bullish claim. Traders then price the upside from an
+    // honest zero point. An unfunded baseline has no price; those pairs
+    // still open at the center.
+    const [proposalRowForAsk] = await db.select({ askUsd: proposals.askUsd }).from(proposals)
+      .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+    const askUsd = proposalRowForAsk?.askUsd ?? 0;
+    const anchorFor = (src: typeof sourceMarkets[number], branch: ConditionalBranch): number | null => {
+      const c0 = consensus(src.shares as [number, number], src.liquidity, src.rangeMin, src.rangeMax);
+      if (c0 === undefined) return null;
+      const value = branch === 'approved' ? c0 - askUsd : c0;
+      const span = src.rangeMax - src.rangeMin;
+      return span > 0 ? (value - src.rangeMin) / span : null;
+    };
     // Desired set is (metric, targetDate, branch) so both branches are tracked.
     const desiredKeys = new Set<string>();
     for (const src of sourceMarkets) {
@@ -157,7 +177,7 @@ export async function createConditionalMarkets(
     // refresh without nuking the already-traded approved-branch markets).
     // liquidity/pool are filled in inside the funding transaction below,
     // once we know which contributors can actually cover this generation.
-    const toSpawn: typeof markets.$inferInsert[] = [];
+    const toSpawn: Array<typeof markets.$inferInsert & { anchorP: number | null }> = [];
     for (const src of sourceMarkets) {
       for (const branch of CONDITIONAL_BRANCHES) {
         const key = keyOf(src.metricId, src.targetDate, branch);
@@ -173,6 +193,7 @@ export async function createConditionalMarkets(
           liquidity: 0,
           pool: 0,
           createdAt: new Date(),
+          anchorP: anchorFor(src, branch),
         });
       }
     }
@@ -253,9 +274,17 @@ export async function createConditionalMarkets(
       }
 
       const effectiveSubsidy = funded.reduce((sum, [, perMarket]) => sum + perMarket, 0);
-      const conditionalLiquidity = effectiveSubsidy > 0 ? effectiveSubsidy / Math.LN2 : 0;
+      // Each branch opens at its anchor with b sized so the subsidy still
+      // covers the worst case exactly (anchoredMarketState); an anchored
+      // open buys its starting price with a slightly thinner book, never
+      // with credits nobody paid in. No anchor (unpriced baseline) means
+      // the classic center open at b = subsidy / ln 2.
       for (const m of newMarkets) {
-        m.liquidity = conditionalLiquidity;
+        const state = m.anchorP === null
+          ? { liquidity: effectiveSubsidy > 0 ? effectiveSubsidy / Math.LN2 : 0, shares: [0, 0] as [number, number] }
+          : anchoredMarketState(effectiveSubsidy, m.anchorP);
+        m.liquidity = state.liquidity;
+        m.shares = state.shares;
         m.pool = effectiveSubsidy;
       }
 
@@ -267,7 +296,8 @@ export async function createConditionalMarkets(
         }).where(eq(agents.id, contributorId));
       }
 
-      await tx.insert(markets).values(newMarkets);
+      // anchorP is spawn-time working state, not a column.
+      await tx.insert(markets).values(newMarkets.map(({ anchorP: _a, ...row }) => row));
 
       if (funded.length > 0) {
         const liqRows = newMarkets.flatMap(m => funded.map(([contributorId, perMarket]) => ({
@@ -277,7 +307,7 @@ export async function createConditionalMarkets(
           agentId: contributorId,
           amount: perMarket,
           poolContribution: perMarket,
-          totalLiquidity: conditionalLiquidity,
+          totalLiquidity: m.liquidity as number,
           type: 'proposal-subsidy',
           createdAt: new Date(),
         })));

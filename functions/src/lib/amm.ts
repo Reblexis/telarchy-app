@@ -117,6 +117,30 @@ export function initialPool(b: number): number {
   return roundCredits(b * Math.log(2));
 }
 
+/**
+ * Open a market AT a chosen probability instead of the 50/50 center
+ * (owner decision 2026-08-11: a job's conditional markets open at the
+ * baseline market's current value, because a fresh pair sitting at the
+ * range midpoint reads as a forecast nobody made).
+ *
+ * Solvency is the constraint: an LMSR maker that starts at price p and
+ * collects nothing for getting there has a worst-case loss of
+ * b * -ln(min(p, 1-p)), not b * ln 2. Given a fixed cash subsidy, this
+ * therefore sizes b DOWN so the subsidy still covers the worst case
+ * exactly; an off-center open buys its anchor with a slightly thinner
+ * book rather than with credits that were never paid in.
+ */
+export function anchoredMarketState(subsidy: number, p: number): { liquidity: number; shares: [number, number] } {
+  if (subsidy <= 0) return { liquidity: 0, shares: [0, 0] };
+  // Clamp: at the extremes the seed shares (and worst-case loss) diverge.
+  const p0 = Number.isFinite(p) ? Math.min(0.98, Math.max(0.02, p)) : 0.5;
+  const worstCase = Math.max(-Math.log(p0), -Math.log(1 - p0));
+  const b = subsidy / worstCase;
+  const diff = b * Math.log(p0 / (1 - p0));
+  const shares: [number, number] = diff >= 0 ? [0, roundCredits(diff)] : [roundCredits(-diff), 0];
+  return { liquidity: b, shares };
+}
+
 export const AMM_DEFAULTS = {
   rangeMin: 0,
   rangeMax: 1000,

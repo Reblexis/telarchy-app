@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { previewSell, previewTrade } from '../lib/amm';
+import { costToMove, previewSell, previewTrade } from '../lib/amm';
 import type { LimitOrder } from '../lib/api';
 
 /**
@@ -94,6 +94,11 @@ export function TradeTicket({
   const [amount, setAmount] = useState('25');
   const [mode, setMode] = useState<'quick' | 'limit'>('quick');
   const [limit, setLimit] = useState('');
+  // Betting towards a value (owner direction 2026-08-11) without a new
+  // field: the "New value" row is editable while focused. Typing a target
+  // sets the side and the amount to whatever reaches it (capped at
+  // MAX_BET); blurring returns the row to the derived display.
+  const [targetDraft, setTargetDraft] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [placed, setPlaced] = useState(false);
   const [error, setError] = useState('');
@@ -414,11 +419,31 @@ export function TradeTicket({
       )}
 
       <div className="ticket-facts">
-        {!isLimit && newValue !== null && consensus !== null && (
+        {!isLimit && newValue !== null && consensus !== null && span !== null && rangeMin !== undefined && (
           <div className="ticket-fact">
             <span className="ticket-fact-k">New value</span>
             <span className="ticket-fact-v">
-              {unit}{fmtValue(newValue)}
+              {unit}
+              <input
+                className="ticket-newvalue"
+                value={targetDraft ?? fmtValue(newValue)}
+                style={{ width: `${Math.max(2, (targetDraft ?? fmtValue(newValue)).length)}ch` }}
+                onFocus={e => { setTargetDraft(fmtValue(newValue).replace(/,/g, '')); e.currentTarget.select(); }}
+                onBlur={() => setTargetDraft(null)}
+                onChange={e => {
+                  const raw = e.target.value.replace(/[^0-9.]/g, '');
+                  setTargetDraft(raw);
+                  const t = parseFloat(raw);
+                  if (!Number.isFinite(t)) return;
+                  const clamped = Math.min(rangeMin + span * 0.999, Math.max(rangeMin + span * 0.001, t));
+                  const { direction, cost } = costToMove(probability, liquidity, (clamped - rangeMin) / span);
+                  setDir(direction);
+                  setAmount(String(Math.min(MAX_BET, Math.max(1, Math.ceil(cost)))));
+                }}
+                inputMode="decimal"
+                aria-label={`Bet the market to this value in ${unit || 'metric units'}`}
+                title="Type a value to bet the market there"
+              />
               <span className={`ticket-fact-d ${newValue >= consensus ? 'is-up' : 'is-down'}`}>
                 {' '}{newValue >= consensus ? '↑' : '↓'}{unit}{fmtValue(Math.abs(newValue - consensus))}
               </span>

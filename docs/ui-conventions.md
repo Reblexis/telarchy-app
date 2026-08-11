@@ -207,6 +207,23 @@ at-the-range-edge maximum: payout is linear in the settled value, so the
 rows read "New value" (with the delta the bet would cause), "Wins above
 $74,300", "Each $10k beyond +3.1 cr", as a small hairline-ruled table.
 The confirm is full width, tinted by the side ("Bet 25 cr on Higher").
+The "New value" fact row is an INPUT (owner direction 2026-08-11:
+betting towards a value without a new field): the numeral that answers
+"where does my bet leave the market" also accepts the answer as the
+question. Focus it, type a target, and the ticket sets the side
+(auto-flipping across the current call) and the amount to whatever
+reaches that value, capped at the per-market maximum; blur returns the
+row to the derived display. The dotted underline is the affordance.
+
+Conditional (job) markets open ANCHORED (owner decision 2026-08-11):
+a fresh pair opens at the baseline market's current value rather than
+the range midpoint, and the approved branch opens at baseline minus the
+job's ask, because approval burns the ask into the resolving metric the
+day it is paid. Solvency is preserved by sizing the LMSR b down so the
+subsidy exactly covers the anchored worst case (`anchoredMarketState`
+in functions/src/lib/amm.ts); an off-center open buys its anchor with a
+slightly thinner book, never with unminted credits.
+
 Progressive disclosure survives the card: an untouched ticket is only
 the two side pills, and the card grows when a side is picked. Limit mode
 swaps in a price input in the same underlined register and the confirm

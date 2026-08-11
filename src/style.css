@@ -9237,6 +9237,31 @@ textarea.jobform-line--desc {
   color: var(--text-primary);
 }
 
+/* The New value numeral is an input: type a target and the ticket sets
+   the side and the cost to reach it (betting towards a value without a
+   new field). The dotted underline is the whole affordance. */
+.ticket-newvalue {
+  appearance: none;
+  -webkit-appearance: none;
+  height: auto;
+  padding: 0;
+  border: none;
+  border-bottom: 1px dotted var(--border-strong);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  text-align: right;
+  transition: border-color 120ms ease;
+}
+.ticket-newvalue:hover { border-bottom-color: var(--border-hover); }
+.ticket-newvalue:focus {
+  outline: none;
+  box-shadow: none;
+  border-bottom: 1px solid var(--accent);
+}
+
 .ticket-fact-d { font-weight: 600; font-size: 0.82rem; }
 .ticket-fact-d.is-up { color: var(--higher); }
 .ticket-fact-d.is-down { color: var(--lower); }
