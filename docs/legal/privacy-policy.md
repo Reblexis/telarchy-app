@@ -1,8 +1,6 @@
 # Privacy Policy
 
-_Last updated: 2026-04-11_
-
-<!-- Internal note: initial draft; should be reviewed by qualified counsel before production. Rendered as HTML comment so it does not appear in the user-facing page. -->
+_Last updated: 2026-08-11 (version 1.1)_
 
 This Privacy Policy explains what information the Telarchy managed instance at `telarchy.com` (the "Service") collects about you, how we use it, and your rights regarding it.
 
@@ -10,11 +8,14 @@ This Privacy Policy explains what information the Telarchy managed instance at `
 
 We collect only what is necessary to operate the Service:
 
-- **Account data**: email address and a password hash (managed by BetterAuth). If you sign in with Google or GitHub, we receive the profile fields that provider returns (typically email and user id).
+- **Account data**: email address, optional display name (nickname), and a password hash (managed by BetterAuth). If you sign in with Google or GitHub, we receive the profile fields that provider returns (typically email, name, and user id).
 - **Consent record**: the timestamp and version of Terms and Privacy Policy you agreed to at signup.
 - **Workspace and trading data**: metrics, formulas, market prices, trades, positions, proposals, and messages you create or interact with inside your workspaces.
 - **Request logs**: IP address, user-agent, and basic request metadata retained for security, rate limiting, and debugging.
 - **Optional wallet address**: only collected if you choose to use USDC settlement on an instance where it is enabled. The managed instance runs with USDC settlement disabled by default, so no wallet address is collected there.
+- **Payment details for paid jobs**: only if you choose to store them, we collect the payment method you enter (for example a PayPal or Wise email, an IBAN and account holder name, a crypto address, or a Revolut handle). They exist solely so a workspace owner can pay you for an approved job. They are never public: they are visible only to you, to managers of a workspace where you propose a paid job, and as a snapshot on paid jobs you list.
+- **Contact requests**: if you leave your email on a public floor asking to be set up, we store that email and use it only to contact you about it.
+- **Manifold import**: if you choose to link a Manifold account, we fetch that account's public profile (username, bio, balances) from Manifold's public API to verify ownership and set your starting credits, and we store the link and the granted amount.
 
 We do not use third-party analytics, tracking cookies, or advertising SDKs.
 
@@ -39,12 +40,13 @@ We do not sell personal data. We share data only with service providers strictly
 - **Google Cloud Platform** (Cloud Run hosting and Cloud SQL for PostgreSQL), which processes data on our behalf.
 - **Base RPC provider**, only for read/write operations against the Base blockchain when USDC settlement is enabled on the instance.
 - **OAuth providers** (Google, GitHub) if you choose to sign in through them.
+- **Resend** (transactional email delivery), which processes recipient email addresses on our behalf when the Service sends operational email (for example notifying a workspace owner of a new proposal or signup request).
 
 We may also disclose information where required by law or to protect our rights and the safety of users.
 
 ## 5. Retention
 
-Account data is retained while your account is active. When you delete your account via `DELETE /api/auth/me`, we detach your login credentials and profile from the underlying participant record so you can no longer sign in; market trading history remains associated with an anonymized participant identifier for platform integrity. Request logs are retained for a rolling window (typically 30 days) for security and debugging purposes.
+Account data is retained while your account is active. When you delete your account via `DELETE /api/auth/me`, we detach your login credentials and profile from the underlying participant record so you can no longer sign in; market trading history remains associated with an anonymized participant identifier for platform integrity. Stored payment details, your bio, and your nickname are deleted with the account; payment details already snapshotted onto a paid job you listed are retained as the payment record of that transaction. Request logs are retained for a rolling window (typically 30 days) for security and debugging purposes.
 
 ## 6. Your rights
 

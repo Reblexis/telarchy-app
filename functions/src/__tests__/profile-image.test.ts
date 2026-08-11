@@ -205,3 +205,18 @@ describe('structured payment method', () => {
     expect(handle).toBe('pay me by carrier pigeon');
   });
 });
+
+describe('account deletion wipes payment PII', () => {
+  test('payout method, summary, bio, and nickname are gone after DELETE /me', async () => {
+    await request(app).post('/api/auth/profile')
+      .send({ payoutMethod: { provider: 'paypal', email: 'p@x.com' }, bio: 'I stream sims.' });
+    const res = await request(app).delete('/api/auth/me');
+    expect(res.status).toBe(204);
+    const [row] = await db.select().from(agents).where(eq(agents.id, AGENT));
+    expect(row.payoutHandle).toBeNull();
+    expect(row.payoutMethod).toBeNull();
+    expect(row.bio).toBeNull();
+    expect(row.nickname).toBeNull();
+    expect(row.authUserId).toBeNull();
+  });
+});

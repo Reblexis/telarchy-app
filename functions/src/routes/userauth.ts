@@ -314,7 +314,14 @@ userauthRouter.delete('/me', requireIdentity, wrap(async (req, res) => {
     // authentication path and human-identifiable field.
     await tx.delete(agentApiKeys).where(eq(agentApiKeys.agentId, participantId));
     await tx.update(agents)
-      .set({ authUserId: null, nickname: null, walletAddress: null, intent: null })
+      .set({
+        authUserId: null, nickname: null, walletAddress: null, intent: null,
+        // Payment details and the freeform bio are PII; deletion wipes
+        // them (privacy policy section 5). Proposal-level payout
+        // snapshots on already-listed paid jobs are the payment record
+        // of a live or completed transaction and are retained.
+        payoutHandle: null, payoutMethod: null, bio: null,
+      })
       .where(eq(agents.id, participantId));
     if (uid) {
       // Browser-account user: tear down BetterAuth rows (login + sessions).
@@ -375,6 +382,11 @@ userauthRouter.get('/me/export', requireIdentity, requireScope('account:read'), 
     withdrawnUsdc: participantRow.withdrawnUsdc,
     platformAdmin: participantRow.platformAdmin,
     intent: participantRow.intent,
+    // Payment details are the caller's own PII: the export must carry
+    // them for the access right to be complete (privacy policy s.6).
+    payoutHandle: participantRow.payoutHandle,
+    payoutMethod: participantRow.payoutMethod,
+    bio: participantRow.bio,
     createdAt: participantRow.createdAt,
     approvedAt: participantRow.approvedAt,
   } : null;
