@@ -207,6 +207,15 @@ at-the-range-edge maximum: payout is linear in the settled value, so the
 rows read "New value" (with the delta the bet would cause), "Wins above
 $74,300", "Each $10k beyond +3.1 cr", as a small hairline-ruled table.
 The confirm is full width, tinted by the side ("Bet 25 cr on Higher").
+Under the bet buttons sits the conversation (owner ask 2026-08-11): a
+quiet "Comments (N)" toggle expanding the thread in place, hairline
+rows, mono names, and the underline composer for signed-in traders
+("Sign up to join the conversation" otherwise). The subject follows the
+one view: the baseline market's thread normally, the selected job's
+proposal thread when one is open. Reading is public via
+GET /api/marketplace/:idOrSlug/comments (Open workspaces only); writing
+uses the same authenticated message endpoints API participants use.
+
 A manage-capable session (the owner) gets a decision bar on a selected
 job (owner ask 2026-08-11): "Approve, pay $N" as the one money-colored
 pill, and Decline, which opens the published-reason field in place (the

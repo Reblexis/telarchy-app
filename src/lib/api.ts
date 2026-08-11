@@ -599,6 +599,11 @@ export const api = {
   sendProposalMessage: (id: string, content: string) =>
     request(`/api/proposals/${id}/messages`, { method: 'POST', body: JSON.stringify({ content }) }),
 
+  /** Public floor read: the thread under a market or a proposal, no
+      account needed (Open workspaces only). */
+  getFloorComments: (idOrSlug: string, q: { marketId?: string; proposalId?: string }): Promise<Array<{ id: string; fromName: string; content: string; createdAt: string }>> =>
+    request(`/api/marketplace/${encodeURIComponent(idOrSlug)}/comments?${q.proposalId ? `proposalId=${encodeURIComponent(q.proposalId)}` : `marketId=${encodeURIComponent(q.marketId ?? '')}`}`, {}, true),
+
   getMarketMessages: (marketId: string) =>
     request(`/api/predictions/markets/${encodeURIComponent(marketId)}/messages`),
   sendMarketMessage: (marketId: string, content: string) =>

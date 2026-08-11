@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/client';
-import { workspaces, markets, metrics, metricLogs, agents, trades, permissionGroups, proposals } from '../db/schema';
-import { eq, and, gt, gte, count, desc, inArray, sql } from 'drizzle-orm';
+import { workspaces, markets, metrics, metricLogs, agents, trades, permissionGroups, proposals, proposalMessages, marketMessages } from '../db/schema';
+import { eq, and, gt, gte, count, desc, asc, inArray, sql } from 'drizzle-orm';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireIdentity } from '../middleware/roles';
@@ -559,6 +559,45 @@ marketplaceRouter.get('/:workspaceId/markets/:marketId/history', wrap(async (req
 
   const points = await replayMarketTradePoints(market.id, ws.id);
   res.json({ history: points.slice(-500).map(pt => ({ at: pt.createdAt, consensus: pt.consensus })) });
+}));
+
+/**
+ * Comments, publicly readable on the floor (owner ask 2026-08-11): the
+ * conversation under the market and under each job is part of what a
+ * visitor sizes up before signing up, so reading it must not require an
+ * account. Same Open-workspace disclosure rule as the ballot and the
+ * history: if the Public group cannot read, neither can this. Posting
+ * stays on the authenticated routes (markets/:id/messages,
+ * proposals/:id/messages).
+ */
+marketplaceRouter.get('/:workspaceId/comments', wrap(async (req, res) => {
+  const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
+  if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
+  if (ws.visibility === 'private') { res.status(403).json({ error: 'This workspace is private' }); return; }
+
+  const [publicGroup] = await db.select().from(permissionGroups)
+    .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
+  const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
+  if (!publicCaps.includes('read')) { res.status(403).json({ error: 'Not public' }); return; }
+
+  const marketId = typeof req.query.marketId === 'string' ? req.query.marketId : null;
+  const proposalId = typeof req.query.proposalId === 'string' ? req.query.proposalId : null;
+  if (!marketId && !proposalId) { res.status(400).json({ error: 'Pass marketId or proposalId' }); return; }
+
+  let rows: Array<{ id: string; from: string; content: string; createdAt: Date }>;
+  if (proposalId) {
+    rows = await db.select().from(proposalMessages)
+      .where(and(eq(proposalMessages.workspaceId, ws.id), eq(proposalMessages.proposalId, proposalId)))
+      .orderBy(asc(proposalMessages.createdAt));
+  } else {
+    rows = await db.select().from(marketMessages)
+      .where(and(eq(marketMessages.workspaceId, ws.id), eq(marketMessages.marketId, marketId!)))
+      .orderBy(asc(marketMessages.createdAt));
+  }
+  const names = await getParticipantDisplayNames(rows.map(m => m.from));
+  res.json(rows.slice(-200).map(m => ({
+    id: m.id, fromName: names.get(m.from) ?? 'anonymous', content: m.content, createdAt: m.createdAt,
+  })));
 }));
 
 /**

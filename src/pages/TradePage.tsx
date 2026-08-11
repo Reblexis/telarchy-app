@@ -7,6 +7,7 @@ import { TradeTicket, type TicketPosition } from '../components/TradeTicket';
 import { FloorModal } from '../components/FloorModal';
 import { useAnimatedNumber } from '../lib/useAnimatedNumber';
 import { JobsBoard, splitAsk } from '../components/JobsBoard';
+import { FloorComments } from '../components/FloorComments';
 import { LeaderboardRail } from '../components/FloorRails';
 import { AccountMenu } from '../components/AccountMenu';
 import { Logo } from '../components/Logo';
@@ -572,6 +573,17 @@ export function TradePage() {
                 {orders.length > 0 ? `${orders.length} resting order${orders.length > 1 ? 's' : ''}` : ''}
                 {' '}→ manage
               </button>
+            )}
+            {/* The conversation under whatever the one view shows: the
+                baseline market's thread, or the selected job's (owner ask
+                2026-08-11). */}
+            {idOrSlug && (
+              <FloorComments
+                idOrSlug={idOrSlug}
+                subject={selectedJob ? { proposalId: selectedJob.id } : hero ? { marketId: hero.marketId } : {}}
+                canPost={!!user && joined}
+                onRequireSignup={() => navigate('/signup')}
+              />
             )}
           </section>
         ) : null}

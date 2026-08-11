@@ -428,7 +428,17 @@ export function TradeTicket({
                 className="ticket-newvalue"
                 value={targetDraft ?? fmtValue(newValue)}
                 style={{ width: `${Math.max(2, (targetDraft ?? fmtValue(newValue)).length)}ch` }}
-                onFocus={e => { setTargetDraft(fmtValue(newValue).replace(/,/g, '')); e.currentTarget.select(); }}
+                onFocus={e => {
+                  setTargetDraft(fmtValue(newValue).replace(/,/g, ''));
+                  // A plain select() dies when the mouse click that caused
+                  // the focus lands and collapses the selection to a caret,
+                  // so a real mouse user TYPES INTO the old number (caught
+                  // by the 2026-08-11 VM smoke: "74100" became
+                  // "7674100840"). Selecting on the next frame outlives
+                  // the click.
+                  const el = e.currentTarget;
+                  requestAnimationFrame(() => el.select());
+                }}
                 onBlur={() => setTargetDraft(null)}
                 onChange={e => {
                   const raw = e.target.value.replace(/[^0-9.]/g, '');
