@@ -7555,6 +7555,10 @@ code, pre, kbd, samp {
 }
 
 .pubws-section { margin-top: clamp(2.6rem, 7vh, 3.8rem); }
+/* Inside a rail the section is the first thing there is: the page-flow
+   section gap above it pushed "Jobs" ~50px below "Top traders" (owner
+   bug report 2026-08-11; the rails' own margin is the only offset). */
+.pubws-rail .pubws-section { margin-top: 0; }
 
 .pubws-h2 {
   margin: 0 0 0.8rem;
