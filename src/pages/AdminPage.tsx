@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { FloorStatsPanel } from '../components/FloorStatsPanel';
 import { useAuth } from '../hooks/useAuth';
 import { useWorkspace } from '../hooks/useWorkspace';
 import { api, type ActivityItem } from '../lib/api';
@@ -203,6 +204,8 @@ export function AdminPage() {
             isPlatformAdmin={isPlatformAdmin}
           />
         )}
+
+        {isPlatformAdmin && <FloorStatsPanel />}
 
         {isPlatformAdmin && <FeedbackInbox />}
 

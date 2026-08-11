@@ -10,6 +10,7 @@ import { hashKey } from '../middleware/auth';
 import { getAuthWorkspaceMemberships, getUserWorkspaceMemberships } from '../middleware/auth';
 import { toUnits, SIGNUP_CREDITS, normalizeBio } from '../lib/validation';
 import { claimNickname } from '../lib/participants';
+import { AppError } from '../lib/errors';
 import { normalizePayoutMethod, payoutSummary, type PayoutMethod } from '../lib/payout';
 
 export const userauthRouter = Router();
@@ -40,6 +41,30 @@ async function ensureParticipant(uid: string): Promise<{ participantId: string; 
     createdAt: now,
     approvedAt: now,
   });
+
+  // The public identity must be UNIQUE (owner direction 2026-08-11): the
+  // signup "display name" is free text two people can share, so it never
+  // shows publicly on its own. Auto-claim a unique nickname derived from
+  // it (slugified, numbered on collision); the account dialog can change
+  // it later. Best-effort: an unclaimable name leaves the raw id as the
+  // handle rather than failing signup.
+  try {
+    const [authRow] = await db.select({ name: authUser.name }).from(authUser).where(eq(authUser.id, uid));
+    const base = (authRow?.name ?? '')
+      .toLowerCase().trim()
+      .replace(/[\s.]+/g, '-')
+      .replace(/[^a-z0-9_-]/g, '')
+      .replace(/^[-_]+|[-_]+$/g, '')
+      .slice(0, 26) || 'trader';
+    const padded = base.length >= 3 ? base : `${base}-${participantId.slice(0, 4).toLowerCase()}`;
+    for (let n = 0; n < 20; n++) {
+      const candidate = n === 0 ? padded : `${padded}-${n + 1}`;
+      try { await claimNickname(db, participantId, candidate); break; }
+      catch (e) { if (!(e instanceof AppError) || (e as AppError).status !== 409) throw e; }
+    }
+  } catch (e) {
+    console.error(`ensureParticipant: nickname auto-claim failed for ${participantId}:`, e);
+  }
 
   return { participantId, isNew: true };
 }

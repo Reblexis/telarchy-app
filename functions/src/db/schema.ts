@@ -478,6 +478,19 @@ export const proposals = pgTable('proposals', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
 
+/** One row per document load the server serves on the public floor
+ *  (owner ask 2026-08-11): launch traffic beside signups on /admin.
+ *  Request-log data per the privacy policy; purged past 30 days when
+ *  the stats endpoint reads. */
+export const pageVisits = pgTable('page_visits', {
+  id: text('id').primaryKey(),
+  ts: timestamp('ts').notNull().defaultNow(),
+  path: text('path').notNull(),
+  referer: text('referer'),
+  userAgent: text('user_agent'),
+  ip: text('ip'),
+});
+
 export const proposalMessages = pgTable('proposal_messages', {
   id: text('id').notNull(),
   workspaceId: text('workspace_id').notNull(),

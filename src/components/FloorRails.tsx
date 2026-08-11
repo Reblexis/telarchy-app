@@ -34,8 +34,11 @@ export function LeaderboardRail({ entries: all }: { entries: LeaderboardEntry[] 
           <li key={e.id} className="pubws-lb-row">
             <span className="pubws-lb-rank">{e.rank ?? i + 1}</span>
             {/* The API resolves nickname or account name; when neither
-                exists, "anonymous" beats printing a 32-char key id. */}
-            <span className="pubws-lb-name">{e.nickname || 'anonymous'}</span>
+                exists, "anonymous" beats printing a 32-char key id. The
+                name links to the public profile (owner ask 2026-08-11). */}
+            <a className="pubws-lb-name pubws-name-link" href={`/participants/${encodeURIComponent(e.nickname ?? e.id)}`}>
+              {e.nickname || 'anonymous'}
+            </a>
             <span className="pubws-lb-score">
               {e.totalEarnings >= 1
                 ? `+${Math.round(e.totalEarnings)} cr`

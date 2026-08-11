@@ -3,8 +3,8 @@ import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
 import { getActivityFeed, ACTIVITY_TYPES, type ActivityType } from '../services/activity';
 import { db } from '../db/client';
-import { agents, agentTraces, agentHeartbeats, agentControls, markets, workspaces } from '../db/schema';
-import { and, desc, eq, gte, lte, inArray } from 'drizzle-orm';
+import { agents, agentTraces, agentHeartbeats, agentControls, markets, workspaces, pageVisits, authUser, waitlist } from '../db/schema';
+import { and, desc, eq, gte, lte, inArray, lt, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { AppError } from '../lib/errors';
 import { resolutionInstant } from '../lib/date-utils';
@@ -35,6 +35,56 @@ function parseTypes(raw: unknown): ActivityType[] | undefined {
   const filtered = parts.filter((t): t is ActivityType => known.includes(t));
   return filtered.length > 0 ? filtered : undefined;
 }
+
+/**
+ * Launch dashboard (owner ask 2026-08-11): visitors and signups in one
+ * place. Visits come from the server-side document-load log (purged
+ * past 30 days on every read, per the privacy policy's request-log
+ * window); signups from the auth user table; the floor's contact
+ * requests from the waitlist.
+ */
+adminRouter.get('/floor-stats', requireCapability('manage'), wrap(async (_req, res) => {
+  const monthAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000);
+  const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 3600 * 1000);
+  await db.delete(pageVisits).where(lt(pageVisits.ts, monthAgo));
+
+  const visitsByDay = await db.select({
+    day: sql<string>`to_char(${pageVisits.ts}, 'YYYY-MM-DD')`,
+    visits: sql<number>`count(*)::int`,
+    uniques: sql<number>`count(distinct ${pageVisits.ip})::int`,
+  }).from(pageVisits).where(gte(pageVisits.ts, twoWeeksAgo))
+    .groupBy(sql`1`).orderBy(sql`1`);
+
+  const topPaths = await db.select({
+    path: pageVisits.path, visits: sql<number>`count(*)::int`,
+  }).from(pageVisits).where(gte(pageVisits.ts, twoWeeksAgo))
+    .groupBy(pageVisits.path).orderBy(desc(sql`count(*)`)).limit(10);
+
+  const topReferers = await db.select({
+    referer: pageVisits.referer, visits: sql<number>`count(*)::int`,
+  }).from(pageVisits).where(and(gte(pageVisits.ts, twoWeeksAgo), sql`${pageVisits.referer} IS NOT NULL`))
+    .groupBy(pageVisits.referer).orderBy(desc(sql`count(*)`)).limit(10);
+
+  const signupsByDay = await db.select({
+    day: sql<string>`to_char(${authUser.createdAt}, 'YYYY-MM-DD')`,
+    signups: sql<number>`count(*)::int`,
+  }).from(authUser).where(gte(authUser.createdAt, twoWeeksAgo))
+    .groupBy(sql`1`).orderBy(sql`1`);
+
+  const recentSignups = await db.select({
+    email: authUser.email, name: authUser.name, createdAt: authUser.createdAt,
+  }).from(authUser).orderBy(desc(authUser.createdAt)).limit(25);
+
+  const waitlistRows = await db.select().from(waitlist).orderBy(desc(waitlist.createdAt)).limit(50);
+
+  const [{ n: totalUsers }] = await db.select({ n: sql<number>`count(*)::int` }).from(authUser);
+
+  res.json({
+    visitsByDay, topPaths, topReferers,
+    signupsByDay, recentSignups, totalUsers,
+    waitlist: waitlistRows,
+  });
+}));
 
 adminRouter.get('/activity', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;

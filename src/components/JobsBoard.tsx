@@ -143,7 +143,26 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
                   <span className="pubws-ballot-main">
                     <span className="pubws-ballot-title">{titleRest}</span>
                     <span className="pubws-ballot-facts">
-                      {p.proposedByName && <span>by {p.proposedByName}</span>}
+                      {/* A link cannot nest inside the row button, so the
+                          name is a span that navigates; stopPropagation
+                          keeps the row from also selecting. */}
+                      {p.proposedByName && (
+                        p.proposedByHandle
+                          ? (
+                            <span>by{' '}
+                              <span
+                                className="pubws-name-link"
+                                role="link"
+                                tabIndex={0}
+                                onClick={ev => { ev.stopPropagation(); window.location.href = `/participants/${encodeURIComponent(p.proposedByHandle!)}`; }}
+                                onKeyDown={ev => { if (ev.key === 'Enter') { ev.stopPropagation(); window.location.href = `/participants/${encodeURIComponent(p.proposedByHandle!)}`; } }}
+                              >
+                                {p.proposedByName}
+                              </span>
+                            </span>
+                          )
+                          : <span>by {p.proposedByName}</span>
+                      )}
                       {askUsd !== null && <span>asks ${askUsd}</span>}
                     </span>
                   </span>

@@ -478,6 +478,10 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
         description: p.description,
         askUsd: p.askUsd ?? null,
         proposedByName: names.get(p.proposedBy) ?? null,
+        // The linkable handle for the public profile page: prefer the
+        // unique nickname, fall back to the raw participant id, which the
+        // profile endpoint also resolves (owner ask 2026-08-11).
+        proposedByHandle: p.proposedBy,
         createdAt: p.createdAt,
         marketPairCount: pairs.length,
         markets: pairs.slice(0, 3),

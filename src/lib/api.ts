@@ -282,6 +282,9 @@ export interface PublicProposal {
    *  predate the field. */
   askUsd?: number | null;
   proposedByName: string | null;
+  /** Resolvable segment for /participants/:id (participant id; the page
+   *  also resolves nicknames). */
+  proposedByHandle?: string;
   createdAt: string;
   /** Total conditional pairs; `markets` carries only the largest-impact few. */
   marketPairCount: number;
@@ -601,6 +604,9 @@ export const api = {
 
   /** Public floor read: the thread under a market or a proposal, no
       account needed (Open workspaces only). */
+  /** Admin launch dashboard: floor visits, signups, waitlist. */
+  getFloorStats: () => request('/api/admin/floor-stats'),
+
   getFloorComments: (idOrSlug: string, q: { marketId?: string; proposalId?: string }): Promise<Array<{ id: string; fromName: string; content: string; createdAt: string }>> =>
     request(`/api/marketplace/${encodeURIComponent(idOrSlug)}/comments?${q.proposalId ? `proposalId=${encodeURIComponent(q.proposalId)}` : `marketId=${encodeURIComponent(q.marketId ?? '')}`}`, {}, true),
 

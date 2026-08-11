@@ -129,6 +129,23 @@ import('./app').then(async ({ app }) => {
     // path is exactly `/api`, matching this boundary.
     app.get('*', async (req, res) => {
       if (req.path === '/api' || req.path.startsWith('/api/')) return;
+      // Visitor log (owner ask 2026-08-11): one row per document load,
+      // fire-and-forget so a slow insert never delays the page. Surfaced
+      // on /admin; request-log data per the privacy policy, purged past
+      // 30 days when the stats endpoint reads.
+      (async () => {
+        const { db } = await import('./db/client');
+        const { pageVisits } = await import('./db/schema');
+        const { randomUUID } = await import('crypto');
+        const fwd = String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim();
+        await db.insert(pageVisits).values({
+          id: randomUUID(),
+          path: req.path.slice(0, 200),
+          referer: String(req.headers.referer ?? '').slice(0, 300) || null,
+          userAgent: String(req.headers['user-agent'] ?? '').slice(0, 300) || null,
+          ip: (fwd || req.socket.remoteAddress || '').slice(0, 60) || null,
+        });
+      })().catch(e => console.error('visit log failed:', e));
       const indexPath = path.join(publicDir, 'index.html');
       // Workspace share links get their own unfurl card: link scrapers do not
       // run JavaScript, so the workspace name/description must be in the HTML

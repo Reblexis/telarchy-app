@@ -98,6 +98,10 @@ export function App() {
           {/* The share-link landing renders standalone: a stranger's first
               screen must be a poster, not an app shell with a sidebar. */}
           <Route path="/marketplace/:workspaceId" element={<TradePage />} />
+          {/* Public profiles (owner ask 2026-08-11): a trader's name on the
+              floor links here, so the page cannot sit behind the alpha
+              wall. Shell-agnostic page; renders bare for visitors. */}
+          <Route path="/participants/:id" element={<ParticipantProfilePage />} />
           <Route element={<AlphaGate />}>
           <Route path="/home" element={<LandingPage />} />
           <Route path="/claim" element={<ClaimPage />} />
@@ -114,7 +118,6 @@ export function App() {
             <Route path="/marketplace/:workspaceId/:tab" element={<MarketplaceTabRedirect />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
             <Route path="/benchmark" element={<BenchmarkPage />} />
-            <Route path="/participants/:id" element={<ParticipantProfilePage />} />
             <Route path="/guides" element={<GuidesPage />} />
             <Route path="/guides/:section" element={<GuidesPage />} />
             <Route path="/tutorials" element={<TutorialsPage />} />
