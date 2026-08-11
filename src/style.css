@@ -9322,7 +9322,10 @@ textarea.jobform-line--desc {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.75rem;
   color: var(--text-secondary);
+  white-space: nowrap;
 }
+.pubws-lb-score.is-up { color: var(--higher); }
+.pubws-lb-score.is-down { color: var(--lower); }
 
 .pubws-log-item {
   display: flex;

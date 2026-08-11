@@ -53,10 +53,10 @@ export function LeaderboardRail({ entries: all }: { entries: LeaderboardEntry[] 
                   </span>
                 )}
               </a>
-              <span className="pubws-lb-score">
-                {e.totalEarnings >= 1
-                  ? `+${Math.round(e.totalEarnings)} cr`
-                  : `${e.totalTrades} trade${e.totalTrades === 1 ? '' : 's'}`}
+              {/* Profit, realized + open positions (owner 2026-08-11):
+                  the board ranks on it, so the row shows it, signed. */}
+              <span className={`pubws-lb-score${e.totalEarnings > 0 ? ' is-up' : e.totalEarnings < 0 ? ' is-down' : ''}`}>
+                {e.totalEarnings > 0 ? '+' : ''}{Math.round(e.totalEarnings).toLocaleString('en-US')} cr
               </span>
             </li>
           );

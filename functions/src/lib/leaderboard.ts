@@ -146,6 +146,11 @@ export function computeLeaderboardFromAggregates(
   positionsList: LeaderboardPosition[],
   nicknameById: Map<string, string | null>,
   limit: number,
+  /** Unrealized PnL on OPEN positions marked to current price, by agent
+   *  (owner direction 2026-08-11: rank by total profit, positions
+   *  included). Added into totalEarnings so a market that has not resolved
+   *  yet still produces a real ranking. */
+  unrealizedByAgent?: Map<string, number>,
 ): LeaderboardEntry[] {
   const resolvedFactorsByKey = new Map<string, [number, number]>();
   for (const m of resolvedMarkets) {
@@ -184,31 +189,34 @@ export function computeLeaderboardFromAggregates(
     s.realizedPnl += p.shares * factor;
   }
 
+  // Every agent with an open position also belongs on the board, even with
+  // no resolved trade yet (the LookPilot case pre-December).
+  if (unrealizedByAgent) for (const id of unrealizedByAgent.keys()) ensure(id);
+
   type Entry = Omit<LeaderboardEntry, 'rank'>;
   const entries: Entry[] = [];
   for (const [id, s] of stats) {
     const calibration = s.weightSum > 0 ? s.weightedFactor / s.weightSum : null;
     const accuracy = s.resolvedCount > 0 ? s.correctCount / s.resolvedCount : null;
+    // Total profit = realized (resolved) + unrealized (open positions at
+    // current price). This is what the board ranks on (owner 2026-08-11).
+    const totalProfit = s.realizedPnl + (unrealizedByAgent?.get(id) ?? 0);
     entries.push({
       id,
       nickname: nicknameById.get(id) ?? null,
       calibration,
       accuracy,
-      totalEarnings: Math.round(s.realizedPnl * 10000) / 10000,
+      totalEarnings: Math.round(totalProfit * 10000) / 10000,
       resolvedMarkets: s.resolvedMarkets.size,
       totalTrades: s.totalTrades,
       lastTradeAt: s.lastTradeAt ? s.lastTradeAt.toISOString() : null,
     });
   }
 
+  // Profit first (owner direction 2026-08-11), most recent trade as the
+  // tiebreak. Everyone with any activity gets a rank now.
   entries.sort((a, b) => {
-    const aRanked = a.calibration !== null;
-    const bRanked = b.calibration !== null;
-    if (aRanked !== bRanked) return aRanked ? -1 : 1;
-    if (aRanked && bRanked) {
-      if (b.totalEarnings !== a.totalEarnings) return b.totalEarnings - a.totalEarnings;
-      if (b.calibration! !== a.calibration!) return b.calibration! - a.calibration!;
-    }
+    if (b.totalEarnings !== a.totalEarnings) return b.totalEarnings - a.totalEarnings;
     const aTime = a.lastTradeAt ? Date.parse(a.lastTradeAt) : 0;
     const bTime = b.lastTradeAt ? Date.parse(b.lastTradeAt) : 0;
     return bTime - aTime;
@@ -216,7 +224,7 @@ export function computeLeaderboardFromAggregates(
 
   let nextRank = 1;
   return entries.slice(0, limit).map(e => ({
-    rank: e.calibration !== null ? nextRank++ : null,
+    rank: nextRank++,
     ...e,
   }));
 }

@@ -38,7 +38,7 @@ describe('computeLeaderboard', () => {
     expect(computeLeaderboard([], [], [], new Map(), 100)).toEqual([]);
   });
 
-  test('participants with only open markets are unranked but listed', () => {
+  test('a participant with only open markets is still ranked (profit-first, 2026-08-11)', () => {
     const result = computeLeaderboard(
       [m({ resolved: false })],
       [t({ agentId: 'kai', cost: 5, createdAt: new Date('2026-04-29T10:00:00Z') })],
@@ -47,7 +47,9 @@ describe('computeLeaderboard', () => {
       100,
     );
     expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({ id: 'kai', rank: null, calibration: null, accuracy: null });
+    // Everyone with activity now gets a rank; calibration/accuracy stay
+    // null (no resolved market), but the row is ranked #1.
+    expect(result[0]).toMatchObject({ id: 'kai', rank: 1, calibration: null, accuracy: null });
     expect(result[0].lastTradeAt).toBe('2026-04-29T10:00:00.000Z');
   });
 
@@ -198,10 +200,11 @@ describe('computeLeaderboard', () => {
       new Map(),
       100,
     );
+    // Profit-first (owner 2026-08-11): the resolved-profit trader leads;
+    // the two open-only traders tie at 0 realized and break by lastTradeAt.
+    // Everyone gets a rank now.
     expect(result.map(e => e.id)).toEqual(['ranked', 'recent', 'old']);
-    expect(result[0].rank).toBe(1);
-    expect(result[1].rank).toBe(null);
-    expect(result[2].rank).toBe(null);
+    expect(result.map(e => e.rank)).toEqual([1, 2, 3]);
   });
 
   test('ignores positions with zero shares (fully sold out)', () => {

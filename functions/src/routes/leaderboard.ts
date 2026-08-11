@@ -5,6 +5,7 @@ import { getParticipantDisplayNames } from '../lib/participants';
 import { agents, authUser, systemConfig, markets, positions, trades, workspaces } from '../db/schema';
 import { wrap } from '../lib/wrap';
 import { computeLeaderboardFromAggregates } from '../lib/leaderboard';
+import { consensus } from '../lib/amm';
 
 /**
  * Cross-workspace participant leaderboard. Public (no auth). Aggregates only
@@ -87,9 +88,54 @@ leaderboardRouter.get('/', wrap(async (req, res) => {
       gt(positions.shares, 0),
     ));
 
+  // Unrealized PnL on OPEN positions, marked to current price (owner
+  // direction 2026-08-11: rank by total profit including held positions).
+  // Bounded: one row per (agent, market), far fewer than trades. The mark
+  // is the expected-value payout at the market's current consensus, which
+  // is the same linear factor resolution uses, so realized and unrealized
+  // are measured the same way.
+  const openMarkets = await db.select({
+    id: markets.id, workspaceId: markets.workspaceId,
+    shares: markets.shares, liquidity: markets.liquidity,
+    rangeMin: markets.rangeMin, rangeMax: markets.rangeMax,
+  }).from(markets).where(and(
+    inArray(markets.workspaceId, publicWsIds),
+    eq(markets.voided, false),
+    eq(markets.resolved, false),
+    eq(markets.active, true),
+  ));
+  const openFactorByKey = new Map<string, [number, number]>();
+  for (const m of openMarkets) {
+    const c = consensus((m.shares as [number, number]) || [0, 0], m.liquidity, m.rangeMin, m.rangeMax);
+    if (c === undefined) continue;
+    const p = Math.max(0, Math.min(1, (c - m.rangeMin) / (m.rangeMax - m.rangeMin)));
+    openFactorByKey.set(`${m.workspaceId}:${m.id}`, [1 - p, p]);
+  }
+  const openPositionRows = await db.select({
+    agentId: positions.agentId, workspaceId: positions.workspaceId, marketId: positions.marketId,
+    direction: positions.direction, shares: positions.shares, totalCost: positions.totalCost,
+  }).from(positions)
+    .innerJoin(markets, and(eq(markets.id, positions.marketId), eq(markets.workspaceId, positions.workspaceId)))
+    .where(and(
+      inArray(positions.workspaceId, publicWsIds),
+      eq(markets.voided, false),
+      eq(markets.resolved, false),
+      eq(markets.active, true),
+      gt(positions.shares, 0),
+    ));
+  const unrealizedByAgent = new Map<string, number>();
+  for (const p of openPositionRows) {
+    const factors = openFactorByKey.get(`${p.workspaceId}:${p.marketId}`);
+    if (!factors) continue;
+    const factor = p.direction === 'higher' ? factors[1] : factors[0];
+    const pnl = p.shares * factor - p.totalCost;
+    unrealizedByAgent.set(p.agentId, (unrealizedByAgent.get(p.agentId) ?? 0) + pnl);
+  }
+
   const agentIdsSeen = new Set<string>();
   for (const t of tradeAggs) agentIdsSeen.add(t.agentId);
   for (const p of positionRows) agentIdsSeen.add(p.agentId);
+  for (const id of unrealizedByAgent.keys()) agentIdsSeen.add(id);
   if (agentIdsSeen.size === 0) { res.json({ participants: [] }); return; }
 
   // Resolve display names the same way the proposals payload does: agent
@@ -106,6 +152,7 @@ leaderboardRouter.get('/', wrap(async (req, res) => {
     positionRows,
     nicknameById,
     limit,
+    unrealizedByAgent,
   );
 
   // Enrich the ranked slice with the picture and the Manifold badge (owner
