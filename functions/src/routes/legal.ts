@@ -6,154 +6,108 @@ export const legalRouter = Router();
 // files; update both when revising legal text. Inlined here so the runtime
 // image does not need `docs/` copied in.
 
-const CONSENT_VERSION = '1.1';
+const CONSENT_VERSION = '1.2';
 
 const TERMS_OF_SERVICE = `# Terms of Service
 
 _Last updated: 2026-08-11 (version ${CONSENT_VERSION})_
 
-These Terms of Service ("Terms") govern your use of the Telarchy managed instance at \`telarchy.com\` (the "Service"), operated by the Telarchy team ("we", "us"). By creating an account or otherwise using the Service, you agree to these Terms. If you do not agree, do not use the Service.
+These Terms govern your use of \`telarchy.com\` (the "Service"), operated by the Telarchy team ("we", "us"). By creating an account or using the Service you agree to them; if you do not agree, do not use the Service.
 
-## 1. Eligibility
+## 1. Eligibility and accounts
 
-You must be at least 18 years old to create an account and use the Service. By signing up you represent that you meet this requirement.
+You must be at least 18 years old. You are responsible for your login credentials and for all activity under your account. We may suspend or terminate accounts that violate these Terms or put the Service or its users at risk.
 
-## 2. Accounts
+## 2. Credits
 
-You are responsible for maintaining the confidentiality of your login credentials and for all activity that occurs under your account. Notify us immediately if you suspect unauthorized access. We may suspend or terminate accounts that violate these Terms or that we reasonably believe pose a risk to the Service or other users.
+Credits on the Service are play-money. They have no cash value, cannot be purchased, and cannot be exchanged for money, goods, or services; no deposits into or withdrawals out of credits exist. Markets on the Service are a forecasting game played with these credits; they are not securities, derivatives, or gambling products, and prices on them are not financial advice.
 
-## 3. Play-money credits; no redemption value
+## 3. Paid job proposals
 
-Credits on this managed instance are for simulation and educational use only. They have no redemption value, no cash value, cannot be purchased, and cannot be exchanged for money, goods, or services. No deposits into credits and no withdrawals out of credits are permitted. Prediction markets on this instance are a simulation game; they are not securities, derivatives, or gambling products.
+A participant may propose a job with a price in US dollars. Approving such a proposal is a commitment by the workspace owner (not by us) to pay the proposer that price, settled directly between them outside the Service using the payment details the proposer stored in their account. We are not a party to that payment: we hold, transmit, escrow, and process no funds, charge no fee on the payment, and are not a money transmitter, payment processor, or employer of record. The proposer is responsible for delivering the work and for taxes on amounts received; the owner is responsible for compliance with laws on commissioning and paying for services; disputes over payment or delivery are between them. Credits staked, traded, or rewarded around the jobs board remain play-money under section 2.
 
-## 4. Paid job proposals
+## 4. Acceptable use
 
-Some workspaces run a jobs board where a participant may propose a task with a price in US dollars. Approving such a proposal is a commitment by the workspace owner (not by us) to pay the proposer that price. Payment is made directly between the owner and the proposer, outside the Service, using the payment details the proposer chose to store in their account. We are not a party to that payment: we do not hold, transmit, escrow, or process funds, we charge no fee on the payment, and we are not a money transmitter, payment processor, or employer of record. The proposer is solely responsible for delivering the proposed work and for any taxes on amounts received; the owner is solely responsible for compliance with laws applicable to commissioning and paying for services. Disputes about payment or delivery are between the owner and the proposer. Credits used to stake, trade, or reward around the jobs board remain play-money under section 3 and are unaffected by whether real-world payment occurs.
+Do not use the Service to break the law; do not submit unlawful, harassing, defamatory, or infringing content; do not probe or compromise the Service's security, circumvent rate limits, or interfere with other participants; do not collude to distort prices or defraud other participants; do not impersonate anyone; scrape only through the public API within its documented rate limits.
 
-## 5. Acceptable use
+## 5. Your content
 
-You agree not to:
+You own the proposals, descriptions, and other content you submit, and grant us the license needed to store, process, and display it in order to operate the Service. Content on public floors (proposals, prices, decisions and their published reasons) is publicly visible by design.
 
-- use the Service in violation of any applicable law or regulation;
-- upload or transmit content that is unlawful, harassing, defamatory, or infringing;
-- attempt to probe, scan, or compromise the security of the Service, circumvent rate limits, or interfere with other users' participation;
-- use the Service to manipulate markets off-platform, collude to distort prices, or defraud other participants;
-- scrape the Service except via the public API in accordance with our documentation and rate limits;
-- impersonate another person or misrepresent your affiliation with any individual or entity.
+## 6. Disclaimers and liability
 
-## 6. User content
+THE SERVICE IS PROVIDED "AS IS" WITHOUT WARRANTIES OF ANY KIND. To the maximum extent permitted by law, we are not liable for indirect, incidental, consequential, special, or punitive damages, or lost profits, revenue, data, or goodwill, and our total aggregate liability for any claim shall not exceed one hundred US dollars (USD 100). You will indemnify us against claims arising from your content, your use of the Service, or your violation of these Terms.
 
-You retain ownership of the metrics, descriptions, proposal text, and other content you submit. You grant us a limited, worldwide, royalty-free license to store, process, and display that content solely as needed to operate the Service for you and your workspace members.
+## 7. Termination
 
-## 7. Disclaimers
+You may delete your account at any time in the app. We may suspend or end your access for violations, legal requirements, or discontinuation of the Service.
 
-THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. Market prices, consensus values, and forecasts are not investment advice, financial advice, or predictions of real-world outcomes, and we do not guarantee their accuracy. You should not rely on the Service for decisions with material real-world consequences without independent verification.
+## 8. Changes
 
-## 8. Limitation of liability
+We may update these Terms; material changes are announced in-app or by email, and continued use after an update is acceptance.
 
-To the maximum extent permitted by law, we shall not be liable for any indirect, incidental, consequential, special, or punitive damages, or any loss of profits, revenue, data, or goodwill, arising out of or related to your use of the Service. Our total aggregate liability for any claim arising out of or related to these Terms or the Service shall not exceed one hundred US dollars (USD 100).
+## 9. Governing law
 
-## 9. Indemnification
+These Terms are governed by the laws of the State of Delaware, USA; disputes belong exclusively to the state or federal courts located in Delaware.
 
-You agree to indemnify and hold us harmless from any claims, damages, losses, liabilities, and expenses (including reasonable legal fees) arising out of or related to your use of the Service, your content, or your violation of these Terms.
+## 10. Contact
 
-## 10. Termination
-
-You may stop using the Service and delete your account at any time via the in-app account deletion flow. We may suspend or terminate your access if you violate these Terms, if we are required to do so by law, or if we discontinue the Service.
-
-## 11. Changes to these Terms
-
-We may update these Terms from time to time. Material changes will be announced in-app or via the email associated with your account. Continued use of the Service after an update constitutes acceptance of the updated Terms.
-
-## 12. Governing law and disputes
-
-These Terms are governed by the laws of the State of Delaware, USA, without regard to conflict of laws principles. Any dispute arising out of or related to these Terms or the Service shall be resolved in the state or federal courts located in Delaware, and you consent to their exclusive jurisdiction.
-
-## 13. Contact
-
-Questions about these Terms can be sent to \`viktor.cihal@gmail.com\`.
+\`viktor.cihal@gmail.com\`
 `;
 
 const PRIVACY_POLICY = `# Privacy Policy
 
 _Last updated: 2026-08-11 (version ${CONSENT_VERSION})_
 
-This Privacy Policy explains what information the Telarchy managed instance at \`telarchy.com\` (the "Service") collects about you, how we use it, and your rights regarding it.
+What \`telarchy.com\` (the "Service") collects about you, why, and your rights.
 
-## 1. Information we collect
+## 1. What we collect
 
-We collect only what is necessary to operate the Service:
+- **Account**: email, optional display name, nickname, and picture, and a password hash; if you sign in with Google or GitHub, the profile fields that provider returns.
+- **Consent record**: the version and timestamp of the Terms and this Policy you accepted.
+- **Activity**: the trades, positions, proposals, and messages you create on the Service. On public floors, proposals, prices, and decisions are publicly visible by design.
+- **Payment details for paid jobs**: only if you choose to store them (for example a PayPal or Wise email, an IBAN and holder name, a crypto address, or a Revolut handle). They exist solely so a workspace owner can pay you for an approved job, and are visible only to you, to managers of a workspace where you propose a paid job, and as a snapshot on paid jobs you list. Never public.
+- **Contact requests**: an email you leave on a public floor asking to be set up, used only to contact you about that.
+- **Manifold link**: if you choose to import a Manifold record, we fetch that account's public profile (username, bio, balances) from Manifold's public API to verify ownership and set starting credits, and store the link and granted amount.
+- **Request logs**: IP address, user agent, and request metadata, kept for security and debugging for a rolling window (typically 30 days).
 
-- **Account data**: email address, optional display name (nickname), and a password hash (managed by BetterAuth). If you sign in with Google or GitHub, we receive the profile fields that provider returns (typically email, name, and user id).
-- **Consent record**: the timestamp and version of Terms and Privacy Policy you agreed to at signup.
-- **Workspace and trading data**: metrics, formulas, market prices, trades, positions, proposals, and messages you create or interact with inside your workspaces.
-- **Request logs**: IP address, user-agent, and basic request metadata retained for security, rate limiting, and debugging.
-- **Optional wallet address**: only collected if you choose to use USDC settlement on an instance where it is enabled. The managed instance runs with USDC settlement disabled by default, so no wallet address is collected there.
-- **Payment details for paid jobs**: only if you choose to store them, we collect the payment method you enter (for example a PayPal or Wise email, an IBAN and account holder name, a crypto address, or a Revolut handle). They exist solely so a workspace owner can pay you for an approved job. They are never public: they are visible only to you, to managers of a workspace where you propose a paid job, and as a snapshot on paid jobs you list.
-- **Contact requests**: if you leave your email on a public floor asking to be set up, we store that email and use it only to contact you about it.
-- **Manifold import**: if you choose to link a Manifold account, we fetch that account's public profile (username, bio, balances) from Manifold's public API to verify ownership and set your starting credits, and we store the link and the granted amount.
+We use no third-party analytics, tracking cookies, or advertising.
 
-We do not use third-party analytics, tracking cookies, or advertising SDKs.
+## 2. Why we process it
 
-## 2. How we use your information
+To run the Service you asked for (contract), to keep it secure and prevent abuse (legitimate interest), and per the consent you gave at signup. That is the whole list; we do not sell personal data.
 
-We process your information to:
+## 3. Who processes it for us
 
-- authenticate you and keep your account secure;
-- operate the prediction market, metrics, and proposal features you and your workspace use;
-- enforce acceptable use, rate limits, and platform integrity;
-- respond to support requests and legal obligations.
+- **Google Cloud Platform** (hosting and database), on our behalf.
+- **Resend** (transactional email), which processes recipient addresses when the Service sends operational email such as owner notifications.
+- **Google or GitHub**, only if you sign in through them.
 
-## 3. Legal bases (EEA/UK users)
+We may disclose information where the law requires it or to protect users and the Service.
 
-Where GDPR or equivalent applies, we process personal data on the following legal bases: consent (at signup), performance of a contract (to deliver the Service you requested), and legitimate interest (to secure the Service and prevent abuse).
+## 4. Retention and deletion
 
-## 4. Sharing and third parties
+Your data is kept while your account exists. Deleting your account (in the app, or \`DELETE /api/auth/me\`) removes your login, nickname, bio, and stored payment details; trading history stays under an anonymized participant id for market integrity, and payment details already snapshotted onto a paid job you listed remain as that transaction's payment record.
 
-We do not sell personal data. We share data only with service providers strictly necessary to run the Service:
+## 5. Your rights
 
-- **BetterAuth** (authentication library running inside our own backend).
-- **Google Cloud Platform** (Cloud Run hosting and Cloud SQL for PostgreSQL), which processes data on our behalf.
-- **Base RPC provider**, only for read/write operations against the Base blockchain when USDC settlement is enabled on the instance.
-- **OAuth providers** (Google, GitHub) if you choose to sign in through them.
-- **Resend** (transactional email delivery), which processes recipient email addresses on our behalf when the Service sends operational email (for example notifying a workspace owner of a new proposal or signup request).
+Export your data (\`GET /api/auth/me/export\`), delete your account, correct anything in-app, and object or complain to your data protection authority. For anything without an in-app control: \`viktor.cihal@gmail.com\`.
 
-We may also disclose information where required by law or to protect our rights and the safety of users.
+## 6. Security and transfers
 
-## 5. Retention
+TLS in transit, encryption at rest, hashed credentials, strict access control. Data is hosted on Google Cloud and may be processed where that infrastructure operates.
 
-Account data is retained while your account is active. When you delete your account via \`DELETE /api/auth/me\`, we detach your login credentials and profile from the underlying participant record so you can no longer sign in; market trading history remains associated with an anonymized participant identifier for platform integrity. Stored payment details, your bio, and your nickname are deleted with the account; payment details already snapshotted onto a paid job you listed are retained as the payment record of that transaction. Request logs are retained for a rolling window (typically 30 days) for security and debugging purposes.
+## 7. Children
 
-## 6. Your rights
+The Service is 18+; we do not knowingly collect children's data.
 
-You have the right to:
+## 8. Changes
 
-- **Access** your data (\`GET /api/auth/me/export\`).
-- **Delete** your account (\`DELETE /api/auth/me\` from the in-app account page).
-- **Rectify** inaccurate information by editing it in-app or contacting us.
-- **Object** to or restrict certain processing, and to lodge a complaint with your local data protection authority.
+Material changes are announced in-app or by email; continued use after an update is acceptance.
 
-To exercise any right not covered by an in-app control, contact us at \`viktor.cihal@gmail.com\`.
+## 9. Contact
 
-## 7. Security
-
-We use industry-standard safeguards, including TLS in transit, encryption at rest provided by our managed infrastructure, hashed password and API key storage, and strict internal access controls. No system is perfectly secure; if you believe your account has been compromised, contact us immediately.
-
-## 8. International transfers
-
-Data is hosted on Google Cloud infrastructure and may be processed in regions where that infrastructure operates. By using the Service you acknowledge these transfers.
-
-## 9. Children
-
-The Service is not intended for anyone under 18. We do not knowingly collect personal data from children. If you believe a child has provided us information, contact us and we will delete it.
-
-## 10. Changes to this Policy
-
-We may update this Policy from time to time. Material changes will be announced in-app or via email. Continued use of the Service after an update constitutes acceptance of the updated Policy.
-
-## 11. Contact
-
-Privacy questions and requests can be sent to \`viktor.cihal@gmail.com\`.
+\`viktor.cihal@gmail.com\`
 `;
 
 export const CURRENT_CONSENT_VERSION = CONSENT_VERSION;
