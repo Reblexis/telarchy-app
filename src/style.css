@@ -7442,6 +7442,128 @@ code, pre, kbd, samp {
   gap: 0.9rem;
 }
 
+/* The participant profile, reworked minimal (owner direction
+   2026-08-11): a picture, a handle, one earnings number, and three
+   ruled lists. Standalone, so it carries the floor's top bar. */
+.prof-page {
+  min-height: 100vh;
+  background: var(--bg-primary);
+}
+.prof-main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 4rem;
+}
+
+.prof-head {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  padding: 0.5rem 0 1.6rem;
+}
+.prof-avatar {
+  width: 72px;
+  height: 72px;
+  flex: none;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-strong);
+  display: grid;
+  place-items: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.prof-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.prof-id { min-width: 0; }
+.prof-name {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.7rem;
+  margin: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.prof-manifold {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  text-decoration: none;
+}
+.prof-manifold:hover { color: #4337c9; }
+
+.prof-earned {
+  margin: 0.35rem 0 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+.prof-earned .is-up { color: var(--higher); font-weight: 600; }
+.prof-earned .is-down { color: var(--lower); font-weight: 600; }
+.prof-bio {
+  margin: 0.5rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+
+.prof-section { margin-top: 1.8rem; }
+.prof-h2 {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.prof-empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+.prof-list { list-style: none; margin: 0; padding: 0; }
+
+.prof-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  padding: 0.6rem 0.1rem;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.88rem;
+}
+.prof-row:first-child { border-top: none; }
+.prof-dir { font-family: 'JetBrains Mono', monospace; font-weight: 600; }
+.prof-dir--higher { color: var(--higher); }
+.prof-dir--lower { color: var(--lower); }
+.prof-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.prof-row-title { color: var(--text-primary); overflow-wrap: anywhere; }
+.prof-row-sub { font-size: 0.78rem; color: var(--text-tertiary); }
+.prof-row-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.prof-row-time {
+  font-size: 0.76rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  min-width: 4.5rem;
+  text-align: right;
+}
+
 /* Join Discord (owner ask 2026-08-11): a quiet transparent glyph that
    grows a label on hover/focus. The label width animates so at rest it
    is icon-only and does not crowd the account area. */

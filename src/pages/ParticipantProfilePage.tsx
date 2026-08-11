@@ -1,143 +1,99 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { api, type PublicParticipantProfile, type PublicProfilePosition, type PublicProfileTrade } from '../lib/api';
-import { formatTargetDateDisplay } from '../lib/date-utils';
-import { MetricsTimeChart } from '../components/charts/MetricsTimeChart';
-import type { ChartPoint } from '../lib/metrics-chart-model';
+import { api, type PublicParticipantProfile, type PublicProfilePosition, type PublicProfileTrade, type ProfileProposedJob } from '../lib/api';
+import { Logo } from '../components/Logo';
 
-/** History charts: balance snapshots and cumulative realized PnL. Rendered
- *  only with two or more points (the balance series accrues one snapshot per
- *  day from the hourly cron, so brand-new participants start without it). */
-function HistoryChart({ title, subtitle, points }: { title: string; subtitle: string; points: ChartPoint[] }) {
-  if (points.length < 2) return null;
-  return (
-    <div style={{ flex: '1 1 320px', minWidth: 280 }}>
-      <h3 style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', margin: '0 0 0.15rem' }}>{title}</h3>
-      <p style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', margin: '0 0 0.5rem' }}>{subtitle}</p>
-      <div style={{ height: 180 }}>
-        <MetricsTimeChart points={points} mode="normal" variant="inline" />
-      </div>
-    </div>
-  );
+/**
+ * A participant's public profile, reworked to be a profile (owner
+ * direction 2026-08-11): a picture, a handle, one earnings number, and
+ * the three things that matter about a trader here, their positions,
+ * their recent trades, and the jobs they proposed. The calibration /
+ * accuracy / resolved-markets / sub-agent / balance-chart clutter is
+ * gone. Renders standalone (its own top bar), because a trader's name on
+ * the floor links straight here with no app shell.
+ */
+
+function initials(handle: string): string {
+  const parts = handle.replace(/^@/, '').split(/[\s._-]+/).filter(Boolean);
+  const letters = parts.slice(0, 2).map(p => p[0]).join('');
+  return (letters || handle[0] || '?').toUpperCase();
+}
+
+function fmtCr(v: number): string {
+  const sign = v < 0 ? '-' : v > 0 ? '+' : '';
+  const abs = Math.abs(v);
+  return `${sign}${Math.round(abs).toLocaleString('en-US')}`;
+}
+
+function fmtShares(v: number): string {
+  return v >= 100 ? Math.round(v).toLocaleString('en-US') : v.toFixed(1);
 }
 
 function timeAgo(iso: string | null): string {
-  if (!iso) return '-';
-  const d = new Date(iso);
-  const diff = Math.max(0, Date.now() - d.getTime());
-  const m = Math.round(diff / 60000);
-  if (m < 1) return 'now';
-  if (m < 60) return `${m}m ago`;
-  const h = Math.round(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const days = Math.round(h / 24);
-  if (days < 30) return `${days}d ago`;
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  if (!iso) return '';
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 90) return 'just now';
+  if (s < 5400) return `${Math.round(s / 60)}m ago`;
+  if (s < 129600) return `${Math.round(s / 3600)}h ago`;
+  if (s < 2592000) return `${Math.round(s / 86400)}d ago`;
+  return new Date(iso).toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
 
-function formatPercent(v: number | null): string {
-  if (v === null) return '-';
-  return `${(v * 100).toFixed(1)}%`;
-}
-
-function formatEarnings(v: number): string {
-  const sign = v < 0 ? '-' : '';
-  const abs = Math.abs(v);
-  if (abs >= 1000) return `${sign}${Math.round(abs).toLocaleString()}`;
-  if (abs >= 10) return `${sign}${abs.toFixed(1)}`;
-  return `${sign}${abs.toFixed(2)}`;
-}
-
-function formatShares(v: number): string {
-  if (v >= 1000) return Math.round(v).toLocaleString();
-  if (v >= 10) return v.toFixed(1);
-  return v.toFixed(2);
-}
-
-function formatConsensusOrProb(p: PublicProfilePosition): string | null {
-  if (p.status === 'resolved' && p.actualValue !== null) return `resolved at ${p.actualValue}`;
-  if (p.consensus !== null) return `consensus ${p.consensus}`;
-  if (p.probabilityHigher !== null) return `p(higher) ${(p.probabilityHigher * 100).toFixed(0)}%`;
-  return null;
-}
-
-function formatJoinedDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-const isOpaqueId = (id: string) =>
-  id.length > 18 && !/\s/.test(id) && /^[a-zA-Z0-9_-]+$/.test(id);
-
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
-  return (
-    <div className="section agent-stat-card">
-      <div className="stat-card-label" title={hint}>{label}</div>
-      <div className="stat-card-value">{value}</div>
-    </div>
-  );
-}
-
-function marketDeepLink(
-  workspaceId: string,
-  marketId: string,
-  proposalId: string | null,
-): string {
-  const params: Record<string, string> = { workspace: workspaceId, marketId };
-  if (proposalId) params.kind = 'conditional';
-  return `/markets?${new URLSearchParams(params).toString()}`;
+/** Strip the "$N: " convention so the title reads clean; show the ask separately. */
+function splitAsk(title: string): { ask: number | null; rest: string } {
+  const m = title.match(/^\$(\d+):\s*(.*)$/s);
+  return m ? { ask: parseInt(m[1], 10), rest: m[2] } : { ask: null, rest: title };
 }
 
 function PositionRow({ p }: { p: PublicProfilePosition }) {
-  const subtitle = formatConsensusOrProb(p);
-  const date = p.targetDate ? formatTargetDateDisplay(p.targetDate) : null;
   return (
-    <li>
-      <Link to={marketDeepLink(p.workspaceId, p.marketId, p.proposalId)} className="activity-row-link">
-        <div className="activity-row">
-          <div className="activity-text">
-            <div>
-              <strong>{p.metricName ?? p.marketId}</strong>
-              <span style={{ color: 'var(--text-tertiary)', marginLeft: '0.4rem' }}>
-                · {p.direction}
-              </span>
-            </div>
-            <div className="activity-tags">
-              <span className="activity-tag">{formatShares(p.shares)} shares</span>
-              <span className="activity-tag">cost {formatEarnings(p.totalCost)}</span>
-              {subtitle && <span className="activity-tag">{subtitle}</span>}
-              {p.status !== 'open' && <span className="activity-tag">{p.status}</span>}
-              <span className="activity-tag">{p.workspaceName}</span>
-            </div>
-          </div>
-          <span className="activity-time">{date ?? ''}</span>
-        </div>
-      </Link>
+    <li className="prof-row">
+      <span className={`prof-dir prof-dir--${p.direction}`}>{p.direction === 'higher' ? '▲' : '▼'}</span>
+      <span className="prof-row-main">
+        <span className="prof-row-title">{p.metricName ?? 'market'}</span>
+        <span className="prof-row-sub">{fmtShares(p.shares)} {p.direction} · {p.workspaceName}</span>
+      </span>
+      <span className="prof-row-val">{fmtShares(p.shares)} sh</span>
     </li>
   );
 }
 
 function TradeRow({ t }: { t: PublicProfileTrade }) {
-  const time = timeAgo(t.createdAt);
   return (
-    <li>
-      <Link to={marketDeepLink(t.workspaceId, t.marketId, t.proposalId)} className="activity-row-link">
-        <div className="activity-row">
-          <div className="activity-text">
-            <div>
-              <strong>{t.kind === 'buy' ? 'Bought' : 'Sold'} {formatShares(t.shares)} {t.direction}</strong>
-              <span style={{ color: 'var(--text-tertiary)', marginLeft: '0.4rem' }}>
-                on {t.metricName ?? t.marketId}
-              </span>
-            </div>
-            <div className="activity-tags">
-              <span className="activity-tag">{t.kind === 'sell' ? 'proceeds' : 'cost'} {formatEarnings(Math.abs(t.cost))}</span>
-              <span className="activity-tag">{t.workspaceName}</span>
-            </div>
-          </div>
-          <span className="activity-time">{time}</span>
-        </div>
-      </Link>
+    <li className="prof-row">
+      <span className={`prof-dir prof-dir--${t.direction}`}>{t.direction === 'higher' ? '▲' : '▼'}</span>
+      <span className="prof-row-main">
+        <span className="prof-row-title">{t.kind === 'buy' ? 'Bought' : 'Sold'} {fmtShares(t.shares)} {t.direction}</span>
+        <span className="prof-row-sub">{t.metricName ?? 'market'} · {t.workspaceName}</span>
+      </span>
+      <span className="prof-row-val">{t.kind === 'sell' ? '+' : ''}{fmtCr(Math.abs(t.cost)).replace(/^\+/, '')} cr</span>
+      <span className="prof-row-time">{timeAgo(t.createdAt)}</span>
     </li>
+  );
+}
+
+function JobRow({ j }: { j: ProfileProposedJob }) {
+  const { ask, rest } = splitAsk(j.title);
+  const askUsd = j.askUsd ?? ask;
+  return (
+    <li className="prof-row">
+      <span className="prof-row-main">
+        <span className="prof-row-title">{rest}</span>
+        <span className="prof-row-sub">
+          {askUsd ? `asks $${askUsd} · ` : ''}{j.status}
+        </span>
+      </span>
+      <span className="prof-row-time">{timeAgo(j.createdAt)}</span>
+    </li>
+  );
+}
+
+function Section({ title, empty, children }: { title: string; empty: boolean; children: React.ReactNode }) {
+  return (
+    <section className="prof-section">
+      <h2 className="prof-h2">{title}</h2>
+      {empty ? <p className="prof-empty">Nothing yet.</p> : <ul className="prof-list">{children}</ul>}
+    </section>
   );
 }
 
@@ -156,168 +112,83 @@ export function ParticipantProfilePage() {
       .catch(e => { setError(e instanceof Error ? e.message : String(e)); setLoading(false); });
   }, [id]);
 
-  if (loading) return <div className="container"><p style={{ color: 'var(--text-secondary)' }}>Loading…</p></div>;
-  if (error) return <div className="container"><div className="message error show">{error}</div></div>;
-  if (!profile) return null;
-
-  const display = profile.nickname ?? profile.id;
-  const showId = profile.nickname !== null;
-  const intent = profile.intent === 'agent' ? 'AI participant'
-    : profile.intent === 'creator' ? 'Workspace creator'
-    : null;
+  // Show the handle; fall back to a readable id (a named bot) but never a
+  // 32-char opaque key, which reads as noise.
+  const readableId = (v: string) => v.length <= 24 && /[a-z]/i.test(v) && v.includes('-') || v.length <= 16;
+  const handle = profile
+    ? (profile.nickname ?? (readableId(profile.id) ? profile.id : 'anonymous'))
+    : '';
 
   return (
-    <div className="container">
-      <div className="section-header">
-        <h2>{display}</h2>
-        <p className="section-subtitle">
-          {intent && <><strong>{intent}</strong> · </>}
-          Joined {formatJoinedDate(profile.joinedAt)}
-          {profile.stats.rank !== null && <> · Rank #{profile.stats.rank} on the public leaderboard</>}
-        </p>
-        {showId && (
-          <p style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)', marginTop: '0.25rem' }}>
-            <span className={isOpaqueId(profile.id) ? 'agent-id agent-id-opaque' : 'agent-id'}>{profile.id}</span>
-          </p>
-        )}
-        {profile.bio && (
-          <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginTop: '0.6rem', maxWidth: '60ch', whiteSpace: 'pre-wrap' }}>
-            {profile.bio}
-          </p>
-        )}
-        {profile.parent && (
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
-            Created by{' '}
-            <Link to={`/participants/${encodeURIComponent(profile.parent.nickname ?? profile.parent.id)}`}>
-              {profile.parent.nickname ?? profile.parent.id}
-            </Link>
-          </p>
-        )}
-        {profile.children.length > 0 && (
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
-            Sub-agents ({profile.children.length}):{' '}
-            {profile.children.slice(0, 30).map((c, i) => (
-              <span key={c.id}>
-                {i > 0 && ', '}
-                <Link to={`/participants/${encodeURIComponent(c.nickname ?? c.id)}`}>
-                  {c.nickname ?? c.id}
-                </Link>
-              </span>
-            ))}
-            {profile.children.length > 30 && <> and {profile.children.length - 30} more</>}
-          </p>
-        )}
-      </div>
+    <div className="prof-page">
+      <nav className="pubws-topbar">
+        <Link to="/" className="pubws-logolink" aria-label="Telarchy">
+          <Logo variant="lockup" height="3rem" />
+        </Link>
+      </nav>
 
-      <div className="agent-stats">
-        <Stat
-          label="Calibration"
-          value={formatPercent(profile.stats.calibration)}
-          hint="Shares-weighted mean payout factor on resolved positions in public workspaces. 0.5 = chance, 1.0 = perfect."
-        />
-        <Stat
-          label="Accuracy"
-          value={formatPercent(profile.stats.accuracy)}
-          hint="Fraction of resolved positions on the winning side."
-        />
-        <Stat
-          label="Earnings"
-          value={formatEarnings(profile.stats.totalEarnings)}
-          hint="Realized PnL on resolved markets in public workspaces, in credits."
-        />
-        <Stat
-          label="Resolved markets"
-          value={profile.stats.resolvedMarkets.toLocaleString()}
-          hint="Number of markets in public workspaces where this participant held a position at resolution."
-        />
-        <Stat
-          label="Total trades"
-          value={profile.stats.totalTrades.toLocaleString()}
-          hint="Trade count across all public workspaces."
-        />
-        <Stat
-          label="Last trade"
-          value={timeAgo(profile.stats.lastTradeAt)}
-          hint="Most recent trade in any public workspace."
-        />
-      </div>
+      <main className="prof-main">
+        {loading && <p className="prof-empty">Loading…</p>}
+        {error && <div className="message error show">{error}</div>}
 
-      {(profile.balanceHistory.length >= 2 || profile.pnlHistory.length >= 2) && (
-        <div className="section">
-          <div className="section-header">
-            <h2>History</h2>
-            <p className="section-subtitle">
-              Balance is platform-wide; realized PnL covers resolved markets in workspaces visible to you.
-            </p>
-          </div>
-          <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-            <HistoryChart
-              title="Balance"
-              subtitle="Daily snapshots, in credits"
-              points={profile.balanceHistory.map(b => ({ x: Date.parse(b.at), y: b.balance, label: b.at.slice(0, 10) }))}
-            />
-            <HistoryChart
-              title="Cumulative realized PnL"
-              subtitle="Net trade cash + payouts, at each market's resolution"
-              points={profile.pnlHistory.map(e => ({ x: Date.parse(e.at), y: e.cumulative, label: e.at.slice(0, 10) }))}
-            />
-          </div>
-        </div>
-      )}
+        {profile && (
+          <>
+            <header className="prof-head">
+              <div className="prof-avatar">
+                {profile.image
+                  ? <img src={profile.image} alt="" />
+                  : <span>{initials(handle)}</span>}
+              </div>
+              <div className="prof-id">
+                <h1 className="prof-name">
+                  {handle}
+                  {profile.manifoldUsername && (
+                    <a
+                      className="prof-manifold"
+                      href={`https://manifold.markets/${encodeURIComponent(profile.manifoldUsername)}`}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      title={`Imported from Manifold: @${profile.manifoldUsername}`}
+                    >
+                      <ManifoldMark /> @{profile.manifoldUsername}
+                    </a>
+                  )}
+                </h1>
+                <p className="prof-earned">
+                  <span className={profile.stats.totalEarnings >= 0 ? 'is-up' : 'is-down'}>
+                    {fmtCr(profile.stats.totalEarnings)} cr
+                  </span>{' '}earned
+                </p>
+                {profile.bio && <p className="prof-bio">{profile.bio}</p>}
+              </div>
+            </header>
 
-      <div className="section">
-        <div className="section-header">
-          <h2>Positions</h2>
-          <p className="section-subtitle">
-            Held positions visible to you. Open markets first, then closed and resolved. Activity in workspaces you can't read is hidden.
-          </p>
-        </div>
-        {profile.openPositions.length === 0 ? (
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No positions you can see.</p>
-        ) : (
-          <ul className="activity-list">
-            {profile.openPositions.map(p => (
-              <PositionRow key={`${p.workspaceId}:${p.marketId}:${p.direction}`} p={p} />
-            ))}
-          </ul>
+            <Section title="Positions" empty={profile.openPositions.length === 0}>
+              {profile.openPositions.map(p => (
+                <PositionRow key={`${p.workspaceId}:${p.marketId}:${p.direction}`} p={p} />
+              ))}
+            </Section>
+
+            <Section title="Recent trades" empty={profile.recentTrades.length === 0}>
+              {profile.recentTrades.map(t => <TradeRow key={t.id} t={t} />)}
+            </Section>
+
+            <Section title="Proposed jobs" empty={profile.proposedJobs.length === 0}>
+              {profile.proposedJobs.map(j => <JobRow key={j.id} j={j} />)}
+            </Section>
+          </>
         )}
-      </div>
-
-      <div className="section">
-        <div className="section-header">
-          <h2>Recent trades</h2>
-          <p className="section-subtitle">
-            Newest first. Trades on markets you can't read are hidden.
-          </p>
-        </div>
-        {profile.recentTrades.length === 0 ? (
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No recent trades you can see.</p>
-        ) : (
-          <ul className="activity-list">
-            {profile.recentTrades.map(t => <TradeRow key={t.id} t={t} />)}
-          </ul>
-        )}
-      </div>
-
-      <div className="section">
-        <div className="section-header">
-          <h2>Active in public workspaces</h2>
-          <p className="section-subtitle">
-            Public-visibility workspaces this participant has traded in.
-          </p>
-        </div>
-        {profile.activeWorkspaces.length === 0 ? (
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No public-workspace activity yet.</p>
-        ) : (
-          <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexDirection: 'column' }}>
-            {profile.activeWorkspaces.map(ws => (
-              <li key={ws.id} style={{ borderTop: '1px solid var(--border-color)', padding: '0.6rem 0' }}>
-                <Link to={`/marketplace?workspace=${encodeURIComponent(ws.id)}`}>{ws.name}</Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      </main>
     </div>
+  );
+}
+
+/** Small Manifold glyph for the imported-from badge. */
+function ManifoldMark() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" style={{ verticalAlign: '-2px' }}>
+      <rect x="2" y="2" width="20" height="20" rx="5" fill="#4337c9" />
+      <path d="M6 15l3-6 3 4 2-3 4 5" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }

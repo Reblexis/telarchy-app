@@ -1,6 +1,6 @@
 import { Router, type Request } from 'express';
 import { db } from '../db/client';
-import { agents, agentApiKeys, agentBalanceSnapshots, creditTransfers, deposits, withdrawals, systemConfig, workspaces, positions, trades, markets, permissionGroups } from '../db/schema';
+import { agents, agentApiKeys, agentBalanceSnapshots, creditTransfers, deposits, withdrawals, systemConfig, workspaces, positions, trades, markets, permissionGroups, authUser, proposals } from '../db/schema';
 import { eq, and, or, sql, inArray, desc, asc, gte } from 'drizzle-orm';
 import { randomBytes } from 'crypto';
 import { randomUUID } from 'crypto';
@@ -461,6 +461,10 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
     if (r !== 0) return r;
     return Math.abs(b.shares) - Math.abs(a.shares);
   });
+  // A profile is a glance, not a ledger (owner direction 2026-08-11):
+  // cap the positions list so a prolific bot does not render thousands of
+  // rows. Heaviest exposure is already first.
+  const openPositionsCapped = openPositions.slice(0, 25);
 
   const RECENT_TRADES_LIMIT = 20;
   const recentTrades = ownerTrades
@@ -516,9 +520,39 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
       return { at: e.at.toISOString(), cumulative: Math.round(cumulativePnl * 100) / 100 };
     });
 
+  // Profile picture: the participant's own account image (owner ask
+  // 2026-08-11: profiles should look like profiles).
+  const image = agent.authUserId
+    ? (await db.select({ image: authUser.image }).from(authUser).where(eq(authUser.id, agent.authUserId)).limit(1))[0]?.image ?? null
+    : null;
+
+  // Manifold handle, if this participant imported a record: shown as a
+  // small badge on the profile (owner ask 2026-08-11).
+  const manifoldRow = await db.select({ value: systemConfig.value }).from(systemConfig)
+    .where(eq(systemConfig.key, `manifold-claimed:agent:${agent.id}`)).limit(1);
+  const manifoldUsername = (manifoldRow[0]?.value as { username?: string } | undefined)?.username ?? null;
+
+  // Proposed jobs this participant put on public boards, newest first
+  // (owner ask 2026-08-11). Only public-visibility workspaces, so nothing
+  // leaks from a private board.
+  const proposedRows = viewerWsIds.size > 0
+    ? await db.select({
+        id: proposals.id, workspaceId: proposals.workspaceId, title: proposals.title,
+        askUsd: proposals.askUsd, status: proposals.status, createdAt: proposals.createdAt,
+      }).from(proposals)
+        .where(and(eq(proposals.proposedBy, agent.id), inArray(proposals.workspaceId, [...viewerWsIds])))
+        .orderBy(desc(proposals.createdAt)).limit(20)
+    : [];
+  const proposedJobs = proposedRows.map(p => ({
+    id: p.id, workspaceId: p.workspaceId, title: p.title,
+    askUsd: p.askUsd ?? null, status: p.status, createdAt: p.createdAt,
+  }));
+
   res.json({
     id: agent.id,
     nickname: agent.nickname,
+    image,
+    manifoldUsername,
     intent: agent.intent,
     bio: agent.bio,
     joinedAt: agent.createdAt,
@@ -526,8 +560,9 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
     children: lineage.children,
     stats: entry ?? emptyStats,
     activeWorkspaces,
-    openPositions,
+    openPositions: openPositionsCapped,
     recentTrades,
+    proposedJobs,
     balanceHistory,
     pnlHistory,
   });

@@ -149,9 +149,23 @@ export interface PublicProfileTrade {
   createdAt: string;
 }
 
+export interface ProfileProposedJob {
+  id: string;
+  workspaceId: string;
+  title: string;
+  askUsd: number | null;
+  status: string;
+  createdAt: string;
+}
+
 export interface PublicParticipantProfile {
   id: string;
   nickname: string | null;
+  /** The participant's account picture (data URL or provider image), null
+   *  if none set. */
+  image: string | null;
+  /** Their Manifold username if they imported a Manifold record. */
+  manifoldUsername: string | null;
   intent: string | null;
   /** Freeform public description: who this participant is and what it is in
    *  Telarchy to do. Set via POST /api/auth/profile (max 500 chars). */
@@ -174,6 +188,8 @@ export interface PublicParticipantProfile {
   activeWorkspaces: Array<{ id: string; name: string }>;
   openPositions: PublicProfilePosition[];
   recentTrades: PublicProfileTrade[];
+  /** Jobs this participant proposed on public boards, newest first. */
+  proposedJobs: ProfileProposedJob[];
   /** Daily balance snapshots (credits) plus a live "now" point. Snapshots are
    *  written by the hourly resolve cron, one per UTC day. */
   balanceHistory: Array<{ at: string; balance: number }>;
