@@ -69,7 +69,7 @@ fixed 2026-08-12` `telarchy-pg` had nightly backups only and was deletable. Sinc
 migrations run against prod, a bad migration was recoverable only to the last
 nightly backup (~24h loss). Enabled PITR + deletion protection.
 
-**H3 - Unthrottled anonymous `POST /api/agents/register`.** `[ ]` Not behind
+**H3 - Unthrottled anonymous `POST /api/agents/register`.** `[x] fixed 2026-08-12` Not behind
 `registrationLimiter` (only the ~600/min global anon limiter). Each call mints an
 identity with `SIGNUP_CREDITS` and a full-scope key and auto-joins the Public
 group. Free unlimited identities defeat the per-identity market-manipulation
@@ -103,7 +103,7 @@ platform-global balance, so a workspace admin's mint is spendable across every
 workspace's markets. Cash-out off today limits it to market distortion. Fix:
 gate `credit` on `isPlatformAuthorized`, or scope balances per-workspace.
 
-**M3 - Trade inputs not checked for finiteness.** `[ ]`
+**M3 - Trade inputs not checked for finiteness.** `[x] fixed 2026-08-12`
 `routes/predictions.ts` / `services/trading.ts` check `typeof === 'number'` and
 `<= 0` but not `Number.isFinite`, so `NaN` passes the guards (transfers and
 proposals already check finiteness; trade is the inconsistent one). No
@@ -117,7 +117,7 @@ App connects via the encrypted Auth Proxy socket, so no live impact; tighten to
 
 ### LOW
 
-**L1 - 500 error messages leak internal detail.** `[ ]` The global handler
+**L1 - 500 error messages leak internal detail.** `[x] fixed 2026-08-12` The global handler
 returns `err.message` for all errors including non-`AppError` 500s (raw driver/
 Postgres text can reach the client; no stack trace though). Fix: generic
 "Internal error" for `status >= 500`, keep detail server-side.

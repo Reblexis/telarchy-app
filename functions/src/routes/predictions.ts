@@ -147,20 +147,24 @@ predictionsRouter.post('/trade', requireCapability('trade'), wrap(async (req, re
   const targetValue = req.body.targetValue ?? req.body.value;
   const maxBudget = req.body.maxBudget ?? req.body.amount;
   if (typeof targetValue === 'number' && typeof maxBudget === 'number') {
-    if (maxBudget <= 0) { res.status(400).json({ error: 'maxBudget/amount must be positive' }); return; }
+    // typeof-number admits NaN/Infinity; require finiteness so a bad number
+    // fails as a clean 400 here instead of reaching the AMM/balance math and
+    // surfacing as a 500 (the bigint balance column is the only backstop).
+    if (!Number.isFinite(targetValue)) { res.status(400).json({ error: 'targetValue must be a finite number' }); return; }
+    if (!Number.isFinite(maxBudget) || maxBudget <= 0) { res.status(400).json({ error: 'maxBudget/amount must be a positive, finite number' }); return; }
     mode = { type: 'targetValue', targetValue, maxBudget };
   } else if (typeof req.body.direction === 'string' && typeof req.body.sellShares === 'number') {
     if (req.body.direction !== 'higher' && req.body.direction !== 'lower') {
       res.status(400).json({ error: 'direction must be "higher" or "lower"' }); return;
     }
-    if (req.body.sellShares <= 0) { res.status(400).json({ error: 'sellShares must be positive' }); return; }
+    if (!Number.isFinite(req.body.sellShares) || req.body.sellShares <= 0) { res.status(400).json({ error: 'sellShares must be a positive, finite number' }); return; }
     const dir = req.body.direction as 'higher' | 'lower';
     mode = { type: 'sell', direction: dir === 'higher' ? 1 : 0, dirLabel: dir, sellShares: req.body.sellShares };
   } else if (typeof req.body.direction === 'string' && typeof req.body.amount === 'number') {
     if (req.body.direction !== 'higher' && req.body.direction !== 'lower') {
       res.status(400).json({ error: 'direction must be "higher" or "lower"' }); return;
     }
-    if (req.body.amount <= 0) { res.status(400).json({ error: 'amount must be positive' }); return; }
+    if (!Number.isFinite(req.body.amount) || req.body.amount <= 0) { res.status(400).json({ error: 'amount must be a positive, finite number' }); return; }
     const dir = req.body.direction as 'higher' | 'lower';
     mode = { type: 'buy', direction: dir === 'higher' ? 1 : 0, dirLabel: dir, amount: req.body.amount };
   } else {

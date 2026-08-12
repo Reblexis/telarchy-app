@@ -356,6 +356,11 @@ app.use('/api/waitlist', registrationLimiter, waitlistRouter);
 app.use('/api/import/manifold', registrationLimiter, manifoldRouter);
 // Key-first onboarding shares the registration throttle: it mints identities.
 app.use('/api/onboard', registrationLimiter, onboardRouter);
+// Registering an agent mints an identity with signup credits and a full-scope
+// key and auto-joins the Public group, so throttle it per-IP exactly like the
+// other identity-minting routes. Otherwise cheap bulk identities defeat the
+// per-identity position caps that keep the public floor's markets honest.
+app.use('/api/agents/register', registrationLimiter);
 app.use('/api/agents', agentsRouter);
 app.use('/api/predictions/trade', strictLimiter);
 app.use('/api/predictions', predictionsRouter);
@@ -389,5 +394,9 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   const status = err instanceof AppError ? err.status : 500;
   if (status >= 500) console.error(err);
   const extra = err instanceof AppError && err.extra ? err.extra : {};
-  res.status(status).json({ error: err.message, ...extra });
+  // AppError messages are caller-facing by construction. An unexpected 5xx can
+  // carry driver / internal detail (Postgres text, stack context), so return a
+  // generic string; the real error is already logged above.
+  const message = status >= 500 ? 'Internal error' : err.message;
+  res.status(status).json({ error: message, ...extra });
 });
