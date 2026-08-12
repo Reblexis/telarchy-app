@@ -193,7 +193,7 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
           className="pubws-propose-cta"
           onClick={() => (signedIn ? setFormOpen(true) : onRequireSignup())}
         >
-          {signedIn ? '+ Suggest a job' : 'Sign up to suggest a job'}
+          + Suggest a job
         </button>
         {/* Surface the stake on the board itself, not only inside the form:
             posting costs 500 cr and pays 1,000 cr back if the owner approves,
