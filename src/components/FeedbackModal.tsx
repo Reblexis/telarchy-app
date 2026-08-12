@@ -1,6 +1,7 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
+import { FloorModal } from './FloorModal';
 
 type Kind = 'bug' | 'help' | 'feedback';
 
@@ -16,6 +17,11 @@ const KIND_LABELS: Record<Kind, string> = {
   feedback: 'Share feedback',
 };
 
+/**
+ * Feedback / bug report, in the same floor style as the Import Manifold
+ * dialog (owner ask 2026-08-12: keep the two consistent) - a FloorModal with
+ * the ticket header, ticket-label fields, and a single ticket-go verb.
+ */
 export function FeedbackModal({ open, defaultKind = 'bug', onClose }: Props) {
   const [kind, setKind] = useState<Kind>(defaultKind);
   const [subject, setSubject] = useState('');
@@ -65,48 +71,42 @@ export function FeedbackModal({ open, defaultKind = 'bug', onClose }: Props) {
     }
   };
 
-  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) onClose();
-  };
+  const kindWord = kind === 'help' ? 'help request' : kind === 'feedback' ? 'feedback' : 'bug report';
 
   return (
-    <div className="modal show" onClick={handleOverlayClick}>
-      <div className="modal-content" style={{ maxWidth: '32rem' }}>
-        <div className="modal-header">
-          <h3>{KIND_LABELS[kind]}</h3>
-          <button className="modal-close" onClick={onClose} aria-label="Close">&times;</button>
+    <FloorModal onClose={onClose} label={KIND_LABELS[kind]}>
+      <div className="mfimport">
+        <div className="ticket-head mfimport-head">
+          <h3 className="mfimport-title">{KIND_LABELS[kind]}</h3>
+          <button className="ticket-close" aria-label="Close" onClick={onClose}>×</button>
         </div>
 
         {success ? (
-          <div style={{ padding: '0.5rem 0 1rem' }}>
-            <p style={{ marginBottom: '1rem' }}>
-              Thanks. Your {kind === 'help' ? 'help request' : kind === 'feedback' ? 'feedback' : 'bug report'} was received.
+          <>
+            <p className="mfimport-done">
+              Thanks. Your {kindWord} was received.
               {email
-                ? <> We will follow up at <strong>{email}</strong> if needed.</>
-                : <> Leave a reply-to email if you would like us to follow up.</>}
+                ? <> We&rsquo;ll follow up at {email} if needed.</>
+                : <> Leave a reply-to email next time if you&rsquo;d like a response.</>}
             </p>
-            <button type="button" className="btn" onClick={onClose}>Close</button>
-          </div>
+            <button type="button" className="ticket-go is-placed" onClick={onClose}>Done</button>
+          </>
         ) : (
           <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label htmlFor="feedbackKind">Type</label>
-              <select
-                id="feedbackKind"
-                value={kind}
-                onChange={e => setKind(e.target.value as Kind)}
-              >
+            <label className="jobform-field">
+              <span className="ticket-label">Type</span>
+              <select className="jobform-line" value={kind} onChange={e => setKind(e.target.value as Kind)}>
                 <option value="bug">Bug report</option>
                 <option value="help">Help request</option>
                 <option value="feedback">General feedback</option>
               </select>
-            </div>
+            </label>
 
-            <div className="form-group">
-              <label htmlFor="feedbackSubject">Subject</label>
+            <label className="jobform-field">
+              <span className="ticket-label">Subject</span>
               <input
+                className="jobform-line"
                 type="text"
-                id="feedbackSubject"
                 required
                 maxLength={200}
                 value={subject}
@@ -119,14 +119,14 @@ export function FeedbackModal({ open, defaultKind = 'bug', onClose }: Props) {
                       : 'What is on your mind?'
                 }
               />
-            </div>
+            </label>
 
-            <div className="form-group">
-              <label htmlFor="feedbackBody">Details</label>
+            <label className="jobform-field">
+              <span className="ticket-label">Details</span>
               <textarea
-                id="feedbackBody"
+                className="jobform-line jobform-line--desc"
                 required
-                rows={6}
+                rows={5}
                 maxLength={10000}
                 value={body}
                 onChange={e => setBody(e.target.value)}
@@ -138,32 +138,27 @@ export function FeedbackModal({ open, defaultKind = 'bug', onClose }: Props) {
                       : 'Tell us what could be better.'
                 }
               />
-            </div>
+            </label>
 
-            <div className="form-group">
-              <label htmlFor="feedbackEmail">Reply-to email (optional)</label>
+            <label className="jobform-field">
+              <span className="ticket-label">Reply-to email (optional)</span>
               <input
+                className="jobform-line"
                 type="email"
-                id="feedbackEmail"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="Defaults to your account email"
               />
-            </div>
+            </label>
 
-            {error && <div className="message error show" style={{ marginBottom: '0.75rem' }}>{error}</div>}
+            {error && <p className="ticket-err">{error}</p>}
 
-            <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-              <button type="button" className="btn btn-secondary" onClick={onClose} disabled={submitting}>
-                Cancel
-              </button>
-              <button type="submit" className="btn" disabled={submitting}>
-                {submitting ? 'Submitting…' : 'Submit'}
-              </button>
-            </div>
+            <button type="submit" className="ticket-go" disabled={submitting}>
+              {submitting ? 'Sending…' : 'Send'}
+            </button>
           </form>
         )}
       </div>
-    </div>
+    </FloorModal>
   );
 }
