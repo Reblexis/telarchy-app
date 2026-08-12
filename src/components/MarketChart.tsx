@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
 /**
  * The prediction, visualized: the market's call over the market's lifetime,
@@ -87,6 +87,16 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
   const H = height ?? geomH;
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [cursor, setCursor] = useState<number | null>(null);
+  // Per-instance ids for the gradient and the plot clip. They used to be
+  // global ("mchart-plot"), and the chart is keyed by market id, so switching
+  // job or branch mounts the new chart while the old one is still in the DOM:
+  // both carry the same id, url(#...) resolves to whichever comes first, and
+  // when that one unmounts the reference dangles and everything inside the
+  // clipped group stops painting for a frame. That is the flash the owner saw
+  // (reported 2026-08-12).
+  const uid = useId().replace(/:/g, '');
+  const fillId = `mchart-fill-${uid}`;
+  const clipId = `mchart-plot-${uid}`;
 
   const model = useMemo(() => {
     let pts = series
@@ -211,8 +221,23 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
     return { pts, extended, d, areaPath, end, secD, secEnd, t0, t1: t0 + span, span, fullSpan, x, y, gridVals, ticks, fmt, open: extended[0] };
   }, [series, consensus, preview, orders, secondary, range, H, W, PAD_L, PAD_R]);
 
+  // A window wider than the market's whole life falls back to ALL. This used
+  // to run during render, which is a state update mid-render and forces React
+  // to throw the pass away and redo it - visible as a stutter while the
+  // pointer is moving. It belongs in an effect.
+  const fullSpan = model?.fullSpan;
+  useEffect(() => {
+    if (range !== null && fullSpan !== undefined && range >= fullSpan) setRange(null);
+  }, [range, fullSpan]);
+
+  // The crosshair follows the pointer, but pointermove fires far faster than
+  // the screen refreshes (120Hz+ on a trackpad), and every event re-rendered
+  // the whole SVG. Coalesce to one update per frame.
+  const rafRef = useRef<number | null>(null);
+  const pendingRef = useRef<number | null>(null);
+  useEffect(() => () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); }, []);
+
   if (!model) return null;
-  if (range !== null && range >= model.fullSpan) setRange(null);
   const { extended, d, areaPath, end, secD, secEnd, x, y, gridVals, ticks, fmt } = model;
   const cNum = (v: number) => `${unit}${compactNum(v)}`;
   const fNum = (v: number) => `${unit}${fullNum(v)}`;
@@ -233,7 +258,18 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
     // would land the crosshair closer to center than the mouse.
     const mouseX = ((e.clientX - rect.left) / rect.width) * W;
     const frac = (mouseX - PAD_L) / (W - PAD_L - PAD_R);
-    setCursor(model.t0 + Math.max(0, Math.min(1, frac)) * model.span);
+    pendingRef.current = model.t0 + Math.max(0, Math.min(1, frac)) * model.span;
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      if (pendingRef.current !== null) setCursor(pendingRef.current);
+    });
+  };
+
+  const onLeave = () => {
+    if (rafRef.current !== null) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+    pendingRef.current = null;
+    setCursor(null);
   };
 
   // The call in force at a moment = the last step at or before it.
@@ -273,12 +309,12 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
         viewBox={`0 0 ${W} ${H}`}
         className="mchart-svg"
         onPointerMove={onMove}
-        onPointerLeave={() => setCursor(null)}
+        onPointerLeave={onLeave}
         role="img"
         aria-label={`The market's call over time, currently ${fNum(consensus)}`}
       >
         <defs>
-          <linearGradient id="mchart-fill" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
             {/* currentColor inside <defs> resolves against the svg root, not
                 the referencing group, so name the accent explicitly. */}
             <stop offset="0%" style={{ stopColor: 'var(--accent)' }} stopOpacity="0.14" />
@@ -288,7 +324,7 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
               exceed it. Clip the drawn series to the plot rectangle: the line
               runs off the edge, which reads as "it spiked past here", instead
               of overprinting the axis labels. */}
-          <clipPath id="mchart-plot">
+          <clipPath id={clipId}>
             <rect x={PAD_L} y={PAD_T} width={W - PAD_L - PAD_R} height={H - PAD_T - PAD_B} />
           </clipPath>
         </defs>
@@ -313,7 +349,7 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
           const lb = edgeLabel(x(secEnd.t), text);
           return (
             <g className={`mchart-branch mchart-branch--${secondary.tone}`}>
-              <path d={secD} className="mchart-branch-line" clipPath="url(#mchart-plot)" />
+              <path d={secD} className="mchart-branch-line" clipPath={`url(#${clipId})`} />
               <circle cx={x(secEnd.t)} cy={py} r="3.5" className="mchart-branch-dot" />
               <text className="mchart-branch-label" x={lb.x} y={labelY + 4} textAnchor={lb.anchor}>{text}</text>
             </g>
@@ -321,8 +357,8 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
         })()}
 
         <g className="mchart-market">
-          <g clipPath="url(#mchart-plot)">
-            <path d={areaPath} className="mchart-fill-area" fill="url(#mchart-fill)" stroke="none" />
+          <g clipPath={`url(#${clipId})`}>
+            <path d={areaPath} className="mchart-fill-area" fill={`url(#${fillId})`} stroke="none" />
             {/* pathLength=1 normalizes the dash math so the entrance draw
                 (stroke-dashoffset 1 -> 0 in CSS) works for any path. */}
             <path d={d} className="mchart-mline" pathLength={1} />
