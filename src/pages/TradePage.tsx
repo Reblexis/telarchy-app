@@ -585,23 +585,6 @@ export function TradePage() {
           </section>
         )}
 
-        {active && hero && hero.resolvesOn && (consensus ?? hero.consensus) != null && heroActualHistory.length >= 1 && (
-          <section className="pubws-instrument" style={{ marginTop: '1.5rem' }}>
-            <div className="pubws-enter pubws-enter--3">
-              <div className="pubws-settle" style={{ textAlign: 'center', marginBottom: '0.1rem' }}>
-                {metricLabel}: actual so far, and where the market sees it landing
-                {settleDayOf(hero.targetDate) ? ` @ ${settleDayOf(hero.targetDate)}` : ''}
-              </div>
-              <MetricYearChart
-                history={heroActualHistory}
-                forecastValue={(consensus ?? hero.consensus) as number}
-                forecastAt={hero.resolvesOn}
-                unit={unit}
-              />
-            </div>
-          </section>
-        )}
-
         {active && (trading || (canTrade && !user && !authLoading)) ? (
           <section className="pubws-act pubws-enter pubws-enter--3" aria-label="Place a trade">
             {/* Prominent, Manifold-style (owner direction 2026-08-10):
@@ -661,6 +644,24 @@ export function TradePage() {
             <p className="pubws-metric-desc">
               Exactly what counts: {ws.heroMetricDescription}
             </p>
+          )}
+          {/* The metric itself over the year: what it has actually done so
+              far (solid) and where the market sees it settling (dashed).
+              Lives here, under the definition, because it shows the thing
+              the market is about, not the market's own price. */}
+          {active && hero && hero.resolvesOn && (consensus ?? hero.consensus) != null && heroActualHistory.length >= 1 && (
+            <div style={{ marginTop: '1.25rem' }}>
+              <div className="pubws-settle" style={{ textAlign: 'center', marginBottom: '0.1rem' }}>
+                {metricLabel}: actual so far, and where the market sees it landing
+                {settleDayOf(hero.targetDate) ? ` @ ${settleDayOf(hero.targetDate)}` : ''}
+              </div>
+              <MetricYearChart
+                history={heroActualHistory}
+                forecastValue={(consensus ?? hero.consensus) as number}
+                forecastAt={hero.resolvesOn}
+                unit={unit}
+              />
+            </div>
           )}
         </section>
         <section className="pubws-know pubws-enter pubws-enter--3" aria-label="What is LookPilot">
