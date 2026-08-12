@@ -698,6 +698,8 @@ export function TradePage() {
               unit={unit}
               selectedId={selectedJobId}
               onSelect={id => setSelectedJobId(cur => (cur === id ? null : id))}
+              signedIn={!!user}
+              onRequireSignup={() => navigate('/signup')}
               onPropose={async (title, description, askUsd) => {
                 // Anonymous proposers go through the signup door; the board
                 // itself is public information (Open workspace ballot).

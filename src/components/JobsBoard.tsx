@@ -28,6 +28,12 @@ interface Props {
   selectedId: string | null;
   onSelect: (id: string) => void;
   onPropose: (title: string, description: string, askUsd: number) => Promise<void>;
+  /** Whether a participant is signed in. When false, the propose button
+      becomes a signup door rather than opening a form the submit would
+      bounce anyway. */
+  signedIn: boolean;
+  /** Called when a signed-out visitor taps the propose button. */
+  onRequireSignup: () => void;
 }
 
 function fmtVal(v: number, unit: string): string {
@@ -52,7 +58,7 @@ function headlineDelta(p: PublicProposal): number | null {
   return deltas.reduce((a, b) => (Math.abs(b) > Math.abs(a) ? b : a), deltas[0]);
 }
 
-export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: Props) {
+export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, signedIn, onRequireSignup }: Props) {
   const [formOpen, setFormOpen] = useState(false);
   const [ask, setAsk] = useState('');
   const [title, setTitle] = useState('');
@@ -182,8 +188,11 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose }: 
           })}
         </ul>
       )}
-      <button className="pubws-ghost pubws-propose-open" onClick={() => setFormOpen(true)}>
-        + Suggest a job
+      <button
+        className="pubws-ghost pubws-propose-open"
+        onClick={() => (signedIn ? setFormOpen(true) : onRequireSignup())}
+      >
+        {signedIn ? '+ Suggest a job' : 'Sign up to suggest a job'}
       </button>
       {/* The form is the ticket's structure, not just its underlines
           (Codex redesign 2026-08-10): the ask is the hero numeric at the
