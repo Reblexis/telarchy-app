@@ -11,6 +11,7 @@ import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { requireCapability, requireIdentity } from '../middleware/roles';
 import { getAuthWorkspaceMemberships } from '../middleware/auth';
+import { computeCapabilities } from '../middleware/capabilities';
 import {
   resolveWorkspaceOwnerAgentId, provisionWorkspace,
   getOwnerHandles, resolveOwnerSegment,
@@ -240,6 +241,17 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
   const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, wsId));
   if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
 
+  // The route gate checked 'manage' against the header workspace
+  // (req.auth.workspaceId), but this handler acts on the path id. Re-verify
+  // against the path workspace so manage rights in one workspace cannot edit
+  // another workspace's settings.
+  const caps = wsId === req.auth!.workspaceId
+    ? req.auth!.capabilities
+    : await computeCapabilities({ workspaceId: wsId, uid: req.auth!.uid, agentId: req.auth!.agentId, isMasterKey: req.auth!.isMasterKey });
+  if (!caps.has('manage')) {
+    res.status(403).json({ error: 'Forbidden: this identity lacks the "manage" capability in this workspace.' }); return;
+  }
+
   const hasAutoFundKey = Object.prototype.hasOwnProperty.call(req.body, 'autoFundNewMarkets');
   const hasCreditsKey = Object.prototype.hasOwnProperty.call(req.body, 'newMarketLiquidityCredits');
   const hasVisibilityKey = Object.prototype.hasOwnProperty.call(req.body, 'visibility');
@@ -253,7 +265,7 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
   // gated by the granular `manage_workspace` capability, which the Admin group
   // holds by default but operators can revoke per group via the Participants
   // tab. The route's outer `manage` gate is enough for everything else.
-  if (touchesLifecycleFields && !req.auth!.capabilities.has('manage_workspace')) {
+  if (touchesLifecycleFields && !caps.has('manage_workspace')) {
     res.status(403).json({ error: 'These settings require the manage_workspace capability' }); return;
   }
 
@@ -509,6 +521,17 @@ workspacesRouter.delete('/:id', requireCapability('manage_workspace'), wrap(asyn
 
   const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, wsId));
   if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
+
+  // The route gate checked 'manage_workspace' against the header workspace
+  // (req.auth.workspaceId), but this handler acts on the path id. Re-verify
+  // against the path workspace so manage rights in one workspace cannot
+  // delete another.
+  if (wsId !== req.auth!.workspaceId) {
+    const caps = await computeCapabilities({ workspaceId: wsId, uid: req.auth!.uid, agentId: req.auth!.agentId, isMasterKey: req.auth!.isMasterKey });
+    if (!caps.has('manage_workspace')) {
+      res.status(403).json({ error: 'Forbidden: this identity lacks the "manage_workspace" capability in this workspace.' }); return;
+    }
+  }
 
   // Void all unresolved markets (refunds positions to participants)
   const openMarkets = await db.select().from(markets)

@@ -44,6 +44,28 @@ function resolveRouteAgentId(req: Request): string | null {
   return req.params.id as string;
 }
 
+/**
+ * Strip account-private fields from an agent row before returning it to a
+ * viewer who is not that participant (or its registered owner, or the master
+ * key). A workspace 'manage' holder is entitled to co-members' trading data,
+ * not their payment rails or identity bindings. apiKeyHash and claimTokenHash
+ * are secrets and never leave the API regardless of viewer.
+ */
+function sanitizeAgentForViewer(
+  row: typeof agents.$inferSelect,
+  auth: { uid?: string; agentId?: string; isMasterKey?: boolean } | undefined,
+) {
+  const { apiKeyHash: _hash, claimTokenHash: _claim, ...data } = row;
+  const isSelfOrOwner = !!auth && (
+    auth.isMasterKey === true ||
+    (!!auth.agentId && (auth.agentId === row.id || auth.agentId === row.ownerAgentId)) ||
+    (!!auth.uid && (auth.uid === row.authUserId || auth.uid === row.ownerUserId))
+  );
+  if (isSelfOrOwner) return data;
+  const { payoutMethod: _pm, payoutHandle: _ph, walletAddress: _w, authUserId: _au, ownerUserId: _ou, ...publicData } = data;
+  return publicData;
+}
+
 agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => {
   const { agentId, workspaceId, nickname, bio } = req.body;
   const agentIdError = validateAgentId(agentId);
@@ -56,8 +78,21 @@ agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => 
     res.status(400).json({ error: 'workspaceId is required' }); return;
   }
 
-  const [ws] = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.id, workspaceId));
+  const [ws] = await db.select({ id: workspaces.id, visibility: workspaces.visibility })
+    .from(workspaces).where(eq(workspaces.id, workspaceId));
   if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
+  // Same rule as POST /workspaces/:id/join and the marketplace join: visibility
+  // is the access boundary, and a private workspace 404s so the UUID cannot be
+  // probed. Without this, anyone who learns a private workspace's UUID could
+  // self-register into its Public (read) group. A caller who holds 'manage' in
+  // the workspace (its owner registering a bot, or the master key) may still
+  // register into it.
+  if (ws.visibility === 'private') {
+    const caps = req.auth
+      ? await computeCapabilities({ workspaceId, uid: req.auth.uid, agentId: req.auth.agentId, isMasterKey: req.auth.isMasterKey })
+      : new Set<string>();
+    if (!caps.has('manage')) { res.status(404).json({ error: 'Workspace not found' }); return; }
+  }
 
   const [existing] = await db.select().from(agents).where(eq(agents.id, agentId));
   if (existing) { res.status(409).json({ error: 'Agent already registered' }); return; }
@@ -729,8 +764,8 @@ agentsRouter.get('/:id', requireSelfOrAdmin, wrap(async (req, res) => {
   if (!id) { res.status(403).json({ error: 'A participant identity is required' }); return; }
   const [agent] = await db.select().from(agents).where(eq(agents.id, id));
   if (!agent) { res.status(404).json({ error: 'Agent not found' }); return; }
-  const { apiKeyHash: _, ...data } = agent;
-  res.json({ ...data, balance: fromUnits(data.balance as number) });
+  const data = sanitizeAgentForViewer(agent, req.auth);
+  res.json({ ...data, balance: fromUnits(agent.balance as number) });
 }));
 
 agentsRouter.get('/:id/balance', requireSelfOrAdmin, wrap(async (req, res) => {
@@ -1008,10 +1043,10 @@ agentsRouter.get('/', requireCapability('manage'), wrap(async (_req, res) => {
   }
 
   res.json(rows.map(a => {
-    const { apiKeyHash: _, ...data } = a;
+    const data = sanitizeAgentForViewer(a, _req.auth);
     return {
       ...data,
-      balance: fromUnits(data.balance as number),
+      balance: fromUnits(a.balance as number),
       realizedPnl: realizedPnl.get(a.id) ?? 0,
       pnlConsensus: pnlConsensusByAgent.get(a.id) ?? 0,
       pnlMetric: pnlMetricByAgent.get(a.id) ?? 0,
@@ -1294,6 +1329,14 @@ agentsRouter.delete('/:id', requireCapability('manage'), wrap(async (req, res) =
   const workspaceId = req.auth!.workspaceId;
   const [agent] = await db.select().from(agents).where(eq(agents.id, id));
   if (!agent) { res.status(404).json({ error: 'Agent not found' }); return; }
+  // 'manage' is a per-workspace capability, but this delete is platform-wide
+  // (the agents row and its keys/trades/deposits). Same guard as /:id/credit:
+  // the target must be a member of the caller's workspace, or manage rights in
+  // one workspace would delete participants belonging to another.
+  const members = await listParticipantsForWorkspace(workspaceId);
+  if (!members.some(m => m.id === id)) {
+    res.status(403).json({ error: 'Agent is not in your workspace' }); return;
+  }
 
   // Unwind positions: sell all shares at current market rates to restore LMSR state
   const agentPositions = await db.select().from(positions)
