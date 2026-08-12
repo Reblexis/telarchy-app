@@ -8686,7 +8686,7 @@ textarea.jobform-line--desc {
    beside Comments). */
 .pubws-panel-tabs {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.4rem;
   flex-wrap: wrap;
 }
