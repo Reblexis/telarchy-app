@@ -10113,18 +10113,16 @@ textarea.jobform-line--desc {
 .pubws-about {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: clamp(2rem, 5vh, 3rem);
-  max-width: 560px;
+  align-items: stretch;
+  gap: clamp(1.8rem, 4vh, 2.6rem);
+  width: min(92vw, 1100px);
   margin: 0 auto;
   padding: clamp(4rem, 10vh, 7rem) 1.5rem clamp(4rem, 9vh, 6rem);
 }
 
-/* "What is this?" section heading, left-aligned to match the column. */
+/* "What is this?" heading over the triptych. */
 .pubws-about-head {
-  margin: 0 0 0.4rem;
-  width: 100%;
-  max-width: 560px;
+  margin: 0;
   font-size: 0.72rem;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -10133,23 +10131,34 @@ textarea.jobform-line--desc {
   text-align: left;
 }
 
-/* Each concept beat reads as a step: its drawing is a left-hand icon, the
-   sentence sits beside it. Cleaner than a small drawing floating above
-   left-aligned text. */
+/* Three steps across the full content width: a numbered "how it works"
+   triptych, not a narrow stacked list. Each column stacks its step number,
+   drawing, and sentence; the strokes draw themselves in left-to-right on
+   scroll (staggered by --d). */
+.pubws-about-beats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: clamp(1.6rem, 3.5vw, 3.5rem);
+}
 .pubws-about-beat {
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 1.4rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.85rem;
   text-align: left;
-  width: 100%;
-  max-width: 560px;
   --d: 0s;
 }
-.pubws-about-beat:nth-child(3) { --d: 0.16s; }
-.pubws-about-beat:nth-child(4) { --d: 0.32s; }
-@media (max-width: 560px) {
-  .pubws-about-beat { flex-direction: column; align-items: flex-start; gap: 0.8rem; }
+.pubws-about-beat:nth-child(2) { --d: 0.16s; }
+.pubws-about-beat:nth-child(3) { --d: 0.32s; }
+@media (max-width: 720px) {
+  .pubws-about-beats { grid-template-columns: 1fr; gap: 2rem; }
+}
+.pubws-about-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--accent);
 }
 
 /* Reveal-on-scroll (the section adds .is-in via IntersectionObserver): the
@@ -10188,9 +10197,9 @@ textarea.jobform-line--desc {
   .pubws-about-beat p { opacity: 1; transform: none; transition: none; }
 }
 
-.pubws-about-beat svg {
-  width: 120px;
-  height: 48px;
+.pubws-about-art {
+  width: 132px;
+  height: 52px;
   overflow: visible;
 }
 
@@ -10200,7 +10209,7 @@ textarea.jobform-line--desc {
   font-size: 1.08rem;
   line-height: 1.5;
   color: var(--text-secondary);
-  max-width: 42ch;
+  max-width: 32ch;
 }
 
 .ab-line { fill: none; stroke: var(--accent); stroke-width: 2; }

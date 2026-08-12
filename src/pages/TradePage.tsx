@@ -771,31 +771,36 @@ export function TradePage() {
           priced gap; nothing here is decoration from outside the product. */}
       <section className={`pubws-about${aboutIn ? ' is-in' : ''}`} ref={aboutRef} aria-label="What is this?">
         <h2 className="pubws-about-head">What is this?</h2>
-        <div className="pubws-about-beat">
-          <svg viewBox="0 0 120 48" aria-hidden="true">
-            <path className="ab-line" pathLength={1} d="M6,40 L36,40 L36,28 L66,28 L66,14 L106,14" />
-            <circle className="ab-dot" cx="106" cy="14" r="3.5" />
-          </svg>
-          <p>A real company, run in the open. One number says how it is going.</p>
-        </div>
-        <div className="pubws-about-beat">
-          <svg viewBox="0 0 120 48" aria-hidden="true">
-            <path className="ab-line" pathLength={1} d="M6,24 L46,24" />
-            <path className="ab-up" pathLength={1} d="M46,24 L106,10" />
-            <path className="ab-down" d="M46,24 L106,38" />
-            <circle className="ab-dot ab-dot--up" cx="106" cy="10" r="3.5" />
-            <circle className="ab-dot ab-dot--down" cx="106" cy="38" r="3.5" />
-          </svg>
-          <p>Anyone proposes a job with a price. Participants, human or AI, bet on both worlds: done, and not done.</p>
-        </div>
-        <div className="pubws-about-beat">
-          <svg viewBox="0 0 120 48" aria-hidden="true">
-            <line className="ab-gap" x1="60" y1="12" x2="60" y2="36" />
-            <circle className="ab-dot ab-dot--up" cx="60" cy="12" r="3.5" />
-            <circle className="ab-dot ab-dot--down" cx="60" cy="36" r="3.5" />
-            <path className="ab-check" pathLength={1} d="M78,22 L84,28 L96,14" />
-          </svg>
-          <p>The gap between those worlds is a calibrated number. The owner approves on it, and pays for outcomes, not promises.</p>
+        <div className="pubws-about-beats">
+          <div className="pubws-about-beat">
+            <span className="pubws-about-num">01</span>
+            <svg className="pubws-about-art" viewBox="0 0 120 48" aria-hidden="true">
+              <path className="ab-line" pathLength={1} d="M6,40 L36,40 L36,28 L66,28 L66,14 L106,14" />
+              <circle className="ab-dot" cx="106" cy="14" r="3.5" />
+            </svg>
+            <p>A real company, run in the open. One number says how it is going.</p>
+          </div>
+          <div className="pubws-about-beat">
+            <span className="pubws-about-num">02</span>
+            <svg className="pubws-about-art" viewBox="0 0 120 48" aria-hidden="true">
+              <path className="ab-line" pathLength={1} d="M6,24 L46,24" />
+              <path className="ab-up" pathLength={1} d="M46,24 L106,10" />
+              <path className="ab-down" d="M46,24 L106,38" />
+              <circle className="ab-dot ab-dot--up" cx="106" cy="10" r="3.5" />
+              <circle className="ab-dot ab-dot--down" cx="106" cy="38" r="3.5" />
+            </svg>
+            <p>Anyone proposes a job with a price. Participants, human or AI, bet on both worlds: done, and not done.</p>
+          </div>
+          <div className="pubws-about-beat">
+            <span className="pubws-about-num">03</span>
+            <svg className="pubws-about-art" viewBox="0 0 120 48" aria-hidden="true">
+              <line className="ab-gap" x1="60" y1="12" x2="60" y2="36" />
+              <circle className="ab-dot ab-dot--up" cx="60" cy="12" r="3.5" />
+              <circle className="ab-dot ab-dot--down" cx="60" cy="36" r="3.5" />
+              <path className="ab-check" pathLength={1} d="M78,22 L84,28 L96,14" />
+            </svg>
+            <p>The gap between those worlds is a calibrated number. The owner approves on it, and pays for outcomes, not promises.</p>
+          </div>
         </div>
         {/* The door is an email box, not a "waitlist" (owner direction
             2026-08-10): anyone who wants their own numbers run this way
