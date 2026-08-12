@@ -647,17 +647,16 @@ export function TradePage() {
             voids the market. "What is LookPilot?" is the product in its
             own words plus the primary sources; know the company, trade it
             better. */}
-        <section className="pubws-know pubws-enter pubws-enter--3" aria-label="What is this metric">
-          <h2 className="pubws-know-head">What is this metric?</h2>
-          {/* Just the metric, in plain terms (owner direction 2026-08-12):
-              no prediction-market or betting explanation here (that lives in
-              the "What is this?" section below); the year chart under it is
-              the visualization. */}
+        <section className="pubws-know pubws-enter pubws-enter--3" aria-label="What is this market">
+          <h2 className="pubws-know-head">What is this market?</h2>
+          {/* Name the market, then define the metric (owner direction
+              2026-08-12): no how-to-bet mechanics here (that concept lives in
+              "What is this?" below); the year chart under it is the picture. */}
           <p className="pubws-know-what">
-            LookPilot&rsquo;s net earnings across 2026: every Steam and direct
-            sale, after store fees and refunds, minus anything paid out for
-            jobs approved on this page. It settles on the real total on 31
-            December 2026.
+            This is a prediction market on LookPilot&rsquo;s net revenue for the
+            year 2026: every Steam and direct sale, after store fees and
+            refunds, minus anything paid out for jobs approved on this page. It
+            settles on the real total on 31 December 2026.
           </p>
           {/* The metric itself over the year: what it has actually done so
               far (solid) and where the market sees it settling (dashed).
