@@ -121,20 +121,61 @@ jobs:
           npm ci --no-audit --no-fund
           npx drizzle-kit migrate
 
-      # Mirrors `npm run deploy` from package.json. Build is done by Cloud
-      # Build via --source .; we don't pull the GHCR-published image
-      # because the manual path also doesn't (and we want behavior parity).
-      - name: Deploy to Cloud Run
+      # Safe deploy (tag-then-promote): land the new revision with NO traffic
+      # under a tag, smoke-test its isolated URL, and only then shift 100% of
+      # traffic to it. A bad build fails the smoke test and is never promoted
+      # (the previous revision keeps serving every user), so a broken push
+      # cannot take the site down. Rollback is one command:
+      #   gcloud run services update-traffic api --region us-central1 \
+      #     --to-revisions <PREVIOUS_REVISION>=100
+      #
+      # Note on migrations (step above): they run against prod before this,
+      # while the OLD revision is still serving, so every migration MUST be
+      # backward-compatible (expand/contract): additive changes ship in one
+      # deploy; drop/rename splits across two (stop using the column, then a
+      # later deploy drops it). See docs/infra/deploy.md.
+      #
+      # ALLOWED_ORIGIN + the master-key / GitHub-secret refs are declared here
+      # so the config is reproducible in code, not only set imperatively on the
+      # service (they are merged, so other secrets/env are untouched).
+      - name: Deploy candidate (no traffic)
         if: steps.auth_check.outputs.skip != 'true'
         run: |
           gcloud run deploy api \
             --source . \
             --region us-central1 \
+            --no-traffic --tag candidate \
             --allow-unauthenticated \
             --memory 256Mi \
             --cpu 1 \
-            --min-instances 0 \
+            --min-instances 1 \
             --max-instances 20 \
             --set-cloudsql-instances telarchy-e0043:us-central1:telarchy-pg \
+            --update-env-vars ALLOWED_ORIGIN=https://telarchy.com \
+            --update-secrets API_KEY=API_KEY:latest,GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest \
             --clear-base-image \
             --quiet
+
+      - name: Smoke-test the candidate revision
+        if: steps.auth_check.outputs.skip != 'true'
+        run: |
+          set -euo pipefail
+          CAND_URL=$(gcloud run services describe api --region us-central1 \
+            --flatten='status.traffic[]' \
+            --filter='status.traffic.tag=candidate' \
+            --format='value(status.traffic.url)' | head -n1)
+          echo "Candidate URL: $CAND_URL"
+          [ -n "$CAND_URL" ] || { echo "no candidate URL found"; exit 1; }
+          ok=""
+          for _ in $(seq 1 20); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$CAND_URL/api/status" || true)
+            echo "  /api/status -> $code"
+            if [ "$code" = "200" ]; then ok=1; break; fi
+            sleep 3
+          done
+          [ -n "$ok" ] || { echo "candidate failed smoke test; NOT promoting (prod still serves the previous revision)"; exit 1; }
+
+      - name: Promote candidate to 100% traffic
+        if: steps.auth_check.outputs.skip != 'true'
+        run: |
+          gcloud run services update-traffic api --region us-central1 --to-latest --quiet
