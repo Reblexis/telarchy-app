@@ -336,6 +336,31 @@ export interface PublicWorkspaceMarket {
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
+/**
+ * GET with a short retry on transient unavailability (502/503/504) and on a
+ * network throw. Cloud Run can briefly return 503 while a container is warming
+ * (a cold start, or the moment a new revision takes over), and a first-time
+ * visitor hitting a public page during that window should not see a hard
+ * error. Backs off ~250ms, ~600ms; anything else (4xx, a real 5xx that
+ * persists) returns as-is for the caller to handle.
+ */
+async function fetchGetWithRetry(url: string, attempts = 3): Promise<Response> {
+  const delays = [250, 600];
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(url);
+      if (res.status !== 503 && res.status !== 502 && res.status !== 504) return res;
+      lastErr = new Error(`transient ${res.status}`);
+    } catch (e) {
+      lastErr = e;
+    }
+    if (i < attempts - 1) await new Promise(r => setTimeout(r, delays[i] ?? 600));
+  }
+  // Out of retries: do one final plain fetch so the caller sees the real status.
+  try { return await fetch(url); } catch { throw lastErr; }
+}
+
 let activeWorkspaceId: string | null = localStorage.getItem('activeWorkspaceId');
 
 async function agentRequest(path: string, apiKey: string, options: RequestInit = {}) {
@@ -742,7 +767,7 @@ export const api = {
     return res.json();
   },
   getMarketplaceWorkspace: async (workspaceId: string): Promise<PublicWorkspace> => {
-    const res = await fetch(`${API_BASE}/api/marketplace/${encodeURIComponent(workspaceId)}`);
+    const res = await fetchGetWithRetry(`${API_BASE}/api/marketplace/${encodeURIComponent(workspaceId)}`);
     if (!res.ok) throw new Error(`Marketplace workspace request failed: ${res.status}`);
     return res.json();
   },
@@ -771,7 +796,7 @@ export const api = {
     return body.history ?? [];
   },
   getPublicProfile: async (idOrNickname: string): Promise<PublicParticipantProfile> => {
-    const res = await fetch(`${API_BASE}/api/agents/${encodeURIComponent(idOrNickname)}/public`);
+    const res = await fetchGetWithRetry(`${API_BASE}/api/agents/${encodeURIComponent(idOrNickname)}/public`);
     if (res.status === 404) throw new Error('Participant not found');
     if (!res.ok) throw new Error(`Profile request failed: ${res.status}`);
     return res.json();

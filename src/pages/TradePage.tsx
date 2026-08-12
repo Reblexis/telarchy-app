@@ -635,16 +635,16 @@ export function TradePage() {
               beneath it. The explainer talks mechanics, so it never
               paraphrases the definition and cannot drift from it. */}
           <p className="pubws-know-what">
-            A bet on how much money LookPilot makes in 2026. The number up top
-            is where traders think it lands by year end; bet Higher if you
-            think it&rsquo;s low, Lower if it&rsquo;s high. The closer you are
-            to the real number on 31 December, the more you win.
+            A{' '}
+            <a href="https://en.wikipedia.org/wiki/Prediction_market" target="_blank" rel="noreferrer">prediction&nbsp;market</a>{' '}
+            on LookPilot&rsquo;s 2026 earnings. The big number is the crowd&rsquo;s
+            guess: bet Higher if you&rsquo;d take the over, Lower for the under.
+            The closer to the real 31 December total, the more you win.
           </p>
-          {ws.heroMetricDescription && (
-            <p className="pubws-metric-desc">
-              What counts: {ws.heroMetricDescription}
-            </p>
-          )}
+          <p className="pubws-metric-desc">
+            Counts every Steam and direct sale, after fees and refunds, minus
+            jobs paid out on this page.
+          </p>
           {/* The metric itself over the year: what it has actually done so
               far (solid) and where the market sees it settling (dashed).
               Lives here, under the definition, because it shows the thing
@@ -673,20 +673,13 @@ export function TradePage() {
             $14.99 once per player, so every copy sold is what this market is
             betting on.
           </p>
-          <div className="pubws-know-grid">
-            <a href="https://lookpilot.app/data-room/" target="_blank" rel="noreferrer">
-              <span className="pubws-know-name">data room</span>
-              <span className="pubws-know-desc">the official numbers this market settles on</span>
-            </a>
-            <a href="https://store.steampowered.com/app/3326890/LookPilot/" target="_blank" rel="noreferrer">
-              <span className="pubws-know-name">steam page</span>
-              <span className="pubws-know-desc">the product, as players see it</span>
-            </a>
-            <a href="https://steamdb.info/app/3326890/" target="_blank" rel="noreferrer">
-              <span className="pubws-know-name">steamdb</span>
-              <span className="pubws-know-desc">third-party sales estimates</span>
-            </a>
-          </div>
+          <p className="pubws-know-what pubws-know-links">
+            The numbers this settles on live in the{' '}
+            <a href="https://lookpilot.app/data-room/" target="_blank" rel="noreferrer">data room</a>. See the product on{' '}
+            <a href="https://store.steampowered.com/app/3326890/LookPilot/" target="_blank" rel="noreferrer">Steam</a>{' '}
+            or third-party sales estimates on{' '}
+            <a href="https://steamdb.info/app/3326890/" target="_blank" rel="noreferrer">SteamDB</a>.
+          </p>
         </section>
         </div>
         {/* The jobs board IS the right rail (owner direction 2026-08-10:

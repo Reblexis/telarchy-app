@@ -9896,6 +9896,27 @@ textarea.jobform-line--desc {
   color: var(--text-primary);
 }
 
+/* Links inside the explainer read as normal underlined text, not buttons
+   (owner ask 2026-08-12): the "prediction market" definition link and the
+   data-room / Steam / SteamDB sources. */
+.pubws-know-what a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--text-tertiary);
+  transition: color 120ms ease, text-decoration-color 120ms ease;
+}
+.pubws-know-what a:hover,
+.pubws-know-what a:focus-visible {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+/* The sources line sits a register quieter than the body prose. */
+.pubws-know-links {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
 .pubws-metric-desc {
   max-width: 56ch;
   margin: 0 0 1.2rem;
