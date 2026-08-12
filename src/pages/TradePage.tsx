@@ -635,15 +635,14 @@ export function TradePage() {
               beneath it. The explainer talks mechanics, so it never
               paraphrases the definition and cannot drift from it. */}
           <p className="pubws-know-what">
-            A prediction market on LookPilot&rsquo;s 2026 profit. The big
-            number is what traders currently believe the year will end at.
-            Think it&rsquo;s too low? Bet Higher. Too high? Bet Lower. The
-            closer the real year-end number lands to your side, the more you
-            win.
+            A bet on how much money LookPilot makes in 2026. The number up top
+            is where traders think it lands by year end; bet Higher if you
+            think it&rsquo;s low, Lower if it&rsquo;s high. The closer you are
+            to the real number on 31 December, the more you win.
           </p>
           {ws.heroMetricDescription && (
             <p className="pubws-metric-desc">
-              Exactly what counts: {ws.heroMetricDescription}
+              What counts: {ws.heroMetricDescription}
             </p>
           )}
           {/* The metric itself over the year: what it has actually done so
@@ -670,7 +669,9 @@ export function TradePage() {
           <p className="pubws-know-what">
             LookPilot is a webcam head tracker for flight, trucking and racing
             sims, the best-reviewed one on Steam: look around in the game by
-            moving your head, no hardware, $14.99 once.
+            moving your head, no hardware. It makes money by selling the app,
+            $14.99 once per player, so every copy sold is what this market is
+            betting on.
           </p>
           <div className="pubws-know-grid">
             <a href="https://lookpilot.app/data-room/" target="_blank" rel="noreferrer">

@@ -188,12 +188,18 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
           })}
         </ul>
       )}
-      <button
-        className="pubws-ghost pubws-propose-open"
-        onClick={() => (signedIn ? setFormOpen(true) : onRequireSignup())}
-      >
-        {signedIn ? '+ Suggest a job' : 'Sign up to suggest a job'}
-      </button>
+      <div className="pubws-propose">
+        <button
+          className="pubws-propose-cta"
+          onClick={() => (signedIn ? setFormOpen(true) : onRequireSignup())}
+        >
+          {signedIn ? '+ Suggest a job' : 'Sign up to suggest a job'}
+        </button>
+        {/* Surface the stake on the board itself, not only inside the form:
+            posting costs 500 cr and pays 1,000 cr back if the owner approves,
+            so a new signup (1,000 free cr) can afford it and see the upside. */}
+        <p className="pubws-propose-cost">500&nbsp;cr to post&nbsp;· 1,000&nbsp;cr back if approved</p>
+      </div>
       {/* The form is the ticket's structure, not just its underlines
           (Codex redesign 2026-08-10): the ask is the hero numeric at the
           top like the bet amount, the consequences live in the same ruled

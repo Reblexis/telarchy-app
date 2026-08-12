@@ -9094,6 +9094,42 @@ textarea.jobform-line--desc {
 
 .pubws-propose-open { margin-top: 0.9rem; }
 
+/* Suggest-a-job is the one thing a visitor can add to the board, so give it
+   a real CTA (owner ask 2026-08-12) instead of the quiet ghost link, and put
+   the 500 cr stake right under it rather than hiding it in the form. */
+.pubws-propose {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.pubws-propose-cta {
+  display: block;
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: none;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.pubws-propose-cta:hover,
+.pubws-propose-cta:focus-visible {
+  background: var(--accent);
+  color: var(--on-signal, var(--bg-primary));
+  outline: none;
+}
+.pubws-propose-cost {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
 /* The evidence line: real history under the instrument. Ink at low opacity so
    it reads as context, not a second chart competing with the price. */
 
@@ -9288,14 +9324,9 @@ textarea.jobform-line--desc {
   animation: mchart-appear 0.4s ease-out 1.3s both;
 }
 
-/* The market is live: a soft ripple off the call dot. */
-.mchart-callhalo {
-  fill: var(--accent);
-  opacity: 0;
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: mchart-pulse 2.8s ease-out 1.9s infinite;
-}
+/* The pulsing "live" ripple off the call dot was distracting (owner ask
+   2026-08-12): drop it entirely and keep the solid dot. */
+.mchart-callhalo { display: none; }
 
 .mchart-calllabel {
   font-family: 'JetBrains Mono', monospace;
