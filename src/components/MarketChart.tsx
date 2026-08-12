@@ -134,18 +134,29 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
       : Math.min(extended[0].t, secPts[0]?.t ?? extended[0].t);
     const t1 = Math.max(now, extended[extended.length - 1].t);
     const span = range !== null ? range : Math.max(t1 - t0, 60_000);
-    const values = extended.map(p => p.v);
-    if (preview) values.push(preview.value);
-    // Resting orders join the y domain, or an order below the traded range
-    // would be drawn off-canvas and read as no order at all.
-    for (const o of orders) values.push(o.limitValue);
+    // Two kinds of value feed the y domain. The SERIES is what the market
+    // printed over time; in a thin market a single trade can saturate the AMM
+    // and print at the metric's ceiling for one tick, and taking a raw
+    // min/max over that stretches the axis until every real move is a flat
+    // line (observed live 2026-08-12: a $10k..$180k axis for a market that
+    // spent its life between $73k and $77k). So the series contributes a
+    // ROBUST band (5th..95th percentile); brief excursions still draw, they
+    // are simply clipped to the plot instead of rescaling everything.
+    const seriesValues = extended.map(p => p.v);
+    if (secondary) for (const p of secPts) seriesValues.push(p.v);
+    // MUST-SHOW values are single facts the reader needs on the canvas: the
+    // live call, a composed bet's ghost, resting orders, the other branch.
+    // These always widen the domain, never get clipped.
+    const mustShow: number[] = [consensus];
+    if (preview) mustShow.push(preview.value);
+    for (const o of orders) mustShow.push(o.limitValue);
+    if (secondary) mustShow.push(secondary.consensus);
 
-    if (secondary) {
-      for (const p of secPts) values.push(p.v);
-      values.push(secondary.consensus);
-    }
-    const vMin0 = Math.min(...values);
-    const vMax0 = Math.max(...values);
+    const sorted = [...seriesValues].sort((a, b) => a - b);
+    const quantile = (p: number) =>
+      sorted[Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * p)))];
+    const vMin0 = Math.min(quantile(0.05), ...mustShow);
+    const vMax0 = Math.max(quantile(0.95), ...mustShow);
     const vPad = (vMax0 - vMin0 || vMax0 * 0.08 || 1) * 0.25;
     const vMin = Math.max(0, vMin0 - vPad);
     const vMax = vMax0 + vPad;
@@ -185,10 +196,16 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
       if (v > vMin + (vMax - vMin) * 0.04 && v < vMax - (vMax - vMin) * 0.04) gridVals.push(v);
     }
 
-    // Time ticks: ~4, labeled by how long the market has lived.
-    const fmt = (t: number) => span < 48 * 3600e3
-      ? new Date(t).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: false })
-      : new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    // Time ticks: ~4, labeled by how long the market has lived. Inside two
+    // days the label is a clock time, but a bare "08:26" is ambiguous once the
+    // window crosses midnight, so the date rides along when it does.
+    const crossesDay = new Date(t0).toDateString() !== new Date(t0 + span).toDateString();
+    const fmt = (t: number) => {
+      const dt = new Date(t);
+      if (span >= 48 * 3600e3) return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const time = dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: false });
+      return crossesDay ? `${dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} ${time}` : time;
+    };
     const ticks = [0.08, 0.38, 0.68, 0.95].map(f => t0 + f * span);
 
     return { pts, extended, d, areaPath, end, secD, secEnd, t0, t1: t0 + span, span, fullSpan, x, y, gridVals, ticks, fmt, open: extended[0] };
@@ -267,6 +284,13 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
             <stop offset="0%" style={{ stopColor: 'var(--accent)' }} stopOpacity="0.14" />
             <stop offset="100%" style={{ stopColor: 'var(--accent)' }} stopOpacity="0" />
           </linearGradient>
+          {/* The y domain is robust (see the model), so a saturated tick can
+              exceed it. Clip the drawn series to the plot rectangle: the line
+              runs off the edge, which reads as "it spiked past here", instead
+              of overprinting the axis labels. */}
+          <clipPath id="mchart-plot">
+            <rect x={PAD_L} y={PAD_T} width={W - PAD_L - PAD_R} height={H - PAD_T - PAD_B} />
+          </clipPath>
         </defs>
 
         {gridVals.map(v => (
@@ -289,7 +313,7 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
           const lb = edgeLabel(x(secEnd.t), text);
           return (
             <g className={`mchart-branch mchart-branch--${secondary.tone}`}>
-              <path d={secD} className="mchart-branch-line" />
+              <path d={secD} className="mchart-branch-line" clipPath="url(#mchart-plot)" />
               <circle cx={x(secEnd.t)} cy={py} r="3.5" className="mchart-branch-dot" />
               <text className="mchart-branch-label" x={lb.x} y={labelY + 4} textAnchor={lb.anchor}>{text}</text>
             </g>
@@ -297,10 +321,12 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
         })()}
 
         <g className="mchart-market">
-          <path d={areaPath} className="mchart-fill-area" fill="url(#mchart-fill)" stroke="none" />
-          {/* pathLength=1 normalizes the dash math so the entrance draw
-              (stroke-dashoffset 1 -> 0 in CSS) works for any path. */}
-          <path d={d} className="mchart-mline" pathLength={1} />
+          <g clipPath="url(#mchart-plot)">
+            <path d={areaPath} className="mchart-fill-area" fill="url(#mchart-fill)" stroke="none" />
+            {/* pathLength=1 normalizes the dash math so the entrance draw
+                (stroke-dashoffset 1 -> 0 in CSS) works for any path. */}
+            <path d={d} className="mchart-mline" pathLength={1} />
+          </g>
           <circle cx={x(end.t)} cy={y(end.v)} r="5" className="mchart-callhalo" />
           <circle cx={x(end.t)} cy={y(end.v)} r="5" className="mchart-calldot" />
           {(() => {
