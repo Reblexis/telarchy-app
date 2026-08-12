@@ -303,6 +303,10 @@ export interface PublicProposal {
    *  (it feeds burn inside the resolving metric). Null on proposals that
    *  predate the field. */
   askUsd?: number | null;
+  /** Job lifecycle: on the ballot, or decided (the owner picked a branch). */
+  status?: 'pending' | 'approved' | 'declined';
+  resolvedAt?: string | null;
+  declineReason?: string | null;
   proposedByName: string | null;
   /** Resolvable segment for /participants/:id (participant id; the page
    *  also resolves nicknames). */

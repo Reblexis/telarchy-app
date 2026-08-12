@@ -191,6 +191,9 @@ export function TradePage() {
   const metricLabel = hero ? hero.metricName.replace(/\s*\(.*\)\s*$/, '') : '';
   const selectedJob = ws?.proposals?.find(p => p.id === selectedJobId) ?? null;
   const pair = selectedJob?.markets[0] ?? null;
+  // A decided job is history: its markets are resolved, so trading is paused;
+  // the page still shows the impact that was priced for it.
+  const selectedJobDecided = !!selectedJob?.status && selectedJob.status !== 'pending';
   // The selected branch's market id/price shape, and the other branch's for
   // the chart's second line. A branch market can exist without a price
   // (liquidity 0: the proposer could not fund the subsidy before the
@@ -605,7 +608,7 @@ export function TradePage() {
           </section>
         )}
 
-        {active && (trading || (canTrade && !user && !authLoading)) ? (
+        {active && !selectedJobDecided && (trading || (canTrade && !user && !authLoading)) ? (
           <section className="pubws-act pubws-enter pubws-enter--3" aria-label="Place a trade">
             {/* Prominent, Manifold-style (owner direction 2026-08-10):
                 the two filled verbs ARE the floor's call to action, green
@@ -719,7 +722,6 @@ export function TradePage() {
               signedIn={!!user}
               onRequireSignup={() => navigate('/signup')}
               workspaceName={ws.name}
-              decided={ws.decided}
               onPropose={async (title, description, askUsd) => {
                 // Anonymous proposers go through the signup door; the board
                 // itself is public information (Open workspace ballot).

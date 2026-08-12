@@ -9467,32 +9467,25 @@ textarea.jobform-line--desc {
 /* Two leaderboards stacked in the left rail (traders, then contractors). */
 .pubws-lb-block + .pubws-lb-block { margin-top: 1.7rem; }
 
-/* Jobs history: decided jobs as quiet read-only rows under the propose CTA. */
-.pubws-jh { margin-top: 1.8rem; }
-.pubws-jh-head {
-  margin: 0 0 0.5rem;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
+/* Per-job status pill in the ballot (approved / declined; pending is the
+   default live state and needs no pill). */
+.pubws-ballot-status {
   text-transform: uppercase;
-  color: var(--text-tertiary);
+  font-size: 0.58rem;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  padding: 0.04rem 0.34rem;
+  border-radius: 4px;
+  white-space: nowrap;
 }
-.pubws-jh-list { list-style: none; margin: 0; padding: 0; }
-.pubws-jh-row {
-  padding: 0.4rem 0;
-  border-top: 1px solid var(--border-color);
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
+.pubws-ballot-status.is-approved {
+  color: var(--success, #16a34a);
+  background: color-mix(in srgb, var(--success, #16a34a) 16%, transparent);
 }
-.pubws-jh-title {
-  font-size: 0.82rem;
-  color: var(--text-secondary);
-  overflow-wrap: anywhere;
+.pubws-ballot-status.is-declined {
+  color: var(--lower, #dc2626);
+  background: color-mix(in srgb, var(--lower, #dc2626) 16%, transparent);
 }
-.pubws-jh-meta { font-size: 0.72rem; color: var(--text-tertiary); }
-.pubws-jh-out.is-up { color: var(--success, #16a34a); }
-.pubws-jh-out.is-down { color: var(--text-tertiary); }
 .pubws-lb-empty {
   margin: 0.5rem 0 0;
   font-size: 0.8rem;

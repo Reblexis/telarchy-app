@@ -336,7 +336,6 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
   // charter accountability on display). Workspaces whose Public group lacks
   // `read` keep the counts-only boundary.
   let openProposals: Array<Record<string, unknown>> | undefined;
-  let decidedProposals: Array<Record<string, unknown>> | undefined;
   // Top contractors: participants ranked by the real USD they have earned
   // from jobs the owner approved (the other side of the economy from traders).
   let topContractors: Array<{ id: string; name: string | null; earnedUsd: number; jobs: number }> | undefined;
@@ -377,10 +376,14 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
     tradesThisWeek = tradeCount?.n ?? 0;
   }
   if (publicCaps.includes('read')) {
+    // All non-withdrawn jobs (pending + decided) in one list, so the board can
+    // show status inline instead of a separate history. Decided jobs keep
+    // their markets (resolved/voided included, not just active) so clicking one
+    // still shows the impact that was priced for it.
     const pending = await db.select().from(proposals)
-      .where(and(eq(proposals.workspaceId, workspaceId), eq(proposals.status, 'pending')))
+      .where(and(eq(proposals.workspaceId, workspaceId), inArray(proposals.status, ['pending', 'approved', 'declined'])))
       .orderBy(desc(proposals.createdAt))
-      .limit(20);
+      .limit(40);
     const names = await getParticipantDisplayNames(pending.map(p => p.proposedBy));
 
     const pendingIds = pending.map(p => p.id);
@@ -389,9 +392,6 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
           .where(and(
             eq(markets.workspaceId, workspaceId),
             inArray(markets.proposalId, pendingIds),
-            eq(markets.active, true),
-            eq(markets.resolved, false),
-            eq(markets.voided, false),
           ))
       : [];
     // Group per proposal x (metric, targetDate); the delta a visitor reads is
@@ -483,6 +483,9 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
         title: p.title,
         description: p.description,
         askUsd: p.askUsd ?? null,
+        status: p.status,
+        resolvedAt: p.resolvedAt,
+        declineReason: p.declineReason,
         proposedByName: names.get(p.proposedBy) ?? null,
         // The linkable handle for the public profile page: prefer the
         // unique nickname, fall back to the raw participant id, which the
@@ -493,25 +496,16 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
         markets: pairs.slice(0, 3),
       };
     });
-
-    const decided = await db.select().from(proposals)
-      .where(and(
-        eq(proposals.workspaceId, workspaceId),
-        inArray(proposals.status, ['approved', 'declined']),
-      ))
-      .orderBy(desc(proposals.resolvedAt))
-      .limit(15);
-    const decidedNames = await getParticipantDisplayNames(decided.map(p => p.proposedBy));
-    decidedProposals = decided.map(p => ({
-      id: p.id,
-      title: p.title,
-      status: p.status,
-      askUsd: p.askUsd,
-      proposedByName: decidedNames.get(p.proposedBy) ?? null,
-      proposedByHandle: p.proposedBy,
-      resolvedAt: p.resolvedAt,
-      declineReason: p.declineReason,
-    }));
+    // Pending jobs lead (the live ballot), decided ones follow (most recently
+    // decided first): one list, ordered by where a job is in its life.
+    openProposals.sort((a, b) => {
+      const rank = (s: unknown) => (s === 'pending' ? 0 : 1);
+      const ra = rank(a.status), rb = rank(b.status);
+      if (ra !== rb) return ra - rb;
+      const at = new Date((a.resolvedAt as Date | null) ?? (a.createdAt as Date)).getTime();
+      const bt = new Date((b.resolvedAt as Date | null) ?? (b.createdAt as Date)).getTime();
+      return bt - at;
+    });
 
     // Contractors: sum the real USD of every APPROVED job per proposer,
     // ranked. Declined jobs earn nothing (their stake was refunded), so only
@@ -561,7 +555,6 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
     markets: marketList,
     ...(openProposals !== undefined ? {
       proposals: openProposals,
-      decided: decidedProposals,
       topContractors,
       heroHistory,
       heroMetricDescription,
