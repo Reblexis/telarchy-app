@@ -18,6 +18,8 @@ interface FloorStats {
   visitsByDay: Array<{ day: string; visits: number; uniques: number }>;
   topReferers: Array<{ source: string; visits: number }>;
   topPaths: Array<{ path: string; visits: number }>;
+  topCountries: Array<{ country: string; visits: number; uniques: number }>;
+  recentVisitors: Array<{ ip: string; country: string; visits: number; lastSeen: string }>;
   signupsByDay: Array<{ day: string; signups: number }>;
   recentSignups: Array<{ email: string; name: string; createdAt: string }>;
   totalUsers: number;
@@ -28,6 +30,16 @@ const label = { fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: 
 const mono = { fontFamily: 'monospace', fontSize: '0.8rem', borderCollapse: 'collapse' } as const;
 const cell = { padding: '0.18rem 1rem 0.18rem 0', verticalAlign: 'top', whiteSpace: 'nowrap' } as const;
 const num = { ...cell, textAlign: 'right', color: 'var(--text-secondary)' } as const;
+
+// ISO alpha-2 -> "flag + English name" for the traffic-by-country view.
+// '??' is the unknown/private-IP bucket from the backend.
+function countryLabel(code: string): string {
+  if (!code || code === '??') return 'unknown';
+  const flag = code.toUpperCase().replace(/[A-Z]/g, c => String.fromCodePoint(127397 + c.charCodeAt(0)));
+  let name = code;
+  try { name = new Intl.DisplayNames(['en'], { type: 'region' }).of(code) || code; } catch { /* older runtime */ }
+  return `${flag} ${name}`;
+}
 
 function Big({ v, l }: { v: number | string; l: string }) {
   return (
@@ -106,6 +118,31 @@ export function AdminPage() {
                   ))}
                 </tbody></table>
               </div>
+
+              <div className="section">
+                <div style={label}>Countries (14d) · visits / unique</div>
+                <table style={mono}><tbody>
+                  {stats.topCountries.map(c => (
+                    <tr key={c.country}><td style={cell}>{countryLabel(c.country)}</td><td style={num}>{c.visits}</td><td style={num}>{c.uniques} uniq</td></tr>
+                  ))}
+                  {stats.topCountries.length === 0 && <tr><td style={cell}>no human visits yet</td></tr>}
+                </tbody></table>
+              </div>
+            </div>
+
+            <h2 style={{ margin: '2rem 0 1rem', fontSize: '1rem', fontWeight: 600 }}>Visitor IPs (14d)</h2>
+            <div className="section">
+              <table style={mono}><tbody>
+                {stats.recentVisitors.map(v => (
+                  <tr key={v.ip}>
+                    <td style={cell}>{v.ip}</td>
+                    <td style={cell}>{countryLabel(v.country)}</td>
+                    <td style={num}>{v.visits}x</td>
+                    <td style={{ ...num, color: 'var(--text-tertiary)' }}>{new Date(v.lastSeen).toLocaleString()}</td>
+                  </tr>
+                ))}
+                {stats.recentVisitors.length === 0 && <tr><td style={cell}>no human visits yet</td></tr>}
+              </tbody></table>
             </div>
 
             <h2 style={{ margin: '2rem 0 1rem', fontSize: '1rem', fontWeight: 600 }}>Signups &amp; waitlist</h2>

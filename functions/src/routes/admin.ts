@@ -88,6 +88,28 @@ adminRouter.get('/floor-stats', requireCapability('manage'), wrap(async (_req, r
   }).from(pageVisits).where(window(twoWeeksAgo))
     .groupBy(pageVisits.path).orderBy(desc(sql`count(*)`)).limit(10);
 
+  // Country of origin (owner ask 2026-08-11): where human launch traffic
+  // comes from, from the offline IP->country lookup done at log time.
+  // Unknown/private IPs (null country) collapse to '??'.
+  const topCountries = await db.select({
+    country: sql<string>`coalesce(${pageVisits.country}, '??')`,
+    visits: sql<number>`count(*)::int`,
+    uniques: sql<number>`count(distinct ${pageVisits.ip})::int`,
+  }).from(pageVisits).where(window(twoWeeksAgo))
+    .groupBy(sql`1`).orderBy(desc(sql`count(*)`)).limit(20);
+
+  // Specific visitor IPs (owner ask 2026-08-11): the individual addresses
+  // and their country, most-recent first, so a suspicious repeat visitor
+  // or a specific launch click can be inspected. Humanish only.
+  const recentVisitors = await db.select({
+    ip: pageVisits.ip,
+    country: sql<string>`coalesce(${pageVisits.country}, '??')`,
+    visits: sql<number>`count(*)::int`,
+    lastSeen: sql<string>`max(${pageVisits.ts})`,
+  }).from(pageVisits).where(and(window(twoWeeksAgo), sql`${pageVisits.ip} is not null`))
+    .groupBy(pageVisits.ip, sql`coalesce(${pageVisits.country}, '??')`)
+    .orderBy(desc(sql`max(${pageVisits.ts})`)).limit(50);
+
   const [{ visits: visits24h, uniques: uniques24h }] = await db.select({
     visits: sql<number>`count(*)::int`,
     uniques: sql<number>`count(distinct ${pageVisits.ip})::int`,
@@ -113,7 +135,7 @@ adminRouter.get('/floor-stats', requireCapability('manage'), wrap(async (_req, r
 
   res.json({
     visits24h: Number(visits24h), uniques24h: Number(uniques24h), botVisits: Number(botVisits),
-    visitsByDay, topReferers, topPaths,
+    visitsByDay, topReferers, topPaths, topCountries, recentVisitors,
     signupsByDay, recentSignups, totalUsers,
     waitlist: waitlistRows,
   });

@@ -144,13 +144,20 @@ import('./app').then(async ({ app }) => {
         const { db } = await import('./db/client');
         const { pageVisits } = await import('./db/schema');
         const { randomUUID } = await import('crypto');
+        const geoip = (await import('geoip-lite')).default;
         const fwd = String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim();
+        const ip = (fwd || req.socket.remoteAddress || '').slice(0, 60) || null;
+        // Offline IP -> country (no network call, ISO alpha-2), so the
+        // launch cockpit can show where visitors come from without a
+        // per-request geo API. Private/unknown IPs return null.
+        const country = ip ? (geoip.lookup(ip)?.country || null) : null;
         await db.insert(pageVisits).values({
           id: randomUUID(),
           path: req.path.slice(0, 200),
           referer: String(req.headers.referer ?? '').slice(0, 300) || null,
           userAgent: String(req.headers['user-agent'] ?? '').slice(0, 300) || null,
-          ip: (fwd || req.socket.remoteAddress || '').slice(0, 60) || null,
+          ip,
+          country,
         });
       })().catch(e => console.error('visit log failed:', e));
       const indexPath = path.join(publicDir, 'index.html');

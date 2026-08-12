@@ -489,6 +489,10 @@ export const pageVisits = pgTable('page_visits', {
   referer: text('referer'),
   userAgent: text('user_agent'),
   ip: text('ip'),
+  /** ISO 3166-1 alpha-2 country from an offline IP lookup at log time
+   *  (owner ask 2026-08-11): where launch traffic comes from. Null when
+   *  the IP is private/unknown. */
+  country: text('country'),
 });
 
 export const proposalMessages = pgTable('proposal_messages', {
