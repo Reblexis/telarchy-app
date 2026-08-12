@@ -10141,11 +10141,12 @@ textarea.jobform-line--desc {
   gap: clamp(1.6rem, 3.5vw, 3.5rem);
 }
 .pubws-about-beat {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.85rem;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  gap: 0.6rem;
   text-align: left;
+  padding-top: 1.4rem;
+  border-top: 1px solid var(--border-color);
   --d: 0s;
 }
 .pubws-about-beat:nth-child(2) { --d: 0.16s; }
@@ -10153,11 +10154,12 @@ textarea.jobform-line--desc {
 @media (max-width: 720px) {
   .pubws-about-beats { grid-template-columns: 1fr; gap: 2rem; }
 }
+/* Big serif numerals are the anchor of each step (the accent lives here). */
 .pubws-about-num {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
+  font-family: 'Fraunces', serif;
+  font-size: 1.7rem;
   font-weight: 600;
-  letter-spacing: 0.1em;
+  line-height: 1;
   color: var(--accent);
 }
 
@@ -10198,18 +10200,18 @@ textarea.jobform-line--desc {
 }
 
 .pubws-about-art {
-  width: 132px;
-  height: 52px;
+  width: 150px;
+  height: 60px;
   overflow: visible;
 }
 
 .pubws-about-beat p {
   margin: 0;
   font-family: 'Fraunces', serif;
-  font-size: 1.08rem;
-  line-height: 1.5;
-  color: var(--text-secondary);
-  max-width: 32ch;
+  font-size: 1.12rem;
+  line-height: 1.55;
+  color: var(--text-primary);
+  max-width: 34ch;
 }
 
 .ab-line { fill: none; stroke: var(--accent); stroke-width: 2; }
