@@ -168,8 +168,8 @@ jobs:
           [ -n "$CAND_URL" ] || { echo "no candidate URL found"; exit 1; }
           ok=""
           for _ in $(seq 1 20); do
-            code=$(curl -s -o /dev/null -w '%{http_code}' "$CAND_URL/api/status" || true)
-            echo "  /api/status -> $code"
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$CAND_URL/api/public-config" || true)
+            echo "  /api/public-config -> $code"
             if [ "$code" = "200" ]; then ok=1; break; fi
             sleep 3
           done
