@@ -79,7 +79,7 @@ manipulable. Fix: mount `registrationLimiter` on `/api/agents/register`; add a
 captcha/proof-of-work before self-serve launch.
 
 **H4 - Master key + GitHub OAuth secret stored as inline plaintext env on Cloud
-Run.** `[ ]` Verified: `API_KEY` (the platform master key) and
+Run.** `[~] secret-backed 2026-08-12; rotation pending` Verified: `API_KEY` (the platform master key) and
 `GITHUB_CLIENT_SECRET` are inline env values (not Secret Manager refs like the
 other secrets), visible to anyone with `run.viewer` and retained in revision
 history. Fix: move both to Secret Manager via `--update-secrets`, then rotate
@@ -89,7 +89,7 @@ agents/cron coordination).
 ### MEDIUM
 
 **M1 - CORS reflects any origin with credentials; BetterAuth `trustedOrigins:
-['*']`.** `[ ]` Verified live: an arbitrary `Origin` is reflected with
+['*']`.** `[x] fixed 2026-08-12` Verified live: an arbitrary `Origin` is reflected with
 `Allow-Credentials: true`. Not a live session-theft hole because the session
 cookie is `SameSite=Lax`, but the whole protection rests on that one cookie
 attribute, and `['*']` weakens BetterAuth's CSRF defense now. Frontend is
@@ -164,18 +164,22 @@ the last nightly backup.
 
 ### Minimal viable version (adopt now - real protection, ~1h setup)
 
-1. **Recoverability floor** - PITR + deletion protection. *(done, H2.)*
-2. **Test migrations on a throwaway clone before prod.** In CI, before touching
-   prod: `gcloud sql instances clone telarchy-pg telarchy-pg-ci-$SHA`, run
-   `drizzle-kit migrate` against the clone, delete it, and only then migrate
-   prod. If the clone migration fails, the job stops and prod is never touched.
-3. **Tag-then-promote instead of deploy-to-100%.** Deploy the new revision with
-   `--no-traffic --tag=candidate`, smoke-test the isolated tagged URL
-   (`curl -fsS https://candidate---api-…/api/status`), then
-   `gcloud run services update-traffic api --to-latest`. Instant rollback:
-   `--to-revisions=<prev>=100`.
-4. **Required status checks on `main`:** `npm test` + the `qa/browse` acceptance
-   suite green before merge (branch protection). Zero new infra.
+1. **Recoverability floor** - PITR + deletion protection. **`[x] done 2026-08-12`**
+2. **Tag-then-promote instead of deploy-to-100%.** **`[x] done 2026-08-12`** The
+   deploy workflow now deploys with `--no-traffic --tag candidate`, smoke-tests
+   the isolated candidate URL (`/api/status`), and promotes only on success; a
+   bad build is never promoted and the previous revision keeps serving. Instant
+   rollback: `gcloud run services update-traffic api --to-revisions=<prev>=100`.
+   The workflow also declares `ALLOWED_ORIGIN` and the master-key/GitHub secret
+   refs so the hardened config is reproducible in code.
+3. **Test migrations on a throwaway clone before prod.** `[ ]` In CI, before
+   touching prod: `gcloud sql instances clone telarchy-pg telarchy-pg-ci-$SHA`,
+   run `drizzle-kit migrate` against the clone, delete it, and only then migrate
+   prod. Needs `cloudsql.admin` on the deploy SA and adds ~2-3 min/deploy; PITR
+   (item 1) already makes a bad prod migration recoverable, so this is the next
+   increment, not a blocker.
+4. **Required status checks on `main`:** `[ ]` `npm test` + the `qa/browse`
+   acceptance suite green before merge (branch protection). Zero new infra.
 
 **Migration discipline this depends on (expand/contract):** because the old
 revision keeps serving during the `--no-traffic` window, migrations must be

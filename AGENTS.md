@@ -161,7 +161,11 @@ This applies even for "obvious" or single-line fixes. The cost of an unverified 
 
 The backend runs on **Google Cloud Run** (service: `api`, region: `us-central1`, project: `telarchy-e0043`). The frontend is served from the same origin (`telarchy.com`).
 
-**Auto-deploy on push to `main`** via `.github/workflows/deploy-cloudrun.yml`. The workflow runs pending Drizzle migrations against the prod DB *before* deploying the new container, so schema and code roll forward together. To deploy by hand (rollback, hotfix offline), `npm run deploy` from the repo root still works and runs the same `gcloud run deploy` command — but it does NOT run migrations, so if you're shipping a schema change, apply migrations first (see the manual fallback below). One-time GCP+GitHub setup is in `docs/infra/deploy.md`.
+**Auto-deploy on push to `main`** via `.github/workflows/deploy-cloudrun.yml`, using **tag-then-promote** so a broken push cannot take the site down: the workflow runs pending Drizzle migrations against the prod DB, deploys the new container with **`--no-traffic --tag candidate`**, smoke-tests the candidate's isolated URL (`/api/status`), and only shifts 100% of traffic once it passes. A failing candidate is never promoted (the previous revision keeps serving every user). **Rollback is one command:** `gcloud run services update-traffic api --region us-central1 --to-revisions <PREVIOUS_REVISION>=100`.
+
+**Migrations must be backward-compatible (expand/contract).** They run while the OLD revision is still serving (and it keeps serving if the candidate is rejected), so additive changes (new nullable columns/tables) ship in one deploy; drop/rename splits across two deploys (first stop using the column, then a later deploy drops it). Cloud SQL has point-in-time recovery + deletion protection enabled, so a bad migration is recoverable. See `docs/infra/deploy.md` and the audit trail in `docs/infra/launch-security-review.md`.
+
+To deploy by hand (hotfix offline), `npm run deploy` from the repo root still works — but it deploys straight to 100% traffic and does NOT run migrations, so prefer the pipeline; if shipping a schema change by hand, apply migrations first (see the manual fallback below). One-time GCP+GitHub setup is in `docs/infra/deploy.md`.
 
 **Database**: Cloud SQL PostgreSQL (instance: `telarchy-pg`). Migrations are managed by Drizzle Kit and applied automatically by the deploy workflow.
 
