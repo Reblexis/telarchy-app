@@ -60,6 +60,9 @@ interface Props {
   initialDir?: 'higher' | 'lower';
   /** In a dialog, the X closes the dialog instead of collapsing the card. */
   onClose?: () => void;
+  /** Managing an existing position (selling/cancelling), not opening a new
+      bet: hide the Lower/Higher side pills, which are only for a new trade. */
+  manageMode?: boolean;
 }
 
 
@@ -96,7 +99,7 @@ function fmtValue(v: number): string {
 export function TradeTicket({
   probability, liquidity, positions, onTrade, onSell, balance, onPreview, onRequireSignup,
   unit = '', consensus = null, rangeMin, rangeMax, orders = [], onPlaceLimit, onCancelLimit,
-  initialDir, onClose,
+  initialDir, onClose, manageMode = false,
 }: Props) {
   const [dir, setDir] = useState<'higher' | 'lower' | null>(initialDir ?? null);
   const [amount, setAmount] = useState('25');
@@ -386,22 +389,24 @@ export function TradeTicket({
       )}
 
       <div className="ticket-head">
-        <div className="ticket-seg" role="group" aria-label="Direction">
-          <button
-            className={`ticket-side ticket-side--lower${dir === 'lower' ? ' is-active' : ''}`}
-            aria-pressed={dir === 'lower'}
-            onClick={() => pick('lower')}
-          >
-            Lower
-          </button>
-          <button
-            className={`ticket-side ticket-side--higher${dir === 'higher' ? ' is-active' : ''}`}
-            aria-pressed={dir === 'higher'}
-            onClick={() => pick('higher')}
-          >
-            Higher
-          </button>
-        </div>
+        {!manageMode && (
+          <div className="ticket-seg" role="group" aria-label="Direction">
+            <button
+              className={`ticket-side ticket-side--lower${dir === 'lower' ? ' is-active' : ''}`}
+              aria-pressed={dir === 'lower'}
+              onClick={() => pick('lower')}
+            >
+              Lower
+            </button>
+            <button
+              className={`ticket-side ticket-side--higher${dir === 'higher' ? ' is-active' : ''}`}
+              aria-pressed={dir === 'higher'}
+              onClick={() => pick('higher')}
+            >
+              Higher
+            </button>
+          </div>
+        )}
 
         {/* The price question lives in the header, Manifold-style, but only
             once a side exists to ask it about (owner direction 2026-08-10:
@@ -453,10 +458,8 @@ export function TradeTicket({
         max={maxBet}
         value={Math.min(maxBet, Math.max(1, amountNum))}
         style={(() => {
-          // The thumb's center travels [7px, width-7px], not [0, width], so
-          // the fill must land under the thumb, not merely at value%.
           const p = ((Math.min(maxBet, Math.max(1, amountNum)) - 1) / (maxBet - 1)) * 100;
-          return { ['--slider-pct' as string]: `calc(${p.toFixed(2)}% + ${((0.5 - p / 100) * 14).toFixed(1)}px)` };
+          return { ['--slider-pct' as string]: `${p.toFixed(2)}%` };
         })()}
         onChange={e => setAmount(e.target.value)}
         aria-label="Bet amount slider"

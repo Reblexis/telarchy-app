@@ -757,6 +757,7 @@ export function TradePage() {
             onCancelLimit={trading ? cancelLimit : undefined}
             onRequireSignup={trading ? undefined : () => navigate('/signup')}
             initialDir={betModal === 'manage' ? undefined : betModal}
+            manageMode={betModal === 'manage'}
             onClose={() => setBetModal(null)}
           />
         </FloorModal>
