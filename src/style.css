@@ -8091,21 +8091,19 @@ code, pre, kbd, samp {
   justify-content: space-between;
   gap: 1rem;
   width: 100%;
-  padding: 0.4rem 0.5rem;
-  margin: 0 -0.5rem;
+  padding: 0;
   border: none;
-  border-radius: 8px;
   background: none;
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: background 120ms ease;
 }
-/* Highlight on hover/selection so a job reads as clickable (owner ask
-   2026-08-12). */
-.pubws-ballot-row:hover,
-.pubws-ballot-row:focus-visible { background: var(--bg-tertiary); outline: none; }
-.pubws-ballot-row.is-selected { background: var(--bg-tertiary); }
+/* Hover highlights the title in the accent, the same as selection, so a job
+   reads as clickable (owner ask 2026-08-12: highlight the text, not a
+   background). */
+.pubws-ballot-row:hover .pubws-ballot-title,
+.pubws-ballot-row:focus-visible .pubws-ballot-title { color: var(--accent); outline: none; }
+.pubws-ballot-row .pubws-ballot-title { transition: color 120ms ease; }
 
 .pubws-ballot li { display: block; }
 
