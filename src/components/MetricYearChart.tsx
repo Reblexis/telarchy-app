@@ -173,9 +173,11 @@ export function MetricYearChart({ history, forecastValue, forecastAt, unit = '',
 
   return (
     <div className="mchart">
-      <div className="mchart-ranges" role="group">
-        {note && <span className="mchart-note">{note}</span>}
-      </div>
+      {note && (
+        <div className="mchart-ranges" role="group">
+          <span className="mchart-note">{note}</span>
+        </div>
+      )}
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H}`}

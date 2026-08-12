@@ -597,7 +597,6 @@ export function TradePage() {
                 forecastValue={(consensus ?? hero.consensus) as number}
                 forecastAt={hero.resolvesOn}
                 unit={unit}
-                note={settleDayOf(hero.targetDate) ? `resolves ${settleDayOf(hero.targetDate)}` : undefined}
               />
             </div>
           </section>
