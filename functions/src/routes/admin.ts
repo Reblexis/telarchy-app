@@ -98,16 +98,18 @@ adminRouter.get('/floor-stats', requireCapability('manage'), wrap(async (_req, r
   }).from(pageVisits).where(window(twoWeeksAgo))
     .groupBy(sql`1`).orderBy(desc(sql`count(*)`)).limit(20);
 
-  // Specific visitor IPs (owner ask 2026-08-11): the individual addresses
-  // and their country, most-recent first, so a suspicious repeat visitor
-  // or a specific launch click can be inspected. Humanish only.
+  // Specific visitor IPs (owner ask 2026-08-11): one row per address with
+  // its best-known country (max() ignores nulls, so a resolved country
+  // wins over the '??' of older rows logged before geolocation existed),
+  // most-recent first, so a repeat visitor or a specific launch click can
+  // be inspected. Humanish only.
   const recentVisitors = await db.select({
     ip: pageVisits.ip,
-    country: sql<string>`coalesce(${pageVisits.country}, '??')`,
+    country: sql<string>`coalesce(max(${pageVisits.country}), '??')`,
     visits: sql<number>`count(*)::int`,
     lastSeen: sql<string>`max(${pageVisits.ts})`,
   }).from(pageVisits).where(and(window(twoWeeksAgo), sql`${pageVisits.ip} is not null`))
-    .groupBy(pageVisits.ip, sql`coalesce(${pageVisits.country}, '??')`)
+    .groupBy(pageVisits.ip)
     .orderBy(desc(sql`max(${pageVisits.ts})`)).limit(50);
 
   const [{ visits: visits24h, uniques: uniques24h }] = await db.select({
