@@ -19,7 +19,8 @@ interface FloorStats {
   topReferers: Array<{ source: string; visits: number }>;
   topPaths: Array<{ path: string; visits: number }>;
   topCountries: Array<{ country: string; visits: number; uniques: number }>;
-  recentVisitors: Array<{ ip: string; country: string; visits: number; lastSeen: string }>;
+  recentVisitors: Array<{ ip: string; country: string; visits: number; lastSeen: string; kind: 'person' | 'server' | 'proxy' | 'unknown'; org: string }>;
+  visitorSummary: { people: number; servers: number; proxies: number };
   signupsByDay: Array<{ day: string; signups: number }>;
   recentSignups: Array<{ email: string; name: string; createdAt: string }>;
   totalUsers: number;
@@ -39,6 +40,18 @@ function countryLabel(code: string): string {
   let name = code;
   try { name = new Intl.DisplayNames(['en'], { type: 'region' }).of(code) || code; } catch { /* older runtime */ }
   return `${flag} ${name}`;
+}
+
+// person vs server/bot label for the visitor-IP table, by IP type.
+function kindTag(kind: 'person' | 'server' | 'proxy' | 'unknown') {
+  const map = {
+    person: { t: 'person', c: 'var(--success, #16a34a)' },
+    server: { t: 'server/bot', c: 'var(--danger, #dc2626)' },
+    proxy: { t: 'proxy/VPN', c: 'var(--warning, #d97706)' },
+    unknown: { t: '?', c: 'var(--text-tertiary)' },
+  } as const;
+  const { t, c } = map[kind];
+  return <span style={{ color: c, fontWeight: 600 }}>{t}</span>;
 }
 
 function Big({ v, l }: { v: number | string; l: string }) {
@@ -131,12 +144,19 @@ export function AdminPage() {
             </div>
 
             <h2 style={{ margin: '2rem 0 1rem', fontSize: '1rem', fontWeight: 600 }}>Visitor IPs (14d)</h2>
+            <div style={{ ...label, marginTop: '-0.6rem', marginBottom: '0.8rem' }}>
+              {stats.visitorSummary.people} likely people ·{' '}
+              {stats.visitorSummary.servers} server/bot ·{' '}
+              {stats.visitorSummary.proxies} proxy/VPN (by IP type)
+            </div>
             <div className="section">
               <table style={mono}><tbody>
                 {stats.recentVisitors.map(v => (
                   <tr key={v.ip}>
                     <td style={cell}>{v.ip}</td>
+                    <td style={cell}>{kindTag(v.kind)}</td>
                     <td style={cell}>{countryLabel(v.country)}</td>
+                    <td style={{ ...cell, color: 'var(--text-tertiary)', maxWidth: '18rem', overflow: 'hidden', textOverflow: 'ellipsis' }}>{v.org}</td>
                     <td style={num}>{v.visits}x</td>
                     <td style={{ ...num, color: 'var(--text-tertiary)' }}>{new Date(v.lastSeen).toLocaleString()}</td>
                   </tr>

@@ -8,6 +8,7 @@ import { and, desc, eq, gte, lte, inArray, lt, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { AppError } from '../lib/errors';
 import { resolutionInstant } from '../lib/date-utils';
+import { classifyIps } from '../lib/ip-classify';
 
 /** True if the caller is the master key OR a platform admin. */
 async function isPlatformAuthorized(req: { auth?: { isMasterKey?: boolean; uid?: string } }): Promise<boolean> {
@@ -112,6 +113,20 @@ adminRouter.get('/floor-stats', requireCapability('manage'), wrap(async (_req, r
     .groupBy(pageVisits.ip)
     .orderBy(desc(sql`max(${pageVisits.ts})`)).limit(50);
 
+  // Label each visitor IP person vs server/bot by IP type (hosting/proxy),
+  // the signal the user-agent filter can't catch (a headless bot on a
+  // cloud IP can spoof a browser UA). Cached + degrades to 'unknown'.
+  const ipInfo = await classifyIps(recentVisitors.map(v => v.ip!).filter(Boolean));
+  const visitors = recentVisitors.map(v => {
+    const info = (v.ip && ipInfo.get(v.ip)) || { kind: 'unknown' as const, org: '' };
+    return { ...v, kind: info.kind, org: info.org };
+  });
+  const visitorSummary = {
+    people: visitors.filter(v => v.kind === 'person').length,
+    servers: visitors.filter(v => v.kind === 'server').length,
+    proxies: visitors.filter(v => v.kind === 'proxy').length,
+  };
+
   const [{ visits: visits24h, uniques: uniques24h }] = await db.select({
     visits: sql<number>`count(*)::int`,
     uniques: sql<number>`count(distinct ${pageVisits.ip})::int`,
@@ -137,7 +152,8 @@ adminRouter.get('/floor-stats', requireCapability('manage'), wrap(async (_req, r
 
   res.json({
     visits24h: Number(visits24h), uniques24h: Number(uniques24h), botVisits: Number(botVisits),
-    visitsByDay, topReferers, topPaths, topCountries, recentVisitors,
+    visitsByDay, topReferers, topPaths, topCountries,
+    recentVisitors: visitors, visitorSummary,
     signupsByDay, recentSignups, totalUsers,
     waitlist: waitlistRows,
   });
