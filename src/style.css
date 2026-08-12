@@ -10013,9 +10013,10 @@ textarea.jobform-line--desc {
 .pubws-about-beat {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.9rem;
-  text-align: center;
+  text-align: left;
+  width: 100%;
 }
 
 .pubws-about-beat svg {
@@ -10049,7 +10050,7 @@ textarea.jobform-line--desc {
 .pubws-setup {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.7rem;
   width: 100%;
 }
