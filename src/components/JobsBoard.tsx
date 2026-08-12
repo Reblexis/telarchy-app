@@ -34,6 +34,8 @@ interface Props {
   signedIn: boolean;
   /** Called when a signed-out visitor taps the propose button. */
   onRequireSignup: () => void;
+  /** Workspace name, for the "do something useful for X?" propose prompt. */
+  workspaceName: string;
 }
 
 function fmtVal(v: number, unit: string): string {
@@ -58,7 +60,7 @@ function headlineDelta(p: PublicProposal): number | null {
   return deltas.reduce((a, b) => (Math.abs(b) > Math.abs(a) ? b : a), deltas[0]);
 }
 
-export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, signedIn, onRequireSignup }: Props) {
+export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, signedIn, onRequireSignup, workspaceName }: Props) {
   const [formOpen, setFormOpen] = useState(false);
   const [ask, setAsk] = useState('');
   const [title, setTitle] = useState('');
@@ -189,6 +191,7 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
         </ul>
       )}
       <div className="pubws-propose">
+        <p className="pubws-propose-lead">Do you think you could do something useful for {workspaceName}?</p>
         <button
           className="pubws-propose-cta"
           onClick={() => (signedIn ? setFormOpen(true) : onRequireSignup())}

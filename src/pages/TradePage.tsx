@@ -342,6 +342,25 @@ export function TradePage() {
   // instead of teleporting; everything downstream (chart, ticket) uses the
   // true value, only the headline shows the tween.
   const shownConsensus = useAnimatedNumber(consensus);
+
+  // "What is this?" reveal: the concept beats draw themselves in when the
+  // section scrolls into view (a one-shot IntersectionObserver), so the
+  // explanation lands as a small orchestrated moment instead of sitting
+  // static at the bottom. Dep on `ws` so the observer attaches once the
+  // section actually renders.
+  const aboutRef = useRef<HTMLElement | null>(null);
+  const [aboutIn, setAboutIn] = useState(false);
+  useEffect(() => {
+    const el = aboutRef.current;
+    if (!el || aboutIn) return;
+    const io = new IntersectionObserver(([e]) => {
+      if (e.isIntersecting) { setAboutIn(true); io.disconnect(); }
+    }, { threshold: 0.2 });
+    io.observe(el);
+    return () => io.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ws, aboutIn]);
+
   // The composed bet's impact, projected from probability space onto the
   // metric's range so the chart can draw where the call would move.
   const chartPreview = active && ticketPreview
@@ -628,22 +647,17 @@ export function TradePage() {
             voids the market. "What is LookPilot?" is the product in its
             own words plus the primary sources; know the company, trade it
             better. */}
-        <section className="pubws-know pubws-enter pubws-enter--3" aria-label="What is this market">
-          <h2 className="pubws-know-head">What is this market?</h2>
-          {/* A human explanation first (owner direction 2026-08-10: "describe
-              it normally, no weird jabber"), the exact settlement text
-              beneath it. The explainer talks mechanics, so it never
-              paraphrases the definition and cannot drift from it. */}
+        <section className="pubws-know pubws-enter pubws-enter--3" aria-label="What is this metric">
+          <h2 className="pubws-know-head">What is this metric?</h2>
+          {/* Just the metric, in plain terms (owner direction 2026-08-12):
+              no prediction-market or betting explanation here (that lives in
+              the "What is this?" section below); the year chart under it is
+              the visualization. */}
           <p className="pubws-know-what">
-            A{' '}
-            <a href="https://en.wikipedia.org/wiki/Prediction_market" target="_blank" rel="noreferrer">prediction&nbsp;market</a>{' '}
-            on LookPilot&rsquo;s 2026 earnings. The big number is the crowd&rsquo;s
-            guess: bet Higher if you&rsquo;d take the over, Lower for the under.
-            The closer to the real 31 December total, the more you win.
-          </p>
-          <p className="pubws-metric-desc">
-            Counts every Steam and direct sale, after fees and refunds, minus
-            jobs paid out on this page.
+            LookPilot&rsquo;s net earnings across 2026: every Steam and direct
+            sale, after store fees and refunds, minus anything paid out for
+            jobs approved on this page. It settles on the real total on 31
+            December 2026.
           </p>
           {/* The metric itself over the year: what it has actually done so
               far (solid) and where the market sees it settling (dashed).
@@ -677,13 +691,16 @@ export function TradePage() {
             Sources:
             <ul>
               <li>
-                <a href="https://store.steampowered.com/app/3326890/LookPilot/" target="_blank" rel="noreferrer">Steam</a> - the store page
+                Steam store page:{' '}
+                <a href="https://store.steampowered.com/app/3326890/LookPilot/" target="_blank" rel="noreferrer">https://store.steampowered.com/app/3326890/LookPilot/</a>
               </li>
               <li>
-                <a href="https://lookpilot.app/data-room/" target="_blank" rel="noreferrer">Data room</a> - the numbers this settles on, updated once per day
+                Data room, the numbers this settles on, updated once per day:{' '}
+                <a href="https://lookpilot.app/data-room/" target="_blank" rel="noreferrer">https://lookpilot.app/data-room/</a>
               </li>
               <li>
-                <a href="https://steamdb.info/app/3326890/" target="_blank" rel="noreferrer">SteamDB</a> - third-party sales estimates
+                SteamDB, third-party sales estimates:{' '}
+                <a href="https://steamdb.info/app/3326890/" target="_blank" rel="noreferrer">https://steamdb.info/app/3326890/</a>
               </li>
             </ul>
           </div>
@@ -702,6 +719,7 @@ export function TradePage() {
               onSelect={id => setSelectedJobId(cur => (cur === id ? null : id))}
               signedIn={!!user}
               onRequireSignup={() => navigate('/signup')}
+              workspaceName={ws.name}
               onPropose={async (title, description, askUsd) => {
                 // Anonymous proposers go through the signup door; the board
                 // itself is public information (Open workspace ballot).
@@ -747,18 +765,19 @@ export function TradePage() {
           main view, strong visuals, minimal text). The drawings reuse the
           chart's own vocabulary: the step line, the branch pair, the
           priced gap; nothing here is decoration from outside the product. */}
-      <section className="pubws-about" aria-label="About Telarchy">
+      <section className={`pubws-about${aboutIn ? ' is-in' : ''}`} ref={aboutRef} aria-label="What is this?">
+        <h2 className="pubws-about-head">What is this?</h2>
         <div className="pubws-about-beat">
           <svg viewBox="0 0 120 48" aria-hidden="true">
-            <path className="ab-line" d="M6,40 L36,40 L36,28 L66,28 L66,14 L106,14" />
+            <path className="ab-line" pathLength={1} d="M6,40 L36,40 L36,28 L66,28 L66,14 L106,14" />
             <circle className="ab-dot" cx="106" cy="14" r="3.5" />
           </svg>
           <p>A real company, run in the open. One number says how it is going.</p>
         </div>
         <div className="pubws-about-beat">
           <svg viewBox="0 0 120 48" aria-hidden="true">
-            <path className="ab-line" d="M6,24 L46,24" />
-            <path className="ab-up" d="M46,24 L106,10" />
+            <path className="ab-line" pathLength={1} d="M6,24 L46,24" />
+            <path className="ab-up" pathLength={1} d="M46,24 L106,10" />
             <path className="ab-down" d="M46,24 L106,38" />
             <circle className="ab-dot ab-dot--up" cx="106" cy="10" r="3.5" />
             <circle className="ab-dot ab-dot--down" cx="106" cy="38" r="3.5" />
@@ -770,7 +789,7 @@ export function TradePage() {
             <line className="ab-gap" x1="60" y1="12" x2="60" y2="36" />
             <circle className="ab-dot ab-dot--up" cx="60" cy="12" r="3.5" />
             <circle className="ab-dot ab-dot--down" cx="60" cy="36" r="3.5" />
-            <path className="ab-check" d="M78,22 L84,28 L96,14" />
+            <path className="ab-check" pathLength={1} d="M78,22 L84,28 L96,14" />
           </svg>
           <p>The gap between those worlds is a calibrated number. The owner approves on it, and pays for outcomes, not promises.</p>
         </div>

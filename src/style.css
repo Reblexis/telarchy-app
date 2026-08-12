@@ -9103,6 +9103,12 @@ textarea.jobform-line--desc {
   flex-direction: column;
   gap: 0.4rem;
 }
+.pubws-propose-lead {
+  margin: 0 0 0.15rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
 .pubws-propose-cta {
   display: block;
   width: 100%;
@@ -9924,9 +9930,10 @@ textarea.jobform-line--desc {
   list-style: none;
 }
 .pubws-know-sources li {
-  margin: 0.15rem 0;
+  margin: 0.25rem 0;
   padding-left: 1rem;
   text-indent: -1rem;
+  overflow-wrap: anywhere;
 }
 .pubws-know-sources li::before {
   content: "- ";
@@ -10038,13 +10045,72 @@ textarea.jobform-line--desc {
   padding: clamp(4rem, 10vh, 7rem) 1.5rem clamp(4rem, 9vh, 6rem);
 }
 
+/* "What is this?" section heading, left-aligned to match the column. */
+.pubws-about-head {
+  margin: 0 0 0.4rem;
+  width: 100%;
+  max-width: 560px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  text-align: left;
+}
+
+/* Each concept beat reads as a step: its drawing is a left-hand icon, the
+   sentence sits beside it. Cleaner than a small drawing floating above
+   left-aligned text. */
 .pubws-about-beat {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.9rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 1.4rem;
   text-align: left;
   width: 100%;
+  max-width: 560px;
+  --d: 0s;
+}
+.pubws-about-beat:nth-child(3) { --d: 0.16s; }
+.pubws-about-beat:nth-child(4) { --d: 0.32s; }
+@media (max-width: 560px) {
+  .pubws-about-beat { flex-direction: column; align-items: flex-start; gap: 0.8rem; }
+}
+
+/* Reveal-on-scroll (the section adds .is-in via IntersectionObserver): the
+   solid strokes draw themselves left-to-right, the dashed strokes and dots
+   fade in just after, and each sentence rises into place, staggered per beat
+   by --d. */
+.pubws-about .ab-line,
+.pubws-about .ab-up,
+.pubws-about .ab-check {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 0.9s ease var(--d);
+}
+.pubws-about .ab-down,
+.pubws-about .ab-gap,
+.pubws-about .ab-dot {
+  opacity: 0;
+  transition: opacity 0.5s ease calc(var(--d) + 0.5s);
+}
+.pubws-about-beat p {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.6s ease var(--d), transform 0.6s ease var(--d);
+}
+.pubws-about.is-in .ab-line,
+.pubws-about.is-in .ab-up,
+.pubws-about.is-in .ab-check { stroke-dashoffset: 0; }
+.pubws-about.is-in .ab-down,
+.pubws-about.is-in .ab-gap,
+.pubws-about.is-in .ab-dot { opacity: 1; }
+.pubws-about.is-in .pubws-about-beat p { opacity: 1; transform: translateY(0); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pubws-about .ab-line, .pubws-about .ab-up, .pubws-about .ab-check { stroke-dashoffset: 0; transition: none; }
+  .pubws-about .ab-down, .pubws-about .ab-gap, .pubws-about .ab-dot { opacity: 1; transition: none; }
+  .pubws-about-beat p { opacity: 1; transform: none; transition: none; }
 }
 
 .pubws-about-beat svg {
