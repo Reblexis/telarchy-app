@@ -160,10 +160,10 @@ jobs:
         if: steps.auth_check.outputs.skip != 'true'
         run: |
           set -euo pipefail
-          CAND_URL=$(gcloud run services describe api --region us-central1 \
-            --flatten='status.traffic[]' \
-            --filter='status.traffic.tag=candidate' \
-            --format='value(status.traffic.url)' | head -n1)
+          # `describe` has no --filter; pull the traffic list as JSON and pick
+          # the URL tagged "candidate" (the no-traffic revision we just landed).
+          CAND_URL=$(gcloud run services describe api --region us-central1 --format=json \
+            | python3 -c "import sys,json; t=json.load(sys.stdin).get('status',{}).get('traffic',[]); print(next((x.get('url','') for x in t if x.get('tag')=='candidate'), ''))")
           echo "Candidate URL: $CAND_URL"
           [ -n "$CAND_URL" ] || { echo "no candidate URL found"; exit 1; }
           ok=""
