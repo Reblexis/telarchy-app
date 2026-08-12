@@ -44,7 +44,14 @@ function parseTypes(raw: unknown): ActivityType[] | undefined {
  * window); signups from the auth user table; the floor's contact
  * requests from the waitlist.
  */
-adminRouter.get('/floor-stats', requireCapability('manage'), wrap(async (_req, res) => {
+adminRouter.get('/floor-stats', wrap(async (req, res) => {
+  // Platform-admin only, NOT workspace `manage`: this response is
+  // platform-global (every user's email, the waitlist, and every visitor's
+  // IP), so a mere workspace owner/admin must not read it. Gated like the
+  // other platform routes in this file (agent-controls, markets/featured).
+  if (!(await isPlatformAuthorized(req))) {
+    throw new AppError('Platform admin or master key required', 403);
+  }
   const monthAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000);
   const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 3600 * 1000);
   const dayAgo = new Date(Date.now() - 24 * 3600 * 1000);
