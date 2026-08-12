@@ -269,7 +269,7 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
     res.status(403).json({ error: 'These settings require the manage_workspace capability' }); return;
   }
 
-  const { name, description, charter, autoFundNewMarkets, newMarketLiquidityCredits, visibility, proposalReward, spamPenalty, maxPendingProposalsPerParticipant, maxPositionCostPerMarket } = req.body;
+  const { name, description, charter, subjectAbout, autoFundNewMarkets, newMarketLiquidityCredits, visibility, proposalReward, spamPenalty, maxPendingProposalsPerParticipant, maxPositionCostPerMarket } = req.body;
   const update: Partial<typeof workspaces.$inferInsert> = {};
 
   // description (one-liner) and charter (the owner's public commitment about
@@ -279,6 +279,7 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
   for (const [key, value, max] of [
     ['description', description, 280],
     ['charter', charter, 20000],
+    ['subjectAbout', subjectAbout, 4000],
   ] as const) {
     if (value === undefined) continue;
     if (value === null || (typeof value === 'string' && value.trim().length === 0)) {

@@ -539,6 +539,7 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
     ownerHandle: owner?.ownerHandle ?? null,
     description: ws.description,
     charter: ws.charter,
+    subjectAbout: ws.subjectAbout ?? null,
     visibility: ws.visibility,
     proposalReward: ws.proposalReward,
     spamPenalty: ws.spamPenalty,

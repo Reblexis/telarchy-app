@@ -9947,6 +9947,37 @@ textarea.jobform-line--desc {
   color: var(--text-primary);
 }
 
+/* The owner-editable "What is <name>?" blurb: free text with preserved line
+   breaks, so a typed "Sources:" list reads as written. */
+.pubws-know-about { white-space: pre-wrap; }
+.pubws-know-headrow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.pubws-know-edit {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 120ms ease;
+}
+.pubws-know-edit:hover,
+.pubws-know-edit:focus-visible { color: var(--accent); outline: none; }
+.pubws-know-editarea { width: 100%; min-height: 13rem; resize: vertical; }
+.pubws-know-editor-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-top: 0.6rem;
+}
+
 /* Links inside the explainer read as normal underlined text, not buttons
    (owner ask 2026-08-12): the "prediction market" definition link and the
    data-room / Steam / SteamDB sources. */

@@ -8,6 +8,7 @@ import { TradeTicket, type TicketPosition } from '../components/TradeTicket';
 import { FloorModal } from '../components/FloorModal';
 import { useAnimatedNumber } from '../lib/useAnimatedNumber';
 import { JobsBoard, splitAsk } from '../components/JobsBoard';
+import { SubjectAbout } from '../components/SubjectAbout';
 import { FloorComments } from '../components/FloorComments';
 import { LeaderboardRail } from '../components/FloorRails';
 import { AccountMenu } from '../components/AccountMenu';
@@ -42,6 +43,15 @@ function formatValue(v: number): string {
   const decimals = abs >= 100 ? 0 : abs >= 10 ? 1 : 2;
   return v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
+
+// The floor's built-in "What is <name>?" copy, shown until the workspace owner
+// writes their own (subjectAbout). Free text: description, then sources.
+const DEFAULT_SUBJECT_ABOUT = `LookPilot is a webcam head tracker for flight, trucking and racing sims, the best-reviewed one on Steam: look around in the game by moving your head, no hardware. It makes money by selling the app, $14.99 once per player, so every copy sold is what this market is betting on.
+
+Sources:
+- Steam store page: https://store.steampowered.com/app/3326890/LookPilot/
+- Data room, the numbers this settles on, updated once per day: https://lookpilot.app/data-room/
+- SteamDB, third-party sales estimates: https://steamdb.info/app/3326890/`;
 
 function formatDelta(delta: number, unit = ''): string {
   const abs = Math.abs(delta);
@@ -690,33 +700,14 @@ export function TradePage() {
             </div>
           )}
         </section>
-        <section className="pubws-know pubws-enter pubws-enter--3" aria-label="What is LookPilot">
-          <h2 className="pubws-know-head">What is LookPilot?</h2>
-          <p className="pubws-know-what">
-            LookPilot is a webcam head tracker for flight, trucking and racing
-            sims, the best-reviewed one on Steam: look around in the game by
-            moving your head, no hardware. It makes money by selling the app,
-            $14.99 once per player, so every copy sold is what this market is
-            betting on.
-          </p>
-          <div className="pubws-know-sources">
-            Sources:
-            <ul>
-              <li>
-                Steam store page:{' '}
-                <a href="https://store.steampowered.com/app/3326890/LookPilot/" target="_blank" rel="noreferrer">https://store.steampowered.com/app/3326890/LookPilot/</a>
-              </li>
-              <li>
-                Data room, the numbers this settles on, updated once per day:{' '}
-                <a href="https://lookpilot.app/data-room/" target="_blank" rel="noreferrer">https://lookpilot.app/data-room/</a>
-              </li>
-              <li>
-                SteamDB, third-party sales estimates:{' '}
-                <a href="https://steamdb.info/app/3326890/" target="_blank" rel="noreferrer">https://steamdb.info/app/3326890/</a>
-              </li>
-            </ul>
-          </div>
-        </section>
+        <SubjectAbout
+          workspaceId={ws.workspaceId}
+          name={ws.name}
+          value={ws.subjectAbout}
+          defaultText={DEFAULT_SUBJECT_ABOUT}
+          canManage={canManage}
+          onSaved={reload}
+        />
         </div>
         {/* The jobs board IS the right rail (owner direction 2026-08-10:
             jobs where the activity log was). The log's information lives

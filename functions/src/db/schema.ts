@@ -81,6 +81,10 @@ export const workspaces = pgTable('workspaces', {
    *  labour, and forecasters correctly refuse. Rendered on the public workspace
    *  page above the markets. Public on public/unlisted workspaces. */
   charter: text('charter'),
+  /** Owner-authored "what is this company/subject" blurb for the public floor
+   *  (the "What is <name>?" section): free text, the owner's own words plus
+   *  sources. Null = the floor shows its built-in default copy. */
+  subjectAbout: text('subject_about'),
   /** 'public' | 'unlisted' | 'private' */
   visibility: text('visibility').notNull().default('private'),
   tradedVolume: doublePrecision('traded_volume').notNull().default(0),
