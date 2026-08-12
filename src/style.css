@@ -10147,20 +10147,25 @@ textarea.jobform-line--desc {
    triptych, not a narrow stacked list. Each column stacks its step number,
    drawing, and sentence; the strokes draw themselves in left-to-right on
    scroll (staggered by --d). */
-.pubws-about-beats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: clamp(1.6rem, 3.5vw, 3.5rem);
-  /* Without this the columns stretch to the tallest one and each step's grid
-     redistributes the slack, so the paragraphs stop sharing a baseline. */
-  align-items: start;
-}
+/* Three hairline rows: number, drawing, sentence. The drawing sits beside
+   the sentence it illustrates, so there is never a question which is which. */
+.pubws-about-beats { display: block; }
 .pubws-about-beat {
   display: grid;
-  gap: 0.45rem;
-  align-content: start;
+  grid-template-columns: 2.4rem 170px minmax(0, 1fr);
+  align-items: center;
+  gap: 1.6rem;
+  padding: 1.15rem 0;
+  border-top: 1px solid var(--border-color);
   text-align: left;
   --d: 0s;
+}
+.pubws-about-beat:last-of-type { border-bottom: 1px solid var(--border-color); }
+@media (max-width: 640px) {
+  /* The drawing drops below the number on a phone rather than squeezing the
+     sentence into a two-word column. */
+  .pubws-about-beat { grid-template-columns: 2.4rem minmax(0, 1fr); gap: 0.6rem 1.1rem; }
+  .pubws-about-beat .pubws-about-art { grid-column: 2; }
 }
 .pubws-about-beat:nth-child(2) { --d: 0.16s; }
 .pubws-about-beat:nth-child(3) { --d: 0.32s; }
@@ -10182,44 +10187,34 @@ textarea.jobform-line--desc {
    and the call - including the dashed branch, which a stroke-dash draw could
    not animate (its dashes are the pattern). Each sentence then rises in,
    staggered per column by --d. */
-.pubws-about .ab-reveal-rect {
-  transform-box: view-box;
-  transform-origin: 0 0;
-  transform: scaleX(0);
-  transition: transform 1.7s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.pubws-about.is-in .ab-reveal-rect { transform: scaleX(1); }
-.pubws-about-beat p,
-.pubws-about-beat .pubws-about-num {
+.pubws-about-beat {
   opacity: 0;
   transform: translateY(10px);
-  transition: opacity 0.6s ease calc(var(--d) + 0.35s), transform 0.6s ease calc(var(--d) + 0.35s);
+  transition: opacity 0.6s ease var(--d), transform 0.6s ease var(--d);
 }
-.pubws-about.is-in .pubws-about-beat p,
-.pubws-about.is-in .pubws-about-beat .pubws-about-num { opacity: 1; transform: translateY(0); }
+.pubws-about.is-in .pubws-about-beat { opacity: 1; transform: translateY(0); }
 
 @media (prefers-reduced-motion: reduce) {
-  .pubws-about .ab-reveal-rect { transform: scaleX(1); transition: none; }
-  .pubws-about-beat p, .pubws-about-beat .pubws-about-num { opacity: 1; transform: none; transition: none; }
+  .pubws-about-beat { opacity: 1; transform: none; transition: none; }
 }
 
-/* The narrative band spans the same width as the steps grid below it, so its
-   three passages sit over their own columns. */
 .pubws-about-art {
   display: block;
-  width: 100%;
-  height: auto;
+  width: 170px;
+  height: 56px;
   overflow: visible;
-  margin-bottom: 0.2rem;
 }
 
 .pubws-about-beat p {
   margin: 0;
   font-family: 'Fraunces', serif;
-  font-size: 1.12rem;
+  font-size: 1.1rem;
   line-height: 1.55;
   color: var(--text-primary);
-  max-width: 34ch;
+  /* A row is wide, so the sentence gets a full measure: 34ch was tuned for
+     the old three-column layout and wrapped every row into three short
+     lines with a lake of empty space beside them. */
+  max-width: 62ch;
 }
 
 .ab-line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
@@ -10240,7 +10235,8 @@ textarea.jobform-line--desc {
 .pubws-setup {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  text-align: center;
   gap: 0.7rem;
   width: 100%;
 }

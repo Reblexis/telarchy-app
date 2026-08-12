@@ -771,47 +771,41 @@ export function TradePage() {
           priced gap; nothing here is decoration from outside the product. */}
       <section className={`pubws-about${aboutIn ? ' is-in' : ''}`} ref={aboutRef} aria-label="What is this?">
         <h2 className="pubws-about-head">What is this?</h2>
-        {/* One continuous drawing across all three steps instead of three
-            unrelated doodles (redesigned 2026-08-12): the company's number
-            steps up, a proposal forks it into two priced worlds, and the gap
-            between them is what the owner approves on. The viewBox is 1200
-            wide and the steps grid below is the same width, so the three
-            passages sit over their own columns. The whole thing sweeps in
-            left to right on scroll via a single clip rectangle. */}
-        <svg className="pubws-about-art" viewBox="0 0 1200 150" aria-hidden="true">
-          <defs>
-            <clipPath id="ab-reveal">
-              <rect className="ab-reveal-rect" x="0" y="0" width="1200" height="150" />
-            </clipPath>
-          </defs>
-          <g clipPath="url(#ab-reveal)">
-            {/* 01 - one number, stepping up over time */}
-            <path className="ab-line" d="M2,116 L100,116 L100,95 L180,95 L180,74 L258,74 L258,58 L330,58" />
-            <circle className="ab-dot" cx="330" cy="58" r="5" />
-            {/* 02 - a job forks the future into done and not done */}
-            <path className="ab-up" d="M330,58 C460,58 540,30 700,20" />
-            <path className="ab-down" d="M330,58 C460,58 540,86 700,102" />
-            <circle className="ab-dot ab-dot--up" cx="700" cy="20" r="5" />
-            <circle className="ab-dot ab-dot--down" cx="700" cy="102" r="5" />
-            {/* 03 - the distance between the two worlds, and the call */}
-            <line className="ab-gap" x1="838" y1="20" x2="838" y2="102" />
-            <line className="ab-tick" x1="828" y1="20" x2="848" y2="20" />
-            <line className="ab-tick" x1="828" y1="102" x2="848" y2="102" />
-            <text className="ab-cap" x="860" y="66">the gap</text>
-            <path className="ab-check" d="M980,62 L1000,82 L1042,38" />
-          </g>
-        </svg>
+        {/* Three rows, each locking its drawing beside the sentence it
+            illustrates (redesigned 2026-08-12). Earlier passes put the art in
+            a band above the columns; nothing tied a passage to its step, so it
+            read as a squiggle floating over unrelated text. Hairline rows are
+            also the house rhythm. */}
         <div className="pubws-about-beats">
           <div className="pubws-about-beat">
             <span className="pubws-about-num">01</span>
+            <svg className="pubws-about-art" viewBox="0 0 170 56" aria-hidden="true">
+              <path className="ab-line" d="M8,46 L46,46 L46,34 L88,34 L88,22 L130,22" />
+              <circle className="ab-dot" cx="130" cy="22" r="4.5" />
+            </svg>
             <p>A real company, run in the open. One number says how it is going.</p>
           </div>
           <div className="pubws-about-beat">
             <span className="pubws-about-num">02</span>
+            <svg className="pubws-about-art" viewBox="0 0 170 56" aria-hidden="true">
+              <path className="ab-line" d="M8,28 L62,28" />
+              <path className="ab-up" d="M62,28 C100,28 110,14 152,10" />
+              <path className="ab-down" d="M62,28 C100,28 110,42 152,46" />
+              <circle className="ab-dot ab-dot--up" cx="152" cy="10" r="4.5" />
+              <circle className="ab-dot ab-dot--down" cx="152" cy="46" r="4.5" />
+            </svg>
             <p>Anyone proposes a job with a price. Participants, human or AI, bet on both worlds: done, and not done.</p>
           </div>
           <div className="pubws-about-beat">
             <span className="pubws-about-num">03</span>
+            <svg className="pubws-about-art" viewBox="0 0 170 56" aria-hidden="true">
+              <line className="ab-gap" x1="30" y1="12" x2="30" y2="44" />
+              <line className="ab-tick" x1="22" y1="12" x2="38" y2="12" />
+              <line className="ab-tick" x1="22" y1="44" x2="38" y2="44" />
+              <circle className="ab-dot ab-dot--up" cx="30" cy="12" r="4" />
+              <circle className="ab-dot ab-dot--down" cx="30" cy="44" r="4" />
+              <path className="ab-check" d="M80,30 L92,42 L120,14" />
+            </svg>
             <p>The gap between those worlds is a calibrated number. The owner approves on it, and pays for outcomes, not promises.</p>
           </div>
         </div>
