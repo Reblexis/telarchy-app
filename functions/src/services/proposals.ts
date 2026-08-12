@@ -468,6 +468,7 @@ export async function declineProposal(
   workspaceId: string,
   resolvedBy?: string | null,
   reason?: string | null,
+  refundStake = false,
 ): Promise<void> {
   const [proposal] = await db.select().from(proposals)
     .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
@@ -493,11 +494,20 @@ export async function declineProposal(
     }
   }
 
-  // The approved-branch counterfactual never materialises once declined, so
-  // void it and refund any positions. The declined branch stays live and
-  // resolves against the actual KPI at target date, giving the counterfactual
-  // record we use to compute calibration on declined proposals.
-  await voidProposalBranch(proposalId, workspaceId, 'approved');
+  if (refundStake) {
+    // Decline with refund (owner ask 2026-08-12): a genuine proposal the owner
+    // just is not taking. Void BOTH branches so the proposer's whole staked
+    // liquidity comes straight back, at the cost of the declined-branch
+    // counterfactual we would otherwise keep for calibration. Use this for
+    // real ideas; plain decline (below) for the calibration record.
+    await voidProposalMarkets(proposalId, workspaceId);
+  } else {
+    // The approved-branch counterfactual never materialises once declined, so
+    // void it and refund any positions. The declined branch stays live and
+    // resolves against the actual KPI at target date, giving the counterfactual
+    // record we use to compute calibration on declined proposals.
+    await voidProposalBranch(proposalId, workspaceId, 'approved');
+  }
   await db.update(proposals).set({
     status: 'declined',
     resolvedAt: new Date(),

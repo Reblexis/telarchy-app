@@ -166,7 +166,7 @@ export function TradePage() {
       .catch(e => console.error('profile fetch failed:', e));
   }, [user, joined]);
 
-  const decide = async (action: 'approve' | 'decline') => {
+  const decide = async (action: 'approve' | 'decline', refund = false) => {
     if (!selectedJobId || !ws) return;
     setDecideErr('');
     setDecideBusy(true);
@@ -174,7 +174,7 @@ export function TradePage() {
       if (action === 'approve') {
         await api.approveProposal(selectedJobId);
       } else {
-        await api.declineProposal(selectedJobId, (declineReason ?? '').trim());
+        await api.declineProposal(selectedJobId, (declineReason ?? '').trim(), refund);
       }
       setDeclineReason(null);
       setSelectedJobId(null);
@@ -513,6 +513,16 @@ export function TradePage() {
                           onClick={() => void decide('decline')}
                         >
                           {decideBusy ? 'Deciding…' : 'Confirm decline'}
+                        </button>
+                        {/* Genuine idea, just not taking it: decline but refund
+                            the proposer's whole stake (owner ask 2026-08-12). */}
+                        <button
+                          className="pubws-decide"
+                          disabled={decideBusy || declineReason.trim().length === 0}
+                          onClick={() => void decide('decline', true)}
+                          title="Decline but refund the proposer's stake in full"
+                        >
+                          Decline + refund
                         </button>
                         <button className="pubws-decide" onClick={() => { setDeclineReason(null); setDecideErr(''); }}>
                           Cancel

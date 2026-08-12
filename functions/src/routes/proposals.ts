@@ -244,11 +244,14 @@ proposalsRouter.post('/:proposalId/approve', requireCapability('manage'), wrap(a
 proposalsRouter.post('/:proposalId/decline', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId, agentId } = req.auth!;
   const proposalId = req.params.proposalId as string;
-  const { declineReason } = req.body ?? {};
+  const { declineReason, refund } = req.body ?? {};
   if (declineReason !== undefined && declineReason !== null && typeof declineReason !== 'string') {
     res.status(400).json({ error: 'declineReason must be a string' }); return;
   }
-  await declineProposal(proposalId, workspaceId, agentId ?? null, declineReason ?? null);
+  // refund=true voids both branches so the proposer's stake comes fully back
+  // (a genuine idea the owner is not taking), rather than keeping the declined
+  // branch live for calibration.
+  await declineProposal(proposalId, workspaceId, agentId ?? null, declineReason ?? null, refund === true);
   emitEvent('proposal:status_changed', {
     proposalId, fromStatus: 'pending', toStatus: 'declined', decidedBy: agentId ?? null,
   }, workspaceId).catch(e => console.error('emitEvent failed:', e));
