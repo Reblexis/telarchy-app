@@ -124,6 +124,20 @@ const registrationLimiter = rateLimit({
   message: { error: 'Too many requests, please try again later.' },
 });
 
+// Feedback (the public report-a-bug / feedback button) accepts anonymous
+// submissions so a visitor who hit a bug can tell us without an account.
+// This per-IP limiter is the anti-spam control for that open door; identified
+// callers are attributed and skip it, exactly like the global limiter.
+const feedbackLimitMax = parseInt(process.env.FEEDBACK_LIMIT_MAX ?? '20', 10);
+const feedbackLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: feedbackLimitMax || 1_000_000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' },
+  skip: (req) => hasIdentity(req as unknown as { headers: Record<string, unknown> }),
+});
+
 app.use(globalLimiter);
 
 // Throttle account creation so bulk signup farming cannot bypass the global limit.
@@ -327,7 +341,7 @@ app.get('/api/help', (_req, res) => {
       { method: 'GET', path: '/api/legal', auth: false, description: 'Legal index: lists available legal documents.' },
       { method: 'GET', path: '/api/legal/terms', auth: false, description: 'Current Terms of Service (markdown).' },
       { method: 'GET', path: '/api/legal/privacy', auth: false, description: 'Current Privacy Policy (markdown).' },
-      { method: 'POST', path: '/api/feedback', auth: 'identity', scope: 'account:feedback', description: 'Submit a bug report or help request. Body: { kind: "bug"|"help"|"feedback" (default "bug"), subject (required, <=200 chars), body (required, <=10000 chars), url?, email?, userAgent? }. Workspace and submitter identity are captured from auth context. Returns 201 { id, kind, status, createdAt }.' },
+      { method: 'POST', path: '/api/feedback', auth: false, scope: 'account:feedback', description: 'Submit a bug report or help request. Anonymous submissions are accepted (public report-a-bug button) and throttled per-IP; signed-in / agent-key callers are attributed to their identity and workspace (agent keys still need the account:feedback scope). Body: { kind: "bug"|"help"|"feedback" (default "bug"), subject (required, <=200 chars), body (required, <=10000 chars), url?, email?, userAgent? }. Returns 201 { id, kind, status, createdAt }.' },
       { method: 'GET', path: '/api/feedback', auth: 'admin', description: 'Platform-admin only: list submitted feedback newest-first. Query: ?kind=bug|help|feedback, ?status=open|triaged|resolved|closed, ?limit=N (default 100, max 500). Returns { items: [...] }.' },
       { method: 'GET', path: '/api/feedback/stats', auth: 'admin', description: 'Platform-admin only: counts of feedback grouped by (kind, status). Returns { groups: [{ kind, status, count }] }.' },
       { method: 'PATCH', path: '/api/feedback/:id', auth: 'admin', description: 'Platform-admin only: update feedback row. Body: { status?: "open"|"triaged"|"resolved"|"closed", adminNotes?: string }. At least one must be provided.' },
@@ -349,7 +363,7 @@ app.use('/api/events', eventsRouter);
 app.use('/api/proposals', proposalsRouter);
 app.use('/api/marketplace', marketplaceRouter);
 app.use('/api/leaderboard', leaderboardRouter);
-app.use('/api/feedback', feedbackRouter);
+app.use('/api/feedback', feedbackLimiter, feedbackRouter);
 
 // Sources: mounted before global authMiddleware because the GitHub OAuth
 // callback is a redirect from GitHub with no auth headers. Individual routes

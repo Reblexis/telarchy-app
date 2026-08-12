@@ -13,6 +13,7 @@ import { LeaderboardRail } from '../components/FloorRails';
 import { AccountMenu } from '../components/AccountMenu';
 import { DiscordButton } from '../components/DiscordButton';
 import { ManifoldButton } from '../components/ManifoldButton';
+import { ReportButton } from '../components/ReportButton';
 import { Logo } from '../components/Logo';
 import type { LeaderboardEntry, LimitOrder } from '../lib/api';
 
@@ -794,6 +795,7 @@ function TopBar({ user, ready }: { user: boolean; ready: boolean }) {
       <div className="pubws-topbar-right">
         <ManifoldButton signedIn={user} onRequireSignup={() => navigate('/signup')} />
         <DiscordButton />
+        <ReportButton />
         {/* Rendered only after the session check settles: while it is
             pending, user is still null, and a signed-in visitor would see
             "Log in" flash and vanish. Anonymous visitors get it fading in. */}

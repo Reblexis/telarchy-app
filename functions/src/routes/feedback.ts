@@ -23,16 +23,17 @@ async function isPlatformAuthorized(req: { auth?: { isMasterKey?: boolean; uid?:
   return row?.platformAdmin === true;
 }
 
-// Submit a bug report or help request. Requires an authenticated identity
-// (browser session, agent key, or master key) so submissions are attributable
-// and the global rate limiter remains effective per-caller.
+// Submit a bug report or help request. Anonymous submissions ARE allowed
+// (the public floor has a report-a-bug button, and a visitor who hit a bug
+// should be able to tell us without first making an account). Abuse is
+// bounded by the dedicated per-IP feedback limiter in app.ts (anonymous
+// callers only) plus the kind/length validation below; admin views render
+// the stored text through React, so it is escaped. Signed-in and agent-key
+// submissions are still attributed to their identity and workspace.
 feedbackRouter.post('/', optionalAuthMiddleware, wrap(async (req, res) => {
-  if (!req.auth || (!req.auth.uid && !req.auth.agentId && !req.auth.isMasterKey)) {
-    throw new AppError('Authentication required to submit feedback', 401);
-  }
-  // Agent-key callers need the account:feedback scope. Browser sessions and
-  // master keys bypass scope checks (req.auth.scopes is unset for them).
-  if (req.auth.scopes && !hasScope(req.auth.scopes, 'account:feedback')) {
+  // Agent-key callers still need the account:feedback scope. Browser
+  // sessions, the master key, and anonymous callers have no scopes set.
+  if (req.auth?.scopes && !hasScope(req.auth.scopes, 'account:feedback')) {
     throw new AppError('Forbidden: this API key is missing the "account:feedback" scope', 403);
   }
 
@@ -50,7 +51,7 @@ feedbackRouter.post('/', optionalAuthMiddleware, wrap(async (req, res) => {
   const userAgent = trimWithLimit(req.headers['user-agent'], FEEDBACK_LIMITS.userAgent) ?? trimWithLimit(body.userAgent, FEEDBACK_LIMITS.userAgent);
 
   let email = trimWithLimit(body.email, FEEDBACK_LIMITS.email);
-  if (!email && req.auth.uid) {
+  if (!email && req.auth?.uid) {
     const [u] = await db.select({ email: authUser.email }).from(authUser).where(eq(authUser.id, req.auth.uid));
     email = u?.email ?? null;
   }
@@ -62,9 +63,9 @@ feedbackRouter.post('/', optionalAuthMiddleware, wrap(async (req, res) => {
     kind: kindRaw,
     subject,
     body: message,
-    workspaceId: req.auth.workspaceId || null,
-    agentId: req.auth.agentId ?? null,
-    authUserId: req.auth.uid ?? null,
+    workspaceId: req.auth?.workspaceId || null,
+    agentId: req.auth?.agentId ?? null,
+    authUserId: req.auth?.uid ?? null,
     email,
     url,
     userAgent,

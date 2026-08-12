@@ -81,7 +81,9 @@ export function FeedbackModal({ open, defaultKind = 'bug', onClose }: Props) {
           <div style={{ padding: '0.5rem 0 1rem' }}>
             <p style={{ marginBottom: '1rem' }}>
               Thanks. Your {kind === 'help' ? 'help request' : kind === 'feedback' ? 'feedback' : 'bug report'} was received.
-              We will follow up at <strong>{email || 'the email on your account'}</strong> if needed.
+              {email
+                ? <> We will follow up at <strong>{email}</strong> if needed.</>
+                : <> Leave a reply-to email if you would like us to follow up.</>}
             </p>
             <button type="button" className="btn" onClick={onClose}>Close</button>
           </div>
