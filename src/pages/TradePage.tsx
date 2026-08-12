@@ -3,6 +3,8 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, setActiveWorkspace, type PublicWorkspace } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { MarketChart } from '../components/MarketChart';
+import { MetricsTimeChart } from '../components/charts/MetricsTimeChart';
+import type { ChartPoint } from '../lib/metrics-chart-model';
 import { TradeTicket, type TicketPosition } from '../components/TradeTicket';
 import { FloorModal } from '../components/FloorModal';
 import { useAnimatedNumber } from '../lib/useAnimatedNumber';
@@ -346,6 +348,31 @@ export function TradePage() {
     ? { direction: ticketPreview.direction, value: active.rangeMin + ticketPreview.newProb * (active.rangeMax - active.rangeMin) }
     : null;
 
+  // Year chart: the hero metric's REAL value over the calendar year (solid),
+  // and where the market sees it settling (dashed, to the resolve date). The
+  // x-axis is the year, not the trading timeline, so this is its own chart
+  // below the market poster.
+  const heroActualPoints = useMemo<ChartPoint[]>(() => {
+    return (ws?.heroHistory ?? [])
+      .filter(p => p.at)
+      .map(p => ({ x: new Date(p.at).getTime(), y: p.value, label: String(p.at) }))
+      .filter(p => Number.isFinite(p.x))
+      .sort((a, b) => a.x - b.x);
+  }, [ws?.heroHistory]);
+  const heroForecastPoints = useMemo<ChartPoint[]>(() => {
+    if (!hero || hero.consensus == null || !hero.resolvesOn) return [];
+    const endX = new Date(hero.resolvesOn).getTime();
+    if (!Number.isFinite(endX)) return [];
+    const last = heroActualPoints[heroActualPoints.length - 1];
+    const startX = last ? last.x : Date.now();
+    const startY = last ? last.y : hero.consensus;
+    const target = consensus ?? hero.consensus;
+    return [
+      { x: startX, y: startY, label: 'now' },
+      { x: endX, y: target, label: settleDayOf(hero.targetDate) ?? 'settles' },
+    ];
+  }, [hero, heroActualPoints, consensus]);
+
   if (error) {
     return (
       <div className="pubws pubws--center">
@@ -569,6 +596,25 @@ export function TradePage() {
                     }
                   : null}
               />
+            </div>
+          </section>
+        )}
+
+        {active && hero && heroActualPoints.length >= 1 && (
+          <section className="pubws-instrument" style={{ marginTop: '1.25rem' }}>
+            <div className="pubws-enter pubws-enter--3">
+              <div className="pubws-settle" style={{ marginBottom: '0.5rem' }}>
+                {metricLabel}: actual so far, and where the market sees it landing
+                {settleDayOf(hero.targetDate) ? ` @ ${settleDayOf(hero.targetDate)}` : ''}
+              </div>
+              <div style={{ position: 'relative', width: '100%', height: 260 }}>
+                <MetricsTimeChart
+                  points={heroActualPoints}
+                  futurePoints={heroForecastPoints}
+                  mode="normal"
+                  variant="inline"
+                />
+              </div>
             </div>
           </section>
         )}

@@ -357,11 +357,14 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
       const [metricRow] = await db.select({ description: metrics.description })
         .from(metrics).where(and(eq(metrics.workspaceId, workspaceId), eq(metrics.id, heroMetricId)));
       heroMetricDescription = metricRow?.description ?? null;
+      // Up to a year of the hero metric's real values, so the floor's
+      // year chart can show the actual trajectory (not just the last few
+      // days). Cadence is at most a few pushes a day, so 500 covers it.
       const logs = await db.select({ at: metricLogs.timestamp, value: metricLogs.value })
         .from(metricLogs)
         .where(and(eq(metricLogs.workspaceId, workspaceId), eq(metricLogs.metricId, heroMetricId)))
         .orderBy(desc(metricLogs.timestamp))
-        .limit(90);
+        .limit(500);
       heroHistory = logs.reverse();
     }
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
