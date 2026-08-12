@@ -8456,12 +8456,16 @@ textarea.jobform-line--desc {
   line-height: 1.45;
 }
 
-/* The whole deal, one quiet line under the fields: cost and the
-   approval payout, nothing else (owner direction 2026-08-10). */
-.jobform-terms {
-  margin: 0;
-  font-size: 0.8rem;
-  color: var(--text-tertiary);
+/* The whole deal rides the confirm itself (owner direction 2026-08-12):
+   a quieter second line inside .ticket-go, so the cost sits under the
+   finger at the moment of commitment. Color comes from the button state
+   (enabled, disabled, placed), so this only steps the register down. */
+.ticket-go-sub {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  opacity: 0.72;
 }
 
 /* The account dialog (owner direction 2026-08-10): management leaves the

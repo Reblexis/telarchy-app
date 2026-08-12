@@ -295,14 +295,19 @@ opens a dialog that is the ticket's STRUCTURE, not just its underlines
 (Codex redesign, revised 2026-08-10): the USD ask is the hero numeric at
 the top exactly where the ticket puts its bet amount ($ unit, mono,
 auto-width underline), the title / paid-to / pitch fields are quiet
-left-aligned underlines with small left labels, and the whole deal is one
-quiet line under the fields, "Costs 500 cr to post. 1,000 cr back if
-approved." (owner direction 2026-08-10: no facts table; the 1,000 is the
+left-aligned underlines with small left labels, and the whole deal rides
+the confirm button itself (owner direction 2026-08-12: the cost belongs
+at the moment of commitment, on the final button, not only near the
+first press; supersedes the 2026-08-10 separate quiet line under the
+fields, still no facts table): `.ticket-go` carries a quieter second
+line (`.ticket-go-sub`), "500 cr to post · 1,000 cr back if approved",
+the exact phrase the board shows under "+ Suggest a job" so the two
+surfaces never disagree (the 1,000 is the
 500 stake returned plus the workspace's 500 proposal reward). Color only speaks as state: accent focus, red errors and the
 full title counter, green ONLY on the placed flash; the confirm is the
-neutral `.ticket-go` whose label progresses "Suggest job" (disabled,
+neutral `.ticket-go` whose main label progresses "Suggest job" (disabled,
 invalid) to "Suggest job for $N" (ready) to "Submitting..." to "Added to
-ballot" (green flash, then the dialog closes). A $0 job is a valid job
+ballot" (green flash, sub-line hidden, then the dialog closes). A $0 job is a valid job
 (owner decision 2026-08-10) and needs no payment details; a non-zero ask
 with no account payment details shows a warning and disables the
 confirm. The ask is sent as `askUsd` and stored on the proposal; when

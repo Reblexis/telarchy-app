@@ -285,21 +285,21 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
               />
             </label>
 
-            {/* The whole deal in one quiet line (owner direction
-                2026-08-10: no facts table): what it costs, what approval
-                pays. */}
-            <p className="jobform-terms">Costs 500 cr to post. 1,000 cr back if approved.</p>
-
             {/* A paid job cannot go up without somewhere for the money to
                 go; the warning names the fix and the confirm stays off. */}
             {needsPayout && <p className="ticket-err">Paid jobs need payment details first: add them in your account menu.</p>}
             {formErr && <p className="ticket-err">{formErr}</p>}
+            {/* The whole deal rides the confirm itself (owner direction
+                2026-08-12): the cost belongs at the moment of commitment,
+                so the sub-line repeats the board's phrase verbatim. Hidden
+                on the placed flash so the green moment stays clean. */}
             <button
               className={`ticket-go${placed ? ' is-placed' : ''}`}
               disabled={formBusy || (!placed && !formValid)}
               onClick={() => void submit()}
             >
               {placed ? 'Added to ballot' : formBusy ? 'Submitting…' : formValid && askNum > 0 ? `Suggest job for $${askNum}` : 'Suggest job'}
+              {!placed && <span className="ticket-go-sub">500&nbsp;cr to post&nbsp;· 1,000&nbsp;cr back if approved</span>}
             </button>
           </div>
         </FloorModal>
