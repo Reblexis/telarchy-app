@@ -10129,7 +10129,7 @@ textarea.jobform-line--desc {
   gap: clamp(1.8rem, 4vh, 2.6rem);
   width: min(92vw, 1100px);
   margin: 0 auto;
-  padding: clamp(4rem, 10vh, 7rem) 1.5rem clamp(4rem, 9vh, 6rem);
+  padding: clamp(2.4rem, 6vh, 4rem) 1.5rem clamp(3rem, 7vh, 5rem);
 }
 
 /* "What is this?" heading over the triptych. */
@@ -10151,14 +10151,15 @@ textarea.jobform-line--desc {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: clamp(1.6rem, 3.5vw, 3.5rem);
+  /* Without this the columns stretch to the tallest one and each step's grid
+     redistributes the slack, so the paragraphs stop sharing a baseline. */
+  align-items: start;
 }
 .pubws-about-beat {
   display: grid;
-  grid-template-rows: auto auto 1fr;
-  gap: 0.6rem;
+  gap: 0.45rem;
+  align-content: start;
   text-align: left;
-  padding-top: 1.4rem;
-  border-top: 1px solid var(--border-color);
   --d: 0s;
 }
 .pubws-about-beat:nth-child(2) { --d: 0.16s; }
@@ -10169,52 +10170,47 @@ textarea.jobform-line--desc {
 /* Big serif numerals are the anchor of each step (the accent lives here). */
 .pubws-about-num {
   font-family: 'Fraunces', serif;
-  font-size: 1.7rem;
+  font-size: 1.3rem;
   font-weight: 600;
   line-height: 1;
   color: var(--accent);
 }
 
-/* Reveal-on-scroll (the section adds .is-in via IntersectionObserver): the
-   solid strokes draw themselves left-to-right, the dashed strokes and dots
-   fade in just after, and each sentence rises into place, staggered per beat
-   by --d. */
-.pubws-about .ab-line,
-.pubws-about .ab-up,
-.pubws-about .ab-check {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  transition: stroke-dashoffset 0.9s ease var(--d);
+/* Reveal-on-scroll (the section adds .is-in via IntersectionObserver). One
+   clip rectangle sweeps across the whole drawing left to right, so the story
+   writes itself in the order it is read - steps, then the fork, then the gap
+   and the call - including the dashed branch, which a stroke-dash draw could
+   not animate (its dashes are the pattern). Each sentence then rises in,
+   staggered per column by --d. */
+.pubws-about .ab-reveal-rect {
+  transform-box: view-box;
+  transform-origin: 0 0;
+  transform: scaleX(0);
+  transition: transform 1.7s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.pubws-about .ab-down,
-.pubws-about .ab-gap,
-.pubws-about .ab-dot {
-  opacity: 0;
-  transition: opacity 0.5s ease calc(var(--d) + 0.5s);
-}
-.pubws-about-beat p {
+.pubws-about.is-in .ab-reveal-rect { transform: scaleX(1); }
+.pubws-about-beat p,
+.pubws-about-beat .pubws-about-num {
   opacity: 0;
   transform: translateY(10px);
-  transition: opacity 0.6s ease var(--d), transform 0.6s ease var(--d);
+  transition: opacity 0.6s ease calc(var(--d) + 0.35s), transform 0.6s ease calc(var(--d) + 0.35s);
 }
-.pubws-about.is-in .ab-line,
-.pubws-about.is-in .ab-up,
-.pubws-about.is-in .ab-check { stroke-dashoffset: 0; }
-.pubws-about.is-in .ab-down,
-.pubws-about.is-in .ab-gap,
-.pubws-about.is-in .ab-dot { opacity: 1; }
-.pubws-about.is-in .pubws-about-beat p { opacity: 1; transform: translateY(0); }
+.pubws-about.is-in .pubws-about-beat p,
+.pubws-about.is-in .pubws-about-beat .pubws-about-num { opacity: 1; transform: translateY(0); }
 
 @media (prefers-reduced-motion: reduce) {
-  .pubws-about .ab-line, .pubws-about .ab-up, .pubws-about .ab-check { stroke-dashoffset: 0; transition: none; }
-  .pubws-about .ab-down, .pubws-about .ab-gap, .pubws-about .ab-dot { opacity: 1; transition: none; }
-  .pubws-about-beat p { opacity: 1; transform: none; transition: none; }
+  .pubws-about .ab-reveal-rect { transform: scaleX(1); transition: none; }
+  .pubws-about-beat p, .pubws-about-beat .pubws-about-num { opacity: 1; transform: none; transition: none; }
 }
 
+/* The narrative band spans the same width as the steps grid below it, so its
+   three passages sit over their own columns. */
 .pubws-about-art {
-  width: 150px;
-  height: 60px;
+  display: block;
+  width: 100%;
+  height: auto;
   overflow: visible;
+  margin-bottom: 0.2rem;
 }
 
 .pubws-about-beat p {
@@ -10226,10 +10222,12 @@ textarea.jobform-line--desc {
   max-width: 34ch;
 }
 
-.ab-line { fill: none; stroke: var(--accent); stroke-width: 2; }
-.ab-up { fill: none; stroke: var(--higher); stroke-width: 2; }
-.ab-down { fill: none; stroke: var(--lower); stroke-width: 2; stroke-dasharray: 3 4; }
+.ab-line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.ab-up { fill: none; stroke: var(--higher); stroke-width: 2.5; stroke-linecap: round; }
+.ab-down { fill: none; stroke: var(--lower); stroke-width: 2.5; stroke-dasharray: 4 5; stroke-linecap: round; }
 .ab-gap { stroke: var(--text-tertiary); stroke-width: 1.5; stroke-dasharray: 2 4; }
+.ab-tick { stroke: var(--text-tertiary); stroke-width: 1; }
+.ab-cap { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500; fill: var(--text-tertiary); }
 .ab-check { fill: none; stroke: var(--higher); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 .ab-dot { fill: var(--accent); }
 .ab-dot--up { fill: var(--higher); }
