@@ -8859,7 +8859,7 @@ textarea.jobform-line--desc {
   display: flex;
   justify-content: center;
   gap: 0.8rem;
-  width: min(30rem, 100%);
+  width: 100%;
   margin: 0 auto;
 }
 
@@ -9858,19 +9858,19 @@ textarea.jobform-line--desc {
    definition below it. */
 .pubws-know-what {
   max-width: 56ch;
-  margin: 0 auto 0.8rem;
+  margin: 0 0 0.8rem;
   font-size: 0.95rem;
   line-height: 1.6;
-  text-align: center;
+  text-align: left;
   color: var(--text-primary);
 }
 
 .pubws-metric-desc {
   max-width: 56ch;
-  margin: 0 auto 1.2rem;
+  margin: 0 0 1.2rem;
   font-size: 0.88rem;
   line-height: 1.6;
-  text-align: center;
+  text-align: left;
   color: var(--text-secondary);
 }
 
@@ -9901,7 +9901,7 @@ textarea.jobform-line--desc {
 
 .pubws-know {
   margin-top: clamp(2.4rem, 6vh, 3.6rem);
-  text-align: center;
+  text-align: left;
 }
 
 .pubws-know-head {
