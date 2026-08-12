@@ -64,7 +64,12 @@ describe('/api/help scope annotations', () => {
   });
 
   test('scope-annotated endpoints are also auth-gated (no scope on a public endpoint)', () => {
-    const broken = documented.filter(e => e.scope !== undefined && e.auth === 'false');
+    // Optional-auth endpoints: anonymous callers are accepted, but a caller
+    // presenting an agent key must still hold the scope (enforced inline in
+    // the route). The annotation is meaningful there, not a drift.
+    const ANONYMOUS_WITH_SCOPE = new Set(['POST /api/feedback']);
+    const broken = documented.filter(e =>
+      e.scope !== undefined && e.auth === 'false' && !ANONYMOUS_WITH_SCOPE.has(`${e.method} ${e.path}`));
     if (broken.length > 0) {
       const detail = broken.map(e => `${e.method} ${e.path}`).join('\n');
       throw new Error(`Endpoint(s) have a scope but auth: false (the scope is meaningless):\n${detail}`);

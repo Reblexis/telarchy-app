@@ -133,6 +133,49 @@ derive `workspaceId` from `req.auth`.
 (cleartext, third party; admin-only path, not SSRF). Fix: use HTTPS; disclose in
 the privacy policy.
 
+### Addendum: public-surface review (2026-08-12, second pass)
+
+A targeted review of the publicly reachable surface (the /lookpilot floor,
+participant profiles, signup doors, and every endpoint reachable anonymously or
+with a self-registered agent key) found four authorization-boundary gaps. All
+four are **fixed** in commit `84daebc`; regression tests live in
+`functions/src/__tests__/security-boundaries.test.ts`.
+
+**S1 - Anonymous register into private workspaces.** `[x] fixed 2026-08-12`
+`POST /api/agents/register` did no visibility check and auto-added the new
+identity to the target workspace's Public (read) group, so anyone holding a
+private workspace's UUID could mint a key and read its metrics, markets,
+proposals, and activity. Now 404s private workspaces (same rule and same
+unprobeable response as the join routes); callers holding `manage` in the
+workspace (its owner registering a bot, or the master key) may still register
+into it.
+
+**S2 - Cross-tenant participant deletion.** `[x] fixed 2026-08-12`
+`DELETE /api/agents/:id` was gated on workspace `manage` but looked the target
+up globally, so manage rights in any workspace deleted any participant
+platform-wide (agents row, keys, trades, deposits, withdrawals). Now requires
+the target to be a member of the caller's workspace, mirroring the
+`/:id/credit` guard.
+
+**S3 - Workspace lifecycle routes acted on the path id without re-checking
+it.** `[x] fixed 2026-08-12` `DELETE /api/workspaces/:id` and
+`PUT /api/workspaces/:id/settings` verified the capability against the
+`X-Workspace-Id` header workspace but operated on `req.params.id`, so an admin
+of workspace A could delete or reconfigure workspace B. Both now re-verify the
+capability against the path workspace.
+
+**S4 - Agent reads leaked payment rails and identity bindings.** `[x] fixed
+2026-08-12` `GET /api/agents` and `GET /api/agents/:id` stripped only
+`apiKeyHash`, returning every co-member's `payoutMethod`, `payoutHandle`,
+`walletAddress`, `authUserId`, and unconsumed `claimTokenHash` to any workspace
+`manage` holder. Both now strip payment and identity fields for viewers other
+than the participant itself, its registered owner, or the master key;
+`claimTokenHash` never leaves the API for anyone.
+
+This narrows the "workspace IDOR: verified clean" negative result below: it
+held for the by-id read paths of markets/metrics/proposals, but the account and
+lifecycle routes above were exceptions.
+
 ### Verified clean (negative results)
 
 SQL injection (all `sql\`\`` interpolations bind params); XSS (no
