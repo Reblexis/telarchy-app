@@ -9911,10 +9911,38 @@ textarea.jobform-line--desc {
   color: var(--accent);
   text-decoration-color: var(--accent);
 }
-/* The sources line sits a register quieter than the body prose. */
-.pubws-know-links {
+/* Sources: a plain free-text list, the way a person writing a market
+   description would jot them (owner ask 2026-08-12), not prose links. */
+.pubws-know-sources {
   font-size: 0.85rem;
   color: var(--text-secondary);
+  max-width: 56ch;
+}
+.pubws-know-sources ul {
+  margin: 0.3rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.pubws-know-sources li {
+  margin: 0.15rem 0;
+  padding-left: 1rem;
+  text-indent: -1rem;
+}
+.pubws-know-sources li::before {
+  content: "- ";
+  color: var(--text-tertiary);
+}
+.pubws-know-sources a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--text-tertiary);
+  transition: color 120ms ease, text-decoration-color 120ms ease;
+}
+.pubws-know-sources a:hover,
+.pubws-know-sources a:focus-visible {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
 }
 
 .pubws-metric-desc {

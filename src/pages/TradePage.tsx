@@ -673,13 +673,20 @@ export function TradePage() {
             $14.99 once per player, so every copy sold is what this market is
             betting on.
           </p>
-          <p className="pubws-know-what pubws-know-links">
-            The numbers this settles on live in the{' '}
-            <a href="https://lookpilot.app/data-room/" target="_blank" rel="noreferrer">data room</a>. See the product on{' '}
-            <a href="https://store.steampowered.com/app/3326890/LookPilot/" target="_blank" rel="noreferrer">Steam</a>{' '}
-            or third-party sales estimates on{' '}
-            <a href="https://steamdb.info/app/3326890/" target="_blank" rel="noreferrer">SteamDB</a>.
-          </p>
+          <div className="pubws-know-sources">
+            Sources:
+            <ul>
+              <li>
+                <a href="https://store.steampowered.com/app/3326890/LookPilot/" target="_blank" rel="noreferrer">Steam</a> - the store page
+              </li>
+              <li>
+                <a href="https://lookpilot.app/data-room/" target="_blank" rel="noreferrer">Data room</a> - the numbers this settles on, updated once per day
+              </li>
+              <li>
+                <a href="https://steamdb.info/app/3326890/" target="_blank" rel="noreferrer">SteamDB</a> - third-party sales estimates
+              </li>
+            </ul>
+          </div>
         </section>
         </div>
         {/* The jobs board IS the right rail (owner direction 2026-08-10:
