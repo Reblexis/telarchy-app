@@ -414,7 +414,7 @@ export function TradePage() {
     <div className="pubws pubws--center">
       <TopBar user={!!user} ready={!authLoading} />
       <main className="pubws-main pubws-main--floor">
-        <LeaderboardRail entries={leaders} />
+        <LeaderboardRail entries={leaders} contractors={ws?.topContractors} />
         <div className="pubws-center">
         {hero && active && consensus !== null && (
           <section className="pubws-instrument" aria-label="The market">
@@ -720,6 +720,7 @@ export function TradePage() {
               signedIn={!!user}
               onRequireSignup={() => navigate('/signup')}
               workspaceName={ws.name}
+              decided={ws.decided}
               onPropose={async (title, description, askUsd) => {
                 // Anonymous proposers go through the signup door; the board
                 // itself is public information (Open workspace ballot).

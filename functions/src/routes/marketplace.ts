@@ -337,6 +337,9 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
   // `read` keep the counts-only boundary.
   let openProposals: Array<Record<string, unknown>> | undefined;
   let decidedProposals: Array<Record<string, unknown>> | undefined;
+  // Top contractors: participants ranked by the real USD they have earned
+  // from jobs the owner approved (the other side of the economy from traders).
+  let topContractors: Array<{ id: string; name: string | null; earnedUsd: number; jobs: number }> | undefined;
   // Trader context, same Open-workspace disclosure rule as the ballot: the
   // hero metric's logged history (what a forecaster prices against), its
   // description (the owner's provenance statement: where the number comes
@@ -497,13 +500,38 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
         inArray(proposals.status, ['approved', 'declined']),
       ))
       .orderBy(desc(proposals.resolvedAt))
-      .limit(10);
+      .limit(15);
+    const decidedNames = await getParticipantDisplayNames(decided.map(p => p.proposedBy));
     decidedProposals = decided.map(p => ({
       id: p.id,
       title: p.title,
       status: p.status,
+      askUsd: p.askUsd,
+      proposedByName: decidedNames.get(p.proposedBy) ?? null,
+      proposedByHandle: p.proposedBy,
       resolvedAt: p.resolvedAt,
       declineReason: p.declineReason,
+    }));
+
+    // Contractors: sum the real USD of every APPROVED job per proposer,
+    // ranked. Declined jobs earn nothing (their stake was refunded), so only
+    // approved counts. Empty until the owner approves the first job.
+    const contractorAgg = await db.select({
+      proposedBy: proposals.proposedBy,
+      earnedUsd: sql<number>`coalesce(sum(${proposals.askUsd}), 0)::float`,
+      jobs: sql<number>`count(*)::int`,
+    })
+      .from(proposals)
+      .where(and(eq(proposals.workspaceId, workspaceId), eq(proposals.status, 'approved')))
+      .groupBy(proposals.proposedBy)
+      .orderBy(desc(sql`coalesce(sum(${proposals.askUsd}), 0)`))
+      .limit(5);
+    const contractorNames = await getParticipantDisplayNames(contractorAgg.map(c => c.proposedBy));
+    topContractors = contractorAgg.map(c => ({
+      id: c.proposedBy,
+      name: contractorNames.get(c.proposedBy) ?? null,
+      earnedUsd: c.earnedUsd,
+      jobs: c.jobs,
     }));
   }
 
@@ -534,6 +562,7 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
     ...(openProposals !== undefined ? {
       proposals: openProposals,
       decided: decidedProposals,
+      topContractors,
       heroHistory,
       heroMetricDescription,
       tradesThisWeek,

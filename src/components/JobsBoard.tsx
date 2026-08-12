@@ -1,7 +1,7 @@
 import { FloorModal } from './FloorModal';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
-import type { PublicProposal } from '../lib/api';
+import type { PublicProposal, PublicDecidedProposal } from '../lib/api';
 
 /**
  * The jobs board: the proposal side of the trading floor, rendered for
@@ -36,6 +36,8 @@ interface Props {
   onRequireSignup: () => void;
   /** Workspace name, for the "do something useful for X?" propose prompt. */
   workspaceName: string;
+  /** Decided jobs (approved/declined), shown as read-only history. */
+  decided?: PublicDecidedProposal[];
 }
 
 function fmtVal(v: number, unit: string): string {
@@ -60,7 +62,7 @@ function headlineDelta(p: PublicProposal): number | null {
   return deltas.reduce((a, b) => (Math.abs(b) > Math.abs(a) ? b : a), deltas[0]);
 }
 
-export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, signedIn, onRequireSignup, workspaceName }: Props) {
+export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, signedIn, onRequireSignup, workspaceName, decided }: Props) {
   const [formOpen, setFormOpen] = useState(false);
   const [ask, setAsk] = useState('');
   const [title, setTitle] = useState('');
@@ -203,6 +205,33 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
             so a new signup (1,000 free cr) can afford it and see the upside. */}
         <p className="pubws-propose-cost">500&nbsp;cr to post&nbsp;· 1,000&nbsp;cr back if approved</p>
       </div>
+
+      {/* Jobs history: decided jobs, read-only (their markets are resolved, so
+          trading is paused). Approved jobs paid the ask; declined jobs settled
+          the other way and the stake was refunded. */}
+      {decided && decided.length > 0 && (
+        <div className="pubws-jh">
+          <h3 className="pubws-jh-head">Jobs history</h3>
+          <ul className="pubws-jh-list">
+            {decided.map(d => {
+              const title = splitAsk(d.title).rest || d.title;
+              const approved = d.status === 'approved';
+              return (
+                <li key={d.id} className={`pubws-jh-row pubws-jh-row--${d.status}`}>
+                  <span className="pubws-jh-title">{title}</span>
+                  <span className="pubws-jh-meta">
+                    {d.proposedByName ? `${d.proposedByName} · ` : ''}
+                    {approved
+                      ? <span className="pubws-jh-out is-up">approved{d.askUsd != null ? `, $${d.askUsd} paid` : ''}</span>
+                      : <span className="pubws-jh-out is-down">declined, refunded</span>}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+
       {/* The form is the ticket's structure, not just its underlines
           (Codex redesign 2026-08-10): the ask is the hero numeric at the
           top like the bet amount, the consequences live in the same ruled

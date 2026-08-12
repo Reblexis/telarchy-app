@@ -261,6 +261,8 @@ export interface PublicWorkspace {
    *  (an Open workspace, where contents are one free self-join away anyway). */
   proposals?: PublicProposal[];
   decided?: PublicDecidedProposal[];
+  /** Participants ranked by real USD earned from approved jobs. */
+  topContractors?: PublicContractor[];
   /** Hero-metric logged history (oldest first), the evidence a forecaster
    *  prices against. Same Open-workspace disclosure rule as the ballot. */
   heroHistory?: Array<{ at: string; value: number }>;
@@ -315,8 +317,19 @@ export interface PublicDecidedProposal {
   id: string;
   title: string;
   status: 'approved' | 'declined';
+  askUsd: number | null;
+  proposedByName: string | null;
+  proposedByHandle: string | null;
   resolvedAt: string | null;
   declineReason: string | null;
+}
+
+/** A participant ranked by real USD earned from approved jobs. */
+export interface PublicContractor {
+  id: string;
+  name: string | null;
+  earnedUsd: number;
+  jobs: number;
 }
 
 /** A market row on the public workspace page. No workspace fields: the page
