@@ -216,7 +216,20 @@ export function TradePage() {
   };
 
   // Switching jobs must not leave the remove button armed on the next one.
-  useEffect(() => { setRemoveArmed(false); setDeclineReason(null); setDecideErr(''); }, [selectedJobId]);
+  // Everything else that is "about the job on screen" resets here too, and
+  // ONLY here: the branch toggle, the expanded description, the branch
+  // histories. This used to live in the history-fetch effect below, which
+  // re-runs on every poll, so five seconds after the owner opened the
+  // decline branch the page yanked them back to approved and the chart
+  // remounted (owner report 2026-08-13).
+  useEffect(() => {
+    setRemoveArmed(false);
+    setDeclineReason(null);
+    setDecideErr('');
+    setBranch('approved');
+    setDescExpanded(false);
+    setCondHistory(null);
+  }, [selectedJobId]);
 
   const hero = ws?.markets[0] ?? null;
   const unit = hero ? currencyOf(hero.metricName) : '';
@@ -263,27 +276,35 @@ export function TradePage() {
   const otherBranch = pair ? branchShape(branch === 'approved' ? 'declined' : 'approved') : null;
   const activeMarketId = active?.marketId ?? null;
 
-  // Both branches' own histories, fetched when a job is selected so the
-  // main chart keeps meaning something after the switch. Selecting a job
-  // always starts in the approved world.
-  useEffect(() => {
-    setCondHistory(null);
-    setBranch('approved');
-    setDescExpanded(false);
+  // Both branches' own histories, so the main chart keeps meaning something
+  // after a branch switch. Overwrites in place (never blanks first), so a
+  // refresh redraws the same lines instead of collapsing the chart to a
+  // single point for a frame.
+  const condHistoryRef = useRef<() => void>(() => {});
+  // Every pull carries a token; only the newest one may write. Polling and a
+  // job switch can be in flight together, and a slow earlier response landing
+  // last would otherwise paint the previous job's lines.
+  const condReqRef = useRef(0);
+  condHistoryRef.current = () => {
     const aid = pair?.approvedMarketId;
     const did = pair?.declinedMarketId;
+    const token = ++condReqRef.current;
     if (!aid || !ws) return;
-    let cancelled = false;
     const slug = ws.slug || ws.workspaceId;
     Promise.all([
       api.getPublicMarketHistory(slug, aid),
       did ? api.getPublicMarketHistory(slug, did) : Promise.resolve([]),
     ])
-      .then(([a, d]) => { if (!cancelled) setCondHistory({ approved: a, declined: d }); })
+      .then(([a, d]) => { if (token === condReqRef.current) setCondHistory({ approved: a, declined: d }); })
       .catch(e => console.error('conditional history fetch failed:', e));
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pair?.approvedMarketId, pair?.declinedMarketId, ws]);
+  };
+  // The initial pull for a newly selected job. Keyed on the market ids and
+  // the workspace's stable slug, NOT on the `ws` object: `ws` is a fresh
+  // object on every five-second poll, and depending on it re-ran this whole
+  // effect (and its resets) on every tick.
+  const wsKey = ws ? (ws.slug || ws.workspaceId) : null;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { condHistoryRef.current(); }, [pair?.approvedMarketId, pair?.declinedMarketId, wsKey]);
 
   const refreshMoney = () => {
     if (activeMarketId && ws) {
@@ -310,7 +331,12 @@ export function TradePage() {
   // stale one. Paused while the tab is hidden; a fresh pull the instant it
   // comes back, so returning to the tab is never stale.
   const pollRef = useRef<() => void>(() => {});
-  pollRef.current = () => { reload(); loadLeaders(); if (joined) refreshMoney(); };
+  pollRef.current = () => {
+    reload();
+    loadLeaders();
+    condHistoryRef.current();
+    if (joined) refreshMoney();
+  };
   useEffect(() => {
     const tick = () => { if (typeof document === 'undefined' || !document.hidden) pollRef.current(); };
     const interval = setInterval(tick, 5000);
@@ -330,15 +356,7 @@ export function TradePage() {
     }
     refreshMoney();
     reload();
-    if (pair?.approvedMarketId) {
-      const slug = ws.slug || ws.workspaceId;
-      Promise.all([
-        api.getPublicMarketHistory(slug, pair.approvedMarketId),
-        pair.declinedMarketId ? api.getPublicMarketHistory(slug, pair.declinedMarketId) : Promise.resolve([]),
-      ])
-        .then(([a, d]) => setCondHistory({ approved: a, declined: d }))
-        .catch(e => console.error('conditional history refresh failed:', e));
-    }
+    condHistoryRef.current();
   };
   const placeTrade = async (direction: 'higher' | 'lower', amount: number) => {
     if (!activeMarketId) return;

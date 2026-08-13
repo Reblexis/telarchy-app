@@ -290,7 +290,14 @@ branch: its probability and liquidity must come from the active market, not
 the baseline, or payouts, the bet ghost and position worth are all computed
 against the wrong curve. The description is NOT repeated under the job row;
 it belongs with the question. Positions refetch on every switch, because
-they belong to the market on screen. "+ Suggest a job"
+they belong to the market on screen. **The floor's live poll (every five
+seconds) refreshes DATA, never the view** (owner report 2026-08-13): the
+selected job, the branch toggle, an expanded description and the drawn
+chart are the viewer's state, and a tick may only overwrite prices and
+histories in place. Two specific rules follow: view state resets on a job
+change and nowhere else, and a history refresh never blanks first, or the
+chart collapses to its single-point fallback for a frame and reads as a
+blink. "+ Suggest a job"
 opens a dialog that is the ticket's STRUCTURE, not just its underlines
 (Codex redesign, revised 2026-08-10): the USD ask is the hero numeric at
 the top exactly where the ticket puts its bet amount ($ unit, mono,

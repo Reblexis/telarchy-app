@@ -260,6 +260,36 @@ amount are composed, the chart shows the bet's impact as a dashed ghost
 deselecting the side removes it. No per-branch ballot trading (the ballot is not rendered in this
 phase). Re-visits are idempotent (alreadyMember).
 
+### T12. The live poll leaves the view alone
+
+The floor reloads itself every five seconds. That refresh is for DATA; the
+viewer's own state (selected job, branch toggle, expanded description, the
+drawn chart) must survive it untouched. Regression pinned here after the
+owner reported the "if declined" branch snapping back to "if approved" a
+few seconds after opening it, and the chart blinking (2026-08-13).
+
+**Steps (a workspace whose ballot is visible and has a job with both
+branch markets):**
+1. `$B click "text=<a job title>"` then `$B wait --networkidle`.
+2. `$B click ".pubws-branch-opt--declined"`.
+3. `$B js "document.querySelector('.mchart-svg').__tag='keep'; 'ok'"`.
+4. `$B js "window.__s=[]; window.__i=setInterval(()=>{const p=document.querySelector('.mchart-mline'); window.__s.push(p?p.getAttribute('d'):'NONE');},150); 'rec'"`.
+5. Wait ~13s (at least two poll ticks).
+6. `$B js "clearInterval(window.__i); [...new Set(window.__s)].length + ' ' + window.__s.filter(x=>x==='NONE').length"`.
+7. `$B js "Array.from(document.querySelectorAll('.pubws-branch-opt')).map(b=>b.textContent+':'+b.getAttribute('aria-pressed')).join('|')"`.
+8. `$B js "document.querySelector('.mchart-svg').__tag==='keep'"`.
+
+**Expected:**
+- Step 6 reports one distinct path and zero `NONE`: the chart is never
+  handed a blanked series, so it never collapses to its single-point
+  fallback for a frame (that flash is the blink).
+- Step 7 still reads `if declined:true` (and `if approved:false`): only a
+  job change resets the toggle.
+- Step 8 is `true`: the chart element is not remounted by a poll (a
+  remount replays the entrance draw, which reads as a blink even when the
+  data is unchanged).
+- Same three checks on the baseline view (no job selected) also hold.
+
 ## Known gaps
 
 - No coverage of the join click-through itself (needs an account, so it
