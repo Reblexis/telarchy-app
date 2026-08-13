@@ -344,9 +344,13 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
           {/* The y domain is robust (see the model), so a saturated tick can
               exceed it. Clip the drawn series to the plot rectangle: the line
               runs off the edge, which reads as "it spiked past here", instead
-              of overprinting the axis labels. */}
+              of overprinting the axis labels. Horizontally the rect is padded
+              4 units per side: the step to the live call lands exactly ON the
+              plot's right edge, and a vertical stroke centered on the clip
+              boundary loses half its width (owner report 2026-08-13: the
+              vertical segment drew thinner than the horizontal run). */}
           <clipPath id={clipId}>
-            <rect x={PAD_L} y={PAD_T} width={W - PAD_L - PAD_R} height={H - PAD_T - PAD_B} />
+            <rect x={PAD_L - 4} y={PAD_T} width={W - PAD_L - PAD_R + 8} height={H - PAD_T - PAD_B} />
           </clipPath>
         </defs>
 

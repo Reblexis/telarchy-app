@@ -483,3 +483,12 @@ Zoom windows keep the deliberate 2026-08-10 mid-window start (the
 window defines the axis, not the data). Spans under 10 minutes label x
 ticks with seconds so four ticks on a young market do not all print the
 same minute.
+
+**Revised 2026-08-13, follow-up (owner report: the step's vertical
+segment drew thinner than its horizontal run).** The plot clip exists
+for Y excursions past the robust domain; horizontally it clipped too,
+and the step to the live call lands exactly ON the plot's right edge
+(the left edge likewise for a window's carried entry point), so a
+vertical stroke centered on the clip boundary lost half its width. The
+clip rect is padded 4 units horizontally on each side; its vertical
+bounds stay exact, which is the part doing real work.

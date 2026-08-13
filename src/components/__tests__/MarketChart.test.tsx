@@ -75,6 +75,17 @@ describe('MarketChart axis on young markets (2026-08-13)', () => {
     expect(new Set(labels).size).toBe(labels.length);
   });
 
+  it('pads the plot clip horizontally so edge-riding vertical strokes keep full width', () => {
+    const { container } = render(
+      <MarketChart series={[{ at: iso(0), consensus: 72000 }]} consensus={72000} unit="$" />,
+    );
+    const rect = container.querySelector('clipPath rect')!;
+    // The step to the live call lands exactly on the plot's right edge; a
+    // clip ending there halves the vertical stroke (owner report 2026-08-13).
+    expect(parseFloat(rect.getAttribute('x')!)).toBeLessThan(PAD_L);
+    expect(parseFloat(rect.getAttribute('x')!) + parseFloat(rect.getAttribute('width')!)).toBeGreaterThan(RIGHT_EDGE);
+  });
+
   it('leaves a mature market untouched: domain starts at the first trade, minute-resolution ticks', () => {
     const series = [
       { at: iso(2 * 3600e3), consensus: 70000 },
