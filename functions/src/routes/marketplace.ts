@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/client';
-import { workspaces, markets, metrics, metricLogs, agents, trades, positions, permissionGroups, proposals, proposalMessages, marketMessages } from '../db/schema';
-import { eq, ne, and, gt, gte, count, desc, asc, inArray, sql } from 'drizzle-orm';
+import { workspaces, markets, metrics, metricLogs, agents, trades, positions, permissionGroups, proposals, proposalMessages, marketMessages, systemConfig } from '../db/schema';
+import { eq, ne, and, gt, gte, count, desc, asc, inArray, like, sql } from 'drizzle-orm';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireIdentity } from '../middleware/roles';
@@ -529,6 +529,15 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
     }));
   }
 
+  // Platform-wide count of completed Manifold imports. Public on purpose: a
+  // prediction market on "how many forecasters brought their record over"
+  // cannot resolve on a number only the owner can see, and this audience will
+  // not take it on faith. Counts claims rather than workspace membership, so it
+  // reads the same from anywhere.
+  const [manifoldRow] = await db.select({ n: count() }).from(systemConfig)
+    .where(like(systemConfig.key, 'manifold-claimed:agent:%'));
+  const manifoldImportCount = manifoldRow?.n ?? 0;
+
   res.json({
     workspaceId,
     name: ws.name,
@@ -552,6 +561,7 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
     metricCount: metricCountRow?.n ?? 0,
     openMarketCount: marketList.length,
     participantCount: participantIds.size,
+    manifoldImportCount,
     proposalStats,
     markets: marketList,
     ...(openProposals !== undefined ? {
