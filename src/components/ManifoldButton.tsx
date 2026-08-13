@@ -80,10 +80,6 @@ export function ManifoldButton({ signedIn, onRequireSignup }: { signedIn: boolea
                   A proven record starts you with real weight here. We match your Manifold net
                   worth in credits, one for one, up to 100,000, once.
                 </p>
-                <p className="mfimport-note">
-                  Nothing leaves Manifold. We read your balance, we never touch it, and your mana
-                  stays exactly where it is.
-                </p>
                 <label className="jobform-field">
                   <span className="ticket-label">Your Manifold username</span>
                   <input

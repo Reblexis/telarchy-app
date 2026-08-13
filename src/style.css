@@ -7616,15 +7616,6 @@ code, pre, kbd, samp {
   line-height: 1.5;
   color: var(--text-secondary);
 }
-/* The reassurance under the lead: importing reads a Manifold balance, it never
-   moves one. Quieter than the lead because it answers a worry rather than
-   making the offer. */
-.mfimport-note {
-  margin: 0.6rem 0 0;
-  font-size: 0.82rem;
-  line-height: 1.5;
-  color: var(--text-tertiary, var(--text-secondary));
-}
 .mfimport-lead code {
   font-family: 'JetBrains Mono', monospace;
   background: var(--bg-tertiary);
