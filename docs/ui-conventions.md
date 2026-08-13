@@ -463,3 +463,23 @@ corner note on the zoom row's line: "resolves <settle day>". The know
 block split into two labeled sections: "What is this market?" (the
 stored definition, verbatim) above "What is LookPilot?" (the product
 sentence plus the three described source links).
+
+**Revised 2026-08-13, chart axis on young markets (owner bug report: the
+"if declined" view of a fresh job drew only an endpoint dot).** The
+market chart's x-domain never extends into the future: its right edge is
+always max(now, newest point). The 60-second minimum span (the guard
+that keeps a single-trade market from a zero-width axis) extends the
+window LEFT (t0 = right edge - 60s), never right; the old behavior
+pinned the domain to [t0, t0 + 60s], which put dead future space on the
+right two-thirds, labeled x ticks with times that had not happened yet,
+and stranded the primary line (which ends at now) mid-chart while the
+secondary branch drew to the domain edge. In ALL mode the primary step
+line enters the window at the call in force at its left edge (the same
+carry rule zoom windows already used), so an untraded branch (a single
+fallback point at now) draws as a flat held-call line ending in its dot
+at the right edge, symmetric with how the secondary branch has always
+rendered its no-trades case, instead of a floating dot with no line.
+Zoom windows keep the deliberate 2026-08-10 mid-window start (the
+window defines the axis, not the data). Spans under 10 minutes label x
+ticks with seconds so four ticks on a young market do not all print the
+same minute.

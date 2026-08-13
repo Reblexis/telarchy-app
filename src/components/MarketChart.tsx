@@ -120,9 +120,6 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
       pts = carried ? [{ t: cutoff, v: carried.v }, ...inside] : inside;
       if (pts.length === 0) pts = [{ t: now, v: consensus }];
     }
-    // The call holds between trades and since the last one: extend to now.
-    const extended = [...pts, { t: Math.max(now, pts[pts.length - 1].t), v: consensus }];
-
     // The secondary branch shares the domain: two lines are only comparable
     // when they share axes, and the gap between them is the point.
     let secPts = (secondary?.series ?? [])
@@ -138,12 +135,28 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
     }
 
     // A selected window pins the axis to [now - range, now] regardless of
-    // where the data starts; ALL spans the data.
+    // where the data starts; ALL spans the data. The right edge is always
+    // max(now, newest point), NEVER the future: the 60-second minimum span
+    // (the guard against a zero-width axis on a single-trade market) extends
+    // the window LEFT. It used to extend right, which put dead future space
+    // after the live dot, labeled ticks with times that had not happened
+    // yet, and stranded the primary line mid-chart while the secondary drew
+    // to the domain edge (owner report 2026-08-13).
+    const t1 = Math.max(now, pts[pts.length - 1].t);
     const t0 = range !== null
       ? now - range
-      : Math.min(extended[0].t, secPts[0]?.t ?? extended[0].t);
-    const t1 = Math.max(now, extended[extended.length - 1].t);
-    const span = range !== null ? range : Math.max(t1 - t0, 60_000);
+      : Math.min(pts[0].t, secPts[0]?.t ?? pts[0].t, t1 - 60_000);
+    const span = t1 - t0;
+
+    // In ALL mode the step line enters the window at the call in force at
+    // its left edge (t0 precedes the first point when the other branch is
+    // older, or when the minimum span extended the window left), so an
+    // untraded branch (one fallback point at now) draws as a flat held-call
+    // line instead of a floating dot. Zoom windows keep their deliberate
+    // mid-window start (2026-08-10: the window defines the axis, not the
+    // data). The call also holds since the last trade: extend to the edge.
+    const lead = range === null && pts[0].t > t0 ? [{ t: t0, v: pts[0].v }] : [];
+    const extended = [...lead, ...pts, { t: t1, v: consensus }];
     // Two kinds of value feed the y domain. The SERIES is what the market
     // printed over time; in a thin market a single trade can saturate the AMM
     // and print at the metric's ceiling for one tick, and taking a raw
@@ -186,9 +199,13 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
     let secD: string | null = null;
     let secEnd: { t: number; v: number } | null = null;
     if (secondary) {
+      // Same entry rule as the primary: in ALL mode the quiet line starts
+      // at the window's left edge holding its first value.
+      const secLead = range === null && secPts.length > 0 && secPts[0].t > t0
+        ? [{ t: t0, v: secPts[0].v }] : [];
       const sec = secPts.length > 0
-        ? [...secPts, { t: t0 + span, v: secondary.consensus }]
-        : [{ t: t0, v: secondary.consensus }, { t: t0 + span, v: secondary.consensus }];
+        ? [...secLead, ...secPts, { t: t1, v: secondary.consensus }]
+        : [{ t: t0, v: secondary.consensus }, { t: t1, v: secondary.consensus }];
       secD = `M${x(sec[0].t).toFixed(1)},${y(sec[0].v).toFixed(1)}`;
       for (let i = 1; i < sec.length; i++) {
         secD += ` L${x(sec[i].t).toFixed(1)},${y(sec[i - 1].v).toFixed(1)}`;
@@ -213,12 +230,16 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
     const fmt = (t: number) => {
       const dt = new Date(t);
       if (span >= 48 * 3600e3) return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const time = dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: false });
+      // Under ten minutes, four minute-resolution ticks all print the same
+      // minute; seconds keep them distinct.
+      const time = dt.toLocaleTimeString('en-US', span < 600e3
+        ? { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: false }
+        : { hour: 'numeric', minute: '2-digit', hour12: false });
       return crossesDay ? `${dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} ${time}` : time;
     };
     const ticks = [0.08, 0.38, 0.68, 0.95].map(f => t0 + f * span);
 
-    return { pts, extended, d, areaPath, end, secD, secEnd, t0, t1: t0 + span, span, fullSpan, x, y, gridVals, ticks, fmt, open: extended[0] };
+    return { pts, extended, d, areaPath, end, secD, secEnd, t0, t1, span, fullSpan, x, y, gridVals, ticks, fmt, open: extended[0] };
   }, [series, consensus, preview, orders, secondary, range, H, W, PAD_L, PAD_R]);
 
   // A window wider than the market's whole life falls back to ALL. This used
