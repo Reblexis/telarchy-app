@@ -22,8 +22,14 @@ import { toUnits } from '../lib/validation';
  * back through the public API. The bio can be cleaned up immediately after;
  * the grant snapshots net worth at claim time.
  *
- * Deliberately one-way and in-kind: mana in, credits out, nothing ever
- * back. Credits are not purchasable and not redeemable.
+ * Nothing is transferred. The mana stays in the Manifold account: this reads a
+ * balance and grants a matching amount of credits here, so the user gives up
+ * nothing by importing. Saying "convert" in user-facing copy is a bug, because
+ * it reads as spending their mana and that is the single thing most likely to
+ * stop a Manifold user importing.
+ *
+ * Deliberately one-way: credits are not purchasable, not redeemable, and
+ * nothing converts back the other way.
  */
 
 export const manifoldRouter = Router();

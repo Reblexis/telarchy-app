@@ -6,9 +6,11 @@ import { ManifoldLogo } from './ManifoldLogo';
  * Import your Manifold balance (owner ask 2026-08-11: make it a
  * first-class action, not buried in the account dialog). A Manifold glyph
  * beside the Discord button opens the two-step import: name your Manifold
- * account, drop the one-time code in your bio, verify. Proven calibration
- * converts to starting credits (1 mana = 1 cr, capped). Anonymous
- * visitors are routed to sign up first (the grant needs an account).
+ * account, drop the one-time code in your bio, verify. Proven calibration is
+ * MATCHED in starting credits (1 mana = 1 cr, capped); the Manifold balance is
+ * read, never moved, and the copy says so because "convert" reads as spending
+ * their mana. Anonymous visitors are routed to sign up first (the grant needs
+ * an account).
  */
 
 export function ManifoldButton({ signedIn, onRequireSignup }: { signedIn: boolean; onRequireSignup: () => void }) {
@@ -52,18 +54,18 @@ export function ManifoldButton({ signedIn, onRequireSignup }: { signedIn: boolea
     <>
       <button
         className="pubws-manifold"
-        aria-label="Import your Manifold balance"
+        aria-label="Bring your Manifold record"
         onClick={() => (signedIn ? setOpen(true) : onRequireSignup())}
       >
         <span className="pubws-manifold-icon"><ManifoldLogo size={18} color="currentColor" /></span>
-        <span className="pubws-manifold-label">Import Manifold</span>
+        <span className="pubws-manifold-label">Bring your Manifold record</span>
       </button>
 
       {open && (
-        <FloorModal onClose={close} label="Import Manifold balance">
+        <FloorModal onClose={close} label="Bring your Manifold record">
           <div className="mfimport">
             <div className="ticket-head mfimport-head">
-              <h3 className="mfimport-title"><ManifoldLogo size={22} /> Import your Manifold balance</h3>
+              <h3 className="mfimport-title"><ManifoldLogo size={22} /> Bring your Manifold record</h3>
               <button className="ticket-close" aria-label="Close" onClick={close}>×</button>
             </div>
 
@@ -75,8 +77,12 @@ export function ManifoldButton({ signedIn, onRequireSignup }: { signedIn: boolea
             ) : step === 'ask' ? (
               <>
                 <p className="mfimport-lead">
-                  A proven Manifold record starts you with real weight here: your net worth
-                  converts one mana to one credit, up to 100,000, once.
+                  A proven record starts you with real weight here. We match your Manifold net
+                  worth in credits, one for one, up to 100,000, once.
+                </p>
+                <p className="mfimport-note">
+                  Nothing leaves Manifold. We read your balance, we never touch it, and your mana
+                  stays exactly where it is.
                 </p>
                 <label className="jobform-field">
                   <span className="ticket-label">Your Manifold username</span>
