@@ -104,7 +104,20 @@ marketplaceRouter.get('/stats', wrap(async (_req, res) => {
     tradesThisWeek += Number(tCount);
   }));
 
-  res.json({ marketsActive, agentsActive: Number(agentCount.count), tradesThisWeek });
+  // Platform-wide count of completed Manifold imports. It lives here, on the
+  // global stats route, because it is a platform number rather than a property
+  // of any one workspace, and because a public prediction market resolves
+  // against this URL: a resolution source has to be readable by the people
+  // being asked to trust it, without knowing a workspace id.
+  const [manifoldRow] = await db.select({ n: count() }).from(systemConfig)
+    .where(like(systemConfig.key, 'manifold-claimed:agent:%'));
+
+  res.json({
+    marketsActive,
+    agentsActive: Number(agentCount.count),
+    tradesThisWeek,
+    manifoldImportCount: Number(manifoldRow?.n ?? 0),
+  });
 }));
 
 /**
