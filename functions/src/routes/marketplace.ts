@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/client';
 import { workspaces, markets, metrics, metricLogs, agents, trades, positions, permissionGroups, proposals, proposalMessages, marketMessages } from '../db/schema';
-import { eq, and, gt, gte, count, desc, asc, inArray, sql } from 'drizzle-orm';
+import { eq, ne, and, gt, gte, count, desc, asc, inArray, sql } from 'drizzle-orm';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireIdentity } from '../middleware/roles';
@@ -178,7 +178,7 @@ marketplaceRouter.get('/workspaces/public', wrap(async (_req, res) => {
     status: proposals.status,
     n: sql<number>`count(*)::int`,
   }).from(proposals)
-    .where(and(inArray(proposals.workspaceId, wsIds), gte(proposals.createdAt, since)))
+    .where(and(inArray(proposals.workspaceId, wsIds), gte(proposals.createdAt, since), ne(proposals.status, 'removed')))
     .groupBy(proposals.workspaceId, proposals.status);
 
   const statsByWs = new Map<string, { total: number; approved: number; declined: number; declinedSpam: number; withdrawn: number; pending: number }>();
@@ -298,7 +298,7 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const proposalRows = await db.select({ status: proposals.status, n: sql<number>`count(*)::int` })
     .from(proposals)
-    .where(and(eq(proposals.workspaceId, workspaceId), gte(proposals.createdAt, since)))
+    .where(and(eq(proposals.workspaceId, workspaceId), gte(proposals.createdAt, since), ne(proposals.status, 'removed')))
     .groupBy(proposals.status);
   const proposalStats = { total: 0, approved: 0, declined: 0, declinedSpam: 0, withdrawn: 0, pending: 0 };
   for (const row of proposalRows) {

@@ -658,6 +658,9 @@ export const api = {
     request(`/api/proposals/${id}/approve`, { method: 'POST' }),
   /** `declineReason` is published permanently on the proposal. Required by the
    *  backend when the workspace has a charter, since that is the promise. */
+  /** Admin: take a job off the board entirely (refunds every stake first). */
+  removeProposal: (id: string) =>
+    request(`/api/proposals/${id}`, { method: 'DELETE' }),
   declineProposal: (id: string, declineReason?: string, refund?: boolean) =>
     request(`/api/proposals/${id}/decline`, {
       method: 'POST',

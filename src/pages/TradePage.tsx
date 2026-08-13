@@ -125,6 +125,9 @@ export function TradePage() {
   const [declineReason, setDeclineReason] = useState<string | null>(null); // null = decline not open
   const [decideBusy, setDecideBusy] = useState(false);
   const [decideErr, setDecideErr] = useState('');
+  // Removing a job is not a decision and has no undo in the UI, so it arms
+  // first and takes a second click to fire.
+  const [removeArmed, setRemoveArmed] = useState(false);
 
   const reload = () => {
     if (!idOrSlug) return;
@@ -195,6 +198,25 @@ export function TradePage() {
       setDecideBusy(false);
     }
   };
+
+  const removeJob = async () => {
+    if (!selectedJobId || !ws) return;
+    setDecideErr('');
+    setDecideBusy(true);
+    try {
+      await api.removeProposal(selectedJobId);
+      setRemoveArmed(false);
+      setSelectedJobId(null);
+      reload();
+    } catch (e) {
+      setDecideErr((e as Error).message || 'Could not remove the job');
+    } finally {
+      setDecideBusy(false);
+    }
+  };
+
+  // Switching jobs must not leave the remove button armed on the next one.
+  useEffect(() => { setRemoveArmed(false); setDeclineReason(null); setDecideErr(''); }, [selectedJobId]);
 
   const hero = ws?.markets[0] ?? null;
   const unit = hero ? currencyOf(hero.metricName) : '';
@@ -490,22 +512,55 @@ export function TradePage() {
                   <div className="pubws-ownerbar pubws-enter pubws-enter--1">
                     {declineReason === null ? (
                       <>
-                        <button
-                          className="pubws-decide pubws-decide--approve"
-                          disabled={decideBusy}
-                          onClick={() => void decide('approve')}
-                        >
-                          {decideBusy ? 'Deciding…' : splitAsk(selectedJob.title).ask !== null
-                            ? `Approve, pay $${splitAsk(selectedJob.title).ask}`
-                            : 'Approve'}
-                        </button>
-                        <button
-                          className="pubws-decide pubws-decide--decline"
-                          disabled={decideBusy}
-                          onClick={() => setDeclineReason('')}
-                        >
-                          Decline
-                        </button>
+                        {/* Approve and decline are decisions, so they only
+                            apply while the job is still on the ballot. */}
+                        {!selectedJobDecided && (
+                          <>
+                            <button
+                              className="pubws-decide pubws-decide--approve"
+                              disabled={decideBusy}
+                              onClick={() => void decide('approve')}
+                            >
+                              {decideBusy ? 'Deciding…' : splitAsk(selectedJob.title).ask !== null
+                                ? `Approve, pay $${splitAsk(selectedJob.title).ask}`
+                                : 'Approve'}
+                            </button>
+                            <button
+                              className="pubws-decide pubws-decide--decline"
+                              disabled={decideBusy}
+                              onClick={() => setDeclineReason('')}
+                            >
+                              Decline
+                            </button>
+                          </>
+                        )}
+                        {/* Take it off the board entirely: spam, a duplicate, a
+                            test row. Two-step, because it is not a decision and
+                            cannot be undone from the UI. Every stake is
+                            refunded server-side first. */}
+                        {removeArmed ? (
+                          <>
+                            <button
+                              className="pubws-decide pubws-decide--decline"
+                              disabled={decideBusy}
+                              onClick={() => void removeJob()}
+                            >
+                              {decideBusy ? 'Removing…' : 'Confirm remove'}
+                            </button>
+                            <button className="pubws-decide" onClick={() => { setRemoveArmed(false); setDecideErr(''); }}>
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            className="pubws-decide"
+                            disabled={decideBusy}
+                            onClick={() => { setRemoveArmed(true); setDecideErr(''); }}
+                            title="Take this job off the board. Stakes are refunded."
+                          >
+                            Remove
+                          </button>
+                        )}
                       </>
                     ) : (
                       <>

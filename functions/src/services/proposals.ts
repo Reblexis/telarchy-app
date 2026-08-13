@@ -564,6 +564,38 @@ export async function declineProposalAsSpam(
   return { penaltyCharged: actualCharged };
 }
 
+/**
+ * Take a job off the board entirely (owner ask 2026-08-12): spam, a duplicate,
+ * a test entry, anything that should not be part of the record participants
+ * read. Any branch market still open is voided first, so every stake - the
+ * proposer's posting liquidity and anyone else's positions - comes back before
+ * the job disappears; nobody can be left holding a position in a market that
+ * no longer shows anywhere.
+ *
+ * Deliberately a status, not a row delete. Trades, positions and balance
+ * history reference these markets, and deleting the row would orphan ledger
+ * entries that the leaderboard and profile pages read. 'removed' is filtered
+ * out of every listing, so the visible effect is the same while the audit
+ * trail stays intact.
+ */
+export async function removeProposal(
+  proposalId: string,
+  workspaceId: string,
+  byAgentId?: string | null,
+): Promise<void> {
+  const [proposal] = await db.select().from(proposals)
+    .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+  if (!proposal) throw new AppError('Proposal not found', 404);
+  if (proposal.status === 'removed') return;
+
+  await voidProposalMarkets(proposalId, workspaceId);
+  await db.update(proposals).set({
+    status: 'removed',
+    resolvedAt: new Date(),
+    resolvedBy: byAgentId ?? null,
+  }).where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+}
+
 export async function withdrawProposal(
   proposalId: string,
   workspaceId: string,

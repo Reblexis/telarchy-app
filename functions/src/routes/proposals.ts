@@ -10,6 +10,7 @@ import {
   approveProposal,
   declineProposal,
   declineProposalAsSpam,
+  removeProposal,
   withdrawProposal,
   countPendingProposalsByProposer,
   getProposalMarketSummariesForProposal,
@@ -175,7 +176,11 @@ proposalsRouter.get('/', requireCapability('read'), wrap(async (req, res) => {
     .where(eq(proposals.workspaceId, workspaceId))
     .orderBy(desc(proposals.createdAt));
 
+  // Removed jobs are off the board for everyone; the row survives only so the
+  // ledger entries that reference its markets keep resolving. Asking for them
+  // explicitly (?status=removed) still works, for an admin auditing a removal.
   if (status) rows = rows.filter(t => t.status === status);
+  else rows = rows.filter(t => t.status !== 'removed');
 
   const names = await getParticipantDisplayNames(rows.map(t => t.proposedBy));
   // Payment information goes to the person who pays, nobody else.
@@ -266,6 +271,19 @@ proposalsRouter.post('/:proposalId/decline-spam', requireCapability('manage'), w
     proposalId, fromStatus: 'pending', toStatus: 'declined-spam', decidedBy: agentId ?? null,
   }, workspaceId).catch(e => console.error('emitEvent failed:', e));
   res.json({ ok: true, penaltyCharged: result.penaltyCharged });
+}));
+
+// Take a job off the board entirely. Admin-only, and separate from decline:
+// declining is a decision that stays on the record, this is for entries that
+// should never have been on the board (spam, duplicates, test rows).
+proposalsRouter.delete('/:proposalId', requireCapability('manage'), wrap(async (req, res) => {
+  const { workspaceId, agentId } = req.auth!;
+  const proposalId = req.params.proposalId as string;
+  await removeProposal(proposalId, workspaceId, agentId ?? null);
+  emitEvent('proposal:status_changed', {
+    proposalId, fromStatus: 'any', toStatus: 'removed', decidedBy: agentId ?? null,
+  }, workspaceId).catch(e => console.error('emitEvent failed:', e));
+  res.json({ ok: true, status: 'removed' });
 }));
 
 proposalsRouter.post('/:proposalId/withdraw', requireCapability('trade'), wrap(async (req, res) => {

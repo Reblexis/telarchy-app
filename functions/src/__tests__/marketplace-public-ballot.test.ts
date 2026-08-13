@@ -97,8 +97,15 @@ describe('public ballot disclosure gate', () => {
     const res = await request(app).get(`/api/marketplace/${WS}`);
     expect(res.status).toBe(200);
 
-    expect(res.body.proposals).toHaveLength(1);
+    // One list, not a ballot plus a separate history (owner direction
+    // 2026-08-12): every job carries its own status, pending ones lead, and a
+    // decided job keeps its markets so the impact that was priced for it is
+    // still readable after the decision.
+    expect(res.body.proposals).toHaveLength(2);
+    expect(res.body.decided).toBeUndefined();
+
     const p = res.body.proposals[0];
+    expect(p.status).toBe('pending');
     expect(p.title).toBe('Ship offline mode');
     expect(p.description).toBe('Asked by three people.');
     expect(p.proposedByName).toBe('kragnour-fan');
@@ -108,9 +115,25 @@ describe('public ballot disclosure gate', () => {
     expect(pair.approvedConsensus).toBeGreaterThan(pair.declinedConsensus);
     expect(pair.delta).toBeCloseTo(pair.approvedConsensus - pair.declinedConsensus, 6);
 
-    expect(res.body.decided).toHaveLength(1);
-    expect(res.body.decided[0].status).toBe('declined');
-    expect(res.body.decided[0].declineReason).toBe('Costs more than 20 hours of work.');
+    const decided = res.body.proposals[1];
+    expect(decided.status).toBe('declined');
+    expect(decided.declineReason).toBe('Costs more than 20 hours of work.');
+    expect(decided.resolvedAt).toBeTruthy();
+  });
+
+  test('a removed job leaves the board entirely, and stops counting in the stats', async () => {
+    await seed(['read', 'trade']);
+    const before = await request(app).get(`/api/marketplace/${WS}`);
+    expect(before.body.proposals).toHaveLength(2);
+    const totalBefore = before.body.proposalStats.total;
+
+    const { removeProposal } = require('../services/proposals');
+    await removeProposal('prop-declined', WS, 'agent-ballot-owner');
+
+    const after = await request(app).get(`/api/marketplace/${WS}`);
+    expect(after.body.proposals.map((p: { id: string }) => p.id)).toEqual(['prop-open']);
+    expect(after.body.proposalStats.total).toBe(totalBefore - 1);
+    expect(after.body.proposalStats.declined).toBe(0);
   });
 
   test('an Open workspace ships trader context: history, provenance, pulse', async () => {
