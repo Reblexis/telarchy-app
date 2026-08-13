@@ -492,3 +492,17 @@ and the step to the live call lands exactly ON the plot's right edge
 vertical stroke centered on the clip boundary lost half its width. The
 clip rect is padded 4 units horizontally on each side; its vertical
 bounds stay exact, which is the part doing real work.
+
+**Revised 2026-08-13, stale-tab guard (owner report: a branch-reset bug
+kept "happening" after it was fixed, because the open floor tab was
+still running the pre-fix bundle).** The floor is designed to be left
+open, so every deploy strands open tabs on old code indefinitely; an
+SPA never reloads itself and index.html is no-cache, so only a reload
+picks a deploy up. The floor therefore checks every five minutes
+(first check five minutes after load, paused while the tab is hidden)
+whether the served index.html references a different `/assets/index-*`
+bundle than the one running, and when it does, renders one quiet fixed
+pill in the bottom-right, "new version · reload", which reloads on
+click. It never reloads on its own: yanking a composed bet or a
+selected branch out from under the visitor is worse than stale code.
+In dev (no built bundle in the served page) the check is inert.

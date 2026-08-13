@@ -9152,6 +9152,25 @@ textarea.jobform-line--desc {
   text-align: center;
 }
 
+/* Stale-tab guard: one quiet pill offering the reload after a deploy
+   (owner report 2026-08-13). Fixed so it survives any scroll position;
+   never auto-reloads. */
+.pubws-update {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 40;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.pubws-update:hover { color: var(--text-primary); border-color: var(--text-tertiary); }
+
 /* The evidence line: real history under the instrument. Ink at low opacity so
    it reads as context, not a second chart competing with the price. */
 

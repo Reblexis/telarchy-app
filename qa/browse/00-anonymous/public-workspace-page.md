@@ -290,6 +290,11 @@ branch markets):**
   data is unchanged).
 - Same three checks on the baseline view (no job selected) also hold.
 
+**Stale-tab guard (2026-08-13):** after five minutes, if a deploy changed
+the served bundle, a quiet fixed pill "new version · reload" appears in
+the bottom-right and reloads on click; it never reloads on its own. Inert
+in dev.
+
 ## Known gaps
 
 - No coverage of the join click-through itself (needs an account, so it

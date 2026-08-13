@@ -7,6 +7,7 @@ import { MetricYearChart } from '../components/MetricYearChart';
 import { TradeTicket, type TicketPosition } from '../components/TradeTicket';
 import { FloorModal } from '../components/FloorModal';
 import { useAnimatedNumber } from '../lib/useAnimatedNumber';
+import { indexBundleSrc } from '../lib/bundle-version';
 import { JobsBoard, splitAsk } from '../components/JobsBoard';
 import { SubjectAbout } from '../components/SubjectAbout';
 import { FloorComments } from '../components/FloorComments';
@@ -343,6 +344,30 @@ export function TradePage() {
     const onVisible = () => { if (!document.hidden) pollRef.current(); };
     document.addEventListener('visibilitychange', onVisible);
     return () => { clearInterval(interval); document.removeEventListener('visibilitychange', onVisible); };
+  }, []);
+
+  // Stale-tab guard (owner report 2026-08-13): a long-open floor tab runs
+  // the bundle it loaded with forever, so a deploy's fixes never reach it.
+  // Every five minutes, compare the bundle the served index references with
+  // the one running; a mismatch offers a reload via the pill in the render.
+  // Inert in dev, where the served page carries no built bundle.
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  useEffect(() => {
+    const current = document.querySelector<HTMLScriptElement>('script[src*="/assets/index-"]')?.getAttribute('src');
+    if (!current) return;
+    const currentPath = new URL(current, window.location.origin).pathname;
+    const check = () => {
+      if (document.hidden) return;
+      fetch('/', { cache: 'no-store' })
+        .then(r => r.text())
+        .then(html => {
+          const served = indexBundleSrc(html);
+          if (served && served !== currentPath) setUpdateAvailable(true);
+        })
+        .catch(e => console.error('update check failed:', e));
+    };
+    const iv = setInterval(check, 300_000);
+    return () => clearInterval(iv);
   }, []);
 
   // The ticket owns busy/error/flash UI state; the page owns the money
@@ -888,6 +913,16 @@ export function TradePage() {
             queue. One field, zero friction. */}
         <SetupForm />
       </section>
+      {/* The floor is designed to stay open, so every deploy would strand
+          this tab on old code forever (owner report 2026-08-13: a fixed
+          bug kept "happening" in a pre-fix tab). Offer the reload, never
+          force it: yanking a composed bet or a selected branch out from
+          under the visitor is worse than stale code. */}
+      {updateAvailable && (
+        <button className="pubws-update" onClick={() => window.location.reload()}>
+          new version · reload
+        </button>
+      )}
     </div>
   );
 }
