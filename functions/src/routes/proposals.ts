@@ -194,6 +194,11 @@ proposalsRouter.get('/', requireCapability('read'), wrap(async (req, res) => {
       ? t.description.slice(0, 150) + '…'
       : (t.description ?? ''),
     status: t.status,
+    // The job's price. Load-bearing rather than cosmetic: the LookPilot sync
+    // computes burn as the sum of ask_usd over approved proposals by reading
+    // THIS endpoint, and a consumer that skips null asks silently reports zero
+    // burn no matter how much has been paid out.
+    askUsd: t.askUsd ?? null,
     proposedBy: t.proposedBy,
     proposedByName: names.get(t.proposedBy) ?? null,
     liquiditySubsidy: t.liquiditySubsidy,
