@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 vi.mock('../../lib/api', () => ({
@@ -79,11 +80,43 @@ describe('marketplace', () => {
   test('listing your own number is a cell of the grid, not a footnote', async () => {
     const { container } = renderPage();
     const tile = await screen.findByText('List your own number');
-    const card = tile.closest('a');
-    expect(card).toHaveAttribute('href', '/manage');
-    expect(card).toHaveClass('mkt-card');
+    const card = tile.closest('.mkt-card');
+    expect(card).toHaveClass('mkt-card--new');
     expect(card?.parentElement).toHaveClass('mkt-grid');
-    expect(container.querySelector('.mkt-new-plus')).toBeTruthy();
+    expect(container.querySelector('.mkt-new-mark')).toBeTruthy();
+  });
+
+  test('it takes the email in place and answers without queue language', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
+    vi.stubGlobal('fetch', fetchMock);
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Get set up' }));
+    await user.type(screen.getByLabelText('Your email'), 'founder@example.com');
+    await user.click(screen.getByRole('button', { name: 'Get set up' }));
+
+    await screen.findByText('Got it');
+    expect(screen.getByText(/get back to you within a few days/i)).toBeInTheDocument();
+    // No "waitlist" or queue language anywhere in the answer.
+    expect(screen.queryByText(/waitlist|queue|position/i)).toBeNull();
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/waitlist');
+    expect(JSON.parse((init as { body: string }).body)).toEqual({ email: 'founder@example.com' });
+    vi.unstubAllGlobals();
+  });
+
+  test('a refused email surfaces the server response', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false, json: async () => ({ error: 'That email is already in.' }),
+    }));
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(await screen.findByRole('button', { name: 'Get set up' }));
+    await user.type(screen.getByLabelText('Your email'), 'dup@example.com');
+    await user.click(screen.getByRole('button', { name: 'Get set up' }));
+    expect(await screen.findByText('That email is already in.')).toBeInTheDocument();
+    vi.unstubAllGlobals();
   });
 
   test('the grid still renders its listing tile when nothing is listed yet', async () => {

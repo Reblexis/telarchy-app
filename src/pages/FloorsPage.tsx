@@ -109,6 +109,85 @@ function MarketSpark({ history, consensus }: {
   );
 }
 
+/**
+ * The listing tile: the last cell of the grid, and the only interactive one.
+ * It takes the email in place (owner direction 2026-08-14) rather than
+ * sending anyone to /manage to hunt for the field, and it answers in the
+ * floor's own words: one email in, one promise out, never queue language.
+ */
+function ListYourNumberCard() {
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (busy) return;
+    setError('');
+    setBusy(true);
+    try {
+      const res = await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((data as { error?: string }).error || 'Something went wrong');
+      setDone(true);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (done) {
+    return (
+      <div className="mkt-card mkt-card--new is-done">
+        <span className="mkt-new-mark" aria-hidden="true">
+          <svg viewBox="0 0 100 100"><polyline points="26,52 44,70 76,32" /></svg>
+        </span>
+        <span className="mkt-new-title">Got it</span>
+        <span className="mkt-new-sub">We will get back to you within a few days.</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className={`mkt-card mkt-card--new${open ? ' is-open' : ''}`}>
+      <span className="mkt-new-mark" aria-hidden="true">
+        <svg viewBox="0 0 100 100">
+          <line x1="50" y1="22" x2="50" y2="78" />
+          <line x1="22" y1="50" x2="78" y2="50" />
+        </svg>
+      </span>
+      <span className="mkt-new-title">List your own number</span>
+      <span className="mkt-new-sub">The number you answer to, priced in the open.</span>
+      {open ? (
+        <form className="mkt-new-form" onSubmit={e => void submit(e)}>
+          <input
+            type="email"
+            required
+            autoFocus
+            placeholder="you@example.com"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            aria-label="Your email"
+          />
+          <button type="submit" disabled={busy}>{busy ? 'Sending…' : 'Get set up'}</button>
+          {error && <span className="mkt-new-err">{error}</span>}
+        </form>
+      ) : (
+        <button type="button" className="mkt-new-cta" onClick={() => setOpen(true)}>
+          Get set up
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function FloorsPage() {
   const { user, loading: authLoading } = useAuth();
   const [listings, setListings] = useState<Listing[] | null>(null);
@@ -219,20 +298,10 @@ export function FloorsPage() {
             ))}
 
             {/* The last cell of the grid, never a footnote: a marketplace is
-                somewhere you can also list. Links to the owner door, which
-                answers within a few days (creation is invite-only while
-                Telarchy is trader-first). */}
-            <Link className="mkt-card mkt-card--new" to="/manage">
-              <svg className="mkt-new-plus" viewBox="0 0 100 100" aria-hidden="true">
-                <line x1="50" y1="14" x2="50" y2="86" />
-                <line x1="14" y1="50" x2="86" y2="50" />
-              </svg>
-              <span className="mkt-new-title">List your own number</span>
-              <span className="mkt-new-sub">
-                Put the number you actually answer to in the open, and let
-                people compete to move it.
-              </span>
-            </Link>
+                somewhere you can also list. It takes the email right here
+                (owner direction 2026-08-14) instead of sending people to
+                another page to find the field. */}
+            <ListYourNumberCard />
           </div>
         )}
       </main>

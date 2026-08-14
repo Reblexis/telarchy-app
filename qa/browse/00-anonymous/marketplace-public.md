@@ -145,8 +145,13 @@ mono, the metric name, the owner's one-line description, a
 `.mkt-spark` step line of the hero market's real trade history ending in
 `.mkt-spark-dot`, and a footer of "settles <day month year>" plus
 participants / trades this week / contracts being priced. The final cell
-is always `.mkt-card--new` (dashed, big `.mkt-new-plus`, "List your own
-number") linking to /manage, present even when no workspace is listed.
+is always `.mkt-card--new` ("List your own number", big plus in a
+`.mkt-new-mark` disc), present even when no workspace is listed. It is
+the only interactive cell: "Get set up" opens an email field in place,
+submitting posts /api/waitlist, and the tile answers "Got it. We will
+get back to you within a few days." Assert the answer contains no queue
+or waitlist language. Card `description` lines must differ from each
+other: the shared pitch lives in the page lead, not on every card.
 
 **Vocabulary guard (owner, 2026-08-14):** no string a visitor can read on
 this page may contain the word "floor". Assert with

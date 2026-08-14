@@ -10601,42 +10601,109 @@ textarea.jobform-line--desc {
 .mkt-card-settles { color: var(--text-secondary); }
 .mkt-card-activity { line-height: 1.45; }
 
-/* The listing tile: same cell as a market, deliberately different surface,
-   and the plus is the biggest thing on the page after the headline (owner
-   direction 2026-08-14: "a lot bigger, like big plus"). */
+/* The listing tile: same cell as a market, and the only interactive one.
+   Solid surface with a faint accent wash (dashed emptiness read as
+   unfinished), a plus set inside a disc so it reads as an affordance
+   rather than a stray glyph, and its own CTA that opens the email field
+   in place. */
 .mkt-card--new {
   align-items: center;
   justify-content: center;
   text-align: center;
-  gap: 0.3rem;
-  border-style: dashed;
-  background: transparent;
+  gap: 0.35rem;
   min-height: 15rem;
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border-color));
+  background: color-mix(in srgb, var(--accent) 4%, var(--bg-secondary));
 }
-.mkt-new-plus {
-  width: clamp(4.5rem, 12vw, 6rem);
-  height: clamp(4.5rem, 12vw, 6rem);
-  display: block;
-  margin-bottom: 0.5rem;
+.mkt-card--new:hover { transform: none; }
+
+.mkt-new-mark {
+  width: 4.75rem;
+  height: 4.75rem;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  margin-bottom: 0.4rem;
+  transition: background 140ms ease;
 }
-.mkt-new-plus line {
+.mkt-new-mark svg { width: 62%; height: 62%; display: block; }
+.mkt-new-mark line, .mkt-new-mark polyline {
   stroke: var(--accent);
-  stroke-width: 7;
+  stroke-width: 8;
   stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
 }
-.mkt-card--new:hover .mkt-new-plus line { stroke-width: 9; }
+.mkt-card--new:hover .mkt-new-mark {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
 .mkt-new-title {
   font-family: 'Fraunces', serif;
   font-optical-sizing: auto;
   font-weight: 600;
-  font-size: 1.2rem;
+  font-size: 1.15rem;
 }
 .mkt-new-sub {
   max-width: 15rem;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   line-height: 1.5;
   color: var(--text-tertiary);
 }
+
+.mkt-new-cta {
+  margin-top: 0.7rem;
+  padding: 0.5rem 1.1rem;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+.mkt-new-cta:hover { background: var(--accent); color: var(--bg-primary); }
+
+.mkt-new-form {
+  margin-top: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  width: min(100%, 15rem);
+}
+.mkt-new-form input {
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: inherit;
+  font: inherit;
+  font-size: 0.85rem;
+  text-align: center;
+}
+.mkt-new-form input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.mkt-new-form button {
+  padding: 0.5rem 1.1rem;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--bg-primary);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.mkt-new-form button:disabled { opacity: 0.6; cursor: default; }
+.mkt-new-err { font-size: 0.75rem; color: var(--lower); }
+
+.mkt-card--new.is-done .mkt-new-mark {
+  background: color-mix(in srgb, var(--higher) 14%, transparent);
+}
+.mkt-card--new.is-done .mkt-new-mark polyline { stroke: var(--higher); }
 
 @media (prefers-reduced-motion: reduce) {
   .mkt-card { transition: border-color 140ms ease; }

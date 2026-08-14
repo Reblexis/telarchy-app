@@ -561,11 +561,27 @@ through the middle instead of along the floor of the box), and a footer
 of when it settles plus the activity behind it (participants, trades
 this week, contracts currently being priced).
 
-The last cell of the grid is always the listing tile: a dashed panel
-whose plus is the biggest mark on the page after the headline (owner:
-"a lot bigger, like big plus"), reading "List your own number" and
-linking to /manage. Listing is part of the marketplace, never a quiet
-line underneath it.
+The last cell of the grid is always the listing tile, and it is the only
+interactive cell: a solid panel on a faint accent wash with a large plus
+set inside a disc (owner: "a lot bigger, like big plus", then "make it
+look better, the add your own looks a little weird now"; dashed
+emptiness read as unfinished, and a bare floating glyph read as a
+stray mark rather than an affordance), the line "List your own number",
+and a "Get set up" button that opens an email field IN PLACE (owner
+direction, same day: the tile should lead to entering your email, not to
+another page). Submitting posts to /api/waitlist and the tile answers
+"Got it. We will get back to you within a few days." Never queue
+language, matching the floor's own email door. Listing is part of the
+marketplace, never a quiet line underneath it.
+
+**Card copy says only what is unique (owner, 2026-08-14: "I don't like
+how it's repetitive... be minimal and say only what's unique").** The
+per-card line is the workspace's `description`, which is the workspace
+ONE-LINER (a few words naming what this is), not a call to action. When
+every card recites the same "propose a job and a price" pitch, the pitch
+belongs in the page's lead paragraph and the cards say what only they
+can say: "Webcam head tracker for sims, sold on Steam", "This platform,
+running on itself".
 
 Above the grid, the lead paragraph is the one place the whole mechanism
 is stated in plain words (owner ask, same day): every market is one
