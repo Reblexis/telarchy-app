@@ -770,15 +770,15 @@ export function TradePage() {
             better. */}
         <section className="pubws-know pubws-enter pubws-enter--3" aria-label="What is this market">
           <h2 className="pubws-know-head">What is this market?</h2>
-          {/* Name the market, then define the metric (owner direction
-              2026-08-12): no how-to-bet mechanics here (that concept lives in
-              "What is this?" below); the year chart under it is the picture. */}
-          <p className="pubws-know-what">
-            This is a prediction market on LookPilot&rsquo;s net revenue for the
-            year 2026: every Steam and direct sale, after store fees and
-            refunds, minus anything paid out for jobs approved on this page. It
-            settles on the real total on 31 December 2026.
-          </p>
+          {/* The metric's stored definition, verbatim: it is the settlement
+              text (see the section comment above). This paragraph was
+              hardcoded LookPilot prose from the one-workspace era; a second
+              floor (telarchy, 2026-08-14) made that a lie on every other
+              workspace. No fallback: a workspace whose owner wrote no
+              definition shows no definition rather than someone else's. */}
+          {ws?.heroMetricDescription && (
+            <p className="pubws-know-what">{ws.heroMetricDescription}</p>
+          )}
           {/* The metric itself over the year: what it has actually done so
               far (solid) and where the market sees it settling (dashed).
               Lives here, under the definition, because it shows the thing
