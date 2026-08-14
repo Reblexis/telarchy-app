@@ -88,6 +88,10 @@ Filled at creation time (2026-08-14); update on rotation or re-provisioning:
 - Metric: `Weekly active participants`, created via `POST /api/metrics`,
   description carries the definition + provenance URL so traders can verify
   without leaving the platform.
-- Market: year-end horizon (`targetDate: 2026-12`), owner-seeded liquidity.
+- Market: month-end horizon (`targetDate: 2026-08`, resolves 1 September
+  2026 on the value as of the boundary; owner decision 2026-08-14, revised
+  from the initial year-end horizon before any trades), owner-seeded
+  liquidity. On resolution, set the next horizon on the metric's
+  `timePreference.customHorizons` and re-seed.
 - Sync agent: `telarchy-self-sync`, registered via
   `POST /api/agents/register`, promoted to the workspace Admin group.
