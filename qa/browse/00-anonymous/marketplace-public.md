@@ -133,14 +133,19 @@ None — this spec only reads.
 - The `?workspace=<id>` query path is also documented in `user-flow-audit.md`
   step 9; keep both in sync if the URL shape changes.
 
-## Floor selection at /marketplace (2026-08-14)
+## The lobby at /marketplace (2026-08-14, redesigned)
 
-`/marketplace` for everyone except platform admins (who are redirected to
-the console at `/console/marketplace`) renders the standalone floor
-selection in the floor's design language: `.pubws-topbar`, a Fraunces
-"Trading floors" headline, one hairline card per public workspace (name,
-one-liner, mono open-market/ballot facts, the hero market's number in
-accent mono on the right, arriving per workspace as it loads) linking to
-`/<slug>`, and one owner door under the list ("+ Create your workspace" ->
-/manage, the waitlist pitch). The floor topbar's logo links here. No app
-shell, no sidebar.
+`/marketplace` renders the standalone lobby for EVERYONE, platform admin
+included: `.pubws-topbar`, a Fraunces "Pick a floor" headline, and one
+`.lobby-door` panel per public workspace carrying the workspace name in
+Fraunces, its live market number in big accent mono, the metric name, and
+"settles <day month year>" in mono (same wording as the floor's own
+settle line). One quiet "Want a floor for your own numbers? Get set up"
+line links to /manage. No app shell, no sidebar, no descriptions or count
+inventories on the panels.
+
+**Regression guard:** nothing public-facing may redirect to the old
+console UI. `/marketplace` must render the lobby even when signed in as a
+platform admin (an earlier build bounced admins to the console
+dashboard). The console lives at `/console/*` and is reached only from
+the sidebar or /alpha.

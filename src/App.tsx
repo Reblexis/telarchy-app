@@ -63,22 +63,12 @@ function MarketplaceTabRedirect() {
   return <Navigate to={`/${tab}`} replace />;
 }
 
-/** /marketplace is the public floor selection (owner ask 2026-08-14);
-    platform admins keep the old console dashboard, whose muscle-memory URL
-    redirects to its new home at /console/marketplace. The alpha flag is
-    only an optimistic cache: visitors without it never pay a profile
-    round-trip, visitors with it are verified before the redirect. */
-function MarketplaceDoor() {
-  const [admin, setAdmin] = useState<boolean | null>(hasAlphaAccess() ? null : false);
-  useEffect(() => {
-    if (!hasAlphaAccess()) return;
-    api.getProfile()
-      .then(p => setAdmin((p as { platformAdmin?: boolean }).platformAdmin === true))
-      .catch(() => setAdmin(false));
-  }, []);
-  if (admin === null) return null;
-  return admin ? <Navigate to="/console/marketplace" replace /> : <FloorsPage />;
-}
+/* /marketplace is the public floor selection for EVERYONE, admin included
+   (owner rule 2026-08-14: nothing public-facing redirects to the old
+   console UI). The console keeps its own /console/* URLs, reached on
+   purpose from the sidebar or /alpha, never as a side effect of a public
+   link. An earlier version bounced admins into the console here; that is
+   exactly the behaviour the rule forbids. */
 
 // The public floor telarchy.com IS: root and everything hidden by the
 // alpha wall land here. One startup for now; a list when there are more.
@@ -148,8 +138,8 @@ export function App() {
           {/* The share-link landing renders standalone: a stranger's first
               screen must be a poster, not an app shell with a sidebar. */}
           <Route path="/marketplace/:workspaceId" element={<TradePage />} />
-          {/* The public floor selection; see MarketplaceDoor. */}
-          <Route path="/marketplace" element={<MarketplaceDoor />} />
+          {/* The public floor selection, for everyone. */}
+          <Route path="/marketplace" element={<FloorsPage />} />
           {/* Public profiles (owner ask 2026-08-11): a trader's name on the
               floor links here, so the page cannot sit behind the alpha
               wall. Shell-agnostic page; renders bare for visitors. */}

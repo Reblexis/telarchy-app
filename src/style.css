@@ -10441,145 +10441,103 @@ textarea.jobform-line--desc {
 }
 
 /* ------------------------------------------------------------------ */
-/* The floor selection at /marketplace (owner ask 2026-08-14, see
-   ui-conventions "the marketplace is a floor selection"): the floor's
-   own poster language. Fraunces names, hairline cards, mono numerals,
-   one accent, nothing else. */
+/* The lobby at /marketplace (owner direction 2026-08-14, redesigned from
+   scratch): one door per floor, in the floor's own poster language.
+   Fraunces name, the live number in the floor's accent mono price
+   treatment, one mono settle line. Nothing else. */
 
-.floors {
-  max-width: 720px;
+.lobby {
+  max-width: 900px;
   margin: 0 auto;
-  padding: 3.5rem 1.25rem 5rem;
+  padding: clamp(2.5rem, 8vh, 5rem) 1.25rem 5rem;
 }
 
-.floors-head {
+.lobby-head {
   margin: 0;
   font-family: 'Fraunces', serif;
   font-optical-sizing: auto;
   font-weight: 600;
-  font-size: clamp(1.6rem, 5vw, 2.1rem);
-  letter-spacing: -0.015em;
+  font-size: clamp(1.75rem, 6vw, 2.4rem);
+  letter-spacing: -0.02em;
   text-align: center;
 }
 
-.floors-lead {
-  margin: 0.7rem auto 2.75rem;
-  max-width: 34rem;
+.lobby-lead {
+  margin: 0.8rem auto clamp(2rem, 5vh, 3.25rem);
+  max-width: 30rem;
   text-align: center;
-  font-size: 0.95rem;
+  font-size: 0.98rem;
   line-height: 1.55;
   color: var(--text-secondary);
 }
 
-.floors-empty {
-  text-align: center;
-  color: var(--text-tertiary);
-}
+.lobby-empty { text-align: center; color: var(--text-tertiary); }
 
-.floors-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.floors-list li { border-top: 1px solid var(--border-color); }
-.floors-list li:last-child { border-bottom: 1px solid var(--border-color); }
-
-.floors-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.lobby-doors {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
   gap: 1.25rem;
-  padding: 1.15rem 0.6rem;
-  text-decoration: none;
-  color: inherit;
-  transition: background 120ms ease;
 }
-.floors-card:hover { background: var(--bg-secondary); }
 
-.floors-card-main {
+/* A door, not a card: generous, tappable, and quiet until hovered. The
+   accent border on hover is the only state colour. */
+.lobby-door {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  min-width: 0;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 2.25rem 1.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--bg-secondary);
+  text-decoration: none;
+  color: inherit;
+  text-align: center;
+  transition: border-color 140ms ease, transform 140ms ease;
 }
+.lobby-door:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+.lobby-door:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
-.floors-card-name {
+.lobby-door-name {
   font-family: 'Fraunces', serif;
   font-optical-sizing: auto;
   font-weight: 600;
-  font-size: 1.2rem;
+  font-size: 1.35rem;
   letter-spacing: -0.01em;
 }
 
-.floors-card-desc {
-  font-size: 0.87rem;
-  line-height: 1.45;
-  color: var(--text-secondary);
-}
-
-.floors-card-facts {
+.lobby-door-value {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
-  color: var(--text-tertiary);
-}
-
-.floors-card-hero {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.15rem;
-  flex-shrink: 0;
-  text-align: right;
-}
-
-.floors-card-price {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 1.35rem;
+  font-size: clamp(2rem, 7vw, 2.75rem);
   font-weight: 600;
+  line-height: 1.1;
   color: var(--accent);
 }
 
-/* The card's miniature poster: the floor's real step line in the chart's
-   own amber, ending in the live call dot. */
-.floors-spark { width: 132px; height: 34px; display: block; }
-.floors-spark-line {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 1.5;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-  opacity: 0.75;
-}
-.floors-spark-dot { fill: var(--accent); }
-
-.floors-card-metric {
-  font-size: 0.72rem;
-  color: var(--text-tertiary);
-  max-width: 11rem;
-}
-
-.floors-own {
-  margin-top: 3.5rem;
-  text-align: center;
-}
-
-.floors-own-lead {
-  margin: 0 0 0.9rem;
-  font-size: 0.95rem;
+.lobby-door-metric {
+  font-size: 0.85rem;
   color: var(--text-secondary);
 }
 
-/* The CTA reuses .pubws-propose-cta (the floor's outlined accent door);
-   here it only needs to not stretch full width. */
-.floors-own-cta {
-  display: inline-block;
-  width: auto;
-  padding: 0.7rem 1.6rem;
-  text-decoration: none;
+.lobby-door-settles {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
 }
 
-@media (max-width: 519px) {
-  .floors-card { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
-  .floors-card-hero { align-items: flex-start; text-align: left; }
+.lobby-own {
+  margin: clamp(2.5rem, 6vh, 3.5rem) 0 0;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--text-tertiary);
+}
+.lobby-own a { color: var(--accent); text-decoration: none; }
+.lobby-own a:hover { text-decoration: underline; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lobby-door { transition: border-color 140ms ease; }
+  .lobby-door:hover { transform: none; }
 }

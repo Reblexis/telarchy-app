@@ -507,24 +507,22 @@ click. It never reloads on its own: yanking a composed bet or a
 selected branch out from under the visitor is worse than stale code.
 In dev (no built bundle in the served page) the check is inert.
 
-**Revised 2026-08-14 (Viktor), the marketplace is a floor selection.**
-`telarchy.com/marketplace` is the public room list: every public
-workspace as a card (name, one-liner, the hero market's number in mono,
-open-market and pending-job counts) linking to its floor, rendered
-standalone in the floor's own language (`.pubws` topbar, Fraunces
-headline, hairline cards, one accent) so lookpilot and the selection
-read as one site. Under the cards, one owner door: the floor's
-"Want this for your own numbers..." line with a single outlined CTA
-("+ Create your workspace") pointing at /manage, which is the waitlist
-pitch while workspace creation is trader-first gated. The floor topbar's
-logo links to /marketplace (previously "/", the default floor): the
-logo now answers "what else is there to trade?". Platform admins keep
-the old console at /console/marketplace (muscle-memory URL /marketplace
-redirects them there); everyone else, signed in or not, gets the
-selection. The selection page shows every workspace the public list
-returns, hero numbers fetched per workspace and rendered as they load.
-Each card's signature is a miniature of its own poster: the hero
-market's real trade history as a small amber step line (same held-call
-semantics as the big chart, flat line when untraded) ending in the live
-call dot, with the price in the chart-label register above it. Real
-data is the only decoration the page has.
+**Revised 2026-08-14 (Viktor), the marketplace is two doors.**
+Redesigned from scratch the same day, replacing the hairline-list
+version: the selection is not a directory, it is a lobby with one door
+per floor. `telarchy.com/marketplace` renders standalone in the floor's
+own language (`.pubws-topbar`, Fraunces, mono numerals, one accent) and
+shows each public workspace as one large tappable panel carrying the
+floor's headline grammar: the metric name in Fraunces, its live number
+in big accent mono (the floor's price treatment), and a single mono
+line naming when it settles. Nothing else per panel: no descriptions,
+no counts inventory, no sparklines. One quiet line below the panels
+links to /manage for owners. The floor topbar's logo links here, so the
+logo answers "what else is there to trade?".
+
+**Nothing public-facing redirects to the old console UI (owner rule,
+2026-08-14, emphatic).** That includes the platform admin: the first
+version of this page bounced admins into the console dashboard, which
+is exactly what must never happen. The console is reachable only on
+purpose (sidebar, /alpha, direct /console/* URLs); every public route
+lands in the floor language for everybody.

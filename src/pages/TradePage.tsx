@@ -68,7 +68,7 @@ function formatDelta(delta: number, unit = ''): string {
 // '2026-12' both end on 31 December 2026. Shown in the title (owner
 // direction 2026-08-10: "@ 31 December 2026"); the END of the period, so
 // the year boundary never reads a day late.
-function settleDayOf(targetDate: string): string | null {
+export function settleDayOf(targetDate: string): string | null {
   const m = targetDate.match(/^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?$/);
   if (!m) return null;
   const year = Number(m[1]);
