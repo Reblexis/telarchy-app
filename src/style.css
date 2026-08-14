@@ -10540,6 +10540,19 @@ textarea.jobform-line--desc {
   color: var(--accent);
 }
 
+/* The card's miniature poster: the floor's real step line in the chart's
+   own amber, ending in the live call dot. */
+.floors-spark { width: 132px; height: 34px; display: block; }
+.floors-spark-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: 0.75;
+}
+.floors-spark-dot { fill: var(--accent); }
+
 .floors-card-metric {
   font-size: 0.72rem;
   color: var(--text-tertiary);

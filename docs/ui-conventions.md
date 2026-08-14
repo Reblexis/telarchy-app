@@ -523,3 +523,8 @@ the old console at /console/marketplace (muscle-memory URL /marketplace
 redirects them there); everyone else, signed in or not, gets the
 selection. The selection page shows every workspace the public list
 returns, hero numbers fetched per workspace and rendered as they load.
+Each card's signature is a miniature of its own poster: the hero
+market's real trade history as a small amber step line (same held-call
+semantics as the big chart, flat line when untraded) ending in the live
+call dot, with the price in the chart-label register above it. Real
+data is the only decoration the page has.
