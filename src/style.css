@@ -10465,18 +10465,16 @@ textarea.jobform-line--desc {
 }
 
 /* ------------------------------------------------------------------ */
-/* The lobby at /marketplace (owner direction 2026-08-14, redesigned from
-   scratch): one door per floor, in the floor's own poster language.
-   Fraunces name, the live number in the floor's accent mono price
-   treatment, one mono settle line. Nothing else. */
-
-.lobby {
-  max-width: 900px;
+/* The marketplace (owner direction 2026-08-14): a card grid that reads the
+   same with two listings or twenty, each card showing the market itself.
+   Not a row of fixed buttons. */
+.mkt {
+  max-width: 1080px;
   margin: 0 auto;
   padding: clamp(2.5rem, 8vh, 5rem) 1.25rem 5rem;
 }
 
-.lobby-head {
+.mkt-head {
   margin: 0;
   font-family: 'Fraunces', serif;
   font-optical-sizing: auto;
@@ -10486,82 +10484,161 @@ textarea.jobform-line--desc {
   text-align: center;
 }
 
-.lobby-lead {
-  margin: 0.8rem auto clamp(2rem, 5vh, 3.25rem);
-  max-width: 30rem;
+/* The one place the whole mechanism is stated in plain words. */
+.mkt-lead {
+  margin: 0.9rem auto clamp(2rem, 5vh, 3rem);
+  max-width: 38rem;
   text-align: center;
-  font-size: 0.98rem;
-  line-height: 1.55;
+  font-size: 1rem;
+  line-height: 1.6;
   color: var(--text-secondary);
 }
 
-.lobby-empty { text-align: center; color: var(--text-tertiary); }
-
-.lobby-doors {
+.mkt-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
-  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+  gap: 1.1rem;
+  align-items: stretch;
 }
 
-/* A door, not a card: generous, tappable, and quiet until hovered. The
-   accent border on hover is the only state colour. */
-.lobby-door {
+.mkt-card {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 2.25rem 1.5rem;
+  gap: 0.45rem;
+  padding: 1.15rem 1.2rem 1rem;
   border: 1px solid var(--border-color);
   border-radius: 14px;
   background: var(--bg-secondary);
   text-decoration: none;
   color: inherit;
-  text-align: center;
   transition: border-color 140ms ease, transform 140ms ease;
 }
-.lobby-door:hover {
-  border-color: var(--accent);
-  transform: translateY(-2px);
-}
-.lobby-door:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.mkt-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.mkt-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
-.lobby-door-name {
+.mkt-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.mkt-card-name {
   font-family: 'Fraunces', serif;
   font-optical-sizing: auto;
   font-weight: 600;
-  font-size: 1.35rem;
+  font-size: 1.2rem;
   letter-spacing: -0.01em;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.lobby-door-value {
+.mkt-card-price {
   font-family: 'JetBrains Mono', monospace;
-  font-size: clamp(2rem, 7vw, 2.75rem);
+  font-size: 1.15rem;
   font-weight: 600;
-  line-height: 1.1;
   color: var(--accent);
+  white-space: nowrap;
 }
 
-.lobby-door-metric {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-}
-
-.lobby-door-settles {
+.mkt-card-metric {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   color: var(--text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.lobby-own {
-  margin: clamp(2.5rem, 6vh, 3.5rem) 0 0;
+/* Three lines of the owner's own words, then a fade: enough to know what
+   this market is without turning the card into a page. */
+.mkt-card-desc {
+  margin-top: 0.15rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* The chart keeps its height whether or not the market has a price yet, so
+   cards in a row stay aligned. */
+.mkt-card-chart {
+  margin-top: auto;
+  padding-top: 0.8rem;
+  min-height: 72px;
+  display: flex;
+  align-items: flex-end;
+}
+.mkt-spark { width: 100%; height: 72px; display: block; }
+.mkt-spark-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: 0.85;
+  vector-effect: non-scaling-stroke;
+}
+.mkt-spark-area { fill: var(--accent); opacity: 0.07; stroke: none; }
+.mkt-spark-dot { fill: var(--accent); }
+
+.mkt-card-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem;
+  color: var(--text-tertiary);
+  border-top: 1px solid var(--border-color);
+  padding-top: 0.55rem;
+}
+.mkt-card-settles { color: var(--text-secondary); }
+.mkt-card-activity { line-height: 1.45; }
+
+/* The listing tile: same cell as a market, deliberately different surface,
+   and the plus is the biggest thing on the page after the headline (owner
+   direction 2026-08-14: "a lot bigger, like big plus"). */
+.mkt-card--new {
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  font-size: 0.9rem;
+  gap: 0.3rem;
+  border-style: dashed;
+  background: transparent;
+  min-height: 15rem;
+}
+.mkt-new-plus {
+  width: clamp(4.5rem, 12vw, 6rem);
+  height: clamp(4.5rem, 12vw, 6rem);
+  display: block;
+  margin-bottom: 0.5rem;
+}
+.mkt-new-plus line {
+  stroke: var(--accent);
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+.mkt-card--new:hover .mkt-new-plus line { stroke-width: 9; }
+.mkt-new-title {
+  font-family: 'Fraunces', serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: 1.2rem;
+}
+.mkt-new-sub {
+  max-width: 15rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
   color: var(--text-tertiary);
 }
-.lobby-own a { color: var(--accent); text-decoration: none; }
-.lobby-own a:hover { text-decoration: underline; }
 
 @media (prefers-reduced-motion: reduce) {
-  .lobby-door { transition: border-color 140ms ease; }
-  .lobby-door:hover { transform: none; }
+  .mkt-card { transition: border-color 140ms ease; }
+  .mkt-card:hover { transform: none; }
 }

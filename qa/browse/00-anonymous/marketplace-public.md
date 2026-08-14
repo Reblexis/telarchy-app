@@ -133,19 +133,32 @@ None — this spec only reads.
 - The `?workspace=<id>` query path is also documented in `user-flow-audit.md`
   step 9; keep both in sync if the URL shape changes.
 
-## The lobby at /marketplace (2026-08-14, redesigned)
+## The marketplace grid at /marketplace (2026-08-14, redesigned twice)
 
-`/marketplace` renders the standalone lobby for EVERYONE, platform admin
-included: `.pubws-topbar`, a Fraunces "Pick a floor" headline, and one
-`.lobby-door` panel per public workspace carrying the workspace name in
-Fraunces, its live market number in big accent mono, the metric name, and
-"settles <day month year>" in mono (same wording as the floor's own
-settle line). One quiet "Want a floor for your own numbers? Get set up"
-line links to /manage. No app shell, no sidebar, no descriptions or count
-inventories on the panels.
+`/marketplace` renders standalone for EVERYONE, platform admin included:
+`.pubws-topbar`, a Fraunces "Marketplace" headline, one lead paragraph
+stating the mechanism (one number someone is trying to move; anyone can
+propose a paid contract; the market prices it; the owner pays only for
+the ones worth it), and a `.mkt-grid` of `.mkt-card` cells, one per
+public workspace. Each card carries the name, the live number in accent
+mono, the metric name, the owner's one-line description, a
+`.mkt-spark` step line of the hero market's real trade history ending in
+`.mkt-spark-dot`, and a footer of "settles <day month year>" plus
+participants / trades this week / contracts being priced. The final cell
+is always `.mkt-card--new` (dashed, big `.mkt-new-plus`, "List your own
+number") linking to /manage, present even when no workspace is listed.
+
+**Vocabulary guard (owner, 2026-08-14):** no string a visitor can read on
+this page may contain the word "floor". Assert with
+`$B js "document.body.innerText.toLowerCase().includes('floor')"` => false.
 
 **Regression guard:** nothing public-facing may redirect to the old
-console UI. `/marketplace` must render the lobby even when signed in as a
+console UI. `/marketplace` must render this grid even when signed in as a
 platform admin (an earlier build bounced admins to the console
 dashboard). The console lives at `/console/*` and is reached only from
 the sidebar or /alpha.
+
+**Scale guard:** the grid is `repeat(auto-fill, minmax(19rem, 1fr))`, so
+two listings and twenty read the same. Assert no horizontal overflow at
+390x844 (`document.documentElement.scrollWidth > window.innerWidth` =>
+false); the cards stack one per row there, listing tile last.

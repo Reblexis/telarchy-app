@@ -5,25 +5,43 @@ import { useAuth } from '../hooks/useAuth';
 import { TopBar, settleDayOf } from './TradePage';
 
 /**
- * The floor selection at /marketplace (owner direction 2026-08-14,
- * redesigned from scratch; see docs/ui-conventions.md "the marketplace is
- * two doors"). Not a directory: a lobby with one door per floor. Each door
- * carries the floor's own headline grammar (metric in Fraunces, live
- * number in big accent mono, one mono line saying when it settles) and
- * nothing else.
+ * The marketplace at /marketplace (owner direction 2026-08-14, Viktor,
+ * replacing the two-door lobby of the same day; see docs/ui-conventions.md
+ * "the marketplace"). Three complaints drove this pass: the doors did not
+ * show the market at all, nothing said what a listing IS, and the page read
+ * as a fixed pair of buttons rather than a marketplace that grows.
+ *
+ * So: a card grid that reads the same with two listings or twenty, each card
+ * carrying the market itself (the hero market's real trade history as a step
+ * line ending on the live call), the owner's one-line description, and the
+ * activity behind it. The last cell is always the big plus: adding your own
+ * number is part of the marketplace, not a footnote under it.
+ *
+ * User-facing copy here says MARKET, never "floor" (owner 2026-08-14:
+ * "what the hell is floor, no one will understand that"). "Floor" survives
+ * only as internal vocabulary in component and class names.
  *
  * Nothing here reaches the old console UI, for anyone, admin included.
  */
 
-interface Door {
+interface Listing {
   workspaceId: string;
   slug: string | null;
   name: string;
-  metricName: string | null;
-  value: number | null;
-  unit: string;
-  /** "settles 31 August 2026", from the market's own resolve date. */
-  settles: string | null;
+  /** The owner's one-liner: what this market is, in their words. */
+  description: string | null;
+  pendingJobs: number;
+  /** Fills in per workspace as each payload lands, so the grid never waits
+   *  on the slowest listing. */
+  hero: {
+    metricName: string;
+    consensus: number | null;
+    unit: string;
+    settles: string | null;
+    history: Array<{ at: string; consensus: number | null }>;
+  } | null;
+  participants: number | null;
+  tradesThisWeek: number | null;
 }
 
 function currencyOf(metricName: string): string {
@@ -31,52 +49,102 @@ function currencyOf(metricName: string): string {
   return /\busd\b|\$/i.test(tail) ? '$' : '';
 }
 
-function fmtValue(v: number, unit: string): string {
+function fmtHero(v: number, unit: string): string {
   const decimals = Math.abs(v) >= 100 ? 0 : 1;
   return unit + v.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
-/* The settle day comes from the floor's own settleDayOf (imported): one
-   wording for the same fact on both surfaces, "31 August 2026". */
+/**
+ * The market itself, at glance size: a miniature of the floor's own poster
+ * chart, with the same held-call semantics (the call holds flat between
+ * trades, so the line steps and then runs to the right edge; an untraded
+ * market draws one flat line). No axes: the card's price is the only
+ * numeral, and the dot marks where the market stands now.
+ */
+function MarketSpark({ history, consensus }: {
+  history: Array<{ at: string; consensus: number | null }>;
+  consensus: number;
+}) {
+  const W = 260, H = 72, PAD = 8;
+  const pts = history
+    .filter(p => p.consensus !== null)
+    .map(p => ({ t: new Date(p.at).getTime(), v: p.consensus as number }))
+    .filter(p => Number.isFinite(p.t))
+    .sort((a, b) => a.t - b.t);
+  const vals = [...pts.map(p => p.v), consensus];
+  // Breathing room above and below the extremes, so a line never runs along
+  // the card's edge and a market that has barely moved still draws through
+  // the middle instead of flat on the floor of the box.
+  const rawMin = Math.min(...vals), rawMax = Math.max(...vals);
+  const rawSpan = rawMax - rawMin || Math.abs(rawMax) * 0.1 || 1;
+  const vMin = rawMin - rawSpan * 0.35, vMax = rawMax + rawSpan * 0.35;
+  const spanV = vMax - vMin;
+  const t0 = pts[0]?.t ?? 0;
+  const t1 = Math.max(pts[pts.length - 1]?.t ?? 1, t0 + 1);
+  const x = (t: number) => PAD + ((t - t0) / (t1 - t0)) * (W - PAD * 2 - 6);
+  const y = (v: number) => PAD + (1 - (v - vMin) / spanV) * (H - PAD * 2);
+  const seq = pts.length > 0
+    ? [...pts, { t: t1, v: consensus }]
+    : [{ t: t0, v: consensus }, { t: t1, v: consensus }];
+  let d = `M${x(seq[0].t).toFixed(1)},${y(seq[0].v).toFixed(1)}`;
+  for (let i = 1; i < seq.length; i++) {
+    d += ` L${x(seq[i].t).toFixed(1)},${y(seq[i - 1].v).toFixed(1)} L${x(seq[i].t).toFixed(1)},${y(seq[i].v).toFixed(1)}`;
+  }
+  // The same path closed along the baseline, so the card carries a little
+  // weight without a second colour.
+  const area = `${d} L${x(t1).toFixed(1)},${H - PAD} L${x(seq[0].t).toFixed(1)},${H - PAD} Z`;
+  return (
+    <svg className="mkt-spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
+      <path d={area} className="mkt-spark-area" />
+      <path d={d} className="mkt-spark-line" />
+      <circle cx={x(t1)} cy={y(consensus)} r="3" className="mkt-spark-dot" />
+    </svg>
+  );
+}
 
 export function FloorsPage() {
   const { user, loading: authLoading } = useAuth();
-  const [doors, setDoors] = useState<Door[] | null>(null);
+  const [listings, setListings] = useState<Listing[] | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     api.getPublicWorkspaces()
       .then(list => {
         if (cancelled || !Array.isArray(list)) return;
-        const base: Door[] = list.map(w => ({
+        const base: Listing[] = list.map(w => ({
           workspaceId: w.workspaceId,
           slug: w.slug ?? null,
           name: w.name,
-          metricName: null,
-          value: null,
-          unit: '',
-          settles: null,
+          description: w.description ?? null,
+          pendingJobs: w.proposalStats?.pending ?? 0,
+          hero: null,
+          participants: null,
+          tradesThisWeek: null,
         }));
-        setDoors(base);
-        // Each door fills in its own number as it arrives, so the lobby
-        // never waits on the slowest floor.
-        base.forEach(door => {
-          api.getMarketplaceWorkspace(door.slug || door.workspaceId)
-            .then((ws: { markets?: Array<{ metricName: string; consensus: number | null; targetDate?: string }> }) => {
+        setListings(base);
+        base.forEach(row => {
+          api.getMarketplaceWorkspace(row.slug || row.workspaceId)
+            .then(ws => {
               if (cancelled) return;
               const m = ws.markets?.[0];
-              if (!m) return;
-              setDoors(cur => (cur ?? []).map(d => d.workspaceId === door.workspaceId
+              setListings(cur => (cur ?? []).map(r => r.workspaceId === row.workspaceId
                 ? {
-                    ...d,
-                    metricName: m.metricName.replace(/\s*\(.*\)\s*$/, ''),
-                    value: m.consensus,
-                    unit: currencyOf(m.metricName),
-                    settles: m.targetDate ? settleDayOf(m.targetDate) : null,
+                    ...r,
+                    participants: ws.participantCount ?? null,
+                    tradesThisWeek: ws.tradesThisWeek ?? null,
+                    hero: m
+                      ? {
+                          metricName: m.metricName,
+                          consensus: m.consensus,
+                          unit: currencyOf(m.metricName),
+                          settles: m.targetDate ? settleDayOf(m.targetDate) : null,
+                          history: ws.marketHistory ?? [],
+                        }
+                      : r.hero,
                   }
-                : d));
+                : r));
             })
-            .catch(e => console.error('floor fetch failed:', e));
+            .catch(e => console.error('market fetch failed:', e));
         });
       })
       .catch(e => console.error('public workspaces fetch failed:', e));
@@ -86,37 +154,80 @@ export function FloorsPage() {
   return (
     <div className="pubws">
       <TopBar user={!!user} ready={!authLoading} />
-      <main className="lobby">
-        <h1 className="lobby-head">Pick a floor</h1>
-        <p className="lobby-lead">
-          One number, run in the open. Bet on where it lands, or propose a job
-          and get paid if the owner approves.
+      <main className="mkt">
+        <h1 className="mkt-head">Marketplace</h1>
+        {/* What Telarchy actually does, said once, in the terms of the thing
+            on screen (owner ask 2026-08-14): every listing is one number
+            someone is trying to move, and the way to move it is a paid
+            contract the market prices before the owner pays for it. */}
+        <p className="mkt-lead">
+          Every market here is one number someone is trying to move. Anyone,
+          human or AI, can propose a paid contract to move it: the market
+          prices what that contract would do to the number, and the owner pays
+          only for the ones worth it. Trade on where the number lands, or get
+          paid to change it.
         </p>
 
-        {doors === null ? null : doors.length === 0 ? (
-          <p className="lobby-empty">No public floors right now.</p>
-        ) : (
-          <div className="lobby-doors">
-            {doors.map(d => (
+        {listings === null ? null : (
+          <div className="mkt-grid">
+            {listings.map(r => (
               <Link
-                key={d.workspaceId}
-                className="lobby-door"
-                to={`/${d.slug || `marketplace/${d.workspaceId}`}`}
+                key={r.workspaceId}
+                className="mkt-card"
+                to={`/${r.slug || `marketplace/${r.workspaceId}`}`}
               >
-                <span className="lobby-door-name">{d.name}</span>
-                {d.value !== null && (
-                  <span className="lobby-door-value">{fmtValue(d.value, d.unit)}</span>
+                <span className="mkt-card-head">
+                  <span className="mkt-card-name">{r.name}</span>
+                  {r.hero?.consensus != null && (
+                    <span className="mkt-card-price">{fmtHero(r.hero.consensus, r.hero.unit)}</span>
+                  )}
+                </span>
+                {r.hero && (
+                  <span className="mkt-card-metric">
+                    {r.hero.metricName.replace(/\s*\(.*\)\s*$/, '')}
+                  </span>
                 )}
-                {d.metricName && <span className="lobby-door-metric">{d.metricName}</span>}
-                {d.settles && <span className="lobby-door-settles">settles {d.settles}</span>}
+                {r.description && <span className="mkt-card-desc">{r.description}</span>}
+                <span className="mkt-card-chart">
+                  {r.hero?.consensus != null && (
+                    <MarketSpark history={r.hero.history} consensus={r.hero.consensus} />
+                  )}
+                </span>
+                {/* When it settles leads the footer: it is the one fact that
+                    tells a visitor whether this market is worth their time
+                    today. Activity follows it. */}
+                <span className="mkt-card-facts">
+                  {r.hero?.settles && <span className="mkt-card-settles">settles {r.hero.settles}</span>}
+                  <span className="mkt-card-activity">
+                    {r.participants !== null && (
+                      <>{r.participants === 1 ? '1 participant' : `${r.participants} participants`}</>
+                    )}
+                    {r.tradesThisWeek ? <> · {r.tradesThisWeek} trades this week</> : null}
+                    {r.pendingJobs > 0 && (
+                      <> · {r.pendingJobs === 1 ? '1 contract priced now' : `${r.pendingJobs} contracts priced now`}</>
+                    )}
+                  </span>
+                </span>
               </Link>
             ))}
+
+            {/* The last cell of the grid, never a footnote: a marketplace is
+                somewhere you can also list. Links to the owner door, which
+                answers within a few days (creation is invite-only while
+                Telarchy is trader-first). */}
+            <Link className="mkt-card mkt-card--new" to="/manage">
+              <svg className="mkt-new-plus" viewBox="0 0 100 100" aria-hidden="true">
+                <line x1="50" y1="14" x2="50" y2="86" />
+                <line x1="14" y1="50" x2="86" y2="50" />
+              </svg>
+              <span className="mkt-new-title">List your own number</span>
+              <span className="mkt-new-sub">
+                Put the number you actually answer to in the open, and let
+                people compete to move it.
+              </span>
+            </Link>
           </div>
         )}
-
-        <p className="lobby-own">
-          Want a floor for your own numbers? <Link to="/manage">Get set up</Link>
-        </p>
       </main>
     </div>
   );

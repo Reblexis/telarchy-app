@@ -543,18 +543,44 @@ click. It never reloads on its own: yanking a composed bet or a
 selected branch out from under the visitor is worse than stale code.
 In dev (no built bundle in the served page) the check is inert.
 
-**Revised 2026-08-14 (Viktor), the marketplace is two doors.**
-Redesigned from scratch the same day, replacing the hairline-list
-version: the selection is not a directory, it is a lobby with one door
-per floor. `telarchy.com/marketplace` renders standalone in the floor's
-own language (`.pubws-topbar`, Fraunces, mono numerals, one accent) and
-shows each public workspace as one large tappable panel carrying the
-floor's headline grammar: the metric name in Fraunces, its live number
-in big accent mono (the floor's price treatment), and a single mono
-line naming when it settles. Nothing else per panel: no descriptions,
-no counts inventory, no sparklines. One quiet line below the panels
-links to /manage for owners. The floor topbar's logo links here, so the
-logo answers "what else is there to trade?".
+**Revised 2026-08-14 (Viktor), the marketplace is a card grid that
+shows the markets.** This supersedes the two-doors lobby of the same
+day, on the owner's report that the doors did not show the market at
+all, said nothing about what a listing IS, and read as a fixed pair of
+buttons rather than a marketplace new listings join.
+`telarchy.com/marketplace` still renders standalone in the same design
+language (`.pubws-topbar`, Fraunces, mono numerals, one accent), but as
+`repeat(auto-fill, minmax(19rem, 1fr))` cards that read the same with
+two listings or twenty. Each card carries, in this order: the
+workspace name and its live number (accent mono), the metric name, the
+owner's own one-line description (three lines, then clipped), THE
+MARKET ITSELF as a full-width step-line spark of the hero market's real
+trade history ending on the live-call dot (same held-call semantics as
+the poster chart, value range padded 35% so a quiet market still draws
+through the middle instead of along the floor of the box), and a footer
+of when it settles plus the activity behind it (participants, trades
+this week, contracts currently being priced).
+
+The last cell of the grid is always the listing tile: a dashed panel
+whose plus is the biggest mark on the page after the headline (owner:
+"a lot bigger, like big plus"), reading "List your own number" and
+linking to /manage. Listing is part of the marketplace, never a quiet
+line underneath it.
+
+Above the grid, the lead paragraph is the one place the whole mechanism
+is stated in plain words (owner ask, same day): every market is one
+number someone is trying to move, anyone human or AI can propose a paid
+contract to move it, the market prices what that contract would do, and
+the owner pays only for the ones worth it.
+
+**User-facing copy says MARKET, never "floor" (owner, 2026-08-14:
+"what the hell is floor, no one will understand that").** The word is
+internal vocabulary only: component and class names (`FloorRails`,
+`.pubws-*`), doc prose like this file, and the admin console's own
+heading may keep it, but no string a visitor can read may. When copy
+needs a word for one public workspace, it is "market"; for the thing a
+proposer sells, "contract" (or "job" inside a workspace, where the
+ballot language is already established).
 
 **Nothing public-facing redirects to the old console UI (owner rule,
 2026-08-14, emphatic).** That includes the platform admin: the first
