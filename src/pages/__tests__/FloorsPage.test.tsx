@@ -169,3 +169,44 @@ describe('the market spark', () => {
     expect(Math.max(...ys) - Math.min(...ys)).toBe(0);
   });
 });
+
+describe('loading', () => {
+  test('the grid holds the market page motif until the listings land', async () => {
+    let release: (v: unknown) => void = () => {};
+    vi.mocked(api.getPublicWorkspaces).mockReturnValue(new Promise(r => { release = r; }) as never);
+    const { container } = renderPage();
+    // Same element and class as a market page's loading screen, never a
+    // blank page and never a spinner.
+    expect(container.querySelector('.mkt-loading .pubws-loading-dot')).toBeTruthy();
+    expect(container.querySelector('.mkt-grid')).toBeNull();
+    release([listing]);
+    await screen.findByText('LookPilot');
+    expect(container.querySelector('.mkt-loading')).toBeNull();
+  });
+
+  test('a card whose number is still in flight ripples in the chart slot', async () => {
+    let release: (v: unknown) => void = () => {};
+    vi.mocked(api.getMarketplaceWorkspace).mockReturnValue(new Promise(r => { release = r; }) as never);
+    const { container } = renderPage();
+    await screen.findByText('LookPilot');
+    expect(container.querySelector('.mkt-card-loading .pubws-loading-dot')).toBeTruthy();
+    release(payload);
+    await waitFor(() => expect(container.querySelector('.mkt-spark')).toBeTruthy());
+    expect(container.querySelector('.mkt-card-loading')).toBeNull();
+  });
+});
+
+describe('the activity line', () => {
+  test('never leaves a separator hanging while counts are still loading', async () => {
+    let release: (v: unknown) => void = () => {};
+    vi.mocked(api.getMarketplaceWorkspace).mockReturnValue(new Promise(r => { release = r; }) as never);
+    const { container } = renderPage();
+    await screen.findByText('LookPilot');
+    // Only the proposal count is known from the listing payload; the
+    // participant and trade counts are still in flight.
+    const line = container.querySelector('.mkt-card-activity')?.textContent ?? '';
+    expect(line).toBe('2 contracts priced now');
+    release(payload);
+    await screen.findByText(/14 participants · 108 trades this week · 2 contracts priced now/);
+  });
+});

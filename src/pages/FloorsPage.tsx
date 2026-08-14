@@ -110,6 +110,24 @@ function MarketSpark({ history, consensus }: {
 }
 
 /**
+ * The activity behind a market, as one line. Built by joining the facts that
+ * exist rather than by chaining separators: counts arrive per card on their
+ * own request, and a fact that has not landed yet must not leave a leading
+ * "·" hanging in the footer.
+ */
+function activityLine(r: Listing): string {
+  const parts: string[] = [];
+  if (r.participants !== null) {
+    parts.push(r.participants === 1 ? '1 participant' : `${r.participants} participants`);
+  }
+  if (r.tradesThisWeek) parts.push(`${r.tradesThisWeek} trades this week`);
+  if (r.pendingJobs > 0) {
+    parts.push(r.pendingJobs === 1 ? '1 contract priced now' : `${r.pendingJobs} contracts priced now`);
+  }
+  return parts.join(' · ');
+}
+
+/**
  * The listing tile: the last cell of the grid, and the only interactive one.
  * It takes the email in place (owner direction 2026-08-14) rather than
  * sending anyone to /manage to hunt for the field, and it answers in the
@@ -254,7 +272,14 @@ export function FloorsPage() {
           paid to change it.
         </p>
 
-        {listings === null ? null : (
+        {/* Same loading motif as a market page (owner ask 2026-08-14): the
+            call dot rippling where the thing is about to appear. No spinner,
+            no text, and never a blank page. */}
+        {listings === null ? (
+          <div className="mkt-loading pubws-loading" role="status" aria-label="Loading">
+            <span className="pubws-loading-dot" />
+          </div>
+        ) : (
           <div className="mkt-grid">
             {listings.map(r => (
               <Link
@@ -274,9 +299,17 @@ export function FloorsPage() {
                   </span>
                 )}
                 {r.description && <span className="mkt-card-desc">{r.description}</span>}
+                {/* Each card's number and history arrive on their own
+                    request, so the chart slot carries the same rippling dot
+                    until this market's payload lands. The slot keeps its
+                    height either way, so nothing jumps when it does. */}
                 <span className="mkt-card-chart">
-                  {r.hero?.consensus != null && (
+                  {r.hero?.consensus != null ? (
                     <MarketSpark history={r.hero.history} consensus={r.hero.consensus} />
+                  ) : (
+                    <span className="mkt-card-loading pubws-loading" role="status" aria-label="Loading">
+                      <span className="pubws-loading-dot" />
+                    </span>
                   )}
                 </span>
                 {/* When it settles leads the footer: it is the one fact that
@@ -284,15 +317,7 @@ export function FloorsPage() {
                     today. Activity follows it. */}
                 <span className="mkt-card-facts">
                   {r.hero?.settles && <span className="mkt-card-settles">settles {r.hero.settles}</span>}
-                  <span className="mkt-card-activity">
-                    {r.participants !== null && (
-                      <>{r.participants === 1 ? '1 participant' : `${r.participants} participants`}</>
-                    )}
-                    {r.tradesThisWeek ? <> · {r.tradesThisWeek} trades this week</> : null}
-                    {r.pendingJobs > 0 && (
-                      <> · {r.pendingJobs === 1 ? '1 contract priced now' : `${r.pendingJobs} contracts priced now`}</>
-                    )}
-                  </span>
+                  <span className="mkt-card-activity">{activityLine(r)}</span>
                 </span>
               </Link>
             ))}

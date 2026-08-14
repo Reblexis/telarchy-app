@@ -10494,6 +10494,19 @@ textarea.jobform-line--desc {
   color: var(--text-secondary);
 }
 
+/* The grid's own loading state: the market page's call-dot motif, held in
+   the space the cards will occupy. */
+.mkt-loading { padding: clamp(3rem, 12vh, 6rem) 0; }
+
+/* The same motif at card scale, in the chart slot, while that one market's
+   payload is still in flight. */
+.mkt-card-loading {
+  width: 100%;
+  align-items: center;
+  opacity: 0.7;
+}
+.mkt-card-loading .pubws-loading-dot { width: 9px; height: 9px; }
+
 .mkt-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));

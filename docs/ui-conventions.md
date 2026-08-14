@@ -583,6 +583,15 @@ belongs in the page's lead paragraph and the cards say what only they
 can say: "Webcam head tracker for sims, sold on Steam", "This platform,
 running on itself".
 
+While the page loads it shows the market page's own motif, never a blank
+page and never a spinner (owner ask 2026-08-14): the accent call dot
+rippling (`.pubws-loading`) in the space the cards will occupy, and again
+at card scale in each card's chart slot until that market's own payload
+lands, since every card fetches its number separately. The chart slot
+keeps its height either way, so nothing jumps when the number arrives,
+and the footer's activity line is joined from the facts that exist, so a
+count still in flight never leaves a separator hanging.
+
 Above the grid, the lead paragraph is the one place the whole mechanism
 is stated in plain words (owner ask, same day): every market is one
 number someone is trying to move, anyone human or AI can propose a paid

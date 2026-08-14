@@ -153,6 +153,12 @@ get back to you within a few days." Assert the answer contains no queue
 or waitlist language. Card `description` lines must differ from each
 other: the shared pitch lives in the page lead, not on every card.
 
+**Loading guard:** before the listings land the page renders
+`.mkt-loading .pubws-loading-dot` (the market page's own motif) and no
+`.mkt-grid`; a card whose number is still in flight renders
+`.mkt-card-loading .pubws-loading-dot` in its chart slot. Neither a blank
+page nor a spinner is acceptable here.
+
 **Vocabulary guard (owner, 2026-08-14):** no string a visitor can read on
 this page may contain the word "floor". Assert with
 `$B js "document.body.innerText.toLowerCase().includes('floor')"` => false.
