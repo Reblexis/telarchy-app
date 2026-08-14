@@ -88,6 +88,20 @@ marketplaceRouter.get('/stats', wrap(async (_req, res) => {
 
   const [agentCount] = await db.select({ count: count() }).from(agents);
 
+  // Distinct participants, human or AI, who traded or proposed a job in the
+  // trailing 7 days, across every workspace. This is the hero metric of the
+  // Telarchy dogfooding workspace (2026-08-14), so it lives on this public
+  // route for the same reason manifoldImportCount does: a resolution source
+  // has to be readable by the people being asked to trust it.
+  const [activeTraders, activeProposers] = await Promise.all([
+    db.selectDistinct({ id: trades.agentId }).from(trades).where(gt(trades.createdAt, weekAgo)),
+    db.selectDistinct({ id: proposals.proposedBy }).from(proposals).where(gt(proposals.createdAt, weekAgo)),
+  ]);
+  const weeklyActiveParticipants = new Set([
+    ...activeTraders.map(r => r.id),
+    ...activeProposers.map(r => r.id),
+  ]).size;
+
   let marketsActive = 0;
   let tradesThisWeek = 0;
 
@@ -116,6 +130,7 @@ marketplaceRouter.get('/stats', wrap(async (_req, res) => {
     marketsActive,
     agentsActive: Number(agentCount.count),
     tradesThisWeek,
+    weeklyActiveParticipants,
     manifoldImportCount: Number(manifoldRow?.n ?? 0),
   });
 }));

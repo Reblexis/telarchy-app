@@ -1,76 +1,93 @@
 # Telarchy self-sync
 
-Daily push of Telarchy's own platform metrics into the Telarchy dogfooding workspace at https://telarchy.com (workspace `Telarchy`, id `qzOIWWj7m6rDInxrvqPx`). The product dogfoods itself: every metric defined in this section exists as a KPI in that workspace, with conditional markets pricing the impact of every product decision against them.
+**Rebuilt 2026-08-14 (owner decision: resurrect the dogfooding workspace as
+a public floor).** The 2025-era version of this sync pushed four platform
+metrics into a Firestore-era workspace (`qzOIWWj7m6rDInxrvqPx`); that
+workspace died in the Postgres migration and the sync zombie-failed daily
+(stale master-key secret, 401 on every run) until this rebuild. The four
+researcher metrics (liquidity-weighted Brier, proposal-quality correlation,
+...) were dropped: a public floor follows the one-public-metric doctrine
+(2026-08-08, see the LookPilot floor) - a stranger must understand the whole
+workspace in one sentence.
 
-## What it pushes
+## The workspace
 
-Four metrics, definitions live on each metric's `description` field in the workspace itself (so they're discoverable by traders, human or AI, without leaving the platform):
+Telarchy dogfoods itself: a public workspace named **Telarchy** (floor at
+`telarchy.com/telarchy`) with **one metric**, priced by its own markets,
+with its own jobs board. The workspace id and the sync identity are recorded
+in the Provisioning section below.
 
-| Metric (Telarchy name) | Source |
-| --- | --- |
-| WAU: workspaces with ≥1 priced decision (7d) | iterate all workspaces, count those with new market or proposal in last 7d |
-| Forecaster quality: liquidity-weighted Brier (30d) | iterate resolved markets across all workspaces |
-| Active forecasters: agents with positive PnL (30d) | per-agent pnlMetric summed across markets resolved in last 30d, via /api/agents/:id/market-pnl |
-| Proposal quality: realized vs predicted lift (90d corr) | stub until ≥90d of approved agent-proposed proposals exists |
+## The metric
 
-The compute logic, including each metric's data path, lives in `scripts/telarchy-self-sync.js`. The `COMPUTE` object near the bottom maps Telarchy metric name → compute function.
+**Weekly active participants**: distinct participants, human or AI, with a
+trade or a proposal in the trailing 7 days, across every workspace on the
+platform. AI participants count on purpose (participant symmetry is
+load-bearing; a participant is a participant).
 
-## Where it runs
+**Provenance is the point.** The number is computed server-side and served
+on the public, unauthenticated `GET /api/marketplace/stats` route as
+`weeklyActiveParticipants` - the same route that serves as resolution source
+for the Manifold-import market, for the same reason: a resolution source has
+to be readable by the people being asked to trust it. The sync adds no
+computation of its own; anyone can check the number at any time. Its exact
+definition is pinned by `functions/src/__tests__/marketplace-stats.test.ts`.
 
-**GitHub Actions cron** (workflow: `.github/workflows/telarchy-self-sync.yml`). Runs daily at 03:30 UTC on a `ubuntu-latest` runner. Free tier covers it; the job runs in ~10s.
+## The sync
 
-Why GitHub Actions and not a dedicated VM:
-- The sync only hits `telarchy.com/api`. No Hetzner-ASN egress requirement (unlike LookPilot's KPI sync, which needs Hetzner because Steam Partner blocks major-cloud ASN).
-- Always-on without managing infrastructure.
-- Secrets handled by GitHub's encrypted store.
-- The job is small enough that the free tier is more than sufficient.
+`scripts/telarchy-self-sync.js`: reads `weeklyActiveParticipants` from the
+public stats route, PUTs it into the workspace's metric, and heartbeats to
+`/admin` as agent `telarchy-self-sync` (strategy `self-sync-v2`). Runs on a
+**GitHub Actions cron** (`.github/workflows/telarchy-self-sync.yml`) daily
+at **23:40 UTC** - pre-boundary, the same settlement discipline as
+LookPilot's KPI sync: markets settle on the last value at-or-before the
+next-day 00:00 UTC boundary.
 
-## Secret
+Why GitHub Actions and not a VM: the sync only talks to `telarchy.com/api`
+(no Hetzner-ASN egress requirement, unlike LookPilot's Steam reads), and the
+job is a few seconds on the free tier.
 
-The workflow reads one repo secret: **`TELARCHY_ADMIN_KEY`** (the Telarchy master API key). Required because most of the 5 metrics need cross-workspace platform reads, which agent keys cannot grant.
+## Secrets
 
-To set or rotate the secret, in the GitHub UI:
-- Settings → Secrets and variables → Actions → New repository secret (or update existing).
-- Name: `TELARCHY_ADMIN_KEY`
-- Value: the master API key (in `metrics-tracker/AGENTS.md` § "Debugging with the API").
+Two repo secrets (Settings → Secrets and variables → Actions):
+
+- **`TELARCHY_SELF_SYNC_KEY`** - the `telarchy-self-sync` agent's key. An
+  admin member of the dogfooding workspace and nothing else; deliberately
+  NOT the master key (the old design used the master key and its stale copy
+  401'd for months - a scoped key caps both the blast radius and the
+  rotation surface).
+- **`TELARCHY_SELF_SYNC_WORKSPACE`** - the workspace id.
 
 ## Operating it
 
-**Manually trigger a run** without waiting for the next 03:30 UTC fire. In the GitHub UI: Actions → "Telarchy self-sync" → Run workflow → main → Run workflow. Or via `gh`:
-
 ```bash
-gh workflow run telarchy-self-sync.yml -R Reblexis/metrics-tracker
+# Trigger a run now
+gh workflow run telarchy-self-sync.yml -R Reblexis/telarchy-app
+
+# Latest runs / logs
+gh run list -w telarchy-self-sync.yml -R Reblexis/telarchy-app --limit 5
+
+# Local dry run (no writes)
+TELARCHY_SELF_SYNC_KEY=... TELARCHY_SELF_SYNC_WORKSPACE=... \
+  node scripts/telarchy-self-sync.js --dry-run
 ```
-
-**View the latest run logs:**
-
-```bash
-gh run list -w telarchy-self-sync.yml -R Reblexis/metrics-tracker --limit 5
-gh run view --log -R Reblexis/metrics-tracker
-```
-
-**Disable the schedule** (e.g. while debugging). In `.github/workflows/telarchy-self-sync.yml`, comment out the `schedule:` block and push. The `workflow_dispatch:` keeps manual runs available.
 
 ## Monitoring
 
-Two surfaces:
+1. **Telarchy `/admin` page**: heartbeat from `telarchy-self-sync`
+   (`running` / `idle` / `error`). Missing or stale heartbeat is the primary
+   signal.
+2. **GitHub Actions run history** for the workflow: failures are red runs.
 
-1. **Telarchy `/admin` page.** The script pushes a heartbeat (`agentId: telarchy-self-sync`, `status: running` / `idle` / `error`) at the start and end of each cycle. Missing or stale heartbeat is the primary sign that the sync stopped.
-2. **GitHub Actions run history**, at `https://github.com/Reblexis/metrics-tracker/actions/workflows/telarchy-self-sync.yml`. Failures show up as red runs.
+## Provisioning record
 
-## Editing the metric set
+Filled at creation time (2026-08-14); update on rotation or re-provisioning:
 
-1. Edit `scripts/telarchy-self-sync.js`. Add a `computeFoo()` function and wire it into `COMPUTE` with a name that exactly matches the Telarchy metric.
-2. Test locally:
-   ```bash
-   TELARCHY_ADMIN_KEY=<key> node scripts/telarchy-self-sync.js --dry-run --metric "Foo"
-   ```
-3. Commit + push. The next scheduled run picks it up automatically.
-
-If you add a new metric in the Telarchy workspace, do that first via the API (see `telarchy:telarchy` skill or `metrics-tracker/AGENTS.md`) so the sync's `metrics` GET picks it up by name. Otherwise the run logs `SKIP <name>: not in workspace` and continues.
-
-## Things this doc deliberately does not cover
-
-- Telarchy market mechanics (LMSR, conditional markets, time preference): see `docs/vision.md` and `https://telarchy.com/api/guides/...`.
-- Why each metric is shaped the way it is: that lives on the metric's `description` field on telarchy.com, so traders see it in-product.
-- LookPilot's parallel sync: see the LookPilot repo's `docs/infra/telarchy-kpi-sync.md`.
+- Workspace: created via `POST /api/workspaces` (master key), name
+  `Telarchy`, visibility `public`. Id: see `TELARCHY_SELF_SYNC_WORKSPACE`
+  repo secret; also listed by `GET /api/marketplace/workspaces/public`.
+- Metric: `Weekly active participants`, created via `POST /api/metrics`,
+  description carries the definition + provenance URL so traders can verify
+  without leaving the platform.
+- Market: year-end horizon (`targetDate: 2026-12`), owner-seeded liquidity.
+- Sync agent: `telarchy-self-sync`, registered via
+  `POST /api/agents/register`, promoted to the workspace Admin group.
