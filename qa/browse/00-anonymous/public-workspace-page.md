@@ -251,10 +251,18 @@ direction 2026-08-12: the cost sits on the final button, hidden only
 during the placed flash)), and the evidence row (`.pubws-evidence`: the workspace's
 market-less metrics as one quiet mono line, capped at six). None of these
 render for anonymous visitors, whose poster
-stays context-free. Exception: the side rails (top traders left from
-/api/leaderboard, action log right composed from the public payload) are
+stays context-free. Exception: the side rails (leaders left, action log right composed from
+the public payload) are
 visible to both tiers on viewports >=1120px, stack below the poster on
-narrow ones, and are absent entirely when empty. While a side and
+narrow ones, and are absent entirely when empty. The left rail stacks two
+boards, both ranked on live market valuation rather than settled money
+(owner direction 2026-08-14): top traders from /api/leaderboard, ranked by
+trading profit marked to current prices with no account excluded; top
+contractors from the workspace payload's `topContractors`, ranked by the
+summed priced impact (approved branch minus declined branch, hero metric)
+of each poster's pending and approved jobs, with job count and dollars
+earned on a quieter second line. A contractor whose only job is pending
+still appears; a declined job scores nothing. While a side and
 amount are composed, the chart shows the bet's impact as a dashed ghost
 (hollow dot at the would-be call, direction-tinted, live-updating);
 deselecting the side removes it. No per-branch ballot trading (the ballot is not rendered in this

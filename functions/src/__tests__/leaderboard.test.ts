@@ -1,5 +1,7 @@
 import {
+  computeCalibrationStats,
   computeLeaderboard,
+  computeTradingProfit,
   type LeaderboardMarket,
   type LeaderboardPosition,
   type LeaderboardTrade,
@@ -293,5 +295,121 @@ describe('computeLeaderboardFromAggregates', () => {
       100,
     );
     expect(viaAgg).toEqual(viaRaw);
+  });
+});
+
+/** The public board ranks on profit marked to market (see routes/leaderboard),
+ *  but it still REPORTS calibration per row; this is the math behind those two
+ *  columns, split out on 2026-08-14 so the route can fill them without
+ *  re-deriving a second, disagreeing ranking. */
+describe('computeCalibrationStats', () => {
+  test('a perfect higher bet on a max resolution scores calibration 1', () => {
+    const stats = computeCalibrationStats(
+      [m({ resolved: true, actualValue: 1000 })],
+      [p({ agentId: 'a', direction: 'higher', shares: 10 })],
+    );
+    expect(stats.get('a')).toEqual({ calibration: 1, accuracy: 1, resolvedMarkets: 1 });
+  });
+
+  test('the wrong side scores calibration 0 and accuracy 0', () => {
+    const stats = computeCalibrationStats(
+      [m({ resolved: true, actualValue: 1000 })],
+      [p({ agentId: 'a', direction: 'lower', shares: 10 })],
+    );
+    expect(stats.get('a')).toEqual({ calibration: 0, accuracy: 0, resolvedMarkets: 1 });
+  });
+
+  test('weights by shares across markets and counts distinct markets', () => {
+    const stats = computeCalibrationStats(
+      [m({ id: 'm1', resolved: true, actualValue: 1000 }), m({ id: 'm2', resolved: true, actualValue: 0 })],
+      [
+        p({ agentId: 'a', marketId: 'm1', direction: 'higher', shares: 30 }),
+        p({ agentId: 'a', marketId: 'm2', direction: 'higher', shares: 10 }),
+      ],
+    );
+    // 30 shares at factor 1, 10 at factor 0 => 0.75 calibration, 1 of 2 right.
+    expect(stats.get('a')).toEqual({ calibration: 0.75, accuracy: 0.5, resolvedMarkets: 2 });
+  });
+
+  test('unresolved markets and zero-share positions contribute nothing', () => {
+    const stats = computeCalibrationStats(
+      [m({ id: 'm1', resolved: false }), m({ id: 'm2', resolved: true, actualValue: 1000 })],
+      [
+        p({ agentId: 'a', marketId: 'm1', direction: 'higher', shares: 10 }),
+        p({ agentId: 'b', marketId: 'm2', direction: 'higher', shares: 0 }),
+      ],
+    );
+    expect(stats.size).toBe(0);
+  });
+});
+
+/** The formula the public board ranks on and a participant's own profile
+ *  reports, shared so the two can never disagree (owner direction
+ *  2026-08-14). */
+describe('computeTradingProfit', () => {
+  const pm = (o: Partial<LeaderboardMarket> & { shares?: [number, number]; liquidity?: number }) => ({
+    ...m(o),
+    shares: o.shares ?? ([0, 0] as [number, number]),
+    liquidity: o.liquidity ?? 100,
+  });
+
+  test('an open position counts at the live price, before anything resolves', () => {
+    // Untouched market: consensus sits mid-range, so a share is worth 0.5.
+    const profit = computeTradingProfit(
+      [pm({ resolved: false })],
+      new Map([['kai', 40]]),
+      [p({ agentId: 'kai', direction: 'higher', shares: 100 })],
+    );
+    expect(profit.get('kai')).toBe(10); // 100 * 0.5 - 40
+  });
+
+  test('a resolved position counts at its payout factor', () => {
+    const profit = computeTradingProfit(
+      [pm({ resolved: true, actualValue: 1000 })],
+      new Map([['kai', 30]]),
+      [p({ agentId: 'kai', direction: 'higher', shares: 50 })],
+    );
+    expect(profit.get('kai')).toBe(20); // 50 * 1.0 - 30
+  });
+
+  test('sells are already netted out of the cash side', () => {
+    // Bought for 60, sold half back for 25 (stored negative), still holds 20
+    // shares of a market priced at 0.5.
+    const profit = computeTradingProfit(
+      [pm({ resolved: false })],
+      new Map([['kai', 60 - 25]]),
+      [p({ agentId: 'kai', direction: 'higher', shares: 20 })],
+    );
+    expect(profit.get('kai')).toBe(-25); // 10 - 35
+  });
+
+  test('a trader whose markets all voided reads exactly zero, not a loss', () => {
+    // Voided markets are excluded upstream from BOTH sides: no market row
+    // here, and the caller's net cash excludes them too.
+    const profit = computeTradingProfit([], new Map([['kai', 0]]), []);
+    expect(profit.get('kai')).toBe(0);
+  });
+
+  test('granted credits never enter it, so a house account is rankable', () => {
+    // Two traders with identical trades; balances (1,000,000 vs 1,000) are
+    // not an input at all, which is what lets admins onto the board.
+    const profit = computeTradingProfit(
+      [pm({ resolved: false })],
+      new Map([['house', 20], ['guest', 20]]),
+      [
+        p({ agentId: 'house', direction: 'higher', shares: 50 }),
+        p({ agentId: 'guest', direction: 'higher', shares: 50 }),
+      ],
+    );
+    expect(profit.get('house')).toBe(profit.get('guest'));
+  });
+
+  test('an unpriced market (no liquidity) cannot be valued and is skipped', () => {
+    const profit = computeTradingProfit(
+      [pm({ resolved: false, liquidity: 0 })],
+      new Map([['kai', 10]]),
+      [p({ agentId: 'kai', direction: 'higher', shares: 50 })],
+    );
+    expect(profit.get('kai')).toBe(-10);
   });
 });

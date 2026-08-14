@@ -271,7 +271,8 @@ agentsRouter.get('/deposit-address', (_req, res) => {
  * public-workspace detail.
  */
 agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (req, res) => {
-  const { computeLeaderboard } = await import('../lib/leaderboard');
+  const { computeCalibrationStats, computeTradingProfit } = await import('../lib/leaderboard');
+  type ProfitMarket = import('../lib/leaderboard').ProfitMarket;
   const idOrNickname = req.params.idOrNickname as string;
 
   let [agent] = await db.select().from(agents).where(eq(agents.id, idOrNickname)).limit(1);
@@ -421,25 +422,75 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
         }>),
   ]);
 
-  // Stats: same shape and source as before, restricted to public workspaces.
-  let entry: ReturnType<typeof computeLeaderboard>[number] | undefined;
+  // Stats over public workspaces only (the documented privacy contract).
+  //
+  // rank and totalEarnings use the SAME formula as GET /api/leaderboard
+  // (trading profit marked to current market prices), because this page is
+  // where every board row links: a trader shown at +412 cr on the floor's
+  // rail reading "0 cr earned" one click later is the bug the owner reported
+  // on 2026-08-14. wsMarkets already excludes voided markets, which is the
+  // filter that formula requires on both of its sides.
+  let entry: typeof emptyStats | undefined;
   if (statsScope.length > 0) {
     const statsWsSet = new Set(statsScope);
-    const statsMarkets = wsMarkets.filter(m => statsWsSet.has(m.workspaceId));
-    const statsTrades = tradeRows.filter(t => statsWsSet.has(t.workspaceId))
-      .map(t => ({ agentId: t.agentId, workspaceId: t.workspaceId, marketId: t.marketId, cost: t.cost, createdAt: t.createdAt }));
-    const statsPositions = positionRows.filter(p => statsWsSet.has(p.workspaceId))
+    const statsMarkets: ProfitMarket[] = wsMarkets
+      .filter(m => statsWsSet.has(m.workspaceId))
+      .map(m => ({
+        id: m.id,
+        workspaceId: m.workspaceId,
+        rangeMin: m.rangeMin,
+        rangeMax: m.rangeMax,
+        resolved: m.resolved,
+        actualValue: m.actualValue,
+        shares: (m.shares as [number, number] | null) ?? null,
+        liquidity: m.liquidity,
+      }));
+    const statsTrades = tradeRows.filter(t => statsWsSet.has(t.workspaceId));
+    const statsPositions = positionRows.filter(p => statsWsSet.has(p.workspaceId) && p.shares > 0)
       .map(p => ({ agentId: p.agentId, workspaceId: p.workspaceId, marketId: p.marketId, direction: p.direction, shares: p.shares }));
-    const seenIds = new Set<string>();
-    for (const t of statsTrades) seenIds.add(t.agentId);
-    for (const p of statsPositions) seenIds.add(p.agentId);
-    const seenAgents = seenIds.size > 0
-      ? await db.select({ id: agents.id, nickname: agents.nickname })
-          .from(agents).where(inArray(agents.id, Array.from(seenIds)))
-      : [];
-    const nicknameById = new Map(seenAgents.map(a => [a.id, a.nickname]));
-    const ranked = computeLeaderboard(statsMarkets, statsTrades, statsPositions, nicknameById, 1_000_000);
-    entry = ranked.find(e => e.id === agent.id);
+
+    // Net cash per agent, counting only trades on markets that still exist
+    // and were not voided, exactly as the board's SQL aggregate does.
+    const marketByKey = new Set(statsMarkets.map(m => `${m.workspaceId}:${m.id}`));
+    const netCashByAgent = new Map<string, number>();
+    const tradeCountByAgent = new Map<string, number>();
+    const lastTradeByAgent = new Map<string, Date>();
+    for (const t of statsTrades) {
+      tradeCountByAgent.set(t.agentId, (tradeCountByAgent.get(t.agentId) ?? 0) + 1);
+      const prev = lastTradeByAgent.get(t.agentId);
+      if (t.createdAt && (!prev || t.createdAt > prev)) lastTradeByAgent.set(t.agentId, t.createdAt);
+      if (!marketByKey.has(`${t.workspaceId}:${t.marketId}`)) continue;
+      netCashByAgent.set(t.agentId, (netCashByAgent.get(t.agentId) ?? 0) + t.cost);
+    }
+
+    const profitByAgent = computeTradingProfit(statsMarkets, netCashByAgent, statsPositions);
+    const quality = computeCalibrationStats(
+      statsMarkets.filter(m => m.resolved && m.actualValue !== null),
+      statsPositions,
+    );
+
+    // Rank among everyone with public activity, same ordering as the board:
+    // profit first, most recent trade as the tiebreak.
+    const contenders = new Set<string>([...profitByAgent.keys(), ...tradeCountByAgent.keys()]);
+    const order = Array.from(contenders).sort((a, b) => {
+      const pa = profitByAgent.get(a) ?? 0, pb = profitByAgent.get(b) ?? 0;
+      if (pb !== pa) return pb - pa;
+      return (lastTradeByAgent.get(b)?.getTime() ?? 0) - (lastTradeByAgent.get(a)?.getTime() ?? 0);
+    });
+    const position = order.indexOf(agent.id);
+    if (position >= 0) {
+      const q = quality.get(agent.id);
+      const last = lastTradeByAgent.get(agent.id);
+      entry = {
+        rank: position + 1,
+        calibration: q?.calibration ?? null,
+        accuracy: q?.accuracy ?? null,
+        totalEarnings: profitByAgent.get(agent.id) ?? 0,
+        resolvedMarkets: q?.resolvedMarkets ?? 0,
+        totalTrades: tradeCountByAgent.get(agent.id) ?? 0,
+        lastTradeAt: last ? last.toISOString() : null,
+      };
+    }
   }
 
   // activeWorkspaces stays public-only so anonymous callers see the same

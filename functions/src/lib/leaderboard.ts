@@ -1,4 +1,4 @@
-import { resolutionPayouts } from './amm';
+import { consensus, resolutionPayouts } from './amm';
 
 export interface LeaderboardMarket {
   id: string;
@@ -37,6 +37,123 @@ export interface LeaderboardTradeAggregate {
   /** Sum of trade costs on resolved (actualValue-bearing) markets; the cost
    *  side of realized PnL. */
   costOnResolved: number;
+}
+
+/** A market as the profit formula needs to see it: enough to say what one
+ *  share is worth right now, whether it has resolved or not. */
+export interface ProfitMarket extends LeaderboardMarket {
+  shares: [number, number] | null;
+  liquidity: number;
+}
+
+/**
+ * What one share of each direction is worth on this market right now:
+ * the resolution payout factors once it has resolved, the market's own
+ * current call before that. Returns null for a market with no price yet
+ * (zero liquidity), whose positions therefore cannot be valued.
+ *
+ * Callers must exclude voided markets: a void refunds the cash, so those
+ * positions are worth nothing AND cost nothing, and counting one side
+ * without the other invents a loss.
+ */
+export function currentPayoutFactors(m: ProfitMarket): [number, number] | null {
+  if (m.resolved && m.actualValue !== null) {
+    return resolutionPayouts(Math.min(m.actualValue, m.rangeMax), m.rangeMin, m.rangeMax);
+  }
+  const c = consensus(m.shares ?? [0, 0], m.liquidity, m.rangeMin, m.rangeMax);
+  if (c === undefined) return null;
+  const p = Math.max(0, Math.min(1, (c - m.rangeMin) / (m.rangeMax - m.rangeMin)));
+  return [1 - p, p];
+}
+
+/**
+ * Trading profit marked to market, the number both the public board and a
+ * participant's own profile rank and report (owner direction 2026-08-14):
+ *
+ *   profit = what the positions are worth now - net cash paid for them
+ *
+ * "Worth now" is the resolution payout on resolved markets and the live
+ * price on open ones, so an unresolved position counts the moment its price
+ * moves. Net cash comes from the trade rows (sells are stored negative), so
+ * the result never includes credits the platform granted, which is what
+ * lets house accounts be ranked beside everyone else instead of excluded.
+ */
+export function computeTradingProfit(
+  marketsList: ProfitMarket[],
+  netCashByAgent: Map<string, number>,
+  positionsList: LeaderboardPosition[],
+): Map<string, number> {
+  const factorsByKey = new Map<string, [number, number]>();
+  for (const m of marketsList) {
+    const factors = currentPayoutFactors(m);
+    if (factors) factorsByKey.set(marketKey(m.workspaceId, m.id), factors);
+  }
+  const valueByAgent = new Map<string, number>();
+  for (const p of positionsList) {
+    if (p.shares <= 0) continue;
+    const factors = factorsByKey.get(marketKey(p.workspaceId, p.marketId));
+    if (!factors) continue;
+    const factor = p.direction === 'higher' ? factors[1] : factors[0];
+    valueByAgent.set(p.agentId, (valueByAgent.get(p.agentId) ?? 0) + p.shares * factor);
+  }
+  const out = new Map<string, number>();
+  for (const id of new Set([...valueByAgent.keys(), ...netCashByAgent.keys()])) {
+    const profit = (valueByAgent.get(id) ?? 0) - (netCashByAgent.get(id) ?? 0);
+    out.set(id, Math.round(profit * 100) / 100);
+  }
+  return out;
+}
+
+/** Per-agent quality stats on markets that have actually resolved. The board
+ *  does not RANK on these (owner direction 2026-08-11: rank on profit marked
+ *  to market), but it reports them, so a visitor can tell a lucky big bet
+ *  from a consistently well-calibrated forecaster. */
+export interface CalibrationStats {
+  calibration: number | null;
+  accuracy: number | null;
+  resolvedMarkets: number;
+}
+
+/**
+ * Shares-weighted mean payout factor (calibration) and win rate (accuracy)
+ * over resolved, non-voided markets. Callers pass only resolved markets and
+ * the positions still held on them; voided markets must be filtered out
+ * upstream (this function trusts its input).
+ */
+export function computeCalibrationStats(
+  resolvedMarkets: LeaderboardMarket[],
+  positionsList: LeaderboardPosition[],
+): Map<string, CalibrationStats> {
+  const factorsByKey = new Map<string, [number, number]>();
+  for (const m of resolvedMarkets) {
+    if (!m.resolved || m.actualValue === null) continue;
+    const actual = Math.min(m.actualValue, m.rangeMax);
+    factorsByKey.set(marketKey(m.workspaceId, m.id), resolutionPayouts(actual, m.rangeMin, m.rangeMax));
+  }
+  const acc = new Map<string, { weightSum: number; weightedFactor: number; correct: number; n: number; markets: Set<string> }>();
+  for (const p of positionsList) {
+    if (p.shares <= 0) continue;
+    const k = marketKey(p.workspaceId, p.marketId);
+    const factors = factorsByKey.get(k);
+    if (!factors) continue;
+    const factor = p.direction === 'higher' ? factors[1] : factors[0];
+    let s = acc.get(p.agentId);
+    if (!s) { s = { weightSum: 0, weightedFactor: 0, correct: 0, n: 0, markets: new Set() }; acc.set(p.agentId, s); }
+    s.weightSum += p.shares;
+    s.weightedFactor += p.shares * factor;
+    s.n += 1;
+    s.markets.add(k);
+    if (factor > 0.5) s.correct += 1;
+  }
+  const out = new Map<string, CalibrationStats>();
+  for (const [id, s] of acc) {
+    out.set(id, {
+      calibration: s.weightSum > 0 ? s.weightedFactor / s.weightSum : null,
+      accuracy: s.n > 0 ? s.correct / s.n : null,
+      resolvedMarkets: s.markets.size,
+    });
+  }
+  return out;
 }
 
 export interface LeaderboardEntry {

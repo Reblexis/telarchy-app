@@ -343,9 +343,8 @@ the save. The stored object lives in `agents.payout_method`; its
 human-readable summary is derived into `agents.payout_handle`, which is
 what paid-job proposals snapshot. The board is signed-in
 only; the anonymous poster stays clean. On viewports >=1120px the page
-becomes the trading floor proper: a three-column grid with the top-traders
-rail on the left (public /api/leaderboard: rank, nickname-or-id, earnings
-in cr or trade count; never-traded rows skipped, five shown) and the action log on the right (composed
+becomes the trading floor proper: a three-column grid with the leaders
+rail on the left and the action log on the right (composed
 client-side from the public payload: new jobs, approve/decline decisions
 color-coded --higher/--lower, and market moves; newest first, capped at
 12). Both rails render for both tiers, hide entirely when empty, sit
@@ -363,6 +362,43 @@ links a forecaster can audit without trusting this page: the data room
 ("the product, as players see it"), and SteamDB ("third-party sales
 estimates"). Mono names with hairline underlines that warm to the accent;
 external, new tab.
+
+**Both leaderboards rank on what the market says right now, not on what
+has settled (owner direction 2026-08-14, Viktor).** The rail stacks two
+blocks, traders then contractors, five rows each; both update on the
+floor's five-second poll, so a single trade reorders them without a
+reload.
+
+- **Top traders** rank by trading profit marked to market: payouts
+  collected on resolved markets, plus the current worth of every open
+  position (shares x the market's live consensus factor), minus the net
+  cash paid for those positions (sells count negative). An unresolved
+  position counts the moment its price moves; nothing waits for
+  resolution. The number is measured off the trades, not off the balance,
+  so credits the platform handed an account never enter it. **No account
+  is excluded (owner direction 2026-08-14, Viktor: "maybe the bug is that
+  it doesn't count admin into traders").** This replaces the 2026-08-11
+  rule, which ranked balance-minus-grant and therefore had to strike the
+  owner and the market maker off by name to keep operator credits from
+  topping the board; that exclusion was deleting the floor's most active
+  traders. Anyone who has ever traded in a public workspace is on the
+  board, including participants whose markets were later voided or
+  deleted: their trades stay visible and their profit reads zero, because
+  a void refunds both sides. The row shows the signed profit in credits.
+- **Top contractors** rank by the market's current valuation of the jobs
+  they posted, NOT by dollars collected. A job's value is its priced
+  impact: the approved branch's consensus minus the declined branch's, on
+  the workspace's hero metric (the soonest-resolving baseline market's
+  metric), taking the largest-magnitude horizon when a job is priced on
+  several. Pending and approved jobs both count, so a job posted minutes
+  ago scores as soon as anyone prices it; declined, withdrawn, and removed
+  jobs count zero, because the work never happens. A job the market has
+  not priced yet contributes zero rather than dropping its poster from the
+  board. The score is signed and carried in the hero metric's own unit
+  (a job the market thinks hurts the number reads negative); dollars
+  earned on approved jobs drop to the row's second line, alongside the job
+  count. House accounts are NOT excluded here: a contractor's score is
+  priced by other people, so it cannot be self-granted.
 
 Below the floor (outside the rails column) sits the about section
 (`.pubws-about`, owner direction 2026-08-10): three drawings in the

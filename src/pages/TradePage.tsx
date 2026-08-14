@@ -492,7 +492,7 @@ export function TradePage() {
     <div className="pubws pubws--center">
       <TopBar user={!!user} ready={!authLoading} />
       <main className="pubws-main pubws-main--floor">
-        <LeaderboardRail entries={leaders} contractors={ws?.topContractors} />
+        <LeaderboardRail entries={leaders} contractors={ws?.topContractors} unit={unit} />
         <div className="pubws-center">
         {hero && active && consensus !== null && (
           <section className="pubws-instrument" aria-label="The market">

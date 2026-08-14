@@ -11,6 +11,7 @@ import { periodEndInstant, resolutionInstant } from '../lib/date-utils';
 import { ensureSystemGroups } from './groups';
 import { getGroupMemberIds, getOwnerHandles, getParticipantDisplayNames } from '../lib/participants';
 import { SIGNUP_CREDITS } from '../lib/validation';
+import { computeContractors, type ContractorEntry, type ContractorJobPair } from '../lib/contractors';
 
 export const marketplaceRouter = Router();
 
@@ -368,9 +369,9 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
   // charter accountability on display). Workspaces whose Public group lacks
   // `read` keep the counts-only boundary.
   let openProposals: Array<Record<string, unknown>> | undefined;
-  // Top contractors: participants ranked by the real USD they have earned
-  // from jobs the owner approved (the other side of the economy from traders).
-  let topContractors: Array<{ id: string; name: string | null; earnedUsd: number; jobs: number }> | undefined;
+  // Top contractors: the other side of the economy from traders, ranked by
+  // the market's live valuation of the jobs they posted (see lib/contractors).
+  let topContractors: ContractorEntry[] | undefined;
   // Trader context, same Open-workspace disclosure rule as the ballot: the
   // hero metric's logged history (what a forecaster prices against), its
   // description (the owner's provenance statement: where the number comes
@@ -539,26 +540,70 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
       return bt - at;
     });
 
-    // Contractors: sum the real USD of every APPROVED job per proposer,
-    // ranked. Declined jobs earn nothing (their stake was refunded), so only
-    // approved counts. Empty until the owner approves the first job.
-    const contractorAgg = await db.select({
+    // Contractors rank on the market's CURRENT valuation of the jobs they
+    // posted, not on dollars collected (owner direction 2026-08-14): a job
+    // posted minutes ago counts the moment anyone prices it. Live jobs are
+    // pending + approved; a declined job's forecast was about an action
+    // nobody will take, so it scores nothing. Scored over every live job in
+    // the workspace, not just the 40 the ballot ships.
+    const liveJobs = await db.select({
+      id: proposals.id,
       proposedBy: proposals.proposedBy,
-      earnedUsd: sql<number>`coalesce(sum(${proposals.askUsd}), 0)::float`,
-      jobs: sql<number>`count(*)::int`,
-    })
-      .from(proposals)
-      .where(and(eq(proposals.workspaceId, workspaceId), eq(proposals.status, 'approved')))
-      .groupBy(proposals.proposedBy)
-      .orderBy(desc(sql`coalesce(sum(${proposals.askUsd}), 0)`))
-      .limit(5);
-    const contractorNames = await getParticipantDisplayNames(contractorAgg.map(c => c.proposedBy));
-    topContractors = contractorAgg.map(c => ({
-      id: c.proposedBy,
-      name: contractorNames.get(c.proposedBy) ?? null,
-      earnedUsd: c.earnedUsd,
-      jobs: c.jobs,
-    }));
+      status: proposals.status,
+      askUsd: proposals.askUsd,
+    }).from(proposals).where(and(
+      eq(proposals.workspaceId, workspaceId),
+      inArray(proposals.status, ['pending', 'approved']),
+    ));
+    const liveJobIds = liveJobs.map(j => j.id);
+    // Voided branch markets are included on purpose: approving a job voids
+    // its declined branch, and that branch's last price is exactly what the
+    // impact was measured against. The row keeps its final shares/liquidity,
+    // so consensus() still answers.
+    const liveJobMarkets = liveJobIds.length
+      ? await db.select({
+          proposalId: markets.proposalId,
+          branch: markets.branch,
+          metricId: markets.metricId,
+          targetDate: markets.targetDate,
+          shares: markets.shares,
+          liquidity: markets.liquidity,
+          rangeMin: markets.rangeMin,
+          rangeMax: markets.rangeMax,
+        }).from(markets).where(and(
+          eq(markets.workspaceId, workspaceId),
+          inArray(markets.proposalId, liveJobIds),
+        ))
+      : [];
+    const pairsByJob = new Map<string, Map<string, ContractorJobPair>>();
+    for (const m of liveJobMarkets) {
+      if (!m.proposalId || !m.branch) continue;
+      const c = consensus((m.shares as [number, number]) || [0, 0], m.liquidity, m.rangeMin, m.rangeMax) ?? null;
+      const groups = pairsByJob.get(m.proposalId) ?? new Map<string, ContractorJobPair>();
+      const key = `${m.metricId}|${m.targetDate}`;
+      const pair: ContractorJobPair = groups.get(key)
+        ?? { metricId: m.metricId, targetDate: m.targetDate, approvedConsensus: null, declinedConsensus: null };
+      if (m.branch === 'approved') pair.approvedConsensus = c;
+      else if (m.branch === 'declined') pair.declinedConsensus = c;
+      groups.set(key, pair);
+      pairsByJob.set(m.proposalId, groups);
+    }
+    // The hero metric is the one the floor's chart is showing (soonest
+    // resolving baseline market), so every contractor score is in one unit.
+    const heroMetricId = (marketList[0]?.metricId as string | undefined) ?? null;
+    const contractorNames = await getParticipantDisplayNames(liveJobs.map(j => j.proposedBy));
+    topContractors = computeContractors(
+      liveJobs.map(j => ({
+        proposalId: j.id,
+        proposedBy: j.proposedBy,
+        status: j.status,
+        askUsd: j.askUsd ?? null,
+        pairs: [...(pairsByJob.get(j.id)?.values() ?? [])],
+      })),
+      heroMetricId,
+      contractorNames,
+      5,
+    );
   }
 
   // Platform-wide count of completed Manifold imports. Public on purpose: a

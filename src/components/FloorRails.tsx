@@ -23,7 +23,32 @@ function timeAgo(t: number): string {
   return `${Math.round(hours / 24)}d`;
 }
 
-export function LeaderboardRail({ entries: all, contractors }: { entries: LeaderboardEntry[]; contractors?: PublicContractor[] }) {
+/** The contractor score, in the hero metric's own unit. Same shape as the
+ *  job impact chip on the poster, so the rail and the job agree. */
+function formatImpact(value: number, unit: string): string {
+  const abs = Math.abs(value);
+  const decimals = abs >= 100 ? 0 : abs >= 1 ? 1 : 2;
+  const num = abs.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  return `${value > 0 ? '+' : value < 0 ? '-' : ''}${unit}${num}`;
+}
+
+/** The row's second line: how many jobs are behind the score and what the
+ *  owner has actually paid for them. Dollars stopped being the ranking key
+ *  on 2026-08-14, so they live here instead of in the score slot. */
+function contractorSubline(c: PublicContractor): string {
+  const parts = [`${c.jobs} ${c.jobs === 1 ? 'job' : 'jobs'}`];
+  if (c.pendingJobs > 0) parts.push(`${c.pendingJobs} live`);
+  if (c.earnedUsd > 0) parts.push(`$${Math.round(c.earnedUsd).toLocaleString('en-US')} earned`);
+  return parts.join(' · ');
+}
+
+export function LeaderboardRail({ entries: all, contractors, unit = '' }: {
+  entries: LeaderboardEntry[];
+  contractors?: PublicContractor[];
+  /** The hero metric's currency prefix ('$' or ''), so a contractor's priced
+   *  impact reads in the same unit as the market above it. */
+  unit?: string;
+}) {
   // A row for someone who has never traded is a name and a zero: noise.
   const entries = all.filter(e => e.totalTrades > 0).slice(0, 5);
   const hasTraders = entries.length > 0;
@@ -76,21 +101,39 @@ export function LeaderboardRail({ entries: all, contractors }: { entries: Leader
               {contractors!.map((c, i) => {
                 const name = c.name || 'anonymous';
                 const initial = name.replace(/^@/, '')[0]?.toUpperCase() ?? '?';
+                // The score is what the market currently says this poster's
+                // jobs are worth. Unpriced jobs say so rather than printing a
+                // confident zero; a workspace with no hero market to price
+                // against falls back to dollars.
+                const scored = c.impact !== null && c.pricedJobs > 0;
                 return (
                   <li key={c.id} className="pubws-lb-row">
                     <span className="pubws-lb-rank">{i + 1}</span>
                     <a className="pubws-lb-who pubws-name-link" href={`/participants/${encodeURIComponent(c.id)}`}>
                       <span className="pubws-lb-avatar"><span>{initial}</span></span>
-                      <span className="pubws-lb-name">{name}</span>
+                      <span className="pubws-lb-stack">
+                        <span className="pubws-lb-name">{name}</span>
+                        <span className="pubws-lb-sub">{contractorSubline(c)}</span>
+                      </span>
                     </a>
-                    {/* Real dollars earned doing jobs, the other way to win here. */}
-                    <span className="pubws-lb-score is-up">${Math.round(c.earnedUsd).toLocaleString('en-US')}</span>
+                    {scored ? (
+                      <span
+                        className={`pubws-lb-score${c.impact! > 0 ? ' is-up' : c.impact! < 0 ? ' is-down' : ''}`}
+                        title="What the market says this contractor's jobs are worth: approved minus declined, summed over their live jobs."
+                      >
+                        {c.impact! >= 0 ? '▲' : '▼'} {formatImpact(c.impact!, unit)}
+                      </span>
+                    ) : c.impact === null ? (
+                      <span className="pubws-lb-score is-up">${Math.round(c.earnedUsd).toLocaleString('en-US')}</span>
+                    ) : (
+                      <span className="pubws-lb-score pubws-lb-score--muted">not priced yet</span>
+                    )}
                   </li>
                 );
               })}
             </ol>
           ) : (
-            <p className="pubws-lb-empty">No paid jobs yet. Get a job approved to earn.</p>
+            <p className="pubws-lb-empty">No jobs on the board yet. Post one and the market prices what it is worth.</p>
           )}
         </section>
       )}

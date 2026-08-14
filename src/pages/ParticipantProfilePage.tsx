@@ -6,7 +6,9 @@ import { ManifoldLogo } from '../components/ManifoldLogo';
 
 /**
  * A participant's public profile, reworked to be a profile (owner
- * direction 2026-08-11): a picture, a handle, one earnings number, and
+ * direction 2026-08-11): a picture, a handle, one profit number (the same
+ * trading profit marked to current market prices the leaderboard ranks on,
+ * so the two agree; owner direction 2026-08-14), and
  * the three things that matter about a trader here, their positions,
  * their recent trades, and the jobs they proposed. The calibration /
  * accuracy / resolved-markets / sub-agent / balance-chart clutter is
@@ -158,7 +160,7 @@ export function ParticipantProfilePage() {
                 <p className="prof-earned">
                   <span className={profile.stats.totalEarnings >= 0 ? 'is-up' : 'is-down'}>
                     {fmtCr(profile.stats.totalEarnings)} cr
-                  </span>{' '}earned
+                  </span>{' '}profit
                 </p>
                 {profile.bio && <p className="prof-bio">{profile.bio}</p>}
               </div>

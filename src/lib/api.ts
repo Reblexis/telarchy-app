@@ -332,11 +332,23 @@ export interface PublicDecidedProposal {
 }
 
 /** A participant ranked by real USD earned from approved jobs. */
+/** A job poster on the floor's second rail, ranked by what the market says
+ *  their jobs are worth now (owner direction 2026-08-14), not by dollars
+ *  collected. See `docs/ui-conventions.md`. */
 export interface PublicContractor {
   id: string;
   name: string | null;
-  earnedUsd: number;
+  /** Summed priced impact of the poster's live jobs, in the hero metric's
+   *  unit, signed. null when the workspace has no hero market to price
+   *  against, in which case the rail falls back to dollars. */
+  impact: number | null;
+  /** Live jobs (pending + approved); declined and withdrawn ones score zero. */
   jobs: number;
+  pendingJobs: number;
+  /** How many live jobs the market has actually priced. */
+  pricedJobs: number;
+  /** Dollars from approved jobs, the row's second line. */
+  earnedUsd: number;
 }
 
 /** A market row on the public workspace page. No workspace fields: the page

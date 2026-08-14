@@ -8,9 +8,9 @@ timeout: 60s
 goal-horizon: short
 goal-statement: |
   As a cold visitor reaching `/leaderboard` via a share link or persona-10
-  refugee browsing, I see the participant ranking with calibration scores,
-  the page is anonymous-readable, and the page links me to a way to register
-  my own AI participant.
+  refugee browsing, I see participants ranked by trading profit at current
+  market prices, the page is anonymous-readable, and the page links me to a
+  way to register my own AI participant.
 ---
 
 # Browse test: Public participant leaderboard
@@ -18,17 +18,20 @@ goal-statement: |
 ## What this tests
 
 The cold-visitor view of `/leaderboard`: the cross-workspace ranking by
-calibration score, anonymous accessibility, and the path-to-register CTA.
+trading profit marked to current market prices (owner direction 2026-08-14;
+calibration and accuracy are reported per row but are not the ranking key),
+anonymous accessibility, and the path-to-register CTA.
 
 Maps to `docs/outreach/concierge/program.md` (CP1 stage 1) and persona 10
 (`docs/personas/10-polymarket-refugee.md` "looks for a leaderboard").
 
 ## Preconditions
 
-- At least one workspace with `visibility: public` and at least one resolved
-  market with positions on it. Verify:
+- At least one workspace with `visibility: public` and at least one
+  participant who has traded in it. Verify:
   `curl -s "$API_URL/api/leaderboard?limit=5" | jq '.participants | length'`
-  is ≥ 1, with at least one entry having `calibration` non-null.
+  is ≥ 1. Calibration is only non-null once a market has resolved, so it is
+  not a precondition.
 - No prior session cookies (the spec runs fully anonymous).
 
 ## Setup
@@ -49,11 +52,11 @@ $B screenshot "/tmp/$TT_NS-leaderboard-anonymous.png"
 
 **Steps:**
 1. `$B text`
-2. Grep for "Leaderboard" (h1) and "calibration".
+2. Grep for "Leaderboard" (h1) and "trading profit".
 
 **Expected:** Both strings present. No login wall.
 
-### T2. Top row shows a ranked participant with a calibration score
+### T2. Top row shows a ranked participant with a profit number
 
 **Steps:**
 1. `$B snapshot -i`
@@ -61,8 +64,22 @@ $B screenshot "/tmp/$TT_NS-leaderboard-anonymous.png"
 
 **Expected:**
 - The top row has rank `1`.
-- Calibration column shows a percentage (e.g. `72.4%`).
-- Accuracy and Earnings columns are populated (numeric, not `—`).
+- The Profit column shows a signed number, and it is the column the rows are
+  ordered by (row 1's profit >= row 2's).
+- Calibration and Accuracy show percentages on any participant with a
+  resolved market and `—` otherwise; they never reorder the table.
+
+### T2b. The board counts unresolved positions and every account
+
+**Steps:**
+1. `curl -s "$API_URL/api/leaderboard?limit=100" | jq '[.participants[] | select(.resolvedMarkets == 0 and .totalTrades > 0)] | length'`
+2. Compare `.participants | length` against the number of distinct participants
+   with trades in public workspaces.
+
+**Expected:** Step 1 returns >= 1 whenever anyone holds only open positions
+(profit is marked to market, so they are ranked, not withheld). Step 2 matches:
+no account is filtered out, house/Admin-group accounts included (revised
+2026-08-14; the old rule excluded them and emptied the board).
 
 ### T3. Top 10 rows fit above the fold at 1440x900
 
@@ -88,8 +105,8 @@ $B screenshot "/tmp/$TT_NS-leaderboard-anonymous.png"
 2. `$B reload && $B wait --networkidle`
 3. `$B js "document.documentElement.scrollWidth > window.innerWidth"`
 
-**Expected:** JS check returns `false` (no horizontal overflow). Calibration
-column still visible; accuracy column may be hidden by the responsive rule.
+**Expected:** JS check returns `false` (no horizontal overflow). The Profit
+column stays visible; accuracy column may be hidden by the responsive rule.
 
 ### T6. API endpoint shape
 
@@ -107,5 +124,7 @@ None — this spec only reads.
 
 - No assertion on tie-breaking semantics under live data (covered by the
   unit test at `functions/src/__tests__/leaderboard.test.ts`).
+- No assertion that the board re-renders on its 15s poll; only that the
+  numbers are correct when the page loads.
 - No assertion that the sidebar link points to `/leaderboard`; covered by
   signed-in flows rather than this anonymous spec.

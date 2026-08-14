@@ -9574,6 +9574,23 @@ textarea.jobform-line--desc {
 }
 .pubws-lb-manifold { flex: none; display: inline-flex; line-height: 0; }
 
+/* Contractor rows carry a second line (job count, dollars earned) under the
+   name: the score slot belongs to the market's valuation now, so the
+   dollars moved here. */
+.pubws-lb-stack {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+}
+.pubws-lb-sub {
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .pubws-lb-score {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.75rem;
@@ -9582,6 +9599,13 @@ textarea.jobform-line--desc {
 }
 .pubws-lb-score.is-up { color: var(--higher); }
 .pubws-lb-score.is-down { color: var(--lower); }
+/* A job nobody has priced yet: say so, quietly, instead of printing a zero
+   that reads as "the market thinks this is worthless". */
+.pubws-lb-score--muted {
+  font-family: inherit;
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+}
 
 .pubws-log-item {
   display: flex;

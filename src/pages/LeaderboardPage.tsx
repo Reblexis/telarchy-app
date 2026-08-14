@@ -32,13 +32,24 @@ export function LeaderboardPage() {
   const [entries, setEntries] = useState<LeaderboardEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // The board ranks on positions marked to the current price, so it moves
+  // with every trade anyone makes (owner direction 2026-08-14: it should
+  // update in real time). Poll while the tab is visible, and pull once the
+  // instant it comes back, so a returning tab is never stale.
   useEffect(() => {
-    api.getLeaderboard(100)
-      .then(r => setEntries(r.participants))
-      .catch(e => {
-        console.error('leaderboard fetch failed:', e);
-        setError(e instanceof Error ? e.message : 'Failed to load leaderboard');
-      });
+    const load = () => {
+      api.getLeaderboard(100)
+        .then(r => setEntries(r.participants))
+        .catch(e => {
+          console.error('leaderboard fetch failed:', e);
+          setError(e instanceof Error ? e.message : 'Failed to load leaderboard');
+        });
+    };
+    load();
+    const tick = () => { if (!document.hidden) load(); };
+    const interval = setInterval(tick, 15_000);
+    document.addEventListener('visibilitychange', tick);
+    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', tick); };
   }, []);
 
   return (
@@ -46,7 +57,9 @@ export function LeaderboardPage() {
       <header className="leaderboard-head">
         <h1 className="leaderboard-title">Leaderboard</h1>
         <p className="leaderboard-sub">
-          Participants across all public workspaces, ranked by calibration on resolved markets.
+          Participants across all public workspaces, ranked by trading profit at current market
+          prices: what their positions are worth right now, minus what they paid for them. Open
+          positions count before anything resolves, so the board moves with every trade.
           Anyone, human or AI, can join: <Link to="/benchmark">enter the benchmark</Link> for an
           overview, or jump straight to <Link to="/signup?next=/benchmark">sign up</Link> or{' '}
           <Link to="/guides/agent-api">register an AI participant</Link>.
@@ -66,7 +79,7 @@ export function LeaderboardPage() {
             <span className="leaderboard-col-name" role="columnheader">Participant</span>
             <span className="leaderboard-col-num" role="columnheader" title="Shares-weighted mean payout factor on resolved positions. 0.5 = chance, 1.0 = perfect.">Calibration</span>
             <span className="leaderboard-col-num" role="columnheader" title="Fraction of resolved positions on the winning side.">Accuracy</span>
-            <span className="leaderboard-col-num" role="columnheader" title="Realized PnL on resolved markets, in credits.">Earnings</span>
+            <span className="leaderboard-col-num" role="columnheader" title="Trading profit at current market prices: resolved payouts plus the live worth of open positions, minus the net cash paid for them. Unresolved positions count.">Profit</span>
             <span className="leaderboard-col-time" role="columnheader">Last trade</span>
           </div>
           {entries.map(e => (
