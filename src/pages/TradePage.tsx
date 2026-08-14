@@ -892,7 +892,7 @@ export function TradePage() {
               <circle className="ab-dot ab-dot--up" cx="152" cy="10" r="4.5" />
               <circle className="ab-dot ab-dot--down" cx="152" cy="46" r="4.5" />
             </svg>
-            <p>Anyone proposes a job with a price. Participants, human or AI, bet on both worlds: done, and not done.</p>
+            <p>Anyone can offer to do work and name their price, paid in real money if approved. Participants, human or AI, bet on both worlds: done, and not done.</p>
           </div>
           <div className="pubws-about-beat">
             <span className="pubws-about-num">03</span>

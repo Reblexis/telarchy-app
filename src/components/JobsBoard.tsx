@@ -6,7 +6,12 @@ import type { PublicProposal } from '../lib/api';
 /**
  * The jobs board: the proposal side of the trading floor, rendered for
  * signed-in participants (paid-jobs round 1, charter of 2026-08-09).
- * A proposal is a job with a price ("$80: I will ..."); its conditional
+ * A proposal is an OFFER TO DO WORK at a price ("$80: I will ..."), never a
+ * request for someone else to do it. Every label here has to carry that
+ * direction: a public reader asked "can i ask anything and you'll do it with
+ * my credits?" when the button said "Suggest a job" and the only money beside
+ * it was a credit cost. Credits are the anti-spam stake; the payout is USD to
+ * the proposer. Its conditional
  * pair prices what happens to the metric if the money is sent.
  *
  * One number per job (owner decision 2026-08-09: as few numbers as
@@ -173,7 +178,7 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
                           )
                           : <span>by {p.proposedByName}</span>
                       )}
-                      {askUsd !== null && <span>asks ${askUsd}</span>}
+                      {askUsd !== null && <span>${askUsd} to them</span>}
                       {p.status && p.status !== 'pending' && (
                         <span className={`pubws-ballot-status is-${p.status}`}>{p.status}</span>
                       )}
@@ -201,12 +206,12 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
           className="pubws-propose-cta"
           onClick={() => (signedIn ? setFormOpen(true) : onRequireSignup())}
         >
-          + Suggest a job
+          + Offer to do a job
         </button>
         {/* Surface the stake on the board itself, not only inside the form:
             posting costs 500 cr and pays 1,000 cr back if the owner approves,
             so a new signup (1,000 free cr) can afford it and see the upside. */}
-        <p className="pubws-propose-cost">500&nbsp;cr to post&nbsp;· 1,000&nbsp;cr back if approved</p>
+        <p className="pubws-propose-cost">Approved means <strong>you are paid in real money</strong>. Costs 500&nbsp;cr to post, 1,000&nbsp;cr back if approved.</p>
       </div>
 
       {/* The form is the ticket's structure, not just its underlines
@@ -215,11 +220,11 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
           facts table, and color only speaks as state, red for errors and
           green for the placed flash. Escape and the backdrop close. */}
       {formOpen && (
-        <FloorModal onClose={() => setFormOpen(false)} label="Suggest a job">
+        <FloorModal onClose={() => setFormOpen(false)} label="Offer to do a job">
           <div className="jobform">
             <div className="ticket-head jobform-head">
               <div className="jobform-askblock">
-                <p className="ticket-label">Ask</p>
+                <p className="ticket-label">Your price, paid to you in USD</p>
                 <label className="ticket-amt ticket-amt--price jobform-ask">
                   <span className="ticket-amt-unit">$</span>
                   <input
@@ -276,7 +281,7 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
               onClick={() => void submit()}
             >
               {placed ? 'Added to ballot' : formBusy ? 'Submitting…' : formValid && askNum > 0 ? `Suggest job for $${askNum}` : 'Suggest job'}
-              {!placed && <span className="ticket-go-sub">500&nbsp;cr to post&nbsp;· 1,000&nbsp;cr back if approved</span>}
+              {!placed && <span className="ticket-go-sub">Approved means you are paid in real money. 500&nbsp;cr to post, 1,000&nbsp;cr back if approved.</span>}
             </button>
           </div>
         </FloorModal>
