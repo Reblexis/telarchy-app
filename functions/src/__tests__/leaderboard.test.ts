@@ -347,10 +347,11 @@ describe('computeCalibrationStats', () => {
  *  reports, shared so the two can never disagree (owner direction
  *  2026-08-14). */
 describe('computeTradingProfit', () => {
-  const pm = (o: Partial<LeaderboardMarket> & { shares?: [number, number]; liquidity?: number }) => ({
+  const pm = (o: Partial<LeaderboardMarket> & { shares?: [number, number]; liquidity?: number; voided?: boolean }) => ({
     ...m(o),
     shares: o.shares ?? ([0, 0] as [number, number]),
     liquidity: o.liquidity ?? 100,
+    voided: o.voided ?? false,
   });
 
   test('an open position counts at the live price, before anything resolves', () => {
@@ -383,10 +384,47 @@ describe('computeTradingProfit', () => {
     expect(profit.get('kai')).toBe(-25); // 10 - 35
   });
 
-  test('a trader whose markets all voided reads exactly zero, not a loss', () => {
-    // Voided markets are excluded upstream from BOTH sides: no market row
-    // here, and the caller's net cash excludes them too.
-    const profit = computeTradingProfit([], new Map([['kai', 0]]), []);
+  test('a plain buy on a market that voided reads exactly zero, not a loss', () => {
+    // Bought 100 shares for 60; the void refunded the basis.
+    const profit = computeTradingProfit(
+      [pm({ voided: true, resolved: true, actualValue: null })],
+      new Map([['kai', 60]]),
+      [p({ agentId: 'kai', shares: 100, totalCost: 60 })],
+    );
+    expect(profit.get('kai')).toBe(0);
+  });
+
+  test('selling before a void keeps the proceeds, because the void still refunds the basis', () => {
+    // Bought for 60, sold half back for 25 (net cash 35), then the market
+    // was cancelled and refunded the FULL 60 basis (voidMarket credits
+    // positions.totalCost, and selling never reduces that field). The
+    // trader really is 25 ahead; reporting 0 would be wrong.
+    const profit = computeTradingProfit(
+      [pm({ voided: true, resolved: true, actualValue: null })],
+      new Map([['kai', 35]]),
+      [p({ agentId: 'kai', shares: 50, totalCost: 60 })],
+    );
+    expect(profit.get('kai')).toBe(25);
+  });
+
+  test('a position sold out entirely before a void still counts its refund', () => {
+    // shares 0, basis 10: the void refunds the 10 anyway, so this is +10.
+    const profit = computeTradingProfit(
+      [pm({ voided: true, resolved: true, actualValue: null })],
+      new Map([['kai', 0]]),
+      [p({ agentId: 'kai', shares: 0, totalCost: 10 })],
+    );
+    expect(profit.get('kai')).toBe(10);
+  });
+
+  test('a voided market is never valued at a price', () => {
+    // Even though the row still carries shares and a range, a cancelled
+    // market pays its refund, not 100 shares x some factor.
+    const profit = computeTradingProfit(
+      [pm({ voided: true, resolved: true, actualValue: null, shares: [0, 400], liquidity: 100 })],
+      new Map([['kai', 60]]),
+      [p({ agentId: 'kai', direction: 'higher', shares: 100, totalCost: 60 })],
+    );
     expect(profit.get('kai')).toBe(0);
   });
 

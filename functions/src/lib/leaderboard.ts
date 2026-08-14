@@ -23,6 +23,11 @@ export interface LeaderboardPosition {
   marketId: string;
   direction: string;
   shares: number;
+  /** Gross cost paid into this position. Only the profit formula reads it,
+   *  and only on voided markets, where it IS the refund: voidMarket credits
+   *  positions.totalCost back and never touches shares, so a position that
+   *  was partly or wholly sold before the void still refunds its full basis. */
+  totalCost?: number;
 }
 
 /** Per-agent trade aggregates, computed in SQL so the route never loads the
@@ -39,11 +44,13 @@ export interface LeaderboardTradeAggregate {
   costOnResolved: number;
 }
 
-/** A market as the profit formula needs to see it: enough to say what one
- *  share is worth right now, whether it has resolved or not. */
+/** A market as the profit formula needs to see it: enough to say what a
+ *  holding is worth right now, whether it is open, resolved, or voided. */
 export interface ProfitMarket extends LeaderboardMarket {
   shares: [number, number] | null;
   liquidity: number;
+  /** Voided markets pay their holders back at cost instead of at a price. */
+  voided: boolean;
 }
 
 /**
@@ -72,11 +79,20 @@ export function currentPayoutFactors(m: ProfitMarket): [number, number] | null {
  *
  *   profit = what the positions are worth now - net cash paid for them
  *
- * "Worth now" is the resolution payout on resolved markets and the live
- * price on open ones, so an unresolved position counts the moment its price
- * moves. Net cash comes from the trade rows (sells are stored negative), so
- * the result never includes credits the platform granted, which is what
- * lets house accounts be ranked beside everyone else instead of excluded.
+ * "Worth now" is the resolution payout on resolved markets, the live price
+ * on open ones, and the REFUND on voided ones, so an unresolved position
+ * counts the moment its price moves and a cancelled market counts what it
+ * actually paid back. Net cash comes from the trade rows (sells are stored
+ * negative), so the result never includes credits the platform granted,
+ * which is what lets house accounts be ranked beside everyone else instead
+ * of excluded.
+ *
+ * Voiding is why this cannot simply skip cancelled markets. A void refunds
+ * positions.totalCost, the GROSS cost paid in, and selling never reduces
+ * that field, so a trader who sold half a position and was then refunded
+ * the whole basis really did end up ahead. Dropping voided markets from
+ * both sides reports that trader as flat; counting the refund as value
+ * against the net cash they paid reports what the ledger actually did.
  */
 export function computeTradingProfit(
   marketsList: ProfitMarket[],
@@ -84,14 +100,26 @@ export function computeTradingProfit(
   positionsList: LeaderboardPosition[],
 ): Map<string, number> {
   const factorsByKey = new Map<string, [number, number]>();
+  const voidedKeys = new Set<string>();
   for (const m of marketsList) {
+    const key = marketKey(m.workspaceId, m.id);
+    if (m.voided) { voidedKeys.add(key); continue; }
     const factors = currentPayoutFactors(m);
-    if (factors) factorsByKey.set(marketKey(m.workspaceId, m.id), factors);
+    if (factors) factorsByKey.set(key, factors);
   }
   const valueByAgent = new Map<string, number>();
   for (const p of positionsList) {
+    const key = marketKey(p.workspaceId, p.marketId);
+    // A voided position is worth its refund, whatever is left of it: the
+    // shares are meaningless after a cancel, and a fully sold-out position
+    // still had its basis returned.
+    if (voidedKeys.has(key)) {
+      const refund = p.totalCost ?? 0;
+      if (refund > 0) valueByAgent.set(p.agentId, (valueByAgent.get(p.agentId) ?? 0) + refund);
+      continue;
+    }
     if (p.shares <= 0) continue;
-    const factors = factorsByKey.get(marketKey(p.workspaceId, p.marketId));
+    const factors = factorsByKey.get(key);
     if (!factors) continue;
     const factor = p.direction === 'higher' ? factors[1] : factors[0];
     valueByAgent.set(p.agentId, (valueByAgent.get(p.agentId) ?? 0) + p.shares * factor);

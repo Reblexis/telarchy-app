@@ -60,11 +60,9 @@ leaderboardRouter.get('/', wrap(async (req, res) => {
   if (publicWs.length === 0) { res.json({ participants: [] }); return; }
   const publicWsIds = publicWs.map(w => w.id);
 
-  // Every non-voided market in a public workspace, resolved or not: enough
-  // to price one share of each direction (currentPayoutFactors picks the
-  // resolution payout or the live call). Voided markets are left out of BOTH
-  // halves of the formula, since the refund cancelled the cash and the claim
-  // together.
+  // Every market in a public workspace, whatever state it is in: enough to
+  // say what a holding is worth (currentPayoutFactors picks the resolution
+  // payout or the live call; a voided market pays its refund instead).
   const marketRows = await db.select({
     id: markets.id,
     workspaceId: markets.workspaceId,
@@ -74,10 +72,8 @@ leaderboardRouter.get('/', wrap(async (req, res) => {
     actualValue: markets.actualValue,
     shares: markets.shares,
     liquidity: markets.liquidity,
-  }).from(markets).where(and(
-    inArray(markets.workspaceId, publicWsIds),
-    eq(markets.voided, false),
-  ));
+    voided: markets.voided,
+  }).from(markets).where(inArray(markets.workspaceId, publicWsIds));
   const profitMarkets: ProfitMarket[] = marketRows.map(m => ({
     id: m.id,
     workspaceId: m.workspaceId,
@@ -87,7 +83,10 @@ leaderboardRouter.get('/', wrap(async (req, res) => {
     actualValue: m.actualValue,
     shares: (m.shares as [number, number] | null) ?? null,
     liquidity: m.liquidity,
+    voided: m.voided,
   }));
+  // Calibration is about markets that produced an answer, so voided ones
+  // (actualValue null by construction) never reach it.
   const resolvedMarkets = profitMarkets.filter(m => m.resolved && m.actualValue !== null);
 
   // Who has traded, and when they last did. Deliberately NOT joined to
@@ -104,11 +103,13 @@ leaderboardRouter.get('/', wrap(async (req, res) => {
     .where(inArray(trades.workspaceId, publicWsIds))
     .groupBy(trades.agentId);
 
-  // Net cash each agent put into markets that still exist and were not
-  // voided: the cost basis of the profit formula. Sells are stored with
-  // negative cost, so the sum is money in minus money already taken back
-  // out. Aggregated in SQL; the raw trades table (348k rows and growing)
-  // must never come into this process.
+  // Net cash each agent put into markets that still exist: the cost basis of
+  // the profit formula. Sells are stored with negative cost, so the sum is
+  // money in minus money already taken back out. Voided markets are counted
+  // on this side too, because the value side counts their refund; the join
+  // only drops trades whose market row is gone, which nothing can value.
+  // Aggregated in SQL; the raw trades table (348k rows and growing) must
+  // never come into this process.
   const costAggs = await db.select({
     agentId: trades.agentId,
     netCash: sql<number>`coalesce(sum(${trades.cost}), 0)::float`,
@@ -117,31 +118,26 @@ leaderboardRouter.get('/', wrap(async (req, res) => {
       eq(markets.id, trades.marketId),
       eq(markets.workspaceId, trades.workspaceId),
     ))
-    .where(and(
-      inArray(trades.workspaceId, publicWsIds),
-      eq(markets.voided, false),
-    ))
+    .where(inArray(trades.workspaceId, publicWsIds))
     .groupBy(trades.agentId);
 
-  // Every position still held on a market that can be valued, resolved or
-  // open. One row per (agent, market), so this stays bounded as trade
-  // history grows.
+  // Every position on a market that can be valued. Sold-out rows (shares 0)
+  // are kept on purpose: on a voided market they still refunded their basis,
+  // and the formula skips them everywhere else. One row per (agent, market),
+  // so this stays bounded as trade history grows.
   const positionRows = await db.select({
     agentId: positions.agentId,
     workspaceId: positions.workspaceId,
     marketId: positions.marketId,
     direction: positions.direction,
     shares: positions.shares,
+    totalCost: positions.totalCost,
   }).from(positions)
     .innerJoin(markets, and(
       eq(markets.id, positions.marketId),
       eq(markets.workspaceId, positions.workspaceId),
     ))
-    .where(and(
-      inArray(positions.workspaceId, publicWsIds),
-      eq(markets.voided, false),
-      gt(positions.shares, 0),
-    ));
+    .where(inArray(positions.workspaceId, publicWsIds));
 
   const netCashById = new Map(costAggs.map(c => [c.agentId, Number(c.netCash)]));
   const profitById = computeTradingProfit(profitMarkets, netCashById, positionRows);

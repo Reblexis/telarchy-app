@@ -433,24 +433,47 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
   let entry: typeof emptyStats | undefined;
   if (statsScope.length > 0) {
     const statsWsSet = new Set(statsScope);
-    const statsMarkets: ProfitMarket[] = wsMarkets
-      .filter(m => statsWsSet.has(m.workspaceId))
-      .map(m => ({
-        id: m.id,
-        workspaceId: m.workspaceId,
-        rangeMin: m.rangeMin,
-        rangeMax: m.rangeMax,
-        resolved: m.resolved,
-        actualValue: m.actualValue,
-        shares: (m.shares as [number, number] | null) ?? null,
-        liquidity: m.liquidity,
-      }));
+    // wsMarkets deliberately excludes voided markets (the detail lists below
+    // must not report a refunded position as open), but the profit formula
+    // needs them: a void pays the basis back, and a trader who sold before
+    // the cancel kept the proceeds. Fetch just the cancelled ones for stats.
+    const voidedMarkets = await db.select({
+      id: markets.id,
+      workspaceId: markets.workspaceId,
+      rangeMin: markets.rangeMin,
+      rangeMax: markets.rangeMax,
+      resolved: markets.resolved,
+      actualValue: markets.actualValue,
+      shares: markets.shares,
+      liquidity: markets.liquidity,
+    }).from(markets).where(and(
+      inArray(markets.workspaceId, statsScope),
+      eq(markets.voided, true),
+    ));
+    const statsMarkets: ProfitMarket[] = [
+      ...wsMarkets.filter(m => statsWsSet.has(m.workspaceId)).map(m => ({ ...m, voided: false })),
+      ...voidedMarkets.map(m => ({ ...m, voided: true })),
+    ].map(m => ({
+      id: m.id,
+      workspaceId: m.workspaceId,
+      rangeMin: m.rangeMin,
+      rangeMax: m.rangeMax,
+      resolved: m.resolved,
+      actualValue: m.actualValue,
+      shares: (m.shares as [number, number] | null) ?? null,
+      liquidity: m.liquidity,
+      voided: m.voided,
+    }));
     const statsTrades = tradeRows.filter(t => statsWsSet.has(t.workspaceId));
-    const statsPositions = positionRows.filter(p => statsWsSet.has(p.workspaceId) && p.shares > 0)
-      .map(p => ({ agentId: p.agentId, workspaceId: p.workspaceId, marketId: p.marketId, direction: p.direction, shares: p.shares }));
+    const statsPositions = positionRows.filter(p => statsWsSet.has(p.workspaceId))
+      .map(p => ({
+        agentId: p.agentId, workspaceId: p.workspaceId, marketId: p.marketId,
+        direction: p.direction, shares: p.shares, totalCost: p.totalCost,
+      }));
 
-    // Net cash per agent, counting only trades on markets that still exist
-    // and were not voided, exactly as the board's SQL aggregate does.
+    // Net cash per agent, counting every trade on a market that still
+    // exists (voided included, since the value side counts their refund),
+    // exactly as the board's SQL aggregate does.
     const marketByKey = new Set(statsMarkets.map(m => `${m.workspaceId}:${m.id}`));
     const netCashByAgent = new Map<string, number>();
     const tradeCountByAgent = new Map<string, number>();
@@ -465,8 +488,9 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
 
     const profitByAgent = computeTradingProfit(statsMarkets, netCashByAgent, statsPositions);
     const quality = computeCalibrationStats(
+      // Voided markets carry actualValue null, so they never reach here.
       statsMarkets.filter(m => m.resolved && m.actualValue !== null),
-      statsPositions,
+      statsPositions.filter(p => p.shares > 0),
     );
 
     // Rank among everyone with public activity, same ordering as the board:
