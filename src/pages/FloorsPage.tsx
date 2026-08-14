@@ -71,18 +71,25 @@ function MarketSpark({ history, consensus }: {
     .map(p => ({ t: new Date(p.at).getTime(), v: p.consensus as number }))
     .filter(p => Number.isFinite(p.t))
     .sort((a, b) => a.t - b.t);
-  const vals = [...pts.map(p => p.v), consensus];
-  // Breathing room above and below the extremes, so a line never runs along
-  // the card's edge and a market that has barely moved still draws through
-  // the middle instead of flat on the floor of the box.
-  const rawMin = Math.min(...vals), rawMax = Math.max(...vals);
-  const rawSpan = rawMax - rawMin || Math.abs(rawMax) * 0.1 || 1;
-  const vMin = rawMin - rawSpan * 0.35, vMax = rawMax + rawSpan * 0.35;
+  // Robust y domain, the same 5th-95th percentile rule the poster chart
+  // uses: one wild print (a market briefly taken to 150k) must not flatten
+  // every real move into a straight line. The live call always widens the
+  // domain rather than being clipped, and the padding keeps a quiet market
+  // drawing through the middle instead of along the box's edge.
+  const sorted = [...pts.map(p => p.v)].sort((a, b) => a - b);
+  const quantile = (q: number) =>
+    sorted[Math.min(sorted.length - 1, Math.max(0, Math.round((sorted.length - 1) * q)))];
+  const lo = sorted.length ? Math.min(quantile(0.05), consensus) : consensus;
+  const hi = sorted.length ? Math.max(quantile(0.95), consensus) : consensus;
+  const pad = (hi - lo || Math.abs(hi) * 0.1 || 1) * 0.35;
+  const vMin = lo - pad, vMax = hi + pad;
   const spanV = vMax - vMin;
+  // Excursions past the domain draw at the edge instead of off the card.
+  const clamp = (v: number) => Math.max(vMin, Math.min(vMax, v));
   const t0 = pts[0]?.t ?? 0;
   const t1 = Math.max(pts[pts.length - 1]?.t ?? 1, t0 + 1);
   const x = (t: number) => PAD + ((t - t0) / (t1 - t0)) * (W - PAD * 2 - 6);
-  const y = (v: number) => PAD + (1 - (v - vMin) / spanV) * (H - PAD * 2);
+  const y = (v: number) => PAD + (1 - (clamp(v) - vMin) / spanV) * (H - PAD * 2);
   const seq = pts.length > 0
     ? [...pts, { t: t1, v: consensus }]
     : [{ t: t0, v: consensus }, { t: t1, v: consensus }];

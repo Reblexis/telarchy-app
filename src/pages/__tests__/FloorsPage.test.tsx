@@ -39,11 +39,12 @@ const payload = {
 
 const renderPage = () => render(<MemoryRouter><FloorsPage /></MemoryRouter>);
 
+beforeEach(() => {
+  vi.mocked(api.getPublicWorkspaces).mockResolvedValue([listing] as never);
+  vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(payload as never);
+});
+
 describe('marketplace', () => {
-  beforeEach(() => {
-    vi.mocked(api.getPublicWorkspaces).mockResolvedValue([listing] as never);
-    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(payload as never);
-  });
 
   test('states the mechanism once, in plain words', async () => {
     renderPage();
@@ -89,5 +90,49 @@ describe('marketplace', () => {
     vi.mocked(api.getPublicWorkspaces).mockResolvedValue([] as never);
     renderPage();
     expect(await screen.findByText('List your own number')).toBeInTheDocument();
+  });
+});
+
+describe('the market spark', () => {
+  const yValuesOf = (container: HTMLElement): number[] => {
+    const d = container.querySelector('.mkt-spark-line')?.getAttribute('d') ?? '';
+    return [...d.matchAll(/[ML]\s*[\d.]+,([\d.]+)/g)].map(m => Number(m[1]));
+  };
+
+  test('one wild print does not flatten every real move (robust domain)', async () => {
+    // 73,600 -> 78,570 is the real story; the 150,000 print is a market
+    // briefly taken to the range ceiling and must not squash it.
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({
+      ...payload,
+      markets: [{ metricName: 'revenue (USD)', consensus: 78570, targetDate: '2026-08' }],
+      marketHistory: [
+        { at: '2026-08-11T06:00:00Z', consensus: 73600 },
+        { at: '2026-08-11T12:00:00Z', consensus: 150000 },
+        { at: '2026-08-12T06:00:00Z', consensus: 74500 },
+        { at: '2026-08-12T12:00:00Z', consensus: 76000 },
+        { at: '2026-08-13T06:00:00Z', consensus: 77300 },
+        { at: '2026-08-13T17:00:00Z', consensus: 78570 },
+      ],
+    } as never);
+    const { container } = renderPage();
+    await waitFor(() => expect(container.querySelector('.mkt-spark-line')).toBeTruthy());
+    const ys = yValuesOf(container);
+    const spread = Math.max(...ys) - Math.min(...ys);
+    // Without the robust domain the 150k print eats the whole box and the
+    // rest of the series collapses into a few pixels at the bottom.
+    expect(spread).toBeGreaterThan(20);
+  });
+
+  test('an untraded market draws one flat line, not an empty card', async () => {
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({
+      ...payload,
+      markets: [{ metricName: 'traders', consensus: 25, targetDate: '2026-08' }],
+      marketHistory: [],
+    } as never);
+    const { container } = renderPage();
+    await waitFor(() => expect(container.querySelector('.mkt-spark-line')).toBeTruthy());
+    const ys = yValuesOf(container);
+    expect(ys.length).toBeGreaterThan(0);
+    expect(Math.max(...ys) - Math.min(...ys)).toBe(0);
   });
 });
