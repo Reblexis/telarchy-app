@@ -4,10 +4,11 @@
  * Governed by docs/infra/self-sync.md (rebuilt 2026-08-14; the 2025-era
  * four-metric Firestore version died in the Postgres migration).
  *
- * The metric is "Weekly active participants": distinct participants, human
- * or AI, with a trade or a proposal in the trailing 7 days, across all
+ * The metric is "Weekly active verified traders": distinct participants who
+ * (a) have a Manifold account synced and (b) placed trades totalling at
+ * least 100 credits (abs cost) in the trailing 7 days, across all
  * workspaces. The value is read from GET /api/marketplace/stats
- * (weeklyActiveParticipants), which is public on purpose: the resolution
+ * (weeklyActiveVerifiedTraders), which is public on purpose: the resolution
  * source has to be readable by the people being asked to trust it, so the
  * sync adds no computation of its own and anyone can check the number.
  *
@@ -25,7 +26,7 @@
 const TELARCHY_URL = process.env.TELARCHY_URL || 'https://telarchy.com';
 const AGENT_KEY = process.env.TELARCHY_SELF_SYNC_KEY;
 const WORKSPACE_ID = process.env.TELARCHY_SELF_SYNC_WORKSPACE;
-const METRIC_NAME = 'Weekly active participants';
+const METRIC_NAME = 'Weekly active verified traders';
 const AGENT_ID = 'telarchy-self-sync';
 const STRATEGY = 'self-sync-v2';
 const DRY_RUN = process.argv.includes('--dry-run');
@@ -75,9 +76,9 @@ async function main() {
 
   // The value, from the public resolution source.
   const stats = await fetch(`${TELARCHY_URL}/api/marketplace/stats`).then(r => r.json());
-  const value = stats.weeklyActiveParticipants;
+  const value = stats.weeklyActiveVerifiedTraders;
   if (!Number.isFinite(value)) {
-    throw new Error(`weeklyActiveParticipants missing from /api/marketplace/stats: ${JSON.stringify(stats).slice(0, 200)}`);
+    throw new Error(`weeklyActiveVerifiedTraders missing from /api/marketplace/stats: ${JSON.stringify(stats).slice(0, 200)}`);
   }
 
   const metricsList = await api('GET', '/metrics');
@@ -94,7 +95,7 @@ async function main() {
       value,
       formula: metric.formula || '0',
       oldValue: metric.value,
-      updateNote: `daily self-sync ${startedAt.slice(0, 10)} (weeklyActiveParticipants from /api/marketplace/stats)`,
+      updateNote: `daily self-sync ${startedAt.slice(0, 10)} (weeklyActiveVerifiedTraders from /api/marketplace/stats)`,
     });
   }
 

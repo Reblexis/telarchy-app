@@ -88,19 +88,23 @@ marketplaceRouter.get('/stats', wrap(async (_req, res) => {
 
   const [agentCount] = await db.select({ count: count() }).from(agents);
 
-  // Distinct participants, human or AI, who traded or proposed a job in the
-  // trailing 7 days, across every workspace. This is the hero metric of the
-  // Telarchy dogfooding workspace (2026-08-14), so it lives on this public
-  // route for the same reason manifoldImportCount does: a resolution source
-  // has to be readable by the people being asked to trust it.
-  const [activeTraders, activeProposers] = await Promise.all([
-    db.selectDistinct({ id: trades.agentId }).from(trades).where(gt(trades.createdAt, weekAgo)),
-    db.selectDistinct({ id: proposals.proposedBy }).from(proposals).where(gt(proposals.createdAt, weekAgo)),
-  ]);
-  const weeklyActiveParticipants = new Set([
-    ...activeTraders.map(r => r.id),
-    ...activeProposers.map(r => r.id),
-  ]).size;
+  // The hero metric of the Telarchy dogfooding workspace (2026-08-14):
+  // distinct participants who (a) have a Manifold account synced (the
+  // verified set: each maps to a public Manifold profile anyone can check,
+  // surfaced on the leaderboard) and (b) placed trades totalling at least
+  // 100 credits across the trailing 7 days (credits are free, so a costless
+  // gesture must not count; abs(cost) so sells are activity too). It lives
+  // on this public route for the same reason manifoldImportCount does: a
+  // resolution source has to be readable by the people being asked to
+  // trust it.
+  const spendByAgent = await db.select({ id: trades.agentId, spend: sql<number>`sum(abs(${trades.cost}))` })
+    .from(trades).where(gt(trades.createdAt, weekAgo)).groupBy(trades.agentId);
+  const qualifying = spendByAgent.filter(r => Number(r.spend) >= 100).map(r => r.id);
+  const claimedRows = qualifying.length > 0
+    ? await db.select({ key: systemConfig.key }).from(systemConfig)
+        .where(inArray(systemConfig.key, qualifying.map(id => `manifold-claimed:agent:${id}`)))
+    : [];
+  const weeklyActiveVerifiedTraders = claimedRows.length;
 
   let marketsActive = 0;
   let tradesThisWeek = 0;
@@ -130,7 +134,7 @@ marketplaceRouter.get('/stats', wrap(async (_req, res) => {
     marketsActive,
     agentsActive: Number(agentCount.count),
     tradesThisWeek,
-    weeklyActiveParticipants,
+    weeklyActiveVerifiedTraders,
     manifoldImportCount: Number(manifoldRow?.n ?? 0),
   });
 }));

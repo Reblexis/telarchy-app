@@ -19,14 +19,23 @@ in the Provisioning section below.
 
 ## The metric
 
-**Weekly active participants**: distinct participants, human or AI, with a
-trade or a proposal in the trailing 7 days, across every workspace on the
-platform. AI participants count on purpose (participant symmetry is
-load-bearing; a participant is a participant).
+**Weekly active verified traders** (revised 2026-08-14, same day, before
+meaningful trading; supersedes "Weekly active participants"): distinct
+participants who (a) have a **Manifold account synced** and (b) placed
+trades totalling **at least 100 credits** (abs cost, so sells count as
+activity) in the trailing 7 days, across every workspace. Verified means
+the participant claimed a public Manifold profile via the import flow, so
+every counted trader maps to a real external record anyone can inspect
+(linked profiles are visible on the leaderboard). The 100-credit floor
+keeps a costless gesture from counting: signup credits are free and the
+owner resolves a market on this number. It can go down, which is the
+property that matters: registrations and import counts are stocks that
+only ratchet up; this is a flow. Early weeks near zero mean nobody showed
+up yet, and the charter says so plainly.
 
 **Provenance is the point.** The number is computed server-side and served
 on the public, unauthenticated `GET /api/marketplace/stats` route as
-`weeklyActiveParticipants` - the same route that serves as resolution source
+`weeklyActiveVerifiedTraders` - the same route that serves as resolution source
 for the Manifold-import market, for the same reason: a resolution source has
 to be readable by the people being asked to trust it. The sync adds no
 computation of its own; anyone can check the number at any time. Its exact
@@ -34,7 +43,7 @@ definition is pinned by `functions/src/__tests__/marketplace-stats.test.ts`.
 
 ## The sync
 
-`scripts/telarchy-self-sync.js`: reads `weeklyActiveParticipants` from the
+`scripts/telarchy-self-sync.js`: reads `weeklyActiveVerifiedTraders` from the
 public stats route, PUTs it into the workspace's metric, and heartbeats to
 `/admin` as agent `telarchy-self-sync` (strategy `self-sync-v2`). Runs on a
 **GitHub Actions cron** (`.github/workflows/telarchy-self-sync.yml`) daily
@@ -85,7 +94,7 @@ Filled at creation time (2026-08-14); update on rotation or re-provisioning:
 - Workspace: created via `POST /api/workspaces` (master key), name
   `Telarchy`, visibility `public`. Id: see `TELARCHY_SELF_SYNC_WORKSPACE`
   repo secret; also listed by `GET /api/marketplace/workspaces/public`.
-- Metric: `Weekly active participants`, created via `POST /api/metrics`,
+- Metric: `Weekly active verified traders` (range 0-50), via `POST /api/metrics`,
   description carries the definition + provenance URL so traders can verify
   without leaving the platform.
 - Market: month-end horizon (`targetDate: 2026-08`, resolves 1 September
