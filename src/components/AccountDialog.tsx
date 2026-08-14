@@ -30,11 +30,31 @@ const PROVIDERS: Array<{ id: PayoutMethod['provider']; label: string }> = [
   { id: 'other', label: 'Other' },
 ];
 
+/** Chain is stored explicitly and never inferred from the address: every EVM
+ *  chain shares the same 0x shape, so Ethereum and Base are indistinguishable
+ *  from an address alone, and paying the right address on the wrong chain can
+ *  put the money somewhere the recipient does not control. */
 const NETWORKS = [
   { id: 'ethereum' as const, label: 'Ethereum' },
-  { id: 'bitcoin' as const, label: 'Bitcoin' },
+  { id: 'base' as const, label: 'Base' },
+  { id: 'arbitrum' as const, label: 'Arbitrum' },
+  { id: 'optimism' as const, label: 'Optimism' },
+  { id: 'polygon' as const, label: 'Polygon' },
   { id: 'solana' as const, label: 'Solana' },
+  { id: 'bitcoin' as const, label: 'Bitcoin' },
 ];
+
+/** Mirrors CRYPTO_ASSETS in functions/src/lib/payout.ts. USDC first where it
+ *  exists, because that is what people ask to be paid in. */
+const ASSETS: Record<string, readonly string[]> = {
+  ethereum: ['USDC', 'USDT', 'ETH'],
+  base: ['USDC', 'ETH'],
+  arbitrum: ['USDC', 'USDT', 'ETH'],
+  optimism: ['USDC', 'ETH'],
+  polygon: ['USDC', 'USDT', 'POL'],
+  solana: ['USDC', 'SOL'],
+  bitcoin: ['BTC'],
+};
 
 function fmtCr(v: number): string {
   return v >= 10_000
@@ -199,7 +219,7 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
       setFields(rest);
       setPayDirty(false);
     } else {
-      setFields(p === 'crypto' ? { network: 'ethereum' } : {});
+      setFields(p === 'crypto' ? { network: 'base', asset: 'USDC' } : {});
       setPayDirty(true);
     }
     clearErr('pay');
@@ -304,14 +324,34 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
                   <button
                     key={n.id}
                     className={`acctdlg-pill${(fields.network ?? 'ethereum') === n.id ? ' is-active' : ''}`}
-                    onClick={() => setField('network', n.id)}
+                    onClick={() => {
+                      setField('network', n.id);
+                      // Assets differ per chain, so a stale pick from the
+                      // previous chain must not survive the switch.
+                      const first = ASSETS[n.id]?.[0];
+                      if (first && !ASSETS[n.id].includes(fields.asset ?? '')) setField('asset', first);
+                    }}
                   >
                     {n.label}
                   </button>
                 ))}
               </div>
             </div>
-            <label className="jobform-field"><span className="ticket-label">Address</span>{line('address', 'Address', '0x…')}</label>
+            <div className="jobform-field">
+              <span className="ticket-label">Paid in</span>
+              <div className="acctdlg-pills">
+                {(ASSETS[fields.network ?? 'base'] ?? ['USDC']).map(a => (
+                  <button
+                    key={a}
+                    className={`acctdlg-pill${(fields.asset ?? '') === a ? ' is-active' : ''}`}
+                    onClick={() => setField('asset', a)}
+                  >
+                    {a}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <label className="jobform-field"><span className="ticket-label">Address</span>{line('address', 'Address', (fields.network ?? 'base') === 'solana' ? 'Solana address' : (fields.network ?? 'base') === 'bitcoin' ? 'bc1…' : '0x…')}</label>
           </>
         )}
         {provider === 'revolut' && (
@@ -323,6 +363,11 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
         {provider === 'other' && (
           <label className="jobform-field"><span className="ticket-label">How to pay you</span>{line('details', 'How to pay you', 'Say exactly how the money reaches you')}</label>
         )}
+
+        <label className="jobform-field">
+          <span className="ticket-label">Note (optional)</span>
+          {line('note', 'Note', 'Reference, exchange memo or tag, anything I need to know when sending')}
+        </label>
 
         {(payDirty || saved.pay) && (
           <button className={`ticket-go acctdlg-save${saved.pay ? ' is-placed' : ''}`} disabled={busy === 'pay'} onClick={() => void savePayment()}>
