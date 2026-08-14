@@ -8391,8 +8391,14 @@ code, pre, kbd, samp {
   gap: 0.85rem;
 }
 
-/* Head: the ask where the ticket puts its amount, close at the edge. */
-.jobform-head { align-items: flex-start; }
+/* Head: the ask where the ticket puts its amount, close at the edge.
+   These three overrides carry a descendant selector on purpose. The
+   .ticket-* base rules they correct are defined LATER in this file at equal
+   specificity, so a bare .jobform-head / .jobform-ask loses the cascade and
+   the block silently renders as the ticket's centred layout: the ask
+   stranded mid-panel away from its own label, and the close button pulled
+   down to the number's baseline instead of sitting at the top. */
+.jobform .jobform-head { align-items: flex-start; }
 
 .jobform-askblock {
   display: flex;
@@ -8401,7 +8407,14 @@ code, pre, kbd, samp {
 }
 .jobform-askblock .ticket-label { text-align: left; }
 
-.jobform-ask { justify-content: flex-start; }
+.jobform .jobform-ask { justify-content: flex-start; }
+
+/* An empty required field needs to read as a field. The ticket's amount
+   hugs its digits, which is right for a number you are editing and wrong
+   for one you have not typed yet, so the price floors at 4ch and its
+   placeholder drops to normal weight: a hint, not a value. */
+.jobform-ask input { min-width: 4ch; text-align: left; }
+.jobform-ask input::placeholder { font-weight: 400; }
 
 .jobform-head .ticket-close { margin-left: auto; }
 

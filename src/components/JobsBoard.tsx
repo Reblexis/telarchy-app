@@ -229,7 +229,7 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
                   <span className="ticket-amt-unit">$</span>
                   <input
                     value={ask}
-                    style={{ width: `${Math.max(2, ask.length)}ch` }}
+                    style={{ width: `${Math.max(4, ask.length)}ch` }}
                     onChange={e => setAsk(e.target.value.replace(/[^0-9]/g, ''))}
                     placeholder="0"
                     inputMode="numeric"

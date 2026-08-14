@@ -457,6 +457,29 @@ silently. The ballot, charter, decided list, pitch and footer are
 deliberately not rendered in this phase; the API still ships them, so each
 returns as a render change.
 
+## Reusing a component's classes: mind the cascade order
+
+Several blocks (the job form, the account dialog, the Manifold import)
+compose the ticket's own classes and then correct one or two properties.
+`style.css` is one long file and the `.ticket-*` base rules live near the
+bottom, so **a correction written as a bare single class loses to the base
+rule it is trying to override**: equal specificity, later source position
+wins. The rule fails silently, which is worse than failing loudly, because
+the markup and the intent both read correctly.
+
+Write such corrections with a descendant selector that raises specificity
+(`.jobform .jobform-ask`, not `.jobform-ask`), or move the block below the
+base rules. When a layout override "does nothing", check source order
+before rewriting the markup.
+
+Fixed 2026-08-14: three rules in the job form had been dead since the
+2026-08-10 redesign, so the price field rendered in the ticket's centred
+layout, stranded mid-panel away from its own label with the close button
+pulled down to the number's baseline. An empty required numeric field also
+now floors at 4ch with a normal-weight placeholder, so it reads as a field
+awaiting digits rather than as a glyph; the hug-the-digits behaviour stays
+correct for amounts you are actively editing.
+
 ## When in doubt
 
 - Strip color before adding it.
