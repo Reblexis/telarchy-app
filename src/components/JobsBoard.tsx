@@ -211,7 +211,7 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
         {/* Surface the stake on the board itself, not only inside the form:
             posting costs 500 cr and pays 1,000 cr back if the owner approves,
             so a new signup (1,000 free cr) can afford it and see the upside. */}
-        <p className="pubws-propose-cost">Approved means <strong>you are paid in real money</strong>. Costs 500&nbsp;cr to post, 1,000&nbsp;cr back if approved.</p>
+        <p className="pubws-propose-cost">Free to post. Approved means <strong>you are paid in real money</strong>, plus 500&nbsp;cr.</p>
       </div>
 
       {/* The form is the ticket's structure, not just its underlines
@@ -281,7 +281,7 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
               onClick={() => void submit()}
             >
               {placed ? 'Added to ballot' : formBusy ? 'Submitting…' : formValid && askNum > 0 ? `Suggest job for $${askNum}` : 'Suggest job'}
-              {!placed && <span className="ticket-go-sub">Approved means you are paid in real money. 500&nbsp;cr to post, 1,000&nbsp;cr back if approved.</span>}
+              {!placed && <span className="ticket-go-sub">Free to post. Approved means you are paid in real money, plus 500&nbsp;cr.</span>}
             </button>
           </div>
         </FloorModal>

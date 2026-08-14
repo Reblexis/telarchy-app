@@ -827,7 +827,12 @@ export function TradePage() {
                 // Payment details come from the account (owner decision
                 // 2026-08-10): the server reads and snapshots them.
                 if (!user) { navigate('/signup'); return; }
-                await api.createProposal({ title, description, liquiditySubsidy: 250, askUsd });
+                // No proposer stake (owner call 2026-08-14): the workspace
+                // auto-funds the branch markets instead. Charging the empty
+                // side of the marketplace half a newcomer's starting balance
+                // to make an offer is spam defence aimed the wrong way; add
+                // it back if someone actually spams.
+                await api.createProposal({ title, description, askUsd });
                 reload();
               }}
             />
