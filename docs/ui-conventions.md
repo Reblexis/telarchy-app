@@ -506,3 +506,20 @@ pill in the bottom-right, "new version · reload", which reloads on
 click. It never reloads on its own: yanking a composed bet or a
 selected branch out from under the visitor is worse than stale code.
 In dev (no built bundle in the served page) the check is inert.
+
+**Revised 2026-08-14 (Viktor), the marketplace is a floor selection.**
+`telarchy.com/marketplace` is the public room list: every public
+workspace as a card (name, one-liner, the hero market's number in mono,
+open-market and pending-job counts) linking to its floor, rendered
+standalone in the floor's own language (`.pubws` topbar, Fraunces
+headline, hairline cards, one accent) so lookpilot and the selection
+read as one site. Under the cards, one owner door: the floor's
+"Want this for your own numbers..." line with a single outlined CTA
+("+ Create your workspace") pointing at /manage, which is the waitlist
+pitch while workspace creation is trader-first gated. The floor topbar's
+logo links to /marketplace (previously "/", the default floor): the
+logo now answers "what else is there to trade?". Platform admins keep
+the old console at /console/marketplace (muscle-memory URL /marketplace
+redirects them there); everyone else, signed in or not, gets the
+selection. The selection page shows every workspace the public list
+returns, hero numbers fetched per workspace and rendered as they load.

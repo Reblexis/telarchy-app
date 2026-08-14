@@ -10439,3 +10439,134 @@ textarea.jobform-line--desc {
   .pubws-enter { animation: none; opacity: 1; }
   .pubws-fade { animation: none; opacity: 1; }
 }
+
+/* ------------------------------------------------------------------ */
+/* The floor selection at /marketplace (owner ask 2026-08-14, see
+   ui-conventions "the marketplace is a floor selection"): the floor's
+   own poster language. Fraunces names, hairline cards, mono numerals,
+   one accent, nothing else. */
+
+.floors {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 3.5rem 1.25rem 5rem;
+}
+
+.floors-head {
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: clamp(1.6rem, 5vw, 2.1rem);
+  letter-spacing: -0.015em;
+  text-align: center;
+}
+
+.floors-lead {
+  margin: 0.7rem auto 2.75rem;
+  max-width: 34rem;
+  text-align: center;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.floors-empty {
+  text-align: center;
+  color: var(--text-tertiary);
+}
+
+.floors-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.floors-list li { border-top: 1px solid var(--border-color); }
+.floors-list li:last-child { border-bottom: 1px solid var(--border-color); }
+
+.floors-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  padding: 1.15rem 0.6rem;
+  text-decoration: none;
+  color: inherit;
+  transition: background 120ms ease;
+}
+.floors-card:hover { background: var(--bg-secondary); }
+
+.floors-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.floors-card-name {
+  font-family: 'Fraunces', serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: 1.2rem;
+  letter-spacing: -0.01em;
+}
+
+.floors-card-desc {
+  font-size: 0.87rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.floors-card-facts {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+
+.floors-card-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.floors-card-price {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.floors-card-metric {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  max-width: 11rem;
+}
+
+.floors-own {
+  margin-top: 3.5rem;
+  text-align: center;
+}
+
+.floors-own-lead {
+  margin: 0 0 0.9rem;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+}
+
+/* The CTA reuses .pubws-propose-cta (the floor's outlined accent door);
+   here it only needs to not stretch full width. */
+.floors-own-cta {
+  display: inline-block;
+  width: auto;
+  padding: 0.7rem 1.6rem;
+  text-decoration: none;
+}
+
+@media (max-width: 519px) {
+  .floors-card { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+  .floors-card-hero { align-items: flex-start; text-align: left; }
+}

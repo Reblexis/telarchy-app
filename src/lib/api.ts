@@ -794,7 +794,7 @@ export const api = {
     if (!res.ok) throw new Error(`Marketplace workspace request failed: ${res.status}`);
     return res.json();
   },
-  getPublicWorkspaces: async (): Promise<Array<{ workspaceId: string; name: string; visibility: string }>> => {
+  getPublicWorkspaces: async (): Promise<Array<{ workspaceId: string; name: string; visibility: string; slug?: string | null; description?: string | null; openMarketCount?: number; proposalStats?: { pending?: number } }>> => {
     const res = await fetch(`${API_BASE}/api/marketplace/workspaces/public`);
     if (!res.ok) throw new Error(`Public workspaces request failed: ${res.status}`);
     return res.json();

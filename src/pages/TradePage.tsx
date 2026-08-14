@@ -927,11 +927,14 @@ export function TradePage() {
   );
 }
 
-function TopBar({ user, ready }: { user: boolean; ready: boolean }) {
+export function TopBar({ user, ready }: { user: boolean; ready: boolean }) {
   const navigate = useNavigate();
   return (
     <nav className="pubws-topbar">
-      <Link to="/" className="pubws-logolink" aria-label="Telarchy">
+      {/* The logo answers "what else is there to trade?": it opens the
+          floor selection (owner ask 2026-08-14; previously the default
+          floor itself, which from a floor was a no-op). */}
+      <Link to="/marketplace" className="pubws-logolink" aria-label="Telarchy">
         {/* Same lockup treatment as the landing nav (3rem), so the page
             reads as the same site. */}
         <Logo variant="lockup" height="3rem" />

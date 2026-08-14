@@ -38,6 +38,7 @@ import { ApiPage } from './pages/ApiPage';
 import { LeaderboardPage } from './pages/LeaderboardPage';
 import { BenchmarkPage } from './pages/BenchmarkPage';
 import { TradePage } from './pages/TradePage';
+import { FloorsPage } from './pages/FloorsPage';
 import { ManagePage } from './pages/ManagePage';
 
 // /marketplace/:workspaceId is the destination for a shared workspace link, so
@@ -57,9 +58,26 @@ function MarketplaceTabRedirect() {
     if (workspaceId) setActiveWorkspace(workspaceId);
   }, [workspaceId]);
   if (!tab || !ALLOWED_TABS.has(tab)) {
-    return <Navigate to={`/marketplace?workspace=${encodeURIComponent(workspaceId ?? '')}`} replace />;
+    return <Navigate to={`/console/marketplace?workspace=${encodeURIComponent(workspaceId ?? '')}`} replace />;
   }
   return <Navigate to={`/${tab}`} replace />;
+}
+
+/** /marketplace is the public floor selection (owner ask 2026-08-14);
+    platform admins keep the old console dashboard, whose muscle-memory URL
+    redirects to its new home at /console/marketplace. The alpha flag is
+    only an optimistic cache: visitors without it never pay a profile
+    round-trip, visitors with it are verified before the redirect. */
+function MarketplaceDoor() {
+  const [admin, setAdmin] = useState<boolean | null>(hasAlphaAccess() ? null : false);
+  useEffect(() => {
+    if (!hasAlphaAccess()) return;
+    api.getProfile()
+      .then(p => setAdmin((p as { platformAdmin?: boolean }).platformAdmin === true))
+      .catch(() => setAdmin(false));
+  }, []);
+  if (admin === null) return null;
+  return admin ? <Navigate to="/console/marketplace" replace /> : <FloorsPage />;
 }
 
 // The public floor telarchy.com IS: root and everything hidden by the
@@ -103,7 +121,7 @@ function AlphaGate() {
 
 function AlphaSwitch({ on }: { on: boolean }) {
   if (on) grantAlphaAccess(); else revokeAlphaAccess();
-  return <Navigate to={on ? '/marketplace' : DEFAULT_FLOOR} replace />;
+  return <Navigate to={on ? '/console/marketplace' : DEFAULT_FLOOR} replace />;
 }
 
 export function App() {
@@ -130,6 +148,8 @@ export function App() {
           {/* The share-link landing renders standalone: a stranger's first
               screen must be a poster, not an app shell with a sidebar. */}
           <Route path="/marketplace/:workspaceId" element={<TradePage />} />
+          {/* The public floor selection; see MarketplaceDoor. */}
+          <Route path="/marketplace" element={<MarketplaceDoor />} />
           {/* Public profiles (owner ask 2026-08-11): a trader's name on the
               floor links here, so the page cannot sit behind the alpha
               wall. Shell-agnostic page; renders bare for visitors. */}
@@ -146,7 +166,7 @@ export function App() {
           </Route>
           <Route path="/manage" element={<ManagePage />} />
           <Route element={<AppLayout />}>
-            <Route path="/marketplace" element={<MarketplacePage />} />
+            <Route path="/console/marketplace" element={<MarketplacePage />} />
             <Route path="/marketplace/:workspaceId/:tab" element={<MarketplaceTabRedirect />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
             <Route path="/benchmark" element={<BenchmarkPage />} />

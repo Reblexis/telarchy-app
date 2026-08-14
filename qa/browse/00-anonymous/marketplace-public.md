@@ -132,3 +132,15 @@ None — this spec only reads.
   `mvp-evaluation/plan.md`.
 - The `?workspace=<id>` query path is also documented in `user-flow-audit.md`
   step 9; keep both in sync if the URL shape changes.
+
+## Floor selection at /marketplace (2026-08-14)
+
+`/marketplace` for everyone except platform admins (who are redirected to
+the console at `/console/marketplace`) renders the standalone floor
+selection in the floor's design language: `.pubws-topbar`, a Fraunces
+"Trading floors" headline, one hairline card per public workspace (name,
+one-liner, mono open-market/ballot facts, the hero market's number in
+accent mono on the right, arriving per workspace as it loads) linking to
+`/<slug>`, and one owner door under the list ("+ Create your workspace" ->
+/manage, the waitlist pitch). The floor topbar's logo links here. No app
+shell, no sidebar.

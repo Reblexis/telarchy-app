@@ -227,7 +227,7 @@ export function Sidebar({ className = '' }: { className?: string }) {
 
       <div className="sidebar-section">
         <div className="sidebar-section-label">Platform</div>
-        <Link to="/marketplace" data-tour-id="nav-marketplace" className={`sidebar-nav-item${currentPath === '/marketplace' ? ' active' : ''}`}>
+        <Link to="/console/marketplace" data-tour-id="nav-marketplace" className={`sidebar-nav-item${currentPath === '/console/marketplace' ? ' active' : ''}`}>
           Marketplace
         </Link>
         <Link to="/leaderboard" data-tour-id="nav-leaderboard" className={`sidebar-nav-item${currentPath === '/leaderboard' ? ' active' : ''}`}>
