@@ -363,16 +363,21 @@ links a forecaster can audit without trusting this page: the data room
 estimates"). Mono names with hairline underlines that warm to the accent;
 external, new tab.
 
-**"What can you do?" sits above the explainer (owner ask 2026-08-15).**
-Two cards, Trade and Do a contract, each with a drawing in the chart's own
-vocabulary, one sentence, and a link that SCROLLS to the control it names
-rather than opening a modal: the point is to show where the thing lives on
-a page the reader will come back to. It sits above "What is this?" because
-the beats explain what the floor is, and a visitor who follows them still
-has to be told what they may do. The two sides are not equally obvious:
-the bet buttons are on screen, while "a stranger can propose paid work
-here and be paid in real money" is the half nobody guesses, so the
-contract card is the one that must say "real money".
+**The page ends: "What is this?", then "What can you do?", then the owner
+door (owner ask 2026-08-15, corrected the same day).** Comprehension before
+action, and it keeps the two calls to action together instead of splitting
+them around the explainer. The three beats say what the floor is; the two
+cards, Trade and Do a contract, say what the reader may do; the email door
+closes the page, so the asks escalate: place a bet, offer a contract, run
+your own number.
+
+Each card carries a drawing in the chart's own vocabulary, one sentence,
+and a link that SCROLLS to the control it names rather than opening a
+modal: the point is to show where the thing lives on a page the reader will
+come back to. The two sides are not equally obvious, either. The bet
+buttons are on screen, while "a stranger can propose paid work here and be
+paid in real money" is the half nobody guesses, so the contract card is the
+one that must say "real money".
 
 **An unfunded market never shows bet buttons (owner report 2026-08-15).**
 A branch market can exist with no liquidity, in which case it has no

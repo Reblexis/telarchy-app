@@ -267,3 +267,11 @@ describe('what can you do', () => {
     expect(container.textContent).not.toMatch(/\bjobs?\b/i);
   });
 });
+
+test('the page explains, then asks, then offers the owner door', async () => {
+  const { container } = renderFloor();
+  await screen.findByRole('heading', { name: 'What can you do?' });
+  const order = [...container.querySelectorAll('.pubws-about-head, .pubws-do-head, .pubws-setup-lead')]
+    .map(n => (n.textContent ?? '').slice(0, 16));
+  expect(order).toEqual(['What is this?', 'What can you do?', 'Want this for yo']);
+});

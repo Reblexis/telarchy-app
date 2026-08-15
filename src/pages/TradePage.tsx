@@ -913,50 +913,6 @@ export function TradePage() {
           main view, strong visuals, minimal text). The drawings reuse the
           chart's own vocabulary: the step line, the branch pair, the
           priced gap; nothing here is decoration from outside the product. */}
-      {/* Two ways in, said plainly (owner ask 2026-08-15). The three beats
-          above explain what this IS; a visitor who understands it still has
-          to be told what they may DO, and the two sides of the economy are
-          not symmetric in how obvious they are: the bet buttons are on
-          screen, while the fact that a stranger can propose paid work and
-          get paid for it is the part nobody guesses. Each card scrolls to
-          the thing it names rather than opening a new surface. */}
-      <section className="pubws-do" aria-label="What can you do?">
-        <h2 className="pubws-do-head">What can you do?</h2>
-        <div className="pubws-do-cards">
-          <button className="pubws-do-card" onClick={() => scrollToAction('trade')}>
-            <svg className="pubws-do-art" viewBox="0 0 120 48" aria-hidden="true">
-              <path className="ab-line" d="M6,34 L34,34 L34,24 L64,24 L64,14 L100,14" />
-              <circle className="ab-dot ab-dot--up" cx="100" cy="14" r="4.5" />
-            </svg>
-            <span className="pubws-do-title">Trade</span>
-            <span className="pubws-do-body">
-              Say where the number lands. You are paid for being right, and the
-              price moves when you are.
-            </span>
-            <span className="pubws-do-go">Place a bet →</span>
-          </button>
-          <button className="pubws-do-card" onClick={() => scrollToAction('contract')}>
-            <svg className="pubws-do-art" viewBox="0 0 120 48" aria-hidden="true">
-              {/* The priced gap, then the approval: same motif as beat 03,
-                  kept at its proportions so the gap reads as the subject and
-                  the check as its consequence. */}
-              <line className="ab-gap" x1="24" y1="8" x2="24" y2="40" />
-              <line className="ab-tick" x1="16" y1="8" x2="32" y2="8" />
-              <line className="ab-tick" x1="16" y1="40" x2="32" y2="40" />
-              <circle className="ab-dot ab-dot--up" cx="24" cy="8" r="4" />
-              <circle className="ab-dot ab-dot--down" cx="24" cy="40" r="4" />
-              <path className="ab-check" d="M62,26 L72,36 L96,12" />
-            </svg>
-            <span className="pubws-do-title">Do a contract</span>
-            <span className="pubws-do-body">
-              Offer work and name your price. The market prices what it would do
-              to the number, and the owner pays in real money if it clears.
-            </span>
-            <span className="pubws-do-go">Offer a contract →</span>
-          </button>
-        </div>
-      </section>
-
       <section className={`pubws-about${aboutIn ? ' is-in' : ''}`} ref={aboutRef} aria-label="What is this?">
         <h2 className="pubws-about-head">What is this?</h2>
         {/* Three rows, each locking its drawing beside the sentence it
@@ -997,10 +953,61 @@ export function TradePage() {
             <p>The gap between those worlds is a calibrated number. The owner approves on it, and pays for outcomes, not promises.</p>
           </div>
         </div>
-        {/* The door is an email box, not a "waitlist" (owner direction
-            2026-08-10): anyone who wants their own numbers run this way
-            gets set up within days, so the copy promises contact, not a
-            queue. One field, zero friction. */}
+      </section>
+
+      {/* Two ways in, said plainly (owner ask 2026-08-15). It sits BELOW
+          "What is this?" (owner, same day): comprehension before action, and
+          it keeps the two calls to action together instead of splitting them
+          around the explainer. The three beats above say what this IS; a
+          visitor who understands it still has to be told what they may DO,
+          and the two sides of the economy are not symmetric in how obvious
+          they are: the bet buttons are on screen, while the fact that a
+          stranger can propose paid work and get paid for it is the part
+          nobody guesses. Each card scrolls to the thing it names rather than
+          opening a new surface. */}
+      <section className="pubws-do" aria-label="What can you do?">
+        <h2 className="pubws-do-head">What can you do?</h2>
+        <div className="pubws-do-cards">
+          <button className="pubws-do-card" onClick={() => scrollToAction('trade')}>
+            <svg className="pubws-do-art" viewBox="0 0 120 48" aria-hidden="true">
+              <path className="ab-line" d="M6,34 L34,34 L34,24 L64,24 L64,14 L100,14" />
+              <circle className="ab-dot ab-dot--up" cx="100" cy="14" r="4.5" />
+            </svg>
+            <span className="pubws-do-title">Trade</span>
+            <span className="pubws-do-body">
+              Say where the number lands. You are paid for being right, and the
+              price moves when you are.
+            </span>
+            <span className="pubws-do-go">Place a bet →</span>
+          </button>
+          <button className="pubws-do-card" onClick={() => scrollToAction('contract')}>
+            <svg className="pubws-do-art" viewBox="0 0 120 48" aria-hidden="true">
+              {/* The priced gap, then the approval: same motif as beat 03,
+                  kept at its proportions so the gap reads as the subject and
+                  the check as its consequence. */}
+              <line className="ab-gap" x1="24" y1="8" x2="24" y2="40" />
+              <line className="ab-tick" x1="16" y1="8" x2="32" y2="8" />
+              <line className="ab-tick" x1="16" y1="40" x2="32" y2="40" />
+              <circle className="ab-dot ab-dot--up" cx="24" cy="8" r="4" />
+              <circle className="ab-dot ab-dot--down" cx="24" cy="40" r="4" />
+              <path className="ab-check" d="M62,26 L72,36 L96,12" />
+            </svg>
+            <span className="pubws-do-title">Do a contract</span>
+            <span className="pubws-do-body">
+              Offer work and name your price. The market prices what it would do
+              to the number, and the owner pays in real money if it clears.
+            </span>
+            <span className="pubws-do-go">Offer a contract →</span>
+          </button>
+        </div>
+      </section>
+
+      {/* The door is an email box, not a "waitlist" (owner direction
+          2026-08-10): anyone who wants their own numbers run this way gets
+          set up within days, so the copy promises contact, not a queue. One
+          field, zero friction. It closes the page because the two calls to
+          action escalate: trade, offer a contract, run your own number. */}
+      <section className="pubws-door" aria-label="Get set up">
         <SetupForm />
       </section>
       {/* The floor is designed to stay open, so every deploy would strand

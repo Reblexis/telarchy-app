@@ -318,8 +318,10 @@ in dev.
 
 ## What can you do, and what a shared link says (2026-08-15)
 
-**"What can you do?" section:** above "What is this?", two cards, Trade and
-Do a contract. Each scrolls to the control it names (`.pubws-bet` /
+**"What can you do?" section:** BELOW "What is this?" and above the email
+door, two cards, Trade and Do a contract. Assert that document order, since
+the point of it is comprehension before action:
+`.pubws-about-head` then `.pubws-do-head` then `.pubws-setup-lead`. Each scrolls to the control it names (`.pubws-bet` /
 `.pubws-rail--right`) rather than opening a modal. The contract card must
 name real money; without it the offer reads as points.
 

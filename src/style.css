@@ -10187,7 +10187,14 @@ textarea.jobform-line--desc {
   gap: 1.1rem;
   width: min(92vw, 1100px);
   margin: 0 auto;
-  padding: clamp(2.4rem, 6vh, 4rem) 1.5rem 0;
+  padding: 0 1.5rem clamp(2.4rem, 6vh, 3.5rem);
+}
+
+/* The owner door closes the page, in the same column as everything above. */
+.pubws-door {
+  width: min(92vw, 1100px);
+  margin: 0 auto;
+  padding: 0 1.5rem clamp(3rem, 7vh, 5rem);
 }
 
 .pubws-do-head {
