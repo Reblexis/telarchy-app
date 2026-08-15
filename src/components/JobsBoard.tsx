@@ -39,6 +39,13 @@ interface Props {
   signedIn: boolean;
   /** Called when a signed-out visitor taps the propose button. */
   onRequireSignup: () => void;
+  /** The far horizon's target date: the delta the charter funds on, so it
+      is what the ballot ranks and prints (2026-08-15). Null on a
+      single-horizon workspace, where the old largest-impact rule stands. */
+  decisionDate?: string | null;
+  /** The near horizon's target date, compared against the decision one to
+      catch a contract that buys the week and costs the year. */
+  pulseDate?: string | null;
   /** Workspace name, for the "do something useful for X?" propose prompt. */
   workspaceName: string;
 }
@@ -65,7 +72,35 @@ function headlineDelta(p: PublicProposal): number | null {
   return deltas.reduce((a, b) => (Math.abs(b) > Math.abs(a) ? b : a), deltas[0]);
 }
 
-export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, signedIn, onRequireSignup, workspaceName }: Props) {
+/** This contract's priced impact on one horizon. */
+/** "2026-12" -> "2026", for the ballot's one-line column label. */
+function horizonWord(targetDate: string): string {
+  return targetDate.match(/^(\d{4})/)?.[1] ?? targetDate;
+}
+
+function deltaAt(p: PublicProposal, targetDate: string | null | undefined): number | null {
+  if (!targetDate) return null;
+  return p.markets.find(m => m.targetDate === targetDate)?.delta ?? null;
+}
+
+/**
+ * The two clocks disagreeing about a contract is the whole reason the
+ * second horizon exists (2026-08-15): a contract that inflates seven-day
+ * activity at the cost of the audience prices well on the near market and
+ * badly on the far one. Said in words, because a visitor cannot act on a
+ * sign mismatch they have to work out themselves.
+ */
+function horizonConflict(decision: number | null, pulse: number | null): string | null {
+  if (decision === null || pulse === null) return null;
+  if (decision === 0 || pulse === 0) return null;
+  if (decision > 0 === pulse > 0) return null;
+  return pulse > 0 ? 'buys the week, costs the year' : 'costs the week, buys the year';
+}
+
+export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, signedIn, onRequireSignup, workspaceName, decisionDate, pulseDate }: Props) {
+  // The number the charter funds on, falling back to the old largest-impact
+  // rule where a workspace still runs a single horizon.
+  const impactOf = (p: PublicProposal) => deltaAt(p, decisionDate) ?? headlineDelta(p);
   const [formOpen, setFormOpen] = useState(false);
   const [ask, setAsk] = useState('');
   const [title, setTitle] = useState('');
@@ -95,7 +130,7 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
   const ranked = [...proposals].sort((a, b) => {
     const ra = statusRank(a.status), rb = statusRank(b.status);
     if (ra !== rb) return ra - rb;
-    return (headlineDelta(b) ?? 0) - (headlineDelta(a) ?? 0);
+    return (impactOf(b) ?? 0) - (impactOf(a) ?? 0);
   });
 
   // The confirm stays disabled until these hold, so the short errors
@@ -139,9 +174,12 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
       ) : (
         <ul className="pubws-ballot">
           {/* One column label for the whole list instead of one per row. */}
-          <li className="pubws-ballot-head" aria-hidden="true"><span>impact if done</span></li>
+          <li className="pubws-ballot-head" aria-hidden="true">
+            <span>{decisionDate ? `impact by ${horizonWord(decisionDate)}` : 'impact if done'}</span>
+          </li>
           {ranked.map(p => {
-            const delta = headlineDelta(p);
+            const delta = impactOf(p);
+            const conflict = horizonConflict(delta, deltaAt(p, pulseDate));
             const selected = selectedId === p.id;
             // Prefer the stored number; fall back to the title convention
             // only for proposals created before the column existed.
@@ -179,6 +217,9 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
                           : <span>by {p.proposedByName}</span>
                       )}
                       {askUsd !== null && <span>${askUsd} to them</span>}
+                      {/* The two clocks disagree about this contract: the
+                          one thing the second horizon exists to catch. */}
+                      {conflict && <span className="pubws-ballot-conflict">{conflict}</span>}
                       {p.status && p.status !== 'pending' && (
                         <span className={`pubws-ballot-status is-${p.status}`}>{p.status}</span>
                       )}

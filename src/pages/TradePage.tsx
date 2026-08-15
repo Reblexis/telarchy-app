@@ -84,6 +84,22 @@ function currencyOf(metricName: string): string {
   return /\busd\b|\$/i.test(tail) ? '$' : '';
 }
 
+/**
+ * What to call a horizon in the selector: the reader thinks in "this week"
+ * and "end of 2026", not in ISO period strings (2026-08-15).
+ */
+function horizonLabel(targetDate: string): string {
+  if (/^\d{4}-W\d{2}$/.test(targetDate)) return 'this week';
+  if (/^\d{4}$/.test(targetDate)) return `end of ${targetDate}`;
+  const m = targetDate.match(/^(\d{4})-(\d{2})$/);
+  if (m) {
+    const month = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, 1))
+      .toLocaleDateString('en-GB', { month: 'long', timeZone: 'UTC' });
+    return `end of ${month}`;
+  }
+  return settleDayOf(targetDate) ?? targetDate;
+}
+
 export function TradePage() {
   const params = useParams();
   const idOrSlug = params.slug ?? params.workspaceId;
@@ -106,6 +122,9 @@ export function TradePage() {
   // branches are on the page; the toggle picks which one the ticket trades,
   // and the chart draws the other as a quiet second line).
   const [branch, setBranch] = useState<'approved' | 'declined'>('approved');
+  // Which clock the page is showing and the ticket trades: 0 is the near
+  // horizon (the pulse), the last index is the decision horizon.
+  const [horizon, setHorizon] = useState(0);
   const [condHistory, setCondHistory] = useState<{
     approved: Array<{ at: string; consensus: number | null }>;
     declined: Array<{ at: string; consensus: number | null }>;
@@ -239,11 +258,23 @@ export function TradePage() {
     setCondHistory(null);
   }, [selectedJobId]);
 
-  const hero = ws?.markets[0] ?? null;
+  // Two clocks on one number (owner direction 2026-08-15): the workspace
+  // runs the same definition at a near horizon (the pulse, fast feedback)
+  // and a far one (the decision the charter funds on). markets arrive
+  // soonest-first, so index 0 is the pulse and the last is the decision.
+  const horizons = ws?.markets ?? [];
+  const decisionDate = horizons.length > 1 ? horizons[horizons.length - 1].targetDate : null;
+  const pulseDate = horizons.length > 1 ? horizons[0].targetDate : null;
+  const heroIdx = Math.min(horizon, Math.max(0, horizons.length - 1));
+  const hero = horizons[heroIdx] ?? null;
+  const otherHorizon = horizons.length > 1 ? horizons[heroIdx === 0 ? horizons.length - 1 : 0] : null;
   const unit = hero ? currencyOf(hero.metricName) : '';
   const metricLabel = hero ? hero.metricName.replace(/\s*\(.*\)\s*$/, '') : '';
   const selectedJob = ws?.proposals?.find(p => p.id === selectedJobId) ?? null;
-  const pair = selectedJob?.markets[0] ?? null;
+  // The contract's pair for the horizon on screen, not whichever pair the
+  // payload happened to list first.
+  const pair = (hero && selectedJob?.markets.find(m => m.targetDate === hero.targetDate))
+    ?? selectedJob?.markets[0] ?? null;
   // A decided job is history: its markets are resolved, so trading is paused;
   // the page still shows the impact that was priced for it.
   const selectedJobDecided = !!selectedJob?.status && selectedJob.status !== 'pending';
@@ -321,6 +352,21 @@ export function TradePage() {
   const wsKey = ws ? (ws.slug || ws.workspaceId) : null;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { condHistoryRef.current(); }, [pair?.approvedMarketId, pair?.declinedMarketId, wsKey]);
+
+  // The other horizon's own history, for the chart's quiet second line.
+  // Overwrites in place so a poll redraws the same line instead of
+  // collapsing it to a point for a frame.
+  const [otherHorizonHistory, setOtherHorizonHistory] = useState<Array<{ at: string; consensus: number | null }>>([]);
+  const otherHorizonId = otherHorizon?.marketId ?? null;
+  useEffect(() => {
+    if (!otherHorizonId || !ws) { setOtherHorizonHistory([]); return; }
+    let cancelled = false;
+    api.getPublicMarketHistory(ws.slug || ws.workspaceId, otherHorizonId)
+      .then(h => { if (!cancelled) setOtherHorizonHistory(h); })
+      .catch(e => console.error('horizon history fetch failed:', e));
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [otherHorizonId, wsKey]);
 
   const refreshMoney = () => {
     if (activeMarketId && ws) {
@@ -679,6 +725,28 @@ export function TradePage() {
                 )}
               </h1>
             )}
+            {/* Two clocks on one number: quieter than the approved/declined
+                pills on purpose, because a horizon is a lens on the same
+                number while a branch is a different world. */}
+            {horizons.length > 1 && (
+              <div className="pubws-horizons pubws-enter pubws-enter--2" role="group" aria-label="Horizon">
+                {horizons.map((m, i) => (
+                  <button
+                    key={m.marketId}
+                    className={`pubws-horizon${i === heroIdx ? ' is-active' : ''}`}
+                    aria-pressed={i === heroIdx}
+                    onClick={() => setHorizon(i)}
+                  >
+                    {horizonLabel(m.targetDate)}
+                  </button>
+                ))}
+                {decisionDate && (
+                  <span className="pubws-horizon-note">
+                    {heroIdx === horizons.length - 1 ? 'the number I fund on' : 'speed, not the decision'}
+                  </span>
+                )}
+              </div>
+            )}
             <div className="pubws-headline pubws-enter pubws-enter--2">
               <span className="pubws-price">{unit}{formatValue(shownConsensus ?? consensus)}</span>
               {!selectedJob && marketOpen !== null && consensus !== marketOpen && (
@@ -739,14 +807,23 @@ export function TradePage() {
                 note={settleDayOf(hero.targetDate) ? `resolves ${settleDayOf(hero.targetDate)}` : undefined}
                 preview={chartPreview}
                 orders={orders.map(o => ({ id: o.id, direction: o.direction, limitValue: o.limitValue }))}
-                secondary={selectedJob && otherBranch && otherBranch.consensus !== null
-                  ? {
-                      series: otherBranch.history,
-                      consensus: otherBranch.consensus,
-                      label: branch === 'approved' ? 'if declined' : 'if approved',
-                      tone: branch === 'approved' ? 'lower' : 'higher',
-                    }
-                  : null}
+                secondary={selectedJob
+                  ? (otherBranch && otherBranch.consensus !== null
+                      ? {
+                          series: otherBranch.history,
+                          consensus: otherBranch.consensus,
+                          label: branch === 'approved' ? 'if declined' : 'if approved',
+                          tone: branch === 'approved' ? 'lower' as const : 'higher' as const,
+                        }
+                      : null)
+                  : (otherHorizon && otherHorizon.consensus !== null
+                      ? {
+                          series: otherHorizonHistory,
+                          consensus: otherHorizon.consensus,
+                          label: horizonLabel(otherHorizon.targetDate),
+                          tone: 'horizon' as const,
+                        }
+                      : null)}
               />
             </div>
           </section>
@@ -867,6 +944,8 @@ export function TradePage() {
             <JobsBoard
               proposals={ws.proposals}
               unit={unit}
+              decisionDate={decisionDate}
+              pulseDate={pulseDate}
               selectedId={selectedJobId}
               onSelect={id => setSelectedJobId(cur => (cur === id ? null : id))}
               signedIn={!!user}
