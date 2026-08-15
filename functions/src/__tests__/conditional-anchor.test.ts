@@ -62,10 +62,10 @@ async function seed() {
     id: WS, name: 'Anchor Test', createdBy: PROPOSER, visibility: 'public',
   });
   await db.insert(metrics).values({
-    id: 'metric-anchor', workspaceId: WS, name: 'Revenue', value: 60, formula: '0', marketRangeMax: 100,
+    id: 'metric-anchor', workspaceId: WS, name: 'Revenue (USD)', value: 60, formula: '0', marketRangeMax: 100,
   });
   await db.insert(markets).values({
-    id: 'mkt-base-anchor', workspaceId: WS, metricId: 'metric-anchor', metricName: 'Revenue',
+    id: 'mkt-base-anchor', workspaceId: WS, metricId: 'metric-anchor', metricName: 'Revenue (USD)',
     targetDate: '2026-12', rangeMin: 0, rangeMax: 100,
     shares: [0, BASE_DIFF], liquidity: BASE_B, pool: 100,
     active: true, resolved: false, voided: false, proposalId: null, branch: null,
@@ -95,6 +95,23 @@ describe('anchored conditional opens', () => {
   test('a free job opens both branches at the baseline value', async () => {
     await seed();
     const res = await propose({ title: 'free job', description: '', liquiditySubsidy: 20, askUsd: 0 });
+    expect(res.status).toBe(201);
+    const { approved, declined, val } = await branchMarkets(res.body.id);
+    expect(val(approved)).toBeCloseTo(60, 0);
+    expect(val(declined)).toBeCloseTo(60, 0);
+  });
+
+  test('a headcount metric does not subtract the dollar ask (2026-08-15)', async () => {
+    await seed();
+    // The ask burns out of the metric only when the metric IS that money.
+    // Against a metric counted in people this subtracted dollars from a
+    // headcount, pinning every approved branch at the range floor and
+    // printing the same fake negative impact on every contract.
+    await db.update(metrics).set({ name: 'Weekly active traders' })
+      .where(eq(metrics.id, 'metric-anchor'));
+    await db.update(markets).set({ metricName: 'Weekly active traders' })
+      .where(eq(markets.id, 'mkt-base-anchor'));
+    const res = await propose({ title: '$20: paid job', description: '', liquiditySubsidy: 20, askUsd: 20, payoutHandle: 'pay@example.com' });
     expect(res.status).toBe(201);
     const { approved, declined, val } = await branchMarkets(res.body.id);
     expect(val(approved)).toBeCloseTo(60, 0);
