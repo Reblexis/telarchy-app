@@ -206,7 +206,7 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
           className="pubws-propose-cta"
           onClick={() => (signedIn ? setFormOpen(true) : onRequireSignup())}
         >
-          + Offer to do a job
+          + Offer to do a contract
         </button>
         {/* Surface the stake on the board itself, not only inside the form:
             posting costs 500 cr and pays 1,000 cr back if the owner approves,

@@ -323,10 +323,20 @@ Do a contract. Each scrolls to the control it names (`.pubws-bet` /
 `.pubws-rail--right`) rather than opening a modal. The contract card must
 name real money; without it the offer reads as points.
 
-**Vocabulary guard:** no visitor-readable string on a floor may contain
-"floor" OR "job". The board is Contracts, the action is Suggest a contract.
-Assert with `$B js "/\\b(floor|jobs?)\\b/i.test(document.body.innerText)"`
-=> false. The API keeps `proposal`; this rule is about what a visitor reads.
+**Vocabulary guard:** no string the APP renders may contain "floor" or
+"job". The board is Contracts, the action is Offer to do a contract.
+
+Owner-authored content is exempt and must be, because it is data: a
+metric's stored description, a workspace charter, and contract titles are
+written by the owner, and a metric's description is part of its DEFINITION
+(`docs/vision.md`), so editing one to change a word VOIDS every open market
+on it. LookPilot's metric description still reads "everything it pays out
+for jobs approved on this page" for exactly that reason; it changes the
+next time that metric is redefined for a real reason, not before.
+
+So assert over the app's own chrome rather than the whole page:
+`$B js "[...document.querySelectorAll('.pubws-h2,.pubws-propose-cta,.pubws-do-title,.pubws-do-body,.pubws-lb-sub,.pubws-empty')].map(n=>n.textContent).join(' ')"`
+must not match `/\\b(floor|jobs?)\\b/i`. The API keeps `proposal`.
 
 **Share unfurl:** `curl -s https://telarchy.com/<slug> | grep og:description`
 must contain BOTH the workspace's own line and what Telarchy is ("One
