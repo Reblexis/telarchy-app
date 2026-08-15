@@ -7,7 +7,11 @@
  * about $1,300 in the week available to it.
  */
 
-import { nearHorizonAnchorP, NEAR_HORIZON_DAYS } from '../services/markets';
+// Imported from the pure lib, NOT from services/markets: that module pulls
+// in db/client, which opens a pg Pool at load. A pure test does not need a
+// database, and dragging one in hung the CI job for 14 minutes with no
+// output before it was killed (2026-08-15).
+import { nearHorizonAnchorP, NEAR_HORIZON_DAYS } from '../lib/market-open';
 
 const NOW = new Date('2026-08-15T12:00:00Z');
 
