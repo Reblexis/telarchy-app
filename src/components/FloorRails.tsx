@@ -119,9 +119,12 @@ export function LeaderboardRail({ entries: all, contractors, unit = '' }: {
                     {scored ? (
                       <span
                         className={`pubws-lb-score${c.impact! > 0 ? ' is-up' : c.impact! < 0 ? ' is-down' : ''}`}
+                        /* No arrow at exactly zero: the market has priced
+                           these jobs and called them a wash, which an up
+                           arrow would misreport as a gain. */
                         title="What the market says this contractor's jobs are worth: approved minus declined, summed over their live jobs."
                       >
-                        {c.impact! >= 0 ? '▲' : '▼'} {formatImpact(c.impact!, unit)}
+                        {c.impact! > 0 ? '▲ ' : c.impact! < 0 ? '▼ ' : ''}{formatImpact(c.impact!, unit)}
                       </span>
                     ) : c.impact === null ? (
                       <span className="pubws-lb-score is-up">${Math.round(c.earnedUsd).toLocaleString('en-US')}</span>

@@ -90,3 +90,14 @@ describe('LeaderboardRail traders', () => {
     expect(block.queryByText('cy')).not.toBeInTheDocument();
   });
 });
+
+describe('a contractor the market prices at exactly zero', () => {
+  test('reads as a wash, with no arrow either way', () => {
+    render(<LeaderboardRail entries={[]} contractors={[contractor({ impact: 0, pricedJobs: 5, jobs: 5, pendingJobs: 5 })]} />);
+    const block = within(contractorsBlock());
+    const score = block.getByText('0.00');
+    expect(score.textContent).not.toContain('▲');
+    expect(score.textContent).not.toContain('▼');
+    expect(score.className).not.toContain('is-up');
+  });
+});
