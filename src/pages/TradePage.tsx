@@ -164,12 +164,19 @@ export function TradePage() {
       .catch(e => console.error('silent join failed:', e));
   }, [ws, user]);
 
+  // Scoped to THIS workspace (owner report 2026-08-15): the rail's other
+  // half, top contractors, has always been this workspace's, and a floor
+  // that ranks its traders globally is answering a question nobody asked
+  // while standing here. The cross-workspace board still lives at
+  // /leaderboard.
   const loadLeaders = () => {
-    api.getLeaderboard(5)
+    if (!idOrSlug) return;
+    api.getLeaderboard(5, idOrSlug)
       .then(r => setLeaders(r.participants ?? []))
       .catch(e => console.error('leaderboard fetch failed:', e));
   };
-  useEffect(loadLeaders, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(loadLeaders, [idOrSlug]);
 
   // Once joined (the workspace header is set), ask who we are HERE: an
   // owner/admin membership reveals the decision bar on selected jobs.

@@ -374,6 +374,16 @@ has funded a market for this job yet. Composing a bet and meeting
 "this market has no liquidity" at submit is the bug this rule exists to
 prevent.
 
+**Both rails are scoped to THIS workspace (owner report 2026-08-15: "why
+are the contractors per workspace and traders globally sorted? it should
+all be per workspace").** The contractor board always was; the trader
+rail asked `/api/leaderboard` unscoped and answered with the whole
+platform's traders, which is a different question from the one a visitor
+standing on this floor is asking. It now passes the workspace
+(`?workspaceId=<id or slug>`), so a trader's number on a floor is the
+profit they made ON that floor. The cross-workspace board still lives at
+`/leaderboard`, where the question genuinely is platform-wide.
+
 **Both leaderboards rank on what the market says right now, not on what
 has settled (owner direction 2026-08-14, Viktor).** The rail stacks two
 blocks, traders then contractors, five rows each; both update on the

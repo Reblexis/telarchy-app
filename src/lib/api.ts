@@ -834,8 +834,12 @@ export const api = {
     if (!res.ok) throw new Error(`Featured markets request failed: ${res.status}`);
     return res.json();
   },
-  getLeaderboard: async (limit = 100): Promise<{ participants: LeaderboardEntry[] }> => {
-    const res = await fetch(`${API_BASE}/api/leaderboard?limit=${limit}`);
+  /** Traders ranked by trading profit at current market prices. Pass a
+   *  workspace id or slug to rank within that one public workspace, which is
+   *  what a floor's own rail shows; omit it for the cross-workspace board. */
+  getLeaderboard: async (limit = 100, workspaceIdOrSlug?: string): Promise<{ participants: LeaderboardEntry[] }> => {
+    const scope = workspaceIdOrSlug ? `&workspaceId=${encodeURIComponent(workspaceIdOrSlug)}` : '';
+    const res = await fetch(`${API_BASE}/api/leaderboard?limit=${limit}${scope}`);
     if (!res.ok) throw new Error(`Leaderboard request failed: ${res.status}`);
     return res.json();
   },

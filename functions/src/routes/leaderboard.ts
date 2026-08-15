@@ -7,9 +7,13 @@ import { wrap } from '../lib/wrap';
 import { computeCalibrationStats, computeTradingProfit, voidedStakeKey, type ProfitMarket } from '../lib/leaderboard';
 
 /**
- * Cross-workspace participant leaderboard. Public (no auth). Aggregates only
- * over markets in public-visibility workspaces, matching the privacy contract
- * of /api/marketplace: anything inside a private workspace stays inside.
+ * Participant leaderboard. Public (no auth). Aggregates only over markets in
+ * public-visibility workspaces, matching the privacy contract of
+ * /api/marketplace: anything inside a private workspace stays inside.
+ *
+ * Cross-workspace by default; pass ?workspaceId=<id or slug> to rank within
+ * one public workspace, which is what a workspace's own floor shows so its
+ * two rails answer the same question about the same place.
  *
  * Ranking (owner direction 2026-08-11, revised 2026-08-14 by Viktor): by
  * TRADING PROFIT MARKED TO MARKET, measured off the trades themselves
@@ -58,10 +62,25 @@ leaderboardRouter.get('/', wrap(async (req, res) => {
     return Math.min(raw, 500);
   })();
 
-  const publicWs = await db.select({ id: workspaces.id })
+  // Optional scope: one public workspace, by id or slug. The floor's own
+  // rail asks for this (owner report 2026-08-15: "why are the contractors
+  // per workspace and traders globally sorted? it should all be per
+  // workspace"), while /leaderboard keeps asking for the cross-workspace
+  // board. Same formula either way, only the set of markets changes.
+  const scope = typeof req.query.workspaceId === 'string' ? req.query.workspaceId.trim()
+    : typeof req.query.workspace === 'string' ? req.query.workspace.trim()
+    : '';
+
+  const publicWs = await db.select({ id: workspaces.id, slug: workspaces.slug })
     .from(workspaces).where(eq(workspaces.visibility, 'public'));
-  if (publicWs.length === 0) { res.json({ participants: [] }); return; }
-  const publicWsIds = publicWs.map(w => w.id);
+  const scoped = scope
+    ? publicWs.filter(w => w.id === scope || (w.slug ?? '').toLowerCase() === scope.toLowerCase())
+    : publicWs;
+  // A scope that names nothing public answers empty rather than silently
+  // widening to every workspace, which would leak the opposite of what was
+  // asked for.
+  if (scoped.length === 0) { res.json({ participants: [] }); return; }
+  const publicWsIds = scoped.map(w => w.id);
 
   // Every market in a public workspace, whatever state it is in: enough to
   // say what a holding is worth (currentPayoutFactors picks the resolution

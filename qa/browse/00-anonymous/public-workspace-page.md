@@ -256,8 +256,11 @@ the public payload) are
 visible to both tiers on viewports >=1120px, stack below the poster on
 narrow ones, and are absent entirely when empty. The left rail stacks two
 boards, both ranked on live market valuation rather than settled money
-(owner direction 2026-08-14): top traders from /api/leaderboard, ranked by
-trading profit marked to current prices with no account excluded; top
+(owner direction 2026-08-14): top traders from
+/api/leaderboard?workspaceId=<this workspace>, ranked by trading profit
+marked to current prices with no account excluded and scoped to THIS
+workspace (owner report 2026-08-15; assert the rail's names are a subset
+of the participants who have traded here, not the platform's board); top
 contractors from the workspace payload's `topContractors`, ranked by the
 summed priced impact (approved branch minus declined branch, hero metric)
 of each poster's pending and approved jobs, with job count and dollars
