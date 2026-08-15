@@ -378,6 +378,10 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
   // from), and a simple activity pulse. Without these the page asks people
   // to bet on a number with no evidence, which serious forecasters refuse.
   let heroHistory: Array<{ at: Date | null; value: number }> | undefined;
+  let horizonHistories: Array<{
+    marketId: string; metricName: string; targetDate: string;
+    description: string | null; points: Array<{ at: Date | null; value: number }>;
+  }> | undefined;
   let heroMetricDescription: string | null | undefined;
   let tradesThisWeek: number | undefined;
   let marketHistory: Array<{ at: Date; consensus: number | null }> | undefined;
@@ -401,6 +405,28 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
         .orderBy(desc(metricLogs.timestamp))
         .limit(500);
       heroHistory = logs.reverse();
+    }
+    // Every open horizon's own metric history, so a two-clock workspace can
+    // draw one actual-vs-forecast chart per horizon instead of only the
+    // soonest one's (owner direction 2026-08-15). Keyed by marketId; the
+    // hero's copy stays in heroHistory for consumers that predate this.
+    horizonHistories = [];
+    for (const m of marketList.slice(0, 4)) {
+      const metricId = m.metricId as string;
+      const rows = await db.select({ at: metricLogs.timestamp, value: metricLogs.value })
+        .from(metricLogs)
+        .where(and(eq(metricLogs.workspaceId, workspaceId), eq(metricLogs.metricId, metricId)))
+        .orderBy(desc(metricLogs.timestamp))
+        .limit(500);
+      const [metricRow] = await db.select({ description: metrics.description })
+        .from(metrics).where(and(eq(metrics.workspaceId, workspaceId), eq(metrics.id, metricId)));
+      horizonHistories.push({
+        marketId: m.marketId as string,
+        metricName: m.metricName as string,
+        targetDate: m.targetDate as string,
+        description: metricRow?.description ?? null,
+        points: rows.reverse(),
+      });
     }
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const [tradeCount] = await db.select({ n: sql<number>`count(*)::int` })
@@ -663,6 +689,7 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
       proposals: openProposals,
       topContractors,
       heroHistory,
+      horizonHistories,
       heroMetricDescription,
       tradesThisWeek,
       marketHistory,

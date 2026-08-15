@@ -308,6 +308,15 @@ export interface PublicWorkspace {
   tradesThisWeek?: number;
   /** The market's call after each trade of the hero market (the amber line). */
   marketHistory?: Array<{ at: string; consensus: number | null }>;
+  /** Each open horizon's own metric history, so a two-clock workspace can
+      draw one actual-vs-forecast chart per horizon (2026-08-15). */
+  horizonHistories?: Array<{
+    marketId: string;
+    metricName: string;
+    targetDate: string;
+    description: string | null;
+    points: Array<{ at: string | null; value: number }>;
+  }>;
 }
 
 export interface PublicProposalMarketPair {

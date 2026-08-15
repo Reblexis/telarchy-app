@@ -543,6 +543,39 @@ export function TradePage() {
       .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
   }, [ws?.heroHistory]);
 
+  // One chart model per open horizon, each from its OWN metric's logged
+  // history and its OWN market's call, so "this week" and "this year" are
+  // two honest pictures rather than one series relabelled.
+  const horizonCharts = useMemo(() => {
+    const rows = ws?.horizonHistories ?? [];
+    return rows.map(row => {
+      const market = (ws?.markets ?? []).find(m => m.marketId === row.marketId);
+      if (!market || market.consensus == null || !market.resolvesOn) return null;
+      const history = row.points
+        .flatMap(p => (p.at && Number.isFinite(p.value) ? [{ at: p.at, value: p.value }] : []))
+        .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+      if (history.length < 1) return null;
+      // The live call for whichever market the page is currently on, so the
+      // chart the reader is trading tracks the price they see above.
+      const forecast = market.marketId === hero?.marketId
+        ? ((consensus ?? market.consensus) as number)
+        : market.consensus;
+      return {
+        marketId: row.marketId,
+        label: row.metricName.replace(/\s*\(.*\)\s*$/, ''),
+        unit: currencyOf(row.metricName),
+        settleDay: settleDayOf(row.targetDate),
+        resolvesOn: market.resolvesOn,
+        forecast,
+        history,
+      };
+    }).filter((r): r is NonNullable<typeof r> => r !== null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ws?.horizonHistories, ws?.markets, hero?.marketId, consensus]);
+
+  // The definition belongs to the horizon on screen.
+  const horizonDescription = (ws?.horizonHistories ?? []).find(h => h.marketId === hero?.marketId)?.description ?? null;
+
   if (error) {
     return (
       <div className="pubws pubws--center">
@@ -920,27 +953,31 @@ export function TradePage() {
               floor (telarchy, 2026-08-14) made that a lie on every other
               workspace. No fallback: a workspace whose owner wrote no
               definition shows no definition rather than someone else's. */}
-          {ws?.heroMetricDescription && (
-            <p className="pubws-know-what">{ws.heroMetricDescription}</p>
+          {/* The definition of the metric the reader is looking at, which
+              follows the horizon selector: two clocks measure different
+              windows, so the settlement text differs between them. */}
+          {(horizonDescription ?? ws?.heroMetricDescription) && (
+            <p className="pubws-know-what">{horizonDescription ?? ws?.heroMetricDescription}</p>
           )}
-          {/* The metric itself over the year: what it has actually done so
-              far (solid) and where the market sees it settling (dashed).
-              Lives here, under the definition, because it shows the thing
-              the market is about, not the market's own price. */}
-          {active && hero && hero.resolvesOn && (consensus ?? hero.consensus) != null && heroActualHistory.length >= 1 && (
-            <div style={{ marginTop: '1.25rem' }}>
+          {/* One chart per horizon (owner direction 2026-08-15): each shows
+              its own metric's actual trajectory (solid) and where its own
+              market sees it settling (dashed). A week of earnings and a
+              year of them are different pictures, and the reader should be
+              able to see both without switching. */}
+          {horizonCharts.map(h => (
+            <div key={h.marketId} style={{ marginTop: '1.25rem' }}>
               <div className="pubws-settle" style={{ textAlign: 'center', marginBottom: '0.1rem' }}>
-                {metricLabel}: actual so far, and where the market sees it landing
-                {settleDayOf(hero.targetDate) ? ` @ ${settleDayOf(hero.targetDate)}` : ''}
+                {h.label}: actual so far, and where the market sees it landing
+                {h.settleDay ? ` @ ${h.settleDay}` : ''}
               </div>
               <MetricYearChart
-                history={heroActualHistory}
-                forecastValue={(consensus ?? hero.consensus) as number}
-                forecastAt={hero.resolvesOn}
-                unit={unit}
+                history={h.history}
+                forecastValue={h.forecast}
+                forecastAt={h.resolvesOn}
+                unit={h.unit}
               />
             </div>
-          )}
+          ))}
         </section>
         <SubjectAbout
           workspaceId={ws.workspaceId}
