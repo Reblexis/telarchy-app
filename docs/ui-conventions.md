@@ -247,7 +247,15 @@ Conditional (job) markets open ANCHORED (owner decision 2026-08-11):
 a fresh pair opens at the baseline market's current value rather than
 the range midpoint, and the approved branch opens at baseline minus the
 job's ask, because approval burns the ask into the resolving metric the
-day it is paid. Solvency is preserved by sizing the LMSR b down so the
+day it is paid. **The ask-adjustment applies only to a metric denominated
+in money** (its name carries a currency tail, the same "(USD)" convention
+that puts the $ on the headline; corrected 2026-08-15). Subtracting a
+dollar ask from a metric counted in people or hours is a category error:
+on Telarchy's own workspace it drove every approved branch to the range
+floor and printed the same fake negative impact on every contract, which
+a two-horizon board made impossible to miss. A non-monetary metric
+anchors both branches at the baseline and lets traders price the whole
+difference. Solvency is preserved by sizing the LMSR b down so the
 subsidy exactly covers the anchored worst case (`anchoredMarketState`
 in functions/src/lib/amm.ts); an off-center open buys its anchor with a
 slightly thinner book, never with unminted credits.
@@ -700,3 +708,37 @@ version of this page bounced admins into the console dashboard, which
 is exactly what must never happen. The console is reachable only on
 purpose (sidebar, /alpha, direct /console/* URLs); every public route
 lands in the floor language for everybody.
+
+**Revised 2026-08-15 (Viktor), two horizons on one number.** A public
+workspace now runs the SAME number on two clocks, because a single weekly
+metric pays for whatever spikes this week: any contract that inflates
+seven-day activity at the cost of the audience prices well and gets
+funded, and the workspace had no defence against that. The near horizon
+is the pulse (fast feedback, and short horizons measurably draw more
+traders); the far horizon is the decision. The charter carries the rule
+that makes two numbers unambiguous: **fund only if the far-horizon delta
+is positive; the near market exists for speed of feedback, not for the
+decision.** Both metrics measure the same definition at different dates,
+so the contrast between them is meaningful and needs no new plumbing.
+
+The page shows it like this:
+
+- A **horizon selector** sits above the price in the chart zoom row's own
+  grammar (small mono buttons, the active one boxed), because that is
+  already this page's vocabulary for "which window am I looking at". It
+  is deliberately quieter than the approved/declined pills: a horizon is
+  a lens on one number, a branch is a different world.
+- The big mono price is the **selected horizon's** call, and the ticket
+  trades that market. The headline's settle day follows the selection.
+- The chart's quiet second line always shows **the counterfactual that
+  matters in this view**: the other branch when a contract is selected
+  (the gap is the priced impact), the other horizon otherwise. A horizon
+  line is drawn dashed in the accent rather than in the green/red branch
+  tones, reusing the year chart's "dashed means farther out" grammar, so
+  no new colour enters the page.
+- The ballot ranks contracts by the **far-horizon delta**, because that
+  is the number the charter funds on, and prints it as the row's impact.
+  When a contract's near delta disagrees in sign with it, the row carries
+  a plain-language mark ("buys the week, costs the year"). That mark is
+  the whole reason the second horizon exists: it is Goodhart caught in
+  the act, said in words a visitor can act on.

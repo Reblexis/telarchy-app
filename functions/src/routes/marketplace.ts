@@ -450,8 +450,16 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
       rangeMax: number;
     }
     const byProposal = new Map<string, Map<string, PairGroup>>();
+    // A voided pair is dead weight on a PENDING contract: it was voided
+    // because its horizon was retired, yet it kept printing its last delta
+    // on the ballot (seen 2026-08-15, when the near horizon moved to a
+    // weekly cadence and every contract still showed its old monthly
+    // number). Decided contracts keep everything, voided included: their
+    // markets are the record of what was priced when the owner ruled.
+    const decidedIds = new Set(pending.filter(p => p.status !== 'pending').map(p => p.id));
     for (const m of branchMarkets) {
       if (!m.proposalId || !m.branch) continue;
+      if (m.voided && !decidedIds.has(m.proposalId)) continue;
       const shares = (m.shares as [number, number]) || [0, 0];
       const c = consensus(shares, m.liquidity, m.rangeMin, m.rangeMax) ?? null;
       const groups = byProposal.get(m.proposalId) ?? new Map<string, PairGroup>();

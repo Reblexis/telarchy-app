@@ -91,6 +91,41 @@ async function seed(publicCaps: string[]) {
 }
 
 describe('public ballot disclosure gate', () => {
+  test('a pending contract drops pairs from a retired horizon; a decided one keeps its record', async () => {
+    await seed(['read', 'trade']);
+    // The near horizon moved to a weekly cadence, so the old monthly pair was
+    // voided. It kept printing its last delta on the ballot until 2026-08-15.
+    await db.insert(markets).values([
+      {
+        id: 'mkt-old-appr', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
+        targetDate: '2026-08', rangeMin: 0, rangeMax: 100,
+        shares: [0, 40], liquidity: 100, pool: initialPool(100),
+        active: true, resolved: false, voided: true, proposalId: 'prop-open', branch: 'approved',
+      },
+      {
+        id: 'mkt-old-decl', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
+        targetDate: '2026-08', rangeMin: 0, rangeMax: 100,
+        shares: [0, 0], liquidity: 100, pool: initialPool(100),
+        active: true, resolved: false, voided: true, proposalId: 'prop-open', branch: 'declined',
+      },
+      // The declined contract's own pair, voided at decision time: this one
+      // stays, because a decided contract's markets are what was priced.
+      {
+        id: 'mkt-dec-appr', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
+        targetDate: '2028', rangeMin: 0, rangeMax: 100,
+        shares: [0, 20], liquidity: 100, pool: initialPool(100),
+        active: true, resolved: false, voided: true, proposalId: 'prop-declined', branch: 'approved',
+      },
+    ]);
+    const res = await request(app).get(`/api/marketplace/${WS}`);
+    expect(res.status).toBe(200);
+    const open = res.body.proposals.find((p: { id: string }) => p.id === 'prop-open');
+    expect(open.markets.map((m: { targetDate: string }) => m.targetDate)).toEqual(['2028']);
+    expect(open.marketPairCount).toBe(1);
+    const decided = (res.body.decided ?? []).find((p: { id: string }) => p.id === 'prop-declined');
+    if (decided?.markets) expect(decided.markets.length).toBeGreaterThan(0);
+  });
+
   test('an Open workspace (Public group has read) ships the ballot with deltas and decline reasons', async () => {
     await seed(['read', 'trade']);
 
