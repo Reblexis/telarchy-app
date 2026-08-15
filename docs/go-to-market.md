@@ -265,7 +265,7 @@ Founder-credibility line, used at most once per conversation and only when it ea
 
 - **Workspace isolation model** - Global trader balance vs per-workspace? Global is simpler and more liquid.
 - **Creator business model** - Free tier + premium? Transaction fees? Subscription?
-- **Legal structure** - Regulatory posture for real-money prediction markets. Needs legal counsel.
+- **Legal structure** - Regulatory posture for real-money prediction markets. Needs legal counsel. Paths costed and ranked in `docs/legal/trader-compensation.md` (2026-08-15), which also holds the interim incentive plan and the questions to put to counsel; the operating entity and jurisdiction are unresolved there and block every real-money step.
 - **Participant identity UX** - Keep browser-account and API-key signup flows distinct while preserving the same permissions and market access?
 - **Data architecture** - how aggressively to partition or shard workspace-scoped PostgreSQL data as scale increases.
 - **Position visibility** - Per-workspace setting? Default private (prevent front-running) or public (social trading)?
