@@ -241,21 +241,28 @@ export function TradePage() {
   // the page still shows the impact that was priced for it.
   const selectedJobDecided = !!selectedJob?.status && selectedJob.status !== 'pending';
   // The selected branch's market id/price shape, and the other branch's for
-  // the chart's second line. A branch market can exist without a price
-  // (liquidity 0: the proposer could not fund the subsidy before the
-  // auto-fund fallback existed); its honest prior is the baseline call, not
-  // a vanished chart.
+  // the chart's second line. A branch market can exist without any liquidity
+  // (nobody funded the subsidy and the workspace owner could not cover the
+  // auto-fund fallback either), in which case it has no price at all: its
+  // honest prior for DRAWING is the baseline call, not a vanished chart.
+  //
+  // `funded` is carried separately from that borrowed number, because the
+  // two questions are different and conflating them shipped a real bug
+  // (owner report 2026-08-15: betting on a job returned "Market has no
+  // liquidity. Admin must inject liquidity before trading"). Borrowing the
+  // baseline's liquidity made an unfunded branch look tradeable, so the
+  // floor offered a bet the server had to refuse at submit time.
   const branchShape = (b: 'approved' | 'declined') => {
     if (!pair) return null;
     const marketId = b === 'approved' ? pair.approvedMarketId : pair.declinedMarketId;
     if (!marketId) return null;
+    const ownLiquidity = (b === 'approved' ? pair.approvedLiquidity : pair.declinedLiquidity) ?? 0;
     return {
       marketId,
       consensus: (b === 'approved' ? pair.approvedConsensus : pair.declinedConsensus) ?? hero?.consensus ?? null,
       probability: (b === 'approved' ? pair.approvedProbability : pair.declinedProbability) ?? hero?.probability ?? 0.5,
-      liquidity: ((b === 'approved' ? pair.approvedLiquidity : pair.declinedLiquidity) ?? 0) > 0
-        ? ((b === 'approved' ? pair.approvedLiquidity : pair.declinedLiquidity) as number)
-        : (hero?.liquidity ?? 1),
+      liquidity: ownLiquidity > 0 ? ownLiquidity : (hero?.liquidity ?? 1),
+      funded: ownLiquidity > 0,
       rangeMin: pair.rangeMin,
       rangeMax: pair.rangeMax,
       history: condHistory?.[b] ?? [],
@@ -269,6 +276,7 @@ export function TradePage() {
         consensus: hero.consensus,
         probability: hero.probability,
         liquidity: hero.liquidity,
+        funded: hero.liquidity > 0,
         rangeMin: hero.rangeMin,
         rangeMax: hero.rangeMax,
         history: ws?.marketHistory ?? [],
@@ -731,11 +739,26 @@ export function TradePage() {
             {/* Prominent, Manifold-style (owner direction 2026-08-10):
                 the two filled verbs ARE the floor's call to action, green
                 up first like the reference. The dialog they open keeps its
-                own side pills for switching. */}
-            <div className="pubws-bet" role="group" aria-label="Bet">
-              <button className="pubws-bet-btn pubws-bet-btn--higher" onClick={() => setBetModal('higher')}>Bet Higher ↑</button>
-              <button className="pubws-bet-btn pubws-bet-btn--lower" onClick={() => setBetModal('lower')}>Bet Lower ↓</button>
-            </div>
+                own side pills for switching.
+
+                Unless the market has no liquidity, in which case there is
+                nothing to trade against and the server refuses the bet. Say
+                so here rather than letting someone compose a bet and meet
+                "Market has no liquidity" at submit (owner report
+                2026-08-15). The number above is the baseline's prior, drawn
+                so the chart is not blank; it is not a price anyone made. */}
+            {active.funded ? (
+              <div className="pubws-bet" role="group" aria-label="Bet">
+                <button className="pubws-bet-btn pubws-bet-btn--higher" onClick={() => setBetModal('higher')}>Bet Higher ↑</button>
+                <button className="pubws-bet-btn pubws-bet-btn--lower" onClick={() => setBetModal('lower')}>Bet Lower ↓</button>
+              </div>
+            ) : (
+              <p className="pubws-unfunded" role="status">
+                {selectedJob
+                  ? 'This job has no market yet: nobody has funded one, so there is nothing to trade against. The owner funds it, or the proposer can back it themselves.'
+                  : 'This market has no liquidity yet, so there is nothing to trade against.'}
+              </p>
+            )}
             {/* The held position stays visible on the floor; managing it
                 (selling, cancelling orders) happens in the same dialog. */}
             {(positions.length > 0 || orders.length > 0) && (

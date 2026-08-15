@@ -209,11 +209,82 @@ describe('listing-stake atomicity', () => {
     expect(data.skipped[0].contributorId).toBe(BROKE);
   });
 
-  test('a zero-subsidy proposal still creates fine (markets at zero liquidity by design)', async () => {
+  test('a zero-subsidy proposal still creates fine', async () => {
     await seed();
     const res = await submit(BROKE, { title: 'free proposal', askUsd: 10, payoutHandle: 'pay@example.com' });
     expect(res.status).toBe(201);
     const rows = await db.select().from(proposals).where(eq(proposals.workspaceId, WS));
     expect(rows).toHaveLength(1);
+  });
+});
+
+/**
+ * A branch market at zero liquidity is born dead: it has no price, charts as
+ * nothing, and refuses every trade with "this market has no liquidity". The
+ * owner hit exactly that on the public Telarchy floor (2026-08-15), where the
+ * workspace auto-funds 250/market but the owner account held 87 credits, so
+ * the all-or-nothing fallback funded nothing at all.
+ */
+describe('a branch market is never born dead when anyone can pay', () => {
+  const fundedWorkspace = async (ownerBalance: number, credits = 250) => {
+    await seed();
+    await db.update(agents).set({ balance: toUnits(ownerBalance) }).where(eq(agents.id, OWNER));
+    await db.update(workspaces)
+      .set({ autoFundNewMarkets: true, newMarketLiquidityCredits: credits })
+      .where(eq(workspaces.id, WS));
+  };
+
+  const branchMarkets = async () => {
+    const rows = await db.select().from(markets).where(eq(markets.workspaceId, WS));
+    return rows.filter(m => m.proposalId);
+  };
+
+  test('the workspace auto-fund covers a proposal that names no subsidy', async () => {
+    await fundedWorkspace(1000);
+    const res = await submit(RICH, { title: 'unsubsidised', askUsd: 10, payoutHandle: 'pay@example.com' });
+    expect(res.status).toBe(201);
+    const branches = await branchMarkets();
+    expect(branches).toHaveLength(2);
+    for (const m of branches) expect(m.liquidity).toBeGreaterThan(0);
+  });
+
+  test('an owner who cannot cover the full amount funds what they can', async () => {
+    // 87 credits against a 250/market ask over two markets: the old rule
+    // funded nothing, so both branches shipped unpriced and untradeable.
+    await fundedWorkspace(87);
+    const res = await submit(RICH, { title: 'thin but alive', askUsd: 10, payoutHandle: 'pay@example.com' });
+    expect(res.status).toBe(201);
+
+    const branches = await branchMarkets();
+    expect(branches).toHaveLength(2);
+    for (const m of branches) expect(m.liquidity).toBeGreaterThan(0);
+
+    // Owner-funded, so it comes out of their balance and never exceeds it.
+    const [owner] = await db.select().from(agents).where(eq(agents.id, OWNER));
+    expect(fromUnits(owner.balance as number)).toBeGreaterThanOrEqual(0);
+    expect(fromUnits(owner.balance as number)).toBeLessThan(87);
+  });
+
+  test('an owner with nothing leaves the markets unfunded rather than inventing credits', async () => {
+    await fundedWorkspace(0);
+    const res = await submit(RICH, { title: 'nobody can pay', askUsd: 10, payoutHandle: 'pay@example.com' });
+    expect(res.status).toBe(201);
+    const branches = await branchMarkets();
+    expect(branches).toHaveLength(2);
+    for (const m of branches) expect(m.liquidity).toBe(0);
+    const [owner] = await db.select().from(agents).where(eq(agents.id, OWNER));
+    expect(fromUnits(owner.balance as number)).toBe(0);
+  });
+
+  test('a named subsidy still wins over the auto-fund fallback', async () => {
+    await fundedWorkspace(1000);
+    const res = await submit(RICH, {
+      title: 'self-funded', askUsd: 10, payoutHandle: 'pay@example.com', liquiditySubsidy: 20,
+    });
+    expect(res.status).toBe(201);
+    const [owner] = await db.select().from(agents).where(eq(agents.id, OWNER));
+    // The proposer paid, so the owner's balance is untouched.
+    expect(fromUnits(owner.balance as number)).toBe(1000);
+    for (const m of await branchMarkets()) expect(m.liquidity).toBeGreaterThan(0);
   });
 });

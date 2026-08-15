@@ -10511,6 +10511,19 @@ textarea.jobform-line--desc {
    the space the cards will occupy. */
 .mkt-loading { padding: clamp(3rem, 12vh, 6rem) 0; }
 
+/* An unfunded market says so where its bet buttons would be: no price
+   exists, so there is nothing to trade against (owner report 2026-08-15). */
+.pubws-unfunded {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border: 1px dashed var(--border-color);
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
 /* The same motif at card scale, in the chart slot, while that one market's
    payload is still in flight. */
 .mkt-card-loading {

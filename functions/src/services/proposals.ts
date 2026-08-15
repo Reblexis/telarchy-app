@@ -222,6 +222,17 @@ export async function createConditionalMarkets(
 
     const newMarkets = toSpawn;
 
+    // Resolved BEFORE the transaction opens. The auto-fund fallback below
+    // needs the workspace's settings and its owner agent, and reading them
+    // through `db` while a `db.transaction` is open issues a query outside
+    // that transaction: harmless on a pool, a deadlock on a single
+    // connection, and untestable either way (it hung the harness).
+    const [wsRow] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId));
+    const autoFundCredits = wsRow?.autoFundNewMarkets ? (wsRow.newMarketLiquidityCredits ?? 0) : 0;
+    const autoFundOwnerId = autoFundCredits >= MIN_LIQUIDITY_CONTRIBUTION
+      ? await resolveWorkspaceOwnerAgentId(workspaceId)
+      : null;
+
     const skipped: Array<{ contributorId: string; needed: number; had: number }> = [];
     await db.transaction(async tx => {
       // Which contributors can fund this generation? Lock each contributor
@@ -259,21 +270,30 @@ export async function createConditionalMarkets(
       // markets do in insertPendingMarkets. Only if that fails too do the
       // markets spawn unfunded, which then needs an admin liquidity
       // injection, same as an unfunded baseline market.
-      if (funded.length === 0) {
-        const [wsRow] = await tx.select().from(workspaces).where(eq(workspaces.id, workspaceId));
-        const credits = wsRow?.newMarketLiquidityCredits ?? 0;
-        if (wsRow?.autoFundNewMarkets && credits >= MIN_LIQUIDITY_CONTRIBUTION) {
-          const ownerAgentId = await resolveWorkspaceOwnerAgentId(workspaceId);
-          if (ownerAgentId) {
-            const cost = Math.round(credits * newMarkets.length * 1e6) / 1e6;
-            const [ownerRow] = await tx.select().from(agents).where(eq(agents.id, ownerAgentId)).for('update');
-            if (ownerRow && sufficientBalance(ownerRow.balance as number, cost)) {
-              funded.push([ownerAgentId, credits]);
-              console.error(`createConditionalMarkets: no subsidy contributor could fund proposal ${proposalId}; auto-funded ${credits}/market from workspace owner ${ownerAgentId}`);
-            } else {
-              console.error(`createConditionalMarkets: auto-fund fallback for proposal ${proposalId} failed too (owner ${ownerAgentId} cannot cover ${cost}); markets spawn with zero liquidity`);
-            }
+      if (funded.length === 0 && autoFundOwnerId) {
+        const credits = autoFundCredits;
+        const cost = Math.round(credits * newMarkets.length * 1e6) / 1e6;
+        const [ownerRow] = await tx.select().from(agents).where(eq(agents.id, autoFundOwnerId)).for('update');
+        if (ownerRow && sufficientBalance(ownerRow.balance as number, cost)) {
+          funded.push([autoFundOwnerId, credits]);
+          console.error(`createConditionalMarkets: no subsidy contributor could fund proposal ${proposalId}; auto-funded ${credits}/market from workspace owner ${autoFundOwnerId}`);
+        } else if (ownerRow) {
+          // Fund what the owner CAN cover rather than giving up. A thin
+          // market is a market: it has a price, it charts, and it can be
+          // traded, while a market at zero liquidity is born dead and meets
+          // every visitor with a refusal (owner report 2026-08-15: every job
+          // on the Telarchy floor was untradeable because the owner held 87
+          // credits against a 500-credit ask). Same payer, same setting,
+          // just not all-or-nothing.
+          const affordable = Math.floor((fromUnits(ownerRow.balance as number) / newMarkets.length) * 1e6) / 1e6;
+          if (affordable >= MIN_LIQUIDITY_CONTRIBUTION) {
+            funded.push([autoFundOwnerId, affordable]);
+            console.error(`createConditionalMarkets: workspace owner ${autoFundOwnerId} cannot cover ${cost} for proposal ${proposalId}; auto-funded what they have, ${affordable}/market instead of ${credits}`);
+          } else {
+            console.error(`createConditionalMarkets: auto-fund fallback for proposal ${proposalId} failed too (owner ${autoFundOwnerId} holds ${fromUnits(ownerRow.balance as number)}, not enough for even one market); markets spawn with zero liquidity`);
           }
+        } else {
+          console.error(`createConditionalMarkets: auto-fund fallback for proposal ${proposalId} failed too (no agent row for owner ${autoFundOwnerId}); markets spawn with zero liquidity`);
         }
       }
 

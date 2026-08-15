@@ -363,6 +363,17 @@ links a forecaster can audit without trusting this page: the data room
 estimates"). Mono names with hairline underlines that warm to the accent;
 external, new tab.
 
+**An unfunded market never shows bet buttons (owner report 2026-08-15).**
+A branch market can exist with no liquidity, in which case it has no
+price and the server refuses every trade against it. The floor borrows
+the baseline's call to DRAW such a branch (a blank chart is worse than
+an honest prior), but that borrowed number must not decide whether the
+page offers a bet: `funded` is carried separately from it, and an
+unfunded market replaces the two bet verbs with one line saying nobody
+has funded a market for this job yet. Composing a bet and meeting
+"this market has no liquidity" at submit is the bug this rule exists to
+prevent.
+
 **Both leaderboards rank on what the market says right now, not on what
 has settled (owner direction 2026-08-14, Viktor).** The rail stacks two
 blocks, traders then contractors, five rows each; both update on the

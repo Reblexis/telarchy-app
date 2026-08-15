@@ -99,6 +99,10 @@ vi.mock('../../lib/api', () => {
     getLeaderboard: vi.fn(async () => ({ participants: [] })),
     getProfile: vi.fn(async () => ({ authRole: 'user' })),
     getParticipant: vi.fn(async () => ({ balance: 0 })),
+    // Shaped like the real payload: the proxy below answers unknown methods
+    // with [], which is wrong for an object-returning endpoint.
+    getMarketActivity: vi.fn(async () => ({ consensus: null, positions: [], trades: [] })),
+    getFloorComments: vi.fn(async () => []),
   };
   // Anything else the floor's sub-components call resolves empty rather than
   // throwing, so this test stays about the poll and not about their fixtures.
@@ -166,5 +170,53 @@ describe('the live poll leaves the view alone', () => {
     // for an empty history: that single point IS the flash.
     expect(h.chartRenders.length).toBeGreaterThan(0);
     expect(h.chartRenders.every(r => r.seriesLen === 2)).toBe(true);
+  });
+});
+
+/**
+ * A branch market can exist with no liquidity at all (nobody funded the
+ * subsidy and the workspace owner could not cover the auto-fund either). It
+ * then has no price, and the server refuses every trade against it. The floor
+ * used to borrow the baseline's liquidity for display, which made such a
+ * branch look tradeable: the owner composed a bet on the Telarchy floor and
+ * met "Market has no liquidity. Admin must inject liquidity before trading"
+ * at submit (2026-08-15).
+ */
+describe('an unfunded market does not offer a bet it cannot take', () => {
+  const unfundedJob = () => {
+    const ws = h.workspace();
+    ws.joinAs = 'trader';
+    ws.proposals[0].markets[0].approvedLiquidity = 0;
+    ws.proposals[0].markets[0].declinedLiquidity = 0;
+    ws.proposals[0].markets[0].approvedConsensus = null;
+    ws.proposals[0].markets[0].declinedConsensus = null;
+    return ws;
+  };
+
+  test('the bet buttons are replaced by an explanation', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(unfundedJob() as never);
+    renderFloor();
+
+    const row = await screen.findByTitle('rewrite the store page');
+    fireEvent.click(row);
+
+    await waitFor(() => expect(screen.getByText(/no market yet/i)).toBeTruthy());
+    expect(screen.queryByRole('button', { name: /Bet Higher/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Bet Lower/ })).toBeNull();
+  });
+
+  test('a funded job still offers the bet', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = h.workspace();
+    ws.joinAs = 'trader';
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    renderFloor();
+
+    const row = await screen.findByTitle('rewrite the store page');
+    fireEvent.click(row);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /Bet Higher/ })).toBeTruthy());
+    expect(screen.queryByText(/no market yet/i)).toBeNull();
   });
 });

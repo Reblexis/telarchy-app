@@ -267,7 +267,7 @@ predictionsRouter.post('/limit-orders', requireCapability('trade'), wrap(async (
     if (market.resolved) throw new AppError('Market is resolved', 400);
     if (market.voided) throw new AppError('Market is voided; positions were refunded', 400);
     if (!market.active) throw new AppError('Market is closed', 400);
-    if (market.liquidity <= 0) throw new AppError('Market has no liquidity. Admin must inject liquidity before trading.', 400);
+    if (market.liquidity <= 0) throw new AppError('This market has no liquidity yet, so there is nothing to trade against. Someone has to fund it first.', 400);
     if (limitValue <= market.rangeMin || limitValue >= market.rangeMax) {
       throw new AppError(`limitValue must be strictly between ${market.rangeMin} and ${market.rangeMax}`, 400);
     }

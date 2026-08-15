@@ -90,8 +90,11 @@ export function FloorComments({ idOrSlug, subject, canPost, onRequireSignup }: P
   if (!threadKey) return null;
   const toggle = (t: Tab) => setTab(cur => (cur === t ? null : t));
   const cCount = comments?.length ?? null;
-  const pCount = activity?.positions.length ?? null;
-  const tCount = activity?.trades.length ?? null;
+  // Optional all the way down: a market-activity payload that arrives
+  // without its lists (an older deploy, a 404 body, an empty stub) must not
+  // take the whole floor down with a TypeError while rendering a counter.
+  const pCount = activity?.positions?.length ?? null;
+  const tCount = activity?.trades?.length ?? null;
 
   return (
     <div className="pubws-comments">

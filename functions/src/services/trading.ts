@@ -107,7 +107,7 @@ export async function executeTradeInTx(tx: Tx, opts: {
 
   const shares = (market.shares as [number, number]) || [0, 0];
   const b = market.liquidity;
-  if (b <= 0) throw new AppError('Market has no liquidity. Admin must inject liquidity before trading.', 400);
+  if (b <= 0) throw new AppError('This market has no liquidity yet, so there is nothing to trade against. Someone has to fund it first.', 400);
   const prevConsensus = consensus(shares, b, market.rangeMin, market.rangeMax) ?? null;
 
   const [agentRow] = await tx.select().from(agents).where(eq(agents.id, agentId)).for('update');
