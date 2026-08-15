@@ -255,7 +255,18 @@ on Telarchy's own workspace it drove every approved branch to the range
 floor and printed the same fake negative impact on every contract, which
 a two-horizon board made impossible to miss. A non-monetary metric
 anchors both branches at the baseline and lets traders price the whole
-difference. Solvency is preserved by sizing the LMSR b down so the
+difference.
+
+**A near-horizon baseline market opens at the metric's own current value**
+(2026-08-15), not at the range midpoint, when its period ends within 45
+days. Over a week the number cannot travel far, so a midpoint open is not
+a forecast, it is an arithmetic error that hands credits to whoever reads
+the metric first: LookPilot's weekly market opened at $75,000 against a
+live $45,339. Beyond 45 days the midpoint stands, because today's reading
+genuinely is not an estimate of the settle value (LookPilot's charter
+argues exactly this for its December market) and the operator re-anchors
+those with a published trade instead. Solvency uses the same
+`anchoredMarketState` sizing the conditional pairs use. Solvency is preserved by sizing the LMSR b down so the
 subsidy exactly covers the anchored worst case (`anchoredMarketState`
 in functions/src/lib/amm.ts); an off-center open buys its anchor with a
 slightly thinner book, never with unminted credits.

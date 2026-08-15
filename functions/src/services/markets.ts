@@ -4,7 +4,8 @@ import { eq, and, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { getLeafDescendantNames, desiredMarketDates, generatesMarkets } from '../lib/time-preference';
 import type { TimePreference } from '../types';
-import { AMM_DEFAULTS, initialPool } from '../lib/amm';
+import { AMM_DEFAULTS, initialPool, anchoredMarketState } from '../lib/amm';
+import { periodEndInstant } from '../lib/date-utils';
 import { emitEvent } from './events';
 import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
 import { applyAgentLiquidityInjectionTx } from './marketLiquidity';
@@ -140,6 +141,37 @@ export async function voidOpenMarketsForMetrics(metricIds: Set<string>, workspac
   }
 }
 
+/**
+ * Where a fresh baseline market should open, as a probability across its
+ * range, or null to keep the range midpoint (2026-08-15).
+ *
+ * A near horizon opens at the metric's own current value: over a week the
+ * number cannot travel far, so opening at the midpoint is not a forecast,
+ * it is an arithmetic error that hands credits to whoever reads the metric
+ * first (LookPilot's weekly market opened at $75,000 against a live
+ * $45,339). Past the window the midpoint stands, because a year out
+ * today's reading genuinely is not an estimate of the settle value, and
+ * the operator re-anchors those with a published trade instead.
+ */
+export const NEAR_HORIZON_DAYS = 45;
+
+export function nearHorizonAnchorP(
+  targetDate: string,
+  value: number | null | undefined,
+  rangeMax: number,
+  now: Date = new Date(),
+): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  const end = periodEndInstant(targetDate)?.getTime();
+  if (!end || !Number.isFinite(end)) return null;
+  const daysOut = (end - now.getTime()) / 86_400_000;
+  if (daysOut <= 0 || daysOut > NEAR_HORIZON_DAYS) return null;
+  const span = rangeMax - AMM_DEFAULTS.rangeMin;
+  if (span <= 0) return null;
+  const p = (value - AMM_DEFAULTS.rangeMin) / span;
+  return p > 0 && p < 1 ? p : null;
+}
+
 export type PendingMarket = {
   marketId: string;
   metricId: string;
@@ -201,8 +233,15 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
     return insertWithDefaults();
   }
 
+  const metricValues = new Map(
+    (await db.select({ id: metricsTable.id, value: metricsTable.value }).from(metricsTable)
+      .where(eq(metricsTable.workspaceId, workspaceId)))
+      .map(r => [r.id, r.value as number]),
+  );
+
   await db.transaction(async tx => {
     for (const p of pending) {
+      const anchorP = nearHorizonAnchorP(p.targetDate, metricValues.get(p.metricId), p.rangeMax, now);
       await tx.insert(markets).values({
         id: p.marketId, workspaceId, metricId: p.metricId, metricName: p.metricName, targetDate: p.targetDate,
         resolved: false, resolvedAt: null, actualValue: null, active: true,
@@ -210,6 +249,15 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
         shares: [0, 0] as [number, number], liquidity: 0, pool: 0, createdAt: now,
       });
       await applyAgentLiquidityInjectionTx(tx, { workspaceId, marketId: p.marketId, agentId: ownerAgentId, poolContribution: credits });
+      if (anchorP !== null) {
+        // Same solvency sizing the conditional pairs use: the subsidy
+        // covers the anchored worst case, so an off-center open buys its
+        // anchor with a thinner book, never with unminted credits.
+        const anchored = anchoredMarketState(credits, anchorP);
+        await tx.update(markets)
+          .set({ shares: anchored.shares, liquidity: anchored.liquidity })
+          .where(eq(markets.id, p.marketId));
+      }
     }
   });
   return pending.length;
