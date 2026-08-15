@@ -793,7 +793,17 @@ export function TradePage() {
             {idOrSlug && (
               <FloorComments
                 idOrSlug={idOrSlug}
-                subject={selectedJob ? { proposalId: selectedJob.id } : hero ? { marketId: hero.marketId } : {}}
+                /* Both keys when a contract is on screen (owner report
+                   2026-08-15: "if there is a trade why don't I see it down
+                   here"). The conversation belongs to the CONTRACT, so it
+                   survives switching branch, while positions and trades
+                   belong to the BRANCH MARKET actually being traded. Passing
+                   only the proposal left marketKey empty, so the panel never
+                   fetched and rendered Comments alone, on a market that had
+                   a real trade in it. */
+                subject={selectedJob
+                  ? { proposalId: selectedJob.id, marketId: activeMarketId ?? undefined }
+                  : hero ? { marketId: hero.marketId } : {}}
                 canPost={!!user && joined}
                 onRequireSignup={() => navigate('/signup')}
               />

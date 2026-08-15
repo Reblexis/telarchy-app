@@ -275,3 +275,42 @@ test('the page explains, then asks, then offers the owner door', async () => {
     .map(n => (n.textContent ?? '').slice(0, 16));
   expect(order).toEqual(['What is this?', 'What can you do?', 'Want this for yo']);
 });
+
+/**
+ * A selected contract must show its branch market's positions and trades,
+ * not just the conversation (owner report 2026-08-15: an external user's
+ * contract had a real trade on the approved branch and the panel rendered
+ * "Comments (0)" alone).
+ */
+describe('the activity panel under a selected contract', () => {
+  test('asks for the branch market, not only the contract thread', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = h.workspace();
+    ws.joinAs = 'trader';
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    vi.mocked(api.getMarketActivity).mockClear();
+
+    renderFloor();
+    const row = await screen.findByTitle('rewrite the store page');
+    fireEvent.click(row);
+
+    // The comment thread stays keyed to the contract; the activity read is
+    // keyed to the branch market on screen.
+    await waitFor(() => expect(vi.mocked(api.getMarketActivity)).toHaveBeenCalledWith('lookpilot', 'm-approved'));
+    expect(vi.mocked(api.getFloorComments)).toHaveBeenCalledWith('lookpilot', expect.objectContaining({ proposalId: 'job-1' }));
+  });
+
+  test('follows the branch toggle', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = h.workspace();
+    ws.joinAs = 'trader';
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+
+    renderFloor();
+    fireEvent.click(await screen.findByTitle('rewrite the store page'));
+    await waitFor(() => expect(vi.mocked(api.getMarketActivity)).toHaveBeenCalledWith('lookpilot', 'm-approved'));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'if declined' }));
+    await waitFor(() => expect(vi.mocked(api.getMarketActivity)).toHaveBeenCalledWith('lookpilot', 'm-declined'));
+  });
+});

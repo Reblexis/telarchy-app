@@ -7,8 +7,15 @@ import { api } from '../lib/api';
  * in place. Comments is the conversation (post if signed in). Positions
  * shows who holds what in the market on screen; Trades shows its history.
  * All three read publicly on Open workspaces; posting a comment needs a
- * signed-in trader. The subject follows the page: the baseline market
- * normally, the selected job's market/thread when one is open.
+ * signed-in trader.
+ *
+ * The subject follows the page, and its two halves are addressed
+ * separately on purpose: `proposalId` routes the CONVERSATION, which
+ * belongs to the contract and survives switching branch, while `marketId`
+ * routes POSITIONS AND TRADES, which belong to the one branch market being
+ * traded. A caller that passes only the proposal gets comments and no
+ * activity at all (the tabs hide themselves), which is how a contract with
+ * a real trade in it rendered as "Comments (0)" and nothing else.
  */
 
 interface Comment { id: string; fromName: string; content: string; createdAt: string }
