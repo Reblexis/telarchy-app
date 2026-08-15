@@ -9,7 +9,7 @@ import type { PublicProposal } from '../lib/api';
  * A proposal is an OFFER TO DO WORK at a price ("$80: I will ..."), never a
  * request for someone else to do it. Every label here has to carry that
  * direction: a public reader asked "can i ask anything and you'll do it with
- * my credits?" when the button said "Suggest a job" and the only money beside
+ * my credits?" when the button said "Suggest a contract" and the only money beside
  * it was a credit cost. Credits are the anti-spam stake; the payout is USD to
  * the proposer. Its conditional
  * pair prices what happens to the metric if the money is sent.
@@ -107,7 +107,7 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
   const formValid = title.trim().length > 0 && !needsPayout;
 
   const submit = async () => {
-    if (!title.trim()) { setFormErr('Add a job.'); return; }
+    if (!title.trim()) { setFormErr('Add a contract.'); return; }
     // The title carries the price because it reads well and travels
     // (activity log, share text); the number is also sent separately, and
     // that copy is the one anything financial reads. A free job keeps a
@@ -131,8 +131,8 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
   };
 
   return (
-    <section className="pubws-section" aria-label="Jobs">
-      <h2 className="pubws-h2">Jobs</h2>
+    <section className="pubws-section" aria-label="Contracts">
+      <h2 className="pubws-h2">Contracts</h2>
 
       {proposals.length === 0 ? (
         <p className="pubws-empty">Nothing on the ballot yet. Yours could be first.</p>
@@ -220,7 +220,7 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
           facts table, and color only speaks as state, red for errors and
           green for the placed flash. Escape and the backdrop close. */}
       {formOpen && (
-        <FloorModal onClose={() => setFormOpen(false)} label="Offer to do a job">
+        <FloorModal onClose={() => setFormOpen(false)} label="Offer to do the work">
           <div className="jobform">
             <div className="ticket-head jobform-head">
               <div className="jobform-askblock">
@@ -243,7 +243,7 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
 
             <label className="jobform-field">
               <span className="ticket-label">
-                Job <span className={`jobform-count${title.length >= 70 ? ' is-max' : title.length >= 60 ? ' is-near' : ''}`}>{title.length}/70</span>
+                Contract <span className={`jobform-count${title.length >= 70 ? ' is-max' : title.length >= 60 ? ' is-near' : ''}`}>{title.length}/70</span>
               </span>
               <input
                 className="jobform-line jobform-line--title"
@@ -251,7 +251,7 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
                 onChange={e => setTitle(e.target.value)}
                 placeholder="Stream LookPilot to my viewers for an hour"
                 maxLength={70}
-                aria-label="Job title"
+                aria-label="Contract title"
               />
             </label>
 
@@ -263,13 +263,13 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
                 onChange={e => setDesc(e.target.value)}
                 placeholder="Links: channel, portfolio, prior work."
                 rows={3}
-                aria-label="Job description"
+                aria-label="Contract pitch"
               />
             </label>
 
             {/* A paid job cannot go up without somewhere for the money to
                 go; the warning names the fix and the confirm stays off. */}
-            {needsPayout && <p className="ticket-err">Paid jobs need payment details first: add them in your account menu.</p>}
+            {needsPayout && <p className="ticket-err">A paid contract needs payment details first: add them in your account menu.</p>}
             {formErr && <p className="ticket-err">{formErr}</p>}
             {/* The whole deal rides the confirm itself (owner direction
                 2026-08-12): the cost belongs at the moment of commitment,
@@ -280,7 +280,7 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
               disabled={formBusy || (!placed && !formValid)}
               onClick={() => void submit()}
             >
-              {placed ? 'Added to ballot' : formBusy ? 'Submitting…' : formValid && askNum > 0 ? `Suggest job for $${askNum}` : 'Suggest job'}
+              {placed ? 'Added to ballot' : formBusy ? 'Submitting…' : formValid && askNum > 0 ? `Offer this for $${askNum}` : 'Suggest a contract'}
               {!placed && <span className="ticket-go-sub">Free to post. Approved means you are paid in real money, plus 500&nbsp;cr.</span>}
             </button>
           </div>

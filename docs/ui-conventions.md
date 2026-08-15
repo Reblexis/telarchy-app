@@ -363,6 +363,17 @@ links a forecaster can audit without trusting this page: the data room
 estimates"). Mono names with hairline underlines that warm to the accent;
 external, new tab.
 
+**"What can you do?" sits above the explainer (owner ask 2026-08-15).**
+Two cards, Trade and Do a contract, each with a drawing in the chart's own
+vocabulary, one sentence, and a link that SCROLLS to the control it names
+rather than opening a modal: the point is to show where the thing lives on
+a page the reader will come back to. It sits above "What is this?" because
+the beats explain what the floor is, and a visitor who follows them still
+has to be told what they may do. The two sides are not equally obvious:
+the bet buttons are on screen, while "a stranger can propose paid work
+here and be paid in real money" is the half nobody guesses, so the
+contract card is the one that must say "real money".
+
 **An unfunded market never shows bet buttons (owner report 2026-08-15).**
 A branch market can exist with no liquidity, in which case it has no
 price and the server refuses every trade against it. The floor borrows
@@ -662,9 +673,21 @@ the owner pays only for the ones worth it.
 internal vocabulary only: component and class names (`FloorRails`,
 `.pubws-*`), doc prose like this file, and the admin console's own
 heading may keep it, but no string a visitor can read may. When copy
-needs a word for one public workspace, it is "market"; for the thing a
-proposer sells, "contract" (or "job" inside a workspace, where the
-ballot language is already established).
+needs a word for one public workspace, it is "market".
+
+**And the thing a proposer sells is a CONTRACT, never a "job" (owner,
+2026-08-15: "isn't there a better name than job? maybe contract").**
+The rail beside it has always read "Top contractors", so "jobs" was two
+words for one idea, and the mismatch was ours: contractors do contracts.
+"Contract" also says what it is more exactly than "job" does, an offer
+at a price that someone has to accept, which is the whole mechanism.
+The board is "Contracts", the action is "Suggest a contract", and a
+participant "offers" one rather than "suggesting a job".
+
+The API keeps its own word, `proposal` (`POST /api/proposals`,
+`proposalId`, `proposals` in payloads), and so do component and CSS
+names (`JobsBoard`, `.jobform-*`). Renaming those buys nothing and
+breaks every client; the rule is about what a visitor reads.
 
 **Nothing public-facing redirects to the old console UI (owner rule,
 2026-08-14, emphatic).** That includes the platform admin: the first

@@ -10178,6 +10178,82 @@ textarea.jobform-line--desc {
 /* The about: three drawings in the chart's own vocabulary, three
    sentences, one door (owner direction 2026-08-10: below the floor,
    strong visuals, minimal text). */
+/* "What can you do?" (owner ask 2026-08-15): the two ways in, above the
+   explainer. Same width and rhythm as the about section below it, so the
+   page reads as one column, and the same drawing vocabulary as the beats. */
+.pubws-do {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  width: min(92vw, 1100px);
+  margin: 0 auto;
+  padding: clamp(2.4rem, 6vh, 4rem) 1.5rem 0;
+}
+
+.pubws-do-head {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  text-align: left;
+}
+
+.pubws-do-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: 1rem;
+}
+
+/* A card is a button: the whole surface is the affordance, because its job
+   is to hand the reader the control it describes. */
+.pubws-do-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.45rem;
+  padding: 1.3rem 1.4rem 1.15rem;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  background: var(--bg-secondary);
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 140ms ease, transform 140ms ease;
+}
+.pubws-do-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.pubws-do-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.pubws-do-art { width: 120px; height: 48px; display: block; margin-bottom: 0.2rem; }
+
+.pubws-do-title {
+  font-family: 'Fraunces', serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: 1.25rem;
+  letter-spacing: -0.01em;
+}
+
+.pubws-do-body {
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.pubws-do-go {
+  margin-top: 0.35rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pubws-do-card { transition: border-color 140ms ease; }
+  .pubws-do-card:hover { transform: none; }
+}
+
 .pubws-about {
   display: flex;
   flex-direction: column;

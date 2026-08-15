@@ -1,5 +1,5 @@
 import { describe, expect, test, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 /**
@@ -218,5 +218,52 @@ describe('an unfunded market does not offer a bet it cannot take', () => {
 
     await waitFor(() => expect(screen.getByRole('button', { name: /Bet Higher/ })).toBeTruthy());
     expect(screen.queryByText(/no market yet/i)).toBeNull();
+  });
+});
+
+/**
+ * "What can you do?" (owner ask 2026-08-15). The three beats below it say
+ * what the floor IS; a visitor who follows that still has to be told what
+ * they may DO, and the two sides are not equally obvious: the bet buttons
+ * are on screen, while "a stranger can propose paid work here" is the part
+ * nobody guesses.
+ */
+describe('what can you do', () => {
+  test('names both sides of the economy', async () => {
+    renderFloor();
+    await screen.findByRole('heading', { name: 'What can you do?' });
+    const section = screen.getByLabelText('What can you do?');
+    expect(within(section).getByText('Trade')).toBeTruthy();
+    expect(within(section).getByText('Do a contract')).toBeTruthy();
+    // The contract side has to say the money is real, or it reads as points.
+    expect(within(section).getByText(/real money/i)).toBeTruthy();
+  });
+
+  test('each card sends the reader to the control it names', async () => {
+    const into = vi.fn();
+    Element.prototype.scrollIntoView = into;
+    const ws = h.workspace();
+    ws.joinAs = 'trader';
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+
+    const { container } = renderFloor();
+    await screen.findByRole('heading', { name: 'What can you do?' });
+
+    fireEvent.click(screen.getByText('Do a contract'));
+    expect(into).toHaveBeenCalled();
+    expect(container.querySelector('.pubws-rail--right')).toBeTruthy();
+
+    into.mockClear();
+    fireEvent.click(screen.getByText('Trade'));
+    expect(into).toHaveBeenCalled();
+  });
+
+  test('the floor calls them contracts, never jobs', async () => {
+    const { container } = renderFloor();
+    await screen.findByRole('heading', { name: 'What can you do?' });
+    // "Top contractors" is the rail's own heading, so the thing they do is a
+    // contract; "jobs" alongside it was two words for one idea.
+    expect(container.textContent).not.toMatch(/\bjobs?\b/i);
   });
 });

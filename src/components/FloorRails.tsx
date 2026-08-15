@@ -36,7 +36,7 @@ function formatImpact(value: number, unit: string): string {
  *  owner has actually paid for them. Dollars stopped being the ranking key
  *  on 2026-08-14, so they live here instead of in the score slot. */
 function contractorSubline(c: PublicContractor): string {
-  const parts = [`${c.jobs} ${c.jobs === 1 ? 'job' : 'jobs'}`];
+  const parts = [`${c.jobs} ${c.jobs === 1 ? 'contract' : 'contracts'}`];
   if (c.pendingJobs > 0) parts.push(`${c.pendingJobs} live`);
   if (c.earnedUsd > 0) parts.push(`$${Math.round(c.earnedUsd).toLocaleString('en-US')} earned`);
   return parts.join(' · ');
@@ -122,7 +122,7 @@ export function LeaderboardRail({ entries: all, contractors, unit = '' }: {
                         /* No arrow at exactly zero: the market has priced
                            these jobs and called them a wash, which an up
                            arrow would misreport as a gain. */
-                        title="What the market says this contractor's jobs are worth: approved minus declined, summed over their live jobs."
+                        title="What the market says this contractor's contracts are worth: approved minus declined, summed over the live ones."
                       >
                         {c.impact! > 0 ? '▲ ' : c.impact! < 0 ? '▼ ' : ''}{formatImpact(c.impact!, unit)}
                       </span>
@@ -136,7 +136,7 @@ export function LeaderboardRail({ entries: all, contractors, unit = '' }: {
               })}
             </ol>
           ) : (
-            <p className="pubws-lb-empty">No jobs on the board yet. Post one and the market prices what it is worth.</p>
+            <p className="pubws-lb-empty">No contracts on the board yet. Post one and the market prices what it is worth.</p>
           )}
         </section>
       )}

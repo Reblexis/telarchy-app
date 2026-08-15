@@ -217,7 +217,7 @@ export function TradePage() {
       setSelectedJobId(null);
       reload();
     } catch (e) {
-      setDecideErr((e as Error).message || 'Could not remove the job');
+      setDecideErr((e as Error).message || 'Could not remove the contract');
     } finally {
       setDecideBusy(false);
     }
@@ -441,6 +441,17 @@ export function TradePage() {
   // explanation lands as a small orchestrated moment instead of sitting
   // static at the bottom. Dep on `ws` so the observer attaches once the
   // section actually renders.
+  // "What can you do?" sends the reader to the control it names: the bet
+  // buttons, or the contracts board. Scrolling beats opening a modal here,
+  // because the point is to show WHERE the thing lives on a page they will
+  // come back to, not to start the action for them.
+  const scrollToAction = (what: 'trade' | 'contract') => {
+    const sel = what === 'trade' ? '.pubws-bet, .pubws-unfunded' : '.pubws-rail--right';
+    const el = document.querySelector(sel);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
   const aboutRef = useRef<HTMLElement | null>(null);
   const [aboutIn, setAboutIn] = useState(false);
   useEffect(() => {
@@ -614,7 +625,7 @@ export function TradePage() {
                             className="pubws-decide"
                             disabled={decideBusy}
                             onClick={() => { setRemoveArmed(true); setDecideErr(''); }}
-                            title="Take this job off the board. Stakes are refunded."
+                            title="Take this contract off the board. Stakes are refunded."
                           >
                             Remove
                           </button>
@@ -626,7 +637,7 @@ export function TradePage() {
                           className="pubws-decide-reason"
                           value={declineReason}
                           onChange={e => setDeclineReason(e.target.value)}
-                          placeholder="Why not, published on the job"
+                          placeholder="Why not, published on the contract"
                           aria-label="Decline reason"
                           autoFocus
                         />
@@ -762,7 +773,7 @@ export function TradePage() {
             ) : (
               <p className="pubws-unfunded" role="status">
                 {selectedJob
-                  ? 'This job has no market yet: nobody has funded one, so there is nothing to trade against. The owner funds it, or the proposer can back it themselves.'
+                  ? 'This contract has no market yet: nobody has funded one, so there is nothing to trade against. The owner funds it, or the proposer can back it themselves.'
                   : 'This market has no liquidity yet, so there is nothing to trade against.'}
               </p>
             )}
@@ -842,7 +853,7 @@ export function TradePage() {
             on in the chart and the board itself; the rail slot goes to the
             thing a visitor can act on. */}
         {ws.proposals !== undefined && hero ? (
-          <aside className="pubws-rail pubws-rail--right" aria-label="Jobs">
+          <aside className="pubws-rail pubws-rail--right" aria-label="Contracts">
             <JobsBoard
               proposals={ws.proposals}
               unit={unit}
@@ -902,6 +913,50 @@ export function TradePage() {
           main view, strong visuals, minimal text). The drawings reuse the
           chart's own vocabulary: the step line, the branch pair, the
           priced gap; nothing here is decoration from outside the product. */}
+      {/* Two ways in, said plainly (owner ask 2026-08-15). The three beats
+          above explain what this IS; a visitor who understands it still has
+          to be told what they may DO, and the two sides of the economy are
+          not symmetric in how obvious they are: the bet buttons are on
+          screen, while the fact that a stranger can propose paid work and
+          get paid for it is the part nobody guesses. Each card scrolls to
+          the thing it names rather than opening a new surface. */}
+      <section className="pubws-do" aria-label="What can you do?">
+        <h2 className="pubws-do-head">What can you do?</h2>
+        <div className="pubws-do-cards">
+          <button className="pubws-do-card" onClick={() => scrollToAction('trade')}>
+            <svg className="pubws-do-art" viewBox="0 0 120 48" aria-hidden="true">
+              <path className="ab-line" d="M6,34 L34,34 L34,24 L64,24 L64,14 L100,14" />
+              <circle className="ab-dot ab-dot--up" cx="100" cy="14" r="4.5" />
+            </svg>
+            <span className="pubws-do-title">Trade</span>
+            <span className="pubws-do-body">
+              Say where the number lands. You are paid for being right, and the
+              price moves when you are.
+            </span>
+            <span className="pubws-do-go">Place a bet →</span>
+          </button>
+          <button className="pubws-do-card" onClick={() => scrollToAction('contract')}>
+            <svg className="pubws-do-art" viewBox="0 0 120 48" aria-hidden="true">
+              {/* The priced gap, then the approval: same motif as beat 03,
+                  kept at its proportions so the gap reads as the subject and
+                  the check as its consequence. */}
+              <line className="ab-gap" x1="24" y1="8" x2="24" y2="40" />
+              <line className="ab-tick" x1="16" y1="8" x2="32" y2="8" />
+              <line className="ab-tick" x1="16" y1="40" x2="32" y2="40" />
+              <circle className="ab-dot ab-dot--up" cx="24" cy="8" r="4" />
+              <circle className="ab-dot ab-dot--down" cx="24" cy="40" r="4" />
+              <path className="ab-check" d="M62,26 L72,36 L96,12" />
+            </svg>
+            <span className="pubws-do-title">Do a contract</span>
+            <span className="pubws-do-body">
+              Offer work and name your price. The market prices what it would do
+              to the number, and the owner pays in real money if it clears.
+            </span>
+            <span className="pubws-do-go">Offer a contract →</span>
+          </button>
+        </div>
+      </section>
+
       <section className={`pubws-about${aboutIn ? ' is-in' : ''}`} ref={aboutRef} aria-label="What is this?">
         <h2 className="pubws-about-head">What is this?</h2>
         {/* Three rows, each locking its drawing beside the sentence it

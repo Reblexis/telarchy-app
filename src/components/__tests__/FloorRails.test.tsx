@@ -31,14 +31,14 @@ const contractorsBlock = () =>
   screen.getByRole('heading', { name: 'Top contractors' }).closest('section') as HTMLElement;
 
 describe('LeaderboardRail contractors', () => {
-  test('shows the market valuation of a job nobody has paid for yet', () => {
+  test('shows the market valuation of a contract nobody has paid for yet', () => {
     render(<LeaderboardRail entries={[]} contractors={[contractor({ impact: 412, earnedUsd: 0 })]} />);
     const block = within(contractorsBlock());
     expect(block.getByText(/\+412/)).toBeInTheDocument();
-    expect(block.getByText(/1 job/)).toBeInTheDocument();
+    expect(block.getByText(/1 contract/)).toBeInTheDocument();
   });
 
-  test('a job the market prices as harmful reads negative', () => {
+  test('a contract the market prices as harmful reads negative', () => {
     render(<LeaderboardRail entries={[]} contractors={[contractor({ impact: -40.5 })]} />);
     expect(within(contractorsBlock()).getByText(/-40\.5/)).toBeInTheDocument();
   });
@@ -48,11 +48,11 @@ describe('LeaderboardRail contractors', () => {
       contractor({ impact: 180, jobs: 3, pendingJobs: 1, earnedUsd: 900 }),
     ]} />);
     const block = within(contractorsBlock());
-    expect(block.getByText(/3 jobs · 1 live · \$900 earned/)).toBeInTheDocument();
+    expect(block.getByText(/3 contracts · 1 live · \$900 earned/)).toBeInTheDocument();
     expect(block.getByText(/\+180/)).toBeInTheDocument();
   });
 
-  test('an unpriced job says so instead of printing a confident zero', () => {
+  test('an unpriced contract says so instead of printing a confident zero', () => {
     render(<LeaderboardRail entries={[]} contractors={[contractor({ impact: 0, pricedJobs: 0 })]} />);
     expect(within(contractorsBlock()).getByText('not priced yet')).toBeInTheDocument();
   });
@@ -69,9 +69,9 @@ describe('LeaderboardRail contractors', () => {
     expect(within(contractorsBlock()).getByText(/\+\$2,500/)).toBeInTheDocument();
   });
 
-  test('an empty board still invites the first job', () => {
+  test('an empty board still invites the first contract', () => {
     render(<LeaderboardRail entries={[]} contractors={[]} />);
-    expect(screen.getByText(/No jobs on the board yet/)).toBeInTheDocument();
+    expect(screen.getByText(/No contracts on the board yet/)).toBeInTheDocument();
   });
 });
 
