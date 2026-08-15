@@ -567,6 +567,18 @@ window defines the axis, not the data). Spans under 10 minutes label x
 ticks with seconds so four ticks on a young market do not all print the
 same minute.
 
+**Revised 2026-08-15 (owner report: "it goes from 25 to 25 and yet it
+goes down?").** The y domain now has a floor: four label quanta, where a
+quantum is the smallest difference a tick label can express at that
+magnitude (100 for values labelled in thousands, 1 for whole units, 0.01
+below that). Scaling to the data alone is right until the data barely
+moves, at which point it amplifies noise into a cliff: a market that
+ticked 25 -> 25.07 -> 25 drew a full-height drop between two ticks both
+reading "25", which is unreadable in both directions at once. The floor
+sits an order of magnitude below any real move (LookPilot's 5k band
+labels in hundreds, so its floor is 400), so it only ever catches noise,
+and an untouched market now sits mid-plot instead of on an edge.
+
 **Revised 2026-08-13, follow-up (owner report: the step's vertical
 segment drew thinner than its horizontal run).** The plot clip exists
 for Y excursions past the robust domain; horizontally it clipped too,

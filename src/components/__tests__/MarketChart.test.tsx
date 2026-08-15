@@ -100,3 +100,79 @@ describe('MarketChart axis on young markets (2026-08-13)', () => {
     for (const l of labels) expect(l).toMatch(/^\d{1,2}:\d{2}$/);
   });
 });
+
+/**
+ * The axis must be able to label itself. A market that ticked 25 -> 25.07 ->
+ * 25 drew a full-height cliff between two ticks both reading "25" (owner
+ * report 2026-08-15: "it goes from 25 to 25 and yet it goes down?"), because
+ * scaling to the data alone turns a 0.3% move into the whole canvas.
+ */
+describe('a negligible move does not draw as a cliff', () => {
+  const yLabels = (container: HTMLElement) =>
+    [...container.querySelectorAll('.mchart-ylabel')].map(n => n.textContent ?? '');
+  const pathYs = (d: string): number[] =>
+    [...d.matchAll(/[ML][\d.]+,([\d.]+)/g)].map(m => parseFloat(m[1]));
+
+  it('draws a 0.07 wobble on a 25 market as nearly flat', () => {
+    const { container } = render(
+      <MarketChart
+        series={[
+          { at: iso(3 * 3600e3), consensus: 25 },
+          { at: iso(2 * 3600e3), consensus: 25.07 },
+          { at: iso(1 * 3600e3), consensus: 25 },
+        ]}
+        consensus={25}
+      />,
+    );
+    const ys = pathYs(container.querySelector('.mchart-mline')!.getAttribute('d')!);
+    const spread = Math.max(...ys) - Math.min(...ys);
+    // Under a tenth of the plot: visible as a wobble, not a collapse. The
+    // unguarded domain put this at the full plot height.
+    expect(spread).toBeLessThan(20);
+  });
+
+  it('never prints the same y label twice', () => {
+    const { container } = render(
+      <MarketChart
+        series={[{ at: iso(2 * 3600e3), consensus: 25 }, { at: iso(3600e3), consensus: 25.07 }]}
+        consensus={25}
+      />,
+    );
+    const labels = yLabels(container);
+    expect(labels.length).toBeGreaterThan(0);
+    expect(new Set(labels).size).toBe(labels.length);
+  });
+
+  it('still draws a real move at full scale', () => {
+    // LookPilot's actual band: 73.6k to 78.5k. The floor for labels in
+    // thousands is 400, an order of magnitude below this, so nothing changes.
+    const { container } = render(
+      <MarketChart
+        series={[
+          { at: iso(3 * 3600e3), consensus: 73600 },
+          { at: iso(2 * 3600e3), consensus: 78500 },
+          { at: iso(3600e3), consensus: 76000 },
+        ]}
+        consensus={76000}
+        unit="$"
+      />,
+    );
+    const ys = pathYs(container.querySelector('.mchart-mline')!.getAttribute('d')!);
+    expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan(60);
+  });
+
+  it('a market that never moved sits in the middle, not on an edge', () => {
+    const { container } = render(
+      <MarketChart
+        series={[{ at: iso(2 * 3600e3), consensus: 25 }, { at: iso(3600e3), consensus: 25 }]}
+        consensus={25}
+      />,
+    );
+    const ys = pathYs(container.querySelector('.mchart-mline')!.getAttribute('d')!);
+    const dot = parseFloat(container.querySelector('.mchart-calldot')!.getAttribute('cy')!);
+    expect(Math.max(...ys) - Math.min(...ys)).toBe(0);
+    // Comfortably inside the plot rather than pinned to its top or bottom.
+    expect(dot).toBeGreaterThan(40);
+    expect(dot).toBeLessThan(200);
+  });
+});

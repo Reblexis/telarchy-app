@@ -57,6 +57,19 @@ function compactNum(v: number): string {
   return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
+/**
+ * The smallest difference two y-axis labels can express at this magnitude,
+ * given compactNum's formatting. Used as the floor on the axis span: an axis
+ * narrower than a few of these prints the same number twice and turns noise
+ * into a cliff.
+ */
+function labelQuantum(v: number): number {
+  const abs = Math.abs(v);
+  if (abs >= 1000) return 100;  // "77.4k": one tenth of a thousand
+  if (abs >= 1) return 1;       // "25": whole units
+  return 0.01;                  // sub-unit values, where the guard must not flatten a real move
+}
+
 function fullNum(v: number): string {
   return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
@@ -181,8 +194,26 @@ export function MarketChart({ series, consensus, unit = '', note, preview = null
     const vMin0 = Math.min(quantile(0.05), ...mustShow);
     const vMax0 = Math.max(quantile(0.95), ...mustShow);
     const vPad = (vMax0 - vMin0 || vMax0 * 0.08 || 1) * 0.25;
-    const vMin = Math.max(0, vMin0 - vPad);
-    const vMax = vMax0 + vPad;
+    let vMin = Math.max(0, vMin0 - vPad);
+    let vMax = vMax0 + vPad;
+
+    // The axis must be wide enough that its own labels can tell its top from
+    // its bottom. Without this, a market that moved 25 -> 25.07 -> 25 drew a
+    // full-height cliff between two ticks both reading "25" (owner report
+    // 2026-08-15: "it goes from 25 to 25 and yet it goes down?"), because
+    // scaling to the data alone amplifies a 0.3% move to the whole canvas.
+    // The floor is four label quanta: enough for the axis to print at least
+    // two distinct ticks. It sits far below any real move (LookPilot's 5k
+    // swing labels in hundreds, so its floor is 400), so this only ever
+    // catches noise.
+    const minSpan = labelQuantum(Math.max(Math.abs(vMin0), Math.abs(vMax0))) * 4;
+    if (vMax - vMin < minSpan) {
+      const mid = (vMin0 + vMax0) / 2;
+      vMin = Math.max(0, mid - minSpan / 2);
+      // Re-derive the top from the clamped bottom, so clamping at zero
+      // narrows the window instead of preserving it.
+      vMax = vMin + minSpan;
+    }
 
     const x = (t: number) => PAD_L + ((t - t0) / span) * (W - PAD_L - PAD_R);
     const y = (v: number) => PAD_T + (1 - (v - vMin) / (vMax - vMin)) * (H - PAD_T - PAD_B);
