@@ -26,7 +26,10 @@
 const TELARCHY_URL = process.env.TELARCHY_URL || 'https://telarchy.com';
 const AGENT_KEY = process.env.TELARCHY_SELF_SYNC_KEY;
 const WORKSPACE_ID = process.env.TELARCHY_SELF_SYNC_WORKSPACE;
-const METRIC_NAME = 'Weekly active verified traders';
+// Both clocks read the same number (owner direction 2026-08-15): the
+// weekly market and the end-of-2026 one are the same definition at
+// different dates, so one value is pushed to both metrics.
+const METRIC_BASE = 'Weekly active verified traders';
 const AGENT_ID = 'telarchy-self-sync';
 const STRATEGY = 'self-sync-v2';
 const DRY_RUN = process.argv.includes('--dry-run');
@@ -83,20 +86,22 @@ async function main() {
 
   const metricsList = await api('GET', '/metrics');
   const list = Array.isArray(metricsList) ? metricsList : (metricsList.metrics || []);
-  const metric = list.find(m => m.name === METRIC_NAME);
-  if (!metric) throw new Error(`metric "${METRIC_NAME}" not found in workspace ${WORKSPACE_ID}`);
+  const targets = list.filter(m => m.name === METRIC_BASE || m.name.startsWith(`${METRIC_BASE} (`));
+  if (targets.length === 0) throw new Error(`no metric named "${METRIC_BASE}" in workspace ${WORKSPACE_ID}`);
 
-  const tag = metric.value === value ? 'flat' : 'PUSH';
-  console.log(`  ${tag} ${METRIC_NAME}: ${metric.value} -> ${value}`);
-  if (!DRY_RUN) {
-    await api('PUT', `/metrics/${metric.id}`, {
-      name: metric.name,
-      description: metric.description,
-      value,
-      formula: metric.formula || '0',
-      oldValue: metric.value,
-      updateNote: `daily self-sync ${startedAt.slice(0, 10)} (weeklyActiveVerifiedTraders from /api/marketplace/stats)`,
-    });
+  for (const metric of targets) {
+    const tag = metric.value === value ? 'flat' : 'PUSH';
+    console.log(`  ${tag} ${metric.name}: ${metric.value} -> ${value}`);
+    if (!DRY_RUN) {
+      await api('PUT', `/metrics/${metric.id}`, {
+        name: metric.name,
+        description: metric.description,
+        value,
+        formula: metric.formula || '0',
+        oldValue: metric.value,
+        updateNote: `daily self-sync ${startedAt.slice(0, 10)} (weeklyActiveVerifiedTraders from /api/marketplace/stats)`,
+      });
+    }
   }
 
   const endedAt = new Date().toISOString();
@@ -106,7 +111,7 @@ async function main() {
       agentId: AGENT_ID, status: 'idle', workspaceId: WORKSPACE_ID, strategy: STRATEGY,
       lastCycleStartedAt: startedAt, lastCycleEndedAt: endedAt,
       pollIntervalSeconds: 86400, nextCycleAt: nextCycleAt(),
-      lastTraded: 1, lastSkipped: 0, lastErrors: 0,
+      lastTraded: targets.length, lastSkipped: 0, lastErrors: 0,
     });
   }
 }

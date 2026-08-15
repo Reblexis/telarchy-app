@@ -4,6 +4,9 @@ name: Deploy backend to Cloud Run
 # whenever main moves. Mirrors `npm run deploy` from package.json so the
 # behavior is identical to the manual path. See docs/infra/deploy.md for
 # the one-time GCP setup this workflow depends on.
+#
+# The suite runs FIRST and the deploy needs it (owner ask 2026-08-15). A red
+# suite means main simply does not ship; the previous revision keeps serving.
 
 on:
   push:
@@ -26,7 +29,41 @@ permissions:
   id-token: write   # required for Workload Identity Federation auth
 
 jobs:
+  # The gate (owner ask 2026-08-15): nothing reaches production without the
+  # whole suite passing first. Same steps as the Tests workflow, run here so
+  # the dependency is enforceable inside one workflow graph rather than by
+  # convention across two; `needs: test` below is what actually blocks the
+  # deploy. A tag-then-promote smoke test catches a container that will not
+  # boot, but it cannot catch a market anchored at the wrong price, which is
+  # precisely what shipped twice in one afternoon.
+  test:
+    name: Type check and test suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            functions/package-lock.json
+      - name: Install (root)
+        run: npm ci --no-audit --no-fund
+      - name: Install (functions)
+        run: npm ci --no-audit --no-fund
+        working-directory: functions
+      - name: Type check
+        run: npm run typecheck
+      - name: Backend tests
+        run: npm run test:ci
+        working-directory: functions
+      - name: Frontend tests
+        run: npm run test:frontend
+
   deploy:
+    needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

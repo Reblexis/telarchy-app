@@ -1,0 +1,61 @@
+name: Tests
+
+# The gate. Every push and every pull request runs the whole suite, and the
+# deploy workflow will not ship a commit whose tests have not passed here
+# (owner ask 2026-08-15, after two bugs reached production in one afternoon).
+#
+# Deliberately independent of any cloud credential: it runs on a bare runner
+# against pglite, so a fork, a branch, or a contributor with no GCP access
+# still gets the same verdict.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch: {}
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Type check and test suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            functions/package-lock.json
+
+      - name: Install (root)
+        run: npm ci --no-audit --no-fund
+
+      - name: Install (functions)
+        run: npm ci --no-audit --no-fund
+        working-directory: functions
+
+      # Types first: a type error is a faster, clearer failure than the test
+      # that would trip over it, and it covers files no test imports.
+      - name: Type check
+        run: npm run typecheck
+
+      # Backend: jest over pglite, one in-process Postgres per suite. Bounded
+      # workers because a 2-vCPU runner cannot host more, and a long hook
+      # timeout because each suite applies every migration before its first
+      # test.
+      - name: Backend tests
+        run: npm run test:ci
+        working-directory: functions
+
+      - name: Frontend tests
+        run: npm run test:frontend

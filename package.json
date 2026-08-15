@@ -18,7 +18,9 @@
     "test:frontend:watch": "vitest",
     "test:integration": "node scripts/test-integration.ts",
     "test:db": "npx tsx scripts/test-db-consistency.ts",
-    "migrate:participants": "node scripts/migrate-participant-identity.mjs"
+    "migrate:participants": "node scripts/migrate-participant-identity.mjs",
+    "test:ci": "npm --prefix functions run test:ci && npm run test:frontend",
+    "typecheck": "tsc -b && npm --prefix functions run build"
   },
   "dependencies": {
     "better-auth": "^1.5.6",

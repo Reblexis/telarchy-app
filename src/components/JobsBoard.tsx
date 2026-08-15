@@ -1,6 +1,7 @@
 import { FloorModal } from './FloorModal';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
+import { horizonLabel } from '../pages/TradePage';
 import type { PublicProposal } from '../lib/api';
 
 /**
@@ -73,10 +74,6 @@ function headlineDelta(p: PublicProposal): number | null {
 }
 
 /** This contract's priced impact on one horizon. */
-/** "2026-12" -> "2026", for the ballot's one-line column label. */
-function horizonWord(targetDate: string): string {
-  return targetDate.match(/^(\d{4})/)?.[1] ?? targetDate;
-}
 
 function deltaAt(p: PublicProposal, targetDate: string | null | undefined): number | null {
   if (!targetDate) return null;
@@ -175,7 +172,7 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
         <ul className="pubws-ballot">
           {/* One column label for the whole list instead of one per row. */}
           <li className="pubws-ballot-head" aria-hidden="true">
-            <span>{decisionDate ? `impact by ${horizonWord(decisionDate)}` : 'impact if done'}</span>
+            <span>{decisionDate ? `impact by ${horizonLabel(decisionDate)}` : 'impact if done'}</span>
           </li>
           {ranked.map(p => {
             const delta = impactOf(p);

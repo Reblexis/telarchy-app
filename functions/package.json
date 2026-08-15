@@ -9,7 +9,8 @@
     "start:standalone": "node lib/server.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "test:ci": "NODE_OPTIONS=--experimental-vm-modules jest --ci --maxWorkers=2 --testTimeout=120000"
   },
   "engines": {
     "node": "22"

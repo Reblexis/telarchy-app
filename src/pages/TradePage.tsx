@@ -93,12 +93,17 @@ function horizonLabel(targetDate: string): string {
   if (/^\d{4}$/.test(targetDate)) return `end of ${targetDate}`;
   const m = targetDate.match(/^(\d{4})-(\d{2})$/);
   if (m) {
+    // December IS the year end: "end of 2026" is what the charter calls it,
+    // and it beats "end of December" beside a metric named "net 2026".
+    if (m[2] === '12') return `end of ${m[1]}`;
     const month = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, 1))
       .toLocaleDateString('en-GB', { month: 'long', timeZone: 'UTC' });
     return `end of ${month}`;
   }
   return settleDayOf(targetDate) ?? targetDate;
 }
+
+export { horizonLabel };
 
 export function TradePage() {
   const params = useParams();

@@ -58,7 +58,15 @@ After every feature implementation or bug fix, commit and push. Keep commit mess
 
 ## Keeping the test suite in sync
 
-Run the test suite (`npm test`) before committing anything non-trivial, and always after touching backend logic (metrics engine, auth, workspaces, markets, credits, formulas, templates). `npm test` runs both backend Jest (under `functions/`) and frontend Vitest (root); `npm run test:frontend` runs frontend only. Fix failures before moving on; do not commit with a red suite.
+**The suite is the deploy gate (owner ask 2026-08-15).** `.github/workflows/deploy-cloudrun.yml` runs a `test` job (type check + backend + frontend) and the deploy job `needs: test`, so a red suite means main does not ship and the previous revision keeps serving. `.github/workflows/test.yml` runs the same thing on every push and pull request. A tag-then-promote smoke test only proves the container boots; it cannot catch a market anchored at the wrong price, which is exactly what reached production twice in one afternoon. Never route around the gate by deploying by hand.
+
+Run the test suite (`npm test`) before committing anything non-trivial, and always after touching backend logic (metrics engine, auth, workspaces, markets, credits, formulas, templates). `npm test` runs both backend Jest (under `functions/`) and frontend Vitest (root); `npm run test:frontend` runs frontend only; `npm run test:ci` is what CI runs (bounded workers, long hook timeout). Fix failures before moving on; do not commit with a red suite.
+
+**Every bug that reached production leaves a test behind.** Not a test that the fix compiles: one that FAILS against the old code and describes the user-visible symptom in its name. Before writing it, check that it fails, by reverting the fix or mutating the constant. A test that cannot fail is worse than none, because it reads as coverage. Recent examples to imitate: `conditional-open.test.ts` (a pair's opening price, after three separate ways it went wrong in one day), `void-refund.test.ts` (what a cancelled market pays back), `waitlist-source.test.ts` (where a signup came from).
+
+**Prefer the cheapest test that can catch the bug.** Most of these failures were arithmetic or a wrong argument at a call site, so a pure function test with no database beats an HTTP test: it runs in milliseconds, so there is no excuse to skip it, and it fails with the number rather than a status code. Reach for the pglite harness when the behaviour IS the database (settlement, refunds, migrations, auth), and for `@testing-library/react` when it is what a visitor sees.
+
+**Pin the invariant, not the implementation.** "An untraded pair predicts nothing" survives a refactor; "anchoredMarketState returns 63.9" does not. When a number appears in an assertion, say where it comes from in a comment, so the next person can tell a broken expectation from a broken product.
 
 Frontend unit tests live alongside the source they cover, under `__tests__` directories (e.g. `src/lib/__tests__/metrics-chart-model.test.ts`). Use `@testing-library/react` for component tests. Chart.js does not render cleanly under jsdom after state updates. When writing tests for components that embed a chart, stub the chart module via `vi.mock`.
 
