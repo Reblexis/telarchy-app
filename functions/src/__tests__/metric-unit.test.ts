@@ -6,7 +6,7 @@
  * negative impact on every contract.
  */
 
-import { isMonetaryMetric, metricCurrencyUnit } from '../lib/metric-unit';
+import { isMonetaryMetric, metricCurrencyUnit, metricSubtractsContractAsk } from '../lib/metric-unit';
 
 describe('metric unit from the name tail', () => {
   test.each([
@@ -33,5 +33,27 @@ describe('metric unit from the name tail', () => {
   test('only the trailing parenthetical counts, not a mention mid-name', () => {
     // "(end of 2026)" is the tail here; the USD earlier belongs to prose.
     expect(isMonetaryMetric('Something USD-ish (end of 2026)')).toBe(false);
+  });
+});
+
+describe('which metrics a contract ask burns into', () => {
+  test.each([
+    'LookPilot net 2026 (USD)',
+    'LookPilot net this week (USD)',
+    'Net revenue (USD)',
+  ])('%s is net of payouts, so approving moves it', name => {
+    expect(metricSubtractsContractAsk(name)).toBe(true);
+  });
+
+  test.each([
+    // Gross revenue: the payment does not touch it, and a week's range
+    // starts at zero, so an adjusted branch would clamp at the floor.
+    'LookPilot revenue this week (USD)',
+    'Revenue (USD)',
+    // Not money at all.
+    'Weekly active verified traders',
+    'Tracking hours (monthly)',
+  ])('%s is not, so its pair opens unadjusted', name => {
+    expect(metricSubtractsContractAsk(name)).toBe(false);
   });
 });

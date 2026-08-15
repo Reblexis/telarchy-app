@@ -247,9 +247,14 @@ Conditional (job) markets open ANCHORED (owner decision 2026-08-11):
 a fresh pair opens at the baseline market's current value rather than
 the range midpoint, and the approved branch opens at baseline minus the
 job's ask, because approval burns the ask into the resolving metric the
-day it is paid. **The ask-adjustment applies only to a metric denominated
-in money** (its name carries a currency tail, the same "(USD)" convention
-that puts the $ on the headline; corrected 2026-08-15). Subtracting a
+day it is paid. **The ask-adjustment applies only to a metric that the payment
+actually moves** (corrected 2026-08-15, tightened the same day): the name
+must carry a currency tail, the same "(USD)" convention that puts the $
+on the headline, AND name itself "net", the owner's word for a number
+already reduced by what he pays out. A gross revenue metric is not moved
+by the payment at all, so its pair opens unadjusted; subtracting the ask
+from it would clamp the approved branch at the range floor, which is the
+same failure as the headcount case below wearing a different hat. Subtracting a
 dollar ask from a metric counted in people or hours is a category error:
 on Telarchy's own workspace it drove every approved branch to the range
 floor and printed the same fake negative impact on every contract, which
@@ -729,8 +734,20 @@ is the pulse (fast feedback, and short horizons measurably draw more
 traders); the far horizon is the decision. The charter carries the rule
 that makes two numbers unambiguous: **fund only if the far-horizon delta
 is positive; the near market exists for speed of feedback, not for the
-decision.** Both metrics measure the same definition at different dates,
-so the contrast between them is meaningful and needs no new plumbing.
+decision.** The two metrics measure the same quantity over different
+windows, so the contrast between them is meaningful: LookPilot pairs this
+week's revenue against the year's total (owner direction 2026-08-15,
+revising the first cut, which read the year-to-date number a week early
+and so could barely move), and Telarchy pairs a trailing-week headcount
+against where it lands at the end of 2026.
+
+**Impact is always the far horizon's number** (owner direction
+2026-08-15). The ballot and the selected contract's headline both print
+the delta the charter funds on, labelled with its horizon, whichever
+clock the page is currently showing; the horizon selector switches the
+market you look at and trade, not the number you judge by. Short-term
+impact is not a second figure competing with it: when the near clock
+disagrees in sign, the ballot says so in words instead.
 
 The page shows it like this:
 

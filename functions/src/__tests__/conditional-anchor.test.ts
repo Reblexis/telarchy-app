@@ -62,10 +62,10 @@ async function seed() {
     id: WS, name: 'Anchor Test', createdBy: PROPOSER, visibility: 'public',
   });
   await db.insert(metrics).values({
-    id: 'metric-anchor', workspaceId: WS, name: 'Revenue (USD)', value: 60, formula: '0', marketRangeMax: 100,
+    id: 'metric-anchor', workspaceId: WS, name: 'Net revenue (USD)', value: 60, formula: '0', marketRangeMax: 100,
   });
   await db.insert(markets).values({
-    id: 'mkt-base-anchor', workspaceId: WS, metricId: 'metric-anchor', metricName: 'Revenue (USD)',
+    id: 'mkt-base-anchor', workspaceId: WS, metricId: 'metric-anchor', metricName: 'Net revenue (USD)',
     targetDate: '2026-12', rangeMin: 0, rangeMax: 100,
     shares: [0, BASE_DIFF], liquidity: BASE_B, pool: 100,
     active: true, resolved: false, voided: false, proposalId: null, branch: null,

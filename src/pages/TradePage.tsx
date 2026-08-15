@@ -477,9 +477,19 @@ export function TradePage() {
   const marketOpen = pair
     ? null
     : ws?.marketHistory?.length ? ws.marketHistory.find(p => p.consensus !== null)?.consensus ?? null : null;
-  const jobImpact = pair && pair.approvedConsensus !== null && pair.declinedConsensus !== null
-    ? pair.approvedConsensus - pair.declinedConsensus
+  // Impact is ALWAYS the far horizon's number (owner direction 2026-08-15):
+  // that is the delta the charter funds on, so it does not change under the
+  // reader when they switch which market they are looking at. The horizon
+  // selector switches the market you trade, not the number you judge by.
+  const decisionPair = (decisionDate && selectedJob?.markets.find(m => m.targetDate === decisionDate)) ?? pair;
+  const jobImpact = decisionPair && decisionPair.approvedConsensus !== null && decisionPair.declinedConsensus !== null
+    ? decisionPair.approvedConsensus - decisionPair.declinedConsensus
     : null;
+  // The unit belongs to the metric the impact is measured in, which is the
+  // decision horizon's, not whichever clock is on screen.
+  const impactUnit = decisionDate
+    ? currencyOf(horizons[horizons.length - 1]?.metricName ?? '')
+    : unit;
   const consensus = (livePrice && livePrice.marketId === activeMarketId ? livePrice.value : null)
     ?? active?.consensus ?? null;
   // The number rolls to its new value (trade, branch switch, job select)
@@ -767,10 +777,11 @@ export function TradePage() {
                 jobImpact === null ? (
                   <span className="pubws-delta-chip">impact not yet priced</span>
                 ) : jobImpact === 0 ? (
-                  <span className="pubws-delta-chip">±{unit}0 impact so far</span>
+                  <span className="pubws-delta-chip">±{impactUnit}0 impact so far</span>
                 ) : (
                   <span key={`imp-${Math.round(jobImpact)}`} className={`pubws-delta-chip ${jobImpact >= 0 ? 'is-up' : 'is-down'}`}>
-                    {jobImpact >= 0 ? '▲' : '▼'} {formatDelta(jobImpact, unit)} impact
+                    {jobImpact >= 0 ? '▲' : '▼'} {formatDelta(jobImpact, impactUnit)} impact
+                    {decisionDate ? ` by ${horizonLabel(decisionDate)}` : ''}
                   </span>
                 )
               )}

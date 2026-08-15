@@ -126,6 +126,47 @@ describe('public ballot disclosure gate', () => {
     if (decided?.markets) expect(decided.markets.length).toBeGreaterThan(0);
   });
 
+  test('the contractor score ignores a pending contract\'s dead pairs too', async () => {
+    await seed(['read', 'trade']);
+    // The score is denominated in the HERO metric, which is the soonest
+    // baseline market: without one there is nothing to price against and
+    // every impact is null, which is how the first version of this test
+    // passed against the bug it was written for.
+    await db.insert(markets).values([{
+      id: 'mkt-baseline', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
+      targetDate: '2028', rangeMin: 0, rangeMax: 100,
+      shares: [0, 0], liquidity: 100, pool: initialPool(100),
+      active: true, resolved: false, voided: false, proposalId: null, branch: null,
+    }]);
+    // Same zombie as above. The ballot stopped printing its delta on
+    // 2026-08-15, but topContractors kept scoring it, so the Telarchy rail
+    // read -48 and -108.21 for contracts whose live pairs were at zero.
+    await db.insert(markets).values([
+      {
+        id: 'mkt-zombie-appr', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
+        targetDate: '2026-08', rangeMin: 0, rangeMax: 100,
+        shares: [400, 0], liquidity: 100, pool: initialPool(100),
+        active: true, resolved: false, voided: true, proposalId: 'prop-open', branch: 'approved',
+      },
+      {
+        id: 'mkt-zombie-decl', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
+        targetDate: '2026-08', rangeMin: 0, rangeMax: 100,
+        shares: [0, 0], liquidity: 100, pool: initialPool(100),
+        active: true, resolved: false, voided: true, proposalId: 'prop-open', branch: 'declined',
+      },
+    ]);
+
+    const res = await request(app).get(`/api/marketplace/${WS}`);
+    expect(res.status).toBe(200);
+    const contractors = res.body.topContractors as Array<{ impact: number | null; pricedJobs: number }>;
+    const scored = contractors.find(c => c.pricedJobs > 0);
+    expect(scored).toBeDefined();
+    // The live pair prices approved ABOVE declined, so the honest score is
+    // positive. The zombie prices it far below, so scoring the zombie flips
+    // the sign: that is the whole assertion.
+    expect(scored!.impact!).toBeGreaterThan(0);
+  });
+
   test('an Open workspace (Public group has read) ships the ballot with deltas and decline reasons', async () => {
     await seed(['read', 'trade']);
 

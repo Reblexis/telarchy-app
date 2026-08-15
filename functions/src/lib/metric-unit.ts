@@ -28,3 +28,22 @@ export function metricCurrencyUnit(metricName: string): '$' | '' {
 export function isMonetaryMetric(metricName: string): boolean {
   return metricCurrencyUnit(metricName) !== '';
 }
+
+/**
+ * Whether approving a contract mechanically moves this metric down by its
+ * ask, which is what lets a conditional pair open ask-adjusted.
+ *
+ * Two conditions, both by naming convention (2026-08-15). The metric must
+ * be money, and it must call itself "net", the owner's word for a number
+ * already reduced by what he pays out: "LookPilot net 2026 (USD)" is net
+ * of approved contracts, so approving burns the ask into it the day it is
+ * paid. A gross revenue metric is untouched by the payment, so adjusting
+ * it would clamp the approved branch at the range floor and print a
+ * fabricated loss, the same failure the currency gate exists to prevent.
+ * Ranges start at zero, which is a second reason a weekly number is
+ * carried gross: a week's net can go negative and a market cannot settle
+ * below its own floor.
+ */
+export function metricSubtractsContractAsk(metricName: string): boolean {
+  return isMonetaryMetric(metricName) && /\bnet\b/i.test(metricName);
+}

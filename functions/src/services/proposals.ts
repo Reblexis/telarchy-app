@@ -9,7 +9,7 @@ import { MIN_LIQUIDITY_CONTRIBUTION, sufficientBalance, toUnits, fromUnits } fro
 import { emitEvent } from './events';
 import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
 import { resolutionInstant } from '../lib/date-utils';
-import { isMonetaryMetric } from '../lib/metric-unit';
+import { metricSubtractsContractAsk } from '../lib/metric-unit';
 
 type MarketRow = typeof markets.$inferSelect;
 
@@ -152,10 +152,11 @@ export async function createConditionalMarkets(
     const anchorFor = (src: typeof sourceMarkets[number], branch: ConditionalBranch): number | null => {
       const c0 = consensus(src.shares as [number, number], src.liquidity, src.rangeMin, src.rangeMax);
       if (c0 === undefined) return null;
-      // The ask burns out of the metric only when the metric IS the money
-      // (corrected 2026-08-15): subtracting a dollar ask from a metric
-      // counted in people pinned every approved branch at the range floor.
-      const burn = isMonetaryMetric(src.metricName) ? askUsd : 0;
+      // The ask burns out of the metric only when approving actually moves
+      // it: money, and net of what the owner pays out (2026-08-15).
+      // Against a headcount, or against gross weekly revenue, subtracting
+      // dollars pinned every approved branch at the range floor.
+      const burn = metricSubtractsContractAsk(src.metricName) ? askUsd : 0;
       const value = branch === 'approved' ? c0 - burn : c0;
       const span = src.rangeMax - src.rangeMin;
       return span > 0 ? (value - src.rangeMin) / span : null;

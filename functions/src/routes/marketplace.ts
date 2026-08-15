@@ -564,10 +564,17 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
       inArray(proposals.status, ['pending', 'approved']),
     ));
     const liveJobIds = liveJobs.map(j => j.id);
-    // Voided branch markets are included on purpose: approving a job voids
-    // its declined branch, and that branch's last price is exactly what the
-    // impact was measured against. The row keeps its final shares/liquidity,
-    // so consensus() still answers.
+    // Voided branch markets are kept for a DECIDED contract and dropped for a
+    // pending one, the same rule the ballot follows.
+    //
+    // Approving a contract voids its declined branch, and that branch's last
+    // price is exactly what the impact was measured against, so a decided
+    // contract's score has to read it. A PENDING contract's voided pairs are
+    // something else: a retired horizon, or a generation spawned during a
+    // bug. Counting those made the contractor rail read -48 and -108.21 on
+    // the Telarchy floor (owner report 2026-08-15) long after the live pairs
+    // had been re-created at zero impact, because the largest-magnitude
+    // horizon was a dead market nobody can trade.
     const liveJobMarkets = liveJobIds.length
       ? await db.select({
           proposalId: markets.proposalId,
@@ -578,14 +585,17 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
           liquidity: markets.liquidity,
           rangeMin: markets.rangeMin,
           rangeMax: markets.rangeMax,
+          voided: markets.voided,
         }).from(markets).where(and(
           eq(markets.workspaceId, workspaceId),
           inArray(markets.proposalId, liveJobIds),
         ))
       : [];
+    const pendingJobIds = new Set(liveJobs.filter(j => j.status === 'pending').map(j => j.id));
     const pairsByJob = new Map<string, Map<string, ContractorJobPair>>();
     for (const m of liveJobMarkets) {
       if (!m.proposalId || !m.branch) continue;
+      if (m.voided && pendingJobIds.has(m.proposalId)) continue;
       const c = consensus((m.shares as [number, number]) || [0, 0], m.liquidity, m.rangeMin, m.rangeMax) ?? null;
       const groups = pairsByJob.get(m.proposalId) ?? new Map<string, ContractorJobPair>();
       const key = `${m.metricId}|${m.targetDate}`;
