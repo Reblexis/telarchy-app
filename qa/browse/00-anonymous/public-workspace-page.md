@@ -315,3 +315,21 @@ in dev.
 - No OG/unfurl coverage for this route specifically. `00-anonymous/seo-and-og.md`
   covers the site-level tags, but a shared workspace link arguably wants a
   per-workspace `og:title` and `og:description`, which does not exist yet.
+
+## What can you do, and what a shared link says (2026-08-15)
+
+**"What can you do?" section:** above "What is this?", two cards, Trade and
+Do a contract. Each scrolls to the control it names (`.pubws-bet` /
+`.pubws-rail--right`) rather than opening a modal. The contract card must
+name real money; without it the offer reads as points.
+
+**Vocabulary guard:** no visitor-readable string on a floor may contain
+"floor" OR "job". The board is Contracts, the action is Suggest a contract.
+Assert with `$B js "/\\b(floor|jobs?)\\b/i.test(document.body.innerText)"`
+=> false. The API keeps `proposal`; this rule is about what a visitor reads.
+
+**Share unfurl:** `curl -s https://telarchy.com/<slug> | grep og:description`
+must contain BOTH the workspace's own line and what Telarchy is ("One
+number, run in the open on Telarchy: ... offer a contract to move it").
+A card that only describes the product reads like a link to that product
+rather than to a market on it (owner report 2026-08-15).

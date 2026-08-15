@@ -25,12 +25,38 @@ export interface ShareMetaWorkspace {
   charter: string | null;
 }
 
+/**
+ * What Telarchy is, in the terms of the thing being shared. The card image
+ * already carries the number, the metric and the date, so the text carries
+ * the mechanism instead of repeating them.
+ */
+const MECHANISM =
+  'One number, run in the open on Telarchy: bet on where it lands, or offer a contract to move it and get paid if the owner approves.';
+
 /** First sentence-ish fragment of a charter, for workspaces with no description. */
-function fallbackDescription(ws: ShareMetaWorkspace): string {
-  if (ws.description) return ws.description;
+function workspaceLead(ws: ShareMetaWorkspace): string {
+  if (ws.description) return ws.description.trim();
   const charterLead = (ws.charter ?? '').split('\n')[0].trim();
-  if (charterLead) return charterLead.length > 200 ? `${charterLead.slice(0, 197)}...` : charterLead;
-  return 'Propose actions, trade on their impact, and see what the owner ships.';
+  return charterLead;
+}
+
+/**
+ * The unfurl's one paragraph: what this workspace is, then what Telarchy is
+ * (owner report 2026-08-15: a shared link "just explains the workspace").
+ * Someone seeing a Telarchy link for the first time in a Discord or a forum
+ * has no idea what the site does, and a lone product one-liner reads like a
+ * link to that product rather than to a market on it.
+ *
+ * The lead is capped so the pair survives the ~200 characters a scraper
+ * shows: a truncated mechanism would cut exactly the half that is new to
+ * the reader.
+ */
+function fallbackDescription(ws: ShareMetaWorkspace): string {
+  const lead = workspaceLead(ws);
+  if (!lead) return MECHANISM;
+  const capped = lead.length > 90 ? `${lead.slice(0, 87).trimEnd()}...` : lead;
+  const joined = /[.!?]$/.test(capped) ? capped : `${capped}.`;
+  return `${joined} ${MECHANISM}`;
 }
 
 export function injectWorkspaceMeta(html: string, ws: ShareMetaWorkspace, url: string, cardUrl?: string): string {

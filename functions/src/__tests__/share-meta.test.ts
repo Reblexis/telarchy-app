@@ -33,7 +33,11 @@ describe('injectWorkspaceMeta', () => {
     }, 'https://telarchy.com/marketplace/lookpilot');
 
     expect(out).toContain('<title>LookPilot · Telarchy</title>');
-    expect(out).toContain('content="A real Steam product. The winner ships."');
+    // The workspace's own line, then what Telarchy is: a stranger seeing
+    // this link in a Discord has no idea what the site does, and a lone
+    // product one-liner reads like a link to the product itself.
+    expect(out).toContain('A real Steam product. The winner ships. One number, run in the open on Telarchy');
+    expect(out).toMatch(/offer a contract to move it and get paid/);
     expect(out).toContain('og:url" content="https://telarchy.com/marketplace/lookpilot"');
     // The static generic tags must be gone, or scrapers see two competing sets.
     expect(out).not.toContain('Generic site description.');
@@ -43,15 +47,30 @@ describe('injectWorkspaceMeta', () => {
     expect(out).toContain('<div id="root"></div>');
   });
 
-  test('falls back to the charter first line, truncated, when description is null', () => {
+  test('falls back to the charter first line, capped, when description is null', () => {
     const out = injectWorkspaceMeta(HTML, {
       name: 'WS',
       description: null,
       charter: `${'x'.repeat(300)}\n\nSecond paragraph never appears.`,
     }, 'https://telarchy.com/marketplace/ws');
 
-    expect(out).toContain(`content="${'x'.repeat(197)}..."`);
+    // Capped hard enough that the mechanism after it survives what a
+    // scraper shows: truncating THAT would cut the half the reader needs.
+    expect(out).toContain(`${'x'.repeat(87)}... One number, run in the open on Telarchy`);
     expect(out).not.toContain('Second paragraph');
+  });
+
+  test('a workspace with no text of its own still says what Telarchy is', () => {
+    const out = injectWorkspaceMeta(HTML, { name: 'WS', description: null, charter: null },
+      'https://telarchy.com/marketplace/ws');
+    expect(out).toContain('One number, run in the open on Telarchy');
+  });
+
+  test('does not double the full stop when the lead already ends in one', () => {
+    const out = injectWorkspaceMeta(HTML, { name: 'WS', description: 'Ends in a stop.', charter: null },
+      'https://telarchy.com/marketplace/ws');
+    expect(out).toContain('Ends in a stop. One number');
+    expect(out).not.toContain('stop.. One number');
   });
 
   test('escapes markup in workspace-controlled text', () => {
