@@ -1,16 +1,18 @@
 name: Tests
 
-# The gate. Every push and every pull request runs the whole suite, and the
-# deploy workflow will not ship a commit whose tests have not passed here
-# (owner ask 2026-08-15, after two bugs reached production in one afternoon).
+# The suite on a pull request, before anything reaches main. The gate that
+# actually blocks production is the `test` job inside deploy-cloudrun.yml,
+# which the deploy job needs (owner ask 2026-08-15, after two bugs reached
+# production in one afternoon).
 #
 # Deliberately independent of any cloud credential: it runs on a bare runner
 # against pglite, so a fork, a branch, or a contributor with no GCP access
 # still gets the same verdict.
 
+# Pull requests and manual runs only. A push to main is already gated by the
+# `test` job inside deploy-cloudrun.yml, and running the same ten minutes
+# twice per push buys nothing.
 on:
-  push:
-    branches: [main]
   pull_request:
   workflow_dispatch: {}
 
