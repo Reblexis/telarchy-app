@@ -153,7 +153,12 @@ adminRouter.get('/floor-stats', wrap(async (req, res) => {
     email: authUser.email, name: authUser.name, createdAt: authUser.createdAt,
   }).from(authUser).orderBy(desc(authUser.createdAt)).limit(25);
 
-  const waitlistRows = await db.select().from(waitlist).orderBy(desc(waitlist.createdAt)).limit(50);
+  // Every signup, not the last 50 (owner ask 2026-08-15: "essentially all
+  // waitlist signups"). This is the list the owner works through by hand, so
+  // a cap silently hides people who are waiting on a reply. The bound is
+  // generous rather than absent: a page that has to render 5,000 rows is a
+  // different design problem, and hitting it is itself the signal to solve it.
+  const waitlistRows = await db.select().from(waitlist).orderBy(desc(waitlist.createdAt)).limit(1000);
 
   const [{ n: totalUsers }] = await db.select({ n: sql<number>`count(*)::int` }).from(authUser);
 

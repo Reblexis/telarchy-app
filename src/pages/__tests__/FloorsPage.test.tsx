@@ -102,7 +102,9 @@ describe('marketplace', () => {
     expect(screen.queryByText(/waitlist|queue|position/i)).toBeNull();
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('/api/waitlist');
-    expect(JSON.parse((init as { body: string }).body)).toEqual({ email: 'founder@example.com' });
+    // The tile names itself, so /admin can tell this door from a floor's.
+    expect(JSON.parse((init as { body: string }).body))
+      .toEqual({ email: 'founder@example.com', source: 'marketplace' });
     vi.unstubAllGlobals();
   });
 

@@ -245,6 +245,11 @@ export const agentApiKeys = pgTable('agent_api_keys', {
 
 export const waitlist = pgTable('waitlist', {
   email: text('email').primaryKey(),
+  /** Which door they came through: 'marketplace' for the listing tile, or a
+   *  workspace slug for that floor's own email door. Both post to the same
+   *  endpoint, so without this the owner cannot tell which surface converts.
+   *  Null on rows written before the column existed. */
+  source: text('source'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 

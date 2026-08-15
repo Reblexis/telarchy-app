@@ -1018,7 +1018,7 @@ export function TradePage() {
           field, zero friction. It closes the page because the two calls to
           action escalate: trade, offer a contract, run your own number. */}
       <section className="pubws-door" aria-label="Get set up">
-        <SetupForm />
+        <SetupForm source={ws.slug || idOrSlug || 'floor'} />
       </section>
       {/* The floor is designed to stay open, so every deploy would strand
           this tab on old code forever (owner report 2026-08-13: a fixed
@@ -1095,8 +1095,10 @@ function WorldWord({ branch, approvedText, declinedText, onToggle }: {
   );
 }
 
-/** One email in, one promise out: we set you up, no queue language. */
-function SetupForm() {
+/** One email in, one promise out: we set you up, no queue language.
+ *  `source` names which door this was, so /admin can tell a signup from
+ *  this market apart from one off the marketplace tile. */
+function SetupForm({ source }: { source: string }) {
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
@@ -1111,7 +1113,9 @@ function SetupForm() {
       const res = await fetch('/api/waitlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        // The floor names itself, so /admin can tell a signup from this
+        // market apart from one off the marketplace tile.
+        body: JSON.stringify({ email, source }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error((data as { error?: string }).error || 'Something went wrong');

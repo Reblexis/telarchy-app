@@ -149,7 +149,9 @@ function ListYourNumberCard() {
       const res = await fetch('/api/waitlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        // Which door this was (owner ask 2026-08-15): the marketplace's
+        // listing tile, as opposed to one floor's own email box.
+        body: JSON.stringify({ email, source: 'marketplace' }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error((data as { error?: string }).error || 'Something went wrong');

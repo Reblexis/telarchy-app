@@ -110,6 +110,22 @@ export type PayoutMethod = (
   note?: string;
 };
 
+/** A bug report, help request, or feature idea (POST /api/feedback).
+ *  Mirrors the row in functions/src/routes/feedback.ts. */
+export interface FeedbackItem {
+  id: string;
+  kind: string;
+  subject: string;
+  body: string;
+  status: string;
+  email: string | null;
+  url: string | null;
+  agentId: string | null;
+  workspaceId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface LimitOrder {
   id: string;
   marketId: string;
@@ -704,6 +720,16 @@ export const api = {
       account needed (Open workspaces only). */
   /** Admin launch dashboard: floor visits, signups, waitlist. */
   getFloorStats: () => request('/api/admin/floor-stats'),
+  /** Bug reports, help requests and feature ideas (platform admin only).
+   *  The same endpoint an operator would curl; /admin renders it. */
+  getFeedback: (opts: { limit?: number; kind?: string; status?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (opts.limit) q.set('limit', String(opts.limit));
+    if (opts.kind) q.set('kind', opts.kind);
+    if (opts.status) q.set('status', opts.status);
+    const qs = q.toString();
+    return request(`/api/feedback${qs ? `?${qs}` : ''}`) as Promise<{ items: FeedbackItem[] }>;
+  },
 
   getFloorComments: (idOrSlug: string, q: { marketId?: string; proposalId?: string }): Promise<Array<{ id: string; fromName: string; content: string; createdAt: string }>> =>
     request(`/api/marketplace/${encodeURIComponent(idOrSlug)}/comments?${q.proposalId ? `proposalId=${encodeURIComponent(q.proposalId)}` : `marketId=${encodeURIComponent(q.marketId ?? '')}`}`, {}, true),
