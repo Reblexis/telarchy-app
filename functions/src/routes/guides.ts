@@ -228,7 +228,7 @@ For combining metrics, see the *Formulas* guide. For how time preference and mar
       '- **Delete what the user does not value; add what is missing.** Apply the genie test from *Metric Design*: if every metric were maximized perfectly, is the resulting world exactly what the user wants?',
       '- **Compose where structure helps**: computed metrics reference others by `{Name}` in a `formula` (see *Formulas*). Create leaves first, composites second.',
       '',
-      'Present the final metric set as a table (name, description, current value, range max, half-life) and get an explicit yes before applying changes. Note: changing a metric\'s definition (name, description, formula, range) voids its open markets with refunds at cost; during initial setup this is harmless, so shape freely now rather than later.',
+      'Present the final metric set as a table (name, description, current value, range max, half-life) and get an explicit yes before applying changes. Note: changing a metric\'s definition (name, description, formula, range) voids its open markets, refunding each participant the net cash they still had in them; during initial setup this is harmless, so shape freely now rather than later.',
       '',
       '## Step 6: time preference',
       '',
@@ -788,7 +788,7 @@ Each market sits in one of four states (returned as \`status\` on every market r
 - **open** — active and tradable. Buys and sells, both directions, subject to liquidity.
 - **closed** — deactivated, not yet resolved. The daily refresh reconciles each managed metric's desired dates (curve samples plus custom horizons); markets at dropped dates — a rolled-past curve sample, or a removed custom horizon — flip from open to closed instead of being voided. Existing positions are kept, and at the target date the market still resolves on the actual metric value. The market accepts **sell-only** trades while closed so participants can exit; new buys are rejected.
 - **resolved** — the target period has ended and payouts have been credited. No trades.
-- **voided** — admin cancelled the market. All positions were refunded at cost and the market is preserved for history. No trades.
+- **voided** — admin cancelled the market. Every participant was refunded the net cash they still had in it (buys minus sells, never below zero, so a cancel cannot take credits back), and the market is preserved for history. No trades.
 
 ## Resolution
 

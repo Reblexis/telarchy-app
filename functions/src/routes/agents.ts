@@ -271,7 +271,7 @@ agentsRouter.get('/deposit-address', (_req, res) => {
  * public-workspace detail.
  */
 agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (req, res) => {
-  const { computeCalibrationStats, computeTradingProfit } = await import('../lib/leaderboard');
+  const { computeCalibrationStats, computeTradingProfit, voidedStakeKey } = await import('../lib/leaderboard');
   type ProfitMarket = import('../lib/leaderboard').ProfitMarket;
   const idOrNickname = req.params.idOrNickname as string;
 
@@ -435,8 +435,8 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
     const statsWsSet = new Set(statsScope);
     // wsMarkets deliberately excludes voided markets (the detail lists below
     // must not report a refunded position as open), but the profit formula
-    // needs them: a void pays the basis back, and a trader who sold before
-    // the cancel kept the proceeds. Fetch just the cancelled ones for stats.
+    // needs them: a cancelled market pays a refund, and a trader who sold out
+    // above cost before the cancel kept the gain. Fetch just those for stats.
     const voidedMarkets = await db.select({
       id: markets.id,
       workspaceId: markets.workspaceId,
@@ -465,10 +465,14 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
       voided: m.voided,
     }));
     const statsTrades = tradeRows.filter(t => statsWsSet.has(t.workspaceId));
-    const statsPositions = positionRows.filter(p => statsWsSet.has(p.workspaceId))
+    const voidedIds = new Set(voidedMarkets.map(m => `${m.workspaceId}:${m.id}`));
+    // Only positions that can be valued at a price; cancelled markets pay a
+    // refund, computed from the trades just below.
+    const statsPositions = positionRows
+      .filter(p => statsWsSet.has(p.workspaceId) && p.shares > 0 && !voidedIds.has(`${p.workspaceId}:${p.marketId}`))
       .map(p => ({
         agentId: p.agentId, workspaceId: p.workspaceId, marketId: p.marketId,
-        direction: p.direction, shares: p.shares, totalCost: p.totalCost,
+        direction: p.direction, shares: p.shares,
       }));
 
     // Net cash per agent, counting every trade on a market that still
@@ -486,11 +490,19 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
       netCashByAgent.set(t.agentId, (netCashByAgent.get(t.agentId) ?? 0) + t.cost);
     }
 
-    const profitByAgent = computeTradingProfit(statsMarkets, netCashByAgent, statsPositions);
+    // Net cash per (agent, cancelled market): what the void refunds, floored
+    // at zero inside computeTradingProfit. Same rule the board applies.
+    const voidedStake = new Map<string, number>();
+    for (const t of statsTrades) {
+      if (!voidedIds.has(`${t.workspaceId}:${t.marketId}`)) continue;
+      const key = voidedStakeKey(t.agentId, t.workspaceId, t.marketId);
+      voidedStake.set(key, (voidedStake.get(key) ?? 0) + t.cost);
+    }
+    const profitByAgent = computeTradingProfit(statsMarkets, netCashByAgent, statsPositions, voidedStake);
     const quality = computeCalibrationStats(
       // Voided markets carry actualValue null, so they never reach here.
       statsMarkets.filter(m => m.resolved && m.actualValue !== null),
-      statsPositions.filter(p => p.shares > 0),
+      statsPositions,
     );
 
     // Rank among everyone with public activity, same ordering as the board:

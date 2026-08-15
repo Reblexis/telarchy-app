@@ -4,7 +4,7 @@ import { db } from '../db/client';
 import { getParticipantDisplayNames } from '../lib/participants';
 import { agents, authUser, systemConfig, markets, positions, trades, workspaces } from '../db/schema';
 import { wrap } from '../lib/wrap';
-import { computeCalibrationStats, computeTradingProfit, type ProfitMarket } from '../lib/leaderboard';
+import { computeCalibrationStats, computeTradingProfit, voidedStakeKey, type ProfitMarket } from '../lib/leaderboard';
 
 /**
  * Cross-workspace participant leaderboard. Public (no auth). Aggregates only
@@ -33,9 +33,12 @@ import { computeCalibrationStats, computeTradingProfit, type ProfitMarket } from
  *
  * Everyone who has ever traded in a public workspace is on the board. The
  * activity aggregate is deliberately NOT joined to markets, so a trader
- * whose markets were later voided or deleted still appears (with the profit
- * those markets can no longer justify, i.e. zero, since a void refunds).
- * Filtering the join (the pre-2026-08-14 behaviour) erased whole traders.
+ * whose markets were later voided or deleted still appears. Filtering the
+ * join (the pre-2026-08-14 behaviour) erased whole traders. A cancelled
+ * market contributes its refund (net cash still at stake, floored at zero)
+ * against the same net cash, so it nets to zero for anyone who was still in
+ * it and leaves the realised gain standing for anyone who sold out above
+ * cost. Trades whose market row is gone cannot be valued and count nothing.
  *
  * Calibration and accuracy (lib/leaderboard.ts) are reported per row but
  * are not the ranking key.
@@ -121,26 +124,52 @@ leaderboardRouter.get('/', wrap(async (req, res) => {
     .where(inArray(trades.workspaceId, publicWsIds))
     .groupBy(trades.agentId);
 
-  // Every position on a market that can be valued. Sold-out rows (shares 0)
-  // are kept on purpose: on a voided market they still refunded their basis,
-  // and the formula skips them everywhere else. One row per (agent, market),
-  // so this stays bounded as trade history grows.
+  // Positions that can still be valued at a price: held, on a market that
+  // was not cancelled. Both filters matter for size as much as for meaning,
+  // since this endpoint has been OOM-killed by over-fetching before (see the
+  // header). Cancelled markets pay a refund instead and are handled below,
+  // off the trades, so they need no position rows at all.
   const positionRows = await db.select({
     agentId: positions.agentId,
     workspaceId: positions.workspaceId,
     marketId: positions.marketId,
     direction: positions.direction,
     shares: positions.shares,
-    totalCost: positions.totalCost,
   }).from(positions)
     .innerJoin(markets, and(
       eq(markets.id, positions.marketId),
       eq(markets.workspaceId, positions.workspaceId),
     ))
-    .where(inArray(positions.workspaceId, publicWsIds));
+    .where(and(
+      inArray(positions.workspaceId, publicWsIds),
+      eq(markets.voided, false),
+      gt(positions.shares, 0),
+    ));
+
+  // What each agent still had at stake on each CANCELLED market: the void
+  // refunds this floored at zero (docs/vision.md), so it is the value side
+  // of those markets. One row per (agent, voided market).
+  const voidedStakeRows = await db.select({
+    agentId: trades.agentId,
+    workspaceId: trades.workspaceId,
+    marketId: trades.marketId,
+    netCash: sql<number>`coalesce(sum(${trades.cost}), 0)::float`,
+  }).from(trades)
+    .innerJoin(markets, and(
+      eq(markets.id, trades.marketId),
+      eq(markets.workspaceId, trades.workspaceId),
+    ))
+    .where(and(
+      inArray(trades.workspaceId, publicWsIds),
+      eq(markets.voided, true),
+    ))
+    .groupBy(trades.agentId, trades.workspaceId, trades.marketId);
+  const voidedStake = new Map(voidedStakeRows.map(r => [
+    voidedStakeKey(r.agentId, r.workspaceId, r.marketId), Number(r.netCash),
+  ]));
 
   const netCashById = new Map(costAggs.map(c => [c.agentId, Number(c.netCash)]));
-  const profitById = computeTradingProfit(profitMarkets, netCashById, positionRows);
+  const profitById = computeTradingProfit(profitMarkets, netCashById, positionRows, voidedStake);
 
   // Nobody is excluded any more (owner report 2026-08-14: "maybe the bug is
   // that it doesn't count admin into traders"). The 2026-08-11 formula read

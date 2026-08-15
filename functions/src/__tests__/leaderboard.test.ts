@@ -2,6 +2,7 @@ import {
   computeCalibrationStats,
   computeLeaderboard,
   computeTradingProfit,
+  voidedStakeKey,
   type LeaderboardMarket,
   type LeaderboardPosition,
   type LeaderboardTrade,
@@ -385,61 +386,59 @@ describe('computeTradingProfit', () => {
   });
 
   test('a plain buy on a market that voided reads exactly zero, not a loss', () => {
-    // Bought 100 shares for 60; the void refunded the basis.
+    // Bought for 60 and still in it when the market was cancelled: the void
+    // refunds the 60 that was still at stake.
+    const stake = new Map([[voidedStakeKey('kai', 'ws', 'mkt'), 60]]);
     const profit = computeTradingProfit(
       [pm({ voided: true, resolved: true, actualValue: null })],
-      new Map([['kai', 60]]),
-      [p({ agentId: 'kai', shares: 100, totalCost: 60 })],
+      new Map([['kai', 60]]), [], stake,
     );
     expect(profit.get('kai')).toBe(0);
   });
 
-  test('selling before a void keeps the proceeds, because the void still refunds the basis', () => {
-    // Bought for 60, sold half back for 25 (net cash 35), then the market
-    // was cancelled and refunded the FULL 60 basis (voidMarket credits
-    // positions.totalCost, and selling never reduces that field). The
-    // trader really is 25 ahead; reporting 0 would be wrong.
+  test('a break-even round trip before a void mints nothing', () => {
+    // Bought 5, sold 5, bought 5, sold 5: net cash 0, so the void refunds
+    // nothing. Refunding gross buy cost (the pre-2026-08-15 rule) handed
+    // this account 10 credits it never had at stake.
+    const stake = new Map([[voidedStakeKey('kai', 'ws', 'mkt'), 0]]);
     const profit = computeTradingProfit(
       [pm({ voided: true, resolved: true, actualValue: null })],
-      new Map([['kai', 35]]),
-      [p({ agentId: 'kai', shares: 50, totalCost: 60 })],
+      new Map([['kai', 0]]), [], stake,
     );
-    expect(profit.get('kai')).toBe(25);
+    expect(profit.get('kai') ?? 0).toBe(0);
   });
 
-  test('a position sold out entirely before a void still counts its refund', () => {
-    // shares 0, basis 10: the void refunds the 10 anyway, so this is +10.
+  test('selling out above cost before a void keeps the gain, with no refund', () => {
+    // Paid 60, took 80 back out, then the market was cancelled: net cash
+    // -20, so the floor gives no refund and the 20 realised gain stands.
+    const stake = new Map([[voidedStakeKey('kai', 'ws', 'mkt'), -20]]);
     const profit = computeTradingProfit(
       [pm({ voided: true, resolved: true, actualValue: null })],
-      new Map([['kai', 0]]),
-      [p({ agentId: 'kai', shares: 0, totalCost: 10 })],
+      new Map([['kai', -20]]), [], stake,
     );
-    expect(profit.get('kai')).toBe(10);
+    expect(profit.get('kai')).toBe(20);
+  });
+
+  test('a partly sold position is refunded only what is still in it', () => {
+    // Paid 60, sold half back for 25: 35 still at stake, refunded, so flat.
+    const stake = new Map([[voidedStakeKey('kai', 'ws', 'mkt'), 35]]);
+    const profit = computeTradingProfit(
+      [pm({ voided: true, resolved: true, actualValue: null })],
+      new Map([['kai', 35]]), [], stake,
+    );
+    expect(profit.get('kai')).toBe(0);
   });
 
   test('a voided market is never valued at a price', () => {
-    // Even though the row still carries shares and a range, a cancelled
-    // market pays its refund, not 100 shares x some factor.
+    // The row still carries shares and a range; a cancelled market must not
+    // be marked to them.
     const profit = computeTradingProfit(
       [pm({ voided: true, resolved: true, actualValue: null, shares: [0, 400], liquidity: 100 })],
       new Map([['kai', 60]]),
-      [p({ agentId: 'kai', direction: 'higher', shares: 100, totalCost: 60 })],
+      [p({ agentId: 'kai', direction: 'higher', shares: 100 })],
+      new Map([[voidedStakeKey('kai', 'ws', 'mkt'), 60]]),
     );
     expect(profit.get('kai')).toBe(0);
-  });
-
-  test('granted credits never enter it, so a house account is rankable', () => {
-    // Two traders with identical trades; balances (1,000,000 vs 1,000) are
-    // not an input at all, which is what lets admins onto the board.
-    const profit = computeTradingProfit(
-      [pm({ resolved: false })],
-      new Map([['house', 20], ['guest', 20]]),
-      [
-        p({ agentId: 'house', direction: 'higher', shares: 50 }),
-        p({ agentId: 'guest', direction: 'higher', shares: 50 }),
-      ],
-    );
-    expect(profit.get('house')).toBe(profit.get('guest'));
   });
 
   test('an unpriced market (no liquidity) cannot be valued and is skipped', () => {

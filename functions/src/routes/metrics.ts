@@ -290,7 +290,7 @@ metricsRouter.delete('/:id', requireCapability('manage'), wrap(async (req, res) 
   res.status(204).send();
 
   // The deleted metric's definition no longer exists, so any open markets for it must be
-  // voided (refund at cost). Descendant markets under a deleted non-leaf TP metric are
+  // voided (refunding each participant the net cash still at stake). Descendant markets under a deleted non-leaf TP metric are
   // handled separately: their own definitions are unchanged, so they stay open and close
   // naturally via the daily refresh, resolving against the descendant's live value.
   await voidOpenMarketsForMetrics(new Set([id]), workspaceId);

@@ -383,12 +383,11 @@ reload.
   topping the board; that exclusion was deleting the floor's most active
   traders. Anyone who has ever traded in a public workspace is on the
   board. **A cancelled market is valued at its refund, not skipped**: a
-  void pays back `positions.totalCost`, the gross cost paid in, and
-  selling never reduces that field, so a trader who sold part of a
-  position and was then refunded the whole basis really did end up ahead
-  and the board says so. A plain buy-and-void nets to zero, as it should.
-  Trades on markets whose rows are gone entirely cannot be valued and
-  count nothing. The row shows the signed profit in credits.
+  void pays back the net cash you still had in it, floored at zero (see
+  `docs/vision.md`), so a market that was cancelled under you nets to
+  exactly zero, while a realised gain you took out before the cancel
+  stands. Trades on markets whose rows are gone entirely cannot be valued
+  and count nothing. The row shows the signed profit in credits.
 - **Top contractors** rank by the market's current valuation of the jobs
   they posted, NOT by dollars collected. A job's value is its priced
   impact: the approved branch's consensus minus the declined branch's, on

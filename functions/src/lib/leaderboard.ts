@@ -23,11 +23,6 @@ export interface LeaderboardPosition {
   marketId: string;
   direction: string;
   shares: number;
-  /** Gross cost paid into this position. Only the profit formula reads it,
-   *  and only on voided markets, where it IS the refund: voidMarket credits
-   *  positions.totalCost back and never touches shares, so a position that
-   *  was partly or wholly sold before the void still refunds its full basis. */
-  totalCost?: number;
 }
 
 /** Per-agent trade aggregates, computed in SQL so the route never loads the
@@ -44,12 +39,17 @@ export interface LeaderboardTradeAggregate {
   costOnResolved: number;
 }
 
+/** Key for the voided-stake map: one entry per (agent, cancelled market). */
+export function voidedStakeKey(agentId: string, workspaceId: string, marketId: string): string {
+  return `${agentId}\u0000${workspaceId}\u0000${marketId}`;
+}
+
 /** A market as the profit formula needs to see it: enough to say what a
  *  holding is worth right now, whether it is open, resolved, or voided. */
 export interface ProfitMarket extends LeaderboardMarket {
   shares: [number, number] | null;
   liquidity: number;
-  /** Voided markets pay their holders back at cost instead of at a price. */
+  /** Voided markets pay their holders a refund instead of a price. */
   voided: boolean;
 }
 
@@ -59,9 +59,8 @@ export interface ProfitMarket extends LeaderboardMarket {
  * current call before that. Returns null for a market with no price yet
  * (zero liquidity), whose positions therefore cannot be valued.
  *
- * Callers must exclude voided markets: a void refunds the cash, so those
- * positions are worth nothing AND cost nothing, and counting one side
- * without the other invents a loss.
+ * Never called for a voided market: a cancelled market pays a refund, not a
+ * price, and computeTradingProfit skips it before reaching here.
  */
 export function currentPayoutFactors(m: ProfitMarket): [number, number] | null {
   if (m.resolved && m.actualValue !== null) {
@@ -88,41 +87,46 @@ export function currentPayoutFactors(m: ProfitMarket): [number, number] | null {
  * of excluded.
  *
  * Voiding is why this cannot simply skip cancelled markets. A void refunds
- * positions.totalCost, the GROSS cost paid in, and selling never reduces
- * that field, so a trader who sold half a position and was then refunded
- * the whole basis really did end up ahead. Dropping voided markets from
- * both sides reports that trader as flat; counting the refund as value
- * against the net cash they paid reports what the ledger actually did.
+ * the participant's net cash on that market floored at zero (docs/vision.md,
+ * "a void refunds net cash, not gross cost"), so the cancelled market's
+ * contribution is that refund minus the same net cash: exactly zero for
+ * anyone who was still in it, and the realised gain for anyone who sold out
+ * above cost and keeps it. Dropping cancelled markets from both sides would
+ * silently erase that gain.
  */
 export function computeTradingProfit(
   marketsList: ProfitMarket[],
   netCashByAgent: Map<string, number>,
   positionsList: LeaderboardPosition[],
+  /** Net cash each agent has on each VOIDED market, keyed by
+   *  voidedStakeKey(agentId, workspaceId, marketId). The refund is this
+   *  floored at zero, so callers pass the raw sum and the flooring happens
+   *  here, in one place, next to the rule it implements. */
+  voidedStake?: Map<string, number>,
 ): Map<string, number> {
   const factorsByKey = new Map<string, [number, number]>();
-  const voidedKeys = new Set<string>();
   for (const m of marketsList) {
-    const key = marketKey(m.workspaceId, m.id);
-    if (m.voided) { voidedKeys.add(key); continue; }
+    // A cancelled market is never valued at a price, whatever its row still
+    // says its shares are: it pays a refund, handled below.
+    if (m.voided) continue;
     const factors = currentPayoutFactors(m);
-    if (factors) factorsByKey.set(key, factors);
+    if (factors) factorsByKey.set(marketKey(m.workspaceId, m.id), factors);
   }
   const valueByAgent = new Map<string, number>();
   for (const p of positionsList) {
-    const key = marketKey(p.workspaceId, p.marketId);
-    // A voided position is worth its refund, whatever is left of it: the
-    // shares are meaningless after a cancel, and a fully sold-out position
-    // still had its basis returned.
-    if (voidedKeys.has(key)) {
-      const refund = p.totalCost ?? 0;
-      if (refund > 0) valueByAgent.set(p.agentId, (valueByAgent.get(p.agentId) ?? 0) + refund);
-      continue;
-    }
     if (p.shares <= 0) continue;
-    const factors = factorsByKey.get(key);
+    const factors = factorsByKey.get(marketKey(p.workspaceId, p.marketId));
     if (!factors) continue;
     const factor = p.direction === 'higher' ? factors[1] : factors[0];
     valueByAgent.set(p.agentId, (valueByAgent.get(p.agentId) ?? 0) + p.shares * factor);
+  }
+  if (voidedStake) {
+    for (const [key, netCash] of voidedStake) {
+      const refund = Math.max(0, netCash);
+      if (refund <= 0) continue;
+      const agentId = key.slice(0, key.indexOf('\u0000'));
+      valueByAgent.set(agentId, (valueByAgent.get(agentId) ?? 0) + refund);
+    }
   }
   const out = new Map<string, number>();
   for (const id of new Set([...valueByAgent.keys(), ...netCashByAgent.keys()])) {

@@ -1,5 +1,5 @@
 import { db } from '../db/client';
-import { agents, markets, metrics as metricsTable, positions, liquidityEvents, systemConfig, workspaces, proposals as proposalsTable } from '../db/schema';
+import { agents, markets, metrics as metricsTable, positions, trades, liquidityEvents, systemConfig, workspaces, proposals as proposalsTable } from '../db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { getLeafDescendantNames, desiredMarketDates, generatesMarkets } from '../lib/time-preference';
@@ -51,7 +51,22 @@ export async function distributeLPLeftover(
   }
 }
 
-/** Void a single open market: refund all positions at cost, mark resolved+voided. */
+/**
+ * Void a single open market: refund every participant what they still had at
+ * stake, mark resolved+voided.
+ *
+ * The refund is NET CASH on this market (buys positive, sells negative,
+ * floored at zero), not `positions.totalCost` (owner decision 2026-08-15;
+ * governing sentence in docs/vision.md, "a void refunds net cash, not gross
+ * cost"). totalCost is cumulative BUY cost and a sell never reduces it, on
+ * purpose, so the position cap cannot be stretched by churning; refunding it
+ * handed a round-tripper their buy cost a second time. Observed in
+ * production: two 5-credit round trips on one market minted 10 credits, and
+ * repeating the trip before an expected void would have minted more.
+ *
+ * Floored at zero so a void can never debit an account: a participant who
+ * sold out above their cost keeps that realised gain and gets nothing back.
+ */
 export async function voidMarket(
   marketOrId: MarketRow | string,
   workspaceId: string,
@@ -64,8 +79,16 @@ export async function voidMarket(
 
   if (!market || market.resolved) return { refunded: 0 };
 
-  const posRows = await db.select().from(positions)
-    .where(and(eq(positions.workspaceId, workspaceId), eq(positions.marketId, market.id)));
+  // What each participant still has in this market: their trades summed, so
+  // money they already took back out by selling is not handed to them twice.
+  // Read from trades rather than positions because positions.totalCost is
+  // gross buys by design (see the position cap) and cannot answer this.
+  const stakeRows = await db.select({
+    agentId: trades.agentId,
+    netCash: sql<number>`coalesce(sum(${trades.cost}), 0)::float`,
+  }).from(trades)
+    .where(and(eq(trades.workspaceId, workspaceId), eq(trades.marketId, market.id)))
+    .groupBy(trades.agentId);
 
   let refunded = 0;
   const pool = market.pool ?? 0;
@@ -75,15 +98,23 @@ export async function voidMarket(
       .set({ resolved: true, resolvedAt: new Date(), actualValue: null, voided: true, active: false, pool: 0 })
       .where(and(eq(markets.id, market.id), eq(markets.workspaceId, workspaceId)));
 
-    for (const pos of posRows) {
-      if (pos.totalCost <= 0) continue;
-      refunded += pos.totalCost;
+    for (const row of stakeRows) {
+      // Floored at zero: a void never debits. Someone who sold out above
+      // their cost keeps the gain and is refunded nothing.
+      //
+      // Not rounded to cents: balances are stored in nanocredits, and
+      // rounding a refund up hands out a fraction of a credit nobody had at
+      // stake (caught by the conservation test, which saw a cancel leave a
+      // trader 0.0038 credits richer than they started).
+      const refund = Math.max(0, Number(row.netCash));
+      if (refund <= 0) continue;
+      refunded += refund;
       await tx.update(agents)
         .set({
-          balance: sql`${agents.balance} + ${toUnits(pos.totalCost)}`,
-          spentBetting: sql`${agents.spentBetting} - ${pos.totalCost}`,
+          balance: sql`${agents.balance} + ${toUnits(refund)}`,
+          spentBetting: sql`${agents.spentBetting} - ${refund}`,
         })
-        .where(eq(agents.id, pos.agentId));
+        .where(eq(agents.id, row.agentId));
     }
 
     // Credits reserved by orders that will now never fill go back to their
