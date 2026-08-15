@@ -758,12 +758,16 @@ The page shows it like this:
   a lens on one number, a branch is a different world.
 - The big mono price is the **selected horizon's** call, and the ticket
   trades that market. The headline's settle day follows the selection.
-- The chart's quiet second line always shows **the counterfactual that
-  matters in this view**: the other branch when a contract is selected
-  (the gap is the priced impact), the other horizon otherwise. A horizon
-  line is drawn dashed in the accent rather than in the green/red branch
-  tones, reusing the year chart's "dashed means farther out" grammar, so
-  no new colour enters the page.
+- The chart's quiet second line is **the other branch, and only ever the
+  other branch**: same metric, same window, two worlds, so the gap
+  between the lines is the priced impact and the shared axis is honest.
+  The two horizons are never drawn on one axis (corrected 2026-08-15,
+  same day it was tried): once the near horizon measured its own window
+  rather than the same total read early, the two series stopped sharing
+  a scale, and a week of revenue plotted against a year of it is a flat
+  line at the bottom of the chart pretending to be a comparison. The
+  per-horizon charts in "What is this market?" do that job properly,
+  each on its own axis.
 - The ballot ranks contracts by the **far-horizon delta**, because that
   is the number the charter funds on, and prints it as the row's impact.
   When a contract's near delta disagrees in sign with it, the row carries

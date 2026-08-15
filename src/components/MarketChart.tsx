@@ -35,10 +35,7 @@ interface Props {
       line (owner decision 2026-08-10: both branches on the page, the gap
       between them IS the priced impact). `tone` colours it; the primary
       series stays the loud one. */
-  /** `tone` colours it: the branch tones are the green/red worlds, and
-      'horizon' is the same number on another clock, drawn dashed in the
-      accent so no new colour enters the page (2026-08-15). */
-  secondary?: { series: Array<{ at: string; consensus: number | null }>; consensus: number; label: string; tone: 'higher' | 'lower' | 'horizon' } | null;
+  secondary?: { series: Array<{ at: string; consensus: number | null }>; consensus: number; label: string; tone: 'higher' | 'lower' } | null;
   height?: number;
 }
 

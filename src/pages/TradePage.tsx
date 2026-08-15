@@ -272,7 +272,6 @@ export function TradePage() {
   const pulseDate = horizons.length > 1 ? horizons[0].targetDate : null;
   const heroIdx = Math.min(horizon, Math.max(0, horizons.length - 1));
   const hero = horizons[heroIdx] ?? null;
-  const otherHorizon = horizons.length > 1 ? horizons[heroIdx === 0 ? horizons.length - 1 : 0] : null;
   const unit = hero ? currencyOf(hero.metricName) : '';
   const metricLabel = hero ? hero.metricName.replace(/\s*\(.*\)\s*$/, '') : '';
   const selectedJob = ws?.proposals?.find(p => p.id === selectedJobId) ?? null;
@@ -357,21 +356,6 @@ export function TradePage() {
   const wsKey = ws ? (ws.slug || ws.workspaceId) : null;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { condHistoryRef.current(); }, [pair?.approvedMarketId, pair?.declinedMarketId, wsKey]);
-
-  // The other horizon's own history, for the chart's quiet second line.
-  // Overwrites in place so a poll redraws the same line instead of
-  // collapsing it to a point for a frame.
-  const [otherHorizonHistory, setOtherHorizonHistory] = useState<Array<{ at: string; consensus: number | null }>>([]);
-  const otherHorizonId = otherHorizon?.marketId ?? null;
-  useEffect(() => {
-    if (!otherHorizonId || !ws) { setOtherHorizonHistory([]); return; }
-    let cancelled = false;
-    api.getPublicMarketHistory(ws.slug || ws.workspaceId, otherHorizonId)
-      .then(h => { if (!cancelled) setOtherHorizonHistory(h); })
-      .catch(e => console.error('horizon history fetch failed:', e));
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [otherHorizonId, wsKey]);
 
   const refreshMoney = () => {
     if (activeMarketId && ws) {
@@ -856,23 +840,19 @@ export function TradePage() {
                 note={settleDayOf(hero.targetDate) ? `resolves ${settleDayOf(hero.targetDate)}` : undefined}
                 preview={chartPreview}
                 orders={orders.map(o => ({ id: o.id, direction: o.direction, limitValue: o.limitValue }))}
-                secondary={selectedJob
-                  ? (otherBranch && otherBranch.consensus !== null
-                      ? {
-                          series: otherBranch.history,
-                          consensus: otherBranch.consensus,
-                          label: branch === 'approved' ? 'if declined' : 'if approved',
-                          tone: branch === 'approved' ? 'lower' as const : 'higher' as const,
-                        }
-                      : null)
-                  : (otherHorizon && otherHorizon.consensus !== null
-                      ? {
-                          series: otherHorizonHistory,
-                          consensus: otherHorizon.consensus,
-                          label: horizonLabel(otherHorizon.targetDate),
-                          tone: 'horizon' as const,
-                        }
-                      : null)}
+                /* Only ever the other BRANCH: same metric, same window,
+                   two worlds, so the gap is the priced impact. The other
+                   horizon measures a different window and shares no scale
+                   with this one (2026-08-15), so it gets its own chart
+                   below rather than a line on this axis. */
+                secondary={selectedJob && otherBranch && otherBranch.consensus !== null
+                  ? {
+                      series: otherBranch.history,
+                      consensus: otherBranch.consensus,
+                      label: branch === 'approved' ? 'if declined' : 'if approved',
+                      tone: branch === 'approved' ? 'lower' as const : 'higher' as const,
+                    }
+                  : null}
               />
             </div>
           </section>

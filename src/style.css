@@ -9315,12 +9315,6 @@ textarea.jobform-line--desc {
 }
 .mchart-branch--higher { color: var(--higher); }
 .mchart-branch--lower { color: var(--lower); }
-/* The other horizon: the same number on another clock. Accent, dashed,
-   quieter, reusing the year chart's "dashed means farther out" grammar so
-   two horizons need no second hue. */
-.mchart-branch--horizon { color: var(--accent); }
-.mchart-branch--horizon .mchart-branch-line { stroke-dasharray: 5 5; opacity: 0.45; }
-.mchart-branch--horizon .mchart-branch-dot { opacity: 0.5; }
 
 .mchart-grid {
   stroke: var(--border-color);
