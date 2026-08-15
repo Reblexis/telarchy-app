@@ -69,3 +69,83 @@ describe('the account dialog', () => {
     await waitFor(() => expect(screen.getByText(/does not check out/)).toBeTruthy());
   });
 });
+
+/**
+ * The crypto method grew chains and a required asset on 2026-08-15. These
+ * pin the two things that broke when it did: a method saved before assets
+ * existed must still be editable, and the picker must offer exactly what the
+ * server accepts.
+ */
+describe('crypto payment details', () => {
+  test('a method saved before assets existed is backfilled, not left unsavable', async () => {
+    // The stored shape from before the change: chain, address, no asset.
+    getParticipant.mockResolvedValueOnce({
+      nickname: 'trader-1', balance: 1000, earnedBetting: 50,
+      payoutHandle: 'Crypto',
+      payoutMethod: { provider: 'crypto', network: 'ethereum', address: '0x' + 'a'.repeat(40) },
+    } as never);
+    render(<AccountDialog onClose={() => {}} />);
+    await waitFor(() => expect(screen.getByLabelText('Address')).toBeTruthy());
+
+    // An asset pill is active, so saving cannot 400 with "Pick what to be
+    // paid in" about a field the user never touched.
+    const usdc = screen.getByText('USDC');
+    expect(usdc.className).toContain('is-active');
+
+    // The save button appears once something changes. Touch the note, the
+    // field this user actually came to edit, and save: the backfilled asset
+    // has to ride along or the request 400s on a field they never saw.
+    fireEvent.change(screen.getByLabelText('Note'), { target: { value: 'memo 42' } });
+    fireEvent.click(screen.getByText('Save payment details'));
+    await waitFor(() => expect(upsertProfile).toHaveBeenCalledWith({
+      payoutMethod: {
+        provider: 'crypto', network: 'ethereum', asset: 'USDC',
+        address: '0x' + 'a'.repeat(40), note: 'memo 42',
+      },
+    }));
+  });
+
+  test('the highlighted chain and the offered assets are the same chain', async () => {
+    render(<AccountDialog onClose={() => {}} />);
+    await waitFor(() => expect(screen.getByText('Crypto')).toBeTruthy());
+    fireEvent.click(screen.getByText('Crypto'));
+
+    const active = ['Ethereum', 'Base', 'Arbitrum', 'Optimism', 'Polygon', 'Solana', 'Bitcoin']
+      .filter(n => screen.getByText(n).className.includes('is-active'));
+    expect(active).toEqual(['Base']);
+    // Base settles USDC and ETH, not USDT: the asset row must match the
+    // highlighted chain, not a different default.
+    expect(screen.queryByText('USDT')).toBeNull();
+    expect(screen.getByText('ETH')).toBeTruthy();
+  });
+
+  test('switching chain drops an asset the new chain cannot settle', async () => {
+    render(<AccountDialog onClose={() => {}} />);
+    await waitFor(() => expect(screen.getByText('Crypto')).toBeTruthy());
+    fireEvent.click(screen.getByText('Crypto'));
+    fireEvent.click(screen.getByText('Ethereum'));
+    fireEvent.click(screen.getByText('USDT'));
+    fireEvent.click(screen.getByText('Bitcoin'));
+    // Bitcoin settles BTC only, so the stale USDT pick cannot survive.
+    expect(screen.getByText('BTC').className).toContain('is-active');
+    expect(screen.queryByText('USDT')).toBeNull();
+  });
+});
+
+/**
+ * The picker's chains and assets are a hand-copy of CRYPTO_NETWORKS and
+ * CRYPTO_ASSETS in functions/src/lib/payout.ts, and nothing but a comment
+ * held them together. Adding a chain server-side would silently leave the
+ * picker unable to offer it; adding one here would produce a 400 on save.
+ */
+describe('the picker matches what the server accepts', () => {
+  test('same chains, same assets, same order', async () => {
+    const { NETWORKS, ASSETS } = await import('../AccountDialog');
+    const server = await import('../../../functions/src/lib/payout');
+    expect(NETWORKS.map(n => n.id)).toEqual([...server.CRYPTO_NETWORKS]);
+    for (const network of server.CRYPTO_NETWORKS) {
+      expect(ASSETS[network]).toEqual([...server.CRYPTO_ASSETS[network]]);
+    }
+    expect(Object.keys(ASSETS).sort()).toEqual([...server.CRYPTO_NETWORKS].sort());
+  });
+});

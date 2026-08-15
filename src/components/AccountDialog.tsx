@@ -34,7 +34,7 @@ const PROVIDERS: Array<{ id: PayoutMethod['provider']; label: string }> = [
  *  chain shares the same 0x shape, so Ethereum and Base are indistinguishable
  *  from an address alone, and paying the right address on the wrong chain can
  *  put the money somewhere the recipient does not control. */
-const NETWORKS = [
+export const NETWORKS = [
   { id: 'ethereum' as const, label: 'Ethereum' },
   { id: 'base' as const, label: 'Base' },
   { id: 'arbitrum' as const, label: 'Arbitrum' },
@@ -44,9 +44,16 @@ const NETWORKS = [
   { id: 'bitcoin' as const, label: 'Bitcoin' },
 ];
 
+/** The chain assumed when a stored method does not name one. Every fallback
+ *  in this component reads it, so the pills, the asset list and the address
+ *  placeholder cannot disagree (they did: the pill highlighted Ethereum while
+ *  the asset list offered Base's, and an Ethereum-shaped save then failed
+ *  validation). */
+const DEFAULT_NETWORK = 'base' as const;
+
 /** Mirrors CRYPTO_ASSETS in functions/src/lib/payout.ts. USDC first where it
  *  exists, because that is what people ask to be paid in. */
-const ASSETS: Record<string, readonly string[]> = {
+export const ASSETS: Record<string, readonly string[]> = {
   ethereum: ['USDC', 'USDT', 'ETH'],
   base: ['USDC', 'ETH'],
   arbitrum: ['USDC', 'USDT', 'ETH'],
@@ -55,6 +62,22 @@ const ASSETS: Record<string, readonly string[]> = {
   solana: ['USDC', 'SOL'],
   bitcoin: ['BTC'],
 };
+
+/**
+ * The stored method as editable fields, with the chain and asset filled in
+ * when they are missing. Crypto methods saved before assets existed carry
+ * only { network, address }; without this backfill no "Paid in" pill reads
+ * active and the next save 400s with "Pick what to be paid in", an error
+ * about a field the user never touched.
+ */
+function storedFields(method: PayoutMethod): Record<string, string> {
+  const { provider, ...rest } = method as unknown as Record<string, string>;
+  void provider;
+  if (method.provider !== 'crypto') return rest;
+  const network = rest.network || DEFAULT_NETWORK;
+  const assets = ASSETS[network] ?? ASSETS[DEFAULT_NETWORK];
+  return { ...rest, network, asset: assets.includes(rest.asset) ? rest.asset : assets[0] };
+}
 
 function fmtCr(v: number): string {
   return v >= 10_000
@@ -103,8 +126,7 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
         setNickSaved(part.nickname ?? '');
         if (part.payoutMethod) {
           setProvider(part.payoutMethod.provider);
-          const { provider: _p, ...rest } = part.payoutMethod as unknown as Record<string, string>;
-          setFields(rest);
+          setFields(storedFields(part.payoutMethod));
         }
       })
       .catch(e => console.error('participant fetch failed:', e));
@@ -168,7 +190,10 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
     clearErr('pay');
     setBusy('pay');
     try {
-      const method = { provider, ...fields } as unknown as PayoutMethod;
+      // No `as unknown` laundering: PayoutMethod in lib/api.ts mirrors the
+      // server contract, so a payload that does not fit is a bug in one of
+      // the two, which is exactly what this cast used to hide.
+      const method = { provider, ...fields } as PayoutMethod;
       await api.upsertProfile({ payoutMethod: method });
       setParticipant(p => (p ? { ...p, payoutMethod: method } : p));
       setPayDirty(false);
@@ -215,11 +240,10 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
     // Re-hydrate the stored fields when returning to the saved provider;
     // start clean otherwise.
     if (participant?.payoutMethod?.provider === p) {
-      const { provider: _p, ...rest } = participant.payoutMethod as unknown as Record<string, string>;
-      setFields(rest);
+      setFields(storedFields(participant.payoutMethod));
       setPayDirty(false);
     } else {
-      setFields(p === 'crypto' ? { network: 'base', asset: 'USDC' } : {});
+      setFields(p === 'crypto' ? { network: DEFAULT_NETWORK, asset: ASSETS[DEFAULT_NETWORK][0] } : {});
       setPayDirty(true);
     }
     clearErr('pay');
@@ -323,7 +347,7 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
                 {NETWORKS.map(n => (
                   <button
                     key={n.id}
-                    className={`acctdlg-pill${(fields.network ?? 'ethereum') === n.id ? ' is-active' : ''}`}
+                    className={`acctdlg-pill${(fields.network ?? DEFAULT_NETWORK) === n.id ? ' is-active' : ''}`}
                     onClick={() => {
                       setField('network', n.id);
                       // Assets differ per chain, so a stale pick from the
@@ -340,7 +364,7 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
             <div className="jobform-field">
               <span className="ticket-label">Paid in</span>
               <div className="acctdlg-pills">
-                {(ASSETS[fields.network ?? 'base'] ?? ['USDC']).map(a => (
+                {(ASSETS[fields.network ?? DEFAULT_NETWORK] ?? ASSETS[DEFAULT_NETWORK]).map(a => (
                   <button
                     key={a}
                     className={`acctdlg-pill${(fields.asset ?? '') === a ? ' is-active' : ''}`}
@@ -351,7 +375,7 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
                 ))}
               </div>
             </div>
-            <label className="jobform-field"><span className="ticket-label">Address</span>{line('address', 'Address', (fields.network ?? 'base') === 'solana' ? 'Solana address' : (fields.network ?? 'base') === 'bitcoin' ? 'bc1…' : '0x…')}</label>
+            <label className="jobform-field"><span className="ticket-label">Address</span>{line('address', 'Address', (fields.network ?? DEFAULT_NETWORK) === 'solana' ? 'Solana address' : (fields.network ?? DEFAULT_NETWORK) === 'bitcoin' ? 'bc1…' : '0x…')}</label>
           </>
         )}
         {provider === 'revolut' && (

@@ -83,14 +83,32 @@ export interface AgentTrace {
  * A resting instruction to buy while the market sits at or beyond a price.
  * `limitValue` is in the metric's own units (dollars here), never probability.
  */
-/** Structured payment details; mirrors functions/src/lib/payout.ts. */
-export type PayoutMethod =
+/**
+ * Structured payment details; mirrors functions/src/lib/payout.ts.
+ *
+ * Keep the crypto member in step with CRYPTO_NETWORKS / CRYPTO_ASSETS there.
+ * It drifted once (2026-08-15): the server had grown four EVM chains and a
+ * required `asset`, this type still said three networks and no asset, and the
+ * mismatch was invisible only because AccountDialog cast its payload through
+ * `as unknown as PayoutMethod`. A component that switches on `network` would
+ * then fall through for a stored 'base'. Cast nothing into this type; if a
+ * payload does not fit, this type is what is wrong.
+ */
+export type CryptoNetwork =
+  | 'ethereum' | 'base' | 'arbitrum' | 'optimism' | 'polygon' | 'solana' | 'bitcoin';
+
+export type PayoutMethod = (
   | { provider: 'paypal'; email: string }
   | { provider: 'bank'; iban: string; holder: string }
-  | { provider: 'crypto'; network: 'ethereum' | 'bitcoin' | 'solana'; address: string }
+  | { provider: 'crypto'; network: CryptoNetwork; asset: string; address: string }
   | { provider: 'revolut'; handle: string }
   | { provider: 'wise'; email: string }
-  | { provider: 'other'; details: string };
+  | { provider: 'other'; details: string }
+) & {
+  /** Free text the payer should read when sending (bank reference, exchange
+   *  memo or destination tag). Optional on every provider. */
+  note?: string;
+};
 
 export interface LimitOrder {
   id: string;
