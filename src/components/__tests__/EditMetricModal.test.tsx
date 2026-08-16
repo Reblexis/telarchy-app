@@ -30,10 +30,14 @@ describe('customHorizonError', () => {
     expect(customHorizonError('2099')).toBeNull();
     expect(customHorizonError('2099-12-31T14')).toBeNull();
   });
-  test('rejects bad formats, zero offsets, impossible and past dates', () => {
+  test('accepts a zero offset: the current period, how "this week" is said', () => {
+    expect(customHorizonError('+0w')).toBeNull();
+    expect(customHorizonError('+0d')).toBeNull();
+    expect(customHorizonError('+0h')).toBeNull();
+  });
+  test('rejects bad formats, impossible and past dates', () => {
     expect(customHorizonError('garbage')).not.toBeNull();
-    expect(customHorizonError('+0d')).not.toBeNull();
-    expect(customHorizonError('+0h')).not.toBeNull();
+    expect(customHorizonError('-1d')).not.toBeNull();
     expect(customHorizonError('2099-13')).not.toBeNull();
     expect(customHorizonError('2099-02-31')).not.toBeNull();
     expect(customHorizonError('2099-W60')).not.toBeNull();

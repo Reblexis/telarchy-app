@@ -36,7 +36,9 @@ export const MAX_CUSTOM_HORIZONS = 24;
 export function customHorizonError(entry: string): string | null {
   const rel = entry.match(HORIZON_REL_RE);
   if (rel) {
-    return parseInt(rel[1], 10) >= 1 ? null : 'Offset must be at least 1';
+    // "+0w" is the current period, the way to say "this week" and keep it
+    // rolling. Only a negative offset is nonsense.
+    return parseInt(rel[1], 10) >= 0 ? null : 'Offset cannot be negative';
   }
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;

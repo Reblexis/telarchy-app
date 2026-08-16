@@ -167,11 +167,10 @@ describe('parseTimePreference (custom horizons)', () => {
     const tp = parseTimePreference({ enabled: true, halfLife: 1, customHorizons: ['2020-01'] });
     expect((tp as TimePreference).customHorizons).toBeUndefined();
   });
-  test('rejects bad formats, zero offsets and non-string entries', () => {
+  test('rejects bad formats and non-string entries', () => {
     expect(parseTimePreference({ enabled: false, customHorizons: ['garbage'] })).toBeInstanceOf(Error);
     expect(parseTimePreference({ enabled: false, customHorizons: ['2026-02-31'] })).toBeInstanceOf(Error);
-    expect(parseTimePreference({ enabled: false, customHorizons: ['+0d'] })).toBeInstanceOf(Error);
-    expect(parseTimePreference({ enabled: false, customHorizons: ['+0h'] })).toBeInstanceOf(Error);
+    expect(parseTimePreference({ enabled: false, customHorizons: ['-1d'] })).toBeInstanceOf(Error);
     expect(parseTimePreference({ enabled: false, customHorizons: ['2099-01-01T24'] })).toBeInstanceOf(Error);
     expect(parseTimePreference({ enabled: false, customHorizons: [42] })).toBeInstanceOf(Error);
     expect(parseTimePreference({ enabled: false, customHorizons: 'not-array' })).toBeInstanceOf(Error);
@@ -181,6 +180,27 @@ describe('parseTimePreference (custom horizons)', () => {
     expect(tp).not.toBeInstanceOf(Error);
     expect((tp as TimePreference).customHorizons).toEqual(['+1h', '+24h', '2099-01-01T08']);
   });
+  test('a zero offset is the current period, which is how "this week" is said', () => {
+    // The only way to point a rolling horizon at the period we are inside.
+    // An absolute "2026-W33" is one-shot and stops rolling the week after;
+    // "+1w" names a week that has not started, which is what put a $1,179
+    // forecast next to this week's $887 running total (owner report
+    // 2026-08-16).
+    const tp = parseTimePreference({ enabled: false, customHorizons: ['+0w', '+0d', '+0h'] });
+    expect(tp).not.toBeInstanceOf(Error);
+    expect((tp as TimePreference).customHorizons).toEqual(['+0w', '+0d', '+0h']);
+  });
+
+  test('a zero offset resolves to the period containing now, not the next one', () => {
+    const sunday = new Date('2026-08-16T17:00:00Z'); // the last day of ISO week 33
+    expect(resolveCustomHorizons(['+0w'], sunday)).toEqual(['2026-W33']);
+    expect(resolveCustomHorizons(['+1w'], sunday)).toEqual(['2026-W34']);
+    const monday = new Date('2026-08-17T09:00:00Z');
+    expect(resolveCustomHorizons(['+0w'], monday)).toEqual(['2026-W34']);
+    // Still live: the current period has not fully passed, so it is not pruned.
+    expect(resolveCustomHorizons(['+0d'], sunday)).toEqual(['2026-08-16']);
+  });
+
   test('caps the list at 24 entries', () => {
     const many = Array.from({ length: 25 }, (_, i) => `+${i + 1}d`);
     expect(parseTimePreference({ enabled: false, customHorizons: many })).toBeInstanceOf(Error);
