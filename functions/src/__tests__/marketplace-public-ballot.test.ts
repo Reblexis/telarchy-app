@@ -119,10 +119,38 @@ describe('horizon histories', () => {
 
     const res = await request(app).get(`/api/marketplace/${WS}`);
     expect(res.status).toBe(200);
-    const year = (res.body.horizonHistories as Array<{ targetDate: string; points: Array<{ value: number }> }>)
+    const year = (res.body.horizonHistories as Array<{ targetDate: string; periodStart: string; points: Array<{ value: number }> }>)
       .find(h => h.targetDate === '2026-12');
     // A whole year of trajectory, months before the market's target period.
     expect(year!.points.map(p => p.value)).toEqual([137, 45339]);
+  });
+
+  test('each horizon carries the first moment of the period it settles on', async () => {
+    // The chart opens its x-axis here, so a week-long market draws the whole
+    // week instead of the day and a half that happens to have readings (owner
+    // direction 2026-08-16). It is an axis bound, never a filter: the year
+    // below starts in December and keeps every reading from January on.
+    await seed(['read', 'trade']);
+    await db.insert(markets).values([
+      {
+        id: 'mkt-year', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
+        targetDate: '2026-12', rangeMin: 0, rangeMax: 150000,
+        shares: [0, 0], liquidity: 100, pool: initialPool(100),
+        active: true, resolved: false, voided: false, proposalId: null, branch: null,
+      },
+      {
+        id: 'mkt-week', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
+        targetDate: '2026-W33', rangeMin: 0, rangeMax: 8000,
+        shares: [0, 0], liquidity: 100, pool: initialPool(100),
+        active: true, resolved: false, voided: false, proposalId: null, branch: null,
+      },
+    ]);
+
+    const res = await request(app).get(`/api/marketplace/${WS}`);
+    const byDate = new Map((res.body.horizonHistories as Array<{ targetDate: string; periodStart: string }>)
+      .map(h => [h.targetDate, h.periodStart]));
+    expect(byDate.get('2026-W33')).toBe('2026-08-10T00:00:00.000Z'); // the Monday
+    expect(byDate.get('2026-12')).toBe('2026-12-01T00:00:00.000Z');
   });
 });
 

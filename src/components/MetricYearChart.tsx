@@ -25,6 +25,14 @@ interface Props {
   forecastValue: number;
   /** When it settles (ISO); the dashed line runs to here. */
   forecastAt: string;
+  /**
+   * The first moment of the period this market settles on (ISO). The x-axis
+   * opens here when it is earlier than the first reading, so a week-long
+   * market draws the whole week rather than only the days that happen to
+   * have readings (owner direction 2026-08-16). Never drops a point: a
+   * cumulative metric whose readings predate its period keeps them all.
+   */
+  periodStart?: string;
   /** Currency prefix for every numeral ('$' or ''), inferred by the caller. */
   unit?: string;
   /** Top-left corner note ("resolves 31 December 2026"). */
@@ -49,7 +57,7 @@ function fullNum(v: number): string {
   return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
-export function MetricYearChart({ history, forecastValue, forecastAt, unit = '', note, height }: Props) {
+export function MetricYearChart({ history, forecastValue, forecastAt, periodStart, unit = '', note, height }: Props) {
   const [compact, setCompact] = useState(() => typeof window !== 'undefined' && window.innerWidth < 520);
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 519px)');
@@ -71,8 +79,12 @@ export function MetricYearChart({ history, forecastValue, forecastAt, unit = '',
     const forecastT = new Date(forecastAt).getTime();
     const last = pts[pts.length - 1];
 
-    // x domain: the year, from the first real reading to the settle date.
-    const t0 = pts[0].t;
+    // x domain: the whole period being settled on. It opens at the start of
+    // that period, or at the first reading when that is earlier (a cumulative
+    // metric has been running since long before its market's period), and
+    // closes at the settle date.
+    const periodT = periodStart ? new Date(periodStart).getTime() : NaN;
+    const t0 = Number.isFinite(periodT) ? Math.min(pts[0].t, periodT) : pts[0].t;
     const t1 = Math.max(forecastT, last.t);
     const span = Math.max(t1 - t0, 60_000);
 
@@ -108,31 +120,44 @@ export function MetricYearChart({ history, forecastValue, forecastAt, unit = '',
       if (v > vMin + (vMax - vMin) * 0.04 && v < vMax - (vMax - vMin) * 0.04) gridVals.push(v);
     }
 
-    // Month ticks across the year: the x-axis IS the months of the year, so
-    // label the first of each month that falls inside the domain, thinning to
-    // every other month on the narrow canvas.
+    // X ticks follow the length of the domain, not the calendar the chart was
+    // first written for. A year gets months; a week gets days, because "Aug"
+    // repeated once is not an axis. Both label UTC boundaries inside the
+    // domain, thinned on the narrow canvas.
+    const DAY = 86_400_000;
+    const spanDays = span / DAY;
+    const byDay = spanDays <= 45;
     const monthTicks: number[] = [];
     const d0 = new Date(t0);
-    let my = d0.getUTCFullYear();
-    let mm = d0.getUTCMonth();
-    const stepMonths = compact ? 2 : 1;
-    // Start at the first month boundary at or after t0.
-    if (d0.getUTCDate() !== 1) { mm += 1; if (mm > 11) { mm = 0; my += 1; } }
-    for (;;) {
-      const t = Date.UTC(my, mm, 1);
-      if (t > t1) break;
-      monthTicks.push(t);
-      mm += stepMonths;
-      while (mm > 11) { mm -= 12; my += 1; }
+    if (byDay) {
+      // Aim for roughly six labels: daily up to a fortnight, then every few days.
+      const stepDays = Math.max(1, Math.ceil(spanDays / (compact ? 4 : 7)));
+      let t = Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth(), d0.getUTCDate());
+      if (t < t0) t += DAY;
+      for (; t <= t1; t += stepDays * DAY) monthTicks.push(t);
+    } else {
+      let my = d0.getUTCFullYear();
+      let mm = d0.getUTCMonth();
+      const stepMonths = compact ? 2 : 1;
+      // Start at the first month boundary at or after t0.
+      if (d0.getUTCDate() !== 1) { mm += 1; if (mm > 11) { mm = 0; my += 1; } }
+      for (;;) {
+        const t = Date.UTC(my, mm, 1);
+        if (t > t1) break;
+        monthTicks.push(t);
+        mm += stepMonths;
+        while (mm > 11) { mm -= 12; my += 1; }
+      }
     }
-    const fmtMonth = (t: number) => new Date(t).toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' });
+    const fmtMonth = (t: number) => new Date(t).toLocaleDateString('en-US',
+      byDay ? { month: 'short', day: 'numeric', timeZone: 'UTC' } : { month: 'short', timeZone: 'UTC' });
 
     // A single combined series for the crosshair, linearly interpolated
     // (continuous data), actual through `last` then the forecast leg.
     const line = [...pts, { t: forecastT, v: forecastValue }];
 
     return { pts, last, forecastT, d, areaPath, fcast, t0, t1, span, x, y, gridVals, monthTicks, fmtMonth, line, vMin, vMax };
-  }, [history, forecastValue, forecastAt, H, W, PAD_L, PAD_R, compact]);
+  }, [history, forecastValue, forecastAt, periodStart, H, W, PAD_L, PAD_R, compact]);
 
   if (!model) return null;
   const { last, forecastT, d, areaPath, fcast, x, y, gridVals, monthTicks, fmtMonth, line } = model;

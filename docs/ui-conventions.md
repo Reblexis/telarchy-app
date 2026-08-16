@@ -628,6 +628,19 @@ window defines the axis, not the data). Spans under 10 minutes label x
 ticks with seconds so four ticks on a young market do not all print the
 same minute.
 
+**The actual-vs-forecast chart's x-axis is the period being settled on**
+(owner direction 2026-08-16: "the whole week should be on X axis"). It
+opens at the first moment of that period, or at the first reading when
+that is earlier, and closes at the settle date. So a week-long market
+draws Monday to Sunday even when only the last two days have readings,
+while a metric that accumulates all year keeps its January start under a
+market targeting 2026-12. The bound is on the AXIS, never on the points:
+filtering readings to the period emptied both charts off the floor once
+already. Tick labels follow the length of the domain, days under about
+six weeks and months above it, because "Aug" printed three times is not
+an axis. The API sends `periodStart` per horizon so the two surfaces
+cannot disagree about where a period begins.
+
 **Revised 2026-08-15 (owner report: "it goes from 25 to 25 and yet it
 goes down?").** The y domain now has a floor: four label quanta, where a
 quantum is the smallest difference a tick label can express at that

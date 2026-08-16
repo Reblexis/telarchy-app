@@ -576,6 +576,7 @@ export function TradePage() {
         unit: currencyOf(row.metricName),
         settleDay: settleDayOf(row.targetDate),
         resolvesOn: market.resolvesOn,
+        periodStart: row.periodStart,
         forecast,
         history,
       };
@@ -980,6 +981,7 @@ export function TradePage() {
                 history={h.history}
                 forecastValue={h.forecast}
                 forecastAt={h.resolvesOn}
+                periodStart={h.periodStart}
                 unit={h.unit}
               />
             </div>

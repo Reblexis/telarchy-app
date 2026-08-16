@@ -7,7 +7,7 @@ import { authMiddleware } from '../middleware/auth';
 import { requireIdentity } from '../middleware/roles';
 import { consensus, pHigher } from '../lib/amm';
 import { replayMarketTradePoints } from '../services/predictions';
-import { periodEndInstant, resolutionInstant } from '../lib/date-utils';
+import { periodEndInstant, periodStartInstant, resolutionInstant } from '../lib/date-utils';
 import { ensureSystemGroups } from './groups';
 import { getGroupMemberIds, getOwnerHandles, getParticipantDisplayNames } from '../lib/participants';
 import { SIGNUP_CREDITS } from '../lib/validation';
@@ -395,7 +395,7 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
   // to bet on a number with no evidence, which serious forecasters refuse.
   let heroHistory: Array<{ at: Date | null; value: number }> | undefined;
   let horizonHistories: Array<{
-    marketId: string; metricName: string; targetDate: string;
+    marketId: string; metricName: string; targetDate: string; periodStart: string;
     description: string | null; points: Array<{ at: Date | null; value: number }>;
   }> | undefined;
   let heroMetricDescription: string | null | undefined;
@@ -446,10 +446,18 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
       // reading before December and both charts vanished from the floor.
       // The weekly case needs a rule about where a resetting metric's
       // current period begins, which the market's targetDate cannot answer.
+      //
+      // `periodStart` is the weaker, safer statement the targetDate CAN make:
+      // the first moment of the period this market settles on. The chart uses
+      // it to open the x-axis, never to drop a reading, so a week-long market
+      // draws the whole week (owner direction 2026-08-16, "the whole week
+      // should be on X axis") while a cumulative year keeps its January start,
+      // whose first reading long predates its 2026-12 period.
       horizonHistories.push({
         marketId: m.marketId as string,
         metricName: m.metricName as string,
         targetDate: m.targetDate as string,
+        periodStart: periodStartInstant(m.targetDate as string).toISOString(),
         description: metricRow?.description ?? null,
         points: rows.reverse(),
       });

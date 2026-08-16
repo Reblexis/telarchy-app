@@ -314,6 +314,8 @@ export interface PublicWorkspace {
     marketId: string;
     metricName: string;
     targetDate: string;
+    /** First moment of the settled period; the chart's x-axis opens here. */
+    periodStart?: string;
     description: string | null;
     points: Array<{ at: string | null; value: number }>;
   }>;
