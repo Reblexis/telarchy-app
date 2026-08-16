@@ -91,46 +91,22 @@ async function seed(publicCaps: string[]) {
 }
 
 /**
- * Each horizon's chart draws its OWN window. A metric that resets every
- * Monday accumulates a fresh number each week, so last week's readings are
- * not this market's actual-so-far: the LookPilot floor drew a week that had
- * not started yet sitting at $887 and apparently heading down to the $213 its
- * market called (owner report 2026-08-16).
+ * A horizon's chart draws its metric's history as recorded.
+ *
+ * 2026-08-16: this briefly asserted the opposite, that each horizon filters
+ * its points to the market's own target period, which fixed a weekly market
+ * drawing last week's accumulation and broke every cumulative metric: "net
+ * 2026" accumulates all year but its market targets 2026-12, so a year of
+ * readings fell outside "its" period and the floor lost both charts. The
+ * pinned behaviour is the one the floor actually needs until there is a rule
+ * for where a resetting metric's current period begins.
  */
-describe('horizon histories are scoped to their own period', () => {
-  test('a week horizon drops readings from the week before it', async () => {
-    await seed(['read', 'trade']);
-    await db.insert(markets).values({
-      id: 'mkt-week', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue this week',
-      targetDate: '2026-W34', rangeMin: 0, rangeMax: 8000,
-      shares: [0, 0], liquidity: 100, pool: initialPool(100),
-      active: true, resolved: false, voided: false, proposalId: null, branch: null,
-    });
-    await db.insert(metricLogs).values([
-      // Last week: real, and nothing to do with the market on W34.
-      { id: 'log-prev', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue', value: 887.29,
-        timestamp: new Date('2026-08-15T20:42:51Z') },
-      // Inside W34 (17..23 August).
-      { id: 'log-in', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue', value: 120,
-        timestamp: new Date('2026-08-18T09:00:00Z') },
-      // After it closes.
-      { id: 'log-next', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue', value: 40,
-        timestamp: new Date('2026-08-24T01:00:00Z') },
-    ]);
-
-    const res = await request(app).get(`/api/marketplace/${WS}`);
-    expect(res.status).toBe(200);
-    const week = (res.body.horizonHistories as Array<{ targetDate: string; points: Array<{ value: number }> }>)
-      .find(h => h.targetDate === '2026-W34');
-    expect(week).toBeDefined();
-    expect(week!.points.map(p => p.value)).toEqual([120]);
-  });
-
-  test('a year horizon keeps a year of readings, because its window contains them', async () => {
+describe('horizon histories', () => {
+  test('a cumulative metric keeps readings from before its market\'s target month', async () => {
     await seed(['read', 'trade']);
     await db.insert(markets).values({
       id: 'mkt-year', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
-      targetDate: '2026', rangeMin: 0, rangeMax: 150000,
+      targetDate: '2026-12', rangeMin: 0, rangeMax: 150000,
       shares: [0, 0], liquidity: 100, pool: initialPool(100),
       active: true, resolved: false, voided: false, proposalId: null, branch: null,
     });
@@ -139,13 +115,13 @@ describe('horizon histories are scoped to their own period', () => {
         timestamp: new Date('2026-01-01T23:30:00Z') },
       { id: 'log-aug', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue', value: 45339,
         timestamp: new Date('2026-08-15T10:00:00Z') },
-      { id: 'log-lastyear', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue', value: 999,
-        timestamp: new Date('2025-12-31T23:00:00Z') },
     ]);
 
     const res = await request(app).get(`/api/marketplace/${WS}`);
+    expect(res.status).toBe(200);
     const year = (res.body.horizonHistories as Array<{ targetDate: string; points: Array<{ value: number }> }>)
-      .find(h => h.targetDate === '2026');
+      .find(h => h.targetDate === '2026-12');
+    // A whole year of trajectory, months before the market's target period.
     expect(year!.points.map(p => p.value)).toEqual([137, 45339]);
   });
 });
