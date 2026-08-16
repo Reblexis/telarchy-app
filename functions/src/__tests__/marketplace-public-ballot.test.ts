@@ -361,3 +361,55 @@ describe('public ballot disclosure gate', () => {
     expect(bySlug.status).toBe(404);
   });
 });
+
+/**
+ * The workspace's primary number is the DECISION horizon (owner direction
+ * 2026-08-16), and every server-side surface reads the same one: the trader
+ * context a floor charts, the definition it quotes, and the metric a
+ * contractor's impact is denominated in.
+ */
+describe('the primary horizon server-side', () => {
+  const addWeeklyClock = async () => {
+    await db.insert(metrics).values({
+      id: 'metric-week', workspaceId: WS, name: 'Revenue this week (USD)', value: 887,
+      formula: '0', marketRangeMax: 8000, description: 'This week only, resets Monday.',
+    });
+    await db.update(metrics).set({ description: 'The year, cumulative.' })
+      .where(eq(metrics.id, 'metric-ballot'));
+    // Soonest first in the payload: the week, then the year.
+    await db.insert(markets).values([
+      {
+        id: 'mkt-week-p', workspaceId: WS, metricId: 'metric-week', metricName: 'Revenue this week (USD)',
+        targetDate: '2026-W34', rangeMin: 0, rangeMax: 8000,
+        shares: [0, 0], liquidity: 100, pool: initialPool(100),
+        active: true, resolved: false, voided: false, proposalId: null, branch: null,
+      },
+      {
+        id: 'mkt-year-p', workspaceId: WS, metricId: 'metric-ballot', metricName: 'Revenue',
+        targetDate: '2026-12', rangeMin: 0, rangeMax: 150000,
+        shares: [0, 0], liquidity: 100, pool: initialPool(100),
+        active: true, resolved: false, voided: false, proposalId: null, branch: null,
+      },
+    ]);
+  };
+
+  test('the quoted definition is the far horizon\'s, not the soonest', async () => {
+    await seed(['read', 'trade']);
+    await addWeeklyClock();
+    const res = await request(app).get(`/api/marketplace/${WS}`);
+    expect(res.status).toBe(200);
+    // markets still ship soonest-first: the contract is unchanged.
+    expect(res.body.markets[0].targetDate).toBe('2026-W34');
+    expect(res.body.heroMetricDescription).toBe('The year, cumulative.');
+  });
+
+  test('a contractor\'s impact is denominated in the far horizon\'s metric', async () => {
+    await seed(['read', 'trade']);
+    await addWeeklyClock();
+    // The pending contract's pair is on the YEAR metric, so it can only be
+    // scored if the hero metric is the year's.
+    const res = await request(app).get(`/api/marketplace/${WS}`);
+    const scored = (res.body.topContractors as Array<{ pricedJobs: number }>).find(c => c.pricedJobs > 0);
+    expect(scored).toBeDefined();
+  });
+});

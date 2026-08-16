@@ -143,7 +143,13 @@ export function TradePage() {
   const [branch, setBranch] = useState<'approved' | 'declined'>('approved');
   // Which clock the page is showing and the ticket trades: 0 is the near
   // horizon (the pulse), the last index is the decision horizon.
-  const [horizon, setHorizon] = useState(0);
+  // Which clock the page opens on. The DECISION horizon, not the pulse
+  // (owner direction 2026-08-16): the far number is what the owner is judged
+  // on and what every other surface leads with, so a visitor who arrives
+  // here, on a card, or on a shared link meets the same headline. -1 means
+  // "the last one" until the markets arrive; the selector still offers the
+  // near horizon as the second option.
+  const [horizon, setHorizon] = useState(-1);
   const [condHistory, setCondHistory] = useState<{
     approved: Array<{ at: string; consensus: number | null }>;
     declined: Array<{ at: string; consensus: number | null }>;
@@ -284,7 +290,8 @@ export function TradePage() {
   const horizons = ws?.markets ?? [];
   const decisionDate = horizons.length > 1 ? horizons[horizons.length - 1].targetDate : null;
   const pulseDate = horizons.length > 1 ? horizons[0].targetDate : null;
-  const heroIdx = Math.min(horizon, Math.max(0, horizons.length - 1));
+  const lastIdx = Math.max(0, horizons.length - 1);
+  const heroIdx = horizon < 0 ? lastIdx : Math.min(horizon, lastIdx);
   const hero = horizons[heroIdx] ?? null;
   const unit = hero ? currencyOf(hero.metricName) : '';
   const metricLabel = hero ? hero.metricName.replace(/\s*\(.*\)\s*$/, '') : '';

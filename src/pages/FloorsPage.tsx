@@ -232,7 +232,12 @@ export function FloorsPage() {
           api.getMarketplaceWorkspace(row.slug || row.workspaceId)
             .then(ws => {
               if (cancelled) return;
-              const m = ws.markets?.[0];
+              // The furthest-resolving market is the card's number (owner
+              // direction 2026-08-16): LookPilot's card leads with net 2026,
+              // not with the few hundred dollars this week has earned so
+              // far. Lists arrive soonest-first.
+              const all = ws.markets ?? [];
+              const m = all.length > 0 ? all[all.length - 1] : undefined;
               setListings(cur => (cur ?? []).map(r => r.workspaceId === row.workspaceId
                 ? {
                     ...r,

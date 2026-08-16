@@ -212,3 +212,32 @@ describe('the activity line', () => {
     await screen.findByText(/14 participants · 108 trades this week · 2 contracts priced now/);
   });
 });
+
+/**
+ * A card leads with the workspace's DECISION number (owner direction
+ * 2026-08-16). With two clocks running the same definition, the card had
+ * been showing the soonest, so LookPilot advertised the few hundred dollars
+ * this week had earned so far instead of the net 2026 it is judged on.
+ */
+describe('which number a card shows', () => {
+  test('the furthest-resolving market, not the soonest', async () => {
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({
+      ...payload,
+      markets: [
+        { metricName: 'LookPilot revenue this week (USD)', consensus: 213, targetDate: '2026-W34' },
+        { metricName: 'LookPilot net 2026 (USD)', consensus: 78_571, targetDate: '2026-12' },
+      ],
+    } as never);
+    const { container } = renderPage();
+
+    await waitFor(() => expect(container.querySelector('.mkt-card-price')?.textContent).toBeTruthy());
+    expect(container.querySelector('.mkt-card-price')!.textContent).toBe('$78,571');
+    expect(container.querySelector('.mkt-card-metric')!.textContent).toBe('LookPilot net 2026');
+  });
+
+  test('a single-market workspace still shows its one number', async () => {
+    const { container } = renderPage();
+    await waitFor(() => expect(container.querySelector('.mkt-card-price')?.textContent).toBeTruthy());
+    expect(container.querySelector('.mkt-card-price')!.textContent).toBe('$77,316');
+  });
+});

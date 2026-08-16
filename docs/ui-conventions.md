@@ -414,6 +414,20 @@ has funded a market for this job yet. Composing a bet and meeting
 "this market has no liquidity" at submit is the bug this rule exists to
 prevent.
 
+**The primary number is the DECISION horizon (owner direction
+2026-08-16).** A two-clock workspace runs one definition at a near horizon
+for speed and a far one for the decision the charter funds on. The far one
+is the headline everywhere a single number is shown: the marketplace card,
+the share card an unfurled link renders, the floor's own opening view, the
+definition it quotes, and the metric a contractor's impact is denominated
+in. LookPilot is "net 2026 at $78,571", not "$213 so far this week", and a
+visitor arriving from a card, a link, or the floor meets the same number.
+
+The near horizon is the second option, one click away on the floor's
+selector, and lists still ship soonest-first: the API contract is unchanged,
+only which element the surfaces treat as primary. One helper,
+`primaryMarket`, decides it server-side so the surfaces cannot drift apart.
+
 **Both rails are scoped to THIS workspace (owner report 2026-08-15: "why
 are the contractors per workspace and traders globally sorted? it should
 all be per workspace").** The contractor board always was; the trader

@@ -15,6 +15,22 @@ import { computeContractors, type ContractorEntry, type ContractorJobPair } from
 
 export const marketplaceRouter = Router();
 
+/**
+ * Which of a workspace's open markets is THE number: the furthest-resolving
+ * one (owner direction 2026-08-16). A two-clock workspace runs the same
+ * definition at a near horizon for speed and a far one for the decision, and
+ * the far one is what the owner is actually judged on: LookPilot is "net 2026
+ * at $78,571", not "$213 so far this week". Marketplace cards, the share
+ * card, the trader context and the contractor score all read this, so a
+ * visitor meets the same headline wherever they arrive.
+ *
+ * Lists arrive soonest-first, so the primary is the last element; the near
+ * horizon stays available as the second option on the floor's selector.
+ */
+function primaryMarket<T>(soonestFirst: T[]): T | undefined {
+  return soonestFirst.length > 0 ? soonestFirst[soonestFirst.length - 1] : undefined;
+}
+
 marketplaceRouter.get('/', wrap(async (req, res) => {
   const limit = typeof req.query.limit === 'string'
     ? Math.min(parseInt(req.query.limit, 10), 100)
@@ -386,12 +402,12 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
   let tradesThisWeek: number | undefined;
   let marketHistory: Array<{ at: Date; consensus: number | null }> | undefined;
   if (publicCaps.includes('read')) {
-    const heroMarketId = marketList[0]?.marketId as string | undefined;
+    const heroMarketId = primaryMarket(marketList)?.marketId as string | undefined;
     if (heroMarketId) {
       const points = await replayMarketTradePoints(heroMarketId, workspaceId);
       marketHistory = points.slice(-500).map(pt => ({ at: pt.createdAt, consensus: pt.consensus }));
     }
-    const heroMetricId = marketList[0]?.metricId as string | undefined;
+    const heroMetricId = primaryMarket(marketList)?.metricId as string | undefined;
     if (heroMetricId) {
       const [metricRow] = await db.select({ description: metrics.description })
         .from(metrics).where(and(eq(metrics.workspaceId, workspaceId), eq(metrics.id, heroMetricId)));
@@ -644,7 +660,7 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
     }
     // The hero metric is the one the floor's chart is showing (soonest
     // resolving baseline market), so every contractor score is in one unit.
-    const heroMetricId = (marketList[0]?.metricId as string | undefined) ?? null;
+    const heroMetricId = (primaryMarket(marketList)?.metricId as string | undefined) ?? null;
     const contractorNames = await getParticipantDisplayNames(liveJobs.map(j => j.proposedBy));
     topContractors = computeContractors(
       liveJobs.map(j => ({
@@ -852,7 +868,7 @@ marketplaceRouter.get('/:workspaceId/card.png', wrap(async (req, res) => {
     if (dateDiff !== 0) return dateDiff;
     return b.liquidity - a.liquidity;
   });
-  const hero = baseline[0];
+  const hero = primaryMarket(baseline);
 
   let history: number[] = [];
   let heroConsensus: number | null = null;

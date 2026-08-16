@@ -338,3 +338,63 @@ describe('settleDayOf', () => {
     expect(settleDayOf('whenever')).toBeNull();
   });
 });
+
+/**
+ * Which clock the floor opens on: the DECISION horizon (owner direction
+ * 2026-08-16). LookPilot is "net 2026 at $78,571", not "$213 so far this
+ * week", and every other surface leads with the same number, so a visitor
+ * arriving from a card or a shared link is not shown a different headline.
+ */
+describe('the primary horizon', () => {
+  const twoClocks = () => {
+    const ws = h.workspace();
+    ws.markets = [
+      { marketId: 'm-week', metricId: 'metric-w', metricName: 'LookPilot revenue this week (USD)',
+        targetDate: '2026-W34', resolvesOn: '2026-08-24T00:00:00Z', consensus: 213,
+        probability: 0.5, liquidity: 200, rangeMin: 0, rangeMax: 8000 },
+      { marketId: 'm-hero', metricId: 'metric-1', metricName: 'LookPilot net 2026 (USD)',
+        targetDate: '2026-12', resolvesOn: '2026-12-31T00:00:00Z', consensus: 78_571,
+        probability: 0.5, liquidity: 200, rangeMin: 0, rangeMax: 150_000 },
+    ];
+    return ws;
+  };
+
+  test('opens on the far horizon, not the soonest', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
+    const { container } = renderFloor();
+
+    await waitFor(() => expect(container.querySelector('.pubws-horizon.is-active')).toBeTruthy());
+    // The selector lists soonest-first, so the active one is the second.
+    const opts = [...container.querySelectorAll('.pubws-horizon')];
+    expect(opts).toHaveLength(2);
+    expect(opts[1].className).toContain('is-active');
+    expect(opts[0].className).not.toContain('is-active');
+  });
+
+  test('the headline is the far horizon\'s number', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-price')?.textContent).toBeTruthy());
+    expect(container.querySelector('.pubws-price')!.textContent).toContain('78');
+  });
+
+  test('the near horizon is still one click away', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelectorAll('.pubws-horizon')).toHaveLength(2));
+
+    fireEvent.click(container.querySelectorAll('.pubws-horizon')[0]);
+    await waitFor(() => expect(container.querySelector('.pubws-price')!.textContent).toContain('213'));
+  });
+
+  test('a one-clock workspace is unaffected', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(h.workspace() as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-price')?.textContent).toBeTruthy());
+    expect(container.querySelector('.pubws-price')!.textContent).toContain('80');
+  });
+});
