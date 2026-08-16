@@ -359,17 +359,18 @@ describe('the primary horizon', () => {
     return ws;
   };
 
-  test('opens on the far horizon, not the soonest', async () => {
+  test('lists the far horizon first, and opens on it', async () => {
     const { api } = await import('../../lib/api');
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
     const { container } = renderFloor();
 
     await waitFor(() => expect(container.querySelector('.pubws-horizon.is-active')).toBeTruthy());
-    // The selector lists soonest-first, so the active one is the second.
+    // Owner direction 2026-08-16: yearly first, then weekly. The payload
+    // still ships soonest-first, so this is a display order.
     const opts = [...container.querySelectorAll('.pubws-horizon')];
     expect(opts).toHaveLength(2);
-    expect(opts[1].className).toContain('is-active');
-    expect(opts[0].className).not.toContain('is-active');
+    expect(opts[0].className).toContain('is-active');
+    expect(opts[1].className).not.toContain('is-active');
   });
 
   test('the headline is the far horizon\'s number', async () => {
@@ -386,7 +387,7 @@ describe('the primary horizon', () => {
     const { container } = renderFloor();
     await waitFor(() => expect(container.querySelectorAll('.pubws-horizon')).toHaveLength(2));
 
-    fireEvent.click(container.querySelectorAll('.pubws-horizon')[0]);
+    fireEvent.click(container.querySelectorAll('.pubws-horizon')[1]);
     await waitFor(() => expect(container.querySelector('.pubws-price')!.textContent).toContain('213'));
   });
 
@@ -397,4 +398,30 @@ describe('the primary horizon', () => {
     await waitFor(() => expect(container.querySelector('.pubws-price')?.textContent).toBeTruthy());
     expect(container.querySelector('.pubws-price')!.textContent).toContain('80');
   });
+});
+
+test('the charts follow the selector: year first, week second', async () => {
+  const { api } = await import('../../lib/api');
+  const ws = h.workspace();
+  ws.markets = [
+    { marketId: 'm-week', metricId: 'metric-w', metricName: 'LookPilot revenue this week (USD)',
+      targetDate: '2026-W34', resolvesOn: '2026-08-24T00:00:00Z', consensus: 213,
+      probability: 0.5, liquidity: 200, rangeMin: 0, rangeMax: 8000 },
+    { marketId: 'm-hero', metricId: 'metric-1', metricName: 'LookPilot net 2026 (USD)',
+      targetDate: '2026-12', resolvesOn: '2026-12-31T00:00:00Z', consensus: 78_571,
+      probability: 0.5, liquidity: 200, rangeMin: 0, rangeMax: 150_000 },
+  ];
+  ws.horizonHistories = [
+    { marketId: 'm-week', metricName: 'LookPilot revenue this week (USD)', targetDate: '2026-W34',
+      description: 'This week only.', points: [{ at: '2026-08-18T09:00:00Z', value: 120 }] },
+    { marketId: 'm-hero', metricName: 'LookPilot net 2026 (USD)', targetDate: '2026-12',
+      description: 'The year.', points: [{ at: '2026-08-15T09:00:00Z', value: 45_339 }] },
+  ];
+  vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+
+  const { container } = renderFloor();
+  await waitFor(() => expect(container.querySelectorAll('.pubws-know .pubws-settle').length).toBe(2));
+  const captions = [...container.querySelectorAll('.pubws-know .pubws-settle')].map(n => n.textContent ?? '');
+  expect(captions[0]).toContain('net 2026');
+  expect(captions[1]).toContain('this week');
 });

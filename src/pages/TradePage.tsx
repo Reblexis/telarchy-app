@@ -285,13 +285,16 @@ export function TradePage() {
 
   // Two clocks on one number (owner direction 2026-08-15): the workspace
   // runs the same definition at a near horizon (the pulse, fast feedback)
-  // and a far one (the decision the charter funds on). markets arrive
-  // soonest-first, so index 0 is the pulse and the last is the decision.
-  const horizons = ws?.markets ?? [];
-  const decisionDate = horizons.length > 1 ? horizons[horizons.length - 1].targetDate : null;
-  const pulseDate = horizons.length > 1 ? horizons[0].targetDate : null;
-  const lastIdx = Math.max(0, horizons.length - 1);
-  const heroIdx = horizon < 0 ? lastIdx : Math.min(horizon, lastIdx);
+  // and a far one (the decision the charter funds on).
+  //
+  // The payload ships soonest-first; the page shows FURTHEST first (owner
+  // direction 2026-08-16, "first should be total yearly and then weekly").
+  // The decision is the number this floor is about, so it leads the
+  // selector, the headline and the charts, and the pulse follows it.
+  const horizons = [...(ws?.markets ?? [])].reverse();
+  const decisionDate = horizons.length > 1 ? horizons[0].targetDate : null;
+  const pulseDate = horizons.length > 1 ? horizons[horizons.length - 1].targetDate : null;
+  const heroIdx = horizon < 0 ? 0 : Math.min(horizon, Math.max(0, horizons.length - 1));
   const hero = horizons[heroIdx] ?? null;
   const unit = hero ? currencyOf(hero.metricName) : '';
   const metricLabel = hero ? hero.metricName.replace(/\s*\(.*\)\s*$/, '') : '';
@@ -552,7 +555,9 @@ export function TradePage() {
   // history and its OWN market's call, so "this week" and "this year" are
   // two honest pictures rather than one series relabelled.
   const horizonCharts = useMemo(() => {
-    const rows = ws?.horizonHistories ?? [];
+    // Furthest first, like the selector above it: the year's picture is the
+    // one the floor is about, and the week is the follow-up.
+    const rows = [...(ws?.horizonHistories ?? [])].reverse();
     return rows.map(row => {
       const market = (ws?.markets ?? []).find(m => m.marketId === row.marketId);
       if (!market || market.consensus == null || !market.resolvesOn) return null;

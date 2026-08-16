@@ -80,30 +80,31 @@ export function toAbsoluteDate(dateStr: string, baseDate: Date = new Date()): st
 
 /** Get ISO week string YYYY-Www for a date */
 export function toISOWeekString(d: Date): string {
-  const jan4 = new Date(d.getFullYear(), 0, 4);
-  const mon = new Date(jan4);
-  mon.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7));
-  const diff = Math.round((d.getTime() - mon.getTime()) / 86400000);
-  let week = Math.floor(diff / 7) + 1;
-  let year = d.getFullYear();
-  if (week < 1) {
-    year--;
-    const prevJan4 = new Date(year, 0, 4);
-    const prevMon = new Date(prevJan4);
-    prevMon.setDate(prevJan4.getDate() - ((prevJan4.getDay() + 6) % 7));
-    week = Math.floor((d.getTime() - prevMon.getTime()) / 86400000 / 7) + 1;
-  } else if (week > 52) {
-    const dec31 = new Date(year, 11, 31);
-    const lastJan4 = new Date(year, 0, 4);
-    const lastMon = new Date(lastJan4);
-    lastMon.setDate(lastJan4.getDate() - ((lastJan4.getDay() + 6) % 7));
-    const maxWeek = Math.floor((dec31.getTime() - lastMon.getTime()) / 86400000 / 7) + 1;
-    if (week > maxWeek) {
-      year++;
-      week = 1;
-    }
-  }
-  return `${year}-W${String(week).padStart(2, '0')}`;
+  // The standard ISO-8601 rule, in UTC, on the date alone.
+  //
+  // The previous implementation mixed local getDate()/getDay() with a UTC
+  // instant and then rounded a fractional day count, so the answer depended
+  // on the time of day: any afternoon late in the week rounded up a day and
+  // landed in the next week. On Sunday 2026-08-16 it returned W34 for a date
+  // that is W33, which is how LookPilot's "revenue this week" market ended up
+  // targeting W35, a week that starts eight days out (owner report
+  // 2026-08-16).
+  //
+  // ISO defines the week by its THURSDAY: the year of that Thursday is the
+  // week-numbering year, and week 1 is the one containing 4 January. Deriving
+  // it that way removes the year-boundary special cases entirely.
+  const day = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const dayNum = (day.getUTCDay() + 6) % 7; // Mon = 0 ... Sun = 6
+  day.setUTCDate(day.getUTCDate() - dayNum + 3); // the Thursday of this week
+  const isoYear = day.getUTCFullYear();
+
+  const jan4 = new Date(Date.UTC(isoYear, 0, 4));
+  const jan4Num = (jan4.getUTCDay() + 6) % 7;
+  const week1Thursday = new Date(jan4);
+  week1Thursday.setUTCDate(jan4.getUTCDate() - jan4Num + 3);
+
+  const week = 1 + Math.round((day.getTime() - week1Thursday.getTime()) / (7 * 86_400_000));
+  return `${isoYear}-W${String(week).padStart(2, '0')}`;
 }
 
 /**
@@ -221,11 +222,20 @@ export function isValidDateFormat(dateStr: string): boolean {
     ABS_HOUR_RE.test(dateStr);
 }
 
-/** Number of ISO weeks in a year (52 or 53). Dec 28 is always in the last ISO week. */
+/**
+ * Number of ISO weeks in a year: 53 iff the year starts on a Thursday, or is a
+ * leap year starting on a Wednesday; 52 otherwise.
+ *
+ * Stated as arithmetic rather than by probing 28 December, because that probe
+ * only works if the Date is built in the same clock toISOWeekString reads.
+ * It was built in local time against UTC getters, so east of Greenwich the
+ * probe landed on 27 December, week 52, and "2026-W53" - a real week a market
+ * can target - failed validation.
+ */
 function isoWeeksInYear(year: number): number {
-  // Local-time constructor to match toISOWeekString's local-time getters.
-  const dec28 = new Date(year, 11, 28);
-  return parseInt(toISOWeekString(dec28).split('-W')[1], 10);
+  const jan1 = new Date(Date.UTC(year, 0, 1)).getUTCDay(); // Sun = 0
+  const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  return jan1 === 4 || (isLeap && jan1 === 3) ? 53 : 52;
 }
 
 /**

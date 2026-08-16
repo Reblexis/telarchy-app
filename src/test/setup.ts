@@ -19,6 +19,18 @@ if (typeof globalThis.localStorage === 'undefined' || typeof globalThis.localSto
   });
 }
 
+// jsdom does not implement matchMedia either, and the charts call it on mount
+// to pick phone vs desktop geometry. Without it, any test that renders a chart
+// dies on `window.matchMedia is not a function` before asserting anything.
+// Default to desktop; a test that cares about the phone layout overrides it.
+if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
+  window.matchMedia = ((query: string) => ({
+    matches: false, media: query, onchange: null,
+    addEventListener: () => {}, removeEventListener: () => {},
+    addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+  })) as unknown as typeof window.matchMedia;
+}
+
 // jsdom does not implement canvas, but Chart.js queries canvas context on
 // construction. Provide a minimal stub so render tests don't crash.
 HTMLCanvasElement.prototype.getContext = (() => {

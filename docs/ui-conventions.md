@@ -428,6 +428,13 @@ selector, and lists still ship soonest-first: the API contract is unchanged,
 only which element the surfaces treat as primary. One helper,
 `primaryMarket`, decides it server-side so the surfaces cannot drift apart.
 
+**The floor shows horizons furthest-first** (owner direction 2026-08-16,
+"first should be total yearly and then weekly"). The decision is what the
+floor is about, so it leads the selector and the charts read down from the
+year to the week; a primary number sitting in the second slot reads as an
+afterthought. The page reverses the payload at the top of the component; it
+does not ask the API for a different order.
+
 **Both rails are scoped to THIS workspace (owner report 2026-08-15: "why
 are the contractors per workspace and traders globally sorted? it should
 all be per workspace").** The contractor board always was; the trader

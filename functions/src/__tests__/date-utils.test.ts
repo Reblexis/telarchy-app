@@ -8,6 +8,7 @@ import {
   periodEndInstant,
   resolutionInstant,
   isValidDateFormat,
+  isValidCalendarDate,
 } from '../lib/date-utils';
 
 // Fixed base date for deterministic relative-date tests
@@ -213,5 +214,88 @@ describe('periodStartInstant', () => {
 
   test('an unrecognised shape keeps everything rather than dropping a history', () => {
     expect(periodStartInstant('not-a-date').getTime()).toBe(0);
+  });
+});
+
+/**
+ * ISO week numbering, against the definition rather than against itself.
+ *
+ * The old implementation mixed local getDate()/getDay() with a UTC instant and
+ * rounded a fractional day count, so the answer moved with the time of day:
+ * a Sunday afternoon landed in the next week. On Sunday 2026-08-16 it returned
+ * W34 for a date that is W33, which is how LookPilot's "revenue this week"
+ * market came to target W35, a week starting eight days out.
+ */
+describe('toISOWeekString', () => {
+  const at = (day: string, time = '12:00') => new Date(`${day}T${time}:00Z`);
+
+  test('a Sunday belongs to the week that is ending, not the next one', () => {
+    expect(toISOWeekString(at('2026-08-16'))).toBe('2026-W33'); // Sunday
+    expect(toISOWeekString(at('2026-08-17'))).toBe('2026-W34'); // Monday
+    expect(toISOWeekString(at('2026-08-23'))).toBe('2026-W34'); // Sunday
+  });
+
+  test('the answer does not depend on the time of day', () => {
+    for (const time of ['00:00', '06:00', '12:00', '18:00', '23:59']) {
+      expect(toISOWeekString(at('2026-08-16', time))).toBe('2026-W33');
+      expect(toISOWeekString(at('2026-08-17', time))).toBe('2026-W34');
+    }
+  });
+
+  test('a week runs Monday to Sunday under one number', () => {
+    const week = ['2026-08-17', '2026-08-18', '2026-08-19', '2026-08-20', '2026-08-21', '2026-08-22', '2026-08-23'];
+    expect(new Set(week.map(d => toISOWeekString(at(d))))).toEqual(new Set(['2026-W34']));
+  });
+
+  test('year boundaries follow the Thursday rule, not the calendar year', () => {
+    // 1 January 2026 is a Thursday, so its week is 2026-W01 and the days
+    // before it belong to 2025.
+    expect(toISOWeekString(at('2025-12-28'))).toBe('2025-W52'); // Sunday
+    expect(toISOWeekString(at('2025-12-29'))).toBe('2026-W01'); // Monday
+    expect(toISOWeekString(at('2026-01-01'))).toBe('2026-W01');
+    // 2027 starts on a Friday, so 1-3 January still belong to 2026-W53.
+    expect(toISOWeekString(at('2027-01-01'))).toBe('2026-W53');
+    expect(toISOWeekString(at('2027-01-04'))).toBe('2027-W01');
+  });
+
+  test('a 53-week year has one, and the next year starts at W01', () => {
+    expect(toISOWeekString(at('2026-12-31'))).toBe('2026-W53');
+    expect(toISOWeekString(at('2027-01-05'))).toBe('2027-W01');
+  });
+
+  test('every week it returns round-trips through periodStartInstant', () => {
+    // Whatever week a day is in, that week must contain the day.
+    for (const day of ['2026-08-16', '2026-08-17', '2025-12-29', '2027-01-01', '2026-12-31']) {
+      const wk = toISOWeekString(at(day));
+      const start = periodStartInstant(wk).getTime();
+      const end = periodEndInstant(wk).getTime();
+      const t = at(day).getTime();
+      expect(t >= start && t < end).toBe(true);
+    }
+  });
+});
+
+describe('week 53, the year-boundary case', () => {
+  // Which years have 53 ISO weeks is fixed by the calendar: a year has 53 iff
+  // it starts on a Thursday, or is a leap year starting on a Wednesday.
+  const FIFTY_THREE = new Set([2004, 2009, 2015, 2020, 2026, 2032, 2037]);
+
+  test('a 53rd week validates exactly in the years that have one', () => {
+    for (let y = 2004; y <= 2040; y++) {
+      expect([y, isValidCalendarDate(`${y}-W53`)]).toEqual([y, FIFTY_THREE.has(y)]);
+      expect(isValidCalendarDate(`${y}-W52`)).toBe(true);
+      expect(isValidCalendarDate(`${y}-W54`)).toBe(false);
+    }
+  });
+
+  test('the rule is arithmetic, so no machine timezone can change it', () => {
+    // The count used to come from probing 28 December with a locally built
+    // Date read through UTC getters, which is one day earlier east of
+    // Greenwich. Now it is derived from the weekday 1 January falls on, and
+    // there is no Date-vs-clock mismatch left to get wrong.
+    for (const y of [2026, 2032]) expect(isValidCalendarDate(`${y}-W53`)).toBe(true);
+    for (const y of [2025, 2027, 2031]) expect(isValidCalendarDate(`${y}-W53`)).toBe(false);
+    expect(toISOWeekString(new Date('2026-12-28T00:00:00Z'))).toBe('2026-W53');
+    expect(toISOWeekString(new Date('2026-12-27T23:00:00Z'))).toBe('2026-W52');
   });
 });
