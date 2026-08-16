@@ -27,6 +27,7 @@ import { getAllMetrics } from '../services/metrics';
 import { computeCapabilities } from '../middleware/capabilities';
 import { requireScope } from '../middleware/roles';
 import { parseScopesInput, granterCoversScopes, SCOPE_PRESETS } from '../lib/scopes';
+import { allowLedgerAdmin } from '../lib/ledger-admin';
 
 export const agentsRouter = Router();
 
@@ -1465,6 +1466,8 @@ agentsRouter.delete('/:id', requireCapability('manage'), wrap(async (req, res) =
     }
 
     // Delete all agent data
+    // Removing a participant removes their trades with them.
+    await allowLedgerAdmin(tx);
     await tx.delete(trades).where(eq(trades.agentId, id));
     await tx.delete(positions).where(eq(positions.agentId, id));
     await tx.delete(deposits).where(eq(deposits.agentId, id));

@@ -10,6 +10,7 @@ import { emitEvent } from './events';
 import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
 import { resolutionInstant } from '../lib/date-utils';
 import { metricSubtractsContractAsk } from '../lib/metric-unit';
+import { allowLedgerAdmin } from '../lib/ledger-admin';
 
 type MarketRow = typeof markets.$inferSelect;
 
@@ -800,6 +801,9 @@ async function buyOutProposerLiquidity(
     await tx.update(agents).set({ balance: sql`${agents.balance} + ${toUnits(stake)}` })
       .where(eq(agents.id, proposerId));
     for (const row of rows) {
+      // Re-attribution, not erasure: the row moves to the account that
+      // actually paid for it.
+      await allowLedgerAdmin(tx);
       await tx.update(liquidityEvents).set({ agentId: ownerAgentId })
         .where(eq(liquidityEvents.id, row.id));
     }

@@ -20,6 +20,7 @@ import { uniqueSlugForOwner } from '../lib/slug';
 import { voidMarket } from '../services/markets';
 import { createWorkspaceFromTemplate, WorkspaceCreateError } from '../services/workspace-create';
 import { parseVisibility, MIN_LIQUIDITY_CONTRIBUTION } from '../lib/validation';
+import { allowLedgerAdmin } from '../lib/ledger-admin';
 
 export const workspacesRouter = Router();
 
@@ -545,6 +546,9 @@ workspacesRouter.delete('/:id', requireCapability('manage_workspace'), wrap(asyn
 
   // Delete all workspace-scoped data
   await db.transaction(async tx => {
+    // Deleting a workspace takes its settlement history with it, which is
+    // the one time that is intended; the ledgers are append-only otherwise.
+    await allowLedgerAdmin(tx);
     await tx.delete(liquidityEvents).where(eq(liquidityEvents.workspaceId, wsId));
     await tx.delete(positions).where(eq(positions.workspaceId, wsId));
     await tx.delete(trades).where(eq(trades.workspaceId, wsId));

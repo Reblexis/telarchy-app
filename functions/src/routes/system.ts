@@ -8,6 +8,7 @@ import { getAllMetrics, getStatus, getAllMetricLogsGrouped } from '../services/m
 import { consensus, pHigher } from '../lib/amm';
 import { isUsdcSettlementEnabled } from '../lib/settlement';
 import { resolutionInstant } from '../lib/date-utils';
+import { allowLedgerAdmin } from '../lib/ledger-admin';
 
 export const systemRouter = Router();
 
@@ -114,6 +115,8 @@ systemRouter.post('/reset-economy', requireCapability('manage'), wrap(async (req
 
     // Delete workspace-scoped financial data
     await tx.delete(positions).where(eq(positions.workspaceId, workspaceId));
+    // A workspace reset wipes its trading history on purpose.
+    await allowLedgerAdmin(tx);
     await tx.delete(trades).where(eq(trades.workspaceId, workspaceId));
   });
 

@@ -227,6 +227,30 @@ There is no openclaw-based bot trading (the `~/.openclaw` scaffolding is unrelat
 
 If modifying the api capabilities or otherwise changing behaviour of the backend relevant to api communication, always update the documentation and api help endpoint correspondingly as well as the skill description.
 
+## The ledgers are append-only
+
+`trades` and `liquidity_events` are the record a market settles on: every
+price, payout and refund is derived from them, so an edit rewrites what a
+market settled on and nothing in the app would notice. A database trigger
+(migration 0055) refuses UPDATE and DELETE on both, so a hand-written
+statement in a psql session is as constrained as the app. This exists
+because a stray smoke-test trade was removed from production with exactly
+such a DELETE on 2026-08-15.
+
+To correct history, add a row that supersedes it (an unwinding trade, a
+compensating injection), never an edit. The handful of operations that
+genuinely destroy history (deleting a workspace or a participant,
+resetting a workspace, re-attributing an LP row to whoever funded it) call
+`allowLedgerAdmin(tx)` first, which unlocks the tables for that one
+transaction and nothing beyond it. If you reach for that helper in new
+code, answer first why the history should disappear rather than be
+superseded.
+
+Known gap, not yet closed: deleting a participant unwinds their positions
+by moving the market's shares and pool directly, so the price moves and no
+row explains it. Removing that history is currently sanctioned; recording
+the unwind as real trades would be better.
+
 ## Balance storage convention
 
 Participant balances are stored in PostgreSQL as **integer nanocredits** (`1 credit = 1,000,000,000 units`). Never write raw decimal credits to stored balance fields.
