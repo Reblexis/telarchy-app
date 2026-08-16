@@ -29,17 +29,12 @@ permissions:
   id-token: write   # required for Workload Identity Federation auth
 
 jobs:
-  # The gate (owner ask 2026-08-15): nothing reaches production without the
-  # whole suite passing first. Same steps as the Tests workflow, run here so
-  # the dependency is enforceable inside one workflow graph rather than by
-  # convention across two; `needs: test` below is what actually blocks the
-  # deploy. A tag-then-promote smoke test catches a container that will not
-  # boot, but it cannot catch a market anchored at the wrong price, which is
-  # precisely what shipped twice in one afternoon.
-  test:
-    name: Type check and test suite
+  # Type check and the frontend suite: fast, and a type error is a clearer
+  # failure than the test that would trip over it.
+  checks:
+    name: Type check and frontend tests
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -49,21 +44,41 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             functions/package-lock.json
-      - name: Install (root)
-        run: npm ci --no-audit --no-fund
-      - name: Install (functions)
-        run: npm ci --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
         working-directory: functions
-      - name: Type check
-        run: npm run typecheck
-      - name: Backend tests
-        run: npm run test:ci
+      - run: npm run typecheck
+      - run: npm run test:frontend
+
+  # The backend suite, sharded three ways. Every suite boots its own pglite
+  # and applies every migration, so one runner holding all 82 was dying
+  # around the eight-minute mark with SIGTERM (exit 143) and taking the gate
+  # down with it. Three runners finish in a third of the wall clock and stay
+  # well inside the runner's memory.
+  backend:
+    name: Backend tests (shard ${{ matrix.shard }}/3)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            functions/package-lock.json
+      - run: npm ci --no-audit --no-fund
         working-directory: functions
-      - name: Frontend tests
-        run: npm run test:frontend
+      - run: npm run test:ci -- --shard=${{ matrix.shard }}/3
+        working-directory: functions
 
   deploy:
-    needs: test
+    needs: [checks, backend]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
