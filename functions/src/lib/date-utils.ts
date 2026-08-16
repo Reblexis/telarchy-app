@@ -164,6 +164,37 @@ export function periodEndInstant(targetDate: string): Date {
 }
 
 /**
+ * The inclusive start of a target-date period as an exact UTC instant: the
+ * first moment inside it. "2026-06" -> 2026-06-01T00:00Z, "2026-W34" ->
+ * the Monday of ISO week 34, "2026" -> 2026-01-01T00:00Z.
+ *
+ * The pair to periodEndInstant, and the answer to "does this reading belong
+ * to the period this market settles on?". A metric that resets every Monday
+ * accumulates a fresh number each week, so last week's readings are not this
+ * market's actual-so-far; plotting them made a week that had not started yet
+ * look like it was already at $887 and heading down to $213 (owner report
+ * 2026-08-16).
+ */
+export function periodStartInstant(targetDate: string): Date {
+  if (ABS_HOUR_RE.test(targetDate)) return new Date(`${targetDate}:00:00.000Z`);
+  if (ABS_YEAR_RE.test(targetDate)) return new Date(`${targetDate}-01-01T00:00:00.000Z`);
+  if (ABS_MONTH_RE.test(targetDate)) return new Date(`${targetDate}-01T00:00:00.000Z`);
+  if (ABS_WEEK_RE.test(targetDate)) {
+    // The Monday of that ISO week, by the same construction endOfPeriod uses
+    // for its Sunday, in UTC so no local timezone can shift the day.
+    const [yStr, wStr] = targetDate.split('-W');
+    const jan4 = new Date(Date.UTC(parseInt(yStr, 10), 0, 4));
+    const mon = new Date(jan4);
+    mon.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() + 6) % 7) + (parseInt(wStr, 10) - 1) * 7);
+    return mon;
+  }
+  if (ABS_DAY_RE.test(targetDate)) return new Date(`${targetDate}T00:00:00.000Z`);
+  // Unknown shape: the epoch, so a caller filtering by window keeps
+  // everything rather than silently dropping a metric's whole history.
+  return new Date(0);
+}
+
+/**
  * The exact UTC instant a market settles, as an ISO timestamp.
  *
  * Resolution runs hourly at minute 0 (the `0 * * * *` scheduler calling

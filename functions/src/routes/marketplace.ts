@@ -7,7 +7,7 @@ import { authMiddleware } from '../middleware/auth';
 import { requireIdentity } from '../middleware/roles';
 import { consensus, pHigher } from '../lib/amm';
 import { replayMarketTradePoints } from '../services/predictions';
-import { periodEndInstant, resolutionInstant } from '../lib/date-utils';
+import { periodEndInstant, periodStartInstant, resolutionInstant } from '../lib/date-utils';
 import { ensureSystemGroups } from './groups';
 import { getGroupMemberIds, getOwnerHandles, getParticipantDisplayNames } from '../lib/participants';
 import { SIGNUP_CREDITS } from '../lib/validation';
@@ -420,12 +420,25 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
         .limit(500);
       const [metricRow] = await db.select({ description: metrics.description })
         .from(metrics).where(and(eq(metrics.workspaceId, workspaceId), eq(metrics.id, metricId)));
+      // Only readings from inside THIS horizon's own window are its
+      // actual-so-far. A metric that resets every Monday accumulates a fresh
+      // number each week, so last week's readings belong to last week's
+      // market; plotting them made a week that had not started yet look like
+      // it already stood at $887 and was heading down to the $213 the market
+      // called (owner report 2026-08-16). A year horizon keeps everything it
+      // had, because a year's window contains it.
+      const from = periodStartInstant(m.targetDate as string).getTime();
+      const to = periodEndInstant(m.targetDate as string).getTime();
+      const inWindow = rows.filter(r => {
+        const t = r.at ? new Date(r.at).getTime() : NaN;
+        return Number.isFinite(t) && t >= from && t < to;
+      });
       horizonHistories.push({
         marketId: m.marketId as string,
         metricName: m.metricName as string,
         targetDate: m.targetDate as string,
         description: metricRow?.description ?? null,
-        points: rows.reverse(),
+        points: inWindow.reverse(),
       });
     }
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);

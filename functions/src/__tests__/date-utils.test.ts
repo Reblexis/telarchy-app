@@ -4,6 +4,8 @@ import {
   toAbsoluteDate,
   toISOWeekString,
   endOfPeriod,
+  periodStartInstant,
+  periodEndInstant,
   resolutionInstant,
   isValidDateFormat,
 } from '../lib/date-utils';
@@ -153,5 +155,63 @@ describe('isValidDateFormat', () => {
 
   test.each(['+1d', '+2w', 'foo', '', '26-03-23', '2026/03/23'])('rejects invalid format: %s', d => {
     expect(isValidDateFormat(d)).toBe(false);
+  });
+});
+
+/**
+ * The window a horizon owns. Its pair, periodEndInstant, was already the
+ * canonical "has this period passed"; this is the canonical "did this reading
+ * happen inside it", which the floor needs to decide whether a metric reading
+ * is a market's actual-so-far or last period's number (owner report
+ * 2026-08-16: a week that had not started drew last week's $887).
+ */
+describe('periodStartInstant', () => {
+  const iso = (d: Date) => d.toISOString();
+
+  test('a year starts on 1 January', () => {
+    expect(iso(periodStartInstant('2026'))).toBe('2026-01-01T00:00:00.000Z');
+  });
+
+  test('a month starts on its first day', () => {
+    expect(iso(periodStartInstant('2026-08'))).toBe('2026-08-01T00:00:00.000Z');
+  });
+
+  test('an ISO week starts on its Monday', () => {
+    // 2026-W34 is 17..23 August; the market that exposed the bug settles on
+    // the 24th.
+    expect(iso(periodStartInstant('2026-W34'))).toBe('2026-08-17T00:00:00.000Z');
+    expect(iso(periodStartInstant('2026-W33'))).toBe('2026-08-10T00:00:00.000Z');
+    expect(iso(periodStartInstant('2026-W01'))).toBe('2025-12-29T00:00:00.000Z');
+  });
+
+  test('a day and an hour start at their own boundary', () => {
+    expect(iso(periodStartInstant('2026-05-05'))).toBe('2026-05-05T00:00:00.000Z');
+    expect(iso(periodStartInstant('2026-05-05T14'))).toBe('2026-05-05T14:00:00.000Z');
+  });
+
+  test('it always precedes the end of the same period', () => {
+    for (const t of ['2026', '2026-08', '2026-W34', '2026-05-05', '2026-05-05T14']) {
+      expect(periodStartInstant(t).getTime()).toBeLessThan(periodEndInstant(t).getTime());
+    }
+  });
+
+  test('consecutive periods meet exactly, with no gap and no overlap', () => {
+    expect(periodEndInstant('2026-W33').getTime()).toBe(periodStartInstant('2026-W34').getTime());
+    expect(periodEndInstant('2026-07').getTime()).toBe(periodStartInstant('2026-08').getTime());
+  });
+
+  test('last week is outside this week, which is the whole point', () => {
+    const lastWeeksReading = new Date('2026-08-15T20:42:51Z').getTime();
+    const from = periodStartInstant('2026-W34').getTime();
+    const to = periodEndInstant('2026-W34').getTime();
+    expect(lastWeeksReading >= from && lastWeeksReading < to).toBe(false);
+    // And inside its own week it counts.
+    const f33 = periodStartInstant('2026-W33').getTime();
+    const t33 = periodEndInstant('2026-W33').getTime();
+    expect(lastWeeksReading >= f33 && lastWeeksReading < t33).toBe(true);
+  });
+
+  test('an unrecognised shape keeps everything rather than dropping a history', () => {
+    expect(periodStartInstant('not-a-date').getTime()).toBe(0);
   });
 });

@@ -124,7 +124,7 @@ function renderFloor() {
 }
 
 // Imported after the mocks so the page picks them up.
-const { TradePage } = await import('../TradePage');
+const { TradePage, settleDayOf } = await import('../TradePage');
 
 beforeEach(() => {
   h.chartRenders.length = 0;
@@ -312,5 +312,29 @@ describe('the activity panel under a selected contract', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'if declined' }));
     await waitFor(() => expect(vi.mocked(api.getMarketActivity)).toHaveBeenCalledWith('lookpilot', 'm-declined'));
+  });
+});
+
+/**
+ * When a market settles, in words. A weekly horizon printed nothing at all
+ * until 2026-08-16, so its chart never said when it lands, and on Telarchy's
+ * own floor, where two metrics share a name once the "(end of 2026)" tail is
+ * stripped, that date is the only thing telling the two charts apart.
+ */
+describe('settleDayOf', () => {
+  test('an ISO week settles on its Sunday', () => {
+    expect(settleDayOf('2026-W34')).toBe('23 August 2026');
+    expect(settleDayOf('2026-W33')).toBe('16 August 2026');
+    expect(settleDayOf('2026-W01')).toBe('4 January 2026');
+  });
+
+  test('a year, a month and a day are unchanged', () => {
+    expect(settleDayOf('2026')).toBe('31 December 2026');
+    expect(settleDayOf('2026-08')).toBe('31 August 2026');
+    expect(settleDayOf('2026-08-05')).toBe('5 August 2026');
+  });
+
+  test('an unrecognised shape says nothing rather than guessing', () => {
+    expect(settleDayOf('whenever')).toBeNull();
   });
 });

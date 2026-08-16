@@ -69,6 +69,20 @@ function formatDelta(delta: number, unit = ''): string {
 // direction 2026-08-10: "@ 31 December 2026"); the END of the period, so
 // the year boundary never reads a day late.
 export function settleDayOf(targetDate: string): string | null {
+  // An ISO week settles on its Sunday. Without this the weekly horizon drew
+  // a chart that never said when it lands, and on a workspace whose two
+  // metrics share a name once their tail is stripped, the settle day is the
+  // only thing telling the two charts apart (owner report 2026-08-16).
+  const wk = targetDate.match(/^(\d{4})-W(\d{2})$/);
+  if (wk) {
+    const year = Number(wk[1]);
+    const jan4 = new Date(Date.UTC(year, 0, 4));
+    const sunday = new Date(jan4);
+    sunday.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() + 6) % 7) + (Number(wk[2]) - 1) * 7 + 6);
+    return sunday.toLocaleDateString('en-GB', {
+      day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
+    });
+  }
   const m = targetDate.match(/^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?$/);
   if (!m) return null;
   const year = Number(m[1]);
