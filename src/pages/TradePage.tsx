@@ -552,7 +552,11 @@ export function TradePage() {
     // One chart per horizon, in the selector's order (furthest first), each
     // drawing ITS OWN metric history against ITS OWN settle date.
     return horizons.flatMap(h => {
-      if (h.consensus == null || !h.resolvesOn || h.metricHistory.length < 1) return [];
+      // A horizon with no readings YET still gets its chart: for a metric that
+      // restarts each period, an empty week with the market's call on the right
+      // is the honest picture, and a chart that vanishes and reappears every
+      // Monday is worse than one that says "nothing measured yet".
+      if (h.consensus == null || !h.resolvesOn) return [];
       // The live call for whichever market the page is currently on, so the
       // chart the reader is trading tracks the price they see above.
       //

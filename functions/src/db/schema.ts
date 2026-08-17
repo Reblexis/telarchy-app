@@ -325,6 +325,17 @@ export const metrics = pgTable('metrics', {
   /** { enabled: boolean, halfLife: number, density?: number } | null */
   timePreference: jsonb('time_preference'),
   marketRangeMax: doublePrecision('market_range_max').notNull().default(1000),
+  /**
+   * The period this number restarts on: 'hour' | 'day' | 'week' | 'month' |
+   * 'year', or NULL when it never restarts (an accumulating total or a level).
+   *
+   * It says which readings belong together. A resetting metric's reading is
+   * about the period it was taken in and nothing else, so only readings inside
+   * a market's own target period are that market's actual-so-far. Undeclared,
+   * the floor drew last week's total as this week's actual (owner report
+   * 2026-08-17).
+   */
+  resetsEvery: text('resets_every'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);

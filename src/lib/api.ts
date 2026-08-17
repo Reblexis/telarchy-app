@@ -320,6 +320,9 @@ export interface PublicWorkspace {
     targetDate: string;
     /** First moment of the settled period; the chart's x-axis opens here. */
     periodStart?: string;
+    /** The period this metric restarts on, or null when it never does. Set,
+        `points` carries only readings from inside this market's own period. */
+    resetsEvery?: string | null;
     description: string | null;
     points: Array<{ at: string | null; value: number }>;
   }>;

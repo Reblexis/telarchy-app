@@ -396,6 +396,7 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
   let heroHistory: Array<{ at: Date | null; value: number }> | undefined;
   let horizonHistories: Array<{
     marketId: string; metricName: string; targetDate: string; periodStart: string;
+    resetsEvery: string | null;
     description: string | null; points: Array<{ at: Date | null; value: number }>;
   }> | undefined;
   let heroMetricDescription: string | null | undefined;
@@ -447,7 +448,7 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
         .where(and(eq(metricLogs.workspaceId, workspaceId), eq(metricLogs.metricId, metricId)))
         .orderBy(desc(metricLogs.timestamp))
         .limit(500);
-      const [metricRow] = await db.select({ description: metrics.description })
+      const [metricRow] = await db.select({ description: metrics.description, resetsEvery: metrics.resetsEvery })
         .from(metrics).where(and(eq(metrics.workspaceId, workspaceId), eq(metrics.id, metricId)));
       // A horizon's chart draws its metric's history, unfiltered.
       //
@@ -466,13 +467,31 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
       // draws the whole week (owner direction 2026-08-16, "the whole week
       // should be on X axis") while a cumulative year keeps its January start,
       // whose first reading long predates its 2026-12 period.
+      // A RESETTING metric's reading is about the period it was taken in and
+      // nothing else, so only readings inside this market's own period are its
+      // actual-so-far. Undeclared (the default, and what a cumulative metric
+      // is), every reading is part of one trajectory and none is dropped.
+      //
+      // This is the rule the 2026-08-16 attempt got wrong by applying it to
+      // every metric: "net 2026" accumulates all year under a market targeting
+      // 2026-12, so filtering emptied both charts off the floor. The metric now
+      // says which kind it is, rather than the chart guessing.
+      const target = m.targetDate as string;
+      const inPeriod = metricRow?.resetsEvery
+        ? (at: Date | null) => {
+            if (!at) return false;
+            const t = at.getTime();
+            return t >= periodStartInstant(target).getTime() && t < periodEndInstant(target).getTime();
+          }
+        : () => true;
       horizonHistories.push({
         marketId: m.marketId as string,
         metricName: m.metricName as string,
-        targetDate: m.targetDate as string,
-        periodStart: periodStartInstant(m.targetDate as string).toISOString(),
+        targetDate: target,
+        periodStart: periodStartInstant(target).toISOString(),
+        resetsEvery: metricRow?.resetsEvery ?? null,
         description: metricRow?.description ?? null,
-        points: rows.reverse(),
+        points: rows.reverse().filter(r => inPeriod(r.at)),
       });
     }
     const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);

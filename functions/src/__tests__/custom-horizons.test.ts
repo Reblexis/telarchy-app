@@ -12,7 +12,7 @@ import {
   resolveCustomHorizons, desiredMarketDates, generatesMarkets, sampleTimePoints,
 } from '../lib/time-preference';
 import { isValidCalendarDate, toAbsoluteDate, endOfPeriod, periodEndInstant, resolutionInstant } from '../lib/date-utils';
-import { parseTimePreference } from '../routes/metrics';
+import { parseResetsEvery, parseTimePreference } from '../routes/metrics';
 import { enrichMetrics } from '../services/metrics';
 import type { Metric, TimePreference } from '../types';
 
@@ -248,5 +248,32 @@ describe('outlook with custom horizons', () => {
     const [m] = enrichMetrics([leafMetric('M', tp)], consensusMap, new Set());
     expect(m.timeSeries).toEqual([{ date: '2099-12-31', value: 42 }]);
     expect(m.total).toBe(10); // custom horizons never feed the weighted outlook
+  });
+});
+
+describe('parseResetsEvery', () => {
+  // A metric declares whether its number restarts each period. Undeclared is
+  // the default and means "accumulates or is a level"; declared, a reading
+  // belongs only to the period it was taken in.
+  test('accepts the five periods and an explicit clear', () => {
+    for (const p of ['hour', 'day', 'week', 'month', 'year']) {
+      expect(parseResetsEvery(p)).toBe(p);
+    }
+    expect(parseResetsEvery(null)).toBeNull();
+    expect(parseResetsEvery('')).toBeNull();
+  });
+
+  test('an absent field means no change, not a clear', () => {
+    // The difference matters on PUT: a request that says nothing about the
+    // reset must not silently un-declare it.
+    expect(parseResetsEvery(undefined)).toBeUndefined();
+  });
+
+  test('rejects anything else, naming the allowed set', () => {
+    for (const bad of ['weekly', 'Week', 'fortnight', 7, true, {}]) {
+      const err = parseResetsEvery(bad);
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).message).toContain('hour, day, week, month, year');
+    }
   });
 });

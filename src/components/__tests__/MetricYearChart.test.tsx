@@ -147,3 +147,50 @@ describe('the crosshair over a stretch with no readings', () => {
     });
   });
 });
+
+describe('a period with nothing measured yet', () => {
+  const EMPTY = {
+    history: [],
+    forecastValue: 1176,
+    forecastAt: '2026-08-24T00:00:00Z',
+    periodStart: '2026-08-17T00:00:00.000Z',
+  };
+
+  it('draws the week and the call, and no invented actual line', () => {
+    // A metric that restarts each Monday has nothing measured on Monday
+    // morning. It used to draw last period's total here (owner report
+    // 2026-08-17); the honest chart has an axis, a forecast, and no line.
+    const { container } = render(<MetricYearChart {...EMPTY} unit="$" />);
+    expect(container.querySelector('.mchart-mline')).toBeNull();
+    expect(container.querySelector('.mchart-fill-area')).toBeNull();
+    expect(container.querySelector('.myear-nowdot')).toBeNull();
+    // The call is still there, at the settle date.
+    expect(container.querySelector('.mchart-calldot')).toBeTruthy();
+    expect(container.querySelector('.mchart-calllabel')!.textContent).toBe('$1,176');
+    // And the axis is the whole week.
+    const labels = xLabels(container);
+    expect(labels[0]).toBe('Aug 17');
+    expect(labels).toContain('Aug 24');
+  });
+
+  it('reports no reading anywhere in the empty period', () => {
+    const original = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function () {
+      return { left: 0, top: 0, width: W, height: 260, right: W, bottom: 260, x: 0, y: 0, toJSON: () => ({}) };
+    } as typeof original;
+    try {
+      const { container } = render(<MetricYearChart {...EMPTY} unit="$" />);
+      fireEvent.pointerMove(container.querySelector('svg')!, { clientX: W / 2 });
+      expect(container.querySelector('.mchart-tip')!.textContent).toContain('no reading yet');
+    } finally {
+      Element.prototype.getBoundingClientRect = original;
+    }
+  });
+
+  it('renders nothing at all when there is neither a reading nor a period', () => {
+    const { container } = render(
+      <MetricYearChart history={[]} forecastValue={1176} forecastAt="2026-08-24T00:00:00Z" unit="$" />,
+    );
+    expect(container.querySelector('svg')).toBeNull();
+  });
+});

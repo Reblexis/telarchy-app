@@ -48,8 +48,10 @@ metricsRouter.post('/logs/purge', requireCapability('manage'), wrap(async (req, 
 
 metricsRouter.post('/', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
-  const { name, description = '', value = 0, formula = '0', timePreference, marketRangeMax } = req.body;
+  const { name, description = '', value = 0, formula = '0', timePreference, marketRangeMax, resetsEvery } = req.body;
   if (!name) { res.status(400).json({ error: 'name is required' }); return; }
+  const resets = parseResetsEvery(resetsEvery);
+  if (resets instanceof Error) { res.status(400).json({ error: resets.message }); return; }
   if (marketRangeMax !== undefined && (typeof marketRangeMax !== 'number' || marketRangeMax <= 0)) {
     res.status(400).json({ error: 'marketRangeMax must be a positive number' }); return;
   }
@@ -75,6 +77,7 @@ metricsRouter.post('/', requireCapability('manage'), wrap(async (req, res) => {
     formula, description, order: 999,
     timePreference: effectiveTP,
     marketRangeMax: marketRangeMax ?? 1000,
+    resetsEvery: resets ?? null,
     createdAt: new Date(), updatedAt: new Date(),
   });
 
@@ -111,10 +114,12 @@ metricsRouter.post('/', requireCapability('manage'), wrap(async (req, res) => {
 metricsRouter.put('/:id', requireCapability('manage'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   const id = req.params.id as string;
-  const { oldValue, updateNote = '', timePreference: rawTP, ...fields } = req.body;
+  const { oldValue, updateNote = '', timePreference: rawTP, resetsEvery: rawResets, ...fields } = req.body;
 
   const newTP = parseTimePreference(rawTP);
   if (newTP instanceof Error) { res.status(400).json({ error: newTP.message }); return; }
+  const newResets = parseResetsEvery(rawResets);
+  if (newResets instanceof Error) { res.status(400).json({ error: newResets.message }); return; }
 
   if (fields.marketRangeMax !== undefined && (typeof fields.marketRangeMax !== 'number' || fields.marketRangeMax <= 0)) {
     res.status(400).json({ error: 'marketRangeMax must be a positive number' }); return;
@@ -126,7 +131,7 @@ metricsRouter.put('/:id', requireCapability('manage'), wrap(async (req, res) => 
   for (const key of allowed) {
     if (fields[key] !== undefined) update[key] = fields[key];
   }
-  if (Object.keys(update).length === 0 && rawTP === undefined) {
+  if (Object.keys(update).length === 0 && rawTP === undefined && newResets === undefined) {
     res.status(400).json({ error: 'No fields to update' }); return;
   }
 
@@ -175,6 +180,7 @@ metricsRouter.put('/:id', requireCapability('manage'), wrap(async (req, res) => 
   if (update.formula !== undefined) dbUpdate.formula = update.formula as string;
   if (update.marketRangeMax !== undefined) dbUpdate.marketRangeMax = (update.marketRangeMax as number | null) ?? 1000;
   if (update.timePreference !== undefined) dbUpdate.timePreference = update.timePreference as TimePreference | null;
+  if (newResets !== undefined) dbUpdate.resetsEvery = newResets;
   dbUpdate.updatedAt = new Date();
 
   const isLeafMetric = !effectiveFormula || effectiveFormula.trim() === '0';
@@ -355,6 +361,24 @@ metricsRouter.post('/migrate-leaf-types', requireCapability('manage'), wrap(asyn
 // --- Helpers ---
 
 const MAX_CUSTOM_HORIZONS = 24;
+
+/**
+ * The periods a metric may restart on. NULL (absent) means it never does: the
+ * number accumulates or is a level, and its whole history is one trajectory.
+ * Exported so the frontend picker and the tests read the same list.
+ */
+export const RESET_PERIODS = ['hour', 'day', 'week', 'month', 'year'] as const;
+export type ResetPeriod = typeof RESET_PERIODS[number];
+
+/** `undefined` = field absent (no change); `null` = declared non-resetting. */
+export function parseResetsEvery(raw: unknown): ResetPeriod | null | undefined | Error {
+  if (raw === undefined) return undefined;
+  if (raw === null || raw === '') return null;
+  if (typeof raw !== 'string' || !(RESET_PERIODS as readonly string[]).includes(raw)) {
+    return new Error(`resetsEvery must be null or one of ${RESET_PERIODS.join(', ')}`);
+  }
+  return raw as ResetPeriod;
+}
 const RELATIVE_HORIZON_RE = /^\+(\d+)(h|d|w|m|y)$/;
 
 /**

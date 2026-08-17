@@ -50,6 +50,8 @@ Use this when you need to (a) decide what to put on a canvas / pitch deck / land
 33. TP on computed metrics: markets for all leaf descendants.
 34. One-TP-per-path constraint preventing future-of-future incoherence.
 35. Sibling-TP pattern for different timescales.
+35b. A metric declares whether it RESETS (`resetsEvery`: null, or `hour`/`day`/`week`/`month`/`year`). Null (the default) means the number accumulates or is a point-in-time level, and its whole logged history is one trajectory. Set, it means the number restarts each period, so a reading belongs only to the period it was taken in: the floor's actual-vs-forecast chart then draws only the readings inside the market's own target period, and a market whose period has just begun honestly shows no actual line yet instead of last period's total. Without this the "revenue this week" chart drew last week's $1,180 as this week's actual (owner report 2026-08-17). Settlement already worked this way (the fixing is the metric's value as of `resolvesOn`); this is the same truth applied to what the page draws.
+
 35a. Custom market horizons per metric (`timePreference.customHorizons`): rolling offsets (`+0h` to `+Ny`, re-resolved on the hourly refresh; `+0<unit>` is the CURRENT period, so a metric named "this week" can target this week) or one-shot absolute dates (`2026-12-31`, `2026-12-31T14`), independent of the exponential curve (work with the curve off); shown in the future chart but excluded from the outlook blend. Hour granularity (UTC) supported end to end: hourly resolve/refresh crons, `resolvesOn` at end of hour.
 
 ## Conditional markets and proposals

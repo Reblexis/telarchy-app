@@ -69,6 +69,7 @@ type Market = {
 };
 type Horizon = {
   marketId: string; metricName: string; targetDate: string; periodStart: string;
+  resetsEvery: string | null;
   description: string | null; points: Array<{ at: string | null; value: number }>;
 };
 type Pair = {
@@ -113,6 +114,7 @@ async function seedFloor() {
     {
       id: WEEK_METRIC, workspaceId: WS, name: 'Revenue this week (USD)', value: 1_179,
       formula: '0', marketRangeMax: 8_000, description: 'Resets every Monday.',
+      resetsEvery: 'week',
     },
   ]);
   await db.insert(markets).values([
@@ -132,6 +134,8 @@ async function seedFloor() {
   await db.insert(metricLogs).values([
     { id: 'log-y1', workspaceId: WS, metricId: YEAR_METRIC, metricName: 'Net 2026 (USD)', value: 137, timestamp: new Date('2026-01-04T09:00:00Z') },
     { id: 'log-y2', workspaceId: WS, metricId: YEAR_METRIC, metricName: 'Net 2026 (USD)', value: 45_000, timestamp: new Date('2026-08-16T09:00:00Z') },
+    // Last week's total, which is not this market's actual-so-far.
+    { id: 'log-w0', workspaceId: WS, metricId: WEEK_METRIC, metricName: 'Revenue this week (USD)', value: 1_180, timestamp: new Date('2026-08-16T10:00:00Z') },
     { id: 'log-w1', workspaceId: WS, metricId: WEEK_METRIC, metricName: 'Revenue this week (USD)', value: 887, timestamp: new Date('2026-08-18T09:00:00Z') },
     { id: 'log-w2', workspaceId: WS, metricId: WEEK_METRIC, metricName: 'Revenue this week (USD)', value: 1_179, timestamp: new Date('2026-08-19T09:00:00Z') },
   ]);
@@ -371,6 +375,44 @@ describe('a contract is priced on horizons this floor actually has', () => {
     for (const p of f.proposals) {
       for (const pair of p.markets) expect(names.has(pair.metricName)).toBe(true);
     }
+  });
+});
+
+describe('a resetting metric only shows the period it is measuring', () => {
+  test('readings from the previous period are not this market\'s actual-so-far', async () => {
+    // The report: the "revenue this week" chart drew last week's $1,180 as
+    // this week's actual, on a market about a week that had barely started.
+    const f = await floor();
+    const week = f.horizonHistories.find(h => h.targetDate === '2026-W34')!;
+    expect(week.resetsEvery).toBe('week');
+    expect(week.points.map(p => p.value)).toEqual([887, 1179]);
+    expect(week.points.map(p => p.value)).not.toContain(1180);
+    for (const p of week.points) {
+      expect(Date.parse(p.at!)).toBeGreaterThanOrEqual(Date.parse('2026-08-17T00:00:00Z'));
+      expect(Date.parse(p.at!)).toBeLessThan(Date.parse('2026-08-24T00:00:00Z'));
+    }
+  });
+
+  test('a metric that does not reset keeps its whole trajectory', async () => {
+    // The mirror-image failure, from applying the rule to every metric: "net
+    // 2026" accumulates all year under a market targeting 2026-12, and
+    // filtering by that period emptied both charts off the floor.
+    const f = await floor();
+    const year = f.horizonHistories.find(h => h.targetDate === '2026-12')!;
+    expect(year.resetsEvery).toBeNull();
+    expect(year.points.map(p => p.value)).toEqual([137, 45_000]);
+  });
+
+  test('a period with no readings yet ships an empty series, not a stale one', async () => {
+    // A week that has just begun: the honest answer is "nothing measured yet",
+    // and the page draws the forecast alone.
+    await db.delete(metricLogs).where(eq(metricLogs.metricId, WEEK_METRIC));
+    await db.insert(metricLogs).values([
+      { id: 'log-w-old', workspaceId: WS, metricId: WEEK_METRIC, metricName: 'Revenue this week (USD)', value: 1_180, timestamp: new Date('2026-08-16T10:00:00Z') },
+    ]);
+    const f = await floor();
+    const week = f.horizonHistories.find(h => h.targetDate === '2026-W34')!;
+    expect(week.points).toEqual([]);
   });
 });
 

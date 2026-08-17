@@ -75,31 +75,41 @@ export function MetricYearChart({ history, forecastValue, forecastAt, periodStar
       .map(p => ({ t: new Date(p.at).getTime(), v: p.value }))
       .filter(p => Number.isFinite(p.t) && Number.isFinite(p.v))
       .sort((a, b) => a.t - b.t);
-    if (pts.length === 0) return null;
     const forecastT = new Date(forecastAt).getTime();
-    const last = pts[pts.length - 1];
+    if (!Number.isFinite(forecastT)) return null;
+    const last = pts.length > 0 ? pts[pts.length - 1] : null;
 
     // x domain: the whole period being settled on. It opens at the start of
     // that period, or at the first reading when that is earlier (a cumulative
     // metric has been running since long before its market's period), and
     // closes at the settle date.
+    //
     // A period start is trusted only if it is a plausible bound for THIS
     // series. periodStartInstant returns the epoch for a target date it does
     // not recognise (deliberately, so a caller filtering by window keeps
     // everything), and 1970 is a fine filter floor and a terrible axis: it
     // squashes every reading into the last pixel of a 56-year span. A year of
     // slack is enough for any real period.
+    //
+    // With no readings at all it is the only left bound there is, and that is
+    // a real state rather than an error: a metric that restarts each Monday
+    // has nothing measured on Monday morning, and the honest chart is an empty
+    // week with the market's call on the right (owner report 2026-08-17, on a
+    // chart that drew last week's total there instead).
     const periodT = periodStart ? new Date(periodStart).getTime() : NaN;
     const YEAR = 365 * 86_400_000;
-    const usablePeriod = Number.isFinite(periodT) && periodT > pts[0].t - YEAR;
-    const t0 = usablePeriod ? Math.min(pts[0].t, periodT) : pts[0].t;
-    const t1 = Math.max(forecastT, last.t);
+    const firstT = last ? pts[0].t : forecastT;
+    const usablePeriod = Number.isFinite(periodT) && periodT > firstT - YEAR && periodT < forecastT;
+    if (!last && !usablePeriod) return null;
+    const t0 = usablePeriod ? Math.min(firstT, periodT) : firstT;
+    const t1 = Math.max(forecastT, last?.t ?? forecastT);
     const span = Math.max(t1 - t0, 60_000);
 
     // y domain: every drawn value, padded, floored at zero (a metric that
     // dips below its axis floor reads as broken, like a negative price).
     const values = pts.map(p => p.v);
     values.push(forecastValue);
+    if (!last) values.push(0); // an empty period reads from zero
     const vMin0 = Math.min(...values);
     const vMax0 = Math.max(...values);
     const vPad = (vMax0 - vMin0 || vMax0 * 0.08 || 1) * 0.25;
@@ -110,14 +120,22 @@ export function MetricYearChart({ history, forecastValue, forecastAt, periodStar
     const y = (v: number) => PAD_T + (1 - (v - vMin) / (vMax - vMin)) * (H - PAD_T - PAD_B);
 
     // The actual line: connect the daily readings (continuous data, so a
-    // straight polyline, not the market chart's step).
-    let d = `M${x(pts[0].t).toFixed(1)},${y(pts[0].v).toFixed(1)}`;
-    for (let i = 1; i < pts.length; i++) d += ` L${x(pts[i].t).toFixed(1)},${y(pts[i].v).toFixed(1)}`;
-    const areaPath = `${d} L${x(last.t).toFixed(1)},${(H - PAD_B).toFixed(1)} L${x(pts[0].t).toFixed(1)},${(H - PAD_B).toFixed(1)} Z`;
+    // straight polyline, not the market chart's step). Nothing measured yet
+    // means no line and no filled area, rather than a fabricated flat one.
+    let d = '';
+    let areaPath = '';
+    if (last) {
+      d = `M${x(pts[0].t).toFixed(1)},${y(pts[0].v).toFixed(1)}`;
+      for (let i = 1; i < pts.length; i++) d += ` L${x(pts[i].t).toFixed(1)},${y(pts[i].v).toFixed(1)}`;
+      areaPath = `${d} L${x(last.t).toFixed(1)},${(H - PAD_B).toFixed(1)} L${x(pts[0].t).toFixed(1)},${(H - PAD_B).toFixed(1)} Z`;
+    }
 
     // The forecast: a dashed segment from where reality ends to the settle
-    // target.
-    const fcast = `M${x(last.t).toFixed(1)},${y(last.v).toFixed(1)} L${x(forecastT).toFixed(1)},${y(forecastValue).toFixed(1)}`;
+    // target, or a flat dashed line across the period when reality has not
+    // started yet.
+    const fcast = last
+      ? `M${x(last.t).toFixed(1)},${y(last.v).toFixed(1)} L${x(forecastT).toFixed(1)},${y(forecastValue).toFixed(1)}`
+      : `M${x(t0).toFixed(1)},${y(forecastValue).toFixed(1)} L${x(forecastT).toFixed(1)},${y(forecastValue).toFixed(1)}`;
 
     // Round-number gridlines (same maths as the market chart).
     const rawStep = (vMax - vMin) / 4;
@@ -164,11 +182,11 @@ export function MetricYearChart({ history, forecastValue, forecastAt, periodStar
     // (continuous data), actual through `last` then the forecast leg.
     const line = [...pts, { t: forecastT, v: forecastValue }];
 
-    return { pts, last, forecastT, d, areaPath, fcast, t0, t1, span, x, y, gridVals, monthTicks, fmtMonth, line, vMin, vMax };
+    return { pts, last, empty: last === null, forecastT, d, areaPath, fcast, t0, t1, span, x, y, gridVals, monthTicks, fmtMonth, line, vMin, vMax };
   }, [history, forecastValue, forecastAt, periodStart, H, W, PAD_L, PAD_R, compact]);
 
   if (!model) return null;
-  const { last, forecastT, d, areaPath, fcast, x, y, gridVals, monthTicks, fmtMonth, line } = model;
+  const { last, empty, forecastT, d, areaPath, fcast, x, y, gridVals, monthTicks, fmtMonth, line } = model;
   const cNum = (v: number) => `${unit}${compactNum(v)}`;
   const fNum = (v: number) => `${unit}${fullNum(v)}`;
   // Anchor an end label on the left of its dot when it would run off the edge.
@@ -201,12 +219,12 @@ export function MetricYearChart({ history, forecastValue, forecastAt, periodStar
   };
   const tipX = cursor !== null ? x(cursor) : 0;
   const tipRight = cursor !== null && tipX > W * 0.6;
-  const cursorForecast = cursor !== null && cursor > last.t;
+  const cursorForecast = cursor !== null && cursor > (last?.t ?? -Infinity);
   // Left of the first reading the axis exists but the data does not: opening
   // the axis on the period start made that stretch hoverable, and the tooltip
   // reported the first reading's value as the "actual" for days that have
   // none. Say so instead.
-  const cursorBeforeData = cursor !== null && cursor < model.pts[0].t;
+  const cursorBeforeData = cursor !== null && (empty ? cursor < forecastT : cursor < model.pts[0].t);
   const fcastLabel = edgeLabel(x(forecastT), fNum(forecastValue));
 
   return (
@@ -223,7 +241,9 @@ export function MetricYearChart({ history, forecastValue, forecastAt, periodStar
         onPointerMove={onMove}
         onPointerLeave={() => setCursor(null)}
         role="img"
-        aria-label={`The metric over the year, currently ${fNum(last.v)}, forecast to settle at ${fNum(forecastValue)}`}
+        aria-label={last
+          ? `The metric over the year, currently ${fNum(last.v)}, forecast to settle at ${fNum(forecastValue)}`
+          : `No reading in this period yet; the market forecasts ${fNum(forecastValue)} at settlement`}
       >
         <defs>
           <linearGradient id="myear-fill" x1="0" y1="0" x2="0" y2="1">
@@ -244,12 +264,12 @@ export function MetricYearChart({ history, forecastValue, forecastAt, periodStar
         ))}
 
         <g className="mchart-market">
-          <path d={areaPath} className="mchart-fill-area" fill="url(#myear-fill)" stroke="none" />
+          {areaPath && <path d={areaPath} className="mchart-fill-area" fill="url(#myear-fill)" stroke="none" />}
           {/* The forecast leg, dashed, drawn under the solid line's end dot. */}
           <path d={fcast} className="myear-forecast" />
-          <path d={d} className="mchart-mline" pathLength={1} />
+          {d && <path d={d} className="mchart-mline" pathLength={1} />}
           {/* Where reality ends: a quiet marker at "now". */}
-          <circle cx={x(last.t)} cy={y(last.v)} r="3.5" className="myear-nowdot" />
+          {last && <circle cx={x(last.t)} cy={y(last.v)} r="3.5" className="myear-nowdot" />}
           {/* The settle target: the live call dot + label, like the market chart. */}
           <circle cx={x(forecastT)} cy={y(forecastValue)} r="5" className="mchart-callhalo" />
           <circle cx={x(forecastT)} cy={y(forecastValue)} r="5" className="mchart-calldot" />

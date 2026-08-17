@@ -640,6 +640,19 @@ window defines the axis, not the data). Spans under 10 minutes label x
 ticks with seconds so four ticks on a young market do not all print the
 same minute.
 
+**A resetting metric's chart shows only the period it is measuring.** The
+metric declares it (`resetsEvery`: null, or hour/day/week/month/year), and
+when set, only readings taken inside a market's own target period are that
+market's actual-so-far: a reading of "revenue this week" is about the week
+it was taken in, so last week's $1,180 is not this week's actual (owner
+report 2026-08-17). A period that has just begun therefore draws no actual
+line at all - an empty axis with the market's call on the right, and a
+crosshair that says "no reading yet" - which is the truth, where last
+period's total was a fabrication. Undeclared (the default), every reading
+is one trajectory and nothing is dropped: that is what a metric
+accumulating all year is, and filtering it by its market's 2026-12 period
+is the mistake that emptied both charts off the floor once already.
+
 **The actual-vs-forecast chart's x-axis is the period being settled on**
 (owner direction 2026-08-16: "the whole week should be on X axis"). It
 opens at the first moment of that period, or at the first reading when
