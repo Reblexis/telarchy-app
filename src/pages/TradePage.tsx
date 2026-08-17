@@ -174,7 +174,9 @@ export function TradePage() {
   // /leaderboard.
   const loadLeaders = () => {
     if (!idOrSlug) return;
-    api.getLeaderboard(5, idOrSlug)
+    // Enough rows for the rail's top ten AFTER dropping never-traded
+    // participants (owner direction 2026-08-17); the rail slices to ten.
+    api.getLeaderboard(30, idOrSlug)
       .then(r => setLeaders(r.participants ?? []))
       .catch(e => console.error('leaderboard fetch failed:', e));
   };
