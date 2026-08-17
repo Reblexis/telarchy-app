@@ -428,6 +428,18 @@ selector, and lists still ship soonest-first: the API contract is unchanged,
 only which element the surfaces treat as primary. One helper,
 `primaryMarket`, decides it server-side so the surfaces cannot drift apart.
 
+**One model owns what a horizon is** (`src/lib/floor-horizons.ts`). The
+order (furthest first), each horizon's ROLE (decision or pulse), its
+label, its settle day, its unit, its metric history, its period start and
+the lookup of its price series all come from there, and a price series is
+only ever fetched BY MARKET ID. Surfaces that decided these from an
+array position disagreed the moment the order changed: the weekly view
+drew the yearly market's price line and dropped to the week's call, and
+the caption read "speed, not the decision" beside "end of 2026" (both
+owner reports 2026-08-17). The payload labels its inline price replay
+with `marketHistoryMarketId` so nothing has to guess, and a test greps
+the frontend for a second copy of any of it.
+
 **The floor shows horizons furthest-first** (owner direction 2026-08-16,
 "first should be total yearly and then weekly"). The decision is what the
 floor is about, so it leads the selector and the charts read down from the

@@ -51,6 +51,9 @@ const h = vi.hoisted(() => {
       rangeMax: 500_000,
     }],
     marketHistory: historyFor('m-hero'),
+    // The payload names the market its inline replay belongs to, so the page
+    // never has to guess which chart it fits.
+    marketHistoryMarketId: 'm-hero',
     proposals: [{
       id: 'job-1',
       title: '$80: rewrite the store page',
@@ -86,9 +89,17 @@ vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: null, loading: f
 // The chart itself is covered elsewhere; here it is a probe that records what
 // the page handed it on every render.
 vi.mock('../../components/MarketChart', () => ({
-  MarketChart: (props: { series: Array<unknown>; consensus: number }) => {
+  MarketChart: (props: { series: Array<{ consensus: number | null }>; consensus: number }) => {
     h.chartRenders.push({ marketId: 'current', seriesLen: props.series.length });
-    return <div data-testid="chart" data-series-len={props.series.length} />;
+    return (
+      <div
+        data-testid="chart"
+        data-series-len={props.series.length}
+        // What the page actually handed the chart. A series belongs to ONE
+        // market; plotting another market's is the bug these expose.
+        data-series={props.series.map(p => p.consensus ?? '').join(',')}
+      />
+    );
   },
 }));
 
@@ -124,7 +135,8 @@ function renderFloor() {
 }
 
 // Imported after the mocks so the page picks them up.
-const { TradePage, settleDayOf } = await import('../TradePage');
+const { TradePage } = await import('../TradePage');
+const { settleDayOf } = await import('../../lib/floor-horizons');
 
 beforeEach(() => {
   h.chartRenders.length = 0;
@@ -424,4 +436,105 @@ test('the charts follow the selector: year first, week second', async () => {
   const captions = [...container.querySelectorAll('.pubws-know .pubws-settle')].map(n => n.textContent ?? '');
   expect(captions[0]).toContain('net 2026');
   expect(captions[1]).toContain('this week');
+});
+
+/**
+ * The chart on screen plots the market on screen.
+ *
+ * `marketHistory` in the payload is ONE market's price replay (the primary),
+ * and the page used to draw it under whichever horizon was selected. On the
+ * weekly view that meant the year's $77k line followed by a drop to the
+ * week's $213 call, with "-$73,387 since open" underneath (owner report
+ * 2026-08-17: "a market showing 78k and then suddenly dropping to 213?").
+ */
+describe('per-horizon price history', () => {
+  const twoClockPayload = () => {
+    const ws = h.workspace();
+    ws.markets = [
+      { marketId: 'm-week', metricId: 'metric-w', metricName: 'LookPilot revenue this week (USD)',
+        targetDate: '2026-W34', resolvesOn: '2026-08-24T00:00:00Z', consensus: 213,
+        probability: 0.5, liquidity: 200, rangeMin: 0, rangeMax: 8000 },
+      { marketId: 'm-hero', metricId: 'metric-1', metricName: 'LookPilot net 2026 (USD)',
+        targetDate: '2026-12', resolvesOn: '2026-12-31T00:00:00Z', consensus: 78_571,
+        probability: 0.5, liquidity: 200, rangeMin: 0, rangeMax: 150_000 },
+    ];
+    // The inline series names its market, the way the server sends it.
+    (ws as Record<string, unknown>).marketHistory = [
+      { at: '2026-08-11T06:00:00.000Z', consensus: 73_600 },
+      { at: '2026-08-13T17:00:00.000Z', consensus: 78_571 },
+    ];
+    (ws as Record<string, unknown>).marketHistoryMarketId = 'm-hero';
+    return ws;
+  };
+  const weekSeries = [
+    { at: '2026-08-17T09:00:00.000Z', consensus: 200 },
+    { at: '2026-08-17T11:00:00.000Z', consensus: 213 },
+  ];
+
+  const series = (c: HTMLElement) => c.querySelector('[data-testid="chart"]')!.getAttribute('data-series');
+
+  test('the decision view draws the inline series, with no extra request', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClockPayload() as never);
+    vi.mocked(api.getPublicMarketHistory).mockClear();
+    const { container } = renderFloor();
+    await waitFor(() => expect(series(container)).toBe('73600,78571'));
+    expect(vi.mocked(api.getPublicMarketHistory)).not.toHaveBeenCalledWith('lookpilot', 'm-hero');
+  });
+
+  test('switching to the pulse draws the PULSE market\'s own prices', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClockPayload() as never);
+    vi.mocked(api.getPublicMarketHistory).mockImplementation(async (_slug: string, marketId: string) =>
+      (marketId === 'm-week' ? weekSeries : []) as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelectorAll('.pubws-horizon')).toHaveLength(2));
+
+    fireEvent.click(container.querySelectorAll('.pubws-horizon')[1]);
+    await waitFor(() => expect(series(container)).toBe('200,213'));
+    // Never the year's numbers: that mixture is what made the cliff.
+    expect(series(container)).not.toContain('73600');
+    expect(series(container)).not.toContain('78571');
+  });
+
+  test('before the pulse series lands, the chart holds the live call alone', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClockPayload() as never);
+    // A request that never resolves: the gap the old fallback filled with
+    // another market's series.
+    vi.mocked(api.getPublicMarketHistory).mockImplementation(() => new Promise(() => {}) as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelectorAll('.pubws-horizon')).toHaveLength(2));
+
+    fireEvent.click(container.querySelectorAll('.pubws-horizon')[1]);
+    await waitFor(() => expect(container.querySelector('.pubws-price')!.textContent).toContain('213'));
+    expect(series(container)).toBe('213');
+  });
+
+  test('"since open" is measured against the same market\'s open', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClockPayload() as never);
+    vi.mocked(api.getPublicMarketHistory).mockImplementation(async (_slug: string, marketId: string) =>
+      (marketId === 'm-week' ? weekSeries : []) as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-delta-chip')?.textContent).toContain('4,971'));
+
+    fireEvent.click(container.querySelectorAll('.pubws-horizon')[1]);
+    // 213 - 200, not 213 - 73,600.
+    await waitFor(() => expect(container.querySelector('.pubws-delta-chip')?.textContent).toContain('13'));
+    expect(container.querySelector('.pubws-delta-chip')!.textContent).not.toContain('73');
+  });
+
+  test('the caption describes the clock on screen', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClockPayload() as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelector('.pubws-horizon-note')?.textContent).toBeTruthy());
+    // "end of 2026" is the decision, so the note must not call it speed.
+    expect(container.querySelector('.pubws-horizon-note')!.textContent).toBe('the number I fund on');
+
+    fireEvent.click(container.querySelectorAll('.pubws-horizon')[1]);
+    await waitFor(() =>
+      expect(container.querySelector('.pubws-horizon-note')!.textContent).toBe('speed, not the decision'));
+  });
 });

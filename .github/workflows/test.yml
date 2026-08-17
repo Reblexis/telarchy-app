@@ -44,6 +44,10 @@ jobs:
         working-directory: functions
       - run: npm run typecheck
       - run: npm run test:frontend
+      # The production bundle. `typecheck` runs tsc, which does not catch a
+      # broken import path, a missing asset or a Vite plugin failure; those
+      # used to surface only in the deploy job, after the gate had passed.
+      - run: npm run build
 
   # The backend suite, sharded three ways. Every suite boots its own pglite
   # and applies every migration, so one runner holding all 82 was dying

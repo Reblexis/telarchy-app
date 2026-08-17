@@ -12,10 +12,10 @@ vi.mock('../../lib/api', () => ({
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: null, loading: false }) }));
 // The top bar drags in the whole floor page; the marketplace grid is what
 // this spec is about.
-vi.mock('../TradePage', () => ({
-  TopBar: () => null,
-  settleDayOf: (d: string) => `settle-day(${d})`,
-}));
+vi.mock('../TradePage', () => ({ TopBar: () => null }));
+// Labels and the card's hero come from lib/floor-horizons, the same model the
+// floor page uses, so this spec asserts the real strings: a card and the floor
+// it links to must never name the number differently.
 
 import { api } from '../../lib/api';
 import { FloorsPage } from '../FloorsPage';
@@ -31,11 +31,13 @@ const listing = {
 const payload = {
   participantCount: 14,
   tradesThisWeek: 108,
-  markets: [{ metricName: 'LookPilot revenue (monthly, USD)', consensus: 77315.69, targetDate: '2026-08' }],
+  markets: [{ marketId: 'm-1', metricName: 'LookPilot revenue (monthly, USD)', consensus: 77315.69, targetDate: '2026-08' }],
+  // Shaped like the real payload: the inline price replay names its market.
   marketHistory: [
     { at: '2026-08-11T06:41:39.275Z', consensus: 73600 },
     { at: '2026-08-13T17:01:26.679Z', consensus: 78570.63 },
   ],
+  marketHistoryMarketId: 'm-1',
 };
 
 const renderPage = () => render(<MemoryRouter><FloorsPage /></MemoryRouter>);
@@ -73,7 +75,7 @@ describe('marketplace', () => {
 
   test('the footer leads with settlement, then the activity behind it', async () => {
     renderPage();
-    await screen.findByText('settles settle-day(2026-08)');
+    await screen.findByText('settles 31 August 2026');
     expect(screen.getByText(/14 participants · 108 trades this week · 2 contracts priced now/)).toBeInTheDocument();
   });
 
@@ -139,7 +141,7 @@ describe('the market spark', () => {
     // briefly taken to the range ceiling and must not squash it.
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({
       ...payload,
-      markets: [{ metricName: 'revenue (USD)', consensus: 78570, targetDate: '2026-08' }],
+      markets: [{ marketId: 'm-1', metricName: 'revenue (USD)', consensus: 78570, targetDate: '2026-08' }],
       marketHistory: [
         { at: '2026-08-11T06:00:00Z', consensus: 73600 },
         { at: '2026-08-11T12:00:00Z', consensus: 150000 },
@@ -161,7 +163,7 @@ describe('the market spark', () => {
   test('an untraded market draws one flat line, not an empty card', async () => {
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue({
       ...payload,
-      markets: [{ metricName: 'traders', consensus: 25, targetDate: '2026-08' }],
+      markets: [{ marketId: 'm-1', metricName: 'traders', consensus: 25, targetDate: '2026-08' }],
       marketHistory: [],
     } as never);
     const { container } = renderPage();

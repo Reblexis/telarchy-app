@@ -401,11 +401,19 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
   let heroMetricDescription: string | null | undefined;
   let tradesThisWeek: number | undefined;
   let marketHistory: Array<{ at: Date; consensus: number | null }> | undefined;
+  let marketHistoryMarketId: string | undefined;
   if (publicCaps.includes('read')) {
     const heroMarketId = primaryMarket(marketList)?.marketId as string | undefined;
     if (heroMarketId) {
       const points = await replayMarketTradePoints(heroMarketId, workspaceId);
       marketHistory = points.slice(-500).map(pt => ({ at: pt.createdAt, consensus: pt.consensus }));
+      // Which market this replay is OF. One horizon's prices ship inline (the
+      // primary, so the floor's first paint needs no second request) and the
+      // rest are fetched per market. Unlabelled, the page had to guess, and it
+      // guessed by position: the weekly view drew the yearly market's $77k
+      // price line and dropped to the week's $213 call (owner report
+      // 2026-08-17). A series that names its market cannot be misapplied.
+      marketHistoryMarketId = heroMarketId;
     }
     const heroMetricId = primaryMarket(marketList)?.metricId as string | undefined;
     if (heroMetricId) {
@@ -727,6 +735,7 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
       heroMetricDescription,
       tradesThisWeek,
       marketHistory,
+      marketHistoryMarketId,
     } : {}),
   });
 }));

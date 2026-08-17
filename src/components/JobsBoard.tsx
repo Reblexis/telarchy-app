@@ -1,7 +1,7 @@
 import { FloorModal } from './FloorModal';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
-import { horizonLabel } from '../pages/TradePage';
+import { horizonLabel } from '../lib/floor-horizons';
 import type { PublicProposal } from '../lib/api';
 
 /**

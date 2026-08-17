@@ -308,6 +308,10 @@ export interface PublicWorkspace {
   tradesThisWeek?: number;
   /** The market's call after each trade of the hero market (the amber line). */
   marketHistory?: Array<{ at: string; consensus: number | null }>;
+  /** Which market `marketHistory` is the replay OF. Never plot a series on a
+      market that did not produce it: keyed by position, the weekly view drew
+      the yearly market's prices (owner report 2026-08-17). */
+  marketHistoryMarketId?: string;
   /** Each open horizon's own metric history, so a two-clock workspace can
       draw one actual-vs-forecast chart per horizon (2026-08-15). */
   horizonHistories?: Array<{

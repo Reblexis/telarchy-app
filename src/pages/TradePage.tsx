@@ -18,6 +18,10 @@ import { ManifoldButton } from '../components/ManifoldButton';
 import { ReportButton } from '../components/ReportButton';
 import { Logo } from '../components/Logo';
 import type { LeaderboardEntry, LimitOrder } from '../lib/api';
+import {
+  buildHorizonViews, decisionOf, priceSeriesIsInline, priceSeriesOf, pulseOf, settleDayOf,
+  type HorizonView, type PriceSeries,
+} from '../lib/floor-horizons';
 
 /**
  * telarchy.com/<slug>: the market and one action, nothing else (owner
@@ -61,63 +65,8 @@ function formatDelta(delta: number, unit = ''): string {
   return `${delta > 0 ? '+' : delta < 0 ? '-' : ''}${unit}${num}`;
 }
 
-// The currency lives in the metric name's parenthetical tail ("LookPilot
-// revenue (monthly, USD)"): display-only inference, so metrics without a
-// currency in the tail stay bare numbers and nothing new enters the API.
-// The day the market settles, from its target period: '2026' and
-// '2026-12' both end on 31 December 2026. Shown in the title (owner
-// direction 2026-08-10: "@ 31 December 2026"); the END of the period, so
-// the year boundary never reads a day late.
-export function settleDayOf(targetDate: string): string | null {
-  // An ISO week settles on its Sunday. Without this the weekly horizon drew
-  // a chart that never said when it lands, and on a workspace whose two
-  // metrics share a name once their tail is stripped, the settle day is the
-  // only thing telling the two charts apart (owner report 2026-08-16).
-  const wk = targetDate.match(/^(\d{4})-W(\d{2})$/);
-  if (wk) {
-    const year = Number(wk[1]);
-    const jan4 = new Date(Date.UTC(year, 0, 4));
-    const sunday = new Date(jan4);
-    sunday.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() + 6) % 7) + (Number(wk[2]) - 1) * 7 + 6);
-    return sunday.toLocaleDateString('en-GB', {
-      day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
-    });
-  }
-  const m = targetDate.match(/^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?$/);
-  if (!m) return null;
-  const year = Number(m[1]);
-  const month = m[2] ? Number(m[2]) : 12;
-  const day = m[3] ? Number(m[3]) : new Date(Date.UTC(year, month, 0)).getUTCDate();
-  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString('en-GB', {
-    day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
-  });
-}
-
-function currencyOf(metricName: string): string {
-  const tail = metricName.match(/\(([^)]*)\)\s*$/)?.[1] ?? '';
-  return /\busd\b|\$/i.test(tail) ? '$' : '';
-}
-
-/**
- * What to call a horizon in the selector: the reader thinks in "this week"
- * and "end of 2026", not in ISO period strings (2026-08-15).
- */
-function horizonLabel(targetDate: string): string {
-  if (/^\d{4}-W\d{2}$/.test(targetDate)) return 'this week';
-  if (/^\d{4}$/.test(targetDate)) return `end of ${targetDate}`;
-  const m = targetDate.match(/^(\d{4})-(\d{2})$/);
-  if (m) {
-    // December IS the year end: "end of 2026" is what the charter calls it,
-    // and it beats "end of December" beside a metric named "net 2026".
-    if (m[2] === '12') return `end of ${m[1]}`;
-    const month = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, 1))
-      .toLocaleDateString('en-GB', { month: 'long', timeZone: 'UTC' });
-    return `end of ${month}`;
-  }
-  return settleDayOf(targetDate) ?? targetDate;
-}
-
-export { horizonLabel };
+// Labels, ordering and per-horizon facts live in lib/floor-horizons: one
+// home, so no surface can decide what a horizon is from its index.
 
 export function TradePage() {
   const params = useParams();
@@ -154,6 +103,13 @@ export function TradePage() {
     approved: Array<{ at: string; consensus: number | null }>;
     declined: Array<{ at: string; consensus: number | null }>;
   } | null>(null);
+  // Price replays for horizons other than the one the payload carries inline,
+  // keyed by market id. The payload ships the primary market's series (so the
+  // first paint needs no second request) and names it; a reader who switches
+  // clocks pulls that market's own series here. Nothing ever borrows another
+  // market's prices, which is what drew the year's $77k line under the week's
+  // $213 call (owner report 2026-08-17).
+  const [horizonPrices, setHorizonPrices] = useState<Record<string, PriceSeries>>({});
   // The price straight from a trade response, so the headline moves before
   // the reload lands. Keyed by market so it never leaks across a switch.
   const [livePrice, setLivePrice] = useState<{ marketId: string; value: number } | null>(null);
@@ -283,21 +239,23 @@ export function TradePage() {
     setCondHistory(null);
   }, [selectedJobId]);
 
-  // Two clocks on one number (owner direction 2026-08-15): the workspace
-  // runs the same definition at a near horizon (the pulse, fast feedback)
-  // and a far one (the decision the charter funds on).
-  //
-  // The payload ships soonest-first; the page shows FURTHEST first (owner
-  // direction 2026-08-16, "first should be total yearly and then weekly").
-  // The decision is the number this floor is about, so it leads the
-  // selector, the headline and the charts, and the pulse follows it.
-  const horizons = [...(ws?.markets ?? [])].reverse();
-  const decisionDate = horizons.length > 1 ? horizons[0].targetDate : null;
-  const pulseDate = horizons.length > 1 ? horizons[horizons.length - 1].targetDate : null;
+  // Two clocks on one number (owner direction 2026-08-15): the workspace runs
+  // the same definition at a near horizon (the pulse, fast feedback) and a far
+  // one (the decision the charter funds on). buildHorizonViews owns the order
+  // (furthest first) and names each one's role, so nothing here reads meaning
+  // out of an index. See lib/floor-horizons for why.
+  const horizons: HorizonView[] = useMemo(() => buildHorizonViews(ws), [ws]);
+  // Both clocks by ROLE, never by position. A single-clock floor has a
+  // decision and no pulse, and the surfaces that contrast the two (the
+  // charter line, the jobs board) then simply have nothing to contrast.
+  const pulse = pulseOf(horizons);
+  const decision = pulse ? decisionOf(horizons) : null;
+  const decisionDate = decision?.targetDate ?? null;
+  const pulseDate = pulse?.targetDate ?? null;
   const heroIdx = horizon < 0 ? 0 : Math.min(horizon, Math.max(0, horizons.length - 1));
   const hero = horizons[heroIdx] ?? null;
-  const unit = hero ? currencyOf(hero.metricName) : '';
-  const metricLabel = hero ? hero.metricName.replace(/\s*\(.*\)\s*$/, '') : '';
+  const unit = hero?.unit ?? '';
+  const metricLabel = hero?.metricLabel ?? '';
   const selectedJob = ws?.proposals?.find(p => p.id === selectedJobId) ?? null;
   // The contract's pair for the horizon on screen, not whichever pair the
   // payload happened to list first.
@@ -345,7 +303,7 @@ export function TradePage() {
         funded: hero.liquidity > 0,
         rangeMin: hero.rangeMin,
         rangeMax: hero.rangeMax,
-        history: ws?.marketHistory ?? [],
+        history: priceSeriesOf(hero.marketId, ws, horizonPrices),
       }
     : null);
   const otherBranch = pair ? branchShape(branch === 'approved' ? 'declined' : 'approved') : null;
@@ -373,11 +331,33 @@ export function TradePage() {
       .then(([a, d]) => { if (token === condReqRef.current) setCondHistory({ approved: a, declined: d }); })
       .catch(e => console.error('conditional history fetch failed:', e));
   };
+  // The workspace's stable identity for URLs. Deliberately NOT the `ws`
+  // object: that is a fresh object on every five-second poll, and effects
+  // keyed on it re-ran (and re-reset) on every tick.
+  const wsKey = ws ? (ws.slug || ws.workspaceId) : null;
+
+  // The selected horizon's own price replay, when it is not the one the
+  // payload carries inline. Cached per market id, so switching back and forth
+  // costs one request each, and never cleared: a stale-by-five-seconds series
+  // is redrawn by the next poll, whereas blanking it flickers the chart.
+  const priceReqRef = useRef(0);
+  const heroMarketId = hero?.marketId ?? null;
+  const heroPricesInline = priceSeriesIsInline(heroMarketId, ws);
+  useEffect(() => {
+    if (!heroMarketId || !wsKey || heroPricesInline) return;
+    const token = ++priceReqRef.current;
+    api.getPublicMarketHistory(wsKey, heroMarketId)
+      .then(points => {
+        if (token !== priceReqRef.current) return;
+        setHorizonPrices(prev => ({ ...prev, [heroMarketId]: points }));
+      })
+      .catch(e => console.error('horizon price history fetch failed:', e));
+  }, [heroMarketId, heroPricesInline, wsKey]);
+
   // The initial pull for a newly selected job. Keyed on the market ids and
   // the workspace's stable slug, NOT on the `ws` object: `ws` is a fresh
   // object on every five-second poll, and depending on it re-ran this whole
   // effect (and its resets) on every tick.
-  const wsKey = ws ? (ws.slug || ws.workspaceId) : null;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { condHistoryRef.current(); }, [pair?.approvedMarketId, pair?.declinedMarketId, wsKey]);
 
@@ -484,7 +464,7 @@ export function TradePage() {
   // and it stays the same whichever branch is on screen.
   const marketOpen = pair
     ? null
-    : ws?.marketHistory?.length ? ws.marketHistory.find(p => p.consensus !== null)?.consensus ?? null : null;
+    : active?.history.find(p => p.consensus !== null)?.consensus ?? null;
   // Impact is ALWAYS the far horizon's number (owner direction 2026-08-15):
   // that is the delta the charter funds on, so it does not change under the
   // reader when they switch which market they are looking at. The horizon
@@ -495,9 +475,7 @@ export function TradePage() {
     : null;
   // The unit belongs to the metric the impact is measured in, which is the
   // decision horizon's, not whichever clock is on screen.
-  const impactUnit = decisionDate
-    ? currencyOf(horizons[horizons.length - 1]?.metricName ?? '')
-    : unit;
+  const impactUnit = decision?.unit ?? unit;
   const consensus = (livePrice && livePrice.marketId === activeMarketId ? livePrice.value : null)
     ?? active?.consensus ?? null;
   // The number rolls to its new value (trade, branch switch, job select)
@@ -555,37 +533,29 @@ export function TradePage() {
   // history and its OWN market's call, so "this week" and "this year" are
   // two honest pictures rather than one series relabelled.
   const horizonCharts = useMemo(() => {
-    // Furthest first, like the selector above it: the year's picture is the
-    // one the floor is about, and the week is the follow-up.
-    const rows = [...(ws?.horizonHistories ?? [])].reverse();
-    return rows.map(row => {
-      const market = (ws?.markets ?? []).find(m => m.marketId === row.marketId);
-      if (!market || market.consensus == null || !market.resolvesOn) return null;
-      const history = row.points
-        .flatMap(p => (p.at && Number.isFinite(p.value) ? [{ at: p.at, value: p.value }] : []))
-        .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
-      if (history.length < 1) return null;
+    // One chart per horizon, in the selector's order (furthest first), each
+    // drawing ITS OWN metric history against ITS OWN settle date.
+    return horizons.flatMap(h => {
+      if (h.consensus == null || !h.resolvesOn || h.metricHistory.length < 1) return [];
       // The live call for whichever market the page is currently on, so the
       // chart the reader is trading tracks the price they see above.
-      const forecast = market.marketId === hero?.marketId
-        ? ((consensus ?? market.consensus) as number)
-        : market.consensus;
-      return {
-        marketId: row.marketId,
-        label: row.metricName.replace(/\s*\(.*\)\s*$/, ''),
-        unit: currencyOf(row.metricName),
-        settleDay: settleDayOf(row.targetDate),
-        resolvesOn: market.resolvesOn,
-        periodStart: row.periodStart,
+      const forecast = h.marketId === hero?.marketId ? (consensus ?? h.consensus) : h.consensus;
+      return [{
+        marketId: h.marketId,
+        label: h.metricLabel,
+        unit: h.unit,
+        settleDay: h.settleDay,
+        resolvesOn: h.resolvesOn,
+        periodStart: h.periodStart,
         forecast,
-        history,
-      };
-    }).filter((r): r is NonNullable<typeof r> => r !== null);
+        history: h.metricHistory,
+      }];
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ws?.horizonHistories, ws?.markets, hero?.marketId, consensus]);
+  }, [horizons, hero?.marketId, consensus]);
 
   // The definition belongs to the horizon on screen.
-  const horizonDescription = (ws?.horizonHistories ?? []).find(h => h.marketId === hero?.marketId)?.description ?? null;
+  const horizonDescription = hero?.description ?? null;
 
   if (error) {
     return (
@@ -796,13 +766,15 @@ export function TradePage() {
                     aria-pressed={i === heroIdx}
                     onClick={() => setHorizon(i)}
                   >
-                    {horizonLabel(m.targetDate)}
+                    {m.label}
                   </button>
                 ))}
-                {decisionDate && (
-                  <span className="pubws-horizon-note">
-                    {heroIdx === horizons.length - 1 ? 'the number I fund on' : 'speed, not the decision'}
-                  </span>
+                {hero && (
+                  // The note describes the clock ON SCREEN, and each horizon
+                  // carries its own: testing an index printed "speed, not the
+                  // decision" beside "end of 2026" the day the list order
+                  // flipped (owner report 2026-08-17).
+                  <span className="pubws-horizon-note">{hero.roleNote}</span>
                 )}
               </div>
             )}
@@ -825,7 +797,7 @@ export function TradePage() {
                 ) : (
                   <span key={`imp-${Math.round(jobImpact)}`} className={`pubws-delta-chip ${jobImpact >= 0 ? 'is-up' : 'is-down'}`}>
                     {jobImpact >= 0 ? '▲' : '▼'} {formatDelta(jobImpact, impactUnit)} impact
-                    {decisionDate ? ` by ${horizonLabel(decisionDate)}` : ''}
+                    {decision ? ` by ${decision.label}` : ''}
                   </span>
                 )
               )}

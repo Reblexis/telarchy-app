@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
-import { TopBar, settleDayOf } from './TradePage';
+import { TopBar } from './TradePage';
+import { buildHorizonViews, decisionOf, priceSeriesOf } from '../lib/floor-horizons';
 
 /**
  * The marketplace at /marketplace (owner direction 2026-08-14, Viktor,
@@ -44,10 +45,6 @@ interface Listing {
   tradesThisWeek: number | null;
 }
 
-function currencyOf(metricName: string): string {
-  const tail = metricName.match(/\(([^)]*)\)\s*$/)?.[1] ?? '';
-  return /\busd\b|\$/i.test(tail) ? '$' : '';
-}
 
 function fmtHero(v: number, unit: string): string {
   const decimals = Math.abs(v) >= 100 ? 0 : 1;
@@ -236,8 +233,10 @@ export function FloorsPage() {
               // direction 2026-08-16): LookPilot's card leads with net 2026,
               // not with the few hundred dollars this week has earned so
               // far. Lists arrive soonest-first.
-              const all = ws.markets ?? [];
-              const m = all.length > 0 ? all[all.length - 1] : undefined;
+              // The card leads with the DECISION horizon, and takes it from
+              // the same model the floor uses, so a card and the page it links
+              // to can never name different numbers.
+              const m = decisionOf(buildHorizonViews(ws));
               setListings(cur => (cur ?? []).map(r => r.workspaceId === row.workspaceId
                 ? {
                     ...r,
@@ -247,9 +246,9 @@ export function FloorsPage() {
                       ? {
                           metricName: m.metricName,
                           consensus: m.consensus,
-                          unit: currencyOf(m.metricName),
-                          settles: m.targetDate ? settleDayOf(m.targetDate) : null,
-                          history: ws.marketHistory ?? [],
+                          unit: m.unit,
+                          settles: m.settleDay,
+                          history: priceSeriesOf(m.marketId, ws, {}),
                         }
                       : r.hero,
                   }
