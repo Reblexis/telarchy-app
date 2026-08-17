@@ -170,7 +170,11 @@ describe('parseTimePreference (custom horizons)', () => {
   test('rejects bad formats and non-string entries', () => {
     expect(parseTimePreference({ enabled: false, customHorizons: ['garbage'] })).toBeInstanceOf(Error);
     expect(parseTimePreference({ enabled: false, customHorizons: ['2026-02-31'] })).toBeInstanceOf(Error);
+    // Not "a negative offset" but "not an offset at all": the relative pattern
+    // matches digits only, so this is rejected as a malformed date.
     expect(parseTimePreference({ enabled: false, customHorizons: ['-1d'] })).toBeInstanceOf(Error);
+    expect(parseTimePreference({ enabled: false, customHorizons: ['+1'] })).toBeInstanceOf(Error);
+    expect(parseTimePreference({ enabled: false, customHorizons: ['+1x'] })).toBeInstanceOf(Error);
     expect(parseTimePreference({ enabled: false, customHorizons: ['2099-01-01T24'] })).toBeInstanceOf(Error);
     expect(parseTimePreference({ enabled: false, customHorizons: [42] })).toBeInstanceOf(Error);
     expect(parseTimePreference({ enabled: false, customHorizons: 'not-array' })).toBeInstanceOf(Error);

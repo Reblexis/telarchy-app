@@ -374,6 +374,30 @@ describe('a contract is priced on horizons this floor actually has', () => {
   });
 });
 
+describe('a crowded floor still describes its primary horizon', () => {
+  test('the history rows are bounded from the primary end, not the soonest', async () => {
+    // The payload caps how many horizons carry a history row. Capped from the
+    // soonest end, a floor with five open markets left the DECISION horizon -
+    // the one the page opens on - with no readings and therefore no chart.
+    const extra = ['2026-09', '2026-10', '2026-11'].map((targetDate, i) => ({
+      id: `mkt-coh-extra-${i}`, workspaceId: WS, metricId: YEAR_METRIC, metricName: 'Net 2026 (USD)',
+      targetDate, rangeMin: 0, rangeMax: 150_000,
+      shares: [0, 0] as [number, number], liquidity: 1_000, pool: initialPool(1_000),
+      active: true, resolved: false, voided: false, proposalId: null, branch: null,
+    }));
+    await db.insert(markets).values(extra);
+
+    const f = await floor();
+    expect(f.markets.length).toBe(5);
+    const primary = f.markets[f.markets.length - 1];
+    expect(primary.targetDate).toBe('2026-12');
+    const row = f.horizonHistories.find(h => h.marketId === primary.marketId);
+    expect(row).toBeDefined();
+    expect(row!.points.length).toBeGreaterThan(0);
+    expect(f.marketHistoryMarketId).toBe(primary.marketId);
+  });
+});
+
 describe('the private boundary still holds', () => {
   test('a floor whose Public group cannot read ships no history at all', async () => {
     const [publicGroup] = await db.select().from(permissionGroups)

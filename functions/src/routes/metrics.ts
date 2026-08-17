@@ -392,22 +392,20 @@ export function parseTimePreference(raw: unknown): TimePreference | null | undef
         return new Error('timePreference.customHorizons entries must be strings');
       }
       const entry = rawEntry.trim();
-      const rel = entry.match(RELATIVE_HORIZON_RE);
-      if (rel) {
-        // "+0w" is the CURRENT period, and it is the only way to say it: a
-        // pulse metric named "revenue this week" must target this week, and
-        // an absolute "2026-W33" would be one-shot and stop rolling. The
-        // offset used to be required to be >= 1, which forced LookPilot's
-        // weekly pulse onto a week that had not started, so the floor showed
-        // a forecast for one week beside a running total from another
-        // (owner report 2026-08-16).
-        if (parseInt(rel[1], 10) < 0) {
-          return new Error(`invalid custom horizon "${entry}": offset cannot be negative`);
+      // A relative entry is accepted as written. "+0w" is the CURRENT period
+      // and the only way to say it: a pulse metric named "revenue this week"
+      // must target this week, and an absolute "2026-W33" is one-shot and
+      // stops rolling. The offset used to be required to be >= 1, which forced
+      // LookPilot's weekly pulse onto a week that had not started, so the
+      // floor showed a forecast for one week beside a running total from
+      // another (owner report 2026-08-16). A negative offset needs no check:
+      // RELATIVE_HORIZON_RE matches digits only, so "-1d" is not relative at
+      // all and falls to the format error below.
+      if (!RELATIVE_HORIZON_RE.test(entry)) {
+        if (!isValidCalendarDate(entry)) {
+          return new Error(`invalid custom horizon "${entry}": use +Nh / +Nd / +Nw / +Nm / +Ny or YYYY, YYYY-MM, YYYY-Www, YYYY-MM-DD, YYYY-MM-DDTHH (UTC)`);
         }
-      } else if (!isValidCalendarDate(entry)) {
-        return new Error(`invalid custom horizon "${entry}": use +Nh / +Nd / +Nw / +Nm / +Ny or YYYY, YYYY-MM, YYYY-Www, YYYY-MM-DD, YYYY-MM-DDTHH (UTC)`);
-      } else if (periodEndInstant(entry) <= now) {
-        continue; // expired absolute date: prune, don't reject
+        if (periodEndInstant(entry) <= now) continue; // expired absolute: prune, don't reject
       }
       if (seen.has(entry)) continue;
       seen.add(entry);
