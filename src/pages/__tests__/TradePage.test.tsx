@@ -538,3 +538,39 @@ describe('per-horizon price history', () => {
       expect(container.querySelector('.pubws-horizon-note')!.textContent).toBe('speed, not the decision'));
   });
 });
+
+test('a selected contract does not repaint the baseline chart with a branch price', async () => {
+  // The horizon charts are captioned "actual so far, and where the market sees
+  // it landing" for the UNCONDITIONAL number. With a contract selected the
+  // live call belongs to the branch being traded, and painting it here showed
+  // $78,772 (a branch) on a chart about $78,571 (owner report 2026-08-17).
+  const { api } = await import('../../lib/api');
+  const ws = h.workspace();
+  ws.markets = [{
+    marketId: 'm-hero', metricId: 'metric-1', metricName: 'LookPilot net 2026 (USD)',
+    targetDate: '2026-12', resolvesOn: '2027-01-01T00:00:00Z', consensus: 78_571,
+    probability: 0.5, liquidity: 200, rangeMin: 0, rangeMax: 150_000,
+  }];
+  (ws as Record<string, unknown>).horizonHistories = [{
+    marketId: 'm-hero', metricName: 'LookPilot net 2026 (USD)', targetDate: '2026-12',
+    periodStart: '2026-12-01T00:00:00.000Z', description: 'The year.',
+    points: [{ at: '2026-08-16T09:00:00Z', value: 45_339 }],
+  }];
+  ws.proposals[0].markets = [{
+    ...ws.proposals[0].markets[0],
+    metricName: 'LookPilot net 2026 (USD)', targetDate: '2026-12', resolvesOn: '2027-01-01T00:00:00Z',
+    approvedConsensus: 78_772, declinedConsensus: 78_571, delta: 201,
+    rangeMin: 0, rangeMax: 150_000,
+  }];
+  vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+
+  const { container } = renderFloor();
+  await waitFor(() => expect(container.querySelector('.pubws-know .mchart-calllabel')).toBeTruthy());
+  const call = () => container.querySelector('.pubws-know .mchart-calllabel')!.textContent;
+  expect(call()).toBe('$78,571');
+
+  fireEvent.click(container.querySelector('.pubws-ballot-row')!);
+  // The headline follows the branch; the metric chart stays on the baseline.
+  await waitFor(() => expect(container.querySelector('.pubws-price')!.textContent).toContain('78,772'));
+  expect(call()).toBe('$78,571');
+});

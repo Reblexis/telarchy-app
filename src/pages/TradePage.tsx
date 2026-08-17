@@ -539,7 +539,14 @@ export function TradePage() {
       if (h.consensus == null || !h.resolvesOn || h.metricHistory.length < 1) return [];
       // The live call for whichever market the page is currently on, so the
       // chart the reader is trading tracks the price they see above.
-      const forecast = h.marketId === hero?.marketId ? (consensus ?? h.consensus) : h.consensus;
+      //
+      // Only when that market IS this horizon's baseline: with a contract
+      // selected, `consensus` is the selected BRANCH's price, and painting it
+      // on the baseline's chart put a conditional number ($78,772) on a chart
+      // captioned "where the market sees it landing" for the unconditional one
+      // ($78,571) - owner report 2026-08-17.
+      const live = h.marketId === hero?.marketId && !selectedJob ? consensus : null;
+      const forecast = live ?? h.consensus;
       return [{
         marketId: h.marketId,
         label: h.metricLabel,
@@ -552,7 +559,7 @@ export function TradePage() {
       }];
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [horizons, hero?.marketId, consensus]);
+  }, [horizons, hero?.marketId, consensus, selectedJob]);
 
   // The definition belongs to the horizon on screen.
   const horizonDescription = hero?.description ?? null;
