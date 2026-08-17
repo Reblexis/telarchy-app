@@ -196,8 +196,6 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
                           : <span>by {p.proposedByName}</span>
                       )}
                       {askUsd !== null && <span>${askUsd} to them</span>}
-                      {/* The two clocks disagree about this contract: the
-                          one thing the second horizon exists to catch. */}
                       {p.status && p.status !== 'pending' && (
                         <span className={`pubws-ballot-status is-${p.status}`}>{p.status}</span>
                       )}

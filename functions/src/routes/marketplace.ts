@@ -17,15 +17,15 @@ export const marketplaceRouter = Router();
 
 /**
  * Which of a workspace's open markets is THE number: the furthest-resolving
- * one (owner direction 2026-08-16). A two-clock workspace runs the same
- * definition at a near horizon for speed and a far one for the decision, and
- * the far one is what the owner is actually judged on: LookPilot is "net 2026
- * at $78,571", not "$213 so far this week". Marketplace cards, the share
- * card, the trader context and the contractor score all read this, so a
- * visitor meets the same headline wherever they arrive.
+ * one (owner direction 2026-08-16). It is what the owner is actually judged
+ * on: LookPilot is "net 2026 at $78,571", not "$213 so far this week".
+ * Marketplace cards, the share card, the trader context and the contractor
+ * score all read this, so a visitor meets the same headline wherever they
+ * arrive, and since 2026-08-17 the floor shows this market and no other.
  *
- * Lists arrive soonest-first, so the primary is the last element; the near
- * horizon stays available as the second option on the floor's selector.
+ * Lists arrive soonest-first, so the primary is the last element. The
+ * frontend mirror is `primaryHorizonOf` in lib/floor-horizons; the two must
+ * agree or a card and its floor name different numbers.
  */
 function primaryMarket<T>(soonestFirst: T[]): T | undefined {
   return soonestFirst.length > 0 ? soonestFirst[soonestFirst.length - 1] : undefined;

@@ -15,7 +15,7 @@
  *     subtracted off a headcount.
  *
  * So this file is not about one endpoint's happy path. It builds a floor that
- * looks like production - two clocks, contracts, decided contracts, trades,
+ * looks like production - several open markets, contracts, decided contracts, trades,
  * readings - and then asserts the CROSS-FIELD invariants a reader depends on.
  * A change that breaks any of them changes what the floor means, and should
  * fail here before anyone sees it.
@@ -93,7 +93,7 @@ type Floor = {
 };
 
 /**
- * A floor shaped like LookPilot's: one number on two clocks, a dollar metric
+ * A floor with more markets than it shows: a dollar metric
  * and a countable one, contracts in every state, real trades, real readings.
  */
 async function seedFloor() {

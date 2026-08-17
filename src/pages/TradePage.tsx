@@ -917,9 +917,8 @@ export function TradePage() {
               floor (telarchy, 2026-08-14) made that a lie on every other
               workspace. No fallback: a workspace whose owner wrote no
               definition shows no definition rather than someone else's. */}
-          {/* The definition of the metric the reader is looking at, which
-              follows the horizon selector: two clocks measure different
-              windows, so the settlement text differs between them. */}
+          {/* The definition of the metric the floor's one market settles
+              on, which is why it is quoted verbatim. */}
           {(horizonDescription ?? ws?.heroMetricDescription) && (
             <p className="pubws-know-what">{horizonDescription ?? ws?.heroMetricDescription}</p>
           )}
