@@ -1,10 +1,11 @@
 import { Router } from 'express';
-import { and, eq, gt, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '../db/client';
 import { getParticipantDisplayNames } from '../lib/participants';
-import { agents, authUser, systemConfig, markets, positions, trades, workspaces } from '../db/schema';
+import { agents, authUser, systemConfig, prizeSeasons, seasonEntries, workspaces } from '../db/schema';
 import { wrap } from '../lib/wrap';
-import { computeCalibrationStats, computeTradingProfit, voidedStakeKey, type ProfitMarket } from '../lib/leaderboard';
+import { loadBoard, type Board } from '../lib/board';
+import { seasonScore, type LadderRung } from '../lib/seasons';
 
 /**
  * Participant leaderboard. Public (no auth). Aggregates only over markets in
@@ -14,6 +15,13 @@ import { computeCalibrationStats, computeTradingProfit, voidedStakeKey, type Pro
  * Cross-workspace by default; pass ?workspaceId=<id or slug> to rank within
  * one public workspace, which is what a workspace's own floor shows so its
  * two rails answer the same question about the same place.
+ *
+ * Pass ?seasonId=<id> to ask the SAME question about a prize season instead:
+ * how much each entrant's marked profit GREW while that season ran. Same
+ * formula, same aggregation, different workspace set (the season's pinned one)
+ * and a baseline subtracted. It is one endpoint on purpose: a season standing
+ * and a leaderboard row that disagree about the same participant's profit on
+ * the same day is the bug class that hit the floor five times in one week.
  *
  * Ranking (owner direction 2026-08-11, revised 2026-08-14 by Viktor): by
  * TRADING PROFIT MARKED TO MARKET, measured off the trades themselves
@@ -36,24 +44,86 @@ import { computeCalibrationStats, computeTradingProfit, voidedStakeKey, type Pro
  * the same number as everyone else and nobody needs excluding.
  *
  * Everyone who has ever traded in a public workspace is on the board. The
- * activity aggregate is deliberately NOT joined to markets, so a trader
- * whose markets were later voided or deleted still appears. Filtering the
- * join (the pre-2026-08-14 behaviour) erased whole traders. A cancelled
- * market contributes its refund (net cash still at stake, floored at zero)
- * against the same net cash, so it nets to zero for anyone who was still in
- * it and leaves the realised gain standing for anyone who sold out above
- * cost. Trades whose market row is gone cannot be valued and count nothing.
+ * aggregation itself, and the reasons it must stay in SQL, now live in
+ * `lib/board.ts`; this route only decides WHICH workspaces to ask about and
+ * how to dress the answer up for a reader.
  *
  * Calibration and accuracy (lib/leaderboard.ts) are reported per row but
  * are not the ranking key.
- *
- * Trade stats are aggregated in SQL (one row per agent) and positions are
- * fetched only for resolved markets. Loading the raw trades table into the
- * process (348k+ rows and growing) OOM-killed the Cloud Run instance and the
- * endpoint answered 503; never bring unaggregated trade history into memory
- * here.
  */
 export const leaderboardRouter = Router();
+
+/**
+ * The board query is five SQL aggregates over a 348k-row trades table, it has
+ * no auth, and it is what the public floor rail and any prize announcement
+ * point at. Uncached, a burst of arrivals is a burst of full aggregations on
+ * the endpoint that has already been OOM-killed into 503s once.
+ *
+ * Thirty seconds of staleness is invisible on a four-week season and turns a
+ * traffic spike into two queries a minute. Keyed by the exact workspace set so
+ * a scoped board and the global board never read each other's answer.
+ *
+ * SETTLEMENT MUST NOT READ THIS. Assigning money runs against one fixed
+ * timestamp inside a transaction (see routes/seasons.ts); a cached read is
+ * fine for display and wrong for deciding who gets paid.
+ */
+const BOARD_TTL_MS = 30_000;
+const boardCache = new Map<string, { at: number; board: Board }>();
+
+async function cachedBoard(workspaceIds: string[]): Promise<Board> {
+  const key = [...workspaceIds].sort().join(',');
+  const hit = boardCache.get(key);
+  const now = Date.now();
+  if (hit && now - hit.at < BOARD_TTL_MS) return hit.board;
+  const board = await loadBoard(workspaceIds);
+  boardCache.set(key, { at: now, board });
+  // Bound the map: one entry per distinct workspace set ever asked for, which
+  // is small, but a scoped board per workspace makes it grow with the product.
+  if (boardCache.size > 64) {
+    for (const [k, v] of boardCache) if (now - v.at >= BOARD_TTL_MS) boardCache.delete(k);
+  }
+  return board;
+}
+
+/** Test seam: settlement and any test that just wrote trades needs the next
+ *  read to see them rather than a 30-second-old answer. */
+export function clearBoardCache(): void {
+  boardCache.clear();
+}
+
+/** Nickname, avatar and Manifold handle for a set of agents. Pure presentation;
+ *  the board itself knows nothing about names. */
+async function decorate(agentIds: string[]) {
+  const displayNames = await getParticipantDisplayNames(agentIds);
+
+  const agentRows = await db.select({ id: agents.id, authUserId: agents.authUserId })
+    .from(agents).where(inArray(agents.id, agentIds));
+  const uidByAgent = new Map(agentRows.map(r => [r.id, r.authUserId]));
+
+  const manifoldRows = await db.select({ key: systemConfig.key, value: systemConfig.value })
+    .from(systemConfig)
+    .where(inArray(systemConfig.key, agentIds.map(id => `manifold-claimed:agent:${id}`)));
+  const manifoldNameByAgent = new Map<string, string>();
+  for (const r of manifoldRows) {
+    const agentId = r.key.replace('manifold-claimed:agent:', '');
+    const v = r.value as { username?: string } | undefined;
+    if (v?.username) manifoldNameByAgent.set(agentId, v.username);
+  }
+
+  const uids = agentRows.map(r => r.authUserId).filter((u): u is string => !!u);
+  const imageByUid = new Map<string, string | null>();
+  if (uids.length > 0) {
+    const userRows = await db.select({ id: authUser.id, image: authUser.image })
+      .from(authUser).where(inArray(authUser.id, uids));
+    for (const u of userRows) imageByUid.set(u.id, u.image);
+  }
+
+  return (id: string) => ({
+    nickname: displayNames.get(id) ?? null,
+    image: (() => { const uid = uidByAgent.get(id); return uid ? imageByUid.get(uid) ?? null : null; })(),
+    manifoldUsername: manifoldNameByAgent.get(id) ?? null,
+  });
+}
 
 leaderboardRouter.get('/', wrap(async (req, res) => {
   const limit = (() => {
@@ -61,6 +131,9 @@ leaderboardRouter.get('/', wrap(async (req, res) => {
     if (!Number.isFinite(raw) || raw <= 0) return 100;
     return Math.min(raw, 500);
   })();
+
+  const seasonId = typeof req.query.seasonId === 'string' ? req.query.seasonId.trim() : '';
+  if (seasonId) { await seasonStandings(seasonId, limit, res); return; }
 
   // Optional scope: one public workspace, by id or slug. The floor's own
   // rail asks for this (owner report 2026-08-15: "why are the contractors
@@ -80,181 +153,25 @@ leaderboardRouter.get('/', wrap(async (req, res) => {
   // widening to every workspace, which would leak the opposite of what was
   // asked for.
   if (scoped.length === 0) { res.json({ participants: [] }); return; }
-  const publicWsIds = scoped.map(w => w.id);
 
-  // Every market in a public workspace, whatever state it is in: enough to
-  // say what a holding is worth (currentPayoutFactors picks the resolution
-  // payout or the live call; a voided market pays its refund instead).
-  const marketRows = await db.select({
-    id: markets.id,
-    workspaceId: markets.workspaceId,
-    rangeMin: markets.rangeMin,
-    rangeMax: markets.rangeMax,
-    resolved: markets.resolved,
-    actualValue: markets.actualValue,
-    shares: markets.shares,
-    liquidity: markets.liquidity,
-    voided: markets.voided,
-  }).from(markets).where(inArray(markets.workspaceId, publicWsIds));
-  const profitMarkets: ProfitMarket[] = marketRows.map(m => ({
-    id: m.id,
-    workspaceId: m.workspaceId,
-    rangeMin: m.rangeMin,
-    rangeMax: m.rangeMax,
-    resolved: m.resolved,
-    actualValue: m.actualValue,
-    shares: (m.shares as [number, number] | null) ?? null,
-    liquidity: m.liquidity,
-    voided: m.voided,
-  }));
-  // Calibration is about markets that produced an answer, so voided ones
-  // (actualValue null by construction) never reach it.
-  const resolvedMarkets = profitMarkets.filter(m => m.resolved && m.actualValue !== null);
+  const board = await cachedBoard(scoped.map(w => w.id));
+  if (board.agentIds.length === 0) { res.json({ participants: [] }); return; }
 
-  // Who has traded, and when they last did. Deliberately NOT joined to
-  // markets: a trade on a market that was later voided (or whose row was
-  // deleted outright) still happened. Joining here, as this did until
-  // 2026-08-14, silently deleted every trader whose activity sat on voided
-  // conditional branches, which on the LookPilot floor was most of them, so
-  // the board rendered two rows out of eight.
-  const tradeAggs = await db.select({
-    agentId: trades.agentId,
-    totalTrades: sql<number>`count(*)::int`,
-    lastTradeAt: sql<string | null>`max(${trades.createdAt})`,
-  }).from(trades)
-    .where(inArray(trades.workspaceId, publicWsIds))
-    .groupBy(trades.agentId);
+  const dress = await decorate(board.agentIds);
 
-  // Net cash each agent put into markets that still exist: the cost basis of
-  // the profit formula. Sells are stored with negative cost, so the sum is
-  // money in minus money already taken back out. Voided markets are counted
-  // on this side too, because the value side counts their refund; the join
-  // only drops trades whose market row is gone, which nothing can value.
-  // Aggregated in SQL; the raw trades table (348k rows and growing) must
-  // never come into this process.
-  const costAggs = await db.select({
-    agentId: trades.agentId,
-    netCash: sql<number>`coalesce(sum(${trades.cost}), 0)::float`,
-  }).from(trades)
-    .innerJoin(markets, and(
-      eq(markets.id, trades.marketId),
-      eq(markets.workspaceId, trades.workspaceId),
-    ))
-    .where(inArray(trades.workspaceId, publicWsIds))
-    .groupBy(trades.agentId);
-
-  // Positions that can still be valued at a price: held, on a market that
-  // was not cancelled. Both filters matter for size as much as for meaning,
-  // since this endpoint has been OOM-killed by over-fetching before (see the
-  // header). Cancelled markets pay a refund instead and are handled below,
-  // off the trades, so they need no position rows at all.
-  const positionRows = await db.select({
-    agentId: positions.agentId,
-    workspaceId: positions.workspaceId,
-    marketId: positions.marketId,
-    direction: positions.direction,
-    shares: positions.shares,
-  }).from(positions)
-    .innerJoin(markets, and(
-      eq(markets.id, positions.marketId),
-      eq(markets.workspaceId, positions.workspaceId),
-    ))
-    .where(and(
-      inArray(positions.workspaceId, publicWsIds),
-      eq(markets.voided, false),
-      gt(positions.shares, 0),
-    ));
-
-  // What each agent still had at stake on each CANCELLED market: the void
-  // refunds this floored at zero (docs/vision.md), so it is the value side
-  // of those markets. One row per (agent, voided market).
-  const voidedStakeRows = await db.select({
-    agentId: trades.agentId,
-    workspaceId: trades.workspaceId,
-    marketId: trades.marketId,
-    netCash: sql<number>`coalesce(sum(${trades.cost}), 0)::float`,
-  }).from(trades)
-    .innerJoin(markets, and(
-      eq(markets.id, trades.marketId),
-      eq(markets.workspaceId, trades.workspaceId),
-    ))
-    .where(and(
-      inArray(trades.workspaceId, publicWsIds),
-      eq(markets.voided, true),
-    ))
-    .groupBy(trades.agentId, trades.workspaceId, trades.marketId);
-  const voidedStake = new Map(voidedStakeRows.map(r => [
-    voidedStakeKey(r.agentId, r.workspaceId, r.marketId), Number(r.netCash),
-  ]));
-
-  const netCashById = new Map(costAggs.map(c => [c.agentId, Number(c.netCash)]));
-  const profitById = computeTradingProfit(profitMarkets, netCashById, positionRows, voidedStake);
-
-  // Nobody is excluded any more (owner report 2026-08-14: "maybe the bug is
-  // that it doesn't count admin into traders"). The 2026-08-11 formula read
-  // a balance, so operator and owner accounts had to be struck off by name
-  // to keep granted credits off the board; trading profit never sees a
-  // grant, so the house is ranked on the same number as everyone else.
-  const agentIdsSeen = new Set<string>();
-  for (const t of tradeAggs) agentIdsSeen.add(t.agentId);
-  for (const p of positionRows) agentIdsSeen.add(p.agentId);
-  if (agentIdsSeen.size === 0) { res.json({ participants: [] }); return; }
-  const seenIds = Array.from(agentIdsSeen);
-
-  // Resolve display names the same way the proposals payload does: agent
-  // nickname, else the linked browser account's name. A raw 32-char agent
-  // id printed as a trader's name on the public floor is a bug, not a
-  // fallback (observed 2026-08-10: the top-traders rail led with one).
-  const displayNames = await getParticipantDisplayNames(seenIds);
-
-  const agentRows = await db.select({ id: agents.id, authUserId: agents.authUserId })
-    .from(agents).where(inArray(agents.id, seenIds));
-  const uidByAgent = new Map(agentRows.map(r => [r.id, r.authUserId]));
-
-  const manifoldRows = await db.select({ key: systemConfig.key, value: systemConfig.value })
-    .from(systemConfig)
-    .where(inArray(systemConfig.key, seenIds.map(id => `manifold-claimed:agent:${id}`)));
-  // Only the Manifold display name is read here now; the import grant no
-  // longer enters the formula, because trading profit never counts granted
-  // credits in the first place.
-  const manifoldNameByAgent = new Map<string, string>();
-  for (const r of manifoldRows) {
-    const agentId = r.key.replace('manifold-claimed:agent:', '');
-    const v = r.value as { username?: string; granted?: number } | undefined;
-    if (v?.username) manifoldNameByAgent.set(agentId, v.username);
-  }
-
-  const aggById = new Map(tradeAggs.map(t => [t.agentId, t]));
-
-  const uids = agentRows.map(r => r.authUserId).filter((u): u is string => !!u);
-  const imageByUid = new Map<string, string | null>();
-  if (uids.length > 0) {
-    const userRows = await db.select({ id: authUser.id, image: authUser.image })
-      .from(authUser).where(inArray(authUser.id, uids));
-    for (const u of userRows) imageByUid.set(u.id, u.image);
-  }
-
-  // Quality stats alongside the ranking number: the board ranks on profit,
-  // but a row that reports calibration lets a visitor tell a lucky big bet
-  // from a forecaster who is right repeatedly. Reported, never ranked on.
-  const calibrationById = computeCalibrationStats(resolvedMarkets, positionRows);
-
-  const ranked = seenIds.map(id => {
-    const agg = aggById.get(id);
-    const uid = uidByAgent.get(id);
-    const quality = calibrationById.get(id);
+  const ranked = board.agentIds.map(id => {
+    const activity = board.activityById.get(id);
+    const quality = board.calibrationById.get(id);
     return {
       rank: 0,
       id,
-      nickname: displayNames.get(id) ?? null,
-      image: uid ? imageByUid.get(uid) ?? null : null,
-      manifoldUsername: manifoldNameByAgent.get(id) ?? null,
+      ...dress(id),
       calibration: quality?.calibration ?? null,
       accuracy: quality?.accuracy ?? null,
-      totalEarnings: profitById.get(id) ?? 0,
+      totalEarnings: board.profitById.get(id) ?? 0,
       resolvedMarkets: quality?.resolvedMarkets ?? 0,
-      totalTrades: agg ? Number(agg.totalTrades) : 0,
-      lastTradeAt: agg?.lastTradeAt ?? null,
+      totalTrades: activity?.totalTrades ?? 0,
+      lastTradeAt: activity?.lastTradeAt ?? null,
     };
   });
   // Profit first, most recent trade as the tiebreak; then rank + cap.
@@ -268,3 +185,97 @@ leaderboardRouter.get('/', wrap(async (req, res) => {
 
   res.json({ participants: capped });
 }));
+
+/**
+ * Standings for one prize season.
+ *
+ * A RUNNING season is computed live: the board over the season's pinned
+ * workspaces, minus each entrant's baseline.
+ *
+ * A SETTLED season reads the stored finals and never recomputes. If it
+ * recomputed, the published winner would quietly change every time a price
+ * moved after settlement, including after the money had been sent.
+ *
+ * Only opted-in entrants appear. A baseline row exists for every participant
+ * who had traded when the season started (that is what makes late opt-in
+ * harmless), and those rows are not entries.
+ */
+async function seasonStandings(seasonId: string, limit: number, res: import('express').Response) {
+  const [season] = await db.select().from(prizeSeasons).where(eq(prizeSeasons.id, seasonId)).limit(1);
+  // 404 rather than falling through to the global board: a typo'd season id
+  // silently answering with all-time profit would be read as season standings.
+  if (!season) { res.status(404).json({ error: 'Season not found' }); return; }
+
+  const ladder = (season.ladder ?? []) as LadderRung[];
+  const meta = {
+    id: season.id,
+    name: season.name,
+    status: season.status,
+    startsAt: season.startsAt,
+    endsAt: season.endsAt,
+    settledAt: season.settledAt,
+    poolUsd: season.poolUsd,
+    ladder,
+    rulesUrl: season.rulesUrl,
+  };
+
+  if (season.status === 'draft') {
+    // No baselines exist yet, so every score would read as the entrant's whole
+    // lifetime profit. Answer honestly empty instead.
+    res.json({ season: meta, participants: [] });
+    return;
+  }
+
+  const entries = await db.select().from(seasonEntries)
+    .where(and(eq(seasonEntries.seasonId, seasonId), eq(seasonEntries.optedIn, true)));
+  if (entries.length === 0) { res.json({ season: meta, participants: [] }); return; }
+
+  const dress = await decorate(entries.map(e => e.agentId));
+
+  if (season.status === 'settled') {
+    const rows = entries
+      .filter(e => e.finalRank !== null)
+      .sort((a, b) => (a.finalRank ?? 0) - (b.finalRank ?? 0))
+      .slice(0, limit)
+      .map(e => ({
+        rank: e.finalRank,
+        id: e.agentId,
+        ...dress(e.agentId),
+        score: e.finalScore ?? 0,
+        prizeUsd: e.prizeUsd ?? 0,
+        claimState: e.prizeUsd && e.prizeUsd > 0 ? e.claimState : null,
+      }));
+    res.json({ season: meta, participants: rows });
+    return;
+  }
+
+  // Running: live board over the PINNED workspace set, never the currently
+  // public one, so a visibility flip cannot move the standings. Intersected
+  // with what is public today so a workspace that went private mid-season
+  // stops contributing to a public response.
+  const pinned = (season.workspaceIds ?? []) as string[];
+  const publicNow = await db.select({ id: workspaces.id })
+    .from(workspaces).where(eq(workspaces.visibility, 'public'));
+  const publicIds = new Set(publicNow.map(w => w.id));
+  const scoring = pinned.filter(id => publicIds.has(id));
+
+  const board = await cachedBoard(scoring);
+  const rows = entries.map(e => ({
+    id: e.agentId,
+    ...dress(e.agentId),
+    score: seasonScore(board.profitById.get(e.agentId) ?? 0, e.baselineProfit),
+    enteredAt: e.enteredAt,
+  }));
+  rows.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    const at = a.enteredAt ? new Date(a.enteredAt).getTime() : 0;
+    const bt = b.enteredAt ? new Date(b.enteredAt).getTime() : 0;
+    if (at !== bt) return at - bt;
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+  });
+
+  res.json({
+    season: { ...meta, workspacesDropped: pinned.length - scoring.length },
+    participants: rows.slice(0, limit).map((r, i) => ({ ...r, rank: i + 1 })),
+  });
+}

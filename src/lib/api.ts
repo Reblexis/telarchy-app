@@ -140,6 +140,56 @@ export interface LimitOrder {
   createdAt: string;
 }
 
+
+/** One rung of a prize season's published ladder. */
+export interface LadderRung {
+  place: number;
+  prizeUsd: number;
+}
+
+/**
+ * A prize season: a bounded cash tournament over the trading board.
+ *
+ * `status` is draft (parameters still editable, standings read empty),
+ * running (baselines pinned, entry open, standings computed live) or settled
+ * (finals frozen, ladder assigned, standings read stored values).
+ */
+export interface PrizeSeason {
+  id: string;
+  name: string;
+  status: 'draft' | 'running' | 'settled';
+  startsAt: string;
+  endsAt: string;
+  settledAt: string | null;
+  poolUsd: number;
+  ladder: LadderRung[];
+  rulesUrl: string;
+  /** Pinned workspaces that are no longer public, and so no longer counted in
+   *  a public response. Present on running standings only. */
+  workspacesDropped?: number;
+}
+
+/** One entrant's row in a season's standings. `score` is growth in marked
+ *  profit since the season started, NOT lifetime profit. */
+export interface SeasonStanding {
+  rank: number;
+  id: string;
+  nickname: string | null;
+  image?: string | null;
+  manifoldUsername?: string | null;
+  score: number;
+  /** Settled seasons only. */
+  prizeUsd?: number;
+  claimState?: 'unclaimed' | 'claimed' | 'expired' | 'paid' | null;
+}
+
+/** This participant's relationship to the running season. */
+export interface MySeasonEntry {
+  season: PrizeSeason | null;
+  optedIn: boolean;
+  canEnter: boolean;
+}
+
 export interface LeaderboardEntry {
   rank: number | null;
   id: string;
@@ -902,6 +952,55 @@ export const api = {
     const res = await fetch(`${API_BASE}/api/marketplace/featured`);
     if (!res.ok) throw new Error(`Featured markets request failed: ${res.status}`);
     return res.json();
+  },
+  /** Every prize season, newest first. Public. */
+  getSeasons: async (): Promise<{ seasons: PrizeSeason[] }> => {
+    const res = await fetch(`${API_BASE}/api/seasons`);
+    if (!res.ok) throw new Error(`Seasons request failed: ${res.status}`);
+    return res.json();
+  },
+  /**
+   * Standings for one season: the same board, scored as growth since the
+   * season's baseline. Deliberately the leaderboard endpoint rather than a
+   * season-specific one, so a standings row and a leaderboard row can never
+   * disagree about the same participant.
+   */
+  getSeasonStandings: async (seasonId: string, limit = 100): Promise<{ season: PrizeSeason; participants: SeasonStanding[] }> => {
+    const res = await fetch(`${API_BASE}/api/leaderboard?limit=${limit}&seasonId=${encodeURIComponent(seasonId)}`);
+    if (!res.ok) throw new Error(`Season standings request failed: ${res.status}`);
+    return res.json();
+  },
+  /** This participant's entry state for the running season. */
+  getMySeason: async (): Promise<MySeasonEntry> => {
+    const res = await fetch(`${API_BASE}/api/seasons/me`, { credentials: 'include' });
+    if (!res.ok) throw new Error(`Season entry request failed: ${res.status}`);
+    return res.json();
+  },
+  /** Enter or leave the running season. Requires no payment details: those
+   *  are asked for at claim time, from winners only. */
+  setMySeasonEntry: async (optedIn: boolean): Promise<{ optedIn: boolean }> => {
+    const res = await fetch(`${API_BASE}/api/seasons/me`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ optedIn }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error ?? `Season entry update failed: ${res.status}`);
+    return body;
+  },
+  /** Claim a prize on a settled season. Needs payment details on the account
+   *  first; the error says so when they are missing. */
+  claimSeasonPrize: async (seasonId: string): Promise<{ claimed: boolean; prizeUsd: number; claimBy: string }> => {
+    const res = await fetch(`${API_BASE}/api/seasons/${encodeURIComponent(seasonId)}/claim`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: '{}',
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error ?? `Claim failed: ${res.status}`);
+    return body;
   },
   /** Traders ranked by trading profit at current market prices. Pass a
    *  workspace id or slug to rank within that one public workspace, which is

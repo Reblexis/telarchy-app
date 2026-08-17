@@ -121,6 +121,21 @@ which reads as betting returns. Calibration rank reads as a skill score. The
 leaderboard already computes net worth minus platform grant; it would need an
 accuracy-ranked sibling.
 
+**OVERRIDDEN 2026-08-17 (Viktor)**: Season 1 ranks on credit profit marked to
+market, the number `GET /api/leaderboard` already returns, scored as growth
+across the season window. The owner took this decision twice, the second time
+after being shown that a thin book makes it exploitable (buy your own position
+up, have it marked at the live price, top the board with nothing resolved), and
+held it against an independent Codex review that raised the same objection
+cold: *"we will mitigate later by improving markets design .. for now lets keep
+it this way."* Recorded rather than argued. Two things follow. Calibration rank
+is not built, so this paragraph describes a Season 2 option rather than the
+shipped design. And the hedge is scheduling, not code: end a season only after
+at least one of its markets resolves, or the whole ladder is paid on unrealised
+marks. As of 2026-08-17 the LookPilot floor shows one horizon and it resolves
+2026-12-31, so this is a live constraint on Season 1's end date, not a
+hypothetical.
+
 Risk: moderate and manageable. This is the recommended first real-money step.
 
 ### Path C: route execution to a regulated venue (months, real counsel)
@@ -147,6 +162,39 @@ regulatory firm. Listed only so nobody proposes it as a shortcut.
 
 See above. Being actively legislated out of existence, with service-provider
 liability attaching in New York.
+
+## What the constraint actually is (researched 2026-08-17)
+
+The doc above reads as more cautious than the law supports, and the caution was
+pointed at the wrong thing.
+
+**Gambling needs three elements: prize, chance, and CONSIDERATION.** Telarchy has
+no consideration. ToS section 2 already makes credits free, non-purchasable and
+non-redeemable, and a season has no entry fee and no stake. That absence is the
+shield, and it holds regardless of the scoring rule. The scoring rule changes how
+the contest reads, not whether it is gambling. Worth remembering that regulators
+assess how a contest operates rather than what it is called, which is why the
+published rules have to describe the real mechanism.
+
+**The binding constraint is a number: $5,000 of total prize value.** Above that,
+New York requires sweepstakes registration and bonding 30 days ahead and Florida
+7. Under it, no US state requires registration, and skill contests are generally
+exempt outright. So:
+
+- A bounded season with a pool under $5,000 needs no registration anywhere.
+- A recurring $1,000/week ladder crosses the threshold in **week five**, which is
+  the concrete reason Season 1 is one bounded season rather than a weekly
+  commitment.
+- A $500 top prize also sits under the $600 US information-reporting threshold
+  that would otherwise put a 1099 obligation on a US payer. Convenient, and a
+  reason not to raise the top rung without checking.
+
+`POST /api/seasons` enforces the $5,000 limit at creation rather than leaving it
+to memory, and `season-lifecycle.test.ts` pins it.
+
+Sources: [Klein Moynihan Turco on registration and bonding](https://kleinmoynihan.com/sweepstakes-registration-and-bonding-requirements-2/),
+[Walters Law Group skill gaming guide](https://www.firstamendment.com/skill-gaming-legal-guide/),
+[National Law Review on skill-based contests](https://natlawreview.com/article/your-contest-really-skill-based-legal-risks-businesses-overlook).
 
 ## Jurisdiction: an unresolved inconsistency to fix
 
@@ -210,6 +258,43 @@ Ranked by strength, given that no trader can be paid for trading today.
 
 - Does Telarchy want paid trading at all, given the 37-credit ceiling finding
   and the cost of the regulatory path? **Undecided.**
-- Path B tournament: run one, and who funds the prize pool? **Undecided.**
-- Operating entity and jurisdiction. **Unresolved, blocks everything above.**
-- When to retain derivatives counsel, and at what budget. **Undecided.**
+- Path B tournament: run one, and who funds the prize pool? **DECIDED
+  2026-08-17 (Viktor)**: yes. Season 1 is one bounded 4-week season, $1,000
+  pool, top five at $500/$250/$125/$75/$50, funded by the owner and paid
+  manually outside the Service. Shipped 2026-08-17: `prize_seasons` and
+  `season_entries`, `lib/seasons.ts`, `routes/seasons.ts`,
+  `GET /api/leaderboard?seasonId=`, ToS section 3a (consent version 1.3), and
+  the published rules at `docs/legal/season-1-rules.md`.
+- Path A (pay a participant a flat fee for delivered forecasting work): still
+  available, still costs nothing to build, and still has **zero jobs approved
+  and paid**. Recommended twice on 2026-08-17 as the cheaper first proof of
+  "pays real money" and declined in favour of the tournament: *"i dont want
+  some paid forecasting job flow.. do tournament now."* Unchanged and unblocked.
+- Operating entity and jurisdiction. **Still unresolved**, but no longer
+  blocking: manual payout outside the Service was chosen specifically so a
+  season does not depend on the answer. It will start to matter at volume.
+- When to retain derivatives counsel, and at what budget. **Undecided.** Lower
+  priority than this doc previously implied, given the consideration finding
+  above; an hour on state-AG posture before announcing is still worth buying.
+
+## Known and accepted risks in Season 1
+
+Recorded so nobody re-derives them, and so that if one of them happens it was a
+decision rather than a surprise.
+
+- **Mark-to-market ranking is exploitable on a thin book.** See the override
+  above. Accepted; mitigation deferred to market-design work.
+- **No Sybil defence.** Credits are free, entry is free, and an account created
+  after the season starts baselines at zero, so one person running several
+  accounts is the cheapest way to farm a five-place ladder on an eleven-row
+  board. A linked-Manifold identity gate was offered and declined for Season 1
+  ("simple setup first and ill iterate on it after"). The controls that remain
+  are manual settlement (the owner reviews standings before assigning anything)
+  and a disqualification clause in the published rules. Bounded at $1,000, and
+  it would fail in public. Tracked in `TODOS.md` under P2 prize seasons.
+- **Void asymmetry.** `computeTradingProfit` floors a void refund at zero, so a
+  losing buy on a voided market reads as exactly zero rather than a loss, while
+  a gain realised by selling out before the void is kept
+  (`leaderboard.test.ts:388-431`). That makes the void button part of the
+  contest. Handled by a commitment in the rules not to void during a running
+  season except for a declared, announced error. The code fix is a TODO.

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api, type LeaderboardEntry } from '../lib/api';
+import { SeasonBanner, SeasonStandings } from '../components/SeasonStandings';
 
 function timeAgo(iso: string): string {
   const d = new Date(iso);
@@ -29,6 +30,10 @@ function formatEarnings(v: number): string {
 }
 
 export function LeaderboardPage() {
+  // ?season=<id> turns this page into that season's standings. Same endpoint
+  // underneath, so a standings row and a board row cannot disagree.
+  const [params] = useSearchParams();
+  const seasonId = params.get('season');
   const [entries, setEntries] = useState<LeaderboardEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,6 +42,10 @@ export function LeaderboardPage() {
   // update in real time). Poll while the tab is visible, and pull once the
   // instant it comes back, so a returning tab is never stale.
   useEffect(() => {
+    // In season mode this page renders SeasonStandings instead, which does its
+    // own fetching. Polling the all-time board underneath it would be two
+    // requests every fifteen seconds for something nobody is looking at.
+    if (seasonId) return;
     const load = () => {
       api.getLeaderboard(100)
         .then(r => setEntries(r.participants))
@@ -50,10 +59,13 @@ export function LeaderboardPage() {
     const interval = setInterval(tick, 15_000);
     document.addEventListener('visibilitychange', tick);
     return () => { clearInterval(interval); document.removeEventListener('visibilitychange', tick); };
-  }, []);
+  }, [seasonId]);
+
+  if (seasonId) return <SeasonStandings seasonId={seasonId} />;
 
   return (
     <div className="leaderboard page">
+      <SeasonBanner />
       <header className="leaderboard-head">
         <h1 className="leaderboard-title">Leaderboard</h1>
         <p className="leaderboard-sub">

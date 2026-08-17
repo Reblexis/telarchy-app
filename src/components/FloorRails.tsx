@@ -1,4 +1,6 @@
 import type { LeaderboardEntry, PublicContractor } from '../lib/api';
+import { useEffect, useState } from 'react';
+import { api, type PrizeSeason } from '../lib/api';
 import { ManifoldLogo } from './ManifoldLogo';
 
 /**
@@ -151,10 +153,41 @@ export function LeaderboardRail({ entries: all, contractors, unit = '' }: {
           )}
         </section>
       )}
+      <SeasonStrip />
       {/* The way out of a top-ten list: the whole field, on its own page
           (owner direction 2026-08-17). */}
       <a className="pubws-lb-more" href="/leaderboard">Show full leaderboard</a>
     </aside>
+  );
+}
+
+
+/**
+ * A running prize season, on the floor itself.
+ *
+ * This is where a first-time visitor learns the money exists: they arrive from
+ * a link, read the number, and the entry path is one click from there. Renders
+ * nothing when there is no season, so the floor is unchanged the rest of the
+ * time.
+ */
+function SeasonStrip() {
+  const [season, setSeason] = useState<PrizeSeason | null>(null);
+  useEffect(() => {
+    api.getSeasons()
+      .then(r => setSeason(r.seasons.find(s => s.status === 'running') ?? null))
+      .catch(e => console.error('seasons fetch failed:', e));
+  }, []);
+  if (!season) return null;
+  const daysLeft = Math.max(0, Math.ceil((new Date(season.endsAt).getTime() - Date.now()) / 86_400_000));
+  return (
+    <section className="pubws-lb-section">
+      <h2 className="pubws-h2">{season.name}</h2>
+      <p className="pubws-lb-empty">
+        ${season.poolUsd.toLocaleString()} in prizes, {daysLeft} {daysLeft === 1 ? 'day' : 'days'} left.
+        Free to enter, no purchase and no stake.
+      </p>
+      <a className="pubws-lb-more" href={`/leaderboard?season=${encodeURIComponent(season.id)}`}>See the standings</a>
+    </section>
   );
 }
 

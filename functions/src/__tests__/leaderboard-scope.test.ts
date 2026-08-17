@@ -16,14 +16,17 @@ import { db, ensureMigrations, truncateAll } from './harness/test-db';
 import { agents, markets, metrics, positions, trades, workspaces } from '../db/schema';
 import { initialPool } from '../lib/amm';
 import { toUnits } from '../lib/validation';
-import { leaderboardRouter } from '../routes/leaderboard';
+import { leaderboardRouter, clearBoardCache } from '../routes/leaderboard';
 
 const app = express();
 app.use(express.json());
 app.use('/api/leaderboard', leaderboardRouter);
 
 beforeAll(async () => { await ensureMigrations(); });
-beforeEach(async () => { await truncateAll(); });
+// The board is cached for 30 seconds in process, so a test that seeds new
+// data must drop the previous test's answer or it reads a board that no
+// longer exists.
+beforeEach(async () => { await truncateAll(); clearBoardCache(); });
 
 const ALPHA = 'ws-alpha';
 const BETA = 'ws-beta';

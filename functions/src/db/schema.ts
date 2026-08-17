@@ -744,3 +744,69 @@ export const agentHeartbeats = pgTable('agent_heartbeats', {
   balance: doublePrecision('balance'),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
+
+// ---------------------------------------------------------------------------
+// Prize seasons
+// ---------------------------------------------------------------------------
+
+/**
+ * One bounded cash tournament. Rules and arithmetic live in `lib/seasons.ts`;
+ * this is just the record. Money never moves through the Service: the owner
+ * pays winners directly against the payment details already on their account
+ * (`agents.payout_method`), the same rail ToS section 3 uses for paid jobs.
+ */
+export const prizeSeasons = pgTable('prize_seasons', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  startsAt: timestamp('starts_at').notNull(),
+  endsAt: timestamp('ends_at').notNull(),
+  /** Total promised, in USD. Kept under 5000 deliberately: above that,
+   *  New York and Florida require sweepstakes registration and bonding. */
+  poolUsd: doublePrecision('pool_usd').notNull(),
+  /** Published ladder, [{ place, prizeUsd }, ...]. Frozen once running. */
+  ladder: jsonb('ladder').notNull(),
+  /** The workspace ids this season scores over, PINNED when it starts rather
+   *  than derived from workspaces.visibility at query time. Without this, an
+   *  admin flipping a workspace public mid-season injects an entrant's whole
+   *  history in it as if it were season profit, and flipping one private does
+   *  the reverse; either reorders who receives money. */
+  workspaceIds: jsonb('workspace_ids').notNull(),
+  rulesUrl: text('rules_url').notNull(),
+  /** draft | running | settled. Settle is reachable only from running, so a
+   *  second settle can never reassign a prize that was already paid. */
+  status: text('status').notNull().default('draft'),
+  /** Frozen at settlement; the instant every final_profit was read at. */
+  settledAt: timestamp('settled_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+/**
+ * One participant's entry in one season.
+ *
+ * `optedIn` lives here rather than on `agents` on purpose: a boolean on the
+ * participant would silently carry a Season 1 opt-in into Season 2.
+ *
+ * A row exists for every participant the season snapshotted a baseline for,
+ * whether or not they opted in, because the baseline must be taken at the
+ * season's start instant for everyone (otherwise opting in late is a free
+ * option on your own drawdown). Only `optedIn` rows are ranked or paid.
+ */
+export const seasonEntries = pgTable('season_entries', {
+  seasonId: text('season_id').notNull(),
+  agentId: text('agent_id').notNull(),
+  /** Explicit entry. Nothing enters a participant into a season implicitly. */
+  optedIn: boolean('opted_in').notNull().default(false),
+  /** When they turned the toggle on. The published first tiebreak. */
+  enteredAt: timestamp('entered_at'),
+  /** Board profit at the season's START instant, not at opt-in. */
+  baselineProfit: doublePrecision('baseline_profit').notNull().default(0),
+  /** Board profit at the settle instant. Null until settled. */
+  finalProfit: doublePrecision('final_profit'),
+  finalScore: doublePrecision('final_score'),
+  finalRank: integer('final_rank'),
+  prizeUsd: doublePrecision('prize_usd'),
+  /** unclaimed | claimed | expired | paid. Only meaningful with a prize. */
+  claimState: text('claim_state'),
+  claimedAt: timestamp('claimed_at'),
+  paidAt: timestamp('paid_at'),
+}, t => [primaryKey({ columns: [t.seasonId, t.agentId] })]);

@@ -4,6 +4,7 @@ import { authClient } from '../lib/auth-client';
 import { useAuth } from '../hooks/useAuth';
 import { api } from '../lib/api';
 import { TopUpCreditsInstructions, type DepositAddressInfo } from '../components/TopUpCreditsInstructions';
+import { SeasonEntryPanel } from '../components/SeasonEntryPanel';
 
 interface MyAgent {
   id: string;
@@ -294,6 +295,9 @@ export function AccountPage() {
           )}
         </form>
       </div>
+
+      {/* Prize season: renders nothing when there is no season. */}
+      <SeasonEntryPanel />
 
       {/* Change password */}
       <div className="section" style={{ marginBottom: '1.5rem' }}>

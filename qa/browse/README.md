@@ -174,6 +174,8 @@ explains itself.
 | `agent-register.md` | `POST /api/agents/register` (anon → key) |
 | `api-tab-keys.md` | `/api` tab: mint/list/revoke own keys + scope intersection |
 | `api-create-agent.md` | `POST /api/agents` (authenticated create with scoped key + memberships) |
+| `season-entry.md` | Prize season: floor strip, published rules, one-click entry, standings column |
+| `season-claim.md` | Prize season: final standings, claim flow, payment-detail privacy |
 
 ### 07-admin
 

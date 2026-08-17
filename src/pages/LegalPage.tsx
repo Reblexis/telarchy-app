@@ -10,7 +10,7 @@ const mdStyles: React.CSSProperties = {
 };
 
 interface LegalPageProps {
-  document: 'terms' | 'privacy';
+  document: 'terms' | 'privacy' | 'season-1';
 }
 
 export function LegalPage({ document }: LegalPageProps) {

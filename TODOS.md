@@ -132,6 +132,42 @@ Last updated: 2026-04-29 (CEO plan review). Active CEO plan: `~/.gstack/projects
 
 ---
 
+## P2 — Prize seasons (deferred from Season 1, added 2026-08-17 by /plan-eng-review)
+
+Design doc: `~/.gstack/projects/Reblexis-telarchy/cihalvi-main-design-20260817-154200.md`.
+Legal posture: `docs/legal/trader-compensation.md`. All three were raised during
+review, deliberately deferred by the owner to keep Season 1 simple, and are
+expected to matter more as the pool grows.
+
+### Exclude mid-season voided markets from season scoring
+- **What:** Change season scoring so a market voided during a running season contributes nothing to any entrant's score.
+- **Why:** `computeTradingProfit` floors a void refund at zero, so a buy on a voided market reads as exactly zero rather than a loss, while selling out above cost before a void keeps the gain. Verified at `functions/src/__tests__/leaderboard.test.ts:388-431` ("a plain buy on a market that voided reads exactly zero, not a loss" and "selling out above cost before a void keeps the gain, with no refund"). The payoff is asymmetric, and the owner controls the void button, so voiding becomes part of the contest.
+- **Pros:** Removes an asymmetry an entrant could accuse the operator of exploiting, and removes the temptation.
+- **Cons:** Real code in the scoring path, and a rule harder to explain than "we do not void during a season."
+- **Context:** Season 1 handles this with a rules commitment only: no voiding during a running season except for a declared, announced error. That commitment gets expensive to keep if a later season runs while markets are being actively corrected. Raised by Codex in the outside-voice pass.
+- **Effort:** S-M (CC).
+- **Depends on:** The `loadBoard` extraction (`functions/src/lib/leaderboard.ts`) landing first.
+
+### Sybil identity gate for prize entry
+- **What:** Require a linked Manifold account, or one entry per `authUser`, before a participant can enter a prize season.
+- **Why:** Credits are free, entry is free, new accounts get a baseline of 0, and five places pay. The simplest winning strategy against an 11-row board is one person running five accounts, not forecasting. The baseline-0 rule for new accounts (introduced to close a separate entry-timing exploit) is what makes it cheap.
+- **Pros:** The gate already exists as the identity check behind `weeklyActiveVerifiedTraders` (a synced Manifold account), so it is a lookup rather than a new system. It also aims the season at the audience the owner named: existing Manifold and Metaculus forecasters.
+- **Cons:** Excludes anyone unwilling to link an external account, which on a board this small could make the next season smaller than Season 1.
+- **Context:** Explicitly accepted as a Season 1 risk (owner: "simple setup first and ill iterate on it after"). Season 1 relies instead on manual settlement (the owner reviews standings before assigning prizes) plus a disqualification clause in the published rules. Bounded downside at a $1,000 pool; the failure is public.
+- **Effort:** S (CC).
+- **Depends on:** Season 1 finishing, so the decision is made against real data on whether farming showed up.
+
+### Record participant-deletion unwinds as real trades
+- **What:** When a participant is deleted, write the unwinding of their positions as actual trade rows instead of moving the market's shares and pool directly.
+- **Why:** AGENTS.md already names this as a known, currently-sanctioned gap: deleting a participant moves shares and pool directly, "so the price moves and no row explains it." What is new is the consequence: during a prize season that silently changes every other entrant's marked value, and therefore the standings, with nothing in the ledger accounting for it.
+- **Pros:** Closes the last price movement no ledger row explains, which matters more once the board decides who receives money.
+- **Cons:** Touches the append-only ledger path and `allowLedgerAdmin`, the code most worth leaving alone.
+- **Context:** Pre-existing, not created by the season work. AGENTS.md already concludes "recording the unwind as real trades would be better."
+- **Effort:** M (CC).
+- **Depends on:** Nothing, but riskier than it looks.
+
+---
+
 ## P3 — Nice-to-have (deferred)
 
 - Per-market OG image endpoint (subset of CP4 if CP4 is rejected).

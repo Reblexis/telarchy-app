@@ -131,6 +131,10 @@ export function App() {
           <Route path="/waitlist" element={<WaitlistPage />} />
           <Route path="/terms" element={<LegalPage document="terms" />} />
           <Route path="/privacy" element={<LegalPage document="privacy" />} />
+          {/* A season's published rules: what makes the contest a skill contest
+              rather than an ad-hoc payout. Linked from the standings and the
+              entry toggle. */}
+          <Route path="/legal/season-1" element={<LegalPage document="season-1" />} />
           {/* Operator switch, linked from nowhere. */}
           <Route path="/local" element={<LocalRedirect />} />
           <Route path="/local/*" element={<LocalRedirect />} />

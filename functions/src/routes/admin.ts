@@ -9,17 +9,7 @@ import { randomUUID } from 'crypto';
 import { AppError } from '../lib/errors';
 import { resolutionInstant } from '../lib/date-utils';
 import { classifyIps } from '../lib/ip-classify';
-
-/** True if the caller is the master key OR a platform admin. */
-async function isPlatformAuthorized(req: { auth?: { isMasterKey?: boolean; uid?: string } }): Promise<boolean> {
-  if (!req.auth) return false;
-  if (req.auth.isMasterKey) return true;
-  if (!req.auth.uid) return false;
-  const [agent] = await db.select({ platformAdmin: agents.platformAdmin })
-    .from(agents)
-    .where(eq(agents.authUserId, req.auth.uid));
-  return agent?.platformAdmin === true;
-}
+import { isPlatformAuthorized } from '../lib/platform-admin';
 
 export const adminRouter = Router();
 

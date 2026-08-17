@@ -414,6 +414,13 @@
       "when": 1786989517965,
       "tag": "0058_workspace_started_on",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1787075917965,
+      "tag": "0059_prize_seasons",
+      "breakpoints": true
     }
   ]
 }

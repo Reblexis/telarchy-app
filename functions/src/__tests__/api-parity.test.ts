@@ -108,6 +108,10 @@ describe('API parity: frontend goes through the public API', () => {
       'agent/admin',
       'admin',
       'self/admin',
+      // Platform-wide, and deliberately not satisfied by owning a workspace:
+      // prize-season settlement assigns real money, so a workspace owner must
+      // not reach it the way 'admin' (the manage capability) would allow.
+      'platform admin',
     ]);
     const offenders = documented.filter(e => !allowedLabels.has(e.auth));
     if (offenders.length > 0) {
