@@ -11,9 +11,10 @@ import { join, relative, resolve } from 'path';
  *   1. The payload's price replay (`marketHistory`) is read only through
  *      `priceSeriesOf`, which keys it by market id. Read directly, it becomes
  *      "some market's prices" and gets drawn under the wrong chart.
- *   2. Nobody outside the model reverses or end-indexes `markets`. Position is
- *      not a role: that convention flipped once and printed "speed, not the
- *      decision" beside "end of 2026".
+ *   2. Nobody outside the model reverses or end-indexes `markets`, and nobody
+ *      re-derives which one is primary. That convention flipped once and
+ *      printed "speed, not the decision" beside "end of 2026"; the model
+ *      answers it now, via `primaryHorizonOf`.
  *   3. There is exactly one definition of each label helper. Two copies of
  *      `currencyOf` is a unit disagreeing with itself on the same page.
  *
@@ -57,7 +58,7 @@ describe('the price replay is read by market id', () => {
   });
 });
 
-describe('a horizon\'s role comes from the model, not from its index', () => {
+describe('which market is primary comes from the model, not from an index', () => {
   const ALLOWED = new Set([MODEL]);
 
   test('nobody else reverses the markets list', () => {
@@ -76,10 +77,32 @@ describe('a horizon\'s role comes from the model, not from its index', () => {
       .map(f => f.path);
     expect(offenders).toEqual([]);
   });
+
+  test('nobody front-indexes the horizon list either', () => {
+    // With one clock the primary is views[0], which makes `horizons[0]` at a
+    // call site look harmless. It is the same bug wearing the other index:
+    // the day the order flips back, every such site is wrong at once and
+    // nothing says so. Ask primaryHorizonOf.
+    const offenders = files
+      .filter(f => !ALLOWED.has(f.path))
+      .filter(f => /\bhorizons\s*\[\s*0\s*\]/.test(f.text))
+      .map(f => f.path);
+    expect(offenders).toEqual([]);
+  });
+
+  test('the second clock is gone, and does not come back by accident', () => {
+    // Removed 2026-08-17 as "too confusing". If it returns it returns as a
+    // deliberate feature with its own doc section, not as a role enum quietly
+    // reappearing in the model (docs/ui-conventions.md, "one clock, not two").
+    const offenders = files
+      .filter(f => /\b(HorizonRole|roleNote|pulseOf|horizonConflict)\b/.test(f.text))
+      .map(f => f.path);
+    expect(offenders).toEqual([]);
+  });
 });
 
 describe('one definition of each label helper', () => {
-  test.each(['currencyOf', 'settleDayOf', 'horizonLabel', 'metricLabelOf', 'buildHorizonViews', 'priceSeriesOf'])(
+  test.each(['currencyOf', 'settleDayOf', 'horizonLabel', 'metricLabelOf', 'buildHorizonViews', 'priceSeriesOf', 'primaryHorizonOf'])(
     '%s is defined once, in the model',
     name => {
       const definers = files.filter(f => new RegExp(`function ${name}\\b`).test(f.text)).map(f => f.path);

@@ -175,6 +175,15 @@ word and the promise is unverifiable.
   plot area between the axis paddings, not the full svg width).
 - There is no legend, no range rail, and no markets table: the chart IS the
   instrument; additional markets are a count in the sub-line.
+- **One horizon, no selector (2026-08-17).** The headline, the chart and the
+  ticket are all the FURTHEST-RESOLVING open market, and there is no way on
+  the page to reach any other: `$B js "document.querySelectorAll('.pubws-horizon').length"`
+  is 0, `.pubws-horizon-note` is absent, and the "What is this market?"
+  section carries exactly one chart (`.pubws-know .pubws-settle` has length 1)
+  even when `jq '.markets|length'` is greater than 1. The ballot carries no
+  "buys the week, costs the year" mark. See `docs/ui-conventions.md`, "one
+  clock, not two", for why the second clock went and what it would take to
+  bring it back.
 
 ### T6. Disclosure boundary: the ballot on Open workspaces, counts elsewhere
 

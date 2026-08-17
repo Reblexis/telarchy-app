@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
-  buildHorizonViews, currencyOf, decisionOf, horizonLabel, metricLabelOf, priceSeriesOf, settleDayOf,
+  buildHorizonViews, currencyOf, horizonLabel, metricLabelOf, priceSeriesOf, primaryHorizonOf, settleDayOf,
 } from '../floor-horizons';
 import type { PublicWorkspace } from '../api';
 
@@ -47,33 +47,32 @@ function ws(overrides: Partial<PublicWorkspace> = {}): PublicWorkspace {
   } as unknown as PublicWorkspace;
 }
 
-describe('order and role', () => {
-  test('furthest-resolving first, and index 0 is the decision', () => {
+describe('which market the floor is about', () => {
+  test('the primary is the furthest-resolving one, whatever order the payload used', () => {
     const views = buildHorizonViews(ws());
     expect(views.map(v => v.targetDate)).toEqual(['2026-12', '2026-W34']);
-    expect(views.map(v => v.role)).toEqual(['decision', 'pulse']);
-    expect(decisionOf(views)!.marketId).toBe('m-year');
+    // Not views[0] by convention at the call site: the module answers it, so a
+    // payload that grows or reorders markets cannot re-point a chart.
+    expect(primaryHorizonOf(views)!.marketId).toBe('m-year');
   });
 
-  test('each horizon carries its own caption', () => {
-    // The caption used to be chosen by comparing an index to the array length,
-    // which inverted the day the list was reversed: "speed, not the decision"
-    // printed beside "end of 2026" (owner report 2026-08-17).
-    const [decision, pulse] = buildHorizonViews(ws());
-    expect(decision.roleNote).toBe('the number I fund on');
-    expect(pulse.roleNote).toBe('speed, not the decision');
+  test('a market resolving later than the current primary takes over', () => {
+    // The rule is "furthest-resolving", not "the one that was there first".
+    const LATER = { ...YEAR, marketId: 'm-2027', targetDate: '2027-12', resolvesOn: '2028-01-01T00:00:00Z' };
+    const views = buildHorizonViews(ws({ markets: [WEEK, YEAR, LATER] } as Partial<PublicWorkspace>));
+    expect(primaryHorizonOf(views)!.marketId).toBe('m-2027');
   });
 
-  test('a single-clock floor has one horizon, and it is the decision', () => {
+  test('one open market is the primary', () => {
     const views = buildHorizonViews(ws({ markets: [YEAR] } as Partial<PublicWorkspace>));
     expect(views).toHaveLength(1);
-    expect(views[0].role).toBe('decision');
+    expect(primaryHorizonOf(views)!.marketId).toBe('m-year');
   });
 
   test('no markets, no horizons, no crash', () => {
     expect(buildHorizonViews(null)).toEqual([]);
     expect(buildHorizonViews(ws({ markets: [] } as Partial<PublicWorkspace>))).toEqual([]);
-    expect(decisionOf([])).toBeNull();
+    expect(primaryHorizonOf([])).toBeNull();
   });
 
   test('the source array is not mutated: the API contract stays soonest-first', () => {

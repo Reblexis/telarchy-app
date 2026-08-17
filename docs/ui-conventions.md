@@ -414,38 +414,36 @@ has funded a market for this job yet. Composing a bet and meeting
 "this market has no liquidity" at submit is the bug this rule exists to
 prevent.
 
-**The primary number is the DECISION horizon (owner direction
-2026-08-16).** A two-clock workspace runs one definition at a near horizon
-for speed and a far one for the decision the charter funds on. The far one
-is the headline everywhere a single number is shown: the marketplace card,
-the share card an unfurled link renders, the floor's own opening view, the
-definition it quotes, and the metric a contractor's impact is denominated
-in. LookPilot is "net 2026 at $78,571", not "$213 so far this week", and a
-visitor arriving from a card, a link, or the floor meets the same number.
+**A floor shows ONE horizon: the furthest-resolving market** (owner
+direction 2026-08-17, "lets remove the this week option completely, its
+just too confusing and adds unnecessary complexity"). It is the headline
+everywhere a single number is shown: the marketplace card, the share card an
+unfurled link renders, the floor's opening view, the definition it quotes,
+the chart it draws, the market its ticket trades, and the metric a
+contractor's impact is denominated in. LookPilot is "net 2026 at $78,571",
+full stop. Lists still ship soonest-first, so the API contract is unchanged;
+one helper, `primaryMarket`, picks the primary server-side and
+`primaryHorizonOf` picks the same one client-side, so the surfaces cannot
+drift apart.
 
-The near horizon is the second option, one click away on the floor's
-selector, and lists still ship soonest-first: the API contract is unchanged,
-only which element the surfaces treat as primary. One helper,
-`primaryMarket`, decides it server-side so the surfaces cannot drift apart.
+A workspace may still have other open baseline markets, and the API still
+serves them (`GET /api/marketplace/:id` ships every one in `markets`). The
+floor simply does not offer them: there is no selector, no second chart, and
+no per-horizon caption. See "one clock, not two" below for why the second one
+went.
 
-**One model owns what a horizon is** (`src/lib/floor-horizons.ts`). The
-order (furthest first), each horizon's ROLE (decision or pulse), its
-label, its settle day, its unit, its metric history, its period start and
-the lookup of its price series all come from there, and a price series is
-only ever fetched BY MARKET ID. Surfaces that decided these from an
-array position disagreed the moment the order changed: the weekly view
-drew the yearly market's price line and dropped to the week's call, and
-the caption read "speed, not the decision" beside "end of 2026" (both
-owner reports 2026-08-17). The payload labels its inline price replay
-with `marketHistoryMarketId` so nothing has to guess, and a test greps
-the frontend for a second copy of any of it.
-
-**The floor shows horizons furthest-first** (owner direction 2026-08-16,
-"first should be total yearly and then weekly"). The decision is what the
-floor is about, so it leads the selector and the charts read down from the
-year to the week; a primary number sitting in the second slot reads as an
-afterthought. The page reverses the payload at the top of the component; it
-does not ask the API for a different order.
+**One model owns what a horizon is** (`src/lib/floor-horizons.ts`). Which
+market is primary, its label, its settle day, its unit, its metric history,
+its period start and the lookup of its price series all come from there, and
+a price series is only ever fetched BY MARKET ID. Surfaces that decided
+these from an array position disagreed the moment the order changed: the
+weekly view drew the yearly market's price line and dropped to the week's
+call, and the caption read "speed, not the decision" beside "end of 2026"
+(both owner reports 2026-08-17). The payload labels its inline price replay
+with `marketHistoryMarketId` so nothing has to guess, and a test greps the
+frontend for a second copy of any of it. The module survives the second
+clock's removal because that ownership rule is what it was for; only the
+role vocabulary (decision vs pulse) is gone.
 
 **Both rails are scoped to THIS workspace (owner report 2026-08-15: "why
 are the contractors per workspace and traders globally sorted? it should
@@ -813,55 +811,38 @@ is exactly what must never happen. The console is reachable only on
 purpose (sidebar, /alpha, direct /console/* URLs); every public route
 lands in the floor language for everybody.
 
-**Revised 2026-08-15 (Viktor), two horizons on one number.** A public
-workspace now runs the SAME number on two clocks, because a single weekly
-metric pays for whatever spikes this week: any contract that inflates
-seven-day activity at the cost of the audience prices well and gets
-funded, and the workspace had no defence against that. The near horizon
-is the pulse (fast feedback, and short horizons measurably draw more
-traders); the far horizon is the decision. The charter carries the rule
-that makes two numbers unambiguous: **fund only if the far-horizon delta
-is positive; the near market exists for speed of feedback, not for the
-decision.** The two metrics measure the same quantity over different
-windows, so the contrast between them is meaningful: LookPilot pairs this
-week's revenue against the year's total (owner direction 2026-08-15,
-revising the first cut, which read the year-to-date number a week early
-and so could barely move), and Telarchy pairs a trailing-week headcount
-against where it lands at the end of 2026.
+**Revised 2026-08-17 (Viktor), one clock, not two.** The second horizon is
+gone: "lets remove the this week option completely, its just too confusing
+and adds unnecessary complexity". A floor shows one market, the
+furthest-resolving one, and there is no selector, no role caption, no
+per-horizon chart list and no cross-horizon conflict mark on the ballot.
 
-**Impact is always the far horizon's number** (owner direction
-2026-08-15). The ballot and the selected contract's headline both print
-the delta the charter funds on, labelled with its horizon, whichever
-clock the page is currently showing; the horizon selector switches the
-market you look at and trade, not the number you judge by. Short-term
-impact is not a second figure competing with it: when the near clock
-disagrees in sign, the ballot says so in words instead.
+What it was for, so nobody rebuilds it by accident. Between 2026-08-15 and
+2026-08-17 a public workspace ran the SAME number on two clocks: a near one
+for fast feedback (short horizons measurably draw more traders) and a far one
+for the decision the charter funds on. The stated reason was Goodhart: a
+single weekly metric pays for whatever spikes this week, so a contract that
+inflates seven-day activity at the cost of the audience prices well and gets
+funded. The ballot's answer was a plain-language mark on any contract whose
+near delta disagreed in sign with its far one ("buys the week, costs the
+year").
 
-The page shows it like this:
+Why it went anyway. The defence cost more than it bought. Every surface had
+to say which clock it meant, and each one that forgot became a bug: the
+weekly view drew the yearly market's price line and dropped to the week's
+call with a -$73,387 chip to match, the caption read "speed, not the
+decision" beside "end of 2026", the impact unit came off a stale
+end-of-array convention, and a renamed weekly metric stamped last week's
+total as a reading inside the new week (all owner reports, 2026-08-16 and
+2026-08-17). Meanwhile the thing it was meant to catch never fired in
+anger: LookPilot's weekly market took zero trades in its entire life, so the
+conflict mark had nothing to mark. A second number nobody priced is not a
+Goodhart defence, it is a second number to explain. Goodhart is now handled
+where it always actually was, in the charter's own words and the owner's
+judgment, rather than by a market with no traders in it.
 
-- A **horizon selector** sits above the price in the chart zoom row's own
-  grammar (small mono buttons, the active one boxed), because that is
-  already this page's vocabulary for "which window am I looking at". It
-  is deliberately quieter than the approved/declined pills: a horizon is
-  a lens on one number, a branch is a different world.
-- The big mono price is the **selected horizon's** call, and the ticket
-  trades that market. The headline's settle day follows the selection.
-- The chart's quiet second line is **the other branch, and only ever the
-  other branch**: same metric, same window, two worlds, so the gap
-  between the lines is the priced impact and the shared axis is honest.
-  The two horizons are never drawn on one axis (corrected 2026-08-15,
-  same day it was tried): once the near horizon measured its own window
-  rather than the same total read early, the two series stopped sharing
-  a scale, and a week of revenue plotted against a year of it is a flat
-  line at the bottom of the chart pretending to be a comparison. The
-  per-horizon charts in "What is this market?" do that job properly,
-  each on its own axis.
-- The ballot ranks contracts by the **far-horizon delta**, because that
-  is the number the charter funds on, and prints it as the row's impact.
-  When a contract's near delta disagrees in sign with it, the row carries
-  a plain-language mark ("buys the week, costs the year"). That mark is
-  the whole reason the second horizon exists: it is Goodhart caught in
-  the act, said in words a visitor can act on.
+If it comes back, it comes back as a deliberate feature with its own doc
+section, not by re-adding a role enum to `floor-horizons.ts`.
 
 **Revised 2026-08-17 (Viktor), the leaderboard is a public page.** The
 market page's left rail lists the top **ten** traders and the top ten

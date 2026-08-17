@@ -1,11 +1,12 @@
 /**
  * One horizon of a floor, as everything on the page needs it.
  *
- * A workspace runs one definition at two clocks: a far horizon (the DECISION,
- * what the charter funds on) and a near one (the PULSE, fast feedback). Every
- * surface on the floor needs the same handful of facts about whichever clock
- * is on screen: its market, its price series, its metric's history, where its
- * period starts, what to call it, and which of the two roles it plays.
+ * A floor shows ONE horizon: the furthest-resolving open market (owner
+ * direction 2026-08-17, the second clock removed as "too confusing"). Every
+ * surface needs the same handful of facts about it: its market, its price
+ * series, its metric's history, where its period starts, and what to call it.
+ * A workspace may still have other open markets and the API still serves
+ * them; the floor does not offer them.
  *
  * Those facts used to be re-derived at each use site from the position of an
  * element in `ws.markets`, and the surfaces disagreed the moment the order
@@ -22,15 +23,13 @@
  *     stale convention.
  *
  * So the rule is: NOTHING outside this module decides what a horizon is from
- * its index. `buildHorizonViews` returns them furthest-first with the role
- * named on each one, and a price series is only ever looked up BY MARKET ID
- * (`priceSeriesOf`), never by position. Adding a third clock, or reordering
- * the list again, cannot silently re-point a chart at another market's data.
+ * its index. `primaryHorizonOf` answers "which one is the real one", and a
+ * price series is only ever looked up BY MARKET ID (`priceSeriesOf`), never by
+ * position. Reordering the payload, or a workspace growing a second open
+ * market, cannot silently re-point a chart at another market's data.
  */
 
 import type { PublicWorkspace } from './api';
-
-export type HorizonRole = 'decision' | 'pulse';
 
 export interface HorizonView {
   marketId: string;
@@ -50,9 +49,6 @@ export interface HorizonView {
   resolvesOn: string | null;
   /** First moment of the settled period (ISO), when the server sent one. */
   periodStart: string | undefined;
-  role: HorizonRole;
-  /** The one-line caption beside the selector, for THIS clock. */
-  roleNote: string;
   consensus: number | null;
   probability: number;
   liquidity: number;
@@ -108,11 +104,10 @@ export function settleDayOf(targetDate: string): string | null {
  * and "end of 2026", not in ISO period strings.
  */
 export function horizonLabel(targetDate: string, now: Date = new Date()): string {
-  // "this week" only when it IS this week. Two weekly horizons can be open at
-  // once (a "+0w" pulse beside a "+1w" one), and in the window between a week
+  // "this week" only when it IS this week. In the window between a week
   // rolling over and the hourly refresh creating the new market, last week's
-  // market is still on the page. Two buttons both reading "this week", or one
-  // reading it about a week that has ended, is worse than a date.
+  // market is still the one on the page, and a label reading "this week"
+  // about a week that has ended is worse than a date.
   if (/^\d{4}-W\d{2}$/.test(targetDate)) {
     return targetDate === isoWeekOf(now) ? 'this week' : `week to ${shortDay(targetDate)}`;
   }
@@ -149,21 +144,14 @@ function shortDay(targetDate: string): string {
   return `${day} ${month.slice(0, 3)}`;
 }
 
-const ROLE_NOTE: Record<HorizonRole, string> = {
-  decision: 'the number I fund on',
-  pulse: 'speed, not the decision',
-};
-
 /**
  * Every open horizon of a floor, FURTHEST-RESOLVING FIRST.
  *
- * Index 0 is the decision: the number the floor is about, the page's opening
- * view and its headline (owner direction 2026-08-16, "first should be total
- * yearly and then weekly"). The payload still ships soonest-first; the order
- * flip lives here and nowhere else.
- *
- * A single-horizon floor has one view, and it is the decision: there is no
- * pulse to contrast it with, and the caption stays off the page.
+ * Index 0 is the one the floor shows. The payload ships soonest-first; the
+ * order flip lives here and nowhere else, which is what makes
+ * `primaryHorizonOf` a lookup rather than a decision each caller re-derives.
+ * The rest of the list exists so a caller can still resolve a market it holds
+ * an id for; no surface renders it.
  */
 export function buildHorizonViews(
   ws: PublicWorkspace | null | undefined,
@@ -171,9 +159,8 @@ export function buildHorizonViews(
 ): HorizonView[] {
   const markets = ws?.markets ?? [];
   const historyByMarket = new Map((ws?.horizonHistories ?? []).map(h => [h.marketId, h]));
-  return [...markets].reverse().map((m, i) => {
+  return [...markets].reverse().map(m => {
     const row = historyByMarket.get(m.marketId);
-    const role: HorizonRole = i === 0 ? 'decision' : 'pulse';
     return {
       marketId: m.marketId,
       metricId: m.metricId,
@@ -185,8 +172,6 @@ export function buildHorizonViews(
       settleDay: settleDayOf(m.targetDate),
       resolvesOn: m.resolvesOn ?? null,
       periodStart: row?.periodStart,
-      role,
-      roleNote: ROLE_NOTE[role],
       consensus: m.consensus,
       probability: m.probability,
       liquidity: m.liquidity,
@@ -200,17 +185,13 @@ export function buildHorizonViews(
   });
 }
 
-/** The decision horizon: what a contract's impact is judged on. */
-export function decisionOf(views: HorizonView[]): HorizonView | null {
-  return views.find(v => v.role === 'decision') ?? null;
-}
-
 /**
- * The pulse horizon, or null on a single-clock floor. Asking by ROLE, so a
- * caller cannot accidentally pick the decision back up when there is only one.
+ * The horizon the floor is about: the furthest-resolving open market, and the
+ * only one any surface renders. The mirror of the server's `primaryMarket`,
+ * so a card, a share image and the floor all name the same number.
  */
-export function pulseOf(views: HorizonView[]): HorizonView | null {
-  return views.find(v => v.role === 'pulse') ?? null;
+export function primaryHorizonOf(views: HorizonView[]): HorizonView | null {
+  return views[0] ?? null;
 }
 
 export type PriceSeries = Array<{ at: string; consensus: number | null }>;

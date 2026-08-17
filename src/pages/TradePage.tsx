@@ -20,7 +20,7 @@ import { ReportButton } from '../components/ReportButton';
 import { Logo } from '../components/Logo';
 import type { LeaderboardEntry, LimitOrder } from '../lib/api';
 import {
-  buildHorizonViews, decisionOf, priceSeriesIsInline, priceSeriesOf, pulseOf, settleDayOf,
+  buildHorizonViews, priceSeriesIsInline, priceSeriesOf, primaryHorizonOf, settleDayOf,
   type HorizonView, type PriceSeries,
 } from '../lib/floor-horizons';
 
@@ -92,17 +92,6 @@ export function TradePage() {
   // and the chart draws the other as a quiet second line).
   const [branch, setBranch] = useState<'approved' | 'declined'>('approved');
   // Which clock the page is showing and the ticket trades, held as a MARKET
-  // ID rather than a position. The page opens on the DECISION horizon (owner
-  // direction 2026-08-16): the far number is what the owner is judged on and
-  // what every other surface leads with, so a visitor arriving here, on a
-  // card or on a shared link meets the same headline. null means "whichever
-  // is the decision", which is also the answer until the markets arrive.
-  //
-  // An index would drift under the reader: the list is rebuilt from the
-  // five-second poll, and the hourly market refresh can add or retire a
-  // baseline market, so "index 1" could quietly become a different clock -
-  // and the ticket trades whatever is selected.
-  const [horizonMarketId, setHorizonMarketId] = useState<string | null>(null);
   const [condHistory, setCondHistory] = useState<{
     approved: Array<{ at: string; consensus: number | null }>;
     declined: Array<{ at: string; consensus: number | null }>;
@@ -245,23 +234,12 @@ export function TradePage() {
     setCondHistory(null);
   }, [selectedJobId]);
 
-  // Two clocks on one number (owner direction 2026-08-15): the workspace runs
-  // the same definition at a near horizon (the pulse, fast feedback) and a far
-  // one (the decision the charter funds on). buildHorizonViews owns the order
-  // (furthest first) and names each one's role, so nothing here reads meaning
-  // out of an index. See lib/floor-horizons for why.
+  // One clock (owner direction 2026-08-17, the second one removed as "too
+  // confusing"): the floor is about the furthest-resolving market and nothing
+  // else. buildHorizonViews owns the order and primaryHorizonOf answers which
+  // one is the real one, so nothing here reads meaning out of an index.
   const horizons: HorizonView[] = useMemo(() => buildHorizonViews(ws), [ws]);
-  // Both clocks by ROLE, never by position. A single-clock floor has a
-  // decision and no pulse, and the surfaces that contrast the two (the
-  // charter line, the jobs board) then simply have nothing to contrast.
-  const pulse = pulseOf(horizons);
-  const decision = pulse ? decisionOf(horizons) : null;
-  const decisionDate = decision?.targetDate ?? null;
-  const pulseDate = pulse?.targetDate ?? null;
-  // The selected clock, or the decision when nothing is selected or the
-  // selected market is gone (resolved, retired): never a neighbour by position.
-  const hero = (horizonMarketId ? horizons.find(v => v.marketId === horizonMarketId) : null)
-    ?? decisionOf(horizons);
+  const hero = primaryHorizonOf(horizons);
   const unit = hero?.unit ?? '';
   const metricLabel = hero?.metricLabel ?? '';
   const selectedJob = ws?.proposals?.find(p => p.id === selectedJobId) ?? null;
@@ -351,11 +329,11 @@ export function TradePage() {
   const priceReqRef = useRef(0);
   const heroMarketId = hero?.marketId ?? null;
   const heroPricesInline = priceSeriesIsInline(heroMarketId, ws);
-  // Pulled on the switch AND on every poll, like the branch histories beside
-  // it. Fetched once and left alone, the series froze at the instant the
-  // reader arrived: they would watch an hour of trades move the headline while
-  // the chart kept a snapshot, on the pulse clock only, since the inline
-  // series is refreshed by the reload.
+  // Pulled on every poll, like the branch histories beside it. Fetched once
+  // and left alone, the series froze at the instant the reader arrived: they
+  // would watch an hour of trades move the headline while the chart kept a
+  // snapshot. The payload's inline series is refreshed by the reload, so this
+  // only matters for a market it does not carry (a contract's branch).
   const horizonPricesRef = useRef<() => void>(() => {});
   horizonPricesRef.current = () => {
     if (!heroMarketId || !wsKey || heroPricesInline) return;
@@ -482,17 +460,13 @@ export function TradePage() {
   const marketOpen = pair
     ? null
     : active?.history.find(p => p.consensus !== null)?.consensus ?? null;
-  // Impact is ALWAYS the far horizon's number (owner direction 2026-08-15):
-  // that is the delta the charter funds on, so it does not change under the
-  // reader when they switch which market they are looking at. The horizon
-  // selector switches the market you trade, not the number you judge by.
-  const decisionPair = (decisionDate && selectedJob?.markets.find(m => m.targetDate === decisionDate)) ?? pair;
-  const jobImpact = decisionPair && decisionPair.approvedConsensus !== null && decisionPair.declinedConsensus !== null
-    ? decisionPair.approvedConsensus - decisionPair.declinedConsensus
+  // Impact is the delta on the floor's one horizon, which is also the only
+  // market on screen, so `pair` already IS that pair. Kept as its own name
+  // because the ballot passes the same target date and the two must agree.
+  const jobImpact = pair && pair.approvedConsensus !== null && pair.declinedConsensus !== null
+    ? pair.approvedConsensus - pair.declinedConsensus
     : null;
-  // The unit belongs to the metric the impact is measured in, which is the
-  // decision horizon's, not whichever clock is on screen.
-  const impactUnit = decision?.unit ?? unit;
+  const impactUnit = unit;
   const consensus = (livePrice && livePrice.marketId === activeMarketId ? livePrice.value : null)
     ?? active?.consensus ?? null;
   // The number rolls to its new value (trade, branch switch, job select)
@@ -546,13 +520,10 @@ export function TradePage() {
       .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
   }, [ws?.heroHistory]);
 
-  // One chart model per open horizon, each from its OWN metric's logged
-  // history and its OWN market's call, so "this week" and "this year" are
-  // two honest pictures rather than one series relabelled.
+  // The chart model for the one horizon the floor shows, from ITS metric's
+  // logged history against ITS settle date.
   const horizonCharts = useMemo(() => {
-    // One chart per horizon, in the selector's order (furthest first), each
-    // drawing ITS OWN metric history against ITS OWN settle date.
-    return horizons.flatMap(h => {
+    return (hero ? [hero] : []).flatMap(h => {
       // A horizon with no readings YET still gets its chart: for a metric that
       // restarts each period, an empty week with the market's call on the right
       // is the honest picture, and a chart that vanishes and reappears every
@@ -580,7 +551,7 @@ export function TradePage() {
       }];
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [horizons, hero?.marketId, consensus, selectedJob]);
+  }, [hero, consensus, selectedJob]);
 
   // The one moment the year chart names, when the owner has declared one.
   // Memoised because the chart's model keys on it; a fresh object every render
@@ -592,7 +563,7 @@ export function TradePage() {
     [ws?.telarchyStartedOn],
   );
 
-  // The definition belongs to the horizon on screen.
+  // The definition belongs to the market on screen.
   const horizonDescription = hero?.description ?? null;
 
   if (error) {
@@ -792,30 +763,6 @@ export function TradePage() {
                 )}
               </h1>
             )}
-            {/* Two clocks on one number: quieter than the approved/declined
-                pills on purpose, because a horizon is a lens on the same
-                number while a branch is a different world. */}
-            {horizons.length > 1 && (
-              <div className="pubws-horizons pubws-enter pubws-enter--2" role="group" aria-label="Horizon">
-                {horizons.map(m => (
-                  <button
-                    key={m.marketId}
-                    className={`pubws-horizon${m.marketId === hero?.marketId ? ' is-active' : ''}`}
-                    aria-pressed={m.marketId === hero?.marketId}
-                    onClick={() => setHorizonMarketId(m.marketId)}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-                {hero && (
-                  // The note describes the clock ON SCREEN, and each horizon
-                  // carries its own: testing an index printed "speed, not the
-                  // decision" beside "end of 2026" the day the list order
-                  // flipped (owner report 2026-08-17).
-                  <span className="pubws-horizon-note">{hero.roleNote}</span>
-                )}
-              </div>
-            )}
             <div className="pubws-headline pubws-enter pubws-enter--2">
               <span className="pubws-price">{unit}{formatValue(shownConsensus ?? consensus)}</span>
               {!selectedJob && marketOpen !== null && consensus !== marketOpen && (
@@ -835,7 +782,7 @@ export function TradePage() {
                 ) : (
                   <span key={`imp-${Math.round(jobImpact)}`} className={`pubws-delta-chip ${jobImpact >= 0 ? 'is-up' : 'is-down'}`}>
                     {jobImpact >= 0 ? '▲' : '▼'} {formatDelta(jobImpact, impactUnit)} impact
-                    {decision ? ` by ${decision.label}` : ''}
+                    {hero ? ` by ${hero.label}` : ''}
                   </span>
                 )
               )}
@@ -1031,8 +978,7 @@ export function TradePage() {
             <JobsBoard
               proposals={ws.proposals}
               unit={unit}
-              decisionDate={decisionDate}
-              pulseDate={pulseDate}
+              horizonDate={hero.targetDate}
               selectedId={selectedJobId}
               onSelect={id => setSelectedJobId(cur => (cur === id ? null : id))}
               signedIn={!!user}

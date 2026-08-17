@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from './TradePage';
-import { buildHorizonViews, decisionOf, priceSeriesOf } from '../lib/floor-horizons';
+import { buildHorizonViews, primaryHorizonOf, priceSeriesOf } from '../lib/floor-horizons';
 
 /**
  * The marketplace at /marketplace (owner direction 2026-08-14, Viktor,
@@ -236,7 +236,7 @@ export function FloorsPage() {
               // The card leads with the DECISION horizon, and takes it from
               // the same model the floor uses, so a card and the page it links
               // to can never name different numbers.
-              const m = decisionOf(buildHorizonViews(ws));
+              const m = primaryHorizonOf(buildHorizonViews(ws));
               setListings(cur => (cur ?? []).map(r => r.workspaceId === row.workspaceId
                 ? {
                     ...r,
