@@ -275,7 +275,16 @@ metricsRouter.put('/:id', requireCapability('manage'), wrap(async (req, res) => 
   }
 
   const allMetrics = await svc.getAllMetrics(workspaceId);
-  await svc.logSpecificMetrics(getAffectedMetrics([id], allMetrics), allMetrics, workspaceId);
+  // A reading is logged only when this update actually moved the number: a new
+  // value, or a formula whose result changes. A rename, a description, a range
+  // or a time-preference edit is not a measurement, and logging one fabricates
+  // history: renaming the weekly LookPilot metric on a Monday morning stamped
+  // last week's $1,179.72 total as a reading inside the new week, which is
+  // exactly what the resetsEvery rule exists to keep off the chart
+  // (2026-08-17).
+  if (update.value !== undefined || update.formula !== undefined) {
+    await svc.logSpecificMetrics(getAffectedMetrics([id], allMetrics), allMetrics, workspaceId);
+  }
   if (update.value !== undefined) {
     const metric = allMetrics.find(m => m.id === id);
     if (!metric) { console.error(`emitEvent: metric ${id} not found after update`); }
