@@ -194,3 +194,58 @@ describe('a period with nothing measured yet', () => {
     expect(container.querySelector('svg')).toBeNull();
   });
 });
+
+/**
+ * The event marker. It exists so a year of trajectory can say what changed and
+ * when, and the rule that matters is the one that keeps it honest: a marker
+ * outside the drawn domain is not drawn at all, rather than clamped to an edge
+ * where it would assert the event happened at the start of a window it
+ * actually predates.
+ */
+const YEAR = {
+  history: [
+    { at: '2026-01-01T00:00:00Z', value: 137 },
+    { at: '2026-06-01T00:00:00Z', value: 30000 },
+    { at: '2026-08-17T00:00:00Z', value: 45783 },
+  ],
+  forecastValue: 78570,
+  forecastAt: '2026-12-31T23:59:59Z',
+  periodStart: '2026-01-01T00:00:00Z',
+};
+const marker = { at: '2026-08-13T00:00:00Z', label: 'Started using Telarchy' };
+
+describe('the event marker', () => {
+  it('draws a labelled line inside the domain, at the right fraction of it', () => {
+    const { container } = render(<MetricYearChart {...YEAR} marker={marker} unit="$" />);
+    const line = container.querySelector('.myear-marker line');
+    expect(line).toBeTruthy();
+    expect(container.querySelector('.myear-marker text')?.textContent).toBe('Started using Telarchy');
+
+    // 13 Aug is 224 days into a 1 Jan -> 31 Dec domain of 365 days, so the
+    // line sits at PAD_L + 224/365 of the plot width. Derived from the domain,
+    // not copied from a run, so a domain change fails this rather than
+    // silently moving the line.
+    const span = new Date(YEAR.forecastAt).getTime() - new Date('2026-01-01T00:00:00Z').getTime();
+    const into = new Date(marker.at).getTime() - new Date('2026-01-01T00:00:00Z').getTime();
+    const expected = PAD_L + (into / span) * (W - PAD_L - PAD_R);
+    expect(parseFloat(line!.getAttribute('x1')!)).toBeCloseTo(expected, 0);
+  });
+
+  it('says nothing on a chart whose period predates the event', () => {
+    // The weekly horizon: 10-16 August. An August-13 marker is inside THAT
+    // week, so use a week that ended before it to pin the exclusion.
+    const earlierWeek = {
+      ...WEEK,
+      history: [{ at: '2026-08-01T10:00:00Z', value: 500 }],
+      forecastAt: '2026-08-03T00:00:00Z',
+      periodStart: '2026-07-27T00:00:00Z',
+    };
+    const { container } = render(<MetricYearChart {...earlierWeek} marker={marker} unit="$" />);
+    expect(container.querySelector('.myear-marker')).toBeNull();
+  });
+
+  it('is absent when the owner never named a date', () => {
+    const { container } = render(<MetricYearChart {...YEAR} unit="$" />);
+    expect(container.querySelector('.myear-marker')).toBeNull();
+  });
+});

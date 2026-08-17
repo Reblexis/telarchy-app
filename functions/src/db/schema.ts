@@ -85,6 +85,13 @@ export const workspaces = pgTable('workspaces', {
    *  (the "What is <name>?" section): free text, the owner's own words plus
    *  sources. Null = the floor shows its built-in default copy. */
   subjectAbout: text('subject_about'),
+  /** When this workspace started running its number through Telarchy. The
+   *  floor's actual-vs-forecast chart marks it with one dashed line, because a
+   *  year of trajectory raises the question the number alone cannot answer:
+   *  what changed, and when. Owner-declared rather than derived, since the
+   *  honest date is neither the workspace's creation nor its first trade.
+   *  Null = the chart carries no marker. */
+  telarchyStartedOn: timestamp('telarchy_started_on'),
   /** 'public' | 'unlisted' | 'private' */
   visibility: text('visibility').notNull().default('private'),
   tradedVolume: doublePrecision('traded_volume').notNull().default(0),

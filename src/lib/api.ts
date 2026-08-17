@@ -279,6 +279,9 @@ export interface PublicWorkspace {
   /** Owner-authored "What is <name>?" blurb for the floor (free text; null =
    *  the floor's built-in default copy is shown). Owner-editable. */
   subjectAbout?: string | null;
+  /** When the owner says this workspace started running on Telarchy (ISO), or
+      null. The floor's year chart marks it with one dashed line. */
+  telarchyStartedOn?: string | null;
   visibility: string;
   proposalReward: number;
   spamPenalty: number;
@@ -960,7 +963,7 @@ export const api = {
     request(`/api/workspaces/resolve?owner=${encodeURIComponent(owner)}&slug=${encodeURIComponent(slug)}`, {}, true),
   getWorkspace: (id: string) => request(`/api/workspaces/${id}`),
   getWorkspaceStats: (id: string) => request(`/api/workspaces/${id}/stats`),
-  updateWorkspaceSettings: (id: string, body: { name?: string; description?: string | null; charter?: string | null; subjectAbout?: string | null; autoFundNewMarkets?: boolean; newMarketLiquidityCredits?: number; visibility?: 'public' | 'unlisted' | 'private'; proposalReward?: number; spamPenalty?: number; maxPendingProposalsPerParticipant?: number }) =>
+  updateWorkspaceSettings: (id: string, body: { name?: string; description?: string | null; charter?: string | null; subjectAbout?: string | null; telarchyStartedOn?: string | null; autoFundNewMarkets?: boolean; newMarketLiquidityCredits?: number; visibility?: 'public' | 'unlisted' | 'private'; proposalReward?: number; spamPenalty?: number; maxPendingProposalsPerParticipant?: number }) =>
     request(`/api/workspaces/${id}/settings`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteWorkspace: (id: string) =>
     request(`/api/workspaces/${id}`, { method: 'DELETE' }),

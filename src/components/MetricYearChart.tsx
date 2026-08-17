@@ -33,6 +33,16 @@ interface Props {
    * cumulative metric whose readings predate its period keeps them all.
    */
   periodStart?: string;
+  /**
+   * One event worth naming on the axis, e.g. when this number started being
+   * run through Telarchy. A year of trajectory raises the question the number
+   * alone cannot answer, which is what changed and when.
+   *
+   * Drawn only when the moment falls inside the domain actually on screen, so
+   * a chart of a period that predates the event says nothing about it rather
+   * than pinning the line to an edge it does not belong on.
+   */
+  marker?: { at: string; label: string };
   /** Currency prefix for every numeral ('$' or ''), inferred by the caller. */
   unit?: string;
   /** Top-left corner note ("resolves 31 December 2026"). */
@@ -57,7 +67,7 @@ function fullNum(v: number): string {
   return v.toLocaleString('en-US', { maximumFractionDigits: 0 });
 }
 
-export function MetricYearChart({ history, forecastValue, forecastAt, periodStart, unit = '', note, height }: Props) {
+export function MetricYearChart({ history, forecastValue, forecastAt, periodStart, marker, unit = '', note, height }: Props) {
   const [compact, setCompact] = useState(() => typeof window !== 'undefined' && window.innerWidth < 520);
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 519px)');
@@ -182,11 +192,17 @@ export function MetricYearChart({ history, forecastValue, forecastAt, periodStar
     // (continuous data), actual through `last` then the forecast leg.
     const line = [...pts, { t: forecastT, v: forecastValue }];
 
-    return { pts, last, empty: last === null, forecastT, d, areaPath, fcast, t0, t1, span, x, y, gridVals, monthTicks, fmtMonth, line, vMin, vMax };
-  }, [history, forecastValue, forecastAt, periodStart, H, W, PAD_L, PAD_R, compact]);
+    // The event marker, only if it lands inside the domain being drawn. A
+    // marker clamped to an edge would assert the event happened at the start
+    // of a window it actually predates.
+    const markerT = marker ? new Date(marker.at).getTime() : NaN;
+    const markerX = Number.isFinite(markerT) && markerT > t0 && markerT < t1 ? x(markerT) : null;
+
+    return { pts, last, empty: last === null, forecastT, d, areaPath, fcast, t0, t1, span, x, y, gridVals, monthTicks, fmtMonth, line, vMin, vMax, markerX };
+  }, [history, forecastValue, forecastAt, periodStart, marker, H, W, PAD_L, PAD_R, compact]);
 
   if (!model) return null;
-  const { last, empty, forecastT, d, areaPath, fcast, x, y, gridVals, monthTicks, fmtMonth, line } = model;
+  const { last, empty, forecastT, d, areaPath, fcast, x, y, gridVals, monthTicks, fmtMonth, line, markerX } = model;
   const cNum = (v: number) => `${unit}${compactNum(v)}`;
   const fNum = (v: number) => `${unit}${fullNum(v)}`;
   // Anchor an end label on the left of its dot when it would run off the edge.
@@ -262,6 +278,20 @@ export function MetricYearChart({ history, forecastValue, forecastAt, periodStar
         {monthTicks.map(t => (
           <text key={t} className="mchart-xlabel" x={x(t)} y={H - 8}>{fmtMonth(t)}</text>
         ))}
+
+        {/* The event marker sits UNDER the series: it is context for the
+            trajectory, not a thing drawn on top of it. */}
+        {markerX !== null && marker && (
+          <g className="myear-marker">
+            <line x1={markerX} x2={markerX} y1={PAD_T} y2={H - PAD_B} />
+            {(() => {
+              const anchored = edgeLabel(markerX, marker.label);
+              return (
+                <text x={anchored.x} y={PAD_T + 9} textAnchor={anchored.anchor}>{marker.label}</text>
+              );
+            })()}
+          </g>
+        )}
 
         <g className="mchart-market">
           {areaPath && <path d={areaPath} className="mchart-fill-area" fill="url(#myear-fill)" stroke="none" />}

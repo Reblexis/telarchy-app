@@ -681,6 +681,20 @@ six weeks and months above it, because "Aug" printed three times is not
 an axis. The API sends `periodStart` per horizon so the two surfaces
 cannot disagree about where a period begins.
 
+**Event markers on the actual-vs-forecast chart (owner ask 2026-08-17).**
+The chart takes an optional `marker` (`{ at, label }`): one dashed vertical
+hairline at a moment, with a small uppercase label at the top. It exists
+because a year-long trajectory raises the question the number alone cannot
+answer, which is what changed and when; LookPilot's chart carries
+"Started using Telarchy" at 13 August 2026. Rules: a marker draws only when
+its moment falls inside the drawn domain, so a chart of a period that
+predates the event simply does not mention it (a weekly horizon does not
+carry an August marker in October); it is `--text-tertiary` and dashed, not
+accent, because it is context and the data still leads; and its label flips
+to whichever side of the line has room, the same `edgeLabel` rule the
+settle-value label uses. One marker, not a list: a chart with several
+annotations is an infographic, and the floor's charts are instruments.
+
 **Revised 2026-08-15 (owner report: "it goes from 25 to 25 and yet it
 goes down?").** The y domain now has a floor: four label quanta, where a
 quantum is the smallest difference a tick label can express at that

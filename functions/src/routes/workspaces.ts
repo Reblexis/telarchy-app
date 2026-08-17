@@ -271,7 +271,7 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
     res.status(403).json({ error: 'These settings require the manage_workspace capability' }); return;
   }
 
-  const { name, description, charter, subjectAbout, autoFundNewMarkets, newMarketLiquidityCredits, visibility, proposalReward, spamPenalty, maxPendingProposalsPerParticipant, maxPositionCostPerMarket } = req.body;
+  const { name, description, charter, subjectAbout, telarchyStartedOn, autoFundNewMarkets, newMarketLiquidityCredits, visibility, proposalReward, spamPenalty, maxPendingProposalsPerParticipant, maxPositionCostPerMarket } = req.body;
   const update: Partial<typeof workspaces.$inferInsert> = {};
 
   // description (one-liner) and charter (the owner's public commitment about
@@ -295,6 +295,20 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
       res.status(400).json({ error: `${key} must be at most ${max} characters` }); return;
     }
     update[key] = value.trim();
+  }
+
+  // The one moment the floor's year chart marks. Plain `manage`, like the
+  // other identity fields: naming when you started is not a lifecycle change.
+  if (Object.prototype.hasOwnProperty.call(req.body, 'telarchyStartedOn')) {
+    if (telarchyStartedOn === null || telarchyStartedOn === '') {
+      update.telarchyStartedOn = null;
+    } else {
+      const at = new Date(telarchyStartedOn as string);
+      if (typeof telarchyStartedOn !== 'string' || Number.isNaN(at.getTime())) {
+        res.status(400).json({ error: 'telarchyStartedOn must be an ISO date string or null' }); return;
+      }
+      update.telarchyStartedOn = at;
+    }
   }
 
   if (hasVisibilityKey) {

@@ -582,6 +582,16 @@ export function TradePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [horizons, hero?.marketId, consensus, selectedJob]);
 
+  // The one moment the year chart names, when the owner has declared one.
+  // Memoised because the chart's model keys on it; a fresh object every render
+  // would rebuild the whole chart on every tick.
+  const startMarker = useMemo(
+    () => (ws?.telarchyStartedOn
+      ? { at: ws.telarchyStartedOn, label: 'Started using Telarchy' }
+      : undefined),
+    [ws?.telarchyStartedOn],
+  );
+
   // The definition belongs to the horizon on screen.
   const horizonDescription = hero?.description ?? null;
 
@@ -982,6 +992,7 @@ export function TradePage() {
                 forecastValue={h.forecast}
                 forecastAt={h.resolvesOn}
                 periodStart={h.periodStart}
+                marker={startMarker}
                 unit={h.unit}
               />
             </div>

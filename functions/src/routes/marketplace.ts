@@ -760,6 +760,8 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
     description: ws.description,
     charter: ws.charter,
     subjectAbout: ws.subjectAbout ?? null,
+    // The moment the floor's year chart marks, when the owner named one.
+    telarchyStartedOn: ws.telarchyStartedOn ?? null,
     visibility: ws.visibility,
     proposalReward: ws.proposalReward,
     spamPenalty: ws.spamPenalty,
