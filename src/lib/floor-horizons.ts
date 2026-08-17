@@ -107,8 +107,15 @@ export function settleDayOf(targetDate: string): string | null {
  * What to call a horizon in the selector: the reader thinks in "this week"
  * and "end of 2026", not in ISO period strings.
  */
-export function horizonLabel(targetDate: string): string {
-  if (/^\d{4}-W\d{2}$/.test(targetDate)) return 'this week';
+export function horizonLabel(targetDate: string, now: Date = new Date()): string {
+  // "this week" only when it IS this week. Two weekly horizons can be open at
+  // once (a "+0w" pulse beside a "+1w" one), and in the window between a week
+  // rolling over and the hourly refresh creating the new market, last week's
+  // market is still on the page. Two buttons both reading "this week", or one
+  // reading it about a week that has ended, is worse than a date.
+  if (/^\d{4}-W\d{2}$/.test(targetDate)) {
+    return targetDate === isoWeekOf(now) ? 'this week' : `week to ${shortDay(targetDate)}`;
+  }
   if (/^\d{4}$/.test(targetDate)) return `end of ${targetDate}`;
   const m = targetDate.match(/^(\d{4})-(\d{2})$/);
   if (m) {
@@ -120,6 +127,26 @@ export function horizonLabel(targetDate: string): string {
     return `end of ${month}`;
   }
   return settleDayOf(targetDate) ?? targetDate;
+}
+
+/** The ISO week a moment falls in, as YYYY-Www. The Thursday rule, in UTC. */
+function isoWeekOf(d: Date): string {
+  const day = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7) + 3); // this week's Thursday
+  const isoYear = day.getUTCFullYear();
+  const jan4 = new Date(Date.UTC(isoYear, 0, 4));
+  const week1Thursday = new Date(jan4);
+  week1Thursday.setUTCDate(jan4.getUTCDate() - ((jan4.getUTCDay() + 6) % 7) + 3);
+  const week = 1 + Math.round((day.getTime() - week1Thursday.getTime()) / (7 * 86_400_000));
+  return `${isoYear}-W${String(week).padStart(2, '0')}`;
+}
+
+/** "23 Aug", for a selector button that has no room for the year. */
+function shortDay(targetDate: string): string {
+  const full = settleDayOf(targetDate);
+  if (!full) return targetDate;
+  const [day, month] = full.split(' ');
+  return `${day} ${month.slice(0, 3)}`;
 }
 
 const ROLE_NOTE: Record<HorizonRole, string> = {
@@ -138,7 +165,10 @@ const ROLE_NOTE: Record<HorizonRole, string> = {
  * A single-horizon floor has one view, and it is the decision: there is no
  * pulse to contrast it with, and the caption stays off the page.
  */
-export function buildHorizonViews(ws: PublicWorkspace | null | undefined): HorizonView[] {
+export function buildHorizonViews(
+  ws: PublicWorkspace | null | undefined,
+  now: Date = new Date(),
+): HorizonView[] {
   const markets = ws?.markets ?? [];
   const historyByMarket = new Map((ws?.horizonHistories ?? []).map(h => [h.marketId, h]));
   return [...markets].reverse().map((m, i) => {
@@ -151,7 +181,7 @@ export function buildHorizonViews(ws: PublicWorkspace | null | undefined): Horiz
       metricLabel: metricLabelOf(m.metricName),
       unit: currencyOf(m.metricName),
       targetDate: m.targetDate,
-      label: horizonLabel(m.targetDate),
+      label: horizonLabel(m.targetDate, now),
       settleDay: settleDayOf(m.targetDate),
       resolvesOn: m.resolvesOn ?? null,
       periodStart: row?.periodStart,

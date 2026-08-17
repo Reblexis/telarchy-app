@@ -90,15 +90,18 @@ export function TradePage() {
   // branches are on the page; the toggle picks which one the ticket trades,
   // and the chart draws the other as a quiet second line).
   const [branch, setBranch] = useState<'approved' | 'declined'>('approved');
-  // Which clock the page is showing and the ticket trades: 0 is the near
-  // horizon (the pulse), the last index is the decision horizon.
-  // Which clock the page opens on. The DECISION horizon, not the pulse
-  // (owner direction 2026-08-16): the far number is what the owner is judged
-  // on and what every other surface leads with, so a visitor who arrives
-  // here, on a card, or on a shared link meets the same headline. -1 means
-  // "the last one" until the markets arrive; the selector still offers the
-  // near horizon as the second option.
-  const [horizon, setHorizon] = useState(-1);
+  // Which clock the page is showing and the ticket trades, held as a MARKET
+  // ID rather than a position. The page opens on the DECISION horizon (owner
+  // direction 2026-08-16): the far number is what the owner is judged on and
+  // what every other surface leads with, so a visitor arriving here, on a
+  // card or on a shared link meets the same headline. null means "whichever
+  // is the decision", which is also the answer until the markets arrive.
+  //
+  // An index would drift under the reader: the list is rebuilt from the
+  // five-second poll, and the hourly market refresh can add or retire a
+  // baseline market, so "index 1" could quietly become a different clock -
+  // and the ticket trades whatever is selected.
+  const [horizonMarketId, setHorizonMarketId] = useState<string | null>(null);
   const [condHistory, setCondHistory] = useState<{
     approved: Array<{ at: string; consensus: number | null }>;
     declined: Array<{ at: string; consensus: number | null }>;
@@ -252,8 +255,10 @@ export function TradePage() {
   const decision = pulse ? decisionOf(horizons) : null;
   const decisionDate = decision?.targetDate ?? null;
   const pulseDate = pulse?.targetDate ?? null;
-  const heroIdx = horizon < 0 ? 0 : Math.min(horizon, Math.max(0, horizons.length - 1));
-  const hero = horizons[heroIdx] ?? null;
+  // The selected clock, or the decision when nothing is selected or the
+  // selected market is gone (resolved, retired): never a neighbour by position.
+  const hero = (horizonMarketId ? horizons.find(v => v.marketId === horizonMarketId) : null)
+    ?? decisionOf(horizons);
   const unit = hero?.unit ?? '';
   const metricLabel = hero?.metricLabel ?? '';
   const selectedJob = ws?.proposals?.find(p => p.id === selectedJobId) ?? null;
@@ -343,7 +348,13 @@ export function TradePage() {
   const priceReqRef = useRef(0);
   const heroMarketId = hero?.marketId ?? null;
   const heroPricesInline = priceSeriesIsInline(heroMarketId, ws);
-  useEffect(() => {
+  // Pulled on the switch AND on every poll, like the branch histories beside
+  // it. Fetched once and left alone, the series froze at the instant the
+  // reader arrived: they would watch an hour of trades move the headline while
+  // the chart kept a snapshot, on the pulse clock only, since the inline
+  // series is refreshed by the reload.
+  const horizonPricesRef = useRef<() => void>(() => {});
+  horizonPricesRef.current = () => {
     if (!heroMarketId || !wsKey || heroPricesInline) return;
     const token = ++priceReqRef.current;
     api.getPublicMarketHistory(wsKey, heroMarketId)
@@ -352,7 +363,9 @@ export function TradePage() {
         setHorizonPrices(prev => ({ ...prev, [heroMarketId]: points }));
       })
       .catch(e => console.error('horizon price history fetch failed:', e));
-  }, [heroMarketId, heroPricesInline, wsKey]);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { horizonPricesRef.current(); }, [heroMarketId, heroPricesInline, wsKey]);
 
   // The initial pull for a newly selected job. Keyed on the market ids and
   // the workspace's stable slug, NOT on the `ws` object: `ws` is a fresh
@@ -390,6 +403,7 @@ export function TradePage() {
     reload();
     loadLeaders();
     condHistoryRef.current();
+    horizonPricesRef.current();
     if (joined) refreshMoney();
   };
   useEffect(() => {
@@ -766,12 +780,12 @@ export function TradePage() {
                 number while a branch is a different world. */}
             {horizons.length > 1 && (
               <div className="pubws-horizons pubws-enter pubws-enter--2" role="group" aria-label="Horizon">
-                {horizons.map((m, i) => (
+                {horizons.map(m => (
                   <button
                     key={m.marketId}
-                    className={`pubws-horizon${i === heroIdx ? ' is-active' : ''}`}
-                    aria-pressed={i === heroIdx}
-                    onClick={() => setHorizon(i)}
+                    className={`pubws-horizon${m.marketId === hero?.marketId ? ' is-active' : ''}`}
+                    aria-pressed={m.marketId === hero?.marketId}
+                    onClick={() => setHorizonMarketId(m.marketId)}
                   >
                     {m.label}
                   </button>

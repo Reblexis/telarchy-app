@@ -39,6 +39,7 @@ import { LeaderboardPage } from './pages/LeaderboardPage';
 import { BenchmarkPage } from './pages/BenchmarkPage';
 import { TradePage } from './pages/TradePage';
 import { FloorsPage } from './pages/FloorsPage';
+import { LeaderPage } from './pages/LeaderPage';
 import { ManagePage } from './pages/ManagePage';
 
 // /marketplace/:workspaceId is the destination for a shared workspace link, so
@@ -140,6 +141,10 @@ export function App() {
           <Route path="/marketplace/:workspaceId" element={<TradePage />} />
           {/* The public floor selection, for everyone. */}
           <Route path="/marketplace" element={<FloorsPage />} />
+          {/* The public leaderboard, in the market pages' own language. The
+              console's own leaderboard lives at /console/leaderboard; no
+              public route may land anyone in that UI. */}
+          <Route path="/leaderboard" element={<LeaderPage />} />
           {/* Public profiles (owner ask 2026-08-11): a trader's name on the
               floor links here, so the page cannot sit behind the alpha
               wall. Shell-agnostic page; renders bare for visitors. */}
@@ -158,7 +163,7 @@ export function App() {
           <Route element={<AppLayout />}>
             <Route path="/console/marketplace" element={<MarketplacePage />} />
             <Route path="/marketplace/:workspaceId/:tab" element={<MarketplaceTabRedirect />} />
-            <Route path="/leaderboard" element={<LeaderboardPage />} />
+            <Route path="/console/leaderboard" element={<LeaderboardPage />} />
             <Route path="/benchmark" element={<BenchmarkPage />} />
             <Route path="/guides" element={<GuidesPage />} />
             <Route path="/guides/:section" element={<GuidesPage />} />

@@ -85,7 +85,7 @@ describe('order and role', () => {
 
 describe('what each horizon knows', () => {
   test('label, settle day, unit and definition come from its own market', () => {
-    const [decision, pulse] = buildHorizonViews(ws());
+    const [decision, pulse] = buildHorizonViews(ws(), new Date('2026-08-19T12:00:00Z'));
     expect(decision.label).toBe('end of 2026');
     expect(decision.settleDay).toBe('31 December 2026');
     expect(decision.unit).toBe('$');
@@ -163,13 +163,28 @@ describe('a price series belongs to one market', () => {
 });
 
 describe('the label helpers', () => {
+  // A fixed "now" inside ISO week 34 of 2026, so "this week" means something
+  // an assertion can check on any day of the year.
+  const NOW = new Date('2026-08-19T12:00:00Z');
+
   test.each([
     ['2026-W34', 'this week'],
     ['2026', 'end of 2026'],
     ['2026-12', 'end of 2026'],
     ['2026-09', 'end of September'],
   ])('horizonLabel(%s) is %s', (target, label) => {
-    expect(horizonLabel(target)).toBe(label);
+    expect(horizonLabel(target, NOW)).toBe(label);
+  });
+
+  test('only the current week is called "this week"', () => {
+    // Two weekly horizons can be open together ("+0w" beside "+1w"), and a
+    // rolled-over week stays on the page until the hourly refresh. Two buttons
+    // both reading "this week" name nothing.
+    expect(horizonLabel('2026-W35', NOW)).toBe('week to 30 Aug');
+    expect(horizonLabel('2026-W33', NOW)).toBe('week to 16 Aug');
+    // At the very end of the week it is still this week.
+    expect(horizonLabel('2026-W34', new Date('2026-08-23T23:59:00Z'))).toBe('this week');
+    expect(horizonLabel('2026-W34', new Date('2026-08-24T00:01:00Z'))).toBe('week to 23 Aug');
   });
 
   test.each([

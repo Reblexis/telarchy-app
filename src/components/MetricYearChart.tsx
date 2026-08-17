@@ -83,8 +83,16 @@ export function MetricYearChart({ history, forecastValue, forecastAt, periodStar
     // that period, or at the first reading when that is earlier (a cumulative
     // metric has been running since long before its market's period), and
     // closes at the settle date.
+    // A period start is trusted only if it is a plausible bound for THIS
+    // series. periodStartInstant returns the epoch for a target date it does
+    // not recognise (deliberately, so a caller filtering by window keeps
+    // everything), and 1970 is a fine filter floor and a terrible axis: it
+    // squashes every reading into the last pixel of a 56-year span. A year of
+    // slack is enough for any real period.
     const periodT = periodStart ? new Date(periodStart).getTime() : NaN;
-    const t0 = Number.isFinite(periodT) ? Math.min(pts[0].t, periodT) : pts[0].t;
+    const YEAR = 365 * 86_400_000;
+    const usablePeriod = Number.isFinite(periodT) && periodT > pts[0].t - YEAR;
+    const t0 = usablePeriod ? Math.min(pts[0].t, periodT) : pts[0].t;
     const t1 = Math.max(forecastT, last.t);
     const span = Math.max(t1 - t0, 60_000);
 
@@ -194,6 +202,11 @@ export function MetricYearChart({ history, forecastValue, forecastAt, periodStar
   const tipX = cursor !== null ? x(cursor) : 0;
   const tipRight = cursor !== null && tipX > W * 0.6;
   const cursorForecast = cursor !== null && cursor > last.t;
+  // Left of the first reading the axis exists but the data does not: opening
+  // the axis on the period start made that stretch hoverable, and the tooltip
+  // reported the first reading's value as the "actual" for days that have
+  // none. Say so instead.
+  const cursorBeforeData = cursor !== null && cursor < model.pts[0].t;
   const fcastLabel = edgeLabel(x(forecastT), fNum(forecastValue));
 
   return (
@@ -248,7 +261,9 @@ export function MetricYearChart({ history, forecastValue, forecastAt, periodStar
         {cursor !== null && (
           <g className="mchart-cross">
             <line x1={tipX} x2={tipX} y1={PAD_T} y2={H - PAD_B} />
-            <circle cx={tipX} cy={y(valueAt(cursor))} r="3.5" className="mchart-cross-mkt" />
+            {!cursorBeforeData && (
+              <circle cx={tipX} cy={y(valueAt(cursor))} r="3.5" className="mchart-cross-mkt" />
+            )}
           </g>
         )}
       </svg>
@@ -256,7 +271,9 @@ export function MetricYearChart({ history, forecastValue, forecastAt, periodStar
       {cursor !== null && (
         <div className={`mchart-tip${tipRight ? ' is-right' : ''}`} style={{ left: `${(tipX / W) * 100}%` }}>
           <div className="mchart-tip-date">{new Date(cursor).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}</div>
-          <div>{cursorForecast ? 'forecast' : 'actual'} <span className="mchart-tip-v mchart-tip-v--mkt">{fNum(valueAt(cursor))}</span></div>
+          {cursorBeforeData
+            ? <div>no reading yet</div>
+            : <div>{cursorForecast ? 'forecast' : 'actual'} <span className="mchart-tip-v mchart-tip-v--mkt">{fNum(valueAt(cursor))}</span></div>}
         </div>
       )}
     </div>

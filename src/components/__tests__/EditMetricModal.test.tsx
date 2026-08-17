@@ -37,7 +37,10 @@ describe('customHorizonError', () => {
   });
   test('rejects bad formats, impossible and past dates', () => {
     expect(customHorizonError('garbage')).not.toBeNull();
+    // Not an offset at all: the relative pattern matches digits only.
     expect(customHorizonError('-1d')).not.toBeNull();
+    expect(customHorizonError('+1')).not.toBeNull();
+    expect(customHorizonError('+1x')).not.toBeNull();
     expect(customHorizonError('2099-13')).not.toBeNull();
     expect(customHorizonError('2099-02-31')).not.toBeNull();
     expect(customHorizonError('2099-W60')).not.toBeNull();

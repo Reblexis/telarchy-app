@@ -435,7 +435,12 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
     // soonest one's (owner direction 2026-08-15). Keyed by marketId; the
     // hero's copy stays in heroHistory for consumers that predate this.
     horizonHistories = [];
-    for (const m of marketList.slice(0, 4)) {
+    // Bounded from the PRIMARY end. The list is soonest-first and the floor
+    // leads with the furthest-resolving market, so slicing the first four gave
+    // the decision horizon no history row on a floor with five or more open
+    // markets - and a horizon with no row draws no chart at all, which would
+    // have emptied the page's opening view.
+    for (const m of marketList.slice(-4)) {
       const metricId = m.metricId as string;
       const rows = await db.select({ at: metricLogs.timestamp, value: metricLogs.value })
         .from(metricLogs)
@@ -688,7 +693,9 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
       })),
       heroMetricId,
       contractorNames,
-      5,
+      // Ten, matching the trader rail beside it (owner direction
+      // 2026-08-17).
+      10,
     );
   }
 

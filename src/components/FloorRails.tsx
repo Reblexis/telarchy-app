@@ -50,7 +50,9 @@ export function LeaderboardRail({ entries: all, contractors, unit = '' }: {
   unit?: string;
 }) {
   // A row for someone who has never traded is a name and a zero: noise.
-  const entries = all.filter(e => e.totalTrades > 0).slice(0, 5);
+  // Ten, not five (owner direction 2026-08-17): five made the board look
+  // like a podium rather than a field worth joining.
+  const entries = all.filter(e => e.totalTrades > 0).slice(0, 10);
   const hasTraders = entries.length > 0;
   // The contractors block shows whenever the workspace exposes it (Open
   // floor), even with nobody paid yet, so the two-sided economy is visible.
@@ -140,6 +142,9 @@ export function LeaderboardRail({ entries: all, contractors, unit = '' }: {
           )}
         </section>
       )}
+      {/* The way out of a top-ten list: the whole field, on its own page
+          (owner direction 2026-08-17). */}
+      <a className="pubws-lb-more" href="/leaderboard">Show full leaderboard</a>
     </aside>
   );
 }

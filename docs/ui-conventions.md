@@ -820,3 +820,23 @@ The page shows it like this:
   a plain-language mark ("buys the week, costs the year"). That mark is
   the whole reason the second horizon exists: it is Goodhart caught in
   the act, said in words a visitor can act on.
+
+**Revised 2026-08-17 (Viktor), the leaderboard is a public page.** The
+market page's left rail lists the top **ten** traders and the top ten
+contractors (was five of each), and ends with one quiet "Show full
+leaderboard" link to `/leaderboard`.
+
+`telarchy.com/leaderboard` is a standalone page in the market pages' own
+language (`.pubws-topbar`, Fraunces headline, hairline rows, mono
+numerals, one accent), written from scratch rather than adapted from the
+console's leaderboard: nothing public-facing renders the console UI, and
+that page belongs to a different design entirely. The console keeps its
+own at `/console/leaderboard`.
+
+The page ranks traders on profit in credits, realized plus open, the
+same number the rail prints, and gives each row the numbers a visitor
+would otherwise have to open a profile to see: trades, markets resolved,
+and accuracy where a trader has enough resolved markets to have one. A
+row for someone who has never traded is a name and a zero, so it is not
+shown. Contractors are a second section on the same page, ranked by what
+the market says their live contracts are worth.

@@ -10876,3 +10876,142 @@ textarea.jobform-line--desc {
   color: var(--lower);
   font-weight: 500;
 }
+
+/* The rail's way out to the whole field (owner direction 2026-08-17):
+   quiet, the same register as the rail's own sublines, one accent on
+   hover so it reads as a door rather than a heading. */
+.pubws-lb-more {
+  display: block;
+  margin-top: 1.1rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+  text-decoration: none;
+}
+.pubws-lb-more:hover { color: var(--accent); }
+.pubws-lb-more:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* ------------------------------------------------------------------ */
+/* The public leaderboard at /leaderboard (owner direction 2026-08-17),
+   written in the market pages' language rather than borrowed from the
+   console: Fraunces heading, hairline rows, mono numerals, one accent. */
+
+.lbp {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: clamp(2.5rem, 8vh, 4.5rem) 1.25rem 5rem;
+}
+
+.lbp-head {
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: clamp(1.75rem, 6vw, 2.4rem);
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+.lbp-lead {
+  margin: 0.8rem auto clamp(2rem, 5vh, 3rem);
+  max-width: 32rem;
+  text-align: center;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.lbp-section { margin-bottom: 3rem; }
+
+.lbp-note {
+  margin: -0.4rem 0 0.9rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+}
+
+.lbp-empty { color: var(--text-tertiary); font-size: 0.9rem; }
+
+.lbp-list { list-style: none; margin: 0; padding: 0; }
+.lbp-list li { border-top: 1px solid var(--border-color); }
+.lbp-list li:last-child { border-bottom: 1px solid var(--border-color); }
+
+.lbp-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.7rem 0.2rem;
+}
+
+.lbp-rank {
+  width: 1.6rem;
+  flex-shrink: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  text-align: right;
+}
+
+.lbp-who {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+}
+.lbp-who:hover .lbp-name { color: var(--accent); }
+
+.lbp-avatar {
+  width: 1.7rem;
+  height: 1.7rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.lbp-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.lbp-stack { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+
+.lbp-name {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.92rem;
+  font-weight: 500;
+  transition: color 120ms ease;
+}
+.lbp-manifold { display: inline-flex; color: var(--text-tertiary); }
+
+.lbp-sub {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+}
+
+.lbp-score {
+  flex-shrink: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.lbp-score.is-up { color: var(--higher); }
+.lbp-score.is-down { color: var(--lower); }
+.lbp-score--muted { font-weight: 400; font-size: 0.7rem; color: var(--text-tertiary); }
+
+.lbp-foot { margin-top: 2.5rem; text-align: center; font-size: 0.9rem; }
+.lbp-foot a { color: var(--accent); text-decoration: none; }
+.lbp-foot a:hover { text-decoration: underline; }
+
+@media (max-width: 519px) {
+  .lbp-sub { font-size: 0.63rem; }
+  .lbp-row { gap: 0.6rem; }
+}

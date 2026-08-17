@@ -230,7 +230,7 @@ export function Sidebar({ className = '' }: { className?: string }) {
         <Link to="/console/marketplace" data-tour-id="nav-marketplace" className={`sidebar-nav-item${currentPath === '/console/marketplace' ? ' active' : ''}`}>
           Marketplace
         </Link>
-        <Link to="/leaderboard" data-tour-id="nav-leaderboard" className={`sidebar-nav-item${currentPath === '/leaderboard' ? ' active' : ''}`}>
+        <Link to="/console/leaderboard" data-tour-id="nav-leaderboard" className={`sidebar-nav-item${currentPath === '/console/leaderboard' ? ' active' : ''}`}>
           Leaderboard
         </Link>
         <Link to="/api-access" data-tour-id="nav-api-access" className={`sidebar-nav-item${currentPath === '/api-access' ? ' active' : ''}`}>

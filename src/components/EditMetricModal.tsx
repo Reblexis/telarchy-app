@@ -34,12 +34,11 @@ export const MAX_CUSTOM_HORIZONS = 24;
  * Returns an error message, or null when the entry looks valid.
  */
 export function customHorizonError(entry: string): string | null {
-  const rel = entry.match(HORIZON_REL_RE);
-  if (rel) {
-    // "+0w" is the current period, the way to say "this week" and keep it
-    // rolling. Only a negative offset is nonsense.
-    return parseInt(rel[1], 10) >= 0 ? null : 'Offset cannot be negative';
-  }
+  // Any relative offset is fine, "+0w" included: that is how "this week" is
+  // said and kept rolling. A negative offset is not a relative entry at all
+  // (the pattern matches digits only), so it falls through to the format
+  // checks below and is rejected there.
+  if (HORIZON_REL_RE.test(entry)) return null;
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   if (/^\d{4}$/.test(entry)) {

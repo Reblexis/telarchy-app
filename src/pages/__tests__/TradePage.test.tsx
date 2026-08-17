@@ -574,3 +574,97 @@ test('a selected contract does not repaint the baseline chart with a branch pric
   await waitFor(() => expect(container.querySelector('.pubws-price')!.textContent).toContain('78,772'));
   expect(call()).toBe('$78,571');
 });
+
+/**
+ * What the reader selected must survive the poll.
+ *
+ * The floor rebuilds its horizon list from a five-second reload, and the hourly
+ * market refresh can add or retire a baseline market. Held as a position, the
+ * selection then re-points at a different clock under the reader, and the
+ * ticket trades whatever is selected.
+ */
+describe('the selected horizon is a market, not a position', () => {
+  const twoClocks = () => {
+    const ws = h.workspace();
+    ws.markets = [
+      { marketId: 'm-week', metricId: 'metric-w', metricName: 'Revenue this week (USD)',
+        targetDate: '2026-W34', resolvesOn: '2026-08-24T00:00:00Z', consensus: 213,
+        probability: 0.5, liquidity: 200, rangeMin: 0, rangeMax: 8000 },
+      { marketId: 'm-hero', metricId: 'metric-1', metricName: 'Net 2026 (USD)',
+        targetDate: '2026-12', resolvesOn: '2027-01-01T00:00:00Z', consensus: 78_571,
+        probability: 0.5, liquidity: 200, rangeMin: 0, rangeMax: 150_000 },
+    ];
+    return ws;
+  };
+  const withMonthly = () => {
+    const ws = twoClocks();
+    // The hourly refresh opens a monthly market between the two.
+    ws.markets = [
+      ws.markets[0],
+      { marketId: 'm-month', metricId: 'metric-1', metricName: 'Net 2026 (USD)',
+        targetDate: '2026-09', resolvesOn: '2026-10-01T00:00:00Z', consensus: 50_000,
+        probability: 0.5, liquidity: 200, rangeMin: 0, rangeMax: 150_000 },
+      ws.markets[1],
+    ];
+    return ws;
+  };
+
+  test('a new market appearing mid-poll does not move the reader to another clock', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelectorAll('.pubws-horizon')).toHaveLength(2));
+
+    // Pick the week (last button), then let a poll bring three horizons.
+    fireEvent.click(container.querySelectorAll('.pubws-horizon')[1]);
+    await waitFor(() => expect(container.querySelector('.pubws-price')!.textContent).toContain('213'));
+
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(withMonthly() as never);
+    await act(async () => { await vi.advanceTimersByTimeAsync(5200); });
+    await waitFor(() => expect(container.querySelectorAll('.pubws-horizon')).toHaveLength(3));
+    // Still the week, not the newly inserted month.
+    expect(container.querySelector('.pubws-price')!.textContent).toContain('213');
+    const active = container.querySelector('.pubws-horizon.is-active')!;
+    expect(active.textContent).toContain('week');
+  });
+
+  test('if the selected market disappears, the page falls back to the decision', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelectorAll('.pubws-horizon')).toHaveLength(2));
+    fireEvent.click(container.querySelectorAll('.pubws-horizon')[1]);
+    await waitFor(() => expect(container.querySelector('.pubws-price')!.textContent).toContain('213'));
+
+    const soloYear = h.workspace();
+    soloYear.markets = [twoClocks().markets[1]];
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(soloYear as never);
+    await act(async () => { await vi.advanceTimersByTimeAsync(5200); });
+    await waitFor(() => expect(container.querySelector('.pubws-price')!.textContent).toContain('78'));
+  });
+
+  test('the pulse\'s price series is refreshed by the poll, not frozen on arrival', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
+    let call = 0;
+    vi.mocked(api.getPublicMarketHistory).mockImplementation(async (_slug: string, marketId: string) => {
+      if (marketId !== 'm-week') return [] as never;
+      call += 1;
+      return (call === 1
+        ? [{ at: '2026-08-17T09:00:00.000Z', consensus: 200 }]
+        : [{ at: '2026-08-17T09:00:00.000Z', consensus: 200 }, { at: '2026-08-17T10:00:00.000Z', consensus: 240 }]
+      ) as never;
+    });
+    const { container } = renderFloor();
+    await waitFor(() => expect(container.querySelectorAll('.pubws-horizon')).toHaveLength(2));
+
+    fireEvent.click(container.querySelectorAll('.pubws-horizon')[1]);
+    const series = () => container.querySelector('[data-testid="chart"]')!.getAttribute('data-series');
+    await waitFor(() => expect(series()).toBe('200'));
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(5200); });
+    // Frozen, a reader on the pulse clock watched an hour of trades move the
+    // headline while the chart kept the snapshot from when they arrived.
+    await waitFor(() => expect(series()).toBe('200,240'));
+  });
+});

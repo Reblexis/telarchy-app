@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 import { MetricYearChart } from '../MetricYearChart';
 
 /**
@@ -87,5 +87,63 @@ describe('the x-axis spans the period being settled on', () => {
     const labels = xLabels(container);
     expect(labels).toContain('Feb');
     expect(labels.every(l => /^[A-Z][a-z]{2}$/.test(l))).toBe(true);
+  });
+});
+
+describe('an axis bound has to be plausible', () => {
+  it('ignores an epoch period start instead of drawing 56 years', () => {
+    // periodStartInstant returns the epoch for a target date it does not
+    // recognise, on purpose: it is a safe floor for a FILTER and a terrible
+    // axis, squashing every reading into the last pixel.
+    const { container } = render(
+      <MetricYearChart {...WEEK} periodStart="1970-01-01T00:00:00.000Z" unit="$" />,
+    );
+    expect(lineXs(container)[0]).toBeCloseTo(PAD_L, 1);
+    const labels = xLabels(container);
+    expect(labels.length).toBeLessThan(12);
+    expect(labels[0]).toMatch(/Aug/);
+  });
+
+  it('ignores a period start absurdly far before the data', () => {
+    const { container } = render(
+      <MetricYearChart {...WEEK} periodStart="2019-01-01T00:00:00.000Z" unit="$" />,
+    );
+    expect(lineXs(container)[0]).toBeCloseTo(PAD_L, 1);
+  });
+});
+
+describe('the crosshair over a stretch with no readings', () => {
+  const withRect = (fn: () => void) => {
+    const original = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function () {
+      return { left: 0, top: 0, width: W, height: 260, right: W, bottom: 260, x: 0, y: 0, toJSON: () => ({}) };
+    } as typeof original;
+    try { fn(); } finally { Element.prototype.getBoundingClientRect = original; }
+  };
+
+  it('says there is no reading yet instead of quoting the first one', () => {
+    // Opening the axis on the period start made Monday-to-Friday hoverable on
+    // a chart whose first reading is Saturday. Reporting $887 as the "actual"
+    // for a Monday, on a metric that resets each Monday, is a made-up number.
+    withRect(() => {
+      const { container } = render(<MetricYearChart {...WEEK} unit="$" />);
+      const svg = container.querySelector('svg')!;
+      fireEvent.pointerMove(svg, { clientX: PAD_L + 5 });
+      const tip = container.querySelector('.mchart-tip')!;
+      expect(tip.textContent).toContain('no reading yet');
+      expect(tip.textContent).not.toContain('887');
+      expect(container.querySelector('.mchart-cross-mkt')).toBeNull();
+    });
+  });
+
+  it('still reports the actual where there is data', () => {
+    withRect(() => {
+      const { container } = render(<MetricYearChart {...WEEK} unit="$" />);
+      const svg = container.querySelector('svg')!;
+      fireEvent.pointerMove(svg, { clientX: W - PAD_R - 12 });
+      const tip = container.querySelector('.mchart-tip')!;
+      expect(tip.textContent).not.toContain('no reading yet');
+      expect(container.querySelector('.mchart-cross-mkt')).toBeTruthy();
+    });
   });
 });
