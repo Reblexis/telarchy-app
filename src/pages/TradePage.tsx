@@ -10,6 +10,7 @@ import { useAnimatedNumber } from '../lib/useAnimatedNumber';
 import { indexBundleSrc } from '../lib/bundle-version';
 import { JobsBoard, splitAsk } from '../components/JobsBoard';
 import { SubjectAbout } from '../components/SubjectAbout';
+import { FloorAnnouncements } from '../components/FloorAnnouncements';
 import { FloorComments } from '../components/FloorComments';
 import { LeaderboardRail } from '../components/FloorRails';
 import { AccountMenu } from '../components/AccountMenu';
@@ -986,6 +987,21 @@ export function TradePage() {
             </div>
           ))}
         </section>
+        {/* The owner's disclosures, in the owner-prose zone between the
+            market's definition and the company blurb. A charter that promises
+            to announce material news needs the announcements on the page the
+            promise is read on, not in a thread under one market. Present only
+            when the Public group grants read, the same disclosure rule as the
+            ballot: `announcementCount` is absent on a counts-only floor. */}
+        {ws.announcementCount !== undefined && (
+          <FloorAnnouncements
+            workspaceId={ws.workspaceId}
+            idOrSlug={idOrSlug ?? ws.workspaceId}
+            latest={ws.latestAnnouncement}
+            total={ws.announcementCount}
+            canManage={canManage}
+          />
+        )}
         <SubjectAbout
           workspaceId={ws.workspaceId}
           name={ws.name}

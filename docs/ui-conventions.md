@@ -620,6 +620,21 @@ block split into two labeled sections: "What is this market?" (the
 stored definition, verbatim) above "What is LookPilot?" (the product
 sentence plus the three described source links).
 
+**Added 2026-08-17, announcements on the floor.** The know block is three
+labeled sections now: "What is this market?" (the stored definition), then
+"Announcements", then "What is `<name>`?". Announcements is the owner's
+disclosure surface (`docs/vision.md`, "Workspace announcements"), so it sits
+in the owner-prose zone rather than beside the market, and it renders the
+latest one only: body as markdown, its published date, and, when the row was
+edited, both timestamps plus a disclosure of what was first published.
+Older announcements are behind a single "N earlier" toggle that fetches
+`GET /api/marketplace/:idOrSlug/announcements`; the section renders nothing
+at all when the workspace has never published one and the visitor cannot
+manage it. An owner with `manage` gets an inline compose box (the
+`SubjectAbout` editor pattern: hairlines, `jobform-line` textarea, ticket
+buttons) and an Edit control on each announcement, with the edit box
+carrying the warning that the original stays public.
+
 **Revised 2026-08-13, chart axis on young markets (owner bug report: the
 "if declined" view of a fresh job drew only an endpoint dot).** The
 market chart's x-domain never extends into the future: its right edge is

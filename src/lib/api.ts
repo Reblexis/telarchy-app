@@ -326,6 +326,28 @@ export interface PublicWorkspace {
     description: string | null;
     points: Array<{ at: string | null; value: number }>;
   }>;
+  /** The owner's most recent announcement, inline so the first paint shows it
+      without a second request; null when the workspace has never published
+      one. The rest come from `getWorkspaceAnnouncements`. */
+  latestAnnouncement?: Announcement | null;
+  /** How many announcements exist in total, so the floor can offer the rest. */
+  announcementCount?: number;
+}
+
+/** One owner announcement on a public floor. Append-only by construction: an
+ *  edit keeps `originalBody` and stamps `editedAt` instead of overwriting, and
+ *  nothing deletes one. Render both timestamps and the original when
+ *  `editedAt` is set; the record is only worth something if a reader can see
+ *  it was changed. */
+export interface Announcement {
+  id: string;
+  /** Markdown. */
+  body: string;
+  /** Server-side publish instant; never chosen by the publisher. */
+  publishedAt: string;
+  editedAt: string | null;
+  /** The body exactly as first published, once the row has been edited. */
+  originalBody: string | null;
 }
 
 export interface PublicProposalMarketPair {
@@ -942,6 +964,16 @@ export const api = {
     request(`/api/workspaces/${id}/settings`, { method: 'PUT', body: JSON.stringify(body) }),
   deleteWorkspace: (id: string) =>
     request(`/api/workspaces/${id}`, { method: 'DELETE' }),
+  /** Every announcement on a public floor, newest first. Anonymous read, so
+   *  the floor can show them before a visitor has an account. */
+  getWorkspaceAnnouncements: (idOrSlug: string): Promise<{ announcements: Announcement[] }> =>
+    request(`/api/marketplace/${encodeURIComponent(idOrSlug)}/announcements`),
+  publishAnnouncement: (workspaceId: string, body: string): Promise<Announcement> =>
+    request(`/api/workspaces/${workspaceId}/announcements`, { method: 'POST', body: JSON.stringify({ body }) }),
+  /** Corrects an announcement. The server keeps the original body and stamps
+   *  editedAt; there is no delete. */
+  editAnnouncement: (workspaceId: string, announcementId: string, body: string): Promise<Announcement> =>
+    request(`/api/workspaces/${workspaceId}/announcements/${announcementId}`, { method: 'PUT', body: JSON.stringify({ body }) }),
   // Sources (text + external bridges, unified)
   listSources: () => request('/api/sources'),
   getSource: (id: string) => request(`/api/sources/${id}`),

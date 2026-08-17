@@ -10044,6 +10044,112 @@ textarea.jobform-line--desc {
   margin-top: 0.6rem;
 }
 
+/* Announcements: the owner's disclosure surface in the know block, between
+   the metric's definition and the company blurb (docs/ui-conventions.md,
+   "Added 2026-08-17"). House rhythm: hairline rows, tiny meta line, prose at
+   reading size. Nothing here is a card and nothing is coloured; a disclosure
+   is not an alert. */
+.pubws-ann {
+  padding: 0.9rem 0;
+  border-top: 1px solid var(--border-color);
+}
+.pubws-ann:first-of-type { border-top: none; padding-top: 0.2rem; }
+
+.pubws-ann-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.7rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+/* An edit is stated, never implied. Same tertiary weight as the timestamp:
+   the fact belongs on the record, it is not a warning to the reader. */
+.pubws-ann-edited { font-style: italic; }
+
+.pubws-ann-link {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  color: var(--text-tertiary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 120ms ease;
+}
+.pubws-ann-link:hover,
+.pubws-ann-link:focus-visible { color: var(--accent); outline: none; }
+
+.pubws-ann-body {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+  /* Owner-authored copy carries bare URLs; see .pubws-know-what. */
+  overflow-wrap: anywhere;
+}
+.pubws-ann-body > :first-child { margin-top: 0; }
+.pubws-ann-body > :last-child { margin-bottom: 0; }
+.pubws-ann-body p { margin: 0 0 0.7rem; }
+.pubws-ann-body ul,
+.pubws-ann-body ol { margin: 0 0 0.7rem 1.1rem; padding: 0; }
+.pubws-ann-body a { color: var(--accent); }
+
+/* What the announcement said before it was corrected. Indented behind a
+   hairline so it reads as the superseded version rather than as a second
+   announcement. */
+.pubws-ann-original {
+  margin-top: 0.7rem;
+  padding-left: 0.9rem;
+  border-left: 1px solid var(--border-color);
+}
+.pubws-ann-original-label {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.pubws-ann-original .pubws-ann-body { color: var(--text-secondary); }
+
+.pubws-ann-editor { margin-bottom: 0.9rem; }
+.pubws-ann-editarea { width: 100%; min-height: 9rem; resize: vertical; }
+/* Said before the save: publishing and editing are both one-way. */
+.pubws-ann-warn {
+  margin: 0.45rem 0 0;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+.pubws-ann-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-top: 0.6rem;
+}
+
+.pubws-ann-empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+.pubws-ann-more {
+  margin-top: 0.6rem;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.pubws-ann-more:hover:not(:disabled),
+.pubws-ann-more:focus-visible { color: var(--accent); outline: none; }
+.pubws-ann-more:disabled { cursor: default; opacity: 0.6; }
+
 /* Links inside the explainer read as normal underlined text, not buttons
    (owner ask 2026-08-12): the "prediction market" definition link and the
    data-room / Steam / SteamDB sources. */

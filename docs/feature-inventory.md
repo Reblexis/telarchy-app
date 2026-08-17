@@ -151,6 +151,8 @@ Use this when you need to (a) decide what to put on a canvas / pitch deck / land
 108. Cross-workspace platform-operated participant pool (auto-joins public/open workspaces, seeds consensus).
 109. Cross-workspace trader leaderboard (`/leaderboard`, ranks by trading profit marked to current market prices across all public workspaces, no account excluded; calibration and accuracy are reported per participant, not ranked on) and the floor's contractor leaderboard beside it (ranked by the market's live priced impact of each poster's pending and approved jobs; see `docs/ui-conventions.md`).
 
+110. Workspace announcements: append-only owner disclosures on the public floor (`POST`/`PUT /api/workspaces/:id/announcements`, `GET /api/marketplace/:workspaceId/announcements`). No delete, no overwrite (an edit keeps `originalBody` and stamps `editedAt`, both public, enforced by a database trigger), so a charter's "I will announce material news" promise is checkable after the fact rather than taken on trust.
+
 ## Onboarding and templates
 
 110. Workspace templates: `startup`, `personal`, `blank`.

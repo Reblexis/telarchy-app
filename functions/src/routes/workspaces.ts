@@ -4,8 +4,9 @@ import {
   workspaces, workspaceSlugAliases, workspaceOrderings, permissionGroups,
   markets, positions, trades, liquidityEvents,
   metrics, proposals, proposalMessages, updates, metricLogs, events,
-  hookWatcher, agentApiKeys, agents,
+  hookWatcher, agentApiKeys, agents, announcements,
 } from '../db/schema';
+import type { AuthInfo } from '../types';
 import { eq, and, inArray, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
@@ -414,6 +415,116 @@ workspacesRouter.put('/:id/settings', requireCapability('manage'), wrap(async (r
   res.json({ ok: true, slug: update.slug ?? ws.slug });
 }));
 
+const ANNOUNCEMENT_MAX_CHARS = 5000;
+
+/** The `manage` check the route gate ran was against the HEADER workspace
+ *  (req.auth.workspaceId); every handler here acts on the path id, so manage
+ *  rights in one workspace must not reach into another. Same re-verification
+ *  PUT /:id/settings does. */
+async function canManagePathWorkspace(auth: AuthInfo, wsId: string): Promise<boolean> {
+  if (wsId === auth.workspaceId) return auth.capabilities.has('manage');
+  const caps = await computeCapabilities({
+    workspaceId: wsId, uid: auth.uid, agentId: auth.agentId, isMasterKey: auth.isMasterKey,
+  });
+  return caps.has('manage');
+}
+
+function readAnnouncementBody(raw: unknown): { ok: true; body: string } | { ok: false; error: string } {
+  if (typeof raw !== 'string' || raw.trim().length === 0) {
+    return { ok: false, error: 'body must be a non-empty string' };
+  }
+  const body = raw.trim();
+  if (body.length > ANNOUNCEMENT_MAX_CHARS) {
+    return { ok: false, error: `body must be at most ${ANNOUNCEMENT_MAX_CHARS} characters` };
+  }
+  return { ok: true, body };
+}
+
+/** The public shape, identical on write and on the public read route, so a
+ *  client never has to reconcile two views of the same row. */
+function announcementPayload(row: typeof announcements.$inferSelect) {
+  return {
+    id: row.id,
+    workspaceId: row.workspaceId,
+    body: row.body,
+    publishedAt: row.publishedAt,
+    editedAt: row.editedAt,
+    originalBody: row.originalBody,
+  };
+}
+
+/**
+ * POST /api/workspaces/:id/announcements
+ *
+ * Publish an announcement: owner-authored prose to everyone watching the
+ * workspace, which is what a charter promising "I announce material news"
+ * needs and did not have (docs/vision.md, "Workspace announcements").
+ *
+ * `publishedAt` is the database's clock, never the caller's. The only thing
+ * an announcement proves is that a disclosure existed at a time, so a
+ * timestamp the publisher picks would make the whole surface decorative.
+ */
+workspacesRouter.post('/:id/announcements', requireCapability('manage'), wrap(async (req, res) => {
+  const wsId = req.params.id as string;
+  const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, wsId));
+  if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
+  if (!await canManagePathWorkspace(req.auth!, wsId)) {
+    res.status(403).json({ error: 'Forbidden: this identity lacks the "manage" capability in this workspace.' }); return;
+  }
+
+  const parsed = readAnnouncementBody(req.body?.body);
+  if (!parsed.ok) { res.status(400).json({ error: parsed.error }); return; }
+
+  const [row] = await db.insert(announcements).values({
+    id: randomUUID(), workspaceId: wsId, body: parsed.body,
+  }).returning();
+  res.status(201).json(announcementPayload(row));
+}));
+
+/**
+ * PUT /api/workspaces/:id/announcements/:announcementId
+ *
+ * Correct an announcement without erasing what was published. The first edit
+ * copies the published body into `originalBody` and stamps `editedAt`; both
+ * are public from then on, so a reader can always see that a correction
+ * happened and what the text said before it. Later edits keep the same
+ * original. There is no delete: an announcement is superseded by publishing
+ * another one. The database enforces all of this (migration 0057), so this
+ * handler is the convenient path to the rule, not the rule itself.
+ */
+workspacesRouter.put('/:id/announcements/:announcementId', requireCapability('manage'), wrap(async (req, res) => {
+  const wsId = req.params.id as string;
+  const announcementId = req.params.announcementId as string;
+  const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, wsId));
+  if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
+  if (!await canManagePathWorkspace(req.auth!, wsId)) {
+    res.status(403).json({ error: 'Forbidden: this identity lacks the "manage" capability in this workspace.' }); return;
+  }
+
+  const parsed = readAnnouncementBody(req.body?.body);
+  if (!parsed.ok) { res.status(400).json({ error: parsed.error }); return; }
+
+  const [existing] = await db.select().from(announcements)
+    .where(and(eq(announcements.workspaceId, wsId), eq(announcements.id, announcementId)));
+  if (!existing) { res.status(404).json({ error: 'Announcement not found' }); return; }
+
+  // An edit that changes nothing is not an edit: stamping editedAt on a
+  // no-op save would put a correction notice on the page with nothing
+  // corrected.
+  if (parsed.body === existing.body) { res.json(announcementPayload(existing)); return; }
+
+  const [row] = await db.update(announcements)
+    .set({
+      body: parsed.body,
+      editedAt: new Date(),
+      // Only the FIRST edit records the original; after that it is history.
+      originalBody: existing.originalBody ?? existing.body,
+    })
+    .where(and(eq(announcements.workspaceId, wsId), eq(announcements.id, announcementId)))
+    .returning();
+  res.json(announcementPayload(row));
+}));
+
 workspacesRouter.post('/:id/join', requireIdentity, wrap(async (req, res) => {
   const { agentId, uid } = req.auth!;
   const wsId = req.params.id as string;
@@ -546,9 +657,11 @@ workspacesRouter.delete('/:id', requireCapability('manage_workspace'), wrap(asyn
 
   // Delete all workspace-scoped data
   await db.transaction(async tx => {
-    // Deleting a workspace takes its settlement history with it, which is
-    // the one time that is intended; the ledgers are append-only otherwise.
+    // Deleting a workspace takes its settlement history and its published
+    // announcements with it, which is the one time that is intended; both are
+    // append-only otherwise.
     await allowLedgerAdmin(tx);
+    await tx.delete(announcements).where(eq(announcements.workspaceId, wsId));
     await tx.delete(liquidityEvents).where(eq(liquidityEvents.workspaceId, wsId));
     await tx.delete(positions).where(eq(positions.workspaceId, wsId));
     await tx.delete(trades).where(eq(trades.workspaceId, wsId));

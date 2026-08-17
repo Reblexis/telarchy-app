@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/client';
-import { workspaces, markets, metrics, metricLogs, agents, trades, positions, permissionGroups, proposals, proposalMessages, marketMessages, systemConfig } from '../db/schema';
+import { workspaces, markets, metrics, metricLogs, agents, trades, positions, permissionGroups, proposals, proposalMessages, marketMessages, systemConfig, announcements } from '../db/schema';
 import { eq, ne, and, gt, gte, count, desc, asc, inArray, like, sql } from 'drizzle-orm';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
@@ -403,7 +403,29 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
   let tradesThisWeek: number | undefined;
   let marketHistory: Array<{ at: Date; consensus: number | null }> | undefined;
   let marketHistoryMarketId: string | undefined;
+  // The most recent owner disclosure, inline so the floor's first paint shows
+  // it without a second request; the rest come from
+  // GET /api/marketplace/:workspaceId/announcements. A trader arriving
+  // mid-market should not have to go looking for the newest thing the owner
+  // said (docs/vision.md, "Workspace announcements").
+  let latestAnnouncement: {
+    id: string; body: string; publishedAt: Date; editedAt: Date | null; originalBody: string | null;
+  } | null | undefined;
+  let announcementCount: number | undefined;
   if (publicCaps.includes('read')) {
+    const [latest] = await db.select().from(announcements)
+      .where(eq(announcements.workspaceId, workspaceId))
+      .orderBy(desc(announcements.publishedAt))
+      .limit(1);
+    latestAnnouncement = latest
+      ? {
+          id: latest.id, body: latest.body, publishedAt: latest.publishedAt,
+          editedAt: latest.editedAt, originalBody: latest.originalBody,
+        }
+      : null;
+    const [announcementRow] = await db.select({ n: sql<number>`count(*)::int` })
+      .from(announcements).where(eq(announcements.workspaceId, workspaceId));
+    announcementCount = announcementRow?.n ?? 0;
     const heroMarketId = primaryMarket(marketList)?.marketId as string | undefined;
     if (heroMarketId) {
       const points = await replayMarketTradePoints(heroMarketId, workspaceId);
@@ -762,6 +784,8 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
       tradesThisWeek,
       marketHistory,
       marketHistoryMarketId,
+      latestAnnouncement,
+      announcementCount,
     } : {}),
   });
 }));
@@ -790,6 +814,42 @@ marketplaceRouter.get('/:workspaceId/markets/:marketId/history', wrap(async (req
 
   const points = await replayMarketTradePoints(market.id, ws.id);
   res.json({ history: points.slice(-500).map(pt => ({ at: pt.createdAt, consensus: pt.consensus })) });
+}));
+
+/**
+ * The owner's announcements for a workspace, newest first. Public with no
+ * account, because the point of an announcement is that anyone deciding
+ * whether to trade here can check what was disclosed and when
+ * (docs/vision.md, "Workspace announcements").
+ *
+ * Same Open-workspace disclosure rule as the ballot, the history and the
+ * comments: private workspaces 403, and a workspace whose Public group cannot
+ * read keeps the counts-only boundary.
+ *
+ * `originalBody` and `editedAt` are in the payload on purpose. An edited
+ * announcement must read as edited, with the text it replaced still visible;
+ * hiding either would turn a verifiable record back into the owner's word.
+ */
+marketplaceRouter.get('/:workspaceId/announcements', wrap(async (req, res) => {
+  const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
+  if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
+  if (ws.visibility === 'private') { res.status(403).json({ error: 'This workspace is private' }); return; }
+
+  const [publicGroup] = await db.select().from(permissionGroups)
+    .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
+  const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
+  if (!publicCaps.includes('read')) { res.status(403).json({ error: 'Not public' }); return; }
+
+  const rows = await db.select().from(announcements)
+    .where(eq(announcements.workspaceId, ws.id))
+    .orderBy(desc(announcements.publishedAt))
+    .limit(100);
+  res.json({
+    announcements: rows.map(a => ({
+      id: a.id, body: a.body, publishedAt: a.publishedAt,
+      editedAt: a.editedAt, originalBody: a.originalBody,
+    })),
+  });
 }));
 
 /**

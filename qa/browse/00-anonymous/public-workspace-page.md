@@ -112,6 +112,38 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
 the API returns; `.pubws-deal` is absent. The field stays in the payload for
 the phase when it returns.
 
+### T4b. Announcements are public, and an edit says it was an edit
+
+The owner's disclosure surface (`docs/vision.md`, "Workspace announcements").
+It is the surface a charter's "I announce material news within 24 hours"
+promise lands on, so what this test is really guarding is that a reader can
+tell an untouched announcement from a corrected one. If the edit marker or the
+original body ever stops rendering, the record is back to being the owner's
+word and the promise is unverifiable.
+
+**Steps:**
+1. `curl -s "$TT_API_URL/api/marketplace/$WS/announcements" | jq '.announcements | length, .[0]'`
+2. `curl -s "$TT_API_URL/api/marketplace/$WS" | jq '{latest: .latestAnnouncement.id, n: .announcementCount}'`
+3. `$B text ".pubws-know[aria-label='Announcements']"`
+4. If more than one exists: `$B click ".pubws-ann-more"`, then count `.pubws-ann`.
+5. On an announcement whose `editedAt` is non-null:
+   `$B is visible ".pubws-ann-edited"`, `$B click ".pubws-ann-link"`,
+   `$B is visible ".pubws-ann-original"`.
+
+**Expected:**
+- The list route answers 200 anonymously, newest first, with no cookie.
+- `latestAnnouncement.id` equals `announcements[0].id` from step 1, and
+  `announcementCount` equals the list length. Two surfaces, one fact.
+- The section renders under the metric definition and above
+  "What is `<name>`?"; the latest announcement is open, older ones behind an
+  "N earlier" toggle.
+- An edited row prints `edited <timestamp>` beside the publish time and can
+  reveal the text it replaced. An unedited row shows neither.
+- No visitor-facing delete control exists anywhere on the section.
+- On a workspace whose Public group lacks `read`: the list route is 403 and
+  the section does not render (`announcementCount` is absent from the
+  payload, the same counts-only boundary as the ballot in T6).
+
 ### T5. The market chart is the centerpiece
 
 **Steps:**
@@ -308,6 +340,8 @@ in dev.
 
 ## Known gaps
 
+- No coverage of publishing an announcement (needs `manage`, so it belongs in
+  an owner spec); this spec only reads the surface a visitor sees.
 - No coverage of the join click-through itself (needs an account, so it
   belongs in a logged-in spec alongside the post-join landing).
 - No coverage of the Russian-language charter rendering; the charter is a

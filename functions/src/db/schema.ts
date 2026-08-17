@@ -533,6 +533,30 @@ export const marketMessages = pgTable('market_messages', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
 
+/** Owner-authored prose attached to a workspace: public, timestamped, newest
+ *  first. The surface a charter's "I announce material news" promise lands on
+ *  (see docs/vision.md, "Workspace announcements"). Not a comment (nobody
+ *  replies) and not `updates` below (which is a metric-change record).
+ *
+ *  Append-only, enforced by a trigger in migration 0057, not by convention:
+ *  there is no delete and no overwrite, because what this buys a trader is the
+ *  ability to check that a disclosure happened BEFORE an event, and a record
+ *  the publisher can quietly rewrite proves nothing. */
+export const announcements = pgTable('announcements', {
+  id: text('id').notNull(),
+  workspaceId: text('workspace_id').notNull(),
+  /** Markdown, capped at 5000 chars by the route. */
+  body: text('body').notNull(),
+  /** Set server-side on insert and never again; a self-chosen disclosure
+   *  timestamp is not evidence of anything. */
+  publishedAt: timestamp('published_at').notNull().defaultNow(),
+  /** Null until the row is edited. Public from then on, beside publishedAt. */
+  editedAt: timestamp('edited_at'),
+  /** Null until the FIRST edit, then the body exactly as first published.
+   *  Public, so an edit is visible as an edit rather than as history. */
+  originalBody: text('original_body'),
+}, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
+
 export const updates = pgTable('updates', {
   id: text('id').notNull(),
   workspaceId: text('workspace_id').notNull(),

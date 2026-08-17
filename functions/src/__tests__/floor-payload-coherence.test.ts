@@ -35,7 +35,7 @@ import request from 'supertest';
 import express from 'express';
 import { and, eq } from 'drizzle-orm';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, markets, metricLogs, metrics, permissionGroups, proposals, trades } from '../db/schema';
+import { agents, announcements, markets, metricLogs, metrics, permissionGroups, proposals, trades } from '../db/schema';
 import { provisionWorkspace } from '../lib/participants';
 import { initialPool } from '../lib/amm';
 import { marketplaceRouter } from '../routes/marketplace';
@@ -86,6 +86,10 @@ type Floor = {
   marketHistoryMarketId: string;
   proposals: Proposal[];
   heroHistory: Array<{ at: string; value: number }>;
+  latestAnnouncement: {
+    id: string; body: string; publishedAt: string; editedAt: string | null; originalBody: string | null;
+  } | null;
+  announcementCount: number;
 };
 
 /**
@@ -440,6 +444,32 @@ describe('a crowded floor still describes its primary horizon', () => {
   });
 });
 
+describe('the newest announcement agrees with the announcement list', () => {
+  test('latestAnnouncement is the newest row, and the count is every row', async () => {
+    await db.insert(announcements).values([
+      { id: 'ann-old', workspaceId: WS, body: 'first disclosure', publishedAt: new Date('2026-08-01T09:00:00Z') },
+      { id: 'ann-new', workspaceId: WS, body: 'the one a trader must not miss', publishedAt: new Date('2026-08-16T09:00:00Z') },
+    ]);
+    const f = await floor();
+    // Inline for the first paint, so it has to be the SAME row the list route
+    // puts on top; a stale or second-newest inline copy is a disclosure the
+    // reader thinks they have seen.
+    const list = await request(app).get(`/api/marketplace/${WS}/announcements`);
+    expect(list.body.announcements[0].id).toBe(f.latestAnnouncement?.id);
+    expect(f.latestAnnouncement?.id).toBe('ann-new');
+    expect(f.announcementCount).toBe(list.body.announcements.length);
+  });
+
+  test('a floor with nothing announced says so rather than omitting the field', async () => {
+    const f = await floor();
+    // null, not undefined: undefined is what the counts-only boundary means,
+    // and a reader cannot tell "nothing announced" from "not allowed to see"
+    // if the two look the same.
+    expect(f.latestAnnouncement).toBeNull();
+    expect(f.announcementCount).toBe(0);
+  });
+});
+
 describe('the private boundary still holds', () => {
   test('a floor whose Public group cannot read ships no history at all', async () => {
     const [publicGroup] = await db.select().from(permissionGroups)
@@ -449,7 +479,7 @@ describe('the private boundary still holds', () => {
 
     const res = await request(app).get(`/api/marketplace/${WS}`);
     expect(res.status).toBe(200);
-    for (const key of ['marketHistory', 'marketHistoryMarketId', 'horizonHistories', 'heroHistory', 'proposals']) {
+    for (const key of ['marketHistory', 'marketHistoryMarketId', 'horizonHistories', 'heroHistory', 'proposals', 'latestAnnouncement', 'announcementCount']) {
       expect(res.body[key]).toBeUndefined();
     }
     // The counts-only surface survives, so the marketplace card still works.
