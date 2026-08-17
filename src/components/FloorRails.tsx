@@ -86,9 +86,18 @@ export function LeaderboardRail({ entries: all, contractors, unit = '' }: {
                   </a>
                   {/* Profit, realized + open positions (owner 2026-08-11):
                       the board ranks on it, so the row shows it, signed. */}
-                  <span className={`pubws-lb-score${e.totalEarnings > 0 ? ' is-up' : e.totalEarnings < 0 ? ' is-down' : ''}`}>
-                    {e.totalEarnings > 0 ? '+' : ''}{Math.round(e.totalEarnings).toLocaleString('en-US')} cr
-                  </span>
+                  {/* Round BEFORE signing: a loss of a hundredth of a
+                      credit printed "-0 cr", which reads as a bug rather
+                      than as a rounding. Colour follows the printed
+                      number, not the raw one. */}
+                  {(() => {
+                    const cr = Math.round(e.totalEarnings);
+                    return (
+                      <span className={`pubws-lb-score${cr > 0 ? ' is-up' : cr < 0 ? ' is-down' : ''}`}>
+                        {cr > 0 ? '+' : ''}{cr === 0 ? 0 : cr.toLocaleString('en-US')} cr
+                      </span>
+                    );
+                  })()}
                 </li>
               );
             })}

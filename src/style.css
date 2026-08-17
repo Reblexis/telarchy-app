@@ -10877,18 +10877,27 @@ textarea.jobform-line--desc {
   font-weight: 500;
 }
 
-/* The rail's way out to the whole field (owner direction 2026-08-17):
-   quiet, the same register as the rail's own sublines, one accent on
-   hover so it reads as a door rather than a heading. */
+/* The rail's way out to the whole field (owner direction 2026-08-17,
+   enlarged the same day: at caption size it read as a footnote rather
+   than something to press). A real button: full width of the rail, its
+   own border, body-sized text. Deliberately a hairline border rather
+   than the accent outline of "+ Offer to do a contract" in the other
+   rail, because that is the page's primary action and this is
+   navigation; the accent arrives on hover. */
 .pubws-lb-more {
   display: block;
-  margin-top: 1.1rem;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.68rem;
-  color: var(--text-tertiary);
+  margin-top: 1.2rem;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  text-align: center;
+  color: var(--text-secondary);
   text-decoration: none;
+  transition: color 120ms ease, border-color 120ms ease;
 }
-.pubws-lb-more:hover { color: var(--accent); }
+.pubws-lb-more:hover { color: var(--accent); border-color: var(--accent); }
 .pubws-lb-more:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 /* ------------------------------------------------------------------ */
