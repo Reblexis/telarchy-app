@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api, type LeaderboardEntry, type PublicContractor } from '../lib/api';
+import { api, type LeaderboardEntry, type PrizeSeason, type PublicContractor } from '../lib/api';
+import { useSeasonClock } from '../lib/useSeasonClock';
+import { pickCurrentSeason } from '../lib/season-clock';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from './TradePage';
 import { ManifoldLogo } from '../components/ManifoldLogo';
@@ -38,9 +40,17 @@ export function LeaderPage() {
   const { user, loading: authLoading } = useAuth();
   const [traders, setTraders] = useState<LeaderboardEntry[] | null>(null);
   const [contractors, setContractors] = useState<PublicContractor[] | null>(null);
+  // The prize season, on the public board. This is where the floor's "See the
+  // board" link lands, so a season the floor is advertising has to be visible
+  // here or the trail goes cold one click in.
+  const [season, setSeason] = useState<PrizeSeason | null>(null);
+  const clock = useSeasonClock(season);
 
   useEffect(() => {
     let cancelled = false;
+    api.getSeasons()
+      .then(r => { if (!cancelled) setSeason(pickCurrentSeason(r.seasons)); })
+      .catch(e => console.error('seasons fetch failed:', e));
     api.getLeaderboard(200)
       .then(r => { if (!cancelled) setTraders((r.participants ?? []).filter(e => e.totalTrades > 0)); })
       .catch(e => { console.error('leaderboard fetch failed:', e); if (!cancelled) setTraders([]); });
@@ -83,6 +93,22 @@ export function LeaderPage() {
           Everyone trading the public markets, ranked by profit in credits:
           settled bets plus what open positions are worth right now.
         </p>
+
+        {season && clock && (
+          <section className="lbp-season" aria-label={season.name}>
+            <h2 className="lbp-season-name">{season.name}</h2>
+            <p className="lbp-season-clock">{clock.headline}</p>
+            <p className="lbp-season-line">
+              ${season.poolUsd.toLocaleString()} in prizes across {season.ladder.length} places
+              {season.ladder[0] ? `, $${season.ladder[0].prizeUsd.toLocaleString()} for first` : ''}.
+              {' '}Ranked on how much your profit grows while the season runs, not on the
+              all-time board above. Free to enter, no purchase and no stake.
+            </p>
+            {clock.entryOpen && <a className="lbp-season-cta" href="/account">Enter the season</a>}
+            {' '}
+            <a className="lbp-season-more" href={season.rulesUrl}>Rules</a>
+          </section>
+        )}
 
         <section className="lbp-section" aria-label="Traders">
           <h2 className="pubws-h2">Traders</h2>

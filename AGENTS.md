@@ -235,6 +235,16 @@ There is no openclaw-based bot trading (the `~/.openclaw` scaffolding is unrelat
 
 If modifying the api capabilities or otherwise changing behaviour of the backend relevant to api communication, always update the documentation and api help endpoint correspondingly as well as the skill description.
 
+**Season entry opens before the season starts (owner direction 2026-08-18).**
+`isOpenForEntry` returns true for a `draft` season, `GET/PUT /api/seasons/me`
+resolve the running season OR the next draft, and `POST /:id/start` carries
+`optedIn`/`enteredAt` across instead of rebuilding the entry table from the
+board (it used to `delete` every row, which would have silently un-entered
+everyone who signed up early). Fairness is unchanged: the baseline is still
+read for everyone at the start instant. All four surfaces that show the
+countdown take it from `src/lib/season-clock.ts`;
+`season-clock-ownership.test.ts` fails if a second copy appears.
+
 ## Market integrity (Season 1)
 
 Governing doc: `docs/market-integrity.md`. Three rules, all owner decisions of

@@ -9569,6 +9569,18 @@ textarea.jobform-line--desc {
   color: var(--text-tertiary);
 }
 
+/* The season countdown on the floor rail. Mono and primary-coloured because it
+   is a number that changes, and it is the one line in the strip that says
+   whether to act today. */
+.pubws-season-clock {
+  margin: 0.35rem 0 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
 .pubws-lb-row {
   display: flex;
   align-items: center;
@@ -11162,4 +11174,54 @@ textarea.jobform-line--desc {
 @media (max-width: 519px) {
   .lbp-sub { font-size: 0.63rem; }
   .lbp-row { gap: 0.6rem; }
+}
+
+
+/* The prize season on the public leaderboard. The floor's "See the board" link
+   lands here, so a season the floor advertises has to be visible one click in
+   or the trail goes cold. Hairline block, not a card: the product is monochrome
+   plus one accent, and this is the accent's job. */
+.lbp-season {
+  margin: 1.25rem 0 2rem;
+  padding: 1rem 0 1.1rem;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.lbp-season-name {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.lbp-season-clock {
+  margin: 0.3rem 0 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.15rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.lbp-season-line {
+  margin: 0.4rem 0 0.8rem;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  max-width: 46rem;
+}
+.lbp-season-cta {
+  display: inline-block;
+  padding: 0.5rem 1.1rem;
+  border-radius: 999px;
+  background: var(--button-bg);
+  color: var(--button-text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.lbp-season-more {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  margin-left: 0.6rem;
 }

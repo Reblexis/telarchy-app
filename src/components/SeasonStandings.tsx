@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useSeasonClock } from '../lib/useSeasonClock';
+import { pickCurrentSeason } from '../lib/season-clock';
 import { api, type PrizeSeason, type SeasonStanding } from '../lib/api';
 
 function formatScore(v: number): string {
@@ -43,12 +45,11 @@ export function SeasonStandings({ seasonId }: { seasonId: string }) {
     return () => { cancelled = true; clearInterval(interval); };
   }, [seasonId]);
 
+  const clock = useSeasonClock(season);
   if (error) return <div className="error show">{error}</div>;
-  if (!season || rows === null) return <p className="leaderboard-muted">Loading…</p>;
+  if (!season || rows === null || !clock) return <p className="leaderboard-muted">Loading…</p>;
 
   const settled = season.status === 'settled';
-  const ends = new Date(season.endsAt);
-  const daysLeft = Math.max(0, Math.ceil((ends.getTime() - Date.now()) / 86_400_000));
 
   return (
     <div className="leaderboard page">
@@ -57,9 +58,7 @@ export function SeasonStandings({ seasonId }: { seasonId: string }) {
         <p className="leaderboard-sub">
           ${season.poolUsd.toLocaleString()} across {season.ladder.length} places
           {season.ladder[0] ? `, $${season.ladder[0].prizeUsd.toLocaleString()} for first` : ''}.
-          {settled
-            ? ' Final standings.'
-            : ` ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} left.`}
+          {` ${clock.headline}.`}
           {' '}Ranked on how much each entrant's marked profit grew since the
           season started, not on lifetime profit. Free to enter, no purchase and
           no stake. <Link to={season.rulesUrl}>Rules</Link> ·{' '}
@@ -69,8 +68,8 @@ export function SeasonStandings({ seasonId }: { seasonId: string }) {
 
       {rows.length === 0 ? (
         <p className="leaderboard-muted">
-          {season.status === 'draft'
-            ? 'This season has not started yet.'
+          {clock.phase === 'before'
+            ? 'Nobody has entered yet. Entry is already open on your account page, and everyone\u2019s starting score is taken when the season begins.'
             : 'Nobody has entered yet. Enter from your account page.'}
         </p>
       ) : (
@@ -122,25 +121,20 @@ export function SeasonBanner() {
 
   useEffect(() => {
     api.getSeasons()
-      .then(r => {
-        const live = r.seasons.find(s => s.status === 'running')
-          ?? r.seasons.find(s => s.status === 'settled')
-          ?? null;
-        setSeason(live);
-      })
+      .then(r => setSeason(pickCurrentSeason(r.seasons)))
       .catch(e => console.error('seasons fetch failed:', e));
   }, []);
 
-  if (!season) return null;
-  const running = season.status === 'running';
-  const daysLeft = Math.max(0, Math.ceil((new Date(season.endsAt).getTime() - Date.now()) / 86_400_000));
+  const clock = useSeasonClock(season);
+  if (!season || !clock) return null;
 
   return (
     <p className="leaderboard-sub" style={{ marginBottom: '1rem' }}>
       <strong>{season.name}</strong>: ${season.poolUsd.toLocaleString()} in prizes,{' '}
-      {running ? `${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} left` : 'final standings'}.{' '}
+      {clock.phase === 'settled' ? 'final standings' : clock.headline.toLowerCase()}.{' '}
+      {clock.entryOpen && <><Link to="/account">Enter</Link>{' · '}</>}
       <Link to={`/leaderboard?season=${encodeURIComponent(season.id)}`}>
-        {running ? 'See the standings' : 'See who won'}
+        {clock.phase === 'settled' ? 'See who won' : 'See the standings'}
       </Link>
     </p>
   );

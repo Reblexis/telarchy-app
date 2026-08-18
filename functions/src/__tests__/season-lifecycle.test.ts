@@ -244,13 +244,29 @@ describe('entering', () => {
     expect(entry.baselineProfit).toBeCloseTo(8, 5);
   });
 
-  test('entering a season that has not started is refused', async () => {
+  test('entering a season that has not started is allowed', async () => {
+    // Reversed 2026-08-18 (owner direction): entry opens while a season is
+    // still a draft, so it can be announced with a countdown and a working
+    // button instead of asking people to come back on the day. The fairness
+    // rule that used to justify the refusal is unaffected and is pinned in
+    // season-preregistration.test.ts: the baseline is snapshotted for everyone
+    // at the start instant, so entering early is not a starting-point choice.
     await seedFloor(['t']);
     const season = (await createSeason()).body.season;
     caller = { agentId: 't' };
     const res = await request(app).put('/api/seasons/me').send({ optedIn: true });
+    expect(res.status).toBe(200);
+    expect(res.body.optedIn).toBe(true);
+    expect(res.body.season.id).toBe(season.id);
+    expect(res.body.season.status).toBe('draft');
+  });
+
+  test('with no season at all, entering is still refused', async () => {
+    await seedFloor(['t']);
+    caller = { agentId: 't' };
+    const res = await request(app).put('/api/seasons/me').send({ optedIn: true });
     expect(res.status).toBe(409);
-    expect(res.body.error).toMatch(/No season is currently running/);
+    expect(res.body.error).toMatch(/No season is open for entry/);
   });
 });
 

@@ -206,8 +206,16 @@ describe('isOpenForEntry', () => {
     expect(isOpenForEntry('running', during, ends)).toBe(true);
   });
 
-  test('a draft season does not, because no baselines exist yet', () => {
-    expect(isOpenForEntry('draft', during, ends)).toBe(false);
+  test('a draft season accepts them too, so people can sign up before it starts', () => {
+    // Changed 2026-08-18 (owner direction). Entry used to require `running`,
+    // which meant the announcement, the countdown and the button could not
+    // exist until the start instant: everyone who heard about the season early
+    // had to be told to come back. Pre-registering is safe because the baseline
+    // is read for EVERYONE at the start instant, not at opt-in, so it confers
+    // no starting-point advantage.
+    expect(isOpenForEntry('draft', during, ends)).toBe(true);
+    // Including before the start instant, which is the whole point.
+    expect(isOpenForEntry('draft', new Date('2026-08-01T00:00:00Z'), ends)).toBe(true);
   });
 
   test('a settled season does not', () => {

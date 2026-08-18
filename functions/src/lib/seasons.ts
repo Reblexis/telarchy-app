@@ -186,8 +186,21 @@ export function ladderTotal(ladder: LadderRung[]): number {
  * Whether a season is accepting entries right now. Opting in is free and
  * requires no payment details (those are collected at claim time), so this is
  * the only gate on the toggle.
+ *
+ * A DRAFT season accepts entries (owner direction 2026-08-18). Entry used to
+ * open only once a season was running, which meant the announcement, the
+ * countdown and the entry button could not exist before the start instant:
+ * everyone who heard about the season early had to be asked to come back. That
+ * is the worst possible funnel for the one moment the season has attention.
+ *
+ * Pre-registering changes nothing about fairness, because the baseline is
+ * snapshotted for EVERY participant at the start instant regardless of when
+ * they opted in. Entering on day minus two and entering on day one produce the
+ * same starting score; the only thing pre-registration buys is not having to
+ * remember.
  */
 export function isOpenForEntry(status: SeasonStatus, now: Date, endsAt: Date): boolean {
+  if (status === 'draft') return true;
   return status === 'running' && now < endsAt;
 }
 

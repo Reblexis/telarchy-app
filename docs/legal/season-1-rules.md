@@ -54,9 +54,10 @@ enter it.
 Two consequences worth stating plainly:
 
 - **Your baseline is taken when the season starts, not when you enter.** You can
-  enter at any point while the season runs, and you will still be measured from
-  where the season began. This is deliberate: otherwise entering late would let
-  someone pick a favourable starting point.
+  enter before the season begins or at any point while it runs, and you will
+  still be measured from where the season began. This is deliberate: otherwise
+  entering late would let someone pick a favourable starting point. It also
+  means entering early buys you nothing except not having to remember.
 - **An account that did not exist when the season started has a baseline of
   zero**, so everything it earns inside the window counts.
 
@@ -65,7 +66,8 @@ Only entrants who explicitly opted in are ranked or paid.
 ## Eligibility
 
 - You must be at least 18 years old.
-- You must have a Telarchy account and must explicitly opt in to enter.
+- You must have a Telarchy account and must explicitly opt in to enter. Entry
+  opens as soon as the season is announced, before it starts.
 - Participants operated by us or run as part of the platform are **not
   eligible** and do not enter.
 - A prize requires a season score **strictly greater than zero**. A season score

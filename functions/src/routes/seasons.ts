@@ -75,6 +75,25 @@ async function runningSeason() {
   return s ?? null;
 }
 
+/**
+ * The season a participant can act on right now: the running one, or the next
+ * draft when none is running.
+ *
+ * Entry opens before a season starts (owner direction 2026-08-18), so the
+ * entry surfaces cannot key off `running` alone or the announcement, the
+ * countdown and the button would all be invisible during exactly the window
+ * where people are hearing about it. Running wins over draft, because a live
+ * season is what someone acting today means; among drafts, the soonest to
+ * start.
+ */
+async function enterableSeason() {
+  const running = await runningSeason();
+  if (running) return running;
+  const drafts = await db.select().from(prizeSeasons).where(eq(prizeSeasons.status, 'draft'));
+  drafts.sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
+  return drafts[0] ?? null;
+}
+
 function publicSeason(s: typeof prizeSeasons.$inferSelect) {
   return {
     id: s.id,
@@ -115,7 +134,7 @@ seasonsRouter.get('/me', requireIdentity, wrap(async (req, res) => {
   const agentId = req.auth?.agentId;
   if (!agentId) throw new AppError('No participant identity on this request', 400);
 
-  const season = await runningSeason();
+  const season = await enterableSeason();
   if (!season) { res.json({ season: null, optedIn: false, canEnter: false }); return; }
 
   const [entry] = await db.select().from(seasonEntries)
@@ -148,8 +167,8 @@ seasonsRouter.put('/me', requireIdentity, wrap(async (req, res) => {
   const optIn = req.body?.optedIn;
   if (typeof optIn !== 'boolean') throw new AppError('optedIn must be true or false', 400);
 
-  const season = await runningSeason();
-  if (!season) throw new AppError('No season is currently running', 409);
+  const season = await enterableSeason();
+  if (!season) throw new AppError('No season is open for entry', 409);
   if (!isOpenForEntry(season.status as SeasonStatus, new Date(), new Date(season.endsAt))) {
     throw new AppError('This season has closed to new entries', 409);
   }
@@ -286,20 +305,52 @@ seasonsRouter.post('/:id/start', wrap(async (req, res) => {
   // floor under every score in the season.
   const board = await loadBoard(workspaceIds);
 
+  // Pre-registrations survive the start. Entry opens while a season is still a
+  // draft (owner direction 2026-08-18), so by the time this runs there may
+  // already be rows here that ARE entries. This used to `delete` the whole
+  // season's rows and rebuild them from the board, which would have thrown
+  // every early entrant away without a trace: they would see themselves opted
+  // in yesterday and opted out today, and nothing would say why.
+  //
+  // So: keep optedIn and enteredAt as they stand, and write the baseline over
+  // the top. The fairness rule is untouched, because it was never about WHEN
+  // someone opted in; it is that the baseline is read for everyone at this
+  // instant, which is exactly what board.profitById is.
+  const existing = await db.select().from(seasonEntries).where(eq(seasonEntries.seasonId, seasonId));
+  const entryByAgent = new Map(existing.map(e => [e.agentId, e]));
+
+  // The union: everyone with a baseline worth storing, plus everyone who
+  // already entered (whose baseline may well be zero, and who must not be
+  // dropped for it).
+  const agentIds = new Set<string>([
+    ...board.agentIds.filter(id => (board.profitById.get(id) ?? 0) !== 0),
+    ...existing.map(e => e.agentId),
+  ]);
+
+  const rows = [...agentIds].map(agentId => {
+    const prior = entryByAgent.get(agentId);
+    return {
+      seasonId,
+      agentId,
+      optedIn: prior?.optedIn ?? false,
+      enteredAt: prior?.enteredAt ?? null,
+      baselineProfit: board.profitById.get(agentId) ?? 0,
+    };
+  });
+
   await db.transaction(async tx => {
     await tx.delete(seasonEntries).where(eq(seasonEntries.seasonId, seasonId));
-    // Only nonzero baselines are stored; a missing row reads as 0, which is
-    // both correct and what a brand new account should get.
-    const rows = board.agentIds
-      .map(agentId => ({ agentId, baselineProfit: board.profitById.get(agentId) ?? 0 }))
-      .filter(r => r.baselineProfit !== 0)
-      .map(r => ({ seasonId, agentId: r.agentId, optedIn: false, enteredAt: null, baselineProfit: r.baselineProfit }));
     if (rows.length > 0) await tx.insert(seasonEntries).values(rows);
     await tx.update(prizeSeasons).set({ status: 'running', workspaceIds })
       .where(eq(prizeSeasons.id, seasonId));
   });
 
-  res.json({ started: true, workspaceIds, baselinesWritten: board.agentIds.length });
+  res.json({
+    started: true,
+    workspaceIds,
+    baselinesWritten: board.agentIds.length,
+    preRegistrationsKept: rows.filter(r => r.optedIn).length,
+  });
 }));
 
 /**
