@@ -6,11 +6,11 @@ export const legalRouter = Router();
 // files; update both when revising legal text. Inlined here so the runtime
 // image does not need `docs/` copied in.
 
-const CONSENT_VERSION = '1.3';
+const CONSENT_VERSION = '1.4';
 
 const TERMS_OF_SERVICE = `# Terms of Service
 
-_Last updated: 2026-08-17 (version ${CONSENT_VERSION})_
+_Last updated: 2026-08-18 (version ${CONSENT_VERSION})_
 
 These Terms govern your use of \`telarchy.com\` (the "Service"), operated by the Telarchy team ("we", "us"). By creating an account or using the Service you agree to them; if you do not agree, do not use the Service.
 
@@ -25,6 +25,10 @@ Credits on the Service are play-money. They have no cash value, cannot be purcha
 ## 3. Paid job proposals
 
 A participant may propose a job with a price in US dollars. Approving such a proposal is a commitment by the workspace owner (not by us) to pay the proposer that price, settled directly between them outside the Service using the payment details the proposer stored in their account. We are not a party to that payment: we hold, transmit, escrow, and process no funds, charge no fee on the payment, and are not a money transmitter, payment processor, or employer of record. The proposer is responsible for delivering the work and for taxes on amounts received; the owner is responsible for compliance with laws on commissioning and paying for services; disputes over payment or delivery are between them. Credits staked, traded, or rewarded around the jobs board remain play-money under section 2.
+
+A proposal must be lawful. Do not propose a job, action, or contract that is illegal, or whose performance would violate the terms, rules, or policies of any third-party platform or service it involves (for example, selling or transferring another platform's virtual currency against that platform's rules). We and the workspace owner may decline or remove such a proposal at any time, and repeat submissions are grounds for suspension under section 1.
+
+Approving or declining a proposal is the workspace owner's decision alone, made at their sole discretion. Market prices on the Service are forecasts, not votes: however a market prices a proposal's expected impact, that price creates no obligation on the owner or on us to approve it, and no participant acquires a right to approval, payment, or any other outcome by trading on a proposal's markets.
 
 ## 3a. Prize contests
 
