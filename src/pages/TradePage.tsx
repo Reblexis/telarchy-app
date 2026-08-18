@@ -27,7 +27,9 @@ import {
 /**
  * telarchy.com/<slug>: the market and one action, nothing else (owner
  * decision, 2026-08-09: the poster stays free of explanatory context).
- * Composition: headline ("<metric> @ <settle date>"), price, the
+ * Composition: headline (the metric name alone; owner direction 2026-08-18:
+ * no "@ <settle date>" beside it, the name carries its own period and the
+ * chart caption says when it lands), price, the
  * Manifold-style step chart, and exactly one action: a "Make your call"
  * pill into signup when anonymous, the trade ticket (TradeTicket: pick a
  * side, pick an amount, one confirm) when signed in. The workspace
@@ -752,15 +754,14 @@ export function TradePage() {
                 )}
               </>
             ) : (
-              /* The metric name carries its own horizon ("net 2026"), so a
-                 settle date beside it was redundant and, at the year
-                 boundary, off by a day: the 2026 period ends at the instant
-                 January 1 begins. */
+              /* The metric name alone: it carries its own horizon
+                 ("September 2026 net revenue"), so a settle date beside it
+                 was redundant and confusing when the two differ (a September
+                 metric settling 14 October read as an October market; owner
+                 direction 2026-08-18). The chart caption below still says
+                 when it lands. */
               <h1 className="pubws-instrument-title pubws-enter pubws-enter--1">
                 {metricLabel}
-                {settleDayOf(hero.targetDate) && (
-                  <span className="pubws-settle"> @ {settleDayOf(hero.targetDate)}</span>
-                )}
               </h1>
             )}
             <div className="pubws-headline pubws-enter pubws-enter--2">
@@ -930,8 +931,10 @@ export function TradePage() {
           {horizonCharts.map(h => (
             <div key={h.marketId} style={{ marginTop: '1.25rem' }}>
               <div className="pubws-settle" style={{ textAlign: 'center', marginBottom: '0.1rem' }}>
+                {/* When the label IS the settle day (a day-target horizon),
+                    repeating it as "@ <same date>" read twice; say it once. */}
                 {h.label}: actual so far, and where the market sees it landing
-                {h.settleDay ? ` @ ${h.settleDay}` : ''}
+                {h.settleDay && h.settleDay !== h.label ? ` @ ${h.settleDay}` : ''}
               </div>
               <MetricYearChart
                 history={h.history}

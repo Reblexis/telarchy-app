@@ -14,6 +14,19 @@
 
 jest.mock('../db/client', () => require('./harness/test-db'));
 
+// The seasons router now resolves auth itself (optionalAuthMiddleware, the
+// mount-order fix), which pulls better-auth's ESM build that jest's CJS
+// loader cannot require. This suite fakes req.auth at the edge on purpose,
+// so the middleware is stubbed to pass-throughs, same as
+// trade-closed-market.test.ts does.
+jest.mock('../middleware/auth', () => ({
+  authMiddleware: (_req: unknown, _res: unknown, next: () => void) => next(),
+  optionalAuthMiddleware: (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
+jest.mock('../middleware/consent', () => ({
+  requireConsentIfUser: (_req: unknown, _res: unknown, next: () => void) => next(),
+}));
+
 import request from 'supertest';
 import express from 'express';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
