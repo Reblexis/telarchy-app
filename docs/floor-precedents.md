@@ -108,3 +108,52 @@ most screen.
 - Is there a directory page (the Baremetrics lesson: ten open companies
   make one credible)? `/marketplace` is that page today, but it is not
   framed as "companies run in the open".
+
+## Proposal: the top block (2026-08-18)
+
+Owner's read: "the market itself appearing right away is maybe too
+confusing, and there should at least be the name of the company as a title
+above". Agreed on the diagnosis, with one correction: the problem is not
+*where* the market sits, it is that the page opens with an answer to a
+question nobody asked. Moving the market down would not fix it. Naming the
+company would.
+
+Today the company name exists but is a 0.72rem uppercase tertiary-grey
+eyebrow (`.pubws-ws-name`, added earlier the same day). That reads as a
+breadcrumb, not as "this is a real business". The serif `h1` is the metric
+question, and the 5.6rem number is under it.
+
+Proposed stack, unchanged in mechanism, re-ranked in typography:
+
+```
+LookPilot                             serif ~2rem, primary   <- the entity
+6DoF head tracking for flight sims    one line, secondary    <- what it sells
+--------------------------------------------------------
+NET 2026 (USD) · settles Dec 31       small uppercase label  <- the instrument
+$78,571                               the big number
+▲ $2,140 since Aug 1                  delta chip
+[chart] [ticket]
+```
+
+Three changes, in order of how much they buy:
+
+1. **Promote the company to a real title** and give it one factual line of
+   what it sells. This is the Finance-ticker move: the company is the page,
+   the number is a readout on it.
+2. **Demote the metric question to a label above the number.** It stops
+   being the headline and becomes the caption that explains the figure.
+   Nothing is lost: a cold visitor cannot parse "What is LookPilot net 2026"
+   as a first impression anyway.
+3. **Keep the identity block fixed when a job is selected.** The instrument
+   block below it swaps to the conditional question, which *should* be a
+   serif headline at that point, because by then the visitor has clicked
+   into a specific bet and the question is the thing.
+
+The explainer stays below the working surface. Do not let this pull "what
+is this" above the fold.
+
+**Open, needs the owner:** the "what it sells" line is one sentence of
+company prose at the top of the floor. The 2026-08-11 direction removed the
+floor's mission line; this is a different slot (factual, about the company,
+not about Telarchy), but it is close enough that it should be an explicit
+call rather than a quiet re-addition.
