@@ -14,6 +14,7 @@
 import { randomBytes, randomUUID } from 'crypto';
 import { eq } from 'drizzle-orm';
 import { db } from '../db/client';
+import { applyCredits, PLATFORM_SCOPE } from '../services/credits';
 import { authUser, authAccount, agents, agentApiKeys } from '../db/schema';
 import { hashKey } from '../middleware/auth';
 import { provisionWorkspace } from './participants';
@@ -112,14 +113,20 @@ export async function runBootstrap(): Promise<void> {
       updatedAt: new Date(),
     });
 
+    // Zero at insert, granted through the ledger: every credit that exists
+    // has a row saying where it came from (docs/market-integrity.md).
     await tx.insert(agents).values({
       id: agentId,
       apiKeyHash: agentKeyHash,
       authUserId: userId,
       platformAdmin: true,
-      balance: toUnits(SIGNUP_CREDITS),
+      balance: 0,
       createdAt: new Date(),
       approvedAt: new Date(),
+    });
+    await applyCredits(tx, {
+      agentId, workspaceId: PLATFORM_SCOPE,
+      deltaUnits: toUnits(SIGNUP_CREDITS), reason: 'signup_grant',
     });
 
     const wsId = randomUUID();

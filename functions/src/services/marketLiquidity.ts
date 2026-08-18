@@ -3,6 +3,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { agents, markets, liquidityEvents } from '../db/schema';
 import { AppError } from '../lib/errors';
+import { applyCredits } from './credits';
 import { sufficientBalance, toUnits, fromUnits, MIN_LIQUIDITY_CONTRIBUTION } from '../lib/validation';
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -68,10 +69,12 @@ export async function applyAgentLiquidityInjectionTx(
 
   await tx.update(markets).set({ liquidity: newLiquidity, shares: newShares, pool: newPool })
     .where(and(eq(markets.id, params.marketId), eq(markets.workspaceId, params.workspaceId)));
-  await tx.update(agents).set({
-    balance: sql`${agents.balance} - ${toUnits(params.poolContribution)}`,
-    spentBetting: sql`${agents.spentBetting} + ${params.poolContribution}`,
-  }).where(eq(agents.id, params.agentId));
+  await applyCredits(tx, {
+    agentId: params.agentId, workspaceId: params.workspaceId,
+    deltaUnits: -toUnits(params.poolContribution),
+    reason: 'liquidity', refType: 'market', refId: params.marketId,
+    also: { spentBetting: sql`${agents.spentBetting} + ${params.poolContribution}` },
+  });
   await tx.insert(liquidityEvents).values({
     id: randomUUID(),
     workspaceId: params.workspaceId,

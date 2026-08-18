@@ -218,11 +218,15 @@ export const agents = pgTable('agents', {
 
 /**
  * Daily balance snapshots per participant, written by the hourly resolve cron
- * (first run of each UTC day; idempotent via the composite PK). Exists because
- * balance mutations have no unified ledger (payouts, LP leftovers, and credit
- * grants update agents.balance directly), so a balance-over-time graph cannot
- * be reconstructed after the fact. Balance is in nanocredits, like
- * agents.balance. Powers the balance graph on the public participant profile.
+ * (first run of each UTC day; idempotent via the composite PK). Balance is in
+ * nanocredits, like agents.balance. Powers the balance graph on the public
+ * participant profile.
+ *
+ * Since migration 0060 this is a cache, not the only record: `credit_ledger`
+ * carries every balance delta with a running balance_after, so the graph
+ * COULD be replayed from it. This table stays because the graph is a hot read
+ * and replaying a participant's whole ledger to draw thirty points is a scan
+ * where this is a lookup. If the two ever disagree, the ledger is right.
  */
 export const agentBalanceSnapshots = pgTable('agent_balance_snapshots', {
   agentId: text('agent_id').notNull(),
@@ -428,6 +432,67 @@ export const liquidityEvents = pgTable('liquidity_events', {
  * price past its own limit, which is what makes it a limit order rather
  * than a delayed market order. Design: docs/limit-orders.md.
  */
+/**
+ * Every change to a participant's balance, with the reason it happened.
+ *
+ * `agents.balance` is a cache of this table's sum. Before migration 0060 it
+ * was the only record: about twenty-five call sites incremented it directly
+ * (payouts, void refunds, proposal stakes and rewards, spam penalties,
+ * contract payments, signup grants, admin adjustments, limit-order holds) and
+ * none of them left a row, so a wrong balance could not be explained and a
+ * lost one could not be rebuilt.
+ *
+ * `services/credits.ts` (`applyCredits`) is the only code allowed to write
+ * either this table or `agents.balance`, and it writes both in one
+ * transaction, so a balance change without a record is not expressible. A
+ * source-grep test fails the build if a second writer appears; a
+ * reconciliation test replays this table and asserts it equals the stored
+ * balance. Append-only under the same trigger as `trades`.
+ *
+ * Governing doc: docs/market-integrity.md.
+ */
+export const creditLedger = pgTable('credit_ledger', {
+  id: text('id').notNull(),
+  workspaceId: text('workspace_id').notNull(),
+  agentId: text('agent_id').notNull(),
+  /** Nanocredits, signed: negative is a debit. Same unit as agents.balance. */
+  deltaUnits: bigint('delta_units', { mode: 'number' }).notNull(),
+  /** The balance this row produced, so a divergence is visible at its origin. */
+  balanceAfterUnits: bigint('balance_after_units', { mode: 'number' }).notNull(),
+  /** Closed set; see CreditReason in services/credits.ts. */
+  reason: text('reason').notNull(),
+  /** 'market' | 'proposal' | 'transfer' | 'season' | null. */
+  refType: text('ref_type'),
+  refId: text('ref_id'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
+
+/**
+ * What a market was settling on, and when the owner changed it.
+ *
+ * Editing a metric's description used to void every open market on it
+ * (refunding positions, respawning fresh), because the description IS the
+ * settlement text. With a prize season running that trade is backwards: a
+ * reworded sentence cost a week of price discovery and every open position.
+ * Since 2026-08-18 the edit applies in place and this row is what keeps it
+ * honest, rendered on the floor under "What is this market?" so a trader can
+ * see whether the goalposts moved after they took their position.
+ *
+ * Append-only: the whole point is that a revision cannot be un-made.
+ */
+export const metricDefinitionRevisions = pgTable('metric_definition_revisions', {
+  id: text('id').notNull(),
+  workspaceId: text('workspace_id').notNull(),
+  metricId: text('metric_id').notNull(),
+  /** 'name' | 'description' | 'formula' | 'marketRangeMax' */
+  field: text('field').notNull(),
+  oldValue: text('old_value'),
+  newValue: text('new_value'),
+  /** Agent id or auth user id of whoever saved it, when known. */
+  changedBy: text('changed_by'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
+
 export const limitOrders = pgTable('limit_orders', {
   id: text('id').primaryKey(),
   workspaceId: text('workspace_id').notNull(),

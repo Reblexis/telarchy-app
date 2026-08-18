@@ -1,14 +1,13 @@
 import { Router } from 'express';
 import { db } from '../db/client';
-import { agentApiKeys, agents, markets, positions, trades, deposits, withdrawals, systemConfig } from '../db/schema';
-import { eq, and, inArray, sql } from 'drizzle-orm';
+import { markets, systemConfig } from '../db/schema';
+import { eq, and, sql } from 'drizzle-orm';
 import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
 import { getAllMetrics, getStatus, getAllMetricLogsGrouped } from '../services/metrics';
 import { consensus, pHigher } from '../lib/amm';
 import { isUsdcSettlementEnabled } from '../lib/settlement';
 import { resolutionInstant } from '../lib/date-utils';
-import { allowLedgerAdmin } from '../lib/ledger-admin';
 
 export const systemRouter = Router();
 
@@ -90,35 +89,21 @@ systemRouter.get('/status', requireCapability('read'), wrap(async (req, res) => 
   res.json({ ...base, metrics: augmented });
 }));
 
-systemRouter.post('/reset-economy', requireCapability('manage'), wrap(async (req, res) => {
-  const { workspaceId } = req.auth!;
-
-  await db.transaction(async tx => {
-    // Resolve agents scoped to this workspace via agentApiKeys
-    const keyRows = await tx.select({ agentId: agentApiKeys.agentId }).from(agentApiKeys)
-      .where(eq(agentApiKeys.workspaceId, workspaceId));
-    const wsAgentIds = [...new Set(keyRows.map(r => r.agentId))];
-
-    if (wsAgentIds.length) {
-      await tx.update(agents).set({
-        balance: 0, earnedBetting: 0,
-        spentBetting: 0, spentTokens: 0, withdrawnUsdc: 0,
-      }).where(inArray(agents.id, wsAgentIds));
-      await tx.delete(deposits).where(inArray(deposits.agentId, wsAgentIds));
-      await tx.delete(withdrawals).where(inArray(withdrawals.agentId, wsAgentIds));
-    }
-
-    // Reset market AMM state (workspace-scoped)
-    await tx.update(markets)
-      .set({ liquidity: 0, pool: 0, shares: [0, 0] as [number, number] })
-      .where(eq(markets.workspaceId, workspaceId));
-
-    // Delete workspace-scoped financial data
-    await tx.delete(positions).where(eq(positions.workspaceId, workspaceId));
-    // A workspace reset wipes its trading history on purpose.
-    await allowLedgerAdmin(tx);
-    await tx.delete(trades).where(eq(trades.workspaceId, workspaceId));
-  });
-
-  res.json({ ok: true });
-}));
+/*
+ * POST /api/system/reset-economy is GONE (owner decision 2026-08-18).
+ *
+ * It zeroed every balance in a workspace, deleted every trade under
+ * allowLedgerAdmin, and reset all market AMM state, behind nothing but the
+ * ordinary `manage` capability. It was built when the data was fake. With a
+ * prize season running against real money it was one mistyped workspace
+ * header away from ending the season with no way to reconstruct what had
+ * happened, and the append-only trigger could not stop it because it opted
+ * out of the trigger on purpose.
+ *
+ * Deleted rather than guarded: a guard has to be remembered, and this endpoint
+ * has no legitimate use on a live product. Starting a workspace over is
+ * DELETE /api/workspaces/:id followed by creating a new one, which is gated on
+ * manage_workspace and voids and refunds every open position on the way out.
+ *
+ * Governing doc: docs/market-integrity.md.
+ */

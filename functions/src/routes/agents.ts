@@ -1,5 +1,6 @@
 import { Router, type Request } from 'express';
 import { db } from '../db/client';
+import { applyCredits, applyCreditsIfSufficient, PLATFORM_SCOPE } from '../services/credits';
 import { agents, agentApiKeys, agentBalanceSnapshots, creditTransfers, deposits, withdrawals, systemConfig, workspaces, positions, trades, markets, permissionGroups, authUser, proposals } from '../db/schema';
 import { eq, and, or, sql, inArray, desc, asc, gte } from 'drizzle-orm';
 import { randomBytes } from 'crypto';
@@ -103,10 +104,16 @@ agentsRouter.post('/register', optionalAuthMiddleware, wrap(async (req, res) => 
   const keyId = randomUUID();
 
   await db.transaction(async tx => {
+    // Created at zero and granted through the ledger, so the starting balance
+    // has a row like every other credit that moves (docs/market-integrity.md).
     await tx.insert(agents).values({
-      id: agentId, apiKeyHash: keyHash, balance: toUnits(SIGNUP_CREDITS),
+      id: agentId, apiKeyHash: keyHash, balance: 0,
       bio: normalizedBio,
       authUserId: req.auth?.uid ?? null, createdAt: new Date(), approvedAt: new Date(),
+    });
+    await applyCredits(tx, {
+      agentId, workspaceId: PLATFORM_SCOPE,
+      deltaUnits: toUnits(SIGNUP_CREDITS), reason: 'signup_grant',
     });
     // Third-party registration keeps the legacy wildcard scope so existing
     // bots that POST /register and expect full access aren't broken. Scoped
@@ -200,14 +207,16 @@ agentsRouter.post('/transfer', authMiddleware, requireIdentity, requireScope('ac
     // Conditional debit doubles as the balance check: zero rows updated
     // means insufficient funds, and the transaction never touches the
     // recipient. No read-then-write race.
-    const debited = await tx.update(agents)
-      .set({ balance: sql`${agents.balance} - ${units}` })
-      .where(and(eq(agents.id, fromId), gte(agents.balance, units)))
-      .returning({ id: agents.id });
-    if (debited.length === 0) throw new AppError('Insufficient balance', 409);
-    await tx.update(agents)
-      .set({ balance: sql`${agents.balance} + ${units}` })
-      .where(eq(agents.id, recipient.id));
+    const debited = await applyCreditsIfSufficient(tx, {
+      agentId: fromId, workspaceId: PLATFORM_SCOPE, deltaUnits: -units,
+      reason: 'transfer_out', refType: 'transfer', refId: transferId,
+      minBalanceUnits: units,
+    });
+    if (!debited) throw new AppError('Insufficient balance', 409);
+    await applyCredits(tx, {
+      agentId: recipient.id, workspaceId: PLATFORM_SCOPE, deltaUnits: units,
+      reason: 'transfer_in', refType: 'transfer', refId: transferId,
+    });
     await tx.insert(creditTransfers).values({
       id: transferId, fromAgentId: fromId, toAgentId: recipient.id,
       credits: amount, memo: memo ?? '', createdAt,
@@ -796,7 +805,7 @@ agentsRouter.post('/', requireScope('account:agents'), wrap(async (req, res) => 
     await tx.insert(agents).values({
       id: agentId,
       apiKeyHash: keyHash,
-      balance: toUnits(SIGNUP_CREDITS),
+      balance: 0,
       bio: normalizedBio,
       authUserId: null,
       ownerUserId: req.auth!.uid ?? null,
@@ -805,6 +814,10 @@ agentsRouter.post('/', requireScope('account:agents'), wrap(async (req, res) => 
       ownerAgentId: !req.auth!.uid && !req.auth!.isMasterKey ? req.auth!.agentId ?? null : null,
       createdAt: new Date(),
       approvedAt: new Date(),
+    });
+    await applyCredits(tx, {
+      agentId, workspaceId: PLATFORM_SCOPE,
+      deltaUnits: toUnits(SIGNUP_CREDITS), reason: 'signup_grant',
     });
     await tx.insert(agentApiKeys).values({
       hash: keyHash,
@@ -1163,11 +1176,16 @@ agentsRouter.post('/:id/spend', requireSelfOrAdmin, requireScope('account:wallet
     res.status(400).json({ error: 'Insufficient balance', balance: fromUnits(agent.balance as number) }); return;
   }
 
-  const field = type === 'betting' ? 'spentBetting' : 'spentTokens';
-  await db.update(agents).set({
-    balance: sql`${agents.balance} - ${toUnits(amount)}`,
-    [field]: sql`${agents[field as keyof typeof agents]} + ${amount}`,
-  }).where(eq(agents.id, id));
+  // Named branches rather than a computed key: `also` is a closed shape so
+  // that a mistyped counter cannot compile into a silent no-op.
+  await applyCredits(db, {
+    agentId: id, workspaceId: req.auth!.workspaceId ?? PLATFORM_SCOPE,
+    deltaUnits: -toUnits(amount),
+    reason: 'admin_adjustment', refId: reason || type,
+    also: type === 'betting'
+      ? { spentBetting: sql`${agents.spentBetting} + ${amount}` }
+      : { spentTokens: sql`${agents.spentTokens} + ${amount}` },
+  });
   res.json({ ok: true, spent: amount, type, reason: reason || '' });
 }));
 
@@ -1182,9 +1200,11 @@ agentsRouter.post('/:id/credit', requireCapability('manage'), wrap(async (req, r
   if (typeof amount !== 'number' || amount <= 0) {
     res.status(400).json({ error: 'amount must be a positive number' }); return;
   }
-  await db.update(agents).set({ balance: sql`${agents.balance} + ${toUnits(amount)}` }).where(eq(agents.id, id));
-  const [updated] = await db.select({ balance: agents.balance }).from(agents).where(eq(agents.id, id));
-  const newBalance = fromUnits(updated.balance as number);
+  const { balanceAfterUnits } = await applyCredits(db, {
+    agentId: id, workspaceId: req.auth!.workspaceId ?? PLATFORM_SCOPE,
+    deltaUnits: toUnits(amount), reason: 'admin_adjustment', refId: reason,
+  });
+  const newBalance = fromUnits(balanceAfterUnits);
   console.log(`[admin credit] ${id} +${amount} credits (${reason}). New balance: ${newBalance}`);
   res.json({ ok: true, credited: amount, balance: newBalance });
 }));
@@ -1218,7 +1238,10 @@ agentsRouter.post('/:id/deposit', requireSelfOrAdmin, requireScope('account:wall
 
   await db.transaction(async tx => {
     await tx.insert(deposits).values({ txHash, agentId: id, from, usdcAmount, credits, buyRate, createdAt: new Date() });
-    await tx.update(agents).set({ balance: sql`${agents.balance} + ${toUnits(credits)}` }).where(eq(agents.id, id));
+    await applyCredits(tx, {
+      agentId: id, workspaceId: PLATFORM_SCOPE, deltaUnits: toUnits(credits),
+      reason: 'transfer_in', refType: 'transfer', refId: txHash,
+    });
   });
 
   res.status(201).json({ ok: true, usdcAmount, credits, buyRate, from });
@@ -1262,7 +1285,10 @@ agentsRouter.post('/:id/withdraw', requireSelfOrAdmin, requireScope('account:wal
       throw new AppError(`Insufficient balance (have ${fromUnits(agent.balance as number)}, need ${amount})`, 400);
     }
     walletAddress = agent.walletAddress;
-    await tx.update(agents).set({ balance: sql`${agents.balance} - ${toUnits(amount)}` }).where(eq(agents.id, id));
+    await applyCredits(tx, {
+      agentId: id, workspaceId: PLATFORM_SCOPE, deltaUnits: -toUnits(amount),
+      reason: 'transfer_out', refType: 'transfer',
+    });
   });
 
   const usdcAmount = Math.round(amount * creditValueUsd * 1e6) / 1e6;
@@ -1271,7 +1297,10 @@ agentsRouter.post('/:id/withdraw', requireSelfOrAdmin, requireScope('account:wal
   try {
     txHash = await sendUsdc(walletAddress, usdcAmount);
   } catch (err) {
-    await db.update(agents).set({ balance: sql`${agents.balance} + ${toUnits(amount)}` }).where(eq(agents.id, id));
+    await applyCredits(db, {
+      agentId: id, workspaceId: PLATFORM_SCOPE, deltaUnits: toUnits(amount),
+      reason: 'transfer_in', refType: 'transfer', refId: 'withdraw-failed',
+    });
     console.error(`[withdraw] USDC send failed for agent ${id}, re-credited ${amount} credits:`, err);
     throw new AppError('On-chain transfer failed; credits have been restored', 502);
   }

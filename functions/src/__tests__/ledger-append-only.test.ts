@@ -17,7 +17,7 @@ jest.mock('../db/client', () => require('./harness/test-db'));
 
 import { eq, sql } from 'drizzle-orm';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, liquidityEvents, markets, metrics, trades, workspaces } from '../db/schema';
+import { agents, creditLedger, liquidityEvents, markets, metricDefinitionRevisions, metrics, trades, workspaces } from '../db/schema';
 import { allowLedgerAdmin } from '../lib/ledger-admin';
 import { initialPool } from '../lib/amm';
 
@@ -178,5 +178,64 @@ describe('what the ledgers are for', () => {
     // Raw SQL, no Drizzle, no route: the same refusal. This is the property
     // that makes a psql session as constrained as the app.
     expect(await refusal(db.execute(sql`delete from trades`))).toMatch(/append-only/i);
+  });
+});
+
+/**
+ * The two records added on 2026-08-18 carry the same guarantee, for the same
+ * reason: `credit_ledger` is what makes a balance reconstructible, and
+ * `metric_definition_revisions` is the only thing standing between "the owner
+ * clarified the wording" and "the owner moved the goalposts and nobody can
+ * tell". An editable audit log is not an audit log.
+ */
+describe('the credit ledger and the revision log are append-only too', () => {
+  const ledgerRow = {
+    id: 'cl-1', workspaceId: WS, agentId: AGENT,
+    deltaUnits: 1_000_000_000, balanceAfterUnits: 1_000_000_000,
+    reason: 'signup_grant', refType: null, refId: null,
+  };
+  const revisionRow = {
+    id: 'rev-1', workspaceId: WS, metricId: 'metric-1',
+    field: 'description', oldValue: 'before', newValue: 'after', changedBy: AGENT,
+  };
+
+  test('a credit ledger row cannot be edited or deleted', async () => {
+    await seed();
+    await db.insert(creditLedger).values(ledgerRow);
+
+    expect(await refusal(db.update(creditLedger).set({ deltaUnits: 5 })))
+      .toMatch(/append-only/i);
+    expect(await refusal(db.delete(creditLedger))).toMatch(/credit_ledger/);
+    expect(await db.select().from(creditLedger)).toHaveLength(1);
+  });
+
+  test('a definition revision cannot be edited or deleted', async () => {
+    await seed();
+    await db.insert(metricDefinitionRevisions).values(revisionRow);
+
+    expect(await refusal(db.update(metricDefinitionRevisions).set({ newValue: 'rewritten' })))
+      .toMatch(/append-only/i);
+    expect(await refusal(db.delete(metricDefinitionRevisions)))
+      .toMatch(/metric_definition_revisions/);
+    expect(await db.select().from(metricDefinitionRevisions)).toHaveLength(1);
+  });
+
+  test('raw SQL is refused the same way', async () => {
+    await seed();
+    await db.insert(creditLedger).values(ledgerRow);
+    expect(await refusal(db.execute(sql`update credit_ledger set delta_units = 0`)))
+      .toMatch(/append-only/i);
+  });
+
+  test('the sanctioned path can still cascade', async () => {
+    await seed();
+    await db.insert(creditLedger).values(ledgerRow);
+    // Deleting a participant genuinely removes their history; the opt-in is
+    // per transaction, so an ad-hoc psql session cannot do it by accident.
+    await db.transaction(async tx => {
+      await allowLedgerAdmin(tx);
+      await tx.delete(creditLedger).where(eq(creditLedger.agentId, AGENT));
+    });
+    expect(await db.select().from(creditLedger)).toHaveLength(0);
   });
 });

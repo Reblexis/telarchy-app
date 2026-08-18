@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/client';
+import { assertNotInRunningSeason } from '../lib/market-freeze';
 import {
   workspaces, workspaceSlugAliases, workspaceOrderings, permissionGroups,
   markets, positions, trades, liquidityEvents,
@@ -659,6 +660,11 @@ workspacesRouter.delete('/:id', requireCapability('manage_workspace'), wrap(asyn
       res.status(403).json({ error: 'Forbidden: this identity lacks the "manage_workspace" capability in this workspace.' }); return;
     }
   }
+
+  // A season that scores this workspace is still running: its entrants'
+  // profit is measured over these markets, so removing the venue mid-season
+  // reorders who gets paid (docs/market-integrity.md).
+  await assertNotInRunningSeason(wsId);
 
   // Void all unresolved markets (refunds positions to participants)
   const openMarkets = await db.select().from(markets)

@@ -9,6 +9,7 @@ import { periodEndInstant, resolutionInstant } from '../lib/date-utils';
 import { pHigher, consensus, resolutionPayouts } from '../lib/amm';
 import { emitEvent } from './events';
 import { releaseLimitOrdersForMarket } from './trading';
+import { applyCredits } from './credits';
 
 type MarketRow = typeof markets.$inferSelect;
 
@@ -73,12 +74,11 @@ async function resolveMarketRow(
       if (payout <= 0) continue;
       totalPayout += payout;
       positionCount++;
-      await tx.update(agents)
-        .set({
-          balance: sql`${agents.balance} + ${toUnits(payout)}`,
-          earnedBetting: sql`${agents.earnedBetting} + ${payout}`,
-        })
-        .where(eq(agents.id, pos.agentId));
+      await applyCredits(tx, {
+        agentId: pos.agentId, workspaceId, deltaUnits: toUnits(payout),
+        reason: 'payout', refType: 'market', refId: market.id,
+        also: { earnedBetting: sql`${agents.earnedBetting} + ${payout}` },
+      });
     }
 
     if (totalPayout > pool + 0.01) {

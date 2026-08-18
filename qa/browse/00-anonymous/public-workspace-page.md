@@ -93,7 +93,10 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
   the identity block in place. The metric-trajectory charts were removed
   from the "What is this market?" section the same day (the section shows the
   definition only; history fields stay in the API), and a manager sees an
-  Edit button there that warns saving voids and reopens the open market.
+  Edit button there. Amended 2026-08-18: saving no longer voids anything. The
+  market, its price, its pool and every position survive; the change is written
+  to an append-only revision log and published under the definition. The
+  editor's warning text must say that, not the old void-and-reopen line.
   All removed fields stay in the API.
 
 ### T3. The join CTA states what joining actually grants

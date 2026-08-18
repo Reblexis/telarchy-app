@@ -11,6 +11,7 @@ import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
 import { resolutionInstant } from '../lib/date-utils';
 import { metricSubtractsContractAsk } from '../lib/metric-unit';
 import { allowLedgerAdmin } from '../lib/ledger-admin';
+import { applyCredits } from './credits';
 
 type MarketRow = typeof markets.$inferSelect;
 
@@ -321,10 +322,11 @@ export async function createConditionalMarkets(
 
       for (const [contributorId, perMarket] of funded) {
         const cost = Math.round(perMarket * newMarkets.length * 1e6) / 1e6;
-        await tx.update(agents).set({
-          balance: sql`${agents.balance} - ${toUnits(cost)}`,
-          spentBetting: sql`${agents.spentBetting} + ${cost}`,
-        }).where(eq(agents.id, contributorId));
+        await applyCredits(tx, {
+          agentId: contributorId, workspaceId, deltaUnits: -toUnits(cost),
+          reason: 'liquidity', refType: 'proposal', refId: proposalId,
+          also: { spentBetting: sql`${agents.spentBetting} + ${cost}` },
+        });
       }
 
       // anchorP is spawn-time working state, not a column.
@@ -470,12 +472,14 @@ export async function approveProposal(
         409,
       );
     }
-    await tx.update(agents)
-      .set({ balance: sql`${agents.balance} - ${toUnits(reward)}` })
-      .where(eq(agents.id, ownerAgentId));
-    await tx.update(agents)
-      .set({ balance: sql`${agents.balance} + ${toUnits(reward)}` })
-      .where(eq(agents.id, proposal.proposedBy));
+    await applyCredits(tx, {
+      agentId: ownerAgentId, workspaceId, deltaUnits: -toUnits(reward),
+      reason: 'proposal_reward', refType: 'proposal', refId: proposalId,
+    });
+    await applyCredits(tx, {
+      agentId: proposal.proposedBy, workspaceId, deltaUnits: toUnits(reward),
+      reason: 'proposal_reward', refType: 'proposal', refId: proposalId,
+    });
     await tx.update(proposals).set({
       status: 'approved',
       rewardPaid: reward,
@@ -572,12 +576,14 @@ export async function declineProposalAsSpam(
       const chargedUnits = balance >= wantedUnits ? wantedUnits : Math.max(0, balance);
       if (chargedUnits <= 0) return;
       actualCharged = fromUnits(chargedUnits);
-      await tx.update(agents)
-        .set({ balance: sql`${agents.balance} - ${chargedUnits}` })
-        .where(eq(agents.id, proposal.proposedBy));
-      await tx.update(agents)
-        .set({ balance: sql`${agents.balance} + ${chargedUnits}` })
-        .where(eq(agents.id, ownerAgentId));
+      await applyCredits(tx, {
+        agentId: proposal.proposedBy, workspaceId, deltaUnits: -chargedUnits,
+        reason: 'proposal_penalty', refType: 'proposal', refId: proposalId,
+      });
+      await applyCredits(tx, {
+        agentId: ownerAgentId, workspaceId, deltaUnits: chargedUnits,
+        reason: 'proposal_penalty', refType: 'proposal', refId: proposalId,
+      });
     });
   }
 
@@ -796,10 +802,14 @@ async function buyOutProposerLiquidity(
       return;
     }
 
-    await tx.update(agents).set({ balance: sql`${agents.balance} - ${toUnits(stake)}` })
-      .where(eq(agents.id, ownerAgentId));
-    await tx.update(agents).set({ balance: sql`${agents.balance} + ${toUnits(stake)}` })
-      .where(eq(agents.id, proposerId));
+    await applyCredits(tx, {
+      agentId: ownerAgentId, workspaceId, deltaUnits: -toUnits(stake),
+      reason: 'proposal_stake', refType: 'proposal', refId: proposalId,
+    });
+    await applyCredits(tx, {
+      agentId: proposerId, workspaceId, deltaUnits: toUnits(stake),
+      reason: 'proposal_stake', refType: 'proposal', refId: proposalId,
+    });
     for (const row of rows) {
       // Re-attribution, not erasure: the row moves to the account that
       // actually paid for it.

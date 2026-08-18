@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/client';
-import { metrics, markets, updates, metricLogs } from '../db/schema';
+import { metrics, markets, updates, metricLogs, metricDefinitionRevisions } from '../db/schema';
 import { eq, and, sql, asc } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
@@ -12,7 +12,8 @@ import {
 import { getLeafDescendantNames, desiredMarketDates, generatesMarkets } from '../lib/time-preference';
 import { isValidCalendarDate, periodEndInstant } from '../lib/date-utils';
 import * as svc from '../services/metrics';
-import { voidOpenMarketsForMetrics, recreateMarketsForMetric } from '../services/markets';
+import { voidOpenMarketsForMetrics } from '../services/markets';
+import { assertMetricMarketsUntraded } from '../lib/market-freeze';
 import { emitEvent } from '../services/events';
 import type { TimePreference } from '../types';
 
@@ -185,6 +186,33 @@ metricsRouter.put('/:id', requireCapability('manage'), wrap(async (req, res) => 
 
   const isLeafMetric = !effectiveFormula || effectiveFormula.trim() === '0';
 
+  // The machinery half of the definition (owner decision 2026-08-18): the
+  // formula that computes the number, and the range the price lives inside.
+  // A market stores its own rangeMin/rangeMax and prices inside them, so
+  // changing the metric's range while a market is open makes the floor's
+  // stated range and the traded range disagree with nothing on screen saying
+  // so. Rather than void-and-respawn (the old behaviour) or sync-and-hope,
+  // the edit is simply refused while a market is open. Nothing is destroyed
+  // and nothing silently diverges; get the range right before opening, or
+  // wait for the market to settle.
+  const settlementFields = settlementFieldChanges(oldRow, update, effectiveFormula);
+  if (settlementFields.length > 0) {
+    const [openMarket] = await db.select({ id: markets.id, targetDate: markets.targetDate })
+      .from(markets)
+      .where(and(eq(markets.workspaceId, workspaceId), eq(markets.metricId, id), eq(markets.resolved, false)))
+      .limit(1);
+    if (openMarket) {
+      res.status(409).json({
+        error: `Cannot change ${settlementFields.join(' or ')} while a market on this metric is open: `
+          + 'that is what the open market settles on. Wait for it to resolve, or void it deliberately first.',
+        fields: settlementFields,
+        openMarketId: openMarket.id,
+        targetDate: openMarket.targetDate,
+      });
+      return;
+    }
+  }
+
   await db.transaction(async tx => {
     await tx.update(metrics).set(dbUpdate)
       .where(and(eq(metrics.id, id), eq(metrics.workspaceId, workspaceId)));
@@ -233,45 +261,36 @@ metricsRouter.put('/:id', requireCapability('manage'), wrap(async (req, res) => 
     }
   }
 
-  // Invariant: a market may only exist while its metric's definition (name, description,
-  // formula, marketRangeMax) is unchanged from when the market was created. Any change to
-  // those fields voids all open markets for this metric (refunding positions at cost), and
-  // new markets are respawned with the updated definition via the TP/ensure logic below.
-  const definitionChanged = isDefinitionChange(oldRow, update, effectiveFormula);
-  let voidedTargetDates: string[] = [];
-  if (definitionChanged) {
-    const openForMetric = await db.select({ targetDate: markets.targetDate })
-      .from(markets)
+  // Editing a definition no longer voids the market it settles (owner
+  // direction 2026-08-18; governing doc docs/market-integrity.md).
+  //
+  // The old invariant was "a market may only exist while its metric's
+  // definition is unchanged", enforced by voiding every open market on ANY
+  // edit to name, description, formula or range, refunding every position and
+  // respawning fresh. That was defensible when nothing was at stake. With a
+  // prize season running it is the wrong trade: rewording one sentence
+  // destroyed a week of price discovery and every position in it, which made
+  // routine copy-editing a destructive act nobody could safely perform.
+  //
+  // What replaces it splits the four fields by what they actually are.
+  // `name` and `description` are words: nothing computes from them, so they
+  // are free to change and every change is written to the append-only
+  // revision log, rendered on the floor beside the definition. No code can
+  // tell a clarification from a redefinition, so the answer is disclosure,
+  // not prevention. `formula` and `marketRangeMax` are machinery, and they
+  // are refused above while a market is open rather than voided.
+  const textChanged = isTextDefinitionChange(oldRow, update);
+  if (textChanged) {
+    await recordDefinitionRevisions(id, workspaceId, oldRow, update, revisionAuthor(req));
+  }
+
+  // Markets carry the metric's name denormalised (it is what the floor, the
+  // share image and every notification render), so a rename that no longer
+  // voids has to reach the open markets or they show the old name forever.
+  if (update.name !== undefined && update.name !== oldRow.name) {
+    await db.update(markets)
+      .set({ metricName: update.name as string })
       .where(and(eq(markets.workspaceId, workspaceId), eq(markets.metricId, id), eq(markets.resolved, false)));
-    voidedTargetDates = openForMetric.map(m => m.targetDate);
-    if (voidedTargetDates.length > 0) {
-      await voidOpenMarketsForMetrics(new Set([id]), workspaceId);
-    }
-  }
-
-  const isManaged = generatesMarkets(effectiveTPRecord);
-  if (definitionChanged && !isManaged) {
-    const tpAncestorIds = await findTPAncestors(id, workspaceId);
-    if (tpAncestorIds.length > 0) {
-      for (const tpId of tpAncestorIds) {
-        const [tpRow] = await db.select({ timePreference: metrics.timePreference }).from(metrics)
-          .where(and(eq(metrics.id, tpId), eq(metrics.workspaceId, workspaceId)));
-        const tpRecord = tpRow?.timePreference as TimePreference | null;
-        if (generatesMarkets(tpRecord)) await svc.respawnMarketsForTimePreference(tpId, tpRecord, workspaceId);
-      }
-    } else if (voidedTargetDates.length > 0) {
-      // Standalone leaf metric with no TP config and no TP ancestors: recreate
-      // voided markets at the same dates with the new definition.
-      const newRangeMax = (update.marketRangeMax as number | undefined) ?? oldRow.marketRangeMax ?? 1000;
-      const metricName = (update.name as string | undefined) ?? oldRow.name;
-      await recreateMarketsForMetric(id, metricName, voidedTargetDates, newRangeMax, workspaceId);
-    }
-  }
-
-  if (definitionChanged && isManaged) {
-    // Respawn from the current desired set only; horizons removed in this same
-    // request stay removed.
-    await svc.respawnMarketsForTimePreference(id, effectiveTPRecord!, workspaceId);
   }
 
   const allMetrics = await svc.getAllMetrics(workspaceId);
@@ -299,6 +318,11 @@ metricsRouter.delete('/:id', requireCapability('manage'), wrap(async (req, res) 
   const [row] = await db.select().from(metrics)
     .where(and(eq(metrics.id, id), eq(metrics.workspaceId, workspaceId)));
   if (!row) { res.status(404).json({ error: 'Metric not found' }); return; }
+
+  // Deleting the metric voids its open markets, so it is refused for the same
+  // reason the void endpoint is: it takes money off whoever put it in
+  // (docs/market-integrity.md).
+  await assertMetricMarketsUntraded(id, workspaceId);
 
   const tpAncestorIds = await findTPAncestors(id, workspaceId);
   await svc.deleteMetric(id, workspaceId);
@@ -461,18 +485,75 @@ function storableTP(tp: TimePreference | null | undefined): TimePreference | nul
   return (tp.enabled || (tp.customHorizons?.length ?? 0) > 0) ? tp : null;
 }
 
-function isDefinitionChange(
+/**
+ * The words half of the definition: safe to change while a market is open.
+ *
+ * Nothing computes from a name or a description. They are what a reader is
+ * told the market means, which is why every change to them is logged rather
+ * than blocked (docs/market-integrity.md).
+ */
+function isTextDefinitionChange(
   oldRow: typeof metrics.$inferSelect,
   update: Record<string, unknown>,
-  effectiveFormula: string,
 ): boolean {
   if (update.name !== undefined && update.name !== oldRow.name) return true;
   if (update.description !== undefined && update.description !== oldRow.description) return true;
-  if (update.formula !== undefined && update.formula !== (oldRow.formula ?? '0')) return true;
-  if (update.marketRangeMax !== undefined && update.marketRangeMax !== oldRow.marketRangeMax) return true;
-  const isLeaf = !effectiveFormula || effectiveFormula.trim() === '0';
-  if (!isLeaf && update.value !== undefined && update.value !== oldRow.value) return true;
   return false;
+}
+
+/**
+ * The machinery half: what an open market actually settles on.
+ *
+ * Returns the human-readable field names that changed, so the refusal can
+ * name them. `value` counts only on a computed metric, where setting it by
+ * hand overrides what the formula produces and therefore redefines the number
+ * the market resolves against; on a leaf metric a new value IS the
+ * measurement and is always allowed.
+ */
+function settlementFieldChanges(
+  oldRow: typeof metrics.$inferSelect,
+  update: Record<string, unknown>,
+  effectiveFormula: string,
+): string[] {
+  const changed: string[] = [];
+  if (update.formula !== undefined && update.formula !== (oldRow.formula ?? '0')) changed.push('the formula');
+  if (update.marketRangeMax !== undefined && update.marketRangeMax !== oldRow.marketRangeMax) changed.push('the market range');
+  const isLeaf = !effectiveFormula || effectiveFormula.trim() === '0';
+  if (!isLeaf && update.value !== undefined && update.value !== oldRow.value) changed.push('the computed value');
+  return changed;
+}
+
+/** Who saved the edit, for the revision row. Agent id, else auth user id. */
+function revisionAuthor(req: { auth?: { agentId?: string | null; uid?: string | null } | null }): string | null {
+  return req.auth?.agentId ?? req.auth?.uid ?? null;
+}
+
+/**
+ * One append-only row per changed text field.
+ *
+ * This is the whole mitigation for letting settlement text change under an
+ * open market: a trader can see, on the floor, that the wording moved after
+ * they took their position, and when, and to what. A silent edit and a logged
+ * edit are very different things even though neither is prevented.
+ */
+async function recordDefinitionRevisions(
+  metricId: string,
+  workspaceId: string,
+  oldRow: typeof metrics.$inferSelect,
+  update: Record<string, unknown>,
+  changedBy: string | null,
+): Promise<void> {
+  const rows: Array<typeof metricDefinitionRevisions.$inferInsert> = [];
+  const consider = (field: 'name' | 'description', oldValue: string | null) => {
+    if (update[field] === undefined || update[field] === oldValue) return;
+    rows.push({
+      id: randomUUID(), workspaceId, metricId, field,
+      oldValue, newValue: (update[field] as string | null) ?? null, changedBy,
+    });
+  };
+  consider('name', oldRow.name);
+  consider('description', oldRow.description ?? null);
+  if (rows.length > 0) await db.insert(metricDefinitionRevisions).values(rows);
 }
 
 async function getAllMetricRows(workspaceId: string) {

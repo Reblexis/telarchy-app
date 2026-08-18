@@ -51,7 +51,7 @@ workspace, system-wide cron, the bot service config, master-key permissions.
 Specs marked `global` always run serialised, after all parallel-safe specs.
 
 Reserve this for genuinely cross-cutting tests: rate-limit measurement,
-USDC kill-switch toggle, reset-economy. If you find yourself reaching for
+USDC kill-switch toggle, workspace deletion. If you find yourself reaching for
 `global` because a feature happens to live on the default workspace, stop —
 either move the test to a fresh workspace or fix the feature so it doesn't
 require a specific workspace.

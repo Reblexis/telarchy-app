@@ -1,6 +1,7 @@
 import { and, eq, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { db } from '../db/client';
+import { applyCredits } from './credits';
 import { agents, limitOrders, markets, positions, trades, workspaces } from '../db/schema';
 import { AppError } from '../lib/errors';
 import { betTowardsValue, consensus, directionSellProceeds, pHigher, sharesForBudget } from '../lib/amm';
@@ -186,10 +187,11 @@ export async function executeTradeInTx(tx: Tx, opts: {
       pool: sql`${markets.pool} - ${proceeds}`,
       tradedVolume: sql`${markets.tradedVolume} + ${proceeds}`,
     }).where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
-    await tx.update(agents).set({
-      balance: sql`${agents.balance} + ${toUnits(proceeds)}`,
-      earnedBetting: sql`${agents.earnedBetting} + ${proceeds}`,
-    }).where(eq(agents.id, agentId));
+    await applyCredits(tx, {
+      agentId, workspaceId, deltaUnits: toUnits(proceeds),
+      reason: 'trade', refType: 'market', refId: marketId,
+      also: { earnedBetting: sql`${agents.earnedBetting} + ${proceeds}` },
+    });
     await tx.update(positions).set({ shares: sql`${positions.shares} - ${amount}` })
       .where(and(eq(positions.id, resolvedPosId), eq(positions.workspaceId, workspaceId)));
   } else {
@@ -198,10 +200,11 @@ export async function executeTradeInTx(tx: Tx, opts: {
       pool: sql`${markets.pool} + ${cost}`,
       tradedVolume: sql`${markets.tradedVolume} + ${cost}`,
     }).where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
-    await tx.update(agents).set({
-      balance: sql`${agents.balance} - ${toUnits(cost)}`,
-      spentBetting: sql`${agents.spentBetting} + ${cost}`,
-    }).where(eq(agents.id, agentId));
+    await applyCredits(tx, {
+      agentId, workspaceId, deltaUnits: -toUnits(cost),
+      reason: 'trade', refType: 'market', refId: marketId,
+      also: { spentBetting: sql`${agents.spentBetting} + ${cost}` },
+    });
 
     if (posRow) {
       await tx.update(positions).set({
@@ -367,8 +370,10 @@ export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId:
       await tx.transaction(async sp => {
         // Release the reservation so the shared trade path can debit it like
         // any other spend, then re-reserve whatever the fill did not use.
-        await sp.update(agents).set({ balance: sql`${agents.balance} + ${toUnits(budget)}` })
-          .where(eq(agents.id, next!.agentId));
+        await applyCredits(sp, {
+          agentId: next!.agentId, workspaceId, deltaUnits: toUnits(budget),
+          reason: 'limit_order_release', refType: 'market', refId: marketId,
+        });
 
         const outcome = await executeTradeInTx(sp, {
           workspaceId,
@@ -387,8 +392,10 @@ export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId:
 
         const unused = budget - outcome.cost;
         if (unused > 0) {
-          await sp.update(agents).set({ balance: sql`${agents.balance} - ${toUnits(unused)}` })
-            .where(eq(agents.id, next!.agentId));
+          await applyCredits(sp, {
+            agentId: next!.agentId, workspaceId, deltaUnits: -toUnits(unused),
+            reason: 'limit_order_hold', refType: 'market', refId: marketId,
+          });
         }
 
         const left = (remaining.get(next!.id) ?? 0) - outcome.cost;
@@ -433,13 +440,18 @@ export async function fillLimitOrdersInTx(tx: Tx, workspaceId: string, marketId:
  */
 export async function closeLimitOrderInTx(
   tx: Tx,
-  order: { id: string; agentId: string; budgetCredits: number; filledCredits: number },
+  // workspaceId and marketId come off the order row rather than the caller,
+  // so the ledger entry names the market whose reservation is being released
+  // however the close was reached (cancel, expiry, resolution, void).
+  order: { id: string; agentId: string; workspaceId: string; marketId: string; budgetCredits: number; filledCredits: number },
   status: 'cancelled' | 'expired' | 'voided',
 ): Promise<number> {
   const refund = Math.max(0, order.budgetCredits - order.filledCredits);
   if (refund > 0) {
-    await tx.update(agents).set({ balance: sql`${agents.balance} + ${toUnits(refund)}` })
-      .where(eq(agents.id, order.agentId));
+    await applyCredits(tx, {
+      agentId: order.agentId, workspaceId: order.workspaceId, deltaUnits: toUnits(refund),
+      reason: 'limit_order_release', refType: 'market', refId: order.marketId,
+    });
   }
   await tx.update(limitOrders).set({ status, updatedAt: new Date() })
     .where(eq(limitOrders.id, order.id));

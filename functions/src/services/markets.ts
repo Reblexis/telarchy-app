@@ -11,6 +11,7 @@ import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
 import { applyAgentLiquidityInjectionTx } from './marketLiquidity';
 import { sufficientBalance, toUnits, MIN_LIQUIDITY_CONTRIBUTION } from '../lib/validation';
 import { releaseLimitOrdersForMarket } from './trading';
+import { applyCredits } from './credits';
 
 type MarketRow = typeof markets.$inferSelect;
 
@@ -43,12 +44,11 @@ export async function distributeLPLeftover(
       : Math.round(poolAmount * contribution / total * 100) / 100;
     if (share <= 0) continue;
     distributed += share;
-    await tx.update(agents)
-      .set({
-        balance: sql`${agents.balance} + ${toUnits(share)}`,
-        earnedBetting: sql`${agents.earnedBetting} + ${share}`,
-      })
-      .where(eq(agents.id, agentId));
+    await applyCredits(tx, {
+      agentId, workspaceId, deltaUnits: toUnits(share),
+      reason: 'lp_leftover', refType: 'market', refId: marketId,
+      also: { earnedBetting: sql`${agents.earnedBetting} + ${share}` },
+    });
   }
 }
 
@@ -110,12 +110,11 @@ export async function voidMarket(
       const refund = Math.max(0, Number(row.netCash));
       if (refund <= 0) continue;
       refunded += refund;
-      await tx.update(agents)
-        .set({
-          balance: sql`${agents.balance} + ${toUnits(refund)}`,
-          spentBetting: sql`${agents.spentBetting} - ${refund}`,
-        })
-        .where(eq(agents.id, row.agentId));
+      await applyCredits(tx, {
+        agentId: row.agentId, workspaceId, deltaUnits: toUnits(refund),
+        reason: 'void_refund', refType: 'market', refId: market.id,
+        also: { spentBetting: sql`${agents.spentBetting} - ${refund}` },
+      });
     }
 
     // Credits reserved by orders that will now never fill go back to their

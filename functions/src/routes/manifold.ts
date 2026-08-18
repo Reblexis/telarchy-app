@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { randomBytes } from 'crypto';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../db/client';
+import { applyCredits, PLATFORM_SCOPE } from '../services/credits';
 import { agents, systemConfig } from '../db/schema';
 import { wrap } from '../lib/wrap';
 import { AppError } from '../lib/errors';
@@ -129,8 +130,10 @@ manifoldRouter.post('/claim', requireIdentity, wrap(async (req, res) => {
 
   await db.transaction(async tx => {
     if (granted > 0) {
-      await tx.update(agents).set({ balance: sql`${agents.balance} + ${toUnits(granted)}` })
-        .where(eq(agents.id, agentId));
+      await applyCredits(tx, {
+        agentId, workspaceId: PLATFORM_SCOPE, deltaUnits: toUnits(granted),
+        reason: 'signup_grant', refId: `manifold:${user.id}`,
+      });
     }
     await tx.insert(systemConfig).values([
       { key: claimedUserKey(user.id), value: { agentId, granted, at: Date.now(), username: user.username } },

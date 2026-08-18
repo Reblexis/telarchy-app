@@ -1,6 +1,7 @@
 import { Router, type Request } from 'express';
 import { randomBytes } from 'crypto';
 import { db } from '../db/client';
+import { applyCredits, PLATFORM_SCOPE } from '../services/credits';
 import { agents, agentApiKeys, authUser, trades, positions, proposals, proposalMessages } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { CURRENT_CONSENT_VERSION } from './legal';
@@ -31,15 +32,23 @@ async function ensureParticipant(uid: string): Promise<{ participantId: string; 
   // when the user creates their first workspace.
   const keyHash = hashKey(randomBytes(32).toString('hex'));
 
-  await db.insert(agents).values({
-    id: participantId,
-    apiKeyHash: keyHash,
-    authUserId: uid,
-    platformAdmin: false,
-    intent: null,
-    balance: toUnits(SIGNUP_CREDITS),
-    createdAt: now,
-    approvedAt: now,
+  // One transaction: an identity created without its grant, or a grant
+  // without its identity, are both states nothing later would repair.
+  await db.transaction(async tx => {
+    await tx.insert(agents).values({
+      id: participantId,
+      apiKeyHash: keyHash,
+      authUserId: uid,
+      platformAdmin: false,
+      intent: null,
+      balance: 0,
+      createdAt: now,
+      approvedAt: now,
+    });
+    await applyCredits(tx, {
+      agentId: participantId, workspaceId: PLATFORM_SCOPE,
+      deltaUnits: toUnits(SIGNUP_CREDITS), reason: 'signup_grant',
+    });
   });
 
   // The public identity must be UNIQUE (owner direction 2026-08-11): the

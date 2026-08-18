@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { randomBytes, randomUUID } from 'crypto';
 import { and, eq, isNull, or } from 'drizzle-orm';
 import { db } from '../db/client';
+import { applyCredits, PLATFORM_SCOPE } from '../services/credits';
 import { agents, agentApiKeys, trades, positions, workspaces, permissionGroups } from '../db/schema';
 import { wrap } from '../lib/wrap';
 import { hashKey, authMiddleware } from '../middleware/auth';
@@ -93,11 +94,15 @@ onboardRouter.post('/', wrap(async (req, res) => {
     await tx.insert(agents).values({
       id: participantId,
       apiKeyHash: hashKey(rawKey),
-      balance: toUnits(UNCLAIMED_SIGNUP_CREDITS),
+      balance: 0,
       bio: normalizedBio,
       claimTokenHash: hashKey(rawClaimToken),
       createdAt: new Date(),
       approvedAt: new Date(),
+    });
+    await applyCredits(tx, {
+      agentId: participantId, workspaceId: PLATFORM_SCOPE,
+      deltaUnits: toUnits(UNCLAIMED_SIGNUP_CREDITS), reason: 'signup_grant',
     });
     if (nickname !== undefined && nickname !== null && nickname !== '') {
       await claimNickname(tx, participantId, nickname);
@@ -221,8 +226,16 @@ onboardRouter.post('/claim', authMiddleware, wrap(async (req, res) => {
     await tx.update(agents).set({
       authUserId: uid,
       claimTokenHash: null,
-      balance: target.balance + toUnits(topUpCredits),
     }).where(eq(agents.id, target.id));
+    if (topUpCredits > 0) {
+      // The claim top-up moves as a delta with its own row, not as an
+      // absolute write: an absolute write races any concurrent trade and
+      // leaves nothing saying where the difference came from.
+      await applyCredits(tx, {
+        agentId: target.id, workspaceId: PLATFORM_SCOPE,
+        deltaUnits: toUnits(topUpCredits), reason: 'signup_grant', refId: 'claim-top-up',
+      });
+    }
   });
 
   const wsRows = await db.select({ id: workspaces.id, name: workspaces.name, slug: workspaces.slug })

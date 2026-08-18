@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/client';
+import { applyCredits } from '../services/credits';
+import { assertMarketUntraded } from '../lib/market-freeze';
 import { agents, markets, marketMessages, positions, trades, liquidityEvents, workspaces, proposals, limitOrders } from '../db/schema';
 import { eq, and, asc, desc, sql, inArray, isNull, gt } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
@@ -301,8 +303,10 @@ predictionsRouter.post('/limit-orders', requireCapability('trade'), wrap(async (
       }
     }
 
-    await tx.update(agents).set({ balance: sql`${agents.balance} - ${toUnits(budgetCredits)}` })
-      .where(eq(agents.id, agentId));
+    await applyCredits(tx, {
+      agentId, workspaceId, deltaUnits: -toUnits(budgetCredits),
+      reason: 'limit_order_hold', refType: 'market', refId: marketId,
+    });
     await tx.insert(limitOrders).values({
       id: orderId, workspaceId, marketId, agentId,
       direction, limitValue, budgetCredits, filledCredits: 0,
@@ -730,10 +734,12 @@ predictionsRouter.post('/markets/liquidity/bulk', requireCapability('manage'), w
   }
 
   await db.transaction(async tx => {
-    await tx.update(agents).set({
-      balance: sql`${agents.balance} - ${toUnits(totalCost)}`,
-      spentBetting: sql`${agents.spentBetting} + ${totalCost}`,
-    }).where(eq(agents.id, agentId));
+    await applyCredits(tx, {
+      agentId, workspaceId, deltaUnits: -toUnits(totalCost),
+      reason: 'liquidity', refType: 'market',
+      refId: marketUpdates.map(u => u.market.id).join(','),
+      also: { spentBetting: sql`${agents.spentBetting} + ${totalCost}` },
+    });
 
     for (const { market, newLiquidity, newShares, newPool, poolContribution } of marketUpdates) {
       await tx.update(markets).set({ liquidity: newLiquidity, shares: newShares, pool: newPool })
@@ -817,6 +823,10 @@ predictionsRouter.post('/markets/:id/void', requireCapability('manage'), wrap(as
     .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
   if (!market) { res.status(404).json({ error: 'Market not found' }); return; }
   if (market.resolved) { res.status(409).json({ error: 'Market is already resolved or voided' }); return; }
+  // Voiding takes money off whoever put it in, so it is refused outright once
+  // anyone has traded (docs/market-integrity.md). The engine's own voids
+  // (stale conditionals, decided proposals) do not pass through here.
+  await assertMarketUntraded(marketId, workspaceId);
   const result = await voidMarket(market, workspaceId);
   res.json({ voided: true, refundedPositions: result.refunded });
 }));

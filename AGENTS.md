@@ -235,6 +235,28 @@ There is no openclaw-based bot trading (the `~/.openclaw` scaffolding is unrelat
 
 If modifying the api capabilities or otherwise changing behaviour of the backend relevant to api communication, always update the documentation and api help endpoint correspondingly as well as the skill description.
 
+## Market integrity (Season 1)
+
+Governing doc: `docs/market-integrity.md`. Three rules, all owner decisions of
+2026-08-18, all with tests that fail against the old behaviour:
+
+1. **Editing a metric's name or description never voids its markets.** It
+   writes an append-only `metric_definition_revisions` row instead, rendered on
+   the floor beside the definition. Editing its `formula` or `marketRangeMax`
+   is refused with 409 while any market on it is open, because that is what an
+   open market prices inside. Do not reintroduce void-and-respawn on edit.
+2. **Nothing takes money off a participant who did not agree.** Voiding a
+   market and deleting a metric are refused once anyone has traded; deleting a
+   workspace is refused while a running prize season names it. These guards sit
+   at the ROUTE layer, never inside `voidMarket`, because six of its nine
+   callers are the engine's own lifecycle. `POST /api/system/reset-economy` was
+   deleted outright rather than guarded.
+3. **`services/credits.ts` is the only code allowed to write `agents.balance`.**
+   `applyCredits` moves the money and writes the `credit_ledger` row in one
+   transaction. `credit-ledger-ownership.test.ts` fails the build if a second
+   writer appears, and `credit-ledger-reconciliation.test.ts` proves the
+   ledger sums to the balance.
+
 ## The ledgers are append-only
 
 `trades` and `liquidity_events` are the record a market settles on: every

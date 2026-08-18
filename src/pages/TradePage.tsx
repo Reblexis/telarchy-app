@@ -903,18 +903,23 @@ export function TradePage() {
 
         {/* Two questions, two sections (owner direction 2026-08-10):
             "What is this market?" is the metric's stored definition,
-            verbatim, because it is the settlement text and changing it
-            voids the market. "What is LookPilot?" is the product in its
-            own words plus the primary sources; know the company, trade it
-            better. */}
+            verbatim, because it is the settlement text. "What is
+            LookPilot?" is the product in its own words plus the primary
+            sources; know the company, trade it better.
+
+            Editing the definition no longer voids the market (owner
+            direction 2026-08-18, docs/market-integrity.md). Every edit is
+            logged instead, and the log is rendered below the definition so
+            a trader can see whether the wording moved after they took
+            their position. */}
         <section className="pubws-know pubws-enter pubws-enter--3" aria-label="What is this market">
           <h2 className="pubws-know-head">
             What is this market?
             {/* Managers edit the definition in place (owner ask 2026-08-18).
-                The consequence is stated before the save button because it
-                is severe: the description is the settlement text, so saving
-                voids the metric's open markets (positions refunded at cost)
-                and reopens them with the new wording. */}
+                Saving keeps the market: the price, the pool and every
+                position survive. What it does instead is publish the change
+                here, which is the honest trade when no code can tell a
+                clarification from a redefinition. */}
             {canManage && ws.heroMetricId && !editingDef && (
               <button
                 className="pubws-decide"
@@ -944,9 +949,10 @@ export function TradePage() {
                 onChange={e => setDefDraft(e.target.value)}
               />
               <p className="pubws-settle">
-                This text is what the market settles on. Saving a changed
-                definition voids the open market (every position is refunded
-                at cost) and reopens it with the new wording.
+                This text is what the market settles on. Saving keeps the
+                market open and every position intact, and publishes the
+                change below, old wording and new, for anyone holding a
+                position to see.
               </p>
               <div>
                 <button
@@ -954,7 +960,7 @@ export function TradePage() {
                   disabled={defSaving}
                   onClick={() => { void saveDefinition(); }}
                 >
-                  {defSaving ? 'Saving…' : 'Save + reopen market'}
+                  {defSaving ? 'Saving…' : 'Save'}
                 </button>
                 <button
                   className="pubws-decide"
