@@ -6,6 +6,8 @@ import { agents, prizeSeasons, seasonEntries, workspaces } from '../db/schema';
 import { wrap } from '../lib/wrap';
 import { AppError } from '../lib/errors';
 import { requireIdentity } from '../middleware/roles';
+import { optionalAuthMiddleware } from '../middleware/auth';
+import { requireConsentIfUser } from '../middleware/consent';
 import { isPlatformAuthorized } from '../lib/platform-admin';
 import { loadBoard } from '../lib/board';
 import { clearBoardCache } from './leaderboard';
@@ -38,6 +40,16 @@ import {
  *           │ baselines EVERYONE │ assigns ladder    │ prize rolls forward
  */
 export const seasonsRouter = Router();
+
+// This router is mounted in app.ts BEFORE the global `app.use('/api',
+// authMiddleware)` line, like proposals and predictions, so it must resolve
+// auth itself or req.auth is never set and every identity-gated route below
+// rejects valid credentials (this shipped broken: master key got 403
+// "Platform admin required" on POST /). Optional rather than rejecting
+// because GET / is public; requireIdentity / requirePlatform enforce the
+// rest per route.
+seasonsRouter.use(optionalAuthMiddleware);
+seasonsRouter.use(requireConsentIfUser);
 
 function asLadder(raw: unknown): LadderRung[] {
   if (!Array.isArray(raw)) throw new AppError('ladder must be an array of { place, prizeUsd }', 400);
