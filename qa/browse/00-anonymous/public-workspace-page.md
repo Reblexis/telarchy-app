@@ -80,11 +80,17 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
 **Expected:**
 - The page renders standalone: minimal top bar (logo lockup + Log in when
   signed out), NO app sidebar and no `.page-content` shell.
-- Minimal phase (2026-08-09), amended 2026-08-18: the workspace's name renders
-  at the top (`.pubws-ws-name`, tiny-uppercase register); no counts line, no
-  hook line, no settle fineprint; the headline `.pubws-instrument-title` is
-  the metric name alone (the "@ <settle date>" suffix was removed 2026-08-18,
-  the name carries its own period). The metric-trajectory charts were removed
+- Minimal phase (2026-08-09), amended 2026-08-18: the identity block heads the
+  page (`.pubws-ident`) with the company's name as the only `h1`
+  (`.pubws-ws-name`, serif) and the workspace `description` under it
+  (`.pubws-ws-tagline`, absent when the workspace has none); no counts line, no
+  hook line, no settle fineprint. With no contract selected the metric name is
+  a caption over the number (`.pubws-instrument-label`, mono uppercase) with a
+  leading copy of the company's name stripped ("LookPilot net 2026" renders as
+  "NET 2026"); the "@ <settle date>" suffix was removed 2026-08-18, the name
+  carries its own period. Selecting a contract swaps that caption for the
+  conditional question as `.pubws-instrument-title` (an `h2`, serif) and leaves
+  the identity block in place. The metric-trajectory charts were removed
   from the "What is this market?" section the same day (the section shows the
   definition only; history fields stay in the API), and a manager sees an
   Edit button there that warns saving voids and reopens the open market.

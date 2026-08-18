@@ -7752,6 +7752,20 @@ code, pre, kbd, samp {
   color: var(--text-primary);
 }
 
+/* The metric name as a caption over the number, not as the headline: the
+   company above owns that role now. Mono uppercase so it reads as an
+   instrument label rather than as a sentence. */
+.pubws-instrument-label {
+  margin: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1.3;
+  color: var(--text-secondary);
+}
+
 .pubws-instrument-when {
   font-weight: 500;
   color: var(--text-secondary);
@@ -10261,14 +10275,32 @@ textarea.jobform-line--desc {
 /* The workspace's name at the top of the floor (owner direction 2026-08-18):
    the same tiny-uppercase register as section labels, so it names the page
    without competing with the instrument title. */
-.pubws-ws-name {
-  margin: 0 0 clamp(1rem, 2.5vh, 1.6rem);
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+/* The identity block: who this floor belongs to, above the market.
+   The company is the page and the market is a readout on it, so the name
+   is a real title (serif, primary) with the workspace description as its
+   one line of what the business actually sells. Stays put when a job is
+   selected; only the instrument below it swaps. */
+.pubws-ident {
+  margin: 0 0 clamp(1.1rem, 2.6vh, 1.7rem);
   text-align: center;
-  color: var(--text-tertiary);
+}
+
+.pubws-ws-name {
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: clamp(1.7rem, 6vw, 2.2rem);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--text-primary);
+}
+
+.pubws-ws-tagline {
+  margin: 0.3rem 0 0;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
 }
 
 /* The manager's in-place definition editor. */

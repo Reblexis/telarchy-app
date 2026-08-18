@@ -226,3 +226,26 @@ export function priceSeriesOf(
   if (priceSeriesIsInline(marketId, ws)) return ws!.marketHistory ?? [];
   return fetched[marketId] ?? [];
 }
+
+/**
+ * The metric label as it reads directly under the company's own name.
+ *
+ * The floor's identity block already says "LookPilot", so a caption reading
+ * "LOOKPILOT NET 2026" one line below it says the company twice and buries
+ * the part that matters. Strips a leading workspace-name prefix, and only
+ * that: the full label is what the back button and every other surface show,
+ * because there the company is not already overhead.
+ *
+ * Never strips down to nothing (a metric named exactly after its workspace
+ * keeps its name), and never strips a prefix that is really the start of a
+ * longer word ("LookPilotter"), which is why the boundary is checked.
+ */
+export function captionLabel(metricLabel: string, workspaceName: string | null | undefined): string {
+  const name = (workspaceName ?? '').trim();
+  if (!name) return metricLabel;
+  if (!metricLabel.toLowerCase().startsWith(name.toLowerCase())) return metricLabel;
+  const rest = metricLabel.slice(name.length);
+  if (!/^[\s:,-]/.test(rest)) return metricLabel;
+  const trimmed = rest.replace(/^[\s:,-]+/, '').trim();
+  return trimmed.length > 0 ? trimmed : metricLabel;
+}

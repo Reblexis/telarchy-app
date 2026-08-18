@@ -19,7 +19,7 @@ import { ReportButton } from '../components/ReportButton';
 import { Logo } from '../components/Logo';
 import type { LeaderboardEntry, LimitOrder } from '../lib/api';
 import {
-  buildHorizonViews, priceSeriesIsInline, priceSeriesOf, primaryHorizonOf, settleDayOf,
+  buildHorizonViews, captionLabel, priceSeriesIsInline, priceSeriesOf, primaryHorizonOf, settleDayOf,
   type HorizonView, type PriceSeries,
 } from '../lib/floor-horizons';
 
@@ -586,11 +586,21 @@ export function TradePage() {
       <main className="pubws-main pubws-main--floor">
         <LeaderboardRail entries={leaders} contractors={ws?.topContractors} unit={unit} />
         <div className="pubws-center">
-        {/* The workspace's name at the top of the page (owner direction
-            2026-08-18, reversing that part of the 2026-08-09 minimal cut):
-            with the settle date gone from the instrument title, nothing
-            else said whose floor this is. */}
-        {ws.name && <div className="pubws-ws-name pubws-enter">{ws.name}</div>}
+        {/* The company IS the page (owner direction 2026-08-18): a cold
+            visitor arrives from a link about this business, not about
+            Telarchy, and cannot parse "What is LookPilot net 2026" as a
+            first impression. So the identity block leads (name, then the
+            workspace description as the one line of what it sells) and the
+            market below it reads as a number about something named. The
+            name was already here as a grey eyebrow, which read as a
+            breadcrumb rather than as a real business. Fixed across job
+            selection: only the instrument below it swaps. */}
+        {ws.name && (
+          <header className="pubws-ident pubws-enter">
+            <h1 className="pubws-ws-name">{ws.name}</h1>
+            {ws.description && <p className="pubws-ws-tagline">{ws.description}</p>}
+          </header>
+        )}
         {hero && active && consensus !== null && (
           <section className="pubws-instrument" aria-label="The market">
             {/* Selecting a job re-points this one view at its conditional
@@ -608,7 +618,7 @@ export function TradePage() {
                 <button className="pubws-back" onClick={() => setSelectedJobId(null)}>
                   ← {metricLabel}
                 </button>
-                <h1 className="pubws-instrument-title pubws-question pubws-enter pubws-enter--1">
+                <h2 className="pubws-instrument-title pubws-question pubws-enter pubws-enter--1">
                   What is {metricLabel} if{' '}
                   {selectedJob.proposedByName ?? 'someone'}{' '}
                   {/* The phrase IS the world: green "is paid" in the
@@ -632,7 +642,7 @@ export function TradePage() {
                   {splitAsk(selectedJob.title).ask !== null ? ' to do:' : ':'}
                   {' '}
                   <span className="pubws-question-task">{splitAsk(selectedJob.title).rest}</span>
-                </h1>
+                </h2>
                 {selectedJob.description && (
                   <>
                     <p className={`pubws-details pubws-enter pubws-enter--1${descExpanded ? '' : ' is-clamped'}`}>
@@ -744,10 +754,12 @@ export function TradePage() {
                  was redundant and confusing when the two differ (a September
                  metric settling 14 October read as an October market; owner
                  direction 2026-08-18). The chart caption below still says
-                 when it lands. */
-              <h1 className="pubws-instrument-title pubws-enter pubws-enter--1">
-                {metricLabel}
-              </h1>
+                 when it lands. It is a caption, not a headline: with the
+                 company named above, this line's only job is to say what
+                 the big number underneath measures. */
+              <h2 className="pubws-instrument-label pubws-enter pubws-enter--1">
+                {captionLabel(metricLabel, ws.name)}
+              </h2>
             )}
             <div className="pubws-headline pubws-enter pubws-enter--2">
               <span className="pubws-price">{unit}{formatValue(shownConsensus ?? consensus)}</span>

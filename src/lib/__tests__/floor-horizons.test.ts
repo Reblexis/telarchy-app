@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
-  buildHorizonViews, currencyOf, horizonLabel, metricLabelOf, priceSeriesOf, primaryHorizonOf, settleDayOf,
+  buildHorizonViews, captionLabel, currencyOf, horizonLabel, metricLabelOf, priceSeriesOf, primaryHorizonOf, settleDayOf,
 } from '../floor-horizons';
 import type { PublicWorkspace } from '../api';
 
@@ -207,5 +207,28 @@ describe('the label helpers', () => {
   test('the display label drops the tail', () => {
     expect(metricLabelOf('LookPilot net 2026 (USD)')).toBe('LookPilot net 2026');
     expect(metricLabelOf('Weekly active verified traders')).toBe('Weekly active verified traders');
+  });
+});
+
+describe('captionLabel', () => {
+  // The floor's identity block names the company one line above the caption,
+  // so repeating it there says LookPilot twice and buries "net 2026".
+  test('drops the workspace name when the metric leads with it', () => {
+    expect(captionLabel('LookPilot net 2026', 'LookPilot')).toBe('net 2026');
+    expect(captionLabel('LookPilot: net 2026', 'LookPilot')).toBe('net 2026');
+    expect(captionLabel('lookpilot net 2026', 'LookPilot')).toBe('net 2026');
+  });
+
+  test('leaves a label that does not lead with the name alone', () => {
+    expect(captionLabel('Steam review percentage', 'LookPilot'))
+      .toBe('Steam review percentage');
+    // A name that is only the start of a longer word is not a prefix.
+    expect(captionLabel('LookPilotter revenue', 'LookPilot')).toBe('LookPilotter revenue');
+  });
+
+  test('never strips the label down to nothing', () => {
+    expect(captionLabel('LookPilot', 'LookPilot')).toBe('LookPilot');
+    expect(captionLabel('LookPilot net 2026', '')).toBe('LookPilot net 2026');
+    expect(captionLabel('LookPilot net 2026', null)).toBe('LookPilot net 2026');
   });
 });

@@ -109,7 +109,7 @@ most screen.
   make one credible)? `/marketplace` is that page today, but it is not
   framed as "companies run in the open".
 
-## Proposal: the top block (2026-08-18)
+## Proposal: the top block (2026-08-18) - SHIPPED 2026-08-18
 
 Owner's read: "the market itself appearing right away is maybe too
 confusing, and there should at least be the name of the company as a title
@@ -157,3 +157,11 @@ company prose at the top of the floor. The 2026-08-11 direction removed the
 floor's mission line; this is a different slot (factual, about the company,
 not about Telarchy), but it is close enough that it should be an explicit
 call rather than a quiet re-addition.
+
+**DONE 2026-08-18**: all three moves shipped. The tagline needed no new copy or
+schema: `workspaces.description` already existed for exactly this ("one-line
+summary... so a stranger can tell what they are looking at") and LookPilot's
+already read "Webcam head tracker for sims, sold on Steam." The one addition
+beyond the proposal is `captionLabel` in `src/lib/floor-horizons.ts`, which
+strips the company's name off the front of the caption so the page does not say
+"LookPilot" twice in two lines.

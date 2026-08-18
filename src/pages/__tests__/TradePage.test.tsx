@@ -433,6 +433,33 @@ test('the workspace name heads the page', async () => {
   // the name at the top is what says whose floor this is.
   await waitFor(() => expect(container.querySelector('.pubws-ws-name')).toBeTruthy());
   expect(container.querySelector('.pubws-ws-name')!.textContent).toBe(h.workspace().name);
+  // The company is the page, so its name is the page's h1 and the metric
+  // name is only the caption over the number (owner direction 2026-08-18).
+  expect(container.querySelector('.pubws-ws-name')!.tagName).toBe('H1');
+  expect(container.querySelectorAll('h1').length).toBe(1);
+  // And it does not say the company twice: the caption is what the number
+  // measures, with the name it already carries overhead stripped off.
+  expect(container.querySelector('.pubws-instrument-label')!.textContent).toBe('revenue');
+});
+
+test('the workspace description is the company tagline, and is optional', async () => {
+  const { api } = await import('../../lib/api');
+  // What the business sells, said once under its name: without it the floor
+  // opens with a number about a word the visitor has never seen.
+  vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(
+    { ...h.workspace(), description: 'Webcam head tracker for sims.' } as never,
+  );
+  const first = renderFloor();
+  await waitFor(() => expect(first.container.querySelector('.pubws-ws-tagline')).toBeTruthy());
+  expect(first.container.querySelector('.pubws-ws-tagline')!.textContent)
+    .toBe('Webcam head tracker for sims.');
+  first.unmount();
+
+  // A workspace that never wrote one gets no empty line under its name.
+  vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(h.workspace() as never);
+  const second = renderFloor();
+  await waitFor(() => expect(second.container.querySelector('.pubws-ws-name')).toBeTruthy());
+  expect(second.container.querySelector('.pubws-ws-tagline')).toBeNull();
 });
 
 /**
