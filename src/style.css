@@ -10258,6 +10258,34 @@ textarea.jobform-line--desc {
   text-align: left;
 }
 
+/* The workspace's name at the top of the floor (owner direction 2026-08-18):
+   the same tiny-uppercase register as section labels, so it names the page
+   without competing with the instrument title. */
+.pubws-ws-name {
+  margin: 0 0 clamp(1rem, 2.5vh, 1.6rem);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--text-tertiary);
+}
+
+/* The manager's in-place definition editor. */
+.pubws-know-edit { display: flex; flex-direction: column; gap: 0.6rem; }
+.pubws-know-edit-text {
+  width: 100%;
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.6rem;
+  resize: vertical;
+}
+
 .pubws-know-head {
   margin: 0 0 1rem;
   font-size: 0.72rem;

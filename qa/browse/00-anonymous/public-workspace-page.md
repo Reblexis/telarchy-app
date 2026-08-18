@@ -80,12 +80,15 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
 **Expected:**
 - The page renders standalone: minimal top bar (logo lockup + Log in when
   signed out), NO app sidebar and no `.page-content` shell.
-- Minimal phase (2026-08-09): no name h1, no counts line, no hook line, no
-  settle fineprint; the headline `.pubws-instrument-title` (the metric name
-  alone, Fraunces; the "@ <settle date>" suffix was removed 2026-08-18, the
-  metric name carries its own period and the chart caption says when it
-  lands) is the page's only text besides the price. All removed fields stay
-  in the API.
+- Minimal phase (2026-08-09), amended 2026-08-18: the workspace's name renders
+  at the top (`.pubws-ws-name`, tiny-uppercase register); no counts line, no
+  hook line, no settle fineprint; the headline `.pubws-instrument-title` is
+  the metric name alone (the "@ <settle date>" suffix was removed 2026-08-18,
+  the name carries its own period). The metric-trajectory charts were removed
+  from the "What is this market?" section the same day (the section shows the
+  definition only; history fields stay in the API), and a manager sees an
+  Edit button there that warns saving voids and reopens the open market.
+  All removed fields stay in the API.
 
 ### T3. The join CTA states what joining actually grants
 

@@ -358,6 +358,10 @@ export interface PublicWorkspace {
   heroHistory?: Array<{ at: string; value: number }>;
   /** The metric's own description: the owner's provenance statement. */
   heroMetricDescription?: string | null;
+  /** The hero metric's id, so a manager can edit that description in place.
+      Editing it voids and reopens the metric's open markets (it is the
+      settlement text), which the edit UI must say out loud. */
+  heroMetricId?: string | null;
   tradesThisWeek?: number;
   /** The market's call after each trade of the hero market (the amber line). */
   marketHistory?: Array<{ at: string; consensus: number | null }>;
@@ -763,6 +767,11 @@ export const api = {
     request('/api/predictions/resolve', { method: 'POST', body: JSON.stringify({ targetDate }) }),
   trade: (body: Record<string, unknown>, workspaceId?: string) =>
     requestWithWorkspace('/api/predictions/trade', { method: 'POST', body: JSON.stringify(body) }, { workspaceId }),
+  // Description-only metric update (PUT accepts partial bodies). Changing the
+  // description voids and recreates the metric's open markets server-side:
+  // it is the settlement text, so callers must warn before saving.
+  updateMetricDescription: (id: string, description: string, workspaceId?: string) =>
+    requestWithWorkspace(`/api/metrics/${id}`, { method: 'PUT', body: JSON.stringify({ description }) }, { workspaceId }),
   getPositions: (marketId?: string, agentId?: string, workspaceId?: string) => {
     const params = new URLSearchParams();
     if (marketId) params.set('marketId', marketId);

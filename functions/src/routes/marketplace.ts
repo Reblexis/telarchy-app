@@ -400,6 +400,9 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
     description: string | null; points: Array<{ at: Date | null; value: number }>;
   }> | undefined;
   let heroMetricDescription: string | null | undefined;
+  // Shipped so a manager on the floor can edit the definition in place
+  // (PUT /api/metrics/:id needs the id; owner ask 2026-08-18).
+  let heroMetricIdOut: string | null | undefined;
   let tradesThisWeek: number | undefined;
   let marketHistory: Array<{ at: Date; consensus: number | null }> | undefined;
   let marketHistoryMarketId: string | undefined;
@@ -439,6 +442,7 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
       marketHistoryMarketId = heroMarketId;
     }
     const heroMetricId = primaryMarket(marketList)?.metricId as string | undefined;
+    heroMetricIdOut = heroMetricId ?? null;
     if (heroMetricId) {
       const [metricRow] = await db.select({ description: metrics.description })
         .from(metrics).where(and(eq(metrics.workspaceId, workspaceId), eq(metrics.id, heroMetricId)));
@@ -783,6 +787,7 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
       heroHistory,
       horizonHistories,
       heroMetricDescription,
+      heroMetricId: heroMetricIdOut,
       tradesThisWeek,
       marketHistory,
       marketHistoryMarketId,

@@ -3,7 +3,6 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { api, setActiveWorkspace, type PublicWorkspace } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { MarketChart } from '../components/MarketChart';
-import { MetricYearChart } from '../components/MetricYearChart';
 import { TradeTicket, type TicketPosition } from '../components/TradeTicket';
 import { FloorModal } from '../components/FloorModal';
 import { useAnimatedNumber } from '../lib/useAnimatedNumber';
@@ -524,46 +523,27 @@ export function TradePage() {
 
   // The chart model for the one horizon the floor shows, from ITS metric's
   // logged history against ITS settle date.
-  const horizonCharts = useMemo(() => {
-    return (hero ? [hero] : []).flatMap(h => {
-      // A horizon with no readings YET still gets its chart: for a metric that
-      // restarts each period, an empty week with the market's call on the right
-      // is the honest picture, and a chart that vanishes and reappears every
-      // Monday is worse than one that says "nothing measured yet".
-      if (h.consensus == null || !h.resolvesOn) return [];
-      // The live call for whichever market the page is currently on, so the
-      // chart the reader is trading tracks the price they see above.
-      //
-      // Only when that market IS this horizon's baseline: with a contract
-      // selected, `consensus` is the selected BRANCH's price, and painting it
-      // on the baseline's chart put a conditional number ($78,772) on a chart
-      // captioned "where the market sees it landing" for the unconditional one
-      // ($78,571) - owner report 2026-08-17.
-      const live = h.marketId === hero?.marketId && !selectedJob ? consensus : null;
-      const forecast = live ?? h.consensus;
-      return [{
-        marketId: h.marketId,
-        label: h.metricLabel,
-        unit: h.unit,
-        settleDay: h.settleDay,
-        resolvesOn: h.resolvesOn,
-        periodStart: h.periodStart,
-        forecast,
-        history: h.metricHistory,
-      }];
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hero, consensus, selectedJob]);
-
-  // The one moment the year chart names, when the owner has declared one.
-  // Memoised because the chart's model keys on it; a fresh object every render
-  // would rebuild the whole chart on every tick.
-  const startMarker = useMemo(
-    () => (ws?.telarchyStartedOn
-      ? { at: ws.telarchyStartedOn, label: 'Started using Telarchy' }
-      : undefined),
-    [ws?.telarchyStartedOn],
-  );
+  // The definition editor (owner ask 2026-08-18). Saving is destructive to
+  // the open market by design (definition-change invariant server-side), so
+  // the UI states that and the button says "reopen".
+  const [editingDef, setEditingDef] = useState(false);
+  const [defDraft, setDefDraft] = useState('');
+  const [defSaving, setDefSaving] = useState(false);
+  const [defErr, setDefErr] = useState('');
+  const saveDefinition = async () => {
+    if (!ws?.heroMetricId) return;
+    setDefSaving(true);
+    setDefErr('');
+    try {
+      await api.updateMetricDescription(ws.heroMetricId, defDraft, ws.workspaceId);
+      setEditingDef(false);
+      reload();
+    } catch (e) {
+      setDefErr((e as Error).message);
+    } finally {
+      setDefSaving(false);
+    }
+  };
 
   // The definition belongs to the market on screen.
   const horizonDescription = hero?.description ?? null;
@@ -606,6 +586,11 @@ export function TradePage() {
       <main className="pubws-main pubws-main--floor">
         <LeaderboardRail entries={leaders} contractors={ws?.topContractors} unit={unit} />
         <div className="pubws-center">
+        {/* The workspace's name at the top of the page (owner direction
+            2026-08-18, reversing that part of the 2026-08-09 minimal cut):
+            with the settle date gone from the instrument title, nothing
+            else said whose floor this is. */}
+        {ws.name && <div className="pubws-ws-name pubws-enter">{ws.name}</div>}
         {hero && active && consensus !== null && (
           <section className="pubws-instrument" aria-label="The market">
             {/* Selecting a job re-points this one view at its conditional
@@ -911,41 +896,74 @@ export function TradePage() {
             own words plus the primary sources; know the company, trade it
             better. */}
         <section className="pubws-know pubws-enter pubws-enter--3" aria-label="What is this market">
-          <h2 className="pubws-know-head">What is this market?</h2>
+          <h2 className="pubws-know-head">
+            What is this market?
+            {/* Managers edit the definition in place (owner ask 2026-08-18).
+                The consequence is stated before the save button because it
+                is severe: the description is the settlement text, so saving
+                voids the metric's open markets (positions refunded at cost)
+                and reopens them with the new wording. */}
+            {canManage && ws.heroMetricId && !editingDef && (
+              <button
+                className="pubws-decide"
+                style={{ marginLeft: '0.6rem' }}
+                onClick={() => {
+                  setDefDraft(horizonDescription ?? ws?.heroMetricDescription ?? '');
+                  setDefErr('');
+                  setEditingDef(true);
+                }}
+              >
+                Edit
+              </button>
+            )}
+          </h2>
           {/* The metric's stored definition, verbatim: it is the settlement
               text (see the section comment above). This paragraph was
               hardcoded LookPilot prose from the one-workspace era; a second
               floor (telarchy, 2026-08-14) made that a lie on every other
               workspace. No fallback: a workspace whose owner wrote no
               definition shows no definition rather than someone else's. */}
-          {/* The definition of the metric the floor's one market settles
-              on, which is why it is quoted verbatim. */}
-          {(horizonDescription ?? ws?.heroMetricDescription) && (
-            <p className="pubws-know-what">{horizonDescription ?? ws?.heroMetricDescription}</p>
-          )}
-          {/* One chart per horizon (owner direction 2026-08-15): each shows
-              its own metric's actual trajectory (solid) and where its own
-              market sees it settling (dashed). A week of earnings and a
-              year of them are different pictures, and the reader should be
-              able to see both without switching. */}
-          {horizonCharts.map(h => (
-            <div key={h.marketId} style={{ marginTop: '1.25rem' }}>
-              <div className="pubws-settle" style={{ textAlign: 'center', marginBottom: '0.1rem' }}>
-                {/* When the label IS the settle day (a day-target horizon),
-                    repeating it as "@ <same date>" read twice; say it once. */}
-                {h.label}: actual so far, and where the market sees it landing
-                {h.settleDay && h.settleDay !== h.label ? ` @ ${h.settleDay}` : ''}
-              </div>
-              <MetricYearChart
-                history={h.history}
-                forecastValue={h.forecast}
-                forecastAt={h.resolvesOn}
-                periodStart={h.periodStart}
-                marker={startMarker}
-                unit={h.unit}
+          {editingDef ? (
+            <div className="pubws-know-edit">
+              <textarea
+                className="pubws-know-edit-text"
+                value={defDraft}
+                rows={6}
+                onChange={e => setDefDraft(e.target.value)}
               />
+              <p className="pubws-settle">
+                This text is what the market settles on. Saving a changed
+                definition voids the open market (every position is refunded
+                at cost) and reopens it with the new wording.
+              </p>
+              <div>
+                <button
+                  className="pubws-decide"
+                  disabled={defSaving}
+                  onClick={() => { void saveDefinition(); }}
+                >
+                  {defSaving ? 'Saving…' : 'Save + reopen market'}
+                </button>
+                <button
+                  className="pubws-decide"
+                  style={{ marginLeft: '0.5rem' }}
+                  disabled={defSaving}
+                  onClick={() => setEditingDef(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+              {defErr && <p className="ticket-err">{defErr}</p>}
             </div>
-          ))}
+          ) : (
+            (horizonDescription ?? ws?.heroMetricDescription) && (
+              <p className="pubws-know-what">{horizonDescription ?? ws?.heroMetricDescription}</p>
+            )
+          )}
+          {/* The actual-trajectory chart that used to sit here was removed
+              on owner direction 2026-08-18: the floor no longer plots the
+              metric's measured values, only the market. The history fields
+              stay in the API. */}
         </section>
         {/* The owner's disclosures, in the owner-prose zone between the
             market's definition and the company blurb. A charter that promises
