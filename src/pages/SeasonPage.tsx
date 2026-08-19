@@ -109,20 +109,18 @@ export function SeasonPage() {
         <h1 className="lbp-head">{season.name}</h1>
         <p className="seasonp-clock">{clock.headline}</p>
         <p className="lbp-lead">
-          ${season.poolUsd.toLocaleString()} in real money, paid to the participants
-          whose trading profit grows the most while the season runs. Free to enter:
-          no purchase, no stake, and your credits are never spent or exchanged.
+          ${season.poolUsd.toLocaleString()} in real money, paid to the five whose
+          trading profit grows the most while the season runs. Free to enter: no
+          purchase, no stake, your credits are never spent or exchanged.
         </p>
 
         {/* Said before the entry button, not buried under it: someone deciding
             whether to spend eight weeks on this deserves to know the platform
             is still being launched before they decide, not after. */}
         <p className="seasonp-experimental">
-          This is the first season, and Telarchy is still being launched. Expect
-          rough edges, and apologies in advance for any bug or inconvenience. If
-          something looks wrong, tell us: reports are genuinely appreciated, and
-          where a bug affects standings we publish the correction rather than
-          making it quietly.
+          Season 0 is the first one, and the platform is still being launched.
+          Expect rough edges, apologies in advance. If something looks wrong,
+          tell us: where a bug affects standings we publish the correction.
         </p>
         {/* The real channel, inline, rather than a sentence pointing at an icon
             in the top bar. Anonymous reports are accepted, so a visitor who hit
@@ -146,26 +144,21 @@ export function SeasonPage() {
             ))}
           </ol>
           <p className="seasonp-note">
-            A prize needs a season score above zero. Rungs nobody qualifies for roll
-            into the next season. Telarchy holds no money: the owner pays winners
-            directly, on the same rail paid jobs already use.
+            A prize needs a score above zero; rungs nobody qualifies for roll into
+            the next season. Telarchy holds no money, the owner pays winners
+            directly.
           </p>
         </section>
 
         <section className="seasonp-block" aria-label="How it is scored">
           <h2 className="lbp-season-name">How it is scored</h2>
           <p className="seasonp-note">
-            Your score is how much your trading profit GREW during the season, not
+            Your score is how much your trading profit grows during the season, not
             your all-time profit. Everyone&rsquo;s starting point is read at the same
-            instant, when the season begins, whether they entered weeks early or on
-            the day, so entering early buys nothing and entering late costs nothing.
-            An account that did not exist yet starts at zero and keeps everything it
-            earns inside the window.
-          </p>
-          <p className="seasonp-note">
-            Profit counts open positions at what the market says they are worth right
-            now, so the board moves with every trade rather than waiting for markets
-            to resolve. Full terms: <Link to={season.rulesUrl}>{season.name} rules</Link>.
+            instant, when the season begins, so entering early or late changes
+            nothing; a brand-new account starts at zero. Open positions count at
+            current market prices, so the board moves with every trade. Full
+            rules: <Link to={season.rulesUrl}>{season.name} rules</Link>.
           </p>
         </section>
 
