@@ -235,6 +235,15 @@ There is no openclaw-based bot trading (the `~/.openclaw` scaffolding is unrelat
 
 If modifying the api capabilities or otherwise changing behaviour of the backend relevant to api communication, always update the documentation and api help endpoint correspondingly as well as the skill description.
 
+**The first season is SEASON 0 (renamed 2026-08-19), and its page carries an
+"experimental, expect bugs, reports appreciated" notice above the entry
+button.** Rules are `/legal/season-0`; `/legal/season-1` keeps serving them
+permanently, because a rules URL that has been quoted must not 404. Entry
+collects a contact email (an API-registered participant has none anywhere else,
+and an unreachable winner's prize expires quietly) and an 18-or-older
+confirmation, both recorded with their instant; the payouts endpoint returns
+the email so the owner can actually notify winners.
+
 **The prize competition has its own page, `/season` (owner direction
 2026-08-19).** `SeasonPage` carries the countdown, the pool and ladder, how
 scoring works, the rules link, the entry button and the standings. A market

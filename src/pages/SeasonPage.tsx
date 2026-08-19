@@ -4,6 +4,7 @@ import { api, type PrizeSeason, type SeasonStanding } from '../lib/api';
 import { useSeasonClock } from '../lib/useSeasonClock';
 import { pickCurrentSeason } from '../lib/season-clock';
 import { SeasonEntryButton } from '../components/SeasonEntryButton';
+import { ReportButton } from '../components/ReportButton';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from './TradePage';
 
@@ -107,6 +108,21 @@ export function SeasonPage() {
           whose trading profit grows the most while the season runs. Free to enter:
           no purchase, no stake, and your credits are never spent or exchanged.
         </p>
+
+        {/* Said before the entry button, not buried under it: someone deciding
+            whether to spend eight weeks on this deserves to know the platform
+            is still being launched before they decide, not after. */}
+        <p className="seasonp-experimental">
+          This is the first season, and Telarchy is still being launched. Expect
+          rough edges, and apologies in advance for any bug or inconvenience. If
+          something looks wrong, tell us: reports are genuinely appreciated, and
+          where a bug affects standings we publish the correction rather than
+          making it quietly.
+        </p>
+        {/* The real channel, inline, rather than a sentence pointing at an icon
+            in the top bar. Anonymous reports are accepted, so a visitor who hit
+            a bug before signing up can still send one. */}
+        <p className="seasonp-report"><ReportButton /></p>
 
         {clock.entryOpen && (
           <section className="seasonp-enter" aria-label="Enter">

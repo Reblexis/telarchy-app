@@ -210,6 +210,13 @@ export interface MySeasonEntry {
   /** When this participant agreed to the season rules, or null. Someone who
    *  has already agreed is not asked again on a rejoin. */
   rulesAcceptedAt?: string | null;
+  /** Where a winner is told they have won. Asked at entry, because an
+   *  API-registered participant has no email anywhere else. */
+  contactEmail?: string | null;
+  /** When they confirmed they are 18 or older, as the rules require. */
+  confirmedOver18At?: string | null;
+  /** The account's own email, for prefilling. Null for API participants. */
+  accountEmail?: string | null;
 }
 
 export interface LeaderboardEntry {
@@ -1010,20 +1017,26 @@ export const api = {
   /**
    * Enter or leave the season.
    *
-   * Entering requires `acceptedRules`, and nothing else: no payment details,
-   * so a visitor arriving cold is one click in. A refusal carries `reason`
-   * ('rules') so the caller can point at the missing step rather than showing
-   * a message and hoping. Leaving requires nothing at all.
+   * Entering requires `acceptedRules`, `confirmedOver18` and a `contactEmail`
+   * we can reach a winner on. No payment details: those are asked at claim
+   * time. A refusal carries `reason` ('rules' | 'age' | 'contactEmail') so the
+   * caller can point at the missing field rather than showing a message and
+   * hoping. Leaving requires nothing at all.
    */
   setMySeasonEntry: async (
     optedIn: boolean,
-    opts: { acceptedRules?: boolean } = {},
+    opts: { acceptedRules?: boolean; confirmedOver18?: boolean; contactEmail?: string } = {},
   ): Promise<{ optedIn: boolean }> => {
     const res = await fetch(`${API_BASE}/api/seasons/me`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ optedIn, acceptedRules: opts.acceptedRules === true }),
+      body: JSON.stringify({
+        optedIn,
+        acceptedRules: opts.acceptedRules === true,
+        confirmedOver18: opts.confirmedOver18 === true,
+        contactEmail: opts.contactEmail,
+      }),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {

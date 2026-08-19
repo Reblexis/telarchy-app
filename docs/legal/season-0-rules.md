@@ -1,10 +1,18 @@
-# Season 1: official rules
+# Season 0: official rules
 
-_Published 2026-08-17. These rules do not change while the season runs._
+_Published 2026-08-17, renamed to Season 0 on 2026-08-19. These rules do not
+change while the season runs._
+
+**Season 0 is the first one, and the platform is still being launched.** Expect
+rough edges, and apologies in advance for any bug or inconvenience. If
+something looks wrong, tell us through the feedback channel in the app: reports
+are genuinely appreciated and we will answer them. Where a bug affects
+standings we will say so publicly and publish the correction rather than making
+it quietly, as the disputes section below already commits us to.
 
 ## What this is
 
-Season 1 is a forecasting contest on the public Telarchy trading floor. Entrants
+Season 0 is a forecasting contest on the public Telarchy trading floor. Entrants
 are ranked on how much their trading profit grows while the season runs, and the
 top five are paid real money.
 

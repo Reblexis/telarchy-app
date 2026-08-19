@@ -9,10 +9,17 @@ import { api, type MySeasonEntry, type PrizeSeason } from '../lib/api';
  * have no reason to be in, and the admin's own UI at that. Owner direction
  * 2026-08-19: it is a button, where the season is announced.
  *
- * Two things stand between a visitor and being entered:
+ * What stands between a visitor and being entered:
  *
  *   not signed in  ──►  sign up            (the season needs an identity to score)
+ *   no contact     ──►  an email field     (where a winner is told they won)
+ *   under 18       ──►  the age checkbox   (the rules have always required it)
  *   not agreed     ──►  the rules checkbox (recorded, not just ticked)
+ *
+ * The email is asked for rather than read off the account because a
+ * participant registered through the API has none: only browser signups create
+ * an auth user. For a browser user it is prefilled, so the common case is
+ * still one glance and a click.
  *
  * NO payment details. That gate existed for part of one day (2026-08-19, owner
  * direction both ways): a visitor arriving cold should be one click in, and
@@ -26,6 +33,8 @@ import { api, type MySeasonEntry, type PrizeSeason } from '../lib/api';
 export function SeasonEntryButton({ season, signedIn }: { season: PrizeSeason; signedIn: boolean }) {
   const [entry, setEntry] = useState<MySeasonEntry | null>(null);
   const [agreed, setAgreed] = useState(false);
+  const [over18, setOver18] = useState(false);
+  const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,6 +45,10 @@ export function SeasonEntryButton({ season, signedIn }: { season: PrizeSeason; s
         setEntry(e);
         // Someone who agreed in an earlier session is not asked twice.
         if (e.rulesAcceptedAt) setAgreed(true);
+        if (e.confirmedOver18At) setOver18(true);
+        // Prefill: their season email if they gave one, else the account's, so
+        // a browser user does not retype what we already know.
+        setEmail(prev => prev || e.contactEmail || e.accountEmail || '');
       })
       .catch(e => console.error('season entry fetch failed:', e));
   }, [signedIn]);
@@ -46,7 +59,11 @@ export function SeasonEntryButton({ season, signedIn }: { season: PrizeSeason; s
     setBusy(true);
     setError(null);
     try {
-      await api.setMySeasonEntry(next, { acceptedRules: agreed });
+      await api.setMySeasonEntry(next, {
+        acceptedRules: agreed,
+        confirmedOver18: over18,
+        contactEmail: email.trim(),
+      });
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not update your entry');
@@ -79,8 +96,31 @@ export function SeasonEntryButton({ season, signedIn }: { season: PrizeSeason; s
     );
   }
 
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
+
   return (
     <div className="season-entry">
+      <label className="season-entry-field">
+        <span className="season-entry-label">Email, if you win</span>
+        <input
+          type="email"
+          className="season-entry-input"
+          value={email}
+          disabled={busy}
+          placeholder="you@example.com"
+          autoComplete="email"
+          onChange={e => setEmail(e.target.value)}
+        />
+      </label>
+      <label className="season-entry-agree">
+        <input
+          type="checkbox"
+          checked={over18}
+          disabled={busy}
+          onChange={e => setOver18(e.target.checked)}
+        />
+        <span>I am 18 or older.</span>
+      </label>
       <label className="season-entry-agree">
         <input
           type="checkbox"
@@ -95,14 +135,15 @@ export function SeasonEntryButton({ season, signedIn }: { season: PrizeSeason; s
       </label>
       <button
         className="lbp-season-cta"
-        disabled={busy || !agreed || !entry.canEnter}
+        disabled={busy || !agreed || !over18 || !emailOk || !entry.canEnter}
         onClick={() => void enter(true)}
       >
         {busy ? 'Entering…' : 'Enter the season'}
       </button>
       <p className="season-entry-note">
         Free to enter: no purchase, no stake, and your credits are never spent
-        or exchanged. We ask for payment details only if you win.
+        or exchanged. The email is used for this season only, to tell you if you
+        have won; payment details are asked for then, not now.
       </p>
       {!entry.canEnter && <p className="season-entry-note">Entries have closed for this season.</p>}
       {error && <p className="ticket-err">{error}</p>}

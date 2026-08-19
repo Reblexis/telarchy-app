@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { and, eq, inArray } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { db } from '../db/client';
-import { agents, prizeSeasons, seasonEntries, workspaces } from '../db/schema';
+import { agents, authUser, prizeSeasons, seasonEntries, workspaces } from '../db/schema';
 import { wrap } from '../lib/wrap';
 import { AppError } from '../lib/errors';
 import { requireIdentity } from '../middleware/roles';
@@ -63,11 +63,21 @@ function asLadder(raw: unknown): LadderRung[] {
   }).sort((a, b) => a.place - b.place);
 }
 
+/**
+ * Deliberately loose: shape only, no deliverability claim. A stricter regex
+ * rejects valid addresses (plus tags, new TLDs, unicode locals) and the cost of
+ * a wrong rejection here is an entrant who cannot enter, which is worse than an
+ * entrant we cannot reach and have to chase.
+ */
+function isPlausibleEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value) && value.length <= 254;
+}
+
 async function requirePlatform(req: Parameters<typeof isPlatformAuthorized>[0]) {
   if (!(await isPlatformAuthorized(req))) throw new AppError('Platform admin required', 403);
 }
 
-/** The one running season, if there is one. Season 1 is deliberately singular:
+/** The one running season, if there is one. The first season is deliberately singular:
  *  overlapping seasons would need per-season baselines the entry toggle cannot
  *  express, and nobody has asked for two. */
 async function runningSeason() {
@@ -145,8 +155,17 @@ seasonsRouter.get('/me', requireIdentity, wrap(async (req, res) => {
   // uses it to tell a winner-in-waiting that a prize will need somewhere to
   // go, without making it a gate. rulesAcceptedAt so someone who has already
   // agreed is not asked twice.
-  const [me] = await db.select({ payoutMethod: agents.payoutMethod })
+  const [me] = await db.select({ payoutMethod: agents.payoutMethod, authUserId: agents.authUserId })
     .from(agents).where(eq(agents.id, agentId)).limit(1);
+
+  // Only browser signups have one; an API-registered participant has none,
+  // which is why contactEmail is asked for at entry rather than derived.
+  let authEmail: string | null = null;
+  if (me?.authUserId) {
+    const [u] = await db.select({ email: authUser.email })
+      .from(authUser).where(eq(authUser.id, me.authUserId)).limit(1);
+    authEmail = u?.email ?? null;
+  }
 
   res.json({
     season: publicSeason(season),
@@ -154,6 +173,13 @@ seasonsRouter.get('/me', requireIdentity, wrap(async (req, res) => {
     canEnter: isOpenForEntry(season.status as SeasonStatus, new Date(), new Date(season.endsAt)),
     hasPayoutMethod: !!me?.payoutMethod,
     rulesAcceptedAt: entry?.rulesAcceptedAt ?? null,
+    contactEmail: entry?.contactEmail ?? null,
+    confirmedOver18At: entry?.confirmedOver18At ?? null,
+    // The account's own email, so the entry form can prefill rather than
+    // making a browser user retype what we already know. Null for participants
+    // registered through the API, which is exactly the case contactEmail
+    // exists for.
+    accountEmail: authEmail ?? null,
   });
 }));
 
@@ -207,6 +233,35 @@ seasonsRouter.put('/me', requireIdentity, wrap(async (req, res) => {
     );
   }
 
+  // Where a winner is told they have won. Asked at entry rather than read off
+  // the account, because a participant registered through POST /api/agents has
+  // no email anywhere: only browser signups create an auth user. A prize with
+  // a 30-day claim window and nobody to notify expires quietly, which is the
+  // worst outcome a contest paying real money can produce.
+  const rawEmail = typeof req.body?.contactEmail === 'string' ? req.body.contactEmail.trim() : '';
+  const contactEmail = rawEmail || existing?.contactEmail || '';
+  if (optIn && !contactEmail) {
+    throw new AppError(
+      'Give an email we can reach you on if you win. It is used for the season only.',
+      400, { reason: 'contactEmail' },
+    );
+  }
+  if (optIn && !isPlausibleEmail(contactEmail)) {
+    throw new AppError('That does not look like an email address.', 400, { reason: 'contactEmail' });
+  }
+
+  // The published rules have always required entrants to be 18 or older, and
+  // until now nothing asked. A rule nobody is asked to affirm is a sentence in
+  // a document, not an eligibility check.
+  const confirmedOver18 = req.body?.confirmedOver18 === true;
+  const alreadyConfirmed = !!existing?.confirmedOver18At;
+  if (optIn && !confirmedOver18 && !alreadyConfirmed) {
+    throw new AppError(
+      'You have to confirm you are 18 or older to enter.',
+      400, { reason: 'age' },
+    );
+  }
+
   // NO payment-details gate. It was added and removed the same day
   // (2026-08-19, owner direction both ways): entry has to stay one click for a
   // visitor arriving cold, and payment details are asked for at claim time,
@@ -217,6 +272,9 @@ seasonsRouter.put('/me', requireIdentity, wrap(async (req, res) => {
   const rulesAcceptedAt = optIn
     ? (existing?.rulesAcceptedAt ?? new Date())
     : (existing?.rulesAcceptedAt ?? null);
+  const confirmedOver18At = optIn
+    ? (existing?.confirmedOver18At ?? new Date())
+    : (existing?.confirmedOver18At ?? null);
 
   if (existing) {
     await db.update(seasonEntries)
@@ -226,6 +284,10 @@ seasonsRouter.put('/me', requireIdentity, wrap(async (req, res) => {
         // Never cleared on the way out: that they once agreed is a fact, and
         // rejoining should not ask again.
         rulesAcceptedAt,
+        confirmedOver18At,
+        // A resent address wins, so someone can correct a typo by re-entering
+        // rather than by asking us to.
+        contactEmail: contactEmail || existing.contactEmail,
       })
       .where(and(eq(seasonEntries.seasonId, season.id), eq(seasonEntries.agentId, agentId)));
   } else {
@@ -238,6 +300,8 @@ seasonsRouter.put('/me', requireIdentity, wrap(async (req, res) => {
       optedIn: optIn,
       enteredAt: optIn ? new Date() : null,
       rulesAcceptedAt,
+      confirmedOver18At,
+      contactEmail: contactEmail || null,
       baselineProfit: 0,
     });
   }
@@ -572,6 +636,9 @@ seasonsRouter.get('/:id/payouts', wrap(async (req, res) => {
         paidAt: e.paidAt,
         payoutHandle: byId.get(e.agentId)?.payoutHandle ?? null,
         payoutMethod: byId.get(e.agentId)?.payoutMethod ?? null,
+        // The whole operational point of collecting it: telling a winner they
+        // have won, before their 30-day claim window runs out.
+        contactEmail: e.contactEmail ?? null,
       })),
   });
 }));

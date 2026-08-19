@@ -40,8 +40,8 @@ Backed by `functions/src/__tests__/season-lifecycle.test.ts` (the rules) and
 
   ```bash
   SEASON=$(curl -s -X POST -H "X-API-Key: $ADMIN_KEY" -H 'Content-Type: application/json' \
-    -d '{"name":"Season 1","startsAt":"2026-09-01T00:00:00Z","endsAt":"2026-09-29T00:00:00Z",
-         "poolUsd":1000,"rulesUrl":"/legal/season-1",
+    -d '{"name":"Season 0","startsAt":"2026-09-01T00:00:00Z","endsAt":"2026-09-29T00:00:00Z",
+         "poolUsd":1000,"rulesUrl":"/legal/season-0",
          "ladder":[{"place":1,"prizeUsd":500},{"place":2,"prizeUsd":250},
                    {"place":3,"prizeUsd":125},{"place":4,"prizeUsd":75},
                    {"place":5,"prizeUsd":50}]}' \
@@ -88,7 +88,7 @@ nothing at all, not an empty box), or the pool renders as `$NaN` or `$undefined`
 ### T2. The rules are reachable and complete
 
 **Steps:**
-1. `$B goto https://telarchy.com/legal/season-1`
+1. `$B goto https://telarchy.com/legal/season-0`
 2. `$B wait --networkidle`
 3. `$B text`
 

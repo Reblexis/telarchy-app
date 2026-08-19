@@ -232,6 +232,17 @@ export const agents = pgTable('agents', {
    *  participant belongs to. Volume is set by strangers, so this one is
    *  opt-in rather than opt-out. */
   notifyNewProposal: boolean('notify_new_proposal').notNull().default(false),
+  /**
+   * How far this participant has read the notifications inbox
+   * (GET /api/notifications). The inbox itself is derived from comments,
+   * contracts and decisions rather than stored, so this one timestamp is
+   * the entire read state: anything newer is unread.
+   *
+   * Defaults to now(), and migration 0064 backfilled existing rows the same
+   * way, because a null would have meant every account's first sight of the
+   * feature was a badge counting months of history nobody promised them.
+   */
+  notificationsSeenAt: timestamp('notifications_seen_at').notNull().defaultNow(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   approvedAt: timestamp('approved_at'),
 }, t => [uniqueIndex('agents_auth_user_id_idx').on(t.authUserId)]);
@@ -869,7 +880,7 @@ export const prizeSeasons = pgTable('prize_seasons', {
  * One participant's entry in one season.
  *
  * `optedIn` lives here rather than on `agents` on purpose: a boolean on the
- * participant would silently carry a Season 1 opt-in into Season 2.
+ * participant would silently carry one season's opt-in into the next.
  *
  * A row exists for every participant the season snapshotted a baseline for,
  * whether or not they opted in, because the baseline must be taken at the
@@ -890,6 +901,16 @@ export const seasonEntries = pgTable('season_entries', {
    *  dispute about money. Set on every opt-in; left as it was on opt-out, so
    *  leaving and rejoining does not erase that they once agreed. */
   rulesAcceptedAt: timestamp('rules_accepted_at'),
+  /** Where we reach this entrant, given at entry.
+   *
+   *  Deliberately NOT derived from the account: a participant registered
+   *  through POST /api/agents has no email anywhere, since only browser
+   *  signups create an auth user. A prize with a 30-day claim window and
+   *  nobody to tell is a prize that expires quietly. */
+  contactEmail: text('contact_email'),
+  /** When they confirmed they are 18 or older. The published rules have always
+   *  required it; asking is what turns that from a sentence into a check. */
+  confirmedOver18At: timestamp('confirmed_over_18_at'),
   /** Board profit at the season's START instant, not at opt-in. */
   baselineProfit: doublePrecision('baseline_profit').notNull().default(0),
   /** Board profit at the settle instant. Null until settled. */

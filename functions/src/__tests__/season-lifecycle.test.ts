@@ -129,11 +129,12 @@ async function startSeason(id: string) {
 
 async function optIn(seasonId: string, agentId: string, optedIn = true) {
   caller = { agentId };
-  // Entering needs the rules agreement (owner direction 2026-08-19). These
-  // tests are about scoring, not about the gates, so they satisfy them and get
-  // on with it; the gates themselves are pinned in
-  // season-preregistration.test.ts.
-  const res = await request(app).put('/api/seasons/me').send({ optedIn, acceptedRules: true });
+  // Entering needs the rules agreement, an age confirmation and a contact
+  // email (owner direction 2026-08-19). These tests are about scoring, not
+  // about what entry asks for, so they satisfy it and get on with it; the
+  // gates themselves are pinned in season-preregistration.test.ts.
+  const res = await request(app).put('/api/seasons/me')
+    .send({ optedIn, acceptedRules: true, confirmedOver18: true, contactEmail: `${agentId}@example.com` });
   caller = { isMasterKey: true };
   return res;
 }
@@ -261,7 +262,8 @@ describe('entering', () => {
     await seedFloor(['t']);
     const season = (await createSeason()).body.season;
     caller = { agentId: 't' };
-    const res = await request(app).put('/api/seasons/me').send({ optedIn: true, acceptedRules: true });
+    const res = await request(app).put('/api/seasons/me')
+      .send({ optedIn: true, acceptedRules: true, confirmedOver18: true, contactEmail: 't@example.com' });
     expect(res.status).toBe(200);
     expect(res.body.optedIn).toBe(true);
     expect(res.body.season.id).toBe(season.id);
@@ -271,7 +273,8 @@ describe('entering', () => {
   test('with no season at all, entering is still refused', async () => {
     await seedFloor(['t']);
     caller = { agentId: 't' };
-    const res = await request(app).put('/api/seasons/me').send({ optedIn: true, acceptedRules: true });
+    const res = await request(app).put('/api/seasons/me')
+      .send({ optedIn: true, acceptedRules: true, confirmedOver18: true, contactEmail: 't@example.com' });
     expect(res.status).toBe(409);
     expect(res.body.error).toMatch(/No season is open for entry/);
   });

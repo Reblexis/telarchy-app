@@ -114,7 +114,8 @@ const asAgent = (id: string) => { caller = { agentId: id }; };
 const asAdmin = () => { caller = { isMasterKey: true }; };
 
 const enter = (optedIn: boolean, acceptedRules = true) =>
-  request(app).put('/api/seasons/me').send({ optedIn, acceptedRules });
+  request(app).put('/api/seasons/me')
+    .send({ optedIn, acceptedRules, confirmedOver18: true, contactEmail: 'entrant@example.com' });
 
 /** Payment details on the account: entering requires them (owner direction
  *  2026-08-19), so every seed that expects to get in has to set one. */
@@ -424,5 +425,112 @@ describe('editing a draft season', () => {
     const res = await request(app).patch(`/api/seasons/${id}`)
       .send({ startsAt: '2026-09-02T00:00:00Z' });
     expect(res.status).toBe(409);
+  });
+});
+
+describe('what an entrant has to give us', () => {
+  test('an email we can reach a winner on', async () => {
+    // The operational gap this closes: a participant registered through
+    // POST /api/agents has no email anywhere, because only browser signups
+    // create an auth user. A prize with a 30-day claim window and nobody to
+    // notify expires quietly.
+    await seedFloor([EARLY]);
+    await createSeason();
+    asAgent(EARLY);
+
+    const res = await request(app).put('/api/seasons/me')
+      .send({ optedIn: true, acceptedRules: true, confirmedOver18: true });
+    expect(res.status).toBe(400);
+    expect(res.body.reason).toBe('contactEmail');
+    expect((await mine()).body.optedIn).toBe(false);
+  });
+
+  test('an address that is at least shaped like one', async () => {
+    await seedFloor([EARLY]);
+    await createSeason();
+    asAgent(EARLY);
+    const res = await request(app).put('/api/seasons/me')
+      .send({ optedIn: true, acceptedRules: true, confirmedOver18: true, contactEmail: 'not-an-email' });
+    expect(res.status).toBe(400);
+    expect(res.body.reason).toBe('contactEmail');
+  });
+
+  test('a plus-tagged address is accepted, because rejecting a valid one is worse', async () => {
+    await seedFloor([EARLY]);
+    const id = await createSeason();
+    asAgent(EARLY);
+    const res = await request(app).put('/api/seasons/me')
+      .send({ optedIn: true, acceptedRules: true, confirmedOver18: true, contactEmail: 'a+season1@sub.example.co.uk' });
+    expect(res.status).toBe(200);
+    expect((await entryRow(id, EARLY))?.contactEmail).toBe('a+season1@sub.example.co.uk');
+  });
+
+  test('confirmation that they are 18 or older', async () => {
+    // The published rules have always required it and nothing asked, which
+    // made it a sentence in a document rather than an eligibility check.
+    await seedFloor([EARLY]);
+    await createSeason();
+    asAgent(EARLY);
+    const res = await request(app).put('/api/seasons/me')
+      .send({ optedIn: true, acceptedRules: true, contactEmail: 'entrant@example.com' });
+    expect(res.status).toBe(400);
+    expect(res.body.reason).toBe('age');
+  });
+
+  test('both are recorded with the instant they were given', async () => {
+    await seedFloor([EARLY]);
+    const id = await createSeason();
+    asAgent(EARLY);
+    expect((await enter(true)).status).toBe(200);
+
+    const row = await entryRow(id, EARLY);
+    expect(row?.contactEmail).toBe('entrant@example.com');
+    expect(row?.confirmedOver18At).toBeTruthy();
+  });
+
+  test('a resent address corrects a typo without asking us', async () => {
+    await seedFloor([EARLY]);
+    const id = await createSeason();
+    asAgent(EARLY);
+    await enter(true);
+    await request(app).put('/api/seasons/me')
+      .send({ optedIn: true, contactEmail: 'fixed@example.com' });
+    expect((await entryRow(id, EARLY))?.contactEmail).toBe('fixed@example.com');
+  });
+
+  test('rejoining asks for neither again', async () => {
+    await seedFloor([EARLY]);
+    const id = await createSeason();
+    asAgent(EARLY);
+    await enter(true);
+    await request(app).put('/api/seasons/me').send({ optedIn: false });
+
+    // Bare body: the stored email, agreement and age confirmation all stand.
+    const back = await request(app).put('/api/seasons/me').send({ optedIn: true });
+    expect(back.status).toBe(200);
+    const row = await entryRow(id, EARLY);
+    expect(row?.optedIn).toBe(true);
+    expect(row?.contactEmail).toBe('entrant@example.com');
+    expect(row?.confirmedOver18At).toBeTruthy();
+  });
+
+  test('GET /me prefills from the account when there is an account email', async () => {
+    await seedFloor([EARLY]);
+    await createSeason();
+    asAgent(EARLY);
+    // No auth user attached, which is the API-participant case: nothing to
+    // prefill from, which is exactly why the field is asked for.
+    expect((await mine()).body.accountEmail).toBeNull();
+    expect((await mine()).body.contactEmail).toBeNull();
+  });
+
+  test('leaving needs none of it', async () => {
+    await seedFloor([EARLY]);
+    const id = await createSeason();
+    asAgent(EARLY);
+    await enter(true);
+    const res = await request(app).put('/api/seasons/me').send({ optedIn: false });
+    expect(res.status).toBe(200);
+    expect((await entryRow(id, EARLY))?.optedIn).toBe(false);
   });
 });

@@ -126,13 +126,21 @@ Material changes are announced in-app or by email; continued use after an update
 
 export const CURRENT_CONSENT_VERSION = CONSENT_VERSION;
 
-const SEASON_1_RULES = `# Season 1: official rules
+const SEASON_0_RULES = `# Season 0: official rules
 
-_Published 2026-08-17. These rules do not change while the season runs._
+_Published 2026-08-17, renamed to Season 0 on 2026-08-19. These rules do not
+change while the season runs._
+
+**Season 0 is the first one, and the platform is still being launched.** Expect
+rough edges, and apologies in advance for any bug or inconvenience. If
+something looks wrong, tell us through the feedback channel in the app: reports
+are genuinely appreciated and we will answer them. Where a bug affects
+standings we will say so publicly and publish the correction rather than making
+it quietly, as the disputes section below already commits us to.
 
 ## What this is
 
-Season 1 is a forecasting contest on the public Telarchy trading floor. Entrants
+Season 0 is a forecasting contest on the public Telarchy trading floor. Entrants
 are ranked on how much their trading profit grows while the season runs, and the
 top five are paid real money.
 
@@ -182,9 +190,10 @@ enter it.
 Two consequences worth stating plainly:
 
 - **Your baseline is taken when the season starts, not when you enter.** You can
-  enter at any point while the season runs, and you will still be measured from
-  where the season began. This is deliberate: otherwise entering late would let
-  someone pick a favourable starting point.
+  enter before the season begins or at any point while it runs, and you will
+  still be measured from where the season began. This is deliberate: otherwise
+  entering late would let someone pick a favourable starting point. It also
+  means entering early buys you nothing except not having to remember.
 - **An account that did not exist when the season started has a baseline of
   zero**, so everything it earns inside the window counts.
 
@@ -193,7 +202,11 @@ Only entrants who explicitly opted in are ranked or paid.
 ## Eligibility
 
 - You must be at least 18 years old.
-- You must have a Telarchy account and must explicitly opt in to enter.
+- You must have a Telarchy account and must explicitly opt in to enter. Entry
+  opens as soon as the season is announced, before it starts.
+- To enter you must agree to these rules, and we record when you agreed. You do
+  not need payment details to enter; we ask for those only if you win. Leaving
+  is always one click and requires nothing.
 - Participants operated by us or run as part of the platform are **not
   eligible** and do not enter.
 - A prize requires a season score **strictly greater than zero**. A season score
@@ -244,7 +257,7 @@ legalRouter.get('/', (_req, res) => {
     documents: [
       { id: 'terms', title: 'Terms of Service', path: '/api/legal/terms' },
       { id: 'privacy', title: 'Privacy Policy', path: '/api/legal/privacy' },
-      { id: 'season-1', title: 'Season 1: official rules', path: '/api/legal/season-1' },
+      { id: 'season-0', title: 'Season 0: official rules', path: '/api/legal/season-0' },
     ],
   });
 });
@@ -260,7 +273,14 @@ legalRouter.get('/privacy', (_req, res) => {
 // A season's rules are the legally load-bearing artifact: they are what makes
 // the contest a published skill contest rather than an ad-hoc payout. Served
 // the same way as the other legal texts, and mirrored from
-// docs/legal/season-1-rules.md so the runtime image does not need docs/.
+// docs/legal/season-0-rules.md so the runtime image does not need docs/.
+legalRouter.get('/season-0', (_req, res) => {
+  res.type('text/markdown').send(SEASON_0_RULES);
+});
+
+// The season was called Season 1 until 2026-08-19 and its rules were published
+// at this path. Kept serving, permanently: a rules URL that has been quoted
+// anywhere must not 404, least of all the one a contest points at.
 legalRouter.get('/season-1', (_req, res) => {
-  res.type('text/markdown').send(SEASON_1_RULES);
+  res.type('text/markdown').send(SEASON_0_RULES);
 });

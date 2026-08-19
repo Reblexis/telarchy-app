@@ -277,6 +277,12 @@ Ranked by strength, given that no trader can be paid for trading today.
   priority than this doc previously implied, given the consideration finding
   above; an hour on state-AG posture before announcing is still worth buying.
 
+**Renamed 2026-08-19 (Viktor): the first season is Season 0, not Season 1.**
+Everything below that says "Season 1" is about the same season under its
+earlier name; the record is not rewritten. Its published rules live at
+`/legal/season-0`, and `/legal/season-1` keeps serving them so any quoted link
+still resolves.
+
 ## Known and accepted risks in Season 1
 
 Recorded so nobody re-derives them, and so that if one of them happens it was a

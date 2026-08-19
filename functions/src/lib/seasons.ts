@@ -50,7 +50,7 @@
  *    end a season only after at least one of its markets resolves.
  *  - No Sybil defence. Credits are free, entry is free, and a new account
  *    baselines at 0, so one person running several accounts is the cheapest way
- *    to farm the ladder. Season 1 relies on manual settlement and a
+ *    to farm the ladder. Season 0 relies on manual settlement and a
  *    disqualification clause instead. See TODOS.md, P2 prize seasons.
  *  - A market voided mid-season is treated asymmetrically by the underlying
  *    profit formula (a losing buy reads as zero, a realised gain is kept). The

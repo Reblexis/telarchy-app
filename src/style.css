@@ -5153,8 +5153,8 @@ textarea.jobform-line--desc {
 .lbp-season {
   margin: 1.25rem 0 2rem;
   padding: 1rem 0 1.1rem;
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
 }
 .lbp-season-name {
   margin: 0;
@@ -5213,6 +5213,38 @@ textarea.jobform-line--desc {
   cursor: pointer;
 }
 .season-entry-agree input { margin-top: 0.15rem; flex: none; }
+.season-entry-field {
+  display: block;
+  margin-bottom: 0.8rem;
+  text-align: left;
+}
+.season-entry-label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.season-entry-input {
+  width: 100%;
+  max-width: 22rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.9rem;
+}
+.season-entry-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+/* The centred CTA block keeps its field and label centred with it. */
+.seasonp-enter .season-entry-field { text-align: center; }
+.seasonp-enter .season-entry-input { margin: 0 auto; }
 .season-entry-note {
   margin: 0.55rem 0 0;
   font-size: 0.78rem;
@@ -5387,8 +5419,8 @@ textarea.jobform-line--desc {
 .seasonp-enter {
   margin: 1.5rem 0 2rem;
   padding: 1.1rem 0;
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
   /* Centred under a centred header: the CTA is the page's one action, and a
      left-aligned block under a centred title reads as a different section. */
   text-align: center;
@@ -5413,7 +5445,7 @@ textarea.jobform-line--desc {
   align-items: baseline;
   gap: 0.9rem;
   padding: 0.5rem 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-color);
 }
 .seasonp-place {
   min-width: 1.6rem;
@@ -5433,4 +5465,32 @@ textarea.jobform-line--desc {
   font-size: 0.85rem;
   color: var(--text-secondary);
   margin-left: 0.8rem;
+}
+
+
+/* The experimental notice on /season, said before the entry button rather than
+   under it: someone deciding whether to spend eight weeks on a contest should
+   know the platform is still being launched before they decide. */
+.seasonp-experimental {
+  margin: 0 auto 0.6rem;
+  max-width: 46rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  text-align: center;
+}
+.seasonp-report {
+  margin: 0 0 0.4rem;
+  text-align: center;
+}
+/* In the top bar the label collapses until hover, because the bar is a row of
+   icons. Here the button IS the sentence's call to action, so a bare glyph
+   reads as a stray mark. */
+.seasonp-report .pubws-report-label {
+  max-width: 12rem;
+  opacity: 1;
+  margin-left: 0.4rem;
 }

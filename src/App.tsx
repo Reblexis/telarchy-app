@@ -56,6 +56,10 @@ export function App() {
         {/* A season's published rules: what makes the contest a skill contest
             rather than an ad-hoc payout. Linked from the standings and the
             entry toggle. */}
+        <Route path="/legal/season-0" element={<LegalPage document="season-0" />} />
+        {/* The season was called Season 1 until 2026-08-19. The old rules URL
+            keeps working, because a rules link that has been quoted anywhere
+            must not 404. */}
         <Route path="/legal/season-1" element={<LegalPage document="season-1" />} />
 
         {/* Operator switch, linked from nowhere. */}
