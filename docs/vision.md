@@ -433,6 +433,29 @@ An **announcement** is owner-authored prose attached to a workspace: public, tim
 
 The public floor renders the latest announcement in the owner-prose zone (above "What is `<name>`?"), with the rest one click away, so a trader arriving mid-market sees the most recent disclosure without hunting for it.
 
+### Participant email notifications (Implemented 2026-08-19)
+
+A conversation nobody is told about is not a conversation. Comments under a contract and under a market are the only back-and-forth the floor has, and until 2026-08-19 a participant found out that someone had answered them only by coming back to the page and scrolling. That is backwards: the people worth keeping (the contractor whose job someone is questioning, the trader who asked what the number means) were exactly the ones with no signal to return on.
+
+A participant therefore carries three email switches on their own row (`agents`), all editable in account settings:
+
+- `notifyCommentOnMyProposal` (default **on**): someone commented under a contract you posted.
+- `notifyReplyToMyComment` (default **on**): someone else commented in a thread you have commented in, contract or market.
+- `notifyNewProposal` (default **off**): a new contract went on the ballot in a workspace you belong to.
+
+The split of defaults is the design, not an accident. The first two are answers addressed *to you*: someone is waiting on a reply, and not delivering that is the product failing at the one thing a comment box promises. The third is a firehose whose volume is set by strangers, so it stays off until someone asks for it. New accounts get exactly this at signup; nothing is asked at the door, because a notification question in a signup form costs more traders than it saves emails.
+
+Delivery rules, all enforced in `services/notifications.ts`:
+
+- Recipients resolve participant -> browser account -> email address. A participant with no browser account (an API-key bot, or an account detached by a GDPR delete) is skipped: there is no address to write to and no page they would read it on.
+- Nobody is notified of their own comment or their own contract, and each recipient gets **at most one email per comment** even when both of the first two switches would fire.
+- Sending is fire-and-forget. Posting a comment must not fail, or slow down, because Resend did; every transport error is logged and swallowed, exactly like owner notifications.
+- Every email names the switch that produced it and links to account settings, so turning it off is one click from the message that annoyed them.
+
+Transport is the shared Resend path in `lib/notify.ts` (`sendEmail`), the same one owner notifications use. With `RESEND_API_KEY` unset nothing is sent at all, which is what local dev and the test suite run on, so no test can mail a real person.
+
+`GET /api/auth/me` and `GET /api/agents/me` carry `notifications: { commentOnMyProposal, replyToMyComment, newProposal }`, and `POST /api/auth/profile` accepts the same object with any subset of the three keys, so a client can flip one switch without re-sending the other two.
+
 ### Per-market position cap (Implemented 2026-08-08)
 
 `workspaces.maxPositionCostPerMarket` (credits, 0 = off, a `manage_workspace` setting) caps each participant's **cumulative buy cost per market, both directions summed**. Selling never refunds cap headroom, so churning cannot stretch it; sells themselves are always allowed.

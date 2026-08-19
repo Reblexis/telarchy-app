@@ -74,6 +74,9 @@ beforeEach(async () => {
 async function seedFloor(traderIds: string[]) {
   await db.insert(agents).values(traderIds.map((id, i) => ({
     id, apiKeyHash: `h-${id}`, balance: toUnits(1000), nickname: `t${i}`,
+    // Entering requires payment details on the account (owner direction
+    // 2026-08-19); pinned in season-preregistration.test.ts.
+    payoutMethod: { provider: 'paypal', email: `${id}@example.com` },
   })));
   await db.insert(workspaces).values({
     id: WS, name: 'Floor', slug: 'floor', createdBy: traderIds[0], visibility: 'public',
@@ -126,7 +129,11 @@ async function startSeason(id: string) {
 
 async function optIn(seasonId: string, agentId: string, optedIn = true) {
   caller = { agentId };
-  const res = await request(app).put('/api/seasons/me').send({ optedIn });
+  // Entering needs the rules agreement (owner direction 2026-08-19). These
+  // tests are about scoring, not about the gates, so they satisfy them and get
+  // on with it; the gates themselves are pinned in
+  // season-preregistration.test.ts.
+  const res = await request(app).put('/api/seasons/me').send({ optedIn, acceptedRules: true });
   caller = { isMasterKey: true };
   return res;
 }
@@ -254,7 +261,7 @@ describe('entering', () => {
     await seedFloor(['t']);
     const season = (await createSeason()).body.season;
     caller = { agentId: 't' };
-    const res = await request(app).put('/api/seasons/me').send({ optedIn: true });
+    const res = await request(app).put('/api/seasons/me').send({ optedIn: true, acceptedRules: true });
     expect(res.status).toBe(200);
     expect(res.body.optedIn).toBe(true);
     expect(res.body.season.id).toBe(season.id);
@@ -264,7 +271,7 @@ describe('entering', () => {
   test('with no season at all, entering is still refused', async () => {
     await seedFloor(['t']);
     caller = { agentId: 't' };
-    const res = await request(app).put('/api/seasons/me').send({ optedIn: true });
+    const res = await request(app).put('/api/seasons/me').send({ optedIn: true, acceptedRules: true });
     expect(res.status).toBe(409);
     expect(res.body.error).toMatch(/No season is open for entry/);
   });
@@ -443,6 +450,11 @@ describe('claiming', () => {
 
   test('claiming without payment details asks for them rather than failing silently', async () => {
     const season = await settledSeasonWithWinner();
+    // Entry now seeds a payout method (owner direction 2026-08-19), so this
+    // case has to remove it deliberately. The claim gate still has to hold on
+    // its own: someone can clear their details between entering and winning.
+    await db.update(agents).set({ payoutMethod: null, payoutHandle: null })
+      .where(eq(agents.id, 'winner'));
     caller = { agentId: 'winner' };
     const res = await request(app).post(`/api/seasons/${season.id}/claim`).send({});
     expect(res.status).toBe(400);

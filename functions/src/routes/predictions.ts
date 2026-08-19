@@ -18,6 +18,7 @@ import { extractMetricReferences } from '../lib/metrics-engine';
 import { consensus, pHigher, directionTradeCost, sharesForBudget, betTowardsValue, directionSellProceeds, lmsrCost, initialPool, AMM_DEFAULTS } from '../lib/amm';
 import { executeTradeInTx, fillLimitOrdersInTx, capUsage, positionCap, closeLimitOrderInTx, type TradeMode } from '../services/trading';
 import { emitEvent } from '../services/events';
+import { notifyCommentPosted } from '../services/notifications';
 import { applyAgentLiquidityInjectionTx } from '../services/marketLiquidity';
 import { sufficientBalance, toUnits, fromUnits, validateContent, MIN_LIQUIDITY_CONTRIBUTION } from '../lib/validation';
 import { getGroupMemberIds, resolveWorkspaceOwnerAgentId, listParticipantsForWorkspace, getParticipantDisplayNames } from '../lib/participants';
@@ -496,6 +497,10 @@ predictionsRouter.post('/markets/:id/messages', requireCapability('trade'), wrap
   const id = randomUUID();
   const createdAt = new Date();
   await db.insert(marketMessages).values({ id, workspaceId, marketId, from, content, createdAt });
+
+  // Everyone already in this market's thread hears about the reply
+  // (docs/vision.md, "Participant email notifications"). Fire-and-forget.
+  void notifyCommentPosted({ workspaceId, from, content, marketId });
 
   const names = await getParticipantDisplayNames([from]);
   res.status(201).json({ id, marketId, from, fromName: names.get(from) ?? null, content, createdAt });

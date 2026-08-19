@@ -68,6 +68,9 @@ Only entrants who explicitly opted in are ranked or paid.
 - You must be at least 18 years old.
 - You must have a Telarchy account and must explicitly opt in to enter. Entry
   opens as soon as the season is announced, before it starts.
+- To enter you must have payment details saved on your account, and you must
+  agree to these rules. We record when you agreed. Leaving requires neither and
+  is always one click.
 - Participants operated by us or run as part of the platform are **not
   eligible** and do not enter.
 - A prize requires a season score **strictly greater than zero**. A season score

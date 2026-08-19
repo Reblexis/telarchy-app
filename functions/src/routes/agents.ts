@@ -57,13 +57,29 @@ function sanitizeAgentForViewer(
   row: typeof agents.$inferSelect,
   auth: { uid?: string; agentId?: string; isMasterKey?: boolean } | undefined,
 ) {
-  const { apiKeyHash: _hash, claimTokenHash: _claim, ...data } = row;
+  const {
+    apiKeyHash: _hash, claimTokenHash: _claim,
+    // The email switches leave as ONE object, never as three loose columns:
+    // GET /api/auth/me serves the same `notifications` shape, and two shapes
+    // for one fact is how a client ends up reading the stale one.
+    notifyCommentOnMyProposal, notifyReplyToMyComment, notifyNewProposal,
+    ...data
+  } = row;
   const isSelfOrOwner = !!auth && (
     auth.isMasterKey === true ||
     (!!auth.agentId && (auth.agentId === row.id || auth.agentId === row.ownerAgentId)) ||
     (!!auth.uid && (auth.uid === row.authUserId || auth.uid === row.ownerUserId))
   );
-  if (isSelfOrOwner) return data;
+  if (isSelfOrOwner) {
+    return {
+      ...data,
+      notifications: {
+        commentOnMyProposal: notifyCommentOnMyProposal,
+        replyToMyComment: notifyReplyToMyComment,
+        newProposal: notifyNewProposal,
+      },
+    };
+  }
   const { payoutMethod: _pm, payoutHandle: _ph, walletAddress: _w, authUserId: _au, ownerUserId: _ou, ...publicData } = data;
   return publicData;
 }

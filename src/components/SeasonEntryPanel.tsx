@@ -37,19 +37,6 @@ export function SeasonEntryPanel() {
 
   useEffect(load, [load]);
 
-  const toggle = async (next: boolean) => {
-    setBusy(true);
-    setError(null);
-    try {
-      await api.setMySeasonEntry(next);
-      load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not update your entry');
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const claim = async (seasonId: string) => {
     setBusy(true);
     setError(null);
@@ -84,35 +71,19 @@ export function SeasonEntryPanel() {
         <Link to={season.rulesUrl}>Rules</Link>.
       </p>
 
-      {clock.entryOpen && (
-        <>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
-            <input
-              type="checkbox"
-              checked={entry.optedIn}
-              disabled={busy || !entry.canEnter}
-              onChange={e => toggle(e.target.checked)}
-            />
-            Enter this season
-          </label>
-          <p style={{ fontSize: '0.8rem', opacity: 0.6, marginTop: '0.4rem' }}>
-            Free to enter. No purchase, no stake, and your credits are never
-            spent or exchanged. If you win, we will ask for payment details then.
-          </p>
-          {/* Said plainly, because entering early looks like it might buy an
-              advantage and it does not: everyone's starting score is read at
-              the same instant however early they signed up. */}
-          {clock.phase === 'before' && entry.optedIn && (
-            <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>
-              You are in. Your starting score is taken when the season begins,
-              the same as everyone else's, so entering early costs and gains
-              nothing but the reminder.
-            </p>
-          )}
-          {!entry.canEnter && (
-            <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>Entries have closed for this season.</p>
-          )}
-        </>
+      {/* No entry toggle here. Entering moved to SeasonEntryButton on the
+          public surfaces (owner direction 2026-08-19): the floor rail and the
+          public leaderboard, where the season is actually announced. This
+          panel is the claim path, which only a winner walks and which needs
+          the account context it already sits in. */}
+      {clock.entryOpen && !entry.optedIn && (
+        <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>
+          You have not entered. The entry button is on the{' '}
+          <Link to="/leaderboard">leaderboard</Link>.
+        </p>
+      )}
+      {entry.optedIn && (
+        <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>You are entered.</p>
       )}
 
       {season.status === 'settled' && !claimed && (

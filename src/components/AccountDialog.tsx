@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { FloorModal } from './FloorModal';
-import { api, type PayoutMethod } from '../lib/api';
+import { api, type NotificationPrefs, type PayoutMethod } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 
 /**
@@ -19,7 +19,29 @@ interface Participant {
   earnedBetting: number | null;
   payoutHandle: string | null;
   payoutMethod: PayoutMethod | null;
+  notifications: NotificationPrefs | null;
 }
+
+/**
+ * The email switches, in the order a trader meets them: the two answers
+ * addressed to you first, the firehose last. Labels say what LANDS in the
+ * inbox, not what the column is called (docs/vision.md, "Participant email
+ * notifications").
+ */
+const EMAIL_SWITCHES: Array<{ key: keyof NotificationPrefs; label: string }> = [
+  { key: 'commentOnMyProposal', label: 'Someone comments on my contract' },
+  { key: 'replyToMyComment', label: 'Someone replies in a thread I am in' },
+  { key: 'newProposal', label: 'A new contract goes on the ballot' },
+];
+
+/** What a participant sees before their own settings have loaded, and what a
+ *  row written before the switches existed reads as. Same defaults as the
+ *  database columns; if these two ever disagree the database wins. */
+const DEFAULT_PREFS: NotificationPrefs = {
+  commentOnMyProposal: true,
+  replyToMyComment: true,
+  newProposal: false,
+};
 
 const PROVIDERS: Array<{ id: PayoutMethod['provider']; label: string }> = [
   { id: 'paypal', label: 'PayPal' },
@@ -106,6 +128,11 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
   const [fields, setFields] = useState<Record<string, string>>({});
   const [payDirty, setPayDirty] = useState(false);
 
+  // Email switches. They save on the click (no separate confirm): a switch
+  // that needs a Save button reads as a form, and the state shown is the
+  // state stored, rolled back if the server refuses.
+  const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);
+
   const [busy, setBusy] = useState<string | null>(null); // which section is saving
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState<Record<string, boolean>>({});
@@ -124,6 +151,7 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
         setParticipant(part);
         setNick(part.nickname ?? '');
         setNickSaved(part.nickname ?? '');
+        if (part.notifications) setPrefs(part.notifications);
         if (part.payoutMethod) {
           setProvider(part.payoutMethod.provider);
           setFields(storedFields(part.payoutMethod));
@@ -200,6 +228,23 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
       flashSaved('pay');
     } catch (e) {
       sectionErr('pay', (e as Error).message || 'Could not save payment details');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const toggleEmail = async (key: keyof NotificationPrefs) => {
+    const next = { ...prefs, [key]: !prefs[key] };
+    const previous = prefs;
+    clearErr('emails');
+    setPrefs(next);
+    setBusy(`email:${key}`);
+    try {
+      await api.upsertProfile({ notifications: { [key]: next[key] } });
+      setParticipant(p => (p ? { ...p, notifications: next } : p));
+    } catch (e) {
+      setPrefs(previous);
+      sectionErr('emails', (e as Error).message || 'Could not change that setting');
     } finally {
       setBusy(null);
     }
@@ -399,6 +444,34 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
           </button>
         )}
         {errors.pay && <p className="ticket-err">{errors.pay}</p>}
+
+        {/* Emails: which of them reach you. The two answers addressed to
+            you are on for a new account, the new-contract firehose is off
+            (docs/vision.md, "Participant email notifications"). Each row
+            saves on the click; there is no confirm to forget to press. */}
+        <div className="jobform-field">
+          <span className="ticket-label">Emails</span>
+          <div className="acctdlg-switches">
+            {EMAIL_SWITCHES.map(sw => (
+              <button
+                key={sw.key}
+                type="button"
+                role="switch"
+                aria-checked={prefs[sw.key]}
+                className={`acctdlg-switch${prefs[sw.key] ? ' is-on' : ''}`}
+                disabled={busy === `email:${sw.key}`}
+                onClick={() => void toggleEmail(sw.key)}
+              >
+                <span className="acctdlg-switch-box" aria-hidden="true">{prefs[sw.key] ? '✓' : ''}</span>
+                <span className="acctdlg-switch-label">{sw.label}</span>
+              </button>
+            ))}
+          </div>
+          <p className="acctdlg-hint">
+            Sent to {user?.email ?? 'your account email'}. Every one of them says how to turn it off.
+          </p>
+        </div>
+        {errors.emails && <p className="ticket-err">{errors.emails}</p>}
 
         {/* Bring a Manifold record: proven calibration converts once. */}
         <div className="jobform-field">

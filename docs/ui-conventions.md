@@ -365,7 +365,13 @@ network pill row), and the server validates per provider (IBAN mod-97,
 per-network address shapes) with the refusal surfacing verbatim beside
 the save. The stored object lives in `agents.payout_method`; its
 human-readable summary is derived into `agents.payout_handle`, which is
-what paid-job proposals snapshot. The board is signed-in
+what paid-job proposals snapshot. The dialog also carries **Emails**: three
+toggle pills for the notifications a participant gets by mail (a comment
+under my contract, a reply in a thread I am in, every new contract), each
+saving on the click with no separate confirm, because a switch that needs
+a Save button reads as a form rather than a switch. This dialog is the
+only place they are edited; the console's `/account` page is the old
+surface and stays out of it (owner direction 2026-08-19). The board is signed-in
 only; the anonymous poster stays clean. On viewports >=1120px the page
 becomes the trading floor proper: a three-column grid with the leaders
 rail on the left and the action log on the right (composed

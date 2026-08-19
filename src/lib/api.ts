@@ -110,6 +110,21 @@ export type PayoutMethod = (
   note?: string;
 };
 
+/**
+ * Which emails a participant gets (docs/vision.md, "Participant email
+ * notifications"). Mirrors the three switches on the participant row; read
+ * from GET /api/agents/me and GET /api/auth/me, written through
+ * POST /api/auth/profile.
+ */
+export interface NotificationPrefs {
+  /** Someone commented under a contract you posted. On for a new account. */
+  commentOnMyProposal: boolean;
+  /** Someone else commented in a thread you are in. On for a new account. */
+  replyToMyComment: boolean;
+  /** Every new contract on a workspace you belong to. Off until asked for. */
+  newProposal: boolean;
+}
+
 /** A bug report, help request, or feature idea (POST /api/feedback).
  *  Mirrors the row in functions/src/routes/feedback.ts. */
 export interface FeedbackItem {
@@ -188,6 +203,13 @@ export interface MySeasonEntry {
   season: PrizeSeason | null;
   optedIn: boolean;
   canEnter: boolean;
+  /** Entry requires payment details on the account (owner direction
+   *  2026-08-19). Reported here so the entry button can show the step that is
+   *  actually missing instead of failing and then explaining. */
+  hasPayoutMethod?: boolean;
+  /** When this participant agreed to the season rules, or null. Someone who
+   *  has already agreed is not asked again on a rejoin. */
+  rulesAcceptedAt?: string | null;
 }
 
 export interface LeaderboardEntry {
@@ -985,17 +1007,30 @@ export const api = {
     if (!res.ok) throw new Error(`Season entry request failed: ${res.status}`);
     return res.json();
   },
-  /** Enter or leave the running season. Requires no payment details: those
-   *  are asked for at claim time, from winners only. */
-  setMySeasonEntry: async (optedIn: boolean): Promise<{ optedIn: boolean }> => {
+  /**
+   * Enter or leave the season.
+   *
+   * Entering requires payment details on the account and `acceptedRules`
+   * (owner direction 2026-08-19). A refusal carries `reason` ('payout' or
+   * 'rules') so the caller can point at the missing step rather than showing
+   * a message and hoping. Leaving needs neither.
+   */
+  setMySeasonEntry: async (
+    optedIn: boolean,
+    opts: { acceptedRules?: boolean } = {},
+  ): Promise<{ optedIn: boolean }> => {
     const res = await fetch(`${API_BASE}/api/seasons/me`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ optedIn }),
+      body: JSON.stringify({ optedIn, acceptedRules: opts.acceptedRules === true }),
     });
     const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(body.error ?? `Season entry update failed: ${res.status}`);
+    if (!res.ok) {
+      const err = new Error(body.error ?? `Season entry update failed: ${res.status}`) as Error & { reason?: string };
+      err.reason = body.reason;
+      throw err;
+    }
     return body;
   },
   /** Claim a prize on a settled season. Needs payment details on the account
@@ -1040,7 +1075,9 @@ export const api = {
 
   // User auth / profile
   getProfile: () => request('/api/auth/me'),
-  upsertProfile: (opts?: { email?: string; intent?: 'creator' | 'agent' | 'trader'; nickname?: string; bio?: string; image?: string | null; payoutHandle?: string | null; payoutMethod?: PayoutMethod | null }) =>
+  /** `notifications` is the email switches; any subset, an omitted key keeps
+   *  its current value (see docs/vision.md, "Participant email notifications"). */
+  upsertProfile: (opts?: { email?: string; intent?: 'creator' | 'agent' | 'trader'; nickname?: string; bio?: string; image?: string | null; payoutHandle?: string | null; payoutMethod?: PayoutMethod | null; notifications?: Partial<NotificationPrefs> }) =>
     request('/api/auth/profile', { method: 'POST', body: JSON.stringify(opts ?? {}) }),
   recordConsent: () =>
     request('/api/auth/consent', { method: 'POST', body: JSON.stringify({ accepted: true }) }),

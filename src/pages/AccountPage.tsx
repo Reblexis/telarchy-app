@@ -297,6 +297,13 @@ export function AccountPage() {
       </div>
 
       {/* Prize season: renders nothing when there is no season. */}
+      {/* Entering the season does NOT live here (owner direction 2026-08-19).
+          This is the console; a visitor who read about the season on the floor
+          has no reason to be sent into it, and the entry button belongs where
+          the season is announced. SeasonEntryButton, on the floor rail and the
+          public leaderboard, owns entry now. What stays here is claiming a
+          prize, which only a winner does and which already needed this page's
+          account context. */}
       <SeasonEntryPanel />
 
       {/* Change password */}

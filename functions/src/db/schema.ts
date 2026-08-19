@@ -212,6 +212,26 @@ export const agents = pgTable('agents', {
    *  to do. Shown on the public profile. Max 500 chars, set at registration
    *  or via POST /api/auth/profile. */
   bio: text('bio'),
+  /**
+   * Email notification switches (owner ask 2026-08-19; docs/vision.md,
+   * "Participant email notifications"). They live on the participant rather
+   * than the browser account because the thing being notified about (a
+   * comment, a contract) happens to a participant, and one human can hold
+   * several. Mail only ever reaches a participant with a browser account
+   * attached; a key-only bot has no address and is skipped.
+   *
+   * On by default: someone commented under a contract this participant
+   * posted. An answer addressed to you that nobody tells you about is the
+   * comment box breaking its own promise.
+   */
+  notifyCommentOnMyProposal: boolean('notify_comment_on_my_proposal').notNull().default(true),
+  /** On by default: someone else commented in a thread this participant has
+   *  commented in (contract or market), i.e. a reply to them. */
+  notifyReplyToMyComment: boolean('notify_reply_to_my_comment').notNull().default(true),
+  /** OFF by default: every new contract on the ballot of a workspace this
+   *  participant belongs to. Volume is set by strangers, so this one is
+   *  opt-in rather than opt-out. */
+  notifyNewProposal: boolean('notify_new_proposal').notNull().default(false),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   approvedAt: timestamp('approved_at'),
 }, t => [uniqueIndex('agents_auth_user_id_idx').on(t.authUserId)]);
@@ -863,6 +883,13 @@ export const seasonEntries = pgTable('season_entries', {
   optedIn: boolean('opted_in').notNull().default(false),
   /** When they turned the toggle on. The published first tiebreak. */
   enteredAt: timestamp('entered_at'),
+  /** When this entrant agreed to the season's published rules.
+   *
+   *  A record rather than a checkbox, because the question it answers ("did
+   *  they accept these terms, and when?") is asked after the fact, in a
+   *  dispute about money. Set on every opt-in; left as it was on opt-out, so
+   *  leaving and rejoining does not erase that they once agreed. */
+  rulesAcceptedAt: timestamp('rules_accepted_at'),
   /** Board profit at the season's START instant, not at opt-in. */
   baselineProfit: doublePrecision('baseline_profit').notNull().default(0),
   /** Board profit at the settle instant. Null until settled. */

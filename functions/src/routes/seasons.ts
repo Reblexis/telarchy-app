@@ -141,20 +141,34 @@ seasonsRouter.get('/me', requireIdentity, wrap(async (req, res) => {
     .where(and(eq(seasonEntries.seasonId, season.id), eq(seasonEntries.agentId, agentId)))
     .limit(1);
 
+  // hasPayoutMethod so the entry button can show the right step without a
+  // second round trip, and rulesAcceptedAt so someone who has already agreed
+  // is not asked twice.
+  const [me] = await db.select({ payoutMethod: agents.payoutMethod })
+    .from(agents).where(eq(agents.id, agentId)).limit(1);
+
   res.json({
     season: publicSeason(season),
     optedIn: entry?.optedIn === true,
     canEnter: isOpenForEntry(season.status as SeasonStatus, new Date(), new Date(season.endsAt)),
+    hasPayoutMethod: !!me?.payoutMethod,
+    rulesAcceptedAt: entry?.rulesAcceptedAt ?? null,
   });
 }));
 
 /**
- * Turn entry on or off for the running season.
+ * Turn entry on or off.
  *
- * Requires no payment details. A visitor arriving cold from Manifold should be
- * one click from entering; asking for an IBAN before they have placed a trade
- * is the friction that already cost this funnel signups once. Winners are asked
- * at claim time instead.
+ * Two gates on the way IN (owner direction 2026-08-19): payment details on the
+ * account, and an explicit agreement to the published rules. Leaving stays one
+ * click, because a contest that is hard to withdraw from is indefensible.
+ *
+ * The payment gate is a REVERSAL, recorded here so nobody undoes it by
+ * accident. Entry used to require nothing: a visitor arriving cold from
+ * Manifold was one click from entering, and winners were asked for details at
+ * claim time, because that friction had already cost this funnel signups once.
+ * The owner decided the other way. If entries come in thin, this is the first
+ * thing to look at.
  *
  * The entry row may already exist without being an entry: the season snapshots
  * a baseline for every participant when it starts, so that opting in late
@@ -177,9 +191,48 @@ seasonsRouter.put('/me', requireIdentity, wrap(async (req, res) => {
     .where(and(eq(seasonEntries.seasonId, season.id), eq(seasonEntries.agentId, agentId)))
     .limit(1);
 
+  // Two gates, on the way IN only. Leaving is always one click: a rule that
+  // made it hard to withdraw from a contest would be indefensible.
+  //
+  // `reason` is machine-readable so the entry button can render the step that
+  // is actually missing rather than a generic failure. Both are enforced here
+  // and not only in the UI, because the same endpoint serves API participants.
+  const acceptedRules = req.body?.acceptedRules === true;
+  const alreadyAccepted = !!existing?.rulesAcceptedAt;
+  if (optIn && !acceptedRules && !alreadyAccepted) {
+    throw new AppError(
+      'You have to agree to the season rules to enter. Send acceptedRules: true once you have read them.',
+      400, { reason: 'rules', rulesUrl: season.rulesUrl },
+    );
+  }
+
+  if (optIn) {
+    // Reversed 2026-08-19 (owner direction): entry used to require no payment
+    // details at all, deliberately, so a cold visitor was one click in and
+    // winners were asked only at claim time.
+    const [me] = await db.select({ payoutMethod: agents.payoutMethod })
+      .from(agents).where(eq(agents.id, agentId)).limit(1);
+    if (!me?.payoutMethod) {
+      throw new AppError(
+        'Add payment details to your account before entering, so a prize can actually reach you.',
+        409, { reason: 'payout' },
+      );
+    }
+  }
+
+  const rulesAcceptedAt = optIn
+    ? (existing?.rulesAcceptedAt ?? new Date())
+    : (existing?.rulesAcceptedAt ?? null);
+
   if (existing) {
     await db.update(seasonEntries)
-      .set({ optedIn: optIn, enteredAt: optIn ? (existing.enteredAt ?? new Date()) : existing.enteredAt })
+      .set({
+        optedIn: optIn,
+        enteredAt: optIn ? (existing.enteredAt ?? new Date()) : existing.enteredAt,
+        // Never cleared on the way out: that they once agreed is a fact, and
+        // rejoining should not ask again.
+        rulesAcceptedAt,
+      })
       .where(and(eq(seasonEntries.seasonId, season.id), eq(seasonEntries.agentId, agentId)));
   } else {
     // No baseline row means this account did not exist (or had no activity)
@@ -190,6 +243,7 @@ seasonsRouter.put('/me', requireIdentity, wrap(async (req, res) => {
       agentId,
       optedIn: optIn,
       enteredAt: optIn ? new Date() : null,
+      rulesAcceptedAt,
       baselineProfit: 0,
     });
   }

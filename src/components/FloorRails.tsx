@@ -2,6 +2,7 @@ import type { LeaderboardEntry, PublicContractor } from '../lib/api';
 import { useEffect, useState } from 'react';
 import { api, type PrizeSeason } from '../lib/api';
 import { useSeasonClock } from '../lib/useSeasonClock';
+import { SeasonEntryButton } from './SeasonEntryButton';
 import { pickCurrentSeason } from '../lib/season-clock';
 import { ManifoldLogo } from './ManifoldLogo';
 
@@ -46,12 +47,16 @@ function contractorSubline(c: PublicContractor): string {
   return parts.join(' · ');
 }
 
-export function LeaderboardRail({ entries: all, contractors, unit = '' }: {
+export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn = false }: {
   entries: LeaderboardEntry[];
   contractors?: PublicContractor[];
   /** The hero metric's currency prefix ('$' or ''), so a contractor's priced
    *  impact reads in the same unit as the market above it. */
   unit?: string;
+  /** Whether the visitor has an identity, so the season strip can offer entry
+   *  rather than a signup link. Passed down rather than read here, because the
+   *  floor already resolved auth and a second useAuth would flicker. */
+  signedIn?: boolean;
 }) {
   // A row for someone who has never traded is a name and a zero: noise.
   // Ten, not five (owner direction 2026-08-17): five made the board look
@@ -155,7 +160,7 @@ export function LeaderboardRail({ entries: all, contractors, unit = '' }: {
           )}
         </section>
       )}
-      <SeasonStrip />
+      <SeasonStrip signedIn={signedIn} />
       {/* The way out of a top-ten list: the whole field, on its own page
           (owner direction 2026-08-17). */}
       <a className="pubws-lb-more" href="/leaderboard">Show full leaderboard</a>
@@ -176,7 +181,7 @@ export function LeaderboardRail({ entries: all, contractors, unit = '' }: {
  * away. Renders nothing when there is no season at all, so the floor is
  * unchanged the rest of the time.
  */
-function SeasonStrip() {
+function SeasonStrip({ signedIn }: { signedIn: boolean }) {
   const [season, setSeason] = useState<PrizeSeason | null>(null);
   useEffect(() => {
     api.getSeasons()
@@ -196,9 +201,7 @@ function SeasonStrip() {
           ? ' Entry is open now, so you are in before it starts.'
           : ' Free to enter, no purchase and no stake.'}
       </p>
-      {clock.entryOpen && (
-        <a className="pubws-lb-more" href="/account">Enter the season</a>
-      )}
+      {clock.entryOpen && <SeasonEntryButton season={season} signedIn={signedIn} />}
       <a className="pubws-lb-more" href={`/leaderboard?season=${encodeURIComponent(season.id)}`}>
         {clock.phase === 'before' ? 'See the board' : 'See the standings'}
       </a>

@@ -1,0 +1,13 @@
+-- Entering a season now requires two things it did not before (owner
+-- direction 2026-08-19): payment details on the account, and an explicit
+-- agreement to the published rules.
+--
+-- The payment requirement is a reversal: entry deliberately asked for nothing
+-- so a cold visitor was one click in, and details were collected at claim time
+-- from winners only. The owner has decided the trade the other way.
+--
+-- The rules agreement needs a record, not just a checkbox that vanishes. This
+-- column IS that record: which entry, and when they agreed. A prize dispute
+-- that turns on "I never agreed to those rules" is answered by a row, or it is
+-- not answered at all.
+ALTER TABLE "season_entries" ADD COLUMN IF NOT EXISTS "rules_accepted_at" timestamp;

@@ -50,10 +50,13 @@ app.use(express.json());
 app.use((req, _res, next) => { (req as unknown as { auth: typeof caller }).auth = caller; next(); });
 app.use('/api/seasons', seasonsRouter);
 app.use('/api/leaderboard', leaderboardRouter);
+// Mirrors app.ts, `extra` spread included: without it every assertion about
+// WHICH step is missing would be checking a field the caller never sees.
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   const status = err instanceof AppError ? err.status : 500;
   if (status >= 500) console.error(err);
-  res.status(status).json({ error: status >= 500 ? 'Internal error' : err.message });
+  const extra = err instanceof AppError && err.extra ? err.extra : {};
+  res.status(status).json({ error: status >= 500 ? 'Internal error' : err.message, ...extra });
 });
 
 beforeAll(async () => { await ensureMigrations(); });
@@ -66,6 +69,7 @@ beforeEach(async () => {
 async function seedFloor(ids: string[]) {
   await db.insert(agents).values(ids.map((id, i) => ({
     id, apiKeyHash: `h-${id}`, balance: toUnits(1000), nickname: `p${i}`,
+    payoutMethod: { provider: 'paypal', email: `${id}@example.com` },
   })));
   await db.insert(workspaces).values({
     id: WS, name: 'Floor', slug: 'prereg-floor', createdBy: ids[0], visibility: 'public',
@@ -109,7 +113,16 @@ async function createSeason() {
 const asAgent = (id: string) => { caller = { agentId: id }; };
 const asAdmin = () => { caller = { isMasterKey: true }; };
 
-const enter = (optedIn: boolean) => request(app).put('/api/seasons/me').send({ optedIn });
+const enter = (optedIn: boolean, acceptedRules = true) =>
+  request(app).put('/api/seasons/me').send({ optedIn, acceptedRules });
+
+/** Payment details on the account: entering requires them (owner direction
+ *  2026-08-19), so every seed that expects to get in has to set one. */
+async function withPayout(agentId: string) {
+  await db.update(agents)
+    .set({ payoutMethod: { provider: 'paypal', email: `${agentId}@example.com` } })
+    .where(eq(agents.id, agentId));
+}
 const mine = () => request(app).get('/api/seasons/me');
 
 async function entryRow(seasonId: string, agentId: string) {
@@ -269,5 +282,87 @@ describe('a running season still behaves as it did', () => {
     // No draft, no running: nothing to enter, and no crash reaching for one.
     expect((await mine()).body.season).toBeNull();
     expect((await enter(true)).status).toBe(409);
+  });
+});
+
+describe('the two gates on the way in', () => {
+  test('entering without agreeing to the rules is refused, and says which step', async () => {
+    await seedFloor([EARLY]);
+    await createSeason();
+    asAgent(EARLY);
+
+    const res = await request(app).put('/api/seasons/me').send({ optedIn: true });
+    expect(res.status).toBe(400);
+    // Machine-readable, so the entry button can show the missing step instead
+    // of printing a sentence and hoping.
+    expect(res.body.reason).toBe('rules');
+    expect(res.body.rulesUrl).toBe('/legal/season-1');
+    expect((await mine()).body.optedIn).toBe(false);
+  });
+
+  test('entering without payment details is refused, and says which step', async () => {
+    await seedFloor([EARLY]);
+    await db.update(agents).set({ payoutMethod: null }).where(eq(agents.id, EARLY));
+    await createSeason();
+    asAgent(EARLY);
+
+    const res = await enter(true);
+    expect(res.status).toBe(409);
+    expect(res.body.reason).toBe('payout');
+    expect((await mine()).body.optedIn).toBe(false);
+  });
+
+  test('with both, the entry goes through and the agreement is on the record', async () => {
+    await seedFloor([EARLY]);
+    const id = await createSeason();
+    asAgent(EARLY);
+    expect((await enter(true)).status).toBe(200);
+
+    const row = await entryRow(id, EARLY);
+    expect(row?.optedIn).toBe(true);
+    // A checkbox that leaves no row cannot answer "did they agree, and when?"
+    // months later, in a dispute about money.
+    expect(row?.rulesAcceptedAt).toBeTruthy();
+  });
+
+  test('GET /me reports what is still missing', async () => {
+    await seedFloor([EARLY]);
+    await db.update(agents).set({ payoutMethod: null }).where(eq(agents.id, EARLY));
+    await createSeason();
+    asAgent(EARLY);
+
+    expect((await mine()).body.hasPayoutMethod).toBe(false);
+    await withPayout(EARLY);
+    expect((await mine()).body.hasPayoutMethod).toBe(true);
+    expect((await mine()).body.rulesAcceptedAt).toBeNull();
+  });
+
+  test('leaving needs neither gate', async () => {
+    // A contest that is hard to withdraw from would be indefensible.
+    await seedFloor([EARLY]);
+    const id = await createSeason();
+    asAgent(EARLY);
+    await enter(true);
+    await db.update(agents).set({ payoutMethod: null }).where(eq(agents.id, EARLY));
+
+    const res = await request(app).put('/api/seasons/me').send({ optedIn: false });
+    expect(res.status).toBe(200);
+    expect((await entryRow(id, EARLY))?.optedIn).toBe(false);
+  });
+
+  test('rejoining does not ask again, and never erases that they agreed', async () => {
+    await seedFloor([EARLY]);
+    const id = await createSeason();
+    asAgent(EARLY);
+    await enter(true);
+    const first = (await entryRow(id, EARLY))?.rulesAcceptedAt;
+
+    await request(app).put('/api/seasons/me').send({ optedIn: false });
+    expect((await entryRow(id, EARLY))?.rulesAcceptedAt).toEqual(first);
+
+    // No acceptedRules in the body: the stored agreement stands.
+    const back = await request(app).put('/api/seasons/me').send({ optedIn: true });
+    expect(back.status).toBe(200);
+    expect((await entryRow(id, EARLY))?.rulesAcceptedAt).toEqual(first);
   });
 });

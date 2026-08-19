@@ -20,6 +20,7 @@ import { validateContent, MIN_LIQUIDITY_CONTRIBUTION } from '../lib/validation';
 import { getParticipantDisplayNames } from '../lib/participants';
 import { emitEvent } from '../services/events';
 import { notifyOwner } from '../lib/notify';
+import { notifyCommentPosted, notifyProposalCreated } from '../services/notifications';
 
 export const proposalsRouter = Router();
 
@@ -157,6 +158,10 @@ proposalsRouter.post('/', requireCapability('trade'), wrap(async (req, res) => {
     proposalId: id, title, proposedBy, liquiditySubsidy: subsidy,
     conditionalMarketCount: conditionalMarketIds.length,
   }, workspaceId).catch(e => console.error('emitEvent failed:', e));
+
+  // Participants who asked to hear about new contracts here (off by default,
+  // docs/vision.md "Participant email notifications").
+  void notifyProposalCreated({ workspaceId, proposedBy, title, description });
 
   // The owner reviews the ballot; a new job they never hear about is a
   // silent decline by accident (owner decision 2026-08-10: notify).
@@ -333,6 +338,11 @@ proposalsRouter.post('/:proposalId/messages', requireCapability('trade'), wrap(a
   const from = agentId || 'admin';
   const id = randomUUID();
   await db.insert(proposalMessages).values({ id, workspaceId, proposalId, from, content, createdAt: new Date() });
+
+  // Tell the people this comment is addressed to (docs/vision.md,
+  // "Participant email notifications"): the contract's poster and anyone
+  // already in the thread. Fire-and-forget: posting must not wait on mail.
+  void notifyCommentPosted({ workspaceId, from, content, proposalId });
 
   const names = await getParticipantDisplayNames([from]);
   res.status(201).json({ id, from, fromName: names.get(from) ?? null, content });

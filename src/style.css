@@ -8637,6 +8637,49 @@ textarea.jobform-line--desc {
   border-radius: 5px;
 }
 
+/* Email switches: a checkbox row in the ticket's language. The whole row is
+   the control (label included), because a 14px box is a bad tap target, and
+   the tick is the only thing that changes, so a mistaken tap is obvious. */
+.acctdlg-switches {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.acctdlg-switch {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+.acctdlg-switch:hover { color: var(--text-primary); }
+.acctdlg-switch:disabled { opacity: 0.5; cursor: default; }
+.acctdlg-switch-box {
+  flex: none;
+  width: 1.05rem;
+  height: 1.05rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  font-size: 0.72rem;
+  line-height: 1;
+  transition: background 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+.acctdlg-switch.is-on { color: var(--text-primary); }
+.acctdlg-switch.is-on .acctdlg-switch-box {
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+  color: var(--bg-primary);
+}
+.acctdlg-switch:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+
 .acctdlg-ok {
   margin: 0;
   font-size: 0.82rem;
@@ -11224,4 +11267,55 @@ textarea.jobform-line--desc {
   font-size: 0.85rem;
   color: var(--text-tertiary);
   margin-left: 0.6rem;
+}
+
+
+/* Entering a prize season, on a public page. The season is announced on the
+   floor and on the public leaderboard, so entry happens there rather than
+   inside the console (owner direction 2026-08-19). */
+.season-entry {
+  margin-top: 0.75rem;
+}
+.season-entry-agree {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.7rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.season-entry-agree input { margin-top: 0.15rem; flex: none; }
+.season-entry-note {
+  margin: 0.55rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+  max-width: 34rem;
+}
+.season-entry-in {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--higher);
+}
+.season-entry-leave {
+  margin-top: 0.6rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.season-entry-leave:hover { color: var(--text-secondary); }
+
+/* The CTA is shared with the leaderboard season block; disabled it has to read
+   as not-yet rather than broken, because the checkbox above it is the reason. */
+.lbp-season-cta[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
 }

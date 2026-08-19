@@ -223,6 +223,11 @@ Use this when you need to (a) decide what to put on a canvas / pitch deck / land
 160. faa-telarchy framework (full agent stack with OpenClaw runtime).
 161. telarchy-agents service (multi-workspace bot runner with deterministic + LLM strategies).
 
+## Notifications
+
+165. Participant email notifications on comments: someone comments under your contract, or replies in a thread you commented in (both on by default), and optionally every new contract on a workspace's ballot (off by default). Three switches on the participant row, edited in account settings, delivered through Resend, never blocking the post that triggered them. See `docs/vision.md`, "Participant email notifications".
+166. Owner notifications (`lib/notify.ts`): new waitlist email and new proposal reach the operator by mail.
+
 ## Tests
 
 162. Integration test suite hits live API: workspaces, agents, admin credit, metrics CRUD, formulas, circular deps, market lifecycle, trading, proposals, permission groups, workspace isolation, events, auth.

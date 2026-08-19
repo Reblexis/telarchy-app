@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type LeaderboardEntry, type PrizeSeason, type PublicContractor } from '../lib/api';
 import { useSeasonClock } from '../lib/useSeasonClock';
+import { SeasonEntryButton } from '../components/SeasonEntryButton';
 import { pickCurrentSeason } from '../lib/season-clock';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from './TradePage';
@@ -104,9 +105,9 @@ export function LeaderPage() {
               {' '}Ranked on how much your profit grows while the season runs, not on the
               all-time board above. Free to enter, no purchase and no stake.
             </p>
-            {clock.entryOpen && <a className="lbp-season-cta" href="/account">Enter the season</a>}
-            {' '}
-            <a className="lbp-season-more" href={season.rulesUrl}>Rules</a>
+            {clock.entryOpen
+              ? <SeasonEntryButton season={season} signedIn={!!user} />
+              : <a className="lbp-season-more" href={season.rulesUrl}>Rules</a>}
           </section>
         )}
 

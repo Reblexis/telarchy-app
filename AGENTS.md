@@ -235,6 +235,17 @@ There is no openclaw-based bot trading (the `~/.openclaw` scaffolding is unrelat
 
 If modifying the api capabilities or otherwise changing behaviour of the backend relevant to api communication, always update the documentation and api help endpoint correspondingly as well as the skill description.
 
+**Entering a season is a button on the PUBLIC surfaces, with two gates (owner
+direction 2026-08-19).** `SeasonEntryButton` lives on the floor rail and the
+public leaderboard, where the season is announced; `/account` no longer offers
+entry (it keeps the claim path only), because sending a visitor into the
+console to enter a contest they read about on the floor is exactly the
+old-UI-on-a-public-journey failure. Entering requires payment details on the
+account AND `acceptedRules: true`, recorded as `season_entries.rulesAcceptedAt`
+and never cleared. The payment gate REVERSES the earlier "one click, no
+details" decision; if entries come in thin, look there first. Leaving needs
+neither gate.
+
 **Season entry opens before the season starts (owner direction 2026-08-18).**
 `isOpenForEntry` returns true for a `draft` season, `GET/PUT /api/seasons/me`
 resolve the running season OR the next draft, and `POST /:id/start` carries

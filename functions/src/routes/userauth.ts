@@ -145,6 +145,14 @@ userauthRouter.get('/me', requireIdentity, requireScope('account:read'), wrap(as
     capabilities: [...capabilities].sort(),
     workspaces: workspaceMap,
     platformAdmin: agent?.platformAdmin === true,
+    // Which emails this participant wants (docs/vision.md, "Participant
+    // email notifications"). Defaults live on the column, so a row created
+    // before the columns existed reads the same as a new signup.
+    notifications: {
+      commentOnMyProposal: agent?.notifyCommentOnMyProposal ?? true,
+      replyToMyComment: agent?.notifyReplyToMyComment ?? true,
+      newProposal: agent?.notifyNewProposal ?? false,
+    },
   });
 }));
 
@@ -183,7 +191,10 @@ userauthRouter.post('/consent', requireUser, wrap(async (req, res) => {
  * validated per provider in lib/payout.ts; null clears); its human-readable
  * summary is derived into `payoutHandle`, which paid-job proposals snapshot.
  * A bare `payoutHandle` string from older clients still works (stored as the
- * "other" provider). Payment info is never shown publicly.
+ * "other" provider). Payment info is never shown publicly. `notifications`
+ * sets the email switches (docs/vision.md, "Participant email
+ * notifications"): any subset of { commentOnMyProposal, replyToMyComment,
+ * newProposal }, each a boolean; an omitted key keeps its current value.
  */
 userauthRouter.post('/profile', requireIdentity, requireScope('account:write'), wrap(async (req, res) => {
   const participantId = await resolveCallerParticipantId(req);
@@ -192,7 +203,7 @@ userauthRouter.post('/profile', requireIdentity, requireScope('account:write'), 
     return;
   }
 
-  const { intent, nickname, bio, image, payoutHandle, payoutMethod } = req.body;
+  const { intent, nickname, bio, image, payoutHandle, payoutMethod, notifications } = req.body;
   if (intent !== undefined && !['creator', 'agent', 'trader'].includes(intent)) {
     res.status(400).json({ error: 'intent must be "creator", "agent", or "trader"' }); return;
   }
@@ -289,8 +300,36 @@ userauthRouter.post('/profile', requireIdentity, requireScope('account:write'), 
     }
   }
 
+  // Email switches (docs/vision.md, "Participant email notifications").
+  // A partial object is the normal case: the account dialog flips one
+  // toggle and sends only that key, so an unnamed switch keeps its value.
+  let notificationUpdate: Partial<Record<'notifyCommentOnMyProposal' | 'notifyReplyToMyComment' | 'notifyNewProposal', boolean>> | undefined;
+  if (notifications !== undefined) {
+    if (notifications === null || typeof notifications !== 'object' || Array.isArray(notifications)) {
+      res.status(400).json({ error: 'notifications must be an object' }); return;
+    }
+    const keys = {
+      commentOnMyProposal: 'notifyCommentOnMyProposal',
+      replyToMyComment: 'notifyReplyToMyComment',
+      newProposal: 'notifyNewProposal',
+    } as const;
+    notificationUpdate = {};
+    for (const [input, column] of Object.entries(keys)) {
+      const value = (notifications as Record<string, unknown>)[input];
+      if (value === undefined) continue;
+      if (typeof value !== 'boolean') {
+        res.status(400).json({ error: `notifications.${input} must be true or false` }); return;
+      }
+      notificationUpdate[column] = value;
+    }
+  }
+
   if (intent !== undefined) {
     await db.update(agents).set({ intent }).where(eq(agents.id, participantId));
+  }
+
+  if (notificationUpdate && Object.keys(notificationUpdate).length > 0) {
+    await db.update(agents).set(notificationUpdate).where(eq(agents.id, participantId));
   }
 
   if (normalizedBio !== undefined) {
