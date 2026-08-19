@@ -105,14 +105,25 @@ export function SeasonPage() {
   return (
     <div className="pubws">
       <TopBar user={!!user} ready={!authLoading} />
-      <main className="lbp">
+      <main className="lbp seasonp">
+        {/* The poster order: what this is, when, what it pays, the caveat,
+            then the one action. The pool is the page's large number, in the
+            same register the floor gives its price: the money is the reason
+            a visitor is here, so it is the hero rather than a clause inside
+            a paragraph (owner ask 2026-08-19: the page read as a wall of
+            same-weight text). */}
+        <p className="seasonp-eyebrow">Prize season</p>
         <h1 className="lbp-head">{season.name}</h1>
         <p className="seasonp-clock">{clock.headline}</p>
-        <p className="lbp-lead">
-          ${season.poolUsd.toLocaleString()} in real money, paid to the five whose
-          trading profit grows the most while the season runs. Free to enter: no
-          purchase, no stake, your credits are never spent or exchanged.
-        </p>
+
+        <section className="seasonp-hero" aria-label="Prize pool">
+          <p className="seasonp-pool">${season.poolUsd.toLocaleString()}</p>
+          <p className="seasonp-pool-sub">
+            in real money, paid to the five whose trading profit grows the most
+            while the season runs. Free to enter: no purchase, no stake, your
+            credits are never spent or exchanged.
+          </p>
+        </section>
 
         {/* Said before the entry button, not buried under it: someone deciding
             whether to spend eight weeks on this deserves to know the platform
@@ -135,13 +146,26 @@ export function SeasonPage() {
 
         <section className="seasonp-block" aria-label="Prizes">
           <h2 className="lbp-season-name">Prizes</h2>
+          {/* Each rung's bar length IS the prize, scaled to first place, so
+              the halving ladder (500, 250, 125...) is visible as a shape
+              rather than a column of numbers to compare. Monochrome bars,
+              accent only on the rung being fought over. */}
           <ol className="seasonp-ladder">
-            {season.ladder.map(rung => (
-              <li key={rung.place} className="seasonp-rung">
-                <span className="seasonp-place">{rung.place}</span>
-                <span className="seasonp-prize">${rung.prizeUsd.toLocaleString()}</span>
-              </li>
-            ))}
+            {season.ladder.map(rung => {
+              const top = Math.max(...season.ladder.map(r => r.prizeUsd));
+              return (
+                <li key={rung.place} className="seasonp-rung">
+                  <span className="seasonp-place">{rung.place}</span>
+                  <span className="seasonp-bar" aria-hidden="true">
+                    <span
+                      className={`seasonp-bar-fill${rung.place === 1 ? ' is-top' : ''}`}
+                      style={{ width: `${Math.max(4, (rung.prizeUsd / top) * 100)}%` }}
+                    />
+                  </span>
+                  <span className="seasonp-prize">${rung.prizeUsd.toLocaleString()}</span>
+                </li>
+              );
+            })}
           </ol>
           <p className="seasonp-note">
             A prize needs a score above zero; rungs nobody qualifies for roll into
@@ -152,13 +176,15 @@ export function SeasonPage() {
 
         <section className="seasonp-block" aria-label="How it is scored">
           <h2 className="lbp-season-name">How it is scored</h2>
+          <p className="seasonp-formula">
+            season score = trading profit now - trading profit at season start
+          </p>
           <p className="seasonp-note">
-            Your score is how much your trading profit grows during the season, not
-            your all-time profit. Everyone&rsquo;s starting point is read at the same
-            instant, when the season begins, so entering early or late changes
-            nothing; a brand-new account starts at zero. Open positions count at
-            current market prices, so the board moves with every trade. Full
-            rules: <Link to={season.rulesUrl}>{season.name} rules</Link>.
+            Growth during the season, not all-time profit. Everyone&rsquo;s starting
+            point is read at the same instant, when the season begins, so entering
+            early or late changes nothing; a brand-new account starts at zero. Open
+            positions count at current market prices, so the board moves with every
+            trade. Full rules: <Link to={season.rulesUrl}>{season.name} rules</Link>.
           </p>
         </section>
 
@@ -171,6 +197,15 @@ export function SeasonPage() {
                 : 'Nobody has entered yet.'}
             </p>
           ) : (
+            <>
+            {/* The right column needed a name: "$500" beside a score read as
+                a balance until hovered. Mirrors the row's own cell widths. */}
+            <div className="seasonp-cols" aria-hidden="true">
+              <span className="seasonp-cols-rank">#</span>
+              <span className="seasonp-cols-who">participant</span>
+              <span className="seasonp-cols-score">score</span>
+              <span className="seasonp-cols-pays">{settled ? 'prize' : 'pays now'}</span>
+            </div>
             <ol className="lbp-list">
               {rows.map(r => {
                 const name = r.nickname || 'anonymous';
@@ -227,6 +262,7 @@ export function SeasonPage() {
                 </li>
               )}
             </ol>
+            </>
           )}
           <p className="seasonp-note">
             Season score, not lifetime profit. The{' '}

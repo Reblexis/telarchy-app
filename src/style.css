@@ -5614,13 +5614,47 @@ textarea.jobform-line--desc {
 
 /* telarchy.com/season. Same language as the market pages, because every public
    route lands on that design. */
+/* /season is a poster in the floor's register: eyebrow, serif title, a quiet
+   mono clock, then the pool as the page's one large number. Everything else
+   stays small so the money and the entry button carry the page. */
+.seasonp-eyebrow {
+  margin: 0 0 0.4rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  text-align: center;
+}
 .seasonp-clock {
-  margin: 0.2rem 0 0.9rem;
+  margin: 0.5rem 0 0;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 1.25rem;
+  font-size: 0.85rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+.seasonp-hero {
+  margin: clamp(1.2rem, 3.5vh, 2.2rem) 0 1.2rem;
+  text-align: center;
+}
+.seasonp-pool {
+  margin: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(2.6rem, 9vw, 3.6rem);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
   color: var(--text-primary);
+}
+.seasonp-pool-sub {
+  margin: 0.8rem auto 0;
+  max-width: 30rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
   text-align: center;
 }
 .seasonp-enter {
@@ -5649,11 +5683,25 @@ textarea.jobform-line--desc {
 }
 .seasonp-rung {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 0.9rem;
-  padding: 0.5rem 0;
+  padding: 0.55rem 0;
   border-bottom: 1px solid var(--border-color);
 }
+.seasonp-ladder li:first-child { border-top: 1px solid var(--border-color); }
+/* The bar's length is the prize, scaled to first place: the halving ladder
+   read as a shape. Monochrome, accent only on the top rung. */
+.seasonp-bar {
+  flex: 1;
+  height: 0.45rem;
+  min-width: 0;
+}
+.seasonp-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--border-color);
+}
+.seasonp-bar-fill.is-top { background: var(--accent); }
 .seasonp-place {
   min-width: 1.6rem;
   font-family: 'JetBrains Mono', monospace;
@@ -5666,27 +5714,54 @@ textarea.jobform-line--desc {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--text-primary);
+  min-width: 3.6rem;
+  text-align: right;
 }
 .seasonp-won {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.85rem;
   color: var(--text-secondary);
-  margin-left: 0.8rem;
+  min-width: 3.9rem;
+  text-align: right;
 }
+.seasonp-formula {
+  margin: 0.6rem 0 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+/* Standings column heads, mirroring .lbp-row's cell widths and gap. */
+.seasonp-cols {
+  display: flex;
+  gap: 0.85rem;
+  padding: 0 0.2rem 0.35rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.seasonp-cols-rank { width: 1.6rem; flex-shrink: 0; text-align: right; }
+.seasonp-cols-who { flex: 1; min-width: 0; }
+.seasonp-cols-score { min-width: 5.2rem; text-align: right; }
+.seasonp-cols-pays { min-width: 3.9rem; text-align: right; }
+/* Fixed numeric cells on this page only, so the heads line up with the rows
+   (the shared .lbp-score stays free-width on /leaderboard). */
+.seasonp .lbp-score { min-width: 5.2rem; text-align: right; }
 
 
 /* The experimental notice on /season, said before the entry button rather than
    under it: someone deciding whether to spend eight weeks on a contest should
    know the platform is still being launched before they decide. */
 .seasonp-experimental {
-  margin: 0 auto 0.6rem;
-  max-width: 46rem;
-  padding: 0.85rem 1rem;
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  font-size: 0.85rem;
-  line-height: 1.6;
-  color: var(--text-secondary);
+  /* A quiet line, not a bordered panel: the card read heavier than the
+     entry button it was meant to caveat (hairlines-not-cards). Placement
+     before the entry button is unchanged and deliberate. */
+  margin: 0.4rem auto 0.3rem;
+  max-width: 32rem;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--text-tertiary);
   text-align: center;
 }
 .seasonp-report {
