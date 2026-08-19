@@ -216,6 +216,32 @@ immediate liquidation mark is exactly zero profit, which is the truth. This
 kills the exploit outright rather than making it expensive, and it makes the
 two surfaces agree, which `AGENTS.md` requires anyway.
 
+**REVERSED 2026-08-19 (Viktor), same day, before the season opened.** The
+liquidation mark shipped and the owner looked at the board it produced: ten
+traders, eight of them at exactly 0.00 and nobody positive. That is
+arithmetically correct (LMSR is path-independent, so whoever traded last on a
+market sits at exactly what they paid, and a sole trader sits there forever)
+and it is a useless leaderboard: it ranks nobody, and its top row falls to
+whoever traded most recently. The owner's direction is to value an open
+position **as if the market resolved right now at the number the market
+currently calls**, i.e. back to `shares x the current payout factor`, "given
+that it will eventually resolve at the correct value".
+
+What that costs, recorded here rather than rediscovered later:
+
+- The exploit above is live again. A buy books the LMSR spread as paper profit
+  the instant it lands, and holding it to the settlement instant counts. The
+  position cap (`maxPositionCostPerMarket = 5000`) bounds it per market rather
+  than killing it.
+- F2 (sybil pumping) loses the brake this was providing; the payout-handle rule
+  and the position cap are what remain.
+- F3 (settlement-instant sniping) is exposed again on every contract branch
+  still open at the end, which is the argument for decision 4 (48h
+  time-weighted settlement) moving from "deferred to Season 1" to wanted.
+- The desk and the board disagree once more: `TradeTicket.tsx` shows what a
+  sell would really pay, the board shows the resolve-now value. Both are true
+  answers to different questions, and the rules text now says which is which.
+
 ### F2. Sybil pumping
 
 **HIGH.** Credits are free and accounts are cheap. Sacrificial accounts buy the
@@ -293,7 +319,7 @@ change proposed.
 
 | # | Decision | Resolution |
 |---|---|---|
-| 1 | Board marking convention | **DONE 2026-08-19**: liquidation value (F1) |
+| 1 | Board marking convention | **DONE 2026-08-19**: liquidation value (F1), **REVERSED the same day**: valued as if resolved at the current call (F1) |
 | 2 | Season `b` | **DONE 2026-08-19**: opens at b = 2,000 (pool 1,386) and ramps to b = 16,700 by day 21 (`scripts/season-liquidity-ramp.mjs`) |
 | 3 | Position cap | **DONE 2026-08-19**: `maxPositionCostPerMarket = 5000` |
 | 4 | Settlement + baseline mark | Deferred to Season 1: 48h time-weighted average (F3) |
@@ -303,11 +329,14 @@ change proposed.
 
 ## What shipped on 2026-08-19
 
-- `openPositionWorth` in `functions/src/lib/leaderboard.ts` values an open
-  position with `directionSellProceeds`, the same function the desk's "worth"
-  line uses. `functions/src/__tests__/marked-profit-liquidation.test.ts` fails
-  against the old convention (two of its five cases) and is written against the
-  hero market's real book.
+- `computeTradingProfit` in `functions/src/lib/leaderboard.ts` values every
+  non-voided position at `shares x currentPayoutFactors(market)`, one path
+  whether or not it has resolved. (It shipped that morning as
+  `openPositionWorth`, the desk's liquidation number, and was reversed the same
+  day: see F1.) `functions/src/__tests__/marked-profit-consensus.test.ts` pins
+  the convention against the hero market's real book, including the paper
+  profit a fresh buy shows, so that cost is a tested decision rather than a
+  surprise.
 - The published rules now say how an open position is valued
   (`docs/legal/season-0-rules.md`, amended before the start instant), and
   `GET /api/help` says the same thing to an API participant.

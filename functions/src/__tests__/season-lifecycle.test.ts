@@ -32,7 +32,7 @@ import express from 'express';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
 import { and, eq } from 'drizzle-orm';
 import { agents, markets, metrics, positions, prizeSeasons, seasonEntries, trades, workspaces } from '../db/schema';
-import { directionSellProceeds, initialPool } from '../lib/amm';
+import { initialPool } from '../lib/amm';
 import { toUnits } from '../lib/validation';
 import { AppError } from '../lib/errors';
 import { seasonsRouter } from '../routes/seasons';
@@ -95,13 +95,13 @@ async function seedFloor(traderIds: string[]) {
 /**
  * Give `agentId` a position worth exactly `profit` more than it cost.
  *
- * Each holder gets their OWN market, because an open position is now valued at
- * what the book would pay to take it back (owner decision 2026-08-19,
- * docs/seasons.md F1) rather than at shares x price. Sharing one book would
- * make every trader's worth depend on how many others this helper had already
- * seeded, which is a fine property of a real market and a terrible one for a
- * fixture. The book holds exactly the shares the position holds, which is what
- * a market where one person bought actually looks like.
+ * Each holder gets their OWN market. Sharing one book would make every
+ * trader's worth depend on how many others this helper had already seeded,
+ * which is a fine property of a real market and a terrible one for a fixture.
+ * The book holds exactly the shares the position holds, which is what a market
+ * where one person bought actually looks like. Worth is the position valued as
+ * if the market resolved at its current call (owner decision 2026-08-19,
+ * docs/seasons.md F1, revised), so the fixture prices it the same way.
  */
 async function giveProfit(agentId: string, profit: number, tag: string) {
   const B = 200;
@@ -113,7 +113,7 @@ async function giveProfit(agentId: string, profit: number, tag: string) {
     shares: [0, SHARES], liquidity: B, pool: initialPool(B),
     active: true, resolved: false, voided: false, proposalId: null,
   });
-  const worth = directionSellProceeds([0, SHARES], 1, SHARES, B);
+  const worth = SHARES * (1 / (1 + Math.exp(-SHARES / B)));   // shares x the current call, range 0..100
   const cost = worth - profit;
   await db.insert(positions).values({
     id: `pos-${tag}`, workspaceId: WS, agentId, marketId,

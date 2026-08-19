@@ -356,22 +356,22 @@ describe('computeTradingProfit', () => {
     voided: o.voided ?? false,
   });
 
-  test('an open position counts at what the book would pay for it, before anything resolves', () => {
-    // The market holds the 100 shares kai is long, so the book's own state and
-    // the position agree. Worth is the liquidation value, not shares x price
-    // (owner decision 2026-08-19, docs/seasons.md F1): selling 100 shares of
-    // higher back into b = 100 pays less than the 50 credits the marginal
-    // price suggests, because unwinding walks the price down.
+  test('an open position counts as if the market resolved at its current call', () => {
+    // Owner decision 2026-08-19 (docs/seasons.md F1, revised): worth is
+    // shares x the payout factor the market is calling right now, the same
+    // arithmetic a resolved market uses. b = 100 holding 100 higher shares
+    // prices higher at 1/(1+e^-1) = 0.731 of the range.
     const market = pm({ resolved: false, shares: [0, 100], liquidity: 100 });
     const profit = computeTradingProfit(
       [market],
       new Map([['kai', 40]]),
       [p({ agentId: 'kai', direction: 'higher', shares: 100 })],
     );
-    const worth = directionSellProceeds([0, 100], 1, 100, 100);
-    expect(profit.get('kai')).toBeCloseTo(Math.round((worth - 40) * 100) / 100, 2);
-    expect(worth).toBeLessThan(100 * 0.7311);   // below the marginal price
-    expect(worth).toBeGreaterThan(0);
+    const priceHigher = 1 / (1 + Math.exp(-100 / 100));
+    expect(profit.get('kai')).toBeCloseTo(100 * priceHigher - 40, 2);
+    // And strictly above the liquidation value, which is the accepted cost of
+    // this convention: unwinding the holding would walk the price back down.
+    expect(profit.get('kai')!).toBeGreaterThan(directionSellProceeds([0, 100], 1, 100, 100) - 40);
   });
 
   test('a resolved position counts at its payout factor', () => {
@@ -391,8 +391,8 @@ describe('computeTradingProfit', () => {
       new Map([['kai', 60 - 25]]),
       [p({ agentId: 'kai', direction: 'higher', shares: 20 })],
     );
-    const worth = directionSellProceeds([0, 20], 1, 20, 100);
-    expect(profit.get('kai')).toBeCloseTo(Math.round((worth - 35) * 100) / 100, 2);
+    const worth = 20 * (1 / (1 + Math.exp(-20 / 100)));
+    expect(profit.get('kai')).toBeCloseTo(worth - 35, 2);
   });
 
   test('a plain buy on a market that voided reads exactly zero, not a loss', () => {

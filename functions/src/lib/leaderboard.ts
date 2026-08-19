@@ -1,4 +1,4 @@
-import { consensus, directionSellProceeds, resolutionPayouts } from './amm';
+import { consensus, resolutionPayouts } from './amm';
 
 export interface LeaderboardMarket {
   id: string;
@@ -62,11 +62,10 @@ export interface ProfitMarket extends LeaderboardMarket {
  * Never called for a voided market: a cancelled market pays a refund, not a
  * price, and computeTradingProfit skips it before reaching here.
  *
- * NOT the value of an OPEN position: use `openPositionWorth` for that. The
- * marginal price is what one more share would cost, and valuing a whole
- * holding at it is what let a buy book a profit the instant it landed (see
- * docs/seasons.md, F1). This function survives because a RESOLVED market's
- * payout factor genuinely is per-share and additive.
+ * This is the whole of the board's mark (owner decision 2026-08-19, revising
+ * the liquidation mark of the same day): an open holding is valued as if the
+ * market resolved at the number the market currently calls. Known and
+ * accepted, see docs/seasons.md F1.
  */
 export function currentPayoutFactors(m: ProfitMarket): [number, number] | null {
   if (m.resolved && m.actualValue !== null) {
@@ -79,50 +78,26 @@ export function currentPayoutFactors(m: ProfitMarket): [number, number] | null {
 }
 
 /**
- * What an OPEN position is worth: the credits the book would actually pay to
- * take the whole holding back, right now (`directionSellProceeds`, the same
- * function the desk's "worth 31.2 cr" line already uses via previewSell).
- *
- * Not `shares x current price` (owner decision 2026-08-19, before Season 0):
- * an LMSR fills you at an average price strictly below the price you end at,
- * so valuing a holding at the marginal price booked an instant paper profit
- * on every buy, with no information involved: about 200 credits on a
- * 1,000-credit buy at the hero market's liquidity. A prize season ranked on
- * that number is a contest in pushing prices, not in forecasting. Liquidation
- * value makes a buy-and-mark worth exactly what it cost, which is zero
- * profit, which is the truth.
- *
- * Known and accepted: two holders on the same side each value their holding
- * as if they were the only one selling, so the sum of everyone's worth can
- * exceed what the book would pay if they all sold at once. That is the normal
- * convention for a mark, and the alternative (an order-dependent haircut)
- * would mean a participant's own profit changed when a stranger traded.
- */
-export function openPositionWorth(m: ProfitMarket, direction: string, shares: number): number {
-  const b = m.liquidity;
-  if (b <= 0 || shares <= 0) return 0;
-  const held = (m.shares ?? [0, 0]) as [number, number];
-  const idx: 0 | 1 = direction === 'higher' ? 1 : 0;
-  // Never sell back more than the book holds on that side: a position row
-  // that outruns the market's own share count is a data bug, and pricing it
-  // through zero would hand out credits that never existed.
-  const sellable = Math.min(shares, held[idx]);
-  if (sellable <= 0) return 0;
-  return directionSellProceeds(held, idx, sellable, b);
-}
-
-/**
  * Trading profit marked to market, the number both the public board and a
  * participant's own profile rank and report (owner direction 2026-08-14):
  *
  *   profit = what the positions are worth now - net cash paid for them
  *
- * "Worth now" is the resolution payout on resolved markets, the LIQUIDATION
- * VALUE on open ones (what the book would pay to take the holding back; see
- * openPositionWorth), and the REFUND on voided ones, so an unresolved
- * position counts the moment its price moves and a cancelled market counts
- * what it actually paid back. Net cash comes from the trade rows (sells are stored
- * negative), so the result never includes credits the platform granted,
+ * "Worth now" is the payout factor the market is calling right now: the
+ * resolution payout once it has resolved, and the SAME FORMULA AT THE CURRENT
+ * CONSENSUS before that, so a holding is valued as if the market resolved
+ * today at the number it currently calls. Voided markets pay their REFUND. An
+ * unresolved position therefore counts the moment its price moves, and a
+ * cancelled market counts what it actually paid back.
+ *
+ * Owner decision 2026-08-19, revising the liquidation mark shipped the same
+ * day (docs/seasons.md F1): "it will eventually resolve at the correct value".
+ * The known cost is that an LMSR fills you below the price you end at, so a
+ * buy books the spread as paper profit the instant it lands, and the desk's
+ * "worth" line (liquidation value, what a sell would really pay) reads lower
+ * than the board does. Both are recorded in F1 and in the Season 0 rules.
+ *
+ * Net cash comes from the trade rows (sells are stored negative), so the result never includes credits the platform granted,
  * which is what lets house accounts be ranked beside everyone else instead
  * of excluded.
  *
@@ -156,16 +131,11 @@ export function computeTradingProfit(
     if (p.shares <= 0) continue;
     const m = marketByKey.get(marketKey(p.workspaceId, p.marketId));
     if (!m) continue;
-    // Resolved: the payout factor is per-share and additive, so it values the
-    // whole holding directly. Open: ask the book what it would pay.
-    let worth: number;
-    if (m.resolved && m.actualValue !== null) {
-      const factors = currentPayoutFactors(m);
-      if (!factors) continue;
-      worth = p.shares * (p.direction === 'higher' ? factors[1] : factors[0]);
-    } else {
-      worth = openPositionWorth(m, p.direction, p.shares);
-    }
+    // One path, resolved or not: the payout factor is per-share and additive,
+    // and before resolution the market's own call stands in for the outcome.
+    const factors = currentPayoutFactors(m);
+    if (!factors) continue;
+    const worth = p.shares * (p.direction === 'higher' ? factors[1] : factors[0]);
     valueByAgent.set(p.agentId, (valueByAgent.get(p.agentId) ?? 0) + worth);
   }
   if (voidedStake) {

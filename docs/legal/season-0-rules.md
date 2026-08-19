@@ -1,9 +1,10 @@
 # Season 0: official rules
 
-_Published 2026-08-17, renamed to Season 0 on 2026-08-19. Amended 2026-08-19,
-before the season started: how an open position is valued was made exact, and
-the text was shortened with no change in substance. These rules do not change
-while the season runs._
+_Published 2026-08-17, renamed to Season 0 on 2026-08-19. Amended twice on
+2026-08-19, both before the season started: how an open position is valued was
+made exact, the text was shortened with no change in substance, and then the
+valuation itself was changed to the resolve-now value described below. These
+rules do not change while the season runs._
 
 **Season 0 is the first one, and the platform is still being launched.** Expect
 rough edges, apologies in advance. If something looks wrong, tell us through
@@ -52,12 +53,18 @@ season score = your trading profit now - your trading profit when the season sta
 
 Trading profit is what your positions are worth at current market prices, plus
 refunds from cancelled markets, minus the net cash you paid. An open position
-is worth what the market would pay to take the whole holding back right now,
-the same number the trading desk shows beside it; not the last price times
-your share count, because buying moves the price, and that number would credit
-you for placing the bet rather than for being right. It is the same number as
-the public leaderboard, open positions count before anything resolves, and
-credits the platform granted you never enter it.
+is worth what it would pay if the market resolved right now at the number the
+market currently calls: your share count times that number. It is the same
+number as the public leaderboard, open positions count before anything
+resolves, and credits the platform granted you never enter it.
+
+Two consequences worth knowing before you trade. Buying moves the price, so a
+large buy shows a gain on the board the moment it lands, before anything in the
+world has happened; the per-market position cap is what bounds this, and the
+gain goes away if the market comes back to where it was. And the trading desk's
+"worth" line beside your position is a different number, what a sell would
+actually pay you today, which is lower. The board and your season score use the
+resolve-now value described here.
 
 - **Everyone's baseline is read when the season starts, not when they enter.**
   Entering late cannot pick a favourable starting point; entering early buys
