@@ -366,3 +366,58 @@ describe('the two gates on the way in', () => {
     expect((await entryRow(id, EARLY))?.rulesAcceptedAt).toEqual(first);
   });
 });
+
+describe('editing a draft season', () => {
+  test('the start date can be moved, and only the field sent changes', async () => {
+    // The state machine has always said a draft is editable; until 2026-08-19
+    // nothing implemented it, so moving a start date meant a hand-written
+    // UPDATE against production.
+    await seedFloor([EARLY]);
+    const id = await createSeason();
+
+    const res = await request(app).patch(`/api/seasons/${id}`)
+      .send({ startsAt: '2026-09-02T00:00:00Z' });
+    expect(res.status).toBe(200);
+    expect(res.body.season.startsAt).toBe('2026-09-02T00:00:00.000Z');
+    expect(res.body.season.endsAt).toBe('2026-09-29T00:00:00.000Z');
+    expect(res.body.season.poolUsd).toBe(1000);
+  });
+
+  test('moving only the start is still refused if it lands after the end', async () => {
+    // Validated against what the season WILL be, not against what was sent.
+    await seedFloor([EARLY]);
+    const id = await createSeason();
+    const res = await request(app).patch(`/api/seasons/${id}`)
+      .send({ startsAt: '2026-10-30T00:00:00Z' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/endsAt must be after startsAt/);
+  });
+
+  test('the sweepstakes ceiling holds on the edit, not only on create', async () => {
+    // A rule that guards only the front door is not a rule.
+    await seedFloor([EARLY]);
+    const id = await createSeason();
+    const res = await request(app).patch(`/api/seasons/${id}`).send({ poolUsd: 5000 });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/5000/);
+  });
+
+  test('a ladder promising more than the pool is refused', async () => {
+    await seedFloor([EARLY]);
+    const id = await createSeason();
+    const res = await request(app).patch(`/api/seasons/${id}`).send({ poolUsd: 100 });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatch(/ladder promises/);
+  });
+
+  test('a running season cannot be edited', async () => {
+    // Its baselines are pinned to its start instant and its ladder is
+    // published; moving either afterwards changes what people entered.
+    await seedFloor([EARLY]);
+    const id = await createSeason();
+    await request(app).post(`/api/seasons/${id}/start`).send({});
+    const res = await request(app).patch(`/api/seasons/${id}`)
+      .send({ startsAt: '2026-09-02T00:00:00Z' });
+    expect(res.status).toBe(409);
+  });
+});

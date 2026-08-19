@@ -13,6 +13,7 @@ const getParticipant = vi.fn(async () => ({
   nickname: 'trader-1', balance: 1000, earnedBetting: 50,
   payoutHandle: 'PayPal: old@x.com',
   payoutMethod: { provider: 'paypal', email: 'old@x.com' },
+  notifications: { commentOnMyProposal: true, replyToMyComment: true, newProposal: false },
 }));
 
 vi.mock('../../lib/api', () => ({
@@ -147,5 +148,38 @@ describe('the picker matches what the server accepts', () => {
       expect(ASSETS[network]).toEqual([...server.CRYPTO_ASSETS[network]]);
     }
     expect(Object.keys(ASSETS).sort()).toEqual([...server.CRYPTO_NETWORKS].sort());
+  });
+});
+
+/**
+ * The email switches (docs/vision.md, "Participant email notifications").
+ * What matters: the stored state is what is shown, one click sends ONE key
+ * (so flipping one switch cannot silently rewrite the other two), and a
+ * refusal puts the switch back rather than lying about what is stored.
+ */
+describe('the email switches', () => {
+  test('show what is stored, defaults included', async () => {
+    render(<AccountDialog onClose={() => {}} />);
+    const mine = await screen.findByRole('switch', { name: /comments on my contract/i });
+    const ballot = screen.getByRole('switch', { name: /new contract goes on the ballot/i });
+    await waitFor(() => expect(mine.getAttribute('aria-checked')).toBe('true'));
+    expect(ballot.getAttribute('aria-checked')).toBe('false');
+  });
+
+  test('one click sends only that switch', async () => {
+    render(<AccountDialog onClose={() => {}} />);
+    const ballot = await screen.findByRole('switch', { name: /new contract goes on the ballot/i });
+    fireEvent.click(ballot);
+    await waitFor(() => expect(upsertProfile).toHaveBeenCalledWith({ notifications: { newProposal: true } }));
+    expect(ballot.getAttribute('aria-checked')).toBe('true');
+  });
+
+  test('a refused save puts the switch back', async () => {
+    upsertProfile.mockImplementationOnce(async () => { throw new Error('nope'); });
+    render(<AccountDialog onClose={() => {}} />);
+    const ballot = await screen.findByRole('switch', { name: /new contract goes on the ballot/i });
+    fireEvent.click(ballot);
+    await waitFor(() => expect(screen.getByText('nope')).toBeTruthy());
+    expect(ballot.getAttribute('aria-checked')).toBe('false');
   });
 });

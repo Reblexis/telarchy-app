@@ -331,6 +331,69 @@ seasonsRouter.post('/', wrap(async (req, res) => {
 }));
 
 /**
+ * Edit a DRAFT season.
+ *
+ * The state machine has always said a draft's pool, ladder and dates are
+ * editable, and until now nothing implemented it: moving a start date meant a
+ * hand-written UPDATE against production, which is the operation this file
+ * exists to make unnecessary. Draft only, because once a season is running its
+ * baselines are pinned to its start instant and its ladder is published.
+ *
+ * Same validation as create, deliberately: a rule that only guards the front
+ * door is not a rule. The 5000 sweepstakes threshold especially.
+ */
+seasonsRouter.patch('/:id', wrap(async (req, res) => {
+  await requirePlatform(req);
+  const seasonId = req.params.id as string;
+
+  const [season] = await db.select().from(prizeSeasons).where(eq(prizeSeasons.id, seasonId)).limit(1);
+  if (!season) throw new AppError('Season not found', 404);
+  if (season.status !== 'draft') {
+    throw new AppError(`Season is ${season.status}; only a draft can be edited`, 409);
+  }
+
+  const patch: Partial<typeof prizeSeasons.$inferInsert> = {};
+  const { name, startsAt, endsAt, poolUsd, rulesUrl } = req.body ?? {};
+
+  if (name !== undefined) {
+    if (typeof name !== 'string' || !name.trim()) throw new AppError('name must be a non-empty string', 400);
+    patch.name = name.trim();
+  }
+  if (rulesUrl !== undefined) {
+    if (typeof rulesUrl !== 'string' || !rulesUrl.trim()) throw new AppError('rulesUrl must be a non-empty string', 400);
+    patch.rulesUrl = rulesUrl.trim();
+  }
+
+  // Dates are validated as a PAIR against what the season will actually be
+  // after the patch, not against what was sent: moving only the start must
+  // still be refused if it lands after the existing end.
+  const start = startsAt !== undefined ? new Date(startsAt) : new Date(season.startsAt);
+  const end = endsAt !== undefined ? new Date(endsAt) : new Date(season.endsAt);
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    throw new AppError('startsAt and endsAt must be ISO dates', 400);
+  }
+  if (end <= start) throw new AppError('endsAt must be after startsAt', 400);
+  if (startsAt !== undefined) patch.startsAt = start;
+  if (endsAt !== undefined) patch.endsAt = end;
+
+  const pool = poolUsd !== undefined ? Number(poolUsd) : season.poolUsd;
+  if (!Number.isFinite(pool) || pool <= 0) throw new AppError('poolUsd must be a positive number', 400);
+  if (pool >= 5000) throw new AppError('poolUsd must stay under 5000; above that a season needs state sweepstakes registration', 400);
+  if (poolUsd !== undefined) patch.poolUsd = pool;
+
+  const ladder = req.body?.ladder !== undefined ? asLadder(req.body.ladder) : (season.ladder ?? []) as LadderRung[];
+  const total = ladderTotal(ladder);
+  if (total > pool) throw new AppError(`ladder promises ${total} but the pool is ${pool}`, 400);
+  if (req.body?.ladder !== undefined) patch.ladder = ladder;
+
+  if (Object.keys(patch).length === 0) throw new AppError('Nothing to change', 400);
+
+  await db.update(prizeSeasons).set(patch).where(eq(prizeSeasons.id, seasonId));
+  const [updated] = await db.select().from(prizeSeasons).where(eq(prizeSeasons.id, seasonId)).limit(1);
+  res.json({ season: publicSeason(updated) });
+}));
+
+/**
  * Start a season: pin its workspace set and baseline every participant.
  *
  * Both halves are the point. The pinned set stops a later visibility change

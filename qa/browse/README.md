@@ -123,6 +123,7 @@ explains itself.
 | `consent-and-profile.md` | `POST /api/auth/consent` + `/api/auth/profile` |
 | `account-deletion-and-export.md` | GDPR export + delete |
 | `oauth-handoff.md` | Google + GitHub OAuth (human handoff) |
+| `email-notifications.md` | The Emails switches in the account dialog + the `#account` deep link |
 
 ### 02-workspaces
 

@@ -173,10 +173,13 @@ gcloud scheduler jobs update http firebase-schedule-dailyMarketRefresh-us-centra
 
 ## Owner notifications (Resend)
 
-The `api` service sends owner notification emails (new waitlist signup,
-new proposal) through Resend (`functions/src/lib/notify.ts`). Two pieces
-of service config, set once on Cloud Run and inherited by every CI deploy
-(the workflow passes no env flags, so revisions keep them):
+The `api` service sends mail through Resend (`functions/src/lib/notify.ts`):
+owner notifications (new waitlist signup, new proposal) and participant
+notifications (a comment under your contract, a reply in your thread, and
+opt-in new-contract alerts; see docs/vision.md, "Participant email
+notifications"). Two pieces of service config, set once on Cloud Run and
+inherited by every CI deploy (the workflow passes no env flags, so
+revisions keep them):
 
 - `RESEND_API_KEY`: mounted from Secret Manager secret `resend-api-key`
   (source of truth: the keyring repo, `laptop/secrets/resend.env`).
@@ -184,7 +187,13 @@ of service config, set once on Cloud Run and inherited by every CI deploy
 
 Set up 2026-08-10 via `gcloud secrets create resend-api-key` +
 `gcloud run services update api --update-secrets=RESEND_API_KEY=resend-api-key:latest
---update-env-vars=OWNER_NOTIFY_EMAIL=...`. With either unset the
-notifier is silently off (local dev, tests); it never fails the calling
-request either way. The sending domain `telarchy.com` is verified in
-Resend.
+--update-env-vars=OWNER_NOTIFY_EMAIL=...`. With `RESEND_API_KEY` unset no
+mail leaves at all, and with only `OWNER_NOTIFY_EMAIL` unset the owner's
+own two notifications are off while participant mail still goes out; it
+never fails the calling request either way. That is what local dev and the
+test suite run on, so nothing under test can write to a real person. The
+sending domain `telarchy.com` is verified in Resend.
+
+Participant mail also needs `BETTER_AUTH_URL` (or it falls back to
+`https://telarchy.com`), because every one of those emails carries a link
+back to the floor and a link to the account settings that switch it off.

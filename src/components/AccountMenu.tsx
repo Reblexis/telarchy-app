@@ -55,6 +55,26 @@ export function AccountMenu() {
     return () => clearInterval(t);
   }, []);
 
+  // #account opens settings directly. Every notification email closes with
+  // "turn it off in account settings", and a link that lands on the floor
+  // and leaves the reader hunting for an avatar is the same as no link.
+  useEffect(() => {
+    const sync = () => { if (window.location.hash === '#account') setDialogOpen(true); };
+    sync();
+    window.addEventListener('hashchange', sync);
+    return () => window.removeEventListener('hashchange', sync);
+  }, []);
+
+  const closeDialog = () => {
+    setDialogOpen(false);
+    // Drop the hash, or reopening from the avatar after closing is a no-op
+    // click (the URL still says #account and nothing changed).
+    if (window.location.hash === '#account') {
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
+    load();
+  };
+
   // Click-away and Escape: a corner menu that traps the page is worse than
   // no menu at all.
   useEffect(() => {
@@ -131,7 +151,7 @@ export function AccountMenu() {
         </div>
       )}
 
-      {dialogOpen && <AccountDialog onClose={() => { setDialogOpen(false); load(); }} />}
+      {dialogOpen && <AccountDialog onClose={closeDialog} />}
     </div>
   );
 }
