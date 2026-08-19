@@ -32,7 +32,7 @@ import express from 'express';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
 import { and, eq } from 'drizzle-orm';
 import { agents, markets, metrics, positions, prizeSeasons, seasonEntries, trades, workspaces } from '../db/schema';
-import { initialPool } from '../lib/amm';
+import { directionSellProceeds, initialPool } from '../lib/amm';
 import { toUnits } from '../lib/validation';
 import { AppError } from '../lib/errors';
 import { seasonsRouter } from '../routes/seasons';
@@ -93,19 +93,35 @@ async function seedFloor(traderIds: string[]) {
 }
 
 /**
- * Give `agentId` a position worth roughly `profit` more than it cost.
- * 40 shares at a live factor of 0.5 are worth 20; paying `20 - profit` for them
- * leaves exactly `profit` of marked gain.
+ * Give `agentId` a position worth exactly `profit` more than it cost.
+ *
+ * Each holder gets their OWN market, because an open position is now valued at
+ * what the book would pay to take it back (owner decision 2026-08-19,
+ * docs/seasons.md F1) rather than at shares x price. Sharing one book would
+ * make every trader's worth depend on how many others this helper had already
+ * seeded, which is a fine property of a real market and a terrible one for a
+ * fixture. The book holds exactly the shares the position holds, which is what
+ * a market where one person bought actually looks like.
  */
 async function giveProfit(agentId: string, profit: number, tag: string) {
-  const cost = 20 - profit;
+  const B = 200;
+  const SHARES = 40;
+  const marketId = `mkt-${tag}`;
+  await db.insert(markets).values({
+    id: marketId, workspaceId: WS, metricId: 'metric-1', metricName: 'Revenue',
+    targetDate: '2028', rangeMin: 0, rangeMax: 100,
+    shares: [0, SHARES], liquidity: B, pool: initialPool(B),
+    active: true, resolved: false, voided: false, proposalId: null,
+  });
+  const worth = directionSellProceeds([0, SHARES], 1, SHARES, B);
+  const cost = worth - profit;
   await db.insert(positions).values({
-    id: `pos-${tag}`, workspaceId: WS, agentId, marketId: 'mkt-1',
-    direction: 'higher', shares: 40, totalCost: cost,
+    id: `pos-${tag}`, workspaceId: WS, agentId, marketId,
+    direction: 'higher', shares: SHARES, totalCost: cost,
   });
   await db.insert(trades).values({
-    id: `trade-${tag}`, workspaceId: WS, agentId, marketId: 'mkt-1',
-    direction: 'higher', shares: 40, cost, createdAt: new Date(),
+    id: `trade-${tag}`, workspaceId: WS, agentId, marketId,
+    direction: 'higher', shares: SHARES, cost, createdAt: new Date(),
   });
   clearBoardCache();
 }

@@ -7,6 +7,7 @@ import {
   type LeaderboardPosition,
   type LeaderboardTrade,
 } from '../lib/leaderboard';
+import { directionSellProceeds } from '../lib/amm';
 
 const m = (overrides: Partial<LeaderboardMarket>): LeaderboardMarket => ({
   id: 'mkt',
@@ -355,14 +356,22 @@ describe('computeTradingProfit', () => {
     voided: o.voided ?? false,
   });
 
-  test('an open position counts at the live price, before anything resolves', () => {
-    // Untouched market: consensus sits mid-range, so a share is worth 0.5.
+  test('an open position counts at what the book would pay for it, before anything resolves', () => {
+    // The market holds the 100 shares kai is long, so the book's own state and
+    // the position agree. Worth is the liquidation value, not shares x price
+    // (owner decision 2026-08-19, docs/seasons.md F1): selling 100 shares of
+    // higher back into b = 100 pays less than the 50 credits the marginal
+    // price suggests, because unwinding walks the price down.
+    const market = pm({ resolved: false, shares: [0, 100], liquidity: 100 });
     const profit = computeTradingProfit(
-      [pm({ resolved: false })],
+      [market],
       new Map([['kai', 40]]),
       [p({ agentId: 'kai', direction: 'higher', shares: 100 })],
     );
-    expect(profit.get('kai')).toBe(10); // 100 * 0.5 - 40
+    const worth = directionSellProceeds([0, 100], 1, 100, 100);
+    expect(profit.get('kai')).toBeCloseTo(Math.round((worth - 40) * 100) / 100, 2);
+    expect(worth).toBeLessThan(100 * 0.7311);   // below the marginal price
+    expect(worth).toBeGreaterThan(0);
   });
 
   test('a resolved position counts at its payout factor', () => {
@@ -376,13 +385,14 @@ describe('computeTradingProfit', () => {
 
   test('sells are already netted out of the cash side', () => {
     // Bought for 60, sold half back for 25 (stored negative), still holds 20
-    // shares of a market priced at 0.5.
+    // shares of a book that holds exactly those 20.
     const profit = computeTradingProfit(
-      [pm({ resolved: false })],
+      [pm({ resolved: false, shares: [0, 20], liquidity: 100 })],
       new Map([['kai', 60 - 25]]),
       [p({ agentId: 'kai', direction: 'higher', shares: 20 })],
     );
-    expect(profit.get('kai')).toBe(-25); // 10 - 35
+    const worth = directionSellProceeds([0, 20], 1, 20, 100);
+    expect(profit.get('kai')).toBeCloseTo(Math.round((worth - 35) * 100) / 100, 2);
   });
 
   test('a plain buy on a market that voided reads exactly zero, not a loss', () => {

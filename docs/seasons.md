@@ -1,0 +1,270 @@
+# Season design
+
+How a prize season is supposed to work as a *contest*: where the credits that
+make skill payable come from, what the score measures, and which ways the game
+can be won without forecasting anything. The published rules a contestant reads
+are `docs/legal/season-0-rules.md`; that file is a promise and never changes
+while a season runs. This file is the design behind it and changes freely.
+
+Status: **decided 2026-08-19.** Season 0 starts 2026-08-21T00:00Z and ends
+2026-10-16T00:00Z, so anything that changes what an entrant is scored on has to
+land before the start instant or wait for Season 1.
+
+**Owner decision 2026-08-19 (Viktor):** ship decisions 1-3 before the start
+instant (marking, liquidity, position cap), because without them the contest is
+winnable without forecasting. Decisions 4-7 (time-weighted settlement, prize
+eligibility floor, one entry per payout handle, house accounts ineligible) are
+deferred to Season 1 and are written up below as they stand.
+
+## What a season is for
+
+One thing: to get people who can forecast to show up and trade a real
+company's numbers, in public, where the prices are visible to the owner. The
+$1,000 is customer acquisition, not a game feature. Every design question below
+resolves against "does this make a good forecaster want to keep trading here."
+
+## The score
+
+```
+season score = trading profit now - trading profit at the season's start instant
+```
+
+Trading profit is marked to market and grant-blind: payouts on resolved
+markets, plus what open positions are worth now, plus refunds from cancelled
+markets, minus the net cash paid for those positions. Platform grants never
+enter it, which is what lets the operator and the market maker sit on the same
+board as everyone else instead of being excluded by name
+(`functions/src/lib/leaderboard.ts`, `computeTradingProfit`).
+
+**Ranking on trading profit alone is right, and it should stay.** It is the one
+number a trader can see moving, it is the same number both public boards rank,
+and every alternative (calibration, Brier, accuracy) ranks a statistic most
+people cannot compute in their head while deciding whether to place a bet.
+Calibration and accuracy are reported per row; they are not the key.
+
+The one thing profit-only ranking does badly is the endgame: with a free
+entry, free credits and a five-rung ladder, the rational move in the last week
+is maximum variance, because being 6th and being 60th pay the same. That is a
+tournament effect, not a scoring bug, and it is cheap to blunt (see F5).
+
+## Liquidity: where it comes from and how much
+
+Each market is an LMSR book with a liquidity parameter `b`
+(`functions/src/lib/amm.ts`). Two facts follow from `b` alone:
+
+- **Price impact.** `dp = p(1-p) dq / b`. Small `b` means a small trade moves
+  the consensus a long way.
+- **The house's total exposure is `b · ln 2`** credits (the subsidy that seeds
+  the book at the midpoint; an anchored open sizes `b` down so a fixed subsidy
+  still covers the worst case, `anchoredMarketState`). That number is also the
+  ceiling on how much *skill* can extract from the house across the whole
+  market's life. Everything above it is transfers between traders.
+
+Credits are minted by the operator and have no cash value, so a bigger `b`
+costs nothing in dollars. The constraint is entirely about game quality.
+
+### The live number, and why it is wrong
+
+Production's hero market on 2026-08-19: `b = 360.67` over a range of
+$0-$25,000.
+
+| Buy | Shares | Consensus moves | Instant marked profit |
+|---|---|---|---|
+| 100 cr | 178 | +$3,027 | +10.7 cr |
+| 1,000 cr | 1,239 | +$11,719 | +199.8 cr |
+| 5,000 cr | 5,250 | pinned at the range edge | +250.0 cr (the whole subsidy) |
+
+Two consequences, both fatal to the contest:
+
+1. **The entire pot of house money that skill can win is 250 credits.** A
+   $1,000 prize ladder is being allocated on differences that one ordinary
+   trade exhausts. Whoever trades first wins; the rest is noise.
+2. **One thousand credits moves the market by half its range.** Nothing a
+   trader does here reads as a forecast. The owner cannot act on the price and
+   a visitor cannot learn anything from it.
+
+### Sizing rule
+
+Pick `b` from the price impact a *typical bankroll* should have, not from a
+number that looks safe:
+
+```
+b  =  0.5 x (typical bankroll) / (target price impact as a fraction of range)
+```
+
+(at p = 0.5, spending `X` credits buys about `2X` shares and moves `p` by about
+`0.5 X / b`.)
+
+With the current 1,000-credit signup grant and a target of "a full bankroll
+moves the consensus about 3% of the range":
+
+```
+b = 0.5 x 1000 / 0.03  ≈  16,700 credits      house exposure ≈ 11,600 cr
+```
+
+| b | 1,000 cr moves consensus | 5,000 cr moves consensus | House exposure |
+|---|---|---|---|
+| 361 (today) | +$11,719 | +$12,500 (pinned) | 250 cr |
+| 5,000 | +$2,266 | +$7,902 | 3,466 cr |
+| **16,700** | **+$727** | **+$3,234** | **11,576 cr** |
+| 40,000 | +$309 | +$1,469 | 27,726 cr |
+
+**Proposed: `b = 16,700` on the season's baseline market**, roughly 46x today.
+A single trader can still move the price enough to be worth doing (a confident
+5,000-credit position moves it $3,200, which is a real statement), and no
+single trader can pin it.
+
+### Allocation policy across markets
+
+1. **Every market on a season workspace opens at the season `b`.** Not
+   discretionary, not per-market tuning: the same rule for the baseline market
+   and for both branches of every contract pair. Credits are free; unequal
+   books just move the game to whichever book is thinnest.
+2. **Conditional pairs get the same `b` per branch as the baseline.** A
+   contract's two branches are where the product's actual claim lives (the gap
+   between them is the priced impact). Today they inherit whatever the
+   workspace auto-fund happens to be, which is how the thin book above
+   happened.
+3. **Auto-top-up on impact.** If a single trade moves a market's consensus by
+   more than 10% of its range, top the book back up to the season `b` after the
+   trade. This is the operator noticing thinness automatically instead of
+   after someone reports a silly price.
+4. **The cap is the other half of the lever.** `maxPositionCostPerMarket`
+   (already in the workspace settings) bounds one account's cumulative buy cost
+   in one market. Set it to about a third of `b` (~5,000 cr at the proposed
+   size) so no single account can own the book, and so the sybil arithmetic in
+   F2 stays unattractive.
+
+   This one is not theoretical. Bankrolls on the live floor are not the
+   1,000-credit signup grant: the largest account holds **101,000 credits**
+   (a Manifold import, which grants against a proven record). Uncapped, that
+   account alone pins any book this side of `b = 200,000`. The cap is what
+   makes one sizing work for a floor whose bankrolls differ by 100x.
+
+## Failure modes
+
+Rated by whether a competent bad actor with free credits and a couple of hours
+can beat an honest forecaster.
+
+### F1. Marked-to-market profit can be manufactured, with no information
+
+**CRITICAL.** The board values an open position at `shares x current price`
+(`currentPayoutFactors` in `functions/src/lib/leaderboard.ts`). In an LMSR the
+average price you pay while buying is strictly below the price you end at, so
+*every* buy books an instant paper profit the moment it lands: 200 credits on a
+1,000-credit buy at today's `b`, 565 credits on a 5,000-credit buy even at the
+proposed `b`. Hold it to the settlement instant and it counts.
+
+The desk already disagrees with the board about this: `TradeTicket.tsx:287`
+shows position worth from `previewSell`, the liquidation value. Two surfaces,
+two answers, one fact.
+
+**Mitigation: value open positions at liquidation value on the board too**, the
+number `previewSell` already computes: what the book would actually pay for the
+whole position right now. LMSR is path-independent, so a buy followed by an
+immediate liquidation mark is exactly zero profit, which is the truth. This
+kills the exploit outright rather than making it expensive, and it makes the
+two surfaces agree, which `AGENTS.md` requires anyway.
+
+### F2. Sybil pumping
+
+**HIGH.** Credits are free and accounts are cheap. Sacrificial accounts buy the
+side the target account holds, pushing the price up and marking the target up.
+The cost is credits, which are worthless; the prize is $500.
+
+Three brakes, in order of how much they help:
+- F1's liquidation marking removes most of the payoff (the target's mark only
+  rises as far as the book would really pay).
+- Entry already requires payment details on the account plus explicit rules
+  acceptance (2026-08-19). Distinct payout details per sybil is a real cost and
+  a traceable one.
+- `maxPositionCostPerMarket` bounds how far any one account can push.
+
+Worth adding: **entries sharing a payout handle are one entry.** Cheap to
+check at settlement, and it is the natural reading of "one person, one prize."
+
+### F3. Settlement-instant sniping
+
+**HIGH, mitigated by luck this season.** Final standings are read at one fixed
+timestamp inside a transaction. Under F1's marking, whoever pushes the price
+hardest in the final minutes wins. Season 0 survives this by accident: the hero
+market resolves 2026-10-15, one day before the season ends 2026-10-16, and a
+resolved market pays resolution payouts rather than a price, so a late pump is
+punished rather than rewarded on that market. Every contract branch still open
+at the end is exposed.
+
+**Mitigation: settle on a time-weighted average of the last 48 hours**, not on
+an instant. Same for the baseline at the start instant, and for the same
+reason in reverse: an instant baseline can be pushed down by the entrant
+himself, and a season score is the difference of two marks.
+
+### F4. Nothing resolves inside most of the window
+
+**MEDIUM.** A forecasting contest pays for being right. Between 2026-08-21 and
+2026-10-15 nothing settles, so for eight of the eight and a half weeks the
+score is pure marking. Season 0 is saved by its one resolution landing a day
+before the end; that is not a design, it is a coincidence, and Season 1 should
+not rely on it.
+
+**Mitigation for Season 1: at least one market that resolves mid-season.**
+This is in tension with the 2026-08-17 owner decision that a floor shows one
+clock, not two, and the tension is real: a second horizon confused visitors.
+The cheapest resolution is a season-scoped market set that is not the floor's
+own headline, so the floor keeps its single clock and the contest still has
+ground truth arriving while people are playing.
+
+### F5. Endgame variance farming
+
+**MEDIUM.** Free entry, no downside, five paying rungs: in the last week the
+correct play from 8th place is to bet everything on one long shot. Honest
+forecasters lose rungs to lottery tickets.
+
+**Mitigation: an eligibility floor rather than a scoring change.** To be
+ranked for a prize, require some minimum activity spread across the season, for
+example 10 trades on at least 2 markets, at least 3 of them before the final
+week. This costs a lucky one-shot the prize without touching the ranking key or
+asking anyone to understand a new statistic.
+
+### F6. The house on its own board
+
+**LOW, already handled, worth stating.** Profit is grant-blind, so the operator
+and the market maker rank honestly and are not excluded. They simply do not
+enter the season. The rules should say so out loud: **accounts operated by
+Telarchy are not eligible for prizes**, so nobody has to wonder.
+
+### F7. Void and correction risk
+
+**LOW.** A voided market pays a refund into the profit formula, and the ledger
+is append-only, so a correction is a new row rather than an edit. The rules
+already commit to publishing a correction where a bug affects standings. No
+change proposed.
+
+## Decisions needed before 2026-08-21
+
+| # | Decision | Resolution |
+|---|---|---|
+| 1 | Board marking convention | **DONE 2026-08-19**: liquidation value (F1) |
+| 2 | Season `b` | **DONE 2026-08-19**: 11,576 cr of pool -> b = 16,700, on the live market and on every new one |
+| 3 | Position cap | **DONE 2026-08-19**: `maxPositionCostPerMarket = 5000` |
+| 4 | Settlement + baseline mark | Deferred to Season 1: 48h time-weighted average (F3) |
+| 5 | Prize eligibility floor | Deferred to Season 1: 10 trades / 2 markets / 3 before the final week (F5) |
+| 6 | Duplicate payout handles | Deferred to Season 1: one entry per payout handle (F2) |
+| 7 | House accounts | Deferred to Season 1: explicitly ineligible in the rules (F6) |
+
+## What shipped on 2026-08-19
+
+- `openPositionWorth` in `functions/src/lib/leaderboard.ts` values an open
+  position with `directionSellProceeds`, the same function the desk's "worth"
+  line uses. `functions/src/__tests__/marked-profit-liquidation.test.ts` fails
+  against the old convention (two of its five cases) and is written against the
+  hero market's real book.
+- The published rules now say how an open position is valued
+  (`docs/legal/season-0-rules.md`, amended before the start instant), and
+  `GET /api/help` says the same thing to an API participant.
+- Production data: the live market's pool topped up to b = 16,700, the
+  workspace's `newMarketLiquidityCredits` set so new markets and contract
+  branches open there too, and `maxPositionCostPerMarket` set to 5,000.
+
+Anything that changes what an entrant is scored on must also land in
+`docs/legal/season-0-rules.md` before the start instant, because that document
+promises it will not change while the season runs.

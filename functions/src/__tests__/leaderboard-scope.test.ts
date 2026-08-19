@@ -55,11 +55,16 @@ async function seed() {
     await db.insert(markets).values({
       id: `mkt-${ws}`, workspaceId: ws, metricId: `metric-${ws}`, metricName: 'Revenue',
       targetDate: '2028', rangeMin: 0, rangeMax: 100,
-      shares: [0, 0], liquidity: 200, pool: initialPool(200),
+      // The book holds the shares the position below holds: an open position
+      // is valued at what this book would pay to take it back (docs/seasons.md
+      // F1), so a market claiming zero outstanding shares would value it at
+      // nothing.
+      shares: [0, 80], liquidity: 200, pool: initialPool(200),
       active: true, resolved: false, voided: false, proposalId: null,
     });
-    // Paid 10 for 40 shares now worth 0.5 each: +10 profit, in this
-    // workspace and nowhere else.
+    // Paid 10 for 40 shares the book would pay about 19 to take back: a real
+    // gain, in this workspace and nowhere else. (80 outstanding, because the
+    // cross-workspace test adds a second holder to Beta's book.)
     await db.insert(positions).values({
       id: `pos-${ws}`, workspaceId: ws, agentId, marketId: `mkt-${ws}`,
       direction: 'higher', shares: 40, totalCost: 10,
@@ -117,7 +122,11 @@ describe('scope', () => {
     expect(onBeta.totalTrades).toBe(1);
     expect(global.totalTrades).toBe(2);
     // Each scope reports the profit earned there; the global board sums them.
-    expect(global.totalEarnings).toBeCloseTo(onAlpha.totalEarnings + onBeta.totalEarnings, 6);
+    // Within a cent per scope: profit is rounded to cents once per board, so
+    // two scoped boards can round in the same direction and the global one
+    // cannot land on their exact sum.
+    expect(Math.abs(global.totalEarnings - (onAlpha.totalEarnings + onBeta.totalEarnings)))
+      .toBeLessThanOrEqual(0.02);
   });
 
   test('a private workspace is never aggregated, scoped or not', async () => {

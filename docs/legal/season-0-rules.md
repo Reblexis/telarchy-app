@@ -1,7 +1,8 @@
 # Season 0: official rules
 
-_Published 2026-08-17, renamed to Season 0 on 2026-08-19. These rules do not
-change while the season runs._
+_Published 2026-08-17, renamed to Season 0 on 2026-08-19. Amended 2026-08-19,
+before the season started, to say exactly how an open position is valued. These
+rules do not change while the season runs._
 
 **Season 0 is the first one, and the platform is still being launched.** Expect
 rough edges, and apologies in advance for any bug or inconvenience. If
@@ -55,9 +56,13 @@ season score = your trading profit now - your trading profit when the season sta
 
 Trading profit is what your positions are worth at current market prices, plus
 what any cancelled markets refunded you, minus the net cash you paid for those
-positions. It is the same number shown on the public leaderboard, and it counts
-open positions before anything resolves. Credits the platform granted you never
-enter it.
+positions. An open position is worth what the market would pay to take the
+whole holding back from you right now, which is the same number the trading
+desk shows beside it. It is not the price of one more share multiplied by how
+many you hold: buying moves the price you buy at, so that number would credit
+you with a profit for placing the bet rather than for being right. It is the
+same number shown on the public leaderboard, and it counts open positions
+before anything resolves. Credits the platform granted you never enter it.
 
 Two consequences worth stating plainly:
 
