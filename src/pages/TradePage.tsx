@@ -103,28 +103,33 @@ export function TradePage() {
   // back button or the #account link that shares this bar.
   const [focusCommentId, setFocusCommentId] = useState<string | null>(null);
   const [flashContract, setFlashContract] = useState(false);
+  //
+  // Driven by the ROUTER's hash, not by the hashchange event. A click on the
+  // bell while already standing on this floor changes the hash through
+  // pushState, and pushState does not fire hashchange, so a listener-only
+  // version silently did nothing exactly where it was most likely to be used
+  // (owner report 2026-08-19: "I click it and it still doesn't highlight").
+  // location.hash sees both that and a pasted URL.
   useEffect(() => {
-    const apply = () => {
-      const hash = window.location.hash.replace(/^#/, '');
-      if (!hash) return;
-      const params = new URLSearchParams(hash);
-      const contract = params.get('contract');
-      const comment = params.get('comment');
-      if (!contract && !comment) return;
-      if (contract) setSelectedJobId(contract);
-      setFocusCommentId(comment);
-      // With no comment to point at, the contract itself is the thing the
-      // notification named, so that is what flashes.
-      if (contract && !comment) {
-        setFlashContract(true);
-        setTimeout(() => setFlashContract(false), 1800);
-      }
-      window.history.replaceState(null, '', window.location.pathname + window.location.search);
-    };
-    apply();
-    window.addEventListener('hashchange', apply);
-    return () => window.removeEventListener('hashchange', apply);
-  }, []);
+    const hash = location.hash.replace(/^#/, '');
+    if (!hash) return;
+    const params = new URLSearchParams(hash);
+    const contract = params.get('contract');
+    const comment = params.get('comment');
+    if (!contract && !comment) return;
+    if (contract) setSelectedJobId(contract);
+    setFocusCommentId(comment);
+    // With no comment to point at, the contract itself is the thing the
+    // notification named, so that is what flashes.
+    if (contract && !comment) {
+      setFlashContract(true);
+      setTimeout(() => setFlashContract(false), 1800);
+    }
+    // Consumed once applied, so it does not fight the back button or re-fire
+    // the flash on the next render. replaceState rather than navigate: this is
+    // tidying the address bar, not a place in the history.
+    window.history.replaceState(null, '', window.location.pathname + window.location.search);
+  }, [location.hash]);
   // Which world the one view is showing (owner decision 2026-08-10: both
   // branches are on the page; the toggle picks which one the ticket trades,
   // and the chart draws the other as a quiet second line).

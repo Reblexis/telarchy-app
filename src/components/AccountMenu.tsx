@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { AccountDialog } from './AccountDialog';
@@ -34,6 +35,7 @@ function fmtCr(v: number): string {
 
 export function AccountMenu() {
   const { user, logout } = useAuth();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogTab, setDialogTab] = useState<'profile' | 'emails'>('profile');
@@ -60,16 +62,13 @@ export function AccountMenu() {
   // switches. Every notification email closes with "turn it off in account
   // settings"; landing the reader on the floor, or even in the dialog's
   // first section, and leaving them to hunt is the same as not linking.
+  // Router-driven, for the same reason as the floor's #contract link: an
+  // in-app navigation to #emails moves the hash by pushState, which fires no
+  // hashchange event.
   useEffect(() => {
-    const sync = () => {
-      const hash = window.location.hash;
-      if (hash === '#account') { setDialogTab('profile'); setDialogOpen(true); }
-      if (hash === '#emails') { setDialogTab('emails'); setDialogOpen(true); }
-    };
-    sync();
-    window.addEventListener('hashchange', sync);
-    return () => window.removeEventListener('hashchange', sync);
-  }, []);
+    if (location.hash === '#account') { setDialogTab('profile'); setDialogOpen(true); }
+    if (location.hash === '#emails') { setDialogTab('emails'); setDialogOpen(true); }
+  }, [location.hash]);
 
   const closeDialog = () => {
     setDialogOpen(false);

@@ -1,6 +1,6 @@
 import { describe, expect, test, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act, waitFor, within } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 
 /**
  * The floor's live poll must not touch what the viewer is looking at.
@@ -126,11 +126,26 @@ vi.mock('../../lib/api', () => {
   return { api, setActiveWorkspace: vi.fn() };
 });
 
-function renderFloor() {
+function renderFloor(entries: string[] = ['/lookpilot']) {
   return render(
-    <MemoryRouter initialEntries={['/lookpilot']}>
+    <MemoryRouter initialEntries={entries}>
       <Routes><Route path="/:slug" element={<TradePage />} /></Routes>
+      <BellStandIn />
     </MemoryRouter>,
+  );
+}
+
+/**
+ * What the notifications bell does when the reader is already standing on the
+ * floor: a ROUTER push to a hash on the same path. That is the case the first
+ * version got wrong, because pushState fires no hashchange event.
+ */
+function BellStandIn() {
+  const navigate = useNavigate();
+  return (
+    <button onClick={() => navigate('/lookpilot#contract=job-1&comment=c-2')}>
+      stand-in notification
+    </button>
   );
 }
 
@@ -592,5 +607,35 @@ describe('which market is the headline, across a poll', () => {
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(soloWeek as never);
     await act(async () => { await vi.advanceTimersByTimeAsync(5200); });
     await waitFor(() => expect(container.querySelector('.pubws-price')!.textContent).toContain('213'));
+  });
+});
+
+/**
+ * A notification points at one thing and the floor has to land on it.
+ *
+ * The regression this pins (owner report 2026-08-19, "I click it and it still
+ * doesn't highlight"): clicking the bell while already on the floor moves the
+ * hash through pushState, which does NOT fire hashchange, so a listener-only
+ * implementation did nothing in the most common case of all.
+ */
+describe('a notification link lands on what it names', () => {
+  test('an in-app click selects the contract and points at the comment', async () => {
+    renderFloor();
+    await screen.findByTitle('rewrite the store page');
+    // The floor starts on the baseline market, not on the contract.
+    expect(screen.queryByRole('button', { name: 'if declined' })).toBeNull();
+
+    fireEvent.click(screen.getByText('stand-in notification'));
+
+    // The contract is open: its branch toggle only exists when one is.
+    // (What the floor then does with the comment id is FloorComments'
+    // contract, pinned in its own spec; this one is about the hash arriving
+    // at all, which is the half that was broken.)
+    expect(await screen.findByRole('button', { name: 'if declined' })).toBeTruthy();
+  });
+
+  test('a pasted link works the same on first paint', async () => {
+    renderFloor(['/lookpilot#contract=job-1']);
+    expect(await screen.findByRole('button', { name: 'if declined' })).toBeTruthy();
   });
 });
