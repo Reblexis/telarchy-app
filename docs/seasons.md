@@ -16,6 +16,12 @@ winnable without forecasting. Decisions 4-7 (time-weighted settlement, prize
 eligibility floor, one entry per payout handle, house accounts ineligible) are
 deferred to Season 1 and are written up below as they stand.
 
+**Revised the same day (Viktor): the season opens THIN and ramps.** "the
+initial liquidity should be small, we will add more liquidity over days of the
+tournament". So `b` is not set once at 16,700; it starts at 2,000 and walks up
+to 16,700 over the first three weeks. See "The ramp" below for the schedule and
+for what a mid-season injection does to the standings.
+
 ## What a season is for
 
 One thing: to get people who can forecast to show up and trade a real
@@ -109,10 +115,54 @@ b = 0.5 x 1000 / 0.03  ≈  16,700 credits      house exposure ≈ 11,600 cr
 | **16,700** | **+$727** | **+$3,234** | **11,576 cr** |
 | 40,000 | +$309 | +$1,469 | 27,726 cr |
 
-**Proposed: `b = 16,700` on the season's baseline market**, roughly 46x today.
-A single trader can still move the price enough to be worth doing (a confident
+`b = 16,700` is therefore the ramp's DESTINATION, not its opening. A single
+trader can still move that book enough to be worth doing (a confident
 5,000-credit position moves it $3,200, which is a real statement), and no
 single trader can pin it.
+
+### The ramp
+
+Season 0 opens at `b = 2,000` (pool 1,386) and climbs to `b = 16,700` over the
+first three weeks. The opening is deliberately thin: an early trader's
+1,000 credits move the consensus $4,919, which is the recruiting argument, and
+the depth arrives while there is still season left to trade on it, which is the
+product argument.
+
+| Day | Pool | `b` | 1,000 cr moves the consensus | Daily step |
+|---|---|---|---|---|
+| 0 | 1,386 | 2,000 | $4,919 | opening |
+| 7 | 2,772 | 4,000 | $2,766 | +198 cr |
+| 14 | 5,544 | 8,000 | $1,469 | +396 cr |
+| 21 | 11,576 | 16,700 | $727 | +862 cr |
+| 22+ | 11,576 | 16,700 | $727 | flat |
+
+Weekly doublings, walked in daily steps by
+`scripts/season-liquidity-ramp.mjs` (idempotent: it computes today's target
+from the schedule and tops up the difference, so a missed day catches up in one
+step). Every open market on the floor rides the same ramp, baseline and
+contract branches alike, because the game moves to whichever book is thinnest.
+
+**The cost of ramping, stated plainly.** Raising `b` marks up every open
+position: a fatter book pays more for the same holding, so worth rises without
+anyone trading. A trader who buys 1,000 credits at `b = 2,000` gains about
+**+141 credits of marked profit** over the full ramp, with no information
+involved, and so does a trader who bought the wrong side. Three things keep it
+tolerable, in order of how much they matter:
+
+1. It washes out at resolution. The hero market resolves 2026-10-15, a day
+   before the season ends, and a resolved market pays its resolution payout
+   rather than a mark. So the ramp distorts the visible standings during the
+   season, not the money at the end, **as long as that resolution lands on
+   time**. If it slips past 2026-10-16, the marks decide the prizes and this
+   becomes a real problem.
+2. The gain is bounded by the spread the holder paid (about 14% of stake), not
+   by their position size relative to anyone else's.
+3. Daily steps rather than weekly ones hand it out in slices small enough that
+   nobody can time a buy around one.
+
+The honest alternative is not to ramp at all. We ramp anyway because the
+opening thinness is what makes an early trader's first bet feel worth placing,
+and a contest nobody enters has worse problems than a distorted board.
 
 ### Allocation policy across markets
 
@@ -244,7 +294,7 @@ change proposed.
 | # | Decision | Resolution |
 |---|---|---|
 | 1 | Board marking convention | **DONE 2026-08-19**: liquidation value (F1) |
-| 2 | Season `b` | **DONE 2026-08-19**: 11,576 cr of pool -> b = 16,700, on the live market and on every new one |
+| 2 | Season `b` | **DONE 2026-08-19**: opens at b = 2,000 (pool 1,386) and ramps to b = 16,700 by day 21 (`scripts/season-liquidity-ramp.mjs`) |
 | 3 | Position cap | **DONE 2026-08-19**: `maxPositionCostPerMarket = 5000` |
 | 4 | Settlement + baseline mark | Deferred to Season 1: 48h time-weighted average (F3) |
 | 5 | Prize eligibility floor | Deferred to Season 1: 10 trades / 2 markets / 3 before the final week (F5) |
@@ -261,9 +311,17 @@ change proposed.
 - The published rules now say how an open position is valued
   (`docs/legal/season-0-rules.md`, amended before the start instant), and
   `GET /api/help` says the same thing to an API participant.
-- Production data: the live market's pool topped up to b = 16,700, the
-  workspace's `newMarketLiquidityCredits` set so new markets and contract
-  branches open there too, and `maxPositionCostPerMarket` set to 5,000.
+- Production data: the hero market opens at b = 2,000, the workspace's
+  `newMarketLiquidityCredits` set to 1,386 so new markets and contract branches
+  open there too, `maxPositionCostPerMarket` set to 5,000, and the ramp budget
+  (about 10,200 credits) sitting on the `lookpilot-kpi-sync` house account for
+  `scripts/season-liquidity-ramp.mjs` to spend.
+- A bug found by doing it: `POST /api/predictions/markets` counted a VOIDED
+  market as occupying its (metric, targetDate) slot, so cancelling an untraded
+  market and opening a smaller one in its place 409'd and left the floor with
+  no market at all for a few minutes. Voided markets no longer block the slot
+  (`recreate-voided-market-slot.test.ts` fails against the old check). Note for
+  next time: `liquidity` in that request body is POOL CREDITS, not `b`.
 
 Anything that changes what an entrant is scored on must also land in
 `docs/legal/season-0-rules.md` before the start instant, because that document

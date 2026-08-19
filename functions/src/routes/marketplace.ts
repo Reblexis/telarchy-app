@@ -6,7 +6,7 @@ import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireIdentity } from '../middleware/roles';
 import { consensus, pHigher } from '../lib/amm';
-import { replayMarketTradePoints } from '../services/predictions';
+import { marketPriceSeries } from '../services/predictions';
 import { periodEndInstant, periodStartInstant, resolutionInstant } from '../lib/date-utils';
 import { ensureSystemGroups } from './groups';
 import { getGroupMemberIds, getOwnerHandles, getParticipantDisplayNames } from '../lib/participants';
@@ -431,8 +431,11 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
     announcementCount = announcementRow?.n ?? 0;
     const heroMarketId = primaryMarket(marketList)?.marketId as string | undefined;
     if (heroMarketId) {
-      const points = await replayMarketTradePoints(heroMarketId, workspaceId);
-      marketHistory = points.slice(-500).map(pt => ({ at: pt.createdAt, consensus: pt.consensus }));
+      // The series starts at the price the market OPENED at, not at its first
+      // trade: an anchored pair with one trade would otherwise be a single
+      // point, which a chart can only draw as a flat line and a cliff.
+      const points = await marketPriceSeries(heroMarketId, workspaceId);
+      marketHistory = points.slice(-500).map(pt => ({ at: pt.at, consensus: pt.consensus }));
       // Which market this replay is OF. One horizon's prices ship inline (the
       // primary, so the floor's first paint needs no second request) and the
       // rest are fetched per market. Unlabelled, the page had to guess, and it
@@ -819,8 +822,8 @@ marketplaceRouter.get('/:workspaceId/markets/:marketId/history', wrap(async (req
     .where(and(eq(markets.id, req.params.marketId as string), eq(markets.workspaceId, ws.id)));
   if (!market) { res.status(404).json({ error: 'Market not found' }); return; }
 
-  const points = await replayMarketTradePoints(market.id, ws.id);
-  res.json({ history: points.slice(-500).map(pt => ({ at: pt.createdAt, consensus: pt.consensus })) });
+  const points = await marketPriceSeries(market.id, ws.id);
+  res.json({ history: points.slice(-500).map(pt => ({ at: pt.at, consensus: pt.consensus })) });
 }));
 
 /**
@@ -998,7 +1001,7 @@ marketplaceRouter.get('/:workspaceId/card.png', wrap(async (req, res) => {
           day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
         })
       : null;
-    const points = await replayMarketTradePoints(hero.id, ws.id);
+    const points = await marketPriceSeries(hero.id, ws.id);
     history = points.map(pt => pt.consensus).filter((c): c is number => c !== null).slice(-120);
   }
 

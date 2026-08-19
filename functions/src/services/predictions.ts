@@ -293,12 +293,26 @@ export interface MarketTradePoint {
 
 /**
  * Reconstruct the consensus right after each trade of a market. Naively
- * summing trade shares is wrong: liquidity injections rescale the whole share
- * vector (and b) between trades, so trades AND injections are replayed in
- * chronological order; the final point equals the live consensus exactly.
- * Seeding runningLiquidity with the market's current b is exact for
- * never-injected markets, and corrected at the first injection otherwise
- * (creation leaves shares [0,0], so pre-injection scaling is a no-op).
+ * summing trade shares is wrong twice over:
+ *
+ * 1. Liquidity injections rescale the whole share vector (and b) between
+ *    trades, so trades AND injections are replayed in chronological order.
+ * 2. **A market does not necessarily open empty.** A conditional pair opens
+ *    ANCHORED at the baseline's current value, and so does a near-horizon
+ *    baseline market (`anchoredMarketState`, docs/ui-conventions.md), which
+ *    means shares are already outstanding before anyone trades. Replaying
+ *    from [0, 0] then reports a price the market never printed, and the chart
+ *    draws that wrong level flat across the whole window before snapping to
+ *    the true price at the live dot: it reads as if every trade happened at
+ *    once, at the right-hand edge (owner report 2026-08-19). On the Telarchy
+ *    floor a branch whose real consensus was 6.97 replayed as 26.57.
+ *
+ * The opening shares are not stored, so they are SOLVED for: replay once from
+ * zero to learn what the trades and injections contribute, then subtract that
+ * from the book as it stands today. Whatever is left was there at the open.
+ * This is exact rather than a guess, needs no migration, and makes the last
+ * point equal the live consensus by construction, which is the property every
+ * caller depends on.
  *
  * Shared by GET /markets/:id/trades (the members' trade log) and the public
  * trading floor's consensus series (the amber line on the hero chart).
@@ -329,30 +343,133 @@ export async function replayMarketTradePoints(marketId: string, workspaceId: str
   ];
   events.sort((a, b) => a.at - b.at || (a.kind === b.kind ? 0 : a.kind === 'liquidity' ? -1 : 1));
 
-  let runningShares: [number, number] = [0, 0];
-  let runningLiquidity = market.liquidity;
-  const tradePoints: MarketTradePoint[] = [];
-  for (const ev of events) {
-    if (ev.kind === 'liquidity') {
-      if (runningLiquidity > 0 && ev.totalLiquidity > 0) {
-        const ratio = ev.totalLiquidity / runningLiquidity;
-        runningShares = [runningShares[0] * ratio, runningShares[1] * ratio];
+  // The market's b when it opened: the first injection's total (creation funds
+  // the book through one), else whatever it carries now.
+  const openingLiquidity = events.find(e => e.kind === 'liquidity')?.totalLiquidity ?? market.liquidity;
+
+  /** One pass over the events. `emit` is off for the solving pass. */
+  function walk(opening: [number, number], emit: boolean) {
+    let shares: [number, number] = [...opening] as [number, number];
+    let liquidity = openingLiquidity;
+    // How much the opening shares themselves get rescaled along the way, so
+    // the solve below can divide it back out.
+    let openingScale = 1;
+    const points: MarketTradePoint[] = [];
+    for (const ev of events) {
+      if (ev.kind === 'liquidity') {
+        if (liquidity > 0 && ev.totalLiquidity > 0) {
+          const ratio = ev.totalLiquidity / liquidity;
+          shares = [shares[0] * ratio, shares[1] * ratio];
+          openingScale *= ratio;
+        }
+        liquidity = ev.totalLiquidity;
+        continue;
       }
-      runningLiquidity = ev.totalLiquidity;
-      continue;
+      const t = ev.trade;
+      const directionIndex = t.direction === 'higher' ? 1 : 0;
+      shares = [...shares] as [number, number];
+      shares[directionIndex] += t.shares;
+      if (emit) {
+        points.push({
+          agentId: t.agentId,
+          direction: t.direction,
+          shares: Math.abs(t.shares),
+          cost: t.cost,
+          consensus: consensus(shares, liquidity, market.rangeMin, market.rangeMax) ?? null,
+          createdAt: t.createdAt,
+        });
+      }
     }
-    const t = ev.trade;
-    const directionIndex = t.direction === 'higher' ? 1 : 0;
-    runningShares = [...runningShares] as [number, number];
-    runningShares[directionIndex] += t.shares;
-    tradePoints.push({
-      agentId: t.agentId,
-      direction: t.direction,
-      shares: Math.abs(t.shares),
-      cost: t.cost,
-      consensus: consensus(runningShares, runningLiquidity, market.rangeMin, market.rangeMax) ?? null,
-      createdAt: t.createdAt,
-    });
+    return { shares, openingScale, points };
   }
-  return tradePoints;
+
+  // Solve for the opening shares: everything the events did not put there.
+  const fromZero = walk([0, 0], false);
+  const current = (market.shares as [number, number] | null) ?? [0, 0];
+  const scale = fromZero.openingScale || 1;
+  const opening: [number, number] = [
+    (current[0] - fromZero.shares[0]) / scale,
+    (current[1] - fromZero.shares[1]) / scale,
+  ];
+  // A negative opening means the book and its events disagree (hand-edited
+  // rows, a deleted trade). Fall back to an empty open rather than invent
+  // negative shares, which would price the market outside its own range.
+  const seed: [number, number] = [Math.max(0, opening[0]), Math.max(0, opening[1])];
+
+  return walk(seed, true).points;
+}
+
+/**
+ * A market's price over time, as a chart reads it: the price it OPENED at,
+ * then the price after each trade.
+ *
+ * The opening point is not a trade, which is why it does not belong in
+ * `replayMarketTradePoints` (that one answers "what did each trade do", and a
+ * synthetic row there would need an agent and a cost it does not have). It
+ * belongs here because a market with one trade otherwise draws as a single
+ * point, and a single point cannot show when anything happened: the chart
+ * back-extends it flat across the whole window and the one real move lands on
+ * the right edge (owner report 2026-08-19).
+ */
+export async function marketPriceSeries(
+  marketId: string,
+  workspaceId: string,
+): Promise<Array<{ at: Date; consensus: number | null }>> {
+  const [market] = await db.select().from(markets)
+    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.id, marketId)));
+  if (!market) return [];
+
+  const points = await replayMarketTradePoints(marketId, workspaceId);
+  const series = points.map(pt => ({ at: pt.createdAt, consensus: pt.consensus }));
+
+  // The opening price: reconstructed by rewinding the first trade out of the
+  // book the replay produced, so it needs no second solve.
+  const opening = await openingConsensus(market, points);
+  if (opening === null) return series;
+  const openedAt = market.createdAt ?? (points[0]?.createdAt ?? new Date());
+  // Never draw the open after the first trade (clock skew, a backfilled row).
+  if (points.length > 0 && openedAt.getTime() >= points[0].createdAt.getTime()) return series;
+  return [{ at: openedAt, consensus: opening }, ...series];
+}
+
+/** The consensus the market carried before anyone traded it. */
+async function openingConsensus(
+  market: typeof markets.$inferSelect,
+  points: MarketTradePoint[],
+): Promise<number | null> {
+  if (points.length === 0) {
+    return consensus(
+      (market.shares as [number, number] | null) ?? [0, 0],
+      market.liquidity, market.rangeMin, market.rangeMax,
+    ) ?? null;
+  }
+  const rows = await db.select().from(trades)
+    .where(and(eq(trades.workspaceId, market.workspaceId), eq(trades.marketId, market.id)))
+    .orderBy(asc(trades.createdAt));
+  const liqRows = await db.select().from(liquidityEvents)
+    .where(and(
+      eq(liquidityEvents.workspaceId, market.workspaceId),
+      eq(liquidityEvents.marketId, market.id),
+      gt(liquidityEvents.totalLiquidity, 0),
+    ))
+    .orderBy(asc(liquidityEvents.createdAt));
+  const openingLiquidity = liqRows[0]?.totalLiquidity ?? market.liquidity;
+
+  // Rewind the first trade out of the first replayed point: the price before
+  // it is the price the market opened at, at the liquidity it opened with.
+  const first = rows[0];
+  if (!first) return null;
+  const firstPoint = points[0];
+  const dir = first.direction === 'higher' ? 1 : 0;
+  // Reconstruct the book at the first point, then undo that trade.
+  const p = firstPoint.consensus;
+  if (p === null) return null;
+  const bAtFirst = liqRows.filter(l => l.createdAt <= first.createdAt).slice(-1)[0]?.totalLiquidity
+    ?? openingLiquidity;
+  const frac = (p - market.rangeMin) / (market.rangeMax - market.rangeMin);
+  if (!(frac > 0 && frac < 1)) return null;
+  const diffAfter = Math.log(frac / (1 - frac)) * bAtFirst;   // shares[1] - shares[0]
+  const diffBefore = dir === 1 ? diffAfter - first.shares : diffAfter + first.shares;
+  const pBefore = 1 / (1 + Math.exp(-diffBefore / bAtFirst));
+  return Math.round((market.rangeMin + pBefore * (market.rangeMax - market.rangeMin)) * 100) / 100;
 }

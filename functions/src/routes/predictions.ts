@@ -608,8 +608,20 @@ predictionsRouter.post('/markets', requireCapability('manage'), wrap(async (req,
   const metric = allMetrics.find(m => m.id === metricId);
   if (!metric) { res.status(404).json({ error: 'Metric not found' }); return; }
 
+  // A VOIDED market does not occupy its slot. Cancelling a market and opening
+  // a fresh one on the same (metric, targetDate) is the documented way to
+  // change a book that nobody has traded yet, and the refresh cron does
+  // exactly that for the markets it maintains. Counting the dead row here
+  // made that flow 409 for manual markets, which left a floor with no market
+  // at all until someone noticed (2026-08-19, resizing the hero market's
+  // liquidity before Season 0).
   const [existing] = await db.select({ id: markets.id }).from(markets)
-    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.metricId, metricId), eq(markets.targetDate, targetDate)));
+    .where(and(
+      eq(markets.workspaceId, workspaceId),
+      eq(markets.metricId, metricId),
+      eq(markets.targetDate, targetDate),
+      eq(markets.voided, false),
+    ));
   if (existing) { res.status(409).json({ error: 'Market already exists' }); return; }
 
   const rMin = typeof rangeMin === 'number' ? rangeMin : AMM_DEFAULTS.rangeMin;

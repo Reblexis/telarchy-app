@@ -105,7 +105,11 @@ price with a since-open chip (both carrying the metric's currency symbol
 when the trimmed parenthetical tail names one, e.g. "USD" -> "$"; the same
 prefix runs through every numeral in the chart), and the prediction
 chart (`MarketChart`: one amber step line of the market's call over its
-lifetime, gradient fill, labeled end dot, crosshair; breaks out of the
+lifetime, gradient fill, labeled end dot, crosshair; the series STARTS at the
+price the market opened at, stamped with its creation time, because a pair
+that opens anchored and has traded once is otherwise a single point, which
+draws as a flat line and a cliff at the live dot and reads as if every trade
+happened at once (owner report 2026-08-19); breaks out of the
 column to min(92vw, 760px), capped so the whole anonymous poster through
 the CTA fits a 900px-tall desktop viewport; phones get a taller, narrower
 canvas chosen at mount). The page is two-tier by intent (owner decision,
