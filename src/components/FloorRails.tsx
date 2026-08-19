@@ -2,7 +2,6 @@ import type { LeaderboardEntry, PublicContractor } from '../lib/api';
 import { useEffect, useState } from 'react';
 import { api, type PrizeSeason } from '../lib/api';
 import { useSeasonClock } from '../lib/useSeasonClock';
-import { SeasonEntryButton } from './SeasonEntryButton';
 import { pickCurrentSeason } from '../lib/season-clock';
 import { ManifoldLogo } from './ManifoldLogo';
 
@@ -47,16 +46,12 @@ function contractorSubline(c: PublicContractor): string {
   return parts.join(' · ');
 }
 
-export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn = false }: {
+export function LeaderboardRail({ entries: all, contractors, unit = '' }: {
   entries: LeaderboardEntry[];
   contractors?: PublicContractor[];
   /** The hero metric's currency prefix ('$' or ''), so a contractor's priced
    *  impact reads in the same unit as the market above it. */
   unit?: string;
-  /** Whether the visitor has an identity, so the season strip can offer entry
-   *  rather than a signup link. Passed down rather than read here, because the
-   *  floor already resolved auth and a second useAuth would flicker. */
-  signedIn?: boolean;
 }) {
   // A row for someone who has never traded is a name and a zero: noise.
   // Ten, not five (owner direction 2026-08-17): five made the board look
@@ -160,7 +155,7 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
           )}
         </section>
       )}
-      <SeasonStrip signedIn={signedIn} />
+      <SeasonStrip />
       {/* The way out of a top-ten list: the whole field, on its own page
           (owner direction 2026-08-17). */}
       <a className="pubws-lb-more" href="/leaderboard">Show full leaderboard</a>
@@ -170,18 +165,18 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
 
 
 /**
- * The prize season, on the floor itself.
+ * The prize season, on a market page: one line and a link.
  *
- * This is where a first-time visitor learns the money exists: they arrive from
- * a link, read the number, and the entry path is one click from there.
+ * This used to carry the pool, the pitch, the entry checkbox and the button.
+ * All of that lives on /season now (owner direction 2026-08-19); a market page
+ * is about the market, and the season was crowding it. What stays is the part
+ * a visitor needs in order to know the competition exists and that a clock is
+ * running.
  *
- * Shows a season that has not started yet as well as a running one (owner
- * direction 2026-08-18). A season is at its most visible in the days before it
- * opens, and a strip that appears only once it is running throws that window
- * away. Renders nothing when there is no season at all, so the floor is
- * unchanged the rest of the time.
+ * Renders nothing when there is no season, so the page is unchanged the rest
+ * of the time.
  */
-function SeasonStrip({ signedIn }: { signedIn: boolean }) {
+function SeasonStrip() {
   const [season, setSeason] = useState<PrizeSeason | null>(null);
   useEffect(() => {
     api.getSeasons()
@@ -196,14 +191,10 @@ function SeasonStrip({ signedIn }: { signedIn: boolean }) {
       <h2 className="pubws-h2">{season.name}</h2>
       <p className="pubws-season-clock">{clock.headline}</p>
       <p className="pubws-lb-empty">
-        ${season.poolUsd.toLocaleString()} in prizes.
-        {clock.phase === 'before'
-          ? ' Entry is open now, so you are in before it starts.'
-          : ' Free to enter, no purchase and no stake.'}
+        ${season.poolUsd.toLocaleString()} in prizes, free to enter.
       </p>
-      {clock.entryOpen && <SeasonEntryButton season={season} signedIn={signedIn} />}
-      <a className="pubws-lb-more" href={`/leaderboard?season=${encodeURIComponent(season.id)}`}>
-        {clock.phase === 'before' ? 'See the board' : 'See the standings'}
+      <a className="pubws-lb-more" href="/season">
+        {clock.entryOpen ? 'Enter the season' : 'See the season'}
       </a>
     </section>
   );

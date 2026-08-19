@@ -235,18 +235,15 @@ There is no openclaw-based bot trading (the `~/.openclaw` scaffolding is unrelat
 
 If modifying the api capabilities or otherwise changing behaviour of the backend relevant to api communication, always update the documentation and api help endpoint correspondingly as well as the skill description.
 
-**Entering a season is a button on the PUBLIC surfaces, with two gates (owner
-direction 2026-08-19).** `SeasonEntryButton` lives on the floor rail and the
-public leaderboard, where the season is announced; the account surface no
-longer offers entry (it keeps the claim path only), because sending a visitor
-away from the floor to enter a contest they read about there is exactly the
-wrong journey. Since 2026-08-19 that account surface is the floor's account
-dialog, not a page: the console `/account` was deleted and the URL redirects
-to `<floor>#account`. Entering requires payment details on the
-account AND `acceptedRules: true`, recorded as `season_entries.rulesAcceptedAt`
-and never cleared. The payment gate REVERSES the earlier "one click, no
-details" decision; if entries come in thin, look there first. Leaving needs
-neither gate.
+**The prize competition has its own page, `/season` (owner direction
+2026-08-19).** `SeasonPage` carries the countdown, the pool and ladder, how
+scoring works, the rules link, the entry button and the standings. A market
+page's rail and `/leaderboard` carry ONE line and a link; do not grow the
+season back into them, because their job is the market and the board. Entry
+requires `acceptedRules: true` and nothing else, recorded as
+`season_entries.rulesAcceptedAt` and never cleared. A payment-details gate was
+added and removed the same day: entry stays one click for a cold visitor and
+winners are asked at claim time.
 
 **Season entry opens before the season starts (owner direction 2026-08-18).**
 `isOpenForEntry` returns true for a `draft` season, `GET/PUT /api/seasons/me`

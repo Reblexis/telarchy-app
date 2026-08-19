@@ -203,9 +203,9 @@ export interface MySeasonEntry {
   season: PrizeSeason | null;
   optedIn: boolean;
   canEnter: boolean;
-  /** Entry requires payment details on the account (owner direction
-   *  2026-08-19). Reported here so the entry button can show the step that is
-   *  actually missing instead of failing and then explaining. */
+  /** Whether payment details are on the account. NOT required to enter: it is
+   *  reported so the season page can mention that a prize will need somewhere
+   *  to go, as a nudge rather than a gate. Winners are asked at claim time. */
   hasPayoutMethod?: boolean;
   /** When this participant agreed to the season rules, or null. Someone who
    *  has already agreed is not asked again on a rejoin. */
@@ -1010,10 +1010,10 @@ export const api = {
   /**
    * Enter or leave the season.
    *
-   * Entering requires payment details on the account and `acceptedRules`
-   * (owner direction 2026-08-19). A refusal carries `reason` ('payout' or
-   * 'rules') so the caller can point at the missing step rather than showing
-   * a message and hoping. Leaving needs neither.
+   * Entering requires `acceptedRules`, and nothing else: no payment details,
+   * so a visitor arriving cold is one click in. A refusal carries `reason`
+   * ('rules') so the caller can point at the missing step rather than showing
+   * a message and hoping. Leaving requires nothing at all.
    */
   setMySeasonEntry: async (
     optedIn: boolean,

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type LeaderboardEntry, type PrizeSeason, type PublicContractor } from '../lib/api';
 import { useSeasonClock } from '../lib/useSeasonClock';
-import { SeasonEntryButton } from '../components/SeasonEntryButton';
 import { pickCurrentSeason } from '../lib/season-clock';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from './TradePage';
@@ -95,20 +94,15 @@ export function LeaderPage() {
           settled bets plus what open positions are worth right now.
         </p>
 
+        {/* One line and a link. The pool, the ladder, the scoring rules and
+            the entry flow live on /season (owner direction 2026-08-19); this
+            page is the all-time board, and the competition was crowding it. */}
         {season && clock && (
-          <section className="lbp-season" aria-label={season.name}>
-            <h2 className="lbp-season-name">{season.name}</h2>
-            <p className="lbp-season-clock">{clock.headline}</p>
-            <p className="lbp-season-line">
-              ${season.poolUsd.toLocaleString()} in prizes across {season.ladder.length} places
-              {season.ladder[0] ? `, $${season.ladder[0].prizeUsd.toLocaleString()} for first` : ''}.
-              {' '}Ranked on how much your profit grows while the season runs, not on the
-              all-time board above. Free to enter, no purchase and no stake.
-            </p>
-            {clock.entryOpen
-              ? <SeasonEntryButton season={season} signedIn={!!user} />
-              : <a className="lbp-season-more" href={season.rulesUrl}>Rules</a>}
-          </section>
+          <p className="lbp-season-line-only">
+            <strong>{season.name}</strong>: ${season.poolUsd.toLocaleString()} in prizes,{' '}
+            {clock.phase === 'settled' ? 'final standings' : clock.headline.toLowerCase()}.{' '}
+            <Link to="/season">{clock.entryOpen ? 'Enter the season' : 'See the season'}</Link>
+          </p>
         )}
 
         <section className="lbp-section" aria-label="Traders">

@@ -590,7 +590,7 @@ export function TradePage() {
     <div className="pubws pubws--center">
       <TopBar user={!!user} ready={!authLoading} />
       <main className="pubws-main pubws-main--floor">
-        <LeaderboardRail entries={leaders} contractors={ws?.topContractors} unit={unit} signedIn={!!user} />
+        <LeaderboardRail entries={leaders} contractors={ws?.topContractors} unit={unit} />
         <div className="pubws-center">
         {/* The company IS the page (owner direction 2026-08-18): a cold
             visitor arrives from a link about this business, not about

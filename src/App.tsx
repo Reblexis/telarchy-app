@@ -7,6 +7,7 @@ import { LegalPage } from './pages/LegalPage';
 import { TradePage } from './pages/TradePage';
 import { FloorsPage } from './pages/FloorsPage';
 import { LeaderPage } from './pages/LeaderPage';
+import { SeasonPage } from './pages/SeasonPage';
 import { ManagePage } from './pages/ManagePage';
 import { ParticipantProfilePage } from './pages/ParticipantProfilePage';
 
@@ -67,6 +68,10 @@ export function App() {
             bouncing into the list with the search box pre-filled. */}
         <Route path="/marketplace/:workspaceId" element={<TradePage />} />
         <Route path="/leaderboard" element={<LeaderPage />} />
+        {/* The prize competition has its own page, so the market page and the
+            leaderboard carry one line and a link instead of the whole pitch
+            (owner direction 2026-08-19). */}
+        <Route path="/season" element={<SeasonPage />} />
         <Route path="/participants/:id" element={<ParticipantProfilePage />} />
 
         {/* The account is a dialog on the floor, not a page (owner direction

@@ -141,9 +141,10 @@ seasonsRouter.get('/me', requireIdentity, wrap(async (req, res) => {
     .where(and(eq(seasonEntries.seasonId, season.id), eq(seasonEntries.agentId, agentId)))
     .limit(1);
 
-  // hasPayoutMethod so the entry button can show the right step without a
-  // second round trip, and rulesAcceptedAt so someone who has already agreed
-  // is not asked twice.
+  // hasPayoutMethod is reported but NOT required to enter: the season page
+  // uses it to tell a winner-in-waiting that a prize will need somewhere to
+  // go, without making it a gate. rulesAcceptedAt so someone who has already
+  // agreed is not asked twice.
   const [me] = await db.select({ payoutMethod: agents.payoutMethod })
     .from(agents).where(eq(agents.id, agentId)).limit(1);
 
@@ -159,16 +160,16 @@ seasonsRouter.get('/me', requireIdentity, wrap(async (req, res) => {
 /**
  * Turn entry on or off.
  *
- * Two gates on the way IN (owner direction 2026-08-19): payment details on the
- * account, and an explicit agreement to the published rules. Leaving stays one
- * click, because a contest that is hard to withdraw from is indefensible.
+ * One gate on the way IN: an explicit agreement to the published rules, which
+ * is recorded rather than merely ticked. Leaving needs no gate at all, because
+ * a contest that is hard to withdraw from is indefensible.
  *
- * The payment gate is a REVERSAL, recorded here so nobody undoes it by
- * accident. Entry used to require nothing: a visitor arriving cold from
- * Manifold was one click from entering, and winners were asked for details at
- * claim time, because that friction had already cost this funnel signups once.
- * The owner decided the other way. If entries come in thin, this is the first
- * thing to look at.
+ * NO payment details are required to enter. That gate was added and removed
+ * within a day (owner direction both ways, 2026-08-19); the reason it lost is
+ * the reason it was never there: a visitor arriving cold from Manifold should
+ * be one click from entering, and asking for an IBAN before they have placed a
+ * trade is friction that already cost this funnel signups once. Winners are
+ * asked at claim time, where the ask is easy because there is money waiting.
  *
  * The entry row may already exist without being an entry: the season snapshots
  * a baseline for every participant when it starts, so that opting in late
@@ -206,19 +207,12 @@ seasonsRouter.put('/me', requireIdentity, wrap(async (req, res) => {
     );
   }
 
-  if (optIn) {
-    // Reversed 2026-08-19 (owner direction): entry used to require no payment
-    // details at all, deliberately, so a cold visitor was one click in and
-    // winners were asked only at claim time.
-    const [me] = await db.select({ payoutMethod: agents.payoutMethod })
-      .from(agents).where(eq(agents.id, agentId)).limit(1);
-    if (!me?.payoutMethod) {
-      throw new AppError(
-        'Add payment details to your account before entering, so a prize can actually reach you.',
-        409, { reason: 'payout' },
-      );
-    }
-  }
+  // NO payment-details gate. It was added and removed the same day
+  // (2026-08-19, owner direction both ways): entry has to stay one click for a
+  // visitor arriving cold, and payment details are asked for at claim time,
+  // from winners, when there is money waiting and the ask is easy. The rules
+  // agreement above is the only thing standing between reading about the
+  // season and being in it.
 
   const rulesAcceptedAt = optIn
     ? (existing?.rulesAcceptedAt ?? new Date())

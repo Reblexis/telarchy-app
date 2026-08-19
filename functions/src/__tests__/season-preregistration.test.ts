@@ -285,7 +285,7 @@ describe('a running season still behaves as it did', () => {
   });
 });
 
-describe('the two gates on the way in', () => {
+describe('the one gate on the way in', () => {
   test('entering without agreeing to the rules is refused, and says which step', async () => {
     await seedFloor([EARLY]);
     await createSeason();
@@ -300,19 +300,22 @@ describe('the two gates on the way in', () => {
     expect((await mine()).body.optedIn).toBe(false);
   });
 
-  test('entering without payment details is refused, and says which step', async () => {
+  test('entering needs NO payment details', async () => {
+    // A payment gate existed for part of 2026-08-19 and was removed the same
+    // day (owner direction both ways). The reason it lost is the reason it was
+    // never there: a visitor arriving cold should be one click in, and asking
+    // for an IBAN before they have placed a trade is friction that already
+    // cost this funnel signups once. Winners are asked at claim time.
     await seedFloor([EARLY]);
     await db.update(agents).set({ payoutMethod: null }).where(eq(agents.id, EARLY));
     await createSeason();
     asAgent(EARLY);
 
-    const res = await enter(true);
-    expect(res.status).toBe(409);
-    expect(res.body.reason).toBe('payout');
-    expect((await mine()).body.optedIn).toBe(false);
+    expect((await enter(true)).status).toBe(200);
+    expect((await mine()).body.optedIn).toBe(true);
   });
 
-  test('with both, the entry goes through and the agreement is on the record', async () => {
+  test('agreeing is enough, and the agreement is on the record', async () => {
     await seedFloor([EARLY]);
     const id = await createSeason();
     asAgent(EARLY);
@@ -331,13 +334,15 @@ describe('the two gates on the way in', () => {
     await createSeason();
     asAgent(EARLY);
 
+    // Reported, not required: the season page uses it to mention that a prize
+    // will need somewhere to go, as a nudge rather than a gate.
     expect((await mine()).body.hasPayoutMethod).toBe(false);
     await withPayout(EARLY);
     expect((await mine()).body.hasPayoutMethod).toBe(true);
     expect((await mine()).body.rulesAcceptedAt).toBeNull();
   });
 
-  test('leaving needs neither gate', async () => {
+  test('leaving needs no gate', async () => {
     // A contest that is hard to withdraw from would be indefensible.
     await seedFloor([EARLY]);
     const id = await createSeason();

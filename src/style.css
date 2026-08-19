@@ -5362,3 +5362,75 @@ textarea.jobform-line--desc {
   font-family: inherit;
   line-height: 1.45;
 }
+
+/* The prize season reduced to a pointer on pages whose job is something else
+   (owner direction 2026-08-19): a market page is about the market, and the
+   all-time board is about the board. Everything else is on /season. */
+.lbp-season-line-only {
+  margin: 0 0 1.75rem;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+/* telarchy.com/season. Same language as the market pages, because every public
+   route lands on that design. */
+.seasonp-clock {
+  margin: 0.2rem 0 0.9rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.25rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+  text-align: center;
+}
+.seasonp-enter {
+  margin: 1.5rem 0 2rem;
+  padding: 1.1rem 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  /* Centred under a centred header: the CTA is the page's one action, and a
+     left-aligned block under a centred title reads as a different section. */
+  text-align: center;
+}
+.seasonp-enter .season-entry-agree { justify-content: center; }
+.seasonp-enter .season-entry-note { margin-left: auto; margin-right: auto; }
+.seasonp-block { margin: 2rem 0; }
+.seasonp-note {
+  margin: 0.6rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--text-tertiary);
+  max-width: 46rem;
+}
+.seasonp-ladder {
+  margin: 0.6rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+.seasonp-rung {
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.seasonp-place {
+  min-width: 1.6rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}
+.seasonp-prize {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.seasonp-won {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-left: 0.8rem;
+}
