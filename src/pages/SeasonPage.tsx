@@ -191,7 +191,6 @@ export function SeasonPage() {
                       <span className="lbp-stack">
                         <span className="lbp-name">
                           {name}
-                          {r.id === meId && <span className="lbp-you">you</span>}
                         </span>
                       </span>
                     </a>
@@ -222,7 +221,6 @@ export function SeasonPage() {
                     <span className="lbp-stack">
                       <span className="lbp-name">
                         {myStanding.nickname || 'you'}
-                        <span className="lbp-you">you</span>
                       </span>
                     </span>
                   </a>

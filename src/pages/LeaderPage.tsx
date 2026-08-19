@@ -114,7 +114,6 @@ export function LeaderPage() {
           <span className="lbp-stack">
             <span className="lbp-name">
               {name}
-              {mine && <span className="lbp-you">you</span>}
               {e.manifoldUsername && (
                 <span className="lbp-manifold" title={`Imported from Manifold: @${e.manifoldUsername}`}>
                   <ManifoldLogo size={12} strokeWidth={1.6} />
