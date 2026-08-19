@@ -159,6 +159,12 @@ export function AdminPage() {
 
   const open = reports?.filter(r => r.status === 'open').length ?? 0;
 
+  // Nothing at all until the check comes back: the session check takes a
+  // second or two on a cold load, and a headline reading "Admin" in that
+  // window tells a stranger the page is real before the bounce takes them
+  // away from it (seen in production 2026-08-19).
+  if (!allowed) return null;
+
   return (
     <div className="pubws">
       <TopBar user={!!user} ready={!authLoading} />

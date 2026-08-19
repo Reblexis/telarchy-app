@@ -81,6 +81,17 @@ describe('/admin', () => {
     renderPage();
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/', { replace: true }));
     expect(screen.queryByText('waiting@example.com')).not.toBeInTheDocument();
+    // Not even the headline: a page that paints "Admin" for a second before
+    // bouncing has told the stranger it exists.
+    expect(screen.queryByText('Admin')).not.toBeInTheDocument();
+  });
+
+  test('paints nothing while the admin check is still in flight', () => {
+    // getProfile pending: the page must be blank, not a headline waiting to
+    // be taken away.
+    vi.mocked(api.getProfile).mockReturnValue(new Promise(() => {}) as never);
+    const { container } = renderPage();
+    expect(container.textContent).toBe('');
   });
 
   test('sends a signed-out visitor to the floor', async () => {

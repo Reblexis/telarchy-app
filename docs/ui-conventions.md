@@ -555,7 +555,9 @@ Two rules it does not share with the public pages:
   not a platform admin - signed out, signed in, or curious - is bounced to
   the floor exactly the way any unrecognised path is. There is no "you are
   not allowed" screen, because that screen tells a stranger the page is
-  real.
+  real, and the page paints NOTHING until the check comes back: a headline
+  reading "Admin" for the second the session check takes says the same
+  thing (seen in production 2026-08-19, fixed the same day).
 - **Nothing is summarised away.** The waitlist is people awaiting a reply
   and a report is someone who hit a wall and took the trouble to say so, so
   both render in full, open reports first. Numbers are the only thing

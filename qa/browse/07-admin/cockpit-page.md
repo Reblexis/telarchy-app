@@ -81,11 +81,18 @@ $B click 'button[type="submit"]'
 $B wait --networkidle
 
 $B goto "$TT_FRONTEND_URL/admin" && $B wait --networkidle
-url=$($B url)
+# The bounce waits on the session check, which is a round trip: poll rather
+# than assert on the first frame.
+url=""
+for _ in $(seq 1 20); do
+  url=$($B url)
+  case "$url" in */admin) sleep 0.5 ;; *) break ;; esac
+done
 case "$url" in
   */admin) echo "stranger stayed on /admin: $url"; exit 1 ;;
 esac
-# And nothing platform-global rendered on the way out.
+# And nothing rendered on the way out, not even the headline: a page that
+# paints "Admin" for a second has told the stranger it exists.
 $B text | grep -qi "$WAITER" && { echo "waitlist leaked to a non-admin"; exit 1; }
 $B text | grep -qi "bot hits" && { echo "cockpit stats rendered for a non-admin"; exit 1; }
 true
