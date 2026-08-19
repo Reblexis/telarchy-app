@@ -1481,6 +1481,149 @@ code, pre, kbd, samp {
   gap: 0.9rem;
 }
 
+/* ---------------------------------------------------------------------------
+   The bell and its panel (owner ask 2026-08-19).
+
+   The trigger sits in the icon family the top bar already uses (1.7 stroke,
+   tertiary ink, accent on hover) and says its news the way this page says
+   every other number: mono, amber, no red dot. Inside the panel one signal
+   marks unread, an amber hairline down the row's left edge, so a list of
+   twelve does not turn into a field of badges.
+--------------------------------------------------------------------------- */
+.notif { position: relative; display: flex; align-items: center; }
+
+.notif-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  font: inherit;
+  transition: color 120ms ease;
+}
+.notif-trigger:hover,
+.notif-trigger:focus-visible { color: var(--accent); outline: none; }
+.notif-trigger.has-unread { color: var(--text-primary); }
+.notif-icon { display: block; flex: none; }
+
+.notif-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent);
+}
+
+.notif-panel {
+  position: absolute;
+  top: calc(100% + 0.7rem);
+  right: 0;
+  z-index: 40;
+  width: min(23rem, calc(100vw - 2rem));
+  max-height: min(30rem, 70vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  box-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.55);
+  animation: notif-drop 140ms ease-out;
+}
+@keyframes notif-drop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .notif-panel { animation: none; } }
+
+.notif-panel-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0.95rem 0.6rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+.notif-panel-title {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.notif-mark {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.notif-mark:hover { color: var(--accent); }
+
+.notif-list { margin: 0; padding: 0; list-style: none; }
+
+.notif-row { border-bottom: 1px solid var(--border-color); }
+.notif-row:last-child { border-bottom: none; }
+.notif-row-link {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.7rem 0.95rem 0.75rem;
+  /* The unread mark is an inset border rather than a pseudo-element so it
+     cannot drift out of alignment when a row wraps to three lines. */
+  border-left: 2px solid transparent;
+  color: inherit;
+  text-decoration: none;
+}
+.notif-row.is-unread .notif-row-link { border-left-color: var(--accent); }
+a.notif-row-link:hover { background: var(--bg-tertiary); }
+
+.notif-row-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+.notif-kind {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+.notif-kind--decision { color: var(--text-primary); font-weight: 600; }
+.notif-time {
+  flex: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+}
+.notif-subject {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.notif-detail {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.notif-empty {
+  margin: 0;
+  padding: 1.1rem 0.95rem 1.25rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+}
+
 /* The participant profile, reworked minimal (owner direction
    2026-08-11): a picture, a handle, one earnings number, and three
    ruled lists. Standalone, so it carries the floor's top bar. */
@@ -2575,6 +2718,40 @@ textarea.jobform-line--desc {
 }
 .acctdlg-pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+/* The section rail: the dialog's table of contents (owner report
+   2026-08-19). Underline tabs rather than pills, so it cannot be mistaken
+   for the provider pills three lines below it; the active tab sits on the
+   same hairline the head ends with. */
+.acctdlg-tabs {
+  display: flex;
+  gap: 1.1rem;
+  margin: 0.15rem 0 0.2rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.acctdlg-tab {
+  padding: 0 0 0.55rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.acctdlg-tab:hover { color: var(--text-secondary); }
+.acctdlg-tab.is-active { color: var(--text-primary); border-bottom-color: var(--text-primary); }
+.acctdlg-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
+/* One section's fields, in the same rhythm the whole dialog uses. */
+.acctdlg-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
 /* The per-section confirm: the ticket's own, a size down. */
 .acctdlg-save { padding: 0.6rem 1rem; font-size: 0.88rem; }
 
@@ -2676,10 +2853,40 @@ textarea.jobform-line--desc {
   animation: modal-fade 160ms ease-out;
 }
 
-.floor-modal {
+/* The card and its edge treatment share a positioned wrapper: a cue drawn
+   inside the scroller would scroll away with the content it describes. */
+.floor-modal-shell {
+  position: relative;
   width: min(30rem, 100%);
   max-height: min(88vh, 44rem);
+  display: flex;
+}
+
+.floor-modal-cue {
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  bottom: 1px;
+  height: 3.4rem;
+  border-radius: 0 0 15px 15px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 0.3rem;
+  color: var(--text-tertiary);
+  background: linear-gradient(to bottom, transparent, var(--bg-secondary) 72%);
+  opacity: 0;
+  transition: opacity 160ms ease;
+  pointer-events: none;
+}
+.floor-modal-shell.has-more .floor-modal-cue { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .floor-modal-cue { transition: none; } }
+
+.floor-modal {
+  width: 100%;
+  max-height: min(88vh, 44rem);
   overflow-y: auto;
+  scrollbar-gutter: stable;
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 16px;

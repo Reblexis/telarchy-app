@@ -13,6 +13,7 @@ import { FloorAnnouncements } from '../components/FloorAnnouncements';
 import { FloorComments } from '../components/FloorComments';
 import { LeaderboardRail } from '../components/FloorRails';
 import { AccountMenu } from '../components/AccountMenu';
+import { NotificationsBell } from '../components/NotificationsBell';
 import { DiscordButton } from '../components/DiscordButton';
 import { ManifoldButton } from '../components/ManifoldButton';
 import { ReportButton } from '../components/ReportButton';
@@ -88,6 +89,23 @@ export function TradePage() {
   // market (owner decision 2026-08-09: no second market underneath). null
   // means the baseline market is showing.
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+
+  // #contract=<id> opens the floor ON that contract. A notification says
+  // "someone commented on your contract"; landing the reader on the floor and
+  // leaving them to find the row is the same as not linking at all. The hash
+  // is consumed once applied so it does not fight the back button or the
+  // #account link that shares this bar.
+  useEffect(() => {
+    const apply = () => {
+      const match = /^#contract=(.+)$/.exec(window.location.hash);
+      if (!match) return;
+      setSelectedJobId(decodeURIComponent(match[1]));
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    };
+    apply();
+    window.addEventListener('hashchange', apply);
+    return () => window.removeEventListener('hashchange', apply);
+  }, []);
   // Which world the one view is showing (owner decision 2026-08-10: both
   // branches are on the page; the toggle picks which one the ticket trades,
   // and the chart draws the other as a quiet second line).
@@ -1209,6 +1227,7 @@ export function TopBar({ user, ready }: { user: boolean; ready: boolean }) {
         {/* Rendered only after the session check settles: while it is
             pending, user is still null, and a signed-in visitor would see
             "Log in" flash and vanish. Anonymous visitors get it fading in. */}
+        {ready && user && <div className="pubws-fade"><NotificationsBell /></div>}
         {ready && (user
           ? <div className="pubws-fade"><AccountMenu /></div>
           : <Link to="/login" className="pubws-login pubws-fade">Log in</Link>)}

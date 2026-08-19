@@ -227,6 +227,7 @@ API endpoint behind them is still live. What ships today:
 
 165. Participant email notifications on comments: someone comments under your contract, or replies in a thread you commented in (both on by default), and optionally every new contract on a workspace's ballot (off by default). Three switches on the participant row, edited in account settings, delivered through Resend, never blocking the post that triggered them. See `docs/vision.md`, "Participant email notifications".
 166. Owner notifications (`lib/notify.ts`): new waitlist email and new proposal reach the operator by mail.
+167. Notifications inbox (`GET /api/notifications`, the floor's bell): comments on your contracts, replies in your threads, new contracts where you trade, and decisions on your own contracts with the reason. Shows everything regardless of the email switches; read state is one watermark per participant (`POST /api/notifications/seen`).
 
 ## Tests
 

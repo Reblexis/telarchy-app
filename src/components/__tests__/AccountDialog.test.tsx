@@ -39,13 +39,13 @@ beforeEach(() => { upsertProfile.mockClear(); });
 
 describe('the account dialog', () => {
   test('hydrates the stored provider and its fields', async () => {
-    render(<AccountDialog onClose={() => {}} />);
+    render(<AccountDialog onClose={() => {}} initialTab="money" />);
     await waitFor(() => expect(screen.getByLabelText('PayPal email')).toBeTruthy());
     expect((screen.getByLabelText('PayPal email') as HTMLInputElement).value).toBe('old@x.com');
   });
 
   test('switching provider switches the asked-for fields', async () => {
-    render(<AccountDialog onClose={() => {}} />);
+    render(<AccountDialog onClose={() => {}} initialTab="money" />);
     await waitFor(() => expect(screen.getByText('Bank')).toBeTruthy());
     fireEvent.click(screen.getByText('Bank'));
     expect(screen.getByLabelText('IBAN')).toBeTruthy();
@@ -56,7 +56,7 @@ describe('the account dialog', () => {
   });
 
   test('saving sends the structured method', async () => {
-    render(<AccountDialog onClose={() => {}} />);
+    render(<AccountDialog onClose={() => {}} initialTab="money" />);
     await waitFor(() => expect(screen.getByText('Bank')).toBeTruthy());
     fireEvent.click(screen.getByText('Bank'));
     fireEvent.change(screen.getByLabelText('IBAN'), { target: { value: 'DE89 3704 0044 0532 0130 00' } });
@@ -69,7 +69,7 @@ describe('the account dialog', () => {
 
   test('a server refusal lands beside the save, verbatim', async () => {
     upsertProfile.mockRejectedValueOnce(new Error('That IBAN does not check out; copy it exactly from your bank'));
-    render(<AccountDialog onClose={() => {}} />);
+    render(<AccountDialog onClose={() => {}} initialTab="money" />);
     await waitFor(() => expect(screen.getByText('Bank')).toBeTruthy());
     fireEvent.click(screen.getByText('Bank'));
     fireEvent.change(screen.getByLabelText('IBAN'), { target: { value: 'DE00' } });
@@ -92,7 +92,7 @@ describe('crypto payment details', () => {
       payoutHandle: 'Crypto',
       payoutMethod: { provider: 'crypto', network: 'ethereum', address: '0x' + 'a'.repeat(40) },
     } as never);
-    render(<AccountDialog onClose={() => {}} />);
+    render(<AccountDialog onClose={() => {}} initialTab="money" />);
     await waitFor(() => expect(screen.getByLabelText('Address')).toBeTruthy());
 
     // An asset pill is active, so saving cannot 400 with "Pick what to be
@@ -114,7 +114,7 @@ describe('crypto payment details', () => {
   });
 
   test('the highlighted chain and the offered assets are the same chain', async () => {
-    render(<AccountDialog onClose={() => {}} />);
+    render(<AccountDialog onClose={() => {}} initialTab="money" />);
     await waitFor(() => expect(screen.getByText('Crypto')).toBeTruthy());
     fireEvent.click(screen.getByText('Crypto'));
 
@@ -128,7 +128,7 @@ describe('crypto payment details', () => {
   });
 
   test('switching chain drops an asset the new chain cannot settle', async () => {
-    render(<AccountDialog onClose={() => {}} />);
+    render(<AccountDialog onClose={() => {}} initialTab="money" />);
     await waitFor(() => expect(screen.getByText('Crypto')).toBeTruthy());
     fireEvent.click(screen.getByText('Crypto'));
     fireEvent.click(screen.getByText('Ethereum'));
@@ -166,7 +166,7 @@ describe('the picker matches what the server accepts', () => {
  */
 describe('the email switches', () => {
   test('show what is stored, defaults included', async () => {
-    render(<AccountDialog onClose={() => {}} />);
+    render(<AccountDialog onClose={() => {}} initialTab="emails" />);
     const mine = await screen.findByRole('switch', { name: /comments on my contract/i });
     const ballot = screen.getByRole('switch', { name: /new contract goes on the ballot/i });
     await waitFor(() => expect(mine.getAttribute('aria-checked')).toBe('true'));
@@ -174,7 +174,7 @@ describe('the email switches', () => {
   });
 
   test('one click sends only that switch', async () => {
-    render(<AccountDialog onClose={() => {}} />);
+    render(<AccountDialog onClose={() => {}} initialTab="emails" />);
     const ballot = await screen.findByRole('switch', { name: /new contract goes on the ballot/i });
     fireEvent.click(ballot);
     await waitFor(() => expect(upsertProfile).toHaveBeenCalledWith({ notifications: { newProposal: true } }));
@@ -183,10 +183,37 @@ describe('the email switches', () => {
 
   test('a refused save puts the switch back', async () => {
     upsertProfile.mockImplementationOnce(async () => { throw new Error('nope'); });
-    render(<AccountDialog onClose={() => {}} />);
+    render(<AccountDialog onClose={() => {}} initialTab="emails" />);
     const ballot = await screen.findByRole('switch', { name: /new contract goes on the ballot/i });
     fireEvent.click(ballot);
     await waitFor(() => expect(screen.getByText('nope')).toBeTruthy());
     expect(ballot.getAttribute('aria-checked')).toBe('false');
+  });
+});
+
+/**
+ * The section rail (owner report 2026-08-19: the dialog scrolled and nobody
+ * noticed). What matters: the dialog opens on Profile, every section is
+ * NAMED on screen whether or not it is the one showing, and picking one
+ * swaps the fields in place.
+ */
+describe('the section rail', () => {
+  test('opens on Profile and names every section', async () => {
+    render(<AccountDialog onClose={() => {}} />);
+    expect(await screen.findByLabelText('Username')).toBeTruthy();
+    for (const name of ['Profile', 'Money', 'Emails', 'Security']) {
+      expect(screen.getByRole('tab', { name })).toBeTruthy();
+    }
+    expect(screen.getByRole('tab', { name: 'Profile' }).getAttribute('aria-selected')).toBe('true');
+    // A setting in another section is announced by its tab, not hidden below
+    // a fold: the payment fields are not rendered until Money is picked.
+    expect(screen.queryByLabelText('PayPal email')).toBeNull();
+  });
+
+  test('picking a section swaps the fields', async () => {
+    render(<AccountDialog onClose={() => {}} />);
+    fireEvent.click(await screen.findByRole('tab', { name: 'Emails' }));
+    expect(screen.getByRole('switch', { name: /comments on my contract/i })).toBeTruthy();
+    expect(screen.queryByLabelText('Username')).toBeNull();
   });
 });

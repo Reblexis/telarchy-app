@@ -19,6 +19,7 @@ import { userauthRouter } from './routes/userauth';
 import { marketplaceRouter } from './routes/marketplace';
 import { leaderboardRouter } from './routes/leaderboard';
 import { seasonsRouter } from './routes/seasons';
+import { notificationsRouter } from './routes/notifications';
 import { groupsRouter } from './routes/groups';
 import { sourcesRouter } from './routes/sources';
 import { guidesRouter } from './routes/guides';
@@ -349,6 +350,8 @@ app.get('/api/help', (_req, res) => {
       { method: 'PATCH', path: '/api/seasons/:id', auth: 'platform admin', description: 'Edit a DRAFT season: any of { name, startsAt, endsAt, poolUsd, ladder, rulesUrl }. Same validation as create, including the sub-5000 sweepstakes ceiling, and the dates are checked as a pair against what the season will be after the patch (so moving only the start is still refused if it lands after the end). 409 unless the season is draft: once it is running its baselines are pinned to its start instant and its ladder is published.' },
       { method: 'POST', path: '/api/seasons/:id/start', auth: 'platform admin', description: 'Move a draft season to running. Does two things that cannot be done later: PINS the season\'s workspace set (so a later visibility change cannot inject an entrant\'s whole history into their season score) and SNAPSHOTS a baseline profit for every participant at this instant (so opting in late is not a free option on your own drawdown). Pre-registrations SURVIVE: optedIn and enteredAt are carried across and only the baseline is written, so nobody who entered while the season was a draft is silently un-entered. Returns preRegistrationsKept alongside baselinesWritten. One transaction, re-runnable. 409 unless the season is draft.' },
       { method: 'POST', path: '/api/seasons/:id/settle', auth: 'platform admin', description: 'Freeze finals, rank entrants, assign the ladder. Reachable ONLY from running: a second settle would read new prices and could reassign a prize already paid, with nothing recording that the winner changed. Reads the board fresh rather than from the 30-second display cache, and writes every final in one transaction so the whole ladder is decided at one instant. A prize needs a season score strictly above zero; rungs nobody qualifies for, and anything left over, roll into the next season. Returns { settled, settledAt, rolloverUsd, winners }.' },
+      { method: 'GET', path: '/api/notifications', auth: 'identity', scope: 'account:read', description: 'This participant\'s inbox: everything that happened to them, newest first. Workspace-agnostic (one inbox across every floor; no X-Workspace-Id). ?limit=N (1-100, default 30). Returns { unread, seenAt, notifications: [{ id, kind, at, actor, subject, detail, workspaceSlug, proposalId, marketId, unread }] }. kind is comment (someone commented on a contract you posted, including on its conditional markets), reply (someone else commented in a thread you are in), contract (a new contract on the ballot of a workspace you belong to), or decision (your own contract was approved or declined; detail carries the decline reason). NOT filtered by the email switches: those tune interruption, this is the record, so turning an email off never hides the event here.' },
+      { method: 'POST', path: '/api/notifications/seen', auth: 'identity', scope: 'account:write', description: 'Mark the inbox read up to now. Idempotent; returns { ok, seenAt }. Read state is one watermark per participant, so unread means "newer than seenAt".' },
       { method: 'POST', path: '/api/seasons/:id/entries/:agentId/paid', auth: 'platform admin', description: 'Record that a claimed prize has actually been paid outside the Service. 409 unless the entry is in claim state claimed.' },
       { method: 'GET', path: '/api/seasons/:id/payouts', auth: 'platform admin', description: 'Who is owed what on a settled season, with the payoutHandle and payoutMethod needed to pay them. This is the ONLY endpoint in the season surface that returns payment details.' },
       { method: 'POST', path: '/api/auth/consent', auth: 'session', description: 'Record the browser-account user accepting Terms and Privacy Policy. Body: { accepted: true }. Required before any other authenticated request succeeds for new accounts. Agent-key callers are exempt from consent gating and do not need to call this.' },
@@ -383,6 +386,7 @@ app.use('/api/proposals', proposalsRouter);
 app.use('/api/marketplace', marketplaceRouter);
 app.use('/api/leaderboard', leaderboardRouter);
 app.use('/api/seasons', seasonsRouter);
+app.use('/api/notifications', optionalAuthMiddleware, requireConsentIfUser, notificationsRouter);
 app.use('/api/feedback', feedbackLimiter, feedbackRouter);
 
 // Sources: mounted before global authMiddleware because the GitHub OAuth

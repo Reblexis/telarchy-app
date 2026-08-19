@@ -17,7 +17,7 @@ goal-statement: |
 ## What this tests
 
 The Emails section of the account dialog (`AccountDialog.tsx`) and the
-`#account` deep link the notification emails close on. The behavioural
+`#emails` deep link the notification emails close on. The behavioural
 contract is `docs/vision.md`, "Participant email notifications": two switches
 on for a new account (a comment under a contract you posted, a reply in a
 thread you are in), one off (every new contract on the ballot), each saving
@@ -59,10 +59,10 @@ curl -sf -b "$JAR" -H "X-Workspace-Id: $WS" "$TT_BASE_URL/api/auth/me" \
            and .notifications.newProposal == false'
 ```
 
-### T2. The #account link opens the dialog on the switches
+### T2. The #emails link opens the dialog ON the switches
 
 ```bash
-$B goto "$TT_FRONTEND_URL/$SLUG#account" && $B wait --networkidle
+$B goto "$TT_FRONTEND_URL/$SLUG#emails" && $B wait --networkidle
 text=$($B text)
 grep -qi 'Emails' <<<"$text"
 grep -qi 'comments on my contract' <<<"$text"
@@ -84,7 +84,7 @@ curl -sf -b "$JAR" -H "X-Workspace-Id: $WS" "$TT_BASE_URL/api/auth/me" \
 
 ```bash
 $B goto "$TT_FRONTEND_URL/$SLUG" && $B wait --networkidle
-$B goto "$TT_FRONTEND_URL/$SLUG#account" && $B wait --networkidle
+$B goto "$TT_FRONTEND_URL/$SLUG#emails" && $B wait --networkidle
 $B assert '[role="switch"][aria-checked="true"]' --count 3
 ```
 
@@ -104,4 +104,4 @@ Auto.
 - Delivery is not exercised end to end (no mail transport outside production),
   so a broken Resend configuration would not fail this spec.
 - The unsubscribe link inside a real email is asserted only as far as the
-  `#account` route; the email body itself is covered by the backend suite.
+  `#emails` route; the email body itself is covered by the backend suite.

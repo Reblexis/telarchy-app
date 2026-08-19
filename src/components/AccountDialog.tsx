@@ -40,6 +40,23 @@ const EMAIL_SWITCHES: Array<{ key: keyof NotificationPrefs; label: string }> = [
   { key: 'newProposal', label: 'A new contract goes on the ballot' },
 ];
 
+/**
+ * The account is filed, not stacked (owner report 2026-08-19: the dialog
+ * scrolled and nobody could tell). Four named sections, one on screen at a
+ * time, in the order a trader needs them: who you are, where the money goes,
+ * what reaches your inbox, and the password. The rail doubles as the table of
+ * contents the long form never had, so a setting is now something you can see
+ * exists rather than something you have to scroll into.
+ */
+type AccountTab = 'profile' | 'money' | 'emails' | 'security';
+
+const TABS: Array<{ id: AccountTab; label: string }> = [
+  { id: 'profile', label: 'Profile' },
+  { id: 'money', label: 'Money' },
+  { id: 'emails', label: 'Emails' },
+  { id: 'security', label: 'Security' },
+];
+
 /** What a participant sees before their own settings have loaded, and what a
  *  row written before the switches existed reads as. Same defaults as the
  *  database columns; if these two ever disagree the database wins. */
@@ -120,7 +137,12 @@ function initials(name: string | null, email: string | null): string {
   return (letters || source[0] || '?').toUpperCase();
 }
 
-export function AccountDialog({ onClose }: { onClose: () => void }) {
+export function AccountDialog({ onClose, initialTab = 'profile' }: {
+  onClose: () => void;
+  /** Which section to open on. Notification emails link straight to 'emails'. */
+  initialTab?: AccountTab;
+}) {
+  const [tab, setTab] = useState<AccountTab>(initialTab);
   const { user } = useAuth();
   const [participant, setParticipant] = useState<Participant | null>(null);
   const [savedImage, setSavedImage] = useState<string | null>(null);
@@ -371,206 +393,245 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
         />
         {errors.picture && <p className="ticket-err">{errors.picture}</p>}
 
-        <label className="jobform-field">
-          <span className="ticket-label">Username</span>
-          <input
-            className="jobform-line"
-            value={nick}
-            onChange={e => setNick(e.target.value)}
-            placeholder="your-username"
-            maxLength={30}
-            aria-label="Username"
-          />
-        </label>
-        {nick.trim() !== nickSaved && nick.trim() !== '' && (
-          <button className="ticket-go acctdlg-save" disabled={busy === 'nick'} onClick={() => void saveNick()}>
-            {busy === 'nick' ? 'Saving…' : saved.nick ? 'Saved' : 'Save username'}
-          </button>
-        )}
-        {errors.nick && <p className="ticket-err">{errors.nick}</p>}
-
-        <label className="jobform-field">
-          <span className="ticket-label">Bio</span>
-          <textarea
-            className="jobform-line acctdlg-bio"
-            value={bio}
-            onChange={e => setBio(e.target.value)}
-            placeholder="Who are you, and what are you here to do? Shown on your public profile."
-            maxLength={500}
-            rows={2}
-            aria-label="Bio"
-          />
-        </label>
-        {bio.trim() !== bioSaved && (
-          <button className="ticket-go acctdlg-save" disabled={busy === 'bio'} onClick={() => void saveBio()}>
-            {busy === 'bio' ? 'Saving…' : saved.bio ? 'Saved' : 'Save bio'}
-          </button>
-        )}
-        {errors.bio && <p className="ticket-err">{errors.bio}</p>}
-
-        {/* Payment details: pick a provider, fill its own fields. What is
-            stored is a typed method the owner can pay against; the fields
-            are validated server-side per provider (IBAN checksum, address
-            shapes) and errors land right here. */}
-        <div className="jobform-field">
-          <span className="ticket-label">Paid through</span>
-          <div className="acctdlg-pills" role="tablist" aria-label="Payment provider">
-            {PROVIDERS.map(p => (
-              <button
-                key={p.id}
-                role="tab"
-                aria-selected={provider === p.id}
-                className={`acctdlg-pill${provider === p.id ? ' is-active' : ''}`}
-                onClick={() => switchProvider(p.id)}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
+        <div className="acctdlg-tabs" role="tablist" aria-label="Account sections">
+          {TABS.map(t => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.id}
+              className={`acctdlg-tab${tab === t.id ? ' is-active' : ''}`}
+              onClick={() => setTab(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
 
-        {provider === 'paypal' && (
-          <label className="jobform-field"><span className="ticket-label">PayPal email</span>{line('email', 'PayPal email', 'you@example.com')}</label>
-        )}
-        {provider === 'bank' && (
+        <div className="acctdlg-panel" role="tabpanel" aria-label={TABS.find(t => t.id === tab)?.label ?? 'Account'}>
+        {tab === 'profile' && (
           <>
-            <label className="jobform-field"><span className="ticket-label">IBAN</span>{line('iban', 'IBAN', 'CZ65 0800 0000 1920 0014 5399')}</label>
-            <label className="jobform-field"><span className="ticket-label">Account holder</span>{line('holder', 'Account holder', 'Name as the bank knows it')}</label>
-          </>
-        )}
-        {provider === 'crypto' && (
-          <>
-            <div className="jobform-field">
-              <span className="ticket-label">Network</span>
-              <div className="acctdlg-pills">
-                {NETWORKS.map(n => (
-                  <button
-                    key={n.id}
-                    className={`acctdlg-pill${(fields.network ?? DEFAULT_NETWORK) === n.id ? ' is-active' : ''}`}
-                    onClick={() => {
-                      setField('network', n.id);
-                      // Assets differ per chain, so a stale pick from the
-                      // previous chain must not survive the switch.
-                      const first = ASSETS[n.id]?.[0];
-                      if (first && !ASSETS[n.id].includes(fields.asset ?? '')) setField('asset', first);
-                    }}
-                  >
-                    {n.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="jobform-field">
-              <span className="ticket-label">Paid in</span>
-              <div className="acctdlg-pills">
-                {(ASSETS[fields.network ?? DEFAULT_NETWORK] ?? ASSETS[DEFAULT_NETWORK]).map(a => (
-                  <button
-                    key={a}
-                    className={`acctdlg-pill${(fields.asset ?? '') === a ? ' is-active' : ''}`}
-                    onClick={() => setField('asset', a)}
-                  >
-                    {a}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <label className="jobform-field"><span className="ticket-label">Address</span>{line('address', 'Address', (fields.network ?? DEFAULT_NETWORK) === 'solana' ? 'Solana address' : (fields.network ?? DEFAULT_NETWORK) === 'bitcoin' ? 'bc1…' : '0x…')}</label>
-          </>
-        )}
-        {provider === 'revolut' && (
-          <label className="jobform-field"><span className="ticket-label">Revtag or phone</span>{line('handle', 'Revtag or phone', '@yourtag')}</label>
-        )}
-        {provider === 'wise' && (
-          <label className="jobform-field"><span className="ticket-label">Wise email</span>{line('email', 'Wise email', 'you@example.com')}</label>
-        )}
-        {provider === 'other' && (
-          <label className="jobform-field"><span className="ticket-label">How to pay you</span>{line('details', 'How to pay you', 'Say exactly how the money reaches you')}</label>
-        )}
-
-        <label className="jobform-field">
-          <span className="ticket-label">Note (optional)</span>
-          {line('note', 'Note', 'Reference, exchange memo or tag, anything I need to know when sending')}
-        </label>
-
-        {(payDirty || saved.pay) && (
-          <button className={`ticket-go acctdlg-save${saved.pay ? ' is-placed' : ''}`} disabled={busy === 'pay'} onClick={() => void savePayment()}>
-            {busy === 'pay' ? 'Saving…' : saved.pay ? 'Saved' : 'Save payment details'}
-          </button>
-        )}
-        {errors.pay && <p className="ticket-err">{errors.pay}</p>}
-
-        {/* Emails: which of them reach you. The two answers addressed to
-            you are on for a new account, the new-contract firehose is off
-            (docs/vision.md, "Participant email notifications"). Each row
-            saves on the click; there is no confirm to forget to press. */}
-        <div className="jobform-field">
-          <span className="ticket-label">Emails</span>
-          <div className="acctdlg-switches">
-            {EMAIL_SWITCHES.map(sw => (
-              <button
-                key={sw.key}
-                type="button"
-                role="switch"
-                aria-checked={prefs[sw.key]}
-                className={`acctdlg-switch${prefs[sw.key] ? ' is-on' : ''}`}
-                disabled={busy === `email:${sw.key}`}
-                onClick={() => void toggleEmail(sw.key)}
-              >
-                <span className="acctdlg-switch-box" aria-hidden="true">{prefs[sw.key] ? '✓' : ''}</span>
-                <span className="acctdlg-switch-label">{sw.label}</span>
-              </button>
-            ))}
-          </div>
-          <p className="acctdlg-hint">
-            Sent to {user?.email ?? 'your account email'}. Every one of them says how to turn it off.
-          </p>
-        </div>
-        {errors.emails && <p className="ticket-err">{errors.emails}</p>}
-
-        {/* Everything below came off the console's /account page when the
-            old GUI was deleted (owner decision 2026-08-19). The dialog is
-            the account now, so money in and out, the prize season and the
-            password live here rather than behind a URL with no link to it. */}
-        <AccountCredits me={participant} onChanged={loadParticipant} />
-        <SeasonEntryPanel />
-        <AccountPassword />
-
-        {/* Bring a Manifold record: proven calibration converts once. */}
-        <div className="jobform-field">
-          <span className="ticket-label">Manifold</span>
-          {manifold === null && !manifoldMsg && (
-            <button className="acctdlg-ghost" onClick={() => { setManifold('ask'); clearErr('manifold'); }}>
-              Import Manifold balance
+          <label className="jobform-field">
+            <span className="ticket-label">Username</span>
+            <input
+              className="jobform-line"
+              value={nick}
+              onChange={e => setNick(e.target.value)}
+              placeholder="your-username"
+              maxLength={30}
+              aria-label="Username"
+            />
+          </label>
+          {nick.trim() !== nickSaved && nick.trim() !== '' && (
+            <button className="ticket-go acctdlg-save" disabled={busy === 'nick'} onClick={() => void saveNick()}>
+              {busy === 'nick' ? 'Saving…' : saved.nick ? 'Saved' : 'Save username'}
             </button>
           )}
-          {manifold === 'ask' && (
-            <div className="acctdlg-inline">
-              <input
-                className="jobform-line"
-                value={manifoldName}
-                onChange={e => setManifoldName(e.target.value)}
-                placeholder="your Manifold username"
-                aria-label="Manifold username"
-              />
-              <button className="acctdlg-ghost" disabled={busy === 'manifold' || !manifoldName.trim()} onClick={() => void manifoldStart()}>
-                {busy === 'manifold' ? 'Checking…' : 'Next'}
-              </button>
-            </div>
+          {errors.nick && <p className="ticket-err">{errors.nick}</p>}
+
+          <label className="jobform-field">
+            <span className="ticket-label">Bio</span>
+            <textarea
+              className="jobform-line acctdlg-bio"
+              value={bio}
+              onChange={e => setBio(e.target.value)}
+              placeholder="Who are you, and what are you here to do? Shown on your public profile."
+              maxLength={500}
+              rows={2}
+              aria-label="Bio"
+            />
+          </label>
+          {bio.trim() !== bioSaved && (
+            <button className="ticket-go acctdlg-save" disabled={busy === 'bio'} onClick={() => void saveBio()}>
+              {busy === 'bio' ? 'Saving…' : saved.bio ? 'Saved' : 'Save bio'}
+            </button>
           )}
-          {manifold !== null && manifold !== 'ask' && (
-            <div className="acctdlg-inline acctdlg-inline--col">
-              <p className="acctdlg-hint">
-                Add <code>{manifold.code}</code> to @{manifold.username}&rsquo;s bio on
-                manifold.markets, then verify. You can remove it right after.
-              </p>
-              <button className="acctdlg-ghost" disabled={busy === 'manifold'} onClick={() => void manifoldClaim()}>
-                {busy === 'manifold' ? 'Verifying…' : 'Verify'}
+          {errors.bio && <p className="ticket-err">{errors.bio}</p>}
+
+          {/* Bring a Manifold record: proven calibration converts once. */}
+          <div className="jobform-field">
+            <span className="ticket-label">Manifold</span>
+            {manifold === null && !manifoldMsg && (
+              <button className="acctdlg-ghost" onClick={() => { setManifold('ask'); clearErr('manifold'); }}>
+                Import Manifold balance
               </button>
+            )}
+            {manifold === 'ask' && (
+              <div className="acctdlg-inline">
+                <input
+                  className="jobform-line"
+                  value={manifoldName}
+                  onChange={e => setManifoldName(e.target.value)}
+                  placeholder="your Manifold username"
+                  aria-label="Manifold username"
+                />
+                <button className="acctdlg-ghost" disabled={busy === 'manifold' || !manifoldName.trim()} onClick={() => void manifoldStart()}>
+                  {busy === 'manifold' ? 'Checking…' : 'Next'}
+                </button>
+              </div>
+            )}
+            {manifold !== null && manifold !== 'ask' && (
+              <div className="acctdlg-inline acctdlg-inline--col">
+                <p className="acctdlg-hint">
+                  Add <code>{manifold.code}</code> to @{manifold.username}&rsquo;s bio on
+                  manifold.markets, then verify. You can remove it right after.
+                </p>
+                <button className="acctdlg-ghost" disabled={busy === 'manifold'} onClick={() => void manifoldClaim()}>
+                  {busy === 'manifold' ? 'Verifying…' : 'Verify'}
+                </button>
+              </div>
+            )}
+            {manifoldMsg && <p className="acctdlg-ok">{manifoldMsg}</p>}
+          </div>
+          {errors.manifold && <p className="ticket-err">{errors.manifold}</p>}
+
+          </>
+        )}
+
+        {tab === 'money' && (
+          <>
+          {/* Payment details: pick a provider, fill its own fields. What is
+              stored is a typed method the owner can pay against; the fields
+              are validated server-side per provider (IBAN checksum, address
+              shapes) and errors land right here. */}
+          <div className="jobform-field">
+            <span className="ticket-label">Paid through</span>
+            <div className="acctdlg-pills" role="tablist" aria-label="Payment provider">
+              {PROVIDERS.map(p => (
+                <button
+                  key={p.id}
+                  role="tab"
+                  aria-selected={provider === p.id}
+                  className={`acctdlg-pill${provider === p.id ? ' is-active' : ''}`}
+                  onClick={() => switchProvider(p.id)}
+                >
+                  {p.label}
+                </button>
+              ))}
             </div>
+          </div>
+
+          {provider === 'paypal' && (
+            <label className="jobform-field"><span className="ticket-label">PayPal email</span>{line('email', 'PayPal email', 'you@example.com')}</label>
           )}
-          {manifoldMsg && <p className="acctdlg-ok">{manifoldMsg}</p>}
+          {provider === 'bank' && (
+            <>
+              <label className="jobform-field"><span className="ticket-label">IBAN</span>{line('iban', 'IBAN', 'CZ65 0800 0000 1920 0014 5399')}</label>
+              <label className="jobform-field"><span className="ticket-label">Account holder</span>{line('holder', 'Account holder', 'Name as the bank knows it')}</label>
+            </>
+          )}
+          {provider === 'crypto' && (
+            <>
+              <div className="jobform-field">
+                <span className="ticket-label">Network</span>
+                <div className="acctdlg-pills">
+                  {NETWORKS.map(n => (
+                    <button
+                      key={n.id}
+                      className={`acctdlg-pill${(fields.network ?? DEFAULT_NETWORK) === n.id ? ' is-active' : ''}`}
+                      onClick={() => {
+                        setField('network', n.id);
+                        // Assets differ per chain, so a stale pick from the
+                        // previous chain must not survive the switch.
+                        const first = ASSETS[n.id]?.[0];
+                        if (first && !ASSETS[n.id].includes(fields.asset ?? '')) setField('asset', first);
+                      }}
+                    >
+                      {n.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="jobform-field">
+                <span className="ticket-label">Paid in</span>
+                <div className="acctdlg-pills">
+                  {(ASSETS[fields.network ?? DEFAULT_NETWORK] ?? ASSETS[DEFAULT_NETWORK]).map(a => (
+                    <button
+                      key={a}
+                      className={`acctdlg-pill${(fields.asset ?? '') === a ? ' is-active' : ''}`}
+                      onClick={() => setField('asset', a)}
+                    >
+                      {a}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <label className="jobform-field"><span className="ticket-label">Address</span>{line('address', 'Address', (fields.network ?? DEFAULT_NETWORK) === 'solana' ? 'Solana address' : (fields.network ?? DEFAULT_NETWORK) === 'bitcoin' ? 'bc1…' : '0x…')}</label>
+            </>
+          )}
+          {provider === 'revolut' && (
+            <label className="jobform-field"><span className="ticket-label">Revtag or phone</span>{line('handle', 'Revtag or phone', '@yourtag')}</label>
+          )}
+          {provider === 'wise' && (
+            <label className="jobform-field"><span className="ticket-label">Wise email</span>{line('email', 'Wise email', 'you@example.com')}</label>
+          )}
+          {provider === 'other' && (
+            <label className="jobform-field"><span className="ticket-label">How to pay you</span>{line('details', 'How to pay you', 'Say exactly how the money reaches you')}</label>
+          )}
+
+          <label className="jobform-field">
+            <span className="ticket-label">Note (optional)</span>
+            {line('note', 'Note', 'Reference, exchange memo or tag, anything I need to know when sending')}
+          </label>
+
+          {(payDirty || saved.pay) && (
+            <button className={`ticket-go acctdlg-save${saved.pay ? ' is-placed' : ''}`} disabled={busy === 'pay'} onClick={() => void savePayment()}>
+              {busy === 'pay' ? 'Saving…' : saved.pay ? 'Saved' : 'Save payment details'}
+            </button>
+          )}
+          {errors.pay && <p className="ticket-err">{errors.pay}</p>}
+
+          <AccountCredits me={participant} onChanged={loadParticipant} />
+          <SeasonEntryPanel />
+
+          </>
+        )}
+
+        {tab === 'emails' && (
+          <>
+          {/* Emails: which of them reach you. The two answers addressed to
+              you are on for a new account, the new-contract firehose is off
+              (docs/vision.md, "Participant email notifications"). Each row
+              saves on the click; there is no confirm to forget to press. */}
+          <div className="jobform-field">
+            <span className="ticket-label">Emails</span>
+            <div className="acctdlg-switches">
+              {EMAIL_SWITCHES.map(sw => (
+                <button
+                  key={sw.key}
+                  type="button"
+                  role="switch"
+                  aria-checked={prefs[sw.key]}
+                  className={`acctdlg-switch${prefs[sw.key] ? ' is-on' : ''}`}
+                  disabled={busy === `email:${sw.key}`}
+                  onClick={() => void toggleEmail(sw.key)}
+                >
+                  <span className="acctdlg-switch-box" aria-hidden="true">{prefs[sw.key] ? '✓' : ''}</span>
+                  <span className="acctdlg-switch-label">{sw.label}</span>
+                </button>
+              ))}
+            </div>
+            <p className="acctdlg-hint">
+              Sent to {user?.email ?? 'your account email'}. Every one of them says how to turn it off.
+            </p>
+          </div>
+          {errors.emails && <p className="ticket-err">{errors.emails}</p>}
+
+          </>
+        )}
+
+        {tab === 'security' && (
+          <>
+          <AccountPassword />
+
+          </>
+        )}
         </div>
-        {errors.manifold && <p className="ticket-err">{errors.manifold}</p>}
+
+
+
+
+
       </div>
     </FloorModal>
   );

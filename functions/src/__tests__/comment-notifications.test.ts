@@ -86,7 +86,8 @@ describe('a comment under a contract', () => {
     expect(sent[0].text).toContain('what is the channel?');
     // The link out and the way off are both in the message, always.
     expect(sent[0].text).toContain('/lookpilot');
-    expect(sent[0].text).toContain('#account');
+    // The way off lands ON the switches, not merely in the account dialog.
+    expect(sent[0].text).toContain('#emails');
   });
 
   test('reaches everyone else already in the thread', async () => {

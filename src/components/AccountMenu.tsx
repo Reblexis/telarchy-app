@@ -36,6 +36,7 @@ export function AccountMenu() {
   const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogTab, setDialogTab] = useState<'profile' | 'emails'>('profile');
   const [participant, setParticipant] = useState<Participant | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
@@ -55,11 +56,16 @@ export function AccountMenu() {
     return () => clearInterval(t);
   }, []);
 
-  // #account opens settings directly. Every notification email closes with
-  // "turn it off in account settings", and a link that lands on the floor
-  // and leaves the reader hunting for an avatar is the same as no link.
+  // #account opens settings directly, and #emails opens them ON the email
+  // switches. Every notification email closes with "turn it off in account
+  // settings"; landing the reader on the floor, or even in the dialog's
+  // first section, and leaving them to hunt is the same as not linking.
   useEffect(() => {
-    const sync = () => { if (window.location.hash === '#account') setDialogOpen(true); };
+    const sync = () => {
+      const hash = window.location.hash;
+      if (hash === '#account') { setDialogTab('profile'); setDialogOpen(true); }
+      if (hash === '#emails') { setDialogTab('emails'); setDialogOpen(true); }
+    };
     sync();
     window.addEventListener('hashchange', sync);
     return () => window.removeEventListener('hashchange', sync);
@@ -69,7 +75,7 @@ export function AccountMenu() {
     setDialogOpen(false);
     // Drop the hash, or reopening from the avatar after closing is a no-op
     // click (the URL still says #account and nothing changed).
-    if (window.location.hash === '#account') {
+    if (window.location.hash === '#account' || window.location.hash === '#emails') {
       window.history.replaceState(null, '', window.location.pathname + window.location.search);
     }
     load();
@@ -146,7 +152,7 @@ export function AccountMenu() {
         </div>
       )}
 
-      {dialogOpen && <AccountDialog onClose={closeDialog} />}
+      {dialogOpen && <AccountDialog onClose={closeDialog} initialTab={dialogTab} />}
     </div>
   );
 }

@@ -457,6 +457,21 @@ Transport is the shared Resend path in `lib/notify.ts` (`sendEmail`), the same o
 
 `GET /api/auth/me` and `GET /api/agents/me` carry `notifications: { commentOnMyProposal, replyToMyComment, newProposal }`, and `POST /api/auth/profile` accepts the same object with any subset of the three keys, so a client can flip one switch without re-sending the other two.
 
+### The notifications inbox (Implemented 2026-08-19)
+
+Email is an interruption a person tunes; it is a bad record. A participant who switched the new-contract alert off still needs somewhere to see that a contract went up, and a participant who never opens their mail still needs to find out that their contract was declined and why. So the floor's top bar carries a bell, and **the bell shows everything**:
+
+- someone commented on a contract you posted, including on its conditional markets,
+- someone else commented in a thread you are in,
+- a new contract went on the ballot of a workspace you belong to,
+- **your own contract was approved or declined**, with the decline reason.
+
+That last one has no email switch at all and is the item most worth having: it is the answer to the thing the poster is actually waiting for. The email switches never filter this list, in either direction. Turning an email off means "stop writing to me", never "hide it from me", and a record with holes in it is worse than no record.
+
+`GET /api/notifications` derives the list from the tables the floor already keeps (`proposal_messages`, `market_messages`, `proposals`) rather than writing to a feed table on every event: a feed table would have to be backfilled to be useful on the day it ships, and could then disagree with the thing it describes. Read state is one watermark, `agents.notificationsSeenAt`, moved by `POST /api/notifications/seen`; anything newer is unread. The watermark defaults to now, and migration 0064 backfilled existing rows the same way, because a null would have meant every existing account's first sight of the feature was a badge counting months of history nobody promised them, and a badge nobody believes is worse than no badge.
+
+The inbox is workspace-agnostic: a participant trades on several floors and has one inbox. Each row links to the floor and, when the event has one, to the contract itself (`/<slug>#contract=<id>`), because "someone commented on your contract" that lands on a page where you still have to find the row is the same as not linking.
+
 ### Per-market position cap (Implemented 2026-08-08)
 
 `workspaces.maxPositionCostPerMarket` (credits, 0 = off, a `manage_workspace` setting) caps each participant's **cumulative buy cost per market, both directions summed**. Selling never refunds cap headroom, so churning cannot stretch it; sells themselves are always allowed.

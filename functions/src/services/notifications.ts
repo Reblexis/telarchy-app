@@ -18,7 +18,7 @@
  *   message, and it names the closer reason (it is their contract).
  */
 
-import { and, asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import { db } from '../db/client';
 import {
   agents, authUser, markets, marketMessages, permissionGroups,
@@ -176,7 +176,7 @@ export async function notifyCommentPosted(opts: {
     const names = await getParticipantDisplayNames([from]);
     const author = names.get(from) ?? from;
     const { url, name } = await floorUrl(workspaceId);
-    const settings = await floorUrl(workspaceId, '#account');
+    const settings = await floorUrl(workspaceId, '#emails');
 
     await deliver(
       recipients,
@@ -227,7 +227,7 @@ export async function notifyProposalCreated(opts: {
     const names = await getParticipantDisplayNames([proposedBy]);
     const author = names.get(proposedBy) ?? proposedBy;
     const { url, name } = await floorUrl(workspaceId);
-    const settings = await floorUrl(workspaceId, '#account');
+    const settings = await floorUrl(workspaceId, '#emails');
 
     await deliver(
       recipients,
@@ -247,4 +247,214 @@ export async function notifyProposalCreated(opts: {
   } catch (e) {
     console.error('new-contract notification failed:', e);
   }
+}
+
+// ---------------------------------------------------------------------------
+// The inbox
+// ---------------------------------------------------------------------------
+
+/**
+ * What the bell shows (owner ask 2026-08-19). Deliberately NOT filtered by the
+ * email switches: mail is an interruption a person tunes, the inbox is the
+ * record, and a record with holes in it is worse than no record. Turning an
+ * email off means "stop writing to me", never "hide it from me".
+ *
+ * Derived from the same tables the floor already keeps rather than written to
+ * a feed table on every event. Six sources, one read each, merged and sorted:
+ * a feed table would have to be backfilled to be useful on the day it ships
+ * and could then drift from the thing it describes.
+ */
+export type NotificationKind = 'comment' | 'reply' | 'contract' | 'decision';
+
+export interface NotificationItem {
+  id: string;
+  kind: NotificationKind;
+  at: Date;
+  /** Who caused it, as a display handle. Null for events with no actor. */
+  actor: string | null;
+  /** What it happened to: a contract title, or a market's name. */
+  subject: string;
+  /** The comment, the pitch, or the decline reason. May be empty. */
+  detail: string;
+  /** Where to go: the floor slug, plus the thread when there is one. */
+  workspaceSlug: string | null;
+  proposalId: string | null;
+  marketId: string | null;
+}
+
+/** One participant's inbox, newest first, with how many are unread. */
+export async function listNotifications(participantId: string, limit = 30): Promise<{
+  items: NotificationItem[];
+  unread: number;
+  seenAt: Date | null;
+}> {
+  const [me] = await db.select({ seenAt: agents.notificationsSeenAt })
+    .from(agents).where(eq(agents.id, participantId));
+  const seenAt = me?.seenAt ?? null;
+
+  // Where this participant is a member: the scope of "a new contract".
+  const groups = await db.select({ workspaceId: permissionGroups.workspaceId, memberIds: permissionGroups.memberIds })
+    .from(permissionGroups);
+  const myWorkspaces = [...new Set(groups
+    .filter(g => (g.memberIds ?? []).includes(participantId))
+    .map(g => g.workspaceId))];
+
+  // Threads this participant is in, so a reply can be recognised as a reply.
+  const [myProposalThreads, myMarketThreads, myProposals] = await Promise.all([
+    db.select({ proposalId: proposalMessages.proposalId }).from(proposalMessages)
+      .where(eq(proposalMessages.from, participantId)),
+    db.select({ marketId: marketMessages.marketId }).from(marketMessages)
+      .where(eq(marketMessages.from, participantId)),
+    db.select({ id: proposals.id, title: proposals.title, workspaceId: proposals.workspaceId,
+      status: proposals.status, resolvedAt: proposals.resolvedAt, declineReason: proposals.declineReason })
+      .from(proposals).where(eq(proposals.proposedBy, participantId)),
+  ]);
+
+  const myProposalIds = [...new Set(myProposals.map(p => p.id))];
+  const inProposalThreads = [...new Set(myProposalThreads.map(t => t.proposalId))];
+  const inMarketThreads = [...new Set(myMarketThreads.map(t => t.marketId))];
+  const titleOf = new Map(myProposals.map(p => [p.id, p.title]));
+
+  // Conditional markets belong to a contract, so their threads are part of
+  // that contract's conversation (see notifyCommentPosted).
+  const myBranchMarkets = myProposalIds.length === 0 ? [] : await db.select({
+    id: markets.id, proposalId: markets.proposalId, metricName: markets.metricName,
+  }).from(markets).where(inArray(markets.proposalId, myProposalIds));
+  const branchOwner = new Map(myBranchMarkets.map(m => [m.id, m.proposalId!]));
+
+  const watchedProposalIds = [...new Set([...myProposalIds, ...inProposalThreads])];
+  const watchedMarketIds = [...new Set([...inMarketThreads, ...myBranchMarkets.map(m => m.id)])];
+
+  const [proposalComments, marketComments, newContracts] = await Promise.all([
+    watchedProposalIds.length === 0 ? [] : db.select({
+      id: proposalMessages.id, proposalId: proposalMessages.proposalId, from: proposalMessages.from,
+      content: proposalMessages.content, createdAt: proposalMessages.createdAt,
+      workspaceId: proposalMessages.workspaceId,
+    }).from(proposalMessages)
+      .where(inArray(proposalMessages.proposalId, watchedProposalIds))
+      .orderBy(desc(proposalMessages.createdAt)).limit(limit * 2),
+    watchedMarketIds.length === 0 ? [] : db.select({
+      id: marketMessages.id, marketId: marketMessages.marketId, from: marketMessages.from,
+      content: marketMessages.content, createdAt: marketMessages.createdAt,
+      workspaceId: marketMessages.workspaceId,
+    }).from(marketMessages)
+      .where(inArray(marketMessages.marketId, watchedMarketIds))
+      .orderBy(desc(marketMessages.createdAt)).limit(limit * 2),
+    myWorkspaces.length === 0 ? [] : db.select({
+      id: proposals.id, title: proposals.title, description: proposals.description,
+      proposedBy: proposals.proposedBy, createdAt: proposals.createdAt, workspaceId: proposals.workspaceId,
+    }).from(proposals)
+      .where(inArray(proposals.workspaceId, myWorkspaces))
+      .orderBy(desc(proposals.createdAt)).limit(limit * 2),
+  ]);
+
+  // Market names for threads this participant joined but does not own.
+  const namedMarketIds = [...new Set(marketComments.map(c => c.marketId))];
+  const marketNames = namedMarketIds.length === 0 ? [] : await db.select({
+    id: markets.id, metricName: markets.metricName, targetDate: markets.targetDate, proposalId: markets.proposalId,
+  }).from(markets).where(inArray(markets.id, namedMarketIds));
+  const marketLabel = new Map(marketNames.map(m => [m.id, `${m.metricName} ${m.targetDate}`]));
+
+  const slugs = await workspaceSlugs([
+    ...proposalComments.map(c => c.workspaceId),
+    ...marketComments.map(c => c.workspaceId),
+    ...newContracts.map(c => c.workspaceId),
+    ...myProposals.map(p => p.workspaceId),
+  ]);
+
+  const actorIds = [
+    ...proposalComments.map(c => c.from),
+    ...marketComments.map(c => c.from),
+    ...newContracts.map(c => c.proposedBy),
+  ];
+  const names = await getParticipantDisplayNames(actorIds);
+  const handle = (id: string) => names.get(id) ?? id;
+
+  const items: NotificationItem[] = [];
+
+  for (const c of proposalComments) {
+    if (c.from === participantId) continue;
+    items.push({
+      id: `pm-${c.id}`,
+      kind: myProposalIds.includes(c.proposalId) ? 'comment' : 'reply',
+      at: c.createdAt,
+      actor: handle(c.from),
+      subject: titleOf.get(c.proposalId) ?? 'a contract',
+      detail: c.content,
+      workspaceSlug: slugs.get(c.workspaceId) ?? null,
+      proposalId: c.proposalId,
+      marketId: null,
+    });
+  }
+
+  for (const c of marketComments) {
+    if (c.from === participantId) continue;
+    const owned = branchOwner.get(c.marketId);
+    items.push({
+      id: `mm-${c.id}`,
+      kind: owned ? 'comment' : 'reply',
+      at: c.createdAt,
+      actor: handle(c.from),
+      subject: owned ? (titleOf.get(owned) ?? 'a contract') : (marketLabel.get(c.marketId) ?? 'a market'),
+      detail: c.content,
+      workspaceSlug: slugs.get(c.workspaceId) ?? null,
+      proposalId: owned ?? null,
+      marketId: c.marketId,
+    });
+  }
+
+  for (const p of newContracts) {
+    if (p.proposedBy === participantId) continue;
+    items.push({
+      id: `np-${p.id}`,
+      kind: 'contract',
+      at: p.createdAt,
+      actor: handle(p.proposedBy),
+      subject: p.title,
+      detail: p.description ?? '',
+      workspaceSlug: slugs.get(p.workspaceId) ?? null,
+      proposalId: p.id,
+      marketId: null,
+    });
+  }
+
+  // A decision on your own contract is the one thing here you were actually
+  // waiting for, so it is in the inbox even though no email switch covers it.
+  for (const p of myProposals) {
+    if (!p.resolvedAt || p.status === 'pending' || p.status === 'withdrawn') continue;
+    items.push({
+      id: `dec-${p.id}`,
+      kind: 'decision',
+      at: p.resolvedAt,
+      actor: null,
+      subject: p.title,
+      detail: p.status === 'approved' ? 'Approved.' : (p.declineReason || 'Declined.'),
+      workspaceSlug: slugs.get(p.workspaceId) ?? null,
+      proposalId: p.id,
+      marketId: null,
+    });
+  }
+
+  items.sort((a, b) => b.at.getTime() - a.at.getTime());
+  const top = items.slice(0, limit);
+  // Unread counts the WHOLE list, not the page: a badge that stops at the
+  // page size tells you less the more there is to tell.
+  const unread = seenAt === null ? items.length : items.filter(i => i.at.getTime() > seenAt.getTime()).length;
+  return { items: top, unread, seenAt };
+}
+
+/** Mark everything up to now as read. Returns the new watermark. */
+export async function markNotificationsSeen(participantId: string): Promise<Date> {
+  const now = new Date();
+  await db.update(agents).set({ notificationsSeenAt: now }).where(eq(agents.id, participantId));
+  return now;
+}
+
+/** Slug per workspace id, for the links a notification row points at. */
+async function workspaceSlugs(ids: string[]): Promise<Map<string, string>> {
+  const unique = [...new Set(ids.filter(Boolean))];
+  if (unique.length === 0) return new Map();
+  const rows = await db.select({ id: workspaces.id, slug: workspaces.slug })
+    .from(workspaces).where(inArray(workspaces.id, unique));
+  return new Map(rows.filter(r => r.slug).map(r => [r.id, r.slug as string]));
 }

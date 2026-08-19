@@ -111,6 +111,31 @@ export type PayoutMethod = (
 };
 
 /**
+ * One thing that happened to this participant (GET /api/notifications).
+ * `kind` says what: someone commented on a contract they posted, someone
+ * replied in a thread they are in, a new contract went on a ballot where they
+ * trade, or one of their own contracts was decided.
+ */
+export interface NotificationItem {
+  id: string;
+  kind: 'comment' | 'reply' | 'contract' | 'decision';
+  at: string;
+  actor: string | null;
+  subject: string;
+  detail: string;
+  workspaceSlug: string | null;
+  proposalId: string | null;
+  marketId: string | null;
+  unread: boolean;
+}
+
+export interface NotificationsPayload {
+  unread: number;
+  seenAt: string | null;
+  notifications: NotificationItem[];
+}
+
+/**
  * Which emails a participant gets (docs/vision.md, "Participant email
  * notifications"). Mirrors the three switches on the participant row; read
  * from GET /api/agents/me and GET /api/auth/me, written through
@@ -1085,6 +1110,13 @@ export const api = {
   },
   joinWorkspace: (workspaceId: string) =>
     request(`/api/marketplace/${encodeURIComponent(workspaceId)}/join`, { method: 'POST' }),
+
+  // Notifications inbox (the bell). Workspace-agnostic: one inbox per
+  // participant across every floor.
+  getNotifications: (limit = 30): Promise<NotificationsPayload> =>
+    request(`/api/notifications?limit=${limit}`),
+  markNotificationsSeen: (): Promise<{ ok: boolean; seenAt: string }> =>
+    request('/api/notifications/seen', { method: 'POST' }),
 
   // User auth / profile
   getProfile: () => request('/api/auth/me'),

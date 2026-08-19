@@ -290,12 +290,36 @@ network pill row), and the server validates per provider (IBAN mod-97,
 per-network address shapes) with the refusal surfacing verbatim beside
 the save. The stored object lives in `agents.payout_method`; its
 human-readable summary is derived into `agents.payout_handle`, which is
-what paid-job proposals snapshot. The dialog also carries **Emails**: three
-toggle pills for the notifications a participant gets by mail (a comment
-under my contract, a reply in a thread I am in, every new contract), each
-saving on the click with no separate confirm, because a switch that needs
-a Save button reads as a form rather than a switch. This dialog is the
-only place they are edited.
+what paid-job proposals snapshot. The dialog is FILED, not stacked
+(owner report 2026-08-19: "I didn't even notice it's scrollable"). Four
+underline tabs across the top, Profile, Money, Emails, Security, one
+section on screen at a time. The rail is the table of contents the long
+form never had: a setting becomes something a reader can see exists
+instead of something they have to scroll into. Underline tabs, not pills,
+so the rail cannot be mistaken for the provider pills a few lines below
+it. **Emails** is one of those sections: three toggles for the
+notifications a participant gets by mail (a comment under my contract, a
+reply in a thread I am in, every new contract), each saving on the click
+with no separate confirm, because a switch that needs a Save button reads
+as a form rather than a switch. This dialog is the only place they are
+edited. `<floor>#account` opens the dialog, `<floor>#emails` opens it ON
+that section, and that is where every notification email's "turn it off"
+line points.
+
+**The floor's one modal says when it has more below.** `FloorModal` fades
+its bottom edge into the card colour with a chevron under it, and both
+vanish at the end of the scroll. The cue is drawn on a wrapper, never
+inside the scroller, because a cue that scrolls away with the content it
+describes is not a cue. Every dialog gets it, not only the account.
+
+**The bell** (owner ask 2026-08-19) sits in the top bar left of the
+avatar, signed in only. It is drawn in the same icon family as the bug
+and Discord marks (1.7 stroke, tertiary ink, accent on hover) and states
+its news the way this page states every other number: a mono amber count,
+no red dot. Its panel is a ruled list, one row per event, and unread rows
+carry an amber hairline down the left edge as the only unread marker (a
+badge per row turns twelve rows into a field of noise). Rows link to the
+contract itself (`/<slug>#contract=<id>`), not merely to the floor.
 
 **The dialog IS the account (owner decision 2026-08-19, when the console
 was deleted).** Everything the console's `/account` page uniquely held moved

@@ -1,0 +1,77 @@
+import { describe, expect, test, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+
+/**
+ * The floor's bell. What matters: the unread count is visible without
+ * opening anything, the panel lists what happened with a link that lands on
+ * the contract itself, reading clears the count without emptying the list,
+ * and an empty inbox says what will appear there rather than "no data".
+ */
+
+const getNotifications = vi.fn(async () => ({
+  unread: 2,
+  seenAt: '2026-08-19T09:00:00.000Z',
+  notifications: [
+    {
+      id: 'pm-1', kind: 'comment' as const, at: new Date().toISOString(), actor: 'trader-9',
+      subject: '$2000: Create a Telarchy tournament', detail: 'what is the deadline?',
+      workspaceSlug: 'telarchy', proposalId: 'prop-1', marketId: null, unread: true,
+    },
+    {
+      id: 'dec-2', kind: 'decision' as const, at: new Date().toISOString(), actor: null,
+      subject: 'Open source a trading agent', detail: 'out of scope this quarter',
+      workspaceSlug: 'telarchy', proposalId: 'prop-2', marketId: null, unread: true,
+    },
+  ],
+}));
+const markNotificationsSeen = vi.fn(async () => ({ ok: true, seenAt: new Date().toISOString() }));
+
+vi.mock('../../lib/api', () => ({
+  api: {
+    getNotifications: () => getNotifications(),
+    markNotificationsSeen: () => markNotificationsSeen(),
+  },
+}));
+
+import { NotificationsBell } from '../NotificationsBell';
+
+beforeEach(() => { markNotificationsSeen.mockClear(); });
+
+describe('the notifications bell', () => {
+  test('shows the unread count before anything is opened', async () => {
+    render(<NotificationsBell />);
+    expect(await screen.findByText('2')).toBeTruthy();
+  });
+
+  test('lists what happened, and links a contract row to that contract', async () => {
+    render(<NotificationsBell />);
+    fireEvent.click(await screen.findByRole('button', { name: /what's new/i }));
+    expect(await screen.findByText('$2000: Create a Telarchy tournament')).toBeTruthy();
+    expect(screen.getByText(/trader-9 commented on your contract/)).toBeTruthy();
+    const link = screen.getAllByRole('link')[0] as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('/telarchy#contract=prop-1');
+  });
+
+  test('a decision on my own contract reads as mine, with the reason', async () => {
+    render(<NotificationsBell />);
+    fireEvent.click(await screen.findByRole('button', { name: /what's new/i }));
+    expect(await screen.findByText(/Your contract was decided/)).toBeTruthy();
+    expect(screen.getByText('out of scope this quarter')).toBeTruthy();
+  });
+
+  test('marking read clears the count and keeps the rows', async () => {
+    render(<NotificationsBell />);
+    fireEvent.click(await screen.findByRole('button', { name: /what's new/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /mark all read/i }));
+    await waitFor(() => expect(markNotificationsSeen).toHaveBeenCalled());
+    expect(screen.queryByText('2')).toBeNull();
+    expect(screen.getByText('$2000: Create a Telarchy tournament')).toBeTruthy();
+  });
+
+  test('an empty inbox says what will land there', async () => {
+    getNotifications.mockImplementationOnce(async () => ({ unread: 0, seenAt: null, notifications: [] }));
+    render(<NotificationsBell />);
+    fireEvent.click(await screen.findByRole('button', { name: /what's new/i }));
+    expect(await screen.findByText(/Comments on your contracts/)).toBeTruthy();
+  });
+});

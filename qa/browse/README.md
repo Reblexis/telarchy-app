@@ -234,6 +234,7 @@ explains itself.
 
 | File | Surface |
 | --- | --- |
+| `notifications-inbox.md` | The floor's bell: what happened while you were away, and its deep links |
 | `first-five-minutes.md` | Stranger to "first useful moment" |
 | `cold-walk-stranger.md` | Zero-prior-knowledge first impression |
 | `persona-hn-skeptic.md` | HN skeptic, 3-min budget |
