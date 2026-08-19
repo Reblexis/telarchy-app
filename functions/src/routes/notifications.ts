@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { wrap } from '../lib/wrap';
 import { requireIdentity, requireScope } from '../middleware/roles';
-import { listNotifications, markNotificationsSeen } from '../services/notifications';
+import { listNotifications, markNotificationRead, markNotificationsSeen } from '../services/notifications';
 import { db } from '../db/client';
 import { agents } from '../db/schema';
 import { eq } from 'drizzle-orm';
@@ -48,10 +48,24 @@ notificationsRouter.get('/', requireIdentity, requireScope('account:read'), wrap
     notifications: items.map(i => ({
       id: i.id, kind: i.kind, at: i.at, actor: i.actor, subject: i.subject,
       detail: i.detail, workspaceSlug: i.workspaceSlug,
-      proposalId: i.proposalId, marketId: i.marketId,
-      unread: seenAt === null ? true : i.at.getTime() > seenAt.getTime(),
+      proposalId: i.proposalId, marketId: i.marketId, unread: i.unread,
     })),
   });
+}));
+
+/**
+ * Read ONE item, which is what clicking a row does: the count goes down by
+ * one rather than all at once. Idempotent, and it never 404s on an id the
+ * inbox no longer derives, because "I read a thing that has since aged out"
+ * is not an error worth showing a person.
+ */
+notificationsRouter.post('/:itemId/read', requireIdentity, requireScope('account:write'), wrap(async (req, res) => {
+  const participantId = await callerParticipantId(req);
+  if (!participantId) { res.status(403).json({ error: 'Identity required' }); return; }
+  const itemId = String(req.params.itemId ?? '');
+  if (!itemId || itemId.length > 200) { res.status(400).json({ error: 'itemId is required' }); return; }
+  await markNotificationRead(participantId, itemId);
+  res.json({ ok: true });
 }));
 
 /** Read everything: moves the watermark to now. Idempotent. */

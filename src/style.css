@@ -1506,15 +1506,37 @@ code, pre, kbd, samp {
 }
 .notif-trigger:hover,
 .notif-trigger:focus-visible { color: var(--accent); outline: none; }
-.notif-trigger.has-unread { color: var(--text-primary); }
 .notif-icon { display: block; flex: none; }
+
+/* With news the whole control lights, not just a dot beside it (owner ask
+   2026-08-19: it was too quiet to notice): the bell takes the accent and
+   sits in a soft amber field, so the difference reads from across the bar. */
+.notif-trigger.has-unread {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 0.25rem 0.45rem 0.25rem 0.4rem;
+  box-shadow: inset 0 0 0 1px var(--accent-ring);
+}
 
 .notif-count {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.72rem;
   font-weight: 700;
   line-height: 1;
-  color: var(--accent);
+  color: var(--accent-text);
+}
+
+/* One pulse when something ARRIVES, never on a poll that changed nothing:
+   a page that twitches at rest teaches people to ignore it. */
+.notif-trigger.just-arrived { animation: notif-pulse 1.4s ease-out 1; }
+@keyframes notif-pulse {
+  0%   { box-shadow: inset 0 0 0 1px var(--accent-ring), 0 0 0 0 var(--accent-ring); }
+  35%  { box-shadow: inset 0 0 0 1px var(--accent-ring), 0 0 0 7px transparent; }
+  100% { box-shadow: inset 0 0 0 1px var(--accent-ring), 0 0 0 0 transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .notif-trigger.just-arrived { animation: none; }
 }
 
 .notif-panel {
@@ -1580,7 +1602,18 @@ code, pre, kbd, samp {
   text-decoration: none;
 }
 .notif-row.is-unread .notif-row-link { border-left-color: var(--accent); }
-a.notif-row-link:hover { background: var(--bg-tertiary); }
+a.notif-row-link:hover,
+button.notif-row-link:hover { background: var(--bg-tertiary); }
+button.notif-row-link {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  background: none;
+  cursor: pointer;
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+}
 
 .notif-row-top {
   display: flex;

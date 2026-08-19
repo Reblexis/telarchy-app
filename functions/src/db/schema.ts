@@ -605,6 +605,24 @@ export const proposals = pgTable('proposals', {
  *  (owner ask 2026-08-11): launch traffic beside signups on /admin.
  *  Request-log data per the privacy policy; purged past 30 days when
  *  the stats endpoint reads. */
+/**
+ * One row per notification a participant has read individually (the bell's
+ * "one less per click"). The inbox is derived from several tables, so its
+ * items have no single order a cursor could walk; `agents.notificationsSeenAt`
+ * still answers "read everything older than this", and this table answers
+ * "and also these".
+ *
+ * Deliberately disposable: marking everything read deletes the participant's
+ * rows, because the watermark then covers them and a table of read receipts
+ * nobody queries is just growth.
+ */
+export const notificationReads = pgTable('notification_reads', {
+  agentId: text('agent_id').notNull(),
+  /** The derived item id from GET /api/notifications, e.g. `pm-<uuid>`. */
+  itemId: text('item_id').notNull(),
+  readAt: timestamp('read_at').notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.agentId, t.itemId] })]);
+
 export const pageVisits = pgTable('page_visits', {
   id: text('id').primaryKey(),
   ts: timestamp('ts').notNull().defaultNow(),

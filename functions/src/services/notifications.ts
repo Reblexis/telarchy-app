@@ -21,7 +21,7 @@
 import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import { db } from '../db/client';
 import {
-  agents, authUser, markets, marketMessages, permissionGroups,
+  agents, authUser, markets, marketMessages, notificationReads, permissionGroups,
   proposals, proposalMessages, workspaces,
 } from '../db/schema';
 import { getParticipantDisplayNames } from '../lib/participants';
@@ -355,6 +355,8 @@ export interface NotificationItem {
   workspaceSlug: string | null;
   proposalId: string | null;
   marketId: string | null;
+  /** Newer than the watermark and not read on its own. Set by the query. */
+  unread: boolean;
 }
 
 /** One participant's inbox, newest first, with how many are unread. */
@@ -366,6 +368,12 @@ export async function listNotifications(participantId: string, limit = 30): Prom
   const [me] = await db.select({ seenAt: agents.notificationsSeenAt })
     .from(agents).where(eq(agents.id, participantId));
   const seenAt = me?.seenAt ?? null;
+
+  // Items read one at a time, on top of the watermark (owner ask: the count
+  // goes down by one per click, not only all at once).
+  const readRows = await db.select({ itemId: notificationReads.itemId })
+    .from(notificationReads).where(eq(notificationReads.agentId, participantId));
+  const readIds = new Set(readRows.map(r => r.itemId));
 
   // Where this participant is a member: the scope of "a new contract".
   const groups = await db.select({ workspaceId: permissionGroups.workspaceId, memberIds: permissionGroups.memberIds })
@@ -459,6 +467,7 @@ export async function listNotifications(participantId: string, limit = 30): Prom
       workspaceSlug: slugs.get(c.workspaceId) ?? null,
       proposalId: c.proposalId,
       marketId: null,
+      unread: true,
     });
   }
 
@@ -475,6 +484,7 @@ export async function listNotifications(participantId: string, limit = 30): Prom
       workspaceSlug: slugs.get(c.workspaceId) ?? null,
       proposalId: owned ?? null,
       marketId: c.marketId,
+      unread: true,
     });
   }
 
@@ -490,6 +500,7 @@ export async function listNotifications(participantId: string, limit = 30): Prom
       workspaceSlug: slugs.get(p.workspaceId) ?? null,
       proposalId: p.id,
       marketId: null,
+      unread: true,
     });
   }
 
@@ -507,22 +518,40 @@ export async function listNotifications(participantId: string, limit = 30): Prom
       workspaceSlug: slugs.get(p.workspaceId) ?? null,
       proposalId: p.id,
       marketId: null,
+      unread: true,
     });
   }
 
   items.sort((a, b) => b.at.getTime() - a.at.getTime());
-  const top = items.slice(0, limit);
+  for (const i of items) {
+    i.unread = !readIds.has(i.id) && (seenAt === null || i.at.getTime() > seenAt.getTime());
+  }
   // Unread counts the WHOLE list, not the page: a badge that stops at the
   // page size tells you less the more there is to tell.
-  const unread = seenAt === null ? items.length : items.filter(i => i.at.getTime() > seenAt.getTime()).length;
-  return { items: top, unread, seenAt };
+  const unread = items.filter(i => i.unread).length;
+  return { items: items.slice(0, limit), unread, seenAt };
 }
 
-/** Mark everything up to now as read. Returns the new watermark. */
+/**
+ * Mark everything up to now as read. Returns the new watermark, and drops the
+ * participant's per-item rows: the watermark now covers them, so keeping them
+ * would only grow a table nobody reads.
+ */
 export async function markNotificationsSeen(participantId: string): Promise<Date> {
   const now = new Date();
   await db.update(agents).set({ notificationsSeenAt: now }).where(eq(agents.id, participantId));
+  await db.delete(notificationReads).where(eq(notificationReads.agentId, participantId));
   return now;
+}
+
+/**
+ * Mark ONE item read, which is what clicking a row does. Idempotent: a second
+ * click on the same row is not a second decrement.
+ */
+export async function markNotificationRead(participantId: string, itemId: string): Promise<void> {
+  await db.insert(notificationReads)
+    .values({ agentId: participantId, itemId, readAt: new Date() })
+    .onConflictDoNothing();
 }
 
 /** Slug per workspace id, for the links a notification row points at. */

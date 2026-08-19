@@ -317,13 +317,19 @@ inside the scroller, because a cue that scrolls away with the content it
 describes is not a cue. Every dialog gets it, not only the account.
 
 **The bell** (owner ask 2026-08-19) sits in the top bar left of the
-avatar, signed in only. It is drawn in the same icon family as the bug
-and Discord marks (1.7 stroke, tertiary ink, accent on hover) and states
-its news the way this page states every other number: a mono amber count,
-no red dot. Its panel is a ruled list, one row per event, and unread rows
+avatar, signed in only. At rest it is drawn in the same icon family as
+the bug and Discord marks (1.7 stroke, tertiary ink, accent on hover).
+With news the WHOLE control lights (owner ask 2026-08-19: it was too
+quiet to notice): the bell takes the accent, sits in a soft amber field
+with a hairline ring, and carries a mono count, still no red dot. A fresh
+arrival pulses the ring once, and only on a rise, never on a poll that
+changed nothing, because a page that twitches at rest teaches people to
+ignore it. Its panel is a ruled list, one row per event, and unread rows
 carry an amber hairline down the left edge as the only unread marker (a
 badge per row turns twelve rows into a field of noise). Rows link to the
-contract itself (`/<slug>#contract=<id>`), not merely to the floor.
+contract itself (`/<slug>#contract=<id>`), not merely to the floor, and
+opening one reads THAT row: the count drops by one, its hairline goes,
+and the rest stay as they were. "Mark all read" stays for the sweep.
 
 **The dialog IS the account (owner decision 2026-08-19, when the console
 was deleted).** Everything the console's `/account` page uniquely held moved

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, type NotificationItem } from '../lib/api';
 
 /**
@@ -12,9 +13,15 @@ import { api, type NotificationItem } from '../lib/api';
  *
  * The count is set in the floor's own instrument type (mono, amber), the
  * same face every price on the page uses, because a number a trader can
- * read at a glance is this page's whole idiom. Unread rows carry an amber
- * hairline down their left edge and lose it once read: no dots, no badges
- * inside the list, one signal doing one job.
+ * read at a glance is this page's whole idiom. With news the whole trigger
+ * lights: the icon takes the accent, the count becomes a filled amber chip,
+ * and a fresh arrival pulses once (owner ask 2026-08-19: it was too quiet to
+ * notice). Unread rows carry an amber hairline down their left edge and lose
+ * it the moment they are opened: no dots, no badges inside the list, one
+ * signal doing one job.
+ *
+ * Opening a row reads THAT row (owner ask, same day: "one less per click").
+ * The whole-list "Mark all read" stays for the sweep.
  */
 
 const KIND_VERB: Record<NotificationItem['kind'], string> = {
@@ -44,11 +51,24 @@ export function NotificationsBell() {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<NotificationItem[] | null>(null);
   const [unread, setUnread] = useState(0);
+  const [arrived, setArrived] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const navigate = useNavigate();
+  const lastUnread = useRef(0);
 
   const load = useCallback(() => {
     api.getNotifications()
-      .then(p => { setItems(p.notifications); setUnread(p.unread); })
+      .then(p => {
+        setItems(p.notifications);
+        setUnread(p.unread);
+        // Pulse only on a RISE. Pulsing on every poll would be a page that
+        // twitches at rest, which is how people learn to ignore a signal.
+        if (p.unread > lastUnread.current) {
+          setArrived(true);
+          setTimeout(() => setArrived(false), 1400);
+        }
+        lastUnread.current = p.unread;
+      })
       .catch(e => console.error('notifications fetch failed:', e));
   }, []);
 
@@ -80,19 +100,37 @@ export function NotificationsBell() {
     if (next) load();
   };
 
-  const markRead = async () => {
+  const markAllRead = async () => {
     // Optimistic: the count is the only thing that changes, and the rows
     // stay exactly where they are so nothing moves under the cursor.
     setUnread(0);
+    lastUnread.current = 0;
     setItems(list => list?.map(n => ({ ...n, unread: false })) ?? list);
     await api.markNotificationsSeen().catch(e => console.error('mark seen failed:', e));
+  };
+
+  /**
+   * Opening a row: take one off the count, drop that row's mark, then go.
+   * Navigation is router-side rather than a document load, so the read
+   * request is not cancelled by the page it just opened.
+   */
+  const openRow = (n: NotificationItem, href: string | null) => (e: React.MouseEvent) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+    e.preventDefault();
+    if (n.unread) {
+      setUnread(u => Math.max(0, u - 1));
+      lastUnread.current = Math.max(0, lastUnread.current - 1);
+      setItems(list => list?.map(x => (x.id === n.id ? { ...x, unread: false } : x)) ?? list);
+      void api.markNotificationRead(n.id).catch(err => console.error('mark read failed:', err));
+    }
+    if (href) { setOpen(false); navigate(href); }
   };
 
   return (
     <div className="notif" ref={rootRef}>
       <button
         type="button"
-        className={`notif-trigger${unread > 0 ? ' has-unread' : ''}`}
+        className={`notif-trigger${unread > 0 ? ' has-unread' : ''}${arrived ? ' just-arrived' : ''}`}
         aria-label={unread > 0 ? `What's new, ${unread} unread` : "What's new"}
         aria-expanded={open}
         onClick={toggle}
@@ -109,7 +147,7 @@ export function NotificationsBell() {
           <div className="notif-panel-head">
             <span className="notif-panel-title">What&rsquo;s new</span>
             {unread > 0 && (
-              <button type="button" className="notif-mark" onClick={() => void markRead()}>
+              <button type="button" className="notif-mark" onClick={() => void markAllRead()}>
                 Mark all read
               </button>
             )}
@@ -141,8 +179,8 @@ export function NotificationsBell() {
                 return (
                   <li key={n.id} className={`notif-row${n.unread ? ' is-unread' : ''}`}>
                     {href
-                      ? <a className="notif-row-link" href={href}>{body}</a>
-                      : <span className="notif-row-link">{body}</span>}
+                      ? <a className="notif-row-link" href={href} onClick={openRow(n, href)}>{body}</a>
+                      : <button type="button" className="notif-row-link" onClick={openRow(n, null)}>{body}</button>}
                   </li>
                 );
               })}

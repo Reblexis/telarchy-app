@@ -1,5 +1,6 @@
 import { describe, expect, test, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 
 /**
  * The floor's bell. What matters: the unread count is visible without
@@ -25,26 +26,31 @@ const getNotifications = vi.fn(async () => ({
   ],
 }));
 const markNotificationsSeen = vi.fn(async () => ({ ok: true, seenAt: new Date().toISOString() }));
+const markNotificationRead = vi.fn(async () => ({ ok: true }));
 
 vi.mock('../../lib/api', () => ({
   api: {
     getNotifications: () => getNotifications(),
     markNotificationsSeen: () => markNotificationsSeen(),
+    markNotificationRead: (id: string) => markNotificationRead(id),
   },
 }));
 
 import { NotificationsBell } from '../NotificationsBell';
 
-beforeEach(() => { markNotificationsSeen.mockClear(); });
+/** The bell navigates through the router, so it is mounted in one. */
+const bell = () => render(<MemoryRouter><NotificationsBell /></MemoryRouter>);
+
+beforeEach(() => { markNotificationsSeen.mockClear(); markNotificationRead.mockClear(); });
 
 describe('the notifications bell', () => {
   test('shows the unread count before anything is opened', async () => {
-    render(<NotificationsBell />);
+    bell();
     expect(await screen.findByText('2')).toBeTruthy();
   });
 
   test('lists what happened, and links a contract row to that contract', async () => {
-    render(<NotificationsBell />);
+    bell();
     fireEvent.click(await screen.findByRole('button', { name: /what's new/i }));
     expect(await screen.findByText('$2000: Create a Telarchy tournament')).toBeTruthy();
     expect(screen.getByText(/trader-9 commented on your contract/)).toBeTruthy();
@@ -53,14 +59,14 @@ describe('the notifications bell', () => {
   });
 
   test('a decision on my own contract reads as mine, with the reason', async () => {
-    render(<NotificationsBell />);
+    bell();
     fireEvent.click(await screen.findByRole('button', { name: /what's new/i }));
     expect(await screen.findByText(/Your contract was decided/)).toBeTruthy();
     expect(screen.getByText('out of scope this quarter')).toBeTruthy();
   });
 
   test('marking read clears the count and keeps the rows', async () => {
-    render(<NotificationsBell />);
+    bell();
     fireEvent.click(await screen.findByRole('button', { name: /what's new/i }));
     fireEvent.click(await screen.findByRole('button', { name: /mark all read/i }));
     await waitFor(() => expect(markNotificationsSeen).toHaveBeenCalled());
@@ -70,8 +76,23 @@ describe('the notifications bell', () => {
 
   test('an empty inbox says what will land there', async () => {
     getNotifications.mockImplementationOnce(async () => ({ unread: 0, seenAt: null, notifications: [] }));
-    render(<NotificationsBell />);
+    bell();
     fireEvent.click(await screen.findByRole('button', { name: /what's new/i }));
     expect(await screen.findByText(/Comments on your contracts/)).toBeTruthy();
+  });
+});
+
+/**
+ * Owner ask 2026-08-19: "one less per click on the new stuff". Opening a row
+ * reads that row only, and reading it twice is not two decrements.
+ */
+describe('reading one row', () => {
+  test('takes one off the count and clears that row', async () => {
+    bell();
+    fireEvent.click(await screen.findByRole('button', { name: /what's new/i }));
+    fireEvent.click(await screen.findByText('$2000: Create a Telarchy tournament'));
+    await waitFor(() => expect(markNotificationRead).toHaveBeenCalledWith('pm-1'));
+    // Two unread became one, not zero: the other row is untouched.
+    expect(await screen.findByText('1')).toBeTruthy();
   });
 });

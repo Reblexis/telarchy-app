@@ -1125,6 +1125,9 @@ export const api = {
     request(`/api/notifications?limit=${limit}`),
   markNotificationsSeen: (): Promise<{ ok: boolean; seenAt: string }> =>
     request('/api/notifications/seen', { method: 'POST' }),
+  /** Read one row: the count drops by one, not all at once. */
+  markNotificationRead: (itemId: string): Promise<{ ok: boolean }> =>
+    request(`/api/notifications/${encodeURIComponent(itemId)}/read`, { method: 'POST' }),
 
   // User auth / profile
   getProfile: () => request('/api/auth/me'),

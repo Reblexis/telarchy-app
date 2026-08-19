@@ -14,7 +14,7 @@ import {
   agents, authUser, markets, marketMessages, permissionGroups, proposals, proposalMessages, workspaces,
 } from '../db/schema';
 import { initialPool } from '../lib/amm';
-import { listNotifications, markNotificationsSeen } from '../services/notifications';
+import { listNotifications, markNotificationRead, markNotificationsSeen } from '../services/notifications';
 
 beforeAll(async () => { await ensureMigrations(); });
 beforeEach(async () => { await truncateAll(); });
@@ -132,6 +132,28 @@ describe('the inbox', () => {
     const after = await listNotifications('me');
     expect(after.unread).toBe(0);
     expect(after.items).toHaveLength(1);
+  });
+
+  test('reading ONE item takes exactly one off the count', async () => {
+    await participant('me');
+    await participant('other');
+    await seedFloor(['me', 'other']);
+    await contract('c-mine', 'me', 'My contract');
+    await comment('m1', 'c-mine', 'other', 'first', new Date('2026-08-19T10:00:00Z'));
+    await comment('m2', 'c-mine', 'other', 'second', new Date('2026-08-19T10:01:00Z'));
+
+    const before = await listNotifications('me');
+    expect(before.unread).toBe(2);
+
+    await markNotificationRead('me', before.items[0].id);
+    const after = await listNotifications('me');
+    expect(after.unread).toBe(1);
+    expect(after.items.find(i => i.id === before.items[0].id)?.unread).toBe(false);
+    expect(after.items.find(i => i.id === before.items[1].id)?.unread).toBe(true);
+
+    // Clicking the same row twice is not a second decrement.
+    await markNotificationRead('me', before.items[0].id);
+    expect((await listNotifications('me')).unread).toBe(1);
   });
 
   test('a fresh account opens on an empty inbox, not on a backlog', async () => {
