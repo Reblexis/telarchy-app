@@ -167,11 +167,6 @@ export function SeasonPage() {
               );
             })}
           </ol>
-          <p className="seasonp-note">
-            A prize needs a score above zero; rungs nobody qualifies for roll into
-            the next season. Telarchy holds no money, the owner pays winners
-            directly.
-          </p>
         </section>
 
         <section className="seasonp-block" aria-label="How it is scored">
@@ -179,23 +174,18 @@ export function SeasonPage() {
           <p className="seasonp-formula">
             season score = trading profit now - trading profit at season start
           </p>
+          {/* The formula and the rules link are the whole section (owner
+              direction 2026-08-19: the explanatory paragraphs are gone; the
+              rules doc carries the detail). */}
           <p className="seasonp-note">
-            Growth during the season, not all-time profit. Everyone&rsquo;s starting
-            point is read at the same instant, when the season begins, so entering
-            early or late changes nothing; a brand-new account starts at zero. Open
-            positions count at current market prices, so the board moves with every
-            trade. Full rules: <Link to={season.rulesUrl}>{season.name} rules</Link>.
+            <Link to={season.rulesUrl}>{season.name} rules</Link>
           </p>
         </section>
 
         <section className="seasonp-block" aria-label="Standings">
           <h2 className="lbp-season-name">{settled ? 'Final standings' : 'Standings'}</h2>
           {rows === null ? null : rows.length === 0 ? (
-            <p className="lbp-empty">
-              {clock.phase === 'before'
-                ? 'Nobody has entered yet. Entry is open now, and the board starts moving when the season does.'
-                : 'Nobody has entered yet.'}
-            </p>
+            <p className="lbp-empty">Nobody has entered yet.</p>
           ) : (
             <>
             {/* The right column needed a name: "$500" beside a score read as
@@ -264,11 +254,6 @@ export function SeasonPage() {
             </ol>
             </>
           )}
-          <p className="seasonp-note">
-            Season score, not lifetime profit. The{' '}
-            <Link to="/leaderboard">all-time board</Link> ranks everyone on everything
-            they have ever made.
-          </p>
         </section>
       </main>
     </div>
