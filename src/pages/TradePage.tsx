@@ -12,6 +12,7 @@ import { SubjectAbout } from '../components/SubjectAbout';
 import { FloorAnnouncements } from '../components/FloorAnnouncements';
 import { FloorComments } from '../components/FloorComments';
 import { LeaderboardRail } from '../components/FloorRails';
+import { useMyParticipantId } from '../hooks/useMyParticipantId';
 import { AccountMenu } from '../components/AccountMenu';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { DiscordButton } from '../components/DiscordButton';
@@ -75,6 +76,9 @@ export function TradePage() {
   const params = useParams();
   const idOrSlug = params.slug ?? params.workspaceId;
   const { user, loading: authLoading } = useAuth();
+  // Which row on the board is this visitor's. Rows are keyed by participant
+  // id and the session carries an auth user id, which is a different thing.
+  const myParticipantId = useMyParticipantId(!!user);
   const navigate = useNavigate();
   const location = useLocation();
   const [ws, setWs] = useState<PublicWorkspace | null>(null);
@@ -608,7 +612,7 @@ export function TradePage() {
     <div className="pubws pubws--center">
       <TopBar user={!!user} ready={!authLoading} />
       <main className="pubws-main pubws-main--floor">
-        <LeaderboardRail entries={leaders} contractors={ws?.topContractors} unit={unit} />
+        <LeaderboardRail entries={leaders} contractors={ws?.topContractors} unit={unit} signedIn={!!user} meId={myParticipantId} />
         <div className="pubws-center">
         {/* The company IS the page (owner direction 2026-08-18): a cold
             visitor arrives from a link about this business, not about

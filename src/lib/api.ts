@@ -220,6 +220,8 @@ export interface SeasonStanding {
   score: number;
   /** Settled seasons only. */
   prizeUsd?: number;
+  /** Running seasons: what this standing would pay if it settled now. */
+  projectedPrizeUsd?: number;
   claimState?: 'unclaimed' | 'claimed' | 'expired' | 'paid' | null;
 }
 
@@ -245,6 +247,12 @@ export interface MySeasonEntry {
 }
 
 export interface LeaderboardEntry {
+  /** In the current prize season. */
+  seasonEntered?: boolean;
+  /** What they would win if the season settled now; null before it starts,
+   *  because no baselines exist yet and a 0 would read as "wins nothing"
+   *  rather than "not decided yet". */
+  seasonPrizeUsd?: number | null;
   rank: number | null;
   id: string;
   nickname: string | null;

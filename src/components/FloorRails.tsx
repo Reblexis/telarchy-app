@@ -46,17 +46,29 @@ function contractorSubline(c: PublicContractor): string {
   return parts.join(' · ');
 }
 
-export function LeaderboardRail({ entries: all, contractors, unit = '' }: {
+export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn = false, meId = null }: {
   entries: LeaderboardEntry[];
   contractors?: PublicContractor[];
   /** The hero metric's currency prefix ('$' or ''), so a contractor's priced
    *  impact reads in the same unit as the market above it. */
   unit?: string;
+  /** Whether the visitor has an identity, so the season strip can say whether
+   *  they are already in rather than asking them to enter again. */
+  signedIn?: boolean;
+  /** This visitor's participant id, so their own row can be marked and, when
+   *  they are outside the ten shown, pinned underneath. */
+  meId?: string | null;
 }) {
   // A row for someone who has never traded is a name and a zero: noise.
   // Ten, not five (owner direction 2026-08-17): five made the board look
   // like a podium rather than a field worth joining.
-  const entries = all.filter(e => e.totalTrades > 0).slice(0, 10);
+  const traded = all.filter(e => e.totalTrades > 0);
+  const entries = traded.slice(0, 10);
+  // Pinned underneath when the visitor is outside the ten. A board that shows
+  // the top ten and nothing else answers "who is winning" but not "where am
+  // I", which is the question the person reading it actually has.
+  const mine = meId ? traded.find(e => e.id === meId) ?? null : null;
+  const minePinned = mine && !entries.some(e => e.id === meId) ? mine : null;
   const hasTraders = entries.length > 0;
   // The contractors block shows whenever the workspace exposes it (Open
   // floor), even with nobody paid yet, so the two-sided economy is visible.
@@ -72,7 +84,7 @@ export function LeaderboardRail({ entries: all, contractors, unit = '' }: {
               const name = e.nickname || 'anonymous';
               const initial = name.replace(/^@/, '')[0]?.toUpperCase() ?? '?';
               return (
-                <li key={e.id} className="pubws-lb-row">
+                <li key={e.id} className={`pubws-lb-row${e.id === meId ? ' is-me' : ''}`}>
                   <span className="pubws-lb-rank">{e.rank ?? i + 1}</span>
                   {/* Avatar + name link to the public profile (owner ask
                       2026-08-11: show the face; a Manifold logo marks imported
@@ -105,6 +117,27 @@ export function LeaderboardRail({ entries: all, contractors, unit = '' }: {
                 </li>
               );
             })}
+            {minePinned && (
+              <li className="pubws-lb-row is-me is-pinned">
+                <span className="pubws-lb-rank">{minePinned.rank ?? '—'}</span>
+                <a className="pubws-lb-who pubws-name-link" href={`/participants/${encodeURIComponent(minePinned.nickname ?? minePinned.id)}`}>
+                  <span className="pubws-lb-avatar">
+                    {minePinned.image
+                      ? <img src={minePinned.image} alt="" />
+                      : <span>{(minePinned.nickname || 'anonymous').replace(/^@/, '')[0]?.toUpperCase() ?? '?'}</span>}
+                  </span>
+                  <span className="pubws-lb-name">{minePinned.nickname || 'you'}</span>
+                </a>
+                {(() => {
+                  const cr = Math.round(minePinned.totalEarnings);
+                  return (
+                    <span className={`pubws-lb-score${cr > 0 ? ' is-up' : cr < 0 ? ' is-down' : ''}`}>
+                      {cr > 0 ? '+' : ''}{cr === 0 ? 0 : cr.toLocaleString('en-US')} cr
+                    </span>
+                  );
+                })()}
+              </li>
+            )}
           </ol>
         </section>
       )}
@@ -155,7 +188,7 @@ export function LeaderboardRail({ entries: all, contractors, unit = '' }: {
           )}
         </section>
       )}
-      <SeasonStrip />
+      <SeasonStrip signedIn={signedIn} />
       {/* The way out of a top-ten list: the whole field, on its own page
           (owner direction 2026-08-17). */}
       <a className="pubws-lb-more" href="/leaderboard">Show full leaderboard</a>
@@ -176,13 +209,23 @@ export function LeaderboardRail({ entries: all, contractors, unit = '' }: {
  * Renders nothing when there is no season, so the page is unchanged the rest
  * of the time.
  */
-function SeasonStrip() {
+function SeasonStrip({ signedIn }: { signedIn: boolean }) {
   const [season, setSeason] = useState<PrizeSeason | null>(null);
+  // Whether THIS visitor is already in. Without it the strip kept saying
+  // "Enter the season" to someone who had entered a minute earlier, which
+  // reads as the entry not having worked (owner report 2026-08-19).
+  const [entered, setEntered] = useState(false);
   useEffect(() => {
     api.getSeasons()
       .then(r => setSeason(pickCurrentSeason(r.seasons)))
       .catch(e => console.error('seasons fetch failed:', e));
   }, []);
+  useEffect(() => {
+    if (!signedIn) { setEntered(false); return; }
+    api.getMySeason()
+      .then(e => setEntered(e.optedIn === true))
+      .catch(e => console.error('season entry fetch failed:', e));
+  }, [signedIn]);
   const clock = useSeasonClock(season);
   if (!season || !clock) return null;
 
@@ -191,10 +234,12 @@ function SeasonStrip() {
       <h2 className="pubws-h2">{season.name}</h2>
       <p className="pubws-season-clock">{clock.headline}</p>
       <p className="pubws-lb-empty">
-        ${season.poolUsd.toLocaleString()} in prizes, free to enter.
+        {entered
+          ? `You are in. $${season.poolUsd.toLocaleString()} in prizes.`
+          : `$${season.poolUsd.toLocaleString()} in prizes, free to enter.`}
       </p>
       <a className="pubws-lb-more" href="/season">
-        {clock.entryOpen ? 'Enter the season' : 'See the season'}
+        {entered ? 'See the season' : clock.entryOpen ? 'Enter the season' : 'See the season'}
       </a>
     </section>
   );

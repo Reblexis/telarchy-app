@@ -6,6 +6,7 @@ import { pickCurrentSeason } from '../lib/season-clock';
 import { SeasonEntryButton } from '../components/SeasonEntryButton';
 import { ReportButton } from '../components/ReportButton';
 import { useAuth } from '../hooks/useAuth';
+import { useMyParticipantId } from '../hooks/useMyParticipantId';
 import { TopBar } from './TradePage';
 
 /**
@@ -40,6 +41,7 @@ export function SeasonPage() {
   const [rows, setRows] = useState<SeasonStanding[] | null>(null);
   const [missing, setMissing] = useState(false);
   const clock = useSeasonClock(season);
+  const meId = useMyParticipantId(!!user);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,6 +98,9 @@ export function SeasonPage() {
   }
 
   const settled = clock.phase === 'settled';
+  // The standings response caps at 100; if this entrant is outside it there is
+  // nothing to pin, and saying nothing beats inventing a rank.
+  const myStanding = meId ? rows?.find(r => r.id === meId) ?? null : null;
 
   return (
     <div className="pubws">
@@ -177,27 +182,59 @@ export function SeasonPage() {
               {rows.map(r => {
                 const name = r.nickname || 'anonymous';
                 return (
-                  <li key={r.id} className="lbp-row">
+                  <li key={r.id} className={`lbp-row${r.id === meId ? ' is-me' : ''}`}>
                     <span className="lbp-rank">{r.rank}</span>
                     <a className="lbp-who" href={`/participants/${encodeURIComponent(r.nickname ?? r.id)}`}>
                       <span className="lbp-avatar">
                         {r.image ? <img src={r.image} alt="" /> : <span>{initialOf(name)}</span>}
                       </span>
                       <span className="lbp-stack">
-                        <span className="lbp-name">{name}</span>
+                        <span className="lbp-name">
+                          {name}
+                          {r.id === meId && <span className="lbp-you">you</span>}
+                        </span>
                       </span>
                     </a>
                     <span className={`lbp-score${r.score > 0 ? ' is-up' : r.score < 0 ? ' is-down' : ''}`}>
                       {formatScore(r.score)}
                     </span>
-                    {settled && (
-                      <span className="seasonp-won">
-                        {r.prizeUsd && r.prizeUsd > 0 ? `$${r.prizeUsd.toLocaleString()}` : '—'}
-                      </span>
-                    )}
+                    {/* Settled shows what was actually assigned. Running shows
+                        what this standing would pay if it settled now, from the
+                        same function settlement uses, so the two can never
+                        promise different amounts. */}
+                    <span className="seasonp-won" title={settled ? 'Prize' : 'What this standing would pay if the season settled now'}>
+                      {settled
+                        ? (r.prizeUsd && r.prizeUsd > 0 ? `$${r.prizeUsd.toLocaleString()}` : '—')
+                        : (r.projectedPrizeUsd && r.projectedPrizeUsd > 0 ? `$${r.projectedPrizeUsd.toLocaleString()}` : '—')}
+                    </span>
                   </li>
                 );
               })}
+              {/* Pinned when the entrant is not in the list above: "where am
+                  I" is the question an entrant reads standings to answer. */}
+              {meId && !rows.some(r => r.id === meId) && myStanding && (
+                <li className="lbp-row is-me is-pinned">
+                  <span className="lbp-rank">{myStanding.rank}</span>
+                  <a className="lbp-who" href={`/participants/${encodeURIComponent(myStanding.nickname ?? myStanding.id)}`}>
+                    <span className="lbp-avatar">
+                      <span>{initialOf(myStanding.nickname || 'you')}</span>
+                    </span>
+                    <span className="lbp-stack">
+                      <span className="lbp-name">
+                        {myStanding.nickname || 'you'}
+                        <span className="lbp-you">you</span>
+                      </span>
+                    </span>
+                  </a>
+                  <span className={`lbp-score${myStanding.score > 0 ? ' is-up' : myStanding.score < 0 ? ' is-down' : ''}`}>
+                    {formatScore(myStanding.score)}
+                  </span>
+                  <span className="seasonp-won">
+                    {myStanding.projectedPrizeUsd && myStanding.projectedPrizeUsd > 0
+                      ? `$${myStanding.projectedPrizeUsd.toLocaleString()}` : '—'}
+                  </span>
+                </li>
+              )}
             </ol>
           )}
           <p className="seasonp-note">

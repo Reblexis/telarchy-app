@@ -5701,3 +5701,52 @@ textarea.jobform-line--desc {
   opacity: 1;
   margin-left: 0.4rem;
 }
+
+
+/* "Where am I on this board" (owner ask 2026-08-19). A board that shows the
+   leaders and nothing else answers who is winning but not where the reader
+   stands, which is the question they opened it with. */
+.lbp-row.is-me,
+.pubws-lb-row.is-me {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  border-radius: 8px;
+}
+/* The pinned copy sits below the list, separated, so it reads as "and you"
+   rather than as the next rank down. */
+.lbp-row.is-pinned,
+.pubws-lb-row.is-pinned {
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--border-color);
+  border-radius: 0 0 8px 8px;
+}
+.lbp-you {
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--button-text, #fff);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+/* What the season would pay this person at the current standing, beside their
+   row on the all-time board. Only entrants carry it. */
+.lbp-prize {
+  margin-left: 0.6rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--higher);
+  white-space: nowrap;
+}
+.lbp-prize--in {
+  color: var(--text-tertiary);
+  font-weight: 500;
+  text-transform: uppercase;
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+}

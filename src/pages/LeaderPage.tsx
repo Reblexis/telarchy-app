@@ -4,6 +4,7 @@ import { api, type LeaderboardEntry, type PrizeSeason, type PublicContractor } f
 import { useSeasonClock } from '../lib/useSeasonClock';
 import { pickCurrentSeason } from '../lib/season-clock';
 import { useAuth } from '../hooks/useAuth';
+import { useMyParticipantId } from '../hooks/useMyParticipantId';
 import { TopBar } from './TradePage';
 import { ManifoldLogo } from '../components/ManifoldLogo';
 
@@ -45,6 +46,7 @@ export function LeaderPage() {
   // here or the trail goes cold one click in.
   const [season, setSeason] = useState<PrizeSeason | null>(null);
   const clock = useSeasonClock(season);
+  const meId = useMyParticipantId(!!user);
 
   useEffect(() => {
     let cancelled = false;
@@ -84,6 +86,64 @@ export function LeaderPage() {
     return () => { cancelled = true; };
   }, []);
 
+  const pinned = meId && traders && !traders.some(e => e.id === meId)
+    ? traders.find(e => e.id === meId) ?? null
+    : null;
+
+  /**
+   * One row, used by the list and by the pinned "you" row underneath it, so
+   * the two cannot drift into showing different things about the same person.
+   */
+  function row(e: LeaderboardEntry, rank: number, isPinned = false) {
+    const name = e.nickname || 'anonymous';
+    const acc = accuracyLabel(e);
+    const mine = e.id === meId;
+    return (
+      <li key={`${isPinned ? 'pin-' : ''}${e.id}`} className={`lbp-row${mine ? ' is-me' : ''}${isPinned ? ' is-pinned' : ''}`}>
+        <span className="lbp-rank">{rank || '—'}</span>
+        <a className="lbp-who" href={`/participants/${encodeURIComponent(e.nickname ?? e.id)}`}>
+          <span className="lbp-avatar">
+            {e.image ? <img src={e.image} alt="" /> : <span>{initialOf(name)}</span>}
+          </span>
+          <span className="lbp-stack">
+            <span className="lbp-name">
+              {name}
+              {mine && <span className="lbp-you">you</span>}
+              {e.manifoldUsername && (
+                <span className="lbp-manifold" title={`Imported from Manifold: @${e.manifoldUsername}`}>
+                  <ManifoldLogo size={12} strokeWidth={1.6} />
+                </span>
+              )}
+            </span>
+            <span className="lbp-sub">
+              {e.totalTrades.toLocaleString('en-US')} {e.totalTrades === 1 ? 'trade' : 'trades'}
+              {e.resolvedMarkets > 0 && ` · ${e.resolvedMarkets} settled`}
+              {acc && ` · ${acc}`}
+            </span>
+          </span>
+        </a>
+        {/* What the season would pay this person if it settled now. Only for
+            entrants, and only once the season is running: before it starts
+            there are no baselines, so there is nothing to project and a "$0"
+            would read as "wins nothing" rather than "not decided yet". */}
+        {e.seasonEntered && (
+          e.seasonPrizeUsd === null || e.seasonPrizeUsd === undefined ? (
+            <span className="lbp-prize lbp-prize--in" title="Entered the season">entered</span>
+          ) : e.seasonPrizeUsd > 0 ? (
+            <span className="lbp-prize" title="What this season would pay at the current standing">
+              ${e.seasonPrizeUsd.toLocaleString()}
+            </span>
+          ) : (
+            <span className="lbp-prize lbp-prize--in" title="Entered the season, currently outside the prizes">entered</span>
+          )
+        )}
+        <span className={`lbp-score${Math.round(e.totalEarnings) > 0 ? ' is-up' : Math.round(e.totalEarnings) < 0 ? ' is-down' : ''}`}>
+          {signed(e.totalEarnings)} cr
+        </span>
+      </li>
+    );
+  }
+
   return (
     <div className="pubws">
       <TopBar user={!!user} ready={!authLoading} />
@@ -111,38 +171,12 @@ export function LeaderPage() {
             <p className="lbp-empty">Nobody has traded yet.</p>
           ) : (
             <ol className="lbp-list">
-              {traders.map((e, i) => {
-                const name = e.nickname || 'anonymous';
-                const acc = accuracyLabel(e);
-                return (
-                  <li key={e.id} className="lbp-row">
-                    <span className="lbp-rank">{e.rank ?? i + 1}</span>
-                    <a className="lbp-who" href={`/participants/${encodeURIComponent(e.nickname ?? e.id)}`}>
-                      <span className="lbp-avatar">
-                        {e.image ? <img src={e.image} alt="" /> : <span>{initialOf(name)}</span>}
-                      </span>
-                      <span className="lbp-stack">
-                        <span className="lbp-name">
-                          {name}
-                          {e.manifoldUsername && (
-                            <span className="lbp-manifold" title={`Imported from Manifold: @${e.manifoldUsername}`}>
-                              <ManifoldLogo size={12} strokeWidth={1.6} />
-                            </span>
-                          )}
-                        </span>
-                        <span className="lbp-sub">
-                          {e.totalTrades.toLocaleString('en-US')} {e.totalTrades === 1 ? 'trade' : 'trades'}
-                          {e.resolvedMarkets > 0 && ` · ${e.resolvedMarkets} settled`}
-                          {acc && ` · ${acc}`}
-                        </span>
-                      </span>
-                    </a>
-                    <span className={`lbp-score${Math.round(e.totalEarnings) > 0 ? ' is-up' : Math.round(e.totalEarnings) < 0 ? ' is-down' : ''}`}>
-                      {signed(e.totalEarnings)} cr
-                    </span>
-                  </li>
-                );
-              })}
+              {traders.map((e, i) => row(e, e.rank ?? i + 1))}
+              {/* Pinned underneath when the visitor is not in the list above.
+                  A board that shows the leaders and nothing else answers "who
+                  is winning" but not "where am I", which is the question the
+                  person reading it actually has. */}
+              {pinned && row(pinned, pinned.rank ?? 0, true)}
             </ol>
           )}
         </section>

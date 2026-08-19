@@ -5,7 +5,7 @@ import { getParticipantDisplayNames } from '../lib/participants';
 import { agents, authUser, systemConfig, prizeSeasons, seasonEntries, workspaces } from '../db/schema';
 import { wrap } from '../lib/wrap';
 import { loadBoard, type Board } from '../lib/board';
-import { seasonScore, type LadderRung } from '../lib/seasons';
+import { seasonScore, settleSeason, type LadderRung } from '../lib/seasons';
 
 /**
  * Participant leaderboard. Public (no auth). Aggregates only over markets in
@@ -183,8 +183,80 @@ leaderboardRouter.get('/', wrap(async (req, res) => {
   });
   const capped = ranked.slice(0, limit).map((e, i) => ({ ...e, rank: i + 1 }));
 
-  res.json({ participants: capped });
+  // Who is in the prize season, and what they would win if it settled now.
+  // On the all-time board this is the answer to "is any of this worth money to
+  // me", which the board otherwise cannot say: its own order is lifetime
+  // profit, and the prize depends on SEASON score, a different number.
+  const seasonInfo = await currentSeasonPrizes();
+
+  res.json({
+    participants: capped.map(e => ({
+      ...e,
+      seasonEntered: seasonInfo.entered.has(e.id),
+      // Null rather than 0 before a season starts: no baselines exist, so
+      // there is no projection to make and a 0 would read as "wins nothing"
+      // rather than "not decided yet".
+      seasonPrizeUsd: seasonInfo.live ? (seasonInfo.prizeById.get(e.id) ?? 0) : null,
+    })),
+    season: seasonInfo.meta,
+  });
 }));
+
+/**
+ * The prize season as the all-time board needs it: who has entered, and what
+ * each of them would currently win.
+ *
+ * Reuses the standings maths rather than reimplementing it, and returns empty
+ * when there is no season, so the board is unchanged the rest of the time.
+ */
+async function currentSeasonPrizes(): Promise<{
+  entered: Set<string>;
+  prizeById: Map<string, number>;
+  live: boolean;
+  meta: { id: string; name: string; status: string; rulesUrl: string } | null;
+}> {
+  const empty = { entered: new Set<string>(), prizeById: new Map<string, number>(), live: false, meta: null };
+  const seasons = await db.select().from(prizeSeasons);
+  const season = seasons.find(x => x.status === 'running')
+    ?? seasons.filter(x => x.status === 'draft')
+      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())[0]
+    ?? null;
+  if (!season) return empty;
+
+  const entries = await db.select().from(seasonEntries)
+    .where(and(eq(seasonEntries.seasonId, season.id), eq(seasonEntries.optedIn, true)));
+  const entered = new Set(entries.map(e => e.agentId));
+  const meta = { id: season.id, name: season.name, status: season.status, rulesUrl: season.rulesUrl };
+
+  // A draft has no baselines, so every score would read as lifetime profit.
+  if (season.status !== 'running' || entries.length === 0) {
+    return { entered, prizeById: new Map(), live: false, meta };
+  }
+
+  const pinned = (season.workspaceIds ?? []) as string[];
+  const publicNow = await db.select({ id: workspaces.id })
+    .from(workspaces).where(eq(workspaces.visibility, 'public'));
+  const publicIds = new Set(publicNow.map(w => w.id));
+  const board = await cachedBoard(pinned.filter(id => publicIds.has(id)));
+
+  const projection = settleSeason(
+    entries.map(e => ({
+      agentId: e.agentId,
+      baselineProfit: e.baselineProfit,
+      currentProfit: board.profitById.get(e.agentId) ?? 0,
+      enteredAt: e.enteredAt ? new Date(e.enteredAt) : new Date(0),
+    })),
+    (season.ladder ?? []) as LadderRung[],
+    season.poolUsd,
+  );
+
+  return {
+    entered,
+    prizeById: new Map(projection.ranked.map(r => [r.agentId, r.prizeUsd])),
+    live: true,
+    meta,
+  };
+}
 
 /**
  * Standings for one prize season.
@@ -274,8 +346,31 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
     return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
   });
 
+  // What each entrant would win if the season settled right now, from the SAME
+  // function settlement uses. Projected rather than stored, and computed here
+  // rather than in the client, so the number a standing shows and the number
+  // a settlement pays can never drift apart: a second copy of "who gets which
+  // rung" is a promise the payout might not keep.
+  const projection = settleSeason(
+    rows.map(r => ({
+      agentId: r.id,
+      baselineProfit: 0,
+      // Scores are already computed above; settleSeason subtracts baseline
+      // from current, so feeding score against a zero baseline reproduces it.
+      currentProfit: r.score,
+      enteredAt: r.enteredAt ? new Date(r.enteredAt) : new Date(0),
+    })),
+    ladder,
+    season.poolUsd,
+  );
+  const projectedById = new Map(projection.ranked.map(r => [r.agentId, r.prizeUsd]));
+
   res.json({
     season: { ...meta, workspacesDropped: pinned.length - scoring.length },
-    participants: rows.slice(0, limit).map((r, i) => ({ ...r, rank: i + 1 })),
+    participants: rows.slice(0, limit).map((r, i) => ({
+      ...r,
+      rank: i + 1,
+      projectedPrizeUsd: projectedById.get(r.id) ?? 0,
+    })),
   });
 }
