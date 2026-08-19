@@ -94,7 +94,7 @@ grep -qiE 'disabled|settlement|usdc|coming soon' <<<"$body" \
   || echo "WARN: 503 body does not mention USDC kill-switch"
 ```
 
-### T7. Frontend hides deposit UI on /account
+### T7. Frontend hides deposit UI in the account dialog
 
 ```bash
 tt_browse_init
@@ -108,7 +108,7 @@ $B fill 'input[type="email"]' "$EMAIL"
 $B fill 'input[type="password"]' "testtest123"
 $B click 'button[type="submit"]'
 $B wait --networkidle
-$B goto "$TT_FRONTEND_URL/account" && $B wait --networkidle
+$B goto "$TT_FRONTEND_URL/lookpilot#account" && $B wait --networkidle
 text=$($B text)
 grep -qiE 'deposit|withdraw|usdc' <<<"$text" \
   && grep -qiE 'disabled|coming|paused' <<<"$text" \

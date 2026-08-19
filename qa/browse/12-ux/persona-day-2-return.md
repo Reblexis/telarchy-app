@@ -20,6 +20,15 @@ grade-prompt: |
   Verdict: STAY / NUDGE_NEEDED / BOUNCE. Top 2 frictions.
 ---
 
+> **Stale since 2026-08-19.** The old console GUI was deleted at the owner's
+> direction, so any step below that opens `/overview`, `/metrics`, `/markets`,
+> `/proposals`, `/sources`, `/activity`, `/settings`, `/check-in`,
+> `/participants`, `/admin`, `/agents`, `/guides`, `/api-access` or `/account`
+> in a browser drives a page that no longer exists. The behaviour those steps
+> guarded now lives in the API (`GET /api/help`), on the trading floor, or in
+> the floor's account dialog (`<floor>#account`). Rewrite them before trusting
+> this spec.
+
 # Browse test: Persona — Day-2 return
 
 ## What this tests

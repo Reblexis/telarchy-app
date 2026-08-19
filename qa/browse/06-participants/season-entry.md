@@ -108,7 +108,7 @@ rests on, and the rules document is the only place they are binding.
 
 **Steps:**
 1. Log in (see Setup).
-2. `$B goto https://telarchy.com/account`
+2. `$B goto https://telarchy.com/lookpilot#account` (the account is a dialog on the floor since 2026-08-19; `/account` redirects here)
 3. `$B wait --networkidle`
 4. `$B snapshot -i`
 5. `$B screenshot /tmp/season-entry-before.png`
@@ -132,7 +132,7 @@ was swallowed).
 ### T4. Leaving the season removes you from the standings
 
 **Steps:**
-1. On `/account`, uncheck "Enter this season".
+1. In the account dialog, uncheck "Enter this season".
 2. `$B wait --networkidle`
 3. `$B goto "https://telarchy.com/leaderboard?season=$SEASON"`
 4. `$B wait --networkidle`

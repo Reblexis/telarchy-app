@@ -98,6 +98,34 @@ Specs declare `parallel-safe: true|false` to opt out individually.
 - Subjective grading: `_runner/grading.md`
 - Gold-standard template: `07-admin/bot-agents-panel.md`
 
+
+## Deleted with the console (2026-08-19)
+
+The old GUI was removed from the app at the owner's direction, so the specs
+that drove it were removed here: the workspace-tab walkthroughs
+(`02-workspaces/activity-tab`, `create-from-templates`, `first-seen-hints`,
+`switch-and-active`, `tab-banners`, `welcome-tour`), `03-metrics/check-in`,
+`05-proposals/propose-approve-decline`, `06-participants/account-page` and
+`agent-portal`, `07-admin/agents-control-pages` and `bot-agents-panel`,
+`09-sources/*`, `10-guides/render-pages`, and the console-shaped UX specs
+(`12-ux/welcome-canvas`, `guides-structure`, `persona-startup-founder`,
+`persona-qs-hobbyist`). Git history holds them.
+
+Specs that only visit a dead page in some of their steps carry a **Stale
+since 2026-08-19** banner instead of being deleted; rewrite those steps
+against the floor.
+
+**Known gaps this leaves**, in priority order:
+
+1. Proposing a contract and the owner approving or declining it, on the
+   floor. This is a live, load-bearing flow with no browser spec since
+   `05-proposals/propose-approve-decline` was deleted.
+2. The floor itself (chart, ticket, rails, branch toggle) has no dedicated
+   category; `00-anonymous/public-workspace-page` covers the anonymous view
+   only.
+3. The account dialog beyond the email switches: payout details, credits,
+   season claim, password.
+
 ## Specs by category
 
 Each spec opens with a `goal-statement` in plain English so the report
@@ -129,19 +157,13 @@ explains itself.
 
 | File | Surface |
 | --- | --- |
-| `create-from-templates.md` | Template picker, blank/personal/startup |
-| `switch-and-active.md` | Sidebar switcher + `localStorage.activeWorkspaceId` |
 | `settings-and-visibility.md` | Name + visibility + auto-fund |
 | `members-and-permissions.md` | Role matrix (admin / trader / member / viewer) |
-| `welcome-tour.md` | Seeded starter proposal + persona picker + Builder tutorial |
-| `first-seen-hints.md` | Once-per-user contextual hints (Markets, proposal drawer) |
-| `tab-banners.md` | Per-tab opt-in banners + Trader/AI Agent persona stubs |
 
 ### 03-metrics
 
 | File | Surface |
 | --- | --- |
-| `check-in.md` | `/check-in` auto-save, clamp, theme toggle |
 | `create-edit-delete.md` | `POST/PUT/DELETE /api/metrics` |
 | `custom-horizons.md` | `timePreference.customHorizons` market lifecycle + validation |
 | `formulas.md` | Cross-metric formulas, cycles, NaN, big numbers |
@@ -162,16 +184,13 @@ explains itself.
 
 | File | Surface |
 | --- | --- |
-| `propose-approve-decline.md` | Full proposal lifecycle |
 | `chat-thread.md` | `GET/POST /api/proposals/:id/messages` |
 
 ### 06-participants
 
 | File | Surface |
 | --- | --- |
-| `account-page.md` | `/account` (balance, trades, P&L, export, delete) |
 | `balance-and-trades.md` | `GET /api/agents/:id/{balance,dashboard,trades,market-pnl}` |
-| `agent-portal.md` | `/agent-portal/<id>` post-key |
 | `agent-register.md` | `POST /api/agents/register` (anon → key) |
 | `api-tab-keys.md` | `/api` tab: mint/list/revoke own keys + scope intersection |
 | `api-create-agent.md` | `POST /api/agents` (authenticated create with scoped key + memberships) |
@@ -182,8 +201,6 @@ explains itself.
 
 | File | Surface |
 | --- | --- |
-| `bot-agents-panel.md` | `/admin` Bot agents + decision traces (gold standard) |
-| `agents-control-pages.md` | `/agents` picker + `/agents/:id` detail (pause/resume, run now) |
 | `activity-feed.md` | `GET /api/admin/activity` |
 | `treasury-and-credit.md` | `/api/agents/treasury` + manual credit/spend |
 
@@ -195,26 +212,12 @@ explains itself.
 | `inbox-admin.md` | `GET /api/feedback` + `/stats` |
 | `triage-status.md` | `PATCH /api/feedback/:id` |
 
-### 09-sources
-
-| File | Surface |
-| --- | --- |
-| `text-source-crud.md` | Text sources + per-group permissions |
-| `github-bridge.md` | GitHub App install + connect repo (human handoff) |
-
 ### 10-guides
 
 | File | Surface |
 | --- | --- |
-| `render-pages.md` | `/guides/*` markdown render |
 | `api-help-discoverability.md` | `GET /api/help` runtime parity |
 | `auth-and-keys-guide.md` | new `auth-and-keys`, `recipes`, `api-reference` guide sections |
-
-### 12-ux (additions)
-
-| File | Surface |
-| --- | --- |
-| `guides-structure.md` | Stripe-style category groups in the sidebar + breadcrumb + prev/next |
 
 ### 11-multi-agent
 
@@ -234,8 +237,6 @@ explains itself.
 | `first-five-minutes.md` | Stranger to "first useful moment" |
 | `cold-walk-stranger.md` | Zero-prior-knowledge first impression |
 | `persona-hn-skeptic.md` | HN skeptic, 3-min budget |
-| `persona-qs-hobbyist.md` | QS hobbyist, personal goals |
-| `persona-startup-founder.md` | Founder pricing decisions |
 | `persona-day-2-return.md` | Returning user, reactivation |
 | `persona-phone-visitor.md` | Share-link on phone (390×844) |
 | `persona-agent-builder.md` | Developer building bots, pure curl |

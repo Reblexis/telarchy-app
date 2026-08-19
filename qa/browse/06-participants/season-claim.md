@@ -70,7 +70,7 @@ page would indicate that it had changed.
 
 **Steps:**
 1. Log in as the winner.
-2. `$B goto https://telarchy.com/account`
+2. `$B goto https://telarchy.com/lookpilot#account` (the account is a dialog on the floor since 2026-08-19; `/account` redirects here)
 3. `$B wait --networkidle`
 4. Click "Claim my prize".
 5. `$B wait --networkidle`
@@ -86,7 +86,7 @@ browser console. This is a user-actionable error and belongs on screen
 ### T4. Claiming with payment details works and is durable
 
 **Steps:**
-1. On `/account`, set payment details (PayPal is the quickest: an email).
+1. In the account dialog, set payment details (PayPal is the quickest: an email).
 2. Click "Claim my prize".
 3. `$B wait --networkidle`
 4. `$B text`
@@ -113,7 +113,7 @@ Should show `claimState: "claimed"`, a `claimedAt`, the `prizeUsd`, and the
 
 **Steps:**
 1. Log in as a participant who entered but placed outside the ladder.
-2. `$B goto https://telarchy.com/account`
+2. `$B goto https://telarchy.com/lookpilot#account` (the account is a dialog on the floor since 2026-08-19; `/account` redirects here)
 3. `$B text`
 
 **Expected:** no "Claim my prize" button, or a refusal if pressed. The season
