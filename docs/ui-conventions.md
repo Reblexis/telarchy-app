@@ -326,10 +326,19 @@ arrival pulses the ring once, and only on a rise, never on a poll that
 changed nothing, because a page that twitches at rest teaches people to
 ignore it. Its panel is a ruled list, one row per event, and unread rows
 carry an amber hairline down the left edge as the only unread marker (a
-badge per row turns twelve rows into a field of noise). Rows link to the
-contract itself (`/<slug>#contract=<id>`), not merely to the floor, and
-opening one reads THAT row: the count drops by one, its hairline goes,
-and the rest stay as they were. "Mark all read" stays for the sweep.
+badge per row turns twelve rows into a field of noise). Opening a row reads THAT row: the count
+drops by one, its hairline goes, and the rest stay as they were. "Mark
+all read" stays for the sweep.
+
+**A row lands on the thing it names.** `/<slug>#contract=<id>&comment=<id>`
+selects the contract, opens its thread, scrolls the named comment into
+view and runs `.is-flashed` on it: one wash of the accent that fades out
+over 1.8s. Rows with no comment flash the contract headline instead. The
+class is shared, so anything the floor ever needs to point at flashes the
+same way. It is deliberately not a selected state, because a highlight
+that stays turns into something to dismiss and the reader already knows
+what they clicked. Under reduced motion the wash still happens (it is the
+answer to "which one?") and the scroll stops gliding.
 
 **The dialog IS the account (owner decision 2026-08-19, when the console
 was deleted).** Everything the console's `/account` page uniquely held moved

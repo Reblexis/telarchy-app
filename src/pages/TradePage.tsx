@@ -94,16 +94,31 @@ export function TradePage() {
   // means the baseline market is showing.
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
-  // #contract=<id> opens the floor ON that contract. A notification says
-  // "someone commented on your contract"; landing the reader on the floor and
-  // leaving them to find the row is the same as not linking at all. The hash
-  // is consumed once applied so it does not fight the back button or the
-  // #account link that shares this bar.
+  // A notification points AT something: #contract=<id> opens the floor on
+  // that contract, and #comment=<id> says which line in its thread the
+  // reader was told about. Landing them on the page and leaving them to find
+  // it is most of the way to not having linked at all, so the comment id is
+  // handed to FloorComments, which opens the thread, scrolls to that line and
+  // flashes it once. The hash is consumed on arrival so it does not fight the
+  // back button or the #account link that shares this bar.
+  const [focusCommentId, setFocusCommentId] = useState<string | null>(null);
+  const [flashContract, setFlashContract] = useState(false);
   useEffect(() => {
     const apply = () => {
-      const match = /^#contract=(.+)$/.exec(window.location.hash);
-      if (!match) return;
-      setSelectedJobId(decodeURIComponent(match[1]));
+      const hash = window.location.hash.replace(/^#/, '');
+      if (!hash) return;
+      const params = new URLSearchParams(hash);
+      const contract = params.get('contract');
+      const comment = params.get('comment');
+      if (!contract && !comment) return;
+      if (contract) setSelectedJobId(contract);
+      setFocusCommentId(comment);
+      // With no comment to point at, the contract itself is the thing the
+      // notification named, so that is what flashes.
+      if (contract && !comment) {
+        setFlashContract(true);
+        setTimeout(() => setFlashContract(false), 1800);
+      }
       window.history.replaceState(null, '', window.location.pathname + window.location.search);
     };
     apply();
@@ -646,7 +661,7 @@ export function TradePage() {
                 <button className="pubws-back" onClick={() => setSelectedJobId(null)}>
                   ← {metricLabel}
                 </button>
-                <h2 className="pubws-instrument-title pubws-question pubws-enter pubws-enter--1">
+                <h2 className={`pubws-instrument-title pubws-question pubws-enter pubws-enter--1${flashContract ? ' is-flashed' : ''}`}>
                   What is {metricLabel} if{' '}
                   {selectedJob.proposedByName ?? 'someone'}{' '}
                   {/* The phrase IS the world: green "is paid" in the
@@ -917,6 +932,8 @@ export function TradePage() {
                    only the proposal left marketKey empty, so the panel never
                    fetched and rendered Comments alone, on a market that had
                    a real trade in it. */
+                focusCommentId={focusCommentId}
+                onFocusHandled={() => setFocusCommentId(null)}
                 subject={selectedJob
                   ? { proposalId: selectedJob.id, marketId: activeMarketId ?? undefined }
                   : hero ? { marketId: hero.marketId } : {}}

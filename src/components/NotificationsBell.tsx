@@ -39,12 +39,18 @@ function timeAgo(iso: string): string {
   return `${Math.round(s / 86400)}d`;
 }
 
-/** Where a row goes: the floor, and the contract when there is one. */
+/**
+ * Where a row goes: the floor, the contract when there is one, and the
+ * comment itself when the row is about a comment. The floor reads these off
+ * the hash, opens the thread and flashes the line, so a row lands on the
+ * thing it named rather than near it.
+ */
 function hrefFor(n: NotificationItem): string | null {
   if (!n.workspaceSlug) return null;
-  return n.proposalId
-    ? `/${n.workspaceSlug}#contract=${encodeURIComponent(n.proposalId)}`
-    : `/${n.workspaceSlug}`;
+  const parts: string[] = [];
+  if (n.proposalId) parts.push(`contract=${encodeURIComponent(n.proposalId)}`);
+  if (n.commentId) parts.push(`comment=${encodeURIComponent(n.commentId)}`);
+  return parts.length > 0 ? `/${n.workspaceSlug}#${parts.join('&')}` : `/${n.workspaceSlug}`;
 }
 
 export function NotificationsBell() {

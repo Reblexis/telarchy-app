@@ -94,12 +94,19 @@ $B wait --networkidle
 curl -sf -b "$OJAR" "$TT_BASE_URL/api/notifications" | jq -e '.unread == 0 and (.notifications | length) >= 1'
 ```
 
-### T5. A row lands on the contract, not just the floor
+### T5. A row lands on the comment it names, and flashes it
 
 ```bash
-$B goto "$TT_FRONTEND_URL/$SLUG#contract=$PROP" && $B wait --networkidle
+MSG=$(curl -sf -b "$OJAR" -H "X-Workspace-Id: $WS" \
+  "$TT_BASE_URL/api/proposals/$PROP/messages" | jq -r '.[0].id')
+$B goto "$TT_FRONTEND_URL/$SLUG#contract=$PROP&comment=$MSG" && $B wait --networkidle
 text=$($B text)
 grep -qi 'Inbox spec contract' <<<"$text"
+# The thread opens on its own and the named line is on screen.
+grep -qi 'how will you measure this' <<<"$text"
+# The flash is an arrival, not a state: it is gone a couple of seconds later.
+$B assert "[data-comment-id='$MSG'].is-flashed" --gone --timeout 4000 \
+  || echo "WARN: could not observe the flash clearing"
 ```
 
 ### T6. No console errors

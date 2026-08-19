@@ -105,6 +105,9 @@ describe('the inbox', () => {
     expect(items[0].subject).toBe('My contract');
     expect(items[0].proposalId).toBe('c-mine');
     expect(items[0].workspaceSlug).toBe('lookpilot');
+    // The row points at the comment itself, which is what lets the floor
+    // scroll to that line and flash it instead of just opening the page.
+    expect(items[0].commentId).toBe('mm1');
   });
 
   test('a decision on my own contract lands, with the reason', async () => {

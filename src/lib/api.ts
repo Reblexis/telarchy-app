@@ -126,6 +126,8 @@ export interface NotificationItem {
   workspaceSlug: string | null;
   proposalId: string | null;
   marketId: string | null;
+  /** The comment it is about, when it is about one: the floor scrolls to it. */
+  commentId: string | null;
   unread: boolean;
 }
 

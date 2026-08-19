@@ -355,6 +355,13 @@ export interface NotificationItem {
   workspaceSlug: string | null;
   proposalId: string | null;
   marketId: string | null;
+  /**
+   * The comment this is about, when it is about one. The floor uses it to
+   * scroll to that comment and flash it: landing a reader on the right page
+   * and leaving them to find the line they were told about is most of the
+   * way to not having linked at all.
+   */
+  commentId: string | null;
   /** Newer than the watermark and not read on its own. Set by the query. */
   unread: boolean;
 }
@@ -467,6 +474,7 @@ export async function listNotifications(participantId: string, limit = 30): Prom
       workspaceSlug: slugs.get(c.workspaceId) ?? null,
       proposalId: c.proposalId,
       marketId: null,
+      commentId: c.id,
       unread: true,
     });
   }
@@ -484,6 +492,7 @@ export async function listNotifications(participantId: string, limit = 30): Prom
       workspaceSlug: slugs.get(c.workspaceId) ?? null,
       proposalId: owned ?? null,
       marketId: c.marketId,
+      commentId: c.id,
       unread: true,
     });
   }
@@ -500,6 +509,7 @@ export async function listNotifications(participantId: string, limit = 30): Prom
       workspaceSlug: slugs.get(p.workspaceId) ?? null,
       proposalId: p.id,
       marketId: null,
+      commentId: null,
       unread: true,
     });
   }
@@ -518,6 +528,7 @@ export async function listNotifications(participantId: string, limit = 30): Prom
       workspaceSlug: slugs.get(p.workspaceId) ?? null,
       proposalId: p.id,
       marketId: null,
+      commentId: null,
       unread: true,
     });
   }

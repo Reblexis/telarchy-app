@@ -16,12 +16,12 @@ const getNotifications = vi.fn(async () => ({
     {
       id: 'pm-1', kind: 'comment' as const, at: new Date().toISOString(), actor: 'trader-9',
       subject: '$2000: Create a Telarchy tournament', detail: 'what is the deadline?',
-      workspaceSlug: 'telarchy', proposalId: 'prop-1', marketId: null, unread: true,
+      workspaceSlug: 'telarchy', proposalId: 'prop-1', marketId: null, commentId: 'msg-7', unread: true,
     },
     {
       id: 'dec-2', kind: 'decision' as const, at: new Date().toISOString(), actor: null,
       subject: 'Open source a trading agent', detail: 'out of scope this quarter',
-      workspaceSlug: 'telarchy', proposalId: 'prop-2', marketId: null, unread: true,
+      workspaceSlug: 'telarchy', proposalId: 'prop-2', marketId: null, commentId: null, unread: true,
     },
   ],
 }));
@@ -55,7 +55,12 @@ describe('the notifications bell', () => {
     expect(await screen.findByText('$2000: Create a Telarchy tournament')).toBeTruthy();
     expect(screen.getByText(/trader-9 commented on your contract/)).toBeTruthy();
     const link = screen.getAllByRole('link')[0] as HTMLAnchorElement;
-    expect(link.getAttribute('href')).toBe('/telarchy#contract=prop-1');
+    // The comment row points at the COMMENT, so the floor can flash the line
+    // rather than dropping the reader on the page it lives on.
+    expect(link.getAttribute('href')).toBe('/telarchy#contract=prop-1&comment=msg-7');
+    // A decision has no comment, so it points at the contract alone.
+    expect((screen.getAllByRole('link')[1] as HTMLAnchorElement).getAttribute('href'))
+      .toBe('/telarchy#contract=prop-2');
   });
 
   test('a decision on my own contract reads as mine, with the reason', async () => {

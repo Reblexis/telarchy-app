@@ -48,7 +48,7 @@ notificationsRouter.get('/', requireIdentity, requireScope('account:read'), wrap
     notifications: items.map(i => ({
       id: i.id, kind: i.kind, at: i.at, actor: i.actor, subject: i.subject,
       detail: i.detail, workspaceSlug: i.workspaceSlug,
-      proposalId: i.proposalId, marketId: i.marketId, unread: i.unread,
+      proposalId: i.proposalId, marketId: i.marketId, commentId: i.commentId, unread: i.unread,
     })),
   });
 }));

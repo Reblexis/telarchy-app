@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 
 /**
@@ -28,6 +28,13 @@ interface Props {
   subject: { marketId?: string; proposalId?: string };
   canPost: boolean;
   onRequireSignup: () => void;
+  /**
+   * A comment to point at, from a notification link. The panel opens on the
+   * thread, scrolls that line into view and flashes it once. Cleared through
+   * onFocusHandled so the flash is an arrival, not a state the row sits in.
+   */
+  focusCommentId?: string | null;
+  onFocusHandled?: () => void;
 }
 
 type Tab = 'comments' | 'positions' | 'trades' | null;
@@ -46,8 +53,12 @@ function profileHref(handle: string, id: string): string {
   return `/participants/${encodeURIComponent(handle && handle !== id ? handle : id)}`;
 }
 
-export function FloorComments({ idOrSlug, subject, canPost, onRequireSignup }: Props) {
+export function FloorComments({
+  idOrSlug, subject, canPost, onRequireSignup, focusCommentId = null, onFocusHandled,
+}: Props) {
   const [tab, setTab] = useState<Tab>(null);
+  const [flashId, setFlashId] = useState<string | null>(null);
+  const listRef = useRef<HTMLUListElement | null>(null);
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [activity, setActivity] = useState<{ positions: Holder[]; trades: TradeItem[] } | null>(null);
   const [draft, setDraft] = useState('');
@@ -76,6 +87,27 @@ export function FloorComments({ idOrSlug, subject, canPost, onRequireSignup }: P
       .catch(e => { console.error('market activity fetch failed:', e); setActivity({ positions: [], trades: [] }); });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idOrSlug, marketKey]);
+
+  // A pointed-at comment opens the thread even if the panel was collapsed:
+  // the reader was told about a line, not about a tab.
+  useEffect(() => { if (focusCommentId) setTab('comments'); }, [focusCommentId]);
+
+  // ...and once the thread has rendered, the line is scrolled to and flashed.
+  // Runs after comments load, because the row does not exist before that.
+  useEffect(() => {
+    if (!focusCommentId || comments === null) return;
+    const el = listRef.current?.querySelector(`[data-comment-id="${CSS.escape(focusCommentId)}"]`);
+    if (el) {
+      const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      el.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'center' });
+      setFlashId(focusCommentId);
+      setTimeout(() => setFlashId(null), 1800);
+    }
+    // Handled either way: a comment that has since been removed should not
+    // leave the panel waiting for a row that will never arrive.
+    onFocusHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusCommentId, comments]);
 
   const post = async () => {
     const content = draft.trim();
@@ -128,9 +160,9 @@ export function FloorComments({ idOrSlug, subject, canPost, onRequireSignup }: P
           ) : comments.length === 0 ? (
             <p className="pubws-comments-empty">Nothing yet. Say what you see.</p>
           ) : (
-            <ul className="pubws-comments-list">
+            <ul className="pubws-comments-list" ref={listRef}>
               {comments.map(c => (
-                <li key={c.id}>
+                <li key={c.id} data-comment-id={c.id} className={flashId === c.id ? 'is-flashed' : undefined}>
                   <span className="pubws-comment-head">
                     <span className="pubws-comment-who">{c.fromName}</span>
                     <span className="pubws-comment-when">{timeAgo(c.createdAt)}</span>

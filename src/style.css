@@ -1481,6 +1481,26 @@ code, pre, kbd, samp {
   gap: 0.9rem;
 }
 
+/* The arrival flash (owner ask 2026-08-19). A notification names one thing;
+   when the reader arrives, that thing lights for a moment and then is
+   ordinary again. It is deliberately NOT a selected state: a highlight that
+   stays turns into a thing to dismiss, and the reader already knows what they
+   clicked. One wash of the accent, an outline that fades with it, and out. */
+.is-flashed {
+  animation: floor-flash 1.8s ease-out 1;
+  border-radius: 8px;
+}
+@keyframes floor-flash {
+  0%   { background: var(--accent-soft); box-shadow: 0 0 0 6px var(--accent-soft); }
+  55%  { background: var(--accent-soft); box-shadow: 0 0 0 6px var(--accent-soft); }
+  100% { background: transparent; box-shadow: 0 0 0 6px transparent; }
+}
+/* Reduced motion still needs to say WHICH one, so the wash holds briefly and
+   the movement is what goes: the scroll snaps rather than glides. */
+@media (prefers-reduced-motion: reduce) {
+  .is-flashed { animation: floor-flash 1.8s steps(2, end) 1; }
+}
+
 /* ---------------------------------------------------------------------------
    The bell and its panel (owner ask 2026-08-19).
 
