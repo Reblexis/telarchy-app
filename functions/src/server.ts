@@ -43,6 +43,7 @@ if (fs.existsSync(envLocalPath)) {
 }
 import { assertTreasuryConfigured } from './lib/usdc';
 import { runBootstrap } from './lib/bootstrap';
+import { shouldLogVisit } from './lib/visit-log';
 
 /** Schedule a daily job at a fixed UTC time. Fires once at the next occurrence, then every 24 h. */
 function scheduleDailyUTC(hourUTC: number, minuteUTC: number, label: string, fn: () => Promise<void>): void {
@@ -140,7 +141,8 @@ import('./app').then(async ({ app }) => {
       // fire-and-forget so a slow insert never delays the page. Surfaced
       // on /admin; request-log data per the privacy policy, purged past
       // 30 days when the stats endpoint reads.
-      (async () => {
+      // The owner's own cockpit is not a visitor (see lib/visit-log.ts).
+      if (shouldLogVisit(req.path)) (async () => {
         const { db } = await import('./db/client');
         const { pageVisits } = await import('./db/schema');
         const { randomUUID } = await import('crypto');

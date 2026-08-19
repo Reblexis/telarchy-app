@@ -570,6 +570,13 @@ kind (person / server / proxy) is a neutral chip, not a colour code. The
 page reloads itself every 20 seconds so it can be left open during a
 launch.
 
+The cockpit does not appear in its own numbers: `/admin` document loads are
+not written to the visitor log at all (`functions/src/lib/visit-log.ts`), so
+the owner reading the page does not raise the visits, uniques or top-pages
+figures that are supposed to mean a stranger showed up. Filtering it on read
+instead would move those hits into the "bot hits" count, which is a
+different lie.
+
 Rewritten 2026-08-19 (Viktor: "add support for this endpoint... but using
 the new gui and design"). The 2026-08-11 cockpit's markup was inline
 styles over `.container` and died with the console; this one shares no code
