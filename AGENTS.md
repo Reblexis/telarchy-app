@@ -29,7 +29,7 @@ When rewriting user-facing copy, always check that the four commitments above (d
 
 The product has no users yet. Every feature request or refactor should be evaluated against: "Does this help get the first users?" If the answer is no (or unclear), flag it to the user as potential procrastination and suggest deferring it. Renaming, reorganizing, or polishing things that no users will see is not a priority. Remove this section once the product has real users.
 
-One failure pattern is worth naming on its own: solo-loop UI/copy polish on surfaces no real user has asked about (landing-page rewrites, sidebar redesigns, "calmer / sharper" visual passes, positioning iterations driven by taste alone). These are not product iteration. Before opening `LandingPage.tsx` or `Sidebar.tsx` for visual reasons, name the external trigger (a founder, investor, or outreach event that asked for it). If you cannot name one, leave the file closed.
+One failure pattern is worth naming on its own: solo-loop UI/copy polish on surfaces no real user has asked about (landing-page rewrites, sidebar redesigns, "calmer / sharper" visual passes, positioning iterations driven by taste alone). These are not product iteration. Before restyling a page for visual reasons, name the external trigger (a founder, investor, or outreach event that asked for it). If you cannot name one, leave the file closed. (`LandingPage.tsx` and `Sidebar.tsx`, the two worst offenders, were deleted with the console on 2026-08-19.)
 
 ## Writing style
 
@@ -37,7 +37,7 @@ Do not use em dashes. Use commas, periods, semicolons, parentheses, or "i.e."/"e
 
 ## UI conventions
 
-Frontend layout, type, color, and component patterns live in `docs/ui-conventions.md`. When adding or restyling a page, read it first. Key invariants: every workspace tab uses `max-width: 1080px; margin: 0 auto` so left edges align across tabs (do not widen for one page); horizontal padding belongs to `.page-content`, never the inner wrapper; sections use tiny uppercase `h2` labels, not large bold headers; lists use 1px hairlines, not card containers; the product is monochrome plus a single accent (no per-category color coding).
+Frontend layout, type, color, and component patterns live in `docs/ui-conventions.md`. When adding or restyling a page, read it first. **The old console GUI was deleted on 2026-08-19** (owner: "could you get completely rid of the old gui for now?"): there is no `AppLayout`, no sidebar, no workspace tabs, no /admin or /agents page, no guides or tutorials, no agent portal, no alpha wall. Key invariants: every page is a standalone `.pubws` page carrying its own top bar; the column is 660px (poster), 760px (document) or 26rem (a door), and horizontal padding belongs to that column, never to the blocks inside it; sections use tiny uppercase labels, not large bold headers; lists use 1px hairlines, not cards; the product is monochrome plus a single accent (no per-category color coding). If you want a sidebar, you are rebuilding the thing that was deleted.
 
 ## Participant symmetry
 
@@ -225,9 +225,9 @@ Important: always rebuild functions before checking compiled output (`npm run bu
 
 ## Bot trading agents
 
-The production Telarchy agents live in a separate repo: **`~/src/telarchy/telarchy-agents`** (umbrella submodule). The main fleet is `cli-agents/` (prose/script agents: `impact-analyst`, `external-researcher`, `skeptic`, `market-evolver`), which since 2026-06-07 runs **on the kpi-sync Hetzner box** (5.75.140.10, `telarchy` Linux user) as per-agent systemd units `telarchy-agent@<name>` - see `telarchy-agents/deploy/bootstrap-vps.md` for host setup and ops commands. They are managed from the platform-admin **/agents** page on telarchy.com (live health, pause/resume, run-now, per-agent traces), backed by `GET/POST /api/admin/agent-control(s)` plus the agent-telemetry endpoints.
+The production Telarchy agents live in a separate repo: **`~/src/telarchy/telarchy-agents`** (umbrella submodule). The main fleet is `cli-agents/` (prose/script agents: `impact-analyst`, `external-researcher`, `skeptic`, `market-evolver`), which since 2026-06-07 runs **on the kpi-sync Hetzner box** (5.75.140.10, `telarchy` Linux user) as per-agent systemd units `telarchy-agent@<name>` - see `telarchy-agents/deploy/bootstrap-vps.md` for host setup and ops commands. They are managed through `GET/POST /api/admin/agent-control(s)` plus the agent-telemetry endpoints, with the master key. The platform-admin **/agents** page that used to drive those endpoints was deleted with the rest of the console on 2026-08-19; the control plane itself is untouched, so pause/resume/run-now is a curl away until a surface for it exists in the floor's design language.
 
-- The older Node/TypeScript service (`src/`, strategies `anchor`, `momentum`, `stabilizer`, `blended`, `ai-analyst`, `ai-researcher`) still exists with local systemd units (`telarchy-agents-prod.service`); its bots push the same telemetry but do NOT poll the control plane, so /agents controls are inert for them.
+- The older Node/TypeScript service (`src/`, strategies `anchor`, `momentum`, `stabilizer`, `blended`, `ai-analyst`, `ai-researcher`) still exists with local systemd units (`telarchy-agents-prod.service`); its bots push the same telemetry but do NOT poll the control plane, so the control endpoints are inert for them.
 - Multi-workspace discovery joins public workspaces via `GET /api/marketplace/workspaces/public` + `POST /api/marketplace/:id/join` using each bot's own `X-Agent-Key`, the same flow any third-party agent uses. Trading rights come from the workspace's Public-group capabilities; bots do not self-promote via admin key.
 
 There is no openclaw-based bot trading (the `~/.openclaw` scaffolding is unrelated; the earlier hook-watcher / skill references point at a deprecated integration path). To change cli-agent behaviour, edit the agent's `strategy.md` (or `run` script), push, then `git pull` + `systemctl --user restart 'telarchy-agent@*'` on the box.
@@ -237,10 +237,12 @@ If modifying the api capabilities or otherwise changing behaviour of the backend
 
 **Entering a season is a button on the PUBLIC surfaces, with two gates (owner
 direction 2026-08-19).** `SeasonEntryButton` lives on the floor rail and the
-public leaderboard, where the season is announced; `/account` no longer offers
-entry (it keeps the claim path only), because sending a visitor into the
-console to enter a contest they read about on the floor is exactly the
-old-UI-on-a-public-journey failure. Entering requires payment details on the
+public leaderboard, where the season is announced; the account surface no
+longer offers entry (it keeps the claim path only), because sending a visitor
+away from the floor to enter a contest they read about there is exactly the
+wrong journey. Since 2026-08-19 that account surface is the floor's account
+dialog, not a page: the console `/account` was deleted and the URL redirects
+to `<floor>#account`. Entering requires payment details on the
 account AND `acceptedRules: true`, recorded as `season_entries.rulesAcceptedAt`
 and never cleared. The payment gate REVERSES the earlier "one click, no
 details" decision; if entries come in thin, look there first. Leaving needs

@@ -2,7 +2,7 @@ import { useState, FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authClient } from '../lib/auth-client';
 import { OAuthButtons } from '../components/OAuthButtons';
-import { api } from '../lib/api';
+import { AuthShell, AuthField, AuthOr } from '../components/AuthShell';
 import { tradeHome } from '../lib/tradeHome';
 
 export function LoginPage() {
@@ -24,41 +24,34 @@ export function LoginPage() {
       return;
     }
 
-    const profile = await api.getProfile().catch(() => ({}));
+    // Straight back to trading, never to a dashboard: the floor is the
+    // product, and after the console was deleted it is also all there is.
+    const home = await tradeHome();
     setSubmitting(false);
-    navigate(await tradeHome());
+    navigate(home);
   };
 
   return (
-    <div className="login-page">
-      <div className="container" style={{ maxWidth: 400 }}>
-        <h1>Login</h1>
-        <OAuthButtons onError={setError} />
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: '1rem 0' }}>
-          <div style={{ flex: 1, height: 1, background: 'var(--border-color)' }} />
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>or</span>
-          <div style={{ flex: 1, height: 1, background: 'var(--border-color)' }} />
-        </div>
-
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input type="email" id="email" required value={email} onChange={e => setEmail(e.target.value)} />
-          </div>
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input type="password" id="password" required value={password} onChange={e => setPassword(e.target.value)} />
-          </div>
-          <button type="submit" disabled={submitting}>
-            {submitting ? 'Logging in...' : 'Login'}
-          </button>
-          {error && <div className="error show">{error}</div>}
-        </form>
-        <div className="reconfigure-link">
-          Don't have an account? <Link to="/signup">Sign up</Link>
-        </div>
-      </div>
-    </div>
+    <AuthShell
+      title="Log in"
+      foot={<>New here? <Link to="/signup">Create an account</Link>.</>}
+    >
+      <OAuthButtons onError={setError} />
+      <AuthOr />
+      <form className="pubws-form" onSubmit={handleSubmit}>
+        <AuthField
+          id="email" label="Email" type="email" required autoComplete="email"
+          value={email} onChange={e => setEmail(e.target.value)}
+        />
+        <AuthField
+          id="password" label="Password" type="password" required autoComplete="current-password"
+          value={password} onChange={e => setPassword(e.target.value)}
+        />
+        <button className="pubws-cta" type="submit" disabled={submitting}>
+          {submitting ? 'Logging in…' : 'Log in'}
+        </button>
+        {error && <p className="pubws-joinerr">{error}</p>}
+      </form>
+    </AuthShell>
   );
 }

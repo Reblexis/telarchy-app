@@ -1,4 +1,3 @@
-import { hasAlphaAccess } from '../lib/alpha';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
@@ -6,7 +5,8 @@ import { AccountDialog } from './AccountDialog';
 
 /**
  * The signed-in corner of the trading floor: an avatar that opens a small
- * menu. Management no longer happens inside the popover (owner direction
+ * menu. There is no console link under it any more (owner decision
+ * 2026-08-19: the old GUI is gone), so the dialog IS the account. Management no longer happens inside the popover (owner direction
  * 2026-08-10: it got too cramped); "Account settings" spawns the full
  * AccountDialog, the same dialog pattern as proposing a job. The popover
  * keeps only what a glance needs: who you are, your credits, the way in
@@ -122,9 +122,7 @@ export function AccountMenu() {
                   {user.emailVerified === false && <span className="acctmenu-tag">unverified</span>}
                 </span>
               )
-              : hasAlphaAccess()
-                ? <a className="acctmenu-email acctmenu-link" href="/account">connect an email</a>
-                : <span className="acctmenu-email">no email connected</span>}
+              : <span className="acctmenu-email">no email connected</span>}
           </div>
 
           <div className="acctmenu-stats">
@@ -144,9 +142,6 @@ export function AccountMenu() {
             Account settings
           </button>
 
-          {/* The console is behind the alpha wall; a public trader's whole
-              account IS the settings dialog until it opens. */}
-          {hasAlphaAccess() && <a className="acctmenu-item" href="/account">Console</a>}
           <button className="acctmenu-item acctmenu-item--out" onClick={() => void logout()}>Log out</button>
         </div>
       )}

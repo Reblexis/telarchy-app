@@ -1,5 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { FloorModal } from './FloorModal';
+import { AccountCredits } from './AccountCredits';
+import { AccountPassword } from './AccountPassword';
+import { SeasonEntryPanel } from './SeasonEntryPanel';
 import { api, type NotificationPrefs, type PayoutMethod } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 
@@ -15,6 +18,9 @@ import { useAuth } from '../hooks/useAuth';
 
 interface Participant {
   nickname: string | null;
+  bio: string | null;
+  walletAddress?: string;
+  spentBetting: number | null;
   balance: number | null;
   earnedBetting: number | null;
   payoutHandle: string | null;
@@ -123,6 +129,12 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
   const [nick, setNick] = useState('');
   const [nickSaved, setNickSaved] = useState('');
 
+  // The public one-liner on the participant profile. It came off the deleted
+  // console account page (owner decision 2026-08-19); the profile it feeds is
+  // public, so the place to write it has to be public too.
+  const [bio, setBio] = useState('');
+  const [bioSaved, setBioSaved] = useState('');
+
   // Payment details: the provider picked and one draft object per field.
   const [provider, setProvider] = useState<PayoutMethod['provider']>('paypal');
   const [fields, setFields] = useState<Record<string, string>>({});
@@ -144,13 +156,19 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
 
   const image = savedImage ?? user?.image ?? null;
 
-  useEffect(() => {
+  /** One participant fetch for the whole dialog. The credits section reads
+      the same row rather than fetching its own: two reads of one fact is how
+      the balance under the deposit box ends up disagreeing with the balance
+      in the header. */
+  const loadParticipant = useCallback(() => {
     api.getParticipant()
       .then(p => {
         const part = p as Participant;
         setParticipant(part);
         setNick(part.nickname ?? '');
         setNickSaved(part.nickname ?? '');
+        setBio(part.bio ?? '');
+        setBioSaved(part.bio ?? '');
         if (part.notifications) setPrefs(part.notifications);
         if (part.payoutMethod) {
           setProvider(part.payoutMethod.provider);
@@ -159,6 +177,8 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
       })
       .catch(e => console.error('participant fetch failed:', e));
   }, []);
+
+  useEffect(loadParticipant, [loadParticipant]);
 
   const sectionErr = (key: string, message: string) => setErrors(e => ({ ...e, [key]: message }));
   const clearErr = (key: string) => setErrors(({ [key]: _gone, ...rest }) => rest);
@@ -209,6 +229,21 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
       flashSaved('nick');
     } catch (e) {
       sectionErr('nick', (e as Error).message || 'Could not change the username');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const saveBio = async () => {
+    clearErr('bio');
+    setBusy('bio');
+    try {
+      await api.upsertProfile({ bio: bio.trim() });
+      setBioSaved(bio.trim());
+      setParticipant(p => (p ? { ...p, bio: bio.trim() } : p));
+      flashSaved('bio');
+    } catch (e) {
+      sectionErr('bio', (e as Error).message || 'Could not save the bio');
     } finally {
       setBusy(null);
     }
@@ -354,6 +389,25 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
         )}
         {errors.nick && <p className="ticket-err">{errors.nick}</p>}
 
+        <label className="jobform-field">
+          <span className="ticket-label">Bio</span>
+          <textarea
+            className="jobform-line acctdlg-bio"
+            value={bio}
+            onChange={e => setBio(e.target.value)}
+            placeholder="Who are you, and what are you here to do? Shown on your public profile."
+            maxLength={500}
+            rows={2}
+            aria-label="Bio"
+          />
+        </label>
+        {bio.trim() !== bioSaved && (
+          <button className="ticket-go acctdlg-save" disabled={busy === 'bio'} onClick={() => void saveBio()}>
+            {busy === 'bio' ? 'Saving…' : saved.bio ? 'Saved' : 'Save bio'}
+          </button>
+        )}
+        {errors.bio && <p className="ticket-err">{errors.bio}</p>}
+
         {/* Payment details: pick a provider, fill its own fields. What is
             stored is a typed method the owner can pay against; the fields
             are validated server-side per provider (IBAN checksum, address
@@ -472,6 +526,14 @@ export function AccountDialog({ onClose }: { onClose: () => void }) {
           </p>
         </div>
         {errors.emails && <p className="ticket-err">{errors.emails}</p>}
+
+        {/* Everything below came off the console's /account page when the
+            old GUI was deleted (owner decision 2026-08-19). The dialog is
+            the account now, so money in and out, the prize season and the
+            password live here rather than behind a URL with no link to it. */}
+        <AccountCredits me={participant} onChanged={loadParticipant} />
+        <SeasonEntryPanel />
+        <AccountPassword />
 
         {/* Bring a Manifold record: proven calibration converts once. */}
         <div className="jobform-field">

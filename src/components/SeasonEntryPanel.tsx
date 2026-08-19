@@ -4,20 +4,19 @@ import { api, type MySeasonEntry } from '../lib/api';
 import { useSeasonClock } from '../lib/useSeasonClock';
 
 /**
- * Entering the prize season, and claiming a prize from a settled one.
- *
- * Entry costs exactly one click. It deliberately does NOT ask for payment
- * details: a visitor arriving cold from Manifold should be able to enter before
- * they have placed a single trade, and this funnel has already lost signups to
- * a step that could have been deferred. Winners are asked for payment details
- * at claim time, when there is money waiting for them and the ask is easy.
+ * The prize season as it appears inside the account dialog: what the season
+ * is, whether you are in it, and the claim button once it has settled
+ * (owner decision 2026-08-19: the console page this used to sit on is gone,
+ * so it speaks the dialog's ticket language like everything else there).
  *
  * Renders nothing at all when there is no season, rather than an empty box
  * explaining that there is no season.
  *
- * A season that has not started yet is enterable (owner direction 2026-08-18):
- * the panel counts down to the start instant and takes the entry there and
- * then, so nobody has to be told to come back on the day.
+ * Entering happens elsewhere (SeasonEntryButton on the floor rail and the
+ * public leaderboard, owner direction 2026-08-19), so this panel only
+ * reports where you stand and pays out. A season that has not started yet
+ * still shows, counting down to its start instant, because entry is already
+ * open by then.
  */
 export function SeasonEntryPanel() {
   const [entry, setEntry] = useState<MySeasonEntry | null>(null);
@@ -60,10 +59,10 @@ export function SeasonEntryPanel() {
   const top = season.ladder.find(r => r.place === 1);
 
   return (
-    <div className="section" style={{ marginBottom: '1.5rem' }}>
-      <h2 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>{season.name}</h2>
+    <div className="jobform-field">
+      <span className="ticket-label">{season.name}</span>
 
-      <p style={{ fontSize: '0.85rem', opacity: 0.75, marginBottom: '0.75rem' }}>
+      <p className="acctdlg-hint">
         ${season.poolUsd.toLocaleString()} in prizes across {season.ladder.length} places
         {top ? `, $${top.prizeUsd.toLocaleString()} for first` : ''}.
         {' '}{clock.headline}.
@@ -77,29 +76,27 @@ export function SeasonEntryPanel() {
           panel is the claim path, which only a winner walks and which needs
           the account context it already sits in. */}
       {clock.entryOpen && !entry.optedIn && (
-        <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>
+        <p className="acctdlg-hint">
           You have not entered. The entry button is on the{' '}
           <Link to="/leaderboard">leaderboard</Link>.
         </p>
       )}
-      {entry.optedIn && (
-        <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>You are entered.</p>
-      )}
+      {entry.optedIn && <p className="acctdlg-hint">You are entered.</p>}
 
       {season.status === 'settled' && !claimed && (
-        <button type="button" disabled={busy} onClick={() => claim(season.id)}>
+        <button type="button" className="acctdlg-ghost" disabled={busy} onClick={() => claim(season.id)}>
           Claim my prize
         </button>
       )}
 
       {claimed && (
-        <p style={{ fontSize: '0.85rem' }}>
+        <p className="acctdlg-ok">
           Claimed ${claimed.prizeUsd.toLocaleString()}. Payment is sent directly
           to the details on your account.
         </p>
       )}
 
-      {error && <p className="error" style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>{error}</p>}
+      {error && <p className="ticket-err">{error}</p>}
     </div>
   );
 }

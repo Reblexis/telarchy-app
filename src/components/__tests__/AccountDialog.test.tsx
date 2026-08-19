@@ -16,10 +16,17 @@ const getParticipant = vi.fn(async () => ({
   notifications: { commentOnMyProposal: true, replyToMyComment: true, newProposal: false },
 }));
 
+/* The dialog absorbed the deleted console account page (2026-08-19), so it
+   now also reads the instance's settlement switch, the deposit address and
+   the prize season. All three answer "nothing to show" here, which is the
+   simulation-instance shape: credits and season render nothing at all. */
 vi.mock('../../lib/api', () => ({
   api: {
     upsertProfile: (...a: unknown[]) => upsertProfile(...a as []),
     getParticipant: () => getParticipant(),
+    getStatus: async () => ({ usdcSettlementEnabled: false }),
+    getDepositAddress: async () => null,
+    getMySeason: async () => null,
   },
 }));
 vi.mock('../../hooks/useAuth', () => ({

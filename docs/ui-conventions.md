@@ -1,160 +1,86 @@
 # UI conventions
 
-A short reference for how Telarchy frontend pages are laid out and styled.
-Keeps tabs visually consistent so users don't get a "this page is centered,
-that one isn't" feeling. Aspirational target: Stripe-style restraint.
+How Telarchy's pages are laid out and styled. There is exactly one design
+language left (owner decision 2026-08-19: the old GUI is gone), so this doc
+is short: everything public is a `.pubws` page, and anything that does not
+look like the trading floor is a bug.
+
+## What was deleted, and why it is not coming back by accident
+
+**2026-08-19 (Viktor): "could you get completely rid of the old gui for
+now?"** The console went out of the tree, not behind a flag: `AppLayout`,
+the sidebar, the nine workspace tabs (overview, metrics, markets,
+proposals, sources, activity, settings, check-in, participants), the
+console marketplace and leaderboard, the landing page, /start, /welcome,
+/claim, /create-workspace, the guides and tutorial engine, /benchmark, the
+platform-admin /admin and /agents cockpits, the API-key portal, the agent
+portal, and the `/alpha` wall that used to hide them. Git history is the
+archive; every API endpoint they drove is still live and documented in
+`GET /api/help`, so the operator drives those by hand until a surface for
+them exists in this language.
+
+Two consequences worth knowing before writing new UI:
+
+- There is no app shell. Every page renders standalone and carries its own
+  top bar. If you find yourself wanting a sidebar, you are rebuilding the
+  thing that was deleted.
+- There is no `page-content`, no tabs and no `max-width: 1080px` tier. The
+  poster column is 660px (`.pubws-main`), a document column is 760px
+  (`.pubws-doc`), a door is 26rem (`.pubws-auth`). Pick one of those.
 
 ## Page layout
 
-Every authenticated route renders inside `AppLayout`, which provides:
+Every page is `<div className="pubws">` with a `.pubws-topbar` and one
+centered column. The top bar carries the wordmark on the left and, on the
+right, either a Log in link or the account menu; it matches the width of
+the column beneath it (`--narrow` for doors, `--wide` for documents) so the
+wordmark never floats aligned to nothing.
 
-- the sidebar (fixed, ~250px on desktop, drawer below 900px)
-- a `.page-content` element with `padding: 2rem` (1rem on mobile)
+Horizontal padding belongs to the column (`.pubws-main`, `.pubws-doc`),
+never to the blocks inside it, so left edges align down the page.
 
-Inside `.page-content`, each page renders **one wrapper element** with a
-canonical max-width and centered margins:
+## The doors (login, signup, waitlist)
 
-```css
-.container, .page {
-  max-width: 1080px;
-  margin: 0 auto;
-}
-```
-
-Pages use `.container` (legacy) or a semantic class (`.overview`,
-`.activity`) that adopts the same `max-width: 1080px; margin: 0 auto`
-contract. Do not introduce a new max-width per page; if you need a
-different one, put it in this doc and pick from the tier below.
-
-### Width tiers
-
-| Tier      | Max-width  | Use for                                          |
-| --------- | ---------- | ------------------------------------------------ |
-| standard  | **1080px** | All workspace tabs (overview, metrics, activity, proposals, markets, …). Default. |
-| narrow    | 640px      | Single-form pages — account, single-step settings panels.                     |
-| signup    | 420–460px  | Auth/intake — sign in, sign up, create workspace.                             |
-
-Anything wider than `standard` is a smell. If a table needs more, fix
-the table (sticky columns, horizontal scroll inside the row), don't
-widen the page.
-
-### Centering behavior
-
-`margin: 0 auto` only visually centers when the viewport is wider than
-the wrapper plus sidebar plus padding. On a typical 1280–1440px screen
-the content fills the available space (left-aligned), and on wider
-screens it slowly centers symmetrically. Both states feel intentional
-because every tab does the same thing.
-
-### Page padding
-
-All vertical breathing room belongs to the inner page (e.g.
-`.overview { padding: 0.5rem 0 3rem; }`). Horizontal padding is
-**owned by `.page-content`**, never by the inner page wrapper. This
-keeps left edges aligned across tabs.
+`AuthShell` (components/AuthShell.tsx) is the frame: same top bar, same
+Fraunces headline, one narrow column, OAuth buttons above a hairline "or",
+then labelled underline fields (`.pubws-field-line`) and one full-width
+`.pubws-cta`. A door is a poster with a form on it, not a card floating in
+a grey page. Legal documents (`/terms`, `/privacy`, `/legal/season-1`) use
+the same top bar over the wider `.pubws-doc` column.
 
 ## Type scale
 
 | Element                        | Size      | Weight | Notes                                                    |
 | ------------------------------ | --------- | ------ | -------------------------------------------------------- |
-| Page title (`h1`)              | 1.6rem    | 600    | `letter-spacing: -0.025em`                               |
-| Section heading (`h2` in page) | 0.78rem   | 600    | uppercase, tracked, `var(--text-tertiary)`               |
+| Page headline (`.pubws-name`)  | clamp     | 700    | Fraunces; the page's one large statement                 |
+| Section label (`.pubws-h2`)    | 0.72rem   | 600    | uppercase, tracked, `var(--text-tertiary)`               |
 | Body                           | 0.875rem  | 400    | `var(--text-primary)`                                    |
-| Meta / time / unit             | 0.75rem   | 400    | `var(--text-tertiary)`, tabular numbers where relevant   |
-| Kbd label / chip               | 0.68rem   | 500    | uppercase, `var(--text-secondary)`, `var(--bg-tertiary)` |
+| Numerals (price, credits, cr)  | mono      | 600    | JetBrains Mono, tabular                                  |
+| Meta / time / unit             | 0.75rem   | 400    | `var(--text-tertiary)`                                   |
 
-Section titles are tiny uppercase labels, **not** large bold headers.
-The page title is the only large heading on the page.
+Section titles are tiny uppercase labels, **not** large bold headers. The
+headline is the only large type on a page.
 
 ## Color usage
 
-The product is monochrome plus a single accent (the existing focus /
-link color). Avoid per-category color coding. Tags, type badges, and
-category indicators should be neutral grey on `bg-tertiary` unless a
-single state genuinely needs attention (e.g. error red, paused dot).
+The product is monochrome plus a single accent (amber). Avoid per-category
+color coding. Tags and state chips are neutral grey on `bg-tertiary` unless
+a single state genuinely needs attention (error red, a paused dot).
 
-Trend deltas (KPI up/down) use semantic green (`#16a34a`) and red
-(`#dc2626`) but at small size only. Never paint a whole row red/green.
+Green and red speak only as direction: the Higher/Lower pair on the floor,
+an approved/declined branch, a profit delta. Never paint a whole row.
 
 ## Hairlines, not cards
 
-For lists, separators, and dividers, use a 1px `var(--border-color)`
-hairline. Avoid surrounding sections in `bg-secondary` cards with
-shadow + radius — those read as heavyweight panels. The exception is a
-real interactive surface (form, modal, tooltip).
-
-```css
-.activity-list li { border-top: 1px solid var(--border-color); }
-.activity-list li:last-child { border-bottom: 1px solid var(--border-color); }
-```
-
-## Markets trade panel
-
-The expanded market card places the order controls in a single bordered
-surface (`.trade-form`) — one of the interactive-surface exceptions to
-"hairlines, not cards". Inside it, sections are separated by hairlines and
-introduced by a tiny uppercase label (`Place a trade`, `or aim for a value`,
-`Your position`), the same tracked-caps treatment as page section headings.
-
-Amounts use a `.trade-money` field: a `$` affordance inside one bordered pill,
-not a bare number input. The two direction buttons (`.trade-dir`) are the one
-place a whole control is tinted: **Higher** carries `--success-text`, **Lower**
-`--error-text` (label colour plus a matching hover fill), because up/down is
-the load-bearing distinction a forecaster reads first. This is the sanctioned
-use of the semantic green/red pair beyond small trend deltas; do not extend
-per-direction colour to whole rows or to the history/positions tables.
-
-Workspace names use the same 0.875rem / weight 500 type scale as the
-Platform section. The selected workspace gets a `bg-tertiary` fill and
-chevron disclosure arrow; the active route within that workspace gets
-the standard accent border + light fill on its subnav row.
-
-Subnav items sit in an indented column with a single 1px guide line
-on the left, no per-item border. Reorder of subnav: data-creating
-tabs first (Metrics, Proposals, Markets), then secondary (Participants,
-Sources, Activity), then administrative (Settings).
-
-The workspace rows are drag-reorderable: grab a row and drop it to
-reorder the list. Order is a personal preference, persisted per
-participant via `PUT /api/workspaces/order` and reflected in the order
-`GET /api/workspaces` returns, so it follows the account across devices
-and never affects other members of a shared workspace.
-
-## Metric charts (y-axis)
-
-The inline metric-card chart scales its y-axis by metric kind:
-
-- A **leaf** metric renders against its full market band `[0, marketRangeMax]`,
-  so the value reads relative to what its market can actually price.
-- A **composite** metric (has a formula) has no market of its own; its value is
-  a formula output that can exceed any child's range (e.g. a sum of
-  valuations). It **auto-scales to fit its own data** - clamping it to a band
-  clips the line off the top.
-
-Whenever a band is supplied it is a floor on what's shown, never a ceiling:
-`computeYAxisRange` (in `lib/metrics-chart-model.ts`) unions the band with the
-data extent, so a value beyond the band expands the axis instead of being
-clipped (and the flat-line case can never invert to `min > max`). The graph
-modal passes no band at all, so it always auto-scales.
-
-## Activity feed
-
-Each activity log row carries:
-
-- a one-line summary (verb + subject; no "A participant" filler)
-- one or more **tag chips** (small `bg-tertiary` pills) derived from
-  `getActivityTags(item)` — currently the type label + the metric
-  name when applicable. Tags are searchable.
-- a right-aligned time
-
-The activity toolbar exposes a search input (filters summary, tags,
-and actor), a 1h/24h/7d/30d segmented range, and per-type text-only
-filter toggles (underline = active).
+For lists, separators and dividers, use a 1px `var(--border-color)`
+hairline. Do not wrap sections in `bg-secondary` cards with shadow and
+radius; those read as heavyweight panels. The exceptions are the real
+interactive surfaces: the trade ticket, the account dialog, a modal.
 
 ## Trading floor (root slug page)
 
 `telarchy.com/<slug>` (`TradePage`, `.pubws-*` styles; `/marketplace/:idOrSlug`
-canonicalizes here) renders **standalone**, outside `AppLayout`, and in the
+canonicalizes here) renders **standalone** (as every page does now) and in the
 minimal phase (owner decision, 2026-08-09) it renders **the market and
 nothing else**: full-bleed top bar pinned to the viewport corners (the
 Telarchy logo lockup at the landing nav's 3rem in the top-left, linking
@@ -354,8 +280,7 @@ and the server refuses a paid job without them.
 The account itself is a full dialog (`AccountDialog`, owner direction
 2026-08-10: the corner popover got too cramped for management; spawn a
 whole dialog like the proposal one). The avatar's popover keeps only a
-glance (name, credits, "Account settings", console link behind alpha,
-log out); the dialog carries the picture (the avatar IS the control:
+glance (name, credits, "Account settings", log out); the dialog carries the picture (the avatar IS the control:
 click, pick a file, saved), the username, structured payment details,
 and the Manifold import, all in the ticket language. Payment details are
 STRUCTURED (owner direction, same day: providers, not one broad text
@@ -370,8 +295,20 @@ toggle pills for the notifications a participant gets by mail (a comment
 under my contract, a reply in a thread I am in, every new contract), each
 saving on the click with no separate confirm, because a switch that needs
 a Save button reads as a form rather than a switch. This dialog is the
-only place they are edited; the console's `/account` page is the old
-surface and stays out of it (owner direction 2026-08-19). The board is signed-in
+only place they are edited.
+
+**The dialog IS the account (owner decision 2026-08-19, when the console
+was deleted).** Everything the console's `/account` page uniquely held moved
+in beside the rest: the bio shown on the public profile, the credit balance
+with USDC top-up, payout wallet and withdrawal (`AccountCredits`, rendered
+only where the instance has USDC settlement on, so a simulation instance
+never shows a deposit box), the prize season with its claim button
+(`SeasonEntryPanel`; entering still happens on the floor rail and the
+public leaderboard, not here), and the password change, collapsed behind a
+link because most sessions open this dialog for a picture or a payout
+address. The `/account` URL still resolves: it redirects to the floor with
+`#account`, which is what the unsubscribe link in every notification email
+points at. The board is signed-in
 only; the anonymous poster stays clean. On viewports >=1120px the page
 becomes the trading floor proper: a three-column grid with the leaders
 rail on the left and the action log on the right (composed
@@ -792,8 +729,8 @@ the owner pays only for the ones worth it.
 **User-facing copy says MARKET, never "floor" (owner, 2026-08-14:
 "what the hell is floor, no one will understand that").** The word is
 internal vocabulary only: component and class names (`FloorRails`,
-`.pubws-*`), doc prose like this file, and the admin console's own
-heading may keep it, but no string a visitor can read may. When copy
+`.pubws-*`) and doc prose like this file may keep it, but no string a
+visitor can read may. When copy
 needs a word for one public workspace, it is "market".
 
 **And the thing a proposer sells is a CONTRACT, never a "job" (owner,
@@ -811,11 +748,10 @@ names (`JobsBoard`, `.jobform-*`). Renaming those buys nothing and
 breaks every client; the rule is about what a visitor reads.
 
 **Nothing public-facing redirects to the old console UI (owner rule,
-2026-08-14, emphatic).** That includes the platform admin: the first
-version of this page bounced admins into the console dashboard, which
-is exactly what must never happen. The console is reachable only on
-purpose (sidebar, /alpha, direct /console/* URLs); every public route
-lands in the floor language for everybody.
+2026-08-14, emphatic).** That included the platform admin: an early
+version of this page bounced admins into the console dashboard, which was
+exactly what must never happen. **Settled permanently on 2026-08-19**: the
+console was deleted, so there is no old UI left to land in, for anyone.
 
 **Revised 2026-08-17 (Viktor), one clock, not two.** The second horizon is
 gone: "lets remove the this week option completely, its just too confusing
@@ -858,9 +794,8 @@ leaderboard" link to `/leaderboard`.
 `telarchy.com/leaderboard` is a standalone page in the market pages' own
 language (`.pubws-topbar`, Fraunces headline, hairline rows, mono
 numerals, one accent), written from scratch rather than adapted from the
-console's leaderboard: nothing public-facing renders the console UI, and
-that page belongs to a different design entirely. The console keeps its
-own at `/console/leaderboard`.
+console's leaderboard, which was deleted with the rest of the console on
+2026-08-19. This is the only leaderboard there is.
 
 The page ranks traders on profit in credits, realized plus open, the
 same number the rail prints, and gives each row the numbers a visitor

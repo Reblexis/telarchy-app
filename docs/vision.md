@@ -643,13 +643,30 @@ Self-hosted: docker compose up (includes postgres service) or any Linux host + p
 
 ## Navigation
 
-The app uses a persistent left sidebar (`Sidebar.tsx` + `AppLayout.tsx`) for all authenticated pages. The sidebar handles workspace switching (all workspaces listed, click to switch), workspace-scoped nav (Metrics, Markets, Proposals, Participants), platform nav (Marketplace, Account, Guides), and logout. The horizontal header (`Header.tsx`) is kept only for the API-key portal. `/account` shows the signed-in participant identity and balance, and links to the API-key portal for direct API access when needed.
+**Rewritten 2026-08-19: there is no app shell.** The console (sidebar,
+`AppLayout`, workspace tabs, guides, the admin cockpit) was deleted at the
+owner's direction. Every page is standalone and carries its own top bar; see
+`docs/ui-conventions.md` for the layout rules and the full list of what went.
 
-`/marketplace` is both a discovery surface and a trading surface: anonymous visitors can browse public markets, while signed-in users can see the active markets from workspaces they belong to and trade on them directly as their authenticated participant identity. Marketplace lists are ordered by actual resolution date (not by liquidity), and each card preserves the original granularity label (`month`, `week`, etc.) while also showing the exact UTC resolution timestamp.
+The map is short:
 
-`/guides` is a publicly accessible in-app reference covering metric structure, formula syntax, time preference, markets, and the proposal decision loop. No auth required.
+- `/<slug>` is a market's trading floor, and the root redirects to the
+  flagship one. It carries the market, the contracts board, both rails, the
+  conversation, and the owner's decision bar.
+- `/marketplace` lists the open markets. `/marketplace/:id` canonicalizes to
+  `/<slug>`.
+- `/leaderboard` ranks traders and runs the prize season.
+- `/participants/:id` is a public profile.
+- `/login`, `/signup`, `/waitlist`, `/manage` are the doors; `/terms`,
+  `/privacy` and `/legal/season-1` are the documents.
+- The account is a dialog on the floor, opened from the avatar or by the
+  `#account` hash (which is what unsubscribe links point at). `/account`
+  redirects there.
+- Anything else lands on the floor rather than an error page.
 
-The selected workspace now owns its workspace-scoped links directly in the sidebar. Metrics, Markets, Proposals, Participants, and workspace Settings render as a collapsible nested subsection under the active workspace rather than as a separate top-level "Workspace" section, which keeps workspace context and page context aligned.
+Workspace administration (metrics, formulas, sources, permissions, check-ins,
+participants) has no UI at all right now. It lives entirely in the API,
+documented in `GET /api/help`, and the operator drives it with the master key.
 
 ## Design Principles
 

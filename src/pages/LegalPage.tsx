@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -26,9 +27,15 @@ export function LegalPage({ document }: LegalPageProps) {
       .finally(() => setLoading(false));
   }, [document]);
 
+  /* Standalone, in the floor's frame (owner decision 2026-08-19: the old
+     GUI is gone, and these pages used to borrow the console's page shell).
+     Wider than the poster column because a legal document is a document. */
   return (
-    <div className="page-content">
-      <div style={{ maxWidth: 760, margin: '0 auto', opacity: loading ? 0.5 : 1, transition: 'opacity 0.1s' }}>
+    <div className="pubws">
+      <nav className="pubws-topbar pubws-topbar--wide">
+        <Link to="/" className="pubws-wordmark">Telarchy</Link>
+      </nav>
+      <div className="pubws-doc" style={{ opacity: loading ? 0.5 : 1, transition: 'opacity 0.1s' }}>
         <ReactMarkdown
           components={{
             h1: ({ children }) => (

@@ -176,25 +176,25 @@ Use this when you need to (a) decide what to put on a canvas / pitch deck / land
 
 ## UI surface (frontend pages)
 
-125. Account page (signed-in identity, balance, API-key portal link).
-126. Activity page.
-127. Admin page (audit feed, bot-agents panel).
-128. Agent login and agent portal (API-key surface for human builders).
-129. API page.
-130. Check-in page (weekly metric updates).
-131. Create-workspace page with template picker.
-132. Guides page (in-app reference, no auth).
-133. Leaderboard page (cross-workspace).
-134. Marketplace page (discovery and trading).
-135. Markets page.
-136. Metrics page with formula composition and TP toggle.
-137. Participants page.
-138. Proposals page with Inspect mode.
-139. Sources page.
-140. Workspace settings page.
-141. Persistent left sidebar navigation with workspace switcher.
-142. Mixed date-format chart axis with adaptive labels.
-143. Admin badge on Participants page (rendered when participant has `manage`).
+**Rewritten 2026-08-19: the console was deleted** (owner: "could you get
+completely rid of the old gui for now?"). Items 125-143 used to list the
+sidebar app: workspace tabs, admin cockpit, agent portal, guides, tutorials,
+API-key page. They are gone from the tree; git history holds them, and every
+API endpoint behind them is still live. What ships today:
+
+125. Trading floor at `telarchy.com/<slug>`: the market, the chart, the trade
+     ticket, the contracts board, both rails, comments, announcements, the
+     definition editor and the owner's decision bar.
+126. Marketplace at `/marketplace`: the card grid of open markets.
+127. Public leaderboard at `/leaderboard`, with season standings and entry.
+128. Public participant profile at `/participants/:id`.
+129. Account dialog on the floor (`#account`): picture, username, bio,
+     structured payout details, email switches, credits and USDC top-up /
+     withdrawal, prize-season claim, password, Manifold import.
+130. The doors: `/login`, `/signup`, `/waitlist`, `/manage`, all in the floor's
+     design language.
+131. Legal documents at `/terms`, `/privacy`, `/legal/season-1`.
+132. Every unrecognised path lands on the floor rather than an error page.
 
 ## Self-hosting and deployment
 

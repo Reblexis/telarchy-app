@@ -314,7 +314,7 @@ For combining metrics, see the *Formulas* guide. For how time preference and mar
       '   #3  ...',
       '```',
       '',
-      '   Frame it honestly, no overclaiming: "These are my forecasts from reading your repo, staked as real positions. The market refines them as the platform forecaster pool and any other participants weigh in, so the numbers will move. Approve the ones you want; decline the rest, that is real signal too." Link each to `https://telarchy.com/{ownerHandle}/{slug}/proposals`.',
+      '   Frame it honestly, no overclaiming: "These are my forecasts from reading your repo, staked as real positions. The market refines them as the platform forecaster pool and any other participants weigh in, so the numbers will move. Approve the ones you want; decline the rest, that is real signal too." Link each to the workspace market page, `https://telarchy.com/{slug}`, where the ballot and the decision bar live.',
       '',
       'Guardrails: keep subsidies and trade budgets small (this spends the owner\'s grant, so watch the balance and stop before it runs low); never approve anything yourself, the human decides; if the project is thin or you cannot find 10 genuinely useful moves, propose fewer and say so rather than padding.',
       '',

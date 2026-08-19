@@ -31,7 +31,9 @@ waitlistRouter.post('/', wrap(async (req, res) => {
   // owner hearing about the email immediately is what keeps that true.
   void notifyOwner(
     `Telarchy: ${normalized} wants to get set up`,
-    `${normalized} left their email${from ? ` on ${from}` : ' on the floor'}.\n\nAll signups: https://telarchy.com/admin`,
+    // The /admin cockpit page went with the old GUI (2026-08-19); its data
+    // is still one authenticated call away, so the mail names the call.
+    `${normalized} left their email${from ? ` on ${from}` : ' on the floor'}.\n\nAll signups: curl -H "X-API-Key: $TELARCHY_MASTER_KEY" https://telarchy.com/api/admin/floor-stats`,
   );
   res.status(201).json({ ok: true });
 }));

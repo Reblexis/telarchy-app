@@ -130,7 +130,13 @@ export function TradePage() {
       .then(setWs)
       .catch(e => {
         console.error('trade page fetch failed:', e);
-        setError(e instanceof Error ? e.message : 'Failed to load workspace');
+        // A missing slug is usually a bookmark from the deleted console
+        // (/overview, /metrics, ...), so say what the visitor can do rather
+        // than quoting an HTTP status at them.
+        const missing = e instanceof Error && /\b404\b/.test(e.message);
+        setError(missing
+          ? 'There is no market at this address.'
+          : e instanceof Error ? e.message : 'Failed to load workspace');
       });
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -555,7 +561,7 @@ export function TradePage() {
         <main className="pubws-main">
           <section className="pubws-status">
             <p className="pubws-pitch">{error}</p>
-            <p className="pubws-pitch"><Link to="/">Back to Telarchy</Link></p>
+            <p className="pubws-pitch"><Link to="/marketplace">See the open markets</Link></p>
           </section>
         </main>
       </div>
