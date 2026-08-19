@@ -843,9 +843,28 @@ predictionsRouter.post('/markets/:id/void', requireCapability('manage'), wrap(as
   // Voiding takes money off whoever put it in, so it is refused outright once
   // anyone has traded (docs/market-integrity.md). The engine's own voids
   // (stale conditionals, decided proposals) do not pass through here.
-  await assertMarketUntraded(marketId, workspaceId);
-  const result = await voidMarket(market, workspaceId);
-  res.json({ voided: true, refundedPositions: result.refunded });
+  //
+  // The escape is deliberate rather than absent, on the model of
+  // allowLedgerAdmin: a guard with no sanctioned way through gets routed
+  // around with a hand-written UPDATE, and then the destruction happens with
+  // no record at all. So: acknowledge the holders by name-count, and say why.
+  // The reason is published to the workspace's event log, because the season
+  // rules promise that a void during a season is announced rather than done
+  // quietly, and a promise nothing records is not a promise.
+  const acknowledged = req.body?.acknowledgeTraded === true;
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+  if (!acknowledged) {
+    await assertMarketUntraded(marketId, workspaceId);
+  } else if (reason.length < 10) {
+    res.status(400).json({
+      error: 'Voiding a traded market needs a reason of at least 10 characters. It is published with the void.',
+      reason: 'reasonRequired',
+    });
+    return;
+  }
+
+  const result = await voidMarket(market, workspaceId, reason || undefined);
+  res.json({ voided: true, refundedPositions: result.refunded, reason: reason || null });
 }));
 
 predictionsRouter.post('/resolve', requireCapability('manage'), wrap(async (req, res) => {

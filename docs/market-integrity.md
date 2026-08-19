@@ -99,6 +99,16 @@ mid-season cannot slip it out of the freeze.
 Refused means a 409 that names the reason (how many participants hold
 positions, or which season is running), not a silent no-op.
 
+**There is one sanctioned way through, and it is loud.** `POST
+/api/predictions/markets/:id/void` accepts `acknowledgeTraded: true` plus a
+`reason` of at least ten characters, which is published on the market's
+`market:resolved` event. It exists on the model of `allowLedgerAdmin`: a guard
+with no sanctioned escape gets routed around with a hand-written UPDATE against
+production, and then the destruction happens with no record at all. Holders are
+still refunded in full, so the escape costs them their position and their price
+discovery, never their money. Used once so far, on 2026-08-19, to move the
+Telarchy floor's clock from end-of-2026 to 1 October.
+
 ### `POST /api/system/reset-economy` is gone
 
 It zeroed every balance in a workspace, deleted every trade under

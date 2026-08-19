@@ -71,6 +71,11 @@ export async function distributeLPLeftover(
 export async function voidMarket(
   marketOrId: MarketRow | string,
   workspaceId: string,
+  /** Why, when a human deliberately voided a market people were holding. The
+   *  engine's own voids pass nothing: "the proposal was declined" is already
+   *  in the event that caused them. Published on the market:resolved event so
+   *  the reason survives next to the act. */
+  reason?: string,
 ): Promise<{ refunded: number }> {
   const market = typeof marketOrId === 'string'
     ? await db.select().from(markets)
@@ -125,7 +130,7 @@ export async function voidMarket(
     await distributeLPLeftover(tx, market.id, lpLeftover, workspaceId);
   });
 
-  emitEvent('market:resolved', { marketId: market.id, metricName: market.metricName, targetDate: market.targetDate, voided: true }, workspaceId)
+  emitEvent('market:resolved', { marketId: market.id, metricName: market.metricName, targetDate: market.targetDate, voided: true, ...(reason ? { reason } : {}) }, workspaceId)
     .catch(e => console.error('emitEvent failed:', e));
   return { refunded };
 }

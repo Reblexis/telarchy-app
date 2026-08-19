@@ -26,10 +26,19 @@
 const TELARCHY_URL = process.env.TELARCHY_URL || 'https://telarchy.com';
 const AGENT_KEY = process.env.TELARCHY_SELF_SYNC_KEY;
 const WORKSPACE_ID = process.env.TELARCHY_SELF_SYNC_WORKSPACE;
-// Both clocks read the same number (owner direction 2026-08-15): the
-// weekly market and the end-of-2026 one are the same definition at
-// different dates, so one value is pushed to both metrics.
-const METRIC_BASE = 'Weekly active verified traders';
+// Every clock reads the same number (owner direction 2026-08-15): the
+// horizons are the same definition read at different dates, so one value is
+// pushed to each metric that carries it.
+//
+// Matched by name, which is a tripwire: renaming the metric in the app used to
+// make this throw "no metric named ..." every night and the number would
+// silently stop updating on a metric a prize market settles on. So the list is
+// explicit and the rename goes in here at the same time (2026-08-19: the floor
+// metric became "Active traders @1st October").
+const METRIC_NAMES = [
+  'Active traders @1st October',
+  'Weekly active verified traders',
+];
 const AGENT_ID = 'telarchy-self-sync';
 const STRATEGY = 'self-sync-v2';
 const DRY_RUN = process.argv.includes('--dry-run');
@@ -86,8 +95,14 @@ async function main() {
 
   const metricsList = await api('GET', '/metrics');
   const list = Array.isArray(metricsList) ? metricsList : (metricsList.metrics || []);
-  const targets = list.filter(m => m.name === METRIC_BASE || m.name.startsWith(`${METRIC_BASE} (`));
-  if (targets.length === 0) throw new Error(`no metric named "${METRIC_BASE}" in workspace ${WORKSPACE_ID}`);
+  const targets = list.filter(m =>
+    METRIC_NAMES.includes(m.name) || METRIC_NAMES.some(base => m.name.startsWith(`${base} (`)));
+  if (targets.length === 0) {
+    throw new Error(
+      `no metric named any of ${METRIC_NAMES.map(n => `"${n}"`).join(', ')} in workspace ${WORKSPACE_ID}. `
+      + 'If the metric was renamed in the app, add the new name here in the same change.',
+    );
+  }
 
   for (const metric of targets) {
     const tag = metric.value === value ? 'flat' : 'PUSH';

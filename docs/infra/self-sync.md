@@ -19,6 +19,19 @@ in the Provisioning section below.
 
 ## The metric
 
+**Renamed 2026-08-19 to "Active traders @1st October"**, and its horizon moved
+from end-of-2026 to **2026-09 (resolves 1 October)** so the floor has a clock
+that settles inside Season 0 rather than three months after it. The definition
+below is unchanged; only the name and the date moved. The end-of-2026 market
+was voided with a published reason and its two holders refunded in full, which
+is the sanctioned path (`acknowledgeTraded` + `reason` on
+`POST /api/predictions/markets/:id/void`), not a hand-written UPDATE.
+
+**The sync matches metrics BY NAME**, so a rename in the app without the same
+rename in `scripts/telarchy-self-sync.js` makes the nightly cron throw and the
+number silently stops updating on a metric a prize market settles on. The names
+live in `METRIC_NAMES` in that script; change both together.
+
 **Weekly active verified traders** (revised 2026-08-14, same day, before
 meaningful trading; supersedes "Weekly active participants"): distinct
 participants who (a) have a **Manifold account synced** and (b) placed

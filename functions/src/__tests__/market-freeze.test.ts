@@ -37,7 +37,7 @@ import request from 'supertest';
 import express from 'express';
 import { eq } from 'drizzle-orm';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
-import { agents, markets, metrics, prizeSeasons, trades } from '../db/schema';
+import { agents, events, markets, metrics, prizeSeasons, trades } from '../db/schema';
 import { provisionWorkspace } from '../lib/participants';
 import { initialPool } from '../lib/amm';
 import { toUnits } from '../lib/validation';
@@ -223,5 +223,62 @@ describe('the engine still voids what it must', () => {
     await voidMarket(TRADED, WS);
     const rows = await db.select().from(trades).where(eq(trades.marketId, TRADED));
     expect(rows.length).toBeGreaterThan(0);
+  });
+});
+
+describe('the deliberate way through', () => {
+  test('acknowledging the holders and saying why lets the void happen', async () => {
+    // A guard with no sanctioned escape gets routed around with a hand-written
+    // UPDATE, and then the destruction happens with no record at all. This is
+    // the escape: explicit, and it has to say why.
+    await seed();
+    expect((await buy(TRADED)).status).toBe(201);
+
+    const res = await request(app).post(`/api/predictions/markets/${TRADED}/void`)
+      .send({ acknowledgeTraded: true, reason: 'Re-dating the floor to a horizon inside the season.' });
+    expect(res.status).toBe(200);
+    expect(res.body.reason).toMatch(/Re-dating/);
+    expect(await isVoided(TRADED)).toBe(true);
+  });
+
+  test('acknowledging without a reason is refused', async () => {
+    // The season rules promise a void during a season is announced rather than
+    // done quietly. A promise nothing records is not a promise.
+    await seed();
+    await buy(TRADED);
+    const res = await request(app).post(`/api/predictions/markets/${TRADED}/void`)
+      .send({ acknowledgeTraded: true, reason: 'oops' });
+    expect(res.status).toBe(400);
+    expect(res.body.reason).toBe('reasonRequired');
+    expect(await isVoided(TRADED)).toBe(false);
+  });
+
+  test('the reason is published with the void, not just returned to the caller', async () => {
+    await seed();
+    await buy(TRADED);
+    const why = 'Declared error in the settlement definition.';
+    await request(app).post(`/api/predictions/markets/${TRADED}/void`)
+      .send({ acknowledgeTraded: true, reason: why });
+
+    const rows = await db.select().from(events).where(eq(events.workspaceId, WS));
+    const voided = rows.filter(e => e.type === 'market:resolved');
+    expect(voided.length).toBeGreaterThan(0);
+    expect(JSON.stringify(voided.map(e => e.data))).toContain(why);
+  });
+
+  test('the refund still happens: nobody is left out of pocket', async () => {
+    await seed();
+    await buy(TRADED);
+    const res = await request(app).post(`/api/predictions/markets/${TRADED}/void`)
+      .send({ acknowledgeTraded: true, reason: 'Re-dating the floor to a horizon inside the season.' });
+    expect(res.body.refundedPositions).toBeGreaterThan(0);
+  });
+
+  test('the default path is still refused, so the escape has to be asked for', async () => {
+    await seed();
+    await buy(TRADED);
+    const res = await request(app).post(`/api/predictions/markets/${TRADED}/void`).send({});
+    expect(res.status).toBe(409);
+    expect(await isVoided(TRADED)).toBe(false);
   });
 });
