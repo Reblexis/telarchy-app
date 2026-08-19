@@ -47,12 +47,18 @@ export function LeaderPage() {
   const [season, setSeason] = useState<PrizeSeason | null>(null);
   const clock = useSeasonClock(season);
   const meId = useMyParticipantId(!!user);
+  const [entered, setEntered] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     api.getSeasons()
       .then(r => { if (!cancelled) setSeason(pickCurrentSeason(r.seasons)); })
       .catch(e => console.error('seasons fetch failed:', e));
+    if (user) {
+      api.getMySeason()
+        .then(e => { if (!cancelled) setEntered(e.optedIn === true); })
+        .catch(e => console.error('season entry fetch failed:', e));
+    }
     api.getLeaderboard(200)
       .then(r => { if (!cancelled) setTraders((r.participants ?? []).filter(e => e.totalTrades > 0)); })
       .catch(e => { console.error('leaderboard fetch failed:', e); if (!cancelled) setTraders([]); });
@@ -84,7 +90,7 @@ export function LeaderPage() {
       })
       .catch(e => { console.error('contractors fetch failed:', e); if (!cancelled) setContractors([]); });
     return () => { cancelled = true; };
-  }, []);
+  }, [user]);
 
   const pinned = meId && traders && !traders.some(e => e.id === meId)
     ? traders.find(e => e.id === meId) ?? null
@@ -161,7 +167,12 @@ export function LeaderPage() {
           <p className="lbp-season-line-only">
             <strong>{season.name}</strong>: ${season.poolUsd.toLocaleString()} in prizes,{' '}
             {clock.phase === 'settled' ? 'final standings' : clock.headline.toLowerCase()}.{' '}
-            <Link to="/season">{clock.entryOpen ? 'Enter the season' : 'See the season'}</Link>
+            {/* Reads its own entry state: telling someone who entered an hour
+                ago to "Enter the season" reads as the entry not having worked
+                (owner report 2026-08-19). */}
+            <Link to="/season">
+              {entered ? 'See the season' : clock.entryOpen ? 'Enter the season' : 'See the season'}
+            </Link>
           </p>
         )}
 

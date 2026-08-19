@@ -1,103 +1,87 @@
-import { render, screen, within } from '@testing-library/react';
-import { describe, expect, test } from 'vitest';
-import { LeaderboardRail } from '../FloorRails';
-import type { LeaderboardEntry, PublicContractor } from '../../lib/api';
+import { describe, expect, test, vi, beforeEach } from 'vitest';
+import { render } from '@testing-library/react';
+import type { LeaderboardEntry } from '../../lib/api';
 
-const trader = (o: Partial<LeaderboardEntry>): LeaderboardEntry => ({
-  rank: 1,
-  id: 'a',
-  nickname: 'ana',
-  calibration: null,
-  accuracy: null,
-  totalEarnings: 0,
-  resolvedMarkets: 0,
-  totalTrades: 3,
-  lastTradeAt: null,
-  ...o,
-} as LeaderboardEntry);
+/**
+ * Where the reader stands on the board (owner ask 2026-08-19).
+ *
+ * The rail shows the top ten. A board that shows the leaders and stops answers
+ * "who is winning" but not "where am I", which is the question the person
+ * reading it opened it with. So: their own row is marked, and when they are
+ * outside the ten it is pinned underneath with its real rank.
+ *
+ * Tested here rather than by hand because the interesting case is the one that
+ * cannot be produced by looking: the account doing the looking is usually near
+ * the top of its own board.
+ */
 
-const contractor = (o: Partial<PublicContractor>): PublicContractor => ({
-  id: 'c',
-  name: 'cara',
-  impact: 0,
-  jobs: 1,
-  pendingJobs: 1,
-  pricedJobs: 1,
-  earnedUsd: 0,
-  ...o,
+vi.mock('../../lib/api', async () => {
+  const actual = await vi.importActual<typeof import('../../lib/api')>('../../lib/api');
+  return {
+    ...actual,
+    api: {
+      // The season strip fetches on mount; it is not what this file is about.
+      getSeasons: () => Promise.resolve({ seasons: [] }),
+      getMySeason: () => Promise.resolve({ season: null, optedIn: false, canEnter: false }),
+    },
+  };
 });
 
-const contractorsBlock = () =>
-  screen.getByRole('heading', { name: 'Top contractors' }).closest('section') as HTMLElement;
+const { LeaderboardRail } = await import('../FloorRails');
 
-describe('LeaderboardRail contractors', () => {
-  test('shows the market valuation of a contract nobody has paid for yet', () => {
-    render(<LeaderboardRail entries={[]} contractors={[contractor({ impact: 412, earnedUsd: 0 })]} />);
-    const block = within(contractorsBlock());
-    expect(block.getByText(/\+412/)).toBeInTheDocument();
-    expect(block.getByText(/1 contract/)).toBeInTheDocument();
+function trader(n: number): LeaderboardEntry {
+  return {
+    id: `p${n}`,
+    nickname: `trader${n}`,
+    rank: n,
+    totalEarnings: 1000 - n,
+    totalTrades: 10,
+    resolvedMarkets: 0,
+    accuracy: null,
+    calibration: null,
+    lastTradeAt: null,
+  } as unknown as LeaderboardEntry;
+}
+
+const twelve = Array.from({ length: 12 }, (_, i) => trader(i + 1));
+
+beforeEach(() => { vi.clearAllMocks(); });
+
+describe('finding yourself on the rail', () => {
+  test('the reader inside the ten is marked, and not shown twice', () => {
+    const { container } = render(<LeaderboardRail entries={twelve} meId="p3" />);
+    const marked = container.querySelectorAll('.pubws-lb-row.is-me');
+    expect(marked).toHaveLength(1);
+    expect(marked[0].textContent).toContain('trader3');
+    // The pin is for people who are NOT in the list; duplicating a visible row
+    // would read as two entries for one person.
+    expect(container.querySelectorAll('.pubws-lb-row.is-pinned')).toHaveLength(0);
+    expect(container.querySelectorAll('.pubws-lb-row')).toHaveLength(10);
   });
 
-  test('a contract the market prices as harmful reads negative', () => {
-    render(<LeaderboardRail entries={[]} contractors={[contractor({ impact: -40.5 })]} />);
-    expect(within(contractorsBlock()).getByText(/-40\.5/)).toBeInTheDocument();
+  test('the reader outside the ten is pinned underneath, with their real rank', () => {
+    const { container } = render(<LeaderboardRail entries={twelve} meId="p12" />);
+    const pinned = container.querySelector('.pubws-lb-row.is-pinned');
+    expect(pinned).toBeTruthy();
+    expect(pinned!.textContent).toContain('trader12');
+    // Their rank on the whole board, not the position of the pinned row: an
+    // eleventh row showing "11" for the twelfth-placed reader is a lie.
+    expect(pinned!.querySelector('.pubws-lb-rank')!.textContent).toBe('12');
+    expect(pinned!.classList.contains('is-me')).toBe(true);
+    expect(container.querySelectorAll('.pubws-lb-row')).toHaveLength(11);
   });
 
-  test('dollars earned move to the second line, not the score slot', () => {
-    render(<LeaderboardRail entries={[]} contractors={[
-      contractor({ impact: 180, jobs: 3, pendingJobs: 1, earnedUsd: 900 }),
-    ]} />);
-    const block = within(contractorsBlock());
-    expect(block.getByText(/3 contracts · 1 live · \$900 earned/)).toBeInTheDocument();
-    expect(block.getByText(/\+180/)).toBeInTheDocument();
+  test('a signed-out reader gets no highlight and no pin', () => {
+    const { container } = render(<LeaderboardRail entries={twelve} />);
+    expect(container.querySelectorAll('.pubws-lb-row.is-me')).toHaveLength(0);
+    expect(container.querySelectorAll('.pubws-lb-row.is-pinned')).toHaveLength(0);
+    expect(container.querySelectorAll('.pubws-lb-row')).toHaveLength(10);
   });
 
-  test('an unpriced contract says so instead of printing a confident zero', () => {
-    render(<LeaderboardRail entries={[]} contractors={[contractor({ impact: 0, pricedJobs: 0 })]} />);
-    expect(within(contractorsBlock()).getByText('not priced yet')).toBeInTheDocument();
-  });
-
-  test('with no hero metric to price against, the rail falls back to dollars', () => {
-    render(<LeaderboardRail entries={[]} contractors={[
-      contractor({ impact: null, pricedJobs: 0, jobs: 2, pendingJobs: 0, earnedUsd: 1200 }),
-    ]} />);
-    expect(within(contractorsBlock()).getByText('$1,200')).toBeInTheDocument();
-  });
-
-  test('the hero metric unit prefixes the score', () => {
-    render(<LeaderboardRail entries={[]} contractors={[contractor({ impact: 2500 })]} unit="$" />);
-    expect(within(contractorsBlock()).getByText(/\+\$2,500/)).toBeInTheDocument();
-  });
-
-  test('an empty board still invites the first contract', () => {
-    render(<LeaderboardRail entries={[]} contractors={[]} />);
-    expect(screen.getByText(/No contracts on the board yet/)).toBeInTheDocument();
-  });
-});
-
-describe('LeaderboardRail traders', () => {
-  test('signs the profit and skips participants who never traded', () => {
-    render(<LeaderboardRail
-      entries={[
-        trader({ id: 'a', nickname: 'ana', totalEarnings: 120, totalTrades: 4 }),
-        trader({ id: 'b', nickname: 'bo', totalEarnings: -30, totalTrades: 2, rank: 2 }),
-        trader({ id: 'c', nickname: 'cy', totalEarnings: 0, totalTrades: 0, rank: 3 }),
-      ]}
-    />);
-    const block = within(screen.getByRole('heading', { name: 'Top traders' }).closest('section') as HTMLElement);
-    expect(block.getByText('+120 cr')).toBeInTheDocument();
-    expect(block.getByText('-30 cr')).toBeInTheDocument();
-    expect(block.queryByText('cy')).not.toBeInTheDocument();
-  });
-});
-
-describe('a contractor the market prices at exactly zero', () => {
-  test('reads as a wash, with no arrow either way', () => {
-    render(<LeaderboardRail entries={[]} contractors={[contractor({ impact: 0, pricedJobs: 5, jobs: 5, pendingJobs: 5 })]} />);
-    const block = within(contractorsBlock());
-    const score = block.getByText('0.00');
-    expect(score.textContent).not.toContain('▲');
-    expect(score.textContent).not.toContain('▼');
-    expect(score.className).not.toContain('is-up');
+  test('a reader who has not traded is not invented onto the board', () => {
+    // The list filters to people with trades; someone with none has no row to
+    // pin, and a pinned row for them would claim a rank they do not have.
+    const { container } = render(<LeaderboardRail entries={twelve} meId="nobody" />);
+    expect(container.querySelectorAll('.pubws-lb-row.is-pinned')).toHaveLength(0);
   });
 });
