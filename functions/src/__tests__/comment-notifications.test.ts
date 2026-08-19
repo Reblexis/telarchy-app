@@ -16,7 +16,7 @@ import {
   proposals, proposalMessages, workspaces,
 } from '../db/schema';
 import { initialPool } from '../lib/amm';
-import { notifyCommentPosted, notifyProposalCreated } from '../services/notifications';
+import { notifyCommentPosted, notifyProposalCreated, notifyProposalDecided } from '../services/notifications';
 
 const realFetch = global.fetch;
 let sent: Array<{ to: string; subject: string; text: string }>;
@@ -244,6 +244,83 @@ describe('a new contract on the ballot', () => {
 
     await notifyProposalCreated({ workspaceId: WS, proposedBy: 'poster', title: 'Anything' });
 
+    expect(sent).toHaveLength(0);
+  });
+});
+
+describe('a decision on your own contract', () => {
+  /** A contract already decided, the way the routes leave it before mailing. */
+  async function decided(fields: Record<string, unknown>) {
+    await db.insert(proposals).values({
+      id: 'prop-1', workspaceId: WS, proposedBy: 'poster', title: 'Ship the landing page',
+      askUsd: 300, resolvedAt: new Date(), ...fields,
+    });
+  }
+
+  test('an approval reaches the poster, with the ask on it', async () => {
+    await human('poster', 'poster@example.com');
+    await human('owner', 'owner@example.com');
+    await seedWorkspace(['poster', 'owner']);
+    await decided({ status: 'approved' });
+
+    await notifyProposalDecided({ workspaceId: WS, proposalId: 'prop-1' });
+
+    expect(sent.map(s => s.to)).toEqual(['poster@example.com']);
+    expect(sent[0].subject).toBe('Approved: Ship the landing page');
+    expect(sent[0].text).toContain('$300');
+    expect(sent[0].text).toContain('/lookpilot#contract=prop-1');
+  });
+
+  test('a decline carries the written reason', async () => {
+    await human('poster', 'poster@example.com');
+    await seedWorkspace(['poster']);
+    await decided({ status: 'declined', declineReason: 'Already delivered, so the gap is zero.' });
+
+    await notifyProposalDecided({ workspaceId: WS, proposalId: 'prop-1' });
+
+    expect(sent[0].subject).toBe('Declined: Ship the landing page');
+    expect(sent[0].text).toContain('Already delivered, so the gap is zero.');
+  });
+
+  test('a decline with no reason says so rather than leaving a blank', async () => {
+    await human('poster', 'poster@example.com');
+    await seedWorkspace(['poster']);
+    await decided({ status: 'declined' });
+
+    await notifyProposalDecided({ workspaceId: WS, proposalId: 'prop-1' });
+
+    expect(sent[0].text).toContain('No reason was given.');
+  });
+
+  test('has no switch: it goes out with every email preference off', async () => {
+    await human('poster', 'poster@example.com', {
+      notifyCommentOnMyProposal: false, notifyReplyToMyComment: false, notifyNewProposal: false,
+    });
+    await seedWorkspace(['poster']);
+    await decided({ status: 'declined_spam' });
+
+    await notifyProposalDecided({ workspaceId: WS, proposalId: 'prop-1' });
+
+    expect(sent.map(s => s.to)).toEqual(['poster@example.com']);
+    expect(sent[0].text).toContain('declined as spam');
+  });
+
+  test('says nothing while the contract is still pending, or once withdrawn', async () => {
+    await human('poster', 'poster@example.com');
+    await seedWorkspace(['poster']);
+    await decided({ status: 'pending', resolvedAt: null });
+
+    await notifyProposalDecided({ workspaceId: WS, proposalId: 'prop-1' });
+
+    expect(sent).toHaveLength(0);
+  });
+
+  test('a key-only bot has no address, and that is not an error', async () => {
+    await bot('poster');
+    await seedWorkspace(['poster']);
+    await decided({ status: 'approved' });
+
+    await expect(notifyProposalDecided({ workspaceId: WS, proposalId: 'prop-1' })).resolves.toBeUndefined();
     expect(sent).toHaveLength(0);
   });
 });

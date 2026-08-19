@@ -28,19 +28,26 @@ import { getParticipantDisplayNames } from '../lib/participants';
 import { publicOrigin, sendEmail } from '../lib/notify';
 
 /** Which switch produced a given message; also the line the email closes on. */
-type Reason = 'my-proposal' | 'reply' | 'new-proposal';
+type Reason = 'my-proposal' | 'reply' | 'new-proposal' | 'decision';
 
 const REASON_LINE: Record<Reason, string> = {
   'my-proposal': 'You are getting this because someone commented on a contract you posted.',
   reply: 'You are getting this because you commented in this thread.',
   'new-proposal': 'You are getting this because you asked to hear about new contracts here.',
+  decision: 'You are getting this because you posted this contract. Decisions on your own contracts are always sent.',
 };
 
-/** The column each reason reads, so a switch is checked in exactly one place. */
-const REASON_COLUMN: Record<Reason, 'notifyCommentOnMyProposal' | 'notifyReplyToMyComment' | 'notifyNewProposal'> = {
+/**
+ * The column each reason reads, so a switch is checked in exactly one place.
+ * `null` means the reason has no switch and always sends: a decision on your
+ * own contract is the answer to a question you asked, usually with money on
+ * it, so the only reason anyone would turn it off is by mistake.
+ */
+const REASON_COLUMN: Record<Reason, 'notifyCommentOnMyProposal' | 'notifyReplyToMyComment' | 'notifyNewProposal' | null> = {
   'my-proposal': 'notifyCommentOnMyProposal',
   reply: 'notifyReplyToMyComment',
   'new-proposal': 'notifyNewProposal',
+  decision: null,
 };
 
 interface Recipient {
@@ -73,7 +80,8 @@ async function resolveRecipients(wanted: Map<string, Reason>): Promise<Recipient
   for (const row of rows) {
     const reason = wanted.get(row.id);
     if (!reason || !row.email) continue;
-    if (!row[REASON_COLUMN[reason]]) continue;
+    const column = REASON_COLUMN[reason];
+    if (column && !row[column]) continue;
     out.push({ participantId: row.id, email: row.email, reason });
   }
   return out;
@@ -246,6 +254,73 @@ export async function notifyProposalCreated(opts: {
     );
   } catch (e) {
     console.error('new-contract notification failed:', e);
+  }
+}
+
+/**
+ * The owner decided on a contract: approved, declined, or declined as spam.
+ * Mails the proposer, and only the proposer.
+ *
+ * This one has no switch (owner ask 2026-08-19). Every other email here is
+ * news about someone else's activity, which a person is entitled to tune; a
+ * decision is the answer to the question they asked by posting the contract,
+ * with their ask price on it. Somebody who filed a job and closed the tab has
+ * nothing else to bring them back, so the only reason this would ever be off
+ * is a mis-click.
+ *
+ * The row is read back rather than passed in, so the mail can never disagree
+ * with the record: call it after the decision is committed.
+ */
+export async function notifyProposalDecided(opts: {
+  workspaceId: string;
+  proposalId: string;
+}): Promise<void> {
+  const { workspaceId, proposalId } = opts;
+  try {
+    const [proposal] = await db.select({
+      title: proposals.title,
+      proposedBy: proposals.proposedBy,
+      status: proposals.status,
+      declineReason: proposals.declineReason,
+      askUsd: proposals.askUsd,
+    }).from(proposals)
+      .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+    if (!proposal) return;
+
+    const approved = proposal.status === 'approved';
+    const declined = proposal.status === 'declined' || proposal.status === 'declined_spam';
+    // Withdrawn is the proposer's own doing and removal is board cleanup for
+    // rows that should not have been there; neither is a decision to report.
+    if (!approved && !declined) return;
+
+    const recipients = await resolveRecipients(new Map([[proposal.proposedBy, 'decision' as Reason]]));
+    if (recipients.length === 0) return;
+
+    const { url, name } = await floorUrl(workspaceId, `#contract=${encodeURIComponent(proposalId)}`);
+    const settings = await floorUrl(workspaceId, '#emails');
+    const verb = approved ? 'approved' : proposal.status === 'declined_spam' ? 'declined as spam' : 'declined';
+    // A decline with no reason is a fact worth stating, not a blank space: it
+    // tells the reader there is nothing further to read on the page either.
+    const reason = approved ? null : (proposal.declineReason?.trim() || 'No reason was given.');
+
+    await deliver(
+      recipients,
+      `${approved ? 'Approved' : 'Declined'}: ${proposal.title}`,
+      r => [
+        `${name} ${verb} your contract:`,
+        '',
+        proposal.title,
+        ...(proposal.askUsd ? ['', `Your ask was $${proposal.askUsd}.`] : []),
+        ...(reason ? ['', `Reason: ${preview(reason)}`] : []),
+        '',
+        `See it: ${url}`,
+        '',
+        REASON_LINE[r.reason],
+        `Your other emails: ${settings.url}`,
+      ].join('\n'),
+    );
+  } catch (e) {
+    console.error('decision notification failed:', e);
   }
 }
 

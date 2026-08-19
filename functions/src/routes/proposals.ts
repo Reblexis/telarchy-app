@@ -20,7 +20,7 @@ import { validateContent, MIN_LIQUIDITY_CONTRIBUTION } from '../lib/validation';
 import { getParticipantDisplayNames } from '../lib/participants';
 import { emitEvent } from '../services/events';
 import { notifyOwner } from '../lib/notify';
-import { notifyCommentPosted, notifyProposalCreated } from '../services/notifications';
+import { notifyCommentPosted, notifyProposalCreated, notifyProposalDecided } from '../services/notifications';
 
 export const proposalsRouter = Router();
 
@@ -253,6 +253,8 @@ proposalsRouter.post('/:proposalId/approve', requireCapability('manage'), wrap(a
   emitEvent('proposal:status_changed', {
     proposalId, fromStatus: 'pending', toStatus: 'approved', decidedBy: agentId ?? null,
   }, workspaceId).catch(e => console.error('emitEvent failed:', e));
+  // The person who filed it is owed the answer, whichever way it went.
+  void notifyProposalDecided({ workspaceId, proposalId });
   res.json({ ok: true, rewardPaid: result.rewardPaid });
 }));
 
@@ -270,6 +272,8 @@ proposalsRouter.post('/:proposalId/decline', requireCapability('manage'), wrap(a
   emitEvent('proposal:status_changed', {
     proposalId, fromStatus: 'pending', toStatus: 'declined', decidedBy: agentId ?? null,
   }, workspaceId).catch(e => console.error('emitEvent failed:', e));
+  // The person who filed it is owed the answer, whichever way it went.
+  void notifyProposalDecided({ workspaceId, proposalId });
   res.json({ ok: true });
 }));
 
@@ -280,6 +284,8 @@ proposalsRouter.post('/:proposalId/decline-spam', requireCapability('manage'), w
   emitEvent('proposal:status_changed', {
     proposalId, fromStatus: 'pending', toStatus: 'declined-spam', decidedBy: agentId ?? null,
   }, workspaceId).catch(e => console.error('emitEvent failed:', e));
+  // The person who filed it is owed the answer, whichever way it went.
+  void notifyProposalDecided({ workspaceId, proposalId });
   res.json({ ok: true, penaltyCharged: result.penaltyCharged });
 }));
 

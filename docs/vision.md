@@ -445,6 +445,10 @@ A participant therefore carries three email switches on their own row (`agents`)
 
 The split of defaults is the design, not an accident. The first two are answers addressed *to you*: someone is waiting on a reply, and not delivering that is the product failing at the one thing a comment box promises. The third is a firehose whose volume is set by strangers, so it stays off until someone asks for it. New accounts get exactly this at signup; nothing is asked at the door, because a notification question in a signup form costs more traders than it saves emails.
 
+**A decision on your own contract has no switch, and always sends** (owner ask 2026-08-19). Approve, decline, and decline-as-spam each mail the proposer the moment the owner decides: which way it went, the ask that was on it, and the written reason when there is one. Every other email here is news about somebody else's activity, which a person is entitled to tune. A decision is not news, it is the answer to the question they asked by posting the contract, usually with money on it, so the only way that switch would ever be off is a mis-click. The same event is already the `decision` row in the bell; the mail exists because someone who filed a job and closed the tab has nothing else to bring them back.
+
+Two neighbouring events stay silent on purpose. **Withdrawing** your own contract is your own doing. **Removing** one from the board is admin cleanup for rows that should never have been there (spam, duplicates, test entries), and it is not a decision, so it produces no record and no mail: if the person deserves to hear an answer, decline it with a reason instead of removing it. Found live 2026-08-19, when a contract that broke another platform's rules was removed rather than declined and its poster learned the outcome from a comment thread elsewhere.
+
 Delivery rules, all enforced in `services/notifications.ts`:
 
 - Recipients resolve participant -> browser account -> email address. A participant with no browser account (an API-key bot, or an account detached by a GDPR delete) is skipped: there is no address to write to and no page they would read it on.
