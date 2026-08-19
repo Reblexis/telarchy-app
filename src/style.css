@@ -5869,3 +5869,183 @@ textarea.jobform-line--desc {
   font-size: 0.66rem;
   letter-spacing: 0.08em;
 }
+
+/* ------------------------------------------------------------------ */
+/* telarchy.com/admin: the owner's cockpit, in the floor's language
+   (owner ask 2026-08-19). Same column, same hairlines, same mono
+   numerals as /leaderboard; the only page with an audience of one.
+   Spec: docs/ui-conventions.md, "The cockpit". */
+
+.adm {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: clamp(2.5rem, 8vh, 4.5rem) 1.25rem 5rem;
+}
+
+.adm-head {
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: clamp(1.75rem, 6vw, 2.4rem);
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+.adm-lead {
+  margin: 0.8rem auto clamp(2rem, 5vh, 3rem);
+  max-width: 32rem;
+  text-align: center;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.adm-err { color: var(--error-text); font-size: 0.85rem; }
+.adm-empty { color: var(--text-tertiary); font-size: 0.9rem; }
+
+/* The glance. Wraps to two lines on a phone rather than shrinking the
+   numerals, which are the reason the page is open. */
+.adm-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.75rem 2.5rem;
+  padding-bottom: 2.25rem;
+  margin-bottom: 2.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.adm-fig { display: flex; flex-direction: column; gap: 0.15rem; }
+
+.adm-fig-n {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 1.7rem;
+  line-height: 1.05;
+}
+
+.adm-fig-l {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+
+.adm-block { margin-bottom: 2.75rem; }
+
+.adm-note {
+  margin: -0.4rem 0 0.9rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+}
+
+.adm-list { list-style: none; margin: 0; padding: 0; }
+.adm-list li { border-top: 1px solid var(--border-color); }
+.adm-list li:last-child { border-bottom: 1px solid var(--border-color); }
+
+.adm-row {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+  padding: 0.5rem 0;
+  font-size: 0.85rem;
+}
+
+/* The bar is the row's own volume, not a chart: a hairline of accent under
+   the text, scaled to the busiest row. Sits behind the type, which is why
+   the row's own content is positioned above it. */
+.adm-bar {
+  position: absolute;
+  left: 0;
+  /* Clear of the row's own hairline, or a full-width bar reads as a thicker
+     separator rather than as a quantity. */
+  bottom: 3px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.adm-left {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  overflow-wrap: anywhere;
+}
+
+.adm-right {
+  position: relative;
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.adm-value {
+  position: relative;
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 0.8rem;
+  white-space: nowrap;
+}
+
+.adm-mono {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8rem;
+}
+
+.adm-sub {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  overflow-wrap: anywhere;
+}
+
+/* Neutral by rule (docs/ui-conventions.md, "Color usage"): a visitor kind
+   or a report kind is a category, and categories do not get colours here. */
+.adm-tag {
+  padding: 0.05rem 0.4rem;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.adm-report { padding: 0.85rem 0; }
+.adm-report.is-done { opacity: 0.5; }
+
+.adm-report-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+.adm-report-body {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+.adm-report-who {
+  margin: 0.35rem 0 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  overflow-wrap: anywhere;
+}

@@ -14,7 +14,9 @@ proposals, sources, activity, settings, check-in, participants), the
 console marketplace and leaderboard, the landing page, /start, /welcome,
 /claim, /create-workspace, the guides and tutorial engine, /benchmark, the
 platform-admin /admin and /agents cockpits, the API-key portal, the agent
-portal, and the `/alpha` wall that used to hide them. Git history is the
+portal, and the `/alpha` wall that used to hide them. (`/admin` came back
+on 2026-08-19, rewritten in this language rather than restored; see "The
+cockpit" below. Nothing else on that list has.) Git history is the
 archive; every API endpoint they drove is still live and documented in
 `GET /api/help`, so the operator drives those by hand until a surface for
 them exists in this language.
@@ -537,6 +539,41 @@ everything stops under prefers-reduced-motion. Signed-in visits join
 silently. The ballot, charter, decided list, pitch and footer are
 deliberately not rendered in this phase; the API still ships them, so each
 returns as a render change.
+
+## The cockpit (/admin)
+
+`telarchy.com/admin` is the owner's own page: who showed up, where they
+came from, who signed up, who is waiting, and what people reported. It is
+the one surface in the product with an audience of one, and it reads the
+platform-admin endpoints that already existed (`GET /api/admin/floor-stats`,
+`GET /api/feedback`); the server gates both on the `platformAdmin` flag, so
+the page is a renderer, never the guard.
+
+Two rules it does not share with the public pages:
+
+- **It is indistinguishable from a URL that does not exist.** Anyone who is
+  not a platform admin - signed out, signed in, or curious - is bounced to
+  the floor exactly the way any unrecognised path is. There is no "you are
+  not allowed" screen, because that screen tells a stranger the page is
+  real.
+- **Nothing is summarised away.** The waitlist is people awaiting a reply
+  and a report is someone who hit a wall and took the trouble to say so, so
+  both render in full, open reports first. Numbers are the only thing
+  rolled up.
+
+Everything else is the floor's language, deliberately: `TopBar`, one 760px
+column, a Fraunces headline, tiny uppercase `.pubws-h2` labels, hairline
+rows, mono numerals, one accent. A day row carries a hairline-thin amber
+bar scaled to the busiest day (`.adm-bar`) rather than a chart, because the
+question is "did anyone show up today", not the shape of a curve. Visitor
+kind (person / server / proxy) is a neutral chip, not a colour code. The
+page reloads itself every 20 seconds so it can be left open during a
+launch.
+
+Rewritten 2026-08-19 (Viktor: "add support for this endpoint... but using
+the new gui and design"). The 2026-08-11 cockpit's markup was inline
+styles over `.container` and died with the console; this one shares no code
+with it.
 
 ## Reusing a component's classes: mind the cascade order
 

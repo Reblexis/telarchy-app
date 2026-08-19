@@ -10,14 +10,16 @@ import { LeaderPage } from './pages/LeaderPage';
 import { SeasonPage } from './pages/SeasonPage';
 import { ManagePage } from './pages/ManagePage';
 import { ParticipantProfilePage } from './pages/ParticipantProfilePage';
+import { AdminPage } from './pages/AdminPage';
 
 /* The whole app is the public surface (owner decision 2026-08-19: get rid of
    the old GUI). Every route below renders a standalone `.pubws` page. There
    is no app shell, no sidebar, no workspace tabs, no alpha wall and no
    console, because there is no second design language left to hide: the
-   console (AppLayout, the nine workspace tabs, /admin, /agents, the guides,
-   the tutorial engine, the agent portal) was DELETED rather than curtained
-   off. Git history is its archive; every API endpoint it drove is still
+   console (AppLayout, the nine workspace tabs, /agents, the guides, the
+   tutorial engine, the agent portal) was DELETED rather than curtained
+   off. /admin went with it and came back on 2026-08-19, rewritten in this
+   language, sharing no code with the page it replaces. Git history is its archive; every API endpoint it drove is still
    live, so the operator drives those by hand until a surface for them is
    rebuilt in this language. See docs/ui-conventions.md. */
 
@@ -61,6 +63,14 @@ export function App() {
             keeps working, because a rules link that has been quoted anywhere
             must not 404. */}
         <Route path="/legal/season-1" element={<LegalPage document="season-1" />} />
+
+        {/* The owner's cockpit: traffic, signups, the waitlist and the
+            reports. Platform-admin only, gated server-side on every endpoint
+            it reads; anyone else lands on the floor the way an unrecognised
+            URL does, so the page never announces itself. Rebuilt in the
+            floor's language 2026-08-19 (docs/ui-conventions.md, "The
+            cockpit") rather than restored from the deleted console. */}
+        <Route path="/admin" element={<AdminPage />} />
 
         {/* Operator switch, linked from nowhere. */}
         <Route path="/local" element={<LocalRedirect />} />

@@ -37,7 +37,7 @@ Do not use em dashes. Use commas, periods, semicolons, parentheses, or "i.e."/"e
 
 ## UI conventions
 
-Frontend layout, type, color, and component patterns live in `docs/ui-conventions.md`. When adding or restyling a page, read it first. **The old console GUI was deleted on 2026-08-19** (owner: "could you get completely rid of the old gui for now?"): there is no `AppLayout`, no sidebar, no workspace tabs, no /admin or /agents page, no guides or tutorials, no agent portal, no alpha wall. Key invariants: every page is a standalone `.pubws` page carrying its own top bar; the column is 660px (poster), 760px (document) or 26rem (a door), and horizontal padding belongs to that column, never to the blocks inside it; sections use tiny uppercase labels, not large bold headers; lists use 1px hairlines, not cards; the product is monochrome plus a single accent (no per-category color coding). If you want a sidebar, you are rebuilding the thing that was deleted.
+Frontend layout, type, color, and component patterns live in `docs/ui-conventions.md`. When adding or restyling a page, read it first. **The old console GUI was deleted on 2026-08-19** (owner: "could you get completely rid of the old gui for now?"): there is no `AppLayout`, no sidebar, no workspace tabs, no /agents page, no guides or tutorials, no agent portal, no alpha wall. `/admin` came back on 2026-08-19 as a standalone `.pubws` page (the owner's cockpit: traffic, signups, waitlist, reports), rewritten in this design language rather than restored. Key invariants: every page is a standalone `.pubws` page carrying its own top bar; the column is 660px (poster), 760px (document) or 26rem (a door), and horizontal padding belongs to that column, never to the blocks inside it; sections use tiny uppercase labels, not large bold headers; lists use 1px hairlines, not cards; the product is monochrome plus a single accent (no per-category color coding). If you want a sidebar, you are rebuilding the thing that was deleted.
 
 ## Participant symmetry
 
@@ -111,8 +111,8 @@ specs over ad-hoc browsing. Each file is a per-feature script of `browse`
 intent. The master index is `qa/browse/README.md`.
 
 When you ship a UI-affecting change, either update the relevant existing
-spec or add a new one (use `07-admin/bot-agents-panel.md` as the
-gold-standard template), and, when the change adds or alters a behavioral
+spec or add a new one (use `07-admin/cockpit-page.md` as the
+gold-standard template; `bot-agents-panel.md` went with the console), and, when the change adds or alters a behavioral
 guarantee, promote that guarantee into the governing doc that owns it (not
 only into the test). Specs are organised by category subdirectory
 (`00-anonymous` … `13-infra-and-abuse`) and run in parallel via

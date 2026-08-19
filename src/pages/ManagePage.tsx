@@ -18,13 +18,16 @@ export function ManagePage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
 
-  // /manage is the owner door: the waitlist pitch for strangers, the real
-  // management console for platform admins (trader-first flip, 2026-08-08).
+  // /manage is the owner door: the waitlist pitch for strangers, the
+  // cockpit for platform admins (trader-first flip, 2026-08-08). It used to
+  // send them to /overview, which the console took with it when it was
+  // deleted, so the owner was bounced to the floor instead; /admin is the
+  // surface that exists (2026-08-19).
   useEffect(() => {
     if (!user) return;
     api.getProfile()
       .then((p: { platformAdmin?: boolean }) => {
-        if (p.platformAdmin === true) navigate('/overview', { replace: true });
+        if (p.platformAdmin === true) navigate('/admin', { replace: true });
       })
       .catch(e => console.error('profile check failed:', e));
   }, [user, navigate]);

@@ -96,7 +96,8 @@ Specs declare `parallel-safe: true|false` to opt out individually.
 - Helper library: `_runner/lib.sh` (`tt_mkworkspace`, `tt_mkagent`,
   `tt_mkuser`, `tt_credit`, `tt_admin_curl`, `tt_on_cleanup`, …)
 - Subjective grading: `_runner/grading.md`
-- Gold-standard template: `07-admin/bot-agents-panel.md`
+- Gold-standard template: `07-admin/cockpit-page.md` (the old pointer,
+  `bot-agents-panel.md`, went with the console)
 
 
 ## Deleted with the console (2026-08-19)
@@ -202,6 +203,7 @@ explains itself.
 | File | Surface |
 | --- | --- |
 | `activity-feed.md` | `GET /api/admin/activity` |
+| `cockpit-page.md` | `/admin` page + `GET /api/admin/floor-stats` gating |
 | `treasury-and-credit.md` | `/api/agents/treasury` + manual credit/spend |
 
 ### 08-feedback
