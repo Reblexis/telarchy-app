@@ -177,6 +177,52 @@ describe('a comment under a market', () => {
   });
 });
 
+describe('a comment under a contract\'s conditional market', () => {
+  /**
+   * The bug this pins (found on the live floor 2026-08-19): a conditional
+   * market belongs to a contract, but comments on it went into the market
+   * thread, which has no poster, so the person being asked to do the work
+   * heard nothing about half the conversation about their own contract.
+   */
+  test('reaches the contract poster, not just the thread', async () => {
+    await human('poster', 'poster@example.com');
+    await human('trader', 'trader@example.com');
+    await seedWorkspace(['poster', 'trader']);
+    await seedProposal();
+    await db.insert(markets).values({
+      id: 'mkt-cond', workspaceId: WS, metricId: 'metric-1', metricName: 'Weekly traders',
+      targetDate: '2026-12', rangeMin: 0, rangeMax: 100,
+      shares: [0, 0], liquidity: 10, pool: initialPool(10),
+      active: true, resolved: false, voided: false, proposalId: 'prop-1', branch: 'approved',
+    });
+
+    await notifyCommentPosted({ workspaceId: WS, from: 'trader', content: 'priced too high', marketId: 'mkt-cond' });
+
+    expect(sent.map(s => s.to)).toEqual(['poster@example.com']);
+    // Titled by the contract, not the branch market: that is what the
+    // reader recognises in an inbox.
+    expect(sent[0].subject).toContain('Ship the landing page');
+    expect(sent[0].text).toContain('a contract you posted');
+  });
+
+  test('a base market has no poster to reach', async () => {
+    await human('poster', 'poster@example.com');
+    await human('trader', 'trader@example.com');
+    await seedWorkspace(['poster', 'trader']);
+    await seedProposal();
+    await db.insert(markets).values({
+      id: 'mkt-base', workspaceId: WS, metricId: 'metric-1', metricName: 'Weekly traders',
+      targetDate: '2026-12', rangeMin: 0, rangeMax: 100,
+      shares: [0, 0], liquidity: 10, pool: initialPool(10),
+      active: true, resolved: false, voided: false, proposalId: null, branch: null,
+    });
+
+    await notifyCommentPosted({ workspaceId: WS, from: 'trader', content: 'thin book', marketId: 'mkt-base' });
+
+    expect(sent).toHaveLength(0);
+  });
+});
+
 describe('a new contract on the ballot', () => {
   test('reaches only the members who asked for it, never the poster', async () => {
     await human('poster', 'poster@example.com', { notifyNewProposal: true });

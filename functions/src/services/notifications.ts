@@ -138,11 +138,27 @@ export async function notifyCommentPosted(opts: {
         if (m.from !== from && !wanted.has(m.from)) wanted.set(m.from, 'reply');
       }
     } else if (marketId) {
-      const [market] = await db.select({ metricName: markets.metricName, targetDate: markets.targetDate })
-        .from(markets)
+      const [market] = await db.select({
+        metricName: markets.metricName, targetDate: markets.targetDate, proposalId: markets.proposalId,
+      }).from(markets)
         .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
       if (!market) return;
       subjectLabel = `${market.metricName} ${market.targetDate}`;
+
+      // A conditional market BELONGS to a contract, so a comment on one is
+      // a comment about that contract and its poster is owed it exactly as
+      // if it had landed in the contract's own thread. Without this, the
+      // half of the conversation that happens on the branch markets is
+      // silent to the one person being asked to do the work.
+      if (market.proposalId) {
+        const [proposal] = await db.select({ title: proposals.title, proposedBy: proposals.proposedBy })
+          .from(proposals)
+          .where(and(eq(proposals.id, market.proposalId), eq(proposals.workspaceId, workspaceId)));
+        if (proposal) {
+          subjectLabel = proposal.title;
+          if (proposal.proposedBy !== from) wanted.set(proposal.proposedBy, 'my-proposal');
+        }
+      }
 
       const thread = await db.select({ from: marketMessages.from }).from(marketMessages)
         .where(and(eq(marketMessages.workspaceId, workspaceId), eq(marketMessages.marketId, marketId)))

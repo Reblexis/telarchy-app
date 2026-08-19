@@ -449,6 +449,7 @@ Delivery rules, all enforced in `services/notifications.ts`:
 
 - Recipients resolve participant -> browser account -> email address. A participant with no browser account (an API-key bot, or an account detached by a GDPR delete) is skipped: there is no address to write to and no page they would read it on.
 - Nobody is notified of their own comment or their own contract, and each recipient gets **at most one email per comment** even when both of the first two switches would fire.
+- A comment on a **conditional market** counts as a comment on the contract that market belongs to, so the poster is notified and the email is titled by the contract rather than the branch (found live 2026-08-19: the conversation that happens on the branch markets was silent to the one person being asked to do the work). A base market has no poster, so only its thread hears about it.
 - Sending is fire-and-forget. Posting a comment must not fail, or slow down, because Resend did; every transport error is logged and swallowed, exactly like owner notifications.
 - Every email names the switch that produced it and links to account settings, so turning it off is one click from the message that annoyed them.
 
