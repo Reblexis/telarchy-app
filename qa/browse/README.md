@@ -143,6 +143,7 @@ explains itself.
 | `legal.md` | `/terms`, `/privacy`, ToS clauses |
 | `waitlist.md` | `POST /api/waitlist` + dedup + rate limit |
 | `ask-the-floor.md` | The workspace brief + the Ask field: answers from the floor's own facts, and the agent prompt |
+| `data-room.md` | Anonymous `/data-room` and `GET /api/data-room`: the prose, the live figures, the traffic rollup, the change log |
 | `seo-and-og.md` | `robots.txt`, `sitemap.xml`, OG/Twitter cards, no trackers |
 
 ### 01-auth
