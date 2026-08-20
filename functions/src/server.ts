@@ -44,7 +44,7 @@ if (fs.existsSync(envLocalPath)) {
 import { assertTreasuryConfigured } from './lib/usdc';
 import { runBootstrap } from './lib/bootstrap';
 import { shouldLogVisit } from './lib/visit-log';
-import { BETA_PREFIX, isBetaPath, proxyToCandidate } from './lib/beta-surface';
+import { BETA_PREFIX, isBetaPath } from './lib/beta-surface';
 
 /** Schedule a daily job at a fixed UTC time. Fires once at the next occurrence, then every 24 h. */
 function scheduleDailyUTC(hourUTC: number, minuteUTC: number, label: string, fn: () => Promise<void>): void {
@@ -134,12 +134,12 @@ import('./app').then(async ({ app }) => {
       },
     }));
   }
-  app.use(async (req, res, next) => {
+  // The proxy itself lives in app.ts, before the prefix strip (order matters,
+  // see the comment there). What is left here is the local fallback: this
+  // build's own beta bundle, for when there is nothing to forward to.
+  app.use((req, res, next) => {
     if (!isBetaPath(req.path)) return next();
     if (req.path === '/beta/api' || req.path.startsWith('/beta/api/')) return next();
-    if (await proxyToCandidate(req, res)) return;
-    // Nothing waiting: serve this build's own beta bundle, so the stripe can
-    // say "what you are looking at is what is published".
     const betaIndex = path.join(publicBetaDir, 'index.html');
     if (fs.existsSync(betaIndex)) {
       res.setHeader('Cache-Control', 'no-cache');

@@ -34,6 +34,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { AppError } from './lib/errors';
 import { corsMiddleware } from './lib/cors';
 import { publicOrigins } from './lib/origins';
+import { isBetaPath, proxyToCandidate } from './lib/beta-surface';
 
 export const app = express();
 
@@ -62,13 +63,36 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(corsMiddleware);
+app.use(express.json());
+
+/**
+ * Hand the whole beta to the candidate revision, API included.
+ *
+ * ORDER IS THE FEATURE HERE, and getting it wrong is what shipped on
+ * 2026-08-20: the prefix strip below used to run first, so by the time the
+ * proxy looked at a request its path was already `/api/...` and no longer
+ * recognisable as the beta's. The result was a beta serving the candidate's
+ * FRONTEND against the PUBLISHED backend, which is the frontend-only preview
+ * this whole thing exists not to be. Proxy first, strip second.
+ *
+ * After express.json(), because a proxied POST has to carry its body.
+ */
+app.use(async (req, res, next) => {
+  if (!isBetaPath(req.path)) return next();
+  if (await proxyToCandidate(req, res)) return;
+  // Nothing to forward to (this IS the candidate, or none is waiting): fall
+  // through and serve the beta locally.
+  next();
+});
+
 /**
  * `/beta/api/...` is the beta's own API (docs/infra/deploy.md). The beta
  * bundle is built with its API base at /beta, so its calls arrive prefixed;
- * strip it here, before anything routes, and every existing endpoint serves
- * the beta unchanged. Mounting a second copy of the API under /beta would be
- * two code paths for one capability, which AGENTS.md forbids for exactly the
- * reason it would bite here: they would drift.
+ * strip it here, once the request is known to be served locally, and every
+ * existing endpoint serves the beta unchanged. Mounting a second copy of the
+ * API under /beta would be two code paths for one capability, which AGENTS.md
+ * forbids for exactly the reason it would bite here: they would drift.
  */
 app.use((req, _res, next) => {
   if (req.url === '/beta/api' || req.url.startsWith('/beta/api/') || req.url.startsWith('/beta/api?')) {
@@ -76,9 +100,6 @@ app.use((req, _res, next) => {
   }
   next();
 });
-
-app.use(corsMiddleware);
-app.use(express.json());
 
 // Recursively delete a key from an arbitrary JSON value, in place.
 function stripKeyDeep(value: unknown, key: string): void {
