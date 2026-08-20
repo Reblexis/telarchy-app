@@ -665,6 +665,26 @@ manage it. An owner with `manage` gets an inline compose box (the
 buttons) and an Edit control on each announcement, with the edit box
 carrying the warning that the original stays public.
 
+**Revised 2026-08-20 (Viktor: "just show the headline on the main page, and
+only if clicked then go to the announcements page").** The floor's
+Announcements section is one row now (`.pubws-annline`): a three-column grid
+of headline, day, and an arrow, hairline above and below so it reads as an
+entry in a ledger rather than a paragraph of prose. The headline comes from
+`src/lib/announcement-headline.ts` and nowhere else. Hover and keyboard focus
+take the headline and the arrow to the accent and nudge the arrow 2px
+(reduced-motion drops the nudge). The section's corner control is "All N"
+when the record holds more than one, and nothing when it holds one, because
+a count that always reads "All 1" is furniture.
+
+`AnnouncementsPage` (`/:slug/announcements`) is a poster head over a document
+body: the workspace name as a tiny uppercase back-link, the Fraunces headline
+"Announcements", and one centred sentence naming the guarantee, over a left
+aligned `.pubws-doc` column of hairline-separated entries. Each entry's
+publication instant is set in `var(--font-mono)`, which is the page's one
+structural device: in an append-only record the time is the entry's identity.
+The compose box and the per-entry Edit control live here now, not on the
+floor.
+
 **Revised 2026-08-13, chart axis on young markets (owner bug report: the
 "if declined" view of a fresh job drew only an endpoint dot).** The
 market chart's x-domain never extends into the future: its right edge is

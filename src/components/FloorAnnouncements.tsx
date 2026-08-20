@@ -1,260 +1,68 @@
-import { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { api, type Announcement } from '../lib/api';
+import { Link } from 'react-router-dom';
+import { type Announcement } from '../lib/api';
+import { announcementHeadline } from '../lib/announcement-headline';
 
 /**
- * The owner's announcements on the public floor.
+ * The owner's announcements, as one line on the floor.
  *
  * A charter that promises "if something material happens that the market
- * cannot see, I announce it within 24 hours" needs somewhere for the
- * announcement to land, and comments (which hang off one market or one
- * proposal) are not it. This is that surface: workspace-level, public,
- * newest first, and append-only (docs/vision.md, "Workspace announcements").
+ * cannot see, I announce it" needs somewhere for the announcement to land,
+ * and comments (which hang off one market or one proposal) are not it. That
+ * surface is `<floor>/announcements`; this is the pointer to it.
  *
- * The latest one is always open, because a trader arriving mid-market should
- * meet the most recent disclosure rather than go looking for it; older ones
- * are one click away. An edited announcement says so, prints both timestamps,
- * and can show the text it replaced. Hiding any of that would turn a record a
- * trader can check back into the owner's word.
+ * It used to be the surface itself: the latest announcement printed in full
+ * on the floor, with the rest behind an expander. Owner direction 2026-08-20,
+ * "just show the headline on the main page, and only if clicked then go to
+ * the announcements page": a 150-word disclosure sitting between the market's
+ * definition and the company blurb pushes the market itself off the screen,
+ * and the floor's job is the market.
+ *
+ * What survives the move is the promise. The line is the newest announcement
+ * and says when it landed, so a trader arriving mid-market can see at a glance
+ * whether anything has been said since they last looked, which is the whole
+ * function this section had.
  */
 
-function fmtWhen(iso: string): string {
-  return new Date(iso).toLocaleString('en-GB', {
-    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  });
+function fmtDay(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
-function Body({ text }: { text: string }) {
-  return (
-    <div className="pubws-ann-body">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer">{children}</a>,
-        }}
-      >
-        {text}
-      </ReactMarkdown>
-    </div>
-  );
-}
-
-function AnnouncementRow({ item, workspaceId, canManage, onEdited }: {
-  item: Announcement;
-  workspaceId: string;
-  canManage: boolean;
-  onEdited: (updated: Announcement) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(item.body);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
-  const [showOriginal, setShowOriginal] = useState(false);
-
-  return (
-    <article className="pubws-ann">
-      <div className="pubws-ann-meta">
-        <time dateTime={item.publishedAt}>{fmtWhen(item.publishedAt)}</time>
-        {item.editedAt && (
-          <>
-            <span className="pubws-ann-edited">edited {fmtWhen(item.editedAt)}</span>
-            {item.originalBody && (
-              <button className="pubws-ann-link" onClick={() => setShowOriginal(v => !v)}>
-                {showOriginal ? 'hide what it said' : 'what it said before'}
-              </button>
-            )}
-          </>
-        )}
-        {canManage && !editing && (
-          <button className="pubws-ann-link" onClick={() => { setDraft(item.body); setErr(''); setEditing(true); }}>
-            Edit
-          </button>
-        )}
-      </div>
-
-      {editing ? (
-        <div className="pubws-ann-editor">
-          <textarea
-            className="jobform-line jobform-line--desc pubws-ann-editarea"
-            rows={8}
-            maxLength={5000}
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            aria-label="Edit announcement"
-          />
-          {/* Said before the save, not after: an owner correcting a typo and
-              an owner rewriting a disclosure press the same button, and only
-              one of them should be surprised by the result. */}
-          <p className="pubws-ann-warn">
-            The version already published stays public, with the time of this edit beside it.
-          </p>
-          {err && <p className="ticket-err">{err}</p>}
-          <div className="pubws-ann-actions">
-            <button
-              className="ticket-go"
-              disabled={busy}
-              onClick={() => {
-                setBusy(true); setErr('');
-                void (async () => {
-                  try {
-                    onEdited(await api.editAnnouncement(workspaceId, item.id, draft));
-                    setEditing(false);
-                  } catch (e) {
-                    setErr((e as Error).message || 'Could not save');
-                  } finally {
-                    setBusy(false);
-                  }
-                })();
-              }}
-            >
-              {busy ? 'Saving…' : 'Save'}
-            </button>
-            <button className="pubws-ghost" onClick={() => { setEditing(false); setErr(''); }}>Cancel</button>
-          </div>
-        </div>
-      ) : (
-        <>
-          <Body text={item.body} />
-          {showOriginal && item.originalBody && (
-            <div className="pubws-ann-original">
-              <span className="pubws-ann-original-label">As first published</span>
-              <Body text={item.originalBody} />
-            </div>
-          )}
-        </>
-      )}
-    </article>
-  );
-}
-
-export function FloorAnnouncements({ workspaceId, idOrSlug, latest, total, canManage }: {
-  workspaceId: string;
+export function FloorAnnouncements({ idOrSlug, latest, total, canManage }: {
   /** What the public read route is addressed by (slug or id), the same thing
    *  the floor was loaded with. */
   idOrSlug: string;
   /** The newest announcement, shipped inline on the workspace payload. */
   latest: Announcement | null | undefined;
-  /** How many exist in total, so the section can offer the rest honestly. */
+  /** How many exist in total, so the line can say what is behind it. */
   total: number;
   canManage: boolean;
 }) {
-  const [items, setItems] = useState<Announcement[] | null>(null);
-  const [expanded, setExpanded] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [listErr, setListErr] = useState('');
-  const [composing, setComposing] = useState(false);
-  const [draft, setDraft] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState('');
-  // The newest announcement as this session has changed it: set by publishing
-  // one, and by editing whichever one is on top. Without it the page would
-  // keep rendering the payload's copy, so an owner's own correction would look
-  // like it had not saved.
-  const [newestLocal, setNewestLocal] = useState<Announcement | null>(null);
-  const [publishedHere, setPublishedHere] = useState(0);
-
-  // `total` is the count the payload was built with; a publish in this session
-  // is one more than that, so the "N earlier" offer stays honest without a
-  // reload.
-  const newest = newestLocal ?? latest ?? null;
-  const olderCount = Math.max(0, total + publishedHere - 1);
-
   // Nothing published and nothing the visitor could do about it: render no
   // section at all rather than an empty heading on every floor.
-  if (!newest && !canManage) return null;
+  if (!latest && !canManage) return null;
 
-  const loadAll = async () => {
-    if (items) { setExpanded(v => !v); return; }
-    setLoading(true); setListErr('');
-    try {
-      const res = await api.getWorkspaceAnnouncements(idOrSlug);
-      setItems(res.announcements);
-      setExpanded(true);
-    } catch (e) {
-      setListErr((e as Error).message || 'Could not load announcements');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const replaceInList = (updated: Announcement) => {
-    if (newest?.id === updated.id) setNewestLocal(updated);
-    setItems(cur => cur?.map(a => (a.id === updated.id ? updated : a)) ?? cur);
-  };
-
-  const shown = expanded && items ? items : newest ? [newest] : [];
+  const href = `/${encodeURIComponent(idOrSlug)}/announcements`;
 
   return (
     <section className="pubws-know pubws-enter pubws-enter--3" aria-label="Announcements">
       <div className="pubws-know-headrow">
         <h2 className="pubws-know-head">Announcements</h2>
-        {canManage && !composing && (
-          <button className="pubws-know-edit" onClick={() => { setDraft(''); setErr(''); setComposing(true); }}>
-            New
-          </button>
-        )}
+        {/* The count is the offer, so it sits where a count belongs and not in
+            a second link underneath the line. */}
+        {total > 1 && <Link className="pubws-know-edit" to={href}>All {total}</Link>}
       </div>
 
-      {canManage && composing && (
-        <div className="pubws-ann-editor">
-          <textarea
-            className="jobform-line jobform-line--desc pubws-ann-editarea"
-            rows={8}
-            maxLength={5000}
-            placeholder="Something material the market cannot see yet."
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            aria-label="New announcement"
-          />
-          <p className="pubws-ann-warn">
-            Published announcements cannot be deleted, and the time is stamped by the server.
-            An edit keeps the original visible.
-          </p>
-          {err && <p className="ticket-err">{err}</p>}
-          <div className="pubws-ann-actions">
-            <button
-              className="ticket-go"
-              disabled={busy || draft.trim().length === 0}
-              onClick={() => {
-                setBusy(true); setErr('');
-                void (async () => {
-                  try {
-                    const created = await api.publishAnnouncement(workspaceId, draft);
-                    setNewestLocal(created);
-                    setPublishedHere(n => n + 1);
-                    setItems(cur => (cur ? [created, ...cur] : cur));
-                    setComposing(false);
-                    setDraft('');
-                  } catch (e) {
-                    setErr((e as Error).message || 'Could not publish');
-                  } finally {
-                    setBusy(false);
-                  }
-                })();
-              }}
-            >
-              {busy ? 'Publishing…' : 'Publish'}
-            </button>
-            <button className="pubws-ghost" onClick={() => { setComposing(false); setErr(''); }}>Cancel</button>
-          </div>
-        </div>
-      )}
-
-      {shown.length === 0 ? (
-        <p className="pubws-ann-empty">Nothing announced yet.</p>
+      {latest ? (
+        <Link className="pubws-annline" to={href}>
+          <span className="pubws-annline-head">{announcementHeadline(latest.body)}</span>
+          <time className="pubws-annline-when" dateTime={latest.publishedAt}>{fmtDay(latest.publishedAt)}</time>
+          <span className="pubws-annline-go" aria-hidden="true">→</span>
+        </Link>
       ) : (
-        shown.map(a => (
-          <AnnouncementRow key={a.id} item={a} workspaceId={workspaceId} canManage={canManage} onEdited={replaceInList} />
-        ))
+        <p className="pubws-ann-empty">
+          Nothing announced yet. <Link className="pubws-ann-link" to={href}>Write one</Link>
+        </p>
       )}
-
-      {olderCount > 0 && (
-        <button className="pubws-ann-more" onClick={() => void loadAll()} disabled={loading}>
-          {loading ? 'Loading…' : expanded ? 'Show only the latest' : `${olderCount} earlier`}
-        </button>
-      )}
-      {listErr && <p className="ticket-err">{listErr}</p>}
     </section>
   );
 }

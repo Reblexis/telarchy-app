@@ -4424,6 +4424,58 @@ textarea.jobform-line--desc {
 .pubws-ann-more:focus-visible { color: var(--accent); outline: none; }
 .pubws-ann-more:disabled { cursor: default; opacity: 0.6; }
 
+/* One line of the record on the floor: the newest announcement, when it
+   landed, and the way through to the rest (owner direction 2026-08-20). The
+   hairlines above and below make it read as an entry in a ledger rather than
+   as a paragraph of prose, which is what it is. */
+.pubws-annline {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.65rem 0;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  text-decoration: none;
+  color: inherit;
+}
+
+.pubws-annline-head {
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--text-primary);
+  transition: color 0.12s ease;
+}
+
+.pubws-annline-when {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+.pubws-annline-go {
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+  transition: color 0.12s ease, transform 0.12s ease;
+}
+
+.pubws-annline:hover .pubws-annline-head,
+.pubws-annline:focus-visible .pubws-annline-head { color: var(--accent); }
+
+.pubws-annline:hover .pubws-annline-go,
+.pubws-annline:focus-visible .pubws-annline-go { color: var(--accent); transform: translateX(2px); }
+
+.pubws-annline:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pubws-annline-head,
+  .pubws-annline-go { transition: none; }
+  .pubws-annline:hover .pubws-annline-go,
+  .pubws-annline:focus-visible .pubws-annline-go { transform: none; }
+}
+
+
 /* Links inside the explainer read as normal underlined text, not buttons
    (owner ask 2026-08-12): the "prediction market" definition link and the
    data-room / Steam / SteamDB sources. */
@@ -6048,4 +6100,75 @@ textarea.jobform-line--desc {
   font-size: 0.7rem;
   color: var(--text-tertiary);
   overflow-wrap: anywhere;
+}
+
+/* telarchy.com/<floor>/announcements. A poster head over a document body:
+   the headline and its one-sentence guarantee are centred like the other
+   standalone pages (/leaderboard, /season), and the record itself is left
+   aligned, because it is read rather than looked at. */
+.annp { padding-bottom: 5rem; }
+
+.annp-back {
+  display: block;
+  margin: 0 0 0.9rem;
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  text-decoration: none;
+}
+
+.annp-back:hover,
+.annp-back:focus-visible { color: var(--accent); outline: none; }
+
+.annp-head {
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: clamp(1.75rem, 6vw, 2.4rem);
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+.annp-lead {
+  margin: 0.8rem auto clamp(2rem, 5vh, 3rem);
+  max-width: 34rem;
+  text-align: center;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.annp-new {
+  display: block;
+  margin: 0 auto clamp(1.6rem, 4vh, 2.4rem);
+  padding: 0.4rem 1rem;
+  background: none;
+  border: 1px solid var(--border-color);
+  border-radius: 2px;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.annp-new:hover:not(:disabled),
+.annp-new:focus-visible { color: var(--accent); border-color: var(--accent); outline: none; }
+.annp-new:disabled { cursor: default; opacity: 0.6; }
+
+.annp-compose { margin-bottom: clamp(1.6rem, 4vh, 2.4rem); }
+
+.annp-list .pubws-ann { padding: 1.4rem 0; }
+.annp-list .pubws-ann:first-of-type { border-top: 1px solid var(--border-color); padding-top: 1.4rem; }
+
+/* The instant is the entry's identity in an append-only record, so it is set
+   in the same mono face the product uses for every other number that has to
+   be checked rather than read. */
+.annp-when {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
 }

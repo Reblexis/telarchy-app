@@ -1041,7 +1041,6 @@ export function TradePage() {
             ballot: `announcementCount` is absent on a counts-only floor. */}
         {ws.announcementCount !== undefined && (
           <FloorAnnouncements
-            workspaceId={ws.workspaceId}
             idOrSlug={idOrSlug ?? ws.workspaceId}
             latest={ws.latestAnnouncement}
             total={ws.announcementCount}

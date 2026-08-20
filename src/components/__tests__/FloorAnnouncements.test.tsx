@@ -1,105 +1,64 @@
-import { describe, expect, test, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, expect, test } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 
 /**
- * The floor's announcements section. The behaviour that matters is not that
- * prose renders: it is that an edited announcement cannot pass for an
- * untouched one. A reader must see that it was corrected, when, and what it
- * said before, because otherwise the surface is the owner's word again and
- * the charter promise it exists to keep is unverifiable.
+ * The floor's announcements section, since it became one line (owner
+ * direction 2026-08-20). What matters here is that a trader arriving
+ * mid-market can still tell at a glance that something was said and when,
+ * and can get to the record in one click. The record itself, including what
+ * an edited announcement has to admit, is AnnouncementsPage's spec.
  */
-
-const getWorkspaceAnnouncements = vi.fn(async () => ({
-  announcements: [
-    { id: 'a2', body: 'Newer news', publishedAt: '2026-08-15T09:00:00Z', editedAt: null, originalBody: null },
-    { id: 'a1', body: 'Older news', publishedAt: '2026-08-01T09:00:00Z', editedAt: null, originalBody: null },
-  ],
-}));
-const publishAnnouncement = vi.fn(async () => ({
-  id: 'a3', body: 'Just published', publishedAt: '2026-08-17T09:00:00Z', editedAt: null, originalBody: null,
-}));
-const editAnnouncement = vi.fn(async () => ({
-  id: 'a2', body: 'Corrected', publishedAt: '2026-08-15T09:00:00Z',
-  editedAt: '2026-08-16T09:00:00Z', originalBody: 'Newer news',
-}));
-
-vi.mock('../../lib/api', () => ({
-  api: {
-    getWorkspaceAnnouncements: () => getWorkspaceAnnouncements(),
-    publishAnnouncement: (...a: unknown[]) => publishAnnouncement(...a as []),
-    editAnnouncement: (...a: unknown[]) => editAnnouncement(...a as []),
-  },
-}));
 
 import { FloorAnnouncements } from '../FloorAnnouncements';
 
 const LATEST = {
-  id: 'a2', body: 'Newer news', publishedAt: '2026-08-15T09:00:00Z', editedAt: null, originalBody: null,
+  id: 'a2',
+  // The one actually published on 2026-08-19, first paragraph.
+  body: 'Season 0 starts Friday 00:00 UTC. It runs to 16 October, the pool is $1,000 of real money paid $500 / $250 / $125 / $75 / $50 to the top five.',
+  publishedAt: '2026-08-15T09:00:00Z',
+  editedAt: null,
+  originalBody: null,
 };
 
-beforeEach(() => {
-  getWorkspaceAnnouncements.mockClear();
-  publishAnnouncement.mockClear();
-  editAnnouncement.mockClear();
-});
+const renderFloor = (props: Partial<Parameters<typeof FloorAnnouncements>[0]> = {}) =>
+  render(
+    <MemoryRouter>
+      <FloorAnnouncements idOrSlug="telarchy" latest={LATEST} total={1} canManage={false} {...props} />
+    </MemoryRouter>,
+  );
 
 describe('announcements on the floor', () => {
-  test('the latest is open and the rest are one click away', async () => {
-    render(<FloorAnnouncements workspaceId="ws" idOrSlug="floor" latest={LATEST} total={2} canManage={false} />);
-    expect(screen.getByText('Newer news')).toBeTruthy();
-    expect(screen.queryByText('Older news')).toBeNull();
-
-    fireEvent.click(screen.getByText('1 earlier'));
-    await waitFor(() => expect(screen.getByText('Older news')).toBeTruthy());
+  test('shows the headline and the day, and nothing else of the body', () => {
+    renderFloor();
+    expect(screen.getByText('Season 0 starts Friday 00:00 UTC.')).toBeTruthy();
+    expect(screen.getByText('15 Aug')).toBeTruthy();
+    // The rest of the announcement belongs to the page, not to the floor.
+    expect(screen.queryByText(/16 October/)).toBeNull();
   });
 
-  test('an edited announcement says so, and can show what it replaced', () => {
-    render(
-      <FloorAnnouncements
-        workspaceId="ws"
-        idOrSlug="floor"
-        latest={{
-          id: 'a2', body: 'Corrected', publishedAt: '2026-08-15T09:00:00Z',
-          editedAt: '2026-08-16T09:00:00Z', originalBody: 'Newer news',
-        }}
-        total={1}
-        canManage={false}
-      />,
-    );
-    // The edit marker is the point: without it, an owner who rewrote a
-    // disclosure after the fact reads identically to one who did not.
-    expect(screen.getByText(/^edited /)).toBeTruthy();
-    fireEvent.click(screen.getByText('what it said before'));
-    expect(screen.getByText('As first published')).toBeTruthy();
-    expect(screen.getByText('Newer news')).toBeTruthy();
+  test('the line is the way to the record', () => {
+    renderFloor();
+    const link = screen.getByText('Season 0 starts Friday 00:00 UTC.').closest('a');
+    expect(link?.getAttribute('href')).toBe('/telarchy/announcements');
   });
 
-  test('a visitor gets no compose box, and no section at all on an empty floor', () => {
-    const { container } = render(
-      <FloorAnnouncements workspaceId="ws" idOrSlug="floor" latest={null} total={0} canManage={false} />,
-    );
-    expect(container.innerHTML).toBe('');
+  test('more than one says how many, and one does not', () => {
+    const { unmount } = renderFloor({ total: 4 });
+    expect(screen.getByText('All 4').getAttribute('href')).toBe('/telarchy/announcements');
+    unmount();
+    renderFloor({ total: 1 });
+    expect(screen.queryByText(/^All /)).toBeNull();
   });
 
-  test('the owner publishes, and is told first that it cannot be taken back', async () => {
-    render(<FloorAnnouncements workspaceId="ws" idOrSlug="floor" latest={null} total={0} canManage />);
-    fireEvent.click(screen.getByText('New'));
-    expect(screen.getByText(/cannot be deleted/)).toBeTruthy();
-
-    fireEvent.change(screen.getByLabelText('New announcement'), { target: { value: 'Sale locked in' } });
-    fireEvent.click(screen.getByText('Publish'));
-    await waitFor(() => expect(screen.getByText('Just published')).toBeTruthy());
-    expect(publishAnnouncement).toHaveBeenCalledWith('ws', 'Sale locked in');
+  test('a visitor sees no section at all on a floor with nothing announced', () => {
+    const { container } = renderFloor({ latest: null, total: 0 });
+    expect(container.querySelector('section')).toBeNull();
   });
 
-  test('an owner edit renders as an edit, original and all', async () => {
-    render(<FloorAnnouncements workspaceId="ws" idOrSlug="floor" latest={LATEST} total={1} canManage />);
-    fireEvent.click(screen.getByText('Edit'));
-    fireEvent.change(screen.getByLabelText('Edit announcement'), { target: { value: 'Corrected' } });
-    fireEvent.click(screen.getByText('Save'));
-
-    await waitFor(() => expect(screen.getByText('Corrected')).toBeTruthy());
-    expect(editAnnouncement).toHaveBeenCalledWith('ws', 'a2', 'Corrected');
-    expect(screen.getByText(/^edited /)).toBeTruthy();
+  test('the owner sees the empty floor, and a way to write the first one', () => {
+    renderFloor({ latest: null, total: 0, canManage: true });
+    expect(screen.getByText(/Nothing announced yet/)).toBeTruthy();
+    expect(screen.getByText('Write one').getAttribute('href')).toBe('/telarchy/announcements');
   });
 });

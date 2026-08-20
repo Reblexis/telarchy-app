@@ -7,6 +7,7 @@ import { LegalPage } from './pages/LegalPage';
 import { TradePage } from './pages/TradePage';
 import { FloorsPage } from './pages/FloorsPage';
 import { LeaderPage } from './pages/LeaderPage';
+import { AnnouncementsPage } from './pages/AnnouncementsPage';
 import { SeasonPage } from './pages/SeasonPage';
 import { ManagePage } from './pages/ManagePage';
 import { ParticipantProfilePage } from './pages/ParticipantProfilePage';
@@ -81,6 +82,7 @@ export function App() {
         {/* A shared workspace link renders the real market page rather than
             bouncing into the list with the search box pre-filled. */}
         <Route path="/marketplace/:workspaceId" element={<TradePage />} />
+        <Route path="/marketplace/:workspaceId/announcements" element={<AnnouncementsPage />} />
         <Route path="/leaderboard" element={<LeaderPage />} />
         {/* The prize competition has its own page, so the market page and the
             leaderboard carry one line and a link instead of the whole pitch
@@ -96,6 +98,7 @@ export function App() {
 
         {/* telarchy.com/<slug> is a market. Last, so every named route above
             wins over a workspace that happens to share its name. */}
+        <Route path="/:slug/announcements" element={<AnnouncementsPage />} />
         <Route path="/:slug" element={<TradePage />} />
 
         {/* Anything else, every dead console URL included, is not an error
