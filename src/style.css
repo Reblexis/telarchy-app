@@ -2179,6 +2179,16 @@ button.notif-row-link {
    company above owns that role now. Mono uppercase so it reads as an
    instrument label rather than as a sentence. */
 .pubws-instrument-label {
+  /* Anchors the two horizon arrows. They used to sit inline either side of the
+     caption, so switching clocks changed the caption's width and both arrows
+     jumped sideways with it: a control that moves when you use it (owner ask
+     2026-08-20). They are absolute against this line now, pinned to its edges,
+     so they hold still whatever the caption says. The padding reserves their
+     space so a long caption cannot run underneath them.
+     position: relative does not break the constraint recorded below: this is
+     still a block child of .pubws-center, which is what the layout needs. */
+  position: relative;
+  padding: 0 2.2rem;
   margin: 0;
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.74rem;
@@ -2194,15 +2204,18 @@ button.notif-row-link {
   color: var(--text-secondary);
 }
 
-/* The arrows to the floor's other clocks (owner ask 2026-08-20), inline in the
-   caption itself. They sit on the caption's line rather than under the number,
-   because what they change is which instrument the page is about, and a
-   control next to the price reads as changing the price. Inline rather than in
-   a flex wrapper: wrapping the heading put it in a 59px column beside the
-   price and over the leaderboard rail, because its placement comes from rules
-   that assume it is a block child of .pubws-center. */
+/* The arrows to the floor's other clocks (owner ask 2026-08-20), on the
+   caption's own line rather than under the number, because what they change is
+   which instrument the page is about, and a control next to the price reads as
+   changing the price. Absolute against the caption, NOT in a flex wrapper:
+   wrapping the heading put it in a 59px column beside the price and over the
+   leaderboard rail, because its placement comes from rules that assume it is a
+   block child of .pubws-center. Pinning them to the caption's edges fixes the
+   other half of it, that they moved every time the caption's width changed. */
 .pubws-hstep {
-  margin: 0 0.35rem;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
   padding: 0 0.15rem;
   background: none;
   border: none;
@@ -2213,6 +2226,9 @@ button.notif-row-link {
   cursor: pointer;
   transition: color 0.12s ease;
 }
+
+.pubws-hstep--prev { left: 0; }
+.pubws-hstep--next { right: 0; }
 
 .pubws-hstep:hover:not(:disabled),
 .pubws-hstep:focus-visible { color: var(--accent); outline: none; }

@@ -992,7 +992,7 @@ export function TradePage() {
               <h2 className="pubws-instrument-label pubws-enter pubws-enter--1">
                 {horizons.length > 1 && (
                   <button
-                    className="pubws-hstep"
+                    className="pubws-hstep pubws-hstep--prev"
                     onClick={() => prevHorizon && setHorizonId(prevHorizon.marketId)}
                     aria-label={prevHorizon ? `Show ${prevHorizon.metricLabel}, ${prevHorizon.label}` : 'Previous market'}
                   >‹</button>
@@ -1001,7 +1001,7 @@ export function TradePage() {
                 {hero?.settleShort && <span className="pubws-instrument-at"> @ {hero.settleShort}</span>}
                 {horizons.length > 1 && (
                   <button
-                    className="pubws-hstep"
+                    className="pubws-hstep pubws-hstep--next"
                     onClick={() => nextHorizon && setHorizonId(nextHorizon.marketId)}
                     aria-label={nextHorizon ? `Show ${nextHorizon.metricLabel}, ${nextHorizon.label}` : 'Next market'}
                   >›</button>
