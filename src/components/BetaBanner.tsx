@@ -13,6 +13,7 @@
  */
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { useAuth } from '../hooks/useAuth';
 
 /** The one origin that is the real site. Everything else wears the stripe. */
 const PUBLIC_ORIGIN = 'telarchy.com';
@@ -24,6 +25,13 @@ export function isPublishedOrigin(): boolean {
 }
 
 export function BetaBanner() {
+  // Keyed on the session, not on mount alone. The banner lives outside the
+  // router so it never remounts: checked once, it would ask while the visitor
+  // is still on the login page, get the 403 it deserves, and never ask again
+  // after they signed in. Which is exactly what happened the first time
+  // anyone tried to publish (owner report 2026-08-20: "where do i press
+  // publish this build?").
+  const { user } = useAuth();
   const [canPublish, setCanPublish] = useState(false);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
@@ -31,13 +39,16 @@ export function BetaBanner() {
 
   useEffect(() => {
     if (isPublishedOrigin()) return;
+    // Signed out, there is nobody to offer a button to, and asking would put a
+    // 403 in the log for every anonymous pageview.
+    if (!user) { setCanPublish(false); return; }
     // Only a platform admin gets the button; everyone else still gets the
     // stripe, because "you are not on the real site" is worth saying to
     // anyone who somehow finds the URL.
     api.getRelease()
       .then(r => setCanPublish(!r.isServing))
       .catch(() => setCanPublish(false));
-  }, []);
+  }, [user]);
 
   if (isPublishedOrigin()) return null;
 

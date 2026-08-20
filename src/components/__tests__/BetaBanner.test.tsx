@@ -23,6 +23,12 @@ vi.mock('../../lib/api', () => ({
   },
 }));
 
+// The banner asks only once it has a session, and asks AGAIN when one
+// appears: it lives outside the router, so it never remounts, and a check
+// made on the login page would be the only check it ever made.
+let mockUser: { id: string } | null = { id: 'user-admin' };
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: mockUser, loading: false }) }));
+
 import { BetaBanner, isPublishedOrigin } from '../BetaBanner';
 
 function setHost(hostname: string) {
@@ -33,7 +39,7 @@ function setHost(hostname: string) {
 }
 
 const realLocation = window.location;
-beforeEach(() => { getRelease.mockClear(); publishRelease.mockClear(); });
+beforeEach(() => { getRelease.mockClear(); publishRelease.mockClear(); mockUser = { id: 'user-admin' }; });
 afterEach(() => {
   Object.defineProperty(window, 'location', { value: realLocation, writable: true });
 });
@@ -89,5 +95,29 @@ describe('the button', () => {
     // The stripe still shows: "you are not on the real site" is worth saying
     // to anyone who finds the URL.
     expect(screen.getByText('Beta')).toBeTruthy();
+  });
+});
+
+describe('when the session appears', () => {
+  test('signed out, it does not ask at all', async () => {
+    setHost('candidate---api.run.app');
+    mockUser = null;
+    render(<BetaBanner />);
+    expect(screen.getByText('Beta')).toBeTruthy();
+    expect(getRelease).not.toHaveBeenCalled();
+    expect(screen.queryByText('Publish this build')).toBeNull();
+  });
+
+  test('signing in makes it ask, and the button arrives', async () => {
+    setHost('candidate---api.run.app');
+    mockUser = null;
+    const { rerender } = render(<BetaBanner />);
+    expect(getRelease).not.toHaveBeenCalled();
+
+    // What logging in on the beta looks like from here.
+    mockUser = { id: 'user-admin' };
+    rerender(<BetaBanner />);
+    await waitFor(() => expect(getRelease).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByText('Publish this build')).toBeTruthy());
   });
 });
