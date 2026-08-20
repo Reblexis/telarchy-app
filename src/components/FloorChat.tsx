@@ -1,0 +1,152 @@
+import { useEffect, useRef, useState } from 'react';
+import { api } from '../lib/api';
+
+/**
+ * Otto, the floor's market maker, in the corner (owner direction 2026-08-20:
+ * "make it more of a chat, maybe bottom right, just a guy with personality").
+ *
+ * The friction he removes is specific. A visitor looking at "the market says
+ * 25" has no way to judge whether 25 is right without knowing what the company
+ * sells, how the number is measured and what has already been priced. That
+ * knowledge exists, spread across a chart, a definition, a charter, eight
+ * contracts and the owner's data room, and reading all of it is more work than
+ * the bet is worth. Asking someone is not.
+ *
+ * A named character rather than a neutral answer box, because the answer a
+ * visitor actually wants is "what would you do", and no answer service says
+ * that. He is allowed opinions and advice; he is not allowed to invent a
+ * number (functions/src/lib/ask.ts holds that contract).
+ *
+ * In the corner rather than in the column: the page's job is the market, and
+ * the reader who needs him needs him at any point in the page, not at one
+ * scroll position. Closed he is one line; open he is a panel that does not
+ * cover the instrument on a laptop and takes the whole sheet on a phone.
+ */
+
+interface Props {
+  idOrSlug: string;
+  workspaceName: string;
+  /** The number the floor leads with, used for one opening suggestion. */
+  metricLabel: string | null;
+}
+
+interface Turn { role: 'user' | 'assistant'; content: string }
+
+export function FloorChat({ idOrSlug, workspaceName, metricLabel }: Props) {
+  const [open, setOpen] = useState(false);
+  const [turns, setTurns] = useState<Turn[]>([]);
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const endRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // Openers, because a blank chat is a blank page and a blank page is
+  // friction of its own. They name this floor's own subjects.
+  const openers = [
+    `What does ${workspaceName} actually do?`,
+    metricLabel ? `Is ${metricLabel.toLowerCase()} priced right?` : 'Is this market priced right?',
+    'Which contract would you take?',
+  ];
+
+  useEffect(() => {
+    if (open) endRef.current?.scrollIntoView({ block: 'end' });
+  }, [turns, open, busy]);
+
+  useEffect(() => {
+    if (!open) return;
+    inputRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
+
+  const send = async (text: string) => {
+    const content = text.trim();
+    if (!content || busy) return;
+    // The whole conversation goes with every turn, which is what makes a
+    // follow-up mean anything; the server keeps the last twelve.
+    const next: Turn[] = [...turns, { role: 'user', content }];
+    setTurns(next);
+    setDraft('');
+    setError('');
+    setBusy(true);
+    try {
+      const res = await api.askFloor(idOrSlug, next);
+      setTurns([...next, { role: 'assistant', content: res.answer }]);
+    } catch (e) {
+      setError((e as Error).message || 'Otto is not answering right now.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button type="button" className="ottodock" onClick={() => setOpen(true)}>
+        <span className="ottodock-mark" aria-hidden="true">O</span>
+        <span className="ottodock-label">
+          Ask Otto about {workspaceName}
+        </span>
+      </button>
+    );
+  }
+
+  return (
+    <section className="otto" aria-label={`Otto, the market maker on ${workspaceName}`}>
+      <header className="otto-head">
+        <span className="otto-mark" aria-hidden="true">O</span>
+        <span className="otto-who">
+          <strong>Otto</strong>
+          <span className="otto-role">market maker on {workspaceName}</span>
+        </span>
+        <button type="button" className="otto-close" aria-label="Close" onClick={() => setOpen(false)}>×</button>
+      </header>
+
+      <div className="otto-log">
+        {turns.length === 0 && (
+          <>
+            <p className="otto-msg otto-msg--otto">
+              I watch this floor. Ask me what the company does, whether the price
+              looks right, or which contract I would take.
+            </p>
+            <div className="otto-openers">
+              {openers.map(o => (
+                <button key={o} type="button" className="otto-opener" onClick={() => void send(o)}>
+                  {o}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+        {turns.map((t, i) => (
+          <p key={i} className={`otto-msg otto-msg--${t.role === 'user' ? 'you' : 'otto'}`}>
+            {t.content}
+          </p>
+        ))}
+        {busy && <p className="otto-msg otto-msg--otto is-thinking">Reading the book…</p>}
+        {error && <p className="ticket-err">{error}</p>}
+        <div ref={endRef} />
+      </div>
+
+      <form className="otto-bar" onSubmit={e => { e.preventDefault(); void send(draft); }}>
+        <input
+          ref={inputRef}
+          className="otto-input"
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          placeholder="Ask Otto"
+          maxLength={500}
+          aria-label="Ask Otto"
+        />
+        <button className="otto-send" type="submit" disabled={busy || !draft.trim()} aria-label="Send">
+          ↑
+        </button>
+      </form>
+      <p className="otto-note">
+        Otto reads this floor&rsquo;s public brief and has his own opinions. They are
+        not advice from {workspaceName}.
+      </p>
+    </section>
+  );
+}
