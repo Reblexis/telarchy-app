@@ -34,8 +34,13 @@ const WORKSPACE_ID = process.env.TELARCHY_SELF_SYNC_WORKSPACE;
 // make this throw "no metric named ..." every night and the number would
 // silently stop updating on a metric a prize market settles on. So the list is
 // explicit and the rename goes in here at the same time (2026-08-19: the floor
-// metric became "Active traders @1st October").
+// metric became "Active traders @1st October"; 2026-08-20: it became "Active
+// traders (verified, 7-day)", because a date inside a metric's NAME is what
+// made it a one-shot. A metric is a number over time and the market's target
+// date carries the date, so "@1st October" bought exactly one market and left
+// three orphaned weekly rows behind it every time the name moved).
 const METRIC_NAMES = [
+  'Active traders',
   'Active traders @1st October',
   'Weekly active verified traders',
 ];
