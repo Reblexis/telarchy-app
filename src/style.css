@@ -5397,10 +5397,15 @@ textarea.jobform-line--desc {
   white-space: nowrap;
 }
 
+/* What the number IS. It was 0.68rem in tertiary, which on a dark card put
+   the most load-bearing line on the card below the description in contrast:
+   the reader could see "$8,370" and not read what it measured (owner report
+   2026-08-20). Secondary, a size up, and a touch of weight. */
 .mkt-card-metric {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.68rem;
-  color: var(--text-tertiary);
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -6699,13 +6704,50 @@ textarea.jobform-line--desc {
 
 .dr-more:hover { color: var(--accent-hover); }
 
-/* The home page's one footnote: where Telarchy's own numbers live. Meta
-   register, because it is for the visitor who went looking. */
-.mkt-foot {
-  margin: 3rem auto 0;
-  text-align: center;
-  font-size: 0.78rem;
-  color: var(--text-tertiary);
+
+/* ------------------------------------------------------------------ */
+/* The beta stripe (owner ask 2026-08-20: "i think deploying to prod is too
+   easy"). Shown on every copy of the app that is not telarchy.com, so the
+   one question it answers on sight is "am I looking at the real site?".
+   Amber rather than red: this is a state, not an error. */
+.betabar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 1rem;
+  background: var(--accent);
+  color: var(--button-text, #fff);
+  font-size: 0.8rem;
 }
 
-.mkt-foot a { color: var(--accent); }
+.betabar-label {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.68rem;
+}
+
+.betabar-text { flex: 1; min-width: 12rem; }
+
+.betabar-go {
+  padding: 0.3rem 0.9rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.betabar-go:hover:not(:disabled) { background: rgba(0, 0, 0, 0.12); }
+.betabar-go:disabled { opacity: 0.6; cursor: default; }
+
+.betabar-err {
+  width: 100%;
+  font-weight: 600;
+}

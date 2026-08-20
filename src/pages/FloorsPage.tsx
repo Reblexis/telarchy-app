@@ -341,14 +341,8 @@ export function FloorsPage() {
           </div>
         )}
 
-        {/* One quiet line, because the claim it points at is the whole
-            argument for trusting anything else here: Telarchy publishes its
-            own numbers the way it asks a company to. Not a card and not a
-            nav item; a footnote a curious visitor can find. */}
-        <p className="mkt-foot">
-          Telarchy runs on itself and publishes its own books:{' '}
-          <Link to="/data-room">the data room</Link>.
-        </p>
+        {/* The data-room footnote was removed on 2026-08-20 (owner direction).
+            /data-room still serves; nothing on this page points at it. */}
       </main>
     </div>
   );
