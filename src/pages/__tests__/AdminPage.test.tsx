@@ -13,6 +13,7 @@ vi.mock('../../lib/api', () => ({
     getProfile: vi.fn(),
     getFloorStats: vi.fn(),
     getFeedback: vi.fn(),
+    getFloorQuestions: vi.fn(),
   },
 }));
 
@@ -24,6 +25,24 @@ vi.mock('../TradePage', () => ({ TopBar: () => null }));
 
 import { api } from '../../lib/api';
 import { AdminPage } from '../AdminPage';
+
+const questions = {
+  totalCostUsd: 0.0123,
+  questions: [
+    {
+      id: 'q1', workspaceId: 'ws1', slug: 'lookpilot', workspaceName: 'LookPilot',
+      question: 'What does LookPilot sell?', answer: 'Webcam head tracking, $14.99 on Steam.',
+      askedBy: null, askedByName: null, country: 'CZ', costUsd: 0.0009,
+      model: 'openai/gpt-5.6-luna', error: null, createdAt: '2026-08-20T10:00:00.000Z',
+    },
+    {
+      id: 'q2', workspaceId: 'ws1', slug: 'lookpilot', workspaceName: 'LookPilot',
+      question: 'How many staff?', answer: '', askedBy: 'agent-7', askedByName: 'trader-7',
+      country: null, costUsd: null, model: 'openai/gpt-5.6-luna',
+      error: 'gateway 402 (budget spent)', createdAt: '2026-08-20T11:00:00.000Z',
+    },
+  ],
+};
 
 const stats = {
   visits24h: 12, uniques24h: 5, botVisits: 900,
@@ -51,6 +70,7 @@ beforeEach(() => {
   vi.mocked(api.getProfile).mockResolvedValue({ platformAdmin: true } as never);
   vi.mocked(api.getFloorStats).mockResolvedValue(stats as never);
   vi.mocked(api.getFeedback).mockResolvedValue({ items: reports } as never);
+  vi.mocked(api.getFloorQuestions).mockResolvedValue(questions as never);
 });
 
 describe('/admin', () => {
@@ -105,5 +125,23 @@ describe('/admin', () => {
     vi.mocked(api.getProfile).mockRejectedValue(new Error('nope'));
     renderPage();
     await waitFor(() => expect(navigate).toHaveBeenCalledWith('/', { replace: true }));
+  });
+});
+
+/**
+ * The question log (owner ask 2026-08-20). What matters: the visitor's own
+ * words are on screen, an unanswered question is not hidden behind a status,
+ * and an anonymous asker reads as anonymous rather than as a blank.
+ */
+describe('/admin questions', () => {
+  test('shows what was asked, what came back, and who asked', async () => {
+    render(<AdminPage />);
+    expect(await screen.findByText('What does LookPilot sell?')).toBeTruthy();
+    expect(screen.getByText('Webcam head tracking, $14.99 on Steam.')).toBeTruthy();
+    // The unanswered one says so, with the reason.
+    expect(screen.getByText(/No answer: gateway 402/)).toBeTruthy();
+    // Identity: a handle where there is one, "anonymous" where there is not.
+    expect(screen.getByText(/anonymous · CZ/)).toBeTruthy();
+    expect(screen.getByText(/trader-7/)).toBeTruthy();
   });
 });

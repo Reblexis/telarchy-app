@@ -118,6 +118,10 @@ export function AdminPage() {
   const [allowed, setAllowed] = useState(false);
   const [stats, setStats] = useState<FloorStats | null>(null);
   const [reports, setReports] = useState<FeedbackItem[] | null>(null);
+  /** What visitors asked the floors, newest first (owner ask 2026-08-20).
+   *  The highest-signal list on this page: every row is something the page
+   *  failed to say, in the visitor's own words. */
+  const [questions, setQuestions] = useState<Awaited<ReturnType<typeof api.getFloorQuestions>> | null>(null);
   const [error, setError] = useState('');
 
   // The gate, and the whole of it on this side: ask the server who the
@@ -150,6 +154,10 @@ export function AdminPage() {
       api.getFeedback({ limit: 100 })
         .then(r => { if (!cancelled) setReports(r.items); })
         .catch(e => { console.error('feedback fetch failed:', e); if (!cancelled) setReports([]); });
+      // What the floors were asked, on the same poll as the rest.
+      api.getFloorQuestions(100)
+        .then(q => { if (!cancelled) setQuestions(q); })
+        .catch(e => { console.error('questions fetch failed:', e); if (!cancelled) setQuestions({ totalCostUsd: 0, questions: [] }); });
     };
     load();
     // Left open during a launch, so it keeps itself current.
@@ -289,6 +297,49 @@ export function AdminPage() {
                 value: w.createdAt?.slice(0, 10) ?? '',
               }))}
             />
+
+            {/* What the floors were asked, and what they answered (owner ask
+                2026-08-20). This is the page's most useful list before
+                launch: a question is a gap in the floor said in a visitor's
+                own words, and a row with an error is one nobody could answer
+                at all. Newest first, whole text inline, because a question
+                is one line and clicking through to read it is friction on
+                the person who has to act on it. */}
+            <section className="adm-block">
+              <h2 className="pubws-h2">
+                Questions{questions ? ` (${questions.questions.length})` : ''}
+              </h2>
+              {questions && questions.questions.length > 0 && (
+                <p className="adm-note">
+                  Asked of the floors&rsquo; Ask field. Total spend ${questions.totalCostUsd.toFixed(2)}.
+                </p>
+              )}
+              {questions === null ? null : questions.questions.length === 0 ? (
+                <p className="adm-empty">
+                  Nothing asked yet. The Ask field under each floor&rsquo;s conversation lands here.
+                </p>
+              ) : (
+                <ul className="adm-list">
+                  {questions.questions.map(q => (
+                    <li key={q.id} className={`adm-report${q.error ? '' : ' is-done'}`}>
+                      <div className="adm-report-head">
+                        <span className="adm-tag">{q.slug ?? q.workspaceName ?? 'floor'}</span>
+                        <strong>{q.question}</strong>
+                        <span className="adm-sub">{q.createdAt.slice(0, 16).replace('T', ' ')}</span>
+                      </div>
+                      <p className="adm-report-body">{q.error ? `No answer: ${q.error}` : q.answer}</p>
+                      <p className="adm-report-who">
+                        {[
+                          q.askedByName ?? 'anonymous',
+                          q.country,
+                          q.costUsd != null ? `$${q.costUsd.toFixed(4)}` : null,
+                        ].filter(Boolean).join(' · ')}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
 
             {/* A queue the owner works, not an archive: open first, whole
                 body inline, since a report is usually three sentences and

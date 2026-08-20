@@ -21,7 +21,7 @@ import request from 'supertest';
 import express from 'express';
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
 import {
-  agents, markets, metrics, metricLogs, permissionGroups, proposals, sources, workspaces,
+  agents, floorQuestions, markets, metrics, metricLogs, permissionGroups, proposals, sources, workspaces,
 } from '../db/schema';
 import { initialPool } from '../lib/amm';
 import { marketplaceRouter } from '../routes/marketplace';
@@ -142,6 +142,55 @@ describe('asking the floor', () => {
     expect(empty.status).toBe(400);
     const huge = await request(app).post(`/api/marketplace/${WS}/ask`).send({ question: 'x'.repeat(501) });
     expect(huge.status).toBe(400);
+    delete process.env.AI_GATEWAY_API_KEY;
+  });
+});
+
+describe('every question is kept', () => {
+  test('a failed answer is logged with its reason, not dropped', async () => {
+    await seed();
+    process.env.AI_GATEWAY_API_KEY = 'test-key';
+    const realFetch = global.fetch;
+    // The gateway is down (or the budget is spent): the visitor gets a 502,
+    // and the row survives, because a question nobody could answer is the
+    // most interesting row in the table.
+    global.fetch = jest.fn(async () => new Response('no budget', { status: 402 })) as any;
+
+    const res = await request(app).post(`/api/marketplace/${WS}/ask`).send({ question: 'What do you sell?' });
+    expect(res.status).toBe(502);
+
+    const rows = await db.select().from(floorQuestions);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].question).toBe('What do you sell?');
+    expect(rows[0].error).toContain('402');
+    expect(rows[0].answer).toBe('');
+    // Anonymous is the normal case: the field exists for visitors with no
+    // account yet.
+    expect(rows[0].askedBy).toBeNull();
+
+    global.fetch = realFetch;
+    delete process.env.AI_GATEWAY_API_KEY;
+  });
+
+  test('an answered question is kept with its answer and its cost', async () => {
+    await seed();
+    process.env.AI_GATEWAY_API_KEY = 'test-key';
+    const realFetch = global.fetch;
+    global.fetch = jest.fn(async () => new Response(JSON.stringify({
+      choices: [{ message: { content: 'Webcam head tracking, $14.99 on Steam.' } }],
+      usage: { prompt_tokens: 4000, completion_tokens: 40, cost: 0.0009 },
+    }), { status: 200 })) as any;
+
+    const res = await request(app).post(`/api/marketplace/${WS}/ask`).send({ question: 'What do you sell?' });
+    expect(res.status).toBe(200);
+    expect(res.body.answer).toContain('Webcam head tracking');
+
+    const [row] = await db.select().from(floorQuestions);
+    expect(row.answer).toContain('Webcam head tracking');
+    expect(row.costUsd).toBeCloseTo(0.0009);
+    expect(row.error).toBeNull();
+
+    global.fetch = realFetch;
     delete process.env.AI_GATEWAY_API_KEY;
   });
 });

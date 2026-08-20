@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { db } from '../db/client';
-import { workspaces, markets, metrics, metricLogs, agents, trades, positions, permissionGroups, proposals, proposalMessages, proposalRevisions, marketMessages, systemConfig, announcements } from '../db/schema';
+import { workspaces, markets, metrics, metricLogs, agents, trades, positions, permissionGroups, proposals, proposalMessages, proposalRevisions, marketMessages, systemConfig, announcements, floorQuestions } from '../db/schema';
 import { eq, ne, and, gt, gte, count, desc, asc, inArray, like, sql } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
 import { requireIdentity } from '../middleware/roles';
@@ -949,14 +950,43 @@ marketplaceRouter.post('/:workspaceId/ask', wrap(async (req, res) => {
   const context = await buildWorkspaceContext(ws.id);
   if (!context) { res.status(404).json({ error: 'Workspace not found' }); return; }
 
+  // Who asked, best effort. Most askers are anonymous by design, since the
+  // field exists for the visitor who has not signed up yet, so the request-log
+  // fields (the same pair page_visits keeps, under the same privacy policy)
+  // are the only identity there is for them.
+  const askedBy = req.auth?.agentId ?? null;
+  const fwd = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim();
+  const ip = (fwd || req.socket.remoteAddress || '').slice(0, 60) || null;
+  let country: string | null = null;
+  try {
+    const geoip = (await import('geoip-lite')).default;
+    country = ip ? (geoip.lookup(ip)?.country || null) : null;
+  } catch (e) {
+    console.error('geoip lookup failed:', e);
+  }
+
+  const logRow = {
+    id: randomUUID(), workspaceId: ws.id, question, askedBy, ip, country,
+    model: process.env.ASK_MODEL || 'openai/gpt-5.6-luna', createdAt: new Date(),
+  };
+
   try {
     const { answer, usage } = await askAboutWorkspace(renderContextMarkdown(context), question);
-    // Logged, not returned: what a question costs is the operator's business
-    // and a visitor reading an answer has no use for a token count.
     console.log(`ask ${ws.slug ?? ws.id}: ${usage.input} in (${usage.cachedInput} cached), ${usage.output} out, $${usage.costUsd ?? '?'}`);
+    // Every question is kept, with its answer (owner ask 2026-08-20): a row
+    // here is a gap in the floor said in a visitor's own words, and the answer
+    // has to be stored beside it because a model that has since changed cannot
+    // reproduce what it said today.
+    await db.insert(floorQuestions).values({ ...logRow, answer, costUsd: usage.costUsd })
+      .catch(e => console.error('question log failed:', e));
     res.json({ answer });
   } catch (e) {
     console.error('ask failed:', e);
+    const message = e instanceof Error ? e.message.slice(0, 500) : String(e).slice(0, 500);
+    // A question nobody could answer is the most interesting row in the
+    // table, so a failure is logged as loudly as a success.
+    await db.insert(floorQuestions).values({ ...logRow, error: message })
+      .catch(err => console.error('question log failed:', err));
     res.status(502).json({ error: 'Could not answer that right now. Try again in a moment.' });
   }
 }));

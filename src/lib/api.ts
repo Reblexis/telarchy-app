@@ -898,6 +898,16 @@ export const api = {
       account needed (Open workspaces only). */
   /** Admin launch dashboard: floor visits, signups, waitlist. */
   getFloorStats: () => request('/api/admin/floor-stats'),
+  /** Every question asked of a floor, newest first, with its answer. */
+  getFloorQuestions: (limit = 100): Promise<{
+    totalCostUsd: number;
+    questions: Array<{
+      id: string; workspaceId: string; slug: string | null; workspaceName: string | null;
+      question: string; answer: string; askedBy: string | null; askedByName: string | null;
+      country: string | null; costUsd: number | null; model: string | null;
+      error: string | null; createdAt: string;
+    }>;
+  }> => request(`/api/admin/questions?limit=${limit}`),
   /** Bug reports, help requests and feature ideas (platform admin only).
    *  The same endpoint an operator would curl; /admin renders it. */
   getFeedback: (opts: { limit?: number; kind?: string; status?: string } = {}) => {

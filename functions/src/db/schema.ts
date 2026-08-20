@@ -649,6 +649,40 @@ export const notificationReads = pgTable('notification_reads', {
   readAt: timestamp('read_at').notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.agentId, t.itemId] })]);
 
+/**
+ * Every question asked of a floor's Ask field, with its answer (owner ask
+ * 2026-08-20). This is the only record of what a visitor wanted to know and
+ * could not find on the page, which before launch is the highest-signal data
+ * the product produces: each row is a gap in the floor, in the visitor's own
+ * words.
+ *
+ * The answer is stored beside the question on purpose. Models change and
+ * prompts change, so an answer that was wrong cannot be reproduced later by
+ * re-asking; if it is not kept, the evidence is gone.
+ *
+ * Identity is layered and best-effort: the participant when the asker had one,
+ * and otherwise the request-log fields the privacy policy already covers. Those
+ * are purged on the same 30-day window as pageVisits, while the question text
+ * is kept, because the gap it names outlives the visit.
+ */
+export const floorQuestions = pgTable('floor_questions', {
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id').notNull(),
+  question: text('question').notNull(),
+  answer: text('answer').notNull().default(''),
+  /** Participant id when known; null for an anonymous visitor, which is most
+   *  of them by design (the field exists to serve people without accounts). */
+  askedBy: text('asked_by'),
+  ip: text('ip'),
+  country: text('country'),
+  costUsd: doublePrecision('cost_usd'),
+  model: text('model'),
+  /** Set when the gateway failed or the budget ran out: a question that got
+   *  no answer is the most interesting row in the table. */
+  error: text('error'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, t => [index('floor_questions_created_idx').on(t.createdAt)]);
+
 export const pageVisits = pgTable('page_visits', {
   id: text('id').primaryKey(),
   ts: timestamp('ts').notNull().defaultNow(),

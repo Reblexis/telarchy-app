@@ -110,6 +110,19 @@ true
 #   - it refreshes itself roughly every 20 seconds
 ```
 
+### T5. The question log is platform-admin only, and carries the answers
+
+```bash
+# Anonymous: refused.
+code=$(curl -s -o /dev/null -w '%{http_code}' "$TT_BASE_URL/api/admin/questions")
+[ "$code" = "403" ] || [ "$code" = "401" ] || { echo "questions readable without a key ($code)"; exit 1; }
+
+# Master key: the shape the cockpit renders.
+curl -sf -H "X-API-Key: $ADMIN_KEY" -H "X-Workspace-Id: default" \
+  "$TT_BASE_URL/api/admin/questions?limit=5" \
+  | jq -e 'has("totalCostUsd") and (.questions | type == "array")'
+```
+
 ## Known gaps
 
 - T4 is not automated: the fixture user cannot be promoted to platform admin

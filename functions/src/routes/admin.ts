@@ -3,13 +3,14 @@ import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
 import { getActivityFeed, ACTIVITY_TYPES, type ActivityType } from '../services/activity';
 import { db } from '../db/client';
-import { agents, agentTraces, agentHeartbeats, agentControls, markets, workspaces, pageVisits, authUser, waitlist } from '../db/schema';
+import { agents, agentTraces, agentHeartbeats, agentControls, markets, workspaces, pageVisits, authUser, waitlist, floorQuestions } from '../db/schema';
 import { and, desc, eq, gte, lte, inArray, lt, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { AppError } from '../lib/errors';
 import { resolutionInstant } from '../lib/date-utils';
 import { classifyIps } from '../lib/ip-classify';
 import { isPlatformAuthorized } from '../lib/platform-admin';
+import { getParticipantDisplayNames } from '../lib/participants';
 
 export const adminRouter = Router();
 
@@ -26,6 +27,64 @@ function parseTypes(raw: unknown): ActivityType[] | undefined {
   const filtered = parts.filter((t): t is ActivityType => known.includes(t));
   return filtered.length > 0 ? filtered : undefined;
 }
+
+/**
+ * Every question a visitor asked a floor, newest first (owner ask
+ * 2026-08-20: "this is really useful data").
+ *
+ * It is the highest-signal thing a pre-launch floor produces: each row is
+ * something a visitor wanted to know and could not find on the page, in
+ * their own words, and the rows with an `error` are the ones nobody could
+ * answer at all. Platform-admin only, like the rest of this file: the rows
+ * carry visitor IPs.
+ *
+ * The IP and country are purged on the same 30-day window as page_visits,
+ * on read, exactly as the visit log is; the question and its answer stay,
+ * because the gap a question names outlives the visit that asked it.
+ */
+adminRouter.get('/questions', wrap(async (req, res) => {
+  if (!(await isPlatformAuthorized(req))) {
+    throw new AppError('Platform admin or master key required', 403);
+  }
+  const monthAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000);
+  await db.update(floorQuestions).set({ ip: null, country: null })
+    .where(lt(floorQuestions.createdAt, monthAgo));
+
+  const raw = Number(req.query.limit);
+  const limit = Number.isFinite(raw) ? Math.min(Math.max(Math.trunc(raw), 1), 500) : 100;
+
+  const rows = await db.select({
+    id: floorQuestions.id,
+    workspaceId: floorQuestions.workspaceId,
+    question: floorQuestions.question,
+    answer: floorQuestions.answer,
+    askedBy: floorQuestions.askedBy,
+    country: floorQuestions.country,
+    costUsd: floorQuestions.costUsd,
+    model: floorQuestions.model,
+    error: floorQuestions.error,
+    createdAt: floorQuestions.createdAt,
+    slug: workspaces.slug,
+    workspaceName: workspaces.name,
+  }).from(floorQuestions)
+    .leftJoin(workspaces, eq(workspaces.id, floorQuestions.workspaceId))
+    .orderBy(desc(floorQuestions.createdAt))
+    .limit(limit);
+
+  const names = await getParticipantDisplayNames(rows.map(r => r.askedBy).filter((x): x is string => !!x));
+  const spent = await db.select({ total: sql<number>`coalesce(sum(${floorQuestions.costUsd}), 0)::float` })
+    .from(floorQuestions);
+
+  res.json({
+    totalCostUsd: spent[0]?.total ?? 0,
+    questions: rows.map(r => ({
+      ...r,
+      // A handle where there is one, "anonymous" where there is not: most
+      // askers have no account yet, which is who the field is for.
+      askedByName: r.askedBy ? (names.get(r.askedBy) ?? r.askedBy) : null,
+    })),
+  });
+}));
 
 /**
  * Launch dashboard (owner ask 2026-08-11): visitors and signups in one
