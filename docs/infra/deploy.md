@@ -194,6 +194,22 @@ gap it leaves is real and small: a change to authentication itself is not
 exercised by the beta, so verify those against the candidate's own run.app URL,
 where the whole stack including auth is the new build.
 
+**The proxy must run before the prefix strip.** `/beta/api/*` has its prefix
+removed so the beta reuses the same handlers, and for one evening that strip
+was registered first: by the time the proxy looked at a request its path was
+already `/api/...` and no longer recognisable as the beta's, so every API call
+was served by the published backend. The beta was the candidate's frontend
+against production's API, the exact preview this exists not to be, and nothing
+on screen said so. It surfaced as a Publish button that never appeared, because
+`isServing` was being answered by production, where it is true by definition.
+`beta-proxy-order.test.ts` pins the order. The proxy also has to sit after
+`express.json()`, or a forwarded POST arrives with no body.
+
+Note the bootstrap this creates: a change to the proxy itself only takes effect
+once it is published, and while it is broken the button that would publish it
+does not render. Publish that one from a terminal:
+`gcloud run services update-traffic api --region us-central1 --to-latest`.
+
 The prefix is a path SEGMENT: `/betamax` is a workspace slug and stays on the
 published site. `beta-surface.test.ts` pins that, because getting it wrong
 hands a visitor an unpublished build in place of a market.
