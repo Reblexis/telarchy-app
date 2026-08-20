@@ -206,6 +206,15 @@ jobs:
       # ALLOWED_ORIGIN + the master-key / GitHub-secret refs are declared here
       # so the config is reproducible in code, not only set imperatively on the
       # service (they are merged, so other secrets/env are untouched).
+      #
+      # TRUSTED_ORIGINS is the beta's own origin. Without it BetterAuth answers
+      # every sign-in there with 403 INVALID_ORIGIN, so nobody can log in on
+      # the beta, so nobody sees the Publish button, so nothing can ever be
+      # published from it (found the hard way, 2026-08-20). The candidate tag
+      # URL is stable across deploys, which is what makes hardcoding it safe.
+      # It is deliberately NOT added to ALLOWED_ORIGIN: that names the
+      # published site, and publicOrigins() uses it to decide what gets
+      # X-Robots-Tag: noindex.
       - name: Deploy candidate (no traffic)
         if: steps.auth_check.outputs.skip != 'true'
         run: |
@@ -219,7 +228,7 @@ jobs:
             --min-instances 1 \
             --max-instances 20 \
             --set-cloudsql-instances telarchy-e0043:us-central1:telarchy-pg \
-            --update-env-vars ALLOWED_ORIGIN=https://telarchy.com \
+            --update-env-vars ALLOWED_ORIGIN=https://telarchy.com,TRUSTED_ORIGINS=https://candidate---api-ksc7usrtbq-uc.a.run.app \
             --update-secrets API_KEY=API_KEY:latest,GITHUB_CLIENT_SECRET=GITHUB_CLIENT_SECRET:latest \
             --clear-base-image \
             --quiet

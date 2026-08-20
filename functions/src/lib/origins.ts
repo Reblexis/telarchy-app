@@ -65,3 +65,13 @@ export function betterAuthTrustedOrigins(): string[] {
   }
   return merged;
 }
+
+/**
+ * The origins that ARE the published site, as opposed to a beta or a preview.
+ * ALLOWED_ORIGIN alone, deliberately: TRUSTED_ORIGINS exists to let the beta
+ * authenticate, and treating it as "public" here would hand the beta the
+ * indexable status this is meant to withhold.
+ */
+export function publicOrigins(): string[] {
+  return corsExplicitOrigins();
+}

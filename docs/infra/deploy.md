@@ -177,6 +177,34 @@ gcloud run services update-traffic api --region us-central1 \
   --to-revisions <PREVIOUS_REVISION>=100
 ```
 
+### Logging in on the beta
+
+The beta is a different origin, so it has its own cookie jar: your
+telarchy.com session does not carry over and you sign in again there. Same
+account, same database, and the login sticks, because the candidate tag URL is
+stable across deploys.
+
+That only works because `TRUSTED_ORIGINS` names the beta's origin in the deploy
+command. Without it BetterAuth answers every sign-in on the beta with
+`403 INVALID_ORIGIN`, nobody can log in, nobody sees the Publish button, and
+nothing can be published from it. Found by trying it (2026-08-20). A
+cookie-less `curl` does **not** reproduce the failure, because better-auth runs
+the origin check only on a request carrying credentials, so verify this in a
+browser or not at all. `beta-origin.test.ts` pins both directions.
+
+`TRUSTED_ORIGINS` is deliberately separate from `ALLOWED_ORIGIN`: the latter
+names the published site, and `publicOrigins()` uses it to decide which hosts
+get `X-Robots-Tag: noindex`. The beta is trusted enough to log in to and never
+indexable.
+
+### The beta is a public URL on production data
+
+Anyone who learns the candidate URL can open it, and it reads and writes the
+real database. It is not linked anywhere and it is noindexed, but it is not
+secret. If that becomes uncomfortable, the lockdown is to drop the
+`allUsers` invoker binding on the service and put the beta behind IAP, at the
+cost of the open-the-URL-and-look flow.
+
 ### The permission behind the button
 
 The runtime service account holds a custom project role,

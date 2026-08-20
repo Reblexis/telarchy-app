@@ -33,8 +33,30 @@ import { auth } from './auth';
 import type { Request, Response, NextFunction } from 'express';
 import { AppError } from './lib/errors';
 import { corsMiddleware } from './lib/cors';
+import { publicOrigins } from './lib/origins';
 
 export const app = express();
+
+/**
+ * The beta is a full copy of this app, on the production database, at a URL
+ * anyone who learns it can open (owner decision 2026-08-20: nothing reaches
+ * the public until you press Publish; docs/infra/deploy.md). It must never be
+ * the thing a search engine finds when someone looks for Telarchy: a second
+ * indexed copy would split every link and could show an unpublished build to
+ * strangers.
+ *
+ * The public origin is whatever ALLOWED_ORIGIN names. Any OTHER host serving
+ * this app is by definition not the published site, so it gets noindex. That
+ * covers the candidate revision and a preview URL without having to enumerate
+ * them.
+ */
+app.use((req, res, next) => {
+  const host = req.headers.host;
+  const isPublic = !host || publicOrigins().some(o => o.endsWith(`//${host}`) || o.endsWith(`//www.${host}`));
+  if (!isPublic) res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  next();
+});
+
 app.use(corsMiddleware);
 app.use(express.json());
 
