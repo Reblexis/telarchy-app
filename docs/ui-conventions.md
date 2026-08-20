@@ -967,10 +967,13 @@ The rules that keep it from rotting back into the 2026-08-16 bug family:
   after the market they were watching settles under them. `stepHorizon` walks
   the list. No role enum came back, and no surface reads meaning out of a
   position.
-- **Both arrows render whenever the floor has more than one market**, and the
-  one at the end of the list is disabled rather than hidden. An arrow that
-  appears and disappears as you step is a moving target, and its dimming is how
-  a reader learns how many clocks there are.
+- **Both arrows render whenever the floor has more than one market, and they
+  loop.** Off the end of the list is the other end of it. They stopped at the
+  ends for half an hour on 2026-08-20, on the argument that a dead arrow tells
+  a reader how many clocks exist; the owner's call, same day, is that a control
+  which sometimes does nothing is worse than one that always moves. With one
+  market they do not render at all, so looping never shows the same number
+  twice in a row.
 - **The arrows sit on the caption's line, not under the price**, and they are
   INSIDE the `h2` rather than in a wrapper around it. What they change is which
   instrument the page is about, and a control next to the number reads as

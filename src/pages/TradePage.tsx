@@ -957,12 +957,12 @@ export function TradePage() {
                  when it lands. It is a caption, not a headline: with the
                  company named above, this line's only job is to say what
                  the big number underneath measures. */
-              /* One clock at a time, with a way to the others. Both arrows
-                 are rendered whenever the floor has more than one market, and
-                 the one at the end of the list is disabled rather than hidden:
-                 an arrow that appears and disappears as you step is a moving
-                 target, and a reader cannot tell how many clocks exist from a
-                 control that keeps changing shape. */
+              /* One clock at a time, with a way to the others. The arrows
+                 render whenever the floor has more than one market and they
+                 LOOP (owner ask 2026-08-20): a control that sometimes does
+                 nothing is worse than one that always moves, and with one
+                 market they do not render at all, so looping never shows the
+                 same number twice in a row. */
               /* The arrows live INSIDE the caption, not in a wrapper around
                  it. Wrapping the h2 in a flex row put it in a 59px column
                  beside the price on the live floor, four words tall and
@@ -979,8 +979,7 @@ export function TradePage() {
                   <button
                     className="pubws-hstep"
                     onClick={() => prevHorizon && setHorizonId(prevHorizon.marketId)}
-                    disabled={!prevHorizon}
-                    aria-label={prevHorizon ? `Show ${prevHorizon.metricLabel}, ${prevHorizon.label}` : 'No later market'}
+                    aria-label={prevHorizon ? `Show ${prevHorizon.metricLabel}, ${prevHorizon.label}` : 'Previous market'}
                   >‹</button>
                 )}
                 {captionLabel(metricLabel, ws.name)}
@@ -989,8 +988,7 @@ export function TradePage() {
                   <button
                     className="pubws-hstep"
                     onClick={() => nextHorizon && setHorizonId(nextHorizon.marketId)}
-                    disabled={!nextHorizon}
-                    aria-label={nextHorizon ? `Show ${nextHorizon.metricLabel}, ${nextHorizon.label}` : 'No sooner market'}
+                    aria-label={nextHorizon ? `Show ${nextHorizon.metricLabel}, ${nextHorizon.label}` : 'Next market'}
                   >›</button>
                 )}
               </h2>

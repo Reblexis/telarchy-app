@@ -254,18 +254,23 @@ describe('stepping between horizons', () => {
     expect(horizonById(views, 'm-gone')?.marketId).toBe('m-year');
   });
 
-  test('the arrows walk the list in reading order and stop at the ends', () => {
+  test('the arrows walk the list in reading order', () => {
     expect(stepHorizon(views, 'm-year', 1)?.marketId).toBe('m-week');
     expect(stepHorizon(views, 'm-week', -1)?.marketId).toBe('m-year');
-    // No wrap-around: the end of the list is how a reader knows it is the end.
-    expect(stepHorizon(views, 'm-year', -1)).toBeNull();
-    expect(stepHorizon(views, 'm-week', 1)).toBeNull();
   });
 
-  test('a floor with one market offers no step at all', () => {
+  test('and they loop, so an arrow never does nothing', () => {
+    // Owner ask 2026-08-20. Off the end of the list is the other end of it.
+    expect(stepHorizon(views, 'm-year', -1)?.marketId).toBe('m-week');
+    expect(stepHorizon(views, 'm-week', 1)?.marketId).toBe('m-year');
+  });
+
+  test('a floor with one market loops to itself, and never renders arrows', () => {
+    // The page gates on horizons.length > 1, so this case is unreachable on
+    // screen; it must still not crash or return nothing.
     const one = buildHorizonViews(ws({ markets: [YEAR] }));
-    expect(stepHorizon(one, 'm-year', 1)).toBeNull();
-    expect(stepHorizon(one, 'm-year', -1)).toBeNull();
+    expect(stepHorizon(one, 'm-year', 1)?.marketId).toBe('m-year');
+    expect(stepHorizon(one, 'm-year', -1)?.marketId).toBe('m-year');
   });
 
   test('an empty floor steps to nothing instead of throwing', () => {

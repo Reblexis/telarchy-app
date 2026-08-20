@@ -233,12 +233,17 @@ export function horizonById(views: HorizonView[], marketId: string | null | unde
 }
 
 /**
- * The next horizon in reading order, or null at the ends (owner ask
- * 2026-08-20: "switchable via arrows next to the market name").
+ * The next horizon in reading order, WRAPPING at both ends (owner ask
+ * 2026-08-20: "the arrows should be clickable infinitely it will just loop").
  *
- * Null rather than wrapping around: an arrow that never disables gives a
- * reader no way to tell how many clocks there are, and a list of two that
- * cycles forever reads as a carousel rather than as a choice.
+ * It stopped at the ends for half an hour first, on the argument that a dead
+ * arrow is how a reader learns how many clocks there are. The owner's call is
+ * that a control which sometimes does nothing is worse than one that always
+ * moves, and on a floor with two markets the loop is one click either way to
+ * the same place.
+ *
+ * A floor with one market never renders the arrows at all, so wrapping never
+ * shows a reader the same number twice in a row.
  */
 export function stepHorizon(
   views: HorizonView[],
@@ -248,7 +253,7 @@ export function stepHorizon(
   const current = horizonById(views, marketId);
   if (!current) return null;
   const at = views.findIndex(v => v.marketId === current.marketId);
-  return views[at + delta] ?? null;
+  return views[(at + delta + views.length) % views.length] ?? null;
 }
 
 export type PriceSeries = Array<{ at: string; consensus: number | null }>;

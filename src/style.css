@@ -2217,9 +2217,6 @@ button.notif-row-link {
 .pubws-hstep:hover:not(:disabled),
 .pubws-hstep:focus-visible { color: var(--accent); outline: none; }
 
-/* Disabled, never hidden: an arrow that appears and disappears as you step is
-   a moving target, and its absence is how a reader knows they are at the end. */
-.pubws-hstep:disabled { opacity: 0.28; cursor: default; }
 
 /* The settle day after the metric's name. A register quieter than the name,
    because the name is what the market is and the date is only which one. */
