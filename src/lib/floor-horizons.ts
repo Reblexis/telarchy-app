@@ -47,6 +47,8 @@ export interface HorizonView {
   label: string;
   /** The day the period ends: "31 December 2026". */
   settleDay: string | null;
+  /** The same day, short, for the caption: "31 Dec" (year only when it differs). */
+  settleShort: string | null;
   /** Exact settle instant (ISO) from the server. */
   resolvesOn: string | null;
   /** First moment of the settled period (ISO), when the server sent one. */
@@ -138,6 +140,24 @@ function isoWeekOf(d: Date): string {
   return `${isoYear}-W${String(week).padStart(2, '0')}`;
 }
 
+/**
+ * "23 Aug", or "23 Aug 2027" when the settle day is not in the year the reader
+ * is standing in. The year is dead weight on a market settling in six weeks
+ * and the only thing that matters on one settling in eighteen months.
+ *
+ * This is what the floor's caption puts after the metric's name (owner ask
+ * 2026-08-20: "it should have @ resolution date in its name"). It is COMPUTED
+ * from the market's target date and never stored on the metric, so the weekly
+ * market rolling over on Monday renames nothing and cannot go stale.
+ */
+export function settleShortOf(targetDate: string, now: Date = new Date()): string | null {
+  const full = settleDayOf(targetDate);
+  if (!full) return null;
+  const [day, month, year] = full.split(' ');
+  const short = `${day} ${month.slice(0, 3)}`;
+  return Number(year) === now.getUTCFullYear() ? short : `${short} ${year}`;
+}
+
 /** "23 Aug", for a selector button that has no room for the year. */
 function shortDay(targetDate: string): string {
   const full = settleDayOf(targetDate);
@@ -172,6 +192,7 @@ export function buildHorizonViews(
       targetDate: m.targetDate,
       label: horizonLabel(m.targetDate, now),
       settleDay: settleDayOf(m.targetDate),
+      settleShort: settleShortOf(m.targetDate, now),
       resolvesOn: m.resolvesOn ?? null,
       periodStart: row?.periodStart,
       consensus: m.consensus,

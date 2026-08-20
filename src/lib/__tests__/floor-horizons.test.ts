@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
   buildHorizonViews, captionLabel, currencyOf, horizonById, horizonLabel, metricLabelOf, priceSeriesOf,
-  primaryHorizonOf, settleDayOf, stepHorizon,
+  primaryHorizonOf, settleDayOf, settleShortOf, stepHorizon,
 } from '../floor-horizons';
 import type { PublicWorkspace } from '../api';
 
@@ -271,5 +271,44 @@ describe('stepping between horizons', () => {
   test('an empty floor steps to nothing instead of throwing', () => {
     expect(stepHorizon([], 'm-year', 1)).toBeNull();
     expect(horizonById([], 'm-year')).toBeNull();
+  });
+});
+
+
+/**
+ * The settle day the caption puts after the metric's name (owner ask
+ * 2026-08-20). Computed from the market's target date, never stored on the
+ * metric, which is the whole point: the weekly market rolls to a new target
+ * every Monday and nothing has to be renamed.
+ */
+describe('settleShortOf', () => {
+  const inYear = new Date('2026-08-20T12:00:00Z');
+
+  test('a week settles on its Sunday, and the current year is left off', () => {
+    // The PERIOD ends on Sunday the 23rd; the market's resolvesOn is midnight
+    // into the 24th. The caption names the day the week ended, not the instant
+    // the payout ran, because that is the day a reader is forecasting.
+    expect(settleShortOf('2026-W34', inYear)).toBe('23 Aug');
+  });
+
+  test('a month settles on its last day', () => {
+    expect(settleShortOf('2026-09', inYear)).toBe('30 Sep');
+    expect(settleShortOf('2026-10-14', inYear)).toBe('14 Oct');
+  });
+
+  test('another year is named, because that is the only thing that matters then', () => {
+    expect(settleShortOf('2027-W02', inYear)).toBe('17 Jan 2027');
+    expect(settleShortOf('2026-12', inYear)).toBe('31 Dec');
+  });
+
+  test('a target date nothing can be made of gives null, not a guess', () => {
+    expect(settleShortOf('whenever', inYear)).toBeNull();
+  });
+
+  test('the caption date rolls with the market, with no rename anywhere', () => {
+    // The same metric, two weeks running: this is what would go stale if the
+    // date lived in the stored metric name instead.
+    expect(settleShortOf('2026-W34', inYear)).toBe('23 Aug');
+    expect(settleShortOf('2026-W35', inYear)).toBe('30 Aug');
   });
 });

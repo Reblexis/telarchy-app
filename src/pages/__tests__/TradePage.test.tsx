@@ -453,8 +453,10 @@ test('the workspace name heads the page', async () => {
   expect(container.querySelector('.pubws-ws-name')!.tagName).toBe('H1');
   expect(container.querySelectorAll('h1').length).toBe(1);
   // And it does not say the company twice: the caption is what the number
-  // measures, with the name it already carries overhead stripped off.
-  expect(container.querySelector('.pubws-instrument-label')!.textContent).toBe('revenue');
+  // measures, with the name it already carries overhead stripped off, and the
+  // day it settles after it (owner ask 2026-08-20, so the arrows have
+  // something to tell two clocks apart by).
+  expect(container.querySelector('.pubws-instrument-label')!.textContent).toBe('revenue @ 31 Dec');
 });
 
 test('the workspace description is the company tagline, and is optional', async () => {

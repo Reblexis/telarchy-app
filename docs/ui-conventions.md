@@ -953,6 +953,20 @@ The rules that keep it from rotting back into the 2026-08-16 bug family:
 - **No per-horizon role caption, and no cross-horizon conflict mark on the
   ballot.** Those were the expensive half of the old feature and they stay
   deleted.
+- **The caption carries the settle day**: `ACTIVE TRADERS @ 23 AUG`, stepping
+  to `ACTIVE TRADERS @ 30 SEP`. This reverses the 2026-08-18 direction that
+  took the settle date off this line as redundant, and the reason it is no
+  longer redundant is the arrows: with one market the metric's own name carried
+  its horizon, and with two the date is the only thing telling the clocks
+  apart. It is `settleShortOf(targetDate)`, COMPUTED from the market, never
+  stored on the metric (owner ask 2026-08-20: "it should have @ resolution date
+  in its name"). A stored date would be correct until Monday, when `+0w` opens
+  next week's market on the same metric and the name still names last Sunday.
+  The year appears only when the settle day is not in the year the reader is
+  standing in.
+- **The day named is the day the period ENDS**, not the instant the payout
+  runs: an ISO week says 23 Aug, while the market's `resolvesOn` is midnight
+  into the 24th. The reader is forecasting the week, not the cron.
 
 **Revised 2026-08-17 (Viktor), the leaderboard is a public page.** The
 market page's left rail lists the top **ten** traders and the top ten

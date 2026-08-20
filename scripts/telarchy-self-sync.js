@@ -38,8 +38,11 @@ const WORKSPACE_ID = process.env.TELARCHY_SELF_SYNC_WORKSPACE;
 // traders (verified, 7-day)", because a date inside a metric's NAME is what
 // made it a one-shot. A metric is a number over time and the market's target
 // date carries the date, so "@1st October" bought exactly one market and left
-// three orphaned weekly rows behind it every time the name moved).
+// three orphaned weekly rows behind it every time the name moved. The floor
+// shows the settle day after the name and computes it from the market, so the
+// stored name never carries one again).
 const METRIC_NAMES = [
+  'Weekly active traders',
   'Active traders',
   'Active traders @1st October',
   'Weekly active verified traders',

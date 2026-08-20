@@ -11,7 +11,7 @@ import { JobsBoard, splitAsk } from '../components/JobsBoard';
 import { SubjectAbout } from '../components/SubjectAbout';
 import { FloorAnnouncements } from '../components/FloorAnnouncements';
 import { FloorComments } from '../components/FloorComments';
-import { AskFloor } from '../components/AskFloor';
+import { FloorChat } from '../components/FloorChat';
 import { LeaderboardRail } from '../components/FloorRails';
 import { useMyParticipantId } from '../hooks/useMyParticipantId';
 import { AccountMenu } from '../components/AccountMenu';
@@ -696,6 +696,16 @@ export function TradePage() {
         ready={!authLoading}
         floor={idOrSlug ? { idOrSlug, name: ws.name } : null}
       />
+      {/* The corner, not the column (owner direction 2026-08-20): a reader
+          needs him at whatever point of the page their question arrives, and
+          the page's job is the market. */}
+      {idOrSlug && (
+        <FloorChat
+          idOrSlug={idOrSlug}
+          workspaceName={ws.name}
+          metricLabel={selectedJob ? null : metricLabel}
+        />
+      )}
       <main className="pubws-main pubws-main--floor">
         <LeaderboardRail entries={leaders} contractors={ws?.topContractors} unit={unit} signedIn={!!user} meId={myParticipantId} />
         <div className="pubws-center">
@@ -973,8 +983,15 @@ export function TradePage() {
                     aria-label={prevHorizon ? `Show ${prevHorizon.metricLabel}, ${prevHorizon.label}` : 'No later market'}
                   >‹</button>
                 )}
+                {/* The settle day rides on the caption (owner ask 2026-08-20),
+                    computed from the market and never stored on the metric. It
+                    was removed from here on 2026-08-18 as redundant, when a
+                    floor had one market and the metric's own name carried its
+                    horizon. With arrows it is the opposite of redundant: it is
+                    the only thing telling two clocks apart. */}
                 <h2 className="pubws-instrument-label">
                   {captionLabel(metricLabel, ws.name)}
+                  {hero?.settleShort && <span className="pubws-instrument-at"> @ {hero.settleShort}</span>}
                 </h2>
                 {horizons.length > 1 && (
                   <button
@@ -1124,17 +1141,6 @@ export function TradePage() {
               />
             )}
 
-            {/* Under the conversation, not over it (owner direction
-                2026-08-20). The page's job is the market; asking is what a
-                reader does after the market, the comments and the positions
-                have all failed to answer their question. */}
-            {idOrSlug && (
-              <AskFloor
-                idOrSlug={idOrSlug}
-                workspaceName={ws.name}
-                metricLabel={selectedJob ? null : metricLabel}
-              />
-            )}
           </section>
         ) : null}
 

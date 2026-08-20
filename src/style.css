@@ -1482,117 +1482,192 @@ code, pre, kbd, samp {
 }
 
 /* ---------------------------------------------------------------------------
-   Ask the floor (owner ask 2026-08-20).
+   Otto, the floor's market maker, in the corner (owner direction 2026-08-20).
 
-   It sits in the decision column between the bet and the conversation, and
-   it is deliberately NOT a corner bubble: a bubble reads as support, and
-   this is research. The bar borrows the ticket's underline input so it looks
-   like part of the instrument rather than a widget bolted onto the page, and
-   the answer lands in a ruled block under it, the same hairline language the
-   comments use. One accent, no cards, no avatar, no chat transcript: a
-   question and its answer, replaced by the next one.
+   Closed he is one line, not a circle with a speech bubble in it: a chat
+   bubble is the universal mark of a support widget, and he is not support.
+   The mark is a single serif O, the page's display face, so he reads as
+   someone from this floor rather than as a plug-in. Open he is a panel in the
+   same ruled language as everything else here, and on a phone he takes the
+   sheet, because a 22rem panel on a 390px screen is a joke.
 --------------------------------------------------------------------------- */
-.askfloor {
-  margin: 1.6rem 0 0.4rem;
-  padding-top: 1.2rem;
-  border-top: 1px solid var(--border-color);
-}
-
-.askfloor-bar {
-  display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
-}
-
-.askfloor-input {
-  flex: 1;
-  min-width: 0;
-  padding: 0.3rem 0 0.45rem;
-  border: none;
-  border-bottom: 1px solid var(--border-strong);
-  background: none;
-  font: inherit;
-  font-size: 1rem;
-  color: var(--text-primary);
-  transition: border-color 140ms ease;
-}
-.askfloor-input::placeholder { color: var(--text-tertiary); }
-.askfloor-input:focus {
-  outline: none;
-  border-bottom-color: var(--accent);
-}
-
-.askfloor-go {
-  flex: none;
-  padding: 0.35rem 0.9rem;
+.ottodock {
+  position: fixed;
+  right: clamp(0.9rem, 2vw, 1.6rem);
+  bottom: clamp(0.9rem, 2vw, 1.6rem);
+  z-index: 45;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.5rem 0.95rem 0.5rem 0.55rem;
   border: 1px solid var(--border-strong);
   border-radius: 999px;
-  background: none;
+  background: var(--bg-secondary);
+  box-shadow: 0 14px 30px -20px rgba(0, 0, 0, 0.5);
   font: inherit;
   font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-primary);
+  color: var(--text-secondary);
   cursor: pointer;
-  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+  transition: color 140ms ease, border-color 140ms ease, transform 140ms ease;
 }
-.askfloor-go:hover:not(:disabled) {
-  background: var(--text-primary);
-  border-color: var(--text-primary);
-  color: var(--bg-primary);
-}
-.askfloor-go:disabled { color: var(--text-tertiary); cursor: default; }
+.ottodock:hover { color: var(--text-primary); border-color: var(--text-primary); transform: translateY(-1px); }
+.ottodock:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
-/* "Ask anything" is a blank page, and a blank page is friction of its own.
-   These name this floor's actual subjects, so the first question is free. */
-.askfloor-suggest {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-top: 0.7rem;
+.ottodock-mark,
+.otto-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  background: var(--text-primary);
+  color: var(--bg-primary);
+  font-family: var(--font-display, Georgia, 'Times New Roman', serif);
+  font-size: 0.95rem;
+  line-height: 1;
 }
-.askfloor-chip {
-  padding: 0.28rem 0.7rem;
+
+.otto {
+  position: fixed;
+  right: clamp(0.9rem, 2vw, 1.6rem);
+  bottom: clamp(0.9rem, 2vw, 1.6rem);
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  width: min(23rem, calc(100vw - 1.8rem));
+  max-height: min(32rem, calc(100vh - 5rem));
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  background: var(--bg-secondary);
+  box-shadow: 0 24px 50px -28px rgba(0, 0, 0, 0.6);
+  animation: otto-rise 160ms ease-out;
+}
+@keyframes otto-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .otto { animation: none; } }
+
+.otto-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.75rem 0.85rem 0.7rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.otto-who { display: flex; flex-direction: column; line-height: 1.25; }
+.otto-who strong { font-size: 0.92rem; }
+.otto-role { font-size: 0.72rem; color: var(--text-tertiary); }
+.otto-close {
+  margin-left: auto;
+  padding: 0 0.2rem;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+.otto-close:hover { color: var(--text-primary); }
+
+.otto-log {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+/* Otto's turns are the page's own voice: flush left, no bubble. The
+   visitor's are set apart by an accent rule instead of a coloured pill, so
+   the panel stays a document rather than becoming a messenger app. */
+.otto-msg {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+.otto-msg--otto { color: var(--text-primary); }
+.otto-msg--you {
+  align-self: flex-end;
+  max-width: 88%;
+  padding-left: 0.7rem;
+  border-left: 2px solid var(--accent);
+  color: var(--text-secondary);
+}
+.otto-msg.is-thinking { color: var(--text-tertiary); }
+
+.otto-openers { display: flex; flex-direction: column; align-items: flex-start; gap: 0.35rem; }
+.otto-opener {
+  padding: 0.3rem 0.7rem;
   border: 1px solid var(--border-color);
   border-radius: 999px;
   background: none;
   font: inherit;
   font-size: 0.78rem;
   color: var(--text-secondary);
+  text-align: left;
   cursor: pointer;
-  transition: color 140ms ease, border-color 140ms ease;
 }
-.askfloor-chip:hover { color: var(--text-primary); border-color: var(--border-strong); }
+.otto-opener:hover { color: var(--text-primary); border-color: var(--border-strong); }
 
-.askfloor-working {
-  margin: 0.9rem 0 0;
-  font-size: 0.85rem;
-  color: var(--text-tertiary);
+.otto-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.85rem 0.2rem;
+  border-top: 1px solid var(--border-color);
 }
-
-.askfloor-answer { margin-top: 1rem; }
-.askfloor-q {
-  margin: 0 0 0.35rem;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-tertiary);
-}
-.askfloor-a {
-  margin: 0;
-  padding-left: 0.85rem;
-  border-left: 2px solid var(--accent);
-  font-size: 0.98rem;
-  line-height: 1.6;
+.otto-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.35rem 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.9rem;
   color: var(--text-primary);
-  white-space: pre-wrap;
 }
-.askfloor-note {
-  margin: 0.6rem 0 0 0.85rem;
-  font-size: 0.74rem;
+.otto-input:focus { outline: none; }
+.otto-input::placeholder { color: var(--text-tertiary); }
+.otto-send {
+  flex: none;
+  width: 1.9rem;
+  height: 1.9rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: none;
+  font: inherit;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.otto-send:hover:not(:disabled) { background: var(--text-primary); color: var(--bg-primary); border-color: var(--text-primary); }
+.otto-send:disabled { color: var(--text-tertiary); cursor: default; }
+
+.otto-note {
+  margin: 0;
+  padding: 0.35rem 0.85rem 0.75rem;
+  font-size: 0.68rem;
+  line-height: 1.45;
   color: var(--text-tertiary);
 }
 
+/* On a phone he is the sheet: a 23rem panel on a 390px screen is a joke. */
+@media (max-width: 560px) {
+  .otto {
+    right: 0;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    max-height: 78vh;
+    border-radius: 16px 16px 0 0;
+  }
+  .ottodock-label { display: none; }
+  .ottodock { padding: 0.5rem; }
+}
 
 /* The arrival flash (owner ask 2026-08-19). A notification names one thing;
    when the reader arrives, that thing lights for a moment and then is
@@ -2148,6 +2223,10 @@ button.notif-row-link {
 /* Disabled, never hidden: an arrow that appears and disappears as you step is
    a moving target, and its absence is how a reader knows they are at the end. */
 .pubws-hstep:disabled { opacity: 0.28; cursor: default; }
+
+/* The settle day after the metric's name. A register quieter than the name,
+   because the name is what the market is and the date is only which one. */
+.pubws-instrument-at { color: var(--text-tertiary); font-weight: 500; }
 
 
 .pubws-price {
@@ -6351,3 +6430,274 @@ textarea.jobform-line--desc {
   font-size: 0.72rem;
   color: var(--text-secondary);
 }
+
+/* ------------------------------------------------------------------ */
+/* telarchy.com/data-room: Telarchy's own books (owner ask 2026-08-20).
+   The document column, the floor's hairlines and mono numerals, and
+   hand-rolled SVG charts. No cards, no sidebar, no second palette.
+   Spec: docs/data-room.md; language: docs/ui-conventions.md. */
+
+.dr {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: clamp(2.5rem, 8vh, 4.5rem) 1.25rem 6rem;
+}
+
+.dr-head { text-align: center; }
+
+.dr-title {
+  margin: 0;
+  font-family: 'Fraunces', serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-size: clamp(1.75rem, 6vw, 2.4rem);
+  letter-spacing: -0.02em;
+}
+
+.dr-lead {
+  margin: 0.8rem auto 0;
+  max-width: 34rem;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+/* When the words were written, when the figures were read, and the route
+   that answers both. The page's claim to be checkable lives in this line. */
+.dr-stamp {
+  margin: 0.9rem 0 0;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+
+.dr-stamp-link { color: var(--text-tertiary); text-decoration: underline; }
+.dr-stamp-link:hover { color: var(--text-primary); }
+
+/* The index. A row of quiet links that sticks under the top bar, because a
+   document with nine sections needs a way back up and a sidebar is the
+   thing that was deleted. */
+.dr-index {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.1rem;
+  margin: clamp(2rem, 5vh, 3rem) 0 2.5rem;
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-primary);
+}
+
+.dr-index-link {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-tertiary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+.dr-index-link:hover { color: var(--text-primary); }
+.dr-index-link.is-active { color: var(--accent); }
+
+.dr-section { margin-bottom: 3.25rem; scroll-margin-top: 4.5rem; }
+
+.dr-prose p {
+  margin: 0 0 0.9rem;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--text-secondary);
+}
+
+.dr-prose p:last-child { margin-bottom: 0; }
+
+.dr-code, .dr-note code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82em;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xs);
+  padding: 0.05em 0.3em;
+}
+
+.dr-block { margin: 1.6rem 0 0; }
+
+.dr-note {
+  margin: 0.9rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--text-tertiary);
+}
+
+.dr-note a { color: var(--accent); }
+
+.dr-err { color: var(--error-text); font-size: 0.85rem; text-align: center; }
+.dr-empty { color: var(--text-tertiary); font-size: 0.9rem; }
+
+/* The glance. Wraps rather than shrinking: the numerals are the reason a
+   section is worth stopping on. */
+.dr-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem 2.5rem;
+  padding: 1.2rem 0;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.dr-fig { display: flex; flex-direction: column; gap: 0.15rem; }
+
+.dr-fig-n {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 1.6rem;
+  line-height: 1.05;
+}
+
+.dr-fig-l {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+
+.dr-fig-note { font-size: 0.7rem; color: var(--text-tertiary); }
+
+.dr-list { list-style: none; margin: 1.2rem 0 0; padding: 0; }
+.dr-list li { border-top: 1px solid var(--border-color); }
+.dr-list li:last-child { border-bottom: 1px solid var(--border-color); }
+
+.dr-row {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.55rem 0;
+  font-size: 0.85rem;
+}
+
+/* The amber rule behind a count, scaled to the largest row: which of these
+   is big, answered without a second chart. */
+.dr-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--accent-soft);
+  z-index: 0;
+}
+
+.dr-left { position: relative; flex: 1; color: var(--text-secondary); }
+
+.dr-value {
+  position: relative;
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* The market this page is the evidence for: the call, big, with the
+   reading it settles against under it. Same register as the floor. */
+.dr-market {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 1.4rem 0 1.2rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.dr-market-cap {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary);
+}
+
+.dr-market-price {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: clamp(2rem, 8vw, 2.8rem);
+  line-height: 1;
+}
+
+.dr-market-sub { font-size: 0.75rem; color: var(--text-tertiary); }
+
+.dr-chart { margin: 1.4rem 0 0; }
+
+.dr-chart-svg {
+  display: block;
+  width: 100%;
+  height: 130px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.dr-chart-bar { fill: var(--accent); opacity: 0.75; }
+
+.dr-line { fill: none; stroke: var(--accent); stroke-width: 2; }
+.dr-line-fill { fill: var(--accent-soft); stroke: none; }
+
+.dr-chart-cap {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.4rem;
+  font-size: 0.68rem;
+  color: var(--text-tertiary);
+}
+
+.dr-chart-max { font-family: 'JetBrains Mono', monospace; }
+
+/* The change log. A date column in mono so the days line up, and the
+   subject exactly as it was committed. */
+.dr-log { list-style: none; margin: 1.4rem 0 0; padding: 0; }
+
+.dr-log-row {
+  display: flex;
+  gap: 0.9rem;
+  padding: 0.45rem 0;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.82rem;
+}
+
+.dr-log-row:last-child { border-bottom: 1px solid var(--border-color); }
+
+.dr-log-day {
+  flex: none;
+  width: 4.2rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  padding-top: 0.1rem;
+}
+
+.dr-log-what { color: var(--text-secondary); line-height: 1.45; }
+
+@media (max-width: 560px) {
+  .dr-index { gap: 0.2rem 0.8rem; }
+  .dr-log-day { width: 3.4rem; }
+  /* The index wraps to four or five lines on a phone, so an anchor jump has
+     to clear more of it or the section label lands underneath. */
+  .dr-section { scroll-margin-top: 8rem; }
+}
+
+/* "Show all N": a text button in the meta register, because the log is the
+   longest thing on the page and most readers want the recent end of it. */
+.dr-more {
+  margin-top: 0.9rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.dr-more:hover { color: var(--accent-hover); }
