@@ -963,7 +963,18 @@ export function TradePage() {
                  an arrow that appears and disappears as you step is a moving
                  target, and a reader cannot tell how many clocks exist from a
                  control that keeps changing shape. */
-              <div className="pubws-instrument pubws-enter pubws-enter--1">
+              /* The arrows live INSIDE the caption, not in a wrapper around
+                 it. Wrapping the h2 in a flex row put it in a 59px column
+                 beside the price on the live floor, four words tall and
+                 overlapping the leaderboard rail: this heading's placement
+                 comes from rules that assume it is a block child of
+                 .pubws-center, and a new element between them broke that. The
+                 settle day rides on it too (owner ask 2026-08-20), computed
+                 from the market and never stored on the metric. It was taken
+                 off this line on 2026-08-18 as redundant, when a floor had one
+                 market and the metric's name carried its own horizon; with
+                 arrows it is the only thing telling two clocks apart. */
+              <h2 className="pubws-instrument-label pubws-enter pubws-enter--1">
                 {horizons.length > 1 && (
                   <button
                     className="pubws-hstep"
@@ -972,16 +983,8 @@ export function TradePage() {
                     aria-label={prevHorizon ? `Show ${prevHorizon.metricLabel}, ${prevHorizon.label}` : 'No later market'}
                   >‹</button>
                 )}
-                {/* The settle day rides on the caption (owner ask 2026-08-20),
-                    computed from the market and never stored on the metric. It
-                    was removed from here on 2026-08-18 as redundant, when a
-                    floor had one market and the metric's own name carried its
-                    horizon. With arrows it is the opposite of redundant: it is
-                    the only thing telling two clocks apart. */}
-                <h2 className="pubws-instrument-label">
-                  {captionLabel(metricLabel, ws.name)}
-                  {hero?.settleShort && <span className="pubws-instrument-at"> @ {hero.settleShort}</span>}
-                </h2>
+                {captionLabel(metricLabel, ws.name)}
+                {hero?.settleShort && <span className="pubws-instrument-at"> @ {hero.settleShort}</span>}
                 {horizons.length > 1 && (
                   <button
                     className="pubws-hstep"
@@ -990,7 +993,7 @@ export function TradePage() {
                     aria-label={nextHorizon ? `Show ${nextHorizon.metricLabel}, ${nextHorizon.label}` : 'No sooner market'}
                   >›</button>
                 )}
-              </div>
+              </h2>
             )}
             <div className="pubws-headline pubws-enter pubws-enter--2">
               <span className="pubws-price">{unit}{formatValue(shownConsensus ?? consensus)}</span>

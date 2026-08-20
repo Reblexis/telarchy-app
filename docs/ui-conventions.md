@@ -971,9 +971,15 @@ The rules that keep it from rotting back into the 2026-08-16 bug family:
   one at the end of the list is disabled rather than hidden. An arrow that
   appears and disappears as you step is a moving target, and its dimming is how
   a reader learns how many clocks there are.
-- **The arrows sit on the caption's line, not under the price.** What they
-  change is which instrument the page is about; a control next to the number
-  reads as changing the number.
+- **The arrows sit on the caption's line, not under the price**, and they are
+  INSIDE the `h2` rather than in a wrapper around it. What they change is which
+  instrument the page is about, and a control next to the number reads as
+  changing the number. The wrapper version shipped first and broke the floor:
+  putting a flex row between `.pubws-center` and the heading dropped the
+  caption into a 59px column beside the price, four words tall and over the
+  leaderboard rail, because that heading's placement comes from rules that
+  assume it is a block child of the column. Add controls to that line by
+  putting them in the heading, never by wrapping it.
 - **No per-horizon role caption, and no cross-horizon conflict mark on the
   ballot.** Those were the expensive half of the old feature and they stay
   deleted.

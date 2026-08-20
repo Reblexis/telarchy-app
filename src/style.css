@@ -2194,18 +2194,15 @@ button.notif-row-link {
   color: var(--text-secondary);
 }
 
-/* The metric caption with a way to the floor's other clocks (owner ask
-   2026-08-20). The arrows sit ON the caption's line rather than under the
-   number, because what they change is which instrument the page is about, and
-   a control that lives next to the price reads as changing the price. */
-.pubws-instrument {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
+/* The arrows to the floor's other clocks (owner ask 2026-08-20), inline in the
+   caption itself. They sit on the caption's line rather than under the number,
+   because what they change is which instrument the page is about, and a
+   control next to the price reads as changing the price. Inline rather than in
+   a flex wrapper: wrapping the heading put it in a 59px column beside the
+   price and over the leaderboard rail, because its placement comes from rules
+   that assume it is a block child of .pubws-center. */
 .pubws-hstep {
+  margin: 0 0.35rem;
   padding: 0 0.15rem;
   background: none;
   border: none;
