@@ -137,7 +137,7 @@ explains itself.
 | File | Surface |
 | --- | --- |
 | `landing.md` | `/` first paint, footer links, viewport coverage |
-| `marketplace-public.md` | Anonymous `/marketplace`, share-link, OG meta |
+| `marketplace-public.md` | Anonymous `/` (the market list, home since 2026-08-20; `/marketplace` redirects), share-link, OG meta |
 | `public-workspace-page.md` | Anonymous `/marketplace/:workspaceId`: charter, join CTA, market cap, counts-not-contents boundary |
 | `leaderboard.md` | Anonymous `/leaderboard`, calibration ranking, register CTA |
 | `legal.md` | `/terms`, `/privacy`, ToS clauses |

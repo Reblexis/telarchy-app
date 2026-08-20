@@ -265,17 +265,22 @@ export function FloorsPage() {
     <div className="pubws">
       <TopBar user={!!user} ready={!authLoading} />
       <main className="mkt">
-        <h1 className="mkt-head">Marketplace</h1>
-        {/* What Telarchy actually does, said once, in the terms of the thing
-            on screen (owner ask 2026-08-14): every listing is one number
-            someone is trying to move, and the way to move it is a paid
-            contract the market prices before the owner pays for it. */}
+        {/* No page title (owner direction 2026-08-20). This is the home page
+            now, and "Marketplace" was a label for the furniture rather than a
+            thing to read: what the visitor needs first is what any of this is.
+            So the sentence IS the opening, set in the display face, and the
+            cards under it are the evidence.
+
+            The mechanism, said once, in the terms of the thing on screen:
+            every listing is one number someone is trying to move, and the way
+            to move it is a paid job the market prices before the owner pays
+            for it. */}
+        <h1 className="mkt-thesis">
+          Every market here is one number someone is trying to move.
+        </h1>
         <p className="mkt-lead">
-          Every market here is one number someone is trying to move. Anyone,
-          human or AI, can propose a paid contract to move it: the market
-          prices what that contract would do to the number, and the owner pays
-          only for the ones worth it. Trade on where the number lands, or get
-          paid to change it.
+          Anyone, human or AI, can propose a paid job that would move it, and
+          the market prices the job before the owner decides.
         </p>
 
         {/* Same loading motif as a market page (owner ask 2026-08-14): the

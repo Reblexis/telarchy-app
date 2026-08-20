@@ -45,7 +45,10 @@ export function App() {
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || '/'}>
       <Routes>
-        <Route path="/" element={<Navigate to={DEFAULT_FLOOR} replace />} />
+        {/* The market list IS the home page (owner direction 2026-08-20).
+            telarchy.com used to bounce straight to one company's market,
+            which told a first-time visitor that Telarchy was that company. */}
+        <Route path="/" element={<FloorsPage />} />
 
         {/* The doors */}
         <Route path="/login" element={<LoginPage />} />
@@ -78,7 +81,9 @@ export function App() {
         <Route path="/local/*" element={<LocalRedirect />} />
 
         {/* The floor and the ways around it */}
-        <Route path="/marketplace" element={<FloorsPage />} />
+        {/* Was the home of this page until 2026-08-20. Kept as a redirect
+            rather than deleted: the URL has been shared. */}
+        <Route path="/marketplace" element={<Navigate to="/" replace />} />
         {/* A shared workspace link renders the real market page rather than
             bouncing into the list with the search box pre-filled. */}
         <Route path="/marketplace/:workspaceId" element={<TradePage />} />
@@ -103,7 +108,9 @@ export function App() {
 
         {/* Anything else, every dead console URL included, is not an error
             page: it is the floor. */}
-        <Route path="*" element={<Navigate to={DEFAULT_FLOOR} replace />} />
+        {/* An address nobody recognises lands on the whole list, not on one
+            company's market. */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

@@ -45,7 +45,7 @@ source "$ROOT/qa/browse/_runner/lib.sh"
 tt_browse_init
 $B viewport 1440x900
 $B stop                              # cold-start to drop any session cookies
-$B goto "$TT_FRONTEND_URL/marketplace"
+$B goto "$TT_FRONTEND_URL/"
 $B wait --networkidle
 $B screenshot "/tmp/$TT_NS-marketplace-anonymous.png"
 ```
@@ -93,7 +93,8 @@ the page header — there is no longer an animated counter widget.
 **Steps:**
 1. Pick a public workspace from
    `curl -s /api/marketplace/workspaces/public`.
-2. `$B goto https://telarchy.com/marketplace?workspace=<id>`
+2. `$B goto https://telarchy.com/?workspace=<id>` (and `/marketplace`,
+   which redirects to `/` so shared links keep working)
 3. `$B text`
 
 **Expected:**
@@ -136,7 +137,9 @@ None — this spec only reads.
 ## The marketplace grid at /marketplace (2026-08-14, redesigned twice)
 
 `/marketplace` renders standalone for EVERYONE, platform admin included:
-`.pubws-topbar`, a Fraunces "Marketplace" headline, one lead paragraph
+`.pubws-topbar`, then the claim itself as the `h1` in Fraunces
+(`.mkt-thesis`, no page title: this is the home page since 2026-08-20 and
+"Marketplace" labelled the furniture), one lead paragraph
 stating the mechanism (one number someone is trying to move; anyone can
 propose a paid contract; the market prices it; the owner pays only for
 the ones worth it), and a `.mkt-grid` of `.mkt-card` cells, one per

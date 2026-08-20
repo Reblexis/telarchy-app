@@ -264,6 +264,15 @@ read for everyone at the start instant. All four surfaces that show the
 countdown take it from `src/lib/season-clock.ts`;
 `season-clock-ownership.test.ts` fails if a second copy appears.
 
+**The market list is the home page (owner direction 2026-08-20).**
+`telarchy.com` renders `FloorsPage`; `/marketplace` redirects to it and the
+catch-all lands there too, so an unknown address shows the whole list rather
+than one company's market. The page carries NO title: "Marketplace" labelled
+the furniture, and a first-time visitor needs to know what any of this is. The
+claim is the `h1` instead, in the display face, with one supporting line under
+it. Keep that copy dual-scope ("someone", not "a company"): individuals run
+personal goals here and are first-class.
+
 ## Market integrity (Season 1)
 
 Governing doc: `docs/market-integrity.md`. Three rules, all owner decisions of

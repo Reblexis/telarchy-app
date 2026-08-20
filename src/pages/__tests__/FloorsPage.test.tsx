@@ -50,9 +50,24 @@ beforeEach(() => {
 describe('marketplace', () => {
 
   test('states the mechanism once, in plain words', async () => {
+    // Reworded and halved 2026-08-20 when this became the home page. The
+    // three things the sentence has to carry are unchanged: one number, who
+    // may propose, and that the market prices it BEFORE the owner decides.
     renderPage();
+    // "someone", not "a company": individuals run personal goals here and are
+    // first-class (AGENTS.md, dual scope). A listing like "My Utility /
+    // Subjective health feeling" is not a company.
     expect(screen.getByText(/one number someone is trying to move/i)).toBeInTheDocument();
-    expect(screen.getByText(/paid contract/i)).toBeInTheDocument();
+    expect(screen.getByText(/human or AI/i)).toBeInTheDocument();
+    expect(screen.getByText(/prices the job before the owner decides/i)).toBeInTheDocument();
+  });
+
+  test('carries no page title, because the claim is the opening', async () => {
+    // "Marketplace" labelled the furniture. A first-time visitor landing on
+    // telarchy.com needs to know what any of this is, not what the page is
+    // called (owner direction 2026-08-20).
+    renderPage();
+    expect(screen.queryByText(/^Marketplace$/)).toBeNull();
   });
 
   test('never says "floor" to a visitor', async () => {
