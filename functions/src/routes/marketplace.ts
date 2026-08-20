@@ -258,10 +258,28 @@ export async function resolvePublicWorkspace(idOrSlug: string) {
   return bySlug.length === 1 ? bySlug[0] : undefined;
 }
 
+/**
+ * The whole floor payload for one public workspace.
+ *
+ * Deliberately NOT cached as a unit: beside prices it carries proposals,
+ * announcements, settings, and permission-gated sections, which mutate
+ * through a dozen write paths that could never all be trusted to invalidate
+ * it (the first attempt at a 10s payload cache served pre-mutation ballots
+ * and settings in three different test suites). The expensive parts, the
+ * full price-history replays, are cached one level down with exact
+ * trade/liquidity invalidation (services/predictions.ts replay bundle);
+ * everything else here is a handful of indexed millisecond queries.
+ */
+type PublicWs = NonNullable<Awaited<ReturnType<typeof resolvePublicWorkspace>>>;
+
 marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
   const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
   if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
   if (ws.visibility === 'private') { res.status(403).json({ error: 'This workspace is private' }); return; }
+  res.json(await buildFloorPayload(ws));
+}));
+
+async function buildFloorPayload(ws: PublicWs) {
   const workspaceId = ws.id;
 
   const wsMarkets = await db.select().from(markets)
@@ -725,7 +743,7 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
     .where(like(systemConfig.key, 'manifold-claimed:agent:%'));
   const manifoldImportCount = manifoldRow?.n ?? 0;
 
-  res.json({
+  return {
     workspaceId,
     name: ws.name,
     slug: ws.slug,
@@ -766,8 +784,8 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
       latestAnnouncement,
       announcementCount,
     } : {}),
-  });
-}));
+  };
+}
 
 /**
  * A single market's price history on a public workspace, replayed the same

@@ -94,22 +94,54 @@ import('./app').then(async ({ app }) => {
   assertTreasuryConfigured();
   await runBootstrap();
 
+  // Dynamic on purpose, like every db-touching import in this file: static
+  // imports hoist above the .env.local overlay at the top and would capture
+  // DATABASE_URL before the overlay ran.
+  const { withSingletonLock } = await import('./lib/singleton-jobs');
+
+  /**
+   * Every instance arms every timer below, and Cloud Run runs up to 4
+   * instances of prod plus 4 of the candidate. The advisory lock elects one
+   * winner per tick; the rest skip (lib/singleton-jobs.ts). Before this the
+   * limit sweep ran up to 8x every 12 seconds, all doing identical work.
+   */
+  const singleton = (name: Parameters<typeof withSingletonLock>[0], fn: () => Promise<void>) =>
+    async () => { await withSingletonLock(name, fn); };
+
+  // The visit logger's dependencies, loaded once per boot instead of once per
+  // request (geoip-lite parses its whole IP dataset on first import; inside a
+  // request that made some visitor's page view pay for it). Still dynamic for
+  // the same .env.local reason as above.
+  const visitDeps = Promise.all([
+    import('./db/client'), import('./db/schema'), import('crypto'), import('geoip-lite'),
+  ]).then(([client, schema, crypto, geo]) => ({
+    db: client.db, pageVisits: schema.pageVisits, randomUUID: crypto.randomUUID, geoip: geo.default,
+  }));
+
   // Catch-up: resolve any markets whose target date passed while the server was down.
-  runDailyResolve().catch(e => console.error('Startup catch-up resolve failed:', e));
-  runDailyRefresh().catch(e => console.error('Startup catch-up refresh failed:', e));
+  singleton('startupCatchUp', async () => {
+    await runDailyResolve();
+    await runDailyRefresh();
+  })().catch(e => console.error('Startup catch-up failed:', e));
 
   // Resolve frequently so markets settle close to their resolvesOn instant
   // (hourly markets exist now; settlement value is pinned as-of resolvesOn,
   // so running often only reduces payout latency, never changes results).
-  scheduleEvery(10 * 60_000, 'resolve', runDailyResolve);
+  scheduleEvery(10 * 60_000, 'resolve', singleton('resolve', runDailyResolve));
   // Sweep resting limit orders often so a crossed order fills promptly
   // even without a fresh trade to trigger it (owner report 2026-08-11).
-  scheduleEvery(12_000, 'limitSweep', async () => {
+  scheduleEvery(12_000, 'limitSweep', singleton('limitSweep', async () => {
     const { sweepLimitOrders } = await import('./services/trading');
     const r = await sweepLimitOrders();
     if (r.fills > 0) console.log('Limit sweep:', r);
-  });
-  scheduleDailyUTC(0, 10, 'dailyMarketRefresh', runDailyRefresh);
+  }));
+  scheduleDailyUTC(0, 10, 'dailyMarketRefresh', singleton('dailyMarketRefresh', runDailyRefresh));
+  // Data hygiene: visit-log retention, question IP scrub, trace retention
+  // (services/maintenance.ts). Used to run on admin read paths or never.
+  scheduleDailyUTC(0, 20, 'dailyMaintenance', singleton('dailyMaintenance', async () => {
+    const { runDailyMaintenance } = await import('./services/maintenance');
+    console.log('Daily maintenance:', await runDailyMaintenance());
+  }));
 
   /**
    * The beta surface, on this domain (owner ask 2026-08-20). Order matters and
@@ -183,10 +215,7 @@ import('./app').then(async ({ app }) => {
       // 30 days when the stats endpoint reads.
       // The owner's own cockpit is not a visitor (see lib/visit-log.ts).
       if (shouldLogVisit(req.path)) (async () => {
-        const { db } = await import('./db/client');
-        const { pageVisits } = await import('./db/schema');
-        const { randomUUID } = await import('crypto');
-        const geoip = (await import('geoip-lite')).default;
+        const { db, pageVisits, randomUUID, geoip } = await visitDeps;
         const fwd = String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim();
         const ip = (fwd || req.socket.remoteAddress || '').slice(0, 60) || null;
         // Offline IP -> country (no network call, ISO alpha-2), so the

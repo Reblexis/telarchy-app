@@ -18,6 +18,7 @@ import { extractMetricReferences } from '../lib/metrics-engine';
 import { consensus, pHigher, directionTradeCost, sharesForBudget, betTowardsValue, directionSellProceeds, lmsrCost, initialPool, AMM_DEFAULTS } from '../lib/amm';
 import { executeTradeInTx, fillLimitOrdersInTx, capUsage, positionCap, closeLimitOrderInTx, type TradeMode } from '../services/trading';
 import { emitEvent } from '../services/events';
+import { emitPricesChanged } from '../lib/market-events';
 import { notifyCommentPosted } from '../services/notifications';
 import { applyAgentLiquidityInjectionTx } from '../services/marketLiquidity';
 import { sufficientBalance, toUnits, fromUnits, validateContent, MIN_LIQUIDITY_CONTRIBUTION } from '../lib/validation';
@@ -671,6 +672,7 @@ predictionsRouter.post('/markets', requireCapability('manage'), wrap(async (req,
         id: liqEventId, workspaceId, marketId, amount: pool, totalLiquidity: liq, type: 'initial', createdAt: new Date(),
       });
     });
+    emitPricesChanged(workspaceId, marketId);
   }
 
   res.status(201).json({ id: marketId, metricId, metricName: metric.name, targetDate });
@@ -765,6 +767,7 @@ predictionsRouter.post('/markets/liquidity/bulk', requireCapability('manage'), w
         id: randomUUID(), workspaceId, marketId: market.id, agentId, amount, poolContribution,
         totalLiquidity: newLiquidity, type: 'injection', createdAt: new Date(),
       });
+      emitPricesChanged(workspaceId, market.id);
     }
 
     // Persist the per-market top-up on a pending proposal so the subsidy

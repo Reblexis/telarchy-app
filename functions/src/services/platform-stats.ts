@@ -1,6 +1,7 @@
 import { db } from '../db/client';
 import { agents, markets, trades, systemConfig, workspaces } from '../db/schema';
 import { and, count, eq, gt, inArray, like, sql } from 'drizzle-orm';
+import { ttlCache } from '../lib/ttl-cache';
 
 /**
  * The platform's own pulse, in one place.
@@ -19,7 +20,28 @@ export interface PlatformStats {
   manifoldImportCount: number;
 }
 
-export async function platformStats(): Promise<PlatformStats> {
+/**
+ * Cached one minute: `GET /api/marketplace/stats` is public and was the only
+ * public aggregate with no cache at all, an N+1 over every workspace on each
+ * request. A market resolving against these numbers reads a value at most 60s
+ * old, which is inside the noise of the weekly windows they measure.
+ */
+const statsCache = ttlCache({
+  ttlMs: 60_000,
+  keyOf: () => 'stats',
+  load: () => computePlatformStats(),
+});
+
+/** Test seam. */
+export function clearPlatformStatsCache(): void {
+  statsCache.clear();
+}
+
+export function platformStats(): Promise<PlatformStats> {
+  return statsCache.get();
+}
+
+async function computePlatformStats(): Promise<PlatformStats> {
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
   const allWs = await db.select({ id: workspaces.id }).from(workspaces);
 

@@ -8,6 +8,8 @@ import type { Metric } from '../types';
 import { periodEndInstant, resolutionInstant } from '../lib/date-utils';
 import { pHigher, consensus, resolutionPayouts } from '../lib/amm';
 import { emitEvent } from './events';
+import { ttlCache } from '../lib/ttl-cache';
+import { onPricesChanged } from '../lib/market-events';
 import { releaseLimitOrdersForMarket } from './trading';
 import { applyCredits } from './credits';
 
@@ -318,9 +320,45 @@ export interface MarketTradePoint {
  * trading floor's consensus series (the amber line on the hero chart).
  */
 export async function replayMarketTradePoints(marketId: string, workspaceId: string): Promise<MarketTradePoint[]> {
+  return (await replayCache.get(marketId, workspaceId)).points;
+}
+
+/**
+ * The replay bundle: everything derived from one market's trade and
+ * liquidity history, computed from ONE fetch of each table and cached
+ * briefly. Before this, the trade rows were fetched twice per history
+ * request (once to replay, once in openingConsensus) and every 5s floor
+ * poll re-replayed the full history. The cache is dropped the instant a
+ * trade or liquidity change lands (lib/market-events.ts), so a fresh price
+ * never waits out the TTL.
+ */
+interface ReplayBundle {
+  market: typeof markets.$inferSelect | null;
+  points: MarketTradePoint[];
+  /** The consensus the market carried before anyone traded it. */
+  opening: number | null;
+}
+
+const replayCache = ttlCache({
+  ttlMs: 30_000,
+  keyOf: (marketId: string, workspaceId: string) => `${workspaceId}:${marketId}`,
+  load: (marketId: string, workspaceId: string) => computeReplayBundle(marketId, workspaceId),
+});
+
+onPricesChanged((workspaceId, marketId) => {
+  if (marketId) replayCache.invalidate(`${workspaceId}:${marketId}`);
+  else replayCache.clear();
+});
+
+/** Test seam. */
+export function clearReplayCache(): void {
+  replayCache.clear();
+}
+
+async function computeReplayBundle(marketId: string, workspaceId: string): Promise<ReplayBundle> {
   const [market] = await db.select().from(markets)
     .where(and(eq(markets.workspaceId, workspaceId), eq(markets.id, marketId)));
-  if (!market) return [];
+  if (!market) return { market: null, points: [], opening: null };
 
   const rows = await db.select().from(trades)
     .where(and(eq(trades.workspaceId, workspaceId), eq(trades.marketId, marketId)))
@@ -396,7 +434,8 @@ export async function replayMarketTradePoints(marketId: string, workspaceId: str
   // negative shares, which would price the market outside its own range.
   const seed: [number, number] = [Math.max(0, opening[0]), Math.max(0, opening[1])];
 
-  return walk(seed, true).points;
+  const points = walk(seed, true).points;
+  return { market, points, opening: openingConsensus(market, points, rows, liqRows) };
 }
 
 /**
@@ -415,16 +454,15 @@ export async function marketPriceSeries(
   marketId: string,
   workspaceId: string,
 ): Promise<Array<{ at: Date; consensus: number | null }>> {
-  const [market] = await db.select().from(markets)
-    .where(and(eq(markets.workspaceId, workspaceId), eq(markets.id, marketId)));
+  // One cached bundle: market row, replayed points, and the opening price all
+  // come from the same single fetch of the trade history.
+  const { market, points, opening } = await replayCache.get(marketId, workspaceId);
   if (!market) return [];
 
-  const points = await replayMarketTradePoints(marketId, workspaceId);
   const series = points.map(pt => ({ at: pt.createdAt, consensus: pt.consensus }));
 
   // The opening price: reconstructed by rewinding the first trade out of the
   // book the replay produced, so it needs no second solve.
-  const opening = await openingConsensus(market, points);
   if (opening === null) return series;
   const openedAt = market.createdAt ?? (points[0]?.createdAt ?? new Date());
   // Never draw the open after the first trade (clock skew, a backfilled row).
@@ -433,26 +471,19 @@ export async function marketPriceSeries(
 }
 
 /** The consensus the market carried before anyone traded it. */
-async function openingConsensus(
+function openingConsensus(
   market: typeof markets.$inferSelect,
   points: MarketTradePoint[],
-): Promise<number | null> {
+  /** The same rows computeReplayBundle already fetched; never refetched. */
+  rows: Array<typeof trades.$inferSelect>,
+  liqRows: Array<typeof liquidityEvents.$inferSelect>,
+): number | null {
   if (points.length === 0) {
     return consensus(
       (market.shares as [number, number] | null) ?? [0, 0],
       market.liquidity, market.rangeMin, market.rangeMax,
     ) ?? null;
   }
-  const rows = await db.select().from(trades)
-    .where(and(eq(trades.workspaceId, market.workspaceId), eq(trades.marketId, market.id)))
-    .orderBy(asc(trades.createdAt));
-  const liqRows = await db.select().from(liquidityEvents)
-    .where(and(
-      eq(liquidityEvents.workspaceId, market.workspaceId),
-      eq(liquidityEvents.marketId, market.id),
-      gt(liquidityEvents.totalLiquidity, 0),
-    ))
-    .orderBy(asc(liquidityEvents.createdAt));
   const openingLiquidity = liqRows[0]?.totalLiquidity ?? market.liquidity;
 
   // Rewind the first trade out of the first replayed point: the price before

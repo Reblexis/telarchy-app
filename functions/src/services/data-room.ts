@@ -7,6 +7,7 @@ import { and, asc, count, eq, gte, isNull, like, ne, sql } from 'drizzle-orm';
 import { consensus } from '../lib/amm';
 import { humanVisitFilter } from '../lib/visit-log';
 import { platformStats } from './platform-stats';
+import { ttlCache } from '../lib/ttl-cache';
 import { resolutionInstant } from '../lib/date-utils';
 import { CHANGES, CHANGE_DAYS, CHANGELOG_BUILT_AT, TOTAL_CHANGES } from '../content/changelog';
 import { CONTENT_UPDATED_AT, DATA_ROOM_MARKDOWN, KNOWN_BLOCKS, type BlockName } from '../content/data-room';
@@ -253,11 +254,15 @@ async function traffic() {
   };
 }
 
-let cached: { at: number; body: DataRoomFeed } | null = null;
+const feedCache = ttlCache({
+  ttlMs: CACHE_MS,
+  keyOf: () => 'feed',
+  load: () => computeDataRoomFeed(),
+});
 
 /** Drop the cached feed. Tests call it; nothing in production does. */
 export function clearDataRoomCache(): void {
-  cached = null;
+  feedCache.clear();
 }
 
 /**
@@ -268,9 +273,11 @@ export function clearDataRoomCache(): void {
  * up in that window. Otto reads the same cached object, which is also what
  * keeps his answers and the page from quoting different numbers.
  */
-export async function buildDataRoomFeed(): Promise<DataRoomFeed> {
-  if (cached && Date.now() - cached.at < CACHE_MS) return cached.body;
+export function buildDataRoomFeed(): Promise<DataRoomFeed> {
+  return feedCache.get();
+}
 
+async function computeDataRoomFeed(): Promise<DataRoomFeed> {
   const [stats, floor, tract, contractRows, traf] = await Promise.all([
     platformStats(), selfFloor(), traction(), contracts(), traffic(),
   ]);
@@ -304,7 +311,6 @@ export async function buildDataRoomFeed(): Promise<DataRoomFeed> {
     },
   };
 
-  cached = { at: Date.now(), body };
   return body;
 }
 

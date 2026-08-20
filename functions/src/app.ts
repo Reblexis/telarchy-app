@@ -35,8 +35,30 @@ import { AppError } from './lib/errors';
 import { corsMiddleware } from './lib/cors';
 import { publicOrigins } from './lib/origins';
 import { isBetaPath, proxyToCandidate } from './lib/beta-surface';
+import compression from 'compression';
 
 export const app = express();
+
+/**
+ * Cloud Run fronts every request with exactly one proxy hop (the Google
+ * front end), which appends the real client IP to X-Forwarded-For. Trusting
+ * that one hop makes req.ip the visitor, not the load-balancer socket.
+ * Without it every anonymous visitor shared one rate-limit bucket per
+ * instance, so a single scanner could starve all anonymous traffic (and
+ * express-rate-limit logged a ValidationError on every boot). A client can
+ * prepend forged X-Forwarded-For entries, but with one trusted hop Express
+ * reads only the entry the front end itself appended.
+ */
+app.set('trust proxy', 1);
+
+/**
+ * Compress every compressible response: HTML, the ~615 KB JS bundle
+ * (~188 KB gzipped), CSS, and all API JSON. Registered before any route or
+ * static handler so the whole surface is covered; images and sub-1KB bodies
+ * are skipped by the default filter/threshold. Before 2026-08-20 nothing on
+ * the site was compressed at all.
+ */
+app.use(compression());
 
 /**
  * The beta is a full copy of this app, on the production database, at a URL
@@ -152,21 +174,27 @@ function hasIdentity(req: { headers: Record<string, unknown>; cookies?: Record<s
   return false;
 }
 
-const globalLimiter = rateLimit({
+// Shared by every limiter below. Keying is per client IP via `trust proxy`
+// above (X-Forwarded-For's front-end entry); the RFC 7239 `Forwarded` header
+// Cloud Run also sends is deliberately ignored, so that validation is off —
+// without this each limiter logs a ValidationError stack on first use.
+const limiterDefaults = {
   windowMs: 60 * 1000,
-  max: rateLimitMax || 1_000_000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },
+  validate: { forwardedHeader: false },
+} as const;
+
+const globalLimiter = rateLimit({
+  ...limiterDefaults,
+  max: rateLimitMax || 1_000_000,
   skip: (req) => hasIdentity(req as unknown as { headers: Record<string, unknown> }),
 });
 
 const strictLimiter = rateLimit({
-  windowMs: 60 * 1000,
+  ...limiterDefaults,
   max: rateLimitMax ? Math.max(Math.floor(rateLimitMax / 4), 10) : 1_000_000,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many requests, please try again later.' },
 });
 
 // Registration limit guards against signup-spam from a single IP. The
@@ -176,11 +204,8 @@ const strictLimiter = rateLimit({
 // configurable via REGISTRATION_LIMIT_MAX.
 const registrationLimitMax = parseInt(process.env.REGISTRATION_LIMIT_MAX ?? '30', 10);
 const registrationLimiter = rateLimit({
-  windowMs: 60 * 1000,
+  ...limiterDefaults,
   max: registrationLimitMax || 1_000_000,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many requests, please try again later.' },
 });
 
 // Feedback (the public report-a-bug / feedback button) accepts anonymous
@@ -189,11 +214,8 @@ const registrationLimiter = rateLimit({
 // callers are attributed and skip it, exactly like the global limiter.
 const feedbackLimitMax = parseInt(process.env.FEEDBACK_LIMIT_MAX ?? '20', 10);
 const feedbackLimiter = rateLimit({
-  windowMs: 60 * 1000,
+  ...limiterDefaults,
   max: feedbackLimitMax || 1_000_000,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many requests, please try again later.' },
   skip: (req) => hasIdentity(req as unknown as { headers: Record<string, unknown> }),
 });
 
@@ -202,10 +224,9 @@ const feedbackLimiter = rateLimit({
 // callers: a key holder can spend as fast as an anonymous visitor.
 const askLimitMax = parseInt(process.env.ASK_LIMIT_MAX ?? '6', 10);
 const askLimiter = rateLimit({
+  ...limiterDefaults,
   windowMs: 5 * 60 * 1000,
   max: askLimitMax || 1_000_000,
-  standardHeaders: true,
-  legacyHeaders: false,
   message: { error: 'That is a lot of questions. Try again in a few minutes.' },
 });
 
@@ -363,7 +384,7 @@ app.get('/api/help', (_req, res) => {
       { method: 'POST', path: '/api/admin/agent-control', auth: 'admin', description: 'Agent control plane: set desired state or request/ack a cycle trigger for one agent. Platform admin or master key only. Body: { agentId (required), desiredState?: "enabled"|"paused", trigger?: true (UI requests an immediate cycle), ackTrigger?: true (runner acks after firing) }. Upserts by agentId; returns the row.' },
       { method: 'POST', path: '/api/admin/markets/featured', auth: 'admin', description: 'Platform curation: flip the featured flag on a market. Platform admin or master key only. Body: { marketId, workspaceId, featured: boolean }. Featured markets appear on /benchmark and via GET /api/marketplace/featured.' },
       { method: 'GET', path: '/api/admin/markets/featured', auth: 'admin', description: 'List every currently-featured market across all workspaces (including private). Platform admin or master key only.' },
-      { method: 'POST', path: '/api/admin/agent-traces', auth: 'admin', description: 'Trading-agent decision trace for one session. Body: { workspaceId, agentId, strategy, startedAt, endedAt, model, tokensIn, tokensOut, cacheRead, cacheWrite, candidates, traded, skipped, errors, costUsd, entries:[{marketId, metric, targetDate, rangeMin, rangeMax, consensus, estimate, confidence, distance, threshold, outcome, reasoning, cost?, resultingConsensus?, error?}] }. Cap entries to ~25 most-informative rows. Outcome vocabulary (canonical): trade, trade-error, trade-too-small, skip-under-threshold, unknown-market — additional strings allowed and rendered with a fallback color. Returns { id }.' },
+      { method: 'POST', path: '/api/admin/agent-traces', auth: 'admin', description: 'Trading-agent decision trace for one session. Body: { workspaceId, agentId, strategy, startedAt, endedAt, model, tokensIn, tokensOut, cacheRead, cacheWrite, candidates, traded, skipped, errors, costUsd, entries:[{marketId, metric, targetDate, rangeMin, rangeMax, consensus, estimate, confidence, distance, threshold, outcome, reasoning, cost?, resultingConsensus?, error?}] }. Cap entries to the most-informative rows: at most 40 rows and 64 KB of JSON, enforced with 400. Outcome vocabulary (canonical): trade, trade-error, trade-too-small, skip-under-threshold, unknown-market — additional strings allowed and rendered with a fallback color. Returns { id }.' },
       { method: 'GET', path: '/api/admin/agent-traces', auth: 'admin', description: 'List traces. Query: ?agentId, ?since=ISO, ?until=ISO, ?limit=N (max 200), ?workspaceId=<id|all> (only honored for platform admin / master key). Workspace admins see only their own workspace by default. Returns { traces:[…], scope, isPlatformAdmin }.' },
       { method: 'POST', path: '/api/proposals', auth: 'agent/admin', description: 'Submit a proposal. Body: { title, description?, liquiditySubsidy?, askUsd?, payoutHandle? }. askUsd is the job\'s price in whole USD for workspaces running the paid-jobs model, stored as a number rather than parsed out of the title, because it feeds burn inside the resolving metric. A non-zero askUsd requires payment details: the account\'s payoutHandle (set via POST /api/auth/profile or the account menu) is read and snapshotted onto the proposal; a payoutHandle in the body (5-200 chars; PayPal email, IBAN, or crypto address) overrides it for this proposal only. With neither set, creation fails 400. The handle is returned only to manage-capability callers and the proposer, never in member or public payloads. Subject to an optional per-participant pending-proposals cap (workspace.maxPendingProposalsPerParticipant; 0 disables, which is the default); exceeding it returns 429 with { pending, cap }.' },
       { method: 'GET', path: '/api/proposals', auth: 'agent/admin', description: 'List proposals (compact). Query: ?status=pending|approved|declined|declined_spam|withdrawn. Each entry includes askUsd (the job price, which burn calculations sum over approved proposals), rewardPaid, penaltyCharged, resolvedAt, resolvedBy, and declineReason (the owner\'s written reason, set on declined proposals; never truncated).' },

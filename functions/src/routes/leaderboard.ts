@@ -5,6 +5,7 @@ import { getParticipantDisplayNames, platformOperatedIds } from '../lib/particip
 import { agents, authUser, systemConfig, prizeSeasons, seasonEntries, workspaces } from '../db/schema';
 import { wrap } from '../lib/wrap';
 import { loadBoard, type Board } from '../lib/board';
+import { ttlCache } from '../lib/ttl-cache';
 import { seasonScore, settleSeason, type LadderRung } from '../lib/seasons';
 
 /**
@@ -67,23 +68,15 @@ export const leaderboardRouter = Router();
  * timestamp inside a transaction (see routes/seasons.ts); a cached read is
  * fine for display and wrong for deciding who gets paid.
  */
-const BOARD_TTL_MS = 30_000;
-const boardCache = new Map<string, { at: number; board: Board }>();
+const boardCache = ttlCache({
+  ttlMs: 30_000,
+  // One entry per distinct workspace set ever asked for: small today, grows
+  // with scoped boards, hence the (default) size bound in the helper.
+  keyOf: (workspaceIds: string[]) => [...workspaceIds].sort().join(','),
+  load: (workspaceIds: string[]) => loadBoard(workspaceIds),
+});
 
-async function cachedBoard(workspaceIds: string[]): Promise<Board> {
-  const key = [...workspaceIds].sort().join(',');
-  const hit = boardCache.get(key);
-  const now = Date.now();
-  if (hit && now - hit.at < BOARD_TTL_MS) return hit.board;
-  const board = await loadBoard(workspaceIds);
-  boardCache.set(key, { at: now, board });
-  // Bound the map: one entry per distinct workspace set ever asked for, which
-  // is small, but a scoped board per workspace makes it grow with the product.
-  if (boardCache.size > 64) {
-    for (const [k, v] of boardCache) if (now - v.at >= BOARD_TTL_MS) boardCache.delete(k);
-  }
-  return board;
-}
+const cachedBoard = (workspaceIds: string[]) => boardCache.get(workspaceIds);
 
 /** Test seam: settlement and any test that just wrote trades needs the next
  *  read to see them rather than a 30-second-old answer. */

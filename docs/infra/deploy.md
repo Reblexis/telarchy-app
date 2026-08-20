@@ -163,7 +163,28 @@ churning, and every slot was gone). The standing contract:
   the CI deploy). Worst case prod + candidate: 2 x 4 x 5 = 40 connections,
   inside the 50 budget with room for cloud-sql-proxy and cron.
 - Anything that raises one of these numbers must re-do this arithmetic in the
-  same commit.
+  same commit. `scale-invariant.test.ts` pins it: prod + candidate at full
+  scale must fit in 40.
+
+**The performance posture around that budget (perf plan 2026-08-20,
+`telarchy` umbrella `notes/perf-plan-2026-08-20.md`):**
+
+- Every response is compressed (`compression` in app.ts; the 615 KB bundle
+  ships as ~164 KB) and the frontend splits per route, so only `/` and the
+  floor ride in the entry bundle.
+- The floor polls every 15 seconds, pauses in hidden tabs, and refreshes on
+  focus. Each tick is ~5 endpoints; the cadence is a database-load decision,
+  pinned by a test, not a frontend tweak.
+- Price-history replays are cached 30s per market and invalidated the moment
+  a trade or liquidity event lands (`lib/market-events.ts`). The floor
+  payload as a whole is deliberately NOT cached: it carries ballots and
+  settings with too many write paths to invalidate honestly.
+- In-process scheduled jobs (resolve, limit sweep, refresh, maintenance) run
+  on ONE instance per tick via a Postgres advisory lock
+  (`lib/singleton-jobs.ts`); every other instance skips.
+- Data retention runs in the daily maintenance job (visits 30d, question IPs
+  30d, agent traces 90d, traces also capped per-write at 40 rows / 64 KB),
+  never on a read path.
 
 **Publish publishes the revision you are looking at**, not "latest". If CI
 lands another build while you are reading, that one waits its turn. The button

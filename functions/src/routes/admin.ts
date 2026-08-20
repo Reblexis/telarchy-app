@@ -40,17 +40,18 @@ function parseTypes(raw: unknown): ActivityType[] | undefined {
  * answer at all. Platform-admin only, like the rest of this file: the rows
  * carry visitor IPs.
  *
- * The IP and country are purged on the same 30-day window as page_visits,
- * on read, exactly as the visit log is; the question and its answer stay,
- * because the gap a question names outlives the visit that asked it.
+ * The IP and country stay for the same 30-day window as page_visits. The
+ * durable scrub runs in the daily maintenance job (services/maintenance.ts);
+ * the response below additionally masks anything the job has not reached
+ * yet, so this endpoint can never return an IP older than the window. The
+ * question and its answer stay, because the gap a question names outlives
+ * the visit that asked it.
  */
 adminRouter.get('/questions', wrap(async (req, res) => {
   if (!(await isPlatformAuthorized(req))) {
     throw new AppError('Platform admin or master key required', 403);
   }
   const monthAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000);
-  await db.update(floorQuestions).set({ ip: null, country: null })
-    .where(lt(floorQuestions.createdAt, monthAgo));
 
   const raw = Number(req.query.limit);
   const limit = Number.isFinite(raw) ? Math.min(Math.max(Math.trunc(raw), 1), 500) : 100;
@@ -81,6 +82,9 @@ adminRouter.get('/questions', wrap(async (req, res) => {
     totalCostUsd: spent[0]?.total ?? 0,
     questions: rows.map(r => ({
       ...r,
+      // Past the retention window the durable scrub may not have run yet
+      // (daily job); never let this response outlive the policy either way.
+      country: r.createdAt < monthAgo ? null : r.country,
       // A handle where there is one, "anonymous" where there is not: most
       // askers have no account yet, which is who the field is for.
       askedByName: r.askedBy ? (names.get(r.askedBy) ?? r.askedBy) : null,
@@ -106,7 +110,10 @@ adminRouter.get('/floor-stats', wrap(async (req, res) => {
   const monthAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000);
   const twoWeeksAgo = new Date(Date.now() - 14 * 24 * 3600 * 1000);
   const dayAgo = new Date(Date.now() - 24 * 3600 * 1000);
-  await db.delete(pageVisits).where(lt(pageVisits.ts, monthAgo));
+  // Retention (the 30-day purge) moved to the daily maintenance job
+  // (services/maintenance.ts): a DELETE inside every cockpit read made the
+  // reader pay for hygiene. Every window below is <= 30 days, so nothing
+  // past the policy can surface here regardless of when the job last ran.
 
   // Human filter (owner ask 2026-08-11): before launch the log is almost
   // all crawlers and vuln scanners, so a raw count is meaningless. The rule
@@ -286,6 +293,16 @@ adminRouter.post('/agent-traces', requireCapability('manage'), wrap(async (req, 
   const startedAt = optDate(body, 'startedAt') ?? new Date();
   const endedAt = optDate(body, 'endedAt') ?? new Date();
   const entries = Array.isArray(body.entries) ? body.entries as unknown[] : [];
+  // The "~25 most-informative rows" convention in /api/help is now enforced
+  // (with headroom), not just documented: agent_traces reached 2.9 GB with no
+  // cap and no retention. Size guard too — 25 rows of unbounded reasoning
+  // prose would pass a count check and still be megabytes.
+  if (entries.length > 40) {
+    throw new AppError('entries: at most 40 rows per trace (send the most informative ones)', 400);
+  }
+  if (JSON.stringify(entries).length > 64 * 1024) {
+    throw new AppError('entries: at most 64 KB of JSON per trace', 400);
+  }
 
   const id = randomUUID();
   await db.insert(agentTraces).values({

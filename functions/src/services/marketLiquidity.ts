@@ -4,6 +4,7 @@ import { db } from '../db/client';
 import { agents, markets, liquidityEvents } from '../db/schema';
 import { AppError } from '../lib/errors';
 import { applyCredits } from './credits';
+import { emitPricesChanged } from '../lib/market-events';
 import { sufficientBalance, toUnits, fromUnits, MIN_LIQUIDITY_CONTRIBUTION } from '../lib/validation';
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -86,4 +87,5 @@ export async function applyAgentLiquidityInjectionTx(
     type: 'injection',
     createdAt: new Date(),
   });
+  emitPricesChanged(params.workspaceId, params.marketId);
 }

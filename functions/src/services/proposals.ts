@@ -12,6 +12,7 @@ import { resolutionInstant } from '../lib/date-utils';
 import { metricSubtractsContractAsk } from '../lib/metric-unit';
 import { allowLedgerAdmin } from '../lib/ledger-admin';
 import { applyCredits } from './credits';
+import { emitPricesChanged } from '../lib/market-events';
 
 type MarketRow = typeof markets.$inferSelect;
 
@@ -345,6 +346,7 @@ export async function createConditionalMarkets(
           createdAt: new Date(),
         })));
         await tx.insert(liquidityEvents).values(liqRows);
+        for (const r of liqRows) emitPricesChanged(workspaceId, r.marketId);
       }
     });
 

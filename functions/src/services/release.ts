@@ -17,6 +17,8 @@
  * says it cannot see a release, which is honest, rather than inventing one.
  */
 
+import { ttlCache } from '../lib/ttl-cache';
+
 const REGION = process.env.CLOUD_RUN_REGION ?? 'us-central1';
 const SERVICE = process.env.K_SERVICE ?? 'api';
 const PROJECT = process.env.GOOGLE_CLOUD_PROJECT ?? process.env.GCLOUD_PROJECT ?? 'telarchy-e0043';
@@ -91,19 +93,19 @@ async function fetchService(token: string): Promise<RunService | null> {
  * always the same one. Ten seconds is short enough that the stripe flips to
  * "published" while the owner is still looking at it.
  */
-let cached: { at: number; state: ReleaseState } | null = null;
-const RELEASE_TTL_MS = 10_000;
+const releaseCache = ttlCache({
+  ttlMs: 10_000,
+  keyOf: () => 'release',
+  load: () => computeReleaseState(),
+});
 
 /** Drop the cache: the answer just changed because we changed it. */
 export function clearReleaseCache(): void {
-  cached = null;
+  releaseCache.clear();
 }
 
-export async function releaseState(): Promise<ReleaseState> {
-  if (cached && Date.now() - cached.at < RELEASE_TTL_MS) return cached.state;
-  const fresh = await computeReleaseState();
-  cached = { at: Date.now(), state: fresh };
-  return fresh;
+export function releaseState(): Promise<ReleaseState> {
+  return releaseCache.get();
 }
 
 async function computeReleaseState(): Promise<ReleaseState> {

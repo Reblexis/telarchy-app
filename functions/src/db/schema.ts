@@ -419,7 +419,10 @@ export const markets = pgTable('markets', {
   branch: text('branch'),
   /** Flagged for the public benchmark surface (/benchmark + /api/marketplace/featured). */
   featured: boolean('featured').notNull().default(false),
-}, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
+}, t => [
+  primaryKey({ columns: [t.id, t.workspaceId] }),
+  index('markets_workspace_idx').on(t.workspaceId),
+]);
 
 export const positions = pgTable('positions', {
   id: text('id').notNull(),
@@ -430,7 +433,11 @@ export const positions = pgTable('positions', {
   direction: text('direction').notNull(),
   shares: doublePrecision('shares').notNull(),
   totalCost: doublePrecision('total_cost').notNull(),
-}, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
+}, t => [
+  primaryKey({ columns: [t.id, t.workspaceId] }),
+  index('positions_workspace_idx').on(t.workspaceId),
+  index('positions_market_idx').on(t.marketId),
+]);
 
 export const trades = pgTable('trades', {
   id: text('id').notNull(),
@@ -442,7 +449,14 @@ export const trades = pgTable('trades', {
   shares: doublePrecision('shares').notNull(),
   cost: doublePrecision('cost').notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-}, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
+}, t => [
+  primaryKey({ columns: [t.id, t.workspaceId] }),
+  // Regrowth insurance, not present-day tuning: this table hit 348k rows once
+  // (lib/board.ts) and every hot read filters one of these shapes. The PK
+  // leads on id, so it serves none of them.
+  index('trades_ws_market_created_idx').on(t.workspaceId, t.marketId, t.createdAt),
+  index('trades_created_idx').on(t.createdAt),
+]);
 
 export const liquidityEvents = pgTable('liquidity_events', {
   id: text('id').notNull(),
@@ -456,7 +470,11 @@ export const liquidityEvents = pgTable('liquidity_events', {
   agentId: text('agent_id'),
   poolContribution: doublePrecision('pool_contribution'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-}, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
+}, t => [
+  primaryKey({ columns: [t.id, t.workspaceId] }),
+  // The price replay reads every event for one market in creation order.
+  index('liquidity_events_ws_market_created_idx').on(t.workspaceId, t.marketId, t.createdAt),
+]);
 
 /**
  * A resting instruction: buy `direction` in this market with up to
@@ -787,7 +805,10 @@ export const metricLogs = pgTable('metric_logs', {
    *  migration 0018. */
   outlook: doublePrecision('outlook'),
   timestamp: timestamp('timestamp').notNull().defaultNow(),
-}, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
+}, t => [
+  primaryKey({ columns: [t.id, t.workspaceId] }),
+  index('metric_logs_ws_metric_ts_idx').on(t.workspaceId, t.metricId, t.timestamp),
+]);
 
 export const events = pgTable('events', {
   id: text('id').notNull(),
@@ -795,7 +816,10 @@ export const events = pgTable('events', {
   type: text('type').notNull(),
   data: jsonb('data').notNull(),
   timestamp: timestamp('timestamp').notNull().defaultNow(),
-}, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
+}, t => [
+  primaryKey({ columns: [t.id, t.workspaceId] }),
+  index('events_ws_ts_idx').on(t.workspaceId, t.timestamp),
+]);
 
 export const permissionGroups = pgTable('permission_groups', {
   id: text('id').notNull(),
@@ -873,7 +897,14 @@ export const agentTraces = pgTable('agent_traces', {
   /** Array of session entries: per-market estimate, confidence, distance, threshold, outcome, reasoning. */
   entries: jsonb('entries').notNull().$type<unknown[]>().default([]),
   createdAt: timestamp('created_at').notNull().defaultNow(),
-});
+}, t => [
+  // The first two exist in migration 0019 but were never declared here;
+  // declaring them keeps drizzle-kit from trying to drop them. The third
+  // serves the daily retention prune (services/maintenance.ts).
+  index('agent_traces_workspace_started_idx').on(t.workspaceId, t.startedAt.desc()),
+  index('agent_traces_agent_started_idx').on(t.agentId, t.startedAt.desc()),
+  index('agent_traces_started_idx').on(t.startedAt),
+]);
 
 // ---------------------------------------------------------------------------
 // Feedback: bug reports and help requests submitted from the UI or via API.

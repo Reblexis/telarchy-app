@@ -4,6 +4,7 @@ import { db } from '../db/client';
 import { applyCredits } from './credits';
 import { agents, limitOrders, markets, positions, trades, workspaces } from '../db/schema';
 import { AppError } from '../lib/errors';
+import { emitPricesChanged } from '../lib/market-events';
 import { betTowardsValue, consensus, directionSellProceeds, pHigher, sharesForBudget } from '../lib/amm';
 import { fromUnits, sufficientBalance, toUnits } from '../lib/validation';
 
@@ -230,6 +231,10 @@ export async function executeTradeInTx(tx: Tx, opts: {
     cost: isSell ? -proceeds : cost,
     createdAt: new Date(),
   });
+  // Drop the price caches so the floor and the chart show this trade on the
+  // very next fetch. If the enclosing transaction rolls back this cost one
+  // spurious cache miss, nothing more.
+  emitPricesChanged(workspaceId, marketId);
 
   return {
     tradeId, marketId, metricName: market.metricName, direction: dirLabel,

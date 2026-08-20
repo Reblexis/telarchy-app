@@ -31,6 +31,7 @@ import { drizzle } from 'drizzle-orm/pglite';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import * as schema from '../../db/schema';
+import { clearAllTtlCaches } from '../../lib/ttl-cache';
 
 const client = new PGlite();
 export const db = drizzle(client, { schema });
@@ -77,4 +78,7 @@ export async function truncateAll(): Promise<void> {
   if (names) {
     await client.exec(`TRUNCATE ${names} RESTART IDENTITY CASCADE`);
   }
+  // The in-process TTL caches (lib/ttl-cache.ts) hold answers computed from
+  // the rows just truncated; a cache that outlives its data serves ghosts.
+  clearAllTtlCaches();
 }

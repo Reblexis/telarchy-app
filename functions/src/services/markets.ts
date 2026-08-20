@@ -6,6 +6,7 @@ import { getLeafDescendantNames, desiredMarketDates, generatesMarkets } from '..
 import type { TimePreference } from '../types';
 import { AMM_DEFAULTS, initialPool, anchoredMarketState } from '../lib/amm';
 import { nearHorizonAnchorP } from '../lib/market-open';
+import { emitPricesChanged } from '../lib/market-events';
 import { emitEvent } from './events';
 import { resolveWorkspaceOwnerAgentId } from '../lib/participants';
 import { applyAgentLiquidityInjectionTx } from './marketLiquidity';
@@ -181,6 +182,7 @@ export async function insertPendingMarkets(pending: PendingMarket[], workspaceId
       await tx.insert(markets).values(newMarkets);
       await tx.insert(liquidityEvents).values(newLiqEvents);
     });
+    for (const e of newLiqEvents) emitPricesChanged(workspaceId, e.marketId);
     return pending.length;
   };
 
