@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 /**
  * The floor's live poll must not touch what the viewer is looking at.
  *
- * The page reloads the workspace every five seconds. That reload used to be a
+ * The page reloads the workspace every fifteen seconds. That reload used to be a
  * dependency of the effect that resets the branch toggle and blanks the branch
  * histories, so five seconds after opening the "if declined" world the page
  * snapped back to "if approved" and the chart remounted with an empty series
@@ -163,10 +163,31 @@ beforeEach(() => {
 });
 afterEach(() => { vi.useRealTimers(); });
 
-/** Let the five-second poll fire and its fetches settle. */
+/** Let the fifteen-second poll fire and its fetches settle. */
 async function poll() {
-  await act(async () => { await vi.advanceTimersByTimeAsync(5200); });
+  await act(async () => { await vi.advanceTimersByTimeAsync(15_200); });
 }
+
+describe('the poll cadence is 15 seconds', () => {
+  // Pinned deliberately (2026-08-20): each tick is ~5 endpoints, so the old
+  // 5s cadence made one open tab 60 requests a minute against the database
+  // that ran out of connections that evening. Speeding it back up is a
+  // decision about database load, not a frontend tweak; see the comment on
+  // the poll effect in TradePage.tsx.
+  test('nothing refetches at the old 5s mark; everything does by 15s', async () => {
+    renderFloor();
+    await act(async () => { await vi.advanceTimersByTimeAsync(50); });
+    const { api } = await import('../../lib/api');
+    const loads = api.getMarketplaceWorkspace as ReturnType<typeof vi.fn>;
+    const afterMount = loads.mock.calls.length;
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(6_000); });
+    expect(loads.mock.calls.length).toBe(afterMount);   // old cadence: silent
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(9_500); });
+    expect(loads.mock.calls.length).toBeGreaterThan(afterMount);
+  });
+});
 
 describe('the live poll leaves the view alone', () => {
   test('the declined branch stays open across a poll', async () => {
@@ -592,7 +613,7 @@ describe('which market is the headline, across a poll', () => {
       withMonthly.markets[1],
     ];
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(withMonthly as never);
-    await act(async () => { await vi.advanceTimersByTimeAsync(5200); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(15_200); });
     await act(async () => { await vi.advanceTimersByTimeAsync(100); });
     expect(container.querySelector('.pubws-price')!.textContent).toContain('78');
   });
@@ -613,7 +634,7 @@ describe('which market is the headline, across a poll', () => {
         probability: 0.5, liquidity: 200, rangeMin: 0, rangeMax: 250_000 },
     ];
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(with2027 as never);
-    await act(async () => { await vi.advanceTimersByTimeAsync(5200); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(15_200); });
     await waitFor(() => expect(container.querySelector('.pubws-price')!.textContent).toContain('120'));
   });
 
@@ -626,7 +647,7 @@ describe('which market is the headline, across a poll', () => {
     const soloWeek = h.workspace();
     soloWeek.markets = [floor().markets[0]];
     vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(soloWeek as never);
-    await act(async () => { await vi.advanceTimersByTimeAsync(5200); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(15_200); });
     await waitFor(() => expect(container.querySelector('.pubws-price')!.textContent).toContain('213'));
   });
 });

@@ -1,19 +1,29 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect } from 'react';
-import { LoginPage } from './pages/LoginPage';
-import { SignupPage } from './pages/SignupPage';
-import { WaitlistPage } from './pages/WaitlistPage';
-import { LegalPage } from './pages/LegalPage';
+/* Eager: the two first-paint routes. `/` is the list, `/:slug` is the floor;
+   between them they are what nearly every visitor lands on, so their code
+   belongs in the entry bundle. */
 import { TradePage } from './pages/TradePage';
 import { FloorsPage } from './pages/FloorsPage';
-import { LeaderPage } from './pages/LeaderPage';
-import { AnnouncementsPage } from './pages/AnnouncementsPage';
-import { SeasonPage } from './pages/SeasonPage';
-import { ManagePage } from './pages/ManagePage';
-import { ParticipantProfilePage } from './pages/ParticipantProfilePage';
-import { AdminPage } from './pages/AdminPage';
-import { DataRoomPage } from './pages/DataRoomPage';
 import { BetaBanner } from './components/BetaBanner';
+import { lazyPage } from './lib/lazy-page';
+
+/* Lazy: everything else splits into per-route chunks (2026-08-20). The entry
+   bundle was 615 KB with every page in it, so a phone visitor downloaded the
+   admin cockpit and the markdown pipeline (react-markdown, in four of these
+   pages) to look at one market. lazy-page.tsx also owns the deploy-rotated-
+   chunk failure mode. */
+const LoginPage = lazyPage(() => import('./pages/LoginPage'), 'LoginPage');
+const SignupPage = lazyPage(() => import('./pages/SignupPage'), 'SignupPage');
+const WaitlistPage = lazyPage(() => import('./pages/WaitlistPage'), 'WaitlistPage');
+const LeaderPage = lazyPage(() => import('./pages/LeaderPage'), 'LeaderPage');
+const AnnouncementsPage = lazyPage(() => import('./pages/AnnouncementsPage'), 'AnnouncementsPage');
+const SeasonPage = lazyPage(() => import('./pages/SeasonPage'), 'SeasonPage');
+const ManagePage = lazyPage(() => import('./pages/ManagePage'), 'ManagePage');
+const ParticipantProfilePage = lazyPage(() => import('./pages/ParticipantProfilePage'), 'ParticipantProfilePage');
+const AdminPage = lazyPage(() => import('./pages/AdminPage'), 'AdminPage');
+const DataRoomPage = lazyPage(() => import('./pages/DataRoomPage'), 'DataRoomPage');
+const LegalPage = lazyPage(() => import('./pages/LegalPage'), 'LegalPage');
 
 /* The whole app is the public surface (owner decision 2026-08-19: get rid of
    the old GUI). Every route below renders a standalone `.pubws` page. There

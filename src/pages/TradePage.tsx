@@ -488,11 +488,15 @@ export function TradePage() {
   useEffect(() => { setPositions([]); setOrders([]); if (joined) refreshMoney(); }, [joined, activeMarketId]);
 
   // Live updates (owner ask 2026-08-11: the market updates in real time
-  // for viewers and traders). The floor polls every few seconds so a
-  // price move, a filled limit order, or a new job appears without a
-  // reload. A ref holds the latest closures so the interval never runs a
-  // stale one. Paused while the tab is hidden; a fresh pull the instant it
-  // comes back, so returning to the tab is never stale.
+  // for viewers and traders). The floor polls so a price move, a filled
+  // limit order, or a new job appears without a reload. A ref holds the
+  // latest closures so the interval never runs a stale one. Paused while
+  // the tab is hidden; a fresh pull the instant it comes back, so
+  // returning to the tab is never stale. 15s, not the original 5s
+  // (2026-08-20): each tick is ~5 endpoints, so one open tab was 60
+  // requests a minute against the database that ran out of connections
+  // that evening; a trader's own actions refresh instantly regardless,
+  // and markets here trade minutes apart.
   const pollRef = useRef<() => void>(() => {});
   pollRef.current = () => {
     reload();
@@ -503,7 +507,7 @@ export function TradePage() {
   };
   useEffect(() => {
     const tick = () => { if (typeof document === 'undefined' || !document.hidden) pollRef.current(); };
-    const interval = setInterval(tick, 5000);
+    const interval = setInterval(tick, 15_000);
     const onVisible = () => { if (!document.hidden) pollRef.current(); };
     document.addEventListener('visibilitychange', onVisible);
     return () => { clearInterval(interval); document.removeEventListener('visibilitychange', onVisible); };
