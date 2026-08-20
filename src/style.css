@@ -4475,6 +4475,16 @@ textarea.jobform-line--desc {
   .pubws-annline:focus-visible .pubws-annline-go { transform: none; }
 }
 
+/* Narrow: the headline takes the row and the meta drops below it. Baseline
+   aligning a date against a headline that has wrapped leaves the date
+   floating beside the first line with the second line hanging under it. */
+@media (max-width: 560px) {
+  .pubws-annline { grid-template-columns: 1fr auto; row-gap: 0.3rem; }
+  .pubws-annline-head { grid-column: 1 / -1; }
+  .pubws-annline-when { grid-column: 1; }
+  .pubws-annline-go { grid-column: 2; }
+}
+
 
 /* Links inside the explainer read as normal underlined text, not buttons
    (owner ask 2026-08-12): the "prediction market" definition link and the

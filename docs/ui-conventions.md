@@ -683,7 +683,13 @@ aligned `.pubws-doc` column of hairline-separated entries. Each entry's
 publication instant is set in `var(--font-mono)`, which is the page's one
 structural device: in an append-only record the time is the entry's identity.
 The compose box and the per-entry Edit control live here now, not on the
-floor.
+floor. Under 560px the row becomes two: the headline takes the width and the
+day and arrow drop beneath it, because baseline-aligning a date against a
+headline that has wrapped leaves it floating beside the first line. The
+back-link is labelled with the slug until the workspace payload lands and the
+real name replaces it; the label is uppercased, so on every floor whose slug
+and name differ only in case the swap is invisible, and the page never sits
+on a generic label while a 21KB call it does not otherwise need comes back.
 
 **Revised 2026-08-13, chart axis on young markets (owner bug report: the
 "if declined" view of a fresh job drew only an endpoint dot).** The

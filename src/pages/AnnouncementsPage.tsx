@@ -180,7 +180,12 @@ export function AnnouncementsPage() {
     <div className="pubws">
       <TopBar user={!!user} ready={!authLoading} />
       <main className="pubws-doc annp">
-        <Link className="annp-back" to={floorHref}>{ws?.name ?? 'Back to the floor'}</Link>
+        {/* The slug stands in until the workspace payload lands. That call is
+            21KB and has 503'd on a cold instance, and the label is uppercased
+            anyway, so "telarchy" and "Telarchy" render identically: the name
+            arriving late changes nothing a reader can see, where waiting for
+            it left the page saying "back to the floor" for five seconds. */}
+        <Link className="annp-back" to={floorHref}>{ws?.name ?? params.slug ?? 'Back to the floor'}</Link>
         <h1 className="annp-head">Announcements</h1>
         <p className="annp-lead">
           Everything the owner has said here that the market could not see for itself.

@@ -67,6 +67,10 @@ describe('the announcements page', () => {
   test('names the guarantee that makes it a record, and links back to the floor', async () => {
     renderPage();
     expect(screen.getByText(/cannot be deleted or backdated/)).toBeTruthy();
+    // The slug labels the way back before the workspace payload arrives (the
+    // label is uppercased in CSS, so the name replacing it is invisible), and
+    // the link works either way.
+    expect(screen.getByText('telarchy').getAttribute('href')).toBe('/telarchy');
     await waitFor(() => expect(screen.getByText('Telarchy').getAttribute('href')).toBe('/telarchy'));
   });
 
