@@ -39,6 +39,11 @@ export function BetaBanner() {
   // publish this build?").
   const { user } = useAuth();
   const [canPublish, setCanPublish] = useState(false);
+  // Three states, three sentences. Saying "telarchy.com is still serving the
+  // previous build" when this IS the published build is a lie the stripe told
+  // for one evening (2026-08-20), and the whole point of the stripe is that it
+  // is the one thing on the page you can believe about what you are looking at.
+  const [waiting, setWaiting] = useState<'unknown' | 'yes' | 'no'>('unknown');
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
   const [err, setErr] = useState('');
@@ -52,8 +57,11 @@ export function BetaBanner() {
     // stripe, because "you are not on the real site" is worth saying to
     // anyone who somehow finds the URL.
     api.getRelease()
-      .then(r => setCanPublish(!r.isServing))
-      .catch(() => setCanPublish(false));
+      .then(r => {
+        setCanPublish(!r.isServing);
+        setWaiting(r.isServing ? 'no' : 'yes');
+      })
+      .catch(() => { setCanPublish(false); setWaiting('unknown'); });
   }, [user]);
 
   if (isPublishedOrigin()) return null;
@@ -76,7 +84,13 @@ export function BetaBanner() {
     <div className="betabar" role="status">
       <span className="betabar-label">Beta</span>
       <span className="betabar-text">
-        {note || 'Not published. telarchy.com is still serving the previous build.'}
+        {note || (
+          waiting === 'yes'
+            ? 'Not published. telarchy.com is still serving the previous build.'
+            : waiting === 'no'
+              ? 'Nothing is waiting. This is the build telarchy.com is serving.'
+              : 'The beta build. What telarchy.com serves may differ.'
+        )}
       </span>
       {canPublish && !note && (
         <button className="betabar-go" disabled={busy} onClick={() => { void publish(); }}>

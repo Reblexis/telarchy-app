@@ -65,7 +65,9 @@ describe('where the stripe shows', () => {
     expect(isPublishedOrigin()).toBe(false);
     render(<BetaBanner />);
     expect(screen.getByText('Beta')).toBeTruthy();
-    expect(screen.getByText(/Not published/)).toBeTruthy();
+    // Before the release call answers it claims nothing, then it commits.
+    expect(screen.getByText(/may differ/)).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/Not published/)).toBeTruthy());
     await waitFor(() => expect(screen.getByText('Publish this build')).toBeTruthy());
   });
 
@@ -145,5 +147,30 @@ describe('the beta on the real domain', () => {
     render(<BetaBanner />);
     expect(screen.getByText('Beta')).toBeTruthy();
     await waitFor(() => expect(screen.getByText('Publish this build')).toBeTruthy());
+  });
+});
+
+describe('the stripe says which of three states it is in', () => {
+  test('a build waiting: the site is on the previous one', async () => {
+    setHost('telarchy.com', '/beta/');
+    render(<BetaBanner />);
+    await waitFor(() => expect(screen.getByText(/still serving the previous build/)).toBeTruthy());
+  });
+
+  test('nothing waiting: this IS what the site serves', async () => {
+    setHost('telarchy.com', '/beta/');
+    getRelease.mockResolvedValueOnce({
+      serving: 'api-1', candidate: null, running: 'api-1', isServing: true, error: null,
+    });
+    render(<BetaBanner />);
+    await waitFor(() => expect(screen.getByText(/Nothing is waiting/)).toBeTruthy());
+    expect(screen.queryByText('Publish this build')).toBeNull();
+  });
+
+  test('cannot tell: it does not claim either way', async () => {
+    setHost('telarchy.com', '/beta/');
+    getRelease.mockRejectedValueOnce(new Error('403'));
+    render(<BetaBanner />);
+    await waitFor(() => expect(screen.getByText(/may differ/)).toBeTruthy());
   });
 });
