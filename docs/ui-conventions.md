@@ -1001,6 +1001,27 @@ The rules that keep it from rotting back into the 2026-08-16 bug family:
   runs: an ISO week says 23 Aug, while the market's `resolvesOn` is midnight
   into the 24th. The reader is forecasting the week, not the cron.
 
+**The gap to the price (2026-08-20).** Under the number and above the bet, one
+sentence of arithmetic:
+
+> **$488** booked so far. Another **$692** reaches the market's $1,180, which is
+> about **$173 a day** for the 4 days left.
+
+It replaces a base rate stated as a multiplier ("the last six weeks closed at
+x1.86 to x2.63 of where they stood on the same day"), which the owner read and
+answered with "i got bored and wanted to quit". The diagnosis, from an outside
+review the same evening: a ratio makes a reader do a computation before they are
+allowed to have a feeling, while "$173 a day" asks nothing and whether that
+sounds greedy IS the trade.
+
+`lib/period-gap.ts` owns it and renders **only for metrics that accumulate from
+zero inside their period**. The test is the readings, not a flag someone has to
+remember to set: the series must start at or near zero and never fall by more
+than a rounding. A level like `Weekly active traders` fails that test, because
+"you need 4 more traders a day" is nonsense wearing the costume of arithmetic.
+It also refuses a period we started watching late, where "booked so far" would
+be missing its beginning. Nine tests, most of them about not rendering.
+
 **Revised 2026-08-17 (Viktor), the leaderboard is a public page.** The
 market page's left rail lists the top **ten** traders and the top ten
 contractors (was five of each), and ends with one quiet "Show full

@@ -2222,6 +2222,20 @@ button.notif-row-link {
    because the name is what the market is and the date is only which one. */
 .pubws-instrument-at { color: var(--text-tertiary); font-weight: 500; }
 
+/* The gap to the price, directly under the number and above the bet. One
+   sentence of arithmetic a reader can check in their head, which is the only
+   form of evidence that survives someone who arrived thirty seconds ago. */
+.pubws-gap {
+  margin: 0.55rem auto 0;
+  max-width: 34rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.pubws-gap b { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: var(--text-primary); }
+
 
 .pubws-price {
   margin: 0.4rem 0 0.2rem;

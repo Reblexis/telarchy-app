@@ -27,6 +27,7 @@ import {
   stepHorizon,
   type HorizonView, type PriceSeries,
 } from '../lib/floor-horizons';
+import { periodGapOf } from '../lib/period-gap';
 
 /**
  * telarchy.com/<slug>: the market and one action, nothing else (owner
@@ -311,6 +312,9 @@ export function TradePage() {
   const [horizonId, setHorizonId] = useState<string | null>(null);
   const hero = horizonById(horizons, horizonId);
   const prevHorizon = stepHorizon(horizons, horizonId, -1);
+  // The arithmetic under the price: booked, missing, per day. Null for any
+  // metric that does not accumulate inside its period, which is most of them.
+  const gap = periodGapOf(hero);
   const nextHorizon = stepHorizon(horizons, horizonId, 1);
   const unit = hero?.unit ?? '';
   const metricLabel = hero?.metricLabel ?? '';
@@ -1028,6 +1032,30 @@ export function TradePage() {
                 )
               )}
             </div>
+            {/* What is left to reach the price, in the reader's own arithmetic
+                (codex, 2026-08-20). A base rate stated as a multiplier asks
+                someone to compute a ratio before they are allowed to have a
+                feeling; "about $173 a day for four days" asks nothing, and
+                whether that sounds greedy IS the trade. Hidden while a job is
+                selected, because then the number on screen is that job's
+                impact and not the market's level. */}
+            {!selectedJob && gap && (
+              <p className="pubws-gap pubws-enter pubws-enter--2">
+                {gap.alreadyThere ? (
+                  <>
+                    <b>{unit}{formatValue(gap.booked)}</b> booked already, past the market's{' '}
+                    {unit}{formatValue(gap.target)} with {gap.daysLeft === 1 ? 'a day' : `${gap.daysLeft} days`} to go.
+                  </>
+                ) : (
+                  <>
+                    <b>{unit}{formatValue(gap.booked)}</b> booked so far. Another{' '}
+                    <b>{unit}{formatValue(gap.needed)}</b> reaches the market's {unit}{formatValue(gap.target)},
+                    which is about <b>{unit}{formatValue(gap.perDay)} a day</b> for the{' '}
+                    {gap.daysLeft === 1 ? 'day' : `${gap.daysLeft} days`} left.
+                  </>
+                )}
+              </p>
+            )}
             {/* A market nobody has traded yet has no replayed history, which
                 used to mean no chart at all: selecting a fresh job showed a
                 price and blank space. A market always has a call, so fall
