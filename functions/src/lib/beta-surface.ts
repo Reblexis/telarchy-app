@@ -28,6 +28,13 @@
  * That last line is the point. A preview that ran the new frontend against the
  * published API would have caught none of the three bugs that reached
  * production the week before this existed; all of them were server-side.
+ *
+ * The exception is `/api/auth/*`, which the beta bundle does NOT prefix,
+ * because better-auth's client uses its own base URL. Those calls land on the
+ * published backend, which is what keeps Google login working here: Google
+ * redirects only to the URI registered on the OAuth client. So the beta runs
+ * the new backend for everything except authentication; test auth changes on
+ * the candidate's own URL instead. See docs/infra/deploy.md.
  */
 
 import type { Request, Response } from 'express';

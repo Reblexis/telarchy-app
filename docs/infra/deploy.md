@@ -184,6 +184,16 @@ served from `lib/public-beta`). Requests to `/beta/api/*` have the prefix
 stripped before routing, so the beta runs the SAME API handlers rather than a
 second copy that could drift.
 
+**One thing the beta does NOT run: its own auth.** `/api/auth/*` is not
+prefixed, because better-auth's client uses its own base URL rather than ours.
+Those calls go to the published backend. That is deliberate and load-bearing:
+Google redirects only to `telarchy.com/api/auth/callback/google`, so prefixing
+auth would break Google login on the beta all over again. The session and the
+database are shared anyway, so a signed-in tester is signed in on both. The
+gap it leaves is real and small: a change to authentication itself is not
+exercised by the beta, so verify those against the candidate's own run.app URL,
+where the whole stack including auth is the new build.
+
 The prefix is a path SEGMENT: `/betamax` is a workspace slug and stays on the
 published site. `beta-surface.test.ts` pins that, because getting it wrong
 hands a visitor an unpublished build in place of a market.
