@@ -565,6 +565,82 @@ export interface PublicWorkspaceMarket {
   rangeMax: number;
 }
 
+/** The data room's feed (docs/data-room.md). One anonymous read carries the
+ *  prose and every figure on the page, so the page cannot show a number the
+ *  response does not carry. A term that could not be computed is null, never
+ *  zero. */
+export type DataRoomBlock = 'pulse' | 'market' | 'traction' | 'contracts' | 'traffic' | 'shipping';
+
+export interface DataRoomFeed {
+  schema: number;
+  generatedAt: string;
+  doc: {
+    updatedAt: string;
+    sections: Array<{ id: string; title: string; markdown: string; blocks: DataRoomBlock[] }>;
+  };
+  evidence: {
+    pulse: {
+      weeklyActiveVerifiedTraders: number;
+      participants: number;
+      openMarkets: number;
+      tradesThisWeek: number;
+      source: string;
+    };
+    market: {
+      workspaceId: string;
+      name: string;
+      slug: string | null;
+      market: {
+        metricName: string;
+        metricDescription: string | null;
+        consensus: number | null;
+        currentValue: number | null;
+        rangeMin: number;
+        rangeMax: number;
+        targetDate: string;
+        resolvesOn: string;
+        liquidity: number;
+        tradedVolume: number;
+        history: Array<{ at: string; value: number }>;
+      } | null;
+    } | null;
+    traction: {
+      participants: number;
+      accounts: number;
+      verifiedParticipants: number;
+      trades: number;
+      creditsTraded: number;
+      openMarkets: number;
+      settledMarkets: number;
+      publicFloors: number;
+      signupsByDay: Array<{ day: string; signups: number }>;
+    };
+    contracts: {
+      proposed: number;
+      approved: number;
+      declined: number;
+      pending: number;
+      withdrawn: number;
+      approvedUsd: number;
+    };
+    traffic: {
+      byDay: Array<{ day: string; visits: number; uniques: number }>;
+      keptSince: string | null;
+      visits24h: number;
+      uniques24h: number;
+      visits7d: number;
+      uniques7d: number;
+      totalVisits: number;
+    };
+    shipping: {
+      days: Array<{ date: string; changes: number }>;
+      changes: Array<{ date: string; subject: string }>;
+      total: number;
+      builtAt: string;
+    };
+  };
+}
+
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
 /**
@@ -896,6 +972,10 @@ export const api = {
 
   /** Public floor read: the thread under a market or a proposal, no
       account needed (Open workspaces only). */
+  /** The data room's whole page, prose and figures, in one anonymous read.
+   *  The page renders this response and nothing else (docs/data-room.md). */
+  getDataRoom: (): Promise<DataRoomFeed> => request('/api/data-room'),
+
   /** Admin launch dashboard: floor visits, signups, waitlist. */
   getFloorStats: () => request('/api/admin/floor-stats'),
   /** Every question asked of a floor, newest first, with its answer. */
@@ -922,11 +1002,15 @@ export const api = {
   getFloorComments: (idOrSlug: string, q: { marketId?: string; proposalId?: string }): Promise<Array<{ id: string; fromName: string; content: string; createdAt: string }>> =>
     request(`/api/marketplace/${encodeURIComponent(idOrSlug)}/comments?${q.proposalId ? `proposalId=${encodeURIComponent(q.proposalId)}` : `marketId=${encodeURIComponent(q.marketId ?? '')}`}`, {}, true),
 
-  /** Ask this floor a question. Answered from its public brief only
-      (GET /api/marketplace/:id/context), never from outside knowledge. */
-  askFloor: (idOrSlug: string, question: string): Promise<{ answer: string }> =>
+  /** Talk to Otto, the floor's market maker. The whole conversation goes with
+      every turn (the server keeps the last twelve), so a follow-up means
+      something. What he knows is the floor's public brief and nothing else. */
+  askFloor: (
+    idOrSlug: string,
+    messages: Array<{ role: 'user' | 'assistant'; content: string }>,
+  ): Promise<{ answer: string }> =>
     request(`/api/marketplace/${encodeURIComponent(idOrSlug)}/ask`, {
-      method: 'POST', body: JSON.stringify({ question }),
+      method: 'POST', body: JSON.stringify({ messages }),
     }, true),
 
   /** Public floor read: who holds what and the trade history for a
