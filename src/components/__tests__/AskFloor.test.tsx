@@ -50,13 +50,11 @@ describe('asking the floor', () => {
     expect(await screen.findByText('That is a lot of questions.')).toBeTruthy();
   });
 
-  test('the agent prompt names this floor\'s own brief endpoint', () => {
+  test('carries no agent prompt: that door moved to account settings', () => {
+    // Owner direction 2026-08-20, "I don't want to bloat main page too much".
+    // The floor asks and answers; pointing your own AI at the same brief is a
+    // setting, not a thing on the page. Its own spec is AccountDialog's.
     render(<AskFloor {...props} />);
-    fireEvent.click(screen.getByRole('button', { name: /point your own ai/i }));
-    const prompt = screen.getByText(/api\/marketplace\/lookpilot\/context/);
-    expect(prompt.textContent).toContain('?format=md');
-    expect(prompt.textContent).toContain('/api/help');
-    // The instruction that keeps someone else's agent as honest as ours.
-    expect(prompt.textContent).toContain('only that brief');
+    expect(screen.queryByText(/point your own ai/i)).toBeNull();
   });
 });

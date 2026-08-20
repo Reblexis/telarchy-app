@@ -15,6 +15,7 @@ import { AskFloor } from '../components/AskFloor';
 import { LeaderboardRail } from '../components/FloorRails';
 import { useMyParticipantId } from '../hooks/useMyParticipantId';
 import { AccountMenu } from '../components/AccountMenu';
+import type { FloorRef } from '../lib/agent-prompt';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { DiscordButton } from '../components/DiscordButton';
 import { ManifoldButton } from '../components/ManifoldButton';
@@ -683,7 +684,11 @@ export function TradePage() {
 
   return (
     <div className="pubws pubws--center">
-      <TopBar user={!!user} ready={!authLoading} />
+      <TopBar
+        user={!!user}
+        ready={!authLoading}
+        floor={idOrSlug ? { idOrSlug, name: ws.name } : null}
+      />
       <main className="pubws-main pubws-main--floor">
         <LeaderboardRail entries={leaders} contractors={ws?.topContractors} unit={unit} signedIn={!!user} meId={myParticipantId} />
         <div className="pubws-center">
@@ -1064,17 +1069,6 @@ export function TradePage() {
                 {' '}→ manage
               </button>
             )}
-            {/* Before the conversation, and after the bet: the place a
-                visitor is when they realise they do not know enough about
-                this company to price it (owner ask 2026-08-20). */}
-            {idOrSlug && (
-              <AskFloor
-                idOrSlug={idOrSlug}
-                workspaceName={ws.name}
-                metricLabel={selectedJob ? null : metricLabel}
-              />
-            )}
-
             {/* The conversation under whatever the one view shows: the
                 baseline market's thread, or the selected job's (owner ask
                 2026-08-11). */}
@@ -1096,6 +1090,18 @@ export function TradePage() {
                   : hero ? { marketId: hero.marketId } : {}}
                 canPost={!!user && joined}
                 onRequireSignup={() => navigate('/signup')}
+              />
+            )}
+
+            {/* Under the conversation, not over it (owner direction
+                2026-08-20). The page's job is the market; asking is what a
+                reader does after the market, the comments and the positions
+                have all failed to answer their question. */}
+            {idOrSlug && (
+              <AskFloor
+                idOrSlug={idOrSlug}
+                workspaceName={ws.name}
+                metricLabel={selectedJob ? null : metricLabel}
               />
             )}
           </section>
@@ -1385,7 +1391,13 @@ export function TradePage() {
   );
 }
 
-export function TopBar({ user, ready }: { user: boolean; ready: boolean }) {
+export function TopBar({ user, ready, floor = null }: {
+  user: boolean;
+  ready: boolean;
+  /** Which floor the reader is standing on, so account settings can hand out
+   *  a prompt for THIS company rather than a generic one. */
+  floor?: FloorRef | null;
+}) {
   const navigate = useNavigate();
   return (
     <nav className="pubws-topbar">
@@ -1406,7 +1418,7 @@ export function TopBar({ user, ready }: { user: boolean; ready: boolean }) {
             "Log in" flash and vanish. Anonymous visitors get it fading in. */}
         {ready && user && <div className="pubws-fade"><NotificationsBell /></div>}
         {ready && (user
-          ? <div className="pubws-fade"><AccountMenu /></div>
+          ? <div className="pubws-fade"><AccountMenu floor={floor} /></div>
           : <Link to="/login" className="pubws-login pubws-fade">Log in</Link>)}
       </div>
     </nav>

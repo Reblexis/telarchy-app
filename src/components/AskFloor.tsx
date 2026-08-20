@@ -12,12 +12,18 @@ import { api } from '../lib/api';
  * charter, eight contracts and a data room, and reading all of it is more
  * work than the bet is worth. One question is not.
  *
- * So this sits in the decision column, directly under the bet buttons and
- * above the conversation, not in a corner bubble: a corner bubble reads as
- * support ("having trouble?"), and this is research ("before you price it").
- * The answer comes from GET /api/marketplace/:id/context and nothing else,
- * which is the same brief the "point your own agent here" panel hands out,
- * because a visitor and their bot should be reading the same facts.
+ * So this sits in the decision column, under the conversation rather than in
+ * a corner bubble: a corner bubble reads as support ("having trouble?"), and
+ * this is research ("before you price it"). It is the LAST thing in the
+ * column (owner direction 2026-08-20) because it is what a reader reaches for
+ * once the market, the comments and the positions have all failed to answer
+ * them, and because the page's job is the market.
+ *
+ * One question and one answer, nothing else. The prompt for pointing your own
+ * AI at the same brief used to hang off the bottom of this component and now
+ * lives in account settings (same owner direction: the floor is not the place
+ * to keep every door). The facts are the same either way: everything comes
+ * from GET /api/marketplace/:id/context.
  */
 
 interface Props {
@@ -27,28 +33,11 @@ interface Props {
   metricLabel: string | null;
 }
 
-/** The prompt a visitor hands their own agent. Built from this floor, so it
- *  is copy-paste-runnable rather than a template with blanks to fill. */
-function agentPrompt(idOrSlug: string, workspaceName: string): string {
-  const base = `${window.location.origin}/api/marketplace/${idOrSlug}`;
-  return [
-    `You are researching ${workspaceName} on Telarchy, where a market prices what each proposed contract would do to the company's real numbers.`,
-    '',
-    `1. Read the brief: GET ${base}/context?format=md`,
-    '   It carries the company, every metric with its history, the open markets and their current prices, every contract with the market\'s priced impact, and the owner\'s published documents. Drop ?format=md for JSON.',
-    `2. The endpoint catalog is GET ${window.location.origin}/api/help. Registering a participant and placing trades are documented there.`,
-    '',
-    'Then answer my questions about this company using only that brief, and tell me when something is not in it. Treat market prices as predictions, not facts.',
-  ].join('\n');
-}
-
 export function AskFloor({ idOrSlug, workspaceName, metricLabel }: Props) {
   const [question, setQuestion] = useState('');
   const [answer, setAnswer] = useState<{ q: string; a: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [promptOpen, setPromptOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   // Suggestions exist because "ask anything" is a blank page, and a blank
   // page is friction of its own. They name this floor's actual subjects.
@@ -73,13 +62,6 @@ export function AskFloor({ idOrSlug, workspaceName, metricLabel }: Props) {
     } finally {
       setBusy(false);
     }
-  };
-
-  const copyPrompt = () => {
-    navigator.clipboard.writeText(agentPrompt(idOrSlug, workspaceName)).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1600);
-    }).catch(e => console.error('copy failed:', e));
   };
 
   return (
@@ -124,20 +106,6 @@ export function AskFloor({ idOrSlug, workspaceName, metricLabel }: Props) {
       )}
 
       {error && <p className="ticket-err">{error}</p>}
-
-      <div className="askfloor-agent">
-        <button type="button" className="askfloor-link" onClick={() => setPromptOpen(o => !o)} aria-expanded={promptOpen}>
-          {promptOpen ? 'Hide the agent prompt' : 'Point your own AI at this floor'}
-        </button>
-        {promptOpen && (
-          <div className="askfloor-prompt">
-            <pre className="askfloor-prompt-text">{agentPrompt(idOrSlug, workspaceName)}</pre>
-            <button type="button" className="askfloor-copy" onClick={copyPrompt}>
-              {copied ? 'Copied' : 'Copy prompt'}
-            </button>
-          </div>
-        )}
-      </div>
     </section>
   );
 }

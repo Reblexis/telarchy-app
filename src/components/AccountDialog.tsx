@@ -4,6 +4,7 @@ import { AccountCredits } from './AccountCredits';
 import { AccountPassword } from './AccountPassword';
 import { SeasonEntryPanel } from './SeasonEntryPanel';
 import { api, type NotificationPrefs, type PayoutMethod } from '../lib/api';
+import { agentPrompt, type FloorRef } from '../lib/agent-prompt';
 import { useAuth } from '../hooks/useAuth';
 
 /**
@@ -48,12 +49,13 @@ const EMAIL_SWITCHES: Array<{ key: keyof NotificationPrefs; label: string }> = [
  * contents the long form never had, so a setting is now something you can see
  * exists rather than something you have to scroll into.
  */
-type AccountTab = 'profile' | 'money' | 'emails' | 'security';
+type AccountTab = 'profile' | 'money' | 'emails' | 'ai' | 'security';
 
 const TABS: Array<{ id: AccountTab; label: string }> = [
   { id: 'profile', label: 'Profile' },
   { id: 'money', label: 'Money' },
   { id: 'emails', label: 'Emails' },
+  { id: 'ai', label: 'Your AI' },
   { id: 'security', label: 'Security' },
 ];
 
@@ -137,10 +139,13 @@ function initials(name: string | null, email: string | null): string {
   return (letters || source[0] || '?').toUpperCase();
 }
 
-export function AccountDialog({ onClose, initialTab = 'profile' }: {
+export function AccountDialog({ onClose, initialTab = 'profile', floor = null }: {
   onClose: () => void;
   /** Which section to open on. Notification emails link straight to 'emails'. */
   initialTab?: AccountTab;
+  /** The floor this was opened from, so "Your AI" hands out a prompt for the
+   *  page the person is standing on rather than a generic one. */
+  floor?: FloorRef | null;
 }) {
   const [tab, setTab] = useState<AccountTab>(initialTab);
   const { user } = useAuth();
@@ -166,6 +171,8 @@ export function AccountDialog({ onClose, initialTab = 'profile' }: {
   // that needs a Save button reads as a form, and the state shown is the
   // state stored, rolled back if the server refuses.
   const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);
+
+  const [promptCopied, setPromptCopied] = useState(false);
 
   const [busy, setBusy] = useState<string | null>(null); // which section is saving
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -617,6 +624,37 @@ export function AccountDialog({ onClose, initialTab = 'profile' }: {
           </div>
           {errors.emails && <p className="ticket-err">{errors.emails}</p>}
 
+          </>
+        )}
+
+        {tab === 'ai' && (
+          <>
+            {/* Moved off the floor (owner direction 2026-08-20: the page's
+                job is the market). Everything it points at is public and
+                unauthenticated, and it is the SAME brief the floor's own Ask
+                field reads, which is the point: your agent and ours should
+                work from identical facts. */}
+            <div className="jobform-field">
+              <span className="ticket-label">Point your own AI at Telarchy</span>
+              <p className="acctdlg-hint">
+                {floor
+                  ? `Paste this into Claude, ChatGPT or your own agent. It reads ${floor.name}'s public brief: the company, every number with its history, what the markets currently predict, and every contract with its priced impact.`
+                  : 'Paste this into Claude, ChatGPT or your own agent. It reads a floor\'s public brief: the company, every number with its history, what the markets currently predict, and every contract with its priced impact.'}
+              </p>
+              <pre className="acctdlg-prompt">{agentPrompt(window.location.origin, floor)}</pre>
+              <button
+                type="button"
+                className="acctdlg-ghost"
+                onClick={() => {
+                  navigator.clipboard.writeText(agentPrompt(window.location.origin, floor)).then(() => {
+                    setPromptCopied(true);
+                    setTimeout(() => setPromptCopied(false), 1600);
+                  }).catch(e => console.error('copy failed:', e));
+                }}
+              >
+                {promptCopied ? 'Copied' : 'Copy prompt'}
+              </button>
+            </div>
           </>
         )}
 

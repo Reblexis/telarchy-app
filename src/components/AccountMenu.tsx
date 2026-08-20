@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { AccountDialog } from './AccountDialog';
+import type { FloorRef } from '../lib/agent-prompt';
 
 /**
  * The signed-in corner of the trading floor: an avatar that opens a small
@@ -33,7 +34,7 @@ function fmtCr(v: number): string {
     : Math.round(v).toLocaleString('en-US');
 }
 
-export function AccountMenu() {
+export function AccountMenu({ floor = null }: { floor?: FloorRef | null }) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [open, setOpen] = useState(false);
@@ -151,7 +152,7 @@ export function AccountMenu() {
         </div>
       )}
 
-      {dialogOpen && <AccountDialog onClose={closeDialog} initialTab={dialogTab} />}
+      {dialogOpen && <AccountDialog onClose={closeDialog} initialTab={dialogTab} floor={floor} />}
     </div>
   );
 }

@@ -80,24 +80,25 @@ code=$(curl -s -o /tmp/$TT_NS-ask.json -w '%{http_code}' -H 'Content-Type: appli
 case "$code" in 400|503) ;; *) echo "unexpected $code"; cat /tmp/$TT_NS-ask.json; exit 1;; esac
 ```
 
-### T5. The field is on the floor, with questions about THIS company
+### T5. The field is on the floor, under the conversation, with questions about THIS company
 
 ```bash
 $B goto "$TT_FRONTEND_URL/$SLUG" && $B wait --networkidle
 text=$($B text)
 grep -qi 'Ask anything about' <<<"$text"
-grep -qi 'Point your own AI at this floor' <<<"$text"
+# It is the last block in the column: the comments panel comes first.
+$B assert '.pubws-comments ~ .askfloor'
+# And it carries nothing else: the agent prompt is a setting now.
+grep -qi 'Point your own AI' <<<"$text" && { echo "the agent prompt is back on the floor"; exit 1; }
 $B screenshot "/tmp/$TT_NS-ask-floor.png"
 ```
 
-### T6. The agent prompt names this floor's own brief
+### T6. The agent prompt lives in account settings, and names this floor
 
-```bash
-$B click 'button:has-text("Point your own AI at this floor")' || $B click '.askfloor-link'
-text=$($B text)
-grep -q "/api/marketplace/$SLUG/context" <<<"$text"
-grep -q 'format=md' <<<"$text"
-```
+Covered by `src/components/__tests__/AccountDialog.test.tsx` ("the agent
+prompt"), since reaching it needs a signed-in session and the dialog. The
+behavioural guarantee is in `docs/vision.md`: the prompt names the context URL
+of the floor it was opened from.
 
 ### T7. No console errors
 

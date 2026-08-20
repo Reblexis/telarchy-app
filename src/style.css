@@ -1593,53 +1593,6 @@ code, pre, kbd, samp {
   color: var(--text-tertiary);
 }
 
-.askfloor-agent { margin-top: 1rem; }
-.askfloor-link {
-  padding: 0;
-  border: none;
-  background: none;
-  font: inherit;
-  font-size: 0.8rem;
-  color: var(--text-tertiary);
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.askfloor-link:hover { color: var(--accent); }
-
-.askfloor-prompt {
-  margin-top: 0.7rem;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.55rem;
-}
-.askfloor-prompt-text {
-  width: 100%;
-  max-height: 14rem;
-  overflow: auto;
-  margin: 0;
-  padding: 0.8rem 0.9rem;
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  background: var(--bg-secondary);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.74rem;
-  line-height: 1.55;
-  color: var(--text-secondary);
-  white-space: pre-wrap;
-}
-.askfloor-copy {
-  padding: 0.35rem 0.8rem;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: none;
-  font: inherit;
-  font-size: 0.78rem;
-  color: var(--text-primary);
-  cursor: pointer;
-}
-.askfloor-copy:hover { background: var(--bg-tertiary); }
 
 /* The arrival flash (owner ask 2026-08-19). A notification names one thing;
    when the reader arrives, that thing lights for a moment and then is
@@ -2963,6 +2916,25 @@ textarea.jobform-line--desc {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
+}
+
+/* The agent prompt, in the account dialog's "Your AI" section: a block of
+   text whose whole job is to be copied, so it reads as a quotation rather
+   than as an input. */
+.acctdlg-prompt {
+  width: 100%;
+  max-height: 13rem;
+  overflow: auto;
+  margin: 0.2rem 0 0.6rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-tertiary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.74rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
 }
 
 /* The per-section confirm: the ticket's own, a size down. */

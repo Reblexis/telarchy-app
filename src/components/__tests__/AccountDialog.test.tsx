@@ -217,3 +217,29 @@ describe('the section rail', () => {
     expect(screen.queryByLabelText('Username')).toBeNull();
   });
 });
+
+/**
+ * "Your AI": the prompt that points someone's own agent at the same public
+ * brief the floor's Ask field reads (moved off the floor 2026-08-20). What
+ * matters: opened from a floor it names THAT floor's endpoint, opened from
+ * anywhere else it still hands out something runnable, and both forms carry
+ * the honesty instruction that keeps a stranger's agent as careful as ours.
+ */
+describe('the agent prompt', () => {
+  test('names the floor it was opened from', async () => {
+    render(<AccountDialog onClose={() => {}} floor={{ idOrSlug: 'lookpilot', name: 'LookPilot' }} />);
+    fireEvent.click(await screen.findByRole('tab', { name: 'Your AI' }));
+    const prompt = screen.getByText(/api\/marketplace\/lookpilot\/context/);
+    expect(prompt.textContent).toContain('?format=md');
+    expect(prompt.textContent).toContain('/api/help');
+    expect(prompt.textContent).toContain('only that brief');
+  });
+
+  test('without a floor it still hands out something runnable', async () => {
+    render(<AccountDialog onClose={() => {}} />);
+    fireEvent.click(await screen.findByRole('tab', { name: 'Your AI' }));
+    const prompt = screen.getByText(/workspaces\/public/);
+    expect(prompt.textContent).toContain('/context?format=md');
+    expect(prompt.textContent).toContain('only those briefs');
+  });
+});

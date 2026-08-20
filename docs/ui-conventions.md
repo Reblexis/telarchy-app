@@ -297,9 +297,9 @@ per-network address shapes) with the refusal surfacing verbatim beside
 the save. The stored object lives in `agents.payout_method`; its
 human-readable summary is derived into `agents.payout_handle`, which is
 what paid-job proposals snapshot. The dialog is FILED, not stacked
-(owner report 2026-08-19: "I didn't even notice it's scrollable"). Four
-underline tabs across the top, Profile, Money, Emails, Security, one
-section on screen at a time. The rail is the table of contents the long
+(owner report 2026-08-19: "I didn't even notice it's scrollable"). Five
+underline tabs across the top, Profile, Money, Emails, Your AI, Security,
+one section on screen at a time. The rail is the table of contents the long
 form never had: a setting becomes something a reader can see exists
 instead of something they have to scroll into. Underline tabs, not pills,
 so the rail cannot be mistaken for the provider pills a few lines below
@@ -318,17 +318,20 @@ vanish at the end of the scroll. The cue is drawn on a wrapper, never
 inside the scroller, because a cue that scrolls away with the content it
 describes is not a cue. Every dialog gets it, not only the account.
 
-**Ask the floor** (owner ask 2026-08-20) sits in the decision column,
-between the bet buttons and the conversation, and deliberately NOT in a
-corner bubble: a bubble reads as support ("having trouble?"), and this is
-research ("before you price it"). The bar is the ticket's underline input
-so it belongs to the instrument rather than looking bolted on; three
-suggestion chips name this floor's own subjects, because "ask anything" is
-a blank page and a blank page is friction of its own. The answer lands in
-a ruled block with a single accent rule down its left edge, followed by
-one line saying where it came from, and it replaces the previous answer
-rather than growing a chat transcript. Under it, one quiet link opens the
-copyable prompt that points a visitor's own agent at the same brief.
+**Ask the floor** (owner ask 2026-08-20) is the LAST block in the decision
+column, under the comments/positions/trades panel (owner direction, same
+day), and deliberately NOT a corner bubble: a bubble reads as support
+("having trouble?"), this is research, and it belongs where a reader lands
+once the market, the conversation and the positions have all failed to
+answer them. The bar is the ticket's underline input so it belongs to the
+instrument rather than looking bolted on; three suggestion chips name this
+floor's own subjects, because "ask anything" is a blank page and a blank
+page is friction of its own. The answer lands in a ruled block with a
+single accent rule down its left edge, followed by one line saying where
+it came from, and it replaces the previous answer rather than growing a
+chat transcript. Nothing else hangs off it: the prompt for pointing your
+own AI at the same brief is a SETTING (account dialog, "Your AI"), not
+another door on the page.
 
 **The bell** (owner ask 2026-08-19) sits in the top bar left of the
 avatar, signed in only. At rest it is drawn in the same icon family as
