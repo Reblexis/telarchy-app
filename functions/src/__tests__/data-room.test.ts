@@ -122,6 +122,19 @@ describe('what the feed publishes', () => {
     expect(typeof body.evidence.market.market.consensus).toBe('number');
   });
 
+  it('leaves removed entries out, so the contract rows add up', async () => {
+    await seed();
+    // Removed is the admin taking an entry off the board because it should
+    // never have been there (spam, a duplicate, a test row), not a decision.
+    await db.insert(proposals).values([
+      { id: 'p4', workspaceId: WS, proposedBy: 'a1', title: 'Spam', status: 'removed', askUsd: 999 },
+    ]);
+    const { body } = await request(app).get('/api/data-room');
+    const c = body.evidence.contracts;
+    expect(c.approved + c.declined + c.pending + c.withdrawn).toBe(c.proposed);
+    expect(c.proposed).toBe(3);
+  });
+
   it('counts only approved asks as money committed', async () => {
     await seed();
     const { body } = await request(app).get('/api/data-room');

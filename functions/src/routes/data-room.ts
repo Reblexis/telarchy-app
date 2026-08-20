@@ -4,7 +4,7 @@ import {
   agents, authUser, markets, metricLogs, metrics, pageVisits, proposals,
   systemConfig, trades, trafficDaily, workspaces,
 } from '../db/schema';
-import { and, asc, count, eq, gte, isNull, like, sql } from 'drizzle-orm';
+import { and, asc, count, eq, gte, isNull, like, ne, sql } from 'drizzle-orm';
 import { wrap } from '../lib/wrap';
 import { consensus } from '../lib/amm';
 import { humanVisitFilter } from '../lib/visit-log';
@@ -203,7 +203,13 @@ async function traction() {
  *  and what the approvals cost in real money. */
 async function contracts() {
   const rows = await db.select({ status: proposals.status, n: count(), ask: sql<number>`coalesce(sum(${proposals.askUsd}), 0)::float` })
-    .from(proposals).groupBy(proposals.status);
+    .from(proposals)
+    // 'removed' is the admin taking an entry off the board because it should
+    // never have been on it (spam, duplicates, test rows). It is not a
+    // decision and counting it would leave a published total that its own
+    // rows do not add up to.
+    .where(ne(proposals.status, 'removed'))
+    .groupBy(proposals.status);
   const by = (s: string) => Number(rows.find(r => r.status === s)?.n ?? 0);
   const approvedAsk = Number(rows.find(r => r.status === 'approved')?.ask ?? 0);
   return {
