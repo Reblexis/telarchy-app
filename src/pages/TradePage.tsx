@@ -110,6 +110,8 @@ export function TradePage() {
   // version silently did nothing exactly where it was most likely to be used
   // (owner report 2026-08-19: "I click it and it still doesn't highlight").
   // location.hash sees both that and a pasted URL.
+  useEffect(() => { setEditingJob(false); setJobErr(''); }, [selectedJobId]);
+
   useEffect(() => {
     const hash = location.hash.replace(/^#/, '');
     if (!hash) return;
@@ -159,6 +161,18 @@ export function TradePage() {
   // floor). manage capability on this workspace reveals them on a selected
   // job; everyone else never sees the bar.
   const [canManage, setCanManage] = useState(false);
+  // Who the viewer is as a participant, so the floor can tell "my contract"
+  // from someone else's. A proposer edits their own; a manager edits any.
+  const [myAgentId, setMyAgentId] = useState<string | null>(null);
+  // Editing the selected contract in place (owner ask 2026-08-20). Same shape
+  // as the metric definition editor above: words save in place, and the price
+  // only moves while nobody has traded the pair (docs/market-integrity.md I1b).
+  const [editingJob, setEditingJob] = useState(false);
+  const [jobAsk, setJobAsk] = useState('');
+  const [jobTitle, setJobTitle] = useState('');
+  const [jobDesc, setJobDesc] = useState('');
+  const [jobSaving, setJobSaving] = useState(false);
+  const [jobErr, setJobErr] = useState('');
   const [declineReason, setDeclineReason] = useState<string | null>(null); // null = decline not open
   const [decideBusy, setDecideBusy] = useState(false);
   const [decideErr, setDecideErr] = useState('');
@@ -292,6 +306,40 @@ export function TradePage() {
   const unit = hero?.unit ?? '';
   const metricLabel = hero?.metricLabel ?? '';
   const selectedJob = ws?.proposals?.find(p => p.id === selectedJobId) ?? null;
+  // A contract is editable by whoever posted it (and by a manager) while it is
+  // still on the ballot. The server decides the same thing again; this only
+  // decides whether to draw the button.
+  const canEditJob = !!selectedJob
+    && (selectedJob.status ?? 'pending') === 'pending'
+    && (canManage || (!!myAgentId && selectedJob.proposedByHandle === myAgentId));
+
+  const saveJobEdit = async () => {
+    if (!selectedJob || !ws) return;
+    setJobSaving(true);
+    setJobErr('');
+    try {
+      const askNum = jobAsk.trim() === '' ? 0 : Math.max(0, Math.round(Number(jobAsk)));
+      if (!Number.isFinite(askNum)) throw new Error('The price has to be a number');
+      // Same composition as posting one: the price rides in the title for
+      // everything that reads prose, and separately as the number anything
+      // financial reads. The server refuses the two disagreeing.
+      const task = jobTitle.trim();
+      if (!task) throw new Error('A contract needs a title');
+      const fullTitle = askNum > 0 ? `$${askNum}: ${task}` : task;
+      await api.editProposal(selectedJob.id, {
+        title: fullTitle,
+        description: jobDesc.trim(),
+        askUsd: askNum,
+      });
+      setEditingJob(false);
+      reload();
+    } catch (e) {
+      setJobErr(e instanceof Error ? e.message : 'Could not save the contract');
+    } finally {
+      setJobSaving(false);
+    }
+  };
+
   // The contract's pair for the horizon on screen, not whichever pair the
   // payload happened to list first.
   const pair = (hero && selectedJob?.markets.find(m => m.targetDate === hero.targetDate))
@@ -415,7 +463,11 @@ export function TradePage() {
         .catch(e => console.error('limit orders fetch failed:', e));
     }
     api.getParticipant()
-      .then(pt => setBalance((pt as { balance?: number }).balance ?? null))
+      .then(pt => {
+        const row = pt as { balance?: number; id?: string };
+        setBalance(row.balance ?? null);
+        setMyAgentId(row.id ?? null);
+      })
       .catch(e => console.error('participant fetch failed:', e));
   };
   // Positions belong to the market on screen, so they refetch on a switch.
@@ -691,7 +743,66 @@ export function TradePage() {
                   {' '}
                   <span className="pubws-question-task">{splitAsk(selectedJob.title).rest}</span>
                 </h2>
-                {selectedJob.description && (
+                {editingJob ? (
+                  /* Editing a contract in place (owner ask 2026-08-20). The
+                     words save without touching the market; the price only
+                     moves while nobody has traded the pair, and the server
+                     says so plainly when it will not (docs/market-integrity.md
+                     I1b). Same three fields as posting one, same order. */
+                  <div className="pubws-know-edit pubws-enter pubws-enter--1">
+                    <label className="jobform-field">
+                      <span className="ticket-label">Price (USD)</span>
+                      <input
+                        className="jobform-line"
+                        inputMode="numeric"
+                        value={jobAsk}
+                        onChange={e => setJobAsk(e.target.value.replace(/[^0-9]/g, ''))}
+                        placeholder="0"
+                        aria-label="Price in USD"
+                      />
+                    </label>
+                    <label className="jobform-field">
+                      <span className="ticket-label">What you will do</span>
+                      <input
+                        className="jobform-line"
+                        value={jobTitle}
+                        maxLength={80}
+                        onChange={e => setJobTitle(e.target.value)}
+                        aria-label="Contract title"
+                      />
+                    </label>
+                    <label className="jobform-field">
+                      <span className="ticket-label">Details</span>
+                      <textarea
+                        className="pubws-know-edit-text"
+                        rows={4}
+                        value={jobDesc}
+                        onChange={e => setJobDesc(e.target.value)}
+                        aria-label="Contract details"
+                      />
+                    </label>
+                    <p className="pubws-settle">
+                      Editing the words keeps the market and every position on it,
+                      and publishes that it changed. The price can only move while
+                      nobody has traded this contract yet, because the market
+                      opened at that number.
+                    </p>
+                    <div>
+                      <button className="pubws-decide" disabled={jobSaving} onClick={() => { void saveJobEdit(); }}>
+                        {jobSaving ? 'Saving…' : 'Save'}
+                      </button>
+                      <button
+                        className="pubws-decide"
+                        style={{ marginLeft: '0.5rem' }}
+                        disabled={jobSaving}
+                        onClick={() => { setEditingJob(false); setJobErr(''); }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                    {jobErr && <p className="ticket-err">{jobErr}</p>}
+                  </div>
+                ) : selectedJob.description && (
                   <>
                     <p className={`pubws-details pubws-enter pubws-enter--1${descExpanded ? '' : ' is-clamped'}`}>
                       {selectedJob.description}
@@ -702,6 +813,35 @@ export function TradePage() {
                       </button>
                     )}
                   </>
+                )}
+                {/* Edited, and when: a trader who priced this contract before
+                    the wording moved is entitled to know that it moved. */}
+                {!editingJob && selectedJob.editedAt && (
+                  <p className="pubws-proposal-meta">
+                    edited {new Date(selectedJob.editedAt).toLocaleDateString('en-GB', {
+                      day: 'numeric', month: 'short', timeZone: 'UTC',
+                    })}
+                  </p>
+                )}
+                {/* The proposer's own controls. A contract is a listing its
+                    author should be able to correct: a typo, a clearer
+                    description, a price they got wrong before anyone traded. */}
+                {canEditJob && !editingJob && (
+                  <div className="pubws-ownerbar pubws-enter pubws-enter--1">
+                    <button
+                      className="pubws-decide"
+                      onClick={() => {
+                        const split = splitAsk(selectedJob.title);
+                        setJobAsk(split.ask !== null ? String(split.ask) : '');
+                        setJobTitle(split.rest);
+                        setJobDesc(selectedJob.description ?? '');
+                        setJobErr('');
+                        setEditingJob(true);
+                      }}
+                    >
+                      Edit contract
+                    </button>
+                  </div>
                 )}
                 {/* The owner's press, on the floor itself (owner ask
                     2026-08-11). Approve is the money verb, green; decline

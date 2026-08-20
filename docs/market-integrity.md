@@ -12,7 +12,8 @@ something happens it can be recreated."
 
 ## The three invariants
 
-**I1. A live market is never reset as a side effect.** Destroying a market is a
+**I1. A live market is never reset as a side effect.** (Applies to a
+contract's definition as well as a metric's: see I1b.) Destroying a market is a
 deliberate act with its own endpoint. It is never something that merely happens
 because an owner edited a field.
 
@@ -75,6 +76,39 @@ what a market settles on while positions are open. The mitigation is
 disclosure, not prevention, because no code can tell a clarification from a
 redefinition. Publishing the revision history next to the definition is what
 makes the risk visible to the people carrying it.
+
+## I1b: a contract's definition edits the same way
+
+**Added 2026-08-20 (owner ask: "could you add options for contract creators to
+edit the description / title and price of their contract").** A contract
+(`proposals`) is a definition too, and its conditional pair is a live market
+that prices it, so the split is the same one I1 draws for a metric:
+
+- **Words are edited in place, and published.** The title and the description
+  are what a trader reads before pricing "if this is approved". The proposer,
+  or anyone with `manage`, may edit them while the contract is still pending.
+  The pair keeps its price, its pool and every position; the change writes an
+  append-only `proposal_revisions` row, rendered on the floor beside the
+  contract, so someone already holding can see the goalposts move.
+- **The price is machinery.** The ask is not prose: the approved branch OPENS
+  at the baseline minus the ask (`createConditionalMarkets`), so the number is
+  burned into what the market was anchored to. Changing it after anyone has
+  traded would silently reprice a deal people already took a side on. So:
+  while the pair is untraded, changing the ask **re-anchors** it (the branch
+  markets are voided and respawned at the new number, which costs nothing
+  because nobody is in them); once anyone has traded either branch, the edit
+  is refused with 409 naming the ask and the market, exactly as a metric's
+  range is.
+- **The title may not disagree with the ask.** A paid contract's title carries
+  its price by convention ("$200: rewrite the store page"), and two places
+  stating one number is how they end up stating two. An edit whose title names
+  a different price than `askUsd` is refused with 400.
+- **Only while pending.** An approved contract's terms are the deal the owner
+  agreed to pay for, and a declined one's are what the published reason refers
+  to. Neither is editable; the endpoint answers 409.
+
+Nothing here lets an editor change who gets paid: `payoutHandle` is snapshotted
+at creation and is not part of the edit.
 
 ## I2: what an owner cannot destroy
 

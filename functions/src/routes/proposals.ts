@@ -15,6 +15,8 @@ import {
   countPendingProposalsByProposer,
   getProposalMarketSummariesForProposal,
   createConditionalMarkets,
+  editProposalDefinition,
+  proposalRevisionsFor,
 } from '../services/proposals';
 import { validateContent, MIN_LIQUIDITY_CONTRIBUTION } from '../lib/validation';
 import { getParticipantDisplayNames } from '../lib/participants';
@@ -300,6 +302,59 @@ proposalsRouter.delete('/:proposalId', requireCapability('manage'), wrap(async (
     proposalId, fromStatus: 'any', toStatus: 'removed', decidedBy: agentId ?? null,
   }, workspaceId).catch(e => console.error('emitEvent failed:', e));
   res.json({ ok: true, status: 'removed' });
+}));
+
+/**
+ * Edit a contract: its title, its description, its price.
+ *
+ * `trade` is the capability floor because the proposer is a trader, not a
+ * manager; who may actually edit THIS contract (its proposer, or anyone with
+ * manage) is decided in the service, next to the rest of the rules. See
+ * docs/market-integrity.md I1b for why the words edit in place and the price
+ * only moves while the pair is untraded.
+ */
+proposalsRouter.patch('/:proposalId', requireCapability('trade'), wrap(async (req, res) => {
+  const { workspaceId, agentId } = req.auth!;
+  const proposalId = req.params.proposalId as string;
+  const { title, description, askUsd } = req.body ?? {};
+
+  if (title === undefined && description === undefined && askUsd === undefined) {
+    res.status(400).json({ error: 'Pass at least one of title, description, askUsd' }); return;
+  }
+  if (title !== undefined) {
+    if (typeof title !== 'string') { res.status(400).json({ error: 'title must be a string' }); return; }
+    // Same 80 characters as creation: a contract title is a task name that has
+    // to fit the rail row and the conditional headline.
+    const err = validateContent(title, 'title', 80);
+    if (err) { res.status(400).json({ error: err }); return; }
+  }
+  if (description !== undefined) {
+    if (typeof description !== 'string') { res.status(400).json({ error: 'description must be a string' }); return; }
+    const err = validateContent(description, 'description');
+    if (err) { res.status(400).json({ error: err }); return; }
+  }
+  if (askUsd !== undefined && askUsd !== null) {
+    if (typeof askUsd !== 'number' || !Number.isInteger(askUsd) || askUsd < 0) {
+      res.status(400).json({ error: 'askUsd must be a non-negative whole number of USD' }); return;
+    }
+    if (askUsd > 1_000_000) { res.status(400).json({ error: 'askUsd is implausibly large' }); return; }
+  }
+
+  const result = await editProposalDefinition(
+    proposalId, workspaceId,
+    { title, description, askUsd },
+    { agentId, canManage: req.auth!.capabilities.has('manage') },
+  );
+  res.json({ ok: true, ...result });
+}));
+
+/** What changed on a contract, and when: the log the floor renders beside it. */
+proposalsRouter.get('/:proposalId/revisions', requireCapability('read'), wrap(async (req, res) => {
+  const { workspaceId } = req.auth!;
+  const rows = await proposalRevisionsFor(req.params.proposalId as string, workspaceId);
+  res.json({ revisions: rows.map(r => ({
+    field: r.field, oldValue: r.oldValue, newValue: r.newValue, at: r.createdAt,
+  })) });
 }));
 
 proposalsRouter.post('/:proposalId/withdraw', requireCapability('trade'), wrap(async (req, res) => {

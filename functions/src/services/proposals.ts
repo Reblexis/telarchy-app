@@ -1,6 +1,6 @@
 import { db } from '../db/client';
-import { agents, markets, metrics as metricsTable, proposals, trades, systemConfig, liquidityEvents, workspaces } from '../db/schema';
-import { eq, and, inArray, sql } from 'drizzle-orm';
+import { agents, markets, metrics as metricsTable, proposals, proposalRevisions, trades, systemConfig, liquidityEvents, workspaces } from '../db/schema';
+import { eq, and, asc, inArray, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { consensus, anchoredMarketState } from '../lib/amm';
 import { voidMarket } from './markets';
@@ -627,6 +627,142 @@ export async function removeProposal(
     resolvedAt: new Date(),
     resolvedBy: byAgentId ?? null,
   }).where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+}
+
+/** What an edit may touch. `payoutHandle` is deliberately absent: who gets
+ *  paid is snapshotted at creation and changing it is a different act. */
+export interface ContractEdit {
+  title?: string;
+  description?: string;
+  askUsd?: number | null;
+}
+
+/** A paid contract's title carries its price by convention ("$200: ..."). */
+function askInTitle(title: string): number | null {
+  const m = title.match(/^\$(\d+):/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+/**
+ * Edit a contract's definition: its words in place, its price by re-anchoring.
+ *
+ * The split is I1b in docs/market-integrity.md, and it is the same one the
+ * metric definition draws. Words are what a trader reads, so they are edited
+ * in place and the change is published. The ask is what the approved branch
+ * was ANCHORED at, so it can only move while nobody has taken a side; after
+ * that it is machinery and the edit is refused rather than applied quietly.
+ *
+ * Returns the fields that actually changed, so a caller can tell an edit from
+ * a re-save of identical text.
+ */
+export async function editProposalDefinition(
+  proposalId: string,
+  workspaceId: string,
+  edit: ContractEdit,
+  by: { agentId?: string; canManage: boolean },
+): Promise<{ changed: string[]; reanchored: boolean }> {
+  const [proposal] = await db.select().from(proposals)
+    .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+  if (!proposal) throw new AppError('Proposal not found', 404);
+
+  const isProposer = !!by.agentId && proposal.proposedBy === by.agentId;
+  if (!isProposer && !by.canManage) {
+    throw new AppError('Only the contract\'s proposer, or a workspace manager, may edit it', 403);
+  }
+  // An approved contract's terms are the deal the owner agreed to pay for,
+  // and a declined one's are what the published reason refers to.
+  if (proposal.status !== 'pending') {
+    throw new AppError(`Only a pending contract can be edited; this one is ${proposal.status}`, 409);
+  }
+
+  const nextTitle = edit.title !== undefined ? edit.title.trim() : proposal.title;
+  const nextDescription = edit.description !== undefined ? edit.description.trim() : proposal.description;
+  const nextAsk = edit.askUsd !== undefined ? (edit.askUsd ?? 0) : (proposal.askUsd ?? 0);
+  const currentAsk = proposal.askUsd ?? 0;
+
+  // One number, stated once. A title naming a different price than the ask is
+  // how a board ends up showing $200 next to a $300 deal.
+  const titled = askInTitle(nextTitle);
+  if (nextAsk > 0 && titled !== null && titled !== nextAsk) {
+    throw new AppError(`The title says $${titled} but the ask is $${nextAsk}; make them agree`, 400);
+  }
+  if (nextAsk === 0 && titled !== null) {
+    throw new AppError(`The title says $${titled} but the contract asks for nothing; drop the price from the title`, 400);
+  }
+
+  const changed: string[] = [];
+  if (nextTitle !== proposal.title) changed.push('title');
+  if (nextDescription !== proposal.description) changed.push('description');
+  if (nextAsk !== currentAsk) changed.push('askUsd');
+  if (changed.length === 0) return { changed, reanchored: false };
+
+  // The ask is burned into the approved branch's opening anchor, so moving it
+  // means the pair must open again at the new number. That is only free while
+  // nobody is in it; after the first trade the deal has been priced and the
+  // edit is refused (docs/market-integrity.md, I1b).
+  let reanchored = false;
+  if (changed.includes('askUsd')) {
+    const pairMarkets = await db.select({ id: markets.id }).from(markets)
+      .where(and(
+        eq(markets.workspaceId, workspaceId),
+        eq(markets.proposalId, proposalId),
+        eq(markets.resolved, false),
+      ));
+    if (pairMarkets.length > 0) {
+      const [traded] = await db.select({ n: sql<number>`count(*)::int` }).from(trades)
+        .where(and(
+          eq(trades.workspaceId, workspaceId),
+          inArray(trades.marketId, pairMarkets.map(m => m.id)),
+        ));
+      if ((traded?.n ?? 0) > 0) {
+        throw new AppError(
+          `This contract's market has been traded, so its price is what people took a side on. `
+          + `The words can still be edited; the ask cannot. Withdraw it and post a new one to change the price.`,
+          409,
+        );
+      }
+    }
+  }
+
+  await db.update(proposals)
+    .set({ title: nextTitle, description: nextDescription, askUsd: nextAsk > 0 ? nextAsk : null })
+    .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
+
+  const stamp = new Date();
+  const was = { title: proposal.title, description: proposal.description, askUsd: String(currentAsk) };
+  const now = { title: nextTitle, description: nextDescription, askUsd: String(nextAsk) };
+  await db.insert(proposalRevisions).values(changed.map((field, i) => ({
+    id: randomUUID(),
+    workspaceId,
+    proposalId,
+    field,
+    oldValue: was[field as keyof typeof was],
+    newValue: now[field as keyof typeof now],
+    changedBy: by.agentId ?? null,
+    // One millisecond apart so a multi-field edit still reads in field order
+    // rather than in whatever order the rows come back.
+    createdAt: new Date(stamp.getTime() + i),
+  })));
+
+  if (changed.includes('askUsd')) {
+    // Untouched pair, new number: void and respawn so the approved branch
+    // opens where the new deal actually starts. Nobody is refunded anything
+    // they did not put in, because nobody put anything in.
+    await voidProposalMarkets(proposalId, workspaceId);
+    await createConditionalMarkets(proposalId, workspaceId, {
+      contributions: subsidyContributionsOf(proposal),
+    });
+    reanchored = true;
+  }
+
+  return { changed, reanchored };
+}
+
+/** Every edit to one contract, oldest first. */
+export async function proposalRevisionsFor(proposalId: string, workspaceId: string) {
+  return db.select().from(proposalRevisions)
+    .where(and(eq(proposalRevisions.workspaceId, workspaceId), eq(proposalRevisions.proposalId, proposalId)))
+    .orderBy(asc(proposalRevisions.createdAt));
 }
 
 export async function withdrawProposal(

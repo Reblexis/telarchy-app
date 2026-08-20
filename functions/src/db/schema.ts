@@ -524,6 +524,32 @@ export const metricDefinitionRevisions = pgTable('metric_definition_revisions', 
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
 
+/**
+ * Every edit to a contract's definition, in the order it happened.
+ *
+ * Same rule and same shape as `metricDefinitionRevisions`, for the same
+ * reason (docs/market-integrity.md, I1b): a contract's title, description and
+ * price are what a trader prices "if approved" against, and editing them in
+ * place is only honest if the change is published to whoever is already
+ * holding. `askUsd` is here too, even though changing it re-anchors an
+ * untraded pair rather than editing under anyone: a price that moved before
+ * the first trade still explains why the opening call is where it is.
+ *
+ * Append-only: the whole point is that a revision cannot be un-made.
+ */
+export const proposalRevisions = pgTable('proposal_revisions', {
+  id: text('id').notNull(),
+  workspaceId: text('workspace_id').notNull(),
+  proposalId: text('proposal_id').notNull(),
+  /** 'title' | 'description' | 'askUsd' */
+  field: text('field').notNull(),
+  oldValue: text('old_value'),
+  newValue: text('new_value'),
+  /** Agent id or auth user id of whoever saved it, when known. */
+  changedBy: text('changed_by'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, t => [primaryKey({ columns: [t.id, t.workspaceId] })]);
+
 export const limitOrders = pgTable('limit_orders', {
   id: text('id').primaryKey(),
   workspaceId: text('workspace_id').notNull(),

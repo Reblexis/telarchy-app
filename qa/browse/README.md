@@ -186,6 +186,7 @@ explains itself.
 | File | Surface |
 | --- | --- |
 | `chat-thread.md` | `GET/POST /api/proposals/:id/messages` |
+| `edit-contract.md` | `PATCH /api/proposals/:id`: words in place, price only before the first trade |
 
 ### 06-participants
 

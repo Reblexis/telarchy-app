@@ -510,6 +510,10 @@ export interface PublicProposal {
    *  also resolves nicknames). */
   proposedByHandle?: string;
   createdAt: string;
+  /** When this contract's words or price were last edited, null if never.
+   *  The marker is public; the log itself is GET /api/proposals/:id/revisions
+   *  (docs/market-integrity.md, I1b). */
+  editedAt?: string | null;
   /** Total conditional pairs; `markets` carries only the largest-impact few. */
   marketPairCount: number;
   markets: PublicProposalMarketPair[];
@@ -866,6 +870,14 @@ export const api = {
   getProposal: (id: string) => request(`/api/proposals/${id}`),
   createProposal: (body: { title: string; description: string; liquiditySubsidy?: number; askUsd?: number; payoutHandle?: string }) =>
     request('/api/proposals', { method: 'POST', body: JSON.stringify(body) }),
+  /** Edit a contract's definition: its words in place, its price only while
+   *  the pair is untraded (docs/market-integrity.md, I1b). The proposer or a
+   *  workspace manager; the server decides which. */
+  editProposal: (id: string, body: { title?: string; description?: string; askUsd?: number | null }) =>
+    request(`/api/proposals/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  /** What changed on a contract, oldest first. */
+  getProposalRevisions: (id: string) =>
+    request(`/api/proposals/${id}/revisions`) as Promise<{ revisions: Array<{ field: string; oldValue: string | null; newValue: string | null; at: string }> }>,
   approveProposal: (id: string) =>
     request(`/api/proposals/${id}/approve`, { method: 'POST' }),
   /** `declineReason` is published permanently on the proposal. Required by the

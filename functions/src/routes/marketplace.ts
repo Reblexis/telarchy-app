@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/client';
-import { workspaces, markets, metrics, metricLogs, agents, trades, positions, permissionGroups, proposals, proposalMessages, marketMessages, systemConfig, announcements } from '../db/schema';
+import { workspaces, markets, metrics, metricLogs, agents, trades, positions, permissionGroups, proposals, proposalMessages, proposalRevisions, marketMessages, systemConfig, announcements } from '../db/schema';
 import { eq, ne, and, gt, gte, count, desc, asc, inArray, like, sql } from 'drizzle-orm';
 import { wrap } from '../lib/wrap';
 import { authMiddleware } from '../middleware/auth';
@@ -539,6 +539,22 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
       .orderBy(desc(proposals.createdAt))
       .limit(40);
     const names = await getParticipantDisplayNames(pending.map(p => p.proposedBy));
+    // When each contract was last edited, so the floor can say "edited" beside
+    // one whose words or price moved after people started pricing it
+    // (docs/market-integrity.md, I1b). The log itself is behind
+    // GET /api/proposals/:id/revisions; this is only the marker.
+    const editedRows = pending.length > 0
+      ? await db.select({
+          proposalId: proposalRevisions.proposalId,
+          at: sql<string>`max(${proposalRevisions.createdAt})`,
+        }).from(proposalRevisions)
+          .where(and(
+            eq(proposalRevisions.workspaceId, workspaceId),
+            inArray(proposalRevisions.proposalId, pending.map(p => p.id)),
+          ))
+          .groupBy(proposalRevisions.proposalId)
+      : [];
+    const editedAtById = new Map(editedRows.map(r => [r.proposalId, r.at]));
 
     const pendingIds = pending.map(p => p.id);
     const branchMarkets = pendingIds.length
@@ -654,6 +670,7 @@ marketplaceRouter.get('/:workspaceId', wrap(async (req, res) => {
         // profile endpoint also resolves (owner ask 2026-08-11).
         proposedByHandle: p.proposedBy,
         createdAt: p.createdAt,
+        editedAt: editedAtById.get(p.id) ?? null,
         marketPairCount: pairs.length,
         markets: pairs.slice(0, 3),
       };
