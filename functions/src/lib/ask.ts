@@ -37,6 +37,7 @@ Rules:
 - Quote real numbers from the brief when they answer the question, with their date or horizon.
 - Be brief: two to five sentences, or a short list when the question asks for several things. No preamble, no restating the question, no sign-off.
 - Plain words. The reader may be new to prediction markets.
+- Never use an em dash or an en dash. Use a comma, a colon, parentheses, or two sentences. This is the site's house style and a dash is the one thing its owner will notice.
 - If the question is about how Telarchy itself works rather than this company, answer in one or two sentences from what the brief shows.`;
 
 export interface AskResult {

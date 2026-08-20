@@ -146,6 +146,17 @@ describe('asking the floor', () => {
   });
 });
 
+describe('the answer prompt', () => {
+  test('bans the dash the house style bans', async () => {
+    // The answer is user-facing copy on the owner's own site, and the one
+    // typographic rule this repo has is no em dashes. A model writes them by
+    // default, so the prompt has to say so.
+    const { readFileSync } = await import('fs');
+    const prompt = readFileSync(`${__dirname}/../lib/ask.ts`, 'utf8');
+    expect(prompt).toContain('Never use an em dash');
+  });
+});
+
 describe('the brief and the floor agree', () => {
   test('an unpriced contract reports no delta rather than zero', async () => {
     await seed();
