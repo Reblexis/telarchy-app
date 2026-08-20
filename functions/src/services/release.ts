@@ -45,7 +45,8 @@ export interface ReleaseState {
  *
  * No key files: on Cloud Run the metadata server mints a token for the
  * attached service account, which is why the IAM grant is what gates this
- * (roles/run.admin on the `api` service, see docs/infra/deploy.md).
+ * (the custom telarchyReleasePublisher role on the `api` service, see
+ * docs/infra/deploy.md).
  */
 async function accessToken(): Promise<string | null> {
   try {
@@ -83,7 +84,29 @@ async function fetchService(token: string): Promise<RunService | null> {
   return await res.json() as RunService;
 }
 
+/**
+ * The traffic split changes when someone presses Publish and at no other time,
+ * so asking Google on every request would be a network round trip per page
+ * load on the beta (which proxies per request) for an answer that is almost
+ * always the same one. Ten seconds is short enough that the stripe flips to
+ * "published" while the owner is still looking at it.
+ */
+let cached: { at: number; state: ReleaseState } | null = null;
+const RELEASE_TTL_MS = 10_000;
+
+/** Drop the cache: the answer just changed because we changed it. */
+export function clearReleaseCache(): void {
+  cached = null;
+}
+
 export async function releaseState(): Promise<ReleaseState> {
+  if (cached && Date.now() - cached.at < RELEASE_TTL_MS) return cached.state;
+  const fresh = await computeReleaseState();
+  cached = { at: Date.now(), state: fresh };
+  return fresh;
+}
+
+async function computeReleaseState(): Promise<ReleaseState> {
   const running = currentRevision();
   const token = await accessToken();
   if (!token) {
@@ -149,7 +172,8 @@ export async function publishRevision(revision?: string): Promise<{ published: s
   if (!res.ok) {
     const detail = await res.text().catch(() => '');
     console.error('release: publish failed', res.status, detail);
-    throw new Error(`Cloud Run refused the publish (${res.status}). Check the service account has roles/run.admin on this service.`);
+    throw new Error(`Cloud Run refused the publish (${res.status}). Check the service account still holds the telarchyReleasePublisher role on this service.`);
   }
+  clearReleaseCache();
   return { published: target };
 }

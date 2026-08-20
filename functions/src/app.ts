@@ -53,7 +53,27 @@ export const app = express();
 app.use((req, res, next) => {
   const host = req.headers.host;
   const isPublic = !host || publicOrigins().some(o => o.endsWith(`//${host}`) || o.endsWith(`//www.${host}`));
-  if (!isPublic) res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  // The beta is never indexable, whichever host it is reached on: on the
+  // public domain it lives under /beta, and there it is still an unpublished
+  // build showing production data.
+  if (!isPublic || req.path === '/beta' || req.path.startsWith('/beta/')) {
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  }
+  next();
+});
+
+/**
+ * `/beta/api/...` is the beta's own API (docs/infra/deploy.md). The beta
+ * bundle is built with its API base at /beta, so its calls arrive prefixed;
+ * strip it here, before anything routes, and every existing endpoint serves
+ * the beta unchanged. Mounting a second copy of the API under /beta would be
+ * two code paths for one capability, which AGENTS.md forbids for exactly the
+ * reason it would bite here: they would drift.
+ */
+app.use((req, _res, next) => {
+  if (req.url === '/beta/api' || req.url.startsWith('/beta/api/') || req.url.startsWith('/beta/api?')) {
+    req.url = req.url.slice('/beta'.length);
+  }
   next();
 });
 

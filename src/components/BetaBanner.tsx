@@ -2,11 +2,14 @@
  * A stripe across the top of any copy of this app that is NOT the published
  * site (owner ask 2026-08-20: "i think deploying to prod is too easy").
  *
- * Detection is the hostname, not a build flag, and that is deliberate: the
+ * Detection is where the page is being served from, never a build flag: the
  * candidate revision and the revision that later serves telarchy.com are the
- * SAME build, so nothing baked in at build time can tell them apart. Where the
- * page is being served from can. Anything that is not the public origin is not
- * the published site: the beta, a preview URL, a local dev server.
+ * SAME build, so nothing baked in can tell them apart. Two things mean "not
+ * the published site":
+ *
+ *  - the path is under /beta, which is the beta on the real domain, or
+ *  - the host is not telarchy.com at all (the candidate's own run.app URL,
+ *    a preview, a local dev server).
  *
  * It carries the Publish button itself, because the point of the gate is that
  * the press happens on the thing you just looked at.
@@ -21,7 +24,10 @@ const PUBLIC_ORIGIN = 'telarchy.com';
 export function isPublishedOrigin(): boolean {
   if (typeof window === 'undefined') return true;
   const h = window.location.hostname;
-  return h === PUBLIC_ORIGIN || h === `www.${PUBLIC_ORIGIN}`;
+  const onPublicHost = h === PUBLIC_ORIGIN || h === `www.${PUBLIC_ORIGIN}`;
+  const underBeta = window.location.pathname === '/beta'
+    || window.location.pathname.startsWith('/beta/');
+  return onPublicHost && !underBeta;
 }
 
 export function BetaBanner() {

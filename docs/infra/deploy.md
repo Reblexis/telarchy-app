@@ -130,7 +130,7 @@ smoke test the candidate's own URL    (fails here = never reachable at all)
    ↓
 STOP. The job summary prints where it is.
    ↓
-telarchy.com/beta   →  the candidate, whole app, real database
+telarchy.com/beta   →  the candidate, whole app, real database, your session
    ↓
 [Publish this build] on the beta's stripe
    ↓
@@ -156,11 +156,41 @@ is on the stripe at the top of every beta page (`BetaBanner`), backed by
 
 ### Reaching it
 
-- `telarchy.com/beta` redirects a platform admin to the current candidate.
-  Anyone else lands on the market list, so the page never announces that a beta
-  exists.
-- The candidate's direct URL is in the GitHub job summary, and in
-  `GET /api/admin/release`.
+**`telarchy.com/beta` IS the beta** (owner ask 2026-08-20: "couldnt u just host
+it directly on telarchy.com/beta? this way it would also better support other
+testers than me"). It is not a redirect. The revision serving telarchy.com
+forwards `/beta/*` to whichever revision carries the `candidate` tag, cookies
+and all, so:
+
+```
+telarchy.com/          published revision, published bundle
+telarchy.com/beta/     published revision proxies → candidate revision
+telarchy.com/beta/api/ same, so the beta exercises the beta's BACKEND
+```
+
+Same origin buys two things that a separate URL could not:
+
+- **Google login works.** Google only redirects to URIs registered on the OAuth
+  client. On its own run.app origin the beta answered every Google sign-in with
+  a redirect_uri error, and registering each future preview URL by hand in a
+  console is not a workflow.
+- **A tester needs no second session.** One cookie jar, so whoever is signed in
+  on telarchy.com is signed in on the beta.
+
+How it is built. A bundle's asset paths and API base are baked in at build
+time, so the frontend is built twice: once at `/` and once with
+`BASE_PATH=/beta/ VITE_API_URL=/beta` (`npm run build:beta` → `dist-beta`,
+served from `lib/public-beta`). Requests to `/beta/api/*` have the prefix
+stripped before routing, so the beta runs the SAME API handlers rather than a
+second copy that could drift.
+
+The prefix is a path SEGMENT: `/betamax` is a workspace slug and stays on the
+published site. `beta-surface.test.ts` pins that, because getting it wrong
+hands a visitor an unpublished build in place of a market.
+
+The candidate's direct run.app URL still works (it serves its own beta bundle
+when it has nothing to forward to) and is printed in the GitHub job summary and
+in `GET /api/admin/release`.
 
 ### Publishing without the button
 
@@ -179,12 +209,13 @@ gcloud run services update-traffic api --region us-central1 \
 
 ### Logging in on the beta
 
-The beta is a different origin, so it has its own cookie jar: your
-telarchy.com session does not carry over and you sign in again there. Same
-account, same database, and the login sticks, because the candidate tag URL is
-stable across deploys.
+On `telarchy.com/beta` you are already logged in: same origin, same cookie jar.
+That is the main reason it moved there (2026-08-20).
 
-That only works because `TRUSTED_ORIGINS` names the beta's origin in the deploy
+On the candidate's direct run.app URL it is a different origin with its own
+cookie jar, so you sign in again, and Google login does not work there at all
+(its redirect URI is not registered). Email and password do. That path only
+authenticates because `TRUSTED_ORIGINS` names the beta's origin in the deploy
 command. Without it BetterAuth answers every sign-in on the beta with
 `403 INVALID_ORIGIN`, nobody can log in, nobody sees the Publish button, and
 nothing can be published from it. Found by trying it (2026-08-20). A

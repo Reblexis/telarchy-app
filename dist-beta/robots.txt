@@ -1,0 +1,107 @@
+# Telarchy is designed to be read and used by AI agents.
+# Everything below is explicitly allowed; nothing is blocked.
+# Live API catalog:    https://telarchy.com/api/help
+# AI-readable summary: https://telarchy.com/llms.txt
+# Full text for LLMs:  https://telarchy.com/llms-full.txt
+# OpenAPI 3.1 spec:    https://telarchy.com/openapi.json
+# Agent manifest:      https://telarchy.com/.well-known/ai-plugin.json
+# A2A agent card:      https://telarchy.com/.well-known/agent.json
+# agents.json (tools): https://telarchy.com/.well-known/agents.json
+
+# Default: everyone allowed.
+User-agent: *
+Allow: /
+
+# Search crawlers
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+# AI training and answer-engine crawlers (explicit allow so the policy is auditable).
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: GoogleOther
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
+User-agent: cohere-training-data-crawler
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: Amazonbot
+Allow: /
+
+User-agent: Meta-ExternalAgent
+Allow: /
+
+User-agent: Meta-ExternalFetcher
+Allow: /
+
+User-agent: FacebookBot
+Allow: /
+
+User-agent: DiffbotBot
+Allow: /
+
+User-agent: Diffbot
+Allow: /
+
+User-agent: YouBot
+Allow: /
+
+User-agent: Kagibot
+Allow: /
+
+User-agent: MistralAI-User
+Allow: /
+
+Sitemap: https://telarchy.com/sitemap.xml

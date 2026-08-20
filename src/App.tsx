@@ -13,7 +13,6 @@ import { ManagePage } from './pages/ManagePage';
 import { ParticipantProfilePage } from './pages/ParticipantProfilePage';
 import { AdminPage } from './pages/AdminPage';
 import { DataRoomPage } from './pages/DataRoomPage';
-import { BetaPage } from './pages/BetaPage';
 import { BetaBanner } from './components/BetaBanner';
 
 /* The whole app is the public surface (owner decision 2026-08-19: get rid of
@@ -82,10 +81,10 @@ export function App() {
             cockpit") rather than restored from the deleted console. */}
         <Route path="/admin" element={<AdminPage />} />
 
-        {/* The door to the build waiting to be published (owner ask
-            2026-08-20). Platform-admin only; anyone else lands on the market
-            list, so the page never announces that a beta exists. */}
-        <Route path="/beta" element={<BetaPage />} />
+        {/* No /beta route: on telarchy.com the server owns that prefix and
+            forwards it to the build waiting to be published (owner ask
+            2026-08-20, functions/src/lib/beta-surface.ts). The beta is a whole
+            app served under /beta, not a page inside this one. */}
 
         {/* Operator switch, linked from nowhere. */}
         <Route path="/local" element={<LocalRedirect />} />

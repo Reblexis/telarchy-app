@@ -31,9 +31,9 @@ vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: mockUser, loadin
 
 import { BetaBanner, isPublishedOrigin } from '../BetaBanner';
 
-function setHost(hostname: string) {
+function setHost(hostname: string, pathname = '/') {
   Object.defineProperty(window, 'location', {
-    value: { ...window.location, hostname },
+    value: { ...window.location, hostname, pathname },
     writable: true,
   });
 }
@@ -46,7 +46,7 @@ afterEach(() => {
 
 describe('where the stripe shows', () => {
   test('telarchy.com is the published site and wears no stripe', () => {
-    setHost('telarchy.com');
+    setHost('telarchy.com', '/');
     expect(isPublishedOrigin()).toBe(true);
     const { container } = render(<BetaBanner />);
     expect(container).toBeEmptyDOMElement();
@@ -118,6 +118,32 @@ describe('when the session appears', () => {
     mockUser = { id: 'user-admin' };
     rerender(<BetaBanner />);
     await waitFor(() => expect(getRelease).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByText('Publish this build')).toBeTruthy());
+  });
+});
+
+describe('the beta on the real domain', () => {
+  test('telarchy.com/beta is not the published site', () => {
+    setHost('telarchy.com', '/beta');
+    expect(isPublishedOrigin()).toBe(false);
+  });
+
+  test('and neither is anything under it', () => {
+    setHost('telarchy.com', '/beta/lookpilot');
+    expect(isPublishedOrigin()).toBe(false);
+  });
+
+  test('a market whose slug merely starts with beta is still the real site', () => {
+    // /betamax is a workspace, not the beta. The boundary is the path
+    // SEGMENT, which is the same boundary the server proxies on.
+    setHost('telarchy.com', '/betamax');
+    expect(isPublishedOrigin()).toBe(true);
+  });
+
+  test('the stripe shows there, with the button for an admin', async () => {
+    setHost('telarchy.com', '/beta/');
+    render(<BetaBanner />);
+    expect(screen.getByText('Beta')).toBeTruthy();
     await waitFor(() => expect(screen.getByText('Publish this build')).toBeTruthy());
   });
 });

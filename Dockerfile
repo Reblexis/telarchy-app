@@ -26,6 +26,13 @@ COPY functions/src/types.ts ./functions/src/types.ts
 ARG VITE_API_URL=""
 ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
+# The SAME code, built a second time to live under /beta (owner ask
+# 2026-08-20: host the beta on telarchy.com so Google login works and a
+# tester needs no second account). A bundle's asset paths and API base are
+# baked at build time, so serving one build under two prefixes is not
+# possible; this is the whole reason for the second pass. tsc already ran
+# above, so this is the bundler only.
+RUN npm run build:beta
 
 # ── Runtime ────────────────────────────────────────────────────────────────────
 FROM node:22-alpine
@@ -38,6 +45,7 @@ COPY --from=backend-builder /app/functions/lib ./lib
 COPY functions/assets ./assets
 # Serve frontend static files — server.ts expects them at __dirname/public = lib/public
 COPY --from=frontend-builder /app/dist ./lib/public
+COPY --from=frontend-builder /app/dist-beta ./lib/public-beta
 
 ENV PORT=8080
 EXPOSE 8080

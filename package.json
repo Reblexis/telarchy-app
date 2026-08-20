@@ -21,7 +21,8 @@
     "test:db": "npx tsx scripts/test-db-consistency.ts",
     "migrate:participants": "node scripts/migrate-participant-identity.mjs",
     "test:ci": "npm --prefix functions run test:ci && npm run test:frontend",
-    "typecheck": "tsc -b && npm --prefix functions run build"
+    "typecheck": "tsc -b && npm --prefix functions run build",
+    "build:beta": "BASE_PATH=/beta/ VITE_API_URL=/beta vite build --outDir dist-beta"
   },
   "dependencies": {
     "better-auth": "^1.5.6",

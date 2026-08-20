@@ -44,6 +44,7 @@ if (fs.existsSync(envLocalPath)) {
 import { assertTreasuryConfigured } from './lib/usdc';
 import { runBootstrap } from './lib/bootstrap';
 import { shouldLogVisit } from './lib/visit-log';
+import { BETA_PREFIX, isBetaPath, proxyToCandidate } from './lib/beta-surface';
 
 /** Schedule a daily job at a fixed UTC time. Fires once at the next occurrence, then every 24 h. */
 function scheduleDailyUTC(hourUTC: number, minuteUTC: number, label: string, fn: () => Promise<void>): void {
@@ -109,6 +110,45 @@ import('./app').then(async ({ app }) => {
     if (r.fills > 0) console.log('Limit sweep:', r);
   });
   scheduleDailyUTC(0, 10, 'dailyMarketRefresh', runDailyRefresh);
+
+  /**
+   * The beta surface, on this domain (owner ask 2026-08-20). Order matters and
+   * this block must come before the site's own static and SPA handlers, or
+   * `/beta` is swallowed by the catch-all.
+   *
+   *  1. The revision serving telarchy.com forwards /beta/* to the candidate.
+   *  2. Any revision with nothing to forward to serves its OWN beta bundle,
+   *     so the URL is never a dead end and the run.app URL keeps working.
+   *
+   * See lib/beta-surface.ts for why this is a proxy rather than a redirect.
+   */
+  const publicBetaDir = path.join(__dirname, 'public-beta');
+  if (fs.existsSync(publicBetaDir)) {
+    app.use(BETA_PREFIX, express.static(publicBetaDir, {
+      setHeaders: (res, filePath) => {
+        res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+        if (filePath.endsWith('.html')) res.setHeader('Cache-Control', 'no-cache');
+        else if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+      },
+    }));
+  }
+  app.use(async (req, res, next) => {
+    if (!isBetaPath(req.path)) return next();
+    if (req.path === '/beta/api' || req.path.startsWith('/beta/api/')) return next();
+    if (await proxyToCandidate(req, res)) return;
+    // Nothing waiting: serve this build's own beta bundle, so the stripe can
+    // say "what you are looking at is what is published".
+    const betaIndex = path.join(publicBetaDir, 'index.html');
+    if (fs.existsSync(betaIndex)) {
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+      res.sendFile(betaIndex);
+      return;
+    }
+    next();
+  });
 
   // Serve frontend static files when bundled in self-hosted mode
   const publicDir = path.join(__dirname, 'public');
