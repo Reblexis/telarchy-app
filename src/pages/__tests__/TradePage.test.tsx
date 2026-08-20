@@ -641,3 +641,20 @@ describe('a notification link lands on what it names', () => {
     expect(await screen.findByRole('button', { name: 'if declined' })).toBeTruthy();
   });
 });
+
+/**
+ * Otto is ON the floor.
+ *
+ * The regression this pins (owner report 2026-08-20, "where is otto i dont
+ * see him"): the component, its styles and its endpoint all shipped, and
+ * nothing rendered it. main went red on an import that outran its component,
+ * the fix removed the import AND the render, and the render never came back.
+ * A component nobody mounts is indistinguishable from a component nobody
+ * wrote, and only the page can tell you which one you have.
+ */
+describe('the floor carries Otto', () => {
+  test('his dock is on the page', async () => {
+    renderFloor();
+    expect(await screen.findByRole('button', { name: /ask otto about lookpilot/i })).toBeTruthy();
+  });
+});

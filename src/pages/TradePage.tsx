@@ -14,6 +14,7 @@ import { FloorComments } from '../components/FloorComments';
 import { LeaderboardRail } from '../components/FloorRails';
 import { useMyParticipantId } from '../hooks/useMyParticipantId';
 import { AccountMenu } from '../components/AccountMenu';
+import { FloorChat } from '../components/FloorChat';
 import type { FloorRef } from '../lib/agent-prompt';
 import { NotificationsBell } from '../components/NotificationsBell';
 import { DiscordButton } from '../components/DiscordButton';
@@ -695,6 +696,16 @@ export function TradePage() {
         ready={!authLoading}
         floor={idOrSlug ? { idOrSlug, name: ws.name } : null}
       />
+      {/* Otto, in the corner rather than in the column (owner direction
+          2026-08-20): a reader needs him at whatever point of the page their
+          question arrives, and the page's job is the market. */}
+      {idOrSlug && (
+        <FloorChat
+          idOrSlug={idOrSlug}
+          workspaceName={ws.name}
+          metricLabel={selectedJob ? null : metricLabel}
+        />
+      )}
       <main className="pubws-main pubws-main--floor">
         <LeaderboardRail entries={leaders} contractors={ws?.topContractors} unit={unit} signedIn={!!user} meId={myParticipantId} />
         <div className="pubws-center">
