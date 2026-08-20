@@ -194,13 +194,33 @@ never fails the calling request either way. That is what local dev and the
 test suite run on, so nothing under test can write to a real person. The
 sending domain `telarchy.com` is verified in Resend.
 
-`ANTHROPIC_API_KEY` (Secret Manager secret `anthropic-api-key`, source of
-truth `keyring/anthropic/telarchy-agents.env`) powers the floor's Ask
-field (`POST /api/marketplace/:idOrSlug/ask`). Unset means the endpoint
-answers 503 and the field does not render, which is what local dev and
-tests run on. It is the one env var here that spends money per request:
-`ASK_LIMIT_MAX` (default 6 per 5 minutes per IP) is the ceiling, and it
-does not exempt API-key callers.
+`AI_GATEWAY_API_KEY` (Secret Manager secret `ai-gateway-api-key`) powers
+the floor's Ask field (`POST /api/marketplace/:idOrSlug/ask`). It is a
+**Vercel AI Gateway** key named `telarchy-floor-ask`, created against the
+`agent-economy` team with a hard $50 budget and no refresh, so the spend
+cannot run away: once it is gone the gateway answers 402, the endpoint
+answers 502, and the floor simply stops offering answers. Unset means 503
+and no field at all, which is what local dev and tests run on.
+
+The model is `openai/gpt-5.6-luna` ($0.20 in / $1.20 out per million
+tokens, about a tenth of a cent per question); `ASK_MODEL` overrides it
+with any gateway slug without a deploy. `ASK_LIMIT_MAX` (default 6 per 5
+minutes per IP) is the second ceiling and does not exempt API-key callers.
+
+To read the remaining budget, or to top it up:
+
+```bash
+source ~/keyring/secrets/vercel-ai-gateway.env   # VERCEL_AI_GATEWAY_API_KEY
+ENTITY=api_key_id_<the key id>
+curl -s -H "Authorization: Bearer $VERCEL_AI_GATEWAY_API_KEY" \
+  "https://ai-gateway.vercel.sh/v1/quotas?quotaEntityId=$ENTITY"
+curl -s -X PATCH -H "Authorization: Bearer $VERCEL_AI_GATEWAY_API_KEY" \
+  -H 'Content-Type: application/json' -d '{"limitAmount":100}' \
+  "https://ai-gateway.vercel.sh/v1/quotas?quotaEntityId=$ENTITY"
+```
+
+The same create-key-with-a-budget call is what `key-desk` in the
+agent-economy umbrella does for agents; this is one more key on that team.
 
 Participant mail also needs `BETTER_AUTH_URL` (or it falls back to
 `https://telarchy.com`), because every one of those emails carries a link

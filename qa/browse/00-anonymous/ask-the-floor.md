@@ -23,7 +23,7 @@ the floor a question": the brief is one read with everything needed to price
 the floor, a document appears only where the owner published it, and answers
 come from the brief alone.
 
-Answers need `ANTHROPIC_API_KEY` on the instance. Where it is unset the
+Answers need `AI_GATEWAY_API_KEY` on the instance (a Vercel AI Gateway key). Where it is unset the
 endpoint answers 503 by design and T4 is the whole of what runs.
 
 ## Setup

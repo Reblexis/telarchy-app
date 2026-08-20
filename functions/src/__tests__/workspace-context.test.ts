@@ -130,19 +130,19 @@ describe('the workspace brief', () => {
 describe('asking the floor', () => {
   test('is off, and says so, when no model is configured', async () => {
     await seed();
-    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.AI_GATEWAY_API_KEY;
     const res = await request(app).post(`/api/marketplace/${WS}/ask`).send({ question: 'What do you sell?' });
     expect(res.status).toBe(503);
   });
 
   test('refuses an empty or oversized question before spending anything', async () => {
     await seed();
-    process.env.ANTHROPIC_API_KEY = 'test-key';
+    process.env.AI_GATEWAY_API_KEY = 'test-key';
     const empty = await request(app).post(`/api/marketplace/${WS}/ask`).send({ question: '   ' });
     expect(empty.status).toBe(400);
     const huge = await request(app).post(`/api/marketplace/${WS}/ask`).send({ question: 'x'.repeat(501) });
     expect(huge.status).toBe(400);
-    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.AI_GATEWAY_API_KEY;
   });
 });
 

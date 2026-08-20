@@ -953,7 +953,7 @@ marketplaceRouter.post('/:workspaceId/ask', wrap(async (req, res) => {
     const { answer, usage } = await askAboutWorkspace(renderContextMarkdown(context), question);
     // Logged, not returned: what a question costs is the operator's business
     // and a visitor reading an answer has no use for a token count.
-    console.log(`ask ${ws.slug ?? ws.id}: ${usage.input} in (${usage.cachedInput} cached), ${usage.output} out`);
+    console.log(`ask ${ws.slug ?? ws.id}: ${usage.input} in (${usage.cachedInput} cached), ${usage.output} out, $${usage.costUsd ?? '?'}`);
     res.json({ answer });
   } catch (e) {
     console.error('ask failed:', e);
