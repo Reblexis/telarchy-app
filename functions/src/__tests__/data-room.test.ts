@@ -27,7 +27,11 @@ import { db, ensureMigrations, truncateAll } from './harness/test-db';
 import { agents, markets, metrics, metricLogs, pageVisits, proposals, workspaces } from '../db/schema';
 import { initialPool } from '../lib/amm';
 import { toUnits } from '../lib/validation';
-import { dataRoomRouter, parseDataRoomContent, clearDataRoomCache } from '../routes/data-room';
+import { dataRoomRouter } from '../routes/data-room';
+import {
+  parseDataRoomContent, clearDataRoomCache, buildDataRoomFeed,
+  renderDataRoomIndex, renderDataRoomSection,
+} from '../services/data-room';
 import { DATA_ROOM_MARKDOWN, KNOWN_BLOCKS } from '../content/data-room';
 import { AppError } from '../lib/errors';
 
@@ -185,5 +189,43 @@ describe('traffic counts what the cockpit counts', () => {
     expect(body.evidence.traffic.byDay).toHaveLength(1);
     expect(body.evidence.traffic.byDay[0].visits).toBe(1);
     expect(body.evidence.traffic.totalVisits).toBe(1);
+  });
+});
+
+/**
+ * Otto reads the data room himself rather than carrying it in every brief
+ * (owner direction 2026-08-20). What matters here is that what he reads is
+ * the same object the page renders, in a shape he can quote.
+ */
+describe('what Otto browses', () => {
+  it('lists the sections, then reads one with its figures attached', async () => {
+    await seed();
+    const feed = await buildDataRoomFeed();
+
+    const index = renderDataRoomIndex(feed);
+    for (const s of feed.doc.sections) expect(index).toContain(s.id);
+    expect(index).toContain('read_data_room');
+
+    const section = renderDataRoomSection(feed, 'the-market-on-itself');
+    // The prose exactly as published, and the live figures under it.
+    expect(section).toContain('running on itself');
+    expect(section).toContain('Active traders');
+    expect(section).toContain("the market's call");
+  });
+
+  it('says which sections exist rather than inventing the one asked for', async () => {
+    await seed();
+    const feed = await buildDataRoomFeed();
+    const out = renderDataRoomSection(feed, 'revenue');
+    expect(out).toMatch(/No section "revenue"/);
+    expect(out).toContain('traffic');
+  });
+
+  it('renders a figure it does not have as not published, never as zero', async () => {
+    await seed();
+    const feed = await buildDataRoomFeed();
+    // The traffic rollup is empty on a fresh database: keptSince is null, and
+    // "since 0" would read as a measurement rather than as an absence.
+    expect(renderDataRoomSection(feed, 'traffic')).toContain('not published');
   });
 });

@@ -5,6 +5,7 @@ import { eq, ne, and, gt, gte, count, desc, asc, inArray, like, sql } from 'driz
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { platformStats } from '../services/platform-stats';
+import { dataRoomTool } from '../services/data-room';
 import { authMiddleware } from '../middleware/auth';
 import { requireIdentity } from '../middleware/roles';
 import { consensus, pHigher } from '../lib/amm';
@@ -940,7 +941,12 @@ marketplaceRouter.post('/:workspaceId/ask', wrap(async (req, res) => {
   };
 
   try {
-    const { answer, usage } = await askAboutWorkspace(renderContextMarkdown(context), turns);
+    // Otto gets the floor's brief as fixed context and one door he can open
+    // himself: Telarchy's data room (owner direction 2026-08-20). Pasting the
+    // data room into every brief would charge every visitor on every floor for
+    // a document most of them never ask about.
+    const { answer, usage } = await askAboutWorkspace(
+      renderContextMarkdown(context), turns, [dataRoomTool()]);
     console.log(`ask ${ws.slug ?? ws.id}: ${usage.input} in (${usage.cachedInput} cached), ${usage.output} out, $${usage.costUsd ?? '?'}`);
     // Every question is kept, with its answer (owner ask 2026-08-20): a row
     // here is a gap in the floor said in a visitor's own words, and the answer

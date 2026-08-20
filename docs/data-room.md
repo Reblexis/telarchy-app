@@ -92,6 +92,26 @@ Three things stay private on purpose:
 - **Email addresses and the waitlist.** Signup counts are published; who signed
   up is not.
 
+## Otto browses it; it is not in his context
+
+The floor's answer service (Otto, `functions/src/lib/ask.ts`) is handed the
+floor's brief as fixed context and one tool, `read_data_room`, which reads the
+index and then one section at a time from the same cached feed the page
+renders. Owner direction 2026-08-20: "he should be able to browse it itself,
+not force fed the context".
+
+That split is deliberate. The brief is identical for every visitor on a floor,
+which is what lets an upstream cache hit it; pasting the data room into it
+would charge every visitor on every floor for a document most of them never ask
+about, and bury the company they came to read. As a tool it costs only the
+visitors who want it, and because he reads the same feed object, he cannot
+quote a number the page does not show.
+
+He gets at most three tool rounds, and the last request is sent without tools
+so a model that keeps reaching for one has to answer instead. A lookup that
+fails is handed back to him as text saying so, never swallowed: he is allowed
+to say the data room would not open, and never to invent what it said.
+
 ## The change log is the git history
 
 `shipping` is generated from `git log` of this repository by
