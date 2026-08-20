@@ -147,6 +147,13 @@ describe('asking the floor', () => {
 });
 
 describe('the answer prompt', () => {
+  test('bans markdown, which the floor would print as asterisks', async () => {
+    // The first live answer came back with **bold** in it, and .askfloor-a
+    // renders text, not markdown, so the reader saw the asterisks.
+    const { readFileSync } = await import('fs');
+    expect(readFileSync(`${__dirname}/../lib/ask.ts`, 'utf8')).toContain('no markdown');
+  });
+
   test('bans the dash the house style bans', async () => {
     // The answer is user-facing copy on the owner's own site, and the one
     // typographic rule this repo has is no em dashes. A model writes them by

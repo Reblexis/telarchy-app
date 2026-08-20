@@ -46,6 +46,7 @@ Rules:
 - Quote real numbers from the brief when they answer the question, with their date or horizon.
 - Be brief: two to five sentences, or a short list when the question asks for several things. No preamble, no restating the question, no sign-off.
 - Plain words. The reader may be new to prediction markets.
+- Plain sentences, no markdown: no **bold**, no bullet syntax, no headings. The floor prints your answer as written, so an asterisk is an asterisk on the page.
 - Never use an em dash or an en dash. Use a comma, a colon, parentheses, or two sentences. This is the site's house style and a dash is the one thing its owner will notice.`;
 
 export interface AskResult {
