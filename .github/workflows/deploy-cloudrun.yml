@@ -243,7 +243,31 @@ jobs:
           done
           [ -n "$ok" ] || { echo "candidate failed smoke test; NOT promoting (prod still serves the previous revision)"; exit 1; }
 
-      - name: Promote candidate to 100% traffic
+      # NO AUTOMATIC PROMOTE (owner decision 2026-08-20: "i think deploying to
+      # prod is too easy"). A green build lands here as a revision carrying no
+      # traffic and stops. telarchy.com keeps serving whatever it served
+      # before; the new code exists only at the candidate's own URL, which
+      # telarchy.com/beta sends a platform admin to. It goes public when the
+      # owner presses Publish on the beta, which shifts traffic to the exact
+      # revision they were looking at (POST /api/admin/publish, see
+      # functions/src/services/release.ts and docs/infra/deploy.md).
+      #
+      # To publish from a terminal instead:
+      #   gcloud run services update-traffic api --region us-central1 --to-latest
+      - name: Report the candidate, do not promote
         if: steps.auth_check.outputs.skip != 'true'
         run: |
-          gcloud run services update-traffic api --region us-central1 --to-latest --quiet
+          set -euo pipefail
+          CAND_URL=$(gcloud run services describe api --region us-central1 --format=json \
+            | python3 -c "import sys,json; t=json.load(sys.stdin).get('status',{}).get('traffic',[]); print(next((x.get('url','') for x in t if x.get('tag')=='candidate'), ''))")
+          {
+            echo "### Waiting to be published"
+            echo ""
+            echo "Tests passed and this build is live at its own URL, with no public traffic."
+            echo ""
+            echo "- Beta: <https://telarchy.com/beta> (platform admin only)"
+            echo "- Direct: <$CAND_URL>"
+            echo ""
+            echo "telarchy.com is still serving the previous build. Press **Publish this build**"
+            echo "on the beta when it looks right."
+          } >> "$GITHUB_STEP_SUMMARY"

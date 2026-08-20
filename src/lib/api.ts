@@ -949,6 +949,17 @@ export const api = {
   /** Edit a contract's definition: its words in place, its price only while
    *  the pair is untraded (docs/market-integrity.md, I1b). The proposer or a
    *  workspace manager; the server decides which. */
+  /** What is published and what is waiting (platform admin only). */
+  getRelease: () => request('/api/admin/release') as Promise<{
+    serving: string | null;
+    candidate: { revision: string; url: string } | null;
+    running: string | null;
+    isServing: boolean;
+    error: string | null;
+  }>,
+  /** Give the revision answering this request 100% of the traffic. Pressed on
+   *  the beta, so it publishes the build you are looking at. */
+  publishRelease: () => request('/api/admin/publish', { method: 'POST', body: JSON.stringify({}) }),
   editProposal: (id: string, body: { title?: string; description?: string; askUsd?: number | null }) =>
     request(`/api/proposals/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   /** What changed on a contract, oldest first. */

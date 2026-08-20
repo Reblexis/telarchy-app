@@ -110,13 +110,102 @@ the `GCP_WORKLOAD_IDENTITY_PROVIDER` variable), so you can start with
 Option B and migrate to Option A later by adding the variables and
 removing the secret.
 
+## Nothing reaches the public until you press Publish
+
+**Changed 2026-08-20 (owner: "i think deploying to prod is too easy").** A push
+to `main` no longer changes what a visitor sees. The pipeline lands the build
+and stops; telarchy.com keeps serving the previous revision until a human
+presses a button.
+
+```
+push to main
+   ↓
+checks + backend suite green          (a red suite deploys nothing)
+   ↓
+migrations run against prod           (expand/contract, old revision still serving)
+   ↓
+deploy --no-traffic --tag candidate   (the new build, 0% of traffic)
+   ↓
+smoke test the candidate's own URL    (fails here = never reachable at all)
+   ↓
+STOP. The job summary prints where it is.
+   ↓
+telarchy.com/beta   →  the candidate, whole app, real database
+   ↓
+[Publish this build] on the beta's stripe
+   ↓
+traffic → 100% to that exact revision
+```
+
+**The beta is the whole app, not a preview of the frontend.** The candidate
+revision serves its own API from its own container, so a beta page's requests
+hit the beta's backend. That matters because the backend is where the risk
+lives: the three bugs that reached production in the week before this gate
+existed (a marking convention, an anchored price replay, a voided market slot)
+were all server-side, and a frontend-only preview would have caught none of
+them.
+
+**It shares the production database.** A contract you post or a trade you place
+while testing on the beta is real and appears on the live floor. That is the
+price of testing against real data; there is no second database.
+
+**Publish publishes the revision you are looking at**, not "latest". If CI
+lands another build while you are reading, that one waits its turn. The button
+is on the stripe at the top of every beta page (`BetaBanner`), backed by
+`POST /api/admin/publish`, platform-admin only.
+
+### Reaching it
+
+- `telarchy.com/beta` redirects a platform admin to the current candidate.
+  Anyone else lands on the market list, so the page never announces that a beta
+  exists.
+- The candidate's direct URL is in the GitHub job summary, and in
+  `GET /api/admin/release`.
+
+### Publishing without the button
+
+```bash
+gcloud run services update-traffic api --region us-central1 --to-latest
+```
+
+### Rolling back
+
+Same command, naming the revision:
+
+```bash
+gcloud run services update-traffic api --region us-central1 \
+  --to-revisions <PREVIOUS_REVISION>=100
+```
+
+### The permission behind the button
+
+The runtime service account holds a custom project role,
+`telarchyReleasePublisher` (`run.services.get`, `run.services.update`,
+`run.revisions.get`, `run.revisions.list`), bound **on the `api` service
+only**. It deliberately is not `roles/run.admin`, which would also let a
+compromised admin session delete the service. Recreate it with:
+
+```bash
+gcloud iam roles create telarchyReleasePublisher --project=telarchy-e0043 \
+  --title="Telarchy release publisher" --stage=GA \
+  --permissions=run.services.get,run.services.update,run.revisions.get,run.revisions.list
+gcloud run services add-iam-policy-binding api --region us-central1 \
+  --member="serviceAccount:429618975282-compute@developer.gserviceaccount.com" \
+  --role="projects/telarchy-e0043/roles/telarchyReleasePublisher"
+```
+
+Off Cloud Run there is no metadata server, so `releaseState()` reads as unknown
+and publishing refuses. That is why local dev shows the stripe (localhost is
+not the published origin) but no working button.
+
 ## What the workflow does
 
 On `push` to `main` (or `workflow_dispatch`):
 
 1. Checks out the repo.
 2. Auths to GCP (WIF if configured, SA key otherwise).
-3. Runs the same `gcloud run deploy` command as `npm run deploy`.
+3. Runs the tests, the migrations, and `gcloud run deploy --no-traffic --tag candidate`.
+4. Smoke-tests the candidate and stops without promoting.
 
 That's it. Cloud Build does the actual image build server-side (faster
 than running `docker build` on the GitHub runner because Cloud Build

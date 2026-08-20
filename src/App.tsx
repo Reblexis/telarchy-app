@@ -13,6 +13,8 @@ import { ManagePage } from './pages/ManagePage';
 import { ParticipantProfilePage } from './pages/ParticipantProfilePage';
 import { AdminPage } from './pages/AdminPage';
 import { DataRoomPage } from './pages/DataRoomPage';
+import { BetaPage } from './pages/BetaPage';
+import { BetaBanner } from './components/BetaBanner';
 
 /* The whole app is the public surface (owner decision 2026-08-19: get rid of
    the old GUI). Every route below renders a standalone `.pubws` page. There
@@ -45,6 +47,9 @@ function LocalRedirect() {
 export function App() {
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || '/'}>
+      {/* Renders nothing on telarchy.com. Anywhere else, it says so, and
+          carries the Publish button. */}
+      <BetaBanner />
       <Routes>
         {/* The market list IS the home page (owner direction 2026-08-20).
             telarchy.com used to bounce straight to one company's market,
@@ -76,6 +81,11 @@ export function App() {
             floor's language 2026-08-19 (docs/ui-conventions.md, "The
             cockpit") rather than restored from the deleted console. */}
         <Route path="/admin" element={<AdminPage />} />
+
+        {/* The door to the build waiting to be published (owner ask
+            2026-08-20). Platform-admin only; anyone else lands on the market
+            list, so the page never announces that a beta exists. */}
+        <Route path="/beta" element={<BetaPage />} />
 
         {/* Operator switch, linked from nowhere. */}
         <Route path="/local" element={<LocalRedirect />} />

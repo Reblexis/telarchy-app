@@ -10,6 +10,7 @@ import { AppError } from '../lib/errors';
 import { resolutionInstant } from '../lib/date-utils';
 import { classifyIps } from '../lib/ip-classify';
 import { isPlatformAuthorized } from '../lib/platform-admin';
+import { releaseState, publishRevision } from '../services/release';
 import { getParticipantDisplayNames } from '../lib/participants';
 import { humanVisitFilter } from '../lib/visit-log';
 
@@ -513,4 +514,46 @@ adminRouter.get('/markets/featured', wrap(async (req, res) => {
     active: markets.active,
   }).from(markets).where(eq(markets.featured, true));
   res.json(rows.map(r => ({ ...r, resolvesOn: resolutionInstant(r.targetDate) })));
+}));
+
+/**
+ * What is published, and what is waiting (owner ask 2026-08-20: "i think
+ * deploying to prod is too easy").
+ *
+ * CI lands every green build as a no-traffic revision and stops; this says
+ * whether one is waiting, where to look at it, and whether the process
+ * answering you IS the published site. `/beta` reads it to find the door;
+ * `/admin` reads it to decide whether to offer the button.
+ */
+adminRouter.get('/release', wrap(async (req, res) => {
+  if (!(await isPlatformAuthorized(req))) {
+    throw new AppError('Platform admin or master key required', 403);
+  }
+  res.json(await releaseState());
+}));
+
+/**
+ * Publish: give the revision answering this request 100% of the traffic.
+ *
+ * Deliberately not "promote latest". The button lives on the beta, so the
+ * thing published is the thing the owner just looked at; if CI landed another
+ * build while they were reading, that one waits its turn rather than riding
+ * along unseen.
+ */
+adminRouter.post('/publish', wrap(async (req, res) => {
+  if (!(await isPlatformAuthorized(req))) {
+    throw new AppError('Platform admin or master key required', 403);
+  }
+  const state = await releaseState();
+  if (state.isServing) {
+    throw new AppError('This revision is already serving telarchy.com; there is nothing to publish', 409);
+  }
+  const revision = typeof req.body?.revision === 'string' && req.body.revision ? req.body.revision : undefined;
+  try {
+    const result = await publishRevision(revision);
+    console.log('release: published', result.published, 'by', req.auth?.uid ?? req.auth?.agentId ?? 'master-key');
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    throw new AppError((e as Error).message, 502);
+  }
 }));
