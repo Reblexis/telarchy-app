@@ -357,10 +357,13 @@ accounts (`season-entry-verify-bot`, `gate-verify-bot2`, `nopay-bot`,
 anyone. They carry the flag now. Their entries stay rather than being deleted:
 an entry table that gets edited is a record nobody can check afterwards.
 
-Also found there, and worth recording because every count until then said
-zero: `patrik-hal` entered on 2026-08-20 at 09:31 UTC. The first outside
-entrant. They do not appear on the leaderboard because they have not traded,
-which is why the standings read as operator-only.
+Also found there: `patrik-hal` entered on 2026-08-20 at 09:31 UTC, invisible on
+the leaderboard because they have not traded. Recorded here because it was
+briefly mistaken for the first outside entrant and it is not (owner, same day:
+"thats my brother"). **Outside entrants stand at zero**, which is what the
+season's own falsifier is measured against. He is a real person trading his own
+money's worth of credits, so he stays eligible under the rule as written; he is
+simply not evidence that the season reached anyone.
 
 Viktor's own participant account stays eligible (owner decision 2026-08-20):
 the rule names accounts operated by the platform, and the founder trading his
