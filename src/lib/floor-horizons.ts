@@ -1,12 +1,14 @@
 /**
  * One horizon of a floor, as everything on the page needs it.
  *
- * A floor shows ONE horizon: the furthest-resolving open market (owner
- * direction 2026-08-17, the second clock removed as "too confusing"). Every
- * surface needs the same handful of facts about it: its market, its price
+ * A floor opens on ONE horizon, the furthest-resolving open market, and a
+ * reader can step to the others with the arrows beside the metric's name
+ * (owner ask 2026-08-20, reversing the 2026-08-17 direction that removed the
+ * second clock as "too confusing": what was confusing was two clocks shown at
+ * once, and the reason to bring them back is that a floor with one market
+ * gives a trader nothing to do after their first bet). Every surface needs the
+ * same handful of facts about whichever one is selected: its market, its price
  * series, its metric's history, where its period starts, and what to call it.
- * A workspace may still have other open markets and the API still serves
- * them; the floor does not offer them.
  *
  * Those facts used to be re-derived at each use site from the position of an
  * element in `ws.markets`, and the surfaces disagreed the moment the order
@@ -192,6 +194,40 @@ export function buildHorizonViews(
  */
 export function primaryHorizonOf(views: HorizonView[]): HorizonView | null {
   return views[0] ?? null;
+}
+
+/**
+ * The horizon a reader has stepped to, resolved BY MARKET ID.
+ *
+ * Selection travels as an identity, never as an index, for the same reason
+ * price series do: the payload's order is the server's business, and a
+ * workspace growing or resolving a market must not silently re-point the page
+ * at a different number. An id that is no longer open falls back to the
+ * primary, which is what a reader sees after the market they were looking at
+ * settles under them.
+ */
+export function horizonById(views: HorizonView[], marketId: string | null | undefined): HorizonView | null {
+  if (!marketId) return primaryHorizonOf(views);
+  return views.find(v => v.marketId === marketId) ?? primaryHorizonOf(views);
+}
+
+/**
+ * The next horizon in reading order, or null at the ends (owner ask
+ * 2026-08-20: "switchable via arrows next to the market name").
+ *
+ * Null rather than wrapping around: an arrow that never disables gives a
+ * reader no way to tell how many clocks there are, and a list of two that
+ * cycles forever reads as a carousel rather than as a choice.
+ */
+export function stepHorizon(
+  views: HorizonView[],
+  marketId: string | null | undefined,
+  delta: 1 | -1,
+): HorizonView | null {
+  const current = horizonById(views, marketId);
+  if (!current) return null;
+  const at = views.findIndex(v => v.marketId === current.marketId);
+  return views[at + delta] ?? null;
 }
 
 export type PriceSeries = Array<{ at: string; consensus: number | null }>;

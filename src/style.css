@@ -2119,6 +2119,36 @@ button.notif-row-link {
   color: var(--text-secondary);
 }
 
+/* The metric caption with a way to the floor's other clocks (owner ask
+   2026-08-20). The arrows sit ON the caption's line rather than under the
+   number, because what they change is which instrument the page is about, and
+   a control that lives next to the price reads as changing the price. */
+.pubws-instrument {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.pubws-hstep {
+  padding: 0 0.15rem;
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: color 0.12s ease;
+}
+
+.pubws-hstep:hover:not(:disabled),
+.pubws-hstep:focus-visible { color: var(--accent); outline: none; }
+
+/* Disabled, never hidden: an arrow that appears and disappears as you step is
+   a moving target, and its absence is how a reader knows they are at the end. */
+.pubws-hstep:disabled { opacity: 0.28; cursor: default; }
+
 
 .pubws-price {
   margin: 0.4rem 0 0.2rem;
@@ -5189,24 +5219,31 @@ textarea.jobform-line--desc {
   padding: clamp(2.5rem, 8vh, 5rem) 1.25rem 5rem;
 }
 
-.mkt-head {
-  margin: 0;
+/* The home page opens on the claim, not on a label. The sentence carries the
+   weight a title used to, so it takes the display face and a measure narrow
+   enough to break into two or three lines rather than one long ruler. */
+.mkt-thesis {
+  margin: 0 auto;
+  max-width: 20ch;
   font-family: 'Fraunces', serif;
   font-optical-sizing: auto;
   font-weight: 600;
-  font-size: clamp(1.75rem, 6vw, 2.4rem);
-  letter-spacing: -0.02em;
+  font-size: clamp(1.9rem, 5.2vw, 3rem);
+  line-height: 1.12;
+  letter-spacing: -0.025em;
   text-align: center;
+  text-wrap: balance;
 }
 
 /* The one place the whole mechanism is stated in plain words. */
 .mkt-lead {
-  margin: 0.9rem auto clamp(2rem, 5vh, 3rem);
-  max-width: 38rem;
+  margin: 1rem auto clamp(2rem, 5vh, 3rem);
+  max-width: 34rem;
   text-align: center;
-  font-size: 1rem;
-  line-height: 1.6;
+  font-size: 1.02rem;
+  line-height: 1.55;
   color: var(--text-secondary);
+  text-wrap: pretty;
 }
 
 /* The grid's own loading state: the market page's call-dot motif, held in

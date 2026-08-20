@@ -916,6 +916,44 @@ judgment, rather than by a market with no traders in it.
 If it comes back, it comes back as a deliberate feature with its own doc
 section, not by re-adding a role enum to `floor-horizons.ts`.
 
+**It came back on 2026-08-20 (Viktor): "switchable via arrows next to the
+market name".** This is that section.
+
+What is different from the version that was removed. The floor still shows
+**one** clock at a time, and it still opens on the furthest-resolving market:
+what got called confusing was two clocks on the page at once, each surface
+having to say which one it meant. A reader now steps between them with a `‹`
+and a `›` on the metric caption's own line, and every surface below follows the
+selection because they all already read one `HorizonView`.
+
+Why it is worth having at all, given the honest evidence against it: LookPilot's
+weekly market took zero trades in its entire life, which is the strongest
+argument that nobody wants a second clock. The thing that changed is the
+problem being solved. In August the second clock was a Goodhart defence nobody
+priced. Now it is the answer to a different question: the public platform has
+two live markets in total, both settling six weeks out, so a trader who arrives
+places one bet and has nothing to do until October. A weekly market that
+settles on Sunday is the only thing on the board that pays a forecaster inside
+the span of their own attention.
+
+The rules that keep it from rotting back into the 2026-08-16 bug family:
+
+- **Selection is a market id, never an index.** `horizonById` resolves it and
+  falls back to the primary when the id is gone, which is what a reader sees
+  after the market they were watching settles under them. `stepHorizon` walks
+  the list. No role enum came back, and no surface reads meaning out of a
+  position.
+- **Both arrows render whenever the floor has more than one market**, and the
+  one at the end of the list is disabled rather than hidden. An arrow that
+  appears and disappears as you step is a moving target, and its dimming is how
+  a reader learns how many clocks there are.
+- **The arrows sit on the caption's line, not under the price.** What they
+  change is which instrument the page is about; a control next to the number
+  reads as changing the number.
+- **No per-horizon role caption, and no cross-horizon conflict mark on the
+  ballot.** Those were the expensive half of the old feature and they stay
+  deleted.
+
 **Revised 2026-08-17 (Viktor), the leaderboard is a public page.** The
 market page's left rail lists the top **ten** traders and the top ten
 contractors (was five of each), and ends with one quiet "Show full

@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
-  buildHorizonViews, captionLabel, currencyOf, horizonLabel, metricLabelOf, priceSeriesOf, primaryHorizonOf, settleDayOf,
+  buildHorizonViews, captionLabel, currencyOf, horizonById, horizonLabel, metricLabelOf, priceSeriesOf,
+  primaryHorizonOf, settleDayOf, stepHorizon,
 } from '../floor-horizons';
 import type { PublicWorkspace } from '../api';
 
@@ -230,5 +231,45 @@ describe('captionLabel', () => {
     expect(captionLabel('LookPilot', 'LookPilot')).toBe('LookPilot');
     expect(captionLabel('LookPilot net 2026', '')).toBe('LookPilot net 2026');
     expect(captionLabel('LookPilot net 2026', null)).toBe('LookPilot net 2026');
+  });
+});
+
+
+/**
+ * Stepping between clocks (owner ask 2026-08-20: arrows beside the metric's
+ * name). Selection is a market id, never an index, so the cases that matter
+ * are the ones where the list changes underneath a held selection.
+ */
+describe('stepping between horizons', () => {
+  const views = buildHorizonViews(ws());   // [year, week], furthest first
+
+  test('no selection opens on the primary', () => {
+    expect(horizonById(views, null)?.marketId).toBe('m-year');
+    expect(horizonById(views, undefined)?.marketId).toBe('m-year');
+  });
+
+  test('a held id survives, and a stale one falls back rather than blanking', () => {
+    expect(horizonById(views, 'm-week')?.marketId).toBe('m-week');
+    // The market a reader was looking at settled under them.
+    expect(horizonById(views, 'm-gone')?.marketId).toBe('m-year');
+  });
+
+  test('the arrows walk the list in reading order and stop at the ends', () => {
+    expect(stepHorizon(views, 'm-year', 1)?.marketId).toBe('m-week');
+    expect(stepHorizon(views, 'm-week', -1)?.marketId).toBe('m-year');
+    // No wrap-around: the end of the list is how a reader knows it is the end.
+    expect(stepHorizon(views, 'm-year', -1)).toBeNull();
+    expect(stepHorizon(views, 'm-week', 1)).toBeNull();
+  });
+
+  test('a floor with one market offers no step at all', () => {
+    const one = buildHorizonViews(ws({ markets: [YEAR] }));
+    expect(stepHorizon(one, 'm-year', 1)).toBeNull();
+    expect(stepHorizon(one, 'm-year', -1)).toBeNull();
+  });
+
+  test('an empty floor steps to nothing instead of throwing', () => {
+    expect(stepHorizon([], 'm-year', 1)).toBeNull();
+    expect(horizonById([], 'm-year')).toBeNull();
   });
 });

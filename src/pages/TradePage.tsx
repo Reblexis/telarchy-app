@@ -23,7 +23,8 @@ import { ReportButton } from '../components/ReportButton';
 import { Logo } from '../components/Logo';
 import type { LeaderboardEntry, LimitOrder } from '../lib/api';
 import {
-  buildHorizonViews, captionLabel, priceSeriesIsInline, priceSeriesOf, primaryHorizonOf, settleDayOf,
+  buildHorizonViews, captionLabel, horizonById, priceSeriesIsInline, priceSeriesOf, settleDayOf,
+  stepHorizon,
   type HorizonView, type PriceSeries,
 } from '../lib/floor-horizons';
 
@@ -299,12 +300,18 @@ export function TradePage() {
     setCondHistory(null);
   }, [selectedJobId]);
 
-  // One clock (owner direction 2026-08-17, the second one removed as "too
-  // confusing"): the floor is about the furthest-resolving market and nothing
-  // else. buildHorizonViews owns the order and primaryHorizonOf answers which
-  // one is the real one, so nothing here reads meaning out of an index.
+  // The floor OPENS on the furthest-resolving market and the arrows beside the
+  // metric's name step to the others (owner ask 2026-08-20, reversing the
+  // 2026-08-17 "one clock" direction: what was confusing was two clocks shown
+  // at once, and one market is a floor a trader has nothing left to do on).
+  // Selection is held as a market id, never an index: buildHorizonViews owns
+  // the order and horizonById answers which one is on screen, so a resolved
+  // market or a reordered payload cannot silently re-point the page.
   const horizons: HorizonView[] = useMemo(() => buildHorizonViews(ws), [ws]);
-  const hero = primaryHorizonOf(horizons);
+  const [horizonId, setHorizonId] = useState<string | null>(null);
+  const hero = horizonById(horizons, horizonId);
+  const prevHorizon = stepHorizon(horizons, horizonId, -1);
+  const nextHorizon = stepHorizon(horizons, horizonId, 1);
   const unit = hero?.unit ?? '';
   const metricLabel = hero?.metricLabel ?? '';
   const selectedJob = ws?.proposals?.find(p => p.id === selectedJobId) ?? null;
@@ -951,9 +958,33 @@ export function TradePage() {
                  when it lands. It is a caption, not a headline: with the
                  company named above, this line's only job is to say what
                  the big number underneath measures. */
-              <h2 className="pubws-instrument-label pubws-enter pubws-enter--1">
-                {captionLabel(metricLabel, ws.name)}
-              </h2>
+              /* One clock at a time, with a way to the others. Both arrows
+                 are rendered whenever the floor has more than one market, and
+                 the one at the end of the list is disabled rather than hidden:
+                 an arrow that appears and disappears as you step is a moving
+                 target, and a reader cannot tell how many clocks exist from a
+                 control that keeps changing shape. */
+              <div className="pubws-instrument pubws-enter pubws-enter--1">
+                {horizons.length > 1 && (
+                  <button
+                    className="pubws-hstep"
+                    onClick={() => prevHorizon && setHorizonId(prevHorizon.marketId)}
+                    disabled={!prevHorizon}
+                    aria-label={prevHorizon ? `Show ${prevHorizon.metricLabel}, ${prevHorizon.label}` : 'No later market'}
+                  >‹</button>
+                )}
+                <h2 className="pubws-instrument-label">
+                  {captionLabel(metricLabel, ws.name)}
+                </h2>
+                {horizons.length > 1 && (
+                  <button
+                    className="pubws-hstep"
+                    onClick={() => nextHorizon && setHorizonId(nextHorizon.marketId)}
+                    disabled={!nextHorizon}
+                    aria-label={nextHorizon ? `Show ${nextHorizon.metricLabel}, ${nextHorizon.label}` : 'No sooner market'}
+                  >›</button>
+                )}
+              </div>
             )}
             <div className="pubws-headline pubws-enter pubws-enter--2">
               <span className="pubws-price">{unit}{formatValue(shownConsensus ?? consensus)}</span>
