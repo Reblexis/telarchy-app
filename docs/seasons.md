@@ -350,6 +350,18 @@ simply never consumes a rung, so a stranger below it takes first money rather
 than second. Four tests in `seasons.test.ts` pin that, including the season
 made entirely of house accounts, which pays nothing and rolls the whole pool.
 
+Found while verifying 0069 against production and fixed in 0070: four QA
+accounts (`season-entry-verify-bot`, `gate-verify-bot2`, `nopay-bot`,
+`entry-fields-bot`) had been left in the entry table by entry-flow testing on
+18 and 19 August, two of them opted in, and were as eligible for $500 as
+anyone. They carry the flag now. Their entries stay rather than being deleted:
+an entry table that gets edited is a record nobody can check afterwards.
+
+Also found there, and worth recording because every count until then said
+zero: `patrik-hal` entered on 2026-08-20 at 09:31 UTC. The first outside
+entrant. They do not appear on the leaderboard because they have not traded,
+which is why the standings read as operator-only.
+
 Viktor's own participant account stays eligible (owner decision 2026-08-20):
 the rule names accounts operated by the platform, and the founder trading his
 own market is participation rather than the house winning.

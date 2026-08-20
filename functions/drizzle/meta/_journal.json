@@ -491,6 +491,13 @@
       "when": 1787076104965,
       "tag": "0069_platform_operated_agents",
       "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1787076164965,
+      "tag": "0070_verify_bots_are_house",
+      "breakpoints": true
     }
   ]
 }
