@@ -142,6 +142,7 @@ explains itself.
 | `leaderboard.md` | Anonymous `/leaderboard`, calibration ranking, register CTA |
 | `legal.md` | `/terms`, `/privacy`, ToS clauses |
 | `waitlist.md` | `POST /api/waitlist` + dedup + rate limit |
+| `ask-the-floor.md` | The workspace brief + the Ask field: answers from the floor's own facts, and the agent prompt |
 | `seo-and-og.md` | `robots.txt`, `sitemap.xml`, OG/Twitter cards, no trackers |
 
 ### 01-auth

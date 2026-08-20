@@ -912,6 +912,13 @@ export const api = {
   getFloorComments: (idOrSlug: string, q: { marketId?: string; proposalId?: string }): Promise<Array<{ id: string; fromName: string; content: string; createdAt: string }>> =>
     request(`/api/marketplace/${encodeURIComponent(idOrSlug)}/comments?${q.proposalId ? `proposalId=${encodeURIComponent(q.proposalId)}` : `marketId=${encodeURIComponent(q.marketId ?? '')}`}`, {}, true),
 
+  /** Ask this floor a question. Answered from its public brief only
+      (GET /api/marketplace/:id/context), never from outside knowledge. */
+  askFloor: (idOrSlug: string, question: string): Promise<{ answer: string }> =>
+    request(`/api/marketplace/${encodeURIComponent(idOrSlug)}/ask`, {
+      method: 'POST', body: JSON.stringify({ question }),
+    }, true),
+
   /** Public floor read: who holds what and the trade history for a
       market, no account needed (Open workspaces only). */
   getMarketActivity: (idOrSlug: string, marketId: string): Promise<{

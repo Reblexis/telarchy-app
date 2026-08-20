@@ -10,6 +10,8 @@ import { marketPriceSeries } from '../services/predictions';
 import { periodEndInstant, periodStartInstant, resolutionInstant } from '../lib/date-utils';
 import { ensureSystemGroups } from './groups';
 import { getGroupMemberIds, getOwnerHandles, getParticipantDisplayNames } from '../lib/participants';
+import { buildWorkspaceContext, renderContextMarkdown } from '../services/workspace-context';
+import { askAboutWorkspace, askEnabled } from '../lib/ask';
 import { SIGNUP_CREDITS } from '../lib/validation';
 import { computeContractors, type ContractorEntry, type ContractorJobPair } from '../lib/contractors';
 
@@ -877,6 +879,86 @@ marketplaceRouter.get('/:workspaceId/announcements', wrap(async (req, res) => {
       editedAt: a.editedAt, originalBody: a.originalBody,
     })),
   });
+}));
+
+/**
+ * The workspace brief: one read that carries what this floor is about (owner
+ * ask 2026-08-20). Identity and charter, every metric with its definition and
+ * recent readings, the open markets and their current prices, every contract
+ * with the market's priced impact and its conversation, the owner's
+ * announcements, and any document the owner published as a public source.
+ *
+ * This exists so an outside agent does not have to scrape a page to price a
+ * market. `?format=md` returns the same facts as one markdown document, which
+ * is what a language model reads best and what the floor's own Ask field
+ * feeds to Claude; the default JSON is for code.
+ *
+ * Same public-payload contract as the rest of this router: private workspaces
+ * 403, and a workspace whose Public group cannot read is refused rather than
+ * summarised, because the brief IS the contents.
+ */
+marketplaceRouter.get('/:workspaceId/context', wrap(async (req, res) => {
+  const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
+  if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
+  if (ws.visibility === 'private') { res.status(403).json({ error: 'This workspace is private' }); return; }
+
+  const [publicGroup] = await db.select().from(permissionGroups)
+    .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
+  const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
+  if (!publicCaps.includes('read')) { res.status(403).json({ error: 'Not public' }); return; }
+
+  const context = await buildWorkspaceContext(ws.id);
+  if (!context) { res.status(404).json({ error: 'Workspace not found' }); return; }
+
+  if (req.query.format === 'md') {
+    res.type('text/markdown').send(renderContextMarkdown(context));
+    return;
+  }
+  res.json(context);
+}));
+
+/**
+ * Ask this floor a question in plain language (owner ask 2026-08-20: reduce
+ * friction for traders). The brief above goes to Claude with the question;
+ * the answer may only use what the brief contains.
+ *
+ * Open to anonymous visitors on purpose: not knowing what the company does is
+ * exactly the state a visitor is in BEFORE they have an account, so putting
+ * the answer behind signup would aim it at the people who no longer need it.
+ * The cost of that decision is controlled by the per-IP limiter on the route
+ * and by the model's own short-answer instruction, not by a login.
+ */
+marketplaceRouter.post('/:workspaceId/ask', wrap(async (req, res) => {
+  if (!askEnabled()) {
+    res.status(503).json({ error: 'Answers are not configured on this instance.' });
+    return;
+  }
+  const ws = await resolvePublicWorkspace(req.params.workspaceId as string);
+  if (!ws) { res.status(404).json({ error: 'Workspace not found' }); return; }
+  if (ws.visibility === 'private') { res.status(403).json({ error: 'This workspace is private' }); return; }
+
+  const [publicGroup] = await db.select().from(permissionGroups)
+    .where(and(eq(permissionGroups.workspaceId, ws.id), eq(permissionGroups.type, 'public')));
+  const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
+  if (!publicCaps.includes('read')) { res.status(403).json({ error: 'Not public' }); return; }
+
+  const question = typeof req.body?.question === 'string' ? req.body.question.trim() : '';
+  if (!question) { res.status(400).json({ error: 'question is required' }); return; }
+  if (question.length > 500) { res.status(400).json({ error: 'Keep the question under 500 characters.' }); return; }
+
+  const context = await buildWorkspaceContext(ws.id);
+  if (!context) { res.status(404).json({ error: 'Workspace not found' }); return; }
+
+  try {
+    const { answer, usage } = await askAboutWorkspace(renderContextMarkdown(context), question);
+    // Logged, not returned: what a question costs is the operator's business
+    // and a visitor reading an answer has no use for a token count.
+    console.log(`ask ${ws.slug ?? ws.id}: ${usage.input} in (${usage.cachedInput} cached), ${usage.output} out`);
+    res.json({ answer });
+  } catch (e) {
+    console.error('ask failed:', e);
+    res.status(502).json({ error: 'Could not answer that right now. Try again in a moment.' });
+  }
 }));
 
 /**

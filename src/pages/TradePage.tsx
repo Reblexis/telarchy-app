@@ -11,6 +11,7 @@ import { JobsBoard, splitAsk } from '../components/JobsBoard';
 import { SubjectAbout } from '../components/SubjectAbout';
 import { FloorAnnouncements } from '../components/FloorAnnouncements';
 import { FloorComments } from '../components/FloorComments';
+import { AskFloor } from '../components/AskFloor';
 import { LeaderboardRail } from '../components/FloorRails';
 import { useMyParticipantId } from '../hooks/useMyParticipantId';
 import { AccountMenu } from '../components/AccountMenu';
@@ -1063,6 +1064,17 @@ export function TradePage() {
                 {' '}→ manage
               </button>
             )}
+            {/* Before the conversation, and after the bet: the place a
+                visitor is when they realise they do not know enough about
+                this company to price it (owner ask 2026-08-20). */}
+            {idOrSlug && (
+              <AskFloor
+                idOrSlug={idOrSlug}
+                workspaceName={ws.name}
+                metricLabel={selectedJob ? null : metricLabel}
+              />
+            )}
+
             {/* The conversation under whatever the one view shows: the
                 baseline market's thread, or the selected job's (owner ask
                 2026-08-11). */}

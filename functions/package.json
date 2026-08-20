@@ -16,6 +16,7 @@
     "node": "22"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.120.0",
     "@resvg/resvg-js": "^2.6.2",
     "better-auth": "^1.5.6",
     "cors": "^2.8.6",

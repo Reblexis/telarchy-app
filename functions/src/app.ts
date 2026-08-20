@@ -140,6 +140,18 @@ const feedbackLimiter = rateLimit({
   skip: (req) => hasIdentity(req as unknown as { headers: Record<string, unknown> }),
 });
 
+// Asking the floor a question spends real money on a model call, so this
+// door is narrower than any other public one and does NOT skip identified
+// callers: a key holder can spend as fast as an anonymous visitor.
+const askLimitMax = parseInt(process.env.ASK_LIMIT_MAX ?? '6', 10);
+const askLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: askLimitMax || 1_000_000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'That is a lot of questions. Try again in a few minutes.' },
+});
+
 app.use(globalLimiter);
 
 // Throttle account creation so bulk signup farming cannot bypass the global limit.
@@ -335,6 +347,8 @@ app.get('/api/help', (_req, res) => {
       { method: 'GET', path: '/api/admin/floor-stats', auth: 'admin', description: 'Launch cockpit (platform admin): human-filtered floor traffic (bots and vuln-scanners excluded by user-agent and path), 24h visits + unique visitors, visits by day, referers grouped by source domain (the channel that is working), top pages, plus signups by day, recent signups, waitlist, and totals. Visit rows are purged past 30 days on read.' },
       { method: 'GET', path: '/api/marketplace/:idOrSlug/market-activity', auth: false, description: 'Public read of who holds what and the recent trade history for a market (?marketId=) on an Open public workspace. Returns { consensus, positions: [{ handle, id, direction, shares, cost, worth }] (marked to current price, top 50 by size), trades: [{ id, handle, direction, kind, shares, cost, createdAt }] (newest 50) }.' },
       { method: 'GET', path: '/api/marketplace/:idOrSlug/announcements', auth: false, description: 'The owner\'s announcements for a workspace, newest first: { announcements: [{ id, body (markdown), publishedAt, editedAt, originalBody }] }, max 100. No account needed, because the point of an announcement is that anyone deciding whether to trade here can check what was disclosed and when. Same Open-workspace disclosure rule as the ballot and the comments: 403 on a private workspace, and 403 where the Public group does not hold read. editedAt is null unless the announcement was corrected; originalBody then carries the text exactly as first published, so an edit reads as an edit rather than as history. The newest one also ships inline on GET /api/marketplace/:workspaceId as latestAnnouncement (with announcementCount), so a first paint needs no second request.' },
+      { method: 'GET', path: '/api/marketplace/:idOrSlug/context', auth: false, description: 'THE WORKSPACE BRIEF: one read with everything needed to price this floor, so an agent never has to scrape the page. Returns { workspaceId, slug, name, description, charter, about, runningSince, metrics: [{ name, description, value, resetsEvery, history: [{ at, value }] }], markets: [{ marketId, metricName, targetDate, consensus, rangeMin, rangeMax, liquidity }], contracts: [{ id, title, description, askUsd, status, proposedBy, createdAt, declineReason, impact: [{ metricName, targetDate, approved, declined, delta }], recentComments }], announcements, documents: [{ name, description, content, updatedAt }] }. documents are the owner\'s own text sources, and appear only where the Public group was granted read on them (publishing one is an explicit act, never a side effect). Add ?format=md for the same facts as one markdown brief, which is the form to hand a language model. Public and unlisted workspaces whose Public group grants read; private workspaces 403.' },
+      { method: 'POST', path: '/api/marketplace/:idOrSlug/ask', auth: false, description: 'Ask this floor a question in plain language. Body { question } (max 500 chars). The answer comes from GET /api/marketplace/:idOrSlug/context and nothing else: no outside knowledge, no invented numbers, and \'not in the brief\' is a valid answer. Market prices are quoted as predictions, never as fact. Returns { answer }. Rate limited per IP (ASK_LIMIT_MAX per 5 minutes, default 6) for everyone including key holders, because each call spends on a model. 503 when the instance has no model configured. Building your own agent? Read the context endpoint directly instead: same facts, no per-IP ceiling, your own model.' },
       { method: 'GET', path: '/api/marketplace/:idOrSlug/comments', auth: false, description: 'Public read of the comment thread under a market (?marketId=) or a proposal (?proposalId=) on an Open public workspace (Public group must hold read). Returns [{ id, fromName, content, createdAt }], oldest first, capped at 200. Posting goes through the authenticated message routes (POST /api/predictions/markets/:id/messages, POST /api/proposals/:id/messages).' },
       { method: 'GET', path: '/api/marketplace/:idOrSlug/card.png', auth: false, description: 'The workspace\'s share card: a server-drawn 1200x630 PNG of the trading floor (hero market\'s live consensus, step-line price history, resolution date) used as the og:image on share links. Public discovery data only; cached five minutes.' },
       { method: 'POST', path: '/api/marketplace/:workspaceId/join', auth: 'identity', description: 'Join a public or unlisted workspace using either a browser account session or an agent key. Both auth paths add the same participant identity to the workspace Public group, so what you can do next is whatever that group holds; the response reports it as role "trader" (Public group has trade) or "viewer". Private workspaces cannot be self-joined and return 404, the same response as a workspace that does not exist, so this endpoint cannot be used to probe for private workspace ids; members of a private workspace are added by an admin via POST /api/workspaces/:id/members. Returns 201 on a new join, 200 with alreadyMember: true if you were already in.' },
@@ -386,6 +400,7 @@ app.use('/api/predictions/trade', strictLimiter);
 app.use('/api/predictions', predictionsRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/proposals', proposalsRouter);
+app.use(/^\/api\/marketplace\/[^/]+\/ask$/, askLimiter);
 app.use('/api/marketplace', marketplaceRouter);
 app.use('/api/leaderboard', leaderboardRouter);
 app.use('/api/seasons', seasonsRouter);

@@ -318,6 +318,18 @@ vanish at the end of the scroll. The cue is drawn on a wrapper, never
 inside the scroller, because a cue that scrolls away with the content it
 describes is not a cue. Every dialog gets it, not only the account.
 
+**Ask the floor** (owner ask 2026-08-20) sits in the decision column,
+between the bet buttons and the conversation, and deliberately NOT in a
+corner bubble: a bubble reads as support ("having trouble?"), and this is
+research ("before you price it"). The bar is the ticket's underline input
+so it belongs to the instrument rather than looking bolted on; three
+suggestion chips name this floor's own subjects, because "ask anything" is
+a blank page and a blank page is friction of its own. The answer lands in
+a ruled block with a single accent rule down its left edge, followed by
+one line saying where it came from, and it replaces the previous answer
+rather than growing a chat transcript. Under it, one quiet link opens the
+copyable prompt that points a visitor's own agent at the same brief.
+
 **The bell** (owner ask 2026-08-19) sits in the top bar left of the
 avatar, signed in only. At rest it is drawn in the same icon family as
 the bug and Discord marks (1.7 stroke, tertiary ink, accent on hover).

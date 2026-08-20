@@ -1481,6 +1481,166 @@ code, pre, kbd, samp {
   gap: 0.9rem;
 }
 
+/* ---------------------------------------------------------------------------
+   Ask the floor (owner ask 2026-08-20).
+
+   It sits in the decision column between the bet and the conversation, and
+   it is deliberately NOT a corner bubble: a bubble reads as support, and
+   this is research. The bar borrows the ticket's underline input so it looks
+   like part of the instrument rather than a widget bolted onto the page, and
+   the answer lands in a ruled block under it, the same hairline language the
+   comments use. One accent, no cards, no avatar, no chat transcript: a
+   question and its answer, replaced by the next one.
+--------------------------------------------------------------------------- */
+.askfloor {
+  margin: 1.6rem 0 0.4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.askfloor-bar {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.askfloor-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.3rem 0 0.45rem;
+  border: none;
+  border-bottom: 1px solid var(--border-strong);
+  background: none;
+  font: inherit;
+  font-size: 1rem;
+  color: var(--text-primary);
+  transition: border-color 140ms ease;
+}
+.askfloor-input::placeholder { color: var(--text-tertiary); }
+.askfloor-input:focus {
+  outline: none;
+  border-bottom-color: var(--accent);
+}
+
+.askfloor-go {
+  flex: none;
+  padding: 0.35rem 0.9rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: none;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+.askfloor-go:hover:not(:disabled) {
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+  color: var(--bg-primary);
+}
+.askfloor-go:disabled { color: var(--text-tertiary); cursor: default; }
+
+/* "Ask anything" is a blank page, and a blank page is friction of its own.
+   These name this floor's actual subjects, so the first question is free. */
+.askfloor-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.7rem;
+}
+.askfloor-chip {
+  padding: 0.28rem 0.7rem;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: none;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 140ms ease, border-color 140ms ease;
+}
+.askfloor-chip:hover { color: var(--text-primary); border-color: var(--border-strong); }
+
+.askfloor-working {
+  margin: 0.9rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+
+.askfloor-answer { margin-top: 1rem; }
+.askfloor-q {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.askfloor-a {
+  margin: 0;
+  padding-left: 0.85rem;
+  border-left: 2px solid var(--accent);
+  font-size: 0.98rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+}
+.askfloor-note {
+  margin: 0.6rem 0 0 0.85rem;
+  font-size: 0.74rem;
+  color: var(--text-tertiary);
+}
+
+.askfloor-agent { margin-top: 1rem; }
+.askfloor-link {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.askfloor-link:hover { color: var(--accent); }
+
+.askfloor-prompt {
+  margin-top: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.55rem;
+}
+.askfloor-prompt-text {
+  width: 100%;
+  max-height: 14rem;
+  overflow: auto;
+  margin: 0;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.74rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+.askfloor-copy {
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: none;
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.askfloor-copy:hover { background: var(--bg-tertiary); }
+
 /* The arrival flash (owner ask 2026-08-19). A notification names one thing;
    when the reader arrives, that thing lights for a moment and then is
    ordinary again. It is deliberately NOT a selected state: a highlight that

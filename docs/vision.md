@@ -465,6 +465,20 @@ Transport is the shared Resend path in `lib/notify.ts` (`sendEmail`), the same o
 
 `GET /api/auth/me` and `GET /api/agents/me` carry `notifications: { commentOnMyProposal, replyToMyComment, newProposal }`, and `POST /api/auth/profile` accepts the same object with any subset of the three keys, so a client can flip one switch without re-sending the other two.
 
+### The workspace brief, and asking the floor a question (Implemented 2026-08-20)
+
+A visitor looking at "the market says 25" cannot tell whether 25 is right. What would tell them is spread across a chart, a metric definition, a charter, eight contracts and whatever the owner has written about the business, and reading all of it costs more than the bet is worth. That is the friction that keeps a floor's traffic from becoming its traders, so the floor answers questions.
+
+**`GET /api/marketplace/:idOrSlug/context` is the brief**: one read carrying the company and its charter, every metric with its definition and recent readings, the open markets and their current prices, every contract with the market's priced impact and its conversation, the owner's announcements, and the owner's published documents. `?format=md` returns the same facts as one markdown document, which is the form to hand a language model. It is derived, not stored, and the contract impact comes from `getProposalMarketSummariesForProposal`, the same function the floor's own ballot reads, so a brief and a page can never quote different deltas.
+
+**A document is in the brief only when the owner published it**, i.e. when the Public group holds `read` on that source. Publishing is an explicit act and stays one; nothing about this endpoint turns a private source public. The rest of the public-payload contract is unchanged: private workspaces 403, and a workspace whose Public group cannot read is refused rather than summarised, because here the brief IS the contents.
+
+**`POST /api/marketplace/:idOrSlug/ask`** answers a plain-language question from that brief and nothing else. No outside knowledge, no invented numbers, "not in the brief" is a valid answer, and a price is always quoted as what the market says rather than as fact about the future, because that distinction is the entire product. It is open to anonymous visitors on purpose: not knowing what the company does is exactly the state a visitor is in *before* they have an account, so putting the answer behind signup would aim it at the people who no longer need it. The cost is bounded by a per-IP limiter that, unlike every other limiter here, does **not** exempt key holders, since each call spends real money on a model. With no `ANTHROPIC_API_KEY` the endpoint answers 503 and the field does not render.
+
+**The same brief is the answer to "how do I point my own agent at this?"** The floor's ask field carries a copyable prompt naming this workspace's own context URL, so a visitor's agent and the floor's own answers read identical facts. An outside agent should read the context endpoint directly: same facts, its own model, no per-IP ceiling.
+
+**A company's own documents reach the brief as sources.** LookPilot's data room (definitions, provenance, competition, the one-time exports its page charts) is published from `lookpilot-web/scripts/telarchy-publish-data-room.js` into a text source named "Data room", which the Public group can read. The live numbers are not duplicated into it: they already arrive as metrics with their history, and two copies of one number is how a page starts disagreeing with itself.
+
 ### The notifications inbox (Implemented 2026-08-19)
 
 Email is an interruption a person tunes; it is a bad record. A participant who switched the new-contract alert off still needs somewhere to see that a contract went up, and a participant who never opens their mail still needs to find out that their contract was declined and why. So the floor's top bar carries a bell, and **the bell shows everything**:
