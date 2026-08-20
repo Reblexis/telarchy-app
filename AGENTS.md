@@ -280,6 +280,16 @@ requires `acceptedRules: true` and nothing else, recorded as
 added and removed the same day: entry stays one click for a cold visitor and
 winners are asked at claim time.
 
+**A season starts itself (owner direction 2026-08-20: "make it automatic").**
+`POST /api/cron/seasons` starts every draft whose published `startsAt` has
+passed; Cloud Scheduler job `seasons-autostart` calls it every 10 minutes.
+Late is fine, early is impossible, and the due-check has a test that fails if
+it is dropped. The start logic lives in `services/seasons.ts` so the endpoint
+and the scheduler run the same function; do not inline it back into the route.
+Note the legacy `dailyresolve` / `dailymarketrefresh` Cloud Run services are
+SEPARATE deployments from `api`, so adding work to `/api/cron/resolve` does not
+put it on that schedule.
+
 **Season entry opens before the season starts (owner direction 2026-08-18).**
 `isOpenForEntry` returns true for a `draft` season, `GET/PUT /api/seasons/me`
 resolve the running season OR the next draft, and `POST /:id/start` carries
