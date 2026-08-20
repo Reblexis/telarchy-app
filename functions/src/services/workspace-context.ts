@@ -27,10 +27,16 @@ import { consensus } from '../lib/amm';
 import { getParticipantDisplayNames } from '../lib/participants';
 import { getProposalMarketSummariesForProposal } from './proposals';
 
-/** How much source text one brief may carry, so a long data room cannot
- *  quietly turn every question into a six-figure-token request. */
-const SOURCE_CHARS_EACH = 24_000;
-const SOURCE_CHARS_TOTAL = 60_000;
+/**
+ * How much source text one brief may carry. Raised (owner direction
+ * 2026-08-20: the floor's market maker "should have access to the whole data
+ * room") to the point where every document a real workspace publishes fits
+ * whole: LookPilot's data room is 3k characters, and 200k is a book. The cap
+ * still exists, because an unbounded brief turns one question into a
+ * six-figure-token request, and it truncates visibly rather than silently.
+ */
+const SOURCE_CHARS_EACH = 120_000;
+const SOURCE_CHARS_TOTAL = 200_000;
 /** Readings per metric. Enough to see a trend, not a spreadsheet. */
 const HISTORY_POINTS = 24;
 

@@ -86,7 +86,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # Full history: the data room's change log is generated from git below,
+      # and a shallow clone would publish one commit as the whole log.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # Before doing anything, check whether ANY auth path is configured.
       # On a fresh repo neither WIF nor SA key is set — we skip the deploy
@@ -176,6 +180,14 @@ jobs:
           cd functions
           npm ci --no-audit --no-fund
           npx drizzle-kit migrate
+
+      # The data room's change log is generated from git, and the container
+      # image has no .git (the Dockerfile copies functions/src, not the
+      # repository). Regenerating it here means the deployed page publishes the
+      # history the deploy actually contains. See docs/data-room.md.
+      - name: Regenerate the change log
+        if: steps.auth_check.outputs.skip != 'true'
+        run: node scripts/build-changelog.mjs
 
       # Safe deploy (tag-then-promote): land the new revision with NO traffic
       # under a tag, smoke-test its isolated URL, and only then shift 100% of

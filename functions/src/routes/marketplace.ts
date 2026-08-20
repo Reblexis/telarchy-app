@@ -4,6 +4,7 @@ import { workspaces, markets, metrics, metricLogs, agents, trades, positions, pe
 import { eq, ne, and, gt, gte, count, desc, asc, inArray, like, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
+import { platformStats } from '../services/platform-stats';
 import { authMiddleware } from '../middleware/auth';
 import { requireIdentity } from '../middleware/roles';
 import { consensus, pHigher } from '../lib/amm';
@@ -12,7 +13,7 @@ import { periodEndInstant, periodStartInstant, resolutionInstant } from '../lib/
 import { ensureSystemGroups } from './groups';
 import { getGroupMemberIds, getOwnerHandles, getParticipantDisplayNames } from '../lib/participants';
 import { buildWorkspaceContext, renderContextMarkdown } from '../services/workspace-context';
-import { askAboutWorkspace, askEnabled } from '../lib/ask';
+import { askAboutWorkspace, askEnabled, type AskTurn } from '../lib/ask';
 import { SIGNUP_CREDITS } from '../lib/validation';
 import { computeContractors, type ContractorEntry, type ContractorJobPair } from '../lib/contractors';
 
@@ -102,69 +103,16 @@ marketplaceRouter.get('/', wrap(async (req, res) => {
   res.json(interleaved);
 }));
 
+/**
+ * The platform's pulse, and the route a market on this platform resolves
+ * against. The arithmetic lives in services/platform-stats.ts because the data
+ * room publishes the same numbers with an explanation attached, and a second
+ * copy is how a resolution source and the page describing it drift apart.
+ */
 marketplaceRouter.get('/stats', wrap(async (_req, res) => {
-  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const allWs = await db.select({ id: workspaces.id }).from(workspaces);
-
-  const [agentCount] = await db.select({ count: count() }).from(agents);
-
-  // The hero metric of the Telarchy dogfooding workspace (2026-08-14):
-  // distinct participants who (a) have a Manifold account synced (the
-  // verified set: each maps to a public Manifold profile anyone can check,
-  // surfaced on the leaderboard) and (b) placed trades totalling at least
-  // 100 credits across the trailing 7 days (credits are free, so a costless
-  // gesture must not count; abs(cost) so sells are activity too). It lives
-  // on this public route for the same reason manifoldImportCount does: a
-  // resolution source has to be readable by the people being asked to
-  // trust it.
-  const spendByAgent = await db.select({ id: trades.agentId, spend: sql<number>`sum(abs(${trades.cost}))` })
-    .from(trades).where(gt(trades.createdAt, weekAgo)).groupBy(trades.agentId);
-  const qualifying = spendByAgent.filter(r => Number(r.spend) >= 100).map(r => r.id);
-  const claimedRows = qualifying.length > 0
-    ? await db.select({ key: systemConfig.key }).from(systemConfig)
-        .where(inArray(systemConfig.key, qualifying.map(id => `manifold-claimed:agent:${id}`)))
-    : [];
-  const weeklyActiveVerifiedTraders = claimedRows.length;
-
-  let marketsActive = 0;
-  let tradesThisWeek = 0;
-
-  await Promise.all(allWs.map(async ws => {
-    const [mCount, tCount] = await Promise.all([
-      db.select({ count: count() }).from(markets)
-        .where(and(eq(markets.workspaceId, ws.id), eq(markets.resolved, false), eq(markets.active, true)))
-        .then(r => r[0]?.count ?? 0),
-      db.select({ count: count() }).from(trades)
-        .where(and(eq(trades.workspaceId, ws.id), gt(trades.createdAt, weekAgo)))
-        .then(r => r[0]?.count ?? 0),
-    ]);
-    marketsActive += Number(mCount);
-    tradesThisWeek += Number(tCount);
-  }));
-
-  // Platform-wide count of completed Manifold imports. It lives here, on the
-  // global stats route, because it is a platform number rather than a property
-  // of any one workspace, and because a public prediction market resolves
-  // against this URL: a resolution source has to be readable by the people
-  // being asked to trust it, without knowing a workspace id.
-  const [manifoldRow] = await db.select({ n: count() }).from(systemConfig)
-    .where(like(systemConfig.key, 'manifold-claimed:agent:%'));
-
-  res.json({
-    marketsActive,
-    agentsActive: Number(agentCount.count),
-    tradesThisWeek,
-    weeklyActiveVerifiedTraders,
-    manifoldImportCount: Number(manifoldRow?.n ?? 0),
-  });
+  res.json(await platformStats());
 }));
 
-/**
- * Public featured-markets list for the /benchmark surface. Returns only
- * featured + active + unresolved markets that live in public-visibility
- * workspaces, matching the privacy contract of the rest of /api/marketplace
- * (anything inside a private workspace stays private). Anonymous-readable.
- */
 marketplaceRouter.get('/featured', wrap(async (_req, res) => {
   const publicWs = await db.select({ id: workspaces.id, name: workspaces.name })
     .from(workspaces).where(eq(workspaces.visibility, 'public'));
@@ -943,9 +891,30 @@ marketplaceRouter.post('/:workspaceId/ask', wrap(async (req, res) => {
   const publicCaps = (publicGroup?.capabilities as string[] | null) ?? [];
   if (!publicCaps.includes('read')) { res.status(403).json({ error: 'Not public' }); return; }
 
-  const question = typeof req.body?.question === 'string' ? req.body.question.trim() : '';
-  if (!question) { res.status(400).json({ error: 'question is required' }); return; }
-  if (question.length > 500) { res.status(400).json({ error: 'Keep the question under 500 characters.' }); return; }
+  // A conversation, not a lookup (owner direction 2026-08-20): the caller
+  // keeps the turns and sends them back, which is what lets a follow-up mean
+  // anything. `question` still works on its own, because an API caller asking
+  // one thing should not have to build an array.
+  const raw = Array.isArray(req.body?.messages)
+    ? req.body.messages
+    : (typeof req.body?.question === 'string' ? [{ role: 'user', content: req.body.question }] : []);
+
+  const turns: AskTurn[] = [];
+  for (const m of raw.slice(-12)) {
+    const role = m?.role === 'assistant' ? 'assistant' : 'user';
+    const content = typeof m?.content === 'string' ? m.content.trim() : '';
+    if (!content) continue;
+    if (role === 'user' && content.length > 500) {
+      res.status(400).json({ error: 'Keep each message under 500 characters.' }); return;
+    }
+    // An assistant turn is one Otto wrote, so it is bounded by his own
+    // max_tokens; anything longer than that did not come from here.
+    turns.push({ role, content: content.slice(0, 4000) });
+  }
+  if (turns.length === 0 || turns[turns.length - 1].role !== 'user') {
+    res.status(400).json({ error: 'question is required' }); return;
+  }
+  const question = turns[turns.length - 1].content;
 
   const context = await buildWorkspaceContext(ws.id);
   if (!context) { res.status(404).json({ error: 'Workspace not found' }); return; }
@@ -971,7 +940,7 @@ marketplaceRouter.post('/:workspaceId/ask', wrap(async (req, res) => {
   };
 
   try {
-    const { answer, usage } = await askAboutWorkspace(renderContextMarkdown(context), question);
+    const { answer, usage } = await askAboutWorkspace(renderContextMarkdown(context), turns);
     console.log(`ask ${ws.slug ?? ws.id}: ${usage.input} in (${usage.cachedInput} cached), ${usage.output} out, $${usage.costUsd ?? '?'}`);
     // Every question is kept, with its answer (owner ask 2026-08-20): a row
     // here is a gap in the floor said in a visitor's own words, and the answer

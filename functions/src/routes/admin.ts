@@ -11,6 +11,7 @@ import { resolutionInstant } from '../lib/date-utils';
 import { classifyIps } from '../lib/ip-classify';
 import { isPlatformAuthorized } from '../lib/platform-admin';
 import { getParticipantDisplayNames } from '../lib/participants';
+import { humanVisitFilter } from '../lib/visit-log';
 
 export const adminRouter = Router();
 
@@ -107,14 +108,11 @@ adminRouter.get('/floor-stats', wrap(async (req, res) => {
   await db.delete(pageVisits).where(lt(pageVisits.ts, monthAgo));
 
   // Human filter (owner ask 2026-08-11): before launch the log is almost
-  // all crawlers and vuln scanners, so a raw count is meaningless. Drop
-  // anything whose user-agent looks like a bot, and the scanner probe
-  // paths (/wp-admin, /.env, /.git). This is a heuristic, not perfect,
-  // but it turns the numbers into "did a person show up".
-  const humanish = and(
-    sql`coalesce(${pageVisits.userAgent}, '') !~* '(bot|crawl|spider|slurp|bingpreview|facebookexternalhit|python-requests|curl/|wget|headless|scan)'`,
-    sql`${pageVisits.path} !~* '(wp-admin|wp-login|\\.env|\\.git|phpmyadmin|xmlrpc)'`,
-  );
+  // all crawlers and vuln scanners, so a raw count is meaningless. The rule
+  // itself lives in lib/visit-log.ts because the public data room publishes
+  // the same count, and two surfaces showing one fact must derive it from
+  // one place.
+  const humanish = humanVisitFilter();
 
   const window = (base: Date) => and(gte(pageVisits.ts, base), humanish);
 

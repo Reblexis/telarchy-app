@@ -20,8 +20,8 @@ The workspace brief (`GET /api/marketplace/:idOrSlug/context`) and the Ask
 field on top of it (`POST /api/marketplace/:idOrSlug/ask`, `AskFloor.tsx`).
 The behavioural contract is `docs/vision.md`, "The workspace brief, and asking
 the floor a question": the brief is one read with everything needed to price
-the floor, a document appears only where the owner published it, and answers
-come from the brief alone.
+the floor, a document appears only where the owner published it, and Otto
+answers from the brief alone.
 
 Answers need `AI_GATEWAY_API_KEY` on the instance (a Vercel AI Gateway key). Where it is unset the
 endpoint answers 503 by design and T4 is the whole of what runs.
@@ -80,17 +80,21 @@ code=$(curl -s -o /tmp/$TT_NS-ask.json -w '%{http_code}' -H 'Content-Type: appli
 case "$code" in 400|503) ;; *) echo "unexpected $code"; cat /tmp/$TT_NS-ask.json; exit 1;; esac
 ```
 
-### T5. The field is on the floor, under the conversation, with questions about THIS company
+### T5. Otto is in the corner, closed, with openers about THIS company
 
 ```bash
 $B goto "$TT_FRONTEND_URL/$SLUG" && $B wait --networkidle
 text=$($B text)
-grep -qi 'Ask anything about' <<<"$text"
-# It is the last block in the column: the comments panel comes first.
-$B assert '.pubws-comments ~ .askfloor'
-# And it carries nothing else: the agent prompt is a setting now.
-grep -qi 'Point your own AI' <<<"$text" && { echo "the agent prompt is back on the floor"; exit 1; }
-$B screenshot "/tmp/$TT_NS-ask-floor.png"
+grep -qi 'Ask Otto about' <<<"$text"
+# Closed until asked for: the composer is not on the page yet.
+$B assert '.otto-input' --gone
+$B click '.ottodock'
+text=$($B text)
+grep -qi 'market maker on' <<<"$text"
+grep -qi 'actually do' <<<"$text"
+# Whose opinions these are is said, every time.
+grep -qi 'not advice from' <<<"$text"
+$B screenshot "/tmp/$TT_NS-otto.png"
 ```
 
 ### T6. The agent prompt lives in account settings, and names this floor

@@ -12,6 +12,7 @@ import { SeasonPage } from './pages/SeasonPage';
 import { ManagePage } from './pages/ManagePage';
 import { ParticipantProfilePage } from './pages/ParticipantProfilePage';
 import { AdminPage } from './pages/AdminPage';
+import { DataRoomPage } from './pages/DataRoomPage';
 
 /* The whole app is the public surface (owner decision 2026-08-19: get rid of
    the old GUI). Every route below renders a standalone `.pubws` page. There
@@ -94,6 +95,13 @@ export function App() {
             (owner direction 2026-08-19). */}
         <Route path="/season" element={<SeasonPage />} />
         <Route path="/participants/:id" element={<ParticipantProfilePage />} />
+
+        {/* Telarchy's own books: vision, traction, traffic, what shipped and
+            what is planned, every figure read live from the same database
+            that serves this page (owner ask 2026-08-20). Declared before the
+            /:slug route so a workspace can never take the URL.
+            Spec: docs/data-room.md. */}
+        <Route path="/data-room" element={<DataRoomPage />} />
 
         {/* The account is a dialog on the floor, not a page (owner direction
             2026-08-19: settings belong in the new account settings). The old

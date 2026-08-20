@@ -318,6 +318,30 @@ vanish at the end of the scroll. The cue is drawn on a wrapper, never
 inside the scroller, because a cue that scrolls away with the content it
 describes is not a cue. Every dialog gets it, not only the account.
 
+**Otto** (owner direction 2026-08-20) is the floor's market maker: a named
+character in the bottom-right corner who has read the brief and will say
+what he makes of it. Closed he is one line with a serif O, deliberately not
+a circle with a speech bubble in it, because a bubble is the universal mark
+of a support widget and he is not support. Open he is a panel in the same
+ruled language as the rest of the page: his turns are flush left in the
+page's own voice, the visitor's are set apart by an accent rule rather than
+a coloured pill, so it stays a document instead of becoming a messenger
+app. Three openers name this floor's own subjects, because a blank chat is
+a blank page. One line under the composer says the opinions are his and not
+the company's. On a phone he takes the sheet; a 23rem panel on a 390px
+screen is a joke.
+
+He lives in the corner rather than in the column because a reader needs him
+at whatever point of the page their question arrives, and because the
+page's job is the market. The prompt for pointing your own AI at the same
+brief is a SETTING (account dialog, "Your AI"), not another door here.
+
+**The floor's one modal says when it has more below.** `FloorModal` fades
+its bottom edge into the card colour with a chevron under it, and both
+vanish at the end of the scroll. The cue is drawn on a wrapper, never
+inside the scroller, because a cue that scrolls away with the content it
+describes is not a cue. Every dialog gets it, not only the account.
+
 **Ask the floor** (owner ask 2026-08-20) is the LAST block in the decision
 column, under the comments/positions/trades panel (owner direction, same
 day), and deliberately NOT a corner bubble: a bubble reads as support
@@ -986,3 +1010,18 @@ and accuracy where a trader has enough resolved markets to have one. A
 row for someone who has never traded is a name and a zero, so it is not
 shown. Contractors are a second section on the same page, ranked by what
 the market says their live contracts are worth.
+
+## The data room
+
+`telarchy.com/data-room` (`DataRoomPage`, `.dr-*`) is a document, so it takes
+the 760px column, not the poster's 660px. It is one scrolling page with a
+sticky index of its own sections under the top bar, not a sidebar and not a
+route per section: a sidebar is the thing that was deleted, and a reader of a
+business document scrolls.
+
+Its figures follow the page rules exactly: tiny uppercase section labels,
+hairline rows with an amber rule behind a count, mono tabular numerals, and
+charts hand-rolled as inline SVG (a bar per day, one line for a metric's
+readings) rather than a chart library, because the only shapes needed are a
+column and a line. A number the feed refused to compute renders as "not
+published", never as zero. Spec: `docs/data-room.md`.

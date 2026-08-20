@@ -195,12 +195,70 @@ describe('every question is kept', () => {
   });
 });
 
+describe('a conversation, not a lookup', () => {
+  test('the turns so far are sent, so a follow-up means something', async () => {
+    await seed();
+    process.env.AI_GATEWAY_API_KEY = 'test-key';
+    const realFetch = global.fetch;
+    let sent: any = null;
+    global.fetch = jest.fn(async (_u: any, init: any) => {
+      sent = JSON.parse(init.body);
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: 'Both, but Steam is most of it.' } }],
+        usage: { prompt_tokens: 10, completion_tokens: 5, cost: 0.00001 },
+      }), { status: 200 });
+    }) as any;
+
+    const res = await request(app).post(`/api/marketplace/${WS}/ask`).send({
+      messages: [
+        { role: 'user', content: 'How do you make money?' },
+        { role: 'assistant', content: 'Steam sales and Stripe.' },
+        { role: 'user', content: 'Which one is bigger?' },
+      ],
+    });
+    expect(res.status).toBe(200);
+
+    // System turn plus the three, in order: without the assistant turn the
+    // follow-up is a question about nothing.
+    expect(sent.messages.map((m: any) => m.role)).toEqual(['system', 'user', 'assistant', 'user']);
+    expect(sent.messages[3].content).toBe('Which one is bigger?');
+    // The row logs the question actually asked, which is the last user turn.
+    const [row] = await db.select().from(floorQuestions);
+    expect(row.question).toBe('Which one is bigger?');
+
+    global.fetch = realFetch;
+    delete process.env.AI_GATEWAY_API_KEY;
+  });
+
+  test('a conversation that does not end on a question is refused', async () => {
+    await seed();
+    process.env.AI_GATEWAY_API_KEY = 'test-key';
+    const res = await request(app).post(`/api/marketplace/${WS}/ask`).send({
+      messages: [{ role: 'assistant', content: 'Anything else?' }],
+    });
+    expect(res.status).toBe(400);
+    delete process.env.AI_GATEWAY_API_KEY;
+  });
+});
+
 describe('the answer prompt', () => {
+  test('is a person with opinions, not a support agent', async () => {
+    // Owner direction 2026-08-20: "it should be just a guy with personality"
+    // and "it should not be so restricted it should give advice". The two
+    // halves that must survive a later edit: he is allowed to have a view,
+    // and he is never allowed to invent a number.
+    const { readFileSync } = await import('fs');
+    const prompt = readFileSync(`${__dirname}/../lib/ask.ts`, 'utf8');
+    expect(prompt).toContain('You are Otto');
+    expect(prompt).toContain('what you would do');
+    expect(prompt).toContain('Never invent a number');
+  });
+
   test('bans markdown, which the floor would print as asterisks', async () => {
     // The first live answer came back with **bold** in it, and .askfloor-a
     // renders text, not markdown, so the reader saw the asterisks.
     const { readFileSync } = await import('fs');
-    expect(readFileSync(`${__dirname}/../lib/ask.ts`, 'utf8')).toContain('no markdown');
+    expect(readFileSync(`${__dirname}/../lib/ask.ts`, 'utf8')).toContain('Never markdown');
   });
 
   test('bans the dash the house style bans', async () => {
@@ -209,7 +267,7 @@ describe('the answer prompt', () => {
     // default, so the prompt has to say so.
     const { readFileSync } = await import('fs');
     const prompt = readFileSync(`${__dirname}/../lib/ask.ts`, 'utf8');
-    expect(prompt).toContain('Never use an em dash');
+    expect(prompt).toContain('Never an em dash');
   });
 });
 

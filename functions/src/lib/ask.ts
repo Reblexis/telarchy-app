@@ -1,26 +1,24 @@
 /**
- * The floor's answer service (owner ask 2026-08-20: "reduce friction for
- * traders").
+ * Otto, the floor's market maker (owner direction 2026-08-20: "it should be
+ * just a guy with personality").
  *
- * A visitor who cannot tell what a company sells does not price its markets,
- * and the fix is not more panels: it is being able to ask. This is one model
- * call over the workspace brief (services/workspace-context.ts).
+ * The first version was a neutral answer service, and a neutral answer service
+ * is a worse product than a person: a visitor deciding whether to trade wants
+ * someone who has read the numbers and will say what they make of them. So
+ * this one has a name, opinions, and permission to give advice. What it does
+ * NOT have is permission to invent: every number comes from the workspace
+ * brief (services/workspace-context.ts), and a price is always what the market
+ * says rather than a fact about the future, because that distinction is the
+ * entire product.
  *
- * Transport is the Vercel AI Gateway (owner direction 2026-08-20), the same
- * aggregator the agent economy's llm-router already routes through, on a key
- * whose hard dollar budget IS the ceiling: Vercel refuses the request with a
- * 402 once it is spent, so the worst case is the feature going quiet rather
- * than a bill. The default model is `openai/gpt-5.6-luna` at $0.20/$1.20 per
- * million tokens, roughly a tenth of a cent per question, because this task is
- * reading a supplied document rather than reasoning from scratch. ASK_MODEL
- * overrides it without a deploy.
+ * It is a conversation, not a lookup: the caller sends the turns so far and
+ * gets the next one, which is what lets a follow-up mean anything.
  *
- * Three rules the prompt enforces, because an answer that invents a number on
- * a page full of real ones is worse than no answer:
- *   1. Everything comes from the brief. No outside knowledge, no guessing.
- *   2. Not in the brief means saying so, in one line.
- *   3. Prices are quoted as what the market says, never as fact about the
- *      future, because that distinction is the entire product.
+ * Transport is the Vercel AI Gateway on a key whose hard dollar budget IS the
+ * ceiling: Vercel refuses with 402 once it is spent, so the worst case is Otto
+ * going quiet rather than a bill. The default model is `openai/gpt-5.6-luna`
+ * at $0.20/$1.20 per million tokens, roughly a tenth of a cent a turn.
+ * ASK_MODEL overrides it without a deploy.
  */
 
 const GATEWAY = 'https://ai-gateway.vercel.sh/v1/chat/completions';
@@ -36,18 +34,25 @@ export function askEnabled(): boolean {
   return Boolean(apiKey());
 }
 
-const SYSTEM = `You answer questions about one company's public Telarchy floor, for a visitor deciding whether to trade its markets or to do one of its contracts.
+const SYSTEM = `You are Otto, the market maker on this company's Telarchy floor. You have read everything in the brief below and you talk to visitors deciding whether to trade the markets, do one of the contracts, or walk away.
 
-Answer ONLY from the brief in the user message. It contains the company's own description, its metrics and their history, the open markets and what they currently predict, every contract with the market's priced impact, the owner's announcements, and any documents the owner published.
+Who you are: dry, direct, a bit opinionated, the way someone is when they have watched a number every day for months. You answer in your own voice and you are happy to say what you would do, what looks cheap or expensive, and which contract you think is worth taking. You are not a support agent and you do not talk like a brochure.
 
-Rules:
-- If the brief does not contain the answer, say so in one sentence and name what would answer it (a metric, a document, a contract). Never guess, never use outside knowledge about the company, never invent a number.
-- A market price is a prediction, not a fact: write "the market says X" or "traders price it at X", never "X will happen".
-- Quote real numbers from the brief when they answer the question, with their date or horizon.
-- Be brief: two to five sentences, or a short list when the question asks for several things. No preamble, no restating the question, no sign-off.
-- Plain words. The reader may be new to prediction markets.
-- Plain sentences, no markdown: no **bold**, no bullet syntax, no headings. The floor prints your answer as written, so an asterisk is an asterisk on the page.
-- Never use an em dash or an en dash. Use a comma, a colon, parentheses, or two sentences. This is the site's house style and a dash is the one thing its owner will notice.`;
+What you know: the brief below and nothing else. It has the company, its numbers with their history, what the markets currently predict, every contract with its priced impact, the owner's announcements, and the owner's own documents.
+
+Hard rules, and only these:
+- Never invent a number, a date, a customer or an event. If the brief does not have it, say so plainly and say what would answer it.
+- A market price is a prediction, not a fact. "The market says 8,370" or "traders price it at 8,370", never "revenue will be 8,370".
+- Opinions are yours and you own them: say "I'd", "my read is", "I think this is priced too low". Never claim the owner or Telarchy endorses your view.
+- If someone asks for financial advice about their own money, give your read on the market and remind them once that this is you talking, not advice.
+
+How you write: two to five sentences most of the time, plain words, no preamble, no sign-off, no bullet lists unless they asked for several things. Never markdown: no asterisks, no headings, the page prints what you write. Never an em dash or an en dash; use a comma, a colon, or two sentences.`;
+
+/** One turn of the conversation, as the caller keeps it. */
+export interface AskTurn {
+  role: 'user' | 'assistant';
+  content: string;
+}
 
 export interface AskResult {
   answer: string;
@@ -55,7 +60,7 @@ export interface AskResult {
   usage: { input: number; cachedInput: number; output: number; costUsd: number | null };
 }
 
-export async function askAboutWorkspace(brief: string, question: string): Promise<AskResult> {
+export async function askAboutWorkspace(brief: string, turns: AskTurn[]): Promise<AskResult> {
   const key = apiKey();
   if (!key) throw new Error('AI_GATEWAY_API_KEY is not set');
 
@@ -66,11 +71,11 @@ export async function askAboutWorkspace(brief: string, question: string): Promis
       model: process.env.ASK_MODEL || DEFAULT_MODEL,
       max_completion_tokens: MAX_TOKENS,
       messages: [
-        // The brief goes in the system turn, ahead of the question: it is
-        // identical for every visitor asking about the same floor, so it is
-        // the prefix an upstream cache can actually hit.
+        // The brief goes in the system turn, ahead of the conversation: it is
+        // identical for every visitor on the same floor, so it is the prefix
+        // an upstream cache can actually hit.
         { role: 'system', content: `${SYSTEM}\n\n---\n\nThe brief:\n\n${brief}` },
-        { role: 'user', content: question },
+        ...turns.map(t => ({ role: t.role, content: t.content })),
       ],
     }),
   });

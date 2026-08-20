@@ -696,6 +696,27 @@ export const pageVisits = pgTable('page_visits', {
   country: text('country'),
 });
 
+/**
+ * Visits and unique addresses per day, kept forever (owner ask 2026-08-20:
+ * the data room publishes traffic).
+ *
+ * page_visits is purged at 30 days by the privacy policy, which would cap the
+ * published history at a month for as long as the site exists. This rollup is
+ * written on every data-room read from whatever rows the log still holds, so
+ * history accumulates from the day it shipped instead of sliding.
+ *
+ * It carries no IP, no path, no user-agent and no referer: two counts and a
+ * date. That is what makes keeping it forever compatible with purging the log
+ * that produced it, and it is why the table can be read by anyone.
+ */
+export const trafficDaily = pgTable('traffic_daily', {
+  /** ISO date, YYYY-MM-DD, in UTC, matching how the cockpit buckets days. */
+  day: text('day').primaryKey(),
+  visits: integer('visits').notNull(),
+  /** Distinct IPs that day, counted before the address was purged. */
+  uniques: integer('uniques').notNull(),
+});
+
 export const proposalMessages = pgTable('proposal_messages', {
   id: text('id').notNull(),
   workspaceId: text('workspace_id').notNull(),

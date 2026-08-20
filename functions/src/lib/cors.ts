@@ -14,6 +14,11 @@ import { originAllowedForCors } from './origins';
  * origin and explicitly WITHOUT credentials, exactly like the data room's own
  * JSON feed.
  *
+ * The data room (`/api/data-room`) is in the same set for the same reason: it
+ * is Telarchy's own books, its whole claim is that anyone can fetch the URL the
+ * page fetches and check the page against it, and a claim that only works from
+ * one origin is a weaker claim.
+ *
  * The payload is in that set because it was already being fetched from
  * lookpilot.app and silently failing: the data room's freshness check ("this
  * page says X and the market says Y, trust the market") has never once run in
@@ -33,7 +38,7 @@ import { originAllowedForCors } from './origins';
  * a session chasing a phantom bug before anyone noticed the Origin header was
  * the variable.
  */
-const PUBLIC_CORS_PATH = /^\/api\/marketplace\/[^/]+(\/(context|ask))?$/;
+const PUBLIC_CORS_PATH = /^\/api\/(data-room\/?|marketplace\/[^/]+(\/(context|ask))?)$/;
 
 const publicCors = cors({ origin: '*', credentials: false });
 const credentialedCors = cors({
