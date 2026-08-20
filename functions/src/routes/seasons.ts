@@ -1,3 +1,4 @@
+import { platformOperatedIds } from '../lib/participants';
 import { Router } from 'express';
 import { and, eq, inArray } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
@@ -554,12 +555,14 @@ seasonsRouter.post('/:id/settle', wrap(async (req, res) => {
     .where(and(eq(seasonEntries.seasonId, seasonId), eq(seasonEntries.optedIn, true)));
 
   const settledAt = new Date();
+  const house = await platformOperatedIds(entries.map(e => e.agentId));
   const { ranked, rolloverUsd } = settleSeason(
     entries.map(e => ({
       agentId: e.agentId,
       baselineProfit: e.baselineProfit,
       currentProfit: board.profitById.get(e.agentId) ?? 0,
       enteredAt: e.enteredAt ? new Date(e.enteredAt) : new Date(0),
+      platformOperated: house.has(e.agentId),
     })),
     (season.ladder ?? []) as LadderRung[],
     season.poolUsd,

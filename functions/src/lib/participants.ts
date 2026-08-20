@@ -407,3 +407,23 @@ export async function workspaceExists(workspaceId: string): Promise<boolean> {
   const [workspace] = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.id, workspaceId));
   return Boolean(workspace);
 }
+
+/**
+ * Which of these participants are operated by us.
+ *
+ * One reader for one fact: the season's standings projection, the public
+ * board's prize column and the settlement transaction all have to agree about
+ * who may take a rung, and settlement assigns real money. Three copies of a
+ * `nickname === 'telarchy-agents'` check is how they would come to disagree.
+ *
+ * An id that does not exist simply is not in the set, which reads as "not the
+ * house", and that is the safe direction: a missing row must not silently make
+ * a stranger ineligible for a prize.
+ */
+export async function platformOperatedIds(agentIds: string[]): Promise<Set<string>> {
+  const unique = [...new Set(agentIds.filter(Boolean))];
+  if (unique.length === 0) return new Set();
+  const rows = await db.select({ id: agents.id, platformOperated: agents.platformOperated })
+    .from(agents).where(inArray(agents.id, unique));
+  return new Set(rows.filter(r => r.platformOperated).map(r => r.id));
+}

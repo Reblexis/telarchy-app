@@ -325,7 +325,34 @@ change proposed.
 | 4 | Settlement + baseline mark | Deferred to Season 1: 48h time-weighted average (F3) |
 | 5 | Prize eligibility floor | Deferred to Season 1: 10 trades / 2 markets / 3 before the final week (F5) |
 | 6 | Duplicate payout handles | Deferred to Season 1: one entry per payout handle (F2) |
-| 7 | House accounts | Deferred to Season 1: explicitly ineligible in the rules (F6) |
+| 7 | House accounts | **DONE 2026-08-20**: enforced, not just written. `agents.platform_operated` (migration 0069); a house account ranks and scores but never takes a rung |
+
+## What shipped on 2026-08-20
+
+**The house cannot take a rung.** The rules have said since they were published
+that "participants operated by us or run as part of the platform are not
+eligible", and nothing checked: `isPrizeEligible` was one line, `score > 0`,
+with a comment saying no identity gate. On the eve of Season 0 the standings of
+a $1,000 cash contest had two entrants, both the operator's, with the trading
+bot leading five to one. A rule a reader can check and find broken is worse
+than no rule, and this was the night traffic was about to be pointed at it.
+
+`agents.platform_operated` (migration 0069) carries it, flagged for
+`telarchy-agents`, the two LookPilot sync jobs, `telarchy-self-sync` and the
+admin account. `lib/participants.ts` `platformOperatedIds` is the only reader,
+because the standings projection, the public board's prize column and the
+settlement transaction all have to agree about who may take money and three
+copies of a nickname check is how they would come to disagree.
+
+Ineligible is **not** hidden. A house account still scores, still ranks and
+still appears on every board (owner direction 2026-08-14: nobody excluded); it
+simply never consumes a rung, so a stranger below it takes first money rather
+than second. Four tests in `seasons.test.ts` pin that, including the season
+made entirely of house accounts, which pays nothing and rolls the whole pool.
+
+Viktor's own participant account stays eligible (owner decision 2026-08-20):
+the rule names accounts operated by the platform, and the founder trading his
+own market is participation rather than the house winning.
 
 ## What shipped on 2026-08-19
 

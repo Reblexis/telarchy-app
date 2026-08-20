@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '../db/client';
-import { getParticipantDisplayNames } from '../lib/participants';
+import { getParticipantDisplayNames, platformOperatedIds } from '../lib/participants';
 import { agents, authUser, systemConfig, prizeSeasons, seasonEntries, workspaces } from '../db/schema';
 import { wrap } from '../lib/wrap';
 import { loadBoard, type Board } from '../lib/board';
@@ -239,12 +239,14 @@ async function currentSeasonPrizes(): Promise<{
   const publicIds = new Set(publicNow.map(w => w.id));
   const board = await cachedBoard(pinned.filter(id => publicIds.has(id)));
 
+  const house = await platformOperatedIds(entries.map(e => e.agentId));
   const projection = settleSeason(
     entries.map(e => ({
       agentId: e.agentId,
       baselineProfit: e.baselineProfit,
       currentProfit: board.profitById.get(e.agentId) ?? 0,
       enteredAt: e.enteredAt ? new Date(e.enteredAt) : new Date(0),
+      platformOperated: house.has(e.agentId),
     })),
     (season.ladder ?? []) as LadderRung[],
     season.poolUsd,
@@ -351,6 +353,7 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
   // rather than in the client, so the number a standing shows and the number
   // a settlement pays can never drift apart: a second copy of "who gets which
   // rung" is a promise the payout might not keep.
+  const house = await platformOperatedIds(rows.map(r => r.id));
   const projection = settleSeason(
     rows.map(r => ({
       agentId: r.id,
@@ -359,6 +362,7 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
       // from current, so feeding score against a zero baseline reproduces it.
       currentProfit: r.score,
       enteredAt: r.enteredAt ? new Date(r.enteredAt) : new Date(0),
+      platformOperated: house.has(r.id),
     })),
     ladder,
     season.poolUsd,

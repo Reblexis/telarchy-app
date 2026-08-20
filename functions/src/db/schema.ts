@@ -242,6 +242,12 @@ export const agents = pgTable('agents', {
    * way, because a null would have meant every account's first sight of the
    * feature was a badge counting months of history nobody promised them.
    */
+  /** Operated by us or run as part of the platform: trading bots, sync jobs,
+   *  the workspace owner's own admin account. They trade, they rank and they
+   *  appear on every board like anyone else; they simply cannot take a prize
+   *  rung, which is what the published season rules have always said and what
+   *  nothing enforced until 2026-08-20. */
+  platformOperated: boolean('platform_operated').notNull().default(false),
   notificationsSeenAt: timestamp('notifications_seen_at').notNull().defaultNow(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   approvedAt: timestamp('approved_at'),

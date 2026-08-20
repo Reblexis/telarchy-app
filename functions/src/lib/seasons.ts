@@ -77,6 +77,8 @@ export interface SeasonEntrant {
   currentProfit: number;
   /** When they opted in. The published first tiebreak. */
   enteredAt: Date;
+  /** Operated by us: ranks and scores like anyone, never takes a rung. */
+  platformOperated?: boolean;
 }
 
 /** An entrant after scoring and ranking. */
@@ -116,11 +118,23 @@ export function seasonScore(currentProfit: number, baselineProfit: number): numb
   return round2(currentProfit - baselineProfit);
 }
 
-/** The eligibility bar, in one place because the rules document quotes it and
- *  the settle path enforces it. Deliberately the simple version: no volume
- *  floor, no identity gate (owner: "simple setup first"). */
-export function isPrizeEligible(score: number): boolean {
-  return score > 0;
+/**
+ * The eligibility bar, in one place because the rules document quotes it and
+ * the settle path enforces it. Still the simple version on the score side: no
+ * volume floor, no trade count (owner: "simple setup first").
+ *
+ * The identity half is not optional though, because the published rules say
+ * "participants operated by us or run as part of the platform are not
+ * eligible" and until 2026-08-20 nothing checked. On the eve of Season 0 the
+ * operator's own trading bot sat top of the standings of a $1,000 contest, and
+ * a rule a reader can check and find broken is worse than no rule.
+ *
+ * Ineligible is not hidden: a house account still scores, still ranks and
+ * still appears on every board (owner direction 2026-08-14, nobody excluded).
+ * It just never consumes a rung.
+ */
+export function isPrizeEligible(score: number, platformOperated = false): boolean {
+  return !platformOperated && score > 0;
 }
 
 /**
@@ -145,6 +159,7 @@ export function settleSeason(
   const scored = entrants.map(e => ({
     agentId: e.agentId,
     enteredAt: e.enteredAt,
+    platformOperated: e.platformOperated === true,
     score: seasonScore(e.currentProfit, e.baselineProfit),
   }));
 
@@ -163,7 +178,7 @@ export function settleSeason(
   // an eligible one does not burn a rung.
   let place = 0;
   const ranked: RankedEntrant[] = scored.map((e, i) => {
-    const eligible = isPrizeEligible(e.score);
+    const eligible = isPrizeEligible(e.score, e.platformOperated);
     let prizeUsd = 0;
     if (eligible) {
       place += 1;
