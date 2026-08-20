@@ -197,3 +197,31 @@ sending domain `telarchy.com` is verified in Resend.
 Participant mail also needs `BETTER_AUTH_URL` (or it falls back to
 `https://telarchy.com`), because every one of those emails carries a link
 back to the floor and a link to the account settings that switch it off.
+
+## Memory
+
+**512Mi (raised from 256Mi on 2026-08-20).** At 256Mi the container was
+OOM-killed nine times in six hours on almost no traffic, and Cloud Run
+answers a killed instance's in-flight requests with 503. The endpoint that
+took it most often was `GET /api/marketplace/:slug`, i.e. the public floor's
+own payload: a visitor arriving from a shared link had a real chance of
+meeting an error page. Cloud Run names the cause itself in the logs ("the
+container instance was found to be using too much memory and was
+terminated").
+
+The limit is set in two places and they must agree: the `deploy` script in
+`package.json` (the hand deploy) and `.github/workflows/deploy-cloudrun.yml`
+(the pipeline). Changing one without the other means the next pipeline deploy
+silently reverts a hand fix.
+
+To check whether it is still happening:
+
+```bash
+gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="api" AND textPayload:"too much memory"' \
+  --project=telarchy-e0043 --freshness=6h --format='value(timestamp)' | wc -l
+```
+
+Raising the ceiling is not the same as fixing the footprint. The known hogs
+are the board aggregates over a 348k-row `trades` table (see the cache note in
+`functions/src/routes/leaderboard.ts`) and the share-card PNG renderer. If the
+count above climbs again at 512Mi, profile before raising further.
