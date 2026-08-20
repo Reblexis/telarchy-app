@@ -11,6 +11,7 @@ import { optionalAuthMiddleware } from '../middleware/auth';
 import { requireConsentIfUser } from '../middleware/consent';
 import { isPlatformAuthorized } from '../lib/platform-admin';
 import { loadBoard } from '../lib/board';
+import { startSeason, SeasonStartError } from '../services/seasons';
 import { clearBoardCache } from './leaderboard';
 import {
   claimDeadline,
@@ -466,67 +467,17 @@ seasonsRouter.patch('/:id', wrap(async (req, res) => {
  */
 seasonsRouter.post('/:id/start', wrap(async (req, res) => {
   await requirePlatform(req);
-  const seasonId = req.params.id as string;
-
-  const [season] = await db.select().from(prizeSeasons).where(eq(prizeSeasons.id, seasonId)).limit(1);
-  if (!season) throw new AppError('Season not found', 404);
-  if (season.status !== 'draft') throw new AppError(`Season is ${season.status}, not draft`, 409);
-
-  const publicWs = await db.select({ id: workspaces.id })
-    .from(workspaces).where(eq(workspaces.visibility, 'public'));
-  const workspaceIds = publicWs.map(w => w.id);
-  if (workspaceIds.length === 0) throw new AppError('No public workspaces to score over', 409);
-
-  // Read the board directly, never the 30-second cache: this number is the
-  // floor under every score in the season.
-  const board = await loadBoard(workspaceIds);
-
-  // Pre-registrations survive the start. Entry opens while a season is still a
-  // draft (owner direction 2026-08-18), so by the time this runs there may
-  // already be rows here that ARE entries. This used to `delete` the whole
-  // season's rows and rebuild them from the board, which would have thrown
-  // every early entrant away without a trace: they would see themselves opted
-  // in yesterday and opted out today, and nothing would say why.
-  //
-  // So: keep optedIn and enteredAt as they stand, and write the baseline over
-  // the top. The fairness rule is untouched, because it was never about WHEN
-  // someone opted in; it is that the baseline is read for everyone at this
-  // instant, which is exactly what board.profitById is.
-  const existing = await db.select().from(seasonEntries).where(eq(seasonEntries.seasonId, seasonId));
-  const entryByAgent = new Map(existing.map(e => [e.agentId, e]));
-
-  // The union: everyone with a baseline worth storing, plus everyone who
-  // already entered (whose baseline may well be zero, and who must not be
-  // dropped for it).
-  const agentIds = new Set<string>([
-    ...board.agentIds.filter(id => (board.profitById.get(id) ?? 0) !== 0),
-    ...existing.map(e => e.agentId),
-  ]);
-
-  const rows = [...agentIds].map(agentId => {
-    const prior = entryByAgent.get(agentId);
-    return {
-      seasonId,
-      agentId,
-      optedIn: prior?.optedIn ?? false,
-      enteredAt: prior?.enteredAt ?? null,
-      baselineProfit: board.profitById.get(agentId) ?? 0,
-    };
-  });
-
-  await db.transaction(async tx => {
-    await tx.delete(seasonEntries).where(eq(seasonEntries.seasonId, seasonId));
-    if (rows.length > 0) await tx.insert(seasonEntries).values(rows);
-    await tx.update(prizeSeasons).set({ status: 'running', workspaceIds })
-      .where(eq(prizeSeasons.id, seasonId));
-  });
-
-  res.json({
-    started: true,
-    workspaceIds,
-    baselinesWritten: board.agentIds.length,
-    preRegistrationsKept: rows.filter(r => r.optedIn).length,
-  });
+  try {
+    // The whole body of this used to live here. It moved to
+    // services/seasons.ts so the scheduler can start a season the same way a
+    // human does; two copies of "pin the workspaces and snapshot every
+    // baseline" would eventually disagree about what a season was scored from.
+    const result = await startSeason(req.params.id as string);
+    res.json({ started: true, ...result });
+  } catch (e) {
+    if (e instanceof SeasonStartError) throw new AppError(e.message, e.status);
+    throw e;
+  }
 }));
 
 /**

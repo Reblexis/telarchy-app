@@ -37,6 +37,28 @@ async function allWorkspaceIds(): Promise<string[]> {
   return rows.map(r => r.id);
 }
 
+/**
+ * Start any season whose published start instant has passed.
+ *
+ * A season used to start only when a human called POST /api/seasons/:id/start
+ * at the right minute (owner direction 2026-08-20: "make it automatic"). That
+ * is the one step in a season's life that can silently not happen: nothing
+ * errors, nothing alerts, the page keeps saying "starts in", and the baselines
+ * are taken whenever somebody notices.
+ *
+ * Safe to call as often as you like. It only ever moves a DRAFT whose startsAt
+ * has passed, so a double call is a no-op and an early call does nothing.
+ */
+cronRouter.post('/seasons', wrap(async (req, res) => {
+  if (!validateApiKey(req, res)) return;
+  const { startDueSeasons } = await import('../services/seasons');
+  const result = await startDueSeasons();
+  // Logged unconditionally, including the empty case: a scheduler job that
+  // stopped firing is invisible unless the quiet runs are on the record too.
+  console.log('[cron/seasons]', JSON.stringify(result));
+  res.json({ ok: true, ...result });
+}));
+
 cronRouter.post('/resolve', wrap(async (req, res) => {
   if (!validateApiKey(req, res)) return;
 
