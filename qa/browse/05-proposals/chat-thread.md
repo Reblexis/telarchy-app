@@ -52,12 +52,12 @@ n=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
 for body in "looks good?" "needs scope" "ship it"; do
   curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
     -H 'Content-Type: application/json' -X POST \
-    -d "$(jq -nc --arg b "$body" '{body:$b}')" \
+    -d "$(jq -nc --arg b "$body" '{content:$b}')" \
     "$TT_BASE_URL/api/proposals/$PROPOSAL/messages" >/dev/null
   sleep 0.1
 done
 seq=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
-  "$TT_BASE_URL/api/proposals/$PROPOSAL/messages" | jq -r '.[].body' | tr '\n' '|')
+  "$TT_BASE_URL/api/proposals/$PROPOSAL/messages" | jq -r '.[].content' | tr '\n' '|')
 [ "$seq" = "looks good?|needs scope|ship it|" ]
 ```
 
@@ -66,7 +66,7 @@ seq=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
 ```bash
 out=$(curl -sf -H "X-Agent-Key: $KA" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' -X POST \
-  -d '{"body":"approving"}' \
+  -d '{"content":"approving"}' \
   "$TT_BASE_URL/api/proposals/$PROPOSAL/messages")
 echo "$out" | jq -e '.id' >/dev/null
 ```
@@ -81,7 +81,7 @@ status=$(curl -s -o /dev/null -w '%{http_code}' \
 [ "$status" = "200" ]
 status=$(curl -s -o /dev/null -w '%{http_code}' \
   -H "X-Agent-Key: $RKEY" -H "X-Workspace-Id: $WS" \
-  -H 'Content-Type: application/json' -X POST -d '{"body":"x"}' \
+  -H 'Content-Type: application/json' -X POST -d '{"content":"x"}' \
   "$TT_BASE_URL/api/proposals/$PROPOSAL/messages")
 [ "$status" = "403" ]
 ```
@@ -91,7 +91,7 @@ status=$(curl -s -o /dev/null -w '%{http_code}' \
 ```bash
 status=$(curl -s -o /dev/null -w '%{http_code}' \
   -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
-  -H 'Content-Type: application/json' -X POST -d '{"body":""}' \
+  -H 'Content-Type: application/json' -X POST -d '{"content":""}' \
   "$TT_BASE_URL/api/proposals/$PROPOSAL/messages")
 case "$status" in 400|422) ;; *) echo "empty body returned $status"; exit 1;; esac
 
@@ -99,12 +99,28 @@ big=$(printf 'X%.0s' $(seq 1 20000))
 status=$(curl -s -o /dev/null -w '%{http_code}' \
   -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
   -H 'Content-Type: application/json' \
-  -X POST -d "$(jq -nc --arg b "$big" '{body:$b}')" \
+  -X POST -d "$(jq -nc --arg b "$big" '{content:$b}')" \
   "$TT_BASE_URL/api/proposals/$PROPOSAL/messages")
 case "$status" in 200|201|400|413|422) ;; *) echo "huge body returned $status"; exit 1;; esac
 ```
 
-### T6. Stranger (no membership) cannot read
+### T6. The thread outlives the decision
+
+The floor keeps a decided contract's conversation open (docs/vision.md,
+"the conversation outlives the decision"), so the API must accept a
+comment on an approved or declined proposal, not only a pending one.
+
+```bash
+tt_admin_curl "$WS" -H 'Content-Type: application/json' -X POST -d '{}' \
+  "$TT_BASE_URL/api/proposals/$PROPOSAL/approve" >/dev/null
+out=$(curl -sf -H "X-Agent-Key: $KP" -H "X-Workspace-Id: $WS" \
+  -H 'Content-Type: application/json' -X POST \
+  -d '{"content":"delivered, see the number"}' \
+  "$TT_BASE_URL/api/proposals/$PROPOSAL/messages")
+echo "$out" | jq -e '.id' >/dev/null
+```
+
+### T7. Stranger (no membership) cannot read
 
 ```bash
 WS2=$(tt_mkworkspace blank public); tt_on_cleanup "tt_rm_workspace '$WS2'"

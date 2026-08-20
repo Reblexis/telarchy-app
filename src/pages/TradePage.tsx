@@ -1111,8 +1111,12 @@ export function TradePage() {
           </section>
         )}
 
-        {active && !selectedJobDecided && (trading || (canTrade && !user && !authLoading)) ? (
-          <section className="pubws-act pubws-enter pubws-enter--3" aria-label="Place a trade">
+        {/* A decision pauses trading, not the conversation (owner ask
+            2026-08-20, docs/vision.md "the conversation outlives the
+            decision"): a decided contract drops the bet verbs and keeps
+            its thread, readable and open to new comments. */}
+        {active && (trading || (canTrade && !user && !authLoading)) ? (
+          <section className="pubws-act pubws-enter pubws-enter--3" aria-label={selectedJobDecided ? 'Conversation' : 'Place a trade'}>
             {/* Prominent, Manifold-style (owner direction 2026-08-10):
                 the two filled verbs ARE the floor's call to action, green
                 up first like the reference. The dialog they open keeps its
@@ -1124,7 +1128,7 @@ export function TradePage() {
                 "Market has no liquidity" at submit (owner report
                 2026-08-15). The number above is the baseline's prior, drawn
                 so the chart is not blank; it is not a price anyone made. */}
-            {active.funded ? (
+            {!selectedJobDecided && (active.funded ? (
               <div className="pubws-bet" role="group" aria-label="Bet">
                 <button className="pubws-bet-btn pubws-bet-btn--higher" onClick={() => setBetModal('higher')}>Bet Higher ↑</button>
                 <button className="pubws-bet-btn pubws-bet-btn--lower" onClick={() => setBetModal('lower')}>Bet Lower ↓</button>
@@ -1135,10 +1139,10 @@ export function TradePage() {
                   ? 'This contract has no market yet: nobody has funded one, so there is nothing to trade against. The owner funds it, or the proposer can back it themselves.'
                   : 'This market has no liquidity yet, so there is nothing to trade against.'}
               </p>
-            )}
+            ))}
             {/* The held position stays visible on the floor; managing it
                 (selling, cancelling orders) happens in the same dialog. */}
-            {(positions.length > 0 || orders.length > 0) && (
+            {!selectedJobDecided && (positions.length > 0 || orders.length > 0) && (
               <button className="pubws-pos-summary" onClick={() => setBetModal('manage')}>
                 {positions.map(p => `${p.direction === 'higher' ? '▲' : '▼'} ${fmtShares(p.shares)} ${p.direction}`).join(' · ')}
                 {positions.length > 0 && orders.length > 0 ? ' · ' : ''}

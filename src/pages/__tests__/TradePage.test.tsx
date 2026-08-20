@@ -327,6 +327,25 @@ describe('the activity panel under a selected contract', () => {
     expect(vi.mocked(api.getFloorComments)).toHaveBeenCalledWith('lookpilot', expect.objectContaining({ proposalId: 'job-1' }));
   });
 
+  // The conversation outlives the decision (owner ask 2026-08-20,
+  // docs/vision.md): hiding the whole trade section on a decided contract
+  // buried its thread exactly when the outcome is worth discussing.
+  test('a decided contract keeps its comment thread, without the bet verbs', async () => {
+    const { api } = await import('../../lib/api');
+    const ws = h.workspace();
+    ws.joinAs = 'trader';
+    ws.proposals[0].status = 'approved' as never;
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    vi.mocked(api.getFloorComments).mockClear();
+
+    renderFloor();
+    fireEvent.click(await screen.findByTitle('rewrite the store page'));
+
+    await waitFor(() => expect(vi.mocked(api.getFloorComments)).toHaveBeenCalledWith('lookpilot', expect.objectContaining({ proposalId: 'job-1' })));
+    expect(screen.queryByRole('button', { name: 'Bet Higher ↑' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Bet Lower ↓' })).toBeNull();
+  });
+
   test('follows the branch toggle', async () => {
     const { api } = await import('../../lib/api');
     const ws = h.workspace();

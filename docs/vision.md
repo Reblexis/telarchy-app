@@ -441,6 +441,8 @@ The headline is **derived, not stored** (`src/lib/announcement-headline.ts`): th
 
 A conversation nobody is told about is not a conversation. Comments under a contract and under a market are the only back-and-forth the floor has, and until 2026-08-19 a participant found out that someone had answered them only by coming back to the page and scrolling. That is backwards: the people worth keeping (the contractor whose job someone is questioning, the trader who asked what the number means) were exactly the ones with no signal to return on.
 
+**Added 2026-08-20 (Viktor): the conversation outlives the decision.** An approved or declined contract keeps its thread on the floor, readable and open to new comments. What a decision pauses is trading, not the talk about the outcome; hiding the thread with the bet buttons buried it exactly when there is the most to say (was the work delivered, did the number move). The API never gated this (`proposalMessages` accepts any status), so the fix is purely which panels the floor shows on a decided contract.
+
 A participant therefore carries three email switches on their own row (`agents`), all editable in account settings:
 
 - `notifyCommentOnMyProposal` (default **on**): someone commented under a contract you posted.
