@@ -45,10 +45,28 @@ function readDocumentedEndpoints(): DocumentedEndpoint[] {
   expect(start).toBeGreaterThan(0);
   const block = src.slice(start);
 
-  const re = /\{\s*method:\s*'([A-Z]+)',\s*path:\s*'([^']+)',\s*auth:\s*(?:'([^']+)'|(false))/g;
+  // Match the endpoint header first, then read `auth` separately. Folding the
+  // auth shape into one regex meant an entry written `auth: true` (a bare
+  // boolean, not a legend label) matched nothing and vanished from the parse
+  // entirely, so every check below silently skipped it. Three season
+  // endpoints hid that way, including the entry toggle and the prize claim.
+  // An entry we cannot read is now an error, not an omission.
+  const re = /\{\s*method:\s*'([A-Z]+)',\s*path:\s*'([^']+)',\s*auth:\s*([^,]+),/g;
   const out: DocumentedEndpoint[] = [];
+  const unreadable: string[] = [];
   for (let m = re.exec(block); m !== null; m = re.exec(block)) {
-    out.push({ method: m[1], path: m[2], auth: m[3] ?? 'false' });
+    const rawAuth = m[3].trim();
+    const quoted = /^'([^']*)'$/.exec(rawAuth);
+    if (quoted) out.push({ method: m[1], path: m[2], auth: quoted[1] });
+    else if (rawAuth === 'false') out.push({ method: m[1], path: m[2], auth: 'false' });
+    else unreadable.push(`${m[1]} ${m[2]} -> auth:${rawAuth}`);
+  }
+  if (unreadable.length > 0) {
+    throw new Error(
+      `Endpoint(s) in /api/help have an auth value that is neither a quoted legend label nor false:\n` +
+        `${unreadable.join('\n')}\n` +
+        `Use a label from auth_field_legend in app.ts (e.g. 'identity' for any authenticated participant).`,
+    );
   }
   return out;
 }
@@ -208,5 +226,160 @@ describe('API parity: frontend goes through the public API', () => {
       });
     }
     expect(middlewareByPath['POST /consent']).toBe('requireUser');
+  });
+});
+
+/**
+ * The checks above run frontend -> catalog. These run route -> catalog and
+ * catalog -> route, which is the direction that actually drifted.
+ *
+ * A registered route missing from /api/help is invisible: an agent author
+ * reading the catalog concludes the action is impossible, gives up, and
+ * reaches for the master key instead. That is how a bot ends up holding an
+ * operator credential to do something a scoped key should have covered.
+ * `POST /api/predictions/markets/:id/resolve` sat unlisted this way even
+ * though any workspace admin could call it and it settles real positions.
+ *
+ * A catalog entry with no route is worse, because the agent writes code
+ * against it and finds out at runtime. `DELETE /api/predictions/markets/:id`
+ * was documented long after the route was replaced by `/void`.
+ */
+
+/**
+ * Mount prefixes, mirroring the `app.use('/api/...', xRouter)` calls in
+ * app.ts. Held as data rather than parsed out of app.ts on purpose: parsing
+ * would make a mount typo agree with itself, whereas this way it surfaces as
+ * a parity failure.
+ */
+const ROUTER_MOUNTS: Record<string, string> = {
+  'userauth.ts': '/api/auth',
+  'guides.ts': '/api/guides',
+  'legal.ts': '/api/legal',
+  'data-room.ts': '/api/data-room',
+  'cron.ts': '/api/cron',
+  'waitlist.ts': '/api/waitlist',
+  'manifold.ts': '/api/import/manifold',
+  'onboard.ts': '/api/onboard',
+  'agents.ts': '/api/agents',
+  'predictions.ts': '/api/predictions',
+  'events.ts': '/api/events',
+  'proposals.ts': '/api/proposals',
+  'marketplace.ts': '/api/marketplace',
+  'leaderboard.ts': '/api/leaderboard',
+  'seasons.ts': '/api/seasons',
+  'notifications.ts': '/api/notifications',
+  'feedback.ts': '/api/feedback',
+  'sources.ts': '/api/sources',
+  'metrics.ts': '/api/metrics',
+  'updates.ts': '/api/updates',
+  'workspaces.ts': '/api/workspaces',
+  'groups.ts': '/api/groups',
+  'admin.ts': '/api/admin',
+  'activity.ts': '/api/activity',
+  'system.ts': '/api',
+};
+
+/**
+ * Routes deliberately absent from /api/help. Each needs a real reason:
+ * "undocumented" is the default failure this guards against, so an
+ * unexplained entry here is how the exemption list becomes the loophole.
+ */
+const UNDOCUMENTED_BY_DESIGN: Record<string, string> = {
+  'GET /api/sources/github/callback':
+    'OAuth redirect target that GitHub hits during the install flow. Not an action any caller invokes, and publishing it would invite people to call it directly.',
+};
+
+/** Catalog entries with no router behind them, permitted only where app.ts serves the path itself. */
+const SERVED_OUTSIDE_ROUTERS: Record<string, string> = {
+  'GET /api/help':
+    'The catalog itself, served by app.ts rather than by a mounted router, so it can never appear in the router scan.',
+};
+
+/** Param names differ between catalog and code (:id vs :proposalId); compare shapes. */
+const normaliseRoute = (k: string) => k.replace(/:[A-Za-z]+/g, ':x');
+
+function readRegisteredRoutes(): Map<string, string> {
+  const found = new Map<string, string>();
+  for (const [file, prefix] of Object.entries(ROUTER_MOUNTS)) {
+    const full = join(ROUTES_DIR, file);
+    let src: string;
+    try {
+      src = readFileSync(full, 'utf8');
+    } catch {
+      continue; // router file removed; the catalog check will flag the orphans
+    }
+    const re = /\b\w*Router\.(get|post|put|patch|delete)\(\s*['"`]([^'"`]*)['"`]/g;
+    for (let m = re.exec(src); m !== null; m = re.exec(src)) {
+      const method = m[1].toUpperCase();
+      const sub = m[2] === '/' ? '' : m[2];
+      const path = (prefix + sub).replace(/\/{2,}/g, '/').replace(/\/$/, '') || '/';
+      found.set(`${method} ${path}`, file);
+    }
+  }
+  return found;
+}
+
+describe('API parity: /api/help is a complete map of the API', () => {
+  let documented: DocumentedEndpoint[];
+  let registered: Map<string, string>;
+
+  beforeAll(() => {
+    documented = readDocumentedEndpoints();
+    registered = readRegisteredRoutes();
+  });
+
+  test('the router scan finds a plausible number of routes', () => {
+    // Guards against a regex that silently matches nothing, which would make
+    // the two assertions below pass vacuously.
+    expect(registered.size).toBeGreaterThan(100);
+  });
+
+  test('every registered route is documented in /api/help', () => {
+    const documentedShapes = new Set(
+      documented.map(e => normaliseRoute(`${e.method} ${e.path.replace(/\/$/, '')}`)),
+    );
+
+    const undocumented = [...registered.entries()]
+      .filter(([route]) => !documentedShapes.has(normaliseRoute(route)))
+      .filter(([route]) => !(route in UNDOCUMENTED_BY_DESIGN))
+      .map(([route, file]) => `${route}  (routes/${file})`)
+      .sort();
+
+    if (undocumented.length > 0) {
+      throw new Error(
+        `Route(s) registered but missing from the /api/help catalog in app.ts:\n${undocumented.join('\n')}\n` +
+          `Every human action must be reachable by a bot, and a bot only sees what /api/help lists.\n` +
+          `Add the catalog entry in the same commit as the route, or add the route to\n` +
+          `UNDOCUMENTED_BY_DESIGN in this test with a reason.\n` +
+          `(See AGENTS.md "Frontend goes through the public API".)`,
+      );
+    }
+  });
+
+  test('every documented endpoint has a route behind it', () => {
+    const registeredShapes = new Set([...registered.keys()].map(normaliseRoute));
+
+    const phantom = documented
+      .map(e => `${e.method} ${e.path.replace(/\/$/, '')}`)
+      .filter(route => !registeredShapes.has(normaliseRoute(route)))
+      .filter(route => !(route in SERVED_OUTSIDE_ROUTERS))
+      .sort();
+
+    if (phantom.length > 0) {
+      throw new Error(
+        `Endpoint(s) documented in /api/help with no router registering them:\n${phantom.join('\n')}\n` +
+          `An agent that trusts the catalog will write code against these and get a 404.\n` +
+          `Remove the entry from app.ts, or restore the route.`,
+      );
+    }
+  });
+
+  test('nothing is exempted without a stated reason', () => {
+    for (const [route, reason] of Object.entries({
+      ...UNDOCUMENTED_BY_DESIGN,
+      ...SERVED_OUTSIDE_ROUTERS,
+    })) {
+      expect(`${route}: ${reason}`.length).toBeGreaterThan(60);
+    }
   });
 });
