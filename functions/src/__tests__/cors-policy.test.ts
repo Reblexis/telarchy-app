@@ -27,6 +27,7 @@ function appWith(): express.Express {
   const app = express();
   app.use(corsMiddleware);
   app.get('/api/status', (_req, res) => { res.json({ ok: true }); });
+  app.get('/api/marketplace/:id', (_req, res) => { res.json({ floor: true }); });
   app.get('/api/marketplace/:id/context', (_req, res) => { res.json({ brief: true }); });
   app.post('/api/marketplace/:id/ask', (_req, res) => { res.json({ answer: 'yes' }); });
   app.get('/api/marketplace/:id/comments', (_req, res) => { res.json([]); });
@@ -67,6 +68,14 @@ describe('CORS policy', () => {
       .set('Access-Control-Request-Method', 'POST')
       .set('Access-Control-Request-Headers', 'content-type');
     expect(res.status).toBeLessThan(300);
+    expect(res.headers['access-control-allow-origin']).toBe('*');
+    expect(res.headers['access-control-allow-credentials']).toBeUndefined();
+  });
+
+  test("a floor's public payload answers any origin, so the data room's freshness check can run", async () => {
+    // It was fetched from lookpilot.app and refused from the day it shipped,
+    // so the "this page says X and the market says Y" banner never once ran.
+    const res = await request(appWith()).get('/api/marketplace/lookpilot').set('Origin', ALIEN);
     expect(res.headers['access-control-allow-origin']).toBe('*');
     expect(res.headers['access-control-allow-credentials']).toBeUndefined();
   });

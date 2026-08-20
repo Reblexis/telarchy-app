@@ -6,12 +6,19 @@ import { originAllowedForCors } from './origins';
  * Who may call this API from a browser. Two policies, because two kinds of
  * route live here.
  *
- * The brief (`/context`) and the question box (`/ask`) are anonymous by design
- * and exist to be read from somewhere else: LookPilot's data room embeds them
- * from its own origin, and any agent may fetch the brief. They carry no
- * cookies, spend no session, and answer the same facts to everyone, so they
- * are open to EVERY origin and explicitly WITHOUT credentials, exactly like
- * the data room's own JSON feed.
+ * A floor's public payload (`/api/marketplace/:id`), the brief (`/context`)
+ * and the question box (`/ask`) are anonymous by design and exist to be read
+ * from somewhere else: LookPilot's data room embeds all three from its own
+ * origin, and any agent may fetch the brief. They carry no cookies, spend no
+ * session, and answer the same facts to everyone, so they are open to EVERY
+ * origin and explicitly WITHOUT credentials, exactly like the data room's own
+ * JSON feed.
+ *
+ * The payload is in that set because it was already being fetched from
+ * lookpilot.app and silently failing: the data room's freshness check ("this
+ * page says X and the market says Y, trust the market") has never once run in
+ * a visitor's browser. Nothing else under /api/marketplace is opened, because
+ * joining a floor is not a read.
  *
  * Everything else keeps the credentialed allowlist. A wildcard there would let
  * any page on the internet act as a signed-in user, so the two policies must
@@ -26,7 +33,7 @@ import { originAllowedForCors } from './origins';
  * a session chasing a phantom bug before anyone noticed the Origin header was
  * the variable.
  */
-const PUBLIC_CORS_PATH = /^\/api\/marketplace\/[^/]+\/(context|ask)$/;
+const PUBLIC_CORS_PATH = /^\/api\/marketplace\/[^/]+(\/(context|ask))?$/;
 
 const publicCors = cors({ origin: '*', credentials: false });
 const credentialedCors = cors({
