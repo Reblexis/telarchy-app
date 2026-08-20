@@ -4,7 +4,7 @@ import { sources, permissionGroups, workspaces } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { randomUUID, randomBytes, createPrivateKey, sign } from 'crypto';
 import { wrap } from '../lib/wrap';
-import { requireCapability } from '../middleware/roles';
+import { requireCapability, requireIdentity } from '../middleware/roles';
 import { getGroupMemberIds, getOwnerHandles } from '../lib/participants';
 import { AppError } from '../lib/errors';
 
@@ -341,7 +341,15 @@ sourcesRouter.post('/github/connect', requireCapability('manage'), wrap(async (r
 // ---------------------------------------------------------------------------
 
 // GET /api/sources - list sources (no content, no credentials)
-sourcesRouter.get('/', requireCapability('read'), wrap(async (req, res) => {
+/**
+ * Member-only read (owner direction 2026-08-20). Anonymous callers can read a
+ * public workspace's MARKET data without a key, but not its internals: this
+ * endpoint answers who is in which permission group / what a source is
+ * configured with, which is workspace plumbing rather than a price. An
+ * identity is cheap (register, or self-join an Open workspace) and it makes
+ * the read attributable.
+ */
+sourcesRouter.get('/', requireIdentity, requireCapability('read'), wrap(async (req, res) => {
   const { workspaceId, agentId, capabilities } = req.auth!;
 
   const rows = await db.select().from(sources)
@@ -365,7 +373,7 @@ sourcesRouter.get('/', requireCapability('read'), wrap(async (req, res) => {
 }));
 
 // GET /api/sources/:id - get source, including content for text sources
-sourcesRouter.get('/:id', requireCapability('read'), wrap(async (req, res) => {
+sourcesRouter.get('/:id', requireIdentity, requireCapability('read'), wrap(async (req, res) => {
   const { workspaceId, agentId, capabilities } = req.auth!;
   const sourceId = req.params.id as string;
 
@@ -458,7 +466,7 @@ sourcesRouter.put('/:id', requireCapability('manage'), wrap(async (req, res) => 
 }));
 
 // GET /api/sources/:id/tree - browse a GitHub source (directory listing).
-sourcesRouter.get('/:id/tree', requireCapability('read'), wrap(async (req, res) => {
+sourcesRouter.get('/:id/tree', requireIdentity, requireCapability('read'), wrap(async (req, res) => {
   const { workspaceId, agentId, capabilities } = req.auth!;
   const sourceId = req.params.id as string;
 
@@ -505,7 +513,7 @@ sourcesRouter.get('/:id/tree', requireCapability('read'), wrap(async (req, res) 
 }));
 
 // GET /api/sources/:id/file - read a file from a GitHub source.
-sourcesRouter.get('/:id/file', requireCapability('read'), wrap(async (req, res) => {
+sourcesRouter.get('/:id/file', requireIdentity, requireCapability('read'), wrap(async (req, res) => {
   const { workspaceId, agentId, capabilities } = req.auth!;
   const sourceId = req.params.id as string;
 

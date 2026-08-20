@@ -125,6 +125,11 @@ describe('API parity: frontend goes through the public API', () => {
       'agent',
       'agent/admin',
       'admin',
+      // Reads a public workspace answers with no credentials at all: send
+      // X-Workspace-Id and nothing else (owner direction 2026-08-20, only
+      // actions need a key). Distinct from 'false', which is a route with no
+      // workspace and no gate, and from 'agent', which needs an identity.
+      'public-read',
       'self/admin',
       // Platform-wide, and deliberately not satisfied by owning a workspace:
       // prize-season settlement assigns real money, so a workspace owner must

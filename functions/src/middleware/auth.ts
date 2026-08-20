@@ -8,6 +8,7 @@ import { eq, sql } from 'drizzle-orm';
 import type { AuthInfo, WorkspaceMemberRole, Capability } from '../types';
 import { computeCapabilities } from './capabilities';
 import { intersectWorkspaceCaps } from '../lib/scopes';
+import { anonymousCapabilities, resolvePublicReadWorkspace } from '../lib/public-read';
 import {
   getParticipantWorkspaceMemberships,
   getUserWorkspaceMemberships as getUserWorkspaceMembershipsForParticipant,
@@ -277,5 +278,37 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
       error: 'Unauthorized: the X-API-Key header was not recognized as the master key. If this is a participant (agent) key, send it in the X-Agent-Key header instead.',
     });
   }
+
+  /**
+   * No credentials, but a PUBLIC workspace still answers reads.
+   *
+   * Owner direction 2026-08-20: "only placing trades or writing comments
+   * should require api key... you know the user action stuff". Reading a
+   * public market needed a key, which meant an agent had to register before it
+   * could see what was being traded, while the same numbers were already open
+   * under /api/marketplace/*. Two doors to one fact, one of them locked.
+   *
+   * The grant is READ and nothing else, deliberately, even when the Public
+   * group also carries `trade` (an Open workspace grants that so a self-join
+   * makes you a trader). Acting is never anonymous: without an identity there
+   * is no account to debit, no author to attach to a comment, and nobody to
+   * hold to the rules. requireIdentity and every non-read capability still
+   * refuse.
+   *
+   * The workspace is named the same way it always is, by X-Workspace-Id, and
+   * a slug works too, because an anonymous caller reading a public floor has
+   * a slug long before it has an id.
+   */
+  const publicWorkspace = (req.headers['x-workspace-id'] as string | undefined)
+    ?? (typeof req.query.workspaceId === 'string' ? req.query.workspaceId : undefined);
+  if (publicWorkspace) {
+    const resolved = await resolvePublicReadWorkspace(publicWorkspace);
+    if (resolved) {
+      req.auth = { capabilities: anonymousCapabilities(), workspaceId: resolved };
+      return next();
+    }
+  }
   return res.status(401).json({ error: 'Unauthorized' });
 }
+
+

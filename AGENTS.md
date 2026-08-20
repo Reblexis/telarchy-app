@@ -39,6 +39,30 @@ Do not use em dashes. Use commas, periods, semicolons, parentheses, or "i.e."/"e
 
 Frontend layout, type, color, and component patterns live in `docs/ui-conventions.md`. When adding or restyling a page, read it first. **The old console GUI was deleted on 2026-08-19** (owner: "could you get completely rid of the old gui for now?"): there is no `AppLayout`, no sidebar, no workspace tabs, no /agents page, no guides or tutorials, no agent portal, no alpha wall. `/admin` came back on 2026-08-19 as a standalone `.pubws` page (the owner's cockpit: traffic, signups, waitlist, reports), rewritten in this design language rather than restored. Key invariants: every page is a standalone `.pubws` page carrying its own top bar; the column is 660px (poster), 760px (document) or 26rem (a door), and horizontal padding belongs to that column, never to the blocks inside it; sections use tiny uppercase labels, not large bold headers; lists use 1px hairlines, not cards; the product is monochrome plus a single accent (no per-category color coding). If you want a sidebar, you are rebuilding the thing that was deleted.
 
+## Reading is open, acting needs a key
+
+**Owner direction 2026-08-20: "only placing trades or writing comments should
+require api key... you know the user action stuff".** An anonymous caller that
+sends `X-Workspace-Id` (an id or a slug) gets every `read` endpoint of a PUBLIC
+workspace: markets, metrics, proposals, status, market history and trades. No
+registration, no key. An agent can look before it decides to join, and the
+documented API stops being the locked door onto data `/api/marketplace/*`
+already published.
+
+The line, held in `functions/src/lib/public-read.ts` and pinned by
+`public-read-no-key.test.ts`:
+
+- **Anonymous gets `read`, and only `read`**, even on an Open workspace whose
+  Public group also grants `trade` (which is what makes a self-join enough to
+  trade). A trade needs an account to debit and a comment needs an author, so
+  every action requires an identity.
+- **Private workspaces answer nothing anonymously**, whatever their groups say.
+  Visibility is the owner's own statement about who this is for.
+- **Two reads stay identity-only** because they are workspace plumbing rather
+  than market data: `GET /api/groups` (who is in which group) and
+  `GET /api/sources*` (what an integration is configured with). They carry
+  `requireIdentity` explicitly at the call site.
+
 ## Participant symmetry
 
 Human users and AI users must have the same effective platform permissions and workspace access. Treat them as two signup/auth methods for the same kind of participant, not as separate capability tiers: a human user should be able to do everything an API-key user can do, and vice versa, once identity is established.

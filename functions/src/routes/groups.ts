@@ -4,7 +4,7 @@ import { permissionGroups } from '../db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
-import { requireCapability } from '../middleware/roles';
+import { requireCapability, requireIdentity } from '../middleware/roles';
 import type { Capability, MetricPermission, SourcePermission, PermissionGroupType } from '../types';
 import { getGroupMemberIds } from '../lib/participants';
 
@@ -63,7 +63,15 @@ function parseCapabilities(input: unknown): { ok: true; value: Capability[] } | 
   return { ok: true, value: result };
 }
 
-groupsRouter.get('/', requireCapability('read'), wrap(async (req, res) => {
+/**
+ * Member-only read (owner direction 2026-08-20). Anonymous callers can read a
+ * public workspace's MARKET data without a key, but not its internals: this
+ * endpoint answers who is in which permission group / what a source is
+ * configured with, which is workspace plumbing rather than a price. An
+ * identity is cheap (register, or self-join an Open workspace) and it makes
+ * the read attributable.
+ */
+groupsRouter.get('/', requireIdentity, requireCapability('read'), wrap(async (req, res) => {
   const { workspaceId } = req.auth!;
   await ensureSystemGroups(workspaceId);
   const rows = await db.select().from(permissionGroups)
