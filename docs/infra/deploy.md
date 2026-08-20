@@ -149,6 +149,22 @@ them.
 while testing on the beta is real and appears on the live floor. That is the
 price of testing against real data; there is no second database.
 
+**And it shares the database's connection budget.** Cloud SQL `telarchy-pg` is
+a db-f1-micro with `max_connections=50` (flag set 2026-08-20; the default 25
+took the site down that evening: prod and candidate revisions each opened pg's
+default 10-connection pool, instances failing their startup probe kept
+churning, and every slot was gone). The standing contract:
+
+- Each API instance opens **at most 5** pooled connections and gives up on an
+  acquire after 5 seconds instead of queuing forever
+  (`functions/src/db/client.ts`); a starved request fails fast as a 500, it
+  does not hang for a minute.
+- Cloud Run runs **at most 4 instances** per revision (`--max-instances 4` in
+  the CI deploy). Worst case prod + candidate: 2 x 4 x 5 = 40 connections,
+  inside the 50 budget with room for cloud-sql-proxy and cron.
+- Anything that raises one of these numbers must re-do this arithmetic in the
+  same commit.
+
 **Publish publishes the revision you are looking at**, not "latest". If CI
 lands another build while you are reading, that one waits its turn. The button
 is on the stripe at the top of every beta page (`BetaBanner`), backed by
