@@ -293,9 +293,14 @@ None. This spec only reads.
 **Expected:** any signed-in visit to an Open workspace's trading floor joins
 silently (no `?join=1` needed, no navigation away); the demo ticket becomes
 the live one in place:
-Lower/Higher segmented pair, amount input with 10/25/100/250 chips, one
+Lower/Higher segmented pair, the amount as one bare underlined numeral
+(no chips) with a slider under it spanning 1 cr to the whole balance on a
+LOGARITHMIC track (check on an account with a balance in the thousands:
+dragging the thumb to mid-track composes a stake near the geometric mean
+of 1..balance, e.g. ~150 cr on 23,400, snapped to two significant digits,
+never balance/2; the far end composes exactly the full balance), one
 confirm button that reads "Pick a side" (disabled) until a direction is
-chosen and then "Place <n> cr on <Side>". The payout line appears only
+chosen and then "Bet <n> cr on <Side>". The payout line appears only
 after a side is picked; a placed trade flashes "Placed" on the button and
 the position row (direction, live worth with a green/red delta, Sell pill)
 appears at the top of the ticket. The desk also shows a mono facts strip

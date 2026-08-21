@@ -133,8 +133,17 @@ The ticket itself follows Manifold's bet-panel layout (owner direction
 (`--bg-secondary`, 14px radius) with the Lower/Higher pills top left and
 a Quick/Limit toggle top right. The amount is one bare underlined mono
 numeral (no boxed field, no stepper chips; owner direction same day)
-with a slider to the 250 cr cap under it, its fill in the chosen side's
-colour. The win is stated as breakeven plus slope, never as the
+with a slider under it, its fill in the chosen side's colour. The
+slider spans 1 cr to the trader's whole balance (the per-market cap
+went 2026-08-11) on a LOGARITHMIC track (user report 2026-08-21: a
+linear 0-to-balance slider crams every bet a sane trader would place
+into the leftmost pixels once the balance is in the thousands), so
+equal drag multiplies the stake rather than adds to it; 1..100 cr gets
+about as much track as 100..10,000. Dragging snaps to two significant
+digits (150, 1,900) so the numeral reads as a chosen stake, not a
+decoded pixel (1,943); the two ends stay exact, 1 cr and the full
+balance. The mapping lives in `src/lib/bet-slider.ts` and nowhere
+else. The win is stated as breakeven plus slope, never as the
 at-the-range-edge maximum: payout is linear in the settled value, so the
 rows read "New value" (with the delta the bet would cause), "Wins above
 $74,300", "Each $10k beyond +3.1 cr", as a small hairline-ruled table.

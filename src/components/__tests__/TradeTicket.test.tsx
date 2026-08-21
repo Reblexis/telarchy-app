@@ -168,6 +168,22 @@ describe('resting orders', () => {
   });
 });
 
+describe('bet amount slider', () => {
+  test('a thousands balance no longer crams every sensible bet into the left edge', () => {
+    render(<TradeTicket {...base} balance={23_400} />);
+    fireEvent.click(screen.getByText('Higher'));
+    const slider = screen.getByLabelText('Bet amount slider') as HTMLInputElement;
+    const amount = screen.getByLabelText('Credits to spend') as HTMLInputElement;
+    // Mid-track is the geometric mean of 1..23,400 (~153, snapped to two
+    // significant digits), not the linear 11,700.
+    fireEvent.change(slider, { target: { value: '500' } });
+    expect(Number(amount.value)).toBe(150);
+    // The far end is still all in, exactly.
+    fireEvent.change(slider, { target: { value: '1000' } });
+    expect(Number(amount.value)).toBe(23_400);
+  });
+});
+
 describe('betting towards a value', () => {
   test('typing a target into New value sets the side and the cost to reach it', () => {
     render(<TradeTicket {...base} />);

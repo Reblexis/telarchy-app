@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { costToMove, previewSell, previewTrade } from '../lib/amm';
+import { SLIDER_STEPS, amountToSlider, sliderToAmount } from '../lib/bet-slider';
 import type { LimitOrder } from '../lib/api';
 
 /**
@@ -451,17 +452,20 @@ export function TradeTicket({
         />
         <span className="ticket-amt-unit">cr</span>
       </label>
+      {/* The track is logarithmic (lib/bet-slider.ts): the ceiling is the
+          whole balance, and linearly that crams every sensible stake into
+          the leftmost pixels (user report 2026-08-21). */}
       <input
         className={`ticket-slider ticket-slider--${dir}`}
         type="range"
-        min={1}
-        max={maxBet}
-        value={Math.min(maxBet, Math.max(1, amountNum))}
+        min={0}
+        max={SLIDER_STEPS}
+        value={amountToSlider(amountNum, maxBet)}
         style={(() => {
-          const p = ((Math.min(maxBet, Math.max(1, amountNum)) - 1) / (maxBet - 1)) * 100;
+          const p = (amountToSlider(amountNum, maxBet) / SLIDER_STEPS) * 100;
           return { ['--slider-pct' as string]: `${p.toFixed(2)}%` };
         })()}
-        onChange={e => setAmount(e.target.value)}
+        onChange={e => setAmount(String(sliderToAmount(parseInt(e.target.value, 10), maxBet)))}
         aria-label="Bet amount slider"
       />
 
