@@ -23,6 +23,7 @@ import { notifyCommentPosted } from '../services/notifications';
 import { applyAgentLiquidityInjectionTx } from '../services/marketLiquidity';
 import { sufficientBalance, toUnits, fromUnits, validateContent, MIN_LIQUIDITY_CONTRIBUTION } from '../lib/validation';
 import { getGroupMemberIds, resolveWorkspaceOwnerAgentId, listParticipantsForWorkspace, getParticipantDisplayNames } from '../lib/participants';
+import { clearBoardCache } from './leaderboard';
 
 export const predictionsRouter = Router();
 
@@ -214,6 +215,11 @@ predictionsRouter.post('/trade', requireCapability('trade'), wrap(async (req, re
     }
     eventPayload = { marketId, metricName: outcome.metricName, agentId, direction: outcome.direction, cost: outcome.isSell ? -outcome.proceeds : outcome.cost, newConsensus: settled };
   });
+
+  // The board must include this trade on the very next read: the floor rail
+  // reloads right after a trade lands, and a cached answer that omits the
+  // trade reads as the board being broken (owner report 2026-08-21).
+  clearBoardCache();
 
   res.status(201).json(tradeResponse);
   emitEvent('trade:executed', eventPayload, workspaceId).catch(e => console.error('emitEvent failed:', e));

@@ -554,6 +554,34 @@ reload.
   count. House accounts are NOT excluded here: a contractor's score is
   priced by other people, so it cannot be self-granted.
 
+**The board is at most five seconds behind the trades, and a reader's own
+trade shows up on their next read (owner report 2026-08-21: "the
+leaderboard seems kinda laggy... and kinda twitchy").** The server-side
+board cache TTL is five seconds, not thirty: the floor polls every
+fifteen seconds, so a thirty-second cache made successive polls alternate
+between a fresh answer and a stale one, which read as the board twitching
+backwards. Five seconds still collapses an arrival burst into one
+aggregation per key while sitting safely under every poll interval.
+Placing a trade additionally drops the cache on the spot, so the trader
+who just moved a price is never told the price did not move.
+`/leaderboard` itself polls on the same fifteen-second cadence while the
+tab is visible and refreshes on tab return; a poll replaces rows in
+place and never blanks the list, and a failed poll keeps the rows it
+has. The page's public data loads once and polls; only the viewer's own
+season-entry state re-fetches when the session resolves, because
+re-fetching everything on auth settle repainted the whole board a second
+after it appeared.
+
+**A season entrant's row on `/leaderboard` always carries a prize figure
+(owner ask 2026-08-21: "show on leaderboard prizes next to the people
+signed in season 0").** While the season is a draft there is no
+projection to make (no baselines exist), so the chip shows the ladder's
+top rung as potential: "up to $500". Once the season runs, the chip
+shows the projected payout at the current standing, from the same
+`settleSeason` the settlement uses; an entrant currently outside the
+rungs shows "entered". A bare "$0" is never rendered: before the start
+it would read as "wins nothing" rather than "not decided yet".
+
 Below the floor (outside the rails column) sits the about section
 (`.pubws-about`, owner direction 2026-08-10): three drawings in the
 chart's own vocabulary (step line, branch pair, priced gap plus check),

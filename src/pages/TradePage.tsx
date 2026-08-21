@@ -563,6 +563,10 @@ export function TradePage() {
     }
     refreshMoney();
     reload();
+    // The rail must show this trade too: the server drops its board cache
+    // the moment a trade commits, so this read is guaranteed to include it
+    // (owner report 2026-08-21: "not always showing the latest state").
+    loadLeaders();
     condHistoryRef.current();
   };
   const placeTrade = async (direction: 'higher' | 'lower', amount: number) => {

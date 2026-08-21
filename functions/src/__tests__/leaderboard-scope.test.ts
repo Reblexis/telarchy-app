@@ -23,7 +23,7 @@ app.use(express.json());
 app.use('/api/leaderboard', leaderboardRouter);
 
 beforeAll(async () => { await ensureMigrations(); });
-// The board is cached for 30 seconds in process, so a test that seeds new
+// The board is cached in process (five seconds), so a test that seeds new
 // data must drop the previous test's answer or it reads a board that no
 // longer exists.
 beforeEach(async () => { await truncateAll(); clearBoardCache(); });

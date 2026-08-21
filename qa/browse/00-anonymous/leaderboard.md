@@ -114,7 +114,37 @@ column stays visible; accuracy column may be hidden by the responsive rule.
 1. `curl -s "$API_URL/api/leaderboard?limit=3" | jq '.participants[0] | keys'`
 
 **Expected:** Keys include `rank`, `id`, `nickname`, `calibration`,
-`accuracy`, `totalEarnings`, `resolvedMarkets`, `totalTrades`, `lastTradeAt`.
+`accuracy`, `totalEarnings`, `resolvedMarkets`, `totalTrades`, `lastTradeAt`,
+`seasonEntered`, `seasonPrizeUsd`.
+
+### T7. A season entrant's row carries a prize figure
+
+Only meaningful while a prize season exists (draft or running); skip
+otherwise.
+
+**Steps:**
+1. `curl -s "$API_URL/api/leaderboard?limit=100" | jq '[.participants[] | select(.seasonEntered)] | length'` — need ≥ 1 entrant on the board.
+2. `$B text` and inspect an entrant's row.
+
+**Expected:**
+- Season still a DRAFT (`seasonPrizeUsd` null): the row shows
+  "up to $<top rung>" (e.g. "up to $500"), never a bare "entered" and never
+  "$0".
+- Season RUNNING: an entrant inside the rungs shows the projected dollar
+  figure; an entrant outside them shows "entered".
+- A non-entrant row carries no chip at all.
+
+### T8. The board keeps up without a reload
+
+**Steps:**
+1. Load `/leaderboard`, note a participant's profit.
+2. Place a trade as that participant in another session (or wait for a bot).
+3. Within ~20 seconds (15s poll + 5s server cache), without reloading:
+   `$B text` again.
+
+**Expected:** The number moves on its own. The page polls every 15 seconds
+while visible and refreshes on tab return; the server cache is 5 seconds and
+is dropped entirely the moment any trade commits.
 
 ## Cleanup
 
@@ -124,7 +154,8 @@ None — this spec only reads.
 
 - No assertion on tie-breaking semantics under live data (covered by the
   unit test at `functions/src/__tests__/leaderboard.test.ts`).
-- No assertion that the board re-renders on its 15s poll; only that the
-  numbers are correct when the page loads.
+- T8 needs a second session to place the trade, so unattended runs skip it;
+  the freshness contract itself is pinned server-side by
+  `functions/src/__tests__/leaderboard-freshness.test.ts`.
 - No assertion that the sidebar link points to `/leaderboard`; covered by
   signed-in flows rather than this anonymous spec.

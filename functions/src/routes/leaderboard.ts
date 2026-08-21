@@ -60,16 +60,23 @@ export const leaderboardRouter = Router();
  * point at. Uncached, a burst of arrivals is a burst of full aggregations on
  * the endpoint that has already been OOM-killed into 503s once.
  *
- * Thirty seconds of staleness is invisible on a four-week season and turns a
- * traffic spike into two queries a minute. Keyed by the exact workspace set so
- * a scoped board and the global board never read each other's answer.
+ * FIVE seconds, not thirty (owner report 2026-08-21: "the leaderboard seems
+ * kinda laggy... and kinda twitchy"). The floor polls every fifteen seconds,
+ * so a thirty-second cache made successive polls alternate between a fresh
+ * answer and a stale one: the board updated, then appeared to jump back.
+ * Five seconds sits under every poll interval, so each poll reads a board no
+ * older than the last one it saw, while an arrival burst still collapses to
+ * one aggregation per key. The trade route also calls clearBoardCache() the
+ * moment a trade commits, so the trader who just moved a price is never told
+ * the price did not move. Keyed by the exact workspace set so a scoped board
+ * and the global board never read each other's answer.
  *
  * SETTLEMENT MUST NOT READ THIS. Assigning money runs against one fixed
  * timestamp inside a transaction (see routes/seasons.ts); a cached read is
  * fine for display and wrong for deciding who gets paid.
  */
 const boardCache = ttlCache({
-  ttlMs: 30_000,
+  ttlMs: 5_000,
   // One entry per distinct workspace set ever asked for: small today, grows
   // with scoped boards, hence the (default) size bound in the helper.
   keyOf: (workspaceIds: string[]) => [...workspaceIds].sort().join(','),
@@ -78,8 +85,8 @@ const boardCache = ttlCache({
 
 const cachedBoard = (workspaceIds: string[]) => boardCache.get(workspaceIds);
 
-/** Test seam: settlement and any test that just wrote trades needs the next
- *  read to see them rather than a 30-second-old answer. */
+/** Settlement, the trade route, and any test that just wrote trades needs the
+ *  next read to see them rather than a cached answer. */
 export function clearBoardCache(): void {
   boardCache.clear();
 }

@@ -49,52 +49,82 @@ export function LeaderPage() {
   const meId = useMyParticipantId(!!user);
   const [entered, setEntered] = useState(false);
 
+  // Public data: fetched on mount and re-fetched on the floor's own
+  // fifteen-second cadence while the tab is visible, plus once on tab return.
+  // Deliberately NOT keyed on the session: it used to re-run when auth
+  // settled, which repainted the whole board a second after it appeared (the
+  // "twitchy" of the 2026-08-21 owner report). A poll replaces rows in place
+  // and a failed poll keeps the rows it has; only the very first failure
+  // shows the empty state, because there is nothing older to keep.
   useEffect(() => {
     let cancelled = false;
-    api.getSeasons()
-      .then(r => { if (!cancelled) setSeason(pickCurrentSeason(r.seasons)); })
-      .catch(e => console.error('seasons fetch failed:', e));
-    if (user) {
-      api.getMySeason()
-        .then(e => { if (!cancelled) setEntered(e.optedIn === true); })
-        .catch(e => console.error('season entry fetch failed:', e));
-    }
-    api.getLeaderboard(200)
-      .then(r => { if (!cancelled) setTraders((r.participants ?? []).filter(e => e.totalTrades > 0)); })
-      .catch(e => { console.error('leaderboard fetch failed:', e); if (!cancelled) setTraders([]); });
-    // Contractors are a per-market list; the public markets are few, so the
-    // page unions them and ranks by priced impact. A workspace that exposes
-    // no board simply contributes nobody.
-    api.getPublicWorkspaces()
-      .then(async list => {
-        const rows = await Promise.all((list ?? []).map(w =>
-          api.getMarketplaceWorkspace(w.slug || w.workspaceId)
-            .then(ws => (ws.topContractors ?? []))
-            .catch(() => [])));
-        if (cancelled) return;
-        const merged = new Map<string, PublicContractor>();
-        for (const c of rows.flat()) {
-          const prev = merged.get(c.id);
-          // Someone posting on two markets counts once, with their work summed.
-          if (!prev) { merged.set(c.id, { ...c }); continue; }
-          merged.set(c.id, {
-            ...prev,
-            jobs: prev.jobs + c.jobs,
-            pricedJobs: prev.pricedJobs + c.pricedJobs,
-            pendingJobs: prev.pendingJobs + c.pendingJobs,
-            earnedUsd: prev.earnedUsd + c.earnedUsd,
-            impact: prev.impact === null || c.impact === null ? (prev.impact ?? c.impact) : prev.impact + c.impact,
-          });
-        }
-        setContractors([...merged.values()].sort((a, b) => (b.impact ?? 0) - (a.impact ?? 0)));
-      })
-      .catch(e => { console.error('contractors fetch failed:', e); if (!cancelled) setContractors([]); });
+    const load = () => {
+      api.getSeasons()
+        .then(r => { if (!cancelled) setSeason(pickCurrentSeason(r.seasons)); })
+        .catch(e => console.error('seasons fetch failed:', e));
+      api.getLeaderboard(200)
+        .then(r => { if (!cancelled) setTraders((r.participants ?? []).filter(e => e.totalTrades > 0)); })
+        .catch(e => { console.error('leaderboard fetch failed:', e); if (!cancelled) setTraders(t => t ?? []); });
+      // Contractors are a per-market list; the public markets are few, so the
+      // page unions them and ranks by priced impact. A workspace that exposes
+      // no board simply contributes nobody.
+      api.getPublicWorkspaces()
+        .then(async list => {
+          const rows = await Promise.all((list ?? []).map(w =>
+            api.getMarketplaceWorkspace(w.slug || w.workspaceId)
+              .then(ws => (ws.topContractors ?? []))
+              .catch(() => [])));
+          if (cancelled) return;
+          const merged = new Map<string, PublicContractor>();
+          for (const c of rows.flat()) {
+            const prev = merged.get(c.id);
+            // Someone posting on two markets counts once, with their work summed.
+            if (!prev) { merged.set(c.id, { ...c }); continue; }
+            merged.set(c.id, {
+              ...prev,
+              jobs: prev.jobs + c.jobs,
+              pricedJobs: prev.pricedJobs + c.pricedJobs,
+              pendingJobs: prev.pendingJobs + c.pendingJobs,
+              earnedUsd: prev.earnedUsd + c.earnedUsd,
+              impact: prev.impact === null || c.impact === null ? (prev.impact ?? c.impact) : prev.impact + c.impact,
+            });
+          }
+          setContractors([...merged.values()].sort((a, b) => (b.impact ?? 0) - (a.impact ?? 0)));
+        })
+        .catch(e => { console.error('contractors fetch failed:', e); if (!cancelled) setContractors(c => c ?? []); });
+    };
+    load();
+    const tick = () => { if (typeof document === 'undefined' || !document.hidden) load(); };
+    const interval = setInterval(tick, 15_000);
+    const onVisible = () => { if (!document.hidden) load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
+
+  // The viewer's own entry state is the only thing on this page that belongs
+  // to the session, so it is the only thing the session's arrival re-fetches.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    api.getMySeason()
+      .then(e => { if (!cancelled) setEntered(e.optedIn === true); })
+      .catch(e => console.error('season entry fetch failed:', e));
     return () => { cancelled = true; };
   }, [user]);
 
   const pinned = meId && traders && !traders.some(e => e.id === meId)
     ? traders.find(e => e.id === meId) ?? null
     : null;
+
+  // The ladder's top rung: what an entrant could win. Shown while the season
+  // is still a draft, when no projection exists to show instead.
+  const topPrizeUsd = season?.ladder?.length
+    ? Math.max(...season.ladder.map(r => r.prizeUsd))
+    : 0;
 
   /**
    * One row, used by the list and by the pinned "you" row underneath it, so
@@ -128,12 +158,24 @@ export function LeaderPage() {
           </span>
         </a>
         {/* What the season would pay this person if it settled now. Only for
-            entrants, and only once the season is running: before it starts
-            there are no baselines, so there is nothing to project and a "$0"
-            would read as "wins nothing" rather than "not decided yet". */}
+            entrants. Before the season starts there are no baselines, so
+            there is nothing to project and a "$0" would read as "wins
+            nothing" rather than "not decided yet"; the chip shows the
+            ladder's top rung as potential instead (owner ask 2026-08-21:
+            "show on leaderboard prizes next to the people signed in
+            season 0"). */}
         {e.seasonEntered && (
           e.seasonPrizeUsd === null || e.seasonPrizeUsd === undefined ? (
-            <span className="lbp-prize lbp-prize--in" title="Entered the season">entered</span>
+            topPrizeUsd ? (
+              <span
+                className="lbp-prize lbp-prize--in"
+                title={`Entered ${season?.name ?? 'the season'}: prizes up to $${topPrizeUsd.toLocaleString()} once it starts`}
+              >
+                up to ${topPrizeUsd.toLocaleString()}
+              </span>
+            ) : (
+              <span className="lbp-prize lbp-prize--in" title="Entered the season">entered</span>
+            )
           ) : e.seasonPrizeUsd > 0 ? (
             <span className="lbp-prize" title="What this season would pay at the current standing">
               ${e.seasonPrizeUsd.toLocaleString()}
