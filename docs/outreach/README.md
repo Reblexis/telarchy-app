@@ -8,6 +8,7 @@ mechanism gets its own subdirectory.
 | Path | Status | What it is |
 | --- | --- | --- |
 | `concierge/` | active 2026-04-29 → 2026-05-27 | The founder concierge program. Process tracked, real-people data gitignored. See `concierge/program.md`. |
+| `contracts/` | active 2026-08-21 | Paid contracts with individual participants, negotiated on the Telarchy floor itself: what was asked, what terms we changed, and why. Started with Tetraspace's $20 writeup. |
 
 ## Tracked vs gitignored split
 
