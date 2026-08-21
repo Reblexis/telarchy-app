@@ -17,6 +17,38 @@ npm run deploy
 
 It's the same command the workflow runs.
 
+## The runners are ours (2026-08-21)
+
+Every workflow runs on **self-hosted runners**, not GitHub's metered ones.
+Reason: the repo is private, hosted minutes are billed per-minute there, and
+on 2026-08-20 the GitHub spending wall stopped every job mid-incident
+("recent account payments have failed or your spending limit needs to be
+increased") - CI died exactly when it was needed. Self-hosted runners are
+free without limit, and the laptop finishes a shard faster than a hosted
+runner anyway.
+
+| Runner | Where | Labels | Takes |
+|---|---|---|---|
+| `popos-laptop`, `-2`, `-3`, `-4` | Viktor's laptop, systemd system services (`actions.runner.Reblexis-telarchy-app.*`) | `x64, telarchy` | everything: tests, typecheck, docker publish, gh-pages, the Cloud Run deploy (4 runners = the 4 pipeline jobs in parallel) |
+| `kpi-sync-box` | Hetzner box, `telarchy` user, `systemd --user` unit `actions-runner-telarchy-app` | `arm64, telarchy, light` | only jobs tagged `[self-hosted, telarchy]` without `x64` - today that is the scheduled self-sync, so it fires even with the laptop off. **MemoryMax=1536M**: the fleet, bank and brain live on that box, and a CI job never gets to eat them |
+
+Consequences to know:
+
+- Tests, docker and deploys need the laptop ON. A push while it sleeps
+  queues (GitHub holds jobs ~24h) and runs on wake. That is the honest
+  price of free; the alternative was a metered bill that failed closed.
+- The deploy job pins `x64` because the box has no gcloud and the migration
+  step downloads an amd64 cloud-sql-proxy.
+- Runner jobs use an isolated gcloud config (`CLOUDSDK_CONFIG` in each
+  runner's `.env` points at `~/actions-runners/gcloud-config`), so WIF auth
+  from CI never touches Viktor's own `~/.config/gcloud`.
+- The docker publish runs on x64 so `ghcr.io/reblexis/metrics-tracker-server`
+  stays amd64.
+- Add/repair a runner: `gh api repos/Reblexis/telarchy-app/actions/runners/registration-token -X POST`
+  for a token, then `./config.sh --unattended --url ... --token ... --labels x64,telarchy --replace`
+  in the runner directory (`~/actions-runners/telarchy-app*` on the laptop,
+  `~/actions-runner-telarchy-app` on the box) and restart its service.
+
 ## One-time setup
 
 You need to pick one of two auth paths between GitHub and GCP. Workload

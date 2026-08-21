@@ -33,7 +33,7 @@ jobs:
   # failure than the test that would trip over it.
   checks:
     name: Type check and frontend tests
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, x64, telarchy]
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -61,7 +61,7 @@ jobs:
   # well inside the runner's memory.
   backend:
     name: Backend tests (shard ${{ matrix.shard }}/3)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, x64, telarchy]
     timeout-minutes: 20
     strategy:
       fail-fast: false
@@ -83,7 +83,7 @@ jobs:
 
   deploy:
     needs: [checks, backend]
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, x64, telarchy]
     timeout-minutes: 20
     steps:
       # Full history: the data room's change log is generated from git below,
