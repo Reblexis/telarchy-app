@@ -1036,108 +1036,60 @@ The rules that keep it from rotting back into the 2026-08-16 bug family:
   by their settle day, which is the collision the `settleDayOf` comment already
   warned about.
 
-### A contract shows its impact on EVERY clock (design 2026-08-20, not yet built)
+### A contract keeps the clock line, and says which world it is (design 2026-08-20)
 
 **The bug this fixes.** The arrows live in the `selectedJob ? … : …` else
-branch, so opening a contract removes them, and `pair` falls back to
-`selectedJob.markets[0]`. The backend is not the problem: `createConditionalMarkets`
-spawns a pair per baseline market, so a two-clock floor gives every contract
-four conditional markets and the API serves all of them. The floor reaches
-exactly one, and WHICH one depends on the horizon the reader happened to be on
-before they clicked in. An impact number that changes with invisible state is
-worse than an impact number that is merely incomplete.
+branch, so opening a contract removes them and `pair` falls back to
+`selectedJob.markets[0]`. The backend is not the problem:
+`createConditionalMarkets` spawns a pair per baseline market, so a two-clock
+floor gives every contract four conditional markets and the API serves all of
+them. The floor reaches exactly one, and WHICH one depends on the horizon the
+reader happened to be on before they clicked in. An impact number that changes
+with invisible state is worse than one that is merely incomplete.
 
-**The rule.** The floor's headline shows one clock at a time. A contract does
-not: it shows its impact on **all** of them at once, as a hairline list under
-the question, and the reader picks which row the ticket trades.
+**The rule (owner design 2026-08-20).** The caption line does not change when a
+contract is opened. Same metric name, same settle day, same two arrows in the
+same fixed positions. The contract adds ONE line underneath, naming the world
+the number belongs to:
 
 ```
-  ← NET REVENUE
+  ‹      WEEKLY ACTIVE TRADERS @ 30 SEP      ›
+    if Jason is paid $100 for making a market
 
-  Will LookPilot pay $200 to:
-  Ship a tracking-model upgrade
-
-  IMPACT IF PAID
-  ─────────────────────────────────────────
-    23 AUG   weekly      ▲ +$412
-  ─────────────────────────────────────────
-  ▸ 30 SEP   monthly     ▲ +$1,203  ·trading
-  ─────────────────────────────────────────
+                    17.5
+              [ HIGHER ]  [ LOWER ]
 ```
 
-Why the headline and the contract differ, since that asymmetry is the part
-someone will want to "fix" later. The headline's job is to be ONE number a
-stranger can repeat; two competing headlines is exactly what got called
-confusing on 2026-08-17. A contract's job is the opposite: its whole content
-IS the impact, and "helps this week, helps by September" is a better answer
-than either half. Nothing is hidden, so the number cannot move under a reader
-who never touched a control.
+Everything the floor already does then works unchanged. The arrows step
+horizons and the conditional pair follows, because `pair` already resolves by
+`hero.targetDate`. The branch toggle already exists and already writes that
+exact sentence: `WorldWord` renders `is paid $100` / `is not paid $100` with
+both phrases in one grid cell so the headline cannot reflow on a switch.
 
-- **Every open horizon gets a row**, soonest first, in the order the payload
-  ships. This is the one place the furthest-resolving-first flip does not
-  apply: the reader is reading a term structure, and near-to-far is how one is
-  read.
-- **The selected row is what the ticket trades**, marked with `▸` and a
-  `·trading` tag. Selection stays a market id, per the rule above. Default is
-  the primary horizon, so an untouched contract trades what the floor's
-  headline is about.
-- **Impact is per row and signed**, in that horizon's own unit, computed the
-  way it already is (approved consensus minus declined). A row the market has
-  not priced says so in words rather than showing a zero, because zero is a
-  claim and "nobody has priced this" is not.
-- **Green and red stay direction only**, per the color rule. The row is not
-  painted; the arrow and the number carry the sign.
-- **The rows are hairline-separated, not cards.** With one open horizon the
-  list is one row and reads as a plain readout, so the layout does not need a
-  special case for it.
-- **The back button keeps the metric label and the arrows do not come back
-  here.** Two controls that both change horizon, one of which also changes what
-  the page is about, is the 2026-08-16 bug family being reinvented.
-  The year appears only when the settle day is not in the year the reader is
-  standing in.
-- **The day named is the day the period ENDS**, not the instant the payout
-  runs: an ISO week says 23 Aug, while the market's `resolvesOn` is midnight
-  into the 24th. The reader is forecasting the week, not the cron.
+Why this and not a per-horizon impact list. That was the first design and the
+owner replaced it, correctly. It invented a second horizon control that lived
+only on contracts, so the page had two ways to change clock and one of them
+also changed what the page was about, which is the 2026-08-16 bug family
+reappearing. This version has one rule everywhere: **one clock at a time, with
+a way to the others**, on the headline and on a contract alike. It also keeps
+the big number as the metric's own number in the metric's own unit, rather than
+an "impact" abstraction that exists nowhere else on the floor.
 
-**The gap to the price (2026-08-20).** Under the number and above the bet, one
-sentence of arithmetic:
+What it gives up, stated so nobody rediscovers it as a gap: you cannot see a
+contract's effect on both horizons at once, so "buys the week, costs the year"
+is not visible in one glance. That is the cross-horizon conflict mark, and it
+was deliberately deleted on 2026-08-17 as the expensive half of the two-clock
+feature. Not having it here is consistent with that decision, not an oversight.
 
-> **$488** booked so far. Another **$692** reaches the market's $1,180, which is
-> about **$173 a day** for the 4 days left.
-
-It replaces a base rate stated as a multiplier ("the last six weeks closed at
-x1.86 to x2.63 of where they stood on the same day"), which the owner read and
-answered with "i got bored and wanted to quit". The diagnosis, from an outside
-review the same evening: a ratio makes a reader do a computation before they are
-allowed to have a feeling, while "$173 a day" asks nothing and whether that
-sounds greedy IS the trade.
-
-`lib/period-gap.ts` owns it and renders **only for metrics that accumulate from
-zero inside their period**. The test is the readings, not a flag someone has to
-remember to set: the series must start at or near zero and never fall by more
-than a rounding. A level like `Weekly active traders` fails that test, because
-"you need 4 more traders a day" is nonsense wearing the costume of arithmetic.
-It also refuses a period we started watching late, where "booked so far" would
-be missing its beginning. Nine tests, most of them about not rendering.
-
-**Revised 2026-08-17 (Viktor), the leaderboard is a public page.** The
-market page's left rail lists the top **ten** traders and the top ten
-contractors (was five of each), and ends with one quiet "Show full
-leaderboard" link to `/leaderboard`.
-
-`telarchy.com/leaderboard` is a standalone page in the market pages' own
-language (`.pubws-topbar`, Fraunces headline, hairline rows, mono
-numerals, one accent), written from scratch rather than adapted from the
-console's leaderboard, which was deleted with the rest of the console on
-2026-08-19. This is the only leaderboard there is.
-
-The page ranks traders on profit in credits, realized plus open, the
-same number the rail prints, and gives each row the numbers a visitor
-would otherwise have to open a profile to see: trades, markets resolved,
-and accuracy where a trader has enough resolved markets to have one. A
-row for someone who has never traded is a name and a zero, so it is not
-shown. Contractors are a second section on the same page, ranked by what
-the market says their live contracts are worth.
+- **The caption is rendered for both states**, not duplicated into two
+  branches. A second copy is how the two drift.
+- **The back affordance survives** the caption no longer being the back button.
+  A contract still needs one way out to the floor.
+- **The world line is one sentence, not a label plus a value.** It reads as
+  English because a stranger has to understand what the number is conditional
+  on before the number means anything.
+- **With one open horizon nothing changes**: no arrows, same caption, same
+  world line.
 
 ## The data room
 
