@@ -98,6 +98,9 @@ export function SeasonPage() {
   }
 
   const settled = clock.phase === 'settled';
+  // Draft standings carry entrants with no score (no baseline exists yet);
+  // the page lists who is in rather than claiming nobody entered.
+  const draft = season?.status === 'draft';
   // The standings response caps at 100; if this entrant is outside it there is
   // nothing to pin, and saying nothing beats inventing a rank.
   const myStanding = meId ? rows?.find(r => r.id === meId) ?? null : null;
@@ -183,7 +186,7 @@ export function SeasonPage() {
         </section>
 
         <section className="seasonp-block" aria-label="Standings">
-          <h2 className="lbp-season-name">{settled ? 'Final standings' : 'Standings'}</h2>
+          <h2 className="lbp-season-name">{draft ? 'Entered' : settled ? 'Final standings' : 'Standings'}</h2>
           {rows === null ? null : rows.length === 0 ? (
             <p className="lbp-empty">Nobody has entered yet.</p>
           ) : (
@@ -193,8 +196,8 @@ export function SeasonPage() {
             <div className="seasonp-cols" aria-hidden="true">
               <span className="seasonp-cols-rank">#</span>
               <span className="seasonp-cols-who">participant</span>
-              <span className="seasonp-cols-score">score</span>
-              <span className="seasonp-cols-pays">{settled ? 'prize' : 'pays now'}</span>
+              <span className="seasonp-cols-score">{draft ? '' : 'score'}</span>
+              <span className="seasonp-cols-pays">{draft ? '' : settled ? 'prize' : 'pays now'}</span>
             </div>
             <ol className="lbp-list">
               {rows.map(r => {
@@ -212,15 +215,16 @@ export function SeasonPage() {
                         </span>
                       </span>
                     </a>
-                    <span className={`lbp-score${r.score > 0 ? ' is-up' : r.score < 0 ? ' is-down' : ''}`}>
-                      {formatScore(r.score)}
+                    <span className={`lbp-score${(r.score ?? 0) > 0 ? ' is-up' : (r.score ?? 0) < 0 ? ' is-down' : ''}`}>
+                      {r.score === null ? '' : formatScore(r.score)}
                     </span>
                     {/* Settled shows what was actually assigned. Running shows
                         what this standing would pay if it settled now, from the
                         same function settlement uses, so the two can never
                         promise different amounts. */}
-                    <span className="seasonp-won" title={settled ? 'Prize' : 'What this standing would pay if the season settled now'}>
-                      {settled
+                    <span className="seasonp-won" title={draft ? undefined : settled ? 'Prize' : 'What this standing would pay if the season settled now'}>
+                      {draft ? ''
+                        : settled
                         ? (r.prizeUsd && r.prizeUsd > 0 ? `$${r.prizeUsd.toLocaleString()}` : '—')
                         : (r.projectedPrizeUsd && r.projectedPrizeUsd > 0 ? `$${r.projectedPrizeUsd.toLocaleString()}` : '—')}
                     </span>
@@ -242,8 +246,8 @@ export function SeasonPage() {
                       </span>
                     </span>
                   </a>
-                  <span className={`lbp-score${myStanding.score > 0 ? ' is-up' : myStanding.score < 0 ? ' is-down' : ''}`}>
-                    {formatScore(myStanding.score)}
+                  <span className={`lbp-score${(myStanding.score ?? 0) > 0 ? ' is-up' : (myStanding.score ?? 0) < 0 ? ' is-down' : ''}`}>
+                    {myStanding.score === null ? '' : formatScore(myStanding.score)}
                   </span>
                   <span className="seasonp-won">
                     {myStanding.projectedPrizeUsd && myStanding.projectedPrizeUsd > 0

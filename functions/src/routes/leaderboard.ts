@@ -287,9 +287,30 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
   };
 
   if (season.status === 'draft') {
-    // No baselines exist yet, so every score would read as the entrant's whole
-    // lifetime profit. Answer honestly empty instead.
-    res.json({ season: meta, participants: [] });
+    // No baselines exist yet, so a score would read as the entrant's whole
+    // lifetime profit. But an empty answer told the person who just opted in
+    // that nobody had entered, on the page every launch link points at (owner
+    // decision 2026-08-21, hours before Season 0 started). List who entered,
+    // in entry order, with no score: the score genuinely does not exist yet.
+    const entries = await db.select().from(seasonEntries)
+      .where(and(eq(seasonEntries.seasonId, seasonId), eq(seasonEntries.optedIn, true)));
+    const dress = await decorate(entries.map(e => e.agentId));
+    const rows = entries
+      .sort((a, b) => {
+        const at = a.enteredAt ? new Date(a.enteredAt).getTime() : 0;
+        const bt = b.enteredAt ? new Date(b.enteredAt).getTime() : 0;
+        if (at !== bt) return at - bt;
+        return a.agentId < b.agentId ? -1 : a.agentId > b.agentId ? 1 : 0;
+      })
+      .slice(0, limit)
+      .map((e, i) => ({
+        rank: i + 1,
+        id: e.agentId,
+        ...dress(e.agentId),
+        score: null,
+        enteredAt: e.enteredAt,
+      }));
+    res.json({ season: meta, participants: rows });
     return;
   }
 
@@ -316,15 +337,18 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
     return;
   }
 
-  // Running: live board over the PINNED workspace set, never the currently
-  // public one, so a visibility flip cannot move the standings. Intersected
-  // with what is public today so a workspace that went private mid-season
-  // stops contributing to a public response.
+  // Running: live board over every workspace that is public RIGHT NOW, not
+  // the set pinned at the start (owner decision 2026-08-21: the season scores
+  // over all public workspaces, including ones published mid-season; Season 0
+  // is experimental and its rules say so). The pinned set stays recorded as
+  // what was public at the start instant; a pinned floor that went private
+  // stops contributing simply because it is no longer public, and
+  // workspacesDropped still reports that.
   const pinned = (season.workspaceIds ?? []) as string[];
   const publicNow = await db.select({ id: workspaces.id })
     .from(workspaces).where(eq(workspaces.visibility, 'public'));
   const publicIds = new Set(publicNow.map(w => w.id));
-  const scoring = pinned.filter(id => publicIds.has(id));
+  const scoring = publicNow.map(w => w.id);
 
   const board = await cachedBoard(scoring);
   const rows = entries.map(e => ({
@@ -363,7 +387,7 @@ async function seasonStandings(seasonId: string, limit: number, res: import('exp
   const projectedById = new Map(projection.ranked.map(r => [r.agentId, r.prizeUsd]));
 
   res.json({
-    season: { ...meta, workspacesDropped: pinned.length - scoring.length },
+    season: { ...meta, workspacesDropped: pinned.filter(id => !publicIds.has(id)).length },
     participants: rows.slice(0, limit).map((r, i) => ({
       ...r,
       rank: i + 1,

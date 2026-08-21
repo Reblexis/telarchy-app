@@ -219,7 +219,8 @@ export interface SeasonStanding {
   nickname: string | null;
   image?: string | null;
   manifoldUsername?: string | null;
-  score: number;
+  /** null while the season is a draft: no baseline exists, so no score does. */
+  score: number | null;
   /** Settled seasons only. */
   prizeUsd?: number;
   /** Running seasons: what this standing would pay if it settled now. */

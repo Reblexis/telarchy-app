@@ -498,9 +498,14 @@ seasonsRouter.post('/:id/settle', wrap(async (req, res) => {
   if (!season) throw new AppError('Season not found', 404);
   if (season.status !== 'running') throw new AppError(`Season is ${season.status}; only a running season can settle`, 409);
 
-  const pinned = (season.workspaceIds ?? []) as string[];
+  // Settlement reads the same scoring set standings show: every workspace
+  // public at this instant, not the set pinned at the start (owner decision
+  // 2026-08-21, mirrored in seasonStandings). If the two used different sets,
+  // the final would silently differ from the board people watched all season.
+  const publicNow = await db.select({ id: workspaces.id })
+    .from(workspaces).where(eq(workspaces.visibility, 'public'));
   clearBoardCache();
-  const board = await loadBoard(pinned);
+  const board = await loadBoard(publicNow.map(w => w.id));
 
   const entries = await db.select().from(seasonEntries)
     .where(and(eq(seasonEntries.seasonId, seasonId), eq(seasonEntries.optedIn, true)));

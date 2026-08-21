@@ -1,9 +1,10 @@
 # Season 0: official rules
 
-_Published 2026-08-17, renamed to Season 0 on 2026-08-19 and amended that day,
-before the season started: the open-position valuation was made exact, then
-changed to the resolve-now value below, and the text was twice shortened with
-no change in substance. These rules do not change while the season runs._
+_Published 2026-08-17, renamed to Season 0 on 2026-08-19 and amended that day
+and on 2026-08-21, before the season started. Season 0 is experimental: we may
+adjust these rules while it runs. Every change is announced on the season page
+before it takes effect, and changes are applied so as to minimize harm to
+entrants and standings._
 
 **Season 0 is the first one, and the platform is still being launched.** Expect
 rough edges, apologies in advance. If something looks wrong, tell us through
@@ -51,7 +52,9 @@ Trading profit is what your positions are worth, plus refunds from cancelled
 markets, minus the net cash you paid. An open position is worth what it would
 pay if the market resolved right now at its current call: your shares times
 that number. It is the same number as the public leaderboard, it moves before
-anything resolves, and credits the platform granted you never enter it.
+anything resolves, and credits the platform granted you never enter it. The
+score is computed over every public workspace on the platform, including
+workspaces that become public while the season runs.
 
 Worth knowing before you trade: buying moves the price, so a large buy shows a
 gain the moment it lands and loses it if the market comes back; the per-market

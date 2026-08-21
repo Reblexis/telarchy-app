@@ -6,11 +6,11 @@ export const legalRouter = Router();
 // files; update both when revising legal text. Inlined here so the runtime
 // image does not need `docs/` copied in.
 
-const CONSENT_VERSION = '1.4';
+const CONSENT_VERSION = '1.5';
 
 const TERMS_OF_SERVICE = `# Terms of Service
 
-_Last updated: 2026-08-18 (version ${CONSENT_VERSION})_
+_Last updated: 2026-08-21 (version ${CONSENT_VERSION})_
 
 These Terms govern your use of \`telarchy.com\` (the "Service"), operated by the Telarchy team ("we", "us"). By creating an account or using the Service you agree to them; if you do not agree, do not use the Service.
 
@@ -36,7 +36,7 @@ We may run contests (each a "season") in which cash prizes are awarded for perfo
 
 Entry is free. There is no entry fee, no purchase, and no stake: you do not pay anything, and you do not risk anything you own, to enter or to compete. Credits are not exchanged for a prize and are never redeemed; section 2 continues to apply to them in full. A prize is awarded for where you place under a scoring rule published in advance, not in exchange for credits, so a season is a skill contest rather than a wager or a lottery.
 
-Before a season starts we publish its rules: the dates, the total prize pool, the prize for each place, the scoring rule, who is eligible, how ties are broken, and how and when winners are paid. Those rules do not change while the season runs. You must be at least 18 years old to enter. Participants operated by us or run as part of the platform are not eligible. We may disqualify entries that we determine, acting reasonably, are operated by one person as several accounts, or that collude to distort prices, and we may cancel or void a season, in which case no prize is owed.
+Before a season starts we publish its rules: the dates, the total prize pool, the prize for each place, the scoring rule, who is eligible, how ties are broken, and how and when winners are paid. Those rules do not change while the season runs, unless the season's own published rules state that they may change (an experimental season says so explicitly); any mid-season change is announced publicly before it takes effect. You must be at least 18 years old to enter. Participants operated by us or run as part of the platform are not eligible. We may disqualify entries that we determine, acting reasonably, are operated by one person as several accounts, or that collude to distort prices, and we may cancel or void a season, in which case no prize is owed.
 
 As with paid job proposals, we hold, transmit, escrow and process no funds. A prize is paid directly by the workspace owner to the winner, outside the Service, using the payment details the winner stored in their account. Winners are responsible for taxes on amounts received. We are not a party to that payment, are not a money transmitter or payment processor, and charge no fee on it.
 
@@ -128,10 +128,11 @@ export const CURRENT_CONSENT_VERSION = CONSENT_VERSION;
 
 const SEASON_0_RULES = `# Season 0: official rules
 
-_Published 2026-08-17, renamed to Season 0 on 2026-08-19 and amended that day,
-before the season started: the open-position valuation was made exact, then
-changed to the resolve-now value below, and the text was twice shortened with
-no change in substance. These rules do not change while the season runs._
+_Published 2026-08-17, renamed to Season 0 on 2026-08-19 and amended that day
+and on 2026-08-21, before the season started. Season 0 is experimental: we may
+adjust these rules while it runs. Every change is announced on the season page
+before it takes effect, and changes are applied so as to minimize harm to
+entrants and standings._
 
 **Season 0 is the first one, and the platform is still being launched.** Expect
 rough edges, apologies in advance. If something looks wrong, tell us through
@@ -179,7 +180,9 @@ Trading profit is what your positions are worth, plus refunds from cancelled
 markets, minus the net cash you paid. An open position is worth what it would
 pay if the market resolved right now at its current call: your shares times
 that number. It is the same number as the public leaderboard, it moves before
-anything resolves, and credits the platform granted you never enter it.
+anything resolves, and credits the platform granted you never enter it. The
+score is computed over every public workspace on the platform, including
+workspaces that become public while the season runs.
 
 Worth knowing before you trade: buying moves the price, so a large buy shows a
 gain the moment it lands and loses it if the market comes back; the per-market

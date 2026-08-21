@@ -103,12 +103,12 @@ async function seedFloor(traderIds: string[]) {
  * if the market resolved at its current call (owner decision 2026-08-19,
  * docs/seasons.md F1, revised), so the fixture prices it the same way.
  */
-async function giveProfit(agentId: string, profit: number, tag: string) {
+async function giveProfit(agentId: string, profit: number, tag: string, ws: string = WS) {
   const B = 200;
   const SHARES = 40;
   const marketId = `mkt-${tag}`;
   await db.insert(markets).values({
-    id: marketId, workspaceId: WS, metricId: 'metric-1', metricName: 'Revenue',
+    id: marketId, workspaceId: ws, metricId: 'metric-1', metricName: 'Revenue',
     targetDate: '2028', rangeMin: 0, rangeMax: 100,
     shares: [0, SHARES], liquidity: B, pool: initialPool(B),
     active: true, resolved: false, voided: false, proposalId: null,
@@ -116,14 +116,25 @@ async function giveProfit(agentId: string, profit: number, tag: string) {
   const worth = SHARES * (1 / (1 + Math.exp(-SHARES / B)));   // shares x the current call, range 0..100
   const cost = worth - profit;
   await db.insert(positions).values({
-    id: `pos-${tag}`, workspaceId: WS, agentId, marketId,
+    id: `pos-${tag}`, workspaceId: ws, agentId, marketId,
     direction: 'higher', shares: SHARES, totalCost: cost,
   });
   await db.insert(trades).values({
-    id: `trade-${tag}`, workspaceId: WS, agentId, marketId,
+    id: `trade-${tag}`, workspaceId: ws, agentId, marketId,
     direction: 'higher', shares: SHARES, cost, createdAt: new Date(),
   });
   clearBoardCache();
+}
+
+/** A second workspace, private until a test flips it, for the 2026-08-21
+ *  "the season scores over every public workspace, live" rule. */
+async function seedSecondFloor(createdBy: string) {
+  await db.insert(workspaces).values({
+    id: 'ws-2', name: 'Second floor', slug: 'second', createdBy, visibility: 'private',
+  });
+  await db.insert(metrics).values({
+    id: 'metric-2', workspaceId: 'ws-2', name: 'Revenue', value: 50, formula: '0', marketRangeMax: 100,
+  });
 }
 
 async function createSeason(overrides: Record<string, unknown> = {}) {
@@ -306,13 +317,20 @@ describe('standings', () => {
     expect(res.body.participants).toBeUndefined();
   });
 
-  test('a draft season answers empty rather than showing lifetime profit as a score', async () => {
-    await seedFloor(['t']);
+  test('a draft season lists entrants with no score, never lifetime profit', async () => {
+    await seedFloor(['t', 'u']);
     await giveProfit('t', 40, 'a');
     const season = (await createSeason()).body.season;
+    await optIn(season.id, 't');
     const res = await request(app).get(`/api/leaderboard?seasonId=${season.id}`);
     expect(res.status).toBe(200);
-    expect(res.body.participants).toEqual([]);
+    // The entrant who just opted in sees their own name (2026-08-21: an empty
+    // draft answer rendered as "Nobody has entered yet" beside their entry).
+    expect(res.body.participants.map((p: { id: string }) => p.id)).toEqual(['t']);
+    // No baseline exists yet, so no score does: lifetime profit must not leak.
+    expect(res.body.participants[0].score).toBeNull();
+    const body = JSON.stringify(res.body.participants);
+    expect(body).not.toContain('40');
   });
 
   test('a running season scores the growth since the baseline, not the profit', async () => {
@@ -351,6 +369,21 @@ describe('standings', () => {
     expect(res.body.participants[0].score).toBeCloseTo(0, 5);
   });
 
+  test('a workspace made public mid-season starts counting toward season standings', async () => {
+    // Owner decision 2026-08-21: the season scores over every workspace public
+    // right now, not the set pinned at the start instant.
+    await seedFloor(['t']);
+    await seedSecondFloor('t');
+    const season = (await createSeason()).body.season;
+    await startSeason(season.id);           // pins only WS; ws-2 is private
+    await optIn(season.id, 't');
+    await db.update(workspaces).set({ visibility: 'public' }).where(eq(workspaces.id, 'ws-2'));
+    await giveProfit('t', 25, 'a', 'ws-2');
+
+    const res = await request(app).get(`/api/leaderboard?seasonId=${season.id}`);
+    expect(res.body.participants[0].score).toBeCloseTo(25, 5);
+  });
+
   test('payment details never appear in a season standings response', async () => {
     await seedFloor(['t']);
     await db.update(agents)
@@ -385,6 +418,23 @@ describe('settling', () => {
     expect(res.body.winners.map((w: { agentId: string; prizeUsd: number }) => [w.agentId, w.prizeUsd]))
       .toEqual([['gold', 500], ['silver', 250], ['bronze', 125]]);
     expect(res.body.rolloverUsd).toBe(125);
+  });
+
+  test('settlement scores over the workspaces public at settle time, not the pinned set', async () => {
+    // Mirrors the standings rule (owner decision 2026-08-21): if settlement
+    // read the pinned set, the final would differ from the board people
+    // watched all season.
+    await seedFloor(['gold']);
+    await seedSecondFloor('gold');
+    const season = (await createSeason()).body.season;
+    await startSeason(season.id);           // pins only WS; ws-2 is private
+    await optIn(season.id, 'gold');
+    await db.update(workspaces).set({ visibility: 'public' }).where(eq(workspaces.id, 'ws-2'));
+    await giveProfit('gold', 30, 'gold', 'ws-2');
+
+    const res = await request(app).post(`/api/seasons/${season.id}/settle`).send({});
+    expect(res.status).toBe(200);
+    expect(res.body.winners).toEqual([expect.objectContaining({ agentId: 'gold', prizeUsd: 500 })]);
   });
 
   test('SETTLING TWICE IS REFUSED, so a paid prize can never be reassigned', async () => {

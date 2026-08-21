@@ -6,9 +6,32 @@ can be won without forecasting anything. The published rules a contestant reads
 are `docs/legal/season-0-rules.md`; that file is a promise and never changes
 while a season runs. This file is the design behind it and changes freely.
 
-Status: **decided 2026-08-19.** Season 0 starts 2026-08-21T00:00Z and ends
-2026-10-16T00:00Z, so anything that changes what an entrant is scored on has to
-land before the start instant or wait for Season 1.
+Status: **decided 2026-08-19.** Season 0 starts 2026-08-22T00:00Z (moved from
+08-21 during launch prep) and ends 2026-10-16T00:00Z.
+
+**Revised 2026-08-21 (Viktor), hours before the start.** Three owner decisions
+from the launch review (`telarchy` umbrella,
+`notes/season-0-launch-review-2026-08-21.md`):
+
+1. **The season scores over ALL public workspaces, live**, not the set pinned
+   at the start instant. A floor published mid-season counts from the moment
+   it is public. Standings and settlement read the same set
+   (`routes/leaderboard.ts` seasonStandings, `routes/seasons.ts` settle); the
+   pinned `workspaceIds` remain as a record of what was public at the start.
+2. **The rules are allowed to change mid-season.** Season 0 is experimental
+   and its published rules now say so: changes are announced on the season
+   page before taking effect and applied to minimize harm. The "rules do not
+   change while the season runs" promise is Season 1 material. ToS bumped to
+   1.5 with the matching exception.
+3. **Draft standings list entrants** (entry order, no score, none exists yet)
+   instead of answering empty; "Nobody has entered yet" beside a working entry
+   button read as the entry not taking.
+
+Declined the same evening (proposed in the review, owner chose not to ship
+tonight): scheduling the liquidity ramp (`scripts/season-liquidity-ramp.mjs`
+remains unscheduled anywhere; books stay at their opening `b` unless it is run
+by hand), a duplicate-contactEmail entry guard, and an `endsAt` guard on
+settle.
 
 **Owner decision 2026-08-19 (Viktor):** ship decisions 1-3 before the start
 instant (marking, liquidity, position cap), because without them the contest is
