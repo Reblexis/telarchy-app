@@ -46,6 +46,11 @@ interface Props {
   horizonDate?: string | null;
   /** Workspace name, for the "do something useful for X?" propose prompt. */
   workspaceName: string;
+  /** The numbers this floor prices, for the form's placeholders. A proposer
+   *  arrives knowing what they want to do and not which metric it moves;
+   *  naming them in the prompt is what turns "Links: portfolio" into a pitch
+   *  the market can price (owner direction 2026-08-20). */
+  metricNames?: string[];
 }
 
 function fmtVal(v: number, unit: string): string {
@@ -64,6 +69,19 @@ export function splitAsk(title: string): { ask: number | null; rest: string } {
   return m ? { ask: parseInt(m[1], 10), rest: m[2] } : { ask: null, rest: title };
 }
 
+/**
+ * "net revenue", "net revenue and weekly traders", "a, b and c": the metrics
+ * as a reader would say them out loud. Falls back to a phrase rather than an
+ * empty gap, because the placeholder is a sentence and a sentence with a hole
+ * in it teaches nothing.
+ */
+export function metricsPhrase(names: string[]): string {
+  const clean = names.map(n => n.trim()).filter(Boolean);
+  if (clean.length === 0) return 'the number on this page';
+  if (clean.length === 1) return clean[0];
+  return `${clean.slice(0, -1).join(', ')} and ${clean[clean.length - 1]}`;
+}
+
 function headlineDelta(p: PublicProposal): number | null {
   const deltas = p.markets.map(m => m.delta).filter((d): d is number => d !== null);
   if (deltas.length === 0) return null;
@@ -77,7 +95,7 @@ function deltaAt(p: PublicProposal, targetDate: string | null | undefined): numb
   return p.markets.find(m => m.targetDate === targetDate)?.delta ?? null;
 }
 
-export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, signedIn, onRequireSignup, workspaceName, horizonDate }: Props) {
+export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, signedIn, onRequireSignup, workspaceName, metricNames = [], horizonDate }: Props) {
   // The number the charter funds on, falling back to the largest priced delta
   // before the floor's horizon is known.
   const impactOf = (p: PublicProposal) => deltaAt(p, horizonDate) ?? headlineDelta(p);
@@ -266,7 +284,7 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
                 className="jobform-line jobform-line--title"
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                placeholder="Stream LookPilot to my viewers for an hour"
+                placeholder={`I will do a very useful thing for ${workspaceName || "this company"}`}
                 maxLength={70}
                 aria-label="Contract title"
               />
@@ -278,7 +296,7 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
                 className="jobform-line jobform-line--desc"
                 value={desc}
                 onChange={e => setDesc(e.target.value)}
-                placeholder="Links: channel, portfolio, prior work."
+                placeholder={`This will affect ${metricsPhrase(metricNames)} in this way because of these reasons`}
                 rows={3}
                 aria-label="Contract pitch"
               />

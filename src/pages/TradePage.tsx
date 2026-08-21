@@ -26,8 +26,8 @@ import { ReportButton } from '../components/ReportButton';
 import { Logo } from '../components/Logo';
 import type { LeaderboardEntry, LimitOrder } from '../lib/api';
 import {
-  buildHorizonViews, captionLabel, horizonById, priceSeriesIsInline, priceSeriesOf, settleDayOf,
-  stepHorizon,
+  buildHorizonViews, captionLabel, horizonById, metricLabelOf, priceSeriesIsInline, priceSeriesOf,
+  settleDayOf, stepHorizon,
   type HorizonView, type PriceSeries,
 } from '../lib/floor-horizons';
 import { periodGapOf } from '../lib/period-gap';
@@ -325,6 +325,14 @@ export function TradePage() {
   const nextHorizon = stepHorizon(horizons, horizonId, 1);
   const unit = hero?.unit ?? '';
   const metricLabel = hero?.metricLabel ?? '';
+  // The distinct numbers this floor prices, in the same label shape the rest
+  // of the page uses (metricLabelOf owns that; see floor-horizons.ts). Feeds
+  // the propose form's placeholder, so a proposer is told what their contract
+  // is supposed to move.
+  const metricNames = useMemo(
+    () => Array.from(new Set((ws?.markets ?? []).map(m => metricLabelOf(m.metricName)))).slice(0, 3),
+    [ws?.markets],
+  );
   const selectedJob = ws?.proposals?.find(p => p.id === selectedJobId) ?? null;
   // A contract is editable by whoever posted it (and by a manager) while it is
   // still on the ballot. The server decides the same thing again; this only
@@ -1335,6 +1343,7 @@ export function TradePage() {
               signedIn={!!user}
               onRequireSignup={() => navigate('/signup')}
               workspaceName={ws.name}
+              metricNames={metricNames}
               onPropose={async (title, description, askUsd) => {
                 // Anonymous proposers go through the signup door; the board
                 // itself is public information (Open workspace ballot).
