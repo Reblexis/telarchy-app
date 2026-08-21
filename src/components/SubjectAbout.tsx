@@ -25,11 +25,11 @@ export function SubjectAbout({ workspaceId, name, value, defaultText, canManage,
   defaultText: string;
   canManage: boolean;
   onSaved: () => void;
-  /** Opens Otto (owner direction 2026-08-21: make him obvious). This is where
-   *  the question forms: a visitor who has just read what the company does is
-   *  one sentence away from asking the thing the paragraph did not answer, and
-   *  a pill in the corner is easy to miss while reading. Same panel the dock
-   *  opens, never a second conversation.
+  /** Opens Otto (owner direction 2026-08-21: make him obvious). It sits at the
+   *  END of this prose, not beside the heading: the question exists once the
+   *  paragraph has run out of answers, and a pill dropped into a row of tiny
+   *  tracked capitals reads as a foreign object. Same panel the dock opens,
+   *  never a second conversation.
    *
    *  The button carries no aria-label: its visible words are its name, and the
    *  section around it already says which company. Labelling it "Ask Otto
@@ -60,19 +60,7 @@ export function SubjectAbout({ workspaceId, name, value, defaultText, canManage,
   return (
     <section className="pubws-know pubws-enter pubws-enter--3" aria-label={`What is ${name}`}>
       <div className="pubws-know-headrow">
-        {/* The question and the way to ask a better one, side by side: the
-            button belongs to the heading, not to the row's far edge, where it
-            would read as a page control rather than as an answer to this
-            section. */}
-        <div className="pubws-know-headline">
         <h2 className="pubws-know-head">What is {name}?</h2>
-        {onAsk && !editing && (
-          <button type="button" className="pubws-know-ask" onClick={onAsk}>
-            <span className="pubws-know-ask-mark" aria-hidden="true">O</span>
-            Ask Otto
-          </button>
-        )}
-        </div>
         {canManage && !editing && (
           <button className="pubws-know-edit" onClick={() => { setDraft(text); setErr(''); setEditing(true); }}>Edit</button>
         )}
@@ -97,7 +85,16 @@ export function SubjectAbout({ workspaceId, name, value, defaultText, canManage,
           </div>
         </div>
       ) : (
-        <p className="pubws-know-what pubws-know-about">{linkify(text)}</p>
+        <>
+          <p className="pubws-know-what pubws-know-about">{linkify(text)}</p>
+          {onAsk && (
+            <button type="button" className="pubws-know-ask" onClick={onAsk}>
+              <span className="pubws-know-ask-mark" aria-hidden="true">O</span>
+              <span className="pubws-know-ask-label">Ask Otto about {name}</span>
+              <span className="pubws-know-ask-go" aria-hidden="true">→</span>
+            </button>
+          )}
+        </>
       )}
     </section>
   );

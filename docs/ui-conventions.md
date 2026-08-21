@@ -333,10 +333,15 @@ screen is a joke.
 
 **Two doors, one conversation** (owner direction 2026-08-21: make him
 obvious). A pill in the corner is easy to miss while reading, and the place a
-visitor's question actually forms is the paragraph that nearly answered it, so
-"What is <name>?" carries an **Ask Otto** button in its own head row, wearing
-the same serif O. It opens the same panel the dock opens: the floor owns the
-open state (`TradePage`), never a second Otto with half the conversation. The
+visitor's question actually forms is the paragraph that just ran out of
+answers, so **the last line of "What is <name>?" is a row that opens him**:
+full width, hairline top and bottom, the serif O on the left and an arrow on
+the right that leans out on hover. It is a row rather than a button beside the
+heading, which was the first attempt and read as a foreign object dropped into
+a line of tracked capitals; at the end of the prose it is the next thing to
+read instead of a control competing with a label. It opens the same panel the
+dock opens: the floor owns the open state (`TradePage`), never a second Otto
+with half the conversation. The
 closed dock is **ink**, not bone, for the same reason: the one thing floating
 over a bone document should look like the one thing you can press, and it does
 not compete with the bet buttons because they are the page's colour and he is

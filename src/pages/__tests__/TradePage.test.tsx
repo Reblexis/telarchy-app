@@ -693,8 +693,14 @@ describe('a notification link lands on what it names', () => {
  * wrote, and only the page can tell you which one you have.
  */
 describe('the floor carries Otto', () => {
-  test('his dock is on the page', async () => {
+  test('two doors lead to him: the corner dock and the end of the prose', async () => {
     renderFloor();
-    expect(await screen.findByRole('button', { name: /ask otto about lookpilot/i })).toBeTruthy();
+    // Same name on both, because they are the same invitation to the same
+    // conversation (owner direction 2026-08-21: make him obvious). The panel
+    // is one, and the floor owns whether it is open.
+    const doors = await screen.findAllByRole('button', { name: /ask otto about lookpilot/i });
+    expect(doors.length).toBe(2);
+    expect(doors.some(d => d.className.includes('ottodock'))).toBe(true);
+    expect(doors.some(d => d.className.includes('pubws-know-ask'))).toBe(true);
   });
 });
