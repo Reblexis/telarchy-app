@@ -165,6 +165,12 @@ STOP. The job summary prints where it is.
 telarchy.com/beta   →  the candidate, whole app, real database, your session
    ↓
 [Publish this build] on the beta's stripe
+
+Every internal link inside the beta stays on the beta: the frontend's
+internal navigation is basename-aware and enforced by an ownership test
+(see "Every internal link is base-aware" in docs/ui-conventions.md), so a
+tester can walk the whole app under /beta without silently landing back on
+the serving revision.
    ↓
 traffic → 100% to that exact revision
 ```

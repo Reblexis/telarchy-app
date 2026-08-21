@@ -7,6 +7,7 @@ import { buildHorizonViews, primaryHorizonOf, priceSeriesOf } from '../lib/floor
 import { pickCurrentSeason } from '../lib/season-clock';
 import { useSeasonClock } from '../lib/useSeasonClock';
 import type { PrizeSeason } from '../lib/api';
+import { withBase } from '../lib/base-path';
 
 /**
  * The marketplace at /marketplace (owner direction 2026-08-14, Viktor,
@@ -146,7 +147,7 @@ function ListYourNumberCard() {
     setError('');
     setBusy(true);
     try {
-      const res = await fetch('/api/waitlist', {
+      const res = await fetch(withBase('/api/waitlist'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         // Which door this was (owner ask 2026-08-15): the marketplace's

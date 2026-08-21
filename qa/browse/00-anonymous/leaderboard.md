@@ -127,9 +127,9 @@ otherwise.
 2. `$B text` and inspect an entrant's row.
 
 **Expected:**
-- Season still a DRAFT (`seasonPrizeUsd` null): the row shows
-  "up to $<top rung>" (e.g. "up to $500"), never a bare "entered" and never
-  "$0".
+- Season still a DRAFT (`seasonPrizeUsd` null): the row shows the top rung
+  plainly ("$500"), never "up to $500", never a bare "entered", never "$0".
+  The chip is accent-colored and heavier than the credits number.
 - Season RUNNING: an entrant inside the rungs shows the projected dollar
   figure; an entrant outside them shows "entered".
 - A non-entrant row carries no chip at all.

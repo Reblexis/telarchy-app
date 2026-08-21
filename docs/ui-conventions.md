@@ -30,6 +30,20 @@ Two consequences worth knowing before writing new UI:
   poster column is 660px (`.pubws-main`), a document column is 760px
   (`.pubws-doc`), a door is 26rem (`.pubws-auth`). Pick one of those.
 
+## Every internal link is base-aware (2026-08-21)
+
+The app is built twice, at `/` and at `/beta/` (docs/infra/deploy.md), so a
+root-absolute URL written into a component silently walks a /beta visitor
+back onto the production build (owner report 2026-08-21: "beta doesnt link
+to other beta links.. all beta pages should link to other beta pages...").
+The rule: internal navigation uses react-router `<Link>`/`navigate()`,
+which inherit the basename; the rare genuine URL (a server endpoint such
+as /api/data-room, a fetch of the served index or /api/waitlist) goes
+through `withBase` from `src/lib/base-path.ts`, the only file allowed to
+read `import.meta.env.BASE_URL`. All four rules are enforced by
+`src/lib/__tests__/internal-links-ownership.test.ts`, which fails the
+suite on any new root-absolute href, location assignment, or root fetch.
+
 ## Page layout
 
 Every page is `<div className="pubws">` with a `.pubws-topbar` and one
@@ -589,11 +603,16 @@ AND on the floor rail's Top traders (owner ask 2026-08-21: "show on
 leaderboard prizes next to the people signed in season 0", then "it
 should be on this leaderboard too" about the rail).** While the season is a draft there is no
 projection to make (no baselines exist), so the chip shows the ladder's
-top rung as potential: "up to $500". Once the season runs, the chip
-shows the projected payout at the current standing, from the same
-`settleSeason` the settlement uses; an entrant currently outside the
-rungs shows "entered". A bare "$0" is never rendered: before the start
-it would read as "wins nothing" rather than "not decided yet".
+top rung, plainly: "$500", never "up to $500" (owner revision 2026-08-21:
+"just say $500 thats it"). Once the season runs, the chip shows the
+projected payout at the current standing, from the same `settleSeason`
+the settlement uses; the number is the entrant's GLOBAL season standing
+even on a workspace-scoped rail, because the prize is a season fact. An
+entrant currently outside the rungs shows "entered" (rail: "in"). A bare
+"$0" is never rendered: before the start it would read as "wins nothing"
+rather than "not decided yet". The chip is prominent by design (same
+owner message): accent-colored, heavier than the credits number beside
+it, because it is real dollars.
 
 Below the floor (outside the rails column) sits the about section
 (`.pubws-about`, owner direction 2026-08-10): three drawings in the

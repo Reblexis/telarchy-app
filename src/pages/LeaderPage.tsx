@@ -137,7 +137,7 @@ export function LeaderPage() {
     return (
       <li key={`${isPinned ? 'pin-' : ''}${e.id}`} className={`lbp-row${mine ? ' is-me' : ''}${isPinned ? ' is-pinned' : ''}`}>
         <span className="lbp-rank">{rank || '—'}</span>
-        <a className="lbp-who" href={`/participants/${encodeURIComponent(e.nickname ?? e.id)}`}>
+        <Link className="lbp-who" to={`/participants/${encodeURIComponent(e.nickname ?? e.id)}`}>
           <span className="lbp-avatar">
             {e.image ? <img src={e.image} alt="" /> : <span>{initialOf(name)}</span>}
           </span>
@@ -156,7 +156,7 @@ export function LeaderPage() {
               {acc && ` · ${acc}`}
             </span>
           </span>
-        </a>
+        </Link>
         {/* What the season would pay this person if it settled now. Only for
             entrants. Before the season starts there are no baselines, so
             there is nothing to project and a "$0" would read as "wins
@@ -168,10 +168,10 @@ export function LeaderPage() {
           e.seasonPrizeUsd === null || e.seasonPrizeUsd === undefined ? (
             topPrizeUsd ? (
               <span
-                className="lbp-prize lbp-prize--in"
-                title={`Entered ${season?.name ?? 'the season'}: prizes up to $${topPrizeUsd.toLocaleString()} once it starts`}
+                className="lbp-prize"
+                title={`Entered ${season?.name ?? 'the season'}: the top prize once it starts`}
               >
-                up to ${topPrizeUsd.toLocaleString()}
+                ${topPrizeUsd.toLocaleString()}
               </span>
             ) : (
               <span className="lbp-prize lbp-prize--in" title="Entered the season">entered</span>
@@ -254,13 +254,13 @@ export function LeaderPage() {
                 return (
                   <li key={c.id} className="lbp-row">
                     <span className="lbp-rank">{i + 1}</span>
-                    <a className="lbp-who" href={`/participants/${encodeURIComponent(c.id)}`}>
+                    <Link className="lbp-who" to={`/participants/${encodeURIComponent(c.id)}`}>
                       <span className="lbp-avatar"><span>{initialOf(name)}</span></span>
                       <span className="lbp-stack">
                         <span className="lbp-name">{name}</span>
                         <span className="lbp-sub">{parts.join(' · ') || 'no contracts priced yet'}</span>
                       </span>
-                    </a>
+                    </Link>
                     {scored ? (
                       <span className={`lbp-score${c.impact! > 0 ? ' is-up' : c.impact! < 0 ? ' is-down' : ''}`}>
                         {c.impact! > 0 ? '▲ ' : c.impact! < 0 ? '▼ ' : ''}

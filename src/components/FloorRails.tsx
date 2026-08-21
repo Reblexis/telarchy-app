@@ -1,4 +1,5 @@
 import type { LeaderboardEntry, PublicContractor } from '../lib/api';
+import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { api, type PrizeSeason } from '../lib/api';
 import { useSeasonClock } from '../lib/useSeasonClock';
@@ -73,10 +74,13 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
 
   // The prize season, fetched once for the whole rail: the strip at the
   // bottom renders it, and an entrant's row carries a prize chip (owner ask
-  // 2026-08-21: "it should be on this leaderboard too"), same states as
-  // /leaderboard: "up to $<top rung>" while the season is a draft, the
-  // projected payout once it runs, "in" for a running entrant outside the
-  // rungs. One fetch, so the chip and the strip cannot disagree.
+  // 2026-08-21: "it should be on this leaderboard too", then "just say $500
+  // thats it.. and make it a little more prominent"), same states as
+  // /leaderboard: the ladder's top rung while the season is a draft, the
+  // projected payout from the GLOBAL season standing once it runs (the chip
+  // is a season fact, not a workspace one, so a scoped rail and /leaderboard
+  // name the same dollars), "in" for a running entrant outside the rungs.
+  // One fetch, so the chip and the strip cannot disagree.
   const [season, setSeason] = useState<PrizeSeason | null>(null);
   useEffect(() => {
     api.getSeasons()
@@ -88,12 +92,12 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
     if (!e.seasonEntered) return null;
     if (e.seasonPrizeUsd === null || e.seasonPrizeUsd === undefined) {
       return topPrizeUsd
-        ? <span className="pubws-lb-prize" title={`Entered ${season?.name ?? 'the season'}: prizes up to $${topPrizeUsd.toLocaleString()} once it starts`}>up to ${topPrizeUsd.toLocaleString()}</span>
-        : <span className="pubws-lb-prize" title="Entered the season">in</span>;
+        ? <span className="pubws-lb-prize" title={`Entered ${season?.name ?? 'the season'}: the top prize once it starts`}>${topPrizeUsd.toLocaleString()}</span>
+        : <span className="pubws-lb-prize pubws-lb-prize--in" title="Entered the season">in</span>;
     }
     return e.seasonPrizeUsd > 0
       ? <span className="pubws-lb-prize" title="What this season would pay at the current standing">${e.seasonPrizeUsd.toLocaleString()}</span>
-      : <span className="pubws-lb-prize" title="Entered the season, currently outside the prizes">in</span>;
+      : <span className="pubws-lb-prize pubws-lb-prize--in" title="Entered the season, currently outside the prizes">in</span>;
   };
   // The contractors block shows whenever the workspace exposes it (Open
   // floor), even with nobody paid yet, so the two-sided economy is visible.
@@ -114,7 +118,7 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
                   {/* Avatar + name link to the public profile (owner ask
                       2026-08-11: show the face; a Manifold logo marks imported
                       traders). */}
-                  <a className="pubws-lb-who pubws-name-link" href={`/participants/${encodeURIComponent(e.nickname ?? e.id)}`}>
+                  <Link className="pubws-lb-who pubws-name-link" to={`/participants/${encodeURIComponent(e.nickname ?? e.id)}`}>
                     <span className="pubws-lb-avatar">
                       {e.image ? <img src={e.image} alt="" /> : <span>{initial}</span>}
                     </span>
@@ -124,7 +128,7 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
                         <ManifoldLogo size={13} strokeWidth={1.6} />
                       </span>
                     )}
-                  </a>
+                  </Link>
                   {prizeChip(e)}
                   {/* Profit, realized + open positions (owner 2026-08-11):
                       the board ranks on it, so the row shows it, signed. */}
@@ -146,14 +150,14 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
             {minePinned && (
               <li className="pubws-lb-row is-me is-pinned">
                 <span className="pubws-lb-rank">{minePinned.rank ?? '—'}</span>
-                <a className="pubws-lb-who pubws-name-link" href={`/participants/${encodeURIComponent(minePinned.nickname ?? minePinned.id)}`}>
+                <Link className="pubws-lb-who pubws-name-link" to={`/participants/${encodeURIComponent(minePinned.nickname ?? minePinned.id)}`}>
                   <span className="pubws-lb-avatar">
                     {minePinned.image
                       ? <img src={minePinned.image} alt="" />
                       : <span>{(minePinned.nickname || 'anonymous').replace(/^@/, '')[0]?.toUpperCase() ?? '?'}</span>}
                   </span>
                   <span className="pubws-lb-name">{minePinned.nickname || 'you'}</span>
-                </a>
+                </Link>
                 {prizeChip(minePinned)}
                 {(() => {
                   const cr = Math.round(minePinned.totalEarnings);
@@ -184,13 +188,13 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
                 return (
                   <li key={c.id} className="pubws-lb-row">
                     <span className="pubws-lb-rank">{i + 1}</span>
-                    <a className="pubws-lb-who pubws-name-link" href={`/participants/${encodeURIComponent(c.id)}`}>
+                    <Link className="pubws-lb-who pubws-name-link" to={`/participants/${encodeURIComponent(c.id)}`}>
                       <span className="pubws-lb-avatar"><span>{initial}</span></span>
                       <span className="pubws-lb-stack">
                         <span className="pubws-lb-name">{name}</span>
                         <span className="pubws-lb-sub">{contractorSubline(c)}</span>
                       </span>
-                    </a>
+                    </Link>
                     {scored ? (
                       <span
                         className={`pubws-lb-score${c.impact! > 0 ? ' is-up' : c.impact! < 0 ? ' is-down' : ''}`}
@@ -218,7 +222,7 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
       <SeasonStrip signedIn={signedIn} season={season} />
       {/* The way out of a top-ten list: the whole field, on its own page
           (owner direction 2026-08-17). */}
-      <a className="pubws-lb-more" href="/leaderboard">Show full leaderboard</a>
+      <Link className="pubws-lb-more" to="/leaderboard">Show full leaderboard</Link>
     </aside>
   );
 }
@@ -259,9 +263,9 @@ function SeasonStrip({ signedIn, season }: { signedIn: boolean; season: PrizeSea
           ? `You are in. $${season.poolUsd.toLocaleString()} in prizes.`
           : `$${season.poolUsd.toLocaleString()} in prizes, free to enter.`}
       </p>
-      <a className="pubws-lb-more" href="/season">
+      <Link className="pubws-lb-more" to="/season">
         {entered ? 'See the season' : clock.entryOpen ? 'Enter the season' : 'See the season'}
-      </a>
+      </Link>
     </section>
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 
 /**
@@ -244,7 +245,7 @@ export function FloorComments({
               {activity.positions.map((p, i) => (
                 <li key={`${p.id}-${p.direction}-${i}`} className="pubws-mkt-row">
                   <span className={`prof-dir prof-dir--${p.direction}`}>{p.direction === 'higher' ? '▲' : '▼'}</span>
-                  <a className="pubws-mkt-who pubws-name-link" href={profileHref(p.handle, p.id)}>{p.handle}</a>
+                  <Link className="pubws-mkt-who pubws-name-link" to={profileHref(p.handle, p.id)}>{p.handle}</Link>
                   {p.branch && <span className="pubws-mkt-branch">if {p.branch}</span>}
                   <span className="pubws-mkt-val">{fmtShares(p.shares)} sh{p.worth !== null ? ` · ${fmtCr(p.worth)} cr` : ''}</span>
                 </li>
@@ -265,7 +266,7 @@ export function FloorComments({
               {activity.trades.map(t => (
                 <li key={t.id} className="pubws-mkt-row">
                   <span className={`prof-dir prof-dir--${t.direction}`}>{t.direction === 'higher' ? '▲' : '▼'}</span>
-                  <a className="pubws-mkt-who pubws-name-link" href={profileHref(t.handle, t.handle)}>{t.handle}</a>
+                  <Link className="pubws-mkt-who pubws-name-link" to={profileHref(t.handle, t.handle)}>{t.handle}</Link>
                   {t.branch && <span className="pubws-mkt-branch">if {t.branch}</span>}
                   <span className="pubws-mkt-act">{t.kind === 'buy' ? 'bought' : 'sold'} {fmtShares(t.shares)}</span>
                   <span className="pubws-mkt-val">{fmtCr(t.cost)} cr</span>

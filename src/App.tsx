@@ -7,6 +7,7 @@ import { TradePage } from './pages/TradePage';
 import { FloorsPage } from './pages/FloorsPage';
 import { BetaBanner } from './components/BetaBanner';
 import { lazyPage } from './lib/lazy-page';
+import { BASE_PATH } from './lib/base-path';
 
 /* Lazy: everything else splits into per-route chunks (2026-08-20). The entry
    bundle was 615 KB with every page in it, so a phone visitor downloaded the
@@ -55,7 +56,7 @@ function LocalRedirect() {
 
 export function App() {
   return (
-    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || '/'}>
+    <BrowserRouter basename={BASE_PATH || '/'}>
       {/* Renders nothing on telarchy.com. Anywhere else, it says so, and
           carries the Publish button. */}
       <BetaBanner />

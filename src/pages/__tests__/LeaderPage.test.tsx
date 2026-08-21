@@ -50,7 +50,7 @@ beforeEach(() => {
 });
 
 describe('season prize beside an entrant', () => {
-  test('before the season starts, an entrant shows the top rung as potential', async () => {
+  test('before the season starts, an entrant shows the top rung', async () => {
     // No baselines exist yet, so there is no projection; "entered" alone said
     // nothing about money (owner ask 2026-08-21: "show on leaderboard prizes
     // next to the people signed in season 0"). A "$0" is equally wrong: it
@@ -59,7 +59,7 @@ describe('season prize beside an entrant', () => {
       participants: [trader({ id: 'in', nickname: 'entrant', seasonEntered: true, seasonPrizeUsd: null })],
     } as never);
     renderPage();
-    expect(await screen.findByText('up to $500')).toBeInTheDocument();
+    expect(await screen.findByText('$500')).toBeInTheDocument();
     expect(screen.queryByText(/^entered$/)).toBeNull();
   });
 

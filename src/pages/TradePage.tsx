@@ -14,6 +14,7 @@ import { JobsBoard, splitAsk } from '../components/JobsBoard';
 import { SubjectAbout } from '../components/SubjectAbout';
 import { FloorAnnouncements } from '../components/FloorAnnouncements';
 import { FloorComments } from '../components/FloorComments';
+import { withBase } from '../lib/base-path';
 import { LeaderboardRail } from '../components/FloorRails';
 import { useMyParticipantId } from '../hooks/useMyParticipantId';
 import { AccountMenu } from '../components/AccountMenu';
@@ -540,7 +541,7 @@ export function TradePage() {
     const currentPath = new URL(current, window.location.origin).pathname;
     const check = () => {
       if (document.hidden) return;
-      fetch('/', { cache: 'no-store' })
+      fetch(withBase('/'), { cache: 'no-store' })
         .then(r => r.text())
         .then(html => {
           const served = indexBundleSrc(html);
@@ -1611,7 +1612,7 @@ function SetupForm({ source }: { source: string }) {
     setError('');
     setBusy(true);
     try {
-      const res = await fetch('/api/waitlist', {
+      const res = await fetch(withBase('/api/waitlist'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         // The floor names itself, so /admin can tell a signup from this

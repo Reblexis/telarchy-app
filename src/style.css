@@ -4160,13 +4160,22 @@ textarea.jobform-line--desc {
 .pubws-lb-score.is-up { color: var(--higher); }
 .pubws-lb-score.is-down { color: var(--lower); }
 /* Season prize beside an entrant (same states as /leaderboard's .lbp-prize):
-   quieter than the profit number so the row still ranks on profit at a
-   glance. */
+   real dollars, so it carries the accent (owner ask 2026-08-21: "make it a
+   little more prominent same for other rewards"). The "in" state (entered,
+   no dollars to name) stays muted. */
 .pubws-lb-prize {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
-  color: var(--text-tertiary);
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
   white-space: nowrap;
+}
+.pubws-lb-prize--in {
+  color: var(--text-tertiary);
+  font-weight: 500;
+  font-size: 0.72rem;
+  text-transform: uppercase;
 }
 /* A job nobody has priced yet: say so, quietly, instead of printing a zero
    that reads as "the market thinks this is worthless". */
@@ -6245,10 +6254,13 @@ textarea.jobform-line--desc {
 .lbp-prize {
   margin-left: 0.6rem;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.8rem;
-  font-weight: 600;
+  /* Prominent (owner ask 2026-08-21: "make it a little more prominent"):
+     the prize is real dollars, so it carries the accent and a heavier
+     weight than the credits number beside it. */
+  font-size: 0.9rem;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: var(--higher);
+  color: var(--accent);
   white-space: nowrap;
 }
 .lbp-prize--in {

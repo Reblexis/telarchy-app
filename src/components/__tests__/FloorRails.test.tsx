@@ -1,5 +1,6 @@
 import { describe, expect, test, vi, beforeEach } from 'vitest';
 import { render } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import type { LeaderboardEntry } from '../../lib/api';
 
 /**
@@ -50,7 +51,7 @@ beforeEach(() => { vi.clearAllMocks(); });
 
 describe('finding yourself on the rail', () => {
   test('the reader inside the ten is marked, and not shown twice', () => {
-    const { container } = render(<LeaderboardRail entries={twelve} meId="p3" />);
+    const { container } = render(<MemoryRouter><LeaderboardRail entries={twelve} meId="p3" /></MemoryRouter>);
     const marked = container.querySelectorAll('.pubws-lb-row.is-me');
     expect(marked).toHaveLength(1);
     expect(marked[0].textContent).toContain('trader3');
@@ -61,7 +62,7 @@ describe('finding yourself on the rail', () => {
   });
 
   test('the reader outside the ten is pinned underneath, with their real rank', () => {
-    const { container } = render(<LeaderboardRail entries={twelve} meId="p12" />);
+    const { container } = render(<MemoryRouter><LeaderboardRail entries={twelve} meId="p12" /></MemoryRouter>);
     const pinned = container.querySelector('.pubws-lb-row.is-pinned');
     expect(pinned).toBeTruthy();
     expect(pinned!.textContent).toContain('trader12');
@@ -73,7 +74,7 @@ describe('finding yourself on the rail', () => {
   });
 
   test('a signed-out reader gets no highlight and no pin', () => {
-    const { container } = render(<LeaderboardRail entries={twelve} />);
+    const { container } = render(<MemoryRouter><LeaderboardRail entries={twelve} /></MemoryRouter>);
     expect(container.querySelectorAll('.pubws-lb-row.is-me')).toHaveLength(0);
     expect(container.querySelectorAll('.pubws-lb-row.is-pinned')).toHaveLength(0);
     expect(container.querySelectorAll('.pubws-lb-row')).toHaveLength(10);
@@ -82,7 +83,7 @@ describe('finding yourself on the rail', () => {
   test('a reader who has not traded is not invented onto the board', () => {
     // The list filters to people with trades; someone with none has no row to
     // pin, and a pinned row for them would claim a rank they do not have.
-    const { container } = render(<LeaderboardRail entries={twelve} meId="nobody" />);
+    const { container } = render(<MemoryRouter><LeaderboardRail entries={twelve} meId="nobody" /></MemoryRouter>);
     expect(container.querySelectorAll('.pubws-lb-row.is-pinned')).toHaveLength(0);
   });
 });
@@ -100,21 +101,21 @@ describe('the season prize beside an entrant', () => {
   const entrant = (prize: number | null) =>
     ({ ...trader(2), seasonEntered: true, seasonPrizeUsd: prize } as unknown as LeaderboardEntry);
 
-  test('a draft season shows the top rung as potential, never a bare "entered"', async () => {
+  test('a draft season shows the top rung, plainly, never a bare "entered"', async () => {
     getSeasons.mockResolvedValue({ seasons: [draftSeason] });
-    const { findByText } = render(<LeaderboardRail entries={[trader(1), entrant(null)]} />);
-    expect((await findByText('up to $500')).className).toBe('pubws-lb-prize');
+    const { findByText } = render(<MemoryRouter><LeaderboardRail entries={[trader(1), entrant(null)]} /></MemoryRouter>);
+    expect((await findByText('$500')).className).toBe('pubws-lb-prize');
   });
 
   test('a running season shows the projected payout', async () => {
     getSeasons.mockResolvedValue({ seasons: [{ ...draftSeason, status: 'running' }] });
-    const { findByText } = render(<LeaderboardRail entries={[entrant(250)]} />);
+    const { findByText } = render(<MemoryRouter><LeaderboardRail entries={[entrant(250)]} /></MemoryRouter>);
     expect((await findByText('$250')).className).toBe('pubws-lb-prize');
   });
 
   test('a non-entrant carries no chip', async () => {
     getSeasons.mockResolvedValue({ seasons: [draftSeason] });
-    const { container, findByText } = render(<LeaderboardRail entries={[trader(1)]} />);
+    const { container, findByText } = render(<MemoryRouter><LeaderboardRail entries={[trader(1)]} /></MemoryRouter>);
     await findByText('trader1');
     expect(container.querySelector('.pubws-lb-prize')).toBeNull();
   });

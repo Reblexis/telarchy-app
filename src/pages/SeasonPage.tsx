@@ -205,7 +205,7 @@ export function SeasonPage() {
                 return (
                   <li key={r.id} className={`lbp-row${r.id === meId ? ' is-me' : ''}`}>
                     <span className="lbp-rank">{r.rank}</span>
-                    <a className="lbp-who" href={`/participants/${encodeURIComponent(r.nickname ?? r.id)}`}>
+                    <Link className="lbp-who" to={`/participants/${encodeURIComponent(r.nickname ?? r.id)}`}>
                       <span className="lbp-avatar">
                         {r.image ? <img src={r.image} alt="" /> : <span>{initialOf(name)}</span>}
                       </span>
@@ -214,7 +214,7 @@ export function SeasonPage() {
                           {name}
                         </span>
                       </span>
-                    </a>
+                    </Link>
                     <span className={`lbp-score${(r.score ?? 0) > 0 ? ' is-up' : (r.score ?? 0) < 0 ? ' is-down' : ''}`}>
                       {r.score === null ? '' : formatScore(r.score)}
                     </span>
@@ -236,7 +236,7 @@ export function SeasonPage() {
               {meId && !rows.some(r => r.id === meId) && myStanding && (
                 <li className="lbp-row is-me is-pinned">
                   <span className="lbp-rank">{myStanding.rank}</span>
-                  <a className="lbp-who" href={`/participants/${encodeURIComponent(myStanding.nickname ?? myStanding.id)}`}>
+                  <Link className="lbp-who" to={`/participants/${encodeURIComponent(myStanding.nickname ?? myStanding.id)}`}>
                     <span className="lbp-avatar">
                       <span>{initialOf(myStanding.nickname || 'you')}</span>
                     </span>
@@ -245,7 +245,7 @@ export function SeasonPage() {
                         {myStanding.nickname || 'you'}
                       </span>
                     </span>
-                  </a>
+                  </Link>
                   <span className={`lbp-score${(myStanding.score ?? 0) > 0 ? ' is-up' : (myStanding.score ?? 0) < 0 ? ' is-down' : ''}`}>
                     {myStanding.score === null ? '' : formatScore(myStanding.score)}
                   </span>

@@ -6,6 +6,7 @@ import { SeasonEntryPanel } from './SeasonEntryPanel';
 import { api, type NotificationPrefs, type PayoutMethod } from '../lib/api';
 import { agentPrompt, type FloorRef } from '../lib/agent-prompt';
 import { useAuth } from '../hooks/useAuth';
+import { withBase } from '../lib/base-path';
 
 /**
  * The account, as a real dialog (owner direction 2026-08-10: the corner
@@ -317,7 +318,7 @@ export function AccountDialog({ onClose, initialTab = 'profile', floor = null }:
   const manifoldStart = async () => {
     setBusy('manifold'); clearErr('manifold'); setManifoldMsg('');
     try {
-      const r = await fetch('/api/import/manifold/start', {
+      const r = await fetch(withBase('/api/import/manifold/start'), {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: manifoldName }),
       });
@@ -332,7 +333,7 @@ export function AccountDialog({ onClose, initialTab = 'profile', floor = null }:
   const manifoldClaim = async () => {
     setBusy('manifold'); clearErr('manifold'); setManifoldMsg('');
     try {
-      const r = await fetch('/api/import/manifold/claim', { method: 'POST' });
+      const r = await fetch(withBase('/api/import/manifold/claim'), { method: 'POST' });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Could not verify');
       setManifoldMsg(`Imported @${d.username}: +${d.granted.toLocaleString('en-US')} cr`);

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api, type MySeasonEntry, type PrizeSeason } from '../lib/api';
 
 /**
@@ -74,7 +75,7 @@ export function SeasonEntryButton({ season, signedIn }: { season: PrizeSeason; s
 
   if (!signedIn) {
     return (
-      <a className="lbp-season-cta" href="/signup">Sign up to enter</a>
+      <Link className="lbp-season-cta" to="/signup">Sign up to enter</Link>
     );
   }
 

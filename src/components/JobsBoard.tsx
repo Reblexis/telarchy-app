@@ -1,4 +1,5 @@
 import { FloorModal } from './FloorModal';
+import { useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 import { horizonLabel } from '../lib/floor-horizons';
@@ -96,6 +97,7 @@ function deltaAt(p: PublicProposal, targetDate: string | null | undefined): numb
 }
 
 export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, signedIn, onRequireSignup, workspaceName, metricNames = [], horizonDate }: Props) {
+  const navigate = useNavigate();
   // The number the charter funds on, falling back to the largest priced delta
   // before the floor's horizon is known.
   const impactOf = (p: PublicProposal) => deltaAt(p, horizonDate) ?? headlineDelta(p);
@@ -204,8 +206,8 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
                                 className="pubws-name-link"
                                 role="link"
                                 tabIndex={0}
-                                onClick={ev => { ev.stopPropagation(); window.location.href = `/participants/${encodeURIComponent(p.proposedByHandle!)}`; }}
-                                onKeyDown={ev => { if (ev.key === 'Enter') { ev.stopPropagation(); window.location.href = `/participants/${encodeURIComponent(p.proposedByHandle!)}`; } }}
+                                onClick={ev => { ev.stopPropagation(); navigate(`/participants/${encodeURIComponent(p.proposedByHandle!)}`); }}
+                                onKeyDown={ev => { if (ev.key === 'Enter') { ev.stopPropagation(); navigate(`/participants/${encodeURIComponent(p.proposedByHandle!)}`); } }}
                               >
                                 {p.proposedByName}
                               </span>

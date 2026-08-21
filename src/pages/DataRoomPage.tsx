@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from './TradePage';
 import { api, type DataRoomFeed, type DataRoomBlock } from '../lib/api';
+import { withBase } from '../lib/base-path';
 
 /**
  * telarchy.com/data-room: Telarchy's own books (owner ask 2026-08-20).
@@ -339,7 +340,7 @@ export function DataRoomPage() {
             <p className="dr-stamp">
               Words updated {dayLabel(feed.doc.updatedAt)} · figures generated{' '}
               {new Date(feed.generatedAt).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })} ·{' '}
-              <a href="/api/data-room" className="dr-stamp-link">the same page as JSON</a>
+              <a href={withBase('/api/data-room')} className="dr-stamp-link">the same page as JSON</a>
             </p>
           )}
         </header>
@@ -369,7 +370,7 @@ export function DataRoomPage() {
                     components={{
                       p: ({ children }) => <p>{children}</p>,
                       code: ({ children }) => <code className="dr-code">{children}</code>,
-                      a: ({ href, children }) => <a href={href}>{children}</a>,
+                      a: ({ href, children }) => <a href={href?.startsWith('/') ? withBase(href) : href}>{children}</a>,
                     }}
                   >
                     {s.markdown}

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { FloorModal } from './FloorModal';
 import { ManifoldLogo } from './ManifoldLogo';
+import { withBase } from '../lib/base-path';
 
 /**
  * Import your Manifold balance (owner ask 2026-08-11: make it a
@@ -24,7 +25,7 @@ export function ManifoldButton({ signedIn, onRequireSignup }: { signedIn: boolea
   const start = async () => {
     setBusy(true); setError('');
     try {
-      const r = await fetch('/api/import/manifold/start', {
+      const r = await fetch(withBase('/api/import/manifold/start'), {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username }),
       });
@@ -39,7 +40,7 @@ export function ManifoldButton({ signedIn, onRequireSignup }: { signedIn: boolea
   const claim = async () => {
     setBusy(true); setError('');
     try {
-      const r = await fetch('/api/import/manifold/claim', { method: 'POST' });
+      const r = await fetch(withBase('/api/import/manifold/claim'), { method: 'POST' });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || 'Could not verify');
       setDone(`Imported @${d.username}: +${d.granted.toLocaleString('en-US')} cr`);

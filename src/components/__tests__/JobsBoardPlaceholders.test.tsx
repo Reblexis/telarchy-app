@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 
 /**
  * What the propose form suggests you write.
@@ -34,7 +35,7 @@ const base = {
 };
 
 function openForm(props: Partial<React.ComponentProps<typeof JobsBoard>> = {}) {
-  render(<JobsBoard {...base} workspaceName="LookPilot" {...props} />);
+  render(<MemoryRouter><JobsBoard {...base} workspaceName="LookPilot" {...props} /></MemoryRouter>);
   // The exact CTA, not a loose regex: "Contracts" is also the board heading.
   fireEvent.click(screen.getByText('+ Offer to do a contract'));
 }
