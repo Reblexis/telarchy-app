@@ -70,6 +70,31 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
   const mine = meId ? traded.find(e => e.id === meId) ?? null : null;
   const minePinned = mine && !entries.some(e => e.id === meId) ? mine : null;
   const hasTraders = entries.length > 0;
+
+  // The prize season, fetched once for the whole rail: the strip at the
+  // bottom renders it, and an entrant's row carries a prize chip (owner ask
+  // 2026-08-21: "it should be on this leaderboard too"), same states as
+  // /leaderboard: "up to $<top rung>" while the season is a draft, the
+  // projected payout once it runs, "in" for a running entrant outside the
+  // rungs. One fetch, so the chip and the strip cannot disagree.
+  const [season, setSeason] = useState<PrizeSeason | null>(null);
+  useEffect(() => {
+    api.getSeasons()
+      .then(r => setSeason(pickCurrentSeason(r.seasons)))
+      .catch(e => console.error('seasons fetch failed:', e));
+  }, []);
+  const topPrizeUsd = season?.ladder?.length ? Math.max(...season.ladder.map(r => r.prizeUsd)) : 0;
+  const prizeChip = (e: LeaderboardEntry) => {
+    if (!e.seasonEntered) return null;
+    if (e.seasonPrizeUsd === null || e.seasonPrizeUsd === undefined) {
+      return topPrizeUsd
+        ? <span className="pubws-lb-prize" title={`Entered ${season?.name ?? 'the season'}: prizes up to $${topPrizeUsd.toLocaleString()} once it starts`}>up to ${topPrizeUsd.toLocaleString()}</span>
+        : <span className="pubws-lb-prize" title="Entered the season">in</span>;
+    }
+    return e.seasonPrizeUsd > 0
+      ? <span className="pubws-lb-prize" title="What this season would pay at the current standing">${e.seasonPrizeUsd.toLocaleString()}</span>
+      : <span className="pubws-lb-prize" title="Entered the season, currently outside the prizes">in</span>;
+  };
   // The contractors block shows whenever the workspace exposes it (Open
   // floor), even with nobody paid yet, so the two-sided economy is visible.
   const showContractors = contractors !== undefined;
@@ -100,6 +125,7 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
                       </span>
                     )}
                   </a>
+                  {prizeChip(e)}
                   {/* Profit, realized + open positions (owner 2026-08-11):
                       the board ranks on it, so the row shows it, signed. */}
                   {/* Round BEFORE signing: a loss of a hundredth of a
@@ -128,6 +154,7 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
                   </span>
                   <span className="pubws-lb-name">{minePinned.nickname || 'you'}</span>
                 </a>
+                {prizeChip(minePinned)}
                 {(() => {
                   const cr = Math.round(minePinned.totalEarnings);
                   return (
@@ -188,7 +215,7 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
           )}
         </section>
       )}
-      <SeasonStrip signedIn={signedIn} />
+      <SeasonStrip signedIn={signedIn} season={season} />
       {/* The way out of a top-ten list: the whole field, on its own page
           (owner direction 2026-08-17). */}
       <a className="pubws-lb-more" href="/leaderboard">Show full leaderboard</a>
@@ -209,17 +236,11 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
  * Renders nothing when there is no season, so the page is unchanged the rest
  * of the time.
  */
-function SeasonStrip({ signedIn }: { signedIn: boolean }) {
-  const [season, setSeason] = useState<PrizeSeason | null>(null);
+function SeasonStrip({ signedIn, season }: { signedIn: boolean; season: PrizeSeason | null }) {
   // Whether THIS visitor is already in. Without it the strip kept saying
   // "Enter the season" to someone who had entered a minute earlier, which
   // reads as the entry not having worked (owner report 2026-08-19).
   const [entered, setEntered] = useState(false);
-  useEffect(() => {
-    api.getSeasons()
-      .then(r => setSeason(pickCurrentSeason(r.seasons)))
-      .catch(e => console.error('seasons fetch failed:', e));
-  }, []);
   useEffect(() => {
     if (!signedIn) { setEntered(false); return; }
     api.getMySeason()

@@ -15,13 +15,14 @@ import type { LeaderboardEntry } from '../../lib/api';
  * the top of its own board.
  */
 
+const getSeasons = vi.fn(async () => ({ seasons: [] as unknown[] }));
+
 vi.mock('../../lib/api', async () => {
   const actual = await vi.importActual<typeof import('../../lib/api')>('../../lib/api');
   return {
     ...actual,
     api: {
-      // The season strip fetches on mount; it is not what this file is about.
-      getSeasons: () => Promise.resolve({ seasons: [] }),
+      getSeasons: () => getSeasons(),
       getMySeason: () => Promise.resolve({ season: null, optedIn: false, canEnter: false }),
     },
   };
@@ -83,5 +84,38 @@ describe('finding yourself on the rail', () => {
     // pin, and a pinned row for them would claim a rank they do not have.
     const { container } = render(<LeaderboardRail entries={twelve} meId="nobody" />);
     expect(container.querySelectorAll('.pubws-lb-row.is-pinned')).toHaveLength(0);
+  });
+});
+
+describe('the season prize beside an entrant', () => {
+  // Owner ask 2026-08-21: "it should be on this leaderboard too" — the rail's
+  // rows carry the same chip states as /leaderboard.
+  const draftSeason = {
+    id: 's0', name: 'Season 0', status: 'draft',
+    startsAt: '2026-08-22T00:00:00.000Z', endsAt: '2026-10-16T00:00:00.000Z',
+    settledAt: null, poolUsd: 1000,
+    ladder: [{ place: 1, prizeUsd: 500 }, { place: 2, prizeUsd: 250 }],
+    rulesUrl: '/legal/season-0',
+  };
+  const entrant = (prize: number | null) =>
+    ({ ...trader(2), seasonEntered: true, seasonPrizeUsd: prize } as unknown as LeaderboardEntry);
+
+  test('a draft season shows the top rung as potential, never a bare "entered"', async () => {
+    getSeasons.mockResolvedValue({ seasons: [draftSeason] });
+    const { findByText } = render(<LeaderboardRail entries={[trader(1), entrant(null)]} />);
+    expect((await findByText('up to $500')).className).toBe('pubws-lb-prize');
+  });
+
+  test('a running season shows the projected payout', async () => {
+    getSeasons.mockResolvedValue({ seasons: [{ ...draftSeason, status: 'running' }] });
+    const { findByText } = render(<LeaderboardRail entries={[entrant(250)]} />);
+    expect((await findByText('$250')).className).toBe('pubws-lb-prize');
+  });
+
+  test('a non-entrant carries no chip', async () => {
+    getSeasons.mockResolvedValue({ seasons: [draftSeason] });
+    const { container, findByText } = render(<LeaderboardRail entries={[trader(1)]} />);
+    await findByText('trader1');
+    expect(container.querySelector('.pubws-lb-prize')).toBeNull();
   });
 });

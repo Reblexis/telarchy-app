@@ -133,6 +133,8 @@ otherwise.
 - Season RUNNING: an entrant inside the rungs shows the projected dollar
   figure; an entrant outside them shows "entered".
 - A non-entrant row carries no chip at all.
+- The floor rail's Top traders (any public floor, e.g. `/telarchy`) carries
+  the same chip states on entrant rows (`.pubws-lb-prize`).
 
 ### T8. The board keeps up without a reload
 

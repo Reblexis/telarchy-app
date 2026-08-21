@@ -584,9 +584,10 @@ season-entry state re-fetches when the session resolves, because
 re-fetching everything on auth settle repainted the whole board a second
 after it appeared.
 
-**A season entrant's row on `/leaderboard` always carries a prize figure
-(owner ask 2026-08-21: "show on leaderboard prizes next to the people
-signed in season 0").** While the season is a draft there is no
+**A season entrant's row always carries a prize figure, on `/leaderboard`
+AND on the floor rail's Top traders (owner ask 2026-08-21: "show on
+leaderboard prizes next to the people signed in season 0", then "it
+should be on this leaderboard too" about the rail).** While the season is a draft there is no
 projection to make (no baselines exist), so the chip shows the ladder's
 top rung as potential: "up to $500". Once the season runs, the chip
 shows the projected payout at the current standing, from the same
