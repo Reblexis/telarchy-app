@@ -232,6 +232,11 @@ export const agents = pgTable('agents', {
    *  participant belongs to. Volume is set by strangers, so this one is
    *  opt-in rather than opt-out. */
   notifyNewProposal: boolean('notify_new_proposal').notNull().default(false),
+  /** OFF by default: every comment on a workspace this participant belongs to,
+   *  whoever wrote it and wherever it landed. The owner of a floor wants to
+   *  see the conversation on it without going looking; nobody else does, and
+   *  the volume is set by strangers, so it is opt-in like the one above. */
+  notifyAnyComment: boolean('notify_any_comment').notNull().default(false),
   /**
    * How far this participant has read the notifications inbox
    * (GET /api/notifications). The inbox itself is derived from comments,

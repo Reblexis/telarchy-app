@@ -491,8 +491,11 @@ A participant therefore carries three email switches on their own row (`agents`)
 - `notifyCommentOnMyProposal` (default **on**): someone commented under a contract you posted.
 - `notifyReplyToMyComment` (default **on**): someone else commented in a thread you have commented in, contract or market.
 - `notifyNewProposal` (default **off**): a new contract went on the ballot in a workspace you belong to.
+- `notifyAnyComment` (default **off**, added 2026-08-21): every comment on a workspace you belong to, whoever wrote it and wherever it landed, contract thread or market thread.
 
 The split of defaults is the design, not an accident. The first two are answers addressed *to you*: someone is waiting on a reply, and not delivering that is the product failing at the one thing a comment box promises. The third is a firehose whose volume is set by strangers, so it stays off until someone asks for it. New accounts get exactly this at signup; nothing is asked at the door, because a notification question in a signup form costs more traders than it saves emails.
+
+**Watching a whole floor** (owner ask 2026-08-21: "make sure that i get email regarding telarchy when any comment is written ... should be off by default ofc"). `notifyAnyComment` mails a member every comment on that workspace, which is what the person running a floor wants and what nobody else does. Off by default for the same reason as new contracts: the volume is set by strangers rather than by the reader. Migration 0072 adds the column and switches it on for the owner, matched by the address on the auth account rather than by nickname, because a nickname is editable by its owner and the address is where the mail actually goes.
 
 **A decision on your own contract has no switch, and always sends** (owner ask 2026-08-19). Approve, decline, and decline-as-spam each mail the proposer the moment the owner decides: which way it went, the ask that was on it, and the written reason when there is one. Every other email here is news about somebody else's activity, which a person is entitled to tune. A decision is not news, it is the answer to the question they asked by posting the contract, usually with money on it, so the only way that switch would ever be off is a mis-click. The same event is already the `decision` row in the bell; the mail exists because someone who filed a job and closed the tab has nothing else to bring them back.
 
@@ -501,14 +504,14 @@ Two neighbouring events stay silent on purpose. **Withdrawing** your own contrac
 Delivery rules, all enforced in `services/notifications.ts`:
 
 - Recipients resolve participant -> browser account -> email address. A participant with no browser account (an API-key bot, or an account detached by a GDPR delete) is skipped: there is no address to write to and no page they would read it on.
-- Nobody is notified of their own comment or their own contract, and each recipient gets **at most one email per comment** even when both of the first two switches would fire.
+- Nobody is notified of their own comment or their own contract, and each recipient gets **at most one email per comment** however many switches would fire. `anyComment` is claimed last, so a watcher who is also the contract's poster gets the poster's reason and one message rather than two. Two emails for one comment is how a person turns the whole thing off.
 - A comment on a **conditional market** counts as a comment on the contract that market belongs to, so the poster is notified and the email is titled by the contract rather than the branch (found live 2026-08-19: the conversation that happens on the branch markets was silent to the one person being asked to do the work). A base market has no poster, so only its thread hears about it.
 - Sending is fire-and-forget. Posting a comment must not fail, or slow down, because Resend did; every transport error is logged and swallowed, exactly like owner notifications.
 - Every email names the switch that produced it and links to account settings, so turning it off is one click from the message that annoyed them.
 
 Transport is the shared Resend path in `lib/notify.ts` (`sendEmail`), the same one owner notifications use. With `RESEND_API_KEY` unset nothing is sent at all, which is what local dev and the test suite run on, so no test can mail a real person.
 
-`GET /api/auth/me` and `GET /api/agents/me` carry `notifications: { commentOnMyProposal, replyToMyComment, newProposal }`, and `POST /api/auth/profile` accepts the same object with any subset of the three keys, so a client can flip one switch without re-sending the other two.
+`GET /api/auth/me` and `GET /api/agents/me` carry `notifications: { commentOnMyProposal, replyToMyComment, newProposal, anyComment }`, and `POST /api/auth/profile` accepts the same object with any subset of the four keys, so a client can flip one switch without re-sending the others.
 
 ### The workspace brief, and asking the floor a question (Implemented 2026-08-20)
 

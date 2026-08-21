@@ -41,6 +41,7 @@ const WS = 'ws-notif';
 /** A participant with a browser account, i.e. one that has an address. */
 async function human(id: string, email: string, prefs: Partial<{
   notifyCommentOnMyProposal: boolean; notifyReplyToMyComment: boolean; notifyNewProposal: boolean;
+  notifyAnyComment: boolean;
 }> = {}) {
   await db.insert(authUser).values({ id: `u-${id}`, name: id, email });
   await db.insert(agents).values({ id, apiKeyHash: `h-${id}`, balance: 0, nickname: id, authUserId: `u-${id}`, ...prefs });
@@ -322,5 +323,92 @@ describe('a decision on your own contract', () => {
 
     await expect(notifyProposalDecided({ workspaceId: WS, proposalId: 'prop-1' })).resolves.toBeUndefined();
     expect(sent).toHaveLength(0);
+  });
+});
+
+
+/**
+ * Every comment on a floor you belong to (owner ask 2026-08-21: "make sure
+ * that i get email regarding telarchy when any comment is written ... should
+ * be off by default ofc").
+ *
+ * The rule that costs something to get right is the last one: a watcher who is
+ * also the poster, or already in the thread, still gets exactly one email, and
+ * it names the closer reason. Two emails for one comment is how a person turns
+ * the whole thing off.
+ */
+describe('watching every comment on a floor', () => {
+  test('off by default, so a normal member hears nothing', async () => {
+    await human('poster', 'poster@example.com');
+    await human('member', 'member@example.com');
+    await human('commenter', 'commenter@example.com');
+    await seedWorkspace(['poster', 'member', 'commenter']);
+    await seedProposal();
+    await comment('m1', 'commenter');
+
+    await notifyCommentPosted({ workspaceId: WS, from: 'commenter', content: 'hello', proposalId: 'prop-1' });
+
+    // Only the contract's poster, on the switch that is on by default.
+    expect(sent.map(s => s.to)).toEqual(['poster@example.com']);
+  });
+
+  test('a watcher hears about a comment on a contract that is not theirs', async () => {
+    await human('poster', 'poster@example.com', { notifyCommentOnMyProposal: false });
+    await human('owner', 'owner@example.com', { notifyAnyComment: true });
+    await human('commenter', 'commenter@example.com');
+    await seedWorkspace(['poster', 'owner', 'commenter']);
+    await seedProposal();
+    await comment('m1', 'commenter');
+
+    await notifyCommentPosted({ workspaceId: WS, from: 'commenter', content: 'anyone there', proposalId: 'prop-1' });
+
+    expect(sent.map(s => s.to)).toEqual(['owner@example.com']);
+    expect(sent[0].text).toContain('every comment on this floor');
+  });
+
+  test('never about their own comment', async () => {
+    await human('owner', 'owner@example.com', { notifyAnyComment: true });
+    await seedWorkspace(['owner']);
+    await seedProposal();
+    await comment('m1', 'owner');
+
+    await notifyCommentPosted({ workspaceId: WS, from: 'owner', content: 'my own words', proposalId: 'prop-1' });
+
+    expect(sent).toHaveLength(0);
+  });
+
+  test('one email, not two, when they are also the poster', async () => {
+    await human('owner', 'owner@example.com', { notifyAnyComment: true });
+    await human('commenter', 'commenter@example.com');
+    await seedWorkspace(['owner', 'commenter']);
+    // The contract is the watcher's own, so both switches would fire.
+    await db.insert(proposals).values({
+      id: 'prop-1', workspaceId: WS, proposedBy: 'owner', title: 'Ship the landing page',
+    });
+    await comment('m1', 'commenter');
+
+    await notifyCommentPosted({ workspaceId: WS, from: 'commenter', content: 'ping', proposalId: 'prop-1' });
+
+    expect(sent).toHaveLength(1);
+    // And it names the closer reason, not the floor-wide one.
+    expect(sent[0].text).toContain('commented on a contract you posted');
+  });
+
+  test('it covers market threads too, not only contracts', async () => {
+    await human('owner', 'owner@example.com', { notifyAnyComment: true });
+    await human('trader', 'trader@example.com');
+    await seedWorkspace(['owner', 'trader']);
+    await db.insert(markets).values({
+      id: 'mkt-1', workspaceId: WS, metricId: 'metric-1', metricName: 'Revenue', targetDate: '2026-12',
+      rangeMin: 0, rangeMax: 100, shares: [0, 0], liquidity: 100, pool: initialPool(100),
+      active: true, resolved: false, voided: false, proposalId: null,
+    });
+    await db.insert(marketMessages).values({
+      id: 'mm-1', workspaceId: WS, marketId: 'mkt-1', from: 'trader', content: 'thin book', createdAt: new Date(),
+    });
+
+    await notifyCommentPosted({ workspaceId: WS, from: 'trader', content: 'thin book', marketId: 'mkt-1' });
+
+    expect(sent.map(s => s.to)).toEqual(['owner@example.com']);
   });
 });

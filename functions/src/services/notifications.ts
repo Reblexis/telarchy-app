@@ -28,12 +28,13 @@ import { getParticipantDisplayNames } from '../lib/participants';
 import { publicOrigin, sendEmail } from '../lib/notify';
 
 /** Which switch produced a given message; also the line the email closes on. */
-type Reason = 'my-proposal' | 'reply' | 'new-proposal' | 'decision';
+type Reason = 'my-proposal' | 'reply' | 'new-proposal' | 'decision' | 'any-comment';
 
 const REASON_LINE: Record<Reason, string> = {
   'my-proposal': 'You are getting this because someone commented on a contract you posted.',
   reply: 'You are getting this because you commented in this thread.',
   'new-proposal': 'You are getting this because you asked to hear about new contracts here.',
+  'any-comment': 'You are getting this because you asked to hear about every comment on this floor.',
   decision: 'You are getting this because you posted this contract. Decisions on your own contracts are always sent.',
 };
 
@@ -43,10 +44,11 @@ const REASON_LINE: Record<Reason, string> = {
  * own contract is the answer to a question you asked, usually with money on
  * it, so the only reason anyone would turn it off is by mistake.
  */
-const REASON_COLUMN: Record<Reason, 'notifyCommentOnMyProposal' | 'notifyReplyToMyComment' | 'notifyNewProposal' | null> = {
+const REASON_COLUMN: Record<Reason, 'notifyCommentOnMyProposal' | 'notifyReplyToMyComment' | 'notifyNewProposal' | 'notifyAnyComment' | null> = {
   'my-proposal': 'notifyCommentOnMyProposal',
   reply: 'notifyReplyToMyComment',
   'new-proposal': 'notifyNewProposal',
+  'any-comment': 'notifyAnyComment',
   decision: null,
 };
 
@@ -72,6 +74,7 @@ async function resolveRecipients(wanted: Map<string, Reason>): Promise<Recipient
     notifyCommentOnMyProposal: agents.notifyCommentOnMyProposal,
     notifyReplyToMyComment: agents.notifyReplyToMyComment,
     notifyNewProposal: agents.notifyNewProposal,
+    notifyAnyComment: agents.notifyAnyComment,
   }).from(agents)
     .innerJoin(authUser, eq(agents.authUserId, authUser.id))
     .where(inArray(agents.id, ids));
@@ -176,6 +179,17 @@ export async function notifyCommentPosted(opts: {
       }
     } else {
       return;
+    }
+
+    // Anyone watching the whole floor, claimed last so a person who is also
+    // the poster or in the thread keeps the closer reason and still gets one
+    // email rather than two.
+    const watchers = await db.select({ memberIds: permissionGroups.memberIds })
+      .from(permissionGroups).where(eq(permissionGroups.workspaceId, workspaceId));
+    for (const g of watchers) {
+      for (const id of (g.memberIds ?? [])) {
+        if (id !== from && !wanted.has(id)) wanted.set(id, 'any-comment');
+      }
     }
 
     const recipients = await resolveRecipients(wanted);
