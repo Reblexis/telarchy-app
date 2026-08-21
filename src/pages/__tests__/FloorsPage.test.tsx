@@ -7,6 +7,7 @@ vi.mock('../../lib/api', () => ({
   api: {
     getPublicWorkspaces: vi.fn(),
     getMarketplaceWorkspace: vi.fn(),
+    getSeasons: vi.fn(),
   },
 }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: null, loading: false }) }));
@@ -45,7 +46,16 @@ const renderPage = () => render(<MemoryRouter><FloorsPage /></MemoryRouter>);
 beforeEach(() => {
   vi.mocked(api.getPublicWorkspaces).mockResolvedValue([listing] as never);
   vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(payload as never);
+  vi.mocked(api.getSeasons).mockResolvedValue({ seasons: [season] } as never);
 });
+
+/** A draft season, the state the home page has to sell hardest. */
+const season = {
+  id: 's0', name: 'Season 0', status: 'draft',
+  startsAt: '2026-08-22T00:00:00.000Z', endsAt: '2026-10-16T00:00:00.000Z',
+  settledAt: null, poolUsd: 1000,
+  ladder: [{ place: 1, prizeUsd: 500 }], rulesUrl: '/legal/season-0',
+};
 
 describe('marketplace', () => {
 
@@ -60,6 +70,24 @@ describe('marketplace', () => {
     expect(screen.getByText(/one number someone is trying to move/i)).toBeInTheDocument();
     expect(screen.getByText(/human or AI/i)).toBeInTheDocument();
     expect(screen.getByText(/prices the job before the owner decides/i)).toBeInTheDocument();
+  });
+
+  test('the season has a door here, because this is where recruiting lands', async () => {
+    // The home page said nothing about the season until 2026-08-21, so every
+    // post pointing at telarchy.com arrived at a page whose only calls to
+    // action were owner-facing and a trader had nowhere to go.
+    renderPage();
+    expect(await screen.findByText('Season 0')).toBeInTheDocument();
+    expect(screen.getByText(/\$1,000 in real money/)).toBeInTheDocument();
+    const cta = screen.getByRole('link', { name: 'Enter the season' });
+    expect(cta).toHaveAttribute('href', '/season');
+  });
+
+  test('no season means no strip, rather than an empty one', async () => {
+    vi.mocked(api.getSeasons).mockResolvedValue({ seasons: [] } as never);
+    const { container } = renderPage();
+    await screen.findByText('LookPilot');
+    expect(container.querySelector('.mkt-season')).toBeNull();
   });
 
   test('carries no page title, because the claim is the opening', async () => {

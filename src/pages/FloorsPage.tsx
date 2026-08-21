@@ -4,6 +4,9 @@ import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { TopBar } from './TradePage';
 import { buildHorizonViews, primaryHorizonOf, priceSeriesOf } from '../lib/floor-horizons';
+import { pickCurrentSeason } from '../lib/season-clock';
+import { useSeasonClock } from '../lib/useSeasonClock';
+import type { PrizeSeason } from '../lib/api';
 
 /**
  * The marketplace at /marketplace (owner direction 2026-08-14, Viktor,
@@ -205,6 +208,48 @@ function ListYourNumberCard() {
   );
 }
 
+/**
+ * The prize season, on the front door.
+ *
+ * The home page said nothing about the season until 2026-08-21, which made the
+ * contest useless as the recruiting mechanism it is meant to be: every post
+ * pointing at telarchy.com landed on a page whose only calls to action were
+ * owner-facing ("List your own number"), so a trader who arrived had nowhere
+ * to go.
+ *
+ * One line and a link, the same rule the market rail and the leaderboard
+ * follow: the season owns /season, and no other surface grows a second copy of
+ * it. What earns its place here is the clock, the money, and a door.
+ */
+function SeasonDoor() {
+  const [season, setSeason] = useState<PrizeSeason | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    api.getSeasons()
+      .then(r => { if (!cancelled) setSeason(pickCurrentSeason(r.seasons)); })
+      .catch(e => console.error('seasons fetch failed:', e));
+    return () => { cancelled = true; };
+  }, []);
+  const clock = useSeasonClock(season);
+  if (!season || !clock) return null;
+
+  return (
+    <section className="mkt-season" aria-label={season.name}>
+      <p className="mkt-season-clock">
+        <span className="mkt-season-name">{season.name}</span>
+        {clock.headline}
+      </p>
+      <p className="mkt-season-line">
+        ${season.poolUsd.toLocaleString()} in real money to the traders whose
+        profit grows the most. Free to enter, no purchase and no stake.
+      </p>
+      <Link className="mkt-season-cta" to="/season">
+        {clock.entryOpen ? 'Enter the season' : 'See the season'}
+      </Link>
+    </section>
+  );
+}
+
 export function FloorsPage() {
   const { user, loading: authLoading } = useAuth();
   const [listings, setListings] = useState<Listing[] | null>(null);
@@ -282,6 +327,8 @@ export function FloorsPage() {
           Anyone, human or AI, can propose a paid job that would move it, and
           the market prices the job before the owner decides.
         </p>
+
+        <SeasonDoor />
 
         {/* Same loading motif as a market page (owner ask 2026-08-14): the
             call dot rippling where the thing is about to appear. No spinner,

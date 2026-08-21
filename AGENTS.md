@@ -272,9 +272,14 @@ the email so the owner can actually notify winners.
 
 **The prize competition has its own page, `/season` (owner direction
 2026-08-19).** `SeasonPage` carries the countdown, the pool and ladder, how
-scoring works, the rules link, the entry button and the standings. A market
-page's rail and `/leaderboard` carry ONE line and a link; do not grow the
-season back into them, because their job is the market and the board. Entry
+scoring works, the rules link, the entry button and the standings. The home
+page, a market page's rail and `/leaderboard` carry ONE line and a link; do
+not grow the season back into them, because their job is the market and the
+board. The home page's strip (`SeasonDoor` in `FloorsPage`, added 2026-08-21)
+is the exception that earns its space: the season is the recruiting mechanism,
+so every post pointing at `telarchy.com` has to land on a page that tells a
+trader there is money and where to go. It renders nothing when no season
+exists rather than an empty frame. Entry
 requires `acceptedRules: true` and nothing else, recorded as
 `season_entries.rulesAcceptedAt` and never cleared. A payment-details gate was
 added and removed the same day: entry stays one click for a cold visitor and
