@@ -40,10 +40,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            functions/package-lock.json
       - run: npm ci --no-audit --no-fund
       - run: npm ci --no-audit --no-fund
         working-directory: functions
@@ -72,10 +68,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            functions/package-lock.json
       - run: npm ci --no-audit --no-fund
         working-directory: functions
       - run: npm run test:ci -- --shard=${{ matrix.shard }}/3
