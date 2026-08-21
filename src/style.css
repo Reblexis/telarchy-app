@@ -3302,6 +3302,8 @@ textarea.jobform-line--desc {
   font-size: 0.8rem;
 }
 .pubws-mkt-act { font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap; }
+/* Which world of a contract a position/trade row belongs to. */
+.pubws-mkt-branch { font-size: 0.72rem; color: var(--text-tertiary); white-space: nowrap; }
 .pubws-mkt-val {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.8rem;

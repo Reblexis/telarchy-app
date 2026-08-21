@@ -1201,18 +1201,24 @@ export function TradePage() {
             {idOrSlug && (
               <FloorComments
                 idOrSlug={idOrSlug}
-                /* Both keys when a contract is on screen (owner report
-                   2026-08-15: "if there is a trade why don't I see it down
-                   here"). The conversation belongs to the CONTRACT, so it
-                   survives switching branch, while positions and trades
-                   belong to the BRANCH MARKET actually being traded. Passing
-                   only the proposal left marketKey empty, so the panel never
-                   fetched and rendered Comments alone, on a market that had
-                   a real trade in it. */
+                /* A contract passes its proposal AND both branch markets
+                   (owner reports 2026-08-15 "if there is a trade why don't I
+                   see it down here", 2026-08-21 "why dont i see any trades
+                   made on the conditional markets"). The conversation
+                   belongs to the CONTRACT and survives switching branch;
+                   positions and trades cover BOTH branches, labeled, because
+                   scoping them to the branch on screen made a contract whose
+                   trades sat on the other branch answer "Trades (0)". */
                 focusCommentId={focusCommentId}
                 onFocusHandled={() => setFocusCommentId(null)}
                 subject={selectedJob
-                  ? { proposalId: selectedJob.id, marketId: activeMarketId ?? undefined }
+                  ? {
+                      proposalId: selectedJob.id,
+                      markets: [
+                        ...(pair?.approvedMarketId ? [{ marketId: pair.approvedMarketId, branch: 'approved' as const }] : []),
+                        ...(pair?.declinedMarketId ? [{ marketId: pair.declinedMarketId, branch: 'declined' as const }] : []),
+                      ],
+                    }
                   : hero ? { marketId: hero.marketId } : {}}
                 canPost={!!user && joined}
                 onRequireSignup={() => navigate('/signup')}

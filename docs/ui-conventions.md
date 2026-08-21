@@ -157,6 +157,18 @@ proposal thread when one is open. Reading is public via
 GET /api/marketplace/:idOrSlug/comments (Open workspaces only); writing
 uses the same authenticated message endpoints API participants use.
 
+Beside Comments sit Positions and Trades. **For a contract they cover
+BOTH branch markets, not the branch on screen (owner report 2026-08-21:
+"why dont i see any trades made on the conditional markets").** A
+contract opens on "if approved", and a contract whose trades all sat on
+the declined branch answered "Trades (0)", which read as the trades
+having been lost; they were one toggle away the whole time. The panel
+fetches both branches, sums the counts, merges the rows (trades newest
+first) and labels each row with its world ("if approved" / "if
+declined") so a bet is never invisible because of which world the
+reader happens to be looking at. The baseline market has one world and
+carries no label.
+
 A manage-capable session (the owner) gets a decision bar on a selected
 job (owner ask 2026-08-11): "Approve, pay $N" as the one money-colored
 pill, and Decline, which opens the published-reason field in place (the

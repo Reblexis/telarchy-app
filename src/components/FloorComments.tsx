@@ -11,21 +11,32 @@ import { api } from '../lib/api';
  *
  * The subject follows the page, and its two halves are addressed
  * separately on purpose: `proposalId` routes the CONVERSATION, which
- * belongs to the contract and survives switching branch, while `marketId`
- * routes POSITIONS AND TRADES, which belong to the one branch market being
- * traded. A caller that passes only the proposal gets comments and no
- * activity at all (the tabs hide themselves), which is how a contract with
- * a real trade in it rendered as "Comments (0)" and nothing else.
+ * belongs to the contract and survives switching branch, while the market
+ * ids route POSITIONS AND TRADES. A caller that passes only the proposal
+ * gets comments and no activity at all (the tabs hide themselves), which
+ * is how a contract with a real trade in it rendered as "Comments (0)"
+ * and nothing else.
+ *
+ * A contract passes BOTH branch markets, labeled, and the tabs show their
+ * union (owner report 2026-08-21: "why dont i see any trades made on the
+ * conditional markets"). Scoping activity to the branch on screen was the
+ * same bug in a subtler coat: a contract opens on "if approved", so a
+ * contract whose trades all sat on the declined branch answered
+ * "Trades (0)" until the reader happened to flip the toggle.
  */
 
 interface Comment { id: string; fromName: string; content: string; createdAt: string }
-interface Holder { handle: string; id: string; direction: 'higher' | 'lower'; shares: number; cost: number; worth: number | null }
-interface TradeItem { id: string; handle: string; direction: 'higher' | 'lower'; kind: 'buy' | 'sell'; shares: number; cost: number; createdAt: string }
+interface Holder { handle: string; id: string; direction: 'higher' | 'lower'; shares: number; cost: number; worth: number | null; branch?: BranchLabel }
+interface TradeItem { id: string; handle: string; direction: 'higher' | 'lower'; kind: 'buy' | 'sell'; shares: number; cost: number; createdAt: string; branch?: BranchLabel }
+
+type BranchLabel = 'approved' | 'declined';
 
 interface Props {
   idOrSlug: string;
-  /** marketId drives positions/trades; proposalId routes the comment thread. */
-  subject: { marketId?: string; proposalId?: string };
+  /** The market(s) drive positions/trades; proposalId routes the comment
+   *  thread. A contract passes `markets` with both labeled branches and the
+   *  tabs show their union; a baseline market passes `marketId` alone. */
+  subject: { marketId?: string; proposalId?: string; markets?: Array<{ marketId: string; branch: BranchLabel }> };
   canPost: boolean;
   onRequireSignup: () => void;
   /**
@@ -57,6 +68,7 @@ export function FloorComments({
   idOrSlug, subject, canPost, onRequireSignup, focusCommentId = null, onFocusHandled,
 }: Props) {
   const [tab, setTab] = useState<Tab>(null);
+  const activityReqRef = useRef(0);
   const [flashId, setFlashId] = useState<string | null>(null);
   const listRef = useRef<HTMLUListElement | null>(null);
   const [comments, setComments] = useState<Comment[] | null>(null);
@@ -65,8 +77,14 @@ export function FloorComments({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const marketKey = subject.marketId ?? '';
-  const threadKey = subject.proposalId ?? subject.marketId ?? '';
+  // Every market whose activity belongs on the tabs: both labeled branches
+  // of a contract, or the one baseline market. The key is order-stable so a
+  // branch switch (which reorders nothing here) does not refetch.
+  const activityMarkets: Array<{ marketId: string; branch?: BranchLabel }> = subject.markets?.length
+    ? subject.markets
+    : subject.marketId ? [{ marketId: subject.marketId }] : [];
+  const marketKey = activityMarkets.map(m => m.marketId).join(',');
+  const threadKey = subject.proposalId ?? subject.marketId ?? subject.markets?.[0]?.marketId ?? '';
 
   // Comments load on subject change (the count shows in the toggle).
   useEffect(() => {
@@ -78,13 +96,32 @@ export function FloorComments({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idOrSlug, threadKey]);
 
-  // Positions/trades load on subject change too, so counts are ready.
+  // Positions/trades load on subject change too, so counts are ready. One
+  // fetch per market, merged: a contract's two branches answer together,
+  // trades newest-first across both. A branch whose fetch fails contributes
+  // nothing rather than sinking the other's rows.
   useEffect(() => {
     if (!marketKey) { setActivity(null); return; }
     setActivity(null);
-    api.getMarketActivity(idOrSlug, marketKey)
-      .then(a => setActivity({ positions: a.positions, trades: a.trades }))
-      .catch(e => { console.error('market activity fetch failed:', e); setActivity({ positions: [], trades: [] }); });
+    // Only the newest pull may write: a slow response for the previous
+    // subject landing late would otherwise paint the wrong market's rows.
+    const token = ++activityReqRef.current;
+    const wanted = activityMarkets;
+    Promise.all(wanted.map(m =>
+      api.getMarketActivity(idOrSlug, m.marketId)
+        .then(a => ({
+          positions: (a.positions ?? []).map(p => ({ ...p, branch: m.branch })),
+          trades: (a.trades ?? []).map(t => ({ ...t, branch: m.branch })),
+        }))
+        .catch(e => { console.error('market activity fetch failed:', e); return { positions: [], trades: [] }; }),
+    )).then(parts => {
+      if (token !== activityReqRef.current) return;
+      setActivity({
+        positions: parts.flatMap(p => p.positions),
+        trades: parts.flatMap(p => p.trades)
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+      });
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idOrSlug, marketKey]);
 
@@ -208,6 +245,7 @@ export function FloorComments({
                 <li key={`${p.id}-${p.direction}-${i}`} className="pubws-mkt-row">
                   <span className={`prof-dir prof-dir--${p.direction}`}>{p.direction === 'higher' ? '▲' : '▼'}</span>
                   <a className="pubws-mkt-who pubws-name-link" href={profileHref(p.handle, p.id)}>{p.handle}</a>
+                  {p.branch && <span className="pubws-mkt-branch">if {p.branch}</span>}
                   <span className="pubws-mkt-val">{fmtShares(p.shares)} sh{p.worth !== null ? ` · ${fmtCr(p.worth)} cr` : ''}</span>
                 </li>
               ))}
@@ -228,6 +266,7 @@ export function FloorComments({
                 <li key={t.id} className="pubws-mkt-row">
                   <span className={`prof-dir prof-dir--${t.direction}`}>{t.direction === 'higher' ? '▲' : '▼'}</span>
                   <a className="pubws-mkt-who pubws-name-link" href={profileHref(t.handle, t.handle)}>{t.handle}</a>
+                  {t.branch && <span className="pubws-mkt-branch">if {t.branch}</span>}
                   <span className="pubws-mkt-act">{t.kind === 'buy' ? 'bought' : 'sold'} {fmtShares(t.shares)}</span>
                   <span className="pubws-mkt-val">{fmtCr(t.cost)} cr</span>
                   <span className="pubws-mkt-time">{timeAgo(t.createdAt)}</span>

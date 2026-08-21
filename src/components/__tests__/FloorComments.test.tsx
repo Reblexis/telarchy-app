@@ -13,12 +13,12 @@ const getFloorComments = vi.fn(async () => ([
   { id: 'c-old', fromName: 'trader-1', content: 'first thought', createdAt: new Date().toISOString() },
   { id: 'c-target', fromName: 'trader-9', content: 'how will you measure this?', createdAt: new Date().toISOString() },
 ]));
-const getMarketActivity = vi.fn(async () => ({ positions: [], trades: [] }));
+const getMarketActivity = vi.fn(async (_idOrSlug: string, _marketId: string) => ({ positions: [] as unknown[], trades: [] as unknown[] }));
 
 vi.mock('../../lib/api', () => ({
   api: {
     getFloorComments: () => getFloorComments(),
-    getMarketActivity: () => getMarketActivity(),
+    getMarketActivity: (idOrSlug: string, marketId: string) => getMarketActivity(idOrSlug, marketId),
     sendProposalMessage: vi.fn(),
     sendMarketMessage: vi.fn(),
   },
@@ -65,5 +65,55 @@ describe('a comment a notification points at', () => {
     render(<FloorComments {...props} />);
     await waitFor(() => expect(getFloorComments).toHaveBeenCalled());
     expect(screen.queryByText('how will you measure this?')).toBeNull();
+  });
+});
+
+describe('a contract covers both branch markets', () => {
+  // Owner report 2026-08-21: "why dont i see any trades made on the
+  // conditional markets". A contract opens on "if approved"; when its only
+  // trades sat on the declined branch, the branch-scoped panel answered
+  // "Trades (0)", which read as the trades having been lost.
+  const trade = (id: string, handle: string) => ({
+    id, handle, direction: 'lower', kind: 'buy', shares: 338.9, cost: 221,
+    createdAt: new Date().toISOString(),
+  });
+
+  beforeEach(() => {
+    getMarketActivity.mockImplementation(async (_idOrSlug: string, marketId: string) =>
+      marketId === 'mkt-declined'
+        ? { positions: [{ handle: 'boss', id: 'boss', direction: 'lower', shares: 338.9, cost: 221, worth: 120 }], trades: [trade('t1', 'boss'), trade('t2', 'viktor')] }
+        : { positions: [], trades: [] });
+  });
+
+  const contractProps = {
+    ...props,
+    subject: {
+      proposalId: 'prop-1',
+      markets: [
+        { marketId: 'mkt-approved', branch: 'approved' as const },
+        { marketId: 'mkt-declined', branch: 'declined' as const },
+      ],
+    },
+  };
+
+  test('trades on the other branch still count and render, labeled with their world', async () => {
+    const { getByText } = render(<FloorComments {...contractProps} />);
+    await waitFor(() => expect(getByText('Trades (2)')).toBeInTheDocument());
+    expect(getByText('Positions (1)')).toBeInTheDocument();
+
+    getByText('Trades (2)').click();
+    const row = (await screen.findByText('boss')).closest('li')!;
+    expect(row.textContent).toContain('if declined');
+  });
+
+  test('a baseline market has one world and carries no label', async () => {
+    getMarketActivity.mockImplementation(async () => ({
+      positions: [], trades: [trade('t1', 'boss')],
+    }));
+    const { getByText } = render(<FloorComments {...props} subject={{ marketId: 'mkt-hero' }} />);
+    await waitFor(() => expect(getByText('Trades (1)')).toBeInTheDocument());
+    getByText('Trades (1)').click();
+    const row = (await screen.findByText('boss')).closest('li')!;
+    expect(row.textContent).not.toContain('if ');
   });
 });
