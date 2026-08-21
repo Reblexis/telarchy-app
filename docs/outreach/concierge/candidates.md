@@ -142,6 +142,14 @@ Ahoj Petře, tady Viktor z From Code to Company na MFF. Posledních pár měsíc
 Ahoj Honzo, tady Viktor z From Code to Company na MFF. Viděl jsem spuštění United Founders s €80M, gratuluju. Posledních pár měsíců stavím Telarchy, appku, kde prediktivní trhy s lidmi i AI odhadují dopad navržených akcí na metriky před rozhodnutím. Teď to zkouším s 5 foundery v produkci. Zajímá mě hlavně tvůj pohled z Mews a z vlastní deal-flow platformy ve VC. Dáš 30 min hovor? Když to nebude užitečné, po 10 minutách to zavřeme.
 ```
 
+## Inbound (they came to us)
+
+| Date | Name | Company | How they arrived | Status |
+|---|---|---|---|---|
+| 2026-08-21 | Clément Lesaege | Kleros (founder/CTO) | Replied to Viktor on X, followed back, then left `clement@kleros.io` on the "List your own number" tile at telarchy.com, 11:50 UTC | Reply drafted: `lesaege-2026-08-21-reply.md`. Proposed number is monthly disputes arbitrated. Free while early (Viktor, 2026-08-21). Not sent yet. |
+
+Inbound beats every DM in this file on warmth, so it gets answered first.
+
 ## Next steps (current)
 
 1. **Viktor (now):** Review the 4 drafted DMs above. Mark each: SEND AS-IS / EDIT (paste edits) / SKIP.
