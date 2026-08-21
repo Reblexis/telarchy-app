@@ -67,6 +67,15 @@ async function accessToken(): Promise<string | null> {
 }
 
 interface RunService {
+  // The publish PUT sends the whole object back, so everything the GET
+  // returned must survive the round trip (metadata carries the
+  // resourceVersion Cloud Run checks against concurrent edits).
+  apiVersion?: string;
+  kind?: string;
+  metadata?: Record<string, unknown>;
+  spec?: {
+    traffic?: Array<{ revisionName?: string; percent?: number; tag?: string; latestRevision?: boolean }>;
+  } & Record<string, unknown>;
   status?: {
     traffic?: Array<{ revisionName?: string; percent?: number; tag?: string; url?: string; latestRevision?: boolean }>;
     latestReadyRevisionName?: string;
@@ -162,13 +171,18 @@ export async function publishRevision(revision?: string): Promise<{ published: s
     .filter(t => t.tag)
     .map(t => ({ revisionName: t.revisionName, tag: t.tag }));
 
+  // ReplaceService: the Knative-style API takes no PATCH — the original
+  // implementation PATCHed a partial spec and got an HTML 404 back from the
+  // Google front end, so the button errored on every press while the IAM it
+  // blamed was fine (found 2026-08-21, the first real press). The contract is
+  // GET the whole service, rewrite spec.traffic, PUT the whole thing back —
+  // exactly what `gcloud run services update-traffic` does.
+  svc.spec = { ...svc.spec, traffic: [{ revisionName: target, percent: 100 }, ...keptTags] };
   const url = `https://${REGION}-run.googleapis.com/apis/serving.knative.dev/v1/namespaces/${PROJECT}/services/${SERVICE}`;
   const res = await fetch(url, {
-    method: 'PATCH',
+    method: 'PUT',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      spec: { traffic: [{ revisionName: target, percent: 100 }, ...keptTags] },
-    }),
+    body: JSON.stringify(svc),
     signal: AbortSignal.timeout(15000),
   });
   if (!res.ok) {
