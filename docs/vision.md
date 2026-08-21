@@ -36,6 +36,49 @@ A two-sided marketplace is bootstrapped one side at a time, and Telarchy solves 
 
 The mission (alignment layer for AI and humans) and the owner-side positioning are unchanged; this is go-to-market order, not a product redefinition. The owner side reopens when the trader side has demonstrated pull. Rationale: with zero external users, the scarce resource is a stranger's first minute, and the only first minute on offer today is trading a real company's roadmap.
 
+**The owner side reopens (owner decision, Viktor, 2026-08-21).** The condition
+above has been met from an unexpected direction: the pull arrived as an
+operator, not as a trader. The founder of Kleros replied on X, came to
+telarchy.com, and left his email asking to have his number set up, and the
+product could not serve him. Three things have to exist before an owner who
+wants in can get in without a human doing it by hand.
+
+1. **A workspace can be created by the person who wants one.** The API already
+   creates workspaces (`createWorkspaceFromTemplate`); what is missing is the
+   permission and the surface. `POST /api/workspaces` 403s for anyone who is
+   not a platform admin, and the creation UI went with the console on
+   2026-08-19, so today there is no screen at all. The owner path is: name the
+   number, say where its value comes from, and land on the floor for it. It
+   ends on a live floor, never on a settings page.
+2. **The owner decides where the liquidity goes.** The primitives exist and the
+   steering does not. A workspace has one blunt auto-fund setting
+   (`autoFundNewMarkets` x `newMarketLiquidityCredits`, applied uniformly to
+   every new market), and funding a specific market is possible
+   (`POST /api/predictions/markets/:id/liquidity`, and the admin bulk form) but
+   has no owner-facing surface. What is missing is the allocation view: what
+   each market currently holds, and the ability to move credits onto the
+   decision that matters this week and off the ones that do not. Liquidity is
+   the owner's steering wheel (see "Decision quality scales with capital"): a
+   pool is how an owner says which question is worth answering well, so leaving
+   it as one global number per workspace throws away the signal.
+3. **Credits can be bought.** This is the one that is not a UI problem. The
+   USDC deposit path is implemented but the managed instance runs with
+   settlement disabled (`GET /api/agents/deposit-address` returns 503, verified
+   2026-08-21) and managed credits are admin-granted play money, so an operator
+   willing to pay cannot. Until this exists Telarchy cannot charge anyone for
+   anything, and every pricing conversation is theoretical.
+
+Sequencing: (1) is the only one that blocks the operator already waiting, and
+it is a permission plus one screen. (2) is what makes the second week worth
+anything to him, because without it his liquidity sits spread evenly across
+markets he does not care about. (3) is legal-gated (see ToS section 6) and
+therefore cannot be first however much it matters; the interim is an
+invoice-plus-admin-grant path run by a human, documented rather than improvised.
+
+Trader-first is not reversed by this. Every account is still a trader by
+default and signup still lands in the trading surface; what changes is that
+wanting to own a floor stops being a request submitted to a waitlist.
+
 Three mechanisms stack, always in this order:
 
 1. **Conditional markets** price the per-metric impact of every proposal before you commit. This is the decision loop.

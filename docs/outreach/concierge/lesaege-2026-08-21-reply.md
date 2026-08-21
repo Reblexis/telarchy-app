@@ -41,9 +41,11 @@ binding rather than polite. The money conversation happens the first time a
 price he reads changes what he does.
 
 **Follow-up this creates:** the inability to accept money from a willing
-operator is the gap. Real-money-in on managed is legal-gated (`vision.md`,
-ToS section 6), so the near-term unblock is an invoice-plus-grant path a human
-runs, documented, rather than nothing.
+operator is the gap, and it turned out to be one of three. Recorded as an owner
+decision in `docs/vision.md` ("The owner side reopens", 2026-08-21): a person
+who wants a floor has to be able to create one, steer their own liquidity, and
+buy credits. Kleros is blocked on the first of those today; someone has to open
+the workspace by hand until it ships.
 
 ## The number to propose
 
