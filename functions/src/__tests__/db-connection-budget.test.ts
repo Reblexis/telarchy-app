@@ -10,11 +10,16 @@
  * budget"); this test pins the numbers the doc promises.
  */
 
-import { pool } from '../db/client';
+import { BETA_POOL_MAX, POOL_MAX, pool } from '../db/client';
 
 describe('db pool connection budget', () => {
-  it('opens at most 5 connections per instance', () => {
-    expect(pool.options.max).toBe(5);
+  it('opens at most 5 connections per instance, across both stores', () => {
+    // Since the beta got its own database (2026-08-20) an instance can hold
+    // two pools. The per-instance ceiling did not move: 4 for the live store
+    // plus 1 for the beta, and the beta pool is only ever created on an
+    // instance a beta request actually reaches.
+    expect(pool.options.max).toBe(POOL_MAX);
+    expect(POOL_MAX + BETA_POOL_MAX).toBe(5);
   });
 
   it('fails an acquire fast instead of queuing forever', () => {

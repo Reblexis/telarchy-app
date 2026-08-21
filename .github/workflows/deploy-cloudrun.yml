@@ -173,6 +173,15 @@ jobs:
           npm ci --no-audit --no-fund
           npx drizzle-kit migrate
 
+          # 5. The beta store gets the same migrations, in the same run
+          # (owner ask 2026-08-20). It is a second database on the same
+          # instance, so it is the same tunnel and the same password; only the
+          # database name differs. A beta whose schema lags production is a
+          # beta that fails on the code it exists to test, so this is not
+          # optional and not a separate job.
+          export DATABASE_URL="postgresql://telarchy:${PASSWORD}@127.0.0.1:5435/telarchy_beta"
+          npx drizzle-kit migrate
+
       # The data room's change log is generated from git, and the container
       # image has no .git (the Dockerfile copies functions/src, not the
       # repository). Regenerating it here means the deployed page publishes the

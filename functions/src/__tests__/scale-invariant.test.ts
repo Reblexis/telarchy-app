@@ -16,7 +16,7 @@
 
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { pool } from '../db/client';
+import { BETA_POOL_MAX, POOL_MAX, pool } from '../db/client';
 
 const CONNECTION_BUDGET = 40;   // max_connections=50 minus operational headroom
 
@@ -32,7 +32,13 @@ describe('connection budget invariant', () => {
   it('prod + candidate at full scale stay inside the database budget', () => {
     const maxInstances = deployedMaxInstances();
     const poolMax = pool.options.max ?? 10;
-    const worstCase = 2 * maxInstances * poolMax;   // prod revision + candidate revision
+    expect(poolMax).toBe(POOL_MAX);
+    // Since 2026-08-20 an instance can hold TWO pools: the live store, and the
+    // beta store if a beta request ever reaches it (db/client.ts). The worst
+    // case has to count both, or the budget silently doubles the first time
+    // somebody opens the beta.
+    const perInstance = POOL_MAX + BETA_POOL_MAX;
+    const worstCase = 2 * maxInstances * perInstance;   // prod revision + candidate revision
     expect(worstCase).toBeLessThanOrEqual(CONNECTION_BUDGET);
   });
 });

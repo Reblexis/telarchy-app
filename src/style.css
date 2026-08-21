@@ -6863,6 +6863,20 @@ textarea.jobform-line--desc {
   font-size: 0.68rem;
 }
 
+/* Which store this copy writes to. Quiet when it is the beta's own, loud
+   when it is the live one, because that is the case worth a double take. */
+.betabar-store {
+  padding: 0.1rem 0.45rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+.betabar-store.is-live { opacity: 1; font-weight: 700; }
+
 .betabar-text { flex: 1; min-width: 12rem; }
 
 .betabar-go {

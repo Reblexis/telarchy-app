@@ -35,6 +35,8 @@ import { AppError } from './lib/errors';
 import { corsMiddleware } from './lib/cors';
 import { publicOrigins } from './lib/origins';
 import { isBetaPath, proxyToCandidate } from './lib/beta-surface';
+import { isBetaRequest } from './lib/request-env';
+import { currentStoreName, runInBetaStore } from './db/client';
 import compression from 'compression';
 
 export const app = express();
@@ -106,6 +108,31 @@ app.use(async (req, res, next) => {
   // Nothing to forward to (this IS the candidate, or none is waiting): fall
   // through and serve the beta locally.
   next();
+});
+
+/**
+ * The beta reads and writes its OWN database (owner ask 2026-08-20), and the
+ * decision is made here, per request, from the request itself.
+ *
+ * It must run BEFORE the prefix strip below: afterwards a beta API call looks
+ * exactly like a production one, which is the same ordering that made the beta
+ * serve the published backend on the day it shipped. It must also run after
+ * the proxy above, so a request being forwarded is never counted twice.
+ *
+ * Everything downstream keeps importing `db` as it always has; the handle
+ * resolves per query to whichever store this async context belongs to
+ * (db/client.ts). Off Cloud Run, and on any instance without a beta database
+ * configured, there is one store and this changes nothing.
+ */
+app.use((req, res, next) => {
+  if (!isBetaRequest(req.path, req.headers.host)) return next();
+  runInBetaStore(() => {
+    // The stripe on the beta says which store it is on, and a client can read
+    // it without a page: an experiment run against the live floor by accident
+    // is exactly what this header exists to make visible.
+    res.setHeader('X-Telarchy-Store', currentStoreName());
+    next();
+  });
 });
 
 /**
@@ -253,7 +280,13 @@ app.use('/api/legal', legalRouter);
 app.use('/api/data-room', dataRoomRouter);
 
 app.get('/api/public-config', (_req, res) => {
-  res.json({ usdcSettlementEnabled: process.env.USDC_SETTLEMENT_ENABLED === 'true' });
+  res.json({
+    usdcSettlementEnabled: process.env.USDC_SETTLEMENT_ENABLED === 'true',
+    // Which store answered this request (owner ask 2026-08-20). The beta
+    // stripe says it out loud, because "am I about to write to the live
+    // floor" is the one question a tester must never have to guess at.
+    store: currentStoreName(),
+  });
 });
 
 // Bare probe of the API root. Without this, an unauthenticated GET /api hits

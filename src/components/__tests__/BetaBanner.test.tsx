@@ -174,3 +174,29 @@ describe('the stripe says which of three states it is in', () => {
     await waitFor(() => expect(screen.getByText(/may differ/)).toBeTruthy());
   });
 });
+
+/**
+ * Which store the stripe says it is on (owner ask 2026-08-20). The loud case
+ * is the dangerous one: a beta wired to the live database looks identical to
+ * a safe one until something is written.
+ */
+describe('the store the beta writes to', () => {
+  test('says "own database" when it has one', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ store: 'beta' }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    setHost('telarchy.com', '/beta/lookpilot');
+    render(<BetaBanner />);
+    expect(await screen.findByText('own database')).toBeTruthy();
+    vi.unstubAllGlobals();
+  });
+
+  test('says LIVE, loudly, when it shares production', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ store: 'production' }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    setHost('telarchy.com', '/beta/lookpilot');
+    render(<BetaBanner />);
+    const tag = await screen.findByText('LIVE database');
+    expect(tag.className).toContain('is-live');
+    vi.unstubAllGlobals();
+  });
+});

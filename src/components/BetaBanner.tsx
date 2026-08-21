@@ -44,9 +44,22 @@ export function BetaBanner() {
   // for one evening (2026-08-20), and the whole point of the stripe is that it
   // is the one thing on the page you can believe about what you are looking at.
   const [waiting, setWaiting] = useState<'unknown' | 'yes' | 'no'>('unknown');
+  // Which database this copy of the app is writing to (owner ask 2026-08-20).
+  // The stripe says it because "am I about to change the live floor" is the
+  // one question a tester must never have to guess at, and because a beta
+  // that quietly shares production is exactly what this stripe used to mean.
+  const [store, setStore] = useState<'beta' | 'production' | null>(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
   const [err, setErr] = useState('');
+
+  useEffect(() => {
+    if (isPublishedOrigin()) return;
+    fetch(`${import.meta.env.VITE_API_URL ?? ''}/api/public-config`)
+      .then(r => r.json())
+      .then(c => setStore(c.store === 'beta' ? 'beta' : 'production'))
+      .catch(e => console.error('public-config fetch failed:', e));
+  }, []);
 
   useEffect(() => {
     if (isPublishedOrigin()) return;
@@ -83,6 +96,11 @@ export function BetaBanner() {
   return (
     <div className="betabar" role="status">
       <span className="betabar-label">Beta</span>
+      {store && (
+        <span className={`betabar-store${store === 'production' ? ' is-live' : ''}`}>
+          {store === 'beta' ? 'own database' : 'LIVE database'}
+        </span>
+      )}
       <span className="betabar-text">
         {note || (
           waiting === 'yes'
