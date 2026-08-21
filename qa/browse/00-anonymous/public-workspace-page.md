@@ -97,6 +97,13 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
   market, its price, its pool and every position survive; the change is written
   to an append-only revision log and published under the definition. The
   editor's warning text must say that, not the old void-and-reopen line.
+  Amended 2026-08-21: the definition (shown and edited) belongs to the market
+  on screen. With two clocks up, stepping to the other market swaps the
+  definition to that market's metric, the editor prefills from it, and saving
+  writes THAT metric, never the workspace's hero metric (the bug: editing
+  under the near clock rewrote the monthly market's settlement text). A market
+  whose metric has no definition shows none rather than borrowing the hero
+  metric's. Pinned by `src/pages/__tests__/TradePageDefinitionEdit.test.tsx`.
   All removed fields stay in the API.
 
 ### T3. The join CTA states what joining actually grants

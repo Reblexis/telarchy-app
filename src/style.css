@@ -4876,6 +4876,9 @@ textarea.jobform-line--desc {
 .pubws-know-edit { display: flex; flex-direction: column; gap: 0.6rem; }
 .pubws-know-edit-text {
   width: 100%;
+  /* The settlement text runs to paragraphs; the editor has to show it, not a
+     six-line slot of it (owner report 2026-08-21). */
+  min-height: 18rem;
   font: inherit;
   font-size: 0.9rem;
   line-height: 1.6;

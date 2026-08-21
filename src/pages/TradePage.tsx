@@ -648,11 +648,15 @@ export function TradePage() {
   const [defSaving, setDefSaving] = useState(false);
   const [defErr, setDefErr] = useState('');
   const saveDefinition = async () => {
-    if (!ws?.heroMetricId) return;
+    // The edit targets the metric of the market ON SCREEN, never the
+    // workspace's hero metric: with two clocks up, saving through
+    // ws.heroMetricId rewrote the other market's settlement text
+    // (owner report 2026-08-21).
+    if (!hero?.metricId || !ws) return;
     setDefSaving(true);
     setDefErr('');
     try {
-      await api.updateMetricDescription(ws.heroMetricId, defDraft, ws.workspaceId);
+      await api.updateMetricDescription(hero.metricId, defDraft, ws.workspaceId);
       setEditingDef(false);
       reload();
     } catch (e) {
@@ -662,8 +666,12 @@ export function TradePage() {
     }
   };
 
-  // The definition belongs to the market on screen.
-  const horizonDescription = hero?.description ?? null;
+  // The definition belongs to the market on screen. The workspace-level
+  // heroMetricDescription is only a fallback when the on-screen market IS the
+  // hero metric; borrowed under any other clock it would caption one market
+  // with another's settlement text.
+  const horizonDescription = hero?.description
+    ?? (hero && hero.metricId === ws?.heroMetricId ? ws?.heroMetricDescription ?? null : null);
 
   if (error) {
     return (
@@ -1202,12 +1210,12 @@ export function TradePage() {
                 position survive. What it does instead is publish the change
                 here, which is the honest trade when no code can tell a
                 clarification from a redefinition. */}
-            {canManage && ws.heroMetricId && !editingDef && (
+            {canManage && hero?.metricId && !editingDef && (
               <button
                 className="pubws-decide"
                 style={{ marginLeft: '0.6rem' }}
                 onClick={() => {
-                  setDefDraft(horizonDescription ?? ws?.heroMetricDescription ?? '');
+                  setDefDraft(horizonDescription ?? '');
                   setDefErr('');
                   setEditingDef(true);
                 }}
@@ -1227,7 +1235,7 @@ export function TradePage() {
               <textarea
                 className="pubws-know-edit-text"
                 value={defDraft}
-                rows={6}
+                rows={14}
                 onChange={e => setDefDraft(e.target.value)}
               />
               <p className="pubws-settle">
@@ -1256,8 +1264,8 @@ export function TradePage() {
               {defErr && <p className="ticket-err">{defErr}</p>}
             </div>
           ) : (
-            (horizonDescription ?? ws?.heroMetricDescription) && (
-              <p className="pubws-know-what">{horizonDescription ?? ws?.heroMetricDescription}</p>
+            horizonDescription && (
+              <p className="pubws-know-what">{horizonDescription}</p>
             )
           )}
           {/* The actual-trajectory chart that used to sit here was removed
