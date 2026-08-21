@@ -76,3 +76,28 @@ describe('Otto', () => {
     expect(await screen.findByText('That is a lot of questions.')).toBeTruthy();
   });
 });
+
+/**
+ * The floor owns his open state because two doors lead to one conversation:
+ * the corner dock and the "Ask Otto" button beside "What is <name>?" (owner
+ * direction 2026-08-21). Two Ottos on one page, each with half the
+ * conversation, is the failure this pins.
+ */
+describe('the second door', () => {
+  test('opens from the page, not only from his own dock', () => {
+    const { rerender } = render(<FloorChat {...props} open={false} onOpenChange={() => {}} />);
+    expect(screen.queryByLabelText('Ask Otto')).toBeNull();
+
+    rerender(<FloorChat {...props} open onOpenChange={() => {}} />);
+    expect(screen.getByLabelText('Ask Otto')).toBeTruthy();
+    // The dock is gone while the panel is up: one of him, not two.
+    expect(screen.queryByRole('button', { name: /ask otto about lookpilot/i })).toBeNull();
+  });
+
+  test('tells the page when he is closed, so the page agrees with him', () => {
+    const onOpenChange = vi.fn();
+    render(<FloorChat {...props} open onOpenChange={onOpenChange} />);
+    fireEvent.click(screen.getByRole('button', { name: /close/i }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+});

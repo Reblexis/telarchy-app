@@ -1500,17 +1500,23 @@ code, pre, kbd, samp {
   align-items: center;
   gap: 0.55rem;
   padding: 0.5rem 0.95rem 0.5rem 0.55rem;
-  border: 1px solid var(--border-strong);
+  /* Ink, not bone (owner direction 2026-08-21: he was too easy to miss). A
+     bone pill on a bone page reads as furniture; the one thing floating over
+     the document should look like the one thing you can press. It does not
+     compete with the bet buttons: they are the page's colour, he is its ink. */
+  border: 1px solid var(--button-bg);
   border-radius: 999px;
-  background: var(--bg-secondary);
-  box-shadow: 0 14px 30px -20px rgba(0, 0, 0, 0.5);
+  background: var(--button-bg);
+  box-shadow: 0 14px 30px -18px rgba(0, 0, 0, 0.55);
   font: inherit;
   font-size: 0.85rem;
-  color: var(--text-secondary);
+  color: var(--button-text);
   cursor: pointer;
-  transition: color 140ms ease, border-color 140ms ease, transform 140ms ease;
+  transition: background 140ms ease, transform 140ms ease;
 }
-.ottodock:hover { color: var(--text-primary); border-color: var(--text-primary); transform: translateY(-1px); }
+.ottodock:hover { background: var(--button-bg-hover); border-color: var(--button-bg-hover); transform: translateY(-1px); }
+/* The mark inverts inside the ink pill, or it disappears into it. */
+.ottodock .ottodock-mark { background: var(--button-text); color: var(--button-bg); }
 .ottodock:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 .ottodock-mark,
@@ -4591,6 +4597,14 @@ textarea.jobform-line--desc {
   justify-content: space-between;
   gap: 1rem;
 }
+/* The heading and its Ask button travel together; the owner's Edit stays at
+   the row's far edge, where a page control belongs. */
+.pubws-know-headline {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
 .pubws-know-edit {
   border: none;
   background: none;
@@ -6876,4 +6890,44 @@ textarea.jobform-line--desc {
 .betabar-err {
   width: 100%;
   font-weight: 600;
+}
+
+/* "Ask Otto", beside "What is <name>?" (owner direction 2026-08-21: make him
+   obvious). It sits in the section's own head row, in the label's register,
+   so it reads as part of the question rather than as a second CTA competing
+   with the bet buttons. It opens the same panel the corner dock does. */
+.pubws-know-ask {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.65rem 0.25rem 0.3rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: transparent;
+  font: inherit;
+  font-size: 0.74rem;
+  letter-spacing: 0.02em;
+  /* Primary ink, not the label's tertiary: the point of this button is that a
+     reader notices it without hunting, and it is the only thing in the row
+     that does something. */
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.pubws-know-ask:hover { background: var(--bg-tertiary); border-color: var(--text-primary); }
+.pubws-know-ask:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* The same mark he wears in the corner, so the two doors read as one person. */
+.pubws-know-ask-mark {
+  display: grid;
+  place-items: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  background: var(--text-primary);
+  color: var(--bg-primary);
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  line-height: 1;
 }

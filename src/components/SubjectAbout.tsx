@@ -18,13 +18,24 @@ function linkify(text: string) {
   );
 }
 
-export function SubjectAbout({ workspaceId, name, value, defaultText, canManage, onSaved }: {
+export function SubjectAbout({ workspaceId, name, value, defaultText, canManage, onSaved, onAsk }: {
   workspaceId: string;
   name: string;
   value: string | null | undefined;
   defaultText: string;
   canManage: boolean;
   onSaved: () => void;
+  /** Opens Otto (owner direction 2026-08-21: make him obvious). This is where
+   *  the question forms: a visitor who has just read what the company does is
+   *  one sentence away from asking the thing the paragraph did not answer, and
+   *  a pill in the corner is easy to miss while reading. Same panel the dock
+   *  opens, never a second conversation.
+   *
+   *  The button carries no aria-label: its visible words are its name, and the
+   *  section around it already says which company. Labelling it "Ask Otto
+   *  about <name>" would make it indistinguishable from the corner dock in a
+   *  screen reader's list of controls. */
+  onAsk?: () => void;
 }) {
   const text = value && value.trim() ? value : defaultText;
   const [editing, setEditing] = useState(false);
@@ -49,7 +60,19 @@ export function SubjectAbout({ workspaceId, name, value, defaultText, canManage,
   return (
     <section className="pubws-know pubws-enter pubws-enter--3" aria-label={`What is ${name}`}>
       <div className="pubws-know-headrow">
+        {/* The question and the way to ask a better one, side by side: the
+            button belongs to the heading, not to the row's far edge, where it
+            would read as a page control rather than as an answer to this
+            section. */}
+        <div className="pubws-know-headline">
         <h2 className="pubws-know-head">What is {name}?</h2>
+        {onAsk && !editing && (
+          <button type="button" className="pubws-know-ask" onClick={onAsk}>
+            <span className="pubws-know-ask-mark" aria-hidden="true">O</span>
+            Ask Otto
+          </button>
+        )}
+        </div>
         {canManage && !editing && (
           <button className="pubws-know-edit" onClick={() => { setDraft(text); setErr(''); setEditing(true); }}>Edit</button>
         )}

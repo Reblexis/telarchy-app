@@ -100,6 +100,10 @@ export function TradePage() {
   // market (owner decision 2026-08-09: no second market underneath). null
   // means the baseline market is showing.
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  /** Otto's panel, owned here because two things open it: his own dock in the
+   *  corner and the "Ask Otto" button beside "What is <name>?", which is where
+   *  a visitor's question actually forms. */
+  const [askingOtto, setAskingOtto] = useState(false);
 
   // A notification points AT something: #contract=<id> opens the floor on
   // that contract, and #comment=<id> says which line in its thread the
@@ -723,6 +727,8 @@ export function TradePage() {
           idOrSlug={idOrSlug}
           workspaceName={ws.name}
           metricLabel={selectedJob ? null : metricLabel}
+          open={askingOtto}
+          onOpenChange={setAskingOtto}
         />
       )}
       <main className="pubws-main pubws-main--floor">
@@ -1311,6 +1317,7 @@ export function TradePage() {
           defaultText={DEFAULT_SUBJECT_ABOUT}
           canManage={canManage}
           onSaved={reload}
+          onAsk={() => setAskingOtto(true)}
         />
         </div>
         {/* The jobs board IS the right rail (owner direction 2026-08-10:

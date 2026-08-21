@@ -97,6 +97,18 @@ grep -qi 'not advice from' <<<"$text"
 $B screenshot "/tmp/$TT_NS-otto.png"
 ```
 
+### T5b. The section beside the prose opens the same Otto
+
+```bash
+$B goto "$TT_FRONTEND_URL/$SLUG" && $B wait --networkidle
+# "What is <name>?" carries its own way to ask (owner direction 2026-08-21).
+$B assert '.pubws-know-ask' --visible
+$B click '.pubws-know-ask'
+$B assert '.otto-input' --visible
+# One of him, not two: the dock is gone while the panel is up.
+$B assert '.ottodock' --gone
+```
+
 ### T6. The agent prompt lives in account settings, and names this floor
 
 Covered by `src/components/__tests__/AccountDialog.test.tsx` ("the agent

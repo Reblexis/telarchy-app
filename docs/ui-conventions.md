@@ -331,6 +331,17 @@ a blank page. One line under the composer says the opinions are his and not
 the company's. On a phone he takes the sheet; a 23rem panel on a 390px
 screen is a joke.
 
+**Two doors, one conversation** (owner direction 2026-08-21: make him
+obvious). A pill in the corner is easy to miss while reading, and the place a
+visitor's question actually forms is the paragraph that nearly answered it, so
+"What is <name>?" carries an **Ask Otto** button in its own head row, wearing
+the same serif O. It opens the same panel the dock opens: the floor owns the
+open state (`TradePage`), never a second Otto with half the conversation. The
+closed dock is **ink**, not bone, for the same reason: the one thing floating
+over a bone document should look like the one thing you can press, and it does
+not compete with the bet buttons because they are the page's colour and he is
+its ink.
+
 He lives in the corner rather than in the column because a reader needs him
 at whatever point of the page their question arrives, and because the
 page's job is the market. The prompt for pointing your own AI at the same

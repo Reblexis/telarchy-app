@@ -28,12 +28,23 @@ interface Props {
   workspaceName: string;
   /** The number the floor leads with, used for one opening suggestion. */
   metricLabel: string | null;
+  /** Open state, when the page owns it. The floor does, because the
+   *  "Ask Otto" button beside "What is <name>?" opens this same panel: two
+   *  doors into one conversation, never a second Otto. Left out, he keeps
+   *  his own state and the dock is the only way in. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 interface Turn { role: 'user' | 'assistant'; content: string }
 
-export function FloorChat({ idOrSlug, workspaceName, metricLabel }: Props) {
-  const [open, setOpen] = useState(false);
+export function FloorChat({ idOrSlug, workspaceName, metricLabel, open: openProp, onOpenChange }: Props) {
+  const [ownOpen, setOwnOpen] = useState(false);
+  const open = openProp ?? ownOpen;
+  const setOpen = (next: boolean) => {
+    setOwnOpen(next);
+    onOpenChange?.(next);
+  };
   const [turns, setTurns] = useState<Turn[]>([]);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
