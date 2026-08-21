@@ -479,10 +479,17 @@ one helper, `primaryMarket`, picks the primary server-side and
 drift apart.
 
 A workspace may still have other open baseline markets, and the API still
-serves them (`GET /api/marketplace/:id` ships every one in `markets`). The
-floor simply does not offer them: there is no selector, no second chart, and
-no per-horizon caption. See "one clock, not two" below for why the second one
-went.
+serves them (`GET /api/marketplace/:id` ships every one in `markets`).
+
+**Amended 2026-08-20: the floor offers them, one at a time.** Arrows on the
+caption's own line step between the open baseline markets, and everything below
+follows because every surface reads one `HorizonView`. Still no second chart
+shown at once and still no per-horizon role caption: those were the expensive
+half and they stay deleted. The paragraph above described 2026-08-17 to
+2026-08-20, when there was no selector at all; it is kept because "ONE horizon
+is the headline" is still the rule, and only the "cannot reach the others" part
+changed. See "one clock, not two" below for the whole arc, and "a contract
+shows its impact on EVERY clock" for where this rule deliberately inverts.
 
 **One model owns what a horizon is** (`src/lib/floor-horizons.ts`). Which
 market is primary, its label, its settle day, its unit, its metric history,
@@ -1020,6 +1027,72 @@ The rules that keep it from rotting back into the 2026-08-16 bug family:
   stored on the metric (owner ask 2026-08-20: "it should have @ resolution date
   in its name"). A stored date would be correct until Monday, when `+0w` opens
   next week's market on the same metric and the name still names last Sunday.
+- **A metric name puts its window BEFORE the unit tail.** `LookPilot weekly net
+  revenue (USD)`, never `LookPilot net revenue (this week)`. `metricLabelOf`
+  strips the trailing parenthetical as the unit tail and `currencyOf` reads the
+  currency out of that same tail, so a window written inside it is deleted from
+  the caption AND takes the `$` off the price with it. Named the second way on
+  2026-08-20, both clocks rendered as a bare `NET REVENUE` distinguishable only
+  by their settle day, which is the collision the `settleDayOf` comment already
+  warned about.
+
+### A contract shows its impact on EVERY clock (design 2026-08-20, not yet built)
+
+**The bug this fixes.** The arrows live in the `selectedJob ? … : …` else
+branch, so opening a contract removes them, and `pair` falls back to
+`selectedJob.markets[0]`. The backend is not the problem: `createConditionalMarkets`
+spawns a pair per baseline market, so a two-clock floor gives every contract
+four conditional markets and the API serves all of them. The floor reaches
+exactly one, and WHICH one depends on the horizon the reader happened to be on
+before they clicked in. An impact number that changes with invisible state is
+worse than an impact number that is merely incomplete.
+
+**The rule.** The floor's headline shows one clock at a time. A contract does
+not: it shows its impact on **all** of them at once, as a hairline list under
+the question, and the reader picks which row the ticket trades.
+
+```
+  ← NET REVENUE
+
+  Will LookPilot pay $200 to:
+  Ship a tracking-model upgrade
+
+  IMPACT IF PAID
+  ─────────────────────────────────────────
+    23 AUG   weekly      ▲ +$412
+  ─────────────────────────────────────────
+  ▸ 30 SEP   monthly     ▲ +$1,203  ·trading
+  ─────────────────────────────────────────
+```
+
+Why the headline and the contract differ, since that asymmetry is the part
+someone will want to "fix" later. The headline's job is to be ONE number a
+stranger can repeat; two competing headlines is exactly what got called
+confusing on 2026-08-17. A contract's job is the opposite: its whole content
+IS the impact, and "helps this week, helps by September" is a better answer
+than either half. Nothing is hidden, so the number cannot move under a reader
+who never touched a control.
+
+- **Every open horizon gets a row**, soonest first, in the order the payload
+  ships. This is the one place the furthest-resolving-first flip does not
+  apply: the reader is reading a term structure, and near-to-far is how one is
+  read.
+- **The selected row is what the ticket trades**, marked with `▸` and a
+  `·trading` tag. Selection stays a market id, per the rule above. Default is
+  the primary horizon, so an untouched contract trades what the floor's
+  headline is about.
+- **Impact is per row and signed**, in that horizon's own unit, computed the
+  way it already is (approved consensus minus declined). A row the market has
+  not priced says so in words rather than showing a zero, because zero is a
+  claim and "nobody has priced this" is not.
+- **Green and red stay direction only**, per the color rule. The row is not
+  painted; the arrow and the number carry the sign.
+- **The rows are hairline-separated, not cards.** With one open horizon the
+  list is one row and reads as a plain readout, so the layout does not need a
+  special case for it.
+- **The back button keeps the metric label and the arrows do not come back
+  here.** Two controls that both change horizon, one of which also changes what
+  the page is about, is the 2026-08-16 bug family being reinvented.
   The year appears only when the settle day is not in the year the reader is
   standing in.
 - **The day named is the day the period ENDS**, not the instant the payout
