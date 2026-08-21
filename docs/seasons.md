@@ -7,7 +7,10 @@ are `docs/legal/season-0-rules.md`; that file is a promise and never changes
 while a season runs. This file is the design behind it and changes freely.
 
 Status: **decided 2026-08-19.** Season 0 starts 2026-08-22T00:00Z (moved from
-08-21 during launch prep) and ends 2026-10-16T00:00Z.
+08-21 during launch prep) and ends **2026-10-01T00:00Z** (owner, 2026-08-21:
+"its whoever tops standing october 1"; moved from 10-16 while the season was
+still draft, which is the only time an end date may move, since the rules
+promise they do not change while it runs).
 
 **Revised 2026-08-21 (Viktor), hours before the start.** Three owner decisions
 from the launch review (`telarchy` umbrella,
@@ -176,7 +179,7 @@ tolerable, in order of how much they matter:
    before the season ends, and a resolved market pays its resolution payout
    rather than a mark. So the ramp distorts the visible standings during the
    season, not the money at the end, **as long as that resolution lands on
-   time**. If it slips past 2026-10-16, the marks decide the prizes and this
+   time**. If it slips past 2026-10-01, the marks decide the prizes and this
    becomes a real problem.
 2. The gain is bounded by the spread the holder paid (about 14% of stake), not
    by their position size relative to anyone else's.
@@ -284,13 +287,22 @@ check at settlement, and it is the natural reading of "one person, one prize."
 
 ### F3. Settlement-instant sniping
 
-**HIGH, mitigated by luck this season.** Final standings are read at one fixed
+**HIGH, and no longer mitigated by luck.** Final standings are read at one fixed
 timestamp inside a transaction. Under F1's marking, whoever pushes the price
-hardest in the final minutes wins. Season 0 survives this by accident: the hero
-market resolves 2026-10-15, one day before the season ends 2026-10-16, and a
-resolved market pays resolution payouts rather than a price, so a late pump is
-punished rather than rewarded on that market. Every contract branch still open
-at the end is exposed.
+hardest in the final minutes wins.
+
+Season 0 used to survive this by accident: the hero market resolved 2026-10-15,
+one day before the season ended 2026-10-16, and a resolved market pays
+resolution payouts rather than a price, so a late pump was punished rather than
+rewarded on it. **Moving the end to 2026-10-01 reverses that** (owner,
+2026-08-21). The September revenue market now settles a fortnight AFTER the
+season does, so at the settle instant it is open, marked at whatever the book
+says, and it is the largest position anyone will hold. Every contract branch
+still open at the end is exposed too, as before.
+
+So the accident that was doing the work is gone and decision 4 (a 48h
+time-weighted settlement mark) is no longer deferrable to Season 1 on the
+grounds that this season is safe. It is not.
 
 **Mitigation: settle on a time-weighted average of the last 48 hours**, not on
 an instant. Same for the baseline at the start instant, and for the same

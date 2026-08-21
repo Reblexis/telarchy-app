@@ -144,7 +144,7 @@ block:shipping
 
 ## Plans
 
-The first season starts on 21 August 2026 and ends on 16 October 2026. It pays
+The first season starts on 22 August 2026 and ends on 1 October 2026. It pays
 real money to the traders who are most accurate over that window, scored on
 marked profit rather than on volume, with the market's liquidity ramping up over
 the first three weeks rather than opening deep. A contest is the cheapest way to
