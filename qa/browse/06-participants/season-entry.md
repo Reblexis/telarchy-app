@@ -182,8 +182,31 @@ The API returns 404 for exactly this reason
 curl -s -X POST -H "X-API-Key: $ADMIN_KEY" https://telarchy.com/api/seasons/$SEASON/settle | jq
 ```
 
+### T7. A draft season lists its entrants on /season, score-less
+
+**Steps:**
+1. While the season is still a draft, opt in as a test participant.
+2. `$B goto "https://telarchy.com/season"`
+3. `$B wait --networkidle`
+4. `$B text`
+
+**Expected:**
+- The standings section is headed "Entered" and lists the entrant's nickname.
+- No score and no payout figure appear beside any row (no baseline exists
+  before the start instant).
+- Specifically NOT "Nobody has entered yet" while entrants exist.
+
+**Why:** before the 2026-08-21 fix a draft season answered standings with an
+empty list, so the person who had just entered, on the page every launch link
+points at, was told nobody had entered
+(`season-lifecycle.test.ts`, "a draft season lists entrants with no score").
+
 ## Known gaps
 
+- The `?season=` query parameter used in T5/T6 URLs is not what the API reads
+  (`seasonId`); the page-level expectations still hold, but the URLs do not
+  select a season server-side. Align the spec with the real parameter when the
+  leaderboard page grows season selection.
 - Does not test the season strip's absence when no season runs (needs a floor
   with every season settled).
 - Does not test entry from an agent key rather than a browser session; API
