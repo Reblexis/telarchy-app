@@ -704,3 +704,100 @@ describe('the floor carries Otto', () => {
     expect(doors.some(d => d.className.includes('pubws-know-ask'))).toBe(true);
   });
 });
+
+/**
+ * Opening a contract used to REPLACE the clock line with the contract's own
+ * header, so the horizon arrows vanished and `pair` fell back to
+ * `selectedJob.markets[0]`. The backend was never the problem:
+ * createConditionalMarkets spawns a pair per baseline market, so a two-clock
+ * floor gives a contract four conditional markets and the API serves all of
+ * them. The floor reached exactly one, and WHICH one depended on the horizon
+ * the reader happened to be on before they clicked in, so a contract's number
+ * moved with state nobody could see.
+ *
+ * The rule these pin (docs/ui-conventions.md, "A contract keeps the clock
+ * line"): the caption and its arrows render in BOTH states, and the contract
+ * adds one sentence underneath naming the world.
+ */
+describe('a contract keeps the clock line', () => {
+  /** A floor with two open horizons, and a contract priced on both. */
+  function twoClocks() {
+    const ws = h.workspace();
+    // The activity panel (and its per-branch read) only renders for someone
+    // who can trade, which is what makes the last test here observable.
+    ws.joinAs = 'trader';
+    ws.markets = [
+      { ...ws.markets[0], marketId: 'm-week', metricName: 'LookPilot weekly net revenue (USD)', targetDate: '2026-W34', resolvesOn: '2026-08-24', consensus: 500, rangeMax: 8_000 },
+      { ...ws.markets[0], marketId: 'm-month', metricName: 'LookPilot monthly net revenue (USD)', targetDate: '2026-09', resolvesOn: '2026-10-01', consensus: 3_500, rangeMax: 25_000 },
+    ];
+    ws.marketHistoryMarketId = 'm-month';
+    const pair = ws.proposals[0].markets[0];
+    ws.proposals[0].markets = [
+      { ...pair, metricName: 'LookPilot weekly net revenue (USD)', targetDate: '2026-W34', resolvesOn: '2026-08-24', approvedConsensus: 520, declinedConsensus: 500, delta: 20, approvedMarketId: 'm-week-approved', declinedMarketId: 'm-week-declined', rangeMax: 8_000 },
+      { ...pair, metricName: 'LookPilot monthly net revenue (USD)', targetDate: '2026-09', resolvesOn: '2026-10-01', approvedConsensus: 4_700, declinedConsensus: 3_500, delta: 1_200, approvedMarketId: 'm-month-approved', declinedMarketId: 'm-month-declined', rangeMax: 25_000 },
+    ];
+    ws.proposals[0].marketPairCount = 2;
+    return ws;
+  }
+
+  test('the horizon arrows survive opening a contract', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
+    renderFloor();
+
+    // Both arrows are there before anything is selected. They loop, so with
+    // two horizons both are labelled for the other one.
+    expect((await screen.findAllByRole('button', { name: /^Show / })).length).toBe(2);
+
+    fireEvent.click(await screen.findByTitle('rewrite the store page'));
+    await screen.findByRole('button', { name: 'if approved' });
+
+    // The regression: this used to be 0, because the caption and its arrows
+    // lived in the branch that a selected contract replaced.
+    expect(screen.getAllByRole('button', { name: /^Show / }).length).toBe(2);
+  });
+
+  test('the clock line still names the metric and its settle day on a contract', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
+    renderFloor();
+    fireEvent.click(await screen.findByTitle('rewrite the store page'));
+    await screen.findByRole('button', { name: 'if approved' });
+
+    // The floor opens on the furthest-resolving market, so the month is on
+    // screen; the caption strips the leading workspace name.
+    const caption = document.querySelector('.pubws-instrument-label');
+    expect(caption?.textContent).toContain('monthly net revenue');
+    expect(caption?.textContent).toContain('@');
+  });
+
+  test('the contract states the world without repeating the metric name', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
+    renderFloor();
+    fireEvent.click(await screen.findByTitle('rewrite the store page'));
+
+    const question = await screen.findByRole('heading', { name: /is paid \$80/ });
+    // "What is <metric> if ..." moved into the caption above, so the sentence
+    // starts at the condition. Two copies of the metric name in adjacent lines
+    // is what this replaced.
+    expect(question.textContent?.trim().startsWith('if ')).toBe(true);
+    expect(question.textContent).not.toMatch(/net revenue/i);
+  });
+
+  test('stepping the clock re-points the contract at that horizon', async () => {
+    const { api } = await import('../../lib/api');
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(twoClocks() as never);
+    vi.mocked(api.getMarketActivity).mockClear();
+    renderFloor();
+    fireEvent.click(await screen.findByTitle('rewrite the store page'));
+    // Opens on the furthest-resolving horizon, so the month's approved branch.
+    await waitFor(() => expect(vi.mocked(api.getMarketActivity)).toHaveBeenCalledWith('lookpilot', 'm-month-approved'));
+
+    fireEvent.click(screen.getAllByRole('button', { name: /^Show / })[1]);
+
+    // pair resolves by hero.targetDate, so the week's pair is now the one on
+    // screen. Before this change the arrows did not exist here at all.
+    await waitFor(() => expect(vi.mocked(api.getMarketActivity)).toHaveBeenCalledWith('lookpilot', 'm-week-approved'));
+  });
+});

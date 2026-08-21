@@ -769,13 +769,69 @@ export function TradePage() {
                 With a job selected the title becomes the actual question the
                 conditional market prices, naming who gets paid and how much,
                 because that is the whole bet. */}
-            {selectedJob ? (
+            {/* Above the clock line, not between it and the world line:
+                the caption and the condition under it are one statement, and
+                a control wedged between them splits it. Says where it goes
+                rather than repeating the metric the caption already names. */}
+            {selectedJob && (
+              <button className="pubws-back" onClick={() => setSelectedJobId(null)}>
+                ← Back to the market
+              </button>
+            )}
+            {/* The clock line renders in BOTH states (owner design
+                2026-08-20). Opening a contract used to replace it, which took
+                the arrows away and pinned the page to markets[0], so a
+                contract's number depended on the horizon the reader happened
+                to be on before they clicked in. Rendered once here, never
+                copied into the branch below, because a second copy is how the
+                two drift. */}
+            {/* The metric name alone: it carries its own horizon
+               ("September 2026 net revenue"), so a settle date beside it
+               was redundant and confusing when the two differ (a September
+               metric settling 14 October read as an October market; owner
+               direction 2026-08-18). The chart caption below still says
+               when it lands. It is a caption, not a headline: with the
+               company named above, this line's only job is to say what
+               the big number underneath measures. */}
+            {/* One clock at a time, with a way to the others. The arrows
+               render whenever the floor has more than one market and they
+               LOOP (owner ask 2026-08-20): a control that sometimes does
+               nothing is worse than one that always moves, and with one
+               market they do not render at all, so looping never shows the
+               same number twice in a row. */}
+            {/* The arrows live INSIDE the caption, not in a wrapper around
+               it. Wrapping the h2 in a flex row put it in a 59px column
+               beside the price on the live floor, four words tall and
+               overlapping the leaderboard rail: this heading's placement
+               comes from rules that assume it is a block child of
+               .pubws-center, and a new element between them broke that. The
+               settle day rides on it too (owner ask 2026-08-20), computed
+               from the market and never stored on the metric. It was taken
+               off this line on 2026-08-18 as redundant, when a floor had one
+               market and the metric's name carried its own horizon; with
+               arrows it is the only thing telling two clocks apart. */}
+            <h2 className="pubws-instrument-label pubws-enter pubws-enter--1">
+              {horizons.length > 1 && (
+                <button
+                  className="pubws-hstep pubws-hstep--prev"
+                  onClick={() => prevHorizon && setHorizonId(prevHorizon.marketId)}
+                  aria-label={prevHorizon ? `Show ${prevHorizon.metricLabel}, ${prevHorizon.label}` : 'Previous market'}
+                >‹</button>
+              )}
+              {captionLabel(metricLabel, ws.name)}
+              {hero?.settleShort && <span className="pubws-instrument-at"> @ {hero.settleShort}</span>}
+              {horizons.length > 1 && (
+                <button
+                  className="pubws-hstep pubws-hstep--next"
+                  onClick={() => nextHorizon && setHorizonId(nextHorizon.marketId)}
+                  aria-label={nextHorizon ? `Show ${nextHorizon.metricLabel}, ${nextHorizon.label}` : 'Next market'}
+                >›</button>
+              )}
+            </h2>
+            {selectedJob && (
               <>
-                <button className="pubws-back" onClick={() => setSelectedJobId(null)}>
-                  ← {metricLabel}
-                </button>
                 <h2 className={`pubws-instrument-title pubws-question pubws-enter pubws-enter--1${flashContract ? ' is-flashed' : ''}`}>
-                  What is {metricLabel} if{' '}
+                  if{' '}
                   {selectedJob.proposedByName ?? 'someone'}{' '}
                   {/* The phrase IS the world: green "is paid" in the
                       approved branch, red "is not paid" in the declined one,
@@ -992,50 +1048,6 @@ export function TradePage() {
                   </div>
                 )}
               </>
-            ) : (
-              /* The metric name alone: it carries its own horizon
-                 ("September 2026 net revenue"), so a settle date beside it
-                 was redundant and confusing when the two differ (a September
-                 metric settling 14 October read as an October market; owner
-                 direction 2026-08-18). The chart caption below still says
-                 when it lands. It is a caption, not a headline: with the
-                 company named above, this line's only job is to say what
-                 the big number underneath measures. */
-              /* One clock at a time, with a way to the others. The arrows
-                 render whenever the floor has more than one market and they
-                 LOOP (owner ask 2026-08-20): a control that sometimes does
-                 nothing is worse than one that always moves, and with one
-                 market they do not render at all, so looping never shows the
-                 same number twice in a row. */
-              /* The arrows live INSIDE the caption, not in a wrapper around
-                 it. Wrapping the h2 in a flex row put it in a 59px column
-                 beside the price on the live floor, four words tall and
-                 overlapping the leaderboard rail: this heading's placement
-                 comes from rules that assume it is a block child of
-                 .pubws-center, and a new element between them broke that. The
-                 settle day rides on it too (owner ask 2026-08-20), computed
-                 from the market and never stored on the metric. It was taken
-                 off this line on 2026-08-18 as redundant, when a floor had one
-                 market and the metric's name carried its own horizon; with
-                 arrows it is the only thing telling two clocks apart. */
-              <h2 className="pubws-instrument-label pubws-enter pubws-enter--1">
-                {horizons.length > 1 && (
-                  <button
-                    className="pubws-hstep pubws-hstep--prev"
-                    onClick={() => prevHorizon && setHorizonId(prevHorizon.marketId)}
-                    aria-label={prevHorizon ? `Show ${prevHorizon.metricLabel}, ${prevHorizon.label}` : 'Previous market'}
-                  >‹</button>
-                )}
-                {captionLabel(metricLabel, ws.name)}
-                {hero?.settleShort && <span className="pubws-instrument-at"> @ {hero.settleShort}</span>}
-                {horizons.length > 1 && (
-                  <button
-                    className="pubws-hstep pubws-hstep--next"
-                    onClick={() => nextHorizon && setHorizonId(nextHorizon.marketId)}
-                    aria-label={nextHorizon ? `Show ${nextHorizon.metricLabel}, ${nextHorizon.label}` : 'Next market'}
-                  >›</button>
-                )}
-              </h2>
             )}
             <div className="pubws-headline pubws-enter pubws-enter--2">
               <span className="pubws-price">{unit}{formatValue(shownConsensus ?? consensus)}</span>
