@@ -36,3 +36,13 @@ jobs:
           context: functions
           push: true
           tags: ${{ steps.meta.outputs.tags }}
+
+      # Retention: every push adds a sha- tag, and private ghcr storage is
+      # what the free plan actually meters (the runners are ours and cost
+      # nothing, see docs/infra/deploy.md). Keep the newest versions and
+      # delete the tail, so the package can never crawl toward the quota.
+      - uses: actions/delete-package-versions@v5
+        with:
+          package-name: metrics-tracker-server
+          package-type: container
+          min-versions-to-keep: 8
