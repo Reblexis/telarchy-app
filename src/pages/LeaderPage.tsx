@@ -120,11 +120,6 @@ export function LeaderPage() {
     ? traders.find(e => e.id === meId) ?? null
     : null;
 
-  // The ladder's top rung: what an entrant could win. Shown while the season
-  // is still a draft, when no projection exists to show instead.
-  const topPrizeUsd = season?.ladder?.length
-    ? Math.max(...season.ladder.map(r => r.prizeUsd))
-    : 0;
 
   /**
    * One row, used by the list and by the pinned "you" row underneath it, so
@@ -158,24 +153,15 @@ export function LeaderPage() {
           </span>
         </Link>
         {/* What the season would pay this person if it settled now. Only for
-            entrants. Before the season starts there are no baselines, so
-            there is nothing to project and a "$0" would read as "wins
-            nothing" rather than "not decided yet"; the chip shows the
-            ladder's top rung as potential instead (owner ask 2026-08-21:
-            "show on leaderboard prizes next to the people signed in
-            season 0"). */}
+            entrants. Before the season starts there are no baselines and no
+            rank, so there is nothing to project; painting the ladder's top
+            rung ($500) on every entrant read as "this person wins $500" when
+            two people were entered (owner report 2026-08-21). A neutral
+            "entered" marker until the season runs; the rank-based dollar
+            appears the moment a score exists to rank on. */}
         {e.seasonEntered && (
           e.seasonPrizeUsd === null || e.seasonPrizeUsd === undefined ? (
-            topPrizeUsd ? (
-              <span
-                className="lbp-prize"
-                title={`Entered ${season?.name ?? 'the season'}: the top prize once it starts`}
-              >
-                ${topPrizeUsd.toLocaleString()}
-              </span>
-            ) : (
-              <span className="lbp-prize lbp-prize--in" title="Entered the season">entered</span>
-            )
+            <span className="lbp-prize lbp-prize--in" title={`Entered ${season?.name ?? 'the season'}; prizes are set once it starts`}>entered</span>
           ) : e.seasonPrizeUsd > 0 ? (
             <span className="lbp-prize" title="What this season would pay at the current standing">
               ${e.seasonPrizeUsd.toLocaleString()}

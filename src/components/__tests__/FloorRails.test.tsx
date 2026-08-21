@@ -101,10 +101,15 @@ describe('the season prize beside an entrant', () => {
   const entrant = (prize: number | null) =>
     ({ ...trader(2), seasonEntered: true, seasonPrizeUsd: prize } as unknown as LeaderboardEntry);
 
-  test('a draft season shows the top rung, plainly, never a bare "entered"', async () => {
+  test('a draft season shows a neutral "entered" marker, never a per-row dollar', async () => {
+    // Owner report 2026-08-21: painting the $500 top rung on every entrant read
+    // as "this person wins $500" when two people were entered. Before the
+    // season starts there is no rank to hand a prize on (baselines reset to 0),
+    // so the chip is neutral until it runs.
     getSeasons.mockResolvedValue({ seasons: [draftSeason] });
-    const { findByText } = render(<MemoryRouter><LeaderboardRail entries={[trader(1), entrant(null)]} /></MemoryRouter>);
-    expect((await findByText('$500')).className).toBe('pubws-lb-prize');
+    const { findByText, queryByText } = render(<MemoryRouter><LeaderboardRail entries={[trader(1), entrant(null)]} /></MemoryRouter>);
+    expect((await findByText('entered')).className).toContain('pubws-lb-prize');
+    expect(queryByText('$500')).toBeNull();
   });
 
   test('a running season shows the projected payout', async () => {

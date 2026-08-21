@@ -87,13 +87,15 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
       .then(r => setSeason(pickCurrentSeason(r.seasons)))
       .catch(e => console.error('seasons fetch failed:', e));
   }, []);
-  const topPrizeUsd = season?.ladder?.length ? Math.max(...season.ladder.map(r => r.prizeUsd)) : 0;
   const prizeChip = (e: LeaderboardEntry) => {
     if (!e.seasonEntered) return null;
     if (e.seasonPrizeUsd === null || e.seasonPrizeUsd === undefined) {
-      return topPrizeUsd
-        ? <span className="pubws-lb-prize" title={`Entered ${season?.name ?? 'the season'}: the top prize once it starts`}>${topPrizeUsd.toLocaleString()}</span>
-        : <span className="pubws-lb-prize pubws-lb-prize--in" title="Entered the season">in</span>;
+      // Draft phase: no baselines exist yet, so there is no season rank and no
+      // projection. Painting the top rung ($500) on every entrant's row read
+      // as "this person wins $500" (owner report 2026-08-21: two entrants both
+      // showing $500). A neutral marker instead; the rank-based dollar appears
+      // the moment the season starts and a score exists to rank on.
+      return <span className="pubws-lb-prize pubws-lb-prize--in" title={`Entered ${season?.name ?? 'the season'}; prizes are set once it starts`}>entered</span>;
     }
     return e.seasonPrizeUsd > 0
       ? <span className="pubws-lb-prize" title="What this season would pay at the current standing">${e.seasonPrizeUsd.toLocaleString()}</span>

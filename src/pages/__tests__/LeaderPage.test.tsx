@@ -50,17 +50,16 @@ beforeEach(() => {
 });
 
 describe('season prize beside an entrant', () => {
-  test('before the season starts, an entrant shows the top rung', async () => {
-    // No baselines exist yet, so there is no projection; "entered" alone said
-    // nothing about money (owner ask 2026-08-21: "show on leaderboard prizes
-    // next to the people signed in season 0"). A "$0" is equally wrong: it
-    // reads as "wins nothing" rather than "not decided yet".
+  test('before the season starts, an entrant shows a neutral marker, not a dollar', async () => {
+    // No baselines exist yet, so there is no rank to hand a prize on. Painting
+    // the $500 top rung on every entrant read as "this person wins $500" when
+    // two people were entered (owner report 2026-08-21). Neutral until it runs.
     vi.mocked(api.getLeaderboard).mockResolvedValue({
       participants: [trader({ id: 'in', nickname: 'entrant', seasonEntered: true, seasonPrizeUsd: null })],
     } as never);
     renderPage();
-    expect(await screen.findByText('$500')).toBeInTheDocument();
-    expect(screen.queryByText(/^entered$/)).toBeNull();
+    expect(await screen.findByText('entered')).toBeInTheDocument();
+    expect(screen.queryByText('$500')).toBeNull();
   });
 
   test('while the season runs, an entrant in the money shows the projected payout', async () => {
