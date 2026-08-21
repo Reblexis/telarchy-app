@@ -328,9 +328,10 @@ describe('standings', () => {
     // draft answer rendered as "Nobody has entered yet" beside their entry).
     expect(res.body.participants.map((p: { id: string }) => p.id)).toEqual(['t']);
     // No baseline exists yet, so no score does: lifetime profit must not leak.
+    // (Checked on the field, not via a substring: a timestamp in the payload
+    // once happened to contain the profit's digits and failed the build.)
     expect(res.body.participants[0].score).toBeNull();
-    const body = JSON.stringify(res.body.participants);
-    expect(body).not.toContain('40');
+    expect(res.body.participants.every((p: { score: unknown }) => p.score === null)).toBe(true);
   });
 
   test('a running season scores the growth since the baseline, not the profit', async () => {
