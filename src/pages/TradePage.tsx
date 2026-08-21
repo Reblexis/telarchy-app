@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import { api, setActiveWorkspace, type PublicWorkspace } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { MarketChart } from '../components/MarketChart';
@@ -1265,7 +1268,21 @@ export function TradePage() {
             </div>
           ) : (
             horizonDescription && (
-              <p className="pubws-know-what">{horizonDescription}</p>
+              /* The settlement text renders as markdown (owner ask
+                 2026-08-21), same stack as the announcements body, plus
+                 remark-breaks so a plain newline is a line break: owners
+                 write this text over the API and a collapsed paragraph
+                 misquotes what the market settles on. */
+              <div className="pubws-know-what">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkBreaks]}
+                  components={{
+                    a: ({ href, children }) => <a href={href} target="_blank" rel="noreferrer">{children}</a>,
+                  }}
+                >
+                  {horizonDescription}
+                </ReactMarkdown>
+              </div>
             )
           )}
           {/* The actual-trajectory chart that used to sit here was removed

@@ -103,7 +103,11 @@ $B screenshot "/tmp/$TT_NS-public-workspace.png"
   writes THAT metric, never the workspace's hero metric (the bug: editing
   under the near clock rewrote the monthly market's settlement text). A market
   whose metric has no definition shows none rather than borrowing the hero
-  metric's. Pinned by `src/pages/__tests__/TradePageDefinitionEdit.test.tsx`.
+  metric's. Amended 2026-08-21 (same day): the definition renders as markdown
+  (GFM, links opening in a new tab, headings kept body-sized) and a plain
+  newline is a line break (remark-breaks), because owners write this text
+  over the API and a collapsed run-on paragraph misquotes the settlement
+  terms. Pinned by `src/pages/__tests__/TradePageDefinitionEdit.test.tsx`.
   All removed fields stay in the API.
 
 ### T3. The join CTA states what joining actually grants

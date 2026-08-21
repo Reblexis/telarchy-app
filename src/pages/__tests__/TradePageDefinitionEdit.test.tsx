@@ -140,6 +140,24 @@ describe('the definition editor edits the market on screen', () => {
     );
   });
 
+  test('the definition renders markdown, and a plain newline is a line break', async () => {
+    const ws = h.workspace();
+    // Written the way an owner writes it over the API: emphasis, a single
+    // newline (no trailing spaces), and a list. The old <p> printed this as
+    // one run-on line with the asterisks showing.
+    ws.horizonHistories[1].description = 'Counts **net** revenue.\nRefunds subtract.\n- Steam\n- direct';
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    const { container } = renderFloor();
+    await waitFor(() => expect(caption(container)).toContain('Net 2026'));
+
+    const what = container.querySelector('.pubws-know-what')!;
+    expect(what.querySelector('strong')?.textContent).toBe('net');
+    expect(what.textContent).not.toContain('**');
+    // remark-breaks: the single newline became a real break.
+    expect(what.querySelector('br')).toBeTruthy();
+    expect(Array.from(what.querySelectorAll('li')).map(li => li.textContent)).toEqual(['Steam', 'direct']);
+  });
+
   test('the definition shown under the nearer clock is never the hero metric fallback', async () => {
     const ws = h.workspace();
     // The week market's own definition is missing; the page must show

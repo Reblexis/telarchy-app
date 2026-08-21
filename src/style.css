@@ -4551,6 +4551,36 @@ textarea.jobform-line--desc {
      `anywhere` also shrinks the intrinsic min-content size. */
   overflow-wrap: anywhere;
 }
+/* The definition is markdown now (owner ask 2026-08-21), so .pubws-know-what
+   can be a container of rendered blocks, not only a bare paragraph. Headings
+   stay body-sized and semibold: the design language keeps large bold headers
+   off the floor, and an owner's "## Counting rules" should read as a labeled
+   run of prose, not compete with the page's own sections. */
+.pubws-know-what > :first-child { margin-top: 0; }
+.pubws-know-what > :last-child { margin-bottom: 0; }
+.pubws-know-what p { margin: 0 0 0.7rem; }
+.pubws-know-what ul,
+.pubws-know-what ol { margin: 0 0 0.7rem 1.1rem; padding: 0; }
+.pubws-know-what h1,
+.pubws-know-what h2,
+.pubws-know-what h3,
+.pubws-know-what h4 {
+  margin: 0.9rem 0 0.4rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.pubws-know-what code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.85em;
+}
+.pubws-know-what blockquote {
+  margin: 0 0 0.7rem;
+  padding-left: 0.9rem;
+  border-left: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
 
 /* The owner-editable "What is <name>?" blurb: free text with preserved line
    breaks, so a typed "Sources:" list reads as written. */
