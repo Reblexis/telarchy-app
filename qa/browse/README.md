@@ -141,6 +141,7 @@ explains itself.
 | `public-workspace-page.md` | Anonymous `/marketplace/:workspaceId`: charter, join CTA, market cap, counts-not-contents boundary |
 | `leaderboard.md` | Anonymous `/leaderboard`, calibration ranking, register CTA |
 | `legal.md` | `/terms`, `/privacy`, ToS clauses |
+| `about-contact.md` | `/about` (positioning copy, wedge + calibrated clause) and `/contact` (support email, Discord, waitlist), footer reachability |
 | `waitlist.md` | `POST /api/waitlist` + dedup + rate limit |
 | `ask-the-floor.md` | The workspace brief + the Ask field: answers from the floor's own facts, and the agent prompt |
 | `data-room.md` | Anonymous `/data-room` and `GET /api/data-room`: the prose, the live figures, the traffic rollup, the change log |

@@ -2459,6 +2459,42 @@ button.notif-row-link {
 .pubws-foot a { color: var(--text-secondary); text-decoration: none; }
 .pubws-foot a:hover { color: var(--text-primary); }
 
+/* Prose sections on /about: body register under the tiny uppercase labels. */
+.pubws-story p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+.pubws-story a { color: var(--text-primary); }
+
+/* The /contact rows: hairlines, not cards. */
+.pubws-contact {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.pubws-contact li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.85rem 0;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.875rem;
+}
+.pubws-contact li:last-child { border-bottom: 1px solid var(--border-color); }
+.pubws-contact-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-tertiary);
+}
+.pubws-contact a { color: var(--text-primary); text-decoration: none; }
+.pubws-contact a:hover { text-decoration: underline; }
+
 /* Owner waitlist form on /manage: one input, one button, same pill language. */
 .pubws-waitform {
   display: flex;

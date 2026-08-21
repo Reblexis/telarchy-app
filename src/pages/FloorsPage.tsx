@@ -391,6 +391,13 @@ export function FloorsPage() {
 
         {/* The data-room footnote was removed on 2026-08-20 (owner direction).
             /data-room still serves; nothing on this page points at it. */}
+
+        {/* The quiet doors (owner ask 2026-08-21): who runs this and how to
+            reach them, findable from the front page without competing with
+            the markets above. */}
+        <footer className="pubws-foot">
+          <Link to="/about">About</Link> · <Link to="/contact">Contact</Link> · <Link to="/terms">Terms</Link> · <Link to="/privacy">Privacy</Link>
+        </footer>
       </main>
     </div>
   );

@@ -25,6 +25,8 @@ const ParticipantProfilePage = lazyPage(() => import('./pages/ParticipantProfile
 const AdminPage = lazyPage(() => import('./pages/AdminPage'), 'AdminPage');
 const DataRoomPage = lazyPage(() => import('./pages/DataRoomPage'), 'DataRoomPage');
 const LegalPage = lazyPage(() => import('./pages/LegalPage'), 'LegalPage');
+const AboutPage = lazyPage(() => import('./pages/AboutPage'), 'AboutPage');
+const ContactPage = lazyPage(() => import('./pages/ContactPage'), 'ContactPage');
 
 /* The whole app is the public surface (owner decision 2026-08-19: get rid of
    the old GUI). Every route below renders a standalone `.pubws` page. There
@@ -71,6 +73,11 @@ export function App() {
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/waitlist" element={<WaitlistPage />} />
         <Route path="/manage" element={<ManagePage />} />
+
+        {/* The story and the door to a human (owner ask 2026-08-21). Copy is
+            canonical in docs/about-page.md. */}
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/contact" element={<ContactPage />} />
 
         {/* Legal, served as markdown by the API */}
         <Route path="/terms" element={<LegalPage document="terms" />} />
