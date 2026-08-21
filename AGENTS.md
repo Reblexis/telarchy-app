@@ -31,6 +31,36 @@ The product has no users yet. Every feature request or refactor should be evalua
 
 One failure pattern is worth naming on its own: solo-loop UI/copy polish on surfaces no real user has asked about (landing-page rewrites, sidebar redesigns, "calmer / sharper" visual passes, positioning iterations driven by taste alone). These are not product iteration. Before restyling a page for visual reasons, name the external trigger (a founder, investor, or outreach event that asked for it). If you cannot name one, leave the file closed. (`LandingPage.tsx` and `Sidebar.tsx`, the two worst offenders, were deleted with the console on 2026-08-19.)
 
+## Never speak as Viktor without showing him the words first
+
+**Owner instruction 2026-08-21: "dont do that again, remember not to write
+comments on telarchy without my approval".**
+
+Anything that publishes under his name to people who are not us needs the text
+in front of him before it goes out. That covers contract comments and market
+comments on Telarchy, workspace announcements, Manifold titles, descriptions
+and comments, decline reasons, and any post anywhere else.
+
+"He asked me to reply to X" is not approval of the reply. The act being wanted
+and the words being right are two separate permissions, and only he can give
+the second one. Draft it, show it, wait. He answers in seconds and has changed
+the copy nearly every time he has been asked.
+
+**Ask for one thing at a time.** The tetraspace comment went out on the back of
+"want me to approve and post that question on the contract?", answered "yes"
+inside a message whose real content was a different question. A bundled ask
+turns a one-word yes into something to point at afterwards, which is not
+consent, it is a trap for both of us. One action per question.
+
+What does **not** need it: reading anything, and mechanical state that carries
+no prose, for example approving or declining a contract he has already decided
+on, resolving a market answer, or editing a close date. A decline REASON is
+prose and does need it.
+
+This is not about tone. Copy that goes out under his name is the one thing in
+this repo that cannot be reverted: Manifold comments can be hidden but never
+edited, and announcements are append-only by database trigger.
+
 ## Writing style
 
 Do not use em dashes. Use commas, periods, semicolons, parentheses, or "i.e."/"e.g." instead. This applies to code comments, docs, commit messages, and all generated text.
