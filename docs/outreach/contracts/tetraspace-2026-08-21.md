@@ -20,29 +20,29 @@ is cheap for that. Do not haggle.
 
 ## What to change before approving
 
-The contract as written does not require the post to point at Telarchy at all.
-"Tetra's thoughts on futarchy/telarchy" is satisfied by 500 words that never
-link the site, and distribution is the entire reason to pay for it. That is the
-term to fix; the rest is smaller.
+**Nothing about the content (owner decision, Viktor, 2026-08-21): what he
+writes is entirely his.** An earlier draft of this file wanted the contract to
+require a link to telarchy.com and an explanation of what it is, on the grounds
+that distribution is the thing being bought. Overruled, and the owner's version
+is the better one: a post written under editorial instructions from the person
+paying for it is worth less to the audience it is aimed at, and he is writing
+about Telarchy either way, so buying the coverage buys the thing that makes it
+not work.
 
-1. **Name the deliverable.** Links to telarchy.com, and says enough about what
-   it is that a reader who has never heard of it could decide to try it. This
-   is not a demand for praise, it is what "promote" means when written down.
-2. **Disclosure, in the post itself.** He writes for the LessWrong and Manifold
-   audience, which treats an undisclosed paid endorsement as close to fraud.
-   The contract is public on our own site, so the payment will be found whether
-   or not he mentions it. Disclosure is not a courtesy here, it is what keeps
-   the post credible, and a post that audience believes is the only kind that
-   converts.
-3. **His verdict is his own.** Follows from 2: disclosure only buys credibility
-   if the reader thinks he was free to say anything. Worth stating so a
-   negative post is a delivered contract rather than an argument. **Not** an
-   invitation to a hit piece: the ask is that it links and explains, not that
-   it flatters (correction, Viktor, 2026-08-21: an earlier draft claimed a
-   critical post would be worth *more* than a positive one, which is wrong.
-   The value is distribution, and a trashing does not distribute).
-4. **Venue and rough date.** The contract names neither, and "published" cannot
-   be checked without them.
+Two asks remain, neither of them editorial:
+
+1. **If he names telarchy.com, he says it was paid.** This is a real legal
+   obligation and not a courtesy. Undisclosed paid editorial promoting a
+   product is a per-se banned commercial practice in the EU (Unfair Commercial
+   Practices Directive 2005/29/EC, Annex I point 11) and in the UK (carried
+   into the DMCC Act 2024 from the CPUT Regulations 2008), and the US FTC
+   Endorsement Guides require disclosure of a material connection. There is no
+   de minimis threshold, so $20 is as covered as $20,000. Being paid through a
+   contract on Telarchy itself is still being paid; the disclosure line should
+   say so plainly. His audience would expect it regardless, which is why this
+   costs nothing to ask for.
+2. **Venue and rough date.** The contract names neither, and "published" cannot
+   be checked without them. This is verification, not editorial input.
 
 ## Payment
 
@@ -55,16 +55,14 @@ instance of the gap recorded in `docs/vision.md` ("The owner side reopens").
 
 > yeah let's do it, approving it.
 >
-> couple of things on the terms. the thing I'm actually paying for is people
-> finding the site, so can it link telarchy.com and say enough about what it is
-> that someone who's never heard of it could decide to try it. and say in the
-> post that it was paid, it's public on the site anyway so it'd come out, and
-> honestly your audience is the one audience where an undisclosed paid post
-> would kill it. with the disclosure your verdict is your own, if you think
-> it's bad say it's bad, still counts as delivered.
+> write whatever you want in it, that part is entirely up to you, I'm not going
+> to ask for anything specific. only thing is if you name telarchy.com then
+> you'd have to flag somewhere that it was paid, it's a contract on Telarchy so
+> it counts as paid promotion and undisclosed is actually a banned practice in
+> the uk/eu. one line is enough and your readers would want to know anyway.
 >
-> where are you publishing and roughly when? just so there's something to check
-> against.
+> where are you publishing it and roughly when? just so there's something to
+> check against.
 >
 > also heads up on the money, we settle USDC on Base and you put Solana, and
 > the managed instance has settlement off right now anyway, so I'll just send

@@ -177,9 +177,41 @@ existed (a marking convention, an anchored price replay, a voided market slot)
 were all server-side, and a frontend-only preview would have caught none of
 them.
 
-**It shares the production database.** A contract you post or a trade you place
-while testing on the beta is real and appears on the live floor. That is the
-price of testing against real data; there is no second database.
+**It has its own database** (owner ask 2026-08-20: "if we spawn a proposal
+there it should be spawned in a beta version of db"). `telarchy_beta` is a
+second database on the same Cloud SQL instance, mounted as
+`DATABASE_BETA_URL`, and it starts as a copy of production so the beta is a
+faithful place to test rather than an empty one.
+
+**The store is chosen per REQUEST, never per revision**, and that is the whole
+safety argument. The revision serving the beta today is the exact revision
+serving telarchy.com tomorrow, because publishing shifts traffic to it rather
+than rebuilding it; an environment variable saying "I am the beta" would ride
+through that promotion and point live traffic at the beta store. So
+`lib/request-env.ts` decides from the request itself: a path under `/beta/`,
+or a Host that is not a production host, is the beta, and everything else,
+including anything unclear, is production. Mistaking a beta request for a
+production one leaves visible test data on the live floor; the reverse
+silently drops a real trade into a store nobody reads, so the tie goes to
+production.
+
+`db/client.ts` carries the choice in async context and `db` resolves per
+query, so every existing call site is unchanged. `GET /api/public-config`
+reports which store answered, the response carries `X-Telarchy-Store`, and the
+beta stripe prints it: "own database", or "LIVE database" in bold if the beta
+is ever wired to production again.
+
+**Two things the beta still shares with production.** Authentication (`/api/auth/*`
+is not proxied, so sessions and user rows are production's), and therefore who
+you are signed in as. A participant row for that user is created in the beta
+store on first use.
+
+**Refilling it.** The beta drifts as you test, and production moves on without
+it. `scripts/refresh-beta-db.sh` replaces the beta store with a fresh copy of
+production; it drops the schema whole rather than truncating, so a table that
+exists only in the beta cannot outlive the experiment that made it. CI applies
+every migration to both databases in the same step, because a beta whose
+schema lags production fails on the code it exists to test.
 
 **And it shares the database's connection budget.** Cloud SQL `telarchy-pg` is
 a db-f1-micro with `max_connections=50` (flag set 2026-08-20; the default 25
@@ -187,8 +219,11 @@ took the site down that evening: prod and candidate revisions each opened pg's
 default 10-connection pool, instances failing their startup probe kept
 churning, and every slot was gone). The standing contract:
 
-- Each API instance opens **at most 5** pooled connections and gives up on an
-  acquire after 5 seconds instead of queuing forever
+- Each API instance opens **at most 4** pooled connections to production, plus
+  **1** to the beta store and only if a beta request ever reaches that instance
+  (the beta pool is created lazily, so an instance serving the public site
+  never opens it). Five per instance either way, the same ceiling as before the
+  split. Both give up on an acquire after 5 seconds instead of queuing forever
   (`functions/src/db/client.ts`); a starved request fails fast as a 500, it
   does not hang for a minute.
 - Cloud Run runs **at most 4 instances** per revision (`--max-instances 4` in
@@ -436,6 +471,14 @@ own two notifications are off while participant mail still goes out; it
 never fails the calling request either way. That is what local dev and the
 test suite run on, so nothing under test can write to a real person. The
 sending domain `telarchy.com` is verified in Resend.
+
+**Changing a service-level env var PUBLISHES whatever is latest.** `gcloud run
+services update --update-secrets=...` creates a new revision from the newest
+image and routes 100% of traffic to it, which walks straight through the
+publish gate (done by accident on 2026-08-20 while mounting the beta database:
+it promoted the unpublished Otto build to the live site). Add `--no-traffic`
+when you only mean to change configuration, then publish deliberately from the
+beta.
 
 `AI_GATEWAY_API_KEY` (Secret Manager secret `ai-gateway-api-key`) powers
 the floor's Ask field (`POST /api/marketplace/:idOrSlug/ask`). It is a
