@@ -493,6 +493,38 @@ A refused origin is refused by **omitting** the allow header, which is what a CO
 
 **A company's own documents reach the brief as sources.** LookPilot's data room (definitions, provenance, competition, the one-time exports its page charts) is published from `lookpilot-web/scripts/telarchy-publish-data-room.js` into a text source named "Data room", which the Public group can read. The live numbers are not duplicated into it: they already arrive as metrics with their history, and two copies of one number is how a page starts disagreeing with itself.
 
+### Who to pay (Implemented 2026-08-20)
+
+Approving a contract means sending real money to a stranger, and until now the
+only way to find out where was to read the database by hand. Payout details are
+stripped from every participant route unless the caller is that participant
+(`routes/agents.ts` deletes `payoutMethod`, `payoutHandle` and `walletAddress`
+on the way out), which is the right default and the reason this needed its own
+door rather than a loosened one.
+
+`GET /api/admin/participants` is that door, and it is **the only route anywhere
+that returns another participant's payout details**. Platform admin or master
+key only (`isPlatformAuthorized`), which a workspace admin does not pass and an
+agent key cannot reach: paying someone is a platform act, not a workspace one,
+and the money is the owner's own. Owner ask 2026-08-20: "make sure its admin
+gated, actually make it only at the /admin endpoint just to be sure."
+
+`?q=` matches account id, nickname or email. A **blank search answers only
+people who have payout details on file**, newest first, rather than dumping the
+table: a page that prints everyone's crypto address the moment it opens is a
+page you cannot screen-share.
+
+Each row carries the handle, the structured method behind it, and
+`approvedUsd` with the approved contracts that make it up, so "who do I owe and
+where do I send it" is one answer instead of two lookups that can disagree.
+Declined contracts are on the record and are not money, so they do not count.
+Nothing here is ever logged: a payout handle in a log line is a payout handle
+in every log sink downstream of it, permanently.
+
+On `/admin` it renders as a search box and a result list, with handles in mono
+at full length and never truncated, because a partly shown crypto address
+invites someone to retype the rest from memory.
+
 ### The notifications inbox (Implemented 2026-08-19)
 
 Email is an interruption a person tunes; it is a bad record. A participant who switched the new-contract alert off still needs somewhere to see that a contract went up, and a participant who never opens their mail still needs to find out that their contract was declined and why. So the floor's top bar carries a bell, and **the bell shows everything**:

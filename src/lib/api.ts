@@ -989,6 +989,23 @@ export const api = {
 
   /** Admin launch dashboard: floor visits, signups, waitlist. */
   getFloorStats: () => request('/api/admin/floor-stats'),
+
+  /** Who to pay and where. Platform admin only; see routes/admin.ts. */
+  findParticipants: (q: string) =>
+    request(`/api/admin/participants?q=${encodeURIComponent(q)}`) as Promise<{
+      participants: Array<{
+        id: string;
+        nickname: string | null;
+        email: string | null;
+        payoutHandle: string | null;
+        payoutMethod: Record<string, unknown> | null;
+        walletAddress: string | null;
+        platformOperated: boolean;
+        createdAt: string;
+        approvedUsd: number;
+        approvedContracts: Array<{ title: string; askUsd: number; approvedAt: string | null }>;
+      }>;
+    }>,
   /** Every question asked of a floor, newest first, with its answer. */
   getFloorQuestions: (limit = 100): Promise<{
     totalCostUsd: number;

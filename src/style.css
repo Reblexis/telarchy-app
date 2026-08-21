@@ -6381,6 +6381,72 @@ textarea.jobform-line--desc {
   overflow-y: auto;
 }
 
+/* Who to pay. Payout handles are the most sensitive thing this page shows, so
+   they render in mono at full length and are never truncated: a partly shown
+   crypto address is worse than none, because it invites someone to retype the
+   rest from memory. */
+.adm-payform { display: flex; gap: 0.5rem; margin: 0.6rem 0 1rem; max-width: 26rem; }
+
+.adm-payq {
+  flex: 1;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.adm-payq:focus { outline: none; border-color: var(--accent); }
+
+.adm-paygo {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.adm-paygo:hover, .adm-paygo:focus-visible { border-color: var(--accent); color: var(--accent); outline: none; }
+
+.adm-paylist { list-style: none; margin: 0; padding: 0; }
+
+.adm-payrow { padding: 0.7rem 0; border-top: 1px solid var(--border-color); }
+
+.adm-payhead { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+
+.adm-payname { font-weight: 600; font-size: 0.9rem; }
+
+.adm-paytag {
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 0.05rem 0.4rem;
+}
+
+.adm-payowed { margin-left: auto; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--accent); }
+
+.adm-paymeta { font-size: 0.78rem; color: var(--text-tertiary); margin-top: 0.15rem; }
+
+.adm-payhandle {
+  margin-top: 0.3rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.76rem;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.adm-paynone { color: var(--text-tertiary); font-family: inherit; font-style: italic; }
+
+.adm-paycon { margin: 0.35rem 0 0; padding-left: 1rem; font-size: 0.78rem; color: var(--text-secondary); }
+
 .adm-report-who {
   margin: 0.35rem 0 0;
   font-family: 'JetBrains Mono', monospace;

@@ -3,7 +3,7 @@ import { wrap } from '../lib/wrap';
 import { requireCapability } from '../middleware/roles';
 import { getActivityFeed, ACTIVITY_TYPES, type ActivityType } from '../services/activity';
 import { db } from '../db/client';
-import { agents, agentTraces, agentHeartbeats, agentControls, markets, workspaces, pageVisits, authUser, waitlist, floorQuestions } from '../db/schema';
+import { agents, agentTraces, agentHeartbeats, agentControls, markets, workspaces, pageVisits, authUser, waitlist, floorQuestions, proposals } from '../db/schema';
 import { and, desc, eq, gte, lte, inArray, lt, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { AppError } from '../lib/errors';
@@ -573,4 +573,93 @@ adminRouter.post('/publish', wrap(async (req, res) => {
   } catch (e) {
     throw new AppError((e as Error).message, 502);
   }
+}));
+
+
+/**
+ * Who to pay, and where. Platform admin only, and deliberately only here.
+ *
+ * The owner approves a contract and then has to send real money to a stranger.
+ * Until now that meant reading the database by hand, because payout details are
+ * stripped from every participant route that is not the participant themselves
+ * (`routes/agents.ts`), which is the right default and the reason this needed
+ * its own door rather than a loosened one.
+ *
+ * Owner ask 2026-08-20: "make sure its admin gated, actually make it only at
+ * the /admin endpoint just to be sure". So it lives under `/api/admin`, behind
+ * `isPlatformAuthorized`, which a workspace admin does not pass and an agent
+ * key cannot reach: it needs the master key or a browser session belonging to a
+ * platform admin. No workspace scoping, because paying someone is a platform
+ * act and the money is the owner's own.
+ *
+ * It carries what you need to actually send the money and nothing else: the
+ * handle, the structured method behind it, and what has been approved to them
+ * so the amount is not looked up in a second place. Not their trades, not their
+ * positions, not their balance history.
+ *
+ * Never logged. A payout handle in a log line is a payout handle in every log
+ * sink downstream of it, forever.
+ */
+adminRouter.get('/participants', wrap(async (req, res) => {
+  if (!(await isPlatformAuthorized(req))) {
+    throw new AppError('Platform admin or master key required', 403);
+  }
+  const q = typeof req.query.q === 'string' ? req.query.q.trim().toLowerCase() : '';
+  const rawLimit = Number(req.query.limit);
+  const limit = Number.isFinite(rawLimit) ? Math.min(Math.max(Math.trunc(rawLimit), 1), 100) : 25;
+
+  // A blank search answers the people most likely to be owed something rather
+  // than the whole table: everyone with a payout handle on file, newest first.
+  const rows = await db.select({
+    id: agents.id,
+    nickname: agents.nickname,
+    payoutHandle: agents.payoutHandle,
+    payoutMethod: agents.payoutMethod,
+    walletAddress: agents.walletAddress,
+    platformOperated: agents.platformOperated,
+    createdAt: agents.createdAt,
+    email: authUser.email,
+  }).from(agents)
+    .leftJoin(authUser, eq(agents.authUserId, authUser.id))
+    .orderBy(desc(agents.createdAt));
+
+  const matched = rows.filter(r => {
+    if (!q) return !!r.payoutHandle;
+    return [r.id, r.nickname, r.email].some(v => (v ?? '').toLowerCase().includes(q));
+  }).slice(0, limit);
+
+  if (matched.length === 0) { res.json({ participants: [] }); return; }
+
+  // What has been approved to each of them, so "who do I owe and how much" is
+  // one answer and not two lookups that can disagree.
+  const owed = await db.select({
+    proposedBy: proposals.proposedBy,
+    title: proposals.title,
+    askUsd: proposals.askUsd,
+    resolvedAt: proposals.resolvedAt,
+  }).from(proposals)
+    .where(and(
+      inArray(proposals.proposedBy, matched.map(m => m.id)),
+      eq(proposals.status, 'approved'),
+    ))
+    .orderBy(desc(proposals.resolvedAt));
+
+  const byPerson = new Map<string, typeof owed>();
+  for (const row of owed) {
+    if (!byPerson.has(row.proposedBy)) byPerson.set(row.proposedBy, []);
+    byPerson.get(row.proposedBy)!.push(row);
+  }
+
+  res.json({
+    participants: matched.map(m => {
+      const theirs = byPerson.get(m.id) ?? [];
+      return {
+        ...m,
+        approvedContracts: theirs.map(t => ({
+          title: t.title, askUsd: t.askUsd ?? 0, approvedAt: t.resolvedAt,
+        })),
+        approvedUsd: theirs.reduce((sum, t) => sum + (t.askUsd ?? 0), 0),
+      };
+    }),
+  });
 }));

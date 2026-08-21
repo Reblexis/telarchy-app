@@ -123,6 +123,9 @@ export function AdminPage() {
    *  failed to say, in the visitor's own words. */
   const [questions, setQuestions] = useState<Awaited<ReturnType<typeof api.getFloorQuestions>> | null>(null);
   const [error, setError] = useState('');
+  const [payQ, setPayQ] = useState('');
+  const [payRows, setPayRows] = useState<Awaited<ReturnType<typeof api.findParticipants>>['participants'] | null>(null);
+  const [payErr, setPayErr] = useState('');
 
   // The gate, and the whole of it on this side: ask the server who the
   // caller is, and send anyone else to the floor. Not an error screen -
@@ -182,6 +185,67 @@ export function AdminPage() {
           Human traffic and signups over the last fortnight, the people waiting
           for a reply, and everything anyone has reported.
         </p>
+
+        {/* Who to pay, and where (owner ask 2026-08-20). Approving a contract
+            means sending real money to a stranger, and their payout details are
+            stripped from every other route by design, so this is the one place
+            they surface. Search is explicit rather than a list on load: a page
+            that prints everybody's payout handle the moment it opens is a page
+            you cannot screen-share. */}
+        <section className="adm-block">
+          <h2 className="pubws-h2">Who to pay</h2>
+          <p className="adm-note">
+            Search by name, account id or email. Blank shows everyone who has payout
+            details on file. Platform admin only, and nowhere else in the API.
+          </p>
+          <form
+            className="adm-payform"
+            onSubmit={e => {
+              e.preventDefault();
+              setPayErr('');
+              api.findParticipants(payQ)
+                .then(r => setPayRows(r.participants))
+                .catch(err => { setPayErr((err as Error).message || 'Could not search'); setPayRows(null); });
+            }}
+          >
+            <input
+              className="adm-payq"
+              value={payQ}
+              onChange={e => setPayQ(e.target.value)}
+              placeholder="name, id or email"
+              aria-label="Find a participant"
+            />
+            <button className="adm-paygo" type="submit">Find</button>
+          </form>
+          {payErr && <p className="adm-err">{payErr}</p>}
+          {payRows && payRows.length === 0 && <p className="adm-empty">Nobody matches that.</p>}
+          {payRows && payRows.length > 0 && (
+            <ul className="adm-paylist">
+              {payRows.map(p => (
+                <li key={p.id} className="adm-payrow">
+                  <div className="adm-payhead">
+                    <span className="adm-payname">{p.nickname || p.id}</span>
+                    {p.platformOperated && <span className="adm-paytag">house</span>}
+                    {p.approvedUsd > 0 && (
+                      <span className="adm-payowed">${p.approvedUsd.toLocaleString('en-US')} approved</span>
+                    )}
+                  </div>
+                  {p.email && <div className="adm-paymeta">{p.email}</div>}
+                  <div className="adm-payhandle">
+                    {p.payoutHandle || <span className="adm-paynone">no payout details on file</span>}
+                  </div>
+                  {p.approvedContracts.length > 0 && (
+                    <ul className="adm-paycon">
+                      {p.approvedContracts.map((c, i) => (
+                        <li key={i}>${c.askUsd} &middot; {c.title}</li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         {error && <p className="adm-err">{error}</p>}
         {!stats && !error && <p className="adm-empty">Loading&hellip;</p>}
