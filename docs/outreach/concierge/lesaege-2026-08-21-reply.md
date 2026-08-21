@@ -12,10 +12,38 @@ the work. The work is picking the number and getting one real decision onto it.
 
 ## Pricing decision (Viktor, 2026-08-21)
 
-Free. Telarchy has zero paying customers and one reference floor, so the binding
-constraint is a second real operator with a name people recognise, not a few
-hundred dollars. Framed as "free while it is this early" rather than a discount,
-so a price later is not a surprise.
+The question raised was YC's "charge from day one", and it is the right
+question. The answer is not "network effects, so free": that is the
+free-for-the-logo trap. Two things decide it.
+
+**What we would want to charge is not access, it is liquidity.** Per
+`docs/vision.md` ("Decision quality scales with capital"), the operator's spend
+on Telarchy is meant to be the subsidy they put on the decisions they want
+priced, not a seat fee. That is the version of "charge from day one" that fits
+this product: real money out of his pocket, scaling with how badly he wants an
+answer, buying the thing he actually needs, since traders go where the subsidy
+is. Someone who funded a market about his own decision turns up to read the
+price.
+
+**We cannot take his money today.** The managed instance runs with USDC
+settlement disabled (`GET /api/agents/deposit-address` returns 503, checked
+2026-08-21), and `docs/vision.md` is explicit that managed credits are play
+money handed out by admins. So "he funds his own liquidity" would mean handing
+him free credits and calling it payment, which is worse than not charging: it
+is a fake price. Off-platform invoicing plus an admin credit grant is possible
+but is a heavy first move and delays a floor we want live for Season 0.
+
+So: no price in the first email, and the reason is a missing billing rail, not
+a belief that this should be free. The commitment gets taken in the currency we
+can actually collect, which is a named decision with a date that he agrees to
+put through the market before he makes it. That is the ask this draft makes
+binding rather than polite. The money conversation happens the first time a
+price he reads changes what he does.
+
+**Follow-up this creates:** the inability to accept money from a willing
+operator is the gap. Real-money-in on managed is legal-gated (`vision.md`,
+ToS section 6), so the near-term unblock is an invoice-plus-grant path a human
+runs, documented, rather than nothing.
 
 ## The number to propose
 
@@ -32,22 +60,27 @@ Subject: your number on Telarchy
 
 > Hi Clément,
 >
-> Yes, happy to set it up, and it is free while Telarchy is this early.
+> Yes, happy to set it up.
 >
-> How it works is you put up one number Kleros actually answers to, and then
+> The way it works is you put up one number Kleros actually answers to, and then
 > anyone, human or AI, can propose a paid job that would move it, and the market
 > prices the job before you decide. The obvious candidate is monthly disputes
 > arbitrated, because it is on-chain so nobody can argue about the value and it
-> is the number the whole thing rides on. PNK staked or active jurors work as
+> is the number the whole protocol rides on. PNK staked or active jurors work as
 > well if you would rather price one of those. Your call.
 >
-> What I need from you is the number, where it can be read from, and one
-> decision you are actually going to make in the next month or so. The decision
-> is the part that makes it worth anything, without it the market is just a
-> chart.
+> The thing I would ask for instead of money is a decision. Name one you are
+> actually going to make in the next month or so, with roughly when you will
+> make it, and agree to read the price before you decide. Without that the
+> market is just a chart, and I would rather not build you a chart.
 >
-> I should be honest about the state of it: it is early, it works, but you will
-> hit bugs.
+> I am not charging you for access, and I would rather say why than let it look
+> like a favour. The trader pool is still small, so you would be paying for thin
+> markets. When it is thick enough that a price you read changes what you do,
+> I will come back and ask for money.
+>
+> I should be honest about the state of it too: it is early, it works, but you
+> will hit bugs.
 >
 > One more thing. Season 0 starts tonight at midnight UTC, $1,000 of real money
 > to whoever's trading profit grows the most by 16 October, free to enter and no

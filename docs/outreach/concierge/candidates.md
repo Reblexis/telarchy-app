@@ -146,7 +146,7 @@ Ahoj Honzo, tady Viktor z From Code to Company na MFF. Viděl jsem spuštění U
 
 | Date | Name | Company | How they arrived | Status |
 |---|---|---|---|---|
-| 2026-08-21 | Clément Lesaege | Kleros (founder/CTO) | Replied to Viktor on X, followed back, then left `clement@kleros.io` on the "List your own number" tile at telarchy.com, 11:50 UTC | Reply drafted: `lesaege-2026-08-21-reply.md`. Proposed number is monthly disputes arbitrated. Free while early (Viktor, 2026-08-21). Not sent yet. |
+| 2026-08-21 | Clément Lesaege | Kleros (founder/CTO) | Replied to Viktor on X, followed back, then left `clement@kleros.io` on the "List your own number" tile at telarchy.com, 11:50 UTC | Reply drafted: `lesaege-2026-08-21-reply.md`. Proposed number is monthly disputes arbitrated. No price in the first email (Viktor, 2026-08-21): the ask is a named decision with a date, because managed settlement is off so we cannot collect real money anyway. Not sent yet. |
 
 Inbound beats every DM in this file on warmth, so it gets answered first.
 
