@@ -8,20 +8,21 @@ timeout: 60s
 goal-horizon: short
 goal-statement: |
   As the participant who posted a contract, I can fix its title, its
-  description and its price while nobody has traded it, and I am told plainly
-  that the price is fixed once someone has taken a side.
+  description and its price while it is pending; once someone has traded,
+  a price edit leaves the markets and every position exactly where trading
+  put them, disclosed by a revision.
 ---
 
 # Browse test: editing a contract you posted
 
 ## What this tests
 
-`PATCH /api/proposals/:id` and `GET /api/proposals/:id/revisions`, the two
-halves of the rule in `docs/market-integrity.md` I1b: the words edit in place
-and are published, the price is machinery and only moves before the first
-trade. Passing means a proposer can correct a listing without the market
-losing its price or its positions, and that a traded contract's price refuses
-to move.
+`PATCH /api/proposals/:id` and `GET /api/proposals/:id/revisions`, the rule in
+`docs/market-integrity.md` I1b: words and price both edit in place and are
+published; a price change re-anchors the pair only while nobody has traded,
+and once traded leaves the markets and positions exactly where trading put
+them. Passing means a proposer can correct a listing without the market losing
+its price or its positions.
 
 ## Setup
 
@@ -90,7 +91,7 @@ proposal's markets shows a NEW pair (different market ids), and the approved
 branch opens lower than in step 2, because a bigger ask burns more out of the
 metric.
 
-### T4. Once traded, the price is refused and the words are not
+### T4. Once traded, the price still edits but the markets stay put
 
 1. Trade the approved branch:
 
@@ -114,9 +115,11 @@ curl -s -X PATCH "$TT_API/api/proposals/$PID" \
   -H "Content-Type: application/json" -d '{"description":"Clarified after a question."}' | jq -r '.changed[0]'
 ```
 
-**Expected:** `409` for the price, with an error naming that the market has
-been traded and suggesting withdraw-and-repost; `description` for the words.
-The proposal still reads `askUsd: 300`.
+**Expected:** `200` for the price: the proposal now reads `askUsd: 400`, but
+`GET /api/predictions/markets?proposalId=$PID&kind=conditional` shows the SAME
+market ids as before the edit (no void, no respawn) and the traded position is
+still held. An `askUsd` revision row appears at
+`GET /api/proposals/$PID/revisions`. `description` for the words, as before.
 
 ### T5. The title may not disagree with the ask
 

@@ -25,7 +25,7 @@ import { DiscordButton } from '../components/DiscordButton';
 import { ManifoldButton } from '../components/ManifoldButton';
 import { ReportButton } from '../components/ReportButton';
 import { Logo } from '../components/Logo';
-import type { LeaderboardEntry, LimitOrder } from '../lib/api';
+import type { LeaderboardEntry, LimitOrder, PrizeSeason } from '../lib/api';
 import {
   buildHorizonViews, captionLabel, horizonById, metricLabelOf, priceSeriesIsInline, priceSeriesOf,
   settleDayOf, stepHorizon,
@@ -97,6 +97,10 @@ export function TradePage() {
   const [balance, setBalance] = useState<number | null>(null);
   const [ticketPreview, setTicketPreview] = useState<{ direction: 'higher' | 'lower'; newProb: number } | null>(null);
   const [leaders, setLeaders] = useState<LeaderboardEntry[]>([]);
+  // Non-null while a season is running and `leaders` holds its standings, so
+  // the rail can title itself with the season and label the number a season
+  // score (owner decision 2026-08-22).
+  const [seasonBoard, setSeasonBoard] = useState<PrizeSeason | null>(null);
   // Selecting a job switches the ONE market view to that job's conditional
   // market (owner decision 2026-08-09: no second market underneath). null
   // means the baseline market is showing.
@@ -241,8 +245,12 @@ export function TradePage() {
     if (!idOrSlug) return;
     // Enough rows for the rail's top ten AFTER dropping never-traded
     // participants (owner direction 2026-08-17); the rail slices to ten.
-    api.getLeaderboard(30, idOrSlug)
-      .then(r => setLeaders(r.participants ?? []))
+    // While a season is running this returns the SEASON board instead of the
+    // workspace's all-time one (owner decision 2026-08-22: the floor is the
+    // competition while it runs); the season board is global, so idOrSlug is
+    // ignored in that mode.
+    api.getFloorLeaders(30, idOrSlug)
+      .then(r => { setLeaders(r.participants ?? []); setSeasonBoard(r.seasonMode ? r.season : null); })
       .catch(e => console.error('leaderboard fetch failed:', e));
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -745,7 +753,7 @@ export function TradePage() {
         />
       )}
       <main className="pubws-main pubws-main--floor">
-        <LeaderboardRail entries={leaders} contractors={ws?.topContractors} unit={unit} signedIn={!!user} meId={myParticipantId} />
+        <LeaderboardRail entries={leaders} contractors={ws?.topContractors} unit={unit} signedIn={!!user} meId={myParticipantId} seasonBoard={seasonBoard} />
         <div className="pubws-center">
         {/* The company IS the page (owner direction 2026-08-18): a cold
             visitor arrives from a link about this business, not about

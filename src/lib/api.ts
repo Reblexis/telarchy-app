@@ -1,4 +1,5 @@
 import type { TimePreference } from '../types';
+import { pickCurrentSeason } from './season-clock';
 
 export interface ActivityItem {
   id: string;
@@ -832,6 +833,37 @@ async function requestWithWorkspace(
   return data;
 }
 
+/**
+ * Normalize a running-season standing into the shape the trader rail and
+ * /leaderboard already render, so the season board reuses one rendering path
+ * (owner decision 2026-08-22: the floor becomes the season board). The season
+ * SCORE takes the `totalEarnings` slot the row prints, the projected payout
+ * takes the prize slot, and `seasonEntered` is true because a season standing
+ * is by definition an entrant. `totalTrades` is set to 1 so the rail's
+ * "drop never-traded rows" filter keeps every entrant: on the season board,
+ * entering IS the qualification, not a trade count. The all-time-only fields
+ * (calibration, accuracy, resolvedMarkets, lastTradeAt) have no meaning per
+ * season and are left null/zero; the season header tells the reader the
+ * number is a season score, and callers hide the trades sub-line in that mode.
+ */
+export function seasonStandingToEntry(s: SeasonStanding): LeaderboardEntry {
+  return {
+    rank: s.rank,
+    id: s.id,
+    nickname: s.nickname,
+    image: s.image ?? null,
+    manifoldUsername: s.manifoldUsername ?? null,
+    calibration: null,
+    accuracy: null,
+    totalEarnings: s.score ?? 0,
+    resolvedMarkets: 0,
+    totalTrades: 1,
+    lastTradeAt: null,
+    seasonEntered: true,
+    seasonPrizeUsd: s.projectedPrizeUsd ?? s.prizeUsd ?? 0,
+  };
+}
+
 export const api = {
   getMetrics: () => request('/api/metrics'),
   createMetric: (body: { name: string; description: string; value: number; formula: string; timePreference?: TimePreference; marketRangeMax?: number }) =>
@@ -949,9 +981,10 @@ export const api = {
   getProposal: (id: string) => request(`/api/proposals/${id}`),
   createProposal: (body: { title: string; description: string; liquiditySubsidy?: number; askUsd?: number; payoutHandle?: string }) =>
     request('/api/proposals', { method: 'POST', body: JSON.stringify(body) }),
-  /** Edit a contract's definition: its words in place, its price only while
-   *  the pair is untraded (docs/market-integrity.md, I1b). The proposer or a
-   *  workspace manager; the server decides which. */
+  /** Edit a contract's definition: words and price both, published as
+   *  revisions; a traded pair keeps its markets and positions untouched
+   *  (docs/market-integrity.md, I1b). The proposer or a workspace manager;
+   *  the server decides which. */
   /** What is published and what is waiting (platform admin only). */
   getRelease: () => request('/api/admin/release') as Promise<{
     serving: string | null;
@@ -1246,6 +1279,28 @@ export const api = {
     const res = await fetch(`${API_BASE}/api/leaderboard?limit=${limit}${scope}`);
     if (!res.ok) throw new Error(`Leaderboard request failed: ${res.status}`);
     return res.json();
+  },
+  /**
+   * What the floor's trader board should show RIGHT NOW (owner decision
+   * 2026-08-22: "become the season board"). While a season is running the
+   * board IS the competition: the season standings, ranked by season score
+   * (growth since baseline), entrants only, over every public workspace.
+   * With no running season it is the all-time board as before, scoped to the
+   * workspace if one is named.
+   *
+   * One function answers "which board", so the floor rail and /leaderboard
+   * can never disagree about whether a season is on. Returns the season it
+   * decided on so the caller can label the header without a second fetch.
+   */
+  getFloorLeaders: async (limit = 100, workspaceIdOrSlug?: string): Promise<{ participants: LeaderboardEntry[]; seasonMode: boolean; season: PrizeSeason | null }> => {
+    const { seasons } = await api.getSeasons();
+    const season = pickCurrentSeason(seasons);
+    if (season?.status === 'running') {
+      const { participants } = await api.getSeasonStandings(season.id, limit);
+      return { participants: participants.map(seasonStandingToEntry), seasonMode: true, season };
+    }
+    const { participants } = await api.getLeaderboard(limit, workspaceIdOrSlug);
+    return { participants, seasonMode: false, season };
   },
   /** One market's consensus history on a public workspace: the series the
    *  chart draws, addressable per market so a proposal's conditional branch

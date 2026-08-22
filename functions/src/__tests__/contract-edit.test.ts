@@ -1,12 +1,12 @@
 /**
- * Editing a contract: what a proposer may change, and what the market's
- * memory refuses to let them change (docs/market-integrity.md, I1b).
+ * Editing a contract: what a proposer may change, and what the market keeps
+ * (docs/market-integrity.md, I1b).
  *
- * The split mirrors the metric definition's: the words are edited in place
- * and published, the price is machinery. The price is machinery because the
- * approved branch OPENS at the baseline minus the ask, so moving the ask
- * after someone has taken a side silently reprices a deal they already
- * bought.
+ * Words and price both edit in place and are published as revisions. The
+ * ask re-anchors an untraded pair (void and respawn at the new number, free
+ * because nobody is in it); a traded pair is never touched, since taking it
+ * away from the people in it is what I2 forbids. Disclosure, not
+ * prevention: the revision row is the record a holder trades on.
  */
 
 jest.mock('../db/client', () => require('./harness/test-db'));
@@ -17,7 +17,6 @@ import { agents, markets, metrics, positions, proposals, proposalRevisions, trad
 import { toUnits } from '../lib/validation';
 import { initialPool } from '../lib/amm';
 import { editProposalDefinition, proposalRevisionsFor } from '../services/proposals';
-import { AppError } from '../lib/errors';
 
 const WS = 'ws-contract-edit';
 const PROPOSER = 'agent-proposer';
@@ -151,17 +150,31 @@ describe('the price is machinery', () => {
     expect(voided.length).toBeGreaterThan(0);
   });
 
-  test('changing the ask after anyone has traded is refused', async () => {
+  test('changing the ask after anyone has traded keeps the pair and its positions', async () => {
+    // Owner decision 2026-08-22: the ask stays editable after trading. The
+    // markets are NOT re-anchored, because voiding a traded pair takes it
+    // away from the people in it; the revision row is the disclosure.
     await seedPair({ traded: true });
-    await expect(editProposalDefinition(PROPOSAL, WS, {
+    const result = await editProposalDefinition(PROPOSAL, WS, {
       title: '$300: rewrite the store page', askUsd: 300,
-    }, asProposer)).rejects.toBeInstanceOf(AppError);
-    await expect(editProposalDefinition(PROPOSAL, WS, {
-      title: '$300: rewrite the store page', askUsd: 300,
-    }, asProposer)).rejects.toMatchObject({ status: 409 });
-    // And nothing moved: the deal people priced is the deal on the row.
-    expect((await reload()).askUsd).toBe(200);
-    expect((await reload()).title).toBe('$200: rewrite the store page');
+    }, asProposer);
+    expect(result.changed).toContain('askUsd');
+    expect(result.reanchored).toBe(false);
+    expect((await reload()).askUsd).toBe(300);
+
+    // The pair stands exactly where trading put it: nothing voided, the
+    // position still held.
+    const voided = await db.select().from(markets)
+      .where(and(eq(markets.proposalId, PROPOSAL), eq(markets.voided, true)));
+    expect(voided).toHaveLength(0);
+    const held = await db.select().from(positions).where(eq(positions.marketId, 'mkt-approved'));
+    expect(held).toHaveLength(1);
+
+    // And the move is on the record.
+    const revs = await proposalRevisionsFor(PROPOSAL, WS);
+    const ask = revs.find(r => r.field === 'askUsd')!;
+    expect(ask.oldValue).toBe('200');
+    expect(ask.newValue).toBe('300');
   });
 
   test('the words are still editable on a traded contract', async () => {

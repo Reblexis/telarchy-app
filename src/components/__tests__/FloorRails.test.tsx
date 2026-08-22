@@ -124,4 +124,26 @@ describe('the season prize beside an entrant', () => {
     await findByText('trader1');
     expect(container.querySelector('.pubws-lb-prize')).toBeNull();
   });
+
+  test('season-board mode titles the block with the season, not "Top traders"', async () => {
+    getSeasons.mockResolvedValue({ seasons: [{ ...draftSeason, status: 'running' }] });
+    const running = { ...draftSeason, status: 'running' };
+    const { findByText, queryByText } = render(
+      <MemoryRouter><LeaderboardRail entries={[entrant(500)]} seasonBoard={running} /></MemoryRouter>,
+    );
+    expect(await findByText('Season 0 standings')).toBeInTheDocument();
+    expect(queryByText('Top traders')).toBeNull();
+  });
+
+  test('season-board mode shows a dash for an entrant outside the paying places', async () => {
+    getSeasons.mockResolvedValue({ seasons: [{ ...draftSeason, status: 'running' }] });
+    const running = { ...draftSeason, status: 'running' };
+    const { findByText, queryByText } = render(
+      <MemoryRouter><LeaderboardRail entries={[entrant(0)]} seasonBoard={running} /></MemoryRouter>,
+    );
+    expect(await findByText('—')).toBeInTheDocument();
+    // On the season board every row is an entrant, so the redundant "in" chip
+    // is replaced by the same dash the /season standings use.
+    expect(queryByText('in')).toBeNull();
+  });
 });

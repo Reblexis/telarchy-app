@@ -90,15 +90,18 @@ that prices it, so the split is the same one I1 draws for a metric:
   The pair keeps its price, its pool and every position; the change writes an
   append-only `proposal_revisions` row, rendered on the floor beside the
   contract, so someone already holding can see the goalposts move.
-- **The price is machinery.** The ask is not prose: the approved branch OPENS
-  at the baseline minus the ask (`createConditionalMarkets`), so the number is
-  burned into what the market was anchored to. Changing it after anyone has
-  traded would silently reprice a deal people already took a side on. So:
-  while the pair is untraded, changing the ask **re-anchors** it (the branch
-  markets are voided and respawned at the new number, which costs nothing
-  because nobody is in them); once anyone has traded either branch, the edit
-  is refused with 409 naming the ask and the market, exactly as a metric's
-  range is.
+- **The price edits like the words do (revised 2026-08-22, Viktor: "i want
+  the contractors to be able to edit the price even when it has been
+  traded").** While the pair is untraded, changing the ask **re-anchors** it
+  (the branch markets are voided and respawned at the new number, which costs
+  nothing because nobody is in them). Once anyone has traded either branch,
+  the ask still changes, but the markets, their pools and every position are
+  left exactly where trading put them: no void, no respawn, no re-anchor,
+  because taking the pair away from people who are in it is what I2 forbids.
+  The protection is the same one I1 settled on for a metric's words:
+  disclosure, not prevention. The change writes its append-only
+  `proposal_revisions` row, rendered beside the contract, so someone already
+  holding can see the deal's number move and trade on the new one.
 - **The title may not disagree with the ask.** A paid contract's title carries
   its price by convention ("$200: rewrite the store page"), and two places
   stating one number is how they end up stating two. An edit whose title names

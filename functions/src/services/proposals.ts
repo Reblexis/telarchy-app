@@ -646,13 +646,16 @@ function askInTitle(title: string): number | null {
 }
 
 /**
- * Edit a contract's definition: its words in place, its price by re-anchoring.
+ * Edit a contract's definition. Words and price both edit in place and are
+ * published as revisions (I1b in docs/market-integrity.md; the traded-ask
+ * rule revised 2026-08-22, owner).
  *
- * The split is I1b in docs/market-integrity.md, and it is the same one the
- * metric definition draws. Words are what a trader reads, so they are edited
- * in place and the change is published. The ask is what the approved branch
- * was ANCHORED at, so it can only move while nobody has taken a side; after
- * that it is machinery and the edit is refused rather than applied quietly.
+ * The ask is what the approved branch was ANCHORED at, so moving it while
+ * nobody has taken a side re-anchors the pair: void and respawn at the new
+ * number, free because nobody is in it. Once anyone has traded, the pair is
+ * left exactly where trading put it, because taking a market away from the
+ * people in it is what I2 forbids; the append-only revision row beside the
+ * contract is what tells a holder the deal's number moved.
  *
  * Returns the fields that actually changed, so a caller can tell an edit from
  * a re-save of identical text.
@@ -698,11 +701,12 @@ export async function editProposalDefinition(
   if (nextAsk !== currentAsk) changed.push('askUsd');
   if (changed.length === 0) return { changed, reanchored: false };
 
-  // The ask is burned into the approved branch's opening anchor, so moving it
-  // means the pair must open again at the new number. That is only free while
-  // nobody is in it; after the first trade the deal has been priced and the
-  // edit is refused (docs/market-integrity.md, I1b).
-  let reanchored = false;
+  // The ask is burned into the approved branch's opening anchor. Re-anchoring
+  // (void and respawn at the new number) is only free while nobody is in the
+  // pair; after the first trade the markets stay where trading put them and
+  // only the number on the contract moves, disclosed by the revision row
+  // (docs/market-integrity.md, I1b, revised 2026-08-22).
+  let pairIsTraded = false;
   if (changed.includes('askUsd')) {
     const pairMarkets = await db.select({ id: markets.id }).from(markets)
       .where(and(
@@ -716,13 +720,7 @@ export async function editProposalDefinition(
           eq(trades.workspaceId, workspaceId),
           inArray(trades.marketId, pairMarkets.map(m => m.id)),
         ));
-      if ((traded?.n ?? 0) > 0) {
-        throw new AppError(
-          `This contract's market has been traded, so its price is what people took a side on. `
-          + `The words can still be edited; the ask cannot. Withdraw it and post a new one to change the price.`,
-          409,
-        );
-      }
+      pairIsTraded = (traded?.n ?? 0) > 0;
     }
   }
 
@@ -746,10 +744,12 @@ export async function editProposalDefinition(
     createdAt: new Date(stamp.getTime() + i),
   })));
 
-  if (changed.includes('askUsd')) {
+  let reanchored = false;
+  if (changed.includes('askUsd') && !pairIsTraded) {
     // Untouched pair, new number: void and respawn so the approved branch
     // opens where the new deal actually starts. Nobody is refunded anything
-    // they did not put in, because nobody put anything in.
+    // they did not put in, because nobody put anything in. A traded pair is
+    // deliberately left alone: its price is what people took a side on.
     await voidProposalMarkets(proposalId, workspaceId);
     await createConditionalMarkets(proposalId, workspaceId, {
       contributions: subsidyContributionsOf(proposal),

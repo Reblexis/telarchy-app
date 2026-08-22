@@ -6,7 +6,7 @@ vi.mock('../../lib/api', () => ({
   api: {
     getSeasons: vi.fn(),
     getMySeason: vi.fn(),
-    getLeaderboard: vi.fn(),
+    getFloorLeaders: vi.fn(),
     getPublicWorkspaces: vi.fn(),
     getMarketplaceWorkspace: vi.fn(),
   },
@@ -44,47 +44,88 @@ const trader = (overrides: Record<string, unknown>) => ({
 
 const renderPage = () => render(<MemoryRouter><LeaderPage /></MemoryRouter>);
 
+// getFloorLeaders is the one call that decides all-time-vs-season and returns
+// the season it chose. `seasonMode:false` is the all-time board (with an
+// optional draft/settled season for the banner); `true` is the running-season
+// standings board.
+const mockBoard = (participants: unknown[], seasonMode = false, season: unknown = draftSeason) =>
+  vi.mocked(api.getFloorLeaders).mockResolvedValue({ participants, seasonMode, season } as never);
+
 beforeEach(() => {
-  vi.mocked(api.getSeasons).mockResolvedValue({ seasons: [draftSeason] } as never);
   vi.mocked(api.getPublicWorkspaces).mockResolvedValue([] as never);
+  vi.mocked(api.getMySeason).mockResolvedValue({ entered: false } as never);
 });
 
-describe('season prize beside an entrant', () => {
+describe('the season chip on the all-time board (draft season)', () => {
   test('before the season starts, an entrant shows a neutral marker, not a dollar', async () => {
     // No baselines exist yet, so there is no rank to hand a prize on. Painting
     // the $500 top rung on every entrant read as "this person wins $500" when
     // two people were entered (owner report 2026-08-21). Neutral until it runs.
-    vi.mocked(api.getLeaderboard).mockResolvedValue({
-      participants: [trader({ id: 'in', nickname: 'entrant', seasonEntered: true, seasonPrizeUsd: null })],
-    } as never);
+    mockBoard([trader({ id: 'in', nickname: 'entrant', seasonEntered: true, seasonPrizeUsd: null })]);
     renderPage();
     expect(await screen.findByText('entered')).toBeInTheDocument();
     expect(screen.queryByText('$500')).toBeNull();
   });
 
-  test('while the season runs, an entrant in the money shows the projected payout', async () => {
-    vi.mocked(api.getLeaderboard).mockResolvedValue({
-      participants: [trader({ id: 'in', nickname: 'entrant', seasonEntered: true, seasonPrizeUsd: 250 })],
-    } as never);
+  test('an entrant in the money shows the projected payout', async () => {
+    mockBoard([trader({ id: 'in', nickname: 'entrant', seasonEntered: true, seasonPrizeUsd: 250 })]);
     renderPage();
     expect(await screen.findByText('$250')).toBeInTheDocument();
   });
 
-  test('while the season runs, an entrant outside the rungs shows entered, never $0', async () => {
-    vi.mocked(api.getLeaderboard).mockResolvedValue({
-      participants: [trader({ id: 'in', nickname: 'entrant', seasonEntered: true, seasonPrizeUsd: 0 })],
-    } as never);
+  test('an entrant outside the rungs shows entered, never $0', async () => {
+    mockBoard([trader({ id: 'in', nickname: 'entrant', seasonEntered: true, seasonPrizeUsd: 0 })]);
     renderPage();
     expect(await screen.findByText('entered')).toBeInTheDocument();
     expect(screen.queryByText('$0')).toBeNull();
   });
 
   test('a trader who has not entered carries no season chip', async () => {
-    vi.mocked(api.getLeaderboard).mockResolvedValue({
-      participants: [trader({ id: 'out', nickname: 'bystander', seasonEntered: false, seasonPrizeUsd: null })],
-    } as never);
+    mockBoard([trader({ id: 'out', nickname: 'bystander', seasonEntered: false, seasonPrizeUsd: null })]);
     const { container } = renderPage();
     await screen.findByText('bystander');
     expect(container.querySelector('.lbp-prize')).toBeNull();
+  });
+});
+
+describe('the board becomes the season standings while a season runs', () => {
+  const runningSeason = { ...draftSeason, status: 'running' };
+  // What getFloorLeaders returns in season mode: standings already adapted to
+  // the leaderboard-entry shape (season score in totalEarnings, projected
+  // payout in seasonPrizeUsd, totalTrades synthesised so the row survives the
+  // never-traded filter).
+  const standing = (o: Record<string, unknown>) =>
+    trader({ seasonEntered: true, totalTrades: 1, resolvedMarkets: 0, ...o });
+
+  test('the heading and lead name the season, not lifetime profit', async () => {
+    mockBoard([standing({ id: 'a', nickname: 'kai', totalEarnings: 12, seasonPrizeUsd: 500 })], true, runningSeason);
+    renderPage();
+    expect(await screen.findByText('Standings')).toBeInTheDocument();
+    expect(screen.getByText(/ranked by how much each/i)).toBeInTheDocument();
+    // The lifetime "Traders" heading must be gone in season mode.
+    expect(screen.queryByText('Traders')).toBeNull();
+  });
+
+  test('an in-the-money entrant shows the projected prize', async () => {
+    mockBoard([standing({ id: 'a', nickname: 'kai', totalEarnings: 12, seasonPrizeUsd: 500 })], true, runningSeason);
+    renderPage();
+    expect(await screen.findByText('$500')).toBeInTheDocument();
+  });
+
+  test('an entrant outside the paying places shows a dash, not "entered"', async () => {
+    mockBoard([standing({ id: 'a', nickname: 'kai', totalEarnings: 0, seasonPrizeUsd: 0 })], true, runningSeason);
+    renderPage();
+    await screen.findByText('kai');
+    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.queryByText('entered')).toBeNull();
+  });
+
+  test('the lifetime trades sub-line is hidden in season mode', async () => {
+    mockBoard([standing({ id: 'a', nickname: 'kai', totalEarnings: 0, seasonPrizeUsd: 0, totalTrades: 1 })], true, runningSeason);
+    const { container } = renderPage();
+    await screen.findByText('kai');
+    // The sub-line shows lifetime trades/accuracy; the synthesised "1 trade" is
+    // meaningless per-season, so the whole line is gone in season mode.
+    expect(container.querySelector('.lbp-sub')).toBeNull();
   });
 });

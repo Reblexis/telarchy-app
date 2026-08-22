@@ -47,7 +47,7 @@ function contractorSubline(c: PublicContractor): string {
   return parts.join(' · ');
 }
 
-export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn = false, meId = null }: {
+export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn = false, meId = null, seasonBoard = null }: {
   entries: LeaderboardEntry[];
   contractors?: PublicContractor[];
   /** The hero metric's currency prefix ('$' or ''), so a contractor's priced
@@ -59,6 +59,11 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
   /** This visitor's participant id, so their own row can be marked and, when
    *  they are outside the ten shown, pinned underneath. */
   meId?: string | null;
+  /** Non-null when `entries` are a running season's standings, not the
+   *  all-time board (owner decision 2026-08-22: the floor becomes the season
+   *  board while a season runs). Retitles the block with the season and marks
+   *  the number a season score. */
+  seasonBoard?: PrizeSeason | null;
 }) {
   // A row for someone who has never traded is a name and a zero: noise.
   // Ten, not five (owner direction 2026-08-17): five made the board look
@@ -97,8 +102,15 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
       // the moment the season starts and a score exists to rank on.
       return <span className="pubws-lb-prize pubws-lb-prize--in" title={`Entered ${season?.name ?? 'the season'}; prizes are set once it starts`}>entered</span>;
     }
-    return e.seasonPrizeUsd > 0
-      ? <span className="pubws-lb-prize" title="What this season would pay at the current standing">${e.seasonPrizeUsd.toLocaleString()}</span>
+    if (e.seasonPrizeUsd > 0) {
+      return <span className="pubws-lb-prize" title="What this season would pay at the current standing">${e.seasonPrizeUsd.toLocaleString()}</span>;
+    }
+    // Outside the paying rungs. On the season board every row is an entrant, so
+    // a column of "in" chips is noise; show the same "—" the /season standings
+    // use. On the all-time board "in" is the signal that this trader (among
+    // non-entrants) is in the season at all.
+    return seasonBoard
+      ? <span className="pubws-lb-prize pubws-lb-prize--in" title="Outside the paying places at the current standing">—</span>
       : <span className="pubws-lb-prize pubws-lb-prize--in" title="Entered the season, currently outside the prizes">in</span>;
   };
   // The contractors block shows whenever the workspace exposes it (Open
@@ -109,7 +121,10 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
     <aside className="pubws-rail pubws-rail--left" aria-label="Leaders">
       {hasTraders && (
         <section className="pubws-lb-block">
-          <h2 className="pubws-h2">Top traders</h2>
+          {/* In season mode the block IS the competition board, so it names
+              the season and the number below is a season score, not lifetime
+              profit (owner decision 2026-08-22). */}
+          <h2 className="pubws-h2">{seasonBoard ? `${seasonBoard.name} standings` : 'Top traders'}</h2>
           <ol className="pubws-lb">
             {entries.map((e, i) => {
               const name = e.nickname || 'anonymous';
