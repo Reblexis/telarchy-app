@@ -10,10 +10,12 @@ module.exports = {
   transformIgnorePatterns: [
     '/node_modules/(?!(better-auth|@better-auth|@better-fetch|better-call|nanostores|@simplewebauthn|jose|zod)/)',
   ],
-  // ts-jest never frees transpiled-module memory, so a worker grows past
-  // 2.5GB over a long run. The CI runners share Viktor's 31GB laptop with
-  // his desktop session; workers above this limit are recycled between test
-  // files, which keeps a 2-worker shard around 3GB instead of 6GB.
+  // Everything that runs this suite (CI runners, coding agents, hooks)
+  // shares Viktor's 12-core 31GB laptop with his desktop session. Jest's
+  // default of cores-1 workers at ts-jest's memory appetite (a worker never
+  // frees transpiled-module memory and grows past 2.5GB) has frozen the
+  // whole machine twice, so: two workers, recycled when they exceed 1.5GB.
+  maxWorkers: 2,
   workerIdleMemoryLimit: '1.5G',
 };
 
