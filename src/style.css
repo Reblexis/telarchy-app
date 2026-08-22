@@ -7063,53 +7063,203 @@ textarea.jobform-line--desc {
 .mkt-season-cta:hover { opacity: 0.9; }
 .mkt-season-cta:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
-/* Otto as the page rather than the corner (operator door, 2026-08-22).
-   `.otto` is a fixed dock beside a market; on /manage he IS the content, so
-   this unpins him into the column. Same panel, same head, same log: one Otto
-   with two placements, never a second component to keep in sync. */
-.otto--page {
-  position: static;
-  width: 100%;
-  max-height: none;
-  /* The column that holds him centres everything (.pubws-act), which turned
-     his opening line into ragged centred prose and left the openers hanging
-     under it. A conversation is read from the left. */
-  text-align: left;
+
+/* ---------------------------------------------------------------------------
+   The operator door's transcript (2026-08-22).
+
+   Otto sets a floor up here, and the first build borrowed the floor's corner
+   dock for it: a rounded card with a shadow, bubbles, a pill composer. That
+   panel is right hovering beside a market and wrong as a page, where it was
+   the one object that came from another product (owner: "still the chat
+   interface looks weird").
+
+   This is the same conversation set as an interview record. Speaker in the
+   margin in the house label, a hairline over every turn, one column. Otto is
+   in the display serif and the operator in the body sans, which is the whole
+   speaker distinction: no bubble, no avatar, no colour. The accent is spent
+   once, on the receipt, because a floor existing at an address is the only
+   fact among all this talk.
+   ------------------------------------------------------------------------ */
+.setup { text-align: left; }
+
+.setup-turn {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr;
+  gap: 0 1.4rem;
+  align-items: baseline;
+  padding: 0.95rem 0 1.05rem;
+  border-top: 1px solid var(--border-color);
 }
-/* Tall enough not to jump on the first answer, short enough not to read as an
-   empty box: the dock's own height, and it grows with the conversation. */
-.otto--page .otto-log { min-height: 9rem; }
-/* The phone rule below turns `.otto` into a bottom sheet. On the operator
-   door he is the page, so it must not reach him: without this he would pin
-   himself to the bottom of the viewport over his own page. */
-@media (max-width: 560px) {
-  .otto--page {
-    position: static;
-    max-height: none;
-    border-radius: 16px;
-  }
+.setup-turn:first-child { border-top: none; padding-top: 0.2rem; }
+
+/* The house label, right-aligned so it hugs the words it names: a margin note
+   on a manuscript, not a column header. */
+.setup-who {
+  justify-self: end;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  white-space: nowrap;
 }
 
-/* The human door under Otto (operator door, 2026-08-22): one quiet line, not
-   a second call to action. It used to be the page's only offer and carried a
-   cream CTA to match; beside a conversation that can actually open the floor,
-   the same button read as the louder of two doors. */
-.pubws-act--aside { margin-top: 1rem; }
-.pubws-asideform {
+.setup-said {
+  margin: 0;
+  /* The model writes its own line breaks and never markdown, so newlines are
+     honoured and nothing else is. */
+  white-space: pre-wrap;
+}
+.setup-said--otto {
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+}
+.setup-said--you {
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.setup-said--err { font-size: 0.85rem; color: var(--negative, #c2544d); }
+
+/* Openers are the first line of the transcript someone did not have to type,
+   so they are set as lines rather than as pills. */
+.setup-openers { margin: 0; padding: 0; list-style: none; }
+.setup-openers li + li { margin-top: 0.15rem; }
+.setup-opener {
+  padding: 0.15rem 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+}
+.setup-opener:hover { color: var(--text-primary); border-bottom-color: var(--text-tertiary); }
+.setup-opener:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* Thinking is one rule breathing, in his own row, where his words will land. */
+.setup-thinking {
+  display: block;
+  width: 3.2rem;
+  height: 1px;
+  margin: 0.6rem 0;
+  background: var(--text-tertiary);
+  animation: setup-breathe 1.1s ease-in-out infinite;
+}
+@keyframes setup-breathe { 0%, 100% { opacity: 0.25; width: 1.6rem; } 50% { opacity: 0.9; width: 3.2rem; } }
+@media (prefers-reduced-motion: reduce) {
+  .setup-thinking { animation: none; opacity: 0.6; }
+}
+
+/* The input IS the next row: YOU is already in its margin, and the rule under
+   the words is the same hairline every other turn sits on. */
+.setup-ask { border-top: 1px solid var(--border-color); align-items: center; }
+.setup-line {
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.6rem;
+  border-bottom: 1px solid var(--border-strong);
 }
-.pubws-asideform input {
-  min-width: 12rem;
-  padding: 0.35rem 0.6rem;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
+.setup-line:focus-within { border-bottom-color: var(--accent); }
+.setup-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.35rem 0;
+  border: none;
   background: none;
-  color: var(--text-primary);
   font: inherit;
-  font-size: 0.82rem;
+  font-size: 0.95rem;
+  color: var(--text-primary);
 }
-.pubws-asideform input:focus-visible { outline: none; border-color: var(--border-strong); }
+/* The page's global input styling draws a rounded box and a focus ring. In a
+   transcript the rule under the words IS the field, and a box inside it reads
+   as a second control. */
+.setup-input,
+.setup-input:focus,
+.setup-input:focus-visible {
+  outline: none;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+.setup-input::placeholder { color: var(--text-tertiary); }
+.setup-send {
+  flex: none;
+  width: 1.6rem;
+  height: 1.6rem;
+  margin-bottom: 0.2rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: none;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.setup-send:hover:not(:disabled) { background: var(--text-primary); color: var(--bg-primary); border-color: var(--text-primary); }
+.setup-send:disabled { color: var(--text-tertiary); border-color: var(--border-color); cursor: default; }
+
+/* The receipt. Everything above is talk; this is a floor that exists. */
+.setup-made {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr;
+  gap: 0 1.4rem;
+  padding: 1rem 0 1.1rem;
+  border-top: 1px solid var(--accent);
+}
+.setup-made-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+.setup-made-at {
+  margin: 0.2rem 0 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: var(--text-tertiary);
+}
+.setup-made-go {
+  font-size: 0.82rem;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  border-bottom: 1px solid var(--accent);
+  text-decoration: none;
+}
+
+/* Aligned with the words, not with the page: it is a footnote to the
+   conversation, and the margin column is where the speakers live. */
+.setup-note {
+  margin: 0.9rem 0 0;
+  padding-left: calc(4.5rem + 1.4rem);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+}
+
+/* On a phone the margin becomes a line of its own: 4.5rem of gutter beside a
+   sentence leaves the sentence in a trench. */
+@media (max-width: 560px) {
+  .setup-turn, .setup-made { grid-template-columns: 1fr; gap: 0.35rem; }
+  .setup-who { justify-self: start; }
+  .setup-note { padding-left: 0; }
+}
+
+/* The operator door's hero. The house pitch is set to a 24ch poster measure,
+   which is right for the six words on a share landing and turns a sentence
+   into five ragged lines here. This page is a document with a title, so the
+   deck gets a document's measure and steps down from the h1 instead of
+   competing with it. */
+.pubws-hero--door .pubws-pitch {
+  max-width: 42ch;
+  font-size: clamp(1rem, 2.4vw, 1.12rem);
+  line-height: 1.5;
+  color: var(--text-secondary);
+}

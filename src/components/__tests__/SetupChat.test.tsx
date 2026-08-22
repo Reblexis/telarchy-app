@@ -55,14 +55,16 @@ describe('the setup conversation', () => {
     await user.type(screen.getByLabelText(/tell otto what you run/i), 'set me up');
     await user.click(screen.getByRole('button', { name: /send/i }));
     await waitFor(() => expect(screen.getByText('Opened it.')).toBeTruthy());
-    expect(screen.queryByRole('link', { name: /go to/i })).toBeNull();
+    expect(screen.queryByRole('link', { name: /go to the floor/i })).toBeNull();
 
     askSetup.mockResolvedValue({ answer: 'Done.', opened: [{ name: 'Kleros', slug: 'kleros' }] });
     await user.type(screen.getByLabelText(/tell otto what you run/i), 'go on then');
     await user.click(screen.getByRole('button', { name: /send/i }));
 
-    const link = await screen.findByRole('link', { name: /go to kleros/i });
-    expect(link.getAttribute('href')).toBe('/kleros');
+    // The receipt names the floor and its address, and the link goes there.
+    expect(await screen.findByText('Kleros')).toBeTruthy();
+    expect(screen.getByText('telarchy.com/kleros')).toBeTruthy();
+    expect(screen.getByRole('link', { name: /go to the floor/i }).getAttribute('href')).toBe('/kleros');
   });
 
   test('a failure is shown rather than swallowed', async () => {
@@ -78,7 +80,7 @@ describe('the setup conversation', () => {
 
   test('signed out, he says he cannot open anything and offers the door', () => {
     renderChat(false);
-    expect(screen.getByText(/cannot open anything until you have an account/i)).toBeTruthy();
+    expect(screen.getByText(/create nothing/i)).toBeTruthy();
     expect(screen.getByRole('link', { name: /create an account/i })).toBeTruthy();
   });
 });

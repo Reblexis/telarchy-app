@@ -52,11 +52,11 @@ export function ManagePage() {
         <Link to="/login" className="pubws-login">Log in</Link>
       </nav>
       <main className="pubws-main">
-        <header className="pubws-hero">
+        <header className="pubws-hero pubws-hero--door">
           <h1 className="pubws-name">Put your number up</h1>
           <p className="pubws-pitch">
-            Name the number you answer to. Anyone, human or AI, can offer a paid
-            job that would move it, and the market prices the job before you decide.
+            Name the number you answer to, and anyone can offer a job that moves
+            it. The market prices the job before you decide.
           </p>
         </header>
 
@@ -69,30 +69,37 @@ export function ManagePage() {
           <SetupChat signedIn={!!user} />
         </section>
 
-        {/* The human door stays. It is how the first operator arrived, and
-            some people would rather write to a person. Quiet, though: a cream
-            CTA next to Otto competed with him for the same job. */}
-        <section className="pubws-act pubws-act--aside">
+        {/* The human door stays: it is how the first operator arrived, and
+            some people would rather write to a person. Set as one more row of
+            the transcript rather than a second call to action, because a cream
+            CTA beside Otto was the louder of two doors and the wrong one. */}
+        <section className="pubws-act setup">
           {done ? (
-            <p className="pubws-fineprint">Got it. We will write back.</p>
+            <div className="setup-turn">
+              <span className="setup-who">Sent</span>
+              <p className="setup-said setup-said--you">We will write back.</p>
+            </div>
           ) : (
-            <form className="pubws-asideform" onSubmit={handleSubmit}>
-              <label className="pubws-fineprint" htmlFor="manage-email">Would rather talk to a person?</label>
-              <input
-                id="manage-email"
-                type="email"
-                required
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="you@company.com"
-                aria-label="Your email"
-              />
-              <button className="pubws-decide" type="submit" disabled={submitting}>
-                {submitting ? 'Sending…' : 'Send it'}
-              </button>
+            <form className="setup-turn" onSubmit={handleSubmit}>
+              <label className="setup-who" htmlFor="manage-email">Or</label>
+              <span className="setup-line">
+                <input
+                  id="manage-email"
+                  className="setup-input"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="Write to a person instead: you@company.com"
+                  aria-label="Your email, to be written back to"
+                />
+                <button className="setup-send" type="submit" disabled={submitting} aria-label="Send your email">
+                  {submitting ? '·' : '↑'}
+                </button>
+              </span>
             </form>
           )}
-          {error && <p className="pubws-joinerr">{error}</p>}
+          {error && <p className="setup-note">{error}</p>}
         </section>
 
         <footer className="pubws-foot">
