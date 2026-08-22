@@ -183,6 +183,7 @@ explains itself.
 | `void-and-resolve.md` | Resolve at metric value, void + refund |
 | `conditional-markets.md` | Proposal-linked conditional lifecycle |
 | `limit-orders.md` | Resting orders: reserve, fill at the limit, cancel, refund |
+| `ticket-preview-parity.md` | The ticket's shown New value equals the landed value (netting, typed targets) |
 
 ### 05-proposals
 
