@@ -113,23 +113,52 @@ Who does the eliciting is the fork in the road:
    API key, or through us? Today it is us, and `/manage` is still a door to a
    conversation rather than a form.
 
-## Shipped against this doc
+## Tried and removed: owner controls on the floor
 
-**The owner's two controls, on the floor (2026-08-22).** Not a wizard and not a
-settings page: `src/components/FloorOwnerTools.tsx` renders inside the floor
-for anyone with `manage`, under the prose zone, and does the two things the
-owner side was missing. **Add a number** takes the four fields a market cannot
-open without (the number, where its value comes from, its ceiling, the month
-it lands in) and posts one metric with one custom horizon, so it ends as a live
-market rather than a metric nobody can trade. **Deepen this market** funds the
-clock currently on screen out of the owner's own balance. Both call the
-documented endpoints. Spec: `qa/browse/02-workspaces/owner-controls.md`.
+**Removed 2026-08-22 the same day it was built, owner direction: "lets remove
+what you did the in workspace settings thats weird".** `FloorOwnerTools` put
+two controls at the bottom of the floor for anyone with `manage`: add a number,
+and deepen the market on screen. Both worked and both went through the
+documented endpoints. The objection was not the endpoints, it was that a
+settings surface bolted onto the market page reads as furniture: the floor is
+where a visitor reads a price, and an owner's configuration sitting under it
+belongs to a different product.
 
-That covers item (1)'s surface and most of item (2) of "The owner side
-reopens". What it does NOT cover is item (3): the credits an owner funds with
-are still admin-granted, so "he pays for liquidity as needed" today means an
-invoice off-platform and a grant by hand. That is a rail and a terms question,
-not a screen, and it is the one thing on this page that code cannot close.
+Keep the finding, not the code: the two operations are right (a number needs a
+horizon or there is no market; liquidity has to follow the clock the owner is
+looking at). What was wrong was making them a form on the floor. They are now
+things Otto does when asked, which is the direction below.
+
+## The direction: Otto sets the operator up
+
+**Owner direction 2026-08-22.** Rather than a screen, the setup is a
+conversation with Otto: he works out what the person runs, proposes the number,
+and either sets it up himself when the value is public, or hands them a
+paste-ready prompt for their own AI agent to push the number on a schedule,
+plus what context to share with forecasters.
+
+Most of this needs no new capability. Otto's two tools are "find an endpoint"
+and "call it, replaying the visitor's own credentials"
+(`services/otto-tools.ts`), so a signed-in operator's Otto can already create
+the workspace, name the metric, open the market and fund it. Three gaps:
+
+1. **He is not reachable before a floor exists.** `FloorChat` only mounts on a
+   floor page, so the person with no workspace cannot talk to him. This is the
+   piece being built first.
+2. **Inbound email does not exist**, and the identity problem behind it is the
+   real constraint: Otto deliberately has no credential of his own, so acting
+   for someone with no session would mean giving him a service key and throwing
+   away the property that makes him safe to point at the API. The version that
+   keeps it is a magic link: he replies, they land signed in, the conversation
+   continues as them.
+3. **He has no web access**, so "figure out their startup from public info"
+   needs a fetch or search tool, and a fetched page is untrusted text against a
+   character whose one safety rule is that only the person in the conversation
+   gives him instructions.
+
+The generated agent prompt needs nothing new: `PUT /api/metrics/:id` with a
+value is the whole auto-update path, and Sources is the whole "what context to
+share" path.
 
 ## What exists right now
 

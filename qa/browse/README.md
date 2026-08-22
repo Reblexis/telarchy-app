@@ -163,7 +163,6 @@ explains itself.
 | --- | --- |
 | `settings-and-visibility.md` | Name + visibility + auto-fund |
 | `members-and-permissions.md` | Role matrix (admin / trader / member / viewer) |
-| `owner-controls.md` | The owner's two controls ON the floor: add a number, deepen the market |
 
 ### 03-metrics
 

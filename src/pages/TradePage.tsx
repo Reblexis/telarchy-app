@@ -11,7 +11,6 @@ import { FloorModal } from '../components/FloorModal';
 import { useAnimatedNumber } from '../lib/useAnimatedNumber';
 import { indexBundleSrc } from '../lib/bundle-version';
 import { JobsBoard, splitAsk } from '../components/JobsBoard';
-import { FloorOwnerTools } from '../components/FloorOwnerTools';
 import { SubjectAbout } from '../components/SubjectAbout';
 import { FloorAnnouncements } from '../components/FloorAnnouncements';
 import { FloorComments } from '../components/FloorComments';
@@ -1383,17 +1382,6 @@ export function TradePage() {
           onSaved={reload}
           onAsk={() => setAskingOtto(true)}
         />
-        {/* The owner's own controls, on the floor rather than in a settings
-            page (owner direction 2026-08-22, docs/operator-setup.md). Below
-            the prose zone: a visitor reads what this is, an owner scrolls
-            past it to run the place. Hidden entirely without `manage`, which
-            is what the server checks on both endpoints anyway. */}
-        {canManage && (
-          <FloorOwnerTools
-            market={hero ? { marketId: hero.marketId, label: captionLabel(metricLabel, ws.name), liquidity: hero.liquidity } : null}
-            onChanged={reload}
-          />
-        )}
         </div>
         {/* The jobs board IS the right rail (owner direction 2026-08-10:
             jobs where the activity log was). The log's information lives
