@@ -27,7 +27,9 @@ beforeAll(async () => {
     seen.push({ method: req.method, url: req.url, headers: req.headers, body: req.body });
     res.status(reply.status).json(reply.body);
   });
-  await new Promise<void>(resolve => { server = app.listen(0, resolve); });
+  await new Promise<void>((resolve, reject) => {
+    server = app.listen(0, (err?: Error) => (err ? reject(err) : resolve()));
+  });
   const port = (server.address() as { port: number }).port;
   process.env.SELF_BASE_URL = `http://127.0.0.1:${port}`;
 });
