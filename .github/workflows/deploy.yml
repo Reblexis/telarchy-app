@@ -4,6 +4,12 @@ on:
   push:
     branches: [ main ]
 
+# Only the newest push matters for a pages deploy; a newer one supersedes
+# a queued or running one (same reasoning as docker-publish.yml).
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: true
+
 permissions:
   contents: write
 

@@ -4,6 +4,13 @@ on:
   push:
     branches: [main]
 
+# One image build at a time; a newer push supersedes a queued or running
+# one. Agents push to main many times an hour and the runners share
+# Viktor's laptop, so redundant builds are pure queue poison.
+concurrency:
+  group: docker-publish
+  cancel-in-progress: true
+
 permissions:
   contents: read
   packages: write
