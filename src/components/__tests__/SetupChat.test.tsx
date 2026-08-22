@@ -100,12 +100,12 @@ describe('the handoff to your own agent', () => {
     renderChat();
 
     // Nothing to hand off before the conversation starts.
-    expect(screen.queryByText(/continue with your own agent/i)).toBeNull();
+    expect(screen.queryByText(/your own agent/i)).toBeNull();
 
     await user.type(screen.getByLabelText(/tell otto what you run/i), 'arbitration protocol');
     await user.click(screen.getByRole('button', { name: /send/i }));
 
-    expect(await screen.findByText(/continue with your own agent/i)).toBeTruthy();
+    expect(await screen.findByText(/your own agent/i)).toBeTruthy();
     expect(screen.getByText(/workspace id ws-42/)).toBeTruthy();
   });
 

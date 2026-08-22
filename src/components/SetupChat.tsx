@@ -179,7 +179,8 @@ export function SetupChat({ signedIn }: { signedIn: boolean }) {
       {handoff && (
         <aside className="setup-handoff" aria-label="Continue with your own agent">
           <div className="setup-handoff-head">
-            <h2 className="setup-handoff-title">Continue with your own agent</h2>
+            {/* Short, because the button beside it must never wrap. */}
+            <h2 className="setup-handoff-title">Your own agent</h2>
             <button type="button" className="setup-copy" onClick={() => void copyHandoff()}>
               {copied ? 'Copied' : 'Copy prompt'}
             </button>
