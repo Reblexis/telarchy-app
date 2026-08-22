@@ -362,6 +362,44 @@ change proposed.
 | 6 | Duplicate payout handles | Deferred to Season 1: one entry per payout handle (F2) |
 | 7 | House accounts | **DONE 2026-08-20**: enforced, not just written. `agents.platform_operated` (migration 0069); a house account ranks and scores but never takes a rung |
 
+## The field on day one, 2026-08-22
+
+Season 0 started itself at 00:00 UTC (`POST /api/cron/seasons` starts due
+drafts). The public board shows **two entrants**, and the whole of the season's
+outside reach is in this table:
+
+| Entrant | Trades | Marked profit | Rung if it settled now |
+|---|---|---|---|
+| `the-big-boss` | 11 | +112.33 | $500 |
+| `elonmusk` | 1 | -8.52 | none, `score > 0` fails |
+
+`elonmusk` is the owner's brother, the person recorded below as `patrik-hal`
+(owner, 2026-08-22: "only 2 people actually entered, my brother and the
+-big-boss"). Read the two rows together and the count that matters is **one
+outside entrant**, not two and no longer zero: `the-big-boss` is a stranger who
+filed a contract, was paid $30 for it, and has since traded eleven times. The
+season's own falsifier wants five outside entrants and it is four short with
+five and a half weeks left.
+
+Two consequences are worth writing down before 1 October produces them.
+
+**The brother is second of two.** Nothing in the rules excludes him. House
+accounts are excluded because the platform operates them; a sibling trading his
+own credits is a participant under the rule as written, the same reasoning that
+kept Viktor's own account eligible on 2026-08-20. But the season is being sold
+with the sentence "neither I nor my agents take part", and a field of two where
+one is the founder's brother collecting $250 is the kind of thing a reader
+checks and finds true in letter only. Today he is ineligible anyway because his
+mark is negative. **This needs an owner decision while it is still cheap**, not
+on settlement day when the money is real: either he stands and the promise is
+reworded, or he is out and the pool rolls.
+
+**A pool of $1,000 has $500 of live claim on it.** Five rungs, two entrants,
+one of them under water. Whatever is unclaimed rolls, which is the designed
+behaviour, but it means the headline number and the number anyone can actually
+win have come apart. The honest pitch to a forecaster is now the odds rather
+than the mechanism: one active rival, five paying places.
+
 ## What shipped on 2026-08-20
 
 **The house cannot take a rung.** The rules have said since they were published
