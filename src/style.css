@@ -7071,6 +7071,45 @@ textarea.jobform-line--desc {
   position: static;
   width: 100%;
   max-height: none;
-  min-height: 24rem;
+  /* The column that holds him centres everything (.pubws-act), which turned
+     his opening line into ragged centred prose and left the openers hanging
+     under it. A conversation is read from the left. */
+  text-align: left;
 }
-.otto--page .otto-log { min-height: 16rem; }
+/* Tall enough not to jump on the first answer, short enough not to read as an
+   empty box: the dock's own height, and it grows with the conversation. */
+.otto--page .otto-log { min-height: 9rem; }
+/* The phone rule below turns `.otto` into a bottom sheet. On the operator
+   door he is the page, so it must not reach him: without this he would pin
+   himself to the bottom of the viewport over his own page. */
+@media (max-width: 560px) {
+  .otto--page {
+    position: static;
+    max-height: none;
+    border-radius: 16px;
+  }
+}
+
+/* The human door under Otto (operator door, 2026-08-22): one quiet line, not
+   a second call to action. It used to be the page's only offer and carried a
+   cream CTA to match; beside a conversation that can actually open the floor,
+   the same button read as the louder of two doors. */
+.pubws-act--aside { margin-top: 1rem; }
+.pubws-asideform {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.pubws-asideform input {
+  min-width: 12rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.82rem;
+}
+.pubws-asideform input:focus-visible { outline: none; border-color: var(--border-strong); }

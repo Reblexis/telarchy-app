@@ -125,16 +125,18 @@ export function SetupChat({ signedIn }: { signedIn: boolean }) {
           onChange={e => setDraft(e.target.value)}
           aria-label="Tell Otto what you run"
         />
-        <button className="otto-send" type="submit" disabled={busy || !draft.trim()}>
-          {busy ? '…' : 'Send'}
+        {/* The same round glyph the dock uses: the word "Send" does not fit
+            inside a 1.9rem circle and spilled out of it. */}
+        <button className="otto-send" type="submit" disabled={busy || !draft.trim()} aria-label="Send">
+          ↑
         </button>
       </form>
 
-      {!signedIn && (
-        <p className="pubws-fineprint">
-          <Link to="/signup?next=/manage">Create an account</Link> and he can open it for you.
-        </p>
-      )}
+      <p className="otto-note">
+        {signedIn
+          ? <>Otto acts with your account, so he can do what you can do and nothing more.</>
+          : <><Link to="/signup?next=/manage">Create an account</Link> and he can open it for you. Signed out he can talk it through and create nothing.</>}
+      </p>
     </section>
   );
 }

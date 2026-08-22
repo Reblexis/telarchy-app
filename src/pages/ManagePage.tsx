@@ -70,25 +70,29 @@ export function ManagePage() {
         </section>
 
         {/* The human door stays. It is how the first operator arrived, and
-            some people would simply rather write to a person. */}
-        <section className="pubws-act">
+            some people would rather write to a person. Quiet, though: a cream
+            CTA next to Otto competed with him for the same job. */}
+        <section className="pubws-act pubws-act--aside">
           {done ? (
             <p className="pubws-fineprint">Got it. We will write back.</p>
           ) : (
-            <form className="pubws-waitform" onSubmit={handleSubmit}>
+            <form className="pubws-asideform" onSubmit={handleSubmit}>
+              <label className="pubws-fineprint" htmlFor="manage-email">Would rather talk to a person?</label>
               <input
+                id="manage-email"
                 type="email"
                 required
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="you@company.com"
-                aria-label="Email"
+                aria-label="Your email"
               />
-              <button className="pubws-cta" type="submit" disabled={submitting}>
-                {submitting ? 'Sending…' : 'Rather talk to a human'}
+              <button className="pubws-decide" type="submit" disabled={submitting}>
+                {submitting ? 'Sending…' : 'Send it'}
               </button>
             </form>
           )}
+          {error && <p className="pubws-joinerr">{error}</p>}
         </section>
 
         <footer className="pubws-foot">
