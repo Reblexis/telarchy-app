@@ -177,6 +177,20 @@ describe('the price is machinery', () => {
     expect(ask.newValue).toBe('300');
   });
 
+  test('a workspace manager can move the ask too, traded or not', async () => {
+    // The owner edits any contract with the same rules as its proposer
+    // (owner ask 2026-08-22: "add support for the workspace owner to edit
+    // contracts as well, including price").
+    await seedPair({ traded: true });
+    const result = await editProposalDefinition(PROPOSAL, WS, {
+      title: '$250: rewrite the store page', askUsd: 250,
+    }, asOwner);
+    expect(result.changed).toContain('askUsd');
+    expect((await reload()).askUsd).toBe(250);
+    const revs = await proposalRevisionsFor(PROPOSAL, WS);
+    expect(revs.find(r => r.field === 'askUsd')?.changedBy).toBe(OWNER);
+  });
+
   test('the words are still editable on a traded contract', async () => {
     await seedPair({ traded: true });
     const result = await editProposalDefinition(PROPOSAL, WS, { description: 'Clarified.' }, asProposer);
