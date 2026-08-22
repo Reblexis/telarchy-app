@@ -1374,6 +1374,15 @@ export function TradePage() {
             canManage={canManage}
           />
         )}
+        <SubjectAbout
+          workspaceId={ws.workspaceId}
+          name={ws.name}
+          value={ws.subjectAbout}
+          defaultText={DEFAULT_SUBJECT_ABOUT}
+          canManage={canManage}
+          onSaved={reload}
+          onAsk={() => setAskingOtto(true)}
+        />
         {/* The owner's own controls, on the floor rather than in a settings
             page (owner direction 2026-08-22, docs/operator-setup.md). Below
             the prose zone: a visitor reads what this is, an owner scrolls
@@ -1385,15 +1394,6 @@ export function TradePage() {
             onChanged={reload}
           />
         )}
-        <SubjectAbout
-          workspaceId={ws.workspaceId}
-          name={ws.name}
-          value={ws.subjectAbout}
-          defaultText={DEFAULT_SUBJECT_ABOUT}
-          canManage={canManage}
-          onSaved={reload}
-          onAsk={() => setAskingOtto(true)}
-        />
         </div>
         {/* The jobs board IS the right rail (owner direction 2026-08-10:
             jobs where the activity log was). The log's information lives
