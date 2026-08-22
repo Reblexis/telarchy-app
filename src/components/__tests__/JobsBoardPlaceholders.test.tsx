@@ -85,3 +85,19 @@ describe('the form suggests the right thing', () => {
       .toBe('This will affect the number on this page in this way because of these reasons');
   });
 });
+
+describe('a floor whose metrics are named after the company', () => {
+  test('the pitch does not say the company name three times', () => {
+    // What TradePage passes: metric labels already stripped of a leading
+    // company name by captionLabel, the same treatment the number's caption
+    // gets. The raw names here are "LookPilot weekly net revenue" and
+    // "LookPilot monthly net revenue".
+    openForm({
+      workspaceName: 'LookPilot',
+      metricNames: ['weekly net revenue', 'monthly net revenue'],
+    });
+    const pitch = screen.getByLabelText('Contract pitch').getAttribute('placeholder')!;
+    expect(pitch).toBe('This will affect weekly net revenue and monthly net revenue in this way because of these reasons');
+    expect(pitch).not.toContain('LookPilot');
+  });
+});
