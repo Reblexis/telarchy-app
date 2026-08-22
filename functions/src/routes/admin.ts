@@ -66,6 +66,8 @@ adminRouter.get('/questions', wrap(async (req, res) => {
     costUsd: floorQuestions.costUsd,
     model: floorQuestions.model,
     error: floorQuestions.error,
+    /** What Otto did about it, with this asker's own credentials. */
+    toolCalls: floorQuestions.toolCalls,
     createdAt: floorQuestions.createdAt,
     slug: workspaces.slug,
     workspaceName: workspaces.name,

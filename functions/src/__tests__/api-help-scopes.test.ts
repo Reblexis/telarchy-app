@@ -3,7 +3,7 @@ import { resolve, join } from 'path';
 import { ALL_KEY_SCOPES, WILDCARD_SCOPE } from '../lib/scopes';
 
 /**
- * Static check that every `scope:` annotation in /api/help (app.ts) refers to
+ * Static check that every `scope:` annotation in /api/help refers to
  * a known scope from the live vocabulary. If a scope is renamed or removed,
  * the docs would drift silently; this test fails the build instead.
  *
@@ -11,7 +11,9 @@ import { ALL_KEY_SCOPES, WILDCARD_SCOPE } from '../lib/scopes';
  */
 
 const REPO_ROOT = resolve(__dirname, '../../..');
-const APP_TS_PATH = join(REPO_ROOT, 'functions/src/app.ts');
+// The catalog lives in its own module since 2026-08-21 (app.ts serves it,
+// Otto searches it), so the static checks read it there.
+const APP_TS_PATH = join(REPO_ROOT, 'functions/src/lib/help-catalog.ts');
 
 interface DocumentedEndpoint {
   method: string;

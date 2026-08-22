@@ -25,7 +25,9 @@ import { resolve, join } from 'path';
  */
 
 const REPO_ROOT = resolve(__dirname, '../../..');
-const APP_TS_PATH = join(REPO_ROOT, 'functions/src/app.ts');
+// The catalog moved out of app.ts on 2026-08-21 so Otto could search the
+// same object the route serves; the parity checks follow it.
+const APP_TS_PATH = join(REPO_ROOT, 'functions/src/lib/help-catalog.ts');
 const FRONTEND_API_TS_PATH = join(REPO_ROOT, 'src/lib/api.ts');
 const ROUTES_DIR = join(REPO_ROOT, 'functions/src/routes');
 const FRONTEND_SRC = join(REPO_ROOT, 'src');

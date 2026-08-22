@@ -15,7 +15,7 @@ import { resolve, join } from 'path';
 
 const REPO_ROOT = resolve(__dirname, '../../..');
 const GUIDES_TS = join(REPO_ROOT, 'functions/src/routes/guides.ts');
-const APP_TS = join(REPO_ROOT, 'functions/src/app.ts');
+const APP_TS = join(REPO_ROOT, 'functions/src/lib/help-catalog.ts');
 
 /**
  * The /api/help catalog advertises the guide sections in two places: the root

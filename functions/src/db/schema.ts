@@ -709,6 +709,12 @@ export const floorQuestions = pgTable('floor_questions', {
   /** Set when the gateway failed or the budget ran out: a question that got
    *  no answer is the most interesting row in the table. */
   error: text('error'),
+  /** What Otto did on the asker's behalf while answering: [{ method, path,
+   *  status }] (owner direction 2026-08-21, when he stopped being an answer
+   *  service and got the caller's own API access). Acting for someone without
+   *  a record of what was done is the part that could not be defended later,
+   *  and the row already carries who asked and what they asked for. */
+  toolCalls: jsonb('tool_calls'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, t => [index('floor_questions_created_idx').on(t.createdAt)]);
 

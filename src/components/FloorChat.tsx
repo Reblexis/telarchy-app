@@ -2,8 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
 
 /**
- * Otto, the floor's market maker, in the corner (owner direction 2026-08-20:
- * "make it more of a chat, maybe bottom right, just a guy with personality").
+ * Otto, in the corner (owner direction 2026-08-20: "make it more of a chat,
+ * maybe bottom right, just a guy with personality").
+ *
+ * He is the floor's market maker and, since 2026-08-21, the visitor's hands on
+ * Telarchy: he calls the API with THEIR account, so he can do whatever they
+ * can do and nothing else (functions/src/services/otto-tools.ts). Signed out
+ * he can still read everything public, which is what the copy below says
+ * rather than offering an action that would come back 401.
  *
  * The friction he removes is specific. A visitor looking at "the market says
  * 25" has no way to judge whether 25 is right without knowing what the company
@@ -26,6 +32,10 @@ import { api } from '../lib/api';
 interface Props {
   idOrSlug: string;
   workspaceName: string;
+  /** Whether the visitor has an account, which decides whether Otto can act
+   *  for them or only read. The backend decides the same thing from their
+   *  credentials; this only picks the honest words. */
+  signedIn: boolean;
   /** The number the floor leads with, used for one opening suggestion. */
   metricLabel: string | null;
   /** Open state, when the page owns it. The floor does, because the
@@ -38,7 +48,7 @@ interface Props {
 
 interface Turn { role: 'user' | 'assistant'; content: string }
 
-export function FloorChat({ idOrSlug, workspaceName, metricLabel, open: openProp, onOpenChange }: Props) {
+export function FloorChat({ idOrSlug, workspaceName, metricLabel, signedIn, open: openProp, onOpenChange }: Props) {
   const [ownOpen, setOwnOpen] = useState(false);
   const open = openProp ?? ownOpen;
   const setOpen = (next: boolean) => {
@@ -57,7 +67,8 @@ export function FloorChat({ idOrSlug, workspaceName, metricLabel, open: openProp
   const openers = [
     `What does ${workspaceName} actually do?`,
     metricLabel ? `Is ${metricLabel.toLowerCase()} priced right?` : 'Is this market priced right?',
-    'Which contract would you take?',
+    // The third opener says what changed: signed in, he does things.
+    signedIn ? 'What am I holding, and what is it worth?' : 'Which contract would you take?',
   ];
 
   useEffect(() => {
@@ -118,8 +129,12 @@ export function FloorChat({ idOrSlug, workspaceName, metricLabel, open: openProp
         {turns.length === 0 && (
           <>
             <p className="otto-msg otto-msg--otto">
-              I watch this floor. Ask me what the company does, whether the price
-              looks right, or which contract I would take.
+              {signedIn
+                ? `I watch this floor. Ask me what the company does or where the price
+                   should be, and I can do it for you as well: place a bet, offer a
+                   contract, tell you what you are holding.`
+                : `I watch this floor. Ask me what the company does, whether the price
+                   looks right, or which contract I would take.`}
             </p>
             <div className="otto-openers">
               {openers.map(o => (
@@ -155,8 +170,11 @@ export function FloorChat({ idOrSlug, workspaceName, metricLabel, open: openProp
         </button>
       </form>
       <p className="otto-note">
-        Otto reads this floor&rsquo;s public brief and has his own opinions. They are
-        not advice from {workspaceName}.
+        {signedIn
+          ? <>Otto acts with your account, so he can do what you can do and nothing more.
+              The opinions are his, not advice from {workspaceName}.</>
+          : <>Otto reads this floor&rsquo;s public brief and has his own opinions. They are
+              not advice from {workspaceName}. Sign up and he can act for you too.</>}
       </p>
     </section>
   );

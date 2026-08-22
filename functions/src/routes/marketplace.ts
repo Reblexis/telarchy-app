@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto';
 import { wrap } from '../lib/wrap';
 import { platformStats } from '../services/platform-stats';
 import { dataRoomTool } from '../services/data-room';
+import { ottoApiTools, type ApiCallRecord } from '../services/otto-tools';
 import { authMiddleware } from '../middleware/auth';
 import { requireIdentity } from '../middleware/roles';
 import { consensus, pHigher } from '../lib/amm';
@@ -958,19 +959,29 @@ marketplaceRouter.post('/:workspaceId/ask', wrap(async (req, res) => {
     model: process.env.ASK_MODEL || 'openai/gpt-5.6-luna', createdAt: new Date(),
   };
 
+  // What Otto did while answering, filled in by the tools as he goes.
+  const actions: ApiCallRecord[] = [];
+
   try {
-    // Otto gets the floor's brief as fixed context and one door he can open
-    // himself: Telarchy's data room (owner direction 2026-08-20). Pasting the
-    // data room into every brief would charge every visitor on every floor for
-    // a document most of them never ask about.
+    // Otto gets the floor's brief as fixed context and three doors he opens
+    // himself: Telarchy's data room, the API catalog, and the API itself,
+    // called with THIS caller's credentials (owner direction 2026-08-21:
+    // "exact same access the given user has"). Nothing here grants him
+    // anything: the request he makes is the visitor's own request replayed, so
+    // an anonymous asker's Otto can read and cannot act, and a signed-in
+    // asker's Otto can do what they can do and no more.
     const { answer, usage } = await askAboutWorkspace(
-      renderContextMarkdown(context), turns, [dataRoomTool()]);
+      renderContextMarkdown(context), turns, [dataRoomTool(), ...ottoApiTools(req, actions)]);
     console.log(`ask ${ws.slug ?? ws.id}: ${usage.input} in (${usage.cachedInput} cached), ${usage.output} out, $${usage.costUsd ?? '?'}`);
     // Every question is kept, with its answer (owner ask 2026-08-20): a row
     // here is a gap in the floor said in a visitor's own words, and the answer
     // has to be stored beside it because a model that has since changed cannot
     // reproduce what it said today.
-    await db.insert(floorQuestions).values({ ...logRow, answer, costUsd: usage.costUsd })
+    if (actions.length) {
+      console.log(`ask ${ws.slug ?? ws.id}: acted ${actions.map(a => `${a.method} ${a.path} -> ${a.status}`).join(', ')}`);
+    }
+    await db.insert(floorQuestions)
+      .values({ ...logRow, answer, costUsd: usage.costUsd, toolCalls: actions.length ? actions : null })
       .catch(e => console.error('question log failed:', e));
     res.json({ answer });
   } catch (e) {
@@ -978,7 +989,8 @@ marketplaceRouter.post('/:workspaceId/ask', wrap(async (req, res) => {
     const message = e instanceof Error ? e.message.slice(0, 500) : String(e).slice(0, 500);
     // A question nobody could answer is the most interesting row in the
     // table, so a failure is logged as loudly as a success.
-    await db.insert(floorQuestions).values({ ...logRow, error: message })
+    await db.insert(floorQuestions)
+      .values({ ...logRow, error: message, toolCalls: actions.length ? actions : null })
       .catch(err => console.error('question log failed:', err));
     res.status(502).json({ error: 'Could not answer that right now. Try again in a moment.' });
   }

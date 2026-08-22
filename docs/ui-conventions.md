@@ -372,7 +372,12 @@ describes is not a cue. Every dialog gets it, not only the account.
 
 **Otto** (owner direction 2026-08-20) is the floor's market maker: a named
 character in the bottom-right corner who has read the brief and will say
-what he makes of it. Closed he is one line with a serif O, deliberately not
+what he makes of it. Since 2026-08-21 he also acts: signed in, he calls the
+API with that person's own account, so the panel's closing line says "he can
+do what you can do and nothing more" and one opener is a thing to do rather
+than a thing to ask. Signed out, the same line says reading is all he can do
+and what signing up would change; offering an action that will come back 401
+wastes the one minute a stranger gives you. Closed he is one line with a serif O, deliberately not
 a circle with a speech bubble in it, because a bubble is the universal mark
 of a support widget and he is not support. Open he is a panel in the same
 ruled language as the rest of the page: his turns are flush left in the

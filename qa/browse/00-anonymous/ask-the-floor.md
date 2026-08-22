@@ -109,6 +109,19 @@ $B assert '.otto-input' --visible
 $B assert '.ottodock' --gone
 ```
 
+### T5c. Anonymous, he reads; he does not claim he can act
+
+```bash
+$B goto "$TT_FRONTEND_URL/$SLUG" && $B wait --networkidle
+$B click '.ottodock'
+text=$($B text)
+# The honest half of "he acts as you" (owner direction 2026-08-21): signed
+# out there is nobody to act as, and the panel says so instead of offering an
+# action that would come back 401.
+grep -qi 'Sign up and he can act for you too' <<<"$text"
+grep -qiv 'acts with your account' <<<"$text"
+```
+
 ### T6. The agent prompt lives in account settings, and names this floor
 
 Covered by `src/components/__tests__/AccountDialog.test.tsx` ("the agent

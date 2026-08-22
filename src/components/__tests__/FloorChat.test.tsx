@@ -21,7 +21,7 @@ beforeEach(() => {
   Element.prototype.scrollIntoView = vi.fn();
 });
 
-const props = { idOrSlug: 'lookpilot', workspaceName: 'LookPilot', metricLabel: 'Revenue this week' };
+const props = { idOrSlug: 'lookpilot', workspaceName: 'LookPilot', metricLabel: 'Revenue this week', signedIn: false };
 const openHim = () => fireEvent.click(screen.getByRole('button', { name: /ask otto about lookpilot/i }));
 
 describe('Otto', () => {
@@ -99,5 +99,26 @@ describe('the second door', () => {
     render(<FloorChat {...props} open onOpenChange={onOpenChange} />);
     fireEvent.click(screen.getByRole('button', { name: /close/i }));
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+});
+
+/**
+ * Signed in, he is not an answer service: he acts with that person's own
+ * account (owner direction 2026-08-21). The copy has to say which of the two
+ * he is, because offering an action to someone who will get a 401 is the
+ * failure that wastes their time.
+ */
+describe('what he says he can do', () => {
+  test('signed out, he reads, and says signing up changes that', () => {
+    render(<FloorChat {...props} open onOpenChange={() => {}} />);
+    expect(screen.getByText(/Sign up and he can act for you too/i)).toBeTruthy();
+    expect(screen.queryByText(/acts with your account/i)).toBeNull();
+  });
+
+  test('signed in, he acts with your account, and says the limit of that', () => {
+    render(<FloorChat {...props} signedIn open onOpenChange={() => {}} />);
+    expect(screen.getByText(/acts with your account, so he can do what you can do and nothing more/i)).toBeTruthy();
+    // And one opener is a thing to do, not a thing to ask.
+    expect(screen.getByText('What am I holding, and what is it worth?')).toBeTruthy();
   });
 });

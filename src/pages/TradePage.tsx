@@ -765,6 +765,7 @@ export function TradePage() {
           idOrSlug={idOrSlug}
           workspaceName={ws.name}
           metricLabel={selectedJob ? null : metricLabel}
+          signedIn={!!user}
           open={askingOtto}
           onOpenChange={setAskingOtto}
         />

@@ -133,6 +133,10 @@ test('the tools are withheld on the last round, so a loop has to end', async () 
 
   const res = await askAboutWorkspace('THE BRIEF', [{ role: 'user', content: 'tell me everything' }], [tool]);
   expect(res.answer).toBe('Here is what I have.');
-  expect(bodies).toHaveLength(4);
-  expect(bodies[3].tools).toBeUndefined();
+  // Every round but the last offers tools; the last does not, which is the
+  // only reason a model that would keep calling them ever stops. The count
+  // follows MAX_TOOL_ROUNDS in lib/ask.ts rather than being pinned here.
+  expect(bodies.length).toBeGreaterThan(1);
+  expect(bodies.slice(0, -1).every(b => b.tools)).toBe(true);
+  expect(bodies[bodies.length - 1].tools).toBeUndefined();
 });
