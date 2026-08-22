@@ -3,8 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
-
 /**
  * The owner side's entire surface while Telarchy is trader-first
  * (vision.md, owner decision 2026-08-08): a pitch and a waitlist form.
@@ -39,20 +37,15 @@ export function ManagePage() {
     e.preventDefault();
     setError('');
     setSubmitting(true);
-    const res = await fetch(`${API_BASE}/api/waitlist`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok && res.status !== 409) {
-      setError(data.error || 'Something went wrong');
+    try {
+      // Already on the list counts as success: the client resolves a 409.
+      await api.joinWaitlist({ email });
+      setDone(true);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
       setSubmitting(false);
-      return;
     }
-    // 409 = already on the list; from the visitor's side that IS success.
-    setDone(true);
-    setSubmitting(false);
   };
 
   return (

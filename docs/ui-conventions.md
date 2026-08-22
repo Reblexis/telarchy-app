@@ -1182,3 +1182,14 @@ charts hand-rolled as inline SVG (a bar per day, one line for a metric's
 readings) rather than a chart library, because the only shapes needed are a
 column and a line. A number the feed refused to compute renders as "not
 published", never as zero. Spec: `docs/data-room.md`.
+
+## The frontend never speaks HTTP directly
+
+`src/lib/api.ts` is the one module that calls `fetch`. Everything else, page
+or component, calls a method on `api`. That is not tidiness: the parity guard
+that proves the UI has no capability the public API lacks reads that single
+file, so a component doing its own `fetch` is a capability nobody can see. It
+is also what makes "an assistant acting as you can do what you can do, and
+nothing more" true by construction rather than by review.
+
+`api-parity.test.ts` fails the build on a `fetch(` anywhere else under `src/`.

@@ -1,5 +1,6 @@
 import type { TimePreference } from '../types';
 import { pickCurrentSeason } from './season-clock';
+import { withBase } from './base-path';
 
 export interface ActivityItem {
   id: string;
@@ -1019,6 +1020,57 @@ export const api = {
 
   /** Public floor read: the thread under a market or a proposal, no
       account needed (Open workspaces only). */
+  /** Ask to be told when workspace creation opens. `source` is the door it
+   *  came through (a floor's slug, "marketplace", "waitlist"), which is how
+   *  /admin tells one channel from another. 409 means already listed, which
+   *  from the visitor's side is success, so it resolves rather than throws. */
+  joinWaitlist: async (body: { email: string; source?: string }): Promise<{ alreadyListed: boolean }> => {
+    const res = await fetch(`${API_BASE}/api/waitlist`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok && res.status !== 409) throw new Error((data as { error?: string }).error || 'Something went wrong');
+    return { alreadyListed: res.status === 409 };
+  },
+
+  /** One guide section, as the markdown the API serves. */
+  getGuide: async (section: string): Promise<string> => {
+    const res = await fetch(`${API_BASE}/api/guides/${section}`);
+    if (!res.ok) throw new Error(`Guide ${section}: ${res.status}`);
+    return res.text();
+  },
+
+  /** A legal document (terms, privacy, a season's rules) as markdown. */
+  getLegalDocument: async (document: string): Promise<string> => {
+    const res = await fetch(`${API_BASE}/api/legal/${document}`);
+    if (!res.ok) throw new Error(`Legal ${document}: ${res.status}`);
+    return res.text();
+  },
+
+  /** Begin a Manifold import: the server returns a one-time code to post on
+   *  the Manifold profile, which claim then verifies. */
+  startManifoldImport: (username: string): Promise<{ code: string; username: string }> =>
+    request('/api/import/manifold/start', { method: 'POST', body: JSON.stringify({ username }) }),
+
+  /** Finish a Manifold import once the code is on the profile. */
+  claimManifoldImport: (): Promise<{ username: string; granted: number }> =>
+    request('/api/import/manifold/claim', { method: 'POST' }),
+
+  /** The handful of flags a page needs before it knows who is looking:
+   *  which store this build reads, and whether signups are open. */
+  getPublicConfig: (): Promise<{ store?: string }> => request('/api/public-config'),
+
+  /** The served index.html, for the stale-tab check: a tab compares the
+   *  bundle the server references now with the one it is running. Not an API
+   *  call, but it is HTTP, and HTTP lives in this module. */
+  getServedIndexHtml: async (): Promise<string> => {
+    const res = await fetch(withBase('/'), { cache: 'no-store' });
+    if (!res.ok) throw new Error(`index: ${res.status}`);
+    return res.text();
+  },
+
   /** The data room's whole page, prose and figures, in one anonymous read.
    *  The page renders this response and nothing else (docs/data-room.md). */
   getDataRoom: (): Promise<DataRoomFeed> => request('/api/data-room'),

@@ -1,8 +1,7 @@
 import { useState, FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { AuthShell } from '../components/AuthShell';
-
-const API_BASE = import.meta.env.VITE_API_URL || '';
+import { api } from '../lib/api';
 
 export function WaitlistPage() {
   const [email, setEmail] = useState('');
@@ -15,21 +14,15 @@ export function WaitlistPage() {
     setError('');
     setSubmitting(true);
 
-    const res = await fetch(`${API_BASE}/api/waitlist`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, source: 'waitlist' }),
-    });
-
-    const data = await res.json().catch(() => ({}));
-    // 409 = already on the list; from the visitor's side that IS success.
-    if (!res.ok && res.status !== 409) {
-      setError(data.error || 'Something went wrong');
+    try {
+      // Already on the list counts as success: the client resolves a 409.
+      await api.joinWaitlist({ email, source: 'waitlist' });
+      setDone(true);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
       setSubmitting(false);
-      return;
     }
-    setDone(true);
-    setSubmitting(false);
   };
 
   return (

@@ -147,15 +147,9 @@ function ListYourNumberCard() {
     setError('');
     setBusy(true);
     try {
-      const res = await fetch(withBase('/api/waitlist'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        // Which door this was (owner ask 2026-08-15): the marketplace's
-        // listing tile, as opposed to one floor's own email box.
-        body: JSON.stringify({ email, source: 'marketplace' }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((data as { error?: string }).error || 'Something went wrong');
+      // Which door this was (owner ask 2026-08-15): the marketplace's listing
+      // tile, as opposed to one floor's own email box.
+      await api.joinWaitlist({ email, source: 'marketplace' });
       setDone(true);
     } catch (err) {
       setError((err as Error).message);

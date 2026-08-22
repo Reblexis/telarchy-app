@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { FloorModal } from './FloorModal';
 import { ManifoldLogo } from './ManifoldLogo';
-import { withBase } from '../lib/base-path';
+import { api } from '../lib/api';
 
 /**
  * Import your Manifold balance (owner ask 2026-08-11: make it a
@@ -25,12 +25,7 @@ export function ManifoldButton({ signedIn, onRequireSignup }: { signedIn: boolea
   const start = async () => {
     setBusy(true); setError('');
     try {
-      const r = await fetch(withBase('/api/import/manifold/start'), {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username }),
-      });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || 'Could not start');
+      const d = await api.startManifoldImport(username);
       setStep({ code: d.code, username: d.username });
     } catch (e) {
       setError((e as Error).message);
@@ -40,9 +35,7 @@ export function ManifoldButton({ signedIn, onRequireSignup }: { signedIn: boolea
   const claim = async () => {
     setBusy(true); setError('');
     try {
-      const r = await fetch(withBase('/api/import/manifold/claim'), { method: 'POST' });
-      const d = await r.json();
-      if (!r.ok) throw new Error(d.error || 'Could not verify');
+      const d = await api.claimManifoldImport();
       setDone(`Imported @${d.username}: +${d.granted.toLocaleString('en-US')} cr`);
     } catch (e) {
       setError((e as Error).message);

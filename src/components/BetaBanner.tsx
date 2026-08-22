@@ -55,8 +55,7 @@ export function BetaBanner() {
 
   useEffect(() => {
     if (isPublishedOrigin()) return;
-    fetch(`${import.meta.env.VITE_API_URL ?? ''}/api/public-config`)
-      .then(r => r.json())
+    api.getPublicConfig()
       .then(c => setStore(c.store === 'beta' ? 'beta' : 'production'))
       .catch(e => console.error('public-config fetch failed:', e));
   }, []);

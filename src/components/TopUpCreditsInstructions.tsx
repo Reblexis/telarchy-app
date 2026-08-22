@@ -1,8 +1,7 @@
 import { useState, useEffect, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-
-const API_BASE = import.meta.env.VITE_API_URL || '';
+import { api } from '../lib/api';
 
 export type DepositAddressInfo = {
   address: string;
@@ -59,11 +58,7 @@ export function TopUpCreditsInstructions({ deposit }: { deposit: DepositAddressI
     let cancelled = false;
     setGuideLoading(true);
     setGuideErr(false);
-    fetch(`${API_BASE}/api/guides/credits`)
-      .then(r => {
-        if (!r.ok) throw new Error(String(r.status));
-        return r.text();
-      })
+    api.getGuide('credits')
       .then(text => {
         if (!cancelled) setGuideMd(text);
       })

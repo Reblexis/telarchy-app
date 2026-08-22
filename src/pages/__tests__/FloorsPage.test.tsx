@@ -8,6 +8,7 @@ vi.mock('../../lib/api', () => ({
     getPublicWorkspaces: vi.fn(),
     getMarketplaceWorkspace: vi.fn(),
     getSeasons: vi.fn(),
+    joinWaitlist: vi.fn(),
   },
 }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: null, loading: false }) }));
@@ -132,8 +133,7 @@ describe('marketplace', () => {
   });
 
   test('it takes the email in place and answers without queue language', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ ok: true }) });
-    vi.stubGlobal('fetch', fetchMock);
+    vi.mocked(api.joinWaitlist).mockResolvedValue({ alreadyListed: false } as never);
     const user = userEvent.setup();
     renderPage();
 
@@ -145,25 +145,22 @@ describe('marketplace', () => {
     expect(screen.getByText(/get back to you within a few days/i)).toBeInTheDocument();
     // No "waitlist" or queue language anywhere in the answer.
     expect(screen.queryByText(/waitlist|queue|position/i)).toBeNull();
-    const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe('/api/waitlist');
-    // The tile names itself, so /admin can tell this door from a floor's.
-    expect(JSON.parse((init as { body: string }).body))
-      .toEqual({ email: 'founder@example.com', source: 'marketplace' });
-    vi.unstubAllGlobals();
+    // The tile names itself, so /admin can tell this door from a floor's. It
+    // goes through the api client like every other call: one module owns HTTP,
+    // which is what makes "anything the UI can do, a key can do" true.
+    expect(api.joinWaitlist).toHaveBeenCalledWith({
+      email: 'founder@example.com', source: 'marketplace',
+    });
   });
 
   test('a refused email surfaces the server response', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false, json: async () => ({ error: 'That email is already in.' }),
-    }));
+    vi.mocked(api.joinWaitlist).mockRejectedValue(new Error('That email is already in.'));
     const user = userEvent.setup();
     renderPage();
     await user.click(await screen.findByRole('button', { name: 'Get set up' }));
     await user.type(screen.getByLabelText('Your email'), 'dup@example.com');
     await user.click(screen.getByRole('button', { name: 'Get set up' }));
     expect(await screen.findByText('That email is already in.')).toBeInTheDocument();
-    vi.unstubAllGlobals();
   });
 
   test('the grid still renders its listing tile when nothing is listed yet', async () => {

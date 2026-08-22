@@ -28,6 +28,7 @@ const REPO_ROOT = resolve(__dirname, '../../..');
 const APP_TS_PATH = join(REPO_ROOT, 'functions/src/app.ts');
 const FRONTEND_API_TS_PATH = join(REPO_ROOT, 'src/lib/api.ts');
 const ROUTES_DIR = join(REPO_ROOT, 'functions/src/routes');
+const FRONTEND_SRC = join(REPO_ROOT, 'src');
 
 interface DocumentedEndpoint {
   method: string;
@@ -104,6 +105,72 @@ function templateToRegex(template: string): RegExp {
 function pathFamilyMatchesAny(frontendPath: string, documentedPaths: string[]): boolean {
   return documentedPaths.some(template => templateToRegex(template).test(frontendPath));
 }
+
+/**
+ * Every frontend source file, so the HTTP-ownership check below can read all
+ * of them. Tests are excluded: a test that stubs fetch is testing, not
+ * calling.
+ */
+function frontendSourceFiles(dir: string, out: string[] = []): string[] {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (entry.name === '__tests__' || entry.name === 'test') continue;
+      frontendSourceFiles(full, out);
+    } else if (/\.tsx?$/.test(entry.name)) {
+      out.push(full);
+    }
+  }
+  return out;
+}
+
+/**
+ * ONE module talks to the server, and it is `src/lib/api.ts`.
+ *
+ * This is the structural half of "the frontend goes through the public API".
+ * The other checks in this file read `api.ts` and compare it against the
+ * catalog; they are only worth anything if `api.ts` is the whole story. A
+ * component that calls `fetch('/api/...')` directly is invisible to them, and
+ * eight of them had accumulated by 2026-08-21 (waitlist in four places, the
+ * Manifold import in two, guides, legal, public-config).
+ *
+ * Keeping HTTP in one module is also what makes Otto's access exactly a
+ * visitor's access: everything the UI can do is a documented endpoint call,
+ * so an assistant holding the same session can do it and nothing more.
+ */
+describe('API parity: one module owns HTTP', () => {
+  /** Files allowed to call fetch, with the reason. Adding to this list is
+   *  adding a second way for the UI to reach the server: say why. */
+  const FETCH_OWNERS: Record<string, string> = {
+    'lib/api.ts': 'The API client itself: the one place that knows the base path, the credentials and the workspace header.',
+  };
+
+  test('nothing outside the api client calls fetch', () => {
+    const offenders: string[] = [];
+    for (const file of frontendSourceFiles(FRONTEND_SRC)) {
+      const rel = file.slice(FRONTEND_SRC.length + 1);
+      if (rel in FETCH_OWNERS) continue;
+      const src = readFileSync(file, 'utf8');
+      if (/\bfetch\s*\(/.test(src)) offenders.push(rel);
+    }
+
+    if (offenders.length > 0) {
+      throw new Error(
+        `These frontend files call fetch directly: ${offenders.join(', ')}.\n` +
+          `Move the call into src/lib/api.ts and call it from here, so the parity checks in this\n` +
+          `file can see it and so every request carries the same credentials and base path.\n` +
+          `(See AGENTS.md "Frontend goes through the public API".)`,
+      );
+    }
+  });
+
+  test('the api client is where the fetches went', () => {
+    // Guards the check above against a regex that stops matching: if this
+    // number collapses, the sweep is passing because it found nothing.
+    const src = readFileSync(FRONTEND_API_TS_PATH, 'utf8');
+    expect((src.match(/\bfetch\s*\(/g) ?? []).length).toBeGreaterThan(3);
+  });
+});
 
 describe('API parity: frontend goes through the public API', () => {
   let documented: DocumentedEndpoint[];

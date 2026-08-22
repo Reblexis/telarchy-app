@@ -339,8 +339,15 @@ export function TradePage() {
   // the propose form's placeholder, so a proposer is told what their contract
   // is supposed to move.
   const metricNames = useMemo(
-    () => Array.from(new Set((ws?.markets ?? []).map(m => metricLabelOf(m.metricName)))).slice(0, 3),
-    [ws?.markets],
+    () => Array.from(new Set(
+      // captionLabel drops a leading copy of the company's name, the same way
+      // the number's caption does (owner decision 2026-08-18). Without it the
+      // pitch placeholder on a floor whose metrics are named after the company
+      // read "This will affect LookPilot weekly net revenue and LookPilot
+      // monthly net revenue", three LookPilots in one sentence.
+      (ws?.markets ?? []).map(m => captionLabel(metricLabelOf(m.metricName), ws?.name)),
+    )).slice(0, 3),
+    [ws?.markets, ws?.name],
   );
   const selectedJob = ws?.proposals?.find(p => p.id === selectedJobId) ?? null;
   // A contract is editable by whoever posted it (and by a manager) while it is
@@ -549,8 +556,7 @@ export function TradePage() {
     const currentPath = new URL(current, window.location.origin).pathname;
     const check = () => {
       if (document.hidden) return;
-      fetch(withBase('/'), { cache: 'no-store' })
-        .then(r => r.text())
+      api.getServedIndexHtml()
         .then(html => {
           const served = indexBundleSrc(html);
           if (served && served !== currentPath) setUpdateAvailable(true);
@@ -1632,15 +1638,9 @@ function SetupForm({ source }: { source: string }) {
     setError('');
     setBusy(true);
     try {
-      const res = await fetch(withBase('/api/waitlist'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        // The floor names itself, so /admin can tell a signup from this
-        // market apart from one off the marketplace tile.
-        body: JSON.stringify({ email, source }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((data as { error?: string }).error || 'Something went wrong');
+      // The floor names itself, so /admin can tell a signup from this market
+      // apart from one off the marketplace tile.
+      await api.joinWaitlist({ email, source });
       setDone(true);
     } catch (err) {
       setError((err as Error).message);

@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
-
-const API_BASE = import.meta.env.VITE_API_URL || '';
+import { api } from '../lib/api';
 
 const mdStyles: React.CSSProperties = {
   fontSize: '0.875rem',
@@ -20,8 +19,7 @@ export function LegalPage({ document }: LegalPageProps) {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`${API_BASE}/api/legal/${document}`)
-      .then(r => r.text())
+    api.getLegalDocument(document)
       .then(setContent)
       .catch(err => console.error('Failed to load legal document', err))
       .finally(() => setLoading(false));

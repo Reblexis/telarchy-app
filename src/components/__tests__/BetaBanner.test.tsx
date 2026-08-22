@@ -15,11 +15,16 @@ const getRelease = vi.fn(async () => ({
   running: 'api-00381', isServing: false, error: null,
 }));
 const publishRelease = vi.fn(async () => ({ ok: true }));
+/** Which store this build writes to, read through the api client like every
+ *  other call the frontend makes (AGENTS.md, "Frontend goes through the
+ *  public API"). */
+const getPublicConfig = vi.fn(async () => ({ store: 'production' }));
 
 vi.mock('../../lib/api', () => ({
   api: {
     getRelease: () => getRelease(),
     publishRelease: () => publishRelease(),
+    getPublicConfig: () => getPublicConfig(),
   },
 }));
 
@@ -39,7 +44,11 @@ function setHost(hostname: string, pathname = '/') {
 }
 
 const realLocation = window.location;
-beforeEach(() => { getRelease.mockClear(); publishRelease.mockClear(); mockUser = { id: 'user-admin' }; });
+beforeEach(() => {
+  getRelease.mockClear(); publishRelease.mockClear(); getPublicConfig.mockClear();
+  getPublicConfig.mockResolvedValue({ store: 'production' });
+  mockUser = { id: 'user-admin' };
+});
 afterEach(() => {
   Object.defineProperty(window, 'location', { value: realLocation, writable: true });
 });
@@ -182,21 +191,17 @@ describe('the stripe says which of three states it is in', () => {
  */
 describe('the store the beta writes to', () => {
   test('says "own database" when it has one', async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ store: 'beta' }), { status: 200 }));
-    vi.stubGlobal('fetch', fetchMock);
+    getPublicConfig.mockResolvedValue({ store: 'beta' });
     setHost('telarchy.com', '/beta/lookpilot');
     render(<BetaBanner />);
     expect(await screen.findByText('own database')).toBeTruthy();
-    vi.unstubAllGlobals();
   });
 
   test('says LIVE, loudly, when it shares production', async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ store: 'production' }), { status: 200 }));
-    vi.stubGlobal('fetch', fetchMock);
+    getPublicConfig.mockResolvedValue({ store: 'production' });
     setHost('telarchy.com', '/beta/lookpilot');
     render(<BetaBanner />);
     const tag = await screen.findByText('LIVE database');
     expect(tag.className).toContain('is-live');
-    vi.unstubAllGlobals();
   });
 });
