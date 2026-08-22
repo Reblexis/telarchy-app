@@ -5,32 +5,28 @@ import { api } from '../lib/api';
 /**
  * Otto on the operator door (owner direction 2026-08-22).
  *
- * A transcript, not a chat window. The first build reused the floor's corner
- * dock: a rounded card with a shadow, bubbles and a pill input. That is right
- * for an overlay hovering beside a market and wrong for a page, and it looked
- * borrowed, because it was (owner: "still the chat interface looks weird").
- * Everything else in this design language is hairlines, tiny tracked labels
- * and one column (docs/ui-conventions.md); a card with a drop shadow was the
- * one object on the page that came from somewhere else.
+ * Shaped like the assistants people already use: a greeting, one wide rounded
+ * composer under it, and a short list of things to say. That shape was asked
+ * for directly ("it should be similar to chatgpt design"), and it earns its
+ * place here for a reason the rest of this design language does not cover:
+ * everyone arriving at this page has typed into that exact rectangle before,
+ * and none of them has to be taught what it is.
  *
- * So it is set as an interview record. Each turn is a row with the speaker in
- * the margin, in the house's tiny uppercase label, over a hairline. Otto's
- * words are in the display serif and the operator's in the body sans: the
- * house speaks in the house voice and you speak in yours, which separates the
- * two without a bubble, an avatar or a colour. The input is not a composer at
- * the bottom of a window; it is the next row of the transcript, with YOU
- * already in its margin and a rule under the words.
+ * Otto answers as plain prose across the column; the operator's own words sit
+ * in a soft rounded block to the right. No avatars either side: two voices in
+ * one column is all the structure a two-party conversation needs.
  *
- * The accent appears exactly once, on the receipt at the end, because that is
- * the only line on the page that is a fact rather than a conversation: a floor
- * exists, at an address. It is drawn from `opened`, which the server reads
- * back from the database, never from Otto's prose.
+ * Beside it, and the thing that makes this page more than a chat: the handoff.
+ * Every turn, the server rebuilds a paste-ready prompt carrying the
+ * conversation so far, what has actually been created, and the calls left to
+ * make, so the operator can finish this with their own assistant, which knows
+ * their business better than Otto ever will. It is assembled server-side, so
+ * the ids in it are real (functions/src/lib/setup-handoff.ts).
  */
 
 interface Turn { role: 'user' | 'assistant'; content: string }
 
-/** The three questions people actually arrive with, in their own words. They
- *  exist because a blank transcript is a blank page. */
+/** What people actually arrive wanting, in their words. */
 const OPENERS = [
   'I run a company and I want its number priced',
   'Which number should I put up?',
@@ -43,8 +39,10 @@ export function SetupChat({ signedIn }: { signedIn: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [opened, setOpened] = useState<Array<{ name: string; slug: string | null }>>([]);
+  const [handoff, setHandoff] = useState('');
+  const [copied, setCopied] = useState(false);
   const endRef = useRef<HTMLDivElement | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     if (turns.length) endRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
@@ -62,6 +60,7 @@ export function SetupChat({ signedIn }: { signedIn: boolean }) {
     try {
       const res = await api.askSetup(next);
       setTurns([...next, { role: 'assistant', content: res.answer }]);
+      if (res.handoff) { setHandoff(res.handoff); setCopied(false); }
       // Append rather than replace: a second number added later must not take
       // the first floor's door off the page.
       if (res.opened?.length) {
@@ -74,95 +73,125 @@ export function SetupChat({ signedIn }: { signedIn: boolean }) {
     }
   };
 
-  return (
-    <section className="setup" aria-label="Setting up your floor with Otto">
-      <div className="setup-turn">
-        <span className="setup-who">Otto</span>
-        <p className="setup-said setup-said--otto">
-          {signedIn
-            ? 'Tell me what you run and what it lives or dies on. I will pick the number worth putting up, open the floor for you here, and hand you the prompt that points your own agent at it.'
-            : 'Tell me what you run and I will tell you which number is worth putting up. Opening it takes an account, and I will say so when we get there.'}
-        </p>
-      </div>
+  const copyHandoff = async () => {
+    try {
+      await navigator.clipboard.writeText(handoff);
+      setCopied(true);
+    } catch (e) {
+      // Clipboard is refused in some contexts; the text is on the page and
+      // selectable, so say nothing false about having copied it.
+      console.error('clipboard write failed:', e);
+      setError('Could not reach the clipboard. Select the prompt and copy it.');
+    }
+  };
 
-      {turns.length === 0 && (
-        <div className="setup-turn">
-          <span className="setup-who">Start with</span>
-          <ul className="setup-openers">
+  return (
+    <div className={`setup${handoff ? ' setup--withhandoff' : ''}`}>
+      <section className="setup-talk" aria-label="Setting up your floor with Otto">
+        {turns.length === 0 ? (
+          /* One greeting, which is also the page's title. The door used to
+             carry a poster hero AND this, so a visitor met two headlines
+             before the thing they came to type into. */
+          <div className="setup-open">
+            <h1 className="setup-greeting">Put your number up.</h1>
+            <p className="setup-sub">
+              Name the number you answer to, and anyone can offer a job that
+              moves it. The market prices the job before you decide.
+              {signedIn
+                ? ' Tell Otto what you run and he will open the floor here.'
+                : ' Tell Otto what you run and he will pick the number; opening it takes an account.'}
+            </p>
+          </div>
+        ) : (
+          <div className="setup-log">
+            {turns.map((t, i) => (
+              t.role === 'user'
+                ? <p className="setup-you" key={i}>{t.content}</p>
+                : <p className="setup-otto" key={i}>{t.content}</p>
+            ))}
+            {busy && <span className="setup-thinking" aria-label="Otto is thinking" />}
+            {error && <p className="setup-err">{error}</p>}
+            {/* The one fact among all the talk: a floor that exists. */}
+            {opened.map(o => o.slug && (
+              <Link className="setup-made" to={`/${o.slug}`} key={o.slug}>
+                <span className="setup-made-label">Open</span>
+                <span className="setup-made-name">{o.name}</span>
+                <span className="setup-made-at">telarchy.com/{o.slug}</span>
+              </Link>
+            ))}
+            <div ref={endRef} />
+          </div>
+        )}
+
+        <form
+          className="setup-composer"
+          onSubmit={e => { e.preventDefault(); void send(draft); }}
+        >
+          <textarea
+            ref={inputRef}
+            className="setup-field"
+            rows={1}
+            value={draft}
+            maxLength={1000}
+            placeholder={turns.length ? 'Answer Otto' : 'Ask Otto'}
+            aria-label="Tell Otto what you run"
+            onChange={e => {
+              setDraft(e.target.value);
+              // Grow with the text, the way the field this borrows from does.
+              const el = e.currentTarget;
+              el.style.height = 'auto';
+              el.style.height = `${Math.min(el.scrollHeight, 144)}px`;
+            }}
+            onKeyDown={e => {
+              // Enter sends, shift+Enter breaks the line: the convention every
+              // assistant on the internet already taught them.
+              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(draft); }
+            }}
+          />
+          <button className="setup-go" type="submit" disabled={busy || !draft.trim()} aria-label="Send">
+            {busy ? <span className="setup-go-busy" aria-hidden="true" /> : '↑'}
+          </button>
+        </form>
+
+        {turns.length === 0 && (
+          <ul className="setup-suggest">
             {OPENERS.map(o => (
               <li key={o}>
-                <button type="button" className="setup-opener" onClick={() => void send(o)}>{o}</button>
+                <button type="button" className="setup-suggestion" onClick={() => void send(o)}>
+                  <span className="setup-suggestion-mark" aria-hidden="true">›</span>
+                  {o}
+                </button>
               </li>
             ))}
           </ul>
-        </div>
-      )}
+        )}
 
-      {turns.map((t, i) => (
-        <div className="setup-turn" key={i}>
-          <span className="setup-who">{t.role === 'user' ? 'You' : 'Otto'}</span>
-          <p className={`setup-said setup-said--${t.role === 'user' ? 'you' : 'otto'}`}>{t.content}</p>
-        </div>
-      ))}
+        {error && turns.length === 0 && <p className="setup-err">{error}</p>}
 
-      {busy && (
-        <div className="setup-turn" aria-live="polite">
-          <span className="setup-who">Otto</span>
-          {/* One rule, thinking. A row of bouncing dots would be the messenger
-              app this page is deliberately not. */}
-          <span className="setup-thinking" aria-label="Otto is thinking" />
-        </div>
-      )}
+        <p className="setup-note">
+          {signedIn
+            ? 'Otto acts with your account, so he can do what you can do and nothing more.'
+            : <><Link to="/signup?next=/manage">Create an account</Link> and he can open the floor right here. Signed out he can talk it all the way through and create nothing.</>}
+        </p>
+      </section>
 
-      {error && (
-        <div className="setup-turn">
-          <span className="setup-who">Failed</span>
-          <p className="setup-said setup-said--err">{error}</p>
-        </div>
-      )}
-
-      {/* The receipt: the one fact on this page, and the only accent on it. */}
-      {opened.map(o => o.slug && (
-        <div className="setup-made" key={o.slug}>
-          <span className="setup-who">Open</span>
-          <div>
-            <p className="setup-made-name">{o.name}</p>
-            <p className="setup-made-at">telarchy.com/{o.slug}</p>
-            <Link className="setup-made-go" to={`/${o.slug}`}>Go to the floor</Link>
+      {/* Rebuilt every turn, so it is never behind the conversation. */}
+      {handoff && (
+        <aside className="setup-handoff" aria-label="Continue with your own agent">
+          <div className="setup-handoff-head">
+            <h2 className="setup-handoff-title">Continue with your own agent</h2>
+            <button type="button" className="setup-copy" onClick={() => void copyHandoff()}>
+              {copied ? 'Copied' : 'Copy prompt'}
+            </button>
           </div>
-        </div>
-      ))}
-
-      <form
-        className="setup-turn setup-ask"
-        onSubmit={e => { e.preventDefault(); void send(draft); }}
-      >
-        <label className="setup-who" htmlFor="setup-say">You</label>
-        <span className="setup-line">
-          <input
-            ref={inputRef}
-            id="setup-say"
-            className="setup-input"
-            value={draft}
-            maxLength={1000}
-            placeholder={turns.length ? 'Answer him' : 'What do you run?'}
-            onChange={e => setDraft(e.target.value)}
-            /* The visible label is the transcript's margin ("You"), which
-               names the speaker rather than the field. A reader who cannot
-               see the row needs the field's job instead. */
-            aria-label="Tell Otto what you run" 
-          />
-          <button className="setup-send" type="submit" disabled={busy || !draft.trim()} aria-label="Send">↑</button>
-        </span>
-      </form>
-
-      <div ref={endRef} />
-
-      <p className="setup-note">
-        {signedIn
-          ? 'Otto acts with your account, so he can do what you can do and nothing more.'
-          : <><Link to="/signup?next=/manage">Create an account</Link> and he can open the floor right here. Signed out he can talk it all the way through and create nothing.</>}
-      </p>
-    </section>
+          <p className="setup-handoff-why">
+            Everything said here, plus what has actually been created and the
+            calls left to make. Your assistant knows your business better than
+            Otto does.
+          </p>
+          <pre className="setup-handoff-body">{handoff}</pre>
+        </aside>
+      )}
+    </div>
   );
 }

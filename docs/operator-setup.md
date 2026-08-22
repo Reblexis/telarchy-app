@@ -157,6 +157,24 @@ turn. Otto can say "your floor is live" when nothing was created, and a door
 that trusted his prose would be worse than the form it replaced. Pinned by
 `setup-ask.test.ts` and `SetupChat.test.tsx`.
 
+**The handoff, rebuilt every turn (2026-08-22).** Beside the conversation sits
+a prompt for the operator's OWN agent: the transcript so far, what has actually
+been created with its real ids, and the calls left to make. The reason it
+exists is that this page is not the best place to finish the job. Their
+assistant knows their business, their repo and where their numbers really live;
+Otto knows what they have typed. `functions/src/lib/setup-handoff.ts` assembles
+it deterministically rather than asking Otto for it, because a model restating
+a workspace id gets one wrong eventually and the agent on the other side would
+act on it.
+
+The page is shaped like the assistants people already use (owner direction: "it
+should be similar to chatgpt design"): a greeting, one wide rounded composer,
+a few suggestions. It is the one place in the product that borrows a convention
+wholesale, and it borrows it because the convention is the point: nobody
+arriving here has to be taught what the rectangle does. It stays in the house
+palette and type, so it is our page in a familiar shape rather than a skin of
+someone else's product.
+
 The email door stays underneath it, because that is how the first operator
 actually arrived and some people would rather write to a person.
 

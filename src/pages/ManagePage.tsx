@@ -52,54 +52,39 @@ export function ManagePage() {
         <Link to="/login" className="pubws-login">Log in</Link>
       </nav>
       <main className="pubws-main">
-        <header className="pubws-hero pubws-hero--door">
-          <h1 className="pubws-name">Put your number up</h1>
-          <p className="pubws-pitch">
-            Name the number you answer to, and anyone can offer a job that moves
-            it. The market prices the job before you decide.
-          </p>
-        </header>
 
         {/* Otto runs the setup, not a form (owner direction 2026-08-22,
             docs/operator-setup.md). Every field a form could ask for (which
             number, what ceiling, what horizon) is a question Telarchy answers
             better than a stranger on their first minute, and a form cannot
             argue with the answer. He makes the calls himself, as them. */}
-        <section className="pubws-act">
+        <section className="pubws-act pubws-act--door">
           <SetupChat signedIn={!!user} />
         </section>
 
         {/* The human door stays: it is how the first operator arrived, and
-            some people would rather write to a person. Set as one more row of
-            the transcript rather than a second call to action, because a cream
-            CTA beside Otto was the louder of two doors and the wrong one. */}
-        <section className="pubws-act setup">
+            some people would rather write to a person. One quiet line. */}
+        <section className="pubws-act setup-human">
           {done ? (
-            <div className="setup-turn">
-              <span className="setup-who">Sent</span>
-              <p className="setup-said setup-said--you">We will write back.</p>
-            </div>
+            <p className="setup-note">We have your address. We will write back.</p>
           ) : (
-            <form className="setup-turn" onSubmit={handleSubmit}>
-              <label className="setup-who" htmlFor="manage-email">Or</label>
-              <span className="setup-line">
-                <input
-                  id="manage-email"
-                  className="setup-input"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="Write to a person instead: you@company.com"
-                  aria-label="Your email, to be written back to"
-                />
-                <button className="setup-send" type="submit" disabled={submitting} aria-label="Send your email">
-                  {submitting ? '·' : '↑'}
-                </button>
-              </span>
+            <form className="setup-humanform" onSubmit={handleSubmit}>
+              <label htmlFor="manage-email">Would rather talk to a person?</label>
+              <input
+                id="manage-email"
+                type="email"
+                required
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="you@company.com"
+                aria-label="Your email, to be written back to"
+              />
+              <button type="submit" disabled={submitting}>
+                {submitting ? 'Sending' : 'Send it'}
+              </button>
             </form>
           )}
-          {error && <p className="setup-note">{error}</p>}
+          {error && <p className="setup-err">{error}</p>}
         </section>
 
         <footer className="pubws-foot">

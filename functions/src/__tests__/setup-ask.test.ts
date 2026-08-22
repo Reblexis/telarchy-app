@@ -84,7 +84,9 @@ describe('the setup conversation', () => {
     };
     const r = await ask({ question: 'set me up' });
     expect(r.status).toBe(200);
-    expect(r.body.opened).toEqual([{ name: 'Kleros', slug: 'kleros' }]);
+    // The id rides along because the handoff quotes it and the page may want
+    // it; it is the caller's own workspace either way.
+    expect(r.body.opened).toEqual([{ id: 'ws-new', name: 'Kleros', slug: 'kleros' }]);
   });
 
   test('reports nothing when Otto only said he did', async () => {
@@ -123,6 +125,39 @@ describe('the setup conversation', () => {
     delete process.env.AI_GATEWAY_API_KEY;
     const r = await ask({ question: 'hello' });
     expect(r.status).toBe(503);
+  });
+});
+
+describe('the handoff to the caller\'s own agent', () => {
+  test('carries the real slug of a floor that was opened, not one Otto named', async () => {
+    onAsk = async () => {
+      await db.insert(workspaces).values({
+        id: 'ws-new', name: 'Kleros', slug: 'kleros', createdBy: OPERATOR, visibility: 'unlisted',
+      });
+    };
+    const r = await ask({ question: 'set me up' });
+    // Assembled from the database: the id and the address are facts, and an
+    // agent on the other side will act on them.
+    expect(r.body.handoff).toMatch(/telarchy\.com\/kleros/);
+    expect(r.body.handoff).toMatch(/workspace id ws-new/);
+  });
+
+  test('carries the conversation, so the other agent has the context', async () => {
+    const r = await ask({ question: 'we arbitrate disputes on chain' });
+    expect(r.body.handoff).toMatch(/Me: we arbitrate disputes on chain/);
+    expect(r.body.handoff).toMatch(/Otto: Opened it\./);
+  });
+
+  test('says nothing was created when nothing was', async () => {
+    const r = await ask({ question: 'hello' });
+    expect(r.body.handoff).toMatch(/Nothing opened yet/);
+    expect(r.body.handoff).not.toMatch(/Opened during this conversation/);
+  });
+
+  test('an anonymous caller is told what is missing before anything else', async () => {
+    authOverride = {};
+    const r = await ask({ question: 'hello' });
+    expect(r.body.handoff).toMatch(/not signed in yet/i);
   });
 });
 

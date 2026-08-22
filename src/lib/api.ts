@@ -1135,7 +1135,13 @@ export const api = {
    *  turn, read back from the API rather than parsed out of his answer. */
   askSetup: (
     messages: Array<{ role: 'user' | 'assistant'; content: string }>,
-  ): Promise<{ answer: string; opened: Array<{ name: string; slug: string | null }> }> =>
+  ): Promise<{
+    answer: string;
+    opened: Array<{ name: string; slug: string | null }>;
+    /** The paste-ready prompt for the caller's own agent, rebuilt server-side
+     *  every turn so the ids in it are real rather than restated by a model. */
+    handoff: string;
+  }> =>
     request('/api/setup/ask', { method: 'POST', body: JSON.stringify({ messages }) }, true),
 
   /** Public floor read: who holds what and the trade history for a

@@ -6,6 +6,7 @@ import { floorQuestions, workspaces } from '../db/schema';
 import { wrap } from '../lib/wrap';
 import { askAboutWorkspace, askEnabled, type AskTurn } from '../lib/ask';
 import { SETUP_SYSTEM, renderSetupBrief } from '../lib/setup-brief';
+import { renderHandoff } from '../lib/setup-handoff';
 import { ottoApiTools, type ApiCallRecord } from '../services/otto-tools';
 
 export const setupRouter = Router();
@@ -60,7 +61,7 @@ setupRouter.post('/ask', wrap(async (req, res) => {
   // refuse is the kind of confident wrongness that ends the conversation.
   const identity = req.auth?.agentId ?? req.auth?.uid ?? null;
   const owned = identity
-    ? await db.select({ name: workspaces.name, slug: workspaces.slug })
+    ? await db.select({ id: workspaces.id, name: workspaces.name, slug: workspaces.slug })
         .from(workspaces).where(eq(workspaces.createdBy, identity))
     : [];
 
@@ -93,13 +94,23 @@ setupRouter.post('/ask', wrap(async (req, res) => {
     // without parsing his prose for a URL. Read back rather than taken from
     // his words: a floor exists because the API says so.
     const after = identity
-      ? await db.select({ name: workspaces.name, slug: workspaces.slug })
+      ? await db.select({ id: workspaces.id, name: workspaces.name, slug: workspaces.slug })
           .from(workspaces).where(eq(workspaces.createdBy, identity))
       : [];
     const before = new Set(owned.map(w => w.slug));
     const opened = after.filter(w => w.slug && !before.has(w.slug));
 
-    res.json({ answer, opened });
+    // The handoff to the caller's own agent, rebuilt every turn (owner
+    // direction 2026-08-22). Assembled here rather than asked of Otto: a
+    // model restating a workspace id gets one wrong eventually, and the agent
+    // on the other side would act on it.
+    const handoff = renderHandoff([...turns, { role: 'assistant', content: answer }], {
+      signedIn: Boolean(identity),
+      workspaces: after,
+      opened,
+    });
+
+    res.json({ answer, opened, handoff });
   } catch (e) {
     console.error('setup ask failed:', e);
     const message = e instanceof Error ? e.message.slice(0, 500) : String(e).slice(0, 500);
