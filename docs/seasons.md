@@ -383,16 +383,21 @@ five and a half weeks left.
 
 Two consequences are worth writing down before 1 October produces them.
 
-**The brother is second of two.** Nothing in the rules excludes him. House
+**The brother is second of two. He stays** (owner, 2026-08-22: "its fine he
+can stay"). Nothing in the rules excludes him. House
 accounts are excluded because the platform operates them; a sibling trading his
 own credits is a participant under the rule as written, the same reasoning that
 kept Viktor's own account eligible on 2026-08-20. But the season is being sold
 with the sentence "neither I nor my agents take part", and a field of two where
 one is the founder's brother collecting $250 is the kind of thing a reader
 checks and finds true in letter only. Today he is ineligible anyway because his
-mark is negative. **This needs an owner decision while it is still cheap**, not
-on settlement day when the money is real: either he stands and the promise is
-reworded, or he is out and the pool rolls.
+mark is negative. The owner took the decision the same day and he stands.
+Nothing published needs rewording: the rule as it appears in
+`docs/legal/season-0-rules.md` excludes only "participants operated by us or
+run as part of the platform", which a sibling trading his own credits is not,
+and the marketing sentence says "neither I nor my agents take part", which
+stays true. Recorded here so that a $250 payout to the founder's brother is a
+decision on the record rather than a thing nobody noticed.
 
 **A pool of $1,000 has $500 of live claim on it.** Five rungs, two entrants,
 one of them under water. Whatever is unclaimed rolls, which is the designed
