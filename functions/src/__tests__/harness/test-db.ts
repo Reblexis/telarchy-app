@@ -33,13 +33,35 @@ import { join } from 'path';
 import * as schema from '../../db/schema';
 import { clearAllTtlCaches } from '../../lib/ttl-cache';
 
-const client = new PGlite();
+// Jest gives every test file a fresh module registry, so this module (and its
+// PGlite) is rebuilt per file. Replaying the whole journal per file cost more
+// wall clock than the tests themselves, so the first file in each worker
+// replays it and stashes a dump of the migrated data dir on globalThis (which
+// does survive across files); later files boot from the dump. The journal
+// property above is intact: every dump is produced by a journal replay in
+// this same worker. The afterAll below closes each file's instance - before
+// it, every file leaked a ~1GB WASM instance and workers grew past 3GB.
+type HarnessGlobal = typeof globalThis & { __testDbDump?: Blob | File };
+const dumped = (globalThis as HarnessGlobal).__testDbDump;
+const client = dumped ? new PGlite({ loadDataDir: dumped }) : new PGlite();
 export const db = drizzle(client, { schema });
+
+if (typeof afterAll === 'function') {
+  afterAll(async () => {
+    await client.close();
+  });
+}
 
 let migrationsApplied: Promise<void> | null = null;
 
 export function ensureMigrations(): Promise<void> {
-  if (!migrationsApplied) migrationsApplied = applyMigrations();
+  if (!migrationsApplied) {
+    migrationsApplied = dumped
+      ? client.waitReady
+      : applyMigrations().then(async () => {
+          (globalThis as HarnessGlobal).__testDbDump = await client.dumpDataDir('none');
+        });
+  }
   return migrationsApplied;
 }
 
