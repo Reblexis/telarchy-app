@@ -220,16 +220,23 @@ export function TradePage() {
     }
   }, [ws, location.pathname, navigate]);
 
+  // THIS floor is the workspace context for every call the page makes, pinned
+  // the moment the payload arrives. It used to be set only inside the silent
+  // join's success path, so a viewer the join skipped (an owner already in, a
+  // non-open floor, a failed join) kept whatever workspace localStorage held
+  // from an earlier page, and every header-scoped call answered for the wrong
+  // floor: "Proposal not found" on edit was the owner's report of 2026-08-22.
+  useEffect(() => {
+    if (ws) setActiveWorkspace(ws.workspaceId);
+  }, [ws]);
+
   // Silent join on an Open workspace; idempotent server-side.
   useEffect(() => {
     if (!ws || !user || joinTried.current) return;
     if (ws.joinAs !== 'trader') return;
     joinTried.current = true;
     api.joinWorkspace(ws.workspaceId)
-      .then(() => {
-        setActiveWorkspace(ws.workspaceId);
-        setJoined(true);
-      })
+      .then(() => setJoined(true))
       .catch(e => console.error('silent join failed:', e));
   }, [ws, user]);
 
@@ -251,17 +258,18 @@ export function TradePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(loadLeaders, [idOrSlug]);
 
-  // Once joined (the workspace header is set), ask who we are HERE. The
-  // manage capability is what the server checks on every manage endpoint
-  // (approve, decline, edit any contract), so it is what decides whether to
-  // draw those controls. The authRole label it used to read is a legacy
-  // membership summary that misses manage granted via a permission group.
+  // Once the floor is loaded (the workspace header is pinned), ask who we
+  // are HERE. The manage capability is what the server checks on every
+  // manage endpoint (approve, decline, edit any contract), so it is what
+  // decides whether to draw those controls. Deliberately not gated on the
+  // silent join: the owner of a floor that is not open-join never joins,
+  // and they are exactly who these controls exist for.
   useEffect(() => {
-    if (!user || !joined) return;
+    if (!user || !ws) return;
     api.getProfile()
       .then(p => setCanManage(((p as { capabilities?: string[] }).capabilities ?? []).includes('manage')))
       .catch(e => console.error('profile fetch failed:', e));
-  }, [user, joined]);
+  }, [user, ws]);
 
   const decide = async (action: 'approve' | 'decline', refund = false) => {
     if (!selectedJobId || !ws) return;

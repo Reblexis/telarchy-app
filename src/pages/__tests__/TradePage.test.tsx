@@ -801,3 +801,20 @@ describe('a contract keeps the clock line', () => {
     await waitFor(() => expect(vi.mocked(api.getMarketActivity)).toHaveBeenCalledWith('lookpilot', 'm-week-approved'));
   });
 });
+
+describe('the floor pins its own workspace context', () => {
+  // Owner report 2026-08-22: editing a contract answered "Proposal not
+  // found" because the workspace header still named a previously visited
+  // floor. The pin used to happen only inside the silent join's success
+  // path, which a viewer-mode visitor (and an owner of a non-open floor)
+  // never enters.
+  test('loading a floor sets the active workspace even without a join', async () => {
+    const { api, setActiveWorkspace } = await import('../../lib/api');
+    const ws = h.workspace(); // default joinAs: 'viewer', so no silent join
+    vi.mocked(api.getMarketplaceWorkspace).mockResolvedValue(ws as never);
+    vi.mocked(setActiveWorkspace).mockClear();
+    renderFloor();
+    await screen.findByTitle('rewrite the store page');
+    await waitFor(() => expect(vi.mocked(setActiveWorkspace)).toHaveBeenCalledWith('ws-1'));
+  });
+});
