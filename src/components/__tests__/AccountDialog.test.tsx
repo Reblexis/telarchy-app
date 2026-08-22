@@ -13,7 +13,7 @@ const getParticipant = vi.fn(async () => ({
   nickname: 'trader-1', balance: 1000, earnedBetting: 50,
   payoutHandle: 'PayPal: old@x.com',
   payoutMethod: { provider: 'paypal', email: 'old@x.com' },
-  notifications: { commentOnMyProposal: true, replyToMyComment: true, newProposal: false },
+  notifications: { commentOnMyProposal: true, replyToMyComment: true, newProposal: false, anyComment: false },
 }));
 
 /* The dialog absorbed the deleted console account page (2026-08-19), so it
@@ -169,8 +169,10 @@ describe('the email switches', () => {
     render(<AccountDialog onClose={() => {}} initialTab="emails" />);
     const mine = await screen.findByRole('switch', { name: /comments on my contract/i });
     const ballot = screen.getByRole('switch', { name: /new contract goes on the ballot/i });
+    const watcher = screen.getByRole('switch', { name: /any comment/i });
     await waitFor(() => expect(mine.getAttribute('aria-checked')).toBe('true'));
     expect(ballot.getAttribute('aria-checked')).toBe('false');
+    expect(watcher.getAttribute('aria-checked')).toBe('false');
   });
 
   test('one click sends only that switch', async () => {

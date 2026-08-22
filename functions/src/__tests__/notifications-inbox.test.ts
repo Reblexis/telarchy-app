@@ -72,6 +72,51 @@ describe('the inbox', () => {
     expect(items[0].at.getTime()).toBeGreaterThanOrEqual(items[items.length - 1].at.getTime());
   });
 
+  test('replying to a thread does not backfill what was said before I arrived', async () => {
+    // Reported 2026-08-22: a first reply in an existing thread made every
+    // older comment in it appear as an unread notification from the past.
+    await participant('me');
+    await participant('other');
+    await participant('stranger');
+    await seedFloor(['me', 'other', 'stranger']);
+    await contract('c-theirs', 'other', 'Their contract');
+    await comment('old1', 'c-theirs', 'other', 'before me', new Date('2026-08-19T09:00:00Z'));
+    await comment('old2', 'c-theirs', 'stranger', 'also before me', new Date('2026-08-19T09:30:00Z'));
+    await comment('mine', 'c-theirs', 'me', 'my first reply', new Date('2026-08-19T10:00:00Z'));
+    await comment('after', 'c-theirs', 'stranger', 'answering you', new Date('2026-08-19T10:30:00Z'));
+
+    const { items } = await listNotifications('me');
+    const ids = items.map(i => i.commentId);
+    // Only what came after I spoke is news addressed to me. (The contract
+    // itself still lands as a new-contract item; that one is correct.)
+    expect(ids).toContain('after');
+    expect(ids).not.toContain('old1');
+    expect(ids).not.toContain('old2');
+    expect(items.filter(i => i.kind === 'reply')).toHaveLength(1);
+  });
+
+  test('replying under a market thread does not backfill it either', async () => {
+    await participant('me');
+    await participant('trader');
+    await seedFloor(['me', 'trader']);
+    await db.insert(markets).values({
+      id: 'mkt-1', workspaceId: WS, metricId: 'metric-1', metricName: 'Weekly traders',
+      targetDate: '2026-12', rangeMin: 0, rangeMax: 100, shares: [0, 0], liquidity: 10, pool: initialPool(10),
+      active: true, resolved: false, voided: false,
+    });
+    const say = (id: string, from: string, content: string, at: Date) => db.insert(marketMessages).values({
+      id, workspaceId: WS, marketId: 'mkt-1', from, content, createdAt: at,
+    });
+    await say('old', 'trader', 'before me', new Date('2026-08-19T09:00:00Z'));
+    await say('mine', 'me', 'my first reply', new Date('2026-08-19T10:00:00Z'));
+    await say('after', 'trader', 'answering you', new Date('2026-08-19T11:00:00Z'));
+
+    const { items } = await listNotifications('me');
+    const ids = items.map(i => i.commentId);
+    expect(ids).toContain('after');
+    expect(ids).not.toContain('old');
+  });
+
   test('shows an event whose email is switched off', async () => {
     await participant('me', { notifyCommentOnMyProposal: false, notifyReplyToMyComment: false, notifyNewProposal: false });
     await participant('other');

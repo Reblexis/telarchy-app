@@ -62,7 +62,7 @@ function sanitizeAgentForViewer(
     // The email switches leave as ONE object, never as three loose columns:
     // GET /api/auth/me serves the same `notifications` shape, and two shapes
     // for one fact is how a client ends up reading the stale one.
-    notifyCommentOnMyProposal, notifyReplyToMyComment, notifyNewProposal,
+    notifyCommentOnMyProposal, notifyReplyToMyComment, notifyNewProposal, notifyAnyComment,
     ...data
   } = row;
   const isSelfOrOwner = !!auth && (
@@ -77,6 +77,7 @@ function sanitizeAgentForViewer(
         commentOnMyProposal: notifyCommentOnMyProposal,
         replyToMyComment: notifyReplyToMyComment,
         newProposal: notifyNewProposal,
+        anyComment: notifyAnyComment,
       },
     };
   }

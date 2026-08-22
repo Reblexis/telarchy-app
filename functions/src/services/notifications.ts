@@ -34,7 +34,7 @@ const REASON_LINE: Record<Reason, string> = {
   'my-proposal': 'You are getting this because someone commented on a contract you posted.',
   reply: 'You are getting this because you commented in this thread.',
   'new-proposal': 'You are getting this because you asked to hear about new contracts here.',
-  'any-comment': 'You are getting this because you asked to hear about every comment on this floor.',
+  'any-comment': 'You are getting this because you asked to hear about every comment on this workspace.',
   decision: 'You are getting this because you posted this contract. Decisions on your own contracts are always sent.',
 };
 
@@ -404,19 +404,35 @@ export async function listNotifications(participantId: string, limit = 30): Prom
     .map(g => g.workspaceId))];
 
   // Threads this participant is in, so a reply can be recognised as a reply.
+  // WHEN they first spoke matters as much as where: a thread only owes them
+  // what was said after they arrived. Without that cutoff, a first reply in
+  // an old thread backfilled every earlier comment into the inbox as unread
+  // news from the past (reported 2026-08-22).
   const [myProposalThreads, myMarketThreads, myProposals] = await Promise.all([
-    db.select({ proposalId: proposalMessages.proposalId }).from(proposalMessages)
-      .where(eq(proposalMessages.from, participantId)),
-    db.select({ marketId: marketMessages.marketId }).from(marketMessages)
-      .where(eq(marketMessages.from, participantId)),
+    db.select({ proposalId: proposalMessages.proposalId, createdAt: proposalMessages.createdAt })
+      .from(proposalMessages).where(eq(proposalMessages.from, participantId)),
+    db.select({ marketId: marketMessages.marketId, createdAt: marketMessages.createdAt })
+      .from(marketMessages).where(eq(marketMessages.from, participantId)),
     db.select({ id: proposals.id, title: proposals.title, workspaceId: proposals.workspaceId,
       status: proposals.status, resolvedAt: proposals.resolvedAt, declineReason: proposals.declineReason })
       .from(proposals).where(eq(proposals.proposedBy, participantId)),
   ]);
 
   const myProposalIds = [...new Set(myProposals.map(p => p.id))];
-  const inProposalThreads = [...new Set(myProposalThreads.map(t => t.proposalId))];
-  const inMarketThreads = [...new Set(myMarketThreads.map(t => t.marketId))];
+  const joinedProposalThreadAt = new Map<string, number>();
+  for (const t of myProposalThreads) {
+    const at = t.createdAt.getTime();
+    const cur = joinedProposalThreadAt.get(t.proposalId);
+    if (cur === undefined || at < cur) joinedProposalThreadAt.set(t.proposalId, at);
+  }
+  const joinedMarketThreadAt = new Map<string, number>();
+  for (const t of myMarketThreads) {
+    const at = t.createdAt.getTime();
+    const cur = joinedMarketThreadAt.get(t.marketId);
+    if (cur === undefined || at < cur) joinedMarketThreadAt.set(t.marketId, at);
+  }
+  const inProposalThreads = [...joinedProposalThreadAt.keys()];
+  const inMarketThreads = [...joinedMarketThreadAt.keys()];
   const titleOf = new Map(myProposals.map(p => [p.id, p.title]));
 
   // Conditional markets belong to a contract, so their threads are part of
@@ -478,9 +494,13 @@ export async function listNotifications(participantId: string, limit = 30): Prom
 
   for (const c of proposalComments) {
     if (c.from === participantId) continue;
+    const mine = myProposalIds.includes(c.proposalId);
+    // A thread I merely joined owes me nothing older than my first message
+    // in it; my own contract's thread owes me everything.
+    if (!mine && c.createdAt.getTime() < (joinedProposalThreadAt.get(c.proposalId) ?? Infinity)) continue;
     items.push({
       id: `pm-${c.id}`,
-      kind: myProposalIds.includes(c.proposalId) ? 'comment' : 'reply',
+      kind: mine ? 'comment' : 'reply',
       at: c.createdAt,
       actor: handle(c.from),
       subject: titleOf.get(c.proposalId) ?? 'a contract',
@@ -496,6 +516,9 @@ export async function listNotifications(participantId: string, limit = 30): Prom
   for (const c of marketComments) {
     if (c.from === participantId) continue;
     const owned = branchOwner.get(c.marketId);
+    // Same cutoff as contract threads: a branch market of my own contract
+    // owes me everything, a thread I joined only what came after I spoke.
+    if (!owned && c.createdAt.getTime() < (joinedMarketThreadAt.get(c.marketId) ?? Infinity)) continue;
     items.push({
       id: `mm-${c.id}`,
       kind: owned ? 'comment' : 'reply',

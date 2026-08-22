@@ -576,7 +576,7 @@ invites someone to retype the rest from memory.
 Email is an interruption a person tunes; it is a bad record. A participant who switched the new-contract alert off still needs somewhere to see that a contract went up, and a participant who never opens their mail still needs to find out that their contract was declined and why. So the floor's top bar carries a bell, and **the bell shows everything**:
 
 - someone commented on a contract you posted, including on its conditional markets,
-- someone else commented in a thread you are in,
+- someone else commented in a thread you are in, and only after you first spoke in it: what was said before you arrived is the page you already read, not news addressed to you, so joining a thread never backfills its history into your inbox,
 - a new contract went on the ballot of a workspace you belong to,
 - **your own contract was approved or declined**, with the decline reason.
 

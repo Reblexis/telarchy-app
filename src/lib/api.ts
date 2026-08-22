@@ -150,6 +150,8 @@ export interface NotificationPrefs {
   replyToMyComment: boolean;
   /** Every new contract on a workspace you belong to. Off until asked for. */
   newProposal: boolean;
+  /** Every comment anywhere on a workspace you belong to. Off until asked for. */
+  anyComment: boolean;
 }
 
 /** A bug report, help request, or feature idea (POST /api/feedback).

@@ -363,7 +363,7 @@ describe('watching every comment on a floor', () => {
     await notifyCommentPosted({ workspaceId: WS, from: 'commenter', content: 'anyone there', proposalId: 'prop-1' });
 
     expect(sent.map(s => s.to)).toEqual(['owner@example.com']);
-    expect(sent[0].text).toContain('every comment on this floor');
+    expect(sent[0].text).toContain('every comment on this workspace');
   });
 
   test('never about their own comment', async () => {
