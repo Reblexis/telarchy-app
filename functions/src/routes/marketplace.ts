@@ -971,7 +971,7 @@ marketplaceRouter.post('/:workspaceId/ask', wrap(async (req, res) => {
     // an anonymous asker's Otto can read and cannot act, and a signed-in
     // asker's Otto can do what they can do and no more.
     const { answer, usage } = await askAboutWorkspace(
-      renderContextMarkdown(context), turns, [dataRoomTool(), ...ottoApiTools(req, actions)]);
+      renderContextMarkdown(context), turns, [dataRoomTool(), ...ottoApiTools(req, actions, ws.id)]);
     console.log(`ask ${ws.slug ?? ws.id}: ${usage.input} in (${usage.cachedInput} cached), ${usage.output} out, $${usage.costUsd ?? '?'}`);
     // Every question is kept, with its answer (owner ask 2026-08-20): a row
     // here is a gap in the floor said in a visitor's own words, and the answer

@@ -83,12 +83,23 @@ function catalogLines(query: string): string[] {
  * actions beside the question. Acting on someone's behalf without a record of
  * it is the part that would be hard to defend later.
  */
-export function ottoApiTools(req: Request, record: ApiCallRecord[]): AskTool[] {
+export function ottoApiTools(req: Request, record: ApiCallRecord[], floorWorkspaceId?: string): AskTool[] {
   const identity: Record<string, string> = {};
   for (const h of IDENTITY_HEADERS) {
     const v = req.headers[h];
     if (typeof v === 'string' && v) identity[h] = v;
   }
+  // The floor being asked about, when the caller sent no workspace of their
+  // own. Reading a public workspace needs no key but does need to name the
+  // workspace (AGENTS.md, "Reading is open, acting needs a key"), and a
+  // browser visitor sends no such header, so without this an anonymous
+  // question about the market in front of them comes back 401. It grants
+  // nothing: an anonymous caller still gets `read` on a public workspace and
+  // nothing else, which is the same boundary the page itself sits behind.
+  if (!identity['x-workspace-id'] && floorWorkspaceId) {
+    identity['x-workspace-id'] = floorWorkspaceId;
+  }
+
   // The visitor's own address, so per-IP limits count against them rather than
   // against the loopback interface every visitor shares.
   const fwd = (req.headers['x-forwarded-for'] as string | undefined)

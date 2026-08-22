@@ -141,3 +141,21 @@ test('find_endpoint answers from the catalog the API actually serves', async () 
   // A miss says so rather than inventing a path for him to call.
   expect(await finder.run({ query: 'zzzz nothing like this' })).toMatch(/No endpoint matches/);
 });
+
+test('an anonymous question about this floor still reads this floor', async () => {
+  // Reading a public workspace needs no key but does need to name the
+  // workspace, and a browser visitor sends no such header. Without the floor
+  // being passed through, an anonymous "what does the market say" came back
+  // 401 and Otto correctly but uselessly reported it.
+  const record: ApiCallRecord[] = [];
+  const tools = ottoApiTools(fakeReq({}, null), record, 'ws-lookpilot');
+  await callTool(tools).run({ method: 'GET', path: '/api/predictions/markets' });
+  expect(seen[0].headers['x-workspace-id']).toBe('ws-lookpilot');
+});
+
+test('the caller\'s own workspace wins over the floor they are standing on', async () => {
+  const record: ApiCallRecord[] = [];
+  const tools = ottoApiTools(fakeReq({ 'x-workspace-id': 'ws-mine' }, 'agent-7'), record, 'ws-lookpilot');
+  await callTool(tools).run({ method: 'GET', path: '/api/predictions/markets' });
+  expect(seen[0].headers['x-workspace-id']).toBe('ws-mine');
+});
