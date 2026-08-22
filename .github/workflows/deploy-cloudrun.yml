@@ -18,11 +18,20 @@ on:
       - '.github/workflows/telarchy-self-sync.yml'
   workflow_dispatch: {}
 
-# A single in-flight deploy at a time; cancel an older run if a newer push
-# arrives so production lands on the most recent commit, not a stale one.
+# A single in-flight deploy at a time, but the in-flight run is never cancelled:
+# it always finishes and lands a candidate (owner ask 2026-08-22, "one that does
+# not stop until a build is finished"). While it runs, a new push is held
+# pending, and GitHub cancels any older pending run so only the NEWEST queued
+# commit waits, then runs next and becomes the new stubborn one. That is the
+# stubborn+chaser design without a dispatcher: forward progress is guaranteed
+# (nothing starves the way cancel-in-progress:true did under heavy churn from
+# many concurrent sessions), and the build that runs next is always the latest.
+# We deliberately do NOT run two builds at once: the runners are the bottleneck
+# (self-hosted, often saturated), and there is a single shared `candidate` tag
+# that two concurrent deploys would clobber.
 concurrency:
   group: cloud-run-deploy
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
