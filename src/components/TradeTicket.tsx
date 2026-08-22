@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { costToMove, previewSell, previewTrade } from '../lib/amm';
+import { previewSell, previewTargetBet, previewTrade } from '../lib/amm';
 import { SLIDER_STEPS, amountToSlider, sliderToAmount } from '../lib/bet-slider';
 import type { LimitOrder } from '../lib/api';
 
@@ -32,6 +32,11 @@ interface Props {
   liquidity: number;
   positions: TicketPosition[];
   onTrade: (direction: 'higher' | 'lower', amount: number) => Promise<void>;
+  /** Place a {targetValue, maxBudget} trade: the server lands exactly on
+      the target (budget permitting), netting included, so the value the
+      ticket promised is the value the market prints. Used whenever the
+      trade was composed by typing into the "New value" row. */
+  onTradeTarget?: (targetValue: number, maxBudget: number) => Promise<void>;
   /** Sell `shares` of the held position (defaults to the whole thing). */
   onSell: (p: TicketPosition, shares: number) => Promise<void>;
   /** Credits available to spend, so the bet slider scales to what the
@@ -98,7 +103,7 @@ function fmtValue(v: number): string {
 }
 
 export function TradeTicket({
-  probability, liquidity, positions, onTrade, onSell, balance, onPreview, onRequireSignup,
+  probability, liquidity, positions, onTrade, onTradeTarget, onSell, balance, onPreview, onRequireSignup,
   unit = '', consensus = null, rangeMin, rangeMax, orders = [], onPlaceLimit, onCancelLimit,
   initialDir, onClose, manageMode = false,
 }: Props) {
@@ -111,6 +116,11 @@ export function TradeTicket({
   // sets the side and the amount to whatever reaches it (capped at
   // the affordable maxBet); blurring returns the row to the derived display.
   const [targetDraft, setTargetDraft] = useState<string | null>(null);
+  // The committed target value, when the trade was composed by typing one.
+  // While set, the confirm places a {targetValue, maxBudget} trade, which
+  // the server lands ON the target; picking a side or editing the amount by
+  // hand goes back to a plain budget buy and clears it.
+  const [target, setTarget] = useState<number | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [placed, setPlaced] = useState(false);
   const [error, setError] = useState('');
@@ -121,10 +131,20 @@ export function TradeTicket({
   const [sellDir, setSellDir] = useState<'higher' | 'lower' | null>(null);
   const [sellShares, setSellShares] = useState(0);
 
+  // The one position the trader holds (the server nets to a single side).
+  // Every buy preview needs it: buying the opposite side first sells this
+  // position, which moves the price the buy then prices against.
+  const held = positions.find(p => p.shares > 1e-9) ?? null;
+  const oppProceeds = dir && held && held.direction !== dir
+    ? previewSell(probability, liquidity, held.direction, held.shares)
+    : 0;
+
   // The bet ceiling is what the trader can afford (owner removed the
   // per-market cap 2026-08-11); fall back to a sane default before the
-  // balance loads. The slider maxes here.
-  const maxBet = Math.max(1, Math.floor(balance != null && balance > 0 ? balance : 250));
+  // balance loads. The slider maxes here. A flip can also spend what the
+  // netting close pays out (the server credits it inside the same trade),
+  // so the ceiling includes it.
+  const maxBet = Math.max(1, Math.floor((balance != null && balance > 0 ? balance : 250) + oppProceeds));
 
   const amountNum = Math.max(0, Math.floor(parseFloat(amount) || 0));
   const limitNum = limit.trim() === '' ? null : parseFloat(limit.replace(/,/g, ''));
@@ -133,9 +153,15 @@ export function TradeTicket({
     : limit;
   const canLimit = !!onPlaceLimit && consensus !== null && rangeMin !== undefined && rangeMax !== undefined;
   const isLimit = mode === 'limit' && canLimit;
-  const composed = dir && amountNum > 0 ? previewTrade(probability, liquidity, dir, amountNum) : null;
-  const payout = composed?.shares ?? null;
   const span = rangeMin !== undefined && rangeMax !== undefined ? rangeMax - rangeMin : null;
+  // A typed target previews (and places) the server's targetValue mode; a
+  // hand-picked side and amount preview a budget buy. Both replay the
+  // netting close first, so what this shows is what the trade lands on.
+  const targetComposed = target !== null && span !== null && rangeMin !== undefined && amountNum > 0
+    ? previewTargetBet(probability, liquidity, rangeMin, rangeMin + span, target, amountNum, held)
+    : null;
+  const composed = targetComposed ?? (dir && amountNum > 0 ? previewTrade(probability, liquidity, dir, amountNum, held) : null);
+  const payout = composed?.shares ?? null;
   // Where the market's call would land if this bet were placed now.
   const newValue = composed && span !== null && rangeMin !== undefined
     ? rangeMin + composed.newProb * span
@@ -175,7 +201,10 @@ export function TradeTicket({
       return { breakeven: limitNum, slope: (shares * step) / span };
     }
     if (!composed || composed.shares <= 0 || amountNum <= 0) return null;
-    const avg = amountNum / composed.shares;
+    // A typed target spends its computed cost, not the whole budget ceiling.
+    const spend = targetComposed ? targetComposed.cost : amountNum;
+    if (spend <= 0) return null;
+    const avg = spend / composed.shares;
     const breakeven = dir === 'higher' ? rangeMin + avg * span : rangeMin + (1 - avg) * span;
     return { breakeven, slope: (composed.shares * step) / span };
   })();
@@ -185,7 +214,7 @@ export function TradeTicket({
     const show = composed && dir && !isLimit;
     onPreview?.(show ? { direction: dir, newProb: composed.newProb } : null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dir, amountNum, probability, liquidity, isLimit]);
+  }, [dir, amountNum, probability, liquidity, isLimit, target, held?.direction, held?.shares]);
   // Clear the ghost when the ticket unmounts.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => () => onPreview?.(null), []);
@@ -210,6 +239,12 @@ export function TradeTicket({
         await onPlaceLimit(dir, limitNum, amountNum);
         setLimit('');
         setMode('quick');
+      } else if (target !== null && onTradeTarget) {
+        // Composed by typing a value: place the server's targetValue mode,
+        // which lands ON the typed value (budget permitting) instead of
+        // approximating it with a budget buy.
+        await onTradeTarget(target, amountNum);
+        setTarget(null);
       } else {
         await onTrade(dir, amountNum);
       }
@@ -250,6 +285,7 @@ export function TradeTicket({
 
   const pick = (d: 'higher' | 'lower') => {
     setDir(cur => (cur === d ? null : d));
+    setTarget(null);
     setError('');
   };
 
@@ -274,6 +310,11 @@ export function TradeTicket({
       if (limitNum === null || limitError) return `Set a price for ${sideWord}`;
       // The whole instruction, in one readable sentence.
       return `Buy ${sideWord} with ${amountNum} cr ${dir === 'higher' ? 'under' : 'over'} ${unit}${fmtValue(limitNum)}`;
+    }
+    if (target !== null) {
+      // A typed target is an instruction about the landing value, and the
+      // budget is a ceiling rather than the spend, so say it that way.
+      return `Bet to ${unit}${fmtValue(target)}, up to ${amountNum} cr`;
     }
     return `Bet ${amountNum} cr on ${sideWord}`;
   };
@@ -447,7 +488,7 @@ export function TradeTicket({
           pattern="[0-9]*"
           value={amount}
           style={{ width: `${Math.max(1, amount.length)}ch` }}
-          onChange={e => setAmount(e.target.value.replace(/[^0-9]/g, ''))}
+          onChange={e => { setAmount(e.target.value.replace(/[^0-9]/g, '')); setTarget(null); }}
           aria-label="Credits to spend"
         />
         <span className="ticket-amt-unit">cr</span>
@@ -465,7 +506,7 @@ export function TradeTicket({
           const p = (amountToSlider(amountNum, maxBet) / SLIDER_STEPS) * 100;
           return { ['--slider-pct' as string]: `${p.toFixed(2)}%` };
         })()}
-        onChange={e => setAmount(String(sliderToAmount(parseInt(e.target.value, 10), maxBet)))}
+        onChange={e => { setAmount(String(sliderToAmount(parseInt(e.target.value, 10), maxBet))); setTarget(null); }}
         aria-label="Bet amount slider"
       />
 
@@ -519,9 +560,14 @@ export function TradeTicket({
                   const t = parseFloat(raw);
                   if (!Number.isFinite(t)) return;
                   const clamped = Math.min(rangeMin + span * 0.999, Math.max(rangeMin + span * 0.001, t));
-                  const { direction, cost } = costToMove(probability, liquidity, (clamped - rangeMin) / span);
-                  setDir(direction);
-                  setAmount(String(Math.min(maxBet, Math.max(1, Math.ceil(cost)))));
+                  // Full server mirror (netting close included): the side
+                  // shown and the cost charged are the ones the server will
+                  // actually use, and place() sends the target itself.
+                  const r = previewTargetBet(probability, liquidity, rangeMin, rangeMin + span, clamped, Number.MAX_SAFE_INTEGER, held);
+                  if (!r) return;
+                  setDir(r.direction);
+                  setAmount(String(Math.min(maxBet, Math.max(1, Math.ceil(r.cost)))));
+                  setTarget(clamped);
                 }}
                 inputMode="decimal"
                 aria-label={`Bet the market to this value in ${unit || 'metric units'}`}

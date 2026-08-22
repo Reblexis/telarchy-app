@@ -185,7 +185,7 @@ describe('bet amount slider', () => {
 });
 
 describe('betting towards a value', () => {
-  test('typing a target into New value sets the side and the cost to reach it', () => {
+  test('typing a target into New value sets the side, the cost, and a confirm that names the target', () => {
     render(<TradeTicket {...base} />);
     fireEvent.click(screen.getByText('Higher'));
     const target = screen.getByLabelText('Bet the market to this value in $');
@@ -195,10 +195,14 @@ describe('betting towards a value', () => {
     fireEvent.change(target, { target: { value: '100000' } });
     const amountInput = screen.getByLabelText('Credits to spend') as HTMLInputElement;
     expect(Number(amountInput.value)).toBeGreaterThan(0);
-    expect(screen.getByText(/Bet \d+ cr on Lower/)).toBeTruthy();
+    // The confirm states the landing value, because that is what the
+    // placed trade (the server's targetValue mode) actually promises.
+    expect(screen.getByText(/Bet to \$100,000, up to \d+ cr/)).toBeTruthy();
+    expect(screen.getByText('Lower').getAttribute('aria-pressed')).toBe('true');
     // And above: flips back to Higher.
     fireEvent.change(target, { target: { value: '400000' } });
-    expect(screen.getByText(/Bet \d+ cr on Higher/)).toBeTruthy();
+    expect(screen.getByText(/Bet to \$400,000, up to \d+ cr/)).toBeTruthy();
+    expect(screen.getByText('Higher').getAttribute('aria-pressed')).toBe('true');
   });
 
   test('an unreachable target caps the amount at the per-market maximum', () => {
@@ -209,5 +213,99 @@ describe('betting towards a value', () => {
     fireEvent.change(target, { target: { value: '499000' } });
     const amountInput = screen.getByLabelText('Credits to spend') as HTMLInputElement;
     expect(Number(amountInput.value)).toBe(250);
+  });
+
+  test('confirming a typed target places a targetValue trade, not a budget buy', async () => {
+    const onTrade = vi.fn(async () => {});
+    const onTradeTarget = vi.fn(async () => {});
+    render(<TradeTicket {...base} onTrade={onTrade} onTradeTarget={onTradeTarget} />);
+    fireEvent.click(screen.getByText('Higher'));
+    const target = screen.getByLabelText('Bet the market to this value in $');
+    fireEvent.focus(target);
+    fireEvent.change(target, { target: { value: '300000' } });
+    fireEvent.click(screen.getByText(/Bet to \$300,000/));
+    await waitFor(() => expect(onTradeTarget).toHaveBeenCalledTimes(1));
+    const [placedTarget, budget] = onTradeTarget.mock.calls[0] as unknown as [number, number];
+    expect(placedTarget).toBe(300000);
+    expect(budget).toBeGreaterThan(0);
+    expect(onTrade).not.toHaveBeenCalled();
+  });
+
+  test('editing the amount by hand after typing a target goes back to a plain buy', async () => {
+    const onTrade = vi.fn(async () => {});
+    const onTradeTarget = vi.fn(async () => {});
+    render(<TradeTicket {...base} onTrade={onTrade} onTradeTarget={onTradeTarget} />);
+    fireEvent.click(screen.getByText('Higher'));
+    const target = screen.getByLabelText('Bet the market to this value in $');
+    fireEvent.focus(target);
+    fireEvent.change(target, { target: { value: '300000' } });
+    fireEvent.change(screen.getByLabelText('Credits to spend'), { target: { value: '40' } });
+    fireEvent.click(screen.getByText('Bet 40 cr on Higher'));
+    await waitFor(() => expect(onTrade).toHaveBeenCalledWith('higher', 40));
+    expect(onTradeTarget).not.toHaveBeenCalled();
+  });
+
+  test('picking a side after typing a target clears the target instruction', () => {
+    render(<TradeTicket {...base} />);
+    fireEvent.click(screen.getByText('Higher'));
+    const target = screen.getByLabelText('Bet the market to this value in $');
+    fireEvent.focus(target);
+    fireEvent.change(target, { target: { value: '100000' } });
+    expect(screen.getByText(/Bet to \$100,000/)).toBeTruthy();
+    // Re-picking Higher is a manual side choice: back to a budget buy.
+    fireEvent.click(screen.getByText('Higher'));
+    expect(screen.queryByText(/Bet to \$/)).toBeNull();
+  });
+});
+
+describe('the preview knows about netting (the 2026-08-22 bug)', () => {
+  // The trader holds the market's only 50 higher shares on a thin book
+  // (b=100, range 0..1000): the live probability that the ticket receives
+  // already contains them. Buying lower first CLOSES that position on the
+  // server, so the shown New value must start from the post-close book.
+  const b = 100;
+  const prob = 1 / (1 + Math.exp(-50 / b)); // pHigher([0, 50], 100)
+  const netted = {
+    ...base,
+    probability: prob,
+    liquidity: b,
+    consensus: 1000 * prob,
+    rangeMin: 0,
+    rangeMax: 1000,
+    positions: [{ direction: 'higher' as const, shares: 50, totalCost: 30 }],
+  };
+
+  test('with an opposite position held, New value shows the post-netting landing', () => {
+    const { container } = render(<TradeTicket {...netted} />);
+    fireEvent.click(screen.getByText('Lower'));
+    fireEvent.change(screen.getByLabelText('Credits to spend'), { target: { value: '25' } });
+    const shown = (container.querySelector('.ticket-newvalue') as HTMLInputElement).value;
+    // Netting-blind math said ~485 here; the server lands ~389 (see
+    // amm-parity.test.ts for the executed numbers). The displayed value
+    // must be the landed one.
+    expect(parseFloat(shown.replace(/,/g, ''))).toBeLessThan(420);
+    expect(parseFloat(shown.replace(/,/g, ''))).toBeGreaterThan(360);
+  });
+
+  test('without a held position the same buy previews the plain landing', () => {
+    const { container } = render(<TradeTicket {...netted} positions={[]} />);
+    fireEvent.click(screen.getByText('Lower'));
+    fireEvent.change(screen.getByLabelText('Credits to spend'), { target: { value: '25' } });
+    const shown = (container.querySelector('.ticket-newvalue') as HTMLInputElement).value;
+    expect(parseFloat(shown.replace(/,/g, ''))).toBeGreaterThan(450);
+  });
+
+  test('the bet ceiling includes what the netting close pays back', () => {
+    // Balance 10, but the held higher position is worth ~30 when the flip
+    // closes it: the slider must allow spending both.
+    render(<TradeTicket {...netted} balance={10} />);
+    fireEvent.click(screen.getByText('Lower'));
+    const slider = document.querySelector('.ticket-slider') as HTMLInputElement;
+    expect(slider).toBeTruthy();
+    // maxBet is the slider's currency ceiling: read it via the amount an
+    // all-the-way-right slider sets.
+    fireEvent.change(slider, { target: { value: slider.max } });
+    const amountInput = screen.getByLabelText('Credits to spend') as HTMLInputElement;
+    expect(Number(amountInput.value)).toBeGreaterThan(10);
   });
 });

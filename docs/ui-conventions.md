@@ -210,6 +210,23 @@ question. Focus it, type a target, and the ticket sets the side
 reaches that value, capped at the per-market maximum; blur returns the
 row to the derived display. The dotted underline is the affordance.
 
+**The value the ticket shows is the value the trade lands on** (owner
+report 2026-08-22: it wasn't). Two rules keep the promise. (1) Every buy
+preview replays the netting close first: the ticket's math starts from
+the post-close book whenever the trader holds the opposite side, because
+that is the book the server prices the buy against (`src/lib/amm.ts`,
+pinned against the real server functions by
+`src/lib/__tests__/amm-parity.test.ts`). The bet ceiling likewise counts
+the close's proceeds, since the server lets a flip spend them. (2) A
+typed target is placed as the server's `{targetValue, maxBudget}` mode,
+which lands ON the target (budget permitting, netting and buybacks
+included) rather than a client-approximated `{direction, amount}` buy;
+the confirm reads "Bet to $X, up to N cr" so the instruction states the
+landing. Editing the side or amount by hand returns to a plain budget
+buy. When resting limit orders fill behind a trade, the page shows
+`settledConsensus` (where the market came to rest), not the trade's own
+post-price.
+
 Conditional (job) markets open ANCHORED (owner decision 2026-08-11):
 a fresh pair opens at the baseline market's current value rather than
 the range midpoint, and the approved branch opens at baseline minus the

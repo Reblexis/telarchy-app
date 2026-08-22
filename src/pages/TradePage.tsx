@@ -566,9 +566,13 @@ export function TradePage() {
   // where the finger is.
   const doTrade = async (body: Record<string, unknown>) => {
     if (!ws) return;
-    const r = await api.trade(body, ws.workspaceId) as { consensus?: number | null };
-    if (typeof r.consensus === 'number' && typeof body.marketId === 'string') {
-      setLivePrice({ marketId: body.marketId, value: r.consensus });
+    const r = await api.trade(body, ws.workspaceId) as { consensus?: number | null; settledConsensus?: number | null };
+    // If resting limit orders filled against this trade, the market settled
+    // at settledConsensus, not at the trade's own post-price; show where the
+    // market actually is, not where it briefly was.
+    const landed = typeof r.settledConsensus === 'number' ? r.settledConsensus : r.consensus;
+    if (typeof landed === 'number' && typeof body.marketId === 'string') {
+      setLivePrice({ marketId: body.marketId, value: landed });
     }
     refreshMoney();
     reload();
@@ -581,6 +585,13 @@ export function TradePage() {
   const placeTrade = async (direction: 'higher' | 'lower', amount: number) => {
     if (!activeMarketId) return;
     await doTrade({ marketId: activeMarketId, direction, amount });
+  };
+  // The ticket's typed "New value" places the server's targetValue mode: the
+  // market lands ON the typed value (netting included), so the number the
+  // ticket showed is the number the floor prints next.
+  const placeTargetTrade = async (targetValue: number, maxBudget: number) => {
+    if (!activeMarketId) return;
+    await doTrade({ marketId: activeMarketId, targetValue, maxBudget });
   };
   const sellPosition = async (p: TicketPosition, shares: number) => {
     if (!activeMarketId) return;
@@ -1403,6 +1414,7 @@ export function TradePage() {
             liquidity={active.liquidity}
             positions={trading ? positions : []}
             onTrade={placeTrade}
+            onTradeTarget={placeTargetTrade}
             onSell={sellPosition}
             balance={balance}
             onPreview={setTicketPreview}
