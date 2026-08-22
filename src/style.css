@@ -7062,3 +7062,15 @@ textarea.jobform-line--desc {
 }
 .mkt-season-cta:hover { opacity: 0.9; }
 .mkt-season-cta:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* Otto as the page rather than the corner (operator door, 2026-08-22).
+   `.otto` is a fixed dock beside a market; on /manage he IS the content, so
+   this unpins him into the column. Same panel, same head, same log: one Otto
+   with two placements, never a second component to keep in sync. */
+.otto--page {
+  position: static;
+  width: 100%;
+  max-height: none;
+  min-height: 24rem;
+}
+.otto--page .otto-log { min-height: 16rem; }

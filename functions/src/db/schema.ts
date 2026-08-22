@@ -696,7 +696,9 @@ export const notificationReads = pgTable('notification_reads', {
  */
 export const floorQuestions = pgTable('floor_questions', {
   id: text('id').primaryKey(),
-  workspaceId: text('workspace_id').notNull(),
+  /** The floor asked about; NULL for a conversation on the operator door,
+   *  where the person does not have one yet (docs/operator-setup.md). */
+  workspaceId: text('workspace_id'),
   question: text('question').notNull(),
   answer: text('answer').notNull().default(''),
   /** Participant id when known; null for an anonymous visitor, which is most

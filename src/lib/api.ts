@@ -1129,6 +1129,15 @@ export const api = {
       method: 'POST', body: JSON.stringify({ messages }),
     }, true),
 
+  /** Otto on the operator door: the setup conversation for someone who does
+   *  not have a floor yet (docs/operator-setup.md). Same shape as askFloor,
+   *  no workspace. `opened` is any floor that came into existence during the
+   *  turn, read back from the API rather than parsed out of his answer. */
+  askSetup: (
+    messages: Array<{ role: 'user' | 'assistant'; content: string }>,
+  ): Promise<{ answer: string; opened: Array<{ name: string; slug: string | null }> }> =>
+    request('/api/setup/ask', { method: 'POST', body: JSON.stringify({ messages }) }, true),
+
   /** Public floor read: who holds what and the trade history for a
       market, no account needed (Open workspaces only). */
   getMarketActivity: (idOrSlug: string, marketId: string): Promise<{

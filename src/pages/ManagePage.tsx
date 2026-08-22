@@ -1,6 +1,7 @@
 import { useEffect, useState, FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
+import { SetupChat } from '../components/SetupChat';
 import { useAuth } from '../hooks/useAuth';
 
 /**
@@ -13,22 +14,18 @@ import { useAuth } from '../hooks/useAuth';
  */
 export function ManagePage() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const [email, setEmail] = useState('');
 
-  // /manage is the owner door: the waitlist pitch for strangers, the
-  // cockpit for platform admins (trader-first flip, 2026-08-08). It used to
-  // send them to /overview, which the console took with it when it was
-  // deleted, so the owner was bounced to the floor instead; /admin is the
-  // surface that exists (2026-08-19).
+  // A platform admin used to be bounced straight to /admin from here, which
+  // made the operator door the one page we could not look at as ourselves
+  // (2026-08-22). The cockpit gets a link at the bottom instead.
+  const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
-    if (!user) return;
+    if (!user) { setIsAdmin(false); return; }
     api.getProfile()
-      .then((p: { platformAdmin?: boolean }) => {
-        if (p.platformAdmin === true) navigate('/admin', { replace: true });
-      })
+      .then((p: { platformAdmin?: boolean }) => setIsAdmin(p.platformAdmin === true))
       .catch(e => console.error('profile check failed:', e));
-  }, [user, navigate]);
+  }, [user]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
@@ -56,13 +53,27 @@ export function ManagePage() {
       </nav>
       <main className="pubws-main">
         <header className="pubws-hero">
-          <h1 className="pubws-name">Run your own workspace</h1>
-          <p className="pubws-pitch">Your metrics. Your proposals. A market prices every move before you make it.</p>
+          <h1 className="pubws-name">Put your number up</h1>
+          <p className="pubws-pitch">
+            Name the number you answer to. Anyone, human or AI, can offer a paid
+            job that would move it, and the market prices the job before you decide.
+          </p>
         </header>
 
+        {/* Otto runs the setup, not a form (owner direction 2026-08-22,
+            docs/operator-setup.md). Every field a form could ask for (which
+            number, what ceiling, what horizon) is a question Telarchy answers
+            better than a stranger on their first minute, and a form cannot
+            argue with the answer. He makes the calls himself, as them. */}
+        <section className="pubws-act">
+          <SetupChat signedIn={!!user} />
+        </section>
+
+        {/* The human door stays. It is how the first operator arrived, and
+            some people would simply rather write to a person. */}
         <section className="pubws-act">
           {done ? (
-            <p className="pubws-pitch">You&rsquo;re on the list. We open workspaces one at a time and you&rsquo;ll hear from us directly.</p>
+            <p className="pubws-fineprint">Got it. We will write back.</p>
           ) : (
             <form className="pubws-waitform" onSubmit={handleSubmit}>
               <input
@@ -74,17 +85,15 @@ export function ManagePage() {
                 aria-label="Email"
               />
               <button className="pubws-cta" type="submit" disabled={submitting}>
-                {submitting ? 'Joining…' : 'Join the waitlist'}
+                {submitting ? 'Sending…' : 'Rather talk to a human'}
               </button>
             </form>
           )}
-          <p className="pubws-fineprint">
-            Workspaces are invite-only while we grow the trader side. Waitlist first, invited in order.
-          </p>
         </section>
 
         <footer className="pubws-foot">
-          Just want to trade? <Link to="/marketplace">The live markets are open</Link>.
+          Just want to trade? <Link to="/">The live markets are open</Link>.
+          {isAdmin && <> · <Link to="/admin">Platform admin</Link></>}
         </footer>
       </main>
     </div>

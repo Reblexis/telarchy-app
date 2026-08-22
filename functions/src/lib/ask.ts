@@ -129,6 +129,12 @@ async function callGateway(
 
 export async function askAboutWorkspace(
   brief: string, turns: AskTurn[], tools: AskTool[] = [],
+  /** Who Otto is on this surface. He is the floor's market maker by default;
+   *  the operator door hands him a different job (setting someone up) and the
+   *  same hands. A parameter rather than a second copy of this function,
+   *  because the loop below (tool rounds, budget, usage accounting) is the
+   *  part that must never fork. */
+  system: string = SYSTEM,
 ): Promise<AskResult> {
   const key = apiKey();
   if (!key) throw new Error('AI_GATEWAY_API_KEY is not set');
@@ -138,7 +144,7 @@ export async function askAboutWorkspace(
     // identical for every visitor on the same floor, so it is the prefix
     // an upstream cache can actually hit. Anything a visitor asks for beyond
     // it, Otto fetches himself rather than carrying it here for everyone.
-    { role: 'system', content: `${SYSTEM}\n\n---\n\nThe brief:\n\n${brief}` },
+    { role: 'system', content: `${system}\n\n---\n\nThe brief:\n\n${brief}` },
     ...turns.map(t => ({ role: t.role, content: t.content })),
   ];
 

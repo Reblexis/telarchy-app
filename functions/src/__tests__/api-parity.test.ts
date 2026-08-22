@@ -334,6 +334,7 @@ const ROUTER_MOUNTS: Record<string, string> = {
   'waitlist.ts': '/api/waitlist',
   'manifold.ts': '/api/import/manifold',
   'onboard.ts': '/api/onboard',
+  'setup.ts': '/api/setup',
   'agents.ts': '/api/agents',
   'predictions.ts': '/api/predictions',
   'events.ts': '/api/events',

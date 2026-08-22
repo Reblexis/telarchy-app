@@ -15,6 +15,7 @@ import { manifoldRouter } from './routes/manifold';
 import { onboardRouter } from './routes/onboard';
 import { workspacesRouter } from './routes/workspaces';
 import { userauthRouter } from './routes/userauth';
+import { setupRouter } from './routes/setup';
 import { marketplaceRouter } from './routes/marketplace';
 import { leaderboardRouter } from './routes/leaderboard';
 import { seasonsRouter } from './routes/seasons';
@@ -328,6 +329,13 @@ app.use('/api/events', eventsRouter);
 app.use('/api/proposals', proposalsRouter);
 app.use(/^\/api\/marketplace\/[^/]+\/ask$/, askLimiter);
 app.use('/api/marketplace', marketplaceRouter);
+// The operator door's conversation spends the same money as the floor's, so
+// it sits behind the same narrow limiter (docs/operator-setup.md).
+app.use('/api/setup/ask', askLimiter);
+// optionalAuthMiddleware, not the global one below: this door answers an
+// anonymous visitor too, and it needs to KNOW which it is talking to, since
+// what Otto may promise depends on whether the caller can act at all.
+app.use('/api/setup', optionalAuthMiddleware, setupRouter);
 app.use('/api/leaderboard', leaderboardRouter);
 app.use('/api/seasons', seasonsRouter);
 app.use('/api/notifications', optionalAuthMiddleware, requireConsentIfUser, notificationsRouter);

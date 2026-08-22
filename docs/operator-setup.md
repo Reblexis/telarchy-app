@@ -137,7 +137,32 @@ and either sets it up himself when the value is public, or hands them a
 paste-ready prompt for their own AI agent to push the number on a schedule,
 plus what context to share with forecasters.
 
-Most of this needs no new capability. Otto's two tools are "find an endpoint"
+**Built 2026-08-22: he is on the door.** `/manage` is Otto now, not a form
+(`src/components/SetupChat.tsx` against `POST /api/setup/ask`). Same character
+and the same hands as on a floor: `ottoApiTools` replays the caller's own
+request, so the workspace he opens is opened BY them and refused by the same
+middleware that would refuse them. No service credential exists in that path,
+and adding one is the change that would make him dangerous.
+
+His job description is `functions/src/lib/setup-brief.ts`: find out what they
+run, argue for one number (favouring one a machine publishes over one they type
+in), settle where its value comes from, its ceiling and the month it lands in,
+open it, and hand over a paste-ready prompt for their own agent to push the
+number with `PUT /api/metrics/:id`. He is told to ask one question at a time,
+because a wall of questions is the form they came here to avoid.
+
+One rule is structural rather than prompted: the page's link to a new floor
+comes from `opened`, which the route reads back from the database after the
+turn. Otto can say "your floor is live" when nothing was created, and a door
+that trusted his prose would be worse than the form it replaced. Pinned by
+`setup-ask.test.ts` and `SetupChat.test.tsx`.
+
+The email door stays underneath it, because that is how the first operator
+actually arrived and some people would rather write to a person.
+
+Still missing, unchanged: inbound email, and any web access for him.
+
+Most of this needed no new capability. Otto's two tools are "find an endpoint"
 and "call it, replaying the visitor's own credentials"
 (`services/otto-tools.ts`), so a signed-in operator's Otto can already create
 the workspace, name the metric, open the market and fund it. Three gaps:
