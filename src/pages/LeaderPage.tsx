@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api, type LeaderboardEntry, type PrizeSeason, type PublicContractor } from '../lib/api';
+import { api, seasonStandingToEntry, type LeaderboardEntry, type PrizeSeason, type PublicContractor } from '../lib/api';
 import { useSeasonClock } from '../lib/useSeasonClock';
 import { pickCurrentSeason } from '../lib/season-clock';
 import { useAuth } from '../hooks/useAuth';
@@ -45,6 +45,11 @@ export function LeaderPage() {
   // board" link lands, so a season the floor is advertising has to be visible
   // here or the trail goes cold one click in.
   const [season, setSeason] = useState<PrizeSeason | null>(null);
+  // The season's own board (owner ask 2026-08-22: /leaderboard carries a
+  // separate season section, scored on the season metric), rendered above
+  // the all-time board while the season runs and after it settles. Null
+  // until a fetch answers; a draft season has no scores to show.
+  const [seasonBoard, setSeasonBoard] = useState<LeaderboardEntry[] | null>(null);
   const clock = useSeasonClock(season);
   const meId = useMyParticipantId(!!user);
   const [entered, setEntered] = useState(false);
@@ -63,7 +68,17 @@ export function LeaderPage() {
       // field, ranked on lifetime profit; the season standings live on /season
       // and behind "Show full leaderboard" on a workspace floor).
       api.getSeasons()
-        .then(r => { if (!cancelled) setSeason(pickCurrentSeason(r.seasons)); })
+        .then(r => {
+          if (cancelled) return;
+          const s = pickCurrentSeason(r.seasons);
+          setSeason(s);
+          // Scores exist once the season runs; a draft has only entries.
+          if (s && s.status !== 'draft') {
+            api.getSeasonStandings(s.id, 100)
+              .then(b => { if (!cancelled) setSeasonBoard((b.participants ?? []).map(seasonStandingToEntry)); })
+              .catch(e => console.error('season standings fetch failed:', e));
+          }
+        })
         .catch(e => console.error('seasons fetch failed:', e));
       api.getLeaderboard(200)
         .then(r => { if (!cancelled) setTraders((r.participants ?? []).filter(e => e.totalTrades > 0)); })
@@ -128,7 +143,7 @@ export function LeaderPage() {
    * One row, used by the list and by the pinned "you" row underneath it, so
    * the two cannot drift into showing different things about the same person.
    */
-  function row(e: LeaderboardEntry, rank: number, isPinned = false) {
+  function row(e: LeaderboardEntry, rank: number, isPinned = false, seasonRow = false) {
     const name = e.nickname || 'anonymous';
     const acc = accuracyLabel(e);
     const mine = e.id === meId;
@@ -150,12 +165,14 @@ export function LeaderPage() {
             </span>
             {/* Lifetime trade count and accuracy are a property of the all-time
                 board, not of a season standing (the season rows carry no such
-                counts), so the sub-line is hidden in season mode. */}
-            <span className="lbp-sub">
-              {e.totalTrades.toLocaleString('en-US')} {e.totalTrades === 1 ? 'trade' : 'trades'}
-              {e.resolvedMarkets > 0 && ` · ${e.resolvedMarkets} settled`}
-              {acc && ` · ${acc}`}
-            </span>
+                counts), so the sub-line is hidden on a season row. */}
+            {!seasonRow && (
+              <span className="lbp-sub">
+                {e.totalTrades.toLocaleString('en-US')} {e.totalTrades === 1 ? 'trade' : 'trades'}
+                {e.resolvedMarkets > 0 && ` · ${e.resolvedMarkets} settled`}
+                {acc && ` · ${acc}`}
+              </span>
+            )}
           </span>
         </Link>
         {/* What the season would pay this person if it settled now. Only for
@@ -207,6 +224,25 @@ export function LeaderPage() {
               {entered ? 'See the season' : clock.entryOpen ? 'Enter the season' : 'See the season'}
             </Link>
           </p>
+        )}
+
+        {/* The season's own board, above the all-time field (owner ask
+            2026-08-22): entrants only, scored on growth since the season
+            started, with what the season would pay at each standing. Kept
+            SEPARATE from the all-time board below rather than replacing it,
+            which is what the reverted season-mode tried. */}
+        {season && season.status !== 'draft' && seasonBoard && seasonBoard.length > 0 && (
+          <section className="lbp-section" aria-label="Season standings">
+            <h2 className="pubws-h2">{season.name} standings</h2>
+            <p className="lbp-note">
+              Entrants only, scored on profit growth since the season started.
+              The dollar figure is what the season would pay at the current
+              standing{clock?.phase === 'settled' ? ', now final' : ''}.
+            </p>
+            <ol className="lbp-list">
+              {seasonBoard.map((e, i) => row(e, e.rank ?? i + 1, false, true))}
+            </ol>
+          </section>
         )}
 
         <section className="lbp-section" aria-label="Traders">

@@ -120,10 +120,16 @@ export function seasonScore(currentProfit: number, baselineProfit: number): numb
 
 /**
  * The eligibility bar, in one place because the rules document quotes it and
- * the settle path enforces it. Still the simple version on the score side: no
- * volume floor, no trade count (owner: "simple setup first").
+ * the settle path enforces it.
  *
- * The identity half is not optional though, because the published rules say
+ * Since the 2026-08-22 amendment the SCORE plays no part: place alone decides
+ * the prize, a zero or negative score included (owner decision 2026-08-22,
+ * announced on the season page; the previous score-above-zero bar left a
+ * $1,000 ladder showing dashes the moment the whole field was down). The
+ * score parameter stays in the signature so a future season can reinstate a
+ * bar without touching every caller.
+ *
+ * The identity half remains, because the published rules say
  * "participants operated by us or run as part of the platform are not
  * eligible" and until 2026-08-20 nothing checked. On the eve of Season 0 the
  * operator's own trading bot sat top of the standings of a $1,000 contest, and
@@ -133,8 +139,8 @@ export function seasonScore(currentProfit: number, baselineProfit: number): numb
  * still appears on every board (owner direction 2026-08-14, nobody excluded).
  * It just never consumes a rung.
  */
-export function isPrizeEligible(score: number, platformOperated = false): boolean {
-  return !platformOperated && score > 0;
+export function isPrizeEligible(_score: number, platformOperated = false): boolean {
+  return !platformOperated;
 }
 
 /**
@@ -145,11 +151,11 @@ export function isPrizeEligible(score: number, platformOperated = false): boolea
  * the database happened to return, and the last key guarantees the same
  * standings on a repeat run even if two people entered in the same millisecond.
  *
- * Rungs are consumed in place order by ELIGIBLE entrants only. If three
- * entrants are eligible and the ladder has five rungs, places 4 and 5 pay
- * nothing and their money rolls forward. If nobody is eligible, the whole pool
- * rolls forward and the season pays out zero, which is the correct answer to a
- * season in which nobody made anything.
+ * Rungs are consumed in place order by ELIGIBLE entrants only, and since the
+ * 2026-08-22 amendment every entrant except a platform-operated account is
+ * eligible, whatever their score. If three entrants are eligible and the
+ * ladder has five rungs, places 4 and 5 pay nothing and their money rolls
+ * forward; a rung nobody consumes rolls into the next season's pool.
  */
 export function settleSeason(
   entrants: SeasonEntrant[],

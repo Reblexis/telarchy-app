@@ -2,13 +2,16 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-vi.mock('../../lib/api', () => ({
+vi.mock('../../lib/api', async (importOriginal) => ({
+  // The real adapter: the season section renders exactly what it maps.
+  seasonStandingToEntry: (await importOriginal<typeof import('../../lib/api')>()).seasonStandingToEntry,
   api: {
     getSeasons: vi.fn(),
     getMySeason: vi.fn(),
     getLeaderboard: vi.fn(),
     getPublicWorkspaces: vi.fn(),
     getMarketplaceWorkspace: vi.fn(),
+    getSeasonStandings: vi.fn(),
   },
 }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: null, loading: false }) }));
@@ -88,3 +91,36 @@ describe('the season chip on the all-time board (draft season)', () => {
   });
 });
 
+describe('the season standings section (running season)', () => {
+  // Owner ask 2026-08-22: /leaderboard carries a SEPARATE season board,
+  // scored on the season metric, above the all-time field.
+  test('a running season renders its own board, dollars included on a losing field', async () => {
+    vi.mocked(api.getSeasons).mockResolvedValue({ seasons: [{ ...draftSeason, status: 'running' }] } as never);
+    vi.mocked(api.getSeasonStandings).mockResolvedValue({
+      season: { ...draftSeason, status: 'running' },
+      participants: [
+        { rank: 1, id: 'e1', nickname: 'elonmusk', score: -31, projectedPrizeUsd: 500 },
+        { rank: 2, id: 'e2', nickname: 'the-big-boss', score: -94, projectedPrizeUsd: 250 },
+      ],
+    } as never);
+    mockBoard([trader({ id: 'a1', nickname: 'kai' })]);
+    renderPage();
+
+    expect(await screen.findByText('Season 0 standings')).toBeInTheDocument();
+    // The reported bug: a negative field showed a dash where the money was.
+    expect(await screen.findByText('$500')).toBeInTheDocument();
+    expect(screen.getByText('$250')).toBeInTheDocument();
+    expect(screen.getByText('-31 cr')).toBeInTheDocument();
+    // The all-time board still stands separately underneath.
+    expect(screen.getByText('kai')).toBeInTheDocument();
+  });
+
+  test('a draft season shows no standings section', async () => {
+    vi.mocked(api.getSeasonStandings).mockClear();
+    mockBoard([trader({})]);
+    renderPage();
+    await screen.findByText('kai');
+    expect(vi.mocked(api.getSeasonStandings)).not.toHaveBeenCalled();
+    expect(screen.queryByText('Season 0 standings')).toBeNull();
+  });
+});

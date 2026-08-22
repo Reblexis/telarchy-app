@@ -134,6 +134,11 @@ adjust these rules while it runs. Every change is announced on the season page
 before it takes effect, and changes are applied so as to minimize harm to
 entrants and standings._
 
+_Amended 2026-08-22, mid-season: a prize no longer requires a score above
+zero; place alone decides the prize. The change only increases what is paid,
+never reduces anyone's standing or prize, and is announced on the season
+page._
+
 **Season 0 is the first one, and the platform is still being launched.** Expect
 rough edges, apologies in advance. If something looks wrong, tell us through
 the feedback channel in the app; where a bug affects standings we say so
@@ -166,8 +171,9 @@ Total pool: **$1,000 USD**.
 | 4th | $75 |
 | 5th | $50 |
 
-A prize needs a season score **strictly above zero**: exactly zero, or a loss,
-wins nothing regardless of place. A rung nobody qualifies for, and anything
+**Place decides the prize, whatever the score** (amended 2026-08-22, see
+above): the entrant in 1st place is paid the 1st rung even if their season
+score is zero or negative. A rung with no entrant to take it, and anything
 otherwise unassigned, rolls into the next season's pool.
 
 ## Scoring

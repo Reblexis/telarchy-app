@@ -464,11 +464,13 @@ describe('settling', () => {
     expect(after.body.participants[0].prizeUsd).toBe(500);
   });
 
-  test('a season where nobody gained pays nothing and rolls the whole pool', async () => {
+  test('a season where nobody gained still pays by place (amended 2026-08-22)', async () => {
+    // Place alone decides the prize since the mid-season amendment; a flat or
+    // losing field is paid its rungs, and only unconsumed rungs roll forward.
     const season = await runSeasonWith([['a', 0], ['b', 0]]);
     const res = await request(app).post(`/api/seasons/${season.id}/settle`).send({});
-    expect(res.body.winners).toEqual([]);
-    expect(res.body.rolloverUsd).toBe(1000);
+    expect(res.body.winners.map((w: { prizeUsd: number }) => w.prizeUsd)).toEqual([500, 250]);
+    expect(res.body.rolloverUsd).toBe(250);
   });
 
   test('settling with no entrants at all does not crash', async () => {
@@ -497,7 +499,8 @@ describe('settling', () => {
 
 describe('claiming', () => {
   async function settledSeasonWithWinner() {
-    await seedFloor(['winner', 'alsoran']);
+    // 'bystander' trades but never opts in: the no-prize claimant.
+    await seedFloor(['winner', 'alsoran', 'bystander']);
     const season = (await createSeason()).body.season;
     await startSeason(season.id);
     await optIn(season.id, 'winner');
@@ -532,8 +535,10 @@ describe('claiming', () => {
   });
 
   test('someone with no prize cannot claim', async () => {
+    // Since the 2026-08-22 amendment a zero score still takes a rung, so the
+    // no-prize case is an entrant who never opted in at all.
     const season = await settledSeasonWithWinner();
-    caller = { agentId: 'alsoran' };
+    caller = { agentId: 'bystander' };
     const res = await request(app).post(`/api/seasons/${season.id}/claim`).send({});
     expect(res.status).toBe(403);
   });
@@ -581,7 +586,9 @@ describe('claiming', () => {
     await db.update(agents).set({ payoutHandle: 'PayPal: w@example.com' }).where(eq(agents.id, 'winner'));
     const res = await request(app).get(`/api/seasons/${season.id}/payouts`);
     expect(res.status).toBe(200);
-    expect(res.body.payouts).toHaveLength(1);
+    // Both entrants hold a rung since the 2026-08-22 amendment; the winner
+    // leads and carries the details needed to pay them.
+    expect(res.body.payouts).toHaveLength(2);
     expect(res.body.payouts[0].payoutHandle).toBe('PayPal: w@example.com');
   });
 

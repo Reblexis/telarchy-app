@@ -136,6 +136,13 @@ export function SeasonPage() {
           Expect rough edges, apologies in advance. If something looks wrong,
           tell us: where a bug affects standings we publish the correction.
         </p>
+        {/* The rules require every mid-season change to be announced HERE
+            before it takes effect. Remove when Season 0 settles. */}
+        <p className="seasonp-experimental">
+          Rule change, 2026-08-22: a prize no longer requires a positive
+          score; place alone decides it. The change only increases what is
+          paid.
+        </p>
         {/* The real channel, inline, rather than a sentence pointing at an icon
             in the top bar. Anonymous reports are accepted, so a visitor who hit
             a bug before signing up can still send one. */}

@@ -61,19 +61,23 @@ describe('seasonScore', () => {
 });
 
 describe('isPrizeEligible', () => {
-  test('exactly zero is not eligible', () => {
-    // Five of the eleven participants on the production board sat at exactly
-    // 0 when this was designed. Without this rule a season in which nobody
-    // moved still pays out $950, ordered by a tiebreak.
-    expect(isPrizeEligible(0)).toBe(false);
+  // Amended 2026-08-22 (owner): place alone decides the prize, so the score,
+  // zero or negative included, does not bar a rung. The previous bar left a
+  // $1,000 ladder showing dashes the moment the whole field was down.
+  test('exactly zero is eligible', () => {
+    expect(isPrizeEligible(0)).toBe(true);
   });
 
-  test('a loss is not eligible', () => {
-    expect(isPrizeEligible(-0.01)).toBe(false);
+  test('a loss is eligible', () => {
+    expect(isPrizeEligible(-0.01)).toBe(true);
   });
 
   test('any gain is eligible', () => {
     expect(isPrizeEligible(0.01)).toBe(true);
+  });
+
+  test('a platform-operated account is never eligible, whatever it scored', () => {
+    expect(isPrizeEligible(500, true)).toBe(false);
   });
 });
 
@@ -103,8 +107,20 @@ describe('settleSeason', () => {
     expect(result.rolloverUsd).toBe(250);
   });
 
-  test('entrants at exactly zero are ranked but paid nothing', () => {
-    // They still appear in the standings, in order; they just do not collect.
+  test('a losing field is still paid by place (owner report 2026-08-22)', () => {
+    // The whole board was negative and the season page showed dashes where
+    // the dollar amounts belonged. Place decides the prize, whatever the sign.
+    const result = settleSeason([
+      entrant('a', 0, -31),
+      entrant('b', 0, -94),
+    ], LADDER, POOL);
+
+    expect(result.ranked.map(r => r.eligible)).toEqual([true, true]);
+    expect(result.ranked.map(r => r.prizeUsd)).toEqual([500, 250]);
+    expect(result.rolloverUsd).toBe(250);
+  });
+
+  test('entrants at exactly zero rank by tiebreak and still collect', () => {
     const result = settleSeason([
       entrant('a', 0, 25),
       entrant('b', 100, 100),
@@ -112,36 +128,24 @@ describe('settleSeason', () => {
     ], LADDER, POOL);
 
     expect(result.ranked.map(r => r.rank)).toEqual([1, 2, 3]);
-    expect(result.ranked.map(r => r.eligible)).toEqual([true, false, false]);
-    expect(result.ranked.map(r => r.prizeUsd)).toEqual([500, 0, 0]);
-    expect(result.rolloverUsd).toBe(500);
+    expect(result.ranked.map(r => r.eligible)).toEqual([true, true, true]);
+    expect(result.ranked.map(r => r.prizeUsd)).toEqual([500, 250, 125]);
+    expect(result.rolloverUsd).toBe(125);
   });
 
-  test('a season where nobody made anything pays out nothing at all', () => {
-    // The correct answer to "nobody earned anything" is not "$950 anyway".
+  test('a platform-operated account above a paying place does not burn a rung', () => {
+    // A naive implementation that maps rank straight onto ladder place would
+    // hand 'trader' second prize with the house sitting on first.
     const result = settleSeason([
-      entrant('a', 0, 0),
-      entrant('b', 50, 20),
-      entrant('c', 0, 0),
+      { ...entrant('house', 0, 10), platformOperated: true },
+      entrant('trader', 0, -5),
     ], LADDER, POOL);
 
-    expect(result.ranked.every(r => r.prizeUsd === 0)).toBe(true);
-    expect(result.rolloverUsd).toBe(POOL);
-  });
-
-  test('an ineligible entrant above an eligible one does not burn a rung', () => {
-    // 'loser' outranks nobody on score, but a naive implementation that maps
-    // rank straight onto ladder place would hand 'winner' second prize.
-    const result = settleSeason([
-      entrant('winner', 0, 10),
-      entrant('loser', 0, -5),
-    ], LADDER, POOL);
-
-    const winner = result.ranked.find(r => r.agentId === 'winner')!;
-    const loser = result.ranked.find(r => r.agentId === 'loser')!;
-    expect(winner.rank).toBe(1);
-    expect(winner.prizeUsd).toBe(500);
-    expect(loser.prizeUsd).toBe(0);
+    const house = result.ranked.find(r => r.agentId === 'house')!;
+    const trader = result.ranked.find(r => r.agentId === 'trader')!;
+    expect(house.rank).toBe(1);
+    expect(house.prizeUsd).toBe(0);
+    expect(trader.prizeUsd).toBe(500);
   });
 
   test('ties break by earlier entry, then by agent id, deterministically', () => {
