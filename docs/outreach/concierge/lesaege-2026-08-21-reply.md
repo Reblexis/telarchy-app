@@ -93,7 +93,11 @@ Subject: your number on Telarchy
 
 ## Notes for whoever sends this
 
-- Workspace creation is invite-only (`functions/src/routes/workspaces.ts`), so
-  he cannot self-serve even if he tries. Somebody has to open it for him.
+- **Updated 2026-08-22:** workspace creation is no longer invite-only
+  (`POST /api/workspaces` is open to any signed-in identity, capped at 3 per
+  account, new floors unlisted). There is still no operator SCREEN and the
+  first-run experience is deliberately undesigned (`docs/operator-setup.md`),
+  so a human still opens his floor and this note stands: somebody sets him up
+  in the conversation, not afterwards.
 - If he says yes, the floor needs a context briefing as a Source before AI
   participants forecast it, per the forecaster-context strategy in `program.md`.

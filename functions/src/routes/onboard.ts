@@ -36,24 +36,26 @@ function publicOrigin(): string {
 }
 
 /**
- * Trader-first sequencing (vision.md, owner decision 2026-08-08): this
- * endpoint's job is key-first OWNER onboarding (identity + workspace in one
- * unauthenticated call), and the owner side is waitlisted until trader demand
- * is proven. The flow is paused, not deleted; flipping this constant reopens
- * it, and vision.md owns the decision to do so. Traders sign up through the
- * normal signup or POST /api/agents/register; admins provision workspaces via
- * POST /api/workspaces with the master key.
+ * This endpoint stays paused (vision.md, "The owner side reopens",
+ * 2026-08-21).
  *
- * Env-driven (OWNER_ONBOARDING_OPEN=1) rather than a code constant so the
- * reopen is an operational flip, and so the paused flow's tests keep running
- * against the real handlers.
+ * The owner side is open again, but through `POST /api/workspaces`, which
+ * needs an account: that is what the per-account cap counts and what the
+ * floor belongs to. Onboard's job is key-first owner onboarding, identity and
+ * workspace minted in one UNAUTHENTICATED call, so it has no account to cap
+ * and nothing to refuse a script with. Reopening it is a separate decision
+ * about abuse, not about whether owners are welcome.
+ *
+ * The flow is paused, not deleted. Env-driven (OWNER_ONBOARDING_OPEN=1)
+ * rather than a code constant so the reopen is an operational flip, and so
+ * the paused flow's tests keep running against the real handlers.
  */
 const OWNER_ONBOARDING_OPEN = process.env.OWNER_ONBOARDING_OPEN === '1';
 
 onboardRouter.post('/', wrap(async (req, res) => {
   if (!OWNER_ONBOARDING_OPEN) {
     res.status(403).json({
-      error: 'Workspace creation is currently invite-only while Telarchy is trader-first. Join the owner waitlist, or sign up as a trader instead.',
+      error: 'This one-call owner onboarding is paused. Create an account, then POST /api/workspaces to open your own floor, or do it in a browser at https://telarchy.com/manage.',
       waitlist: 'https://telarchy.com/manage',
     });
     return;

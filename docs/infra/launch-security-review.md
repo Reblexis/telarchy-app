@@ -17,9 +17,19 @@ is in two places: (1) one code path that lets a workspace admin run arbitrary
 code on the server (formula evaluation), and (2) the cloud posture around
 blast-radius and recoverability (over-privileged service accounts, a long-lived
 deploy key, no point-in-time recovery, secrets stored inline). None of these is
-anonymously exploitable on the public floor *today* because workspace creation
-is invite-only and real-money cash-out is off (`USDC_SETTLEMENT_ENABLED=false`,
-verified) - but they must be closed before self-serve signup or a second tenant.
+anonymously exploitable on the public floor *today* because real-money cash-out
+is off (`USDC_SETTLEMENT_ENABLED=false`, verified) - but they must be closed
+before self-serve signup or a second tenant.
+
+**Revised 2026-08-22: one half of that condition is gone.** Workspace creation
+was invite-only when this was written and is now open to any signed-in identity
+(`vision.md`, "The owner side reopens"; capped at 3 per account, new floors
+unlisted). A second tenant is therefore no longer hypothetical: a stranger can
+create a workspace, invite members and run markets inside it. Nothing here
+became anonymously exploitable, since creation still needs an account and
+cash-out is still off, but the findings below can no longer be deferred on the
+grounds that we are the only tenant. Cross-workspace isolation is the one to
+re-read first.
 
 ## Findings (ranked)
 

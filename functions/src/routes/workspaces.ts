@@ -44,27 +44,54 @@ async function withOwnerHandles<T extends { createdBy: string }>(rows: T[]): Pro
   });
 }
 
+/** How many floors one non-admin account may open. Small on purpose: the
+ *  number exists to stop a script filling the marketplace, not to ration a
+ *  real operator, who asks and gets it lifted. */
+const SELF_SERVE_WORKSPACE_CAP = 3;
+
 workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
   const { uid, agentId, isMasterKey } = req.auth!;
   // Master API key has no real identity; use a synthetic one.
   const identity = uid ?? agentId ?? (isMasterKey ? 'admin' : undefined);
   if (!identity) { res.status(403).json({ error: 'Identity required to create a workspace' }); return; }
 
-  // Trader-first sequencing (vision.md, owner decision 2026-08-08): every
-  // account is a trader; workspace creation is waitlisted until trader demand
-  // is proven. Platform admins and the master key provision workspaces for
-  // design partners by hand; everyone else is pointed at the waitlist.
+  /**
+   * The owner side is open (vision.md, "The owner side reopens", owner
+   * decision 2026-08-21). It was invite-only under the trader-first
+   * sequencing of 2026-08-08, and the condition that reversed it arrived as an
+   * operator rather than a trader: the founder of Kleros left his email asking
+   * to have his number set up and the product could not serve him.
+   *
+   * Two brakes remain for anyone who is not a platform admin, and both are
+   * about the shopfront rather than about trust:
+   *
+   *  - A cap on how many floors one account can open, so a script cannot fill
+   *    the marketplace.
+   *  - A new floor starts UNLISTED. It is live, tradeable and shareable by
+   *    link; it simply is not on telarchy.com's front list until a human puts
+   *    it there. Two reasons: the home page is the shopfront, and a running
+   *    prize season scores over every PUBLIC workspace (docs/seasons.md,
+   *    2026-08-21), so self-serve listing would let someone open a floor,
+   *    fund it from signup grants and extract that subsidy into an entered
+   *    account. Listing stays a human decision until that is closed.
+   */
+  let requestedVisibility = req.body.visibility;
   if (!isMasterKey) {
     const callerId = agentId ?? uid;
     const [caller] = callerId
       ? await db.select({ platformAdmin: agents.platformAdmin }).from(agents).where(eq(agents.id, callerId))
       : [];
     if (caller?.platformAdmin !== true) {
-      res.status(403).json({
-        error: 'Workspace creation is currently invite-only while Telarchy is trader-first. Join the owner waitlist.',
-        waitlist: 'https://telarchy.com/manage',
-      });
-      return;
+      const [owned] = await db.select({ n: sql<number>`count(*)::int` })
+        .from(workspaces).where(eq(workspaces.createdBy, identity));
+      if ((owned?.n ?? 0) >= SELF_SERVE_WORKSPACE_CAP) {
+        res.status(429).json({
+          error: `You already run ${owned?.n} floors, which is the limit while Telarchy is small. Tell us what you want to open and we will lift it: https://telarchy.com/contact`,
+          cap: SELF_SERVE_WORKSPACE_CAP,
+        });
+        return;
+      }
+      if (requestedVisibility === 'public') requestedVisibility = 'unlisted';
     }
   }
 
@@ -81,7 +108,7 @@ workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
       name: req.body.name,
       templateId: req.body.template,
       templateParams: req.body.templateParams,
-      visibility: req.body.visibility,
+      visibility: requestedVisibility,
     });
   } catch (err) {
     if (err instanceof WorkspaceCreateError) { res.status(400).json({ error: err.message }); return; }

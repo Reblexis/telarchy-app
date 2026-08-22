@@ -79,6 +79,32 @@ Trader-first is not reversed by this. Every account is still a trader by
 default and signup still lands in the trading surface; what changes is that
 wanting to own a floor stops being a request submitted to a waitlist.
 
+**Half of (1) shipped, and the half that shipped is the permission (2026-08-22).**
+`POST /api/workspaces` is open to any identity: a browser session or a
+participant key, no invite. Two brakes for callers who are not platform admins,
+both about the shopfront rather than about trust: three workspaces per account,
+and `public` clamped to `unlisted` at creation, so a new floor is live,
+joinable and tradeable by link but is not listed on telarchy.com until a human
+lists it. The clamp is not tidiness. A running prize season scores over every
+public workspace (`docs/seasons.md`), so self-serve listing would let someone
+open a floor, subsidise it out of signup grants and extract that subsidy into
+an entered account; listing stays a human decision until that hole is closed.
+`POST /api/onboard`, the unauthenticated one-call variant, stays paused: it
+mints an identity and a workspace together, so there is no account for the cap
+to count.
+
+**The screen is deliberately NOT the old creation wizard (owner direction,
+Viktor, 2026-08-22): "we want to redesign the operator view completely, we have
+to figure out how we would set him up first, what we would even offer".** A
+form that asks for a name, a number and a ceiling is the console's
+create-workspace flow with better typography, and the sentence above says the
+operator experience is being designed rather than restored. `/manage` therefore
+stays a door to a conversation, and the first operators are set up by a human,
+which is what `docs/outreach/concierge/` already assumes. The open question,
+what Telarchy offers an operator and what setting one up consists of, is
+`docs/operator-setup.md`; the screen follows the answer, not the other way
+round.
+
 Three mechanisms stack, always in this order:
 
 1. **Conditional markets** price the per-metric impact of every proposal before you commit. This is the decision loop.
