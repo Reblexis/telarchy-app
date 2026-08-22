@@ -5,13 +5,22 @@ import { Link } from 'react-router-dom';
  * wants the story rather than a market. Canonical copy lives in
  * docs/about-page.md; revising it means editing both in the same commit.
  *
- * A poster page, not a document: the 660px column, tiny uppercase section
- * labels, prose in the body register. The copy rules from AGENTS.md bind
- * here harder than anywhere (this is the one page whose only content is
- * positioning): approval wedge always with the calibrated-number clause,
- * "human or AI" symmetry, companies and individuals both first-class.
+ * Revised 2026-08-22 (Viktor, approved on the design canvas): left-aligned,
+ * shorter, and framed around the handful of metrics that decide the most,
+ * never "one number" (owner: "one number is deceiving"). The vision sits
+ * after the mechanism, not in the hero, per go-to-market.md: the vision is
+ * the why-it-matters layer; lead with the wedge.
  */
 export function AboutPage() {
+  const steps = [
+    'An owner lists the numbers they are trying to move: the handful of ' +
+      'metrics that decide the most for a company, a project, or a personal goal.',
+    'Anyone, human or AI, proposes a paid job, and the market prices what ' +
+      'each metric is expected to do if the job is approved, and if it is declined.',
+    'The owner reads the difference and decides. Accuracy earns, noise ' +
+      'loses, and every decline publishes its reason.',
+  ];
+
   return (
     <div className="pubws">
       <nav className="pubws-topbar">
@@ -19,82 +28,63 @@ export function AboutPage() {
         <Link to="/login" className="pubws-login">Log in</Link>
       </nav>
       <main className="pubws-main">
-        <header className="pubws-hero">
+        <header className="pubws-hero pubws-hero--left">
           <h1 className="pubws-name">About Telarchy</h1>
           <p className="pubws-pitch">
-            Telarchy is the approval layer for anyone acting on your goals,
-            human or AI: proposed actions are priced against the metrics you
-            actually value, and you approve on a calibrated number, not a
-            pitch.
+            The approval layer for anyone acting on your goals, human or AI:
+            actions are priced against the metrics you value, and you approve
+            on a calibrated number, not a pitch.
           </p>
         </header>
 
-        <section className="pubws-section pubws-story">
-          <h2 className="pubws-h2">What this place is</h2>
-          <p>
-            Every market here is one number someone is trying to move: a
-            company&rsquo;s revenue, a product&rsquo;s users, a personal goal.
-            Anyone, human or AI, can propose a paid job that would move it.
-            The market prices what the number is expected to do if the job is
-            approved, and what it is expected to do if it is declined; the
-            owner reads the difference and decides. Forecasters who call it
-            right earn. Noise loses.
-          </p>
+        <section className="pubws-section">
+          <h2 className="pubws-h2">How it works</h2>
+          <ol className="pubws-steps">
+            {steps.map((s, i) => (
+              <li key={i}>
+                <span className="pubws-step-n">{i + 1}</span>
+                <p>{s}</p>
+              </li>
+            ))}
+          </ol>
         </section>
 
         <section className="pubws-section pubws-story">
-          <h2 className="pubws-h2">Why a market</h2>
+          <h2 className="pubws-h2">The vision</h2>
           <p>
-            Whoever proposes an action is the least neutral source on what it
-            will do. A teammate pitches their own project, a chatbot has no
-            skin in the game, and the loudest voice in the room wins by
-            volume. A market pays accuracy and charges bias, and it leaves a
-            record: the price at the moment of approval, the outcome at
-            settlement, every decline with its published reason.
+            A world where you define what matters and AI does the rest, and
+            you can trust that what got done is what you wanted, because every
+            action was priced against your goals first. As AI takes on more of
+            the work, this is how human goals stay in command of what actually
+            gets done.
           </p>
         </section>
 
         <section className="pubws-section pubws-story">
           <h2 className="pubws-h2">Why now</h2>
           <p>
-            Intelligence is the cheapest it has ever been, so every proposal
-            can be priced by many forecasters at almost no cost per forecast.
-            And an AI forecaster can price a confidential number without
-            carrying it out of the room, a promise no human bettor can make.
-            Together these open up decisions that never had a realistic forum:
-            sensitive KPIs, unannounced moves, personal goals.
+            Intelligence is cheap enough that many forecasters can price every
+            proposal, and an AI forecaster can price a confidential number
+            without carrying it out of the room. Decisions that never had a
+            realistic forum now have one.
           </p>
         </section>
 
         <section className="pubws-section pubws-story">
           <h2 className="pubws-h2">The name</h2>
           <p>
-            Telos, the Greek for purpose, plus archy, rule: governance by
-            purpose. The mechanism descends from futarchy, Robin
-            Hanson&rsquo;s &ldquo;vote on values, bet on beliefs&rdquo;, with
-            one change: there is no vote. The owner defines the metrics
-            directly, so the same machinery works for a company, a team, or
-            one person.
-          </p>
-        </section>
-
-        <section className="pubws-section pubws-story">
-          <h2 className="pubws-h2">Who it is for</h2>
-          <p>
-            Owners: companies pricing decisions against their KPIs, and
-            individuals doing the same on personal goals; both are
-            first-class. Traders: humans and AI register the same way, trade
-            the same markets, and stand on the same leaderboard. LookPilot, a
-            real company, runs its net revenue in the open here today.
+            Telos, purpose, plus archy, rule: governance by purpose. It is
+            futarchy minus the vote: the owner defines the metrics directly,
+            so the same machinery serves a company, a team, or one person.
           </p>
         </section>
 
         <section className="pubws-section pubws-story">
           <h2 className="pubws-h2">Who builds it</h2>
           <p>
-            Telarchy is built by Viktor Cihal, whose previous company,
-            LookPilot, was the first number listed here. Questions, bugs, and
-            numbers you want listed: <Link to="/contact">contact</Link>.
+            Telarchy is built by Viktor Cihal. LookPilot, his previous
+            company, runs its numbers in the open here today. Questions, bugs,
+            and numbers you want listed: <Link to="/contact">contact</Link>.
           </p>
         </section>
 

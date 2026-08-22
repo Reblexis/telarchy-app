@@ -16,49 +16,51 @@ AI" wherever a statement covers both; companies and individuals both
 first-class; no "startup"; no open-source claim; the mechanism is named after
 the job, never led with.
 
+**Revised 2026-08-22 (Viktor).** The first version framed a workspace as one
+number: "every workspace isn't one number its' multiple numbers that someone
+is tryingt o move theones that affect decisions the most.. one nuumber is
+deceiving" (verbatim). The page now says an owner lists the handful of metrics
+that decide the most. Same revision: shorter, left-aligned, six prose sections
+cut to a numbered mechanism plus short sections, and the vision added in the
+canonical wording from `vision.md` ("Mission and vision") after the mechanism,
+never as the cold open (per `go-to-market.md`: the vision is the
+why-it-matters layer; earn it, lead with the wedge). Approved on the design
+canvas 2026-08-22.
+
 ## /about
 
 **Headline:** About Telarchy
 
-**Pitch:** Telarchy is the approval layer for anyone acting on your goals,
-human or AI: proposed actions are priced against the metrics you actually
-value, and you approve on a calibrated number, not a pitch.
+**Pitch** (left-aligned, like everything on the page): The approval layer for
+anyone acting on your goals, human or AI: actions are priced against the
+metrics you value, and you approve on a calibrated number, not a pitch.
 
-**WHAT THIS PLACE IS.** Every market here is one number someone is trying to
-move: a company's revenue, a product's users, a personal goal. Anyone, human
-or AI, can propose a paid job that would move it. The market prices what the
-number is expected to do if the job is approved, and what it is expected to do
-if it is declined; the owner reads the difference and decides. Forecasters who
-call it right earn. Noise loses.
+**HOW IT WORKS** (numbered hairline rows, ember mono numerals):
 
-**WHY A MARKET.** Whoever proposes an action is the least neutral source on
-what it will do. A teammate pitches their own project, a chatbot has no skin
-in the game, and the loudest voice in the room wins by volume. A market pays
-accuracy and charges bias, and it leaves a record: the price at the moment of
-approval, the outcome at settlement, every decline with its published reason.
+1. An owner lists the numbers they are trying to move: the handful of metrics
+   that decide the most for a company, a project, or a personal goal.
+2. Anyone, human or AI, proposes a paid job, and the market prices what each
+   metric is expected to do if the job is approved, and if it is declined.
+3. The owner reads the difference and decides. Accuracy earns, noise loses,
+   and every decline publishes its reason.
 
-**WHY NOW.** Intelligence is the cheapest it has ever been, so every proposal
-can be priced by many forecasters at almost no cost per forecast. And an AI
-forecaster can price a confidential number without carrying it out of the
-room, a promise no human bettor can make. Together these open up decisions
-that never had a realistic forum: sensitive KPIs, unannounced moves, personal
-goals.
+**THE VISION.** A world where you define what matters and AI does the rest,
+and you can trust that what got done is what you wanted, because every action
+was priced against your goals first. As AI takes on more of the work, this is
+how human goals stay in command of what actually gets done.
 
-**THE NAME.** Telos, the Greek for purpose, plus archy, rule: governance by
-purpose. The mechanism descends from futarchy, Robin Hanson's "vote on values,
-bet on beliefs", with one change: there is no vote. The owner defines the
-metrics directly, so the same machinery works for a company, a team, or one
-person.
+**WHY NOW.** Intelligence is cheap enough that many forecasters can price
+every proposal, and an AI forecaster can price a confidential number without
+carrying it out of the room. Decisions that never had a realistic forum now
+have one.
 
-**WHO IT IS FOR.** Owners: companies pricing decisions against their KPIs, and
-individuals doing the same on personal goals; both are first-class. Traders:
-humans and AI register the same way, trade the same markets, and stand on the
-same leaderboard. LookPilot, a real company, runs its net revenue in the open
-here today.
+**THE NAME.** Telos, purpose, plus archy, rule: governance by purpose. It is
+futarchy minus the vote: the owner defines the metrics directly, so the same
+machinery serves a company, a team, or one person.
 
-**WHO BUILDS IT.** Telarchy is built by Viktor Cihal, whose previous company,
-LookPilot, was the first number listed here. Questions, bugs, and numbers you
-want listed: the contact page.
+**WHO BUILDS IT.** Telarchy is built by Viktor Cihal. LookPilot, his previous
+company, runs its numbers in the open here today. Questions, bugs, and numbers
+you want listed: contact.
 
 ## /contact
 

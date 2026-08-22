@@ -29,6 +29,19 @@ describe('AboutPage', () => {
     expect(screen.getByText(/approval layer/i).textContent).toMatch(/human or AI/i);
   });
 
+  test('metrics are plural: the handful that decide the most, never "one number"', () => {
+    // Owner revision 2026-08-22: "one number is deceiving". A workspace is
+    // the metrics that affect decisions the most, not a single number.
+    render(<MemoryRouter><AboutPage /></MemoryRouter>);
+    expect(screen.getByText(/handful of metrics that decide the most/i)).toBeTruthy();
+    expect(screen.queryByText(/one number/i)).toBeNull();
+  });
+
+  test('the vision is present, in the canonical vision.md wording, after the mechanism', () => {
+    render(<MemoryRouter><AboutPage /></MemoryRouter>);
+    expect(screen.getByText(/you define what matters and AI does the rest/i)).toBeTruthy();
+  });
+
   test('points at /contact', () => {
     render(<MemoryRouter><AboutPage /></MemoryRouter>);
     const links = screen.getAllByRole('link').map(a => a.getAttribute('href'));

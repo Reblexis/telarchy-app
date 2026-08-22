@@ -2459,6 +2459,40 @@ button.notif-row-link {
 .pubws-foot a { color: var(--text-secondary); text-decoration: none; }
 .pubws-foot a:hover { color: var(--text-primary); }
 
+/* /about (owner revision 2026-08-22): everything left-aligned, so the hero
+   drops the poster centering and the pitch hugs the left edge. */
+.pubws-hero--left { text-align: left; }
+.pubws-hero--left .pubws-pitch { margin-left: 0; margin-right: 0; max-width: 30ch; }
+
+/* The mechanism as numbered hairline rows, ember mono numerals. */
+.pubws-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.pubws-steps li {
+  display: flex;
+  align-items: baseline;
+  gap: 1.25rem;
+  padding: 1rem 0;
+  border-top: 1px solid var(--border-color);
+}
+.pubws-steps li:last-child { border-bottom: 1px solid var(--border-color); }
+.pubws-step-n {
+  flex-shrink: 0;
+  width: 1.5rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--accent);
+}
+.pubws-steps p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+
 /* Prose sections on /about: body register under the tiny uppercase labels. */
 .pubws-story p {
   margin: 0;
