@@ -1,5 +1,5 @@
 import { describe, expect, test, vi, beforeEach } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { LeaderboardEntry } from '../../lib/api';
 
@@ -17,6 +17,8 @@ import type { LeaderboardEntry } from '../../lib/api';
  */
 
 const getSeasons = vi.fn(async () => ({ seasons: [] as unknown[] }));
+const getSeasonStandings = vi.fn(async () => ({ participants: [] as unknown[] }));
+const getLeaderboard = vi.fn(async () => ({ participants: [] as unknown[] }));
 
 vi.mock('../../lib/api', async () => {
   const actual = await vi.importActual<typeof import('../../lib/api')>('../../lib/api');
@@ -24,6 +26,8 @@ vi.mock('../../lib/api', async () => {
     ...actual,
     api: {
       getSeasons: () => getSeasons(),
+      getSeasonStandings: () => getSeasonStandings(),
+      getLeaderboard: () => getLeaderboard(),
       getMySeason: () => Promise.resolve({ season: null, optedIn: false, canEnter: false }),
     },
   };
@@ -125,25 +129,53 @@ describe('the season prize beside an entrant', () => {
     expect(container.querySelector('.pubws-lb-prize')).toBeNull();
   });
 
-  test('season-board mode titles the block with the season, not "Top traders"', async () => {
-    getSeasons.mockResolvedValue({ seasons: [{ ...draftSeason, status: 'running' }] });
-    const running = { ...draftSeason, status: 'running' };
-    const { findByText, queryByText } = render(
-      <MemoryRouter><LeaderboardRail entries={[entrant(500)]} seasonBoard={running} /></MemoryRouter>,
-    );
-    expect(await findByText('Season 0 standings')).toBeInTheDocument();
-    expect(queryByText('Top traders')).toBeNull();
+});
+
+describe('show full leaderboard opens the season and global boards in place', () => {
+  const draftSeason = {
+    id: 's0', name: 'Season 0', status: 'draft',
+    startsAt: '2026-08-22T00:00:00.000Z', endsAt: '2026-10-16T00:00:00.000Z',
+    settledAt: null, poolUsd: 1000,
+    ladder: [{ place: 1, prizeUsd: 500 }, { place: 2, prizeUsd: 250 }],
+    rulesUrl: '/legal/season-0',
+  };
+
+  test('the default rail is the local board; only "Show full leaderboard" reveals the rest', async () => {
+    getSeasons.mockResolvedValue({ seasons: [] });
+    const { queryByText, findByText } = render(<MemoryRouter><LeaderboardRail entries={[trader(1)]} /></MemoryRouter>);
+    await findByText('trader1');
+    // The workspace's own board, and nothing else, until the visitor asks.
+    expect(queryByText('Global standings')).toBeNull();
+    expect(await findByText('Show full leaderboard')).toBeInTheDocument();
   });
 
-  test('season-board mode shows a dash for an entrant outside the paying places', async () => {
+  test('pressing it shows the running season standings, then the global board, one after another', async () => {
     getSeasons.mockResolvedValue({ seasons: [{ ...draftSeason, status: 'running' }] });
-    const running = { ...draftSeason, status: 'running' };
-    const { findByText, queryByText } = render(
-      <MemoryRouter><LeaderboardRail entries={[entrant(0)]} seasonBoard={running} /></MemoryRouter>,
-    );
-    expect(await findByText('—')).toBeInTheDocument();
-    // On the season board every row is an entrant, so the redundant "in" chip
-    // is replaced by the same dash the /season standings use.
-    expect(queryByText('in')).toBeNull();
+    // getSeasonStandings returns SeasonStanding rows; the rail adapts them.
+    getSeasonStandings.mockResolvedValue({ participants: [
+      { rank: 1, id: 's1', nickname: 'seasonpro', image: null, manifoldUsername: null, score: 12, projectedPrizeUsd: 500 },
+    ] });
+    getLeaderboard.mockResolvedValue({ participants: [{ ...trader(9), id: 'g1', nickname: 'globalpro' }] });
+    const { getByText, findByText, queryByText } = render(<MemoryRouter><LeaderboardRail entries={[trader(1)]} /></MemoryRouter>);
+    await findByText('trader1');
+    expect(queryByText('Season 0 standings')).toBeNull();
+
+    fireEvent.click(getByText('Show full leaderboard'));
+
+    // Season first, then global, both revealed in place.
+    expect(await findByText('Season 0 standings')).toBeInTheDocument();
+    expect(await findByText('seasonpro')).toBeInTheDocument();
+    expect(await findByText('Global standings')).toBeInTheDocument();
+    expect(await findByText('globalpro')).toBeInTheDocument();
+  });
+
+  test('with no running season the expander shows only the global board', async () => {
+    getSeasons.mockResolvedValue({ seasons: [draftSeason] }); // draft, not running
+    getLeaderboard.mockResolvedValue({ participants: [{ ...trader(9), id: 'g1', nickname: 'globalpro' }] });
+    const { getByText, findByText, queryByText } = render(<MemoryRouter><LeaderboardRail entries={[trader(1)]} /></MemoryRouter>);
+    await findByText('trader1');
+    fireEvent.click(getByText('Show full leaderboard'));
+    expect(await findByText('Global standings')).toBeInTheDocument();
+    expect(queryByText('Season 0 standings')).toBeNull();
   });
 });

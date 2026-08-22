@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type LeaderboardEntry, type PrizeSeason, type PublicContractor } from '../lib/api';
 import { useSeasonClock } from '../lib/useSeasonClock';
+import { pickCurrentSeason } from '../lib/season-clock';
 import { useAuth } from '../hooks/useAuth';
 import { useMyParticipantId } from '../hooks/useMyParticipantId';
 import { TopBar } from './TradePage';
@@ -44,10 +45,6 @@ export function LeaderPage() {
   // board" link lands, so a season the floor is advertising has to be visible
   // here or the trail goes cold one click in.
   const [season, setSeason] = useState<PrizeSeason | null>(null);
-  // True while `traders` holds a running season's standings (owner decision
-  // 2026-08-22: the board becomes the competition while a season runs). Flips
-  // the heading, the intro, the number's meaning and the trades sub-line.
-  const [seasonMode, setSeasonMode] = useState(false);
   const clock = useSeasonClock(season);
   const meId = useMyParticipantId(!!user);
   const [entered, setEntered] = useState(false);
@@ -62,15 +59,14 @@ export function LeaderPage() {
   useEffect(() => {
     let cancelled = false;
     const load = () => {
-      // One fetch decides all-time-vs-season and returns the season it chose,
-      // so the board and the banner cannot disagree about whether one is on.
-      api.getFloorLeaders(200)
-        .then(r => {
-          if (cancelled) return;
-          setSeason(r.season);
-          setSeasonMode(r.seasonMode);
-          setTraders((r.participants ?? []).filter(e => e.totalTrades > 0));
-        })
+      // The global all-time board (owner direction: /leaderboard is the whole
+      // field, ranked on lifetime profit; the season standings live on /season
+      // and behind "Show full leaderboard" on a workspace floor).
+      api.getSeasons()
+        .then(r => { if (!cancelled) setSeason(pickCurrentSeason(r.seasons)); })
+        .catch(e => console.error('seasons fetch failed:', e));
+      api.getLeaderboard(200)
+        .then(r => { if (!cancelled) setTraders((r.participants ?? []).filter(e => e.totalTrades > 0)); })
         .catch(e => { console.error('leaderboard fetch failed:', e); if (!cancelled) setTraders(t => t ?? []); });
       // Contractors are a per-market list; the public markets are few, so the
       // page unions them and ranks by priced impact. A workspace that exposes
@@ -155,13 +151,11 @@ export function LeaderPage() {
             {/* Lifetime trade count and accuracy are a property of the all-time
                 board, not of a season standing (the season rows carry no such
                 counts), so the sub-line is hidden in season mode. */}
-            {!seasonMode && (
-              <span className="lbp-sub">
-                {e.totalTrades.toLocaleString('en-US')} {e.totalTrades === 1 ? 'trade' : 'trades'}
-                {e.resolvedMarkets > 0 && ` · ${e.resolvedMarkets} settled`}
-                {acc && ` · ${acc}`}
-              </span>
-            )}
+            <span className="lbp-sub">
+              {e.totalTrades.toLocaleString('en-US')} {e.totalTrades === 1 ? 'trade' : 'trades'}
+              {e.resolvedMarkets > 0 && ` · ${e.resolvedMarkets} settled`}
+              {acc && ` · ${acc}`}
+            </span>
           </span>
         </Link>
         {/* What the season would pay this person if it settled now. Only for
@@ -179,9 +173,7 @@ export function LeaderPage() {
               ${e.seasonPrizeUsd.toLocaleString()}
             </span>
           ) : (
-            // Outside the paying places. On the season board every row is an
-            // entrant, so "—" (as /season uses) rather than a redundant chip.
-            <span className="lbp-prize lbp-prize--in" title="Outside the paying places at the current standing">{seasonMode ? '—' : 'entered'}</span>
+            <span className="lbp-prize lbp-prize--in" title="Entered the season, currently outside the prizes">entered</span>
           )
         )}
         <span className={`lbp-score${Math.round(e.totalEarnings) > 0 ? ' is-up' : Math.round(e.totalEarnings) < 0 ? ' is-down' : ''}`}>
@@ -197,11 +189,8 @@ export function LeaderPage() {
       <main className="lbp">
         <h1 className="lbp-head">Leaderboard</h1>
         <p className="lbp-lead">
-          {seasonMode && season
-            ? <>Live standings for <strong>{season.name}</strong>, ranked by how much each
-              entrant's trading profit has grown since the season started.</>
-            : <>Everyone trading the public markets, ranked by profit in credits:
-              settled bets plus what open positions are worth right now.</>}
+          Everyone trading the public markets, ranked by profit in credits:
+          settled bets plus what open positions are worth right now.
         </p>
 
         {/* One line and a link. The pool, the ladder, the scoring rules and
@@ -221,9 +210,9 @@ export function LeaderPage() {
         )}
 
         <section className="lbp-section" aria-label="Traders">
-          <h2 className="pubws-h2">{seasonMode ? 'Standings' : 'Traders'}</h2>
+          <h2 className="pubws-h2">Traders</h2>
           {traders === null ? null : traders.length === 0 ? (
-            <p className="lbp-empty">{seasonMode ? 'Nobody has entered yet.' : 'Nobody has traded yet.'}</p>
+            <p className="lbp-empty">Nobody has traded yet.</p>
           ) : (
             <ol className="lbp-list">
               {traders.map((e, i) => row(e, e.rank ?? i + 1))}
