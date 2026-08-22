@@ -4,9 +4,11 @@
 to redesign the operator view completely.. we have to figure out how we would
 set him up first what we would even offer etc"* and *"dont restore the previous
 workspace creation process as that will work different now"*. This doc holds
-the question, what is already decided, and the options. It is not a spec yet.
-Nothing in `src/pages/` implements it, and the old create-workspace wizard is
-not the answer by default.
+the question, what is already decided, and the options. The old
+create-workspace wizard is not the answer by default. What has been built
+against it so far is at the bottom, under "Shipped against this doc": two
+owner controls on the floor itself, which are deliberately the smallest thing
+that does not presume an answer to the question above.
 
 This doc owns: what Telarchy offers an operator, and what setting one up
 consists of. `vision.md` owns whether the owner side is open at all (it is,
@@ -110,6 +112,24 @@ Who does the eliciting is the fork in the road:
 4. Does an operator arrive through `/manage`, through an agent holding their
    API key, or through us? Today it is us, and `/manage` is still a door to a
    conversation rather than a form.
+
+## Shipped against this doc
+
+**The owner's two controls, on the floor (2026-08-22).** Not a wizard and not a
+settings page: `src/components/FloorOwnerTools.tsx` renders inside the floor
+for anyone with `manage`, under the prose zone, and does the two things the
+owner side was missing. **Add a number** takes the four fields a market cannot
+open without (the number, where its value comes from, its ceiling, the month
+it lands in) and posts one metric with one custom horizon, so it ends as a live
+market rather than a metric nobody can trade. **Deepen this market** funds the
+clock currently on screen out of the owner's own balance. Both call the
+documented endpoints. Spec: `qa/browse/02-workspaces/owner-controls.md`.
+
+That covers item (1)'s surface and most of item (2) of "The owner side
+reopens". What it does NOT cover is item (3): the credits an owner funds with
+are still admin-granted, so "he pays for liquidity as needed" today means an
+invoice off-platform and a grant by hand. That is a rail and a terms question,
+not a screen, and it is the one thing on this page that code cannot close.
 
 ## What exists right now
 
