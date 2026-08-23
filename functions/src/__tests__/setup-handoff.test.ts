@@ -10,7 +10,7 @@
  * always has a prompt and only sometimes the personalised one.
  */
 
-import { guardFacts, renderFacts, writeHandoff } from '../services/setup-handoff';
+import { guardFacts, parseHandoffAnswer, renderFacts, writeHandoff } from '../services/setup-handoff';
 
 const ORIGINAL_FETCH = global.fetch;
 const ORIGINAL_KEY = process.env.AI_GATEWAY_API_KEY;
@@ -162,5 +162,47 @@ describe('writing the handoff', () => {
     // The list round-trips through a browser, so only ids from the spec live.
     expect(out.settled).toEqual(['floor', 'number']);
     expect(out.open).toEqual([]);
+  });
+});
+
+describe('reading what the model sent back', () => {
+  test('the labelled shape, with the prompt over many lines', () => {
+    const out = parseHandoffAnswer([
+      'SETTLED: floor, number',
+      'OPEN: liquidity',
+      'PROMPT:',
+      'Call GET /api/setup/checklist first.',
+      '',
+      'Then fund the market.',
+    ].join('\n'));
+    expect(out.settled).toEqual(['floor', 'number']);
+    expect(out.open).toEqual(['liquidity']);
+    expect(out.prompt).toBe('Call GET /api/setup/checklist first.\n\nThen fund the market.');
+  });
+
+  test('JSON with real newlines inside the string, which JSON.parse refuses', () => {
+    // This is why the labelled shape exists. Asked for JSON, the model writes
+    // the prompt with real line breaks in it, JSON.parse throws, and the whole
+    // handoff silently falls back to the template while the page still shows a
+    // prompt. Invisible from the outside, which is what makes it expensive.
+    const raw = ['{"prompt": "Line one.', 'Line two.", "settled": ["floor"], "open": []}'].join('\n');
+    expect(() => JSON.parse(raw)).toThrow();
+    const out = parseHandoffAnswer(raw);
+    expect(out.prompt).toBe('Line one.\nLine two.');
+    expect(out.settled).toEqual(['floor']);
+  });
+
+  test('a fenced block is unwrapped', () => {
+    const out = parseHandoffAnswer('```json\n{"prompt": "Do the thing.", "settled": [], "open": []}\n```');
+    expect(out.prompt).toBe('Do the thing.');
+  });
+
+  test('bare prose is the prompt itself', () => {
+    const out = parseHandoffAnswer('Call the checklist, then fund the market.');
+    expect(out.prompt).toBe('Call the checklist, then fund the market.');
+  });
+
+  test('unparseable JSON yields no prompt, so the template answers', () => {
+    expect(parseHandoffAnswer('{"prompt": ').prompt).toBe('');
   });
 });

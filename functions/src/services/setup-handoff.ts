@@ -48,8 +48,12 @@ Hard rules:
 - Never an em dash or an en dash.
 - 200 to 320 words. Long enough to carry the decisions, short enough to paste.
 
-Answer with a JSON object and nothing else:
-{"prompt": "the prompt text", "settled": ["decision ids that this conversation has actually decided"], "open": ["decision ids still to decide"]}`;
+Answer in exactly this shape and nothing else. No JSON, no code fence:
+
+SETTLED: comma separated decision ids that this conversation has actually decided
+OPEN: comma separated decision ids still to decide
+PROMPT:
+the prompt text, over as many lines as it needs`;
 
 export interface HandoffInput {
   turns: AskTurn[];
@@ -128,17 +132,61 @@ export function guardFacts(prompt: string, facts: string): string | null {
   return null;
 }
 
-/** Pull the JSON object out of a model answer that may have wrapped it. */
-function parseJson(raw: string): { prompt?: unknown; settled?: unknown; open?: unknown } | null {
-  const trimmed = raw.trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
-  const start = trimmed.indexOf('{');
-  const end = trimmed.lastIndexOf('}');
-  if (start < 0 || end <= start) return null;
-  try {
-    return JSON.parse(trimmed.slice(start, end + 1));
-  } catch {
-    return null;
+/**
+ * Read the model's answer.
+ *
+ * The shape asked for is three labelled lines because the payload is
+ * multi-line prose, and JSON is the wrong container for that: asked for JSON,
+ * this model writes real newlines inside the string, which `JSON.parse`
+ * rejects outright. That failure is invisible from the outside, because a
+ * refused parse falls back to the template and the page still shows a prompt.
+ * Both other shapes are read anyway, since a model that has been told one
+ * format will sometimes produce another.
+ */
+export function parseHandoffAnswer(raw: string): { prompt: string; settled: unknown; open: unknown } {
+  const text = raw.trim().replace(/^```(?:json|text)?/i, '').replace(/```$/, '').trim();
+
+  const ids = (line: string | undefined) =>
+    (line ?? '').split(',').map(s => s.trim()).filter(Boolean);
+  const settledLine = text.match(/^SETTLED:\s*(.*)$/im)?.[1];
+  const openLine = text.match(/^OPEN:\s*(.*)$/im)?.[1];
+
+  const marker = text.search(/^PROMPT:\s*$/im);
+  if (marker >= 0) {
+    const after = text.slice(marker).replace(/^PROMPT:\s*/im, '');
+    return { prompt: after.trim(), settled: ids(settledLine), open: ids(openLine) };
   }
+
+  // JSON anyway: repair the raw newlines inside string literals first, which
+  // is the only reason it would not parse.
+  if (text.startsWith('{')) {
+    let repaired = '';
+    let inString = false;
+    let escaped = false;
+    for (const ch of text) {
+      if (escaped) { repaired += ch; escaped = false; continue; }
+      if (ch === '\\') { repaired += ch; escaped = true; continue; }
+      if (ch === '"') { inString = !inString; repaired += ch; continue; }
+      if (inString && (ch === '\n' || ch === '\r' || ch === '\t')) {
+        repaired += ch === '\n' ? '\\n' : ch === '\r' ? '\\r' : '\\t';
+        continue;
+      }
+      repaired += ch;
+    }
+    try {
+      const parsed = JSON.parse(repaired.slice(0, repaired.lastIndexOf('}') + 1)) as Record<string, unknown>;
+      return {
+        prompt: typeof parsed.prompt === 'string' ? parsed.prompt.trim() : '',
+        settled: parsed.settled,
+        open: parsed.open,
+      };
+    } catch {
+      return { prompt: '', settled: [], open: [] };
+    }
+  }
+
+  // Neither shape: if it is long enough to be the prompt itself, it is.
+  return { prompt: text, settled: ids(settledLine), open: ids(openLine) };
 }
 
 export async function writeHandoff(input: HandoffInput): Promise<HandoffResult> {
@@ -172,8 +220,8 @@ export async function writeHandoff(input: HandoffInput): Promise<HandoffResult> 
       // every handoff on beta fall back to the template on 2026-08-23.
       { system: HANDOFF_SYSTEM, maxTokens: 2400 },
     );
-    const parsed = parseJson(answer);
-    const prompt = typeof parsed?.prompt === 'string' ? parsed.prompt.trim() : '';
+    const parsed = parseHandoffAnswer(answer);
+    const prompt = parsed.prompt;
     if (!prompt || prompt.length < 200) {
       console.error('handoff: model returned no usable prompt');
       return fallback();
@@ -185,8 +233,8 @@ export async function writeHandoff(input: HandoffInput): Promise<HandoffResult> 
     }
     return {
       prompt,
-      settled: sanitiseDecisionIds(parsed?.settled),
-      open: sanitiseDecisionIds(parsed?.open),
+      settled: sanitiseDecisionIds(parsed.settled),
+      open: sanitiseDecisionIds(parsed.open),
       written: true,
     };
   } catch (e) {
