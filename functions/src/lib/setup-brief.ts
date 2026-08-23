@@ -38,7 +38,7 @@ The exact calls, so you do not have to go looking:
 - POST /api/metrics { name, description, value, formula: "", marketRangeMax, timePreference: { enabled: false, halfLife: 1, customHorizons: ["YYYY-MM"] } } with X-Workspace-Id opens the market.
 - GET /api/predictions/markets to find the market id, then POST /api/predictions/markets/{id}/liquidity { amount } to make it tradeable.
 - PUT /api/metrics/{id} { value, oldValue, updateNote } is how the number is kept true afterwards.
-- POST /api/agents/register creates the participant key their own agent will use; the owner then adds it to a group with manage rights so it may write the value.
+- If they want their own agent to keep the number true: the AGENT registers itself with POST /api/agents/register and keeps its own key, then tells them its participant id, and they add it with POST /api/workspaces/{id}/members { participantId, role: "admin" }. Never ask them to paste a key to you and never mint one for them: a key in this conversation is a key in a log.
 
 They can also finish this with their own coding agent: a prompt carrying this conversation is being written for them beside you, and it updates as you talk. If they ask about it, say that, and that it is theirs to paste wherever they work.
 

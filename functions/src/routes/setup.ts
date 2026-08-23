@@ -6,11 +6,10 @@ import { floorQuestions, workspaces } from '../db/schema';
 import { wrap } from '../lib/wrap';
 import { askAboutWorkspace, askEnabled, type AskTurn } from '../lib/ask';
 import { SETUP_SYSTEM, renderSetupBrief } from '../lib/setup-brief';
-import { sanitiseDecisionIds } from '../lib/setup-spec';
+import { sanitiseDecisionIds, SETUP_SPEC } from '../lib/setup-spec';
 import { buildChecklist } from '../services/setup-checklist';
 import { writeHandoff } from '../services/setup-handoff';
 import { ottoApiTools, type ApiCallRecord } from '../services/otto-tools';
-import { requireCapability } from '../middleware/roles';
 
 export const setupRouter = Router();
 
@@ -162,19 +161,45 @@ setupRouter.post('/ask', wrap(async (req, res) => {
  * Gated on `manage` for the workspace, because the notes quote the owner's own
  * settings and the blocking list is a map of what is not yet defended.
  */
-setupRouter.get('/checklist', requireCapability('manage'), wrap(async (req, res) => {
+setupRouter.get('/checklist', wrap(async (req, res) => {
   const asked = (req.query.workspaceId as string | undefined)
     ?? (req.headers['x-workspace-id'] as string | undefined);
-  if (!asked) { res.status(400).json({ error: 'workspaceId is required (an id or a slug)' }); return; }
+
+  // No floor named: answer with the specification itself, every decision open.
+  // The prompt tells an agent to call this FIRST, and the first time it runs
+  // there is usually nothing to call it about yet; a 400 there would teach the
+  // agent to skip the call exactly when it most needs the list.
+  if (!asked) {
+    res.json({
+      workspace: null,
+      items: SETUP_SPEC.map(d => ({ ...d, status: 'open' as const, note: 'No floor named, so nothing is decided yet.' })),
+      blocking: ['No floor exists yet. POST /api/workspaces { name, template: "blank" } opens one.'],
+    });
+    return;
+  }
 
   // A slug is what a person has in front of them, so accept either. Resolved
   // directly rather than through the public-read helper, which is about what
   // a stranger may see: this floor may be private and its owner is asking.
   const [bySlug] = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.slug, asked));
   const workspaceId = bySlug?.id ?? asked;
-  if (req.auth?.workspaceId && req.auth.workspaceId !== workspaceId && !req.auth.isMasterKey) {
-    res.status(403).json({ error: 'Send this workspace as X-Workspace-Id to read its checklist.' });
-    return;
+
+  // Gated here rather than on the route, so the spec-only answer above stays
+  // open. The notes quote the owner's own settings and `blocking` is a map of
+  // what is not yet defended, so reading them needs manage on THIS workspace.
+  if (!req.auth) { res.status(401).json({ error: 'Unauthorized' }); return; }
+  if (!req.auth.isMasterKey) {
+    if (!req.auth.capabilities?.has('manage')) {
+      res.status(403).json({
+        error: 'Forbidden: reading a floor\'s checklist needs the "manage" capability in that workspace.',
+        requiredCapabilities: ['manage'],
+      });
+      return;
+    }
+    if (req.auth.workspaceId && req.auth.workspaceId !== workspaceId) {
+      res.status(403).json({ error: 'Send this workspace as X-Workspace-Id to read its checklist.' });
+      return;
+    }
   }
 
   const checklist = await buildChecklist(workspaceId);

@@ -234,10 +234,24 @@ describe('the checklist endpoint', () => {
     expect(r.status).toBe(403);
   });
 
-  test('says which workspace it wants when asked for none', async () => {
-    asOwner();
+  test('with no floor named it answers the specification itself', async () => {
+    // The handoff tells an agent to call this FIRST, and the first time it
+    // runs there is usually no floor yet. A 400 there teaches the agent to
+    // skip the call exactly when it most needs the list.
+    authOverride = {};
     const r = await request(app).get('/api/setup/checklist');
-    expect(r.status).toBe(400);
-    expect(r.body.error).toMatch(/workspaceId is required/);
+    expect(r.status).toBe(200);
+    expect(r.body.workspace).toBeNull();
+    expect(r.body.items.every((i: { status: string }) => i.status === 'open')).toBe(true);
+    expect(r.body.blocking.join(' ')).toMatch(/No floor exists yet/);
+  });
+
+  test('a floor named by a caller with no capabilities is refused', async () => {
+    authOverride = {};
+    const r = await request(app).get('/api/setup/checklist?workspaceId=ws-c');
+    // 401 in production, where optionalAuthMiddleware leaves req.auth unset
+    // for an anonymous caller; 403 here, where the harness always injects an
+    // auth object. Either way it is not answered.
+    expect([401, 403]).toContain(r.status);
   });
 });

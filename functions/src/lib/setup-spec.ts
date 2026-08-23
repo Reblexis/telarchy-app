@@ -77,7 +77,7 @@ export const SETUP_SPEC: SetupDecision[] = [
       'By your own agent on a schedule, reading the real source and pushing it',
       'By a Telarchy Source that pulls it for you',
     ],
-    api: 'PUT /api/metrics/:id { value, oldValue, updateNote }. For automation: POST /api/agents/register for a key, add it to a group with manage, then run it on a schedule. Sources: POST /api/sources.',
+    api: 'PUT /api/metrics/:id { value, oldValue, updateNote }. To let your own agent do it: the agent calls POST /api/agents/register to get its own participant id and key (it keeps the key, nobody else ever sees it), tells you the participant id, and you add it with POST /api/workspaces/:id/members { participantId, role: "admin" }. Sources that pull a value for you: POST /api/sources.',
   },
   {
     id: 'context',

@@ -165,7 +165,18 @@ has to be decided before a floor is worth anything, and it has three readers:
 Otto's brief (so he works through what is open instead of wandering), the
 handoff prompt (so the operator's agent is told what remains), and
 `GET /api/setup/checklist` (so that agent can ask the API instead of trusting
-a prompt written an hour ago).
+a prompt written an hour ago). Called with no workspace it needs no auth and
+answers the specification with everything open, because the first time an agent
+runs it there is usually no floor yet, and a 400 there would teach it to skip
+the call exactly when it most needs the list.
+
+**A key never passes through Otto.** When the operator wants their own agent
+keeping the number true, the agent registers ITSELF
+(`POST /api/agents/register`), keeps its key, and reports only its participant
+id; the operator adds it with `POST /api/workspaces/:id/members { participantId,
+role: "admin" }`. Otto is told never to mint one or ask for one: the setup
+conversation is written to `floor_questions`, so a key pasted into it is a key
+in a log.
 
 The nine decisions: the floor, the number, keeping it true, what traders see,
 liquidity, contracts, who can trade, your side of it, getting it read. The
