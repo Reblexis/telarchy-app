@@ -193,15 +193,36 @@ page always has a prompt; it is only sometimes the personalised one. The first
 instruction he is required to write is "call GET /api/setup/checklist", because
 the prompt carries intent and the endpoint carries state.
 
-**A market opens holding zero liquidity, and this is where that surfaced.**
-`AMM_DEFAULTS.liquidity` is 0, so a metric created without funding produces a
-market that renders perfectly and refuses every trade. Until 2026-08-23 the
-setup path walked straight past it, which means "ends on a live floor" was not
-true for a self-serve floor. It is now in the specification (`liquidity`), in
-the checklist's `blocking` list in those words, and in Otto's instructions with
-the number to suggest. Fixing the default is a money decision (a house subsidy
-on every self-serve floor) and belongs to the owner, so nothing here changes it:
-the operator funds their own market out of their signup credits.
+**A new market trades, and its price means nothing. Measured, 2026-08-23.**
+I walked the whole documented path against beta as if I were the operator's own
+agent, and this is what came out of it. `AMM_DEFAULTS.liquidity` is 0, but
+`createWorkspaceFromTemplate` turns auto-funding on at
+`DEFAULT_MARKET_LIQUIDITY_CREDITS = 0.5`, so a new market is not empty: it holds
+half a credit. That is worse than empty in one specific way, because it trades.
+The first five-credit trade I placed moved the forecast from 2,500 to 4,997 on
+a 0 to 5,000 band, which is the middle of the band to its ceiling.
+
+So the checklist does not ask whether a market is funded. It asks what five
+credits does to it, using the app's own LMSR math, and calls anything a
+five-credit trade can shove more than a fifth of the band a decoration, in
+those words. Same test for the contract-funding rule, which defaults to the
+same 0.5.
+
+Raising the default is a money decision (a house subsidy on every self-serve
+floor) and belongs to the owner, so nothing here changes it. The operator funds
+their own market out of their signup credits, and Otto is told to ask for a
+number and warn what a thin one buys them.
+
+**Getting an agent a key has an order, and it is not the obvious one.** Also
+found by walking it: `POST /api/agents/register` requires a `workspaceId` and
+answers 404 for a private workspace. So an agent cannot bootstrap itself before
+a floor exists, and a floor it creates with its own key belongs to the agent
+rather than to the operator. The order that works: the operator opens the floor
+(Otto, or their own session); the agent registers ITSELF into that floor and
+keeps its key; the operator promotes it with `POST /api/workspaces/:id/members
+{ participantId, role: "admin" }`, without which every write it attempts
+answers 403. That order is now in the specification, in Otto's instructions and
+in the skill.
 
 **The handoff, first built 2026-08-22.** Beside the conversation sits
 a prompt for the operator's OWN agent: the transcript so far, what has actually

@@ -77,7 +77,7 @@ export const SETUP_SPEC: SetupDecision[] = [
       'By your own agent on a schedule, reading the real source and pushing it',
       'By a Telarchy Source that pulls it for you',
     ],
-    api: 'PUT /api/metrics/:id { value, oldValue, updateNote }. To let your own agent do it: the agent calls POST /api/agents/register to get its own participant id and key (it keeps the key, nobody else ever sees it), tells you the participant id, and you add it with POST /api/workspaces/:id/members { participantId, role: "admin" }. Sources that pull a value for you: POST /api/sources.',
+    api: 'PUT /api/metrics/:id { value, oldValue, updateNote }. To let your own agent do it, in this order: the floor must exist and be public or unlisted (POST /api/agents/register needs a workspaceId and answers 404 for a private one); the agent registers ITSELF into that floor with POST /api/agents/register { agentId, workspaceId } and keeps its own key, which nobody else ever sees; you promote it with POST /api/workspaces/:id/members { participantId, role: "admin" }, because until then it has only the Public group\'s capabilities and every write answers 403. Sources that pull a value for you: POST /api/sources.',
   },
   {
     id: 'context',
@@ -96,9 +96,9 @@ export const SETUP_SPEC: SetupDecision[] = [
     id: 'liquidity',
     label: 'Liquidity',
     question: 'Which question is worth answering well, and how many credits go behind it?',
-    why: 'Liquidity is the steering wheel. A deep market costs more to move, so its price means more, and traders go where the subsidy is. Spreading one number evenly over every market says every question matters equally, which is never true.',
+    why: 'Liquidity is the steering wheel. A deep market costs more to move, so its price means more, and traders go where the subsidy is. The trap is that a thin market still trades: a new one carries 0.5 credits by default, and five credits will move its forecast across most of the band, so it looks like a price and is not one. Spreading one number evenly over every market also says every question matters equally, which is never true.',
     options: [
-      'Fund the one number you actually decide on, leave the rest thin',
+      'Fund the one number you actually decide on with a couple of hundred credits, leave the rest thin',
       'Auto-fund every new market with a flat amount',
       'Fund nothing and let traders find it themselves',
     ],

@@ -5,6 +5,7 @@ import {
   proposals, permissionGroups, announcements, trades,
 } from '../db/schema';
 import { SETUP_SPEC, type DecisionId } from '../lib/setup-spec';
+import { sharesForBudget, consensus } from '../lib/amm';
 
 /**
  * What is actually decided on a floor, read from the database
@@ -54,6 +55,7 @@ export async function buildChecklist(workspaceId: string): Promise<Checklist> {
 
   const openMarkets = await db.select({
     id: markets.id, metricId: markets.metricId, liquidity: markets.liquidity,
+    shares: markets.shares, rangeMin: markets.rangeMin, rangeMax: markets.rangeMax,
     targetDate: markets.targetDate, proposalId: markets.proposalId,
   }).from(markets).where(and(
     eq(markets.workspaceId, workspaceId),
@@ -93,6 +95,33 @@ export async function buildChecklist(workspaceId: string): Promise<Checklist> {
   const poolCredits = (b: number) => Math.round(b * Math.LN2 * 100) / 100;
   const totalPool = poolCredits(baseMarkets.reduce((sum, m) => sum + (m.liquidity ?? 0), 0));
 
+  /**
+   * What a five-credit trade does to this market's forecast, as a share of the
+   * band. This is the honest test of whether a market says anything, and it is
+   * here because "funded" turned out to be the wrong question: a workspace
+   * auto-funds 0.5 credits per market, which is not zero, so every trade is
+   * accepted and the first five-credit trade moves the forecast from the
+   * middle of the band to its ceiling (measured on beta, 2026-08-23). A market
+   * anyone can pin for pocket change is a decoration, and reporting it as
+   * settled is how an operator ends up trusting a number nobody defended.
+   */
+  const SHOVE_CREDITS = 5;
+  function shoveShare(m: { shares: unknown; liquidity: number; rangeMin: number; rangeMax: number }): number {
+    const b = m.liquidity ?? 0;
+    if (b <= 0) return 1;
+    const held = (m.shares ?? [0, 0]) as [number, number];
+    const before = consensus(held, b, m.rangeMin, m.rangeMax);
+    const { amount } = sharesForBudget(held, 1, SHOVE_CREDITS, b);
+    const after = consensus([held[0], held[1] + amount], b, m.rangeMin, m.rangeMax);
+    if (before === undefined || after === undefined) return 1;
+    const band = m.rangeMax - m.rangeMin;
+    return band > 0 ? Math.abs(after - before) / band : 1;
+  }
+  /** A market a five-credit trade cannot move by more than a fifth of its
+   *  band is a market worth reading. */
+  const meaningful = baseMarkets.filter(m => (m.liquidity ?? 0) > 0 && shoveShare(m) <= 0.2);
+  const shovable = baseMarkets.filter(m => (m.liquidity ?? 0) > 0 && shoveShare(m) > 0.2);
+
   const decided: Record<DecisionId, { status: 'done' | 'open'; note: string }> = {
     floor: (ws.description ?? '').trim()
       ? { status: 'done', note: `${ws.name}: "${(ws.description ?? '').trim().slice(0, 80)}"` }
@@ -126,15 +155,19 @@ export async function buildChecklist(workspaceId: string): Promise<Checklist> {
       }
       : { status: 'open', note: 'Nothing published beyond the number itself, so a forecaster is guessing.' },
 
-    liquidity: fundedBase.length > 0
+    liquidity: meaningful.length > 0
       ? { status: 'done', note: `${totalPool} credits across ${fundedBase.length} of ${baseMarkets.length} market(s).` }
-      : { status: 'open', note: baseMarkets.length ? 'Every market holds zero, so no trade can be placed against any of them.' : 'No market to fund yet.' },
+      : shovable.length > 0
+        ? { status: 'open', note: `${totalPool} credits in total, which is a decoration: ${SHOVE_CREDITS} credits moves the forecast by more than a fifth of the band, so the price says nothing.` }
+        : { status: 'open', note: baseMarkets.length ? 'Every market holds zero, so no trade can be placed against any of them.' : 'No market to fund yet.' },
 
-    contracts: ws.autoFundNewMarkets && (ws.newMarketLiquidityCredits ?? 0) > 0
+    contracts: ws.autoFundNewMarkets && (ws.newMarketLiquidityCredits ?? 0) >= SHOVE_CREDITS
       ? { status: 'done', note: `Auto-funding every new market with ${ws.newMarketLiquidityCredits} credits.` }
       : contractMarkets.some(m => (m.liquidity ?? 0) > 0)
         ? { status: 'done', note: 'Contract markets are funded by hand or by an agent.' }
-        : { status: 'open', note: proposalCount?.n ? `${proposalCount?.n} contract(s) posted and their markets hold nothing.` : 'No rule yet for funding a contract market when one arrives.' },
+        : ws.autoFundNewMarkets && (ws.newMarketLiquidityCredits ?? 0) > 0
+          ? { status: 'open', note: `Auto-funding ${ws.newMarketLiquidityCredits} credits per market, which is too thin to price anything. Raise it or fund contracts deliberately.` }
+          : { status: 'open', note: proposalCount?.n ? `${proposalCount?.n} contract(s) posted and their markets hold nothing.` : 'No rule yet for funding a contract market when one arrives.' },
 
     participation: publicCaps.includes('trade')
       ? { status: 'done', note: `Open: anyone can join and trade (${ws.visibility}).` }
@@ -169,6 +202,8 @@ export async function buildChecklist(workspaceId: string): Promise<Checklist> {
     blocking.push('The number has no horizon, so no market was created. Add customHorizons to the metric.');
   } else if (fundedBase.length === 0) {
     blocking.push('Every market holds zero liquidity, so every trade against them is refused. Fund at least one: POST /api/predictions/markets/:id/liquidity { amount }.');
+  } else if (meaningful.length === 0) {
+    blocking.push(`Every market is thin enough that ${SHOVE_CREDITS} credits moves its forecast by more than a fifth of the band. It will trade, and the price will mean nothing. Fund the one you actually decide on: POST /api/predictions/markets/:id/liquidity { amount }.`);
   }
   if (!publicCaps.includes('trade') && ws.visibility !== 'private') {
     blocking.push('The Public group cannot trade, so a visitor who joins can only watch. Grant trade on the Public group, or add participants by hand.');

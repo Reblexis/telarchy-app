@@ -107,13 +107,26 @@ describe('liquidity, which is the one that looks fine and is not', () => {
     expect(c.blocking.join(' ')).toMatch(/every trade against them is refused/i);
   });
 
-  test('a funded market reports the credits actually behind it', async () => {
+  test('a token amount is not funded, it is a decoration', async () => {
+    // What a workspace auto-funds per market: 0.5 credits, so b = 0.72. It is
+    // NOT zero, so every trade is accepted, and measured on beta the first
+    // 5-credit trade moved the forecast from 2500 to 4997 on a 0-5000 band.
+    // Reporting that as settled is how an operator ends up trusting a number
+    // anyone can pin for pocket change.
+    await seedNumber({ liquidity: 0.5 / Math.LN2 });
+    const c = await buildChecklist(WS);
+    expect(itemOf(c, 'liquidity').status).toBe('open');
+    expect(itemOf(c, 'liquidity').note).toMatch(/decoration/);
+    expect(c.blocking.join(' ')).toMatch(/the price will mean nothing/);
+  });
+
+  test('a market deep enough to survive a shove reports what is behind it', async () => {
     // b = 721.35 is 500 credits of pool: b = pool / ln 2.
     await seedNumber({ liquidity: 721.35 });
     const c = await buildChecklist(WS);
     expect(itemOf(c, 'liquidity').status).toBe('done');
     expect(itemOf(c, 'liquidity').note).toMatch(/^500 credits/);
-    expect(c.blocking.join(' ')).not.toMatch(/zero liquidity/);
+    expect(c.blocking.join(' ')).not.toMatch(/mean nothing/);
   });
 });
 
@@ -139,11 +152,19 @@ describe('decisions that a default must never be mistaken for', () => {
     expect(itemOf(await buildChecklist(WS), 'contracts').status).toBe('open');
   });
 
-  test('auto-funding on is', async () => {
+  test('auto-funding a real amount is', async () => {
     await db.update(workspaces).set({ autoFundNewMarkets: true, newMarketLiquidityCredits: 25 });
     const c = await buildChecklist(WS);
     expect(itemOf(c, 'contracts').status).toBe('done');
     expect(itemOf(c, 'contracts').note).toMatch(/25 credits/);
+  });
+
+  test('auto-funding the workspace default is not a contract policy either', async () => {
+    // 0.5 per market is what workspace creation sets, and it prices nothing.
+    await db.update(workspaces).set({ autoFundNewMarkets: true, newMarketLiquidityCredits: 0.5 });
+    const c = await buildChecklist(WS);
+    expect(itemOf(c, 'contracts').status).toBe('open');
+    expect(itemOf(c, 'contracts').note).toMatch(/too thin to price anything/);
   });
 });
 
