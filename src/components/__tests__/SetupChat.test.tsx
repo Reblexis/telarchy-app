@@ -12,12 +12,16 @@ import { MemoryRouter } from 'react-router-dom';
  * reads back from the database, never from his prose.
  */
 
-const askSetup = vi.fn(async () => ({
-  answer: 'Opened it.',
-  opened: [] as Array<{ name: string; slug: string | null }>,
-  handoff: '',
-}));
-vi.mock('../../lib/api', () => ({ api: { askSetup: (m: unknown) => askSetup(m as never) } }));
+type Reply = {
+  answer: string;
+  opened: Array<{ name: string; slug: string | null }>;
+  handoff: string;
+  settled?: string[];
+  open?: string[];
+  checklist?: { blocking: string[]; items: Array<{ id: string; label: string; status: 'done' | 'open'; note: string }> } | null;
+};
+const askSetup = vi.fn(async (): Promise<Reply> => ({ answer: 'Opened it.', opened: [], handoff: '' }));
+vi.mock('../../lib/api', () => ({ api: { askSetup: (m: unknown, s: unknown) => askSetup(m as never, s as never) } }));
 
 import { SetupChat } from '../SetupChat';
 
@@ -143,5 +147,47 @@ describe('the handoff to your own agent', () => {
 
     expect(writeText).toHaveBeenCalledWith('PASTE ME');
     expect(await screen.findByRole('button', { name: /copied/i })).toBeTruthy();
+  });
+});
+
+describe('what the conversation carries forward', () => {
+  test('settled decisions go back with the next turn, so Otto stops re-asking', async () => {
+    const user = userEvent.setup();
+    renderChat();
+
+    askSetup.mockResolvedValue({
+      answer: 'Good.', opened: [], handoff: 'X'.repeat(220), settled: ['floor', 'number'],
+    });
+    await user.type(screen.getByLabelText(/tell otto what you run/i), 'kleros');
+    await user.click(screen.getByRole('button', { name: /send/i }));
+    await waitFor(() => expect(askSetup).toHaveBeenCalledTimes(1));
+    // Nothing was settled before the first turn.
+    expect(askSetup.mock.calls[0][1]).toEqual([]);
+
+    await user.type(screen.getByLabelText(/tell otto what you run/i), 'disputes');
+    await user.click(screen.getByRole('button', { name: /send/i }));
+    await waitFor(() => expect(askSetup).toHaveBeenCalledTimes(2));
+    expect(askSetup.mock.calls[1][1]).toEqual(['floor', 'number']);
+  });
+
+  test('the floor state shows what is blocking, not just what is done', async () => {
+    askSetup.mockResolvedValue({
+      answer: 'Opened.', opened: [], handoff: 'X'.repeat(220),
+      checklist: {
+        blocking: ['Every market holds zero liquidity, so every trade against them is refused.'],
+        items: [
+          { id: 'number', label: 'The number', status: 'done', note: 'Monthly disputes, 1 open market.' },
+          { id: 'liquidity', label: 'Liquidity', status: 'open', note: 'Every market holds zero.' },
+        ],
+      },
+    });
+    const user = userEvent.setup();
+    renderChat();
+    await user.type(screen.getByLabelText(/tell otto what you run/i), 'go');
+    await user.click(screen.getByRole('button', { name: /send/i }));
+
+    expect(await screen.findByText(/every trade against them is refused/i)).toBeTruthy();
+    expect(screen.getByText('The number')).toBeTruthy();
+    expect(screen.getByText('Liquidity')).toBeTruthy();
   });
 });

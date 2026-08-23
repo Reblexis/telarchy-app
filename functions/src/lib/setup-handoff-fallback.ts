@@ -1,6 +1,16 @@
 import type { AskTurn } from './ask';
 
 /**
+ * The handoff of last resort (owner direction 2026-08-22, demoted 2026-08-23).
+ *
+ * Otto writes the real one now (services/setup-handoff.ts), because a template
+ * cannot be specific about a business it has never heard of. This stays as the
+ * answer when the model returns junk or names an id we did not give it: the
+ * page always has a prompt, and the difference between the two is only how
+ * personal it is. It is deliberately dull and always correct.
+ *
+ * The original note follows.
+ *
  * "Continue this with your own agent" (owner direction 2026-08-22).
  *
  * A setup conversation on telarchy.com is one of two places the work can

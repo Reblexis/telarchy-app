@@ -7394,3 +7394,29 @@ textarea.jobform-line--desc {
   cursor: pointer;
 }
 .setup-humanform button:hover:not(:disabled) { color: var(--text-primary); border-color: var(--border-strong); }
+
+/* What the floor actually says, under the prompt. The prompt carries intent
+   and goes stale; this is read from the rows on every turn, so it is the half
+   an operator (or their agent) can trust about state. */
+.setup-state { margin-top: 0.9rem; padding-top: 0.8rem; border-top: 1px solid var(--border-color); }
+.setup-blocking {
+  margin: 0 0 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border-left: 2px solid var(--accent);
+  background: var(--bg-primary);
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+.setup-items { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.45rem; }
+.setup-item {
+  display: grid;
+  grid-template-columns: 0.8rem auto;
+  gap: 0 0.4rem;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+.setup-item-mark { color: var(--text-tertiary); }
+.setup-item-label { color: var(--text-primary); }
+.setup-item.is-open .setup-item-label { color: var(--text-secondary); }
+.setup-item-note { grid-column: 2; color: var(--text-tertiary); }

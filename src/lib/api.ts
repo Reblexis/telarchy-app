@@ -1135,14 +1135,31 @@ export const api = {
    *  turn, read back from the API rather than parsed out of his answer. */
   askSetup: (
     messages: Array<{ role: 'user' | 'assistant'; content: string }>,
+    /** What earlier turns settled, so Otto stops asking about it. Round-trips
+     *  through the browser and is filtered server-side to ids the spec knows. */
+    settled: string[] = [],
   ): Promise<{
     answer: string;
-    opened: Array<{ name: string; slug: string | null }>;
-    /** The paste-ready prompt for the caller's own agent, rebuilt server-side
-     *  every turn so the ids in it are real rather than restated by a model. */
+    opened: Array<{ id?: string; name: string; slug: string | null }>;
+    /** The prompt for the caller's own agent: written by Otto against the
+     *  setup specification, with every id checked against the database before
+     *  it is allowed out (functions/src/services/setup-handoff.ts). */
     handoff: string;
+    settled: string[];
+    open: string[];
+    /** The floor's real state, when a floor exists. */
+    checklist: { blocking: string[]; items: Array<{ id: string; label: string; status: 'done' | 'open'; note: string }> } | null;
   }> =>
-    request('/api/setup/ask', { method: 'POST', body: JSON.stringify({ messages }) }, true),
+    request('/api/setup/ask', { method: 'POST', body: JSON.stringify({ messages, settled }) }, true),
+
+  /** What is still open on a floor, read from the database. The endpoint the
+   *  handoff prompt tells an operator's own agent to call first. */
+  setupChecklist: (workspaceId: string) =>
+    request(`/api/setup/checklist?workspaceId=${encodeURIComponent(workspaceId)}`, {}, true) as Promise<{
+      workspace: { id: string; name: string; slug: string | null; visibility: string } | null;
+      items: Array<{ id: string; label: string; question: string; why: string; options: string[]; api: string; status: 'done' | 'open'; note: string }>;
+      blocking: string[];
+    }>,
 
   /** Public floor read: who holds what and the trade history for a
       market, no account needed (Open workspaces only). */

@@ -6,8 +6,11 @@ import { floorQuestions, workspaces } from '../db/schema';
 import { wrap } from '../lib/wrap';
 import { askAboutWorkspace, askEnabled, type AskTurn } from '../lib/ask';
 import { SETUP_SYSTEM, renderSetupBrief } from '../lib/setup-brief';
-import { renderHandoff } from '../lib/setup-handoff';
+import { sanitiseDecisionIds } from '../lib/setup-spec';
+import { buildChecklist } from '../services/setup-checklist';
+import { writeHandoff } from '../services/setup-handoff';
 import { ottoApiTools, type ApiCallRecord } from '../services/otto-tools';
+import { requireCapability } from '../middleware/roles';
 
 export const setupRouter = Router();
 
@@ -65,10 +68,20 @@ setupRouter.post('/ask', wrap(async (req, res) => {
         .from(workspaces).where(eq(workspaces.createdBy, identity))
     : [];
 
+  // The floor as it is BEFORE this turn, so Otto is told the market holds
+  // nothing rather than asked to remember whether he funded it. Read once and
+  // reused for the handoff after the answer.
+  const settledBefore = sanitiseDecisionIds(req.body?.settled);
+  const floorBefore = owned[0] ?? null;
+  const checklistBefore = floorBefore ? await buildChecklist(floorBefore.id) : null;
+
   const brief = renderSetupBrief({
     signedIn: Boolean(identity),
     name: req.auth?.agentId ?? null,
     workspaces: owned,
+    settled: settledBefore,
+    checklist: checklistBefore?.items.map(i => ({ id: i.id, label: i.label, status: i.status, note: i.note })),
+    blocking: checklistBefore?.blocking,
   });
 
   const fwd = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim();
@@ -100,17 +113,31 @@ setupRouter.post('/ask', wrap(async (req, res) => {
     const before = new Set(owned.map(w => w.slug));
     const opened = after.filter(w => w.slug && !before.has(w.slug));
 
-    // The handoff to the caller's own agent, rebuilt every turn (owner
-    // direction 2026-08-22). Assembled here rather than asked of Otto: a
-    // model restating a workspace id gets one wrong eventually, and the agent
-    // on the other side would act on it.
-    const handoff = renderHandoff([...turns, { role: 'assistant', content: answer }], {
-      signedIn: Boolean(identity),
-      workspaces: after,
-      opened,
+    // The handoff to the caller's own agent, rewritten every turn (owner
+    // direction 2026-08-23). Otto writes it against the specification, so it
+    // can name their business and their source rather than a template's idea
+    // of an operator; the ids in it are given to him and guarded, and a
+    // failure falls back to the dull always-correct version.
+    //
+    // The checklist that goes with it is read from the database, so the model
+    // is told what is true rather than asked to remember it.
+    const floor = opened[0] ?? after[0] ?? null;
+    const checklist = floor ? await buildChecklist(floor.id) : null;
+    const handoff = await writeHandoff({
+      turns: [...turns, { role: 'assistant', content: answer }],
+      state: { signedIn: Boolean(identity), workspaces: after, opened },
+      checklist,
+      previouslySettled: settledBefore,
     });
 
-    res.json({ answer, opened, handoff });
+    res.json({
+      answer,
+      opened,
+      handoff: handoff.prompt,
+      settled: handoff.settled,
+      open: handoff.open,
+      checklist: checklist ? { blocking: checklist.blocking, items: checklist.items.map(i => ({ id: i.id, label: i.label, status: i.status, note: i.note })) } : null,
+    });
   } catch (e) {
     console.error('setup ask failed:', e);
     const message = e instanceof Error ? e.message.slice(0, 500) : String(e).slice(0, 500);
@@ -119,4 +146,38 @@ setupRouter.post('/ask', wrap(async (req, res) => {
       .catch(err => console.error('setup question log failed:', err));
     res.status(502).json({ error: 'Could not answer that right now. Try again in a moment.' });
   }
+}));
+
+
+/**
+ * What is still open on a floor, read from the database (owner direction
+ * 2026-08-23).
+ *
+ * This is the endpoint the handoff prompt tells the operator's own agent to
+ * call FIRST. The prompt is written by a model at one instant; the floor keeps
+ * changing after it. An agent that works from the prompt alone will re-do
+ * settled work and miss what the operator decided in the meantime, so the
+ * prompt's job is to carry intent and this endpoint's job is to carry state.
+ *
+ * Gated on `manage` for the workspace, because the notes quote the owner's own
+ * settings and the blocking list is a map of what is not yet defended.
+ */
+setupRouter.get('/checklist', requireCapability('manage'), wrap(async (req, res) => {
+  const asked = (req.query.workspaceId as string | undefined)
+    ?? (req.headers['x-workspace-id'] as string | undefined);
+  if (!asked) { res.status(400).json({ error: 'workspaceId is required (an id or a slug)' }); return; }
+
+  // A slug is what a person has in front of them, so accept either. Resolved
+  // directly rather than through the public-read helper, which is about what
+  // a stranger may see: this floor may be private and its owner is asking.
+  const [bySlug] = await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.slug, asked));
+  const workspaceId = bySlug?.id ?? asked;
+  if (req.auth?.workspaceId && req.auth.workspaceId !== workspaceId && !req.auth.isMasterKey) {
+    res.status(403).json({ error: 'Send this workspace as X-Workspace-Id to read its checklist.' });
+    return;
+  }
+
+  const checklist = await buildChecklist(workspaceId);
+  if (!checklist.workspace) { res.status(404).json({ error: 'Workspace not found' }); return; }
+  res.json(checklist);
 }));

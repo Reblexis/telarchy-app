@@ -31,6 +31,7 @@ import { agents, floorQuestions, workspaces } from '../db/schema';
 import { toUnits } from '../lib/validation';
 import { setupRouter } from '../routes/setup';
 import { renderSetupBrief } from '../lib/setup-brief';
+import { permissionGroups } from '../db/schema';
 
 const OPERATOR = 'agent-operator-setup';
 
@@ -177,5 +178,66 @@ describe('what the brief tells him he may promise', () => {
     // Otherwise his first move is to open a second floor for a number that
     // belongs on the first.
     expect(brief).toMatch(/Adding a number to a floor they already run/);
+  });
+});
+
+
+/**
+ * GET /api/setup/checklist: the endpoint the handoff tells the operator's own
+ * agent to call first, so it works from the floor's real state rather than
+ * from a prompt written some time ago.
+ */
+describe('the checklist endpoint', () => {
+  const asOwner = () => {
+    authOverride = {
+      agentId: OPERATOR, uid: OPERATOR, workspaceId: 'ws-c',
+      capabilities: new Set(['read', 'trade', 'manage']),
+    };
+  };
+
+  beforeEach(async () => {
+    await db.insert(workspaces).values({
+      id: 'ws-c', name: 'Kleros', slug: 'kleros', createdBy: OPERATOR, visibility: 'unlisted',
+    });
+    await db.insert(permissionGroups).values({
+      id: 'grp-c', workspaceId: 'ws-c', name: 'Public', type: 'public',
+      memberIds: [], permissions: {}, capabilities: ['read'],
+    });
+  });
+
+  test('answers the specification against the floor, by id or by slug', async () => {
+    asOwner();
+    const byId = await request(app).get('/api/setup/checklist?workspaceId=ws-c');
+    expect(byId.status).toBe(200);
+    expect(byId.body.workspace.name).toBe('Kleros');
+    expect(byId.body.items.length).toBeGreaterThan(5);
+    expect(byId.body.blocking.join(' ')).toMatch(/no number/i);
+
+    // A person has the slug in front of them, not the id.
+    const bySlug = await request(app).get('/api/setup/checklist?workspaceId=kleros');
+    expect(bySlug.status).toBe(200);
+    expect(bySlug.body.workspace.id).toBe('ws-c');
+  });
+
+  test('needs manage, because the notes quote the owner\'s own settings', async () => {
+    authOverride = { agentId: OPERATOR, uid: OPERATOR, workspaceId: 'ws-c', capabilities: new Set(['read']) };
+    const r = await request(app).get('/api/setup/checklist?workspaceId=ws-c');
+    expect(r.status).toBe(403);
+  });
+
+  test('refuses to read another workspace than the one you authenticated for', async () => {
+    await db.insert(workspaces).values({
+      id: 'ws-theirs', name: 'Someone else', slug: 'someone-else', createdBy: 'agent-other', visibility: 'public',
+    });
+    asOwner();
+    const r = await request(app).get('/api/setup/checklist?workspaceId=ws-theirs');
+    expect(r.status).toBe(403);
+  });
+
+  test('says which workspace it wants when asked for none', async () => {
+    asOwner();
+    const r = await request(app).get('/api/setup/checklist');
+    expect(r.status).toBe(400);
+    expect(r.body.error).toMatch(/workspaceId is required/);
   });
 });

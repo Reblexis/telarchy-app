@@ -41,6 +41,13 @@ export function SetupChat({ signedIn }: { signedIn: boolean }) {
   const [opened, setOpened] = useState<Array<{ name: string; slug: string | null }>>([]);
   const [handoff, setHandoff] = useState('');
   const [copied, setCopied] = useState(false);
+  /** What the conversation has settled, sent back each turn so Otto does not
+   *  re-ask. The server keeps only ids the specification knows. */
+  const [settled, setSettled] = useState<string[]>([]);
+  const [checklist, setChecklist] = useState<{
+    blocking: string[];
+    items: Array<{ id: string; label: string; status: 'done' | 'open'; note: string }>;
+  } | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -58,9 +65,11 @@ export function SetupChat({ signedIn }: { signedIn: boolean }) {
     setError('');
     setBusy(true);
     try {
-      const res = await api.askSetup(next);
+      const res = await api.askSetup(next, settled);
       setTurns([...next, { role: 'assistant', content: res.answer }]);
       if (res.handoff) { setHandoff(res.handoff); setCopied(false); }
+      if (res.settled?.length) setSettled(res.settled);
+      if (res.checklist) setChecklist(res.checklist);
       // Append rather than replace: a second number added later must not take
       // the first floor's door off the page.
       if (res.opened?.length) {
@@ -175,7 +184,7 @@ export function SetupChat({ signedIn }: { signedIn: boolean }) {
         </p>
       </section>
 
-      {/* Rebuilt every turn, so it is never behind the conversation. */}
+      {/* Rewritten every turn, so it is never behind the conversation. */}
       {handoff && (
         <aside className="setup-handoff" aria-label="Continue with your own agent">
           <div className="setup-handoff-head">
@@ -186,11 +195,30 @@ export function SetupChat({ signedIn }: { signedIn: boolean }) {
             </button>
           </div>
           <p className="setup-handoff-why">
-            Everything said here, plus what has actually been created and the
-            calls left to make. Your assistant knows your business better than
-            Otto does.
+            Otto writes this from what you have said, with the real ids of
+            anything he opened. Paste it into the assistant that knows your
+            business and it can finish the setup.
           </p>
           <pre className="setup-handoff-body">{handoff}</pre>
+
+          {/* What the floor's own rows say, which is the thing a prompt cannot
+              stay current about. */}
+          {checklist && (
+            <div className="setup-state">
+              {checklist.blocking.map(b => (
+                <p className="setup-blocking" key={b}>{b}</p>
+              ))}
+              <ul className="setup-items">
+                {checklist.items.map(i => (
+                  <li key={i.id} className={`setup-item is-${i.status}`}>
+                    <span className="setup-item-mark" aria-hidden="true">{i.status === 'done' ? '·' : '○'}</span>
+                    <span className="setup-item-label">{i.label}</span>
+                    <span className="setup-item-note">{i.note}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </aside>
       )}
     </div>
