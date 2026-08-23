@@ -190,11 +190,15 @@ describe('the stripe says which of three states it is in', () => {
  * a safe one until something is written.
  */
 describe('the store the beta writes to', () => {
-  test('says "own database" when it has one', async () => {
+  test('names what is separate and what is not', async () => {
     getPublicConfig.mockResolvedValue({ store: 'beta' });
     setHost('telarchy.com', '/beta/lookpilot');
     render(<BetaBanner />);
-    expect(await screen.findByText('own database')).toBeTruthy();
+    // "own data, real account", not "own database": the auth client is pinned
+    // to the origin's /api/auth, so account writes made on the beta are live
+    // even though every workspace and trade is the beta's own. The old wording
+    // invited someone to test an account feature and change their real one.
+    expect(await screen.findByText(/own data, real account/i)).toBeTruthy();
   });
 
   test('says LIVE, loudly, when it shares production', async () => {

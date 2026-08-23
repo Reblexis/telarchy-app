@@ -95,9 +95,22 @@ export function BetaBanner() {
   return (
     <div className="betabar" role="status">
       <span className="betabar-label">Beta</span>
+      {/* "data" rather than "database", because only half of it is separate.
+          The auth client is pinned to the origin's /api/auth (auth-client.ts),
+          which is what makes Google login work on the real domain and is why
+          the beta exists at telarchy.com/beta at all; the cost is that
+          ACCOUNT writes made here (profile, notification settings, password)
+          land in production while every workspace, market and trade lands in
+          the beta store. Saying "own database" invites someone to test an
+          account feature and change their real one. */}
       {store && (
-        <span className={`betabar-store${store === 'production' ? ' is-live' : ''}`}>
-          {store === 'beta' ? 'own database' : 'LIVE database'}
+        <span
+          className={`betabar-store${store === 'production' ? ' is-live' : ''}`}
+          title={store === 'beta'
+            ? 'Workspaces, markets and trades are the beta\'s own. Your ACCOUNT is the real one: sign-in, profile and notification changes here are live.'
+            : 'This build is serving telarchy.com.'}
+        >
+          {store === 'beta' ? 'own data, real account' : 'LIVE database'}
         </span>
       )}
       <span className="betabar-text">

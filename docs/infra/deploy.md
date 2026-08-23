@@ -393,6 +393,30 @@ Off Cloud Run there is no metadata server, so `releaseState()` reads as unknown
 and publishing refuses. That is why local dev shows the stripe (localhost is
 not the published origin) but no working button.
 
+
+**The beta shares your ACCOUNT, and only your account (recorded 2026-08-23).**
+`src/lib/auth-client.ts` pins BetterAuth to `window.location.origin` with
+`basePath: '/api/auth'`, an absolute path, so a page served at `/beta/` signs
+in against PRODUCTION auth while every other call it makes goes to `/beta/api`
+and the beta store. That is deliberate in effect if not by design: it is what
+makes Google login work on the real domain, which is the reason the beta lives
+at telarchy.com/beta instead of on a run.app URL.
+
+What it means in practice:
+
+- Workspaces, metrics, markets, trades, contracts and credits on the beta are
+  the beta's own. Nothing you do to them touches the live floor.
+- Anything that writes to the ACCOUNT is live: signing up, password changes,
+  profile edits, notification settings. Test those on the beta and you have
+  changed your real account.
+- A beta workspace is owned by your production user id, which is why it is
+  there when you log in and why the participant row is created in the beta
+  store on demand.
+
+The banner says "own data, real account" rather than "own database" for this
+reason. Do not "fix" the auth path without deciding what happens to Google
+login on the beta first.
+
 ## What the workflow does
 
 On `push` to `main` (or `workflow_dispatch`):
