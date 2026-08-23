@@ -43,7 +43,7 @@ What makes this prompt good:
 
 Hard rules:
 - Use ONLY ids, slugs, workspace names and URLs that appear in the FACTS block. If a fact is not there, say what is missing instead of inventing it. Never write a placeholder like <workspace-id>: either the real one, or a sentence telling the agent to look it up.
-- The first instruction in the prompt is always: call GET https://telarchy.com/api/setup/checklist?workspaceId=<the real id, or the slug> and work from what it says is open. If no floor exists yet, the first instruction is to create it.
+- The first instruction in the prompt is always to call the checklist and work from what it says is open. When a floor exists: GET https://telarchy.com/api/setup/checklist?workspaceId= followed by the real id or slug. When none exists yet: GET https://telarchy.com/api/setup/checklist with no query at all, which answers with the specification, and then say that the floor has to be created first.
 - Plain text. No markdown headings, no bold, no bullet characters other than "-" at the start of a line. It is going into a text box.
 - Never an em dash or an en dash.
 - 200 to 320 words. Long enough to carry the decisions, short enough to paste.
