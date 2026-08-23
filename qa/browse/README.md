@@ -163,6 +163,7 @@ explains itself.
 | --- | --- |
 | `settings-and-visibility.md` | Name + visibility + auto-fund |
 | `members-and-permissions.md` | Role matrix (admin / trader / member / viewer) |
+| `operator-door.md` | Otto's setup conversation, the handoff prompt and `GET /api/setup/checklist` |
 
 ### 03-metrics
 
