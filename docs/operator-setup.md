@@ -213,6 +213,17 @@ floor) and belongs to the owner, so nothing here changes it. The operator funds
 their own market out of their signup credits, and Otto is told to ask for a
 number and warn what a thin one buys them.
 
+**What a turn costs, and the shape the model answers in.** Each turn is two
+model calls: Otto's reply, and the handoff. The handoff runs at a 2400-token
+completion budget because it writes a document, and at the chat default of 700
+this model spent the whole budget reasoning and returned empty content, so
+every handoff fell back to the template while the page looked fine. It answers
+in three labelled lines (SETTLED / OPEN / PROMPT) rather than JSON, because
+asked for JSON it writes real newlines inside the string and `JSON.parse`
+refuses the lot. Both failures are invisible from outside: a refused parse
+still leaves a prompt on the page, just never the personalised one. The tests
+pin the budget and every answer shape rather than the symptom.
+
 **Getting an agent a key has an order, and it is not the obvious one.** Also
 found by walking it: `POST /api/agents/register` requires a `workspaceId` and
 answers 404 for a private workspace. So an agent cannot bootstrap itself before

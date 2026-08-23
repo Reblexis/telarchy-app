@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { randomUUID } from 'crypto';
-import { eq } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { db } from '../db/client';
 import { floorQuestions, workspaces } from '../db/schema';
 import { wrap } from '../lib/wrap';
@@ -62,9 +62,13 @@ setupRouter.post('/ask', wrap(async (req, res) => {
   // they already run. Offering to open a fourth floor to someone the API will
   // refuse is the kind of confident wrongness that ends the conversation.
   const identity = req.auth?.agentId ?? req.auth?.uid ?? null;
+  // Newest first: someone who already runs three floors is here about the one
+  // they just opened, not the one from March, and both the brief and the
+  // handoff read [0] as "the floor we are talking about".
   const owned = identity
     ? await db.select({ id: workspaces.id, name: workspaces.name, slug: workspaces.slug })
         .from(workspaces).where(eq(workspaces.createdBy, identity))
+        .orderBy(desc(workspaces.createdAt))
     : [];
 
   // The floor as it is BEFORE this turn, so Otto is told the market holds
@@ -108,6 +112,7 @@ setupRouter.post('/ask', wrap(async (req, res) => {
     const after = identity
       ? await db.select({ id: workspaces.id, name: workspaces.name, slug: workspaces.slug })
           .from(workspaces).where(eq(workspaces.createdBy, identity))
+          .orderBy(desc(workspaces.createdAt))
       : [];
     const before = new Set(owned.map(w => w.slug));
     const opened = after.filter(w => w.slug && !before.has(w.slug));

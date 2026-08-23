@@ -99,6 +99,21 @@ describe('the setup conversation', () => {
     expect(r.body.opened).toEqual([]);
   });
 
+  test('the floor in context is the newest one, not the oldest', async () => {
+    // Someone who already runs three floors is here about the one they just
+    // opened. Both the brief and the handoff read the first row as "the floor
+    // we are talking about".
+    await db.insert(workspaces).values([
+      { id: 'ws-old', name: 'From March', slug: 'from-march', createdBy: OPERATOR, visibility: 'unlisted', createdAt: new Date('2026-03-01') },
+      { id: 'ws-new', name: 'Kleros', slug: 'kleros', createdBy: OPERATOR, visibility: 'unlisted', createdAt: new Date('2026-08-23') },
+    ]);
+    const r = await ask({ question: 'where were we' });
+    expect(r.body.handoff).toMatch(/Kleros/);
+    expect(r.body.handoff.indexOf('Kleros')).toBeLessThan(
+      r.body.handoff.indexOf('From March') < 0 ? Infinity : r.body.handoff.indexOf('From March'),
+    );
+  });
+
   test('a floor the caller already ran is not reported as new', async () => {
     await db.insert(workspaces).values({
       id: 'ws-old', name: 'Existing', slug: 'existing', createdBy: OPERATOR, visibility: 'unlisted',
