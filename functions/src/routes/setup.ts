@@ -93,7 +93,7 @@ setupRouter.post('/ask', wrap(async (req, res) => {
   const actions: ApiCallRecord[] = [];
   try {
     const { answer, usage } = await askAboutWorkspace(
-      brief, turns, ottoApiTools(req, actions), SETUP_SYSTEM);
+      brief, turns, ottoApiTools(req, actions), { system: SETUP_SYSTEM });
     console.log(`setup ask: ${usage.input} in (${usage.cachedInput} cached), ${usage.output} out, $${usage.costUsd ?? '?'}`);
     if (actions.length) {
       console.log(`setup ask: acted ${actions.map(a => `${a.method} ${a.path} -> ${a.status}`).join(', ')}`);

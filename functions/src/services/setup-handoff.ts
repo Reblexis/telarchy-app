@@ -46,7 +46,7 @@ Hard rules:
 - The first instruction in the prompt is always: call GET https://telarchy.com/api/setup/checklist?workspaceId=<the real id, or the slug> and work from what it says is open. If no floor exists yet, the first instruction is to create it.
 - Plain text. No markdown headings, no bold, no bullet characters other than "-" at the start of a line. It is going into a text box.
 - Never an em dash or an en dash.
-- 200 to 400 words. Long enough to carry the decisions, short enough to paste.
+- 200 to 320 words. Long enough to carry the decisions, short enough to paste.
 
 Answer with a JSON object and nothing else:
 {"prompt": "the prompt text", "settled": ["decision ids that this conversation has actually decided"], "open": ["decision ids still to decide"]}`;
@@ -167,7 +167,10 @@ export async function writeHandoff(input: HandoffInput): Promise<HandoffResult> 
       brief,
       [{ role: 'user', content: 'Write the prompt for my own agent now, as JSON.' }],
       [],
-      HANDOFF_SYSTEM,
+      // A document, not a chat turn: at the chat default this model spends the
+      // whole budget reasoning and returns empty content, which is what made
+      // every handoff on beta fall back to the template on 2026-08-23.
+      { system: HANDOFF_SYSTEM, maxTokens: 2400 },
     );
     const parsed = parseJson(answer);
     const prompt = typeof parsed?.prompt === 'string' ? parsed.prompt.trim() : '';

@@ -105,14 +105,14 @@ interface GatewayReply {
 }
 
 async function callGateway(
-  key: string, messages: GatewayMessage[], tools: AskTool[],
+  key: string, messages: GatewayMessage[], tools: AskTool[], maxTokens: number = MAX_TOKENS,
 ): Promise<GatewayReply> {
   const res = await fetch(GATEWAY, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
     body: JSON.stringify({
       model: process.env.ASK_MODEL || DEFAULT_MODEL,
-      max_completion_tokens: MAX_TOKENS,
+      max_completion_tokens: maxTokens,
       messages,
       ...(tools.length ? { tools: tools.map(t => t.spec) } : {}),
     }),
@@ -129,13 +129,23 @@ async function callGateway(
 
 export async function askAboutWorkspace(
   brief: string, turns: AskTurn[], tools: AskTool[] = [],
-  /** Who Otto is on this surface. He is the floor's market maker by default;
-   *  the operator door hands him a different job (setting someone up) and the
-   *  same hands. A parameter rather than a second copy of this function,
-   *  because the loop below (tool rounds, budget, usage accounting) is the
-   *  part that must never fork. */
-  system: string = SYSTEM,
+  opts: {
+    /** Who Otto is on this surface. He is the floor's market maker by
+     *  default; the operator door hands him a different job (setting someone
+     *  up) and the same hands. A parameter rather than a second copy of this
+     *  function, because the loop below (tool rounds, budget, usage
+     *  accounting) is the part that must never fork. */
+    system?: string;
+    /** Completion budget. The default is sized for a chat answer of a few
+     *  sentences. A caller that asks for a document (the setup handoff asks
+     *  for a 300-word prompt as JSON) must raise it, or a reasoning model
+     *  spends the budget thinking and returns empty content, which arrives
+     *  here as "gateway returned no answer". */
+    maxTokens?: number;
+  } = {},
 ): Promise<AskResult> {
+  const system = opts.system ?? SYSTEM;
+  const maxTokens = opts.maxTokens ?? MAX_TOKENS;
   const key = apiKey();
   if (!key) throw new Error('AI_GATEWAY_API_KEY is not set');
 
@@ -162,7 +172,7 @@ export async function askAboutWorkspace(
     // On the last round the tools are withheld, so the model has to answer
     // rather than reaching for another one it will not get to use.
     const offered = round < MAX_TOOL_ROUNDS ? tools : [];
-    const data = await callGateway(key, messages, offered);
+    const data = await callGateway(key, messages, offered, maxTokens);
     add(data.usage);
 
     const message = data.choices?.[0]?.message;

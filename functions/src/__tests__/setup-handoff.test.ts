@@ -83,6 +83,32 @@ describe('the guard on what a prompt may name', () => {
   });
 });
 
+describe('the budget it asks the gateway for', () => {
+  test('is bigger than a chat turn, or the model thinks and returns nothing', async () => {
+    // This is the bug this test exists for. At the chat default (700
+    // completion tokens) the reasoning model spent the budget thinking and
+    // returned empty content, which arrives as "gateway returned no answer",
+    // and every handoff on beta silently fell back to the template. A
+    // fallback that works is exactly what makes this failure invisible.
+    let sent: Record<string, unknown> = {};
+    global.fetch = (async (_url: unknown, init: { body: string }) => {
+      sent = JSON.parse(init.body);
+      return {
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { role: 'assistant', content: JSON.stringify({ prompt: `ok. ${LONG}`, settled: [], open: [] }) } }],
+          usage: { prompt_tokens: 10, completion_tokens: 5, cost: 0.0001 },
+        }),
+        text: async () => '',
+      } as unknown as Response;
+    }) as unknown as typeof global.fetch;
+
+    const out = await writeHandoff({ turns: [{ role: 'user', content: 'hi' }], state: STATE, checklist: null, previouslySettled: [] });
+    expect(out.written).toBe(true);
+    expect(sent.max_completion_tokens as number).toBeGreaterThan(1000);
+  });
+});
+
 describe('writing the handoff', () => {
   const input = { turns: [{ role: 'user' as const, content: 'I run Kleros' }], state: STATE, checklist: null, previouslySettled: [] };
 
