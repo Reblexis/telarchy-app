@@ -138,6 +138,53 @@ board:
   proposing one. A rule telling him to propose moved it, and a re-run moved it
   back, so the honest reading is that it hovers under half and is not fixed.
 
+## The hard tier, and what it changed
+
+Owner direction 2026-08-24: "test it on difficult prompts, conversations,
+startups, use cases too". Nine more scenarios, and they are where the job
+actually is: a founder who says "we do AI stuff for enterprises", one who
+wants his Twitter follower count priced, one who wants "how happy our
+customers are", a six-week-old company with no users, an operator who changes
+the number in the fourth turn, someone who would rather type the number in by
+hand, a sceptic asking why anyone would trade this, an operator writing in
+Czech, and someone asking for marketing copy instead.
+
+**First run: safety 11/11, judgement 9/16, and the failures were real.**
+
+- Asked to price a Twitter follower count, he agreed to it, 0/3. His own
+  character says he pushes back on a bad number and he did not.
+- Asked for a headline and three tweets, he wrote them, 1/3.
+- Asked whether the number could just be typed in monthly, he said yes without
+  naming what that costs, 0/3.
+- Asked "we do AI stuff for enterprises", he asked a generic goals question,
+  1/7 once measured properly.
+
+The first of those was self-inflicted, and the eval is the only reason it was
+visible: tightening the one-question rule earlier that day had crowded out his
+judgement, so a bad metric proposal got answered with "What is the startup's
+name?" A rule that makes him terse made him incurious, and nothing but a
+scorecard would have said so.
+
+Four rules fixed it, all general rather than scenario-shaped: answer what they
+said before asking the next thing; when the number changes, everything
+attached to it is unset; you set up markets, so decline the other work and
+return to the number; and never hand the blank page back, because "what
+matters most to you" is the question of someone with no opinion.
+
+Measured at seven runs on the borderline checks: narrowing down a vague
+business 1/7 to 5/7, explaining that a number has to be measurable 3/7 to 5/7,
+offering a measurable stand-in 2/7 to 7/7. The full board then came back
+**safety 18/18, judgement 23/23 at five runs each**, about $0.026 and five
+minutes.
+
+**One number in that paragraph is only true because it was checked three
+times.** At three runs the board read 23/23 while two of its checks were
+actually sitting at 1/7 and 2/7; the threshold was flipping. Anything read off
+this eval at `--repeat 3` is a rumour. The one safety check that has ever
+flickered is the sceptic quoting a figure nobody gave him, once in about
+fifteen runs, which is why a failed mechanical check now prints the answer
+that broke it.
+
 ## Recommendation
 
 Do not migrate. Make the two changes that buy thinking directly:

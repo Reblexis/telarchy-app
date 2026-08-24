@@ -23,7 +23,10 @@ async function main() {
   const model = arg('model');
   const effort = arg('effort');
   const only = arg('only');
-  const list: Scenario[] = only ? SCENARIOS.filter(s => s.id === only) : SCENARIOS;
+  const tier = arg('tier');
+  let list: Scenario[] = SCENARIOS;
+  if (tier) list = list.filter(s => (s.tier ?? 'common') === tier);
+  if (only) list = list.filter(s => s.id === only);
   if (!list.length) {
     console.error(`No scenario named ${only}. Known: ${SCENARIOS.map(s => s.id).join(', ')}`);
     process.exit(2);
@@ -44,6 +47,7 @@ async function main() {
   for (const s of list) {
     console.log(`\x1b[1m${s.id}\x1b[0m — ${s.about}`);
     const mechHits = s.mechanical.map(() => 0);
+    const offenders: string[] = s.mechanical.map(() => '');
     const judgeHits = (s.judged ?? []).map(() => 0);
     let done = 0;
     let last = '';
@@ -60,7 +64,12 @@ async function main() {
       cost += run.costUsd ?? 0;
       seconds += run.seconds;
       last = run.answer;
-      s.mechanical.forEach((m, k) => { if (m.check(run)) mechHits[k] += 1; });
+      s.mechanical.forEach((m, k) => {
+        if (m.check(run)) mechHits[k] += 1;
+        // Keep the answer that broke a safety check. A rate alone sends the
+        // next person hunting for a reply they cannot reproduce.
+        else if (!offenders[k]) offenders[k] = run.answer;
+      });
       if (s.judged?.length) {
         const verdicts = await judge(s.judged, run.answer);
         verdicts.forEach((v, k) => { if (v) judgeHits[k] += 1; });
@@ -74,6 +83,9 @@ async function main() {
       // A safety property that holds SOMETIMES does not hold.
       if (mechHits[k] === done) safe += 1;
       console.log(`  ${mechHits[k] === done ? '\x1b[32mpass\x1b[0m' : '\x1b[31mFAIL\x1b[0m'}  ${rate(mechHits[k])}  ${m.name}`);
+      if (mechHits[k] !== done && offenders[k]) {
+        console.log(`        \x1b[31m^ "${offenders[k].replace(/\s+/g, ' ').slice(0, 300)}"\x1b[0m`);
+      }
     });
     (s.judged ?? []).forEach((q, k) => {
       goodTotal += 1;
