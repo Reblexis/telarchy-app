@@ -417,6 +417,17 @@ The banner says "own data, real account" rather than "own database" for this
 reason. Do not "fix" the auth path without deciding what happens to Google
 login on the beta first.
 
+**The server has to agree with the browser about this (fixed 2026-08-24).**
+BetterAuth was built on the per-request `db` handle, so a session created
+against production auth was looked up in the BETA store on every `/beta/api`
+call, found nothing, and the caller came back anonymous. The page said signed
+in and the API said stranger: on the operator door that surfaced as Otto
+insisting "you are not signed in" underneath a note reading "Otto acts with
+your account". `db/client.ts` now exports `authDb` (the account store, which
+never follows the swap) and `auth.ts` binds to it; `auth-store-binding.test.ts`
+fails if that is tidied back. Everything else stays per-store, so a beta
+workspace is real beta data keyed by the real account id.
+
 ## What the workflow does
 
 On `push` to `main` (or `workflow_dispatch`):

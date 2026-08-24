@@ -46,6 +46,25 @@ export const pool = new Pool({
 
 const prodDb = drizzle(pool, { schema });
 
+/**
+ * The one store that never follows the beta swap: WHO someone is.
+ *
+ * The beta serves its own data so an experiment cannot touch a live market,
+ * but the browser signs in against this origin's `/api/auth` (auth-client.ts
+ * pins it, which is what makes Google work on the real domain). If the server
+ * looked the resulting session up through the swapping handle, a visitor
+ * signed in on telarchy.com/beta would be resolved against the beta store,
+ * find no session there, and be treated as anonymous by every API call the
+ * page makes: signed in to the page, a stranger to the server (owner,
+ * 2026-08-24: "im signed in in telarchy.com/beta but suddenly not in the
+ * manage site").
+ *
+ * So identity is global and data is per-store, which is what the beta stripe
+ * says out loud ("own data, real account"), and every workspace, participant
+ * and trade the beta creates is keyed by the same real account id.
+ */
+export const authDb = prodDb;
+
 /** Set on a request that belongs to the beta; absent everywhere else. */
 const requestStore = new AsyncLocalStorage<{ beta: boolean }>();
 

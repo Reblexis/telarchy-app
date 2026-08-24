@@ -1,7 +1,7 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { randomBytes } from 'crypto';
-import { db } from './db/client';
+import { authDb } from './db/client';
 import * as schema from './db/schema';
 import { betterAuthTrustedOrigins } from './lib/origins';
 
@@ -44,7 +44,11 @@ export const auth = betterAuth({
         },
       }
     : {}),
-  database: drizzleAdapter(db, {
+  // authDb, never the swapping `db`: a session belongs to the person, not to
+  // the store a request happens to be reading (see db/client.ts). Changing
+  // this to `db` makes everyone signed in on the beta look anonymous to the
+  // API, which is a bug that only shows up on the beta.
+  database: drizzleAdapter(authDb, {
     provider: 'pg',
     schema: {
       user: schema.authUser,
