@@ -1939,6 +1939,7 @@ button.notif-row-link {
   color: var(--text-secondary);
 }
 .prof-earned .is-up { color: var(--higher); font-weight: 600; }
+.prof-earned .prof-split { font-size: 0.8em; color: var(--text-tertiary); }
 .prof-earned .is-down { color: var(--lower); font-weight: 600; }
 .prof-bio {
   margin: 0.5rem 0 0;
@@ -5855,6 +5856,16 @@ textarea.jobform-line--desc {
 .lbp-score.is-up { color: var(--higher); }
 .lbp-score.is-down { color: var(--lower); }
 .lbp-score--muted { font-weight: 400; font-size: 0.7rem; color: var(--text-tertiary); }
+
+/* The ranking number with its settled/open split beneath it (docs/seasons.md,
+   "The score"): the split is context, so it sits in the sub-line's voice. */
+.lbp-scorestack { display: flex; flex-direction: column; align-items: flex-end; gap: 0.1rem; flex-shrink: 0; }
+.lbp-split {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.62rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
 
 .lbp-foot { margin-top: 2.5rem; text-align: center; font-size: 0.9rem; }
 .lbp-foot a { color: var(--accent); text-decoration: none; }

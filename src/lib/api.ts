@@ -284,6 +284,12 @@ export interface LeaderboardEntry {
   calibration: number | null;
   accuracy: number | null;
   totalEarnings: number;
+  /** The final part of totalEarnings (resolutions and refunds, minus the cash
+   *  paid on those markets). Absent on a season row, whose number is a
+   *  difference of two marks rather than a sum of settlements. */
+  settledEarnings?: number;
+  /** The still-a-mark part: totalEarnings - settledEarnings. */
+  openEarnings?: number;
   resolvedMarkets: number;
   totalTrades: number;
   lastTradeAt: string | null;
@@ -352,6 +358,8 @@ export interface PublicParticipantProfile {
     calibration: number | null;
     accuracy: number | null;
     totalEarnings: number;
+    settledEarnings: number;
+    openEarnings: number;
     resolvedMarkets: number;
     totalTrades: number;
     lastTradeAt: string | null;

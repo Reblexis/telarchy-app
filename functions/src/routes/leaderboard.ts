@@ -35,6 +35,11 @@ import { seasonScore, settleSeason, type LadderRung } from '../lib/seasons';
  * An unresolved position counts as soon as its price moves; nothing waits
  * for resolution, which is the whole point of the board.
  *
+ * Each all-time row also carries the split of that number, settledEarnings
+ * (final: resolutions and refunds) and openEarnings (still a mark), summing
+ * to totalEarnings exactly (owner direction 2026-08-24, docs/seasons.md "The
+ * score"). Reported, never ranked on.
+ *
  * Why not balance-minus-grant (the 2026-08-11 formula): a balance carries
  * everything the platform ever handed an account, so house accounts had to
  * be excluded by name to stop operator credits topping the board, and that
@@ -169,6 +174,8 @@ leaderboardRouter.get('/', wrap(async (req, res) => {
       calibration: quality?.calibration ?? null,
       accuracy: quality?.accuracy ?? null,
       totalEarnings: board.profitById.get(id) ?? 0,
+      settledEarnings: board.breakdownById.get(id)?.settled ?? 0,
+      openEarnings: board.breakdownById.get(id)?.open ?? 0,
       resolvedMarkets: quality?.resolvedMarkets ?? 0,
       totalTrades: activity?.totalTrades ?? 0,
       lastTradeAt: activity?.lastTradeAt ?? null,

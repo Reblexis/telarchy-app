@@ -301,7 +301,7 @@ agentsRouter.get('/deposit-address', (_req, res) => {
  * public-workspace detail.
  */
 agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (req, res) => {
-  const { computeCalibrationStats, computeTradingProfit, voidedStakeKey } = await import('../lib/leaderboard');
+  const { computeCalibrationStats, computeProfitBreakdown, isSettledMarket, voidedStakeKey } = await import('../lib/leaderboard');
   type ProfitMarket = import('../lib/leaderboard').ProfitMarket;
   const idOrNickname = req.params.idOrNickname as string;
 
@@ -341,6 +341,8 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
     calibration: null as number | null,
     accuracy: null as number | null,
     totalEarnings: 0,
+    settledEarnings: 0,
+    openEarnings: 0,
     resolvedMarkets: 0,
     totalTrades: 0,
     lastTradeAt: null as string | null,
@@ -528,7 +530,17 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
       const key = voidedStakeKey(t.agentId, t.workspaceId, t.marketId);
       voidedStake.set(key, (voidedStake.get(key) ?? 0) + t.cost);
     }
-    const profitByAgent = computeTradingProfit(statsMarkets, netCashByAgent, statsPositions, voidedStake);
+    // Net cash on markets whose money is final, the cost side of the settled
+    // part of the split (docs/seasons.md "The score"); same predicate as the
+    // board's SQL aggregate in lib/board.ts.
+    const settledKeys = new Set(statsMarkets.filter(isSettledMarket).map(m => `${m.workspaceId}:${m.id}`));
+    const settledCashByAgent = new Map<string, number>();
+    for (const t of statsTrades) {
+      if (!settledKeys.has(`${t.workspaceId}:${t.marketId}`)) continue;
+      settledCashByAgent.set(t.agentId, (settledCashByAgent.get(t.agentId) ?? 0) + t.cost);
+    }
+    const breakdownByAgent = computeProfitBreakdown(statsMarkets, netCashByAgent, settledCashByAgent, statsPositions, voidedStake);
+    const profitByAgent = new Map(Array.from(breakdownByAgent, ([id, b]) => [id, b.total]));
     const quality = computeCalibrationStats(
       // Voided markets carry actualValue null, so they never reach here.
       statsMarkets.filter(m => m.resolved && m.actualValue !== null),
@@ -552,6 +564,8 @@ agentsRouter.get('/:idOrNickname/public', optionalAuthMiddleware, wrap(async (re
         calibration: q?.calibration ?? null,
         accuracy: q?.accuracy ?? null,
         totalEarnings: profitByAgent.get(agent.id) ?? 0,
+        settledEarnings: breakdownByAgent.get(agent.id)?.settled ?? 0,
+        openEarnings: breakdownByAgent.get(agent.id)?.open ?? 0,
         resolvedMarkets: q?.resolvedMarkets ?? 0,
         totalTrades: tradeCountByAgent.get(agent.id) ?? 0,
         lastTradeAt: last ? last.toISOString() : null,

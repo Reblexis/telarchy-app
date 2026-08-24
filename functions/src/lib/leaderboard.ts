@@ -119,6 +119,30 @@ export function computeTradingProfit(
    *  here, in one place, next to the rule it implements. */
   voidedStake?: Map<string, number>,
 ): Map<string, number> {
+  const value = positionValues(marketsList, positionsList, voidedStake);
+  const out = new Map<string, number>();
+  for (const id of new Set([...value.keys(), ...netCashByAgent.keys()])) {
+    const v = value.get(id);
+    const profit = ((v?.settled ?? 0) + (v?.open ?? 0)) - (netCashByAgent.get(id) ?? 0);
+    out.set(id, Math.round(profit * 100) / 100);
+  }
+  return out;
+}
+
+/** A market whose money is final: it resolved to a number, or it was
+ *  cancelled and refunded. Everything else is still a mark. The SQL side of
+ *  the board (`lib/board.ts`) filters on the same predicate. */
+export function isSettledMarket(m: Pick<ProfitMarket, 'resolved' | 'actualValue' | 'voided'>): boolean {
+  return m.voided || (m.resolved && m.actualValue !== null);
+}
+
+/** What each agent's holdings are worth, split by whether that worth is
+ *  final (resolution payouts, void refunds) or a mark at the current call. */
+function positionValues(
+  marketsList: ProfitMarket[],
+  positionsList: LeaderboardPosition[],
+  voidedStake?: Map<string, number>,
+): Map<string, { settled: number; open: number }> {
   const marketByKey = new Map<string, ProfitMarket>();
   for (const m of marketsList) {
     // A cancelled market is never valued at a price, whatever its row still
@@ -126,7 +150,12 @@ export function computeTradingProfit(
     if (m.voided) continue;
     marketByKey.set(marketKey(m.workspaceId, m.id), m);
   }
-  const valueByAgent = new Map<string, number>();
+  const valueByAgent = new Map<string, { settled: number; open: number }>();
+  const add = (agentId: string, side: 'settled' | 'open', amount: number) => {
+    const v = valueByAgent.get(agentId) ?? { settled: 0, open: 0 };
+    v[side] += amount;
+    valueByAgent.set(agentId, v);
+  };
   for (const p of positionsList) {
     if (p.shares <= 0) continue;
     const m = marketByKey.get(marketKey(p.workspaceId, p.marketId));
@@ -136,20 +165,49 @@ export function computeTradingProfit(
     const factors = currentPayoutFactors(m);
     if (!factors) continue;
     const worth = p.shares * (p.direction === 'higher' ? factors[1] : factors[0]);
-    valueByAgent.set(p.agentId, (valueByAgent.get(p.agentId) ?? 0) + worth);
+    add(p.agentId, isSettledMarket(m) ? 'settled' : 'open', worth);
   }
   if (voidedStake) {
     for (const [key, netCash] of voidedStake) {
       const refund = Math.max(0, netCash);
       if (refund <= 0) continue;
       const agentId = key.slice(0, key.indexOf('\u0000'));
-      valueByAgent.set(agentId, (valueByAgent.get(agentId) ?? 0) + refund);
+      add(agentId, 'settled', refund);
     }
   }
-  const out = new Map<string, number>();
-  for (const id of new Set([...valueByAgent.keys(), ...netCashByAgent.keys()])) {
-    const profit = (valueByAgent.get(id) ?? 0) - (netCashByAgent.get(id) ?? 0);
-    out.set(id, Math.round(profit * 100) / 100);
+  return valueByAgent;
+}
+
+export interface ProfitBreakdown {
+  /** Final money: payouts on resolved markets and refunds on cancelled ones,
+   *  minus the net cash paid on those markets. */
+  settled: number;
+  /** Still a mark: open positions at the current call, minus their net cash. */
+  open: number;
+  /** settled + open, and identical to computeTradingProfit for the agent. */
+  total: number;
+}
+
+/**
+ * The same profit as computeTradingProfit, split into what is final and what
+ * is still a mark (owner direction 2026-08-24, docs/seasons.md "The score").
+ * `netCashSettledByAgent` is each agent's net cash on settled markets only
+ * (isSettledMarket); the open side is the remainder, so total = settled + open
+ * holds exactly and the ranking number never changes by being split.
+ */
+export function computeProfitBreakdown(
+  marketsList: ProfitMarket[],
+  netCashByAgent: Map<string, number>,
+  netCashSettledByAgent: Map<string, number>,
+  positionsList: LeaderboardPosition[],
+  voidedStake?: Map<string, number>,
+): Map<string, ProfitBreakdown> {
+  const value = positionValues(marketsList, positionsList, voidedStake);
+  const total = computeTradingProfit(marketsList, netCashByAgent, positionsList, voidedStake);
+  const out = new Map<string, ProfitBreakdown>();
+  for (const [id, t] of total) {
+    const settled = Math.round(((value.get(id)?.settled ?? 0) - (netCashSettledByAgent.get(id) ?? 0)) * 100) / 100;
+    out.set(id, { settled, open: Math.round((t - settled) * 100) / 100, total: t });
   }
   return out;
 }

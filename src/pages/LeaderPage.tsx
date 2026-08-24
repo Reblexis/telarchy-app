@@ -193,8 +193,18 @@ export function LeaderPage() {
             <span className="lbp-prize lbp-prize--in" title="Entered the season, currently outside the prizes">entered</span>
           )
         )}
-        <span className={`lbp-score${Math.round(e.totalEarnings) > 0 ? ' is-up' : Math.round(e.totalEarnings) < 0 ? ' is-down' : ''}`}>
-          {signed(e.totalEarnings)} cr
+        <span className="lbp-scorestack">
+          <span className={`lbp-score${Math.round(e.totalEarnings) > 0 ? ' is-up' : Math.round(e.totalEarnings) < 0 ? ' is-down' : ''}`}>
+            {signed(e.totalEarnings)} cr
+          </span>
+          {/* What of that is final and what is still a mark (owner direction
+              2026-08-24, docs/seasons.md "The score"). Season rows carry no
+              split: a season score is a difference of two marks. */}
+          {!seasonRow && e.settledEarnings !== undefined && e.openEarnings !== undefined && (
+            <span className="lbp-split" title="Settled: resolutions and refunds, final. Open: what open positions are worth right now.">
+              {signed(e.settledEarnings)} settled · {signed(e.openEarnings)} open
+            </span>
+          )}
         </span>
       </li>
     );

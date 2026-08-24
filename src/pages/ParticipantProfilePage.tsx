@@ -161,6 +161,13 @@ export function ParticipantProfilePage() {
                   <span className={profile.stats.totalEarnings >= 0 ? 'is-up' : 'is-down'}>
                     {fmtCr(profile.stats.totalEarnings)} cr
                   </span>{' '}profit
+                  {/* The same split the board prints: what is final versus
+                      what is still a mark (docs/seasons.md "The score"). */}
+                  {profile.stats.settledEarnings !== undefined && (
+                    <span className="prof-split" title="Settled: resolutions and refunds, final. Open: what open positions are worth right now.">
+                      {' '}({fmtCr(profile.stats.settledEarnings)} settled, {fmtCr(profile.stats.openEarnings)} open)
+                    </span>
+                  )}
                 </p>
                 {profile.bio && <p className="prof-bio">{profile.bio}</p>}
               </div>

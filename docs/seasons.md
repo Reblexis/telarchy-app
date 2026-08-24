@@ -68,6 +68,17 @@ enter it, which is what lets the operator and the market maker sit on the same
 board as everyone else instead of being excluded by name
 (`functions/src/lib/leaderboard.ts`, `computeTradingProfit`).
 
+**The board reports the split beside the ranking number (owner direction
+2026-08-24, Viktor: "fix it", asked whether the board shows what was earned
+from resolutions alone).** Every all-time row carries `settledEarnings`, the
+part of the profit that is final (payouts on resolved markets and refunds on
+cancelled ones, minus the net cash paid on those markets), and
+`openEarnings`, the part that is still a mark (what open positions are worth
+now minus their net cash); `totalEarnings = settledEarnings + openEarnings`
+exactly, and the ranking stays on the total. A participant's own profile
+reports the same two numbers. Season standings do not split: a season score is
+a difference of two marks, not a sum of settlements.
+
 **Ranking on trading profit alone is right, and it should stay.** It is the one
 number a trader can see moving, it is the same number both public boards rank,
 and every alternative (calibration, Brier, accuracy) ranks a statistic most

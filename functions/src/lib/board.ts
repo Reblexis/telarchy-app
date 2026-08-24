@@ -1,12 +1,13 @@
-import { and, eq, gt, inArray, sql } from 'drizzle-orm';
+import { and, eq, gt, inArray, isNotNull, or, sql } from 'drizzle-orm';
 import { db } from '../db/client';
 import { markets, positions, trades } from '../db/schema';
 import {
   computeCalibrationStats,
-  computeTradingProfit,
+  computeProfitBreakdown,
   voidedStakeKey,
   type CalibrationStats,
   type LeaderboardPosition,
+  type ProfitBreakdown,
   type ProfitMarket,
 } from './leaderboard';
 
@@ -54,6 +55,10 @@ export interface BoardRow {
 export interface Board {
   /** agentId -> profit. Everyone with a valued position or a counted trade. */
   profitById: Map<string, number>;
+  /** agentId -> the same profit split into settled (final) and open (a
+   *  mark); settled + open = profitById exactly. Reported beside the ranking
+   *  number, never ranked on (docs/seasons.md, "The score"). */
+  breakdownById: Map<string, ProfitBreakdown>;
   /** agentId -> trade count and last trade instant. */
   activityById: Map<string, { totalTrades: number; lastTradeAt: string | null }>;
   /** agentId -> calibration/accuracy over markets that actually resolved.
@@ -74,6 +79,7 @@ export async function loadBoard(workspaceIds: string[]): Promise<Board> {
   if (workspaceIds.length === 0) {
     return {
       profitById: new Map(),
+      breakdownById: new Map(),
       activityById: new Map(),
       calibrationById: new Map(),
       positions: [],
@@ -138,6 +144,26 @@ export async function loadBoard(workspaceIds: string[]): Promise<Board> {
     .where(inArray(trades.workspaceId, workspaceIds))
     .groupBy(trades.agentId);
 
+  // The part of that net cash that went into markets whose money is final
+  // (resolved to a number, or cancelled): the cost side of settled profit.
+  // Same predicate as isSettledMarket in lib/leaderboard.ts.
+  const settledCostAggs = await db.select({
+    agentId: trades.agentId,
+    netCash: sql<number>`coalesce(sum(${trades.cost}), 0)::float`,
+  }).from(trades)
+    .innerJoin(markets, and(
+      eq(markets.id, trades.marketId),
+      eq(markets.workspaceId, trades.workspaceId),
+    ))
+    .where(and(
+      inArray(trades.workspaceId, workspaceIds),
+      or(
+        eq(markets.voided, true),
+        and(eq(markets.resolved, true), isNotNull(markets.actualValue)),
+      ),
+    ))
+    .groupBy(trades.agentId);
+
   // Positions that can still be valued at a price: held, on a market that was
   // not cancelled. Both filters matter for size as much as for meaning, since
   // this query has been OOM-killed before. Cancelled markets pay a refund
@@ -183,7 +209,9 @@ export async function loadBoard(workspaceIds: string[]): Promise<Board> {
   ]));
 
   const netCashById = new Map(costAggs.map(c => [c.agentId, Number(c.netCash)]));
-  const profitById = computeTradingProfit(profitMarkets, netCashById, positionRows, voidedStake);
+  const settledCashById = new Map(settledCostAggs.map(c => [c.agentId, Number(c.netCash)]));
+  const breakdownById = computeProfitBreakdown(profitMarkets, netCashById, settledCashById, positionRows, voidedStake);
+  const profitById = new Map(Array.from(breakdownById, ([id, b]) => [id, b.total]));
 
   // Calibration is about markets that produced an answer, so voided ones
   // (actualValue null by construction) never reach it.
@@ -204,6 +232,7 @@ export async function loadBoard(workspaceIds: string[]): Promise<Board> {
 
   return {
     profitById,
+    breakdownById,
     activityById,
     calibrationById,
     positions: positionRows,

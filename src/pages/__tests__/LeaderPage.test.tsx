@@ -124,3 +124,34 @@ describe('the season standings section (running season)', () => {
     expect(screen.queryByText('Season 0 standings')).toBeNull();
   });
 });
+
+describe('the settled/open split under the ranking number', () => {
+  // Owner question 2026-08-24: does the board show what was earned from
+  // resolutions alone? It ranked one blended number. Now the split prints
+  // beneath it (docs/seasons.md "The score"); the total is still the rank key.
+  test('an all-time row prints settled and open beneath the total', async () => {
+    mockBoard([trader({ totalEarnings: 719.51, settledEarnings: 16.95, openEarnings: 702.56 })]);
+    renderPage();
+    expect(await screen.findByText('+720 cr')).toBeInTheDocument();
+    expect(screen.getByText('+17 settled · +703 open')).toBeInTheDocument();
+  });
+
+  test('a row without the split (an older payload) prints the total alone', async () => {
+    mockBoard([trader({ totalEarnings: 42 })]);
+    renderPage();
+    expect(await screen.findByText('+42 cr')).toBeInTheDocument();
+    expect(screen.queryByText(/settled ·/)).toBeNull();
+  });
+
+  test('a season row never prints a split: a season score is a difference of marks', async () => {
+    vi.mocked(api.getSeasons).mockResolvedValue({ seasons: [{ ...draftSeason, status: 'running' }] } as never);
+    vi.mocked(api.getSeasonStandings).mockResolvedValue({
+      season: { ...draftSeason, status: 'running' },
+      participants: [{ rank: 1, id: 'e1', nickname: 'elonmusk', score: 12, projectedPrizeUsd: 500 }],
+    } as never);
+    mockBoard([]);
+    renderPage();
+    expect(await screen.findByText('+12 cr')).toBeInTheDocument();
+    expect(screen.queryByText(/settled ·/)).toBeNull();
+  });
+});
