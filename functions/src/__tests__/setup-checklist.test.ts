@@ -214,3 +214,18 @@ describe('the rest of the specification', () => {
     expect(itemOf(await buildChecklist(WS), 'reach').status).toBe('done');
   });
 });
+
+describe('the vocabulary a reader gets', () => {
+  test('no item says "floor", because the rail renders these words', async () => {
+    // docs/ui-conventions.md, owner 2026-08-14: user-facing copy says MARKET.
+    // The checklist's labels and notes render beside the conversation and go
+    // into the prompt the operator pastes, so they are user-facing.
+    await seedNumber({ liquidity: 0.5 / Math.LN2 });
+    const c = await buildChecklist(WS);
+    const text = [
+      ...c.blocking,
+      ...c.items.flatMap(i => [i.label, i.note, i.question, i.why, ...i.options]),
+    ].join(' ');
+    expect(text).not.toMatch(/floor/i);
+  });
+});

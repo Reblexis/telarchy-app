@@ -132,35 +132,25 @@ describe('marketplace', () => {
     expect(container.querySelector('.mkt-new-mark')).toBeTruthy();
   });
 
-  test('it takes the email in place and answers without queue language', async () => {
-    vi.mocked(api.joinWaitlist).mockResolvedValue({ alreadyListed: false } as never);
-    const user = userEvent.setup();
+  test('it leads straight to the setup conversation, asking for nothing', async () => {
+    // It took an email in place while the owner side was a waitlist. There is
+    // a door now (owner direction 2026-08-24), and asking for an address in
+    // front of a door that opens turns someone ready to start into someone
+    // waiting to be contacted.
     renderPage();
-
-    await user.click(await screen.findByRole('button', { name: 'Get set up' }));
-    await user.type(screen.getByLabelText('Your email'), 'founder@example.com');
-    await user.click(screen.getByRole('button', { name: 'Get set up' }));
-
-    await screen.findByText('Got it');
-    expect(screen.getByText(/get back to you within a few days/i)).toBeInTheDocument();
-    // No "waitlist" or queue language anywhere in the answer.
-    expect(screen.queryByText(/waitlist|queue|position/i)).toBeNull();
-    // The tile names itself, so /admin can tell this door from a floor's. It
-    // goes through the api client like every other call: one module owns HTTP,
-    // which is what makes "anything the UI can do, a key can do" true.
-    expect(api.joinWaitlist).toHaveBeenCalledWith({
-      email: 'founder@example.com', source: 'marketplace',
-    });
+    const tile = await screen.findByText('List your own number');
+    const card = tile.closest('a');
+    expect(card).toHaveAttribute('href', '/manage');
+    expect(screen.queryByLabelText('Your email')).toBeNull();
+    expect(api.joinWaitlist).not.toHaveBeenCalled();
   });
 
-  test('a refused email surfaces the server response', async () => {
-    vi.mocked(api.joinWaitlist).mockRejectedValue(new Error('That email is already in.'));
-    const user = userEvent.setup();
+  test('it says a floor is not only for companies', async () => {
+    // Dual scope is load-bearing (AGENTS.md): this tile is where a visitor
+    // decides which side of the market they are on, and a personal goal is as
+    // welcome as a company.
     renderPage();
-    await user.click(await screen.findByRole('button', { name: 'Get set up' }));
-    await user.type(screen.getByLabelText('Your email'), 'dup@example.com');
-    await user.click(screen.getByRole('button', { name: 'Get set up' }));
-    expect(await screen.findByText('That email is already in.')).toBeInTheDocument();
+    expect(await screen.findByText(/something you are running yourself/i)).toBeInTheDocument();
   });
 
   test('the grid still renders its listing tile when nothing is listed yet', async () => {

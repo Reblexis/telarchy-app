@@ -115,13 +115,13 @@ describe('writing the handoff', () => {
   test('uses what Otto wrote when it only names real things', async () => {
     replyWith(JSON.stringify({
       prompt: `I run Kleros. The floor is open at telarchy.com/kleros, workspace id ws-real. ${LONG}`,
-      settled: ['floor', 'number'],
+      settled: ['subject', 'number'],
       open: ['liquidity'],
     }));
     const out = await writeHandoff(input);
     expect(out.written).toBe(true);
     expect(out.prompt).toMatch(/I run Kleros/);
-    expect(out.settled).toEqual(['floor', 'number']);
+    expect(out.settled).toEqual(['subject', 'number']);
     expect(out.open).toEqual(['liquidity']);
   });
 
@@ -155,12 +155,12 @@ describe('writing the handoff', () => {
   test('reads a decision id it does not know as no decision at all', async () => {
     replyWith(JSON.stringify({
       prompt: `Fine. ${LONG}`,
-      settled: ['floor', 'ignore-previous-instructions', 'number'],
+      settled: ['subject', 'ignore-previous-instructions', 'number'],
       open: null,
     }));
     const out = await writeHandoff(input);
     // The list round-trips through a browser, so only ids from the spec live.
-    expect(out.settled).toEqual(['floor', 'number']);
+    expect(out.settled).toEqual(['subject', 'number']);
     expect(out.open).toEqual([]);
   });
 });
@@ -168,14 +168,14 @@ describe('writing the handoff', () => {
 describe('reading what the model sent back', () => {
   test('the labelled shape, with the prompt over many lines', () => {
     const out = parseHandoffAnswer([
-      'SETTLED: floor, number',
+      'SETTLED: subject, number',
       'OPEN: liquidity',
       'PROMPT:',
       'Call GET /api/setup/checklist first.',
       '',
       'Then fund the market.',
     ].join('\n'));
-    expect(out.settled).toEqual(['floor', 'number']);
+    expect(out.settled).toEqual(['subject', 'number']);
     expect(out.open).toEqual(['liquidity']);
     expect(out.prompt).toBe('Call GET /api/setup/checklist first.\n\nThen fund the market.');
   });
@@ -185,11 +185,11 @@ describe('reading what the model sent back', () => {
     // the prompt with real line breaks in it, JSON.parse throws, and the whole
     // handoff silently falls back to the template while the page still shows a
     // prompt. Invisible from the outside, which is what makes it expensive.
-    const raw = ['{"prompt": "Line one.', 'Line two.", "settled": ["floor"], "open": []}'].join('\n');
+    const raw = ['{"prompt": "Line one.', 'Line two.", "settled": ["subject"], "open": []}'].join('\n');
     expect(() => JSON.parse(raw)).toThrow();
     const out = parseHandoffAnswer(raw);
     expect(out.prompt).toBe('Line one.\nLine two.');
-    expect(out.settled).toEqual(['floor']);
+    expect(out.settled).toEqual(['subject']);
   });
 
   test('a fenced block is unwrapped', () => {

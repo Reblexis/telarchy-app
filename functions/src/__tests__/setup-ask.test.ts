@@ -184,7 +184,7 @@ describe('what the brief tells him he may promise', () => {
     expect(brief).toMatch(/create nothing/);
   });
 
-  test('someone who already runs floors is named them', () => {
+  test('someone who already runs markets is named them', () => {
     const brief = renderSetupBrief({
       signedIn: true, name: 'clement',
       workspaces: [{ name: 'Kleros', slug: 'kleros' }],
@@ -192,7 +192,7 @@ describe('what the brief tells him he may promise', () => {
     expect(brief).toMatch(/Kleros \(\/kleros\)/);
     // Otherwise his first move is to open a second floor for a number that
     // belongs on the first.
-    expect(brief).toMatch(/Adding a number to a floor they already run/);
+    expect(brief).toMatch(/Adding a number to a market they already run/);
   });
 });
 

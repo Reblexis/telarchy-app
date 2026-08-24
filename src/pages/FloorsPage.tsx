@@ -130,48 +130,22 @@ function activityLine(r: Listing): string {
 
 /**
  * The listing tile: the last cell of the grid, and the only interactive one.
- * It takes the email in place (owner direction 2026-08-14) rather than
- * sending anyone to /manage to hunt for the field, and it answers in the
- * floor's own words: one email in, one promise out, never queue language.
+ *
+ * It took an email in place from 2026-08-14, when the owner side was a
+ * waitlist and there was nothing to send anyone to. There is now: Otto sets a
+ * floor up in conversation at /manage (owner direction 2026-08-24, "when they
+ * press get set up it shouldnt require mail anymore it should lead straight to
+ * the chat interface where they just say what they wanna get set up with").
+ * Asking for an address in front of a door that opens is worse than useless:
+ * it turns someone ready to start into someone waiting to be contacted.
+ *
+ * Dual-scope on purpose. A person governing their own goal is as welcome as a
+ * company (AGENTS.md, "Scope"), and the tile is the one place on the home page
+ * where a visitor decides which side they are on.
  */
 function ListYourNumberCard() {
-  const [open, setOpen] = useState(false);
-  const [email, setEmail] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState(false);
-  const [error, setError] = useState('');
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (busy) return;
-    setError('');
-    setBusy(true);
-    try {
-      // Which door this was (owner ask 2026-08-15): the marketplace's listing
-      // tile, as opposed to one floor's own email box.
-      await api.joinWaitlist({ email, source: 'marketplace' });
-      setDone(true);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  if (done) {
-    return (
-      <div className="mkt-card mkt-card--new is-done">
-        <span className="mkt-new-mark" aria-hidden="true">
-          <svg viewBox="0 0 100 100"><polyline points="26,52 44,70 76,32" /></svg>
-        </span>
-        <span className="mkt-new-title">Got it</span>
-        <span className="mkt-new-sub">We will get back to you within a few days.</span>
-      </div>
-    );
-  }
-
   return (
-    <div className={`mkt-card mkt-card--new${open ? ' is-open' : ''}`}>
+    <Link className="mkt-card mkt-card--new" to="/manage">
       <span className="mkt-new-mark" aria-hidden="true">
         <svg viewBox="0 0 100 100">
           <line x1="50" y1="22" x2="50" y2="78" />
@@ -179,27 +153,12 @@ function ListYourNumberCard() {
         </svg>
       </span>
       <span className="mkt-new-title">List your own number</span>
-      <span className="mkt-new-sub">The number you answer to, priced in the open.</span>
-      {open ? (
-        <form className="mkt-new-form" onSubmit={e => void submit(e)}>
-          <input
-            type="email"
-            required
-            autoFocus
-            placeholder="you@example.com"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            aria-label="Your email"
-          />
-          <button type="submit" disabled={busy}>{busy ? 'Sending…' : 'Get set up'}</button>
-          {error && <span className="mkt-new-err">{error}</span>}
-        </form>
-      ) : (
-        <button type="button" className="mkt-new-cta" onClick={() => setOpen(true)}>
-          Get set up
-        </button>
-      )}
-    </div>
+      <span className="mkt-new-sub">
+        A company, a project, or something you are running yourself. Say what it
+        is and Otto opens the market for it.
+      </span>
+      <span className="mkt-new-cta">Get set up</span>
+    </Link>
   );
 }
 

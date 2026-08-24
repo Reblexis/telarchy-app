@@ -30,7 +30,7 @@ import type { Checklist } from './setup-checklist';
  *    trusting prose that may be an hour old.
  */
 
-const HANDOFF_SYSTEM = `You write a single prompt that one person will paste into their own coding agent (Claude Code, Cursor, Codex, or similar) so that agent can finish setting up their Telarchy floor.
+const HANDOFF_SYSTEM = `You write a single prompt that one person will paste into their own coding agent (Claude Code, Cursor, Codex, or similar) so that agent can finish setting up their Telarchy market.
 
 You are not talking to the operator here. You are writing instructions addressed to their agent, in the operator's voice, as if they typed it. Second person: "I run X. Here is where we got to. Finish it."
 
@@ -43,7 +43,7 @@ What makes this prompt good:
 
 Hard rules:
 - Use ONLY ids, slugs, workspace names and URLs that appear in the FACTS block. If a fact is not there, say what is missing instead of inventing it. Never write a placeholder like <workspace-id>: either the real one, or a sentence telling the agent to look it up.
-- The first instruction in the prompt is always to call the checklist and work from what it says is open. When a floor exists: GET https://telarchy.com/api/setup/checklist?workspaceId= followed by the real id or slug. When none exists yet: GET https://telarchy.com/api/setup/checklist with no query at all, which answers with the specification, and then say that the floor has to be created first.
+- The first instruction in the prompt is always to call the checklist and work from what it says is open. When a market exists: GET https://telarchy.com/api/setup/checklist?workspaceId= followed by the real id or slug. When none exists yet: GET https://telarchy.com/api/setup/checklist with no query at all, which answers with the specification, and then say that the market has to be created first.
 - Plain text. No markdown headings, no bold, no bullet characters other than "-" at the start of a line. It is going into a text box.
 - Never an em dash or an en dash.
 - 200 to 320 words. Long enough to carry the decisions, short enough to paste.
@@ -81,14 +81,14 @@ export function renderFacts(state: HandoffState, checklist: Checklist | null): s
     ? '- The operator is signed in on telarchy.com, so calls made with their session or their agent key run as them.'
     : '- The operator is NOT signed in and nothing has been created. They need an account at https://telarchy.com/signup, or a participant key from POST /api/agents/register.');
   for (const w of state.opened) {
-    lines.push(`- Floor opened during this conversation: name "${w.name}", workspace id ${w.id ?? 'unknown'}, address https://telarchy.com/${w.slug}`);
+    lines.push(`- Market opened during this conversation: name "${w.name}", workspace id ${w.id ?? 'unknown'}, address https://telarchy.com/${w.slug}`);
   }
   for (const w of state.workspaces.filter(w => !state.opened.some(o => o.slug === w.slug))) {
-    lines.push(`- Floor they already run: name "${w.name}", workspace id ${w.id ?? 'unknown'}, address https://telarchy.com/${w.slug}`);
+    lines.push(`- Market they already run: name "${w.name}", workspace id ${w.id ?? 'unknown'}, address https://telarchy.com/${w.slug}`);
   }
-  if (!state.workspaces.length) lines.push('- They run no floor yet, so no workspace id exists.');
+  if (!state.workspaces.length) lines.push('- They run no market yet, so no workspace id exists.');
   if (checklist) {
-    lines.push('- Checklist for that floor, read from the database just now:');
+    lines.push('- Checklist for that market, read from the database just now:');
     for (const item of checklist.items) {
       lines.push(`  - ${item.id} (${item.status}): ${item.note}`);
     }
@@ -100,10 +100,10 @@ export function renderFacts(state: HandoffState, checklist: Checklist | null): s
 
 /** Anything shaped like an id we hand out: a uuid, or one of our short ids. */
 const ID_SHAPED = /\b(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|ws-[a-z0-9-]{3,}|agent-[a-z0-9-]{3,}|metric-[a-z0-9-]{3,})\b/gi;
-/** A telarchy.com floor address. */
+/** A telarchy.com market address. */
 const FLOOR_URL = /telarchy\.com\/([a-z0-9][a-z0-9-]{1,})/gi;
 
-/** Paths that are addresses on telarchy.com but not floors, so a prompt
+/** Paths that are addresses on telarchy.com but not markets, so a prompt
  *  naming them is not claiming a workspace exists. */
 const NON_FLOOR_PATHS = new Set([
   'api', 'signup', 'login', 'manage', 'season', 'leaderboard', 'marketplace',
@@ -201,7 +201,7 @@ export async function writeHandoff(input: HandoffInput): Promise<HandoffResult> 
   const brief = [
     facts,
     '',
-    'THE SPECIFICATION. Every one of these has to be decided before the floor is worth anything.',
+    'THE SPECIFICATION. Every one of these has to be decided before the market is worth anything.',
     '',
     renderSpec({ withApi: true }),
     '',

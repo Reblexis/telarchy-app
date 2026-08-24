@@ -5631,6 +5631,10 @@ textarea.jobform-line--desc {
   background: color-mix(in srgb, var(--accent) 4%, var(--bg-secondary));
 }
 .mkt-card--new:hover { transform: none; }
+/* The whole tile is the link (owner direction 2026-08-24), so the pill inside
+   it is a label rather than a control, and the hover belongs to the card. */
+.mkt-card--new { text-decoration: none; }
+.mkt-card--new:hover .mkt-new-cta { background: var(--accent); color: var(--bg-primary); }
 
 .mkt-new-mark {
   width: 4.75rem;
@@ -5668,6 +5672,7 @@ textarea.jobform-line--desc {
 }
 
 .mkt-new-cta {
+  display: inline-block;
   margin-top: 0.7rem;
   padding: 0.5rem 1.1rem;
   border: 1px solid var(--accent);
@@ -5681,44 +5686,6 @@ textarea.jobform-line--desc {
 }
 .mkt-new-cta:hover { background: var(--accent); color: var(--bg-primary); }
 
-.mkt-new-form {
-  margin-top: 0.7rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  width: min(100%, 15rem);
-}
-.mkt-new-form input {
-  padding: 0.5rem 0.7rem;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background: var(--bg-primary);
-  color: inherit;
-  font: inherit;
-  font-size: 0.85rem;
-  text-align: center;
-}
-.mkt-new-form input:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-.mkt-new-form button {
-  padding: 0.5rem 1.1rem;
-  border: 1px solid var(--accent);
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--bg-primary);
-  font: inherit;
-  font-size: 0.85rem;
-  cursor: pointer;
-}
-.mkt-new-form button:disabled { opacity: 0.6; cursor: default; }
-.mkt-new-err { font-size: 0.75rem; color: var(--lower); }
-
-.mkt-card--new.is-done .mkt-new-mark {
-  background: color-mix(in srgb, var(--higher) 14%, transparent);
-}
-.mkt-card--new.is-done .mkt-new-mark polyline { stroke: var(--higher); }
 
 @media (prefers-reduced-motion: reduce) {
   .mkt-card { transition: border-color 140ms ease; }

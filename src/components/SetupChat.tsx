@@ -96,7 +96,7 @@ export function SetupChat({ signedIn }: { signedIn: boolean }) {
 
   return (
     <div className={`setup${handoff ? ' setup--withhandoff' : ''}`}>
-      <section className="setup-talk" aria-label="Setting up your floor with Otto">
+      <section className="setup-talk" aria-label="Setting up your market with Otto">
         {turns.length === 0 ? (
           /* One greeting, which is also the page's title. The door used to
              carry a poster hero AND this, so a visitor met two headlines
@@ -107,7 +107,7 @@ export function SetupChat({ signedIn }: { signedIn: boolean }) {
               Name the number you answer to, and anyone can offer a job that
               moves it. The market prices the job before you decide.
               {signedIn
-                ? ' Tell Otto what you run and he will open the floor here.'
+                ? ' Tell Otto what you run and he will open the market here.'
                 : ' Tell Otto what you run and he will pick the number; opening it takes an account.'}
             </p>
           </div>
@@ -180,7 +180,7 @@ export function SetupChat({ signedIn }: { signedIn: boolean }) {
         <p className="setup-note">
           {signedIn
             ? 'Otto acts with your account, so he can do what you can do and nothing more.'
-            : <><Link to="/signup?next=/manage">Create an account</Link> and he can open the floor right here. Signed out he can talk it all the way through and create nothing.</>}
+            : <><Link to="/signup?next=/manage">Create an account</Link> and he can open the market right here. Signed out he can talk it all the way through and create nothing.</>}
         </p>
       </section>
 

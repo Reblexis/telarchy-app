@@ -22,7 +22,7 @@
  */
 
 export type DecisionId =
-  | 'floor'
+  | 'subject'
   | 'number'
   | 'updates'
   | 'context'
@@ -49,10 +49,10 @@ export interface SetupDecision {
 
 export const SETUP_SPEC: SetupDecision[] = [
   {
-    id: 'floor',
-    label: 'The floor',
+    id: 'subject',
+    label: 'What you run',
     question: 'What are you running, and what does it do in one line?',
-    why: 'The floor leads with the company, not the market: a cold visitor arrives from a link about you, not about Telarchy, and cannot read a metric question as a first impression.',
+    why: 'The page leads with the company, not the number: a cold visitor arrives from a link about you, not about Telarchy, and cannot read a metric question as a first impression.',
     options: ['A company', 'A project or protocol', 'A personal goal'],
     api: 'POST /api/workspaces { name, template: "blank" }, then PUT /api/workspaces/:id/settings { description }.',
   },
@@ -73,11 +73,11 @@ export const SETUP_SPEC: SetupDecision[] = [
     question: 'How does the number get updated, and by whom?',
     why: 'A market on a number nobody updates settles on a stale figure, and traders work that out fast. A number a machine reads is worth more than one a person types, because nobody has to trust the person.',
     options: [
-      'By hand, on the floor, whenever it moves',
+      'By hand, on the market, whenever it moves',
       'By your own agent on a schedule, reading the real source and pushing it',
       'By a Telarchy Source that pulls it for you',
     ],
-    api: 'PUT /api/metrics/:id { value, oldValue, updateNote }. To let your own agent do it, in this order: the floor must exist and be public or unlisted (POST /api/agents/register needs a workspaceId and answers 404 for a private one); the agent registers ITSELF into that floor with POST /api/agents/register { agentId, workspaceId } and keeps its own key, which nobody else ever sees; you promote it with POST /api/workspaces/:id/members { participantId, role: "admin" }, because until then it has only the Public group\'s capabilities and every write answers 403. Sources that pull a value for you: POST /api/sources.',
+    api: 'PUT /api/metrics/:id { value, oldValue, updateNote }. To let your own agent do it, in this order: the market must exist and be public or unlisted (POST /api/agents/register needs a workspaceId and answers 404 for a private one); the agent registers ITSELF into that market with POST /api/agents/register { agentId, workspaceId } and keeps its own key, which nobody else ever sees; you promote it with POST /api/workspaces/:id/members { participantId, role: "admin" }, because until then it has only the Public group\'s capabilities and every write answers 403. Sources that pull a value for you: POST /api/sources.',
   },
   {
     id: 'context',
@@ -85,7 +85,7 @@ export const SETUP_SPEC: SetupDecision[] = [
     question: 'What do forecasters and contractors need to know that is not on the page, and how much of it are you willing to publish?',
     why: 'Forecasting a business you cannot see is guessing, and guesses price badly. Everything here is public, so this is a real decision about disclosure rather than a form field: what you share is what the price is worth.',
     options: [
-      'A public "what is this" blurb and sources on the floor',
+      'A public "what is this" blurb and sources on the market',
       'A charter: what you will do with the price and when you may overrule it',
       'Announcements when something material happens that the market cannot see',
       'Nothing beyond the number, and accept a thinner price',
@@ -112,15 +112,15 @@ export const SETUP_SPEC: SetupDecision[] = [
     options: [
       'Auto-fund every contract market with a flat amount',
       'Your agent reads each contract and funds it in proportion to what it is worth to you',
-      'You decide by hand on the floor',
+      'You decide by hand on the market',
     ],
     api: 'PUT /api/workspaces/:id/settings { autoFundNewMarkets, newMarketLiquidityCredits }; per contract, GET /api/proposals then POST /api/predictions/markets/:id/liquidity on its conditional pair; POST /api/predictions/markets/liquidity/bulk { amount, proposalId }.',
   },
   {
     id: 'participation',
     label: 'Who can trade',
-    question: 'Who is allowed to forecast this, and is the floor listed publicly?',
-    why: 'An open floor gets outside forecasters and the platform pool; a private one gets only the participants you add, which can still be your own agents. A new floor starts unlisted, so it is live and shareable by link but not on the front page until a human lists it.',
+    question: 'Who is allowed to forecast this, and is the market listed publicly?',
+    why: 'An open market gets outside forecasters and the platform pool; a private one gets only the participants you add, which can still be your own agents. A new market starts unlisted, so it is live and shareable by link but not on the front page until a human lists it.',
     options: [
       'Open: anyone can join and trade',
       'Public to read, trading by invitation',
@@ -132,7 +132,7 @@ export const SETUP_SPEC: SetupDecision[] = [
     id: 'decisions',
     label: 'Your side of it',
     question: 'What will you actually do with the price, what does a job pay, and who approves?',
-    why: 'The mechanism only pays off at the moment a price changes what you do. A floor whose owner never approves anything teaches contractors not to bother, and the market thins out. Naming one decision you will put through the market before you make it is the whole commitment.',
+    why: 'The mechanism only pays off at the moment a price changes what you do. A market whose owner never approves anything teaches contractors not to bother, and the market thins out. Naming one decision you will put through the market before you make it is the whole commitment.',
     options: [
       'Name one real decision with a date and read the price before making it',
       'Set what a job may pay, and a reward for proposals worth reading',
@@ -146,11 +146,11 @@ export const SETUP_SPEC: SetupDecision[] = [
     question: 'Who is going to trade this on day one?',
     why: 'A market with no traders is a chart. Whoever already cares about your number (your community, your team, agents you run) is the cheapest first liquidity there is, and a prize season gives them a reason to show up.',
     options: [
-      'Point your own community at the floor',
+      'Point your own community at the market',
       'Run your own participant agents on it',
       'Rely on the platform pool and the season',
     ],
-    api: 'Share https://telarchy.com/{slug}. Participants self-join with POST /api/marketplace/:id/join when the floor is open.',
+    api: 'Share https://telarchy.com/{slug}. Participants self-join with POST /api/marketplace/:id/join when the market is open.',
   },
 ];
 

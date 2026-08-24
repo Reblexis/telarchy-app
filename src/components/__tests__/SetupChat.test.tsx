@@ -191,3 +191,26 @@ describe('what the conversation carries forward', () => {
     expect(screen.getByText('Liquidity')).toBeTruthy();
   });
 });
+
+describe('the vocabulary a visitor reads', () => {
+  test('never says "floor"', async () => {
+    // Owner, 2026-08-14: "what the hell is floor, no one will understand
+    // that". docs/ui-conventions.md makes it a rule: the word is internal
+    // vocabulary, component and class names may keep it, and no string a
+    // visitor can read may. When copy needs a word for one public workspace
+    // it is "market". Everything this door says was written after that rule
+    // and broke it, which is why the test is here rather than in review.
+    askSetup.mockResolvedValue({
+      answer: 'Which number?', opened: [{ name: 'Kleros', slug: 'kleros' }], handoff: 'X'.repeat(220),
+    });
+    const user = userEvent.setup();
+    const { container } = renderChat(false);
+    expect(container.textContent).not.toMatch(/floor/i);
+
+    await user.type(screen.getByLabelText(/tell otto what you run/i), 'a protocol');
+    await user.click(screen.getByRole('button', { name: /send/i }));
+    await screen.findByText('Which number?');
+    // Includes the receipt, which names what was opened.
+    expect(container.textContent).not.toMatch(/floor/i);
+  });
+});

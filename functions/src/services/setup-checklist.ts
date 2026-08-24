@@ -123,7 +123,7 @@ export async function buildChecklist(workspaceId: string): Promise<Checklist> {
   const shovable = baseMarkets.filter(m => (m.liquidity ?? 0) > 0 && shoveShare(m) > 0.2);
 
   const decided: Record<DecisionId, { status: 'done' | 'open'; note: string }> = {
-    floor: (ws.description ?? '').trim()
+    subject: (ws.description ?? '').trim()
       ? { status: 'done', note: `${ws.name}: "${(ws.description ?? '').trim().slice(0, 80)}"` }
       : { status: 'open', note: `${ws.name} has no one-line description, so a cold visitor sees a number and no company.` },
 

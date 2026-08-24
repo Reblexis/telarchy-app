@@ -75,7 +75,7 @@ export function renderHandoff(turns: AskTurn[], state: HandoffState): string {
   } else if (state.workspaces.length) {
     parts.push(`- Nothing opened yet. I already run: ${state.workspaces.map(w => `${w.name}${w.slug ? ` (${ORIGIN}/${w.slug})` : ''}`).join(', ')}. Adding a number to one of those may be better than opening another.`);
   } else {
-    parts.push('- Nothing opened yet, and I run no floor.');
+    parts.push('- Nothing opened yet, and I run no market.');
   }
   parts.push('');
 
@@ -83,8 +83,8 @@ export function renderHandoff(turns: AskTurn[], state: HandoffState): string {
     'What to do with the API (base ' + ORIGIN + '/api). Read GET /api/help first: it is the live catalog and it is more current than this message.',
     '',
     '1. Auth. Either use my browser session, or POST /api/agents/register to get an X-Agent-Key of your own. Every call below takes X-Workspace-Id once the workspace exists.',
-    '2. Open the floor, if it is not open yet: POST /api/workspaces { "name": "...", "template": "blank" } returns { id, slug }. A new floor starts unlisted, which means live and shareable by link but not on the front page.',
-    '3. Open the market: POST /api/metrics { "name": "...", "description": "where the value comes from, in the words it settles on", "value": 0, "formula": "", "marketRangeMax": <the highest it could plausibly reach>, "timePreference": { "enabled": false, "halfLife": 1, "customHorizons": ["YYYY-MM"] } }. The customHorizons entry is what makes a market exist; without it I own a settings page, not a floor.',
+    '2. Open the market, if it is not open yet: POST /api/workspaces { "name": "...", "template": "blank" } returns { id, slug }. A new market starts unlisted, which means live and shareable by link but not on the front page.',
+    '3. Open the market: POST /api/metrics { "name": "...", "description": "where the value comes from, in the words it settles on", "value": 0, "formula": "", "marketRangeMax": <the highest it could plausibly reach>, "timePreference": { "enabled": false, "halfLife": 1, "customHorizons": ["YYYY-MM"] } }. The customHorizons entry is what makes a market exist; without it I own a settings page, not a market.',
     '4. Keep the number true: PUT /api/metrics/{metricId} { "value": <the real number>, "oldValue": <the previous one>, "updateNote": "where you read it" }, on whatever schedule fits the source. A number a human types in is worth less than one you read from the source, so wire it to the source if you can.',
     '5. Tell forecasters what they need: the market settles on the metric description, so make it precise, and add any context they cannot see.',
     '',
