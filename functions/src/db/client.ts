@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from 'async_hooks';
+import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import * as schema from './schema';
@@ -126,5 +127,31 @@ export const db = new Proxy(prodDb, {
     return typeof value === 'function' ? value.bind(active) : value;
   },
 }) as typeof prodDb;
+
+/**
+ * Give the current store a copy of an account row, if it is missing one.
+ *
+ * Identity is global and data is per-store, and the seam between those two
+ * facts is a foreign key: `agents.auth_user_id` references the store's OWN
+ * user table, so creating a participant in the beta for someone whose account
+ * lives in the account store fails with
+ * `agents_auth_user_id_user_id_fk` (found on the beta, 2026-08-24, as a bare
+ * "Internal error" from /api/auth/me).
+ *
+ * The beta gets a shadow of the row rather than its own account: same id, so
+ * every workspace, participant and trade it holds still belongs to the real
+ * person, and the names and emails the beta joins for leaderboards resolve.
+ * Nothing here writes back the other way.
+ */
+export async function mirrorAccountIntoStore(userId: string): Promise<void> {
+  if (currentStoreName() !== 'beta') return;
+  const active = current();
+  const [here] = await active.select({ id: schema.authUser.id })
+    .from(schema.authUser).where(eq(schema.authUser.id, userId));
+  if (here) return;
+  const [real] = await prodDb.select().from(schema.authUser).where(eq(schema.authUser.id, userId));
+  if (!real) return;
+  await active.insert(schema.authUser).values(real).onConflictDoNothing();
+}
 
 export type Db = typeof prodDb;

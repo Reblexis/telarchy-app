@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { fromNodeHeaders } from 'better-auth/node';
 import { createHash, timingSafeEqual } from 'crypto';
-import { db } from '../db/client';
+import { db, mirrorAccountIntoStore } from '../db/client';
 import { agents, agentApiKeys } from '../db/schema';
 import { auth } from '../auth';
 import { eq, sql } from 'drizzle-orm';
@@ -131,6 +131,12 @@ export async function optionalAuthMiddleware(req: Request, _res: Response, next:
   if (session?.user) {
     const requestedWorkspaceId = (req.headers['x-workspace-id'] as string | undefined)
       ?? (typeof req.query.workspaceId === 'string' ? req.query.workspaceId : undefined);
+    // Identity is global and data is per-store, and the two meet at a
+    // foreign key: `agents.auth_user_id` points at THIS store's user table,
+    // so on the beta a real account has to have a row here before anything
+    // can be created for it (db/client.ts). Done at the point identity is
+    // established rather than in each writer, so a new writer cannot forget.
+    await mirrorAccountIntoStore(session.user.id);
     const result = await resolveUser(session.user.id, requestedWorkspaceId);
     if (result !== null) {
       req.auth = {
@@ -208,6 +214,12 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
   if (session?.user) {
     const requestedWorkspaceId = (req.headers['x-workspace-id'] as string | undefined)
       ?? (typeof req.query.workspaceId === 'string' ? req.query.workspaceId : undefined);
+    // Identity is global and data is per-store, and the two meet at a
+    // foreign key: `agents.auth_user_id` points at THIS store's user table,
+    // so on the beta a real account has to have a row here before anything
+    // can be created for it (db/client.ts). Done at the point identity is
+    // established rather than in each writer, so a new writer cannot forget.
+    await mirrorAccountIntoStore(session.user.id);
     const result = await resolveUser(session.user.id, requestedWorkspaceId);
     if (result === null) {
       if (requestedWorkspaceId) {

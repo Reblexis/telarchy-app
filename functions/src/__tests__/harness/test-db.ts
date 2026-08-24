@@ -104,3 +104,20 @@ export async function truncateAll(): Promise<void> {
   // the rows just truncated; a cache that outlives its data serves ghosts.
   clearAllTtlCaches();
 }
+
+/**
+ * The harness stands in for `db/client`, so it has to answer for everything
+ * that module exports which a route may call.
+ *
+ * One store here, which is also production's shape: there is nothing to
+ * mirror an account INTO, so this is the same no-op the real one performs
+ * off the beta (see db/client.ts, mirrorAccountIntoStore).
+ */
+export async function mirrorAccountIntoStore(_userId: string): Promise<void> {
+  return;
+}
+
+/** Same reason: the beta swap does not exist here. */
+export function currentStoreName(): 'beta' | 'production' {
+  return 'production';
+}

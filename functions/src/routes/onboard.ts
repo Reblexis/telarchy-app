@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { randomBytes, randomUUID } from 'crypto';
 import { and, eq, isNull, or } from 'drizzle-orm';
-import { db } from '../db/client';
+import { db, mirrorAccountIntoStore } from '../db/client';
 import { applyCredits, PLATFORM_SCOPE } from '../services/credits';
 import { agents, agentApiKeys, trades, positions, workspaces, permissionGroups } from '../db/schema';
 import { wrap } from '../lib/wrap';
@@ -208,6 +208,9 @@ onboardRouter.post('/claim', authMiddleware, wrap(async (req, res) => {
   }
 
   const topUpCredits = Math.max(0, SIGNUP_CREDITS - UNCLAIMED_SIGNUP_CREDITS);
+  // Same store seam as ensureParticipant: this points a participant at an
+  // account, and the foreign key is to THIS store's user table.
+  await mirrorAccountIntoStore(uid);
   await db.transaction(async tx => {
     if (own && own.id !== target.id) {
       // Zero-activity auto-provisioned row: remove it (its unspent signup
