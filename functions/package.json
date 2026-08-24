@@ -10,7 +10,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "test:ci": "NODE_OPTIONS=--experimental-vm-modules jest --ci --testTimeout=120000"
+    "test:ci": "NODE_OPTIONS=--experimental-vm-modules jest --ci --testTimeout=120000",
+    "eval:otto": "tsx src/evals/run.ts"
   },
   "engines": {
     "node": "22"
