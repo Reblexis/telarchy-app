@@ -28,6 +28,8 @@ const KIND_VERB: Record<NotificationItem['kind'], string> = {
   comment: 'commented on your contract',
   reply: 'replied in a thread you are in',
   contract: 'put a contract on the ballot',
+  anyComment: 'commented',
+  settled: 'settled',
   decision: 'was decided',
 };
 
@@ -174,7 +176,13 @@ export function NotificationsBell() {
                   <>
                     <span className="notif-row-top">
                       <span className={`notif-kind notif-kind--${n.kind}`}>
-                        {n.actor ? `${n.actor} ${KIND_VERB[n.kind]}` : `Your contract ${KIND_VERB[n.kind]}`}
+                        {/* No actor means the system did it: a settlement, or
+                            a decision. Which noun leads depends on the kind;
+                            "Your contract" was wrong the moment decisions on
+                            OTHER people's contracts started landing here. */}
+                        {n.actor ? `${n.actor} ${KIND_VERB[n.kind]}`
+                          : n.kind === 'settled' ? 'A market you traded settled'
+                          : `A contract ${KIND_VERB[n.kind]}`}
                       </span>
                       <span className="notif-time">{timeAgo(n.at)}</span>
                     </span>

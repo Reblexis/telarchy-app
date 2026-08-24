@@ -245,6 +245,11 @@ export const agents = pgTable('agents', {
    *  (services/notifications.ts); this switch covers everyone else with money
    *  or words on the outcome. */
   notifyContractDecided: boolean('notify_contract_decided').notNull().default(true),
+  /** Web and mobile cells of the notification matrix, as OVERRIDES:
+   *  { [kind]: { web?, mobile? } }. A missing cell means its default
+   *  (lib/notification-prefs.ts). Email cells stay on the boolean columns
+   *  above, so every cell has exactly one owner. */
+  notificationChannels: jsonb('notification_channels'),
   /**
    * How far this participant has read the notifications inbox
    * (GET /api/notifications). The inbox itself is derived from comments,
@@ -685,6 +690,26 @@ export const notificationReads = pgTable('notification_reads', {
   itemId: text('item_id').notNull(),
   readAt: timestamp('read_at').notNull().defaultNow(),
 }, t => [primaryKey({ columns: [t.agentId, t.itemId] })]);
+
+/**
+ * One browser's push subscription, the mobile channel's address (owner ask
+ * 2026-08-24). A participant can hold several (phone and laptop both count);
+ * the endpoint is the identity, so re-subscribing the same browser upserts
+ * rather than duplicates. A push rejected with 404/410 means the browser
+ * revoked it, and the sender deletes the row.
+ */
+export const pushSubscriptions = pgTable('push_subscriptions', {
+  id: text('id').primaryKey(),
+  agentId: text('agent_id').notNull(),
+  /** The browser-issued push URL; unique, because one browser is one address. */
+  endpoint: text('endpoint').notNull(),
+  /** The subscription's `keys` object (p256dh + auth), as the browser gave it. */
+  keys: jsonb('keys').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+}, t => [
+  uniqueIndex('push_subscriptions_endpoint_idx').on(t.endpoint),
+  index('push_subscriptions_agent_idx').on(t.agentId),
+]);
 
 /**
  * Every question asked of a floor's Ask field, with its answer (owner ask

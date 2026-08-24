@@ -13,7 +13,16 @@ const getParticipant = vi.fn(async () => ({
   nickname: 'trader-1', balance: 1000, earnedBetting: 50,
   payoutHandle: 'PayPal: old@x.com',
   payoutMethod: { provider: 'paypal', email: 'old@x.com' },
-  notifications: { commentOnMyProposal: true, replyToMyComment: true, newProposal: false, anyComment: false },
+}));
+// The resolved matrix GET /api/auth/me serves: what the Notifications tab
+// renders. Defaults as the model states them (lib/notification-prefs.ts).
+const cell = (web: boolean, email: boolean, mobile: boolean) => ({ web, email, mobile });
+const getProfile = vi.fn(async () => ({
+  notificationChannels: {
+    comment: cell(true, true, true), reply: cell(true, true, true),
+    contract: cell(true, false, false), anyComment: cell(false, false, false),
+    settled: cell(true, true, true), decision: cell(true, true, true),
+  },
 }));
 
 /* The dialog absorbed the deleted console account page (2026-08-19), so it
@@ -24,6 +33,8 @@ vi.mock('../../lib/api', () => ({
   api: {
     upsertProfile: (...a: unknown[]) => upsertProfile(...a as []),
     getParticipant: () => getParticipant(),
+    getProfile: () => getProfile(),
+    getPushKey: async () => ({ configured: false, publicKey: null }),
     getStatus: async () => ({ usdcSettlementEnabled: false }),
     getDepositAddress: async () => null,
     getMySeason: async () => null,
@@ -164,32 +175,42 @@ describe('the picker matches what the server accepts', () => {
  * (so flipping one switch cannot silently rewrite the other two), and a
  * refusal puts the switch back rather than lying about what is stored.
  */
-describe('the email switches', () => {
-  test('show what is stored, defaults included', async () => {
+describe('the notification matrix', () => {
+  test('shows every kind with its three channel cells, defaults included', async () => {
     render(<AccountDialog onClose={() => {}} initialTab="emails" />);
-    const mine = await screen.findByRole('switch', { name: /comments on my contract/i });
-    const ballot = screen.getByRole('switch', { name: /new contract goes on the ballot/i });
-    const watcher = screen.getByRole('switch', { name: /any comment/i });
-    await waitFor(() => expect(mine.getAttribute('aria-checked')).toBe('true'));
-    expect(ballot.getAttribute('aria-checked')).toBe('false');
-    expect(watcher.getAttribute('aria-checked')).toBe('false');
+    const mineWeb = await screen.findByRole('switch', { name: /comments on my contract: Web/i });
+    expect(mineWeb.getAttribute('aria-checked')).toBe('true');
+    // The new-contract firehose: bell on, mail and push off.
+    expect(screen.getByRole('switch', { name: /goes on the ballot: Web/i }).getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByRole('switch', { name: /goes on the ballot: Email/i }).getAttribute('aria-checked')).toBe('false');
+    expect(screen.getByRole('switch', { name: /goes on the ballot: Mobile/i }).getAttribute('aria-checked')).toBe('false');
+    expect(screen.getByRole('switch', { name: /market I traded settles: Email/i }).getAttribute('aria-checked')).toBe('true');
   });
 
-  test('one click sends only that switch', async () => {
+  test('one click sends only that cell', async () => {
     render(<AccountDialog onClose={() => {}} initialTab="emails" />);
-    const ballot = await screen.findByRole('switch', { name: /new contract goes on the ballot/i });
-    fireEvent.click(ballot);
-    await waitFor(() => expect(upsertProfile).toHaveBeenCalledWith({ notifications: { newProposal: true } }));
-    expect(ballot.getAttribute('aria-checked')).toBe('true');
+    const ballotEmail = await screen.findByRole('switch', { name: /goes on the ballot: Email/i });
+    fireEvent.click(ballotEmail);
+    await waitFor(() => expect(upsertProfile).toHaveBeenCalledWith({ notificationChannels: { contract: { email: true } } }));
+    expect(ballotEmail.getAttribute('aria-checked')).toBe('true');
   });
 
-  test('a refused save puts the switch back', async () => {
+  test('a refused save puts the cell back', async () => {
     upsertProfile.mockImplementationOnce(async () => { throw new Error('nope'); });
     render(<AccountDialog onClose={() => {}} initialTab="emails" />);
-    const ballot = await screen.findByRole('switch', { name: /new contract goes on the ballot/i });
-    fireEvent.click(ballot);
+    const ballotEmail = await screen.findByRole('switch', { name: /goes on the ballot: Email/i });
+    fireEvent.click(ballotEmail);
     await waitFor(() => expect(screen.getByText('nope')).toBeTruthy());
-    expect(ballot.getAttribute('aria-checked')).toBe('false');
+    expect(ballotEmail.getAttribute('aria-checked')).toBe('false');
+  });
+
+  test('a mobile cell cannot go on while push is unconfigured, and says why', async () => {
+    render(<AccountDialog onClose={() => {}} initialTab="emails" />);
+    const ballotMobile = await screen.findByRole('switch', { name: /goes on the ballot: Mobile/i });
+    fireEvent.click(ballotMobile);
+    await waitFor(() => expect(screen.getByText(/not set up on this server/i)).toBeTruthy());
+    expect(ballotMobile.getAttribute('aria-checked')).toBe('false');
+    expect(upsertProfile).not.toHaveBeenCalled();
   });
 });
 
@@ -203,7 +224,7 @@ describe('the section rail', () => {
   test('opens on Profile and names every section', async () => {
     render(<AccountDialog onClose={() => {}} />);
     expect(await screen.findByLabelText('Username')).toBeTruthy();
-    for (const name of ['Profile', 'Money', 'Emails', 'Security']) {
+    for (const name of ['Profile', 'Money', 'Notifications', 'Security']) {
       expect(screen.getByRole('tab', { name })).toBeTruthy();
     }
     expect(screen.getByRole('tab', { name: 'Profile' }).getAttribute('aria-selected')).toBe('true');
@@ -214,8 +235,8 @@ describe('the section rail', () => {
 
   test('picking a section swaps the fields', async () => {
     render(<AccountDialog onClose={() => {}} />);
-    fireEvent.click(await screen.findByRole('tab', { name: 'Emails' }));
-    expect(screen.getByRole('switch', { name: /comments on my contract/i })).toBeTruthy();
+    fireEvent.click(await screen.findByRole('tab', { name: 'Notifications' }));
+    expect(await screen.findByRole('switch', { name: /comments on my contract: Web/i })).toBeTruthy();
     expect(screen.queryByLabelText('Username')).toBeNull();
   });
 });

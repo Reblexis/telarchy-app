@@ -1,6 +1,7 @@
 import { Router, type Request } from 'express';
 import { randomBytes } from 'crypto';
 import { db } from '../db/client';
+import { applyMatrixUpdate, resolveMatrix, type ChannelOverrides, type NotificationKindId } from '../lib/notification-prefs';
 import { applyCredits, PLATFORM_SCOPE } from '../services/credits';
 import { agents, agentApiKeys, authUser, trades, positions, proposals, proposalMessages } from '../db/schema';
 import { eq } from 'drizzle-orm';
@@ -156,6 +157,17 @@ userauthRouter.get('/me', requireIdentity, requireScope('account:read'), wrap(as
       marketResolved: agent?.notifyMarketResolved ?? true,
       contractDecided: agent?.notifyContractDecided ?? true,
     },
+    // The full matrix: every kind x { web, email, mobile }, defaults applied
+    // (lib/notification-prefs.ts). `notifications` above is the email column
+    // of this same matrix, kept for existing clients.
+    notificationChannels: resolveMatrix(agent?.notificationChannels as ChannelOverrides | null, {
+      comment: agent?.notifyCommentOnMyProposal ?? true,
+      reply: agent?.notifyReplyToMyComment ?? true,
+      contract: agent?.notifyNewProposal ?? false,
+      anyComment: agent?.notifyAnyComment ?? false,
+      settled: agent?.notifyMarketResolved ?? true,
+      decision: agent?.notifyContractDecided ?? true,
+    }),
   });
 }));
 
@@ -207,7 +219,7 @@ userauthRouter.post('/profile', requireIdentity, requireScope('account:write'), 
     return;
   }
 
-  const { intent, nickname, bio, image, payoutHandle, payoutMethod, notifications } = req.body;
+  const { intent, nickname, bio, image, payoutHandle, payoutMethod, notifications, notificationChannels } = req.body;
   if (intent !== undefined && !['creator', 'agent', 'trader'].includes(intent)) {
     res.status(400).json({ error: 'intent must be "creator", "agent", or "trader"' }); return;
   }
@@ -331,12 +343,36 @@ userauthRouter.post('/profile', requireIdentity, requireScope('account:write'), 
     }
   }
 
+  // The full matrix (owner ask 2026-08-24): { kind: { web?, email?, mobile? } },
+  // any subset of cells. Email cells write the legacy columns, web and mobile
+  // cells the jsonb overrides, so each cell keeps exactly one owner.
+  let matrixWrite: { overrides: ChannelOverrides; emailUpdates: Partial<Record<NotificationKindId, boolean>> } | undefined;
+  if (notificationChannels !== undefined) {
+    const [row] = await db.select({ channels: agents.notificationChannels }).from(agents)
+      .where(eq(agents.id, participantId));
+    const applied = applyMatrixUpdate(row?.channels as ChannelOverrides | null, notificationChannels);
+    if ('error' in applied) { res.status(400).json({ error: applied.error }); return; }
+    matrixWrite = applied;
+  }
+
   if (intent !== undefined) {
     await db.update(agents).set({ intent }).where(eq(agents.id, participantId));
   }
 
   if (notificationUpdate && Object.keys(notificationUpdate).length > 0) {
     await db.update(agents).set(notificationUpdate).where(eq(agents.id, participantId));
+  }
+
+  if (matrixWrite) {
+    const emailColumns: Record<NotificationKindId, 'notifyCommentOnMyProposal' | 'notifyReplyToMyComment' | 'notifyNewProposal' | 'notifyAnyComment' | 'notifyMarketResolved' | 'notifyContractDecided'> = {
+      comment: 'notifyCommentOnMyProposal', reply: 'notifyReplyToMyComment', contract: 'notifyNewProposal',
+      anyComment: 'notifyAnyComment', settled: 'notifyMarketResolved', decision: 'notifyContractDecided',
+    };
+    const set: Record<string, unknown> = { notificationChannels: matrixWrite.overrides };
+    for (const [kind, value] of Object.entries(matrixWrite.emailUpdates)) {
+      set[emailColumns[kind as NotificationKindId]] = value;
+    }
+    await db.update(agents).set(set).where(eq(agents.id, participantId));
   }
 
   if (normalizedBio !== undefined) {

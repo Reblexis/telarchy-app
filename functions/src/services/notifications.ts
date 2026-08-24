@@ -28,6 +28,8 @@ import {
 } from '../db/schema';
 import { getParticipantDisplayNames } from '../lib/participants';
 import { publicOrigin, sendEmail } from '../lib/notify';
+import { pushConfigured, sendPushToParticipant, type PushPayload } from '../lib/push';
+import { channelOn, type ChannelOverrides, type NotificationKindId } from '../lib/notification-prefs';
 
 /** Which switch produced a given message; also the line the email closes on. */
 type Reason = 'my-proposal' | 'reply' | 'new-proposal' | 'decision' | 'decision-involved' | 'any-comment' | 'market-resolved';
@@ -58,10 +60,43 @@ const REASON_COLUMN: Record<Reason, 'notifyCommentOnMyProposal' | 'notifyReplyTo
   decision: null,
 };
 
+/** The matrix kind each reason belongs to, for the web and mobile cells. */
+const REASON_KIND: Record<Reason, NotificationKindId> = {
+  'my-proposal': 'comment',
+  reply: 'reply',
+  'new-proposal': 'contract',
+  'any-comment': 'anyComment',
+  'market-resolved': 'settled',
+  decision: 'decision',
+  'decision-involved': 'decision',
+};
+
 interface Recipient {
   participantId: string;
   email: string;
   reason: Reason;
+}
+
+/**
+ * The mobile channel's pass over the same wanted map the email pass uses:
+ * one event, one recipient set, two transports. Gated per recipient by the
+ * mobile cell of the reason's kind; needs no email address, because a push
+ * subscription is its own address. Fire-and-forget like everything here.
+ */
+async function pushDeliver(wanted: Map<string, Reason>, payload: PushPayload): Promise<void> {
+  try {
+    if (!pushConfigured() || wanted.size === 0) return;
+    const rows = await db.select({ id: agents.id, channels: agents.notificationChannels })
+      .from(agents).where(inArray(agents.id, [...wanted.keys()]));
+    for (const row of rows) {
+      const reason = wanted.get(row.id);
+      if (!reason) continue;
+      if (!channelOn(row.channels as ChannelOverrides | null, REASON_KIND[reason], 'mobile')) continue;
+      await sendPushToParticipant(row.id, payload);
+    }
+  } catch (e) {
+    console.error('push notification failed:', e);
+  }
 }
 
 /**
@@ -201,12 +236,18 @@ export async function notifyCommentPosted(opts: {
     }
 
     const recipients = await resolveRecipients(wanted);
-    if (recipients.length === 0) return;
+    if (recipients.length === 0 && wanted.size === 0) return;
 
     const names = await getParticipantDisplayNames([from]);
     const author = names.get(from) ?? from;
     const { url, name } = await floorUrl(workspaceId);
     const settings = await floorUrl(workspaceId, '#emails');
+
+    await pushDeliver(wanted, {
+      title: `${author} commented on "${subjectLabel}"`,
+      body: preview(content, 160),
+      url,
+    });
 
     await deliver(
       recipients,
@@ -252,12 +293,18 @@ export async function notifyProposalCreated(opts: {
     }
 
     const recipients = await resolveRecipients(wanted);
-    if (recipients.length === 0) return;
+    if (recipients.length === 0 && wanted.size === 0) return;
 
     const names = await getParticipantDisplayNames([proposedBy]);
     const author = names.get(proposedBy) ?? proposedBy;
     const { url, name } = await floorUrl(workspaceId);
     const settings = await floorUrl(workspaceId, '#emails');
+
+    await pushDeliver(wanted, {
+      title: `New contract on ${name}`,
+      body: title,
+      url,
+    });
 
     await deliver(
       recipients,
@@ -338,7 +385,7 @@ export async function notifyProposalDecided(opts: {
     if (proposal.resolvedBy) wanted.delete(proposal.resolvedBy);
 
     const recipients = await resolveRecipients(wanted);
-    if (recipients.length === 0) return;
+    if (recipients.length === 0 && wanted.size === 0) return;
 
     const { url, name } = await floorUrl(workspaceId, `#contract=${encodeURIComponent(proposalId)}`);
     const settings = await floorUrl(workspaceId, '#emails');
@@ -346,6 +393,12 @@ export async function notifyProposalDecided(opts: {
     // A decline with no reason is a fact worth stating, not a blank space: it
     // tells the reader there is nothing further to read on the page either.
     const reason = approved ? null : (proposal.declineReason?.trim() || 'No reason was given.');
+
+    await pushDeliver(wanted, {
+      title: `${approved ? 'Approved' : 'Declined'}: ${proposal.title}`,
+      body: reason ? `Reason: ${preview(reason, 140)}` : `${name} ${verb} this contract.`,
+      url,
+    });
 
     await deliver(
       recipients,
@@ -399,7 +452,7 @@ export async function notifyMarketResolved(opts: {
     for (const t of traders) wanted.set(t.id, 'market-resolved');
 
     const recipients = await resolveRecipients(wanted);
-    if (recipients.length === 0) return;
+    if (recipients.length === 0 && wanted.size === 0) return;
 
     // A branch market settles a contract's question, so the subject names the
     // contract when there is one; the bare label is a metric and its period.
@@ -412,6 +465,12 @@ export async function notifyMarketResolved(opts: {
 
     const { url, name } = await floorUrl(workspaceId);
     const settings = await floorUrl(workspaceId, '#emails');
+
+    await pushDeliver(wanted, {
+      title: `Settled at ${market.actualValue}: ${subjectLabel}`,
+      body: `${market.metricName} ${market.targetDate} settled at ${market.actualValue}.`,
+      url,
+    });
 
     await deliver(
       recipients,
@@ -447,7 +506,7 @@ export async function notifyMarketResolved(opts: {
  * a feed table would have to be backfilled to be useful on the day it ships
  * and could then drift from the thing it describes.
  */
-export type NotificationKind = 'comment' | 'reply' | 'contract' | 'decision';
+export type NotificationKind = 'comment' | 'reply' | 'contract' | 'anyComment' | 'settled' | 'decision';
 
 export interface NotificationItem {
   id: string;
@@ -480,9 +539,13 @@ export async function listNotifications(participantId: string, limit = 30): Prom
   unread: number;
   seenAt: Date | null;
 }> {
-  const [me] = await db.select({ seenAt: agents.notificationsSeenAt })
+  const [me] = await db.select({ seenAt: agents.notificationsSeenAt, channels: agents.notificationChannels })
     .from(agents).where(eq(agents.id, participantId));
   const seenAt = me?.seenAt ?? null;
+  // The web cells of the matrix decide which kinds this inbox derives at all
+  // (revised 2026-08-24, owner: the bell is tunable per kind, like the other
+  // two channels; until then it was deliberately unfiltered).
+  const webOn = (kind: NotificationKind) => channelOn(me?.channels as ChannelOverrides | null, kind, 'web');
 
   // Items read one at a time, on top of the watermark (owner ask: the count
   // goes down by one per click, not only all at once).
@@ -502,7 +565,7 @@ export async function listNotifications(participantId: string, limit = 30): Prom
   // what was said after they arrived. Without that cutoff, a first reply in
   // an old thread backfilled every earlier comment into the inbox as unread
   // news from the past (reported 2026-08-22).
-  const [myProposalThreads, myMarketThreads, myProposals] = await Promise.all([
+  const [myProposalThreads, myMarketThreads, myProposals, myTradeRows] = await Promise.all([
     db.select({ proposalId: proposalMessages.proposalId, createdAt: proposalMessages.createdAt })
       .from(proposalMessages).where(eq(proposalMessages.from, participantId)),
     db.select({ marketId: marketMessages.marketId, createdAt: marketMessages.createdAt })
@@ -510,7 +573,12 @@ export async function listNotifications(participantId: string, limit = 30): Prom
     db.select({ id: proposals.id, title: proposals.title, workspaceId: proposals.workspaceId,
       status: proposals.status, resolvedAt: proposals.resolvedAt, declineReason: proposals.declineReason })
       .from(proposals).where(eq(proposals.proposedBy, participantId)),
+    // Markets this participant traded: the scope of "a market I traded
+    // settled" and half the scope of "a contract I am involved in".
+    db.select({ marketId: trades.marketId }).from(trades)
+      .where(eq(trades.agentId, participantId)),
   ]);
+  const myTradedMarketIds = [...new Set(myTradeRows.map(t => t.marketId))];
 
   const myProposalIds = [...new Set(myProposals.map(p => p.id))];
   const joinedProposalThreadAt = new Map<string, number>();
@@ -562,8 +630,53 @@ export async function listNotifications(participantId: string, limit = 30): Prom
       .orderBy(desc(proposals.createdAt)).limit(limit * 2),
   ]);
 
+  // Settled markets I traded, and decided contracts I am involved in
+  // (traded either branch, or commented in the conversation). Owner ask
+  // 2026-08-24: the bell carries these, not only the mail.
+  const tradedMarkets = myTradedMarketIds.length === 0 ? [] : await db.select({
+    id: markets.id, metricName: markets.metricName, targetDate: markets.targetDate,
+    resolved: markets.resolved, voided: markets.voided, resolvedAt: markets.resolvedAt,
+    actualValue: markets.actualValue, proposalId: markets.proposalId, workspaceId: markets.workspaceId,
+  }).from(markets).where(inArray(markets.id, myTradedMarketIds));
+  const settledMarkets = tradedMarkets.filter(m => m.resolved && !m.voided && m.actualValue !== null && m.resolvedAt);
+
+  const involvedThreadMarketIds = inMarketThreads.filter(id => !branchOwner.has(id));
+  const involvedThreadMarkets = involvedThreadMarketIds.length === 0 ? [] : await db.select({
+    id: markets.id, proposalId: markets.proposalId,
+  }).from(markets).where(inArray(markets.id, involvedThreadMarketIds));
+  const involvedProposalIds = [...new Set([
+    ...tradedMarkets.map(m => m.proposalId).filter(Boolean) as string[],
+    ...inProposalThreads,
+    ...involvedThreadMarkets.map(m => m.proposalId).filter(Boolean) as string[],
+  ])].filter(id => !myProposalIds.includes(id));
+  const involvedDecided = involvedProposalIds.length === 0 ? [] : (await db.select({
+    id: proposals.id, title: proposals.title, workspaceId: proposals.workspaceId,
+    status: proposals.status, resolvedAt: proposals.resolvedAt, declineReason: proposals.declineReason,
+  }).from(proposals).where(inArray(proposals.id, involvedProposalIds)))
+    .filter(p => !!p.resolvedAt && (p.status === 'approved' || p.status === 'declined' || p.status === 'declined_spam'));
+
+  // Every comment on my workspaces, only when that firehose's web cell is on.
+  const [floorProposalComments, floorMarketComments] = !webOn('anyComment') || myWorkspaces.length === 0
+    ? [[], []]
+    : await Promise.all([
+        db.select({
+          id: proposalMessages.id, proposalId: proposalMessages.proposalId, from: proposalMessages.from,
+          content: proposalMessages.content, createdAt: proposalMessages.createdAt,
+          workspaceId: proposalMessages.workspaceId,
+        }).from(proposalMessages)
+          .where(inArray(proposalMessages.workspaceId, myWorkspaces))
+          .orderBy(desc(proposalMessages.createdAt)).limit(limit * 2),
+        db.select({
+          id: marketMessages.id, marketId: marketMessages.marketId, from: marketMessages.from,
+          content: marketMessages.content, createdAt: marketMessages.createdAt,
+          workspaceId: marketMessages.workspaceId,
+        }).from(marketMessages)
+          .where(inArray(marketMessages.workspaceId, myWorkspaces))
+          .orderBy(desc(marketMessages.createdAt)).limit(limit * 2),
+      ]);
+
   // Market names for threads this participant joined but does not own.
-  const namedMarketIds = [...new Set(marketComments.map(c => c.marketId))];
+  const namedMarketIds = [...new Set([...marketComments.map(c => c.marketId), ...floorMarketComments.map(c => c.marketId)])];
   const marketNames = namedMarketIds.length === 0 ? [] : await db.select({
     id: markets.id, metricName: markets.metricName, targetDate: markets.targetDate, proposalId: markets.proposalId,
   }).from(markets).where(inArray(markets.id, namedMarketIds));
@@ -574,12 +687,18 @@ export async function listNotifications(participantId: string, limit = 30): Prom
     ...marketComments.map(c => c.workspaceId),
     ...newContracts.map(c => c.workspaceId),
     ...myProposals.map(p => p.workspaceId),
+    ...settledMarkets.map(m => m.workspaceId),
+    ...involvedDecided.map(p => p.workspaceId),
+    ...floorProposalComments.map(c => c.workspaceId),
+    ...floorMarketComments.map(c => c.workspaceId),
   ]);
 
   const actorIds = [
     ...proposalComments.map(c => c.from),
     ...marketComments.map(c => c.from),
     ...newContracts.map(c => c.proposedBy),
+    ...floorProposalComments.map(c => c.from),
+    ...floorMarketComments.map(c => c.from),
   ];
   const names = await getParticipantDisplayNames(actorIds);
   const handle = (id: string) => names.get(id) ?? id;
@@ -664,14 +783,76 @@ export async function listNotifications(participantId: string, limit = 30): Prom
     });
   }
 
-  items.sort((a, b) => b.at.getTime() - a.at.getTime());
-  for (const i of items) {
+  for (const m of settledMarkets) {
+    items.push({
+      id: `res-${m.id}`,
+      kind: 'settled',
+      at: m.resolvedAt as Date,
+      actor: null,
+      subject: `${m.metricName} ${m.targetDate}`,
+      detail: `Settled at ${m.actualValue}.`,
+      workspaceSlug: slugs.get(m.workspaceId) ?? null,
+      proposalId: m.proposalId ?? null,
+      marketId: m.id,
+      commentId: null,
+      unread: true,
+    });
+  }
+
+  // A verdict on a contract I traded or commented on. Same `dec-` id space as
+  // my own contracts' decisions: the sets are disjoint (mine are filtered out
+  // of involvedDecided), so one id never means two rows.
+  for (const p of involvedDecided) {
+    items.push({
+      id: `dec-${p.id}`,
+      kind: 'decision',
+      at: p.resolvedAt as Date,
+      actor: null,
+      subject: p.title,
+      detail: p.status === 'approved' ? 'Approved.' : (p.declineReason || 'Declined.'),
+      workspaceSlug: slugs.get(p.workspaceId) ?? null,
+      proposalId: p.id,
+      marketId: null,
+      commentId: null,
+      unread: true,
+    });
+  }
+
+  // The firehose, when its web cell is on. Same id space as the watched-thread
+  // rows above, so a comment already carried as `comment` or `reply` keeps the
+  // closer kind and never appears twice.
+  const carried = new Set(items.map(i => i.id));
+  for (const c of floorProposalComments) {
+    if (c.from === participantId || carried.has(`pm-${c.id}`)) continue;
+    items.push({
+      id: `pm-${c.id}`, kind: 'anyComment', at: c.createdAt, actor: handle(c.from),
+      subject: titleOf.get(c.proposalId) ?? 'a contract', detail: c.content,
+      workspaceSlug: slugs.get(c.workspaceId) ?? null,
+      proposalId: c.proposalId, marketId: null, commentId: c.id, unread: true,
+    });
+  }
+  for (const c of floorMarketComments) {
+    if (c.from === participantId || carried.has(`mm-${c.id}`)) continue;
+    items.push({
+      id: `mm-${c.id}`, kind: 'anyComment', at: c.createdAt, actor: handle(c.from),
+      subject: marketLabel.get(c.marketId) ?? 'a market', detail: c.content,
+      workspaceSlug: slugs.get(c.workspaceId) ?? null,
+      proposalId: null, marketId: c.marketId, commentId: c.id, unread: true,
+    });
+  }
+
+  // The web cells decide what this inbox shows at all (owner revision
+  // 2026-08-24); a kind switched off is not derived as read, it is not there.
+  const shown = items.filter(i => webOn(i.kind));
+
+  shown.sort((a, b) => b.at.getTime() - a.at.getTime());
+  for (const i of shown) {
     i.unread = !readIds.has(i.id) && (seenAt === null || i.at.getTime() > seenAt.getTime());
   }
   // Unread counts the WHOLE list, not the page: a badge that stops at the
   // page size tells you less the more there is to tell.
-  const unread = items.filter(i => i.unread).length;
-  return { items: items.slice(0, limit), unread, seenAt };
+  const unread = shown.filter(i => i.unread).length;
+  return { items: shown.slice(0, limit), unread, seenAt };
 }
 
 /**

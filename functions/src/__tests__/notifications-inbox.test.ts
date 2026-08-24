@@ -11,7 +11,7 @@ jest.mock('../db/client', () => require('./harness/test-db'));
 
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
 import {
-  agents, authUser, markets, marketMessages, permissionGroups, proposals, proposalMessages, workspaces,
+  agents, authUser, markets, marketMessages, permissionGroups, proposals, proposalMessages, trades, workspaces,
 } from '../db/schema';
 import { initialPool } from '../lib/amm';
 import { listNotifications, markNotificationRead, markNotificationsSeen } from '../services/notifications';
@@ -215,5 +215,95 @@ describe('the inbox', () => {
 
     const { unread } = await listNotifications('me');
     expect(unread).toBe(0);
+  });
+});
+
+// The matrix's new kinds and its web cells (owner ask 2026-08-24: the bell
+// carries settlements and decisions on contracts you are involved in, and
+// each kind's web cell decides whether the bell derives it at all).
+
+describe('the matrix in the bell', () => {
+  const market = (id: string, fields: Record<string, unknown> = {}) => db.insert(markets).values({
+    id, workspaceId: WS, metricId: 'metric-1', metricName: 'Weekly traders',
+    targetDate: '2026-12', rangeMin: 0, rangeMax: 100, shares: [0, 0], liquidity: 10,
+    pool: initialPool(10), active: true, resolved: false, voided: false, ...fields,
+  });
+  const trade = (id: string, agentId: string, marketId: string) => db.insert(trades).values({
+    id, workspaceId: WS, agentId, marketId, direction: 'higher', shares: 5, cost: 2, createdAt: new Date(),
+  });
+
+  test('a market I traded settling lands as a settled item, with the value', async () => {
+    await participant('me');
+    await participant('other');
+    await seedFloor(['me', 'other']);
+    await market('mkt-1', {
+      resolved: true, voided: false, active: false, actualValue: 62,
+      resolvedAt: new Date('2026-08-24T10:00:00Z'),
+    });
+    await trade('t1', 'me', 'mkt-1');
+
+    const { items } = await listNotifications('me');
+    const settled = items.find(i => i.kind === 'settled');
+    expect(settled).toBeDefined();
+    expect(settled!.detail).toBe('Settled at 62.');
+    expect(settled!.marketId).toBe('mkt-1');
+  });
+
+  test('a decision on a contract I traded lands, though it is not mine', async () => {
+    await participant('me');
+    await participant('other');
+    await seedFloor(['me', 'other']);
+    await contract('c-theirs', 'other', 'Their contract', {
+      status: 'declined', resolvedAt: new Date('2026-08-24T11:00:00Z'), declineReason: 'not now',
+    });
+    await market('mkt-b', { proposalId: 'c-theirs', branch: 'approved' });
+    await trade('t1', 'me', 'mkt-b');
+
+    const { items } = await listNotifications('me');
+    const dec = items.find(i => i.kind === 'decision');
+    expect(dec).toBeDefined();
+    expect(dec!.subject).toBe('Their contract');
+    expect(dec!.detail).toBe('not now');
+  });
+
+  test('a kind whose web cell is off is not derived at all', async () => {
+    await participant('other');
+    await db.insert(authUser).values({ id: 'u-me', name: 'me', email: 'me@example.com' });
+    await db.insert(agents).values({
+      id: 'me', apiKeyHash: 'h-me', balance: 0, nickname: 'me', authUserId: 'u-me',
+      notificationsSeenAt: new Date('2020-01-01'),
+      notificationChannels: { contract: { web: false } },
+    });
+    await seedFloor(['me', 'other']);
+    await contract('c-new', 'other', 'A new contract');
+
+    const { items, unread } = await listNotifications('me');
+    expect(items.find(i => i.kind === 'contract')).toBeUndefined();
+    expect(unread).toBe(0);
+  });
+
+  test('the anyComment firehose, web cell on, shows floor comments once each', async () => {
+    await participant('other');
+    await db.insert(authUser).values({ id: 'u-me', name: 'me', email: 'me@example.com' });
+    await db.insert(agents).values({
+      id: 'me', apiKeyHash: 'h-me', balance: 0, nickname: 'me', authUserId: 'u-me',
+      notificationsSeenAt: new Date('2020-01-01'),
+      notificationChannels: { anyComment: { web: true } },
+    });
+    await seedFloor(['me', 'other']);
+    await contract('c-mine', 'me', 'My contract');
+    await contract('c-theirs', 'other', 'Their contract');
+    // On MY contract: already carried as kind comment, never twice.
+    await comment('m1', 'c-mine', 'other', 'on yours', new Date('2026-08-24T09:00:00Z'));
+    // On theirs, a thread I am not in: only the firehose carries it.
+    await comment('m2', 'c-theirs', 'other', 'somewhere else', new Date('2026-08-24T09:05:00Z'));
+
+    const { items } = await listNotifications('me');
+    const m1 = items.filter(i => i.commentId === 'm1');
+    expect(m1).toHaveLength(1);
+    expect(m1[0].kind).toBe('comment');
+    const m2 = items.filter(i => i.commentId === 'm2');
+    expect(m2).toHaveLength(1);
+    expect(m2[0].kind).toBe('anyComment');
   });
 });

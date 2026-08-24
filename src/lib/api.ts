@@ -120,7 +120,7 @@ export type PayoutMethod = (
  */
 export interface NotificationItem {
   id: string;
-  kind: 'comment' | 'reply' | 'contract' | 'decision';
+  kind: 'comment' | 'reply' | 'contract' | 'anyComment' | 'settled' | 'decision';
   at: string;
   actor: string | null;
   subject: string;
@@ -160,6 +160,15 @@ export interface NotificationPrefs {
    *  a new account. The proposer's own decision mail has no switch. */
   contractDecided: boolean;
 }
+
+/** One kind of notification, each deliverable over three channels (owner ask
+ *  2026-08-24). Web is the bell, mobile is a browser push. */
+export type NotificationKindId = 'comment' | 'reply' | 'contract' | 'anyComment' | 'settled' | 'decision';
+export type NotificationChannel = 'web' | 'email' | 'mobile';
+/** The resolved matrix GET /api/auth/me serves: every cell, defaults applied. */
+export type NotificationMatrix = Record<NotificationKindId, Record<NotificationChannel, boolean>>;
+/** A partial update: only the cells being flipped. */
+export type NotificationMatrixUpdate = Partial<Record<NotificationKindId, Partial<Record<NotificationChannel, boolean>>>>;
 
 /** A bug report, help request, or feature idea (POST /api/feedback).
  *  Mirrors the row in functions/src/routes/feedback.ts. */
@@ -1492,12 +1501,22 @@ export const api = {
   /** Read one row: the count drops by one, not all at once. */
   markNotificationRead: (itemId: string): Promise<{ ok: boolean }> =>
     request(`/api/notifications/${encodeURIComponent(itemId)}/read`, { method: 'POST' }),
+  /** The mobile channel: whether push is configured, and the VAPID public key
+   *  a browser needs to subscribe. */
+  getPushKey: (): Promise<{ configured: boolean; publicKey: string | null }> =>
+    request('/api/notifications/push-key', {}, true),
+  /** Register this browser as one of my mobile addresses. */
+  registerPushSubscription: (subscription: unknown): Promise<{ ok: boolean }> =>
+    request('/api/notifications/push-subscriptions', { method: 'POST', body: JSON.stringify({ subscription }) }),
+  /** Forget this browser's subscription. */
+  deletePushSubscription: (endpoint: string): Promise<{ ok: boolean }> =>
+    request('/api/notifications/push-subscriptions', { method: 'DELETE', body: JSON.stringify({ endpoint }) }),
 
   // User auth / profile
   getProfile: () => request('/api/auth/me'),
   /** `notifications` is the email switches; any subset, an omitted key keeps
    *  its current value (see docs/vision.md, "Participant email notifications"). */
-  upsertProfile: (opts?: { email?: string; intent?: 'creator' | 'agent' | 'trader'; nickname?: string; bio?: string; image?: string | null; payoutHandle?: string | null; payoutMethod?: PayoutMethod | null; notifications?: Partial<NotificationPrefs> }) =>
+  upsertProfile: (opts?: { email?: string; intent?: 'creator' | 'agent' | 'trader'; nickname?: string; bio?: string; image?: string | null; payoutHandle?: string | null; payoutMethod?: PayoutMethod | null; notifications?: Partial<NotificationPrefs>; notificationChannels?: NotificationMatrixUpdate }) =>
     request('/api/auth/profile', { method: 'POST', body: JSON.stringify(opts ?? {}) }),
   recordConsent: () =>
     request('/api/auth/consent', { method: 'POST', body: JSON.stringify({ accepted: true }) }),

@@ -512,14 +512,18 @@ A conversation nobody is told about is not a conversation. Comments under a cont
 
 **Added 2026-08-20 (Viktor): the conversation outlives the decision.** An approved or declined contract keeps its thread on the floor, readable and open to new comments. What a decision pauses is trading, not the talk about the outcome; hiding the thread with the bet buttons buried it exactly when there is the most to say (was the work delivered, did the number move). The API never gated this (`proposalMessages` accepts any status), so the fix is purely which panels the floor shows on a decided contract.
 
-A participant therefore carries email switches on their own row (`agents`), all editable in account settings:
+**Revised 2026-08-24 (Viktor): notifications are a matrix, not an email list** ("its not just emails... there should be web mobile and email"). Every KIND of news is deliverable over three CHANNELS, each cell its own switch in account settings: **web** is the bell inbox, **email** is mail, **mobile** is a browser push notification (the phone shows it like an app's, with Telarchy installed from the browser menu; a desktop browser shows it too). The web cells now decide which kinds the bell derives at all, which deliberately revises the older "the bell is never filtered" rule: with kinds a person can tune per channel, an unfilterable channel would be the one exception nobody asked for. The email cells stay on the participant row's boolean columns; the web and mobile cells live in `agents.notification_channels` as overrides over defaults (`lib/notification-prefs.ts`), so an untouched account stores nothing. The mobile channel's addresses are `push_subscriptions` rows (one per browser, upserted on endpoint), sent via Web Push/VAPID (`lib/push.ts`; VAPID keys in Secret Manager, nothing sent when unset), and a subscription revoked by the browser is deleted on the first 404/410.
 
-- `notifyCommentOnMyProposal` (default **on**): someone commented under a contract you posted.
-- `notifyReplyToMyComment` (default **on**): someone else commented in a thread you have commented in, contract or market.
-- `notifyNewProposal` (default **off**): a new contract went on the ballot in a workspace you belong to.
-- `notifyAnyComment` (default **off**, added 2026-08-21): every comment on a workspace you belong to, whoever wrote it and wherever it landed, contract thread or market thread.
-- `notifyMarketResolved` (default **on**, added 2026-08-24): a market you traded settled, with the value it settled at. A voided market is not a settlement and sends nothing; its refund is the message.
-- `notifyContractDecided` (default **on**, added 2026-08-24): a contract you traded on (either branch) or commented under, anywhere in its conversation, was approved or declined. The proposer's own copy stays switchless (below); this switch is for everyone else with money or words on the outcome. The owner who made the decision is never mailed about their own act.
+The kinds, with each channel's default:
+
+- `comment` (web on, email on, mobile on): someone commented under a contract you posted, its conditional markets included.
+- `reply` (web on, email on, mobile on): someone else commented in a thread you have commented in, contract or market, and only after you first spoke in it.
+- `settled` (web on, email on, mobile on; added 2026-08-24): a market you traded settled, with the value it settled at. A voided market is not a settlement and sends nothing; its refund is the message.
+- `decision` (web on, email on, mobile on; widened 2026-08-24): a contract you posted, traded on (either branch), or commented under anywhere in its conversation was approved or declined. The proposer's own email stays switchless (below); the cells govern everyone else with money or words on the outcome, and the owner who made the decision is never told about their own act.
+- `contract` (web on, email off, mobile off): a new contract went on the ballot in a workspace you belong to. Web on because the bell has always shown these.
+- `anyComment` (all off; added 2026-08-21): every comment on a workspace you belong to, whoever wrote it and wherever it landed. The owner of a floor wants it; nobody else does.
+
+(The email cells map onto the legacy columns `notifyCommentOnMyProposal`, `notifyReplyToMyComment`, `notifyMarketResolved`, `notifyContractDecided`, `notifyNewProposal`, `notifyAnyComment`, in that kind order.)
 
 The split of defaults is the design, not an accident. The on-by-default switches are answers addressed *to you*: a reply someone is waiting on, the settlement of a bet you placed, the verdict on a contract you priced or argued about. The firehoses (new contracts, every comment) have their volume set by strangers, so they stay off until someone asks for them. New accounts get exactly this at signup; nothing is asked at the door, because a notification question in a signup form costs more traders than it saves emails.
 
@@ -605,14 +609,9 @@ invites someone to retype the rest from memory.
 
 ### The notifications inbox (Implemented 2026-08-19)
 
-Email is an interruption a person tunes; it is a bad record. A participant who switched the new-contract alert off still needs somewhere to see that a contract went up, and a participant who never opens their mail still needs to find out that their contract was declined and why. So the floor's top bar carries a bell, and **the bell shows everything**:
+Email is an interruption a person tunes; it is a bad record. A participant who switched the new-contract alert off still needs somewhere to see that a contract went up, and a participant who never opens their mail still needs to find out that their contract was declined and why. So the floor's top bar carries a bell. It derives the same kinds the mail knows (comment, reply, contract, settled, decision, and the anyComment firehose), plus the one thing only it carries: **a decision on your own contract**, the answer to the thing the poster is actually waiting for.
 
-- someone commented on a contract you posted, including on its conditional markets,
-- someone else commented in a thread you are in, and only after you first spoke in it: what was said before you arrived is the page you already read, not news addressed to you, so joining a thread never backfills its history into your inbox,
-- a new contract went on the ballot of a workspace you belong to,
-- **your own contract was approved or declined**, with the decline reason.
-
-That last one has no email switch at all and is the item most worth having: it is the answer to the thing the poster is actually waiting for. The email switches never filter this list, in either direction. Turning an email off means "stop writing to me", never "hide it from me", and a record with holes in it is worse than no record.
+Which kinds the bell derives is set by the matrix's **web** cells (revised 2026-08-24, with the matrix itself; until then the bell was deliberately unfiltered). The EMAIL cells still never filter it: turning an email off means "stop writing to me", never "hide it from me". A kind whose web cell is off is not derived at all rather than derived-as-read, so switching it back on shows what happened meanwhile.
 
 `GET /api/notifications` derives the list from the tables the floor already keeps (`proposal_messages`, `market_messages`, `proposals`) rather than writing to a feed table on every event: a feed table would have to be backfilled to be useful on the day it ships, and could then disagree with the thing it describes. Read state has two parts. `agents.notificationsSeenAt`, moved by `POST /api/notifications/seen`, means "everything older than this is read", which is the cheap sweep. `POST /api/notifications/:itemId/read` reads ONE item, because the way a person actually clears an inbox is by opening things: the count goes down by one per row opened, not only all at once (owner ask 2026-08-19). Those rows live in `notification_reads` and are deleted whenever the watermark moves past them, since the watermark then covers them and a table of read receipts nobody queries is only growth. A row is unread when it is newer than the watermark AND not in that set, so reading the same row twice is not two decrements. The watermark defaults to now, and migration 0064 backfilled existing rows the same way, because a null would have meant every existing account's first sight of the feature was a badge counting months of history nobody promised them, and a badge nobody believes is worse than no badge.
 

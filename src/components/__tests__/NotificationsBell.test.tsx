@@ -66,7 +66,7 @@ describe('the notifications bell', () => {
   test('a decision on my own contract reads as mine, with the reason', async () => {
     bell();
     fireEvent.click(await screen.findByRole('button', { name: /what's new/i }));
-    expect(await screen.findByText(/Your contract was decided/)).toBeTruthy();
+    expect(await screen.findByText(/A contract was decided/)).toBeTruthy();
     expect(screen.getByText('out of scope this quarter')).toBeTruthy();
   });
 

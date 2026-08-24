@@ -3,7 +3,7 @@ import { FloorModal } from './FloorModal';
 import { AccountCredits } from './AccountCredits';
 import { AccountPassword } from './AccountPassword';
 import { SeasonEntryPanel } from './SeasonEntryPanel';
-import { api, type NotificationPrefs, type PayoutMethod } from '../lib/api';
+import { api, type NotificationChannel, type NotificationKindId, type NotificationMatrix, type NotificationPrefs, type PayoutMethod } from '../lib/api';
 import { agentPrompt, type FloorRef } from '../lib/agent-prompt';
 import { useAuth } from '../hooks/useAuth';
 
@@ -30,19 +30,33 @@ interface Participant {
 }
 
 /**
- * The email switches, in the order a trader meets them: the two answers
- * addressed to you first, the firehose last. Labels say what LANDS in the
- * inbox, not what the column is called (docs/vision.md, "Participant email
- * notifications").
+ * The notification matrix's rows, in the order a trader meets them: the
+ * answers addressed to you first, the firehoses last. Labels say what LANDS,
+ * not what the column is called (docs/vision.md, "Participant notifications").
+ * Each row is one kind, deliverable over three channels: Web is the bell,
+ * Email is mail, Mobile is a browser push (owner ask 2026-08-24).
  */
-const EMAIL_SWITCHES: Array<{ key: keyof NotificationPrefs; label: string }> = [
-  { key: 'commentOnMyProposal', label: 'Someone comments on my contract' },
-  { key: 'replyToMyComment', label: 'Someone replies in a thread I am in' },
-  { key: 'newProposal', label: 'A new contract goes on the ballot' },
-  { key: 'anyComment', label: 'Any comment, under any contract or market' },
-  { key: 'marketResolved', label: 'A market I traded settles' },
-  { key: 'contractDecided', label: 'A contract I traded or commented on is decided' },
+const NOTIFICATION_ROWS: Array<{ kind: NotificationKindId; label: string }> = [
+  { kind: 'comment', label: 'Someone comments on my contract' },
+  { kind: 'reply', label: 'Someone replies in a thread I am in' },
+  { kind: 'settled', label: 'A market I traded settles' },
+  { kind: 'decision', label: 'A contract I traded or commented on is decided' },
+  { kind: 'contract', label: 'A new contract goes on the ballot' },
+  { kind: 'anyComment', label: 'Any comment, under any contract or market' },
 ];
+const CHANNEL_LABELS: Array<{ channel: NotificationChannel; label: string }> = [
+  { channel: 'web', label: 'Web' },
+  { channel: 'email', label: 'Email' },
+  { channel: 'mobile', label: 'Mobile' },
+];
+
+/** The browser's base64url VAPID key as the byte array subscribe() wants. */
+function vapidKeyBytes(base64url: string): Uint8Array {
+  const padding = '='.repeat((4 - (base64url.length % 4)) % 4);
+  const base64 = (base64url + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  return Uint8Array.from([...raw].map(c => c.charCodeAt(0)));
+}
 
 /**
  * The account is filed, not stacked (owner report 2026-08-19: the dialog
@@ -57,22 +71,10 @@ type AccountTab = 'profile' | 'money' | 'emails' | 'ai' | 'security';
 const TABS: Array<{ id: AccountTab; label: string }> = [
   { id: 'profile', label: 'Profile' },
   { id: 'money', label: 'Money' },
-  { id: 'emails', label: 'Emails' },
+  { id: 'emails', label: 'Notifications' },
   { id: 'ai', label: 'Your AI' },
   { id: 'security', label: 'Security' },
 ];
-
-/** What a participant sees before their own settings have loaded, and what a
- *  row written before the switches existed reads as. Same defaults as the
- *  database columns; if these two ever disagree the database wins. */
-const DEFAULT_PREFS: NotificationPrefs = {
-  commentOnMyProposal: true,
-  replyToMyComment: true,
-  newProposal: false,
-  anyComment: false,
-  marketResolved: true,
-  contractDecided: true,
-};
 
 const PROVIDERS: Array<{ id: PayoutMethod['provider']; label: string }> = [
   { id: 'paypal', label: 'PayPal' },
@@ -173,10 +175,11 @@ export function AccountDialog({ onClose, initialTab = 'profile', floor = null }:
   const [fields, setFields] = useState<Record<string, string>>({});
   const [payDirty, setPayDirty] = useState(false);
 
-  // Email switches. They save on the click (no separate confirm): a switch
-  // that needs a Save button reads as a form, and the state shown is the
-  // state stored, rolled back if the server refuses.
-  const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);
+  // The notification matrix. Each cell saves on the click (no separate
+  // confirm): a switch that needs a Save button reads as a form, and the
+  // state shown is the state stored, rolled back if the server refuses.
+  // Null until GET /api/auth/me answers with the resolved matrix.
+  const [matrix, setMatrix] = useState<NotificationMatrix | null>(null);
 
   const [promptCopied, setPromptCopied] = useState(false);
 
@@ -204,13 +207,19 @@ export function AccountDialog({ onClose, initialTab = 'profile', floor = null }:
         setNickSaved(part.nickname ?? '');
         setBio(part.bio ?? '');
         setBioSaved(part.bio ?? '');
-        if (part.notifications) setPrefs(part.notifications);
+
         if (part.payoutMethod) {
           setProvider(part.payoutMethod.provider);
           setFields(storedFields(part.payoutMethod));
         }
       })
       .catch(e => console.error('participant fetch failed:', e));
+    api.getProfile()
+      .then(p => {
+        const m = (p as { notificationChannels?: NotificationMatrix }).notificationChannels;
+        if (m) setMatrix(m);
+      })
+      .catch(e => console.error('notification matrix fetch failed:', e));
   }, []);
 
   useEffect(loadParticipant, [loadParticipant]);
@@ -303,17 +312,38 @@ export function AccountDialog({ onClose, initialTab = 'profile', floor = null }:
     }
   };
 
-  const toggleEmail = async (key: keyof NotificationPrefs) => {
-    const next = { ...prefs, [key]: !prefs[key] };
-    const previous = prefs;
+  /** Make this browser one of my mobile addresses: register the service
+   *  worker, ask permission, subscribe, and file the subscription. Ran the
+   *  first time any Mobile cell goes on; browsers keep the registration. */
+  const ensurePushSubscribed = async () => {
+    const { configured, publicKey } = await api.getPushKey();
+    if (!configured || !publicKey) throw new Error('Push notifications are not set up on this server yet');
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+      throw new Error('This browser does not support push notifications');
+    }
+    const reg = await navigator.serviceWorker.register('/sw.js');
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') throw new Error('The browser blocked notifications; allow them in site settings');
+    const existing = await reg.pushManager.getSubscription();
+    const sub = existing ?? await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: vapidKeyBytes(publicKey) as BufferSource,
+    });
+    await api.registerPushSubscription(sub.toJSON());
+  };
+
+  const toggleCell = async (kind: NotificationKindId, channel: NotificationChannel) => {
+    if (!matrix) return;
+    const value = !matrix[kind][channel];
+    const previous = matrix;
     clearErr('emails');
-    setPrefs(next);
-    setBusy(`email:${key}`);
+    setMatrix({ ...matrix, [kind]: { ...matrix[kind], [channel]: value } });
+    setBusy(`cell:${kind}:${channel}`);
     try {
-      await api.upsertProfile({ notifications: { [key]: next[key] } });
-      setParticipant(p => (p ? { ...p, notifications: next } : p));
+      if (channel === 'mobile' && value) await ensurePushSubscribed();
+      await api.upsertProfile({ notificationChannels: { [kind]: { [channel]: value } } });
     } catch (e) {
-      setPrefs(previous);
+      setMatrix(previous);
       sectionErr('emails', (e as Error).message || 'Could not change that setting');
     } finally {
       setBusy(null);
@@ -595,30 +625,43 @@ export function AccountDialog({ onClose, initialTab = 'profile', floor = null }:
 
         {tab === 'emails' && (
           <>
-          {/* Emails: which of them reach you. The two answers addressed to
-              you are on for a new account, the new-contract firehose is off
-              (docs/vision.md, "Participant email notifications"). Each row
-              saves on the click; there is no confirm to forget to press. */}
+          {/* The matrix: each kind of news, over three channels. Web is the
+              bell, Email is mail, Mobile is a browser push. Answers addressed
+              to you are on for a new account, the firehoses off (docs/
+              vision.md, "Participant notifications"). Each cell saves on the
+              click; there is no confirm to forget to press. */}
           <div className="jobform-field">
-            <span className="ticket-label">Emails</span>
+            <span className="ticket-label">Notifications</span>
             <div className="acctdlg-switches">
-              {EMAIL_SWITCHES.map(sw => (
-                <button
-                  key={sw.key}
-                  type="button"
-                  role="switch"
-                  aria-checked={prefs[sw.key]}
-                  className={`acctdlg-switch${prefs[sw.key] ? ' is-on' : ''}`}
-                  disabled={busy === `email:${sw.key}`}
-                  onClick={() => void toggleEmail(sw.key)}
-                >
-                  <span className="acctdlg-switch-box" aria-hidden="true">{prefs[sw.key] ? '✓' : ''}</span>
-                  <span className="acctdlg-switch-label">{sw.label}</span>
-                </button>
+              {matrix === null ? (
+                <p className="acctdlg-hint">Loading your settings…</p>
+              ) : NOTIFICATION_ROWS.map(row => (
+                <div key={row.kind} className="acctdlg-matrix-row">
+                  <span className="acctdlg-matrix-label">{row.label}</span>
+                  <span className="acctdlg-matrix-cells">
+                    {CHANNEL_LABELS.map(({ channel, label }) => (
+                      <button
+                        key={channel}
+                        type="button"
+                        role="switch"
+                        aria-checked={matrix[row.kind][channel]}
+                        aria-label={`${row.label}: ${label}`}
+                        className={`acctdlg-switch acctdlg-switch--cell${matrix[row.kind][channel] ? ' is-on' : ''}`}
+                        disabled={busy === `cell:${row.kind}:${channel}`}
+                        onClick={() => void toggleCell(row.kind, channel)}
+                      >
+                        <span className="acctdlg-switch-box" aria-hidden="true">{matrix[row.kind][channel] ? '✓' : ''}</span>
+                        <span className="acctdlg-switch-label">{label}</span>
+                      </button>
+                    ))}
+                  </span>
+                </div>
               ))}
             </div>
             <p className="acctdlg-hint">
-              Sent to {user?.email ?? 'your account email'}. Every one of them says how to turn it off.
+              Email goes to {user?.email ?? 'your account email'}; every one says how to turn it off.
+              Mobile is a push notification from this browser: switching one on asks the browser's permission,
+              and works on a phone when Telarchy is installed from the browser menu.
             </p>
           </div>
           {errors.emails && <p className="ticket-err">{errors.emails}</p>}
