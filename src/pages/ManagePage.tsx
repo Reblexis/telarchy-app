@@ -3,8 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { SetupChat } from '../components/SetupChat';
 import { useAuth } from '../hooks/useAuth';
-import { Logo } from '../components/Logo';
-import { TopBarAuth } from '../components/TopBarAuth';
+import { PageTopBar } from '../components/PageTopBar';
 
 /**
  * The operator door: Otto, and nothing else.
@@ -32,12 +31,7 @@ export function ManagePage() {
 
   return (
     <div className="pubws">
-      <nav className="pubws-topbar">
-        <Link to="/" className="pubws-logolink" aria-label="Telarchy">
-          <Logo variant="lockup" height="2.1rem" />
-        </Link>
-        <TopBarAuth />
-      </nav>
+      <PageTopBar />
       <main className="pubws-main">
 
         {/* Otto runs the setup, not a form (owner direction 2026-08-22,

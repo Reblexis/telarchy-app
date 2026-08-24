@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, type PublicParticipantProfile, type PublicProfilePosition, type PublicProfileTrade, type ProfileProposedJob } from '../lib/api';
-import { Logo } from '../components/Logo';
 import { ManifoldLogo } from '../components/ManifoldLogo';
+import { PageTopBar } from '../components/PageTopBar';
 
 /**
  * A participant's public profile, reworked to be a profile (owner
@@ -124,11 +124,7 @@ export function ParticipantProfilePage() {
 
   return (
     <div className="prof-page">
-      <nav className="pubws-topbar">
-        <Link to="/" className="pubws-logolink" aria-label="Telarchy">
-          <Logo variant="lockup" height="3rem" />
-        </Link>
-      </nav>
+      <PageTopBar />
 
       <main className="prof-main">
         {loading && <p className="prof-empty">Loading…</p>}

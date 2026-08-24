@@ -1453,9 +1453,14 @@ code, pre, kbd, samp {
   /* center, not baseline: the left side is the logo image, and an image's
      baseline is its bottom edge */
   align-items: center;
-  max-width: 660px;
-  margin: 0 auto;
-  padding: 1.1rem 1.25rem 0;
+  /* Full bleed on EVERY page (owner, 2026-08-24). The mark belongs to the
+     viewport's top-left corner and the account to its top-right, the way any
+     site header works; tied to the 660px column it floated a third of the way
+     in, aligned to nothing. The market page had this fixed long ago and the
+     standalone pages never got it, so the mark moved and changed size
+     depending on which page you were standing on. */
+  width: 100%;
+  padding: 1.3rem clamp(1.25rem, 3vw, 2.25rem) 0;
 }
 
 .pubws-wordmark {
@@ -5407,12 +5412,6 @@ textarea.jobform-line--desc {
    to the 660px column it floated a third of the way in, aligned to nothing
    (the chart below breaks out wider than the column anyway). In a flex
    column, margin:0 auto would also shrink the bar to its content. */
-.pubws--center .pubws-topbar {
-  width: 100%;
-  max-width: none;
-  margin: 0;
-  padding: 1.3rem clamp(1.25rem, 3vw, 2.25rem) 0;
-}
 .pubws--center .pubws-main {
   flex: 1;
   display: flex;
@@ -6117,12 +6116,10 @@ textarea.jobform-line--desc {
 
 /* The wordmark lines up with the form it sits over, not with the floor's
    wider column, or it reads as aligned to nothing. */
-.pubws-topbar--narrow { max-width: 26rem; }
 
 /* A legal document is a document: wider than the poster column, and its
    own top bar has to follow it out to that width or the wordmark floats
    aligned to nothing. */
-.pubws-topbar--wide { max-width: 820px; }
 
 .pubws-doc {
   max-width: 760px;

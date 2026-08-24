@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { api } from '../lib/api';
-import { Logo } from '../components/Logo';
+import { PageTopBar } from '../components/PageTopBar';
 
 const mdStyles: React.CSSProperties = {
   fontSize: '0.875rem',
@@ -31,11 +31,7 @@ export function LegalPage({ document }: LegalPageProps) {
      Wider than the poster column because a legal document is a document. */
   return (
     <div className="pubws">
-      <nav className="pubws-topbar pubws-topbar--wide">
-        <Link to="/" className="pubws-logolink" aria-label="Telarchy">
-          <Logo variant="lockup" height="2.1rem" />
-        </Link>
-      </nav>
+      <PageTopBar />
       <div className="pubws-doc" style={{ opacity: loading ? 0.5 : 1, transition: 'opacity 0.1s' }}>
         <ReactMarkdown
           components={{

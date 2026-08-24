@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Logo } from '../components/Logo';
-import { TopBarAuth } from '../components/TopBarAuth';
+import { PageTopBar } from '../components/PageTopBar';
 
 /**
  * telarchy.com/about: what this site is, said once, for the cold visitor who
@@ -25,12 +24,7 @@ export function AboutPage() {
 
   return (
     <div className="pubws">
-      <nav className="pubws-topbar">
-        <Link to="/" className="pubws-logolink" aria-label="Telarchy">
-          <Logo variant="lockup" height="2.1rem" />
-        </Link>
-        <TopBarAuth />
-      </nav>
+      <PageTopBar />
       <main className="pubws-main">
         <header className="pubws-hero pubws-hero--left">
           <h1 className="pubws-name">About Telarchy</h1>

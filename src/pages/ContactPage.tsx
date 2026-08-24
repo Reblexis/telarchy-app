@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { withBase } from '../lib/base-path';
-import { Logo } from '../components/Logo';
-import { TopBarAuth } from '../components/TopBarAuth';
+import { PageTopBar } from '../components/PageTopBar';
 
 /** Same invite the market pages' Discord button carries; one constant would
  *  be better, but DiscordButton keeps its own for now (both are pinned by
@@ -17,12 +16,7 @@ const DISCORD_INVITE = 'https://discord.gg/uRfx6UBYcK';
 export function ContactPage() {
   return (
     <div className="pubws">
-      <nav className="pubws-topbar">
-        <Link to="/" className="pubws-logolink" aria-label="Telarchy">
-          <Logo variant="lockup" height="2.1rem" />
-        </Link>
-        <TopBarAuth />
-      </nav>
+      <PageTopBar />
       <main className="pubws-main">
         <header className="pubws-hero">
           <h1 className="pubws-name">Contact</h1>

@@ -38,6 +38,22 @@ describe('the mark', () => {
     expect(offenders).toEqual([]);
   });
 
+  test('the standalone pages share ONE bar rather than five copies', () => {
+    // "The same in every place" decays the moment it is five copies: the
+    // market page's bar went full-bleed with a 3rem lockup and the others
+    // each kept a 660px centred bar with a 2.1rem one, so the mark moved and
+    // changed size depending on where you were standing (owner, 2026-08-24).
+    const handRolled = tsxFiles(SRC)
+      .filter(f => {
+        const src = readFileSync(f, 'utf8');
+        if (!src.includes('<nav className="pubws-topbar')) return false;
+        // TradePage's own bar carries controls these pages do not have.
+        return !f.endsWith('TradePage.tsx') && !f.endsWith('PageTopBar.tsx');
+      })
+      .map(f => f.slice(SRC.length + 1));
+    expect(handRolled).toEqual([]);
+  });
+
   test('every top bar carries the lockup, its own or an inherited one', () => {
     const missing = tsxFiles(SRC)
       .filter(f => {
@@ -45,7 +61,7 @@ describe('the mark', () => {
         if (!src.includes('pubws-topbar')) return false;
         // A page either renders the bar itself or hands it to TopBar /
         // AuthShell, both of which carry the lockup.
-        return !(src.includes('<Logo') || src.includes('<TopBar') || src.includes('<AuthShell'));
+        return !(src.includes('<Logo') || src.includes('<TopBar') || src.includes('<AuthShell') || src.includes('<PageTopBar'));
       })
       .map(f => f.slice(SRC.length + 1));
     expect(missing).toEqual([]);

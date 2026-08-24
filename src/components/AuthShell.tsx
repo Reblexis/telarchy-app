@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import type { ReactNode } from 'react';
-import { Logo } from './Logo';
+import { PageTopBar } from './PageTopBar';
 
 /**
  * The frame every door shares: log in, sign up, the waitlist.
@@ -24,11 +24,7 @@ export function AuthShell({
 }) {
   return (
     <div className="pubws">
-      <nav className="pubws-topbar pubws-topbar--narrow">
-        <Link to="/" className="pubws-logolink" aria-label="Telarchy">
-          <Logo variant="lockup" height="2.1rem" />
-        </Link>
-      </nav>
+      <PageTopBar />
       <main className="pubws-main pubws-auth">
         <header className="pubws-hero">
           <h1 className="pubws-name">{title}</h1>
