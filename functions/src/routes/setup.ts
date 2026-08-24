@@ -10,6 +10,7 @@ import { sanitiseDecisionIds, SETUP_SPEC } from '../lib/setup-spec';
 import { buildChecklist } from '../services/setup-checklist';
 import { writeHandoff } from '../services/setup-handoff';
 import { ottoApiTools, type ApiCallRecord } from '../services/otto-tools';
+import { webSearchTool } from '../services/web-search';
 
 export const setupRouter = Router();
 
@@ -127,7 +128,10 @@ setupRouter.post('/ask', wrap(async (req, res) => {
     }
 
     const { answer, usage } = await askAboutWorkspace(
-      brief, turns, ottoApiTools(req, actions), {
+      // He can read about them as well as ask. What comes back is fenced as
+      // untrusted (services/web-search.ts) and recorded in `actions` beside
+      // the API calls, so the log says what he went and read.
+      brief, turns, [webSearchTool(actions), ...ottoApiTools(req, actions)], {
         system: SETUP_SYSTEM,
         ...(streaming ? { onDelta: (text: string) => send('delta', { text }) } : {}),
       });
