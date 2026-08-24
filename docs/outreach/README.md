@@ -9,6 +9,7 @@ mechanism gets its own subdirectory.
 | --- | --- | --- |
 | `concierge/` | active 2026-04-29 → 2026-05-27 | The founder concierge program. Process tracked, real-people data gitignored. See `concierge/program.md`. |
 | `contracts/` | active 2026-08-21 | Paid contracts with individual participants, negotiated on the Telarchy floor itself: what was asked, what terms we changed, and why. Started with Tetraspace's $20 writeup. |
+| `x-feed/` | specified 2026-08-24, not yet live | The Telarchy brand account on X as a machine-generated ledger (receipts for paid contracts, new contracts, weekly standings), never prose. Templates and approval state in `x-feed/feed.md`; the poster cron lives in the agent-economy umbrella. |
 
 ## Tracked vs gitignored split
 
