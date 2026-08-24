@@ -35,8 +35,27 @@ export interface ChecklistItem {
   note: string;
 }
 
+/** Enough of the market to draw it. The page's hero IS the instrument, and it
+ *  fills in as the setup goes; every field here comes from the market row, so
+ *  what the operator watches sharpen is the real thing rather than an
+ *  illustration of it. */
+export interface ChecklistMarket {
+  metricName: string;
+  rangeMin: number;
+  rangeMax: number;
+  targetDate: string;
+  /** Where the market currently sits inside the band, or null when it holds
+   *  nothing and therefore predicts nothing. */
+  consensus: number | null;
+  /** Credits behind it, which is what decides whether that number means
+   *  anything (see the shove test above). */
+  pool: number;
+}
+
 export interface Checklist {
   workspace: { id: string; name: string; slug: string | null; visibility: string } | null;
+  /** The market the hero draws, when one exists. */
+  market: ChecklistMarket | null;
   items: ChecklistItem[];
   /** Things that stop the floor working AT ALL, in the order they bite. A
    *  market with no liquidity is the loud one: it renders, it looks finished,
@@ -48,7 +67,7 @@ const count = sql<number>`count(*)::int`;
 
 export async function buildChecklist(workspaceId: string): Promise<Checklist> {
   const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, workspaceId));
-  if (!ws) return { workspace: null, items: [], blocking: [] };
+  if (!ws) return { workspace: null, market: null, items: [], blocking: [] };
 
   const metricRows = await db.select().from(metrics).where(eq(metrics.workspaceId, workspaceId));
   const leafMetrics = metricRows.filter(m => !m.formula || m.formula.trim() === '0');
@@ -209,8 +228,24 @@ export async function buildChecklist(workspaceId: string): Promise<Checklist> {
     blocking.push('The Public group cannot trade, so a visitor who joins can only watch. Grant trade on the Public group, or add participants by hand.');
   }
 
+  // The soonest open market on the floor's own number: the one the page draws.
+  const drawn = [...baseMarkets].sort((a, b) => a.targetDate.localeCompare(b.targetDate))[0] ?? null;
+  const market: ChecklistMarket | null = drawn
+    ? {
+      metricName: metricRows.find(m => m.id === drawn.metricId)?.name ?? '',
+      rangeMin: drawn.rangeMin,
+      rangeMax: drawn.rangeMax,
+      targetDate: drawn.targetDate,
+      consensus: (drawn.liquidity ?? 0) > 0
+        ? consensus((drawn.shares ?? [0, 0]) as [number, number], drawn.liquidity, drawn.rangeMin, drawn.rangeMax) ?? null
+        : null,
+      pool: poolCredits(drawn.liquidity ?? 0),
+    }
+    : null;
+
   return {
     workspace: { id: ws.id, name: ws.name, slug: ws.slug, visibility: ws.visibility },
+    market,
     items,
     blocking,
   };

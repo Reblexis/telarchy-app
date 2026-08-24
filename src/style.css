@@ -4068,10 +4068,10 @@ textarea.jobform-line--desc {
 .pubws-delta-chip.is-down { color: var(--lower); }
 
 .pubws-logolink { display: inline-flex; align-items: center; }
-/* The wordmark class is now only the fallback text inside the link, kept so a
-   page that has not been converted still reads as Telarchy rather than as
-   nothing. The lockup is the identity (owner direction 2026-08-24). */
-.pubws-logolink .logo-img { display: block; }
+/* No display rule for .logo-img here: the light/dark pair is switched by
+   .logo-img-light / .logo-img-dark (0,1,0), and a descendant rule on the
+   shared class (0,2,0) outranks both, which painted BOTH lockups on every
+   page the moment the mark landed in the top bars. */
 
 /* The trading floor: rails beside the poster on wide screens (top traders
    left, action log right), stacked under it on narrow ones. The center
@@ -7116,14 +7116,6 @@ textarea.jobform-line--desc {
 }
 
 .setup-open { padding: 1.2rem 0 0.4rem; text-align: center; }
-.setup-greeting {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: clamp(1.5rem, 4vw, 2rem);
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  color: var(--text-primary);
-}
 .setup-sub {
   max-width: 34rem;
   margin: 0.7rem auto 0;
@@ -7391,3 +7383,133 @@ textarea.jobform-line--desc {
 .setup-item-label { color: var(--text-primary); }
 .setup-item.is-open .setup-item-label { color: var(--text-secondary); }
 .setup-item-note { grid-column: 2; color: var(--text-tertiary); }
+
+/* ---------------------------------------------------------------------------
+   The market drawing itself (design approved 2026-08-24).
+
+   The operator door's hero is the instrument every market page leads with,
+   ghosted: the needle drifts because nothing has been priced, the ceiling
+   reads "?" because they have not said, the figure sweeps because there is no
+   figure. Every answer sharpens it and the end of setup is the same object,
+   live. Setting up draws the thing you are getting, which is the only reason
+   a setup screen is ever worth watching.
+
+   Every value comes from the market row (GET /api/setup/checklist), so the
+   ghost is not decoration: a band with no needle means the market really does
+   hold nothing and cannot be traded.
+   ------------------------------------------------------------------------ */
+.instr { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.instr-read { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.instr-cap {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+.instr-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  font-size: clamp(2.8rem, 9vw, 4.6rem);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.instr-sub { font-family: 'Fraunces', serif; font-size: 0.95rem; color: var(--text-tertiary); }
+
+/* One sweep across the unset figure: breathing, not a loading bar. */
+.instr-ghostnum {
+  background: linear-gradient(100deg, var(--border-strong) 0%, var(--border-strong) 38%, var(--text-primary) 50%, var(--border-strong) 62%, var(--border-strong) 100%);
+  background-size: 240% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: instr-sweep 6.5s ease-in-out infinite;
+}
+@keyframes instr-sweep { 0% { background-position: -140% 0; } 60%, 100% { background-position: 240% 0; } }
+
+.instr-band { position: relative; width: 100%; max-width: 34rem; height: 44px; margin: 14px 0 18px; }
+.instr-rail { position: absolute; left: 0; right: 0; top: 21px; height: 2px; background: var(--border-color); }
+.instr-rail.is-unset { background: none; border-top: 2px dashed var(--border-strong); }
+.instr-end {
+  position: absolute;
+  top: 26px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+}
+.instr-end--min { left: 0; }
+.instr-end--max { right: 0; }
+
+/* Unset, it looks for somewhere to sit. Set, it stops and only breathes, and
+   it TRANSITIONS to its new place, so a trade or a wider band is a move the
+   reader can follow rather than a jump. */
+.instr-needle {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 44px;
+  background: linear-gradient(180deg, transparent 0%, var(--accent) 35%, var(--accent) 65%, transparent 100%);
+  box-shadow: 0 0 18px 3px var(--accent-ring);
+  animation: instr-drift 9s cubic-bezier(.45,.05,.55,.95) infinite;
+}
+.instr-needle.is-set {
+  animation: instr-settle 3.6s ease-in-out infinite;
+  transition: left 900ms cubic-bezier(.22,.61,.36,1);
+}
+@keyframes instr-drift { 0%, 100% { left: 18%; } 50% { left: 78%; } }
+@keyframes instr-settle { 0%, 100% { transform: translateX(-1px); } 50% { transform: translateX(1px); } }
+
+/* The strip the conversation runs under. */
+.instr--strip {
+  flex-direction: row;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  padding: 12px 18px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--bg-elevated) 72%, transparent);
+}
+.instr--strip .instr-read { align-items: flex-start; gap: 1px; flex-shrink: 0; }
+.instr--strip .instr-cap { text-align: left; font-size: 0.62rem; letter-spacing: 0.12em; max-width: 16rem; }
+.instr--strip .instr-value { font-size: 1.7rem; }
+.instr--strip .instr-band { flex-grow: 1; max-width: none; height: 30px; margin-top: 0; }
+.instr--strip .instr-rail { top: 14px; }
+.instr--strip .instr-needle { top: 2px; height: 26px; }
+.instr--strip .instr-end { top: 18px; font-size: 0.66rem; }
+.instr-settles { flex-shrink: 0; font-family: 'JetBrains Mono', monospace; font-size: 0.76rem; color: var(--text-tertiary); }
+
+/* Nine decisions, nine ticks; the one that just settled is the only accent. */
+.instr-ticks { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.instr-tick { width: 7px; height: 7px; border-radius: 50%; background: var(--border-color); }
+.instr-tick.is-done { background: var(--text-primary); }
+.instr-tick.is-done + .instr-tick.is-open {
+  background: var(--accent);
+  animation: instr-tick 2.4s ease-out infinite;
+}
+@keyframes instr-tick {
+  0% { box-shadow: 0 0 0 0 var(--accent-ring); }
+  100% { box-shadow: 0 0 0 9px transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .instr-ghostnum { animation: none; color: var(--border-strong); }
+  .instr-needle, .instr-needle.is-set, .instr-tick.is-done + .instr-tick.is-open { animation: none; }
+  .instr-needle { left: 50%; }
+}
+
+/* The head of the conversation: strip plus ticks on one line. */
+.setup-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+@media (max-width: 720px) {
+  .setup-head { flex-direction: column; align-items: stretch; gap: 10px; }
+  .instr--strip { flex-wrap: wrap; gap: 12px; }
+  .instr--strip .instr-band { order: 3; flex-basis: 100%; }
+}

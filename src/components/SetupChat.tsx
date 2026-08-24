@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
+import { SetupInstrument, SetupTicks, type InstrumentMarket } from './SetupInstrument';
 
 /**
  * Otto on the operator door (owner direction 2026-08-22).
@@ -46,6 +47,7 @@ export function SetupChat({ signedIn }: { signedIn: boolean }) {
   const [settled, setSettled] = useState<string[]>([]);
   const [checklist, setChecklist] = useState<{
     blocking: string[];
+    market: InstrumentMarket | null;
     items: Array<{ id: string; label: string; status: 'done' | 'open'; note: string }>;
   } | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
@@ -98,38 +100,47 @@ export function SetupChat({ signedIn }: { signedIn: boolean }) {
     <div className={`setup${handoff ? ' setup--withhandoff' : ''}`}>
       <section className="setup-talk" aria-label="Setting up your market with Otto">
         {turns.length === 0 ? (
-          /* One greeting, which is also the page's title. The door used to
-             carry a poster hero AND this, so a visitor met two headlines
-             before the thing they came to type into. */
+          /* The hero is the instrument, unset. One statement, and it is the
+             object they are about to make rather than a headline about it. */
           <div className="setup-open">
-            <h1 className="setup-greeting">Put your number up.</h1>
+            <SetupInstrument market={null} />
             <p className="setup-sub">
-              Name the number you answer to, and anyone can offer a job that
-              moves it. The market prices the job before you decide.
-              {signedIn
-                ? ' Tell Otto what you run and he will open the market here.'
-                : ' Tell Otto what you run and he will pick the number; opening it takes an account.'}
+              Say what you run. Otto picks the number worth putting up, opens the
+              market for it, and hands you a prompt so your own agent can finish
+              the setup.
             </p>
           </div>
         ) : (
-          <div className="setup-log">
-            {turns.map((t, i) => (
-              t.role === 'user'
-                ? <p className="setup-you" key={i}>{t.content}</p>
-                : <p className="setup-otto" key={i}>{t.content}</p>
-            ))}
-            {busy && <span className="setup-thinking" aria-label="Otto is thinking" />}
-            {error && <p className="setup-err">{error}</p>}
-            {/* The one fact among all the talk: a floor that exists. */}
-            {opened.map(o => o.slug && (
-              <Link className="setup-made" to={`/${o.slug}`} key={o.slug}>
-                <span className="setup-made-label">Open</span>
-                <span className="setup-made-name">{o.name}</span>
-                <span className="setup-made-at">telarchy.com/{o.slug}</span>
-              </Link>
-            ))}
-            <div ref={endRef} />
-          </div>
+          <>
+            {/* Once they are talking it does not disappear, it shrinks and
+                keeps filling in. That IS the progress bar. */}
+            <div className="setup-head">
+              <SetupInstrument market={checklist?.market ?? null} name={opened[0]?.name ?? null} compact />
+              <SetupTicks items={checklist?.items ?? []} />
+            </div>
+            <div className="setup-log">
+              {turns.map((t, i) => (
+                t.role === 'user'
+                  ? <p className="setup-you" key={i}>{t.content}</p>
+                  : <p className="setup-otto" key={i}>{t.content}</p>
+              ))}
+              {busy && (
+                <span className="setup-thinking" aria-label="Otto is thinking">
+                  <span /><span /><span />
+                </span>
+              )}
+              {error && <p className="setup-err">{error}</p>}
+              {/* The one fact among all the talk: a market that exists. */}
+              {opened.map(o => o.slug && (
+                <Link className="setup-made" to={`/${o.slug}`} key={o.slug}>
+                  <span className="setup-made-label">Live</span>
+                  <span className="setup-made-name">{o.name}</span>
+                  <span className="setup-made-at">telarchy.com/{o.slug}</span>
+                </Link>
+              ))}
+              <div ref={endRef} />
+            </div>
+          </>
         )}
 
         <form

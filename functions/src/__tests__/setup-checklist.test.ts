@@ -229,3 +229,40 @@ describe('the vocabulary a reader gets', () => {
     expect(text).not.toMatch(/floor/i);
   });
 });
+
+describe('what the page draws', () => {
+  test('nothing to draw before a market exists', async () => {
+    expect((await buildChecklist(WS)).market).toBeNull();
+  });
+
+  test('the market summary is the row, not an illustration of it', async () => {
+    await seedNumber({ liquidity: 721.35 });
+    const m = (await buildChecklist(WS)).market!;
+    expect(m.metricName).toBe('Monthly disputes arbitrated');
+    expect(m.rangeMax).toBe(5000);
+    expect(m.targetDate).toBe('2026-09');
+    // Untouched book sits in the middle of the band.
+    expect(m.consensus).toBe(2500);
+    expect(m.pool).toBe(500);
+  });
+
+  test('a market holding nothing predicts nothing, and says so with a null', async () => {
+    // The hero draws a ghost from this: a band with no needle to place, which
+    // is the honest picture of a market that cannot be traded.
+    await seedNumber({ liquidity: 0 });
+    const m = (await buildChecklist(WS)).market!;
+    expect(m.consensus).toBeNull();
+    expect(m.pool).toBe(0);
+  });
+
+  test('the soonest horizon is the one drawn', async () => {
+    await seedNumber({ liquidity: 100 });
+    await db.insert(markets).values({
+      id: 'mkt-later', workspaceId: WS, metricId: 'metric-1', metricName: 'Monthly disputes arbitrated',
+      targetDate: '2027-03', rangeMin: 0, rangeMax: 5000,
+      shares: [0, 0], liquidity: 100, pool: initialPool(100),
+      active: true, resolved: false, voided: false,
+    });
+    expect((await buildChecklist(WS)).market!.targetDate).toBe('2026-09');
+  });
+});

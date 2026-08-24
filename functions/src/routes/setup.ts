@@ -140,7 +140,11 @@ setupRouter.post('/ask', wrap(async (req, res) => {
       handoff: handoff.prompt,
       settled: handoff.settled,
       open: handoff.open,
-      checklist: checklist ? { blocking: checklist.blocking, items: checklist.items.map(i => ({ id: i.id, label: i.label, status: i.status, note: i.note })) } : null,
+      checklist: checklist ? {
+        blocking: checklist.blocking,
+        market: checklist.market,
+        items: checklist.items.map(i => ({ id: i.id, label: i.label, status: i.status, note: i.note })),
+      } : null,
     });
   } catch (e) {
     console.error('setup ask failed:', e);

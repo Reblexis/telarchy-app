@@ -103,13 +103,15 @@ describe('the handoff to your own agent', () => {
     const user = userEvent.setup();
     renderChat();
 
-    // Nothing to hand off before the conversation starts.
-    expect(screen.queryByText(/your own agent/i)).toBeNull();
+    // Nothing to hand off before the conversation starts. Asserted on the
+    // rail's own control rather than its heading text, because the hero's
+    // copy now also mentions your own agent.
+    expect(screen.queryByRole('button', { name: /copy prompt/i })).toBeNull();
 
     await user.type(screen.getByLabelText(/tell otto what you run/i), 'arbitration protocol');
     await user.click(screen.getByRole('button', { name: /send/i }));
 
-    expect(await screen.findByText(/your own agent/i)).toBeTruthy();
+    expect(await screen.findByRole('button', { name: /copy prompt/i })).toBeTruthy();
     expect(screen.getByText(/workspace id ws-42/)).toBeTruthy();
   });
 
