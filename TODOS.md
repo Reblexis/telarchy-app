@@ -175,3 +175,20 @@ expected to matter more as the pool grows.
 - Referral hook (500-credit bonus both sides). Needs credit-grant audit trail before wiring to `/api/agents/:id/credit`.
 - Position visibility per-workspace setting (front-running prevention vs social trading; deferred per `go-to-market.md` § Key Decisions).
 - Wallet connect (one-click USDC deposit) — gated on managed-instance USDC settlement legal posture.
+
+---
+
+## Added 2026-08-24 (eng review of the open-source release)
+
+Note: the P1/P2 items above date from the 2026-04-29 CEO plan and predate the console
+deletion (2026-08-19) and the open-source decision (2026-08-24). Treat them as history;
+the live plan is `telarchy/notes/open-source-execution-plan-2026-08-24.md`.
+
+### Open-core split of the market engine into a package (P3, trigger-gated)
+- **What:** Extract the AMM, formula and proposal-market logic (`functions/src/lib/amm.ts`, `functions/src/lib/formula/`, `functions/src/services/markets.ts`) into a published package other products can embed; the app becomes its first consumer.
+- **Why:** A second distribution channel and a code-level boundary between the engine and managed-only concerns (federation, enterprise), instead of a policy boundary behind config.
+- **Pros:** Embeddable engine; the private part of the repo becomes obvious; cleaner dependency graph.
+- **Cons:** A refactor before anyone has asked to embed it; nothing today is managed-only except infra config, so the boundary would be drawn by guess.
+- **Context:** Design doc `telarchy/notes/open-source-decision-2026-08-24.md`, Approach B. Deferred at the 2026-08-24 eng review because it can be done later without republishing anything (the public repo is AGPL either way).
+- **Depends on / trigger:** the first outside party asking to embed the engine, or the first managed-only module appearing in the codebase. Do not start before one of those exists.
+- **Effort:** M (human ~3 weeks / CC ~2 days).
