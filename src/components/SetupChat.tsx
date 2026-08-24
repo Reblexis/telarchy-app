@@ -35,7 +35,12 @@ const OPENERS = [
   'What does this cost me?',
 ];
 
-export function SetupChat({ signedIn }: { signedIn: boolean }) {
+export function SetupChat({ signedIn }: {
+  /** null while the session check is still out. Claiming they have no account
+   *  before asking is what made a signed-in visitor read the door as signed
+   *  out (owner, 2026-08-24). */
+  signedIn: boolean | null;
+}) {
   // Picked up rather than started, when they left to make an account and came
   // back. Read once, at mount, so a draft saved in another tab cannot
   // overwrite a live conversation here.
@@ -204,9 +209,11 @@ export function SetupChat({ signedIn }: { signedIn: boolean }) {
         {error && turns.length === 0 && <p className="setup-err">{error}</p>}
 
         <p className="setup-note">
-          {signedIn
-            ? 'Otto acts with your account, so he can do what you can do and nothing more.'
-            : <><Link to="/signup?next=/manage">Create an account</Link> and he can open the market right here. Signed out he can talk it all the way through and create nothing.</>}
+          {signedIn === false
+            ? <><Link to="/signup?next=/manage">Create an account</Link> and he can open the market right here. Signed out he can talk it all the way through and create nothing.</>
+            : signedIn === true
+              ? 'Otto acts with your account, so he can do what you can do and nothing more.'
+              : null}
         </p>
       </section>
 

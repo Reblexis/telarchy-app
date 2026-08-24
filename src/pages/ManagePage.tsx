@@ -1,10 +1,10 @@
 import { useEffect, useState, FormEvent } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { SetupChat } from '../components/SetupChat';
 import { useAuth } from '../hooks/useAuth';
 import { Logo } from '../components/Logo';
-import { authPath } from '../lib/nextPath';
+import { TopBarAuth } from '../components/TopBarAuth';
 
 /**
  * The owner side's entire surface while Telarchy is trader-first
@@ -15,8 +15,7 @@ import { authPath } from '../lib/nextPath';
  * discipline, one action.
  */
 export function ManagePage() {
-  const location = useLocation();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [email, setEmail] = useState('');
 
   // A platform admin used to be bounced straight to /admin from here, which
@@ -54,7 +53,7 @@ export function ManagePage() {
         <Link to="/" className="pubws-logolink" aria-label="Telarchy">
           <Logo variant="lockup" height="2.1rem" />
         </Link>
-        <Link to={authPath('login', location)} className="pubws-login">Log in</Link>
+        <TopBarAuth />
       </nav>
       <main className="pubws-main">
 
@@ -64,7 +63,7 @@ export function ManagePage() {
             better than a stranger on their first minute, and a form cannot
             argue with the answer. He makes the calls himself, as them. */}
         <section className="pubws-act pubws-act--door">
-          <SetupChat signedIn={!!user} />
+          <SetupChat signedIn={loading ? null : !!user} />
         </section>
 
         {/* The human door stays: it is how the first operator arrived, and

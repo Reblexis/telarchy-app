@@ -258,3 +258,17 @@ describe('leaving to make an account', () => {
     expect(screen.queryByText('Opened.')).toBeNull();
   });
 });
+
+describe('before the session check comes back', () => {
+  test('the door claims nothing about whether they have an account', () => {
+    // The page renders while the check is still out, and reading "not yet
+    // known" as "signed out" is what told a signed-in visitor to create an
+    // account they already had (owner, 2026-08-24).
+    render(<MemoryRouter><SetupChat signedIn={null} /></MemoryRouter>);
+    expect(screen.queryByRole('link', { name: /create an account/i })).toBeNull();
+    expect(screen.queryByText(/opening it takes an account/i)).toBeNull();
+    expect(screen.queryByText(/Otto acts with your account/i)).toBeNull();
+    // The composer is there either way: nothing about it needs an account.
+    expect(screen.getByLabelText(/tell otto what you run/i)).toBeTruthy();
+  });
+});
