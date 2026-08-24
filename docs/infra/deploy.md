@@ -394,6 +394,34 @@ and publishing refuses. That is why local dev shows the stripe (localhost is
 not the published origin) but no working button.
 
 
+**Two traps in reading Cloud Run's state (2026-08-24).**
+
+- **Revision numbers are not chronological here.** A deploy from a worktree
+  landed `api-00437-6gs` at 21:33 while pipeline builds sat in the 005xx
+  range, so `api-00542-vex` (17:46 the same day) is OLDER than 437 despite the
+  higher number. Judge age by `metadata.creationTimestamp`, never by the
+  number. I read the numbers once and reported a rollback that had not
+  happened.
+- **A secret attached to the service is not a secret the service can read.**
+  `gcloud run services update` accepts `--set-secrets` happily, and the
+  revision then fails to become READY with `Permission denied on secret ...
+  for Revision service account`. The runtime account
+  (`429618975282-compute@developer.gserviceaccount.com`) needs
+  `roles/secretmanager.secretAccessor` granted ON EACH SECRET:
+
+  ```bash
+  gcloud secrets add-iam-policy-binding <NAME> --project telarchy-e0043 \
+    --member serviceAccount:429618975282-compute@developer.gserviceaccount.com \
+    --role roles/secretmanager.secretAccessor
+  ```
+
+  This is quiet in the worst way: the deploy workflow goes green (it deployed;
+  the revision just never started), production keeps serving the last
+  published build so nothing looks broken, and `/beta` silently falls back to
+  that build because there is no candidate to forward to. Every deploy for
+  half a day in August 2026 was dead on arrival this way. After adding a
+  secret, check `gcloud run revisions list` for `STATUS True`.
+
 **The beta shares your ACCOUNT, and only your account (recorded 2026-08-23).**
 `src/lib/auth-client.ts` pins BetterAuth to `window.location.origin` with
 `basePath: '/api/auth'`, an absolute path, so a page served at `/beta/` signs
