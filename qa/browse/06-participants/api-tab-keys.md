@@ -39,7 +39,7 @@ private endpoints.
 
 ## Preconditions
 
-- Auth: `viktor.cihal@gmail.com` / `TestAdmin99!` (per `AGENTS.md`).
+- Auth: the admin account; credentials from `keyring/telarchy/admin.env` (`$ADMIN_EMAIL` / `$ADMIN_PASSWORD`), never written here.
 - Backend: migration `0022_agent_api_keys_scopes.sql` applied. Verify with:
 
   ```bash
@@ -58,7 +58,7 @@ tt_browse_init
 
 JAR="/tmp/$TT_NS.jar"
 curl -sf -c "$JAR" -X POST -H "Content-Type: application/json" \
-  -d '{"email":"viktor.cihal@gmail.com","password":"TestAdmin99!"}' \
+  -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}" \
   "$TT_BASE_URL/api/auth/sign-in/email" >/dev/null
 
 # Capture the user's primary participant id for the API checks.

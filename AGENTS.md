@@ -186,8 +186,10 @@ cd ~/src/telarchy/telarchy-app && npm run dev
 The app runs at `http://localhost:5173` (or whichever port Vite picks; check the terminal output).
 
 **Login credentials**:
-- Email: `viktor.cihal@gmail.com`
-- Password: `TestAdmin99!`
+- The admin account's credentials live in the private keyring only
+  (`keyring/telarchy/admin.env`, `ADMIN_EMAIL` / `ADMIN_PASSWORD`). Never commit them
+  anywhere in this repo; `functions/src/__tests__/no-committed-secrets.test.ts` fails the
+  build on a password literal.
 
 **The public trading floor** (the `telarchy.com/lookpilot` page) can be
 iterated locally with hot reload instead of a ~8 minute deploy per look:
@@ -207,7 +209,7 @@ When debugging a UI bug or feature, always reproduce it at this URL with these c
 # Sign in and save session cookie
 curl -s -c /tmp/cookies.txt -X POST http://localhost:8080/api/auth/sign-in/email \
   -H "Content-Type: application/json" \
-  -d '{"email":"viktor.cihal@gmail.com","password":"TestAdmin99!"}'
+  -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}"
 
 # Then use the cookie for subsequent requests
 curl -s -b /tmp/cookies.txt http://localhost:8080/api/auth/me

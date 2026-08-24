@@ -23,16 +23,16 @@ Thumbs.db
 
 # Local development
 *.local
-!.env.local
+.env
+.env.*
+!.env.example
+!.env.local.example
 .emulator-data/
 
-# Exclude personal-webpage (contains real Firebase credentials)
-personal-webpage/
 
 .firebase/
 functions/.env
 functions/.env.local
-/home/cihalvi/src/metrics-tracker/.env
 .env
 .playwright-mcp/
 flow-audit-*/
@@ -56,3 +56,16 @@ docs/outreach/concierge/tracking.md
 docs/outreach/concierge/candidates.md
 scripts/.local-floor-maker.json
 .context/
+
+# Keys, certs, cloud credentials, local databases
+*.pem
+*.key
+*.p12
+*-key.json
+service-account*.json
+gha-creds-*.json
+pgdata/
+*.pgdata
+*.sqlite
+*.db
+dist-beta/

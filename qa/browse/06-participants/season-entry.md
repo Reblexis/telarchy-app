@@ -34,7 +34,7 @@ Backed by `functions/src/__tests__/season-lifecycle.test.ts` (the rules) and
 
 ## Preconditions
 
-- Auth: any participant account. `viktor.cihal@gmail.com` from `AGENTS.md`
+- Auth: any participant account. The admin account's credentials come from `keyring/telarchy/admin.env`
   works; a fresh signup is a better test of the cold path.
 - A season in status `running`. Create and start one with the master key:
 
@@ -58,8 +58,8 @@ Backed by `functions/src/__tests__/season-lifecycle.test.ts` (the rules) and
 $B viewport 1440x900
 $B goto https://telarchy.com/login
 $B snapshot -i
-$B fill @e3 "viktor.cihal@gmail.com"
-$B fill @e4 "TestAdmin99!"
+$B fill @e3 "$ADMIN_EMAIL"
+$B fill @e4 "$ADMIN_PASSWORD"
 $B click @e5
 $B wait --networkidle
 ```

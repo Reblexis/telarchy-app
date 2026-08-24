@@ -69,6 +69,14 @@ function expect(actual: unknown) {
 // ─── HTTP helpers ─────────────────────────────────────────────────────────────
 
 const BASE_URL  = process.env.BASE_URL ?? process.argv[2] ?? 'http://localhost:8080';
+// The browser-session suite signs in as a real account. Credentials come from the
+// environment only (see keyring/telarchy/admin.env); nothing in this repo may hold them.
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? '';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? '';
+if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+  console.error('test-integration: set ADMIN_EMAIL and ADMIN_PASSWORD (source keyring/telarchy/admin.env)');
+  process.exit(2);
+}
 const ADMIN_KEY = process.env.API_KEY  ?? process.argv[3] ?? '';
 
 if (!ADMIN_KEY) {
@@ -1202,12 +1210,12 @@ await suite('Auth - browser session', async () => {
     const r = await fetch(`${BASE_URL}/api/auth/sign-in/email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Origin': BASE_URL },
-      body: JSON.stringify({ email: 'viktor.cihal@gmail.com', password: 'TestAdmin99!' }),
+      body: JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD }),
     });
     expect(r.status).toBe(200);
     const body = await r.json() as Record<string, unknown>;
     expect(body.token).toBeTruthy();
-    expect((body.user as Record<string, unknown>).email).toBe('viktor.cihal@gmail.com');
+    expect((body.user as Record<string, unknown>).email).toBe(ADMIN_EMAIL);
     // Capture cookie for subsequent session tests
     sessionCookie = r.headers.get('set-cookie') ?? '';
   });
@@ -1216,7 +1224,7 @@ await suite('Auth - browser session', async () => {
     const r = await fetch(`${BASE_URL}/api/auth/sign-in/email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Origin': BASE_URL },
-      body: JSON.stringify({ email: 'viktor.cihal@gmail.com', password: 'WrongPassword!' }),
+      body: JSON.stringify({ email: ADMIN_EMAIL, password: 'WrongPassword!' }),
     });
     expect(r.status).toBeStatus(401, 403);
   });

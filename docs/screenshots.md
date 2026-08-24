@@ -66,7 +66,7 @@ sampled dates; re-run with `SKIP_TP=1` to refresh it.
    The script looks for it at `~/.claude/skills/gstack/browse/dist/browse`
    (override with `BROWSE_BIN`).
 2. A logged-in browse session, OR credentials in the environment so the script
-   logs in for you. Admin login is `viktor.cihal@gmail.com` (see `AGENTS.md`).
+   logs in for you. Admin credentials come from `keyring/telarchy/admin.env`.
 
 > Gotcha: BetterAuth rejects cross-origin sign-in. Log in **directly on
 > `https://telarchy.com/login`** (which the script does); logging in from a

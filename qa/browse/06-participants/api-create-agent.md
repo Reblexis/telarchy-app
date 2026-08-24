@@ -32,7 +32,7 @@ source "$ROOT/qa/browse/_runner/lib.sh"
 # A signed-in browser session (the typical caller of this endpoint).
 JAR="/tmp/$TT_NS-owner.jar"
 curl -sf -c "$JAR" -X POST -H "Content-Type: application/json" \
-  -d '{"email":"viktor.cihal@gmail.com","password":"TestAdmin99!"}' \
+  -d "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}" \
   "$TT_BASE_URL/api/auth/sign-in/email" >/dev/null
 
 # A workspace where the signed-in user has manage capability. We use the

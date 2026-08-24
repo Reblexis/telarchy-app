@@ -163,5 +163,5 @@ await call('/api/proposals', {
 
 console.log(`
 Done. Open http://localhost:5173/lookpilot
-Sign in as viktor.cihal@gmail.com / TestAdmin99! (or any local account);
+Sign in with any local account (or the admin account from keyring/telarchy/admin.env);
 signup credits apply automatically. Edits under src/ hot-reload instantly.`);
