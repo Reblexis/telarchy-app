@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { withBase } from '../lib/base-path';
+import { Logo } from '../components/Logo';
 
 /** Same invite the market pages' Discord button carries; one constant would
  *  be better, but DiscordButton keeps its own for now (both are pinned by
@@ -16,7 +17,9 @@ export function ContactPage() {
   return (
     <div className="pubws">
       <nav className="pubws-topbar">
-        <Link to="/" className="pubws-wordmark">Telarchy</Link>
+        <Link to="/" className="pubws-logolink" aria-label="Telarchy">
+          <Logo variant="lockup" height="2.1rem" />
+        </Link>
         <Link to="/login" className="pubws-login">Log in</Link>
       </nav>
       <main className="pubws-main">

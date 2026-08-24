@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Logo } from '../components/Logo';
 
 /**
  * telarchy.com/about: what this site is, said once, for the cold visitor who
@@ -24,7 +25,9 @@ export function AboutPage() {
   return (
     <div className="pubws">
       <nav className="pubws-topbar">
-        <Link to="/" className="pubws-wordmark">Telarchy</Link>
+        <Link to="/" className="pubws-logolink" aria-label="Telarchy">
+          <Logo variant="lockup" height="2.1rem" />
+        </Link>
         <Link to="/login" className="pubws-login">Log in</Link>
       </nav>
       <main className="pubws-main">

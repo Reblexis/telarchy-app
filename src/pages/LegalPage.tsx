@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { api } from '../lib/api';
+import { Logo } from '../components/Logo';
 
 const mdStyles: React.CSSProperties = {
   fontSize: '0.875rem',
@@ -31,7 +32,9 @@ export function LegalPage({ document }: LegalPageProps) {
   return (
     <div className="pubws">
       <nav className="pubws-topbar pubws-topbar--wide">
-        <Link to="/" className="pubws-wordmark">Telarchy</Link>
+        <Link to="/" className="pubws-logolink" aria-label="Telarchy">
+          <Logo variant="lockup" height="2.1rem" />
+        </Link>
       </nav>
       <div className="pubws-doc" style={{ opacity: loading ? 0.5 : 1, transition: 'opacity 0.1s' }}>
         <ReactMarkdown

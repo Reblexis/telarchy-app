@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { SetupChat } from '../components/SetupChat';
 import { useAuth } from '../hooks/useAuth';
+import { Logo } from '../components/Logo';
 
 /**
  * The owner side's entire surface while Telarchy is trader-first
@@ -48,7 +49,9 @@ export function ManagePage() {
   return (
     <div className="pubws">
       <nav className="pubws-topbar">
-        <Link to="/" className="pubws-wordmark">Telarchy</Link>
+        <Link to="/" className="pubws-logolink" aria-label="Telarchy">
+          <Logo variant="lockup" height="2.1rem" />
+        </Link>
         <Link to="/login" className="pubws-login">Log in</Link>
       </nav>
       <main className="pubws-main">

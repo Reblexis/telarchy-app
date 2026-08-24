@@ -4068,6 +4068,10 @@ textarea.jobform-line--desc {
 .pubws-delta-chip.is-down { color: var(--lower); }
 
 .pubws-logolink { display: inline-flex; align-items: center; }
+/* The wordmark class is now only the fallback text inside the link, kept so a
+   page that has not been converted still reads as Telarchy rather than as
+   nothing. The lockup is the identity (owner direction 2026-08-24). */
+.pubws-logolink .logo-img { display: block; }
 
 /* The trading floor: rails beside the poster on wide screens (top traders
    left, action log right), stacked under it on narrow ones. The center
