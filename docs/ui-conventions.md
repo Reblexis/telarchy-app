@@ -562,6 +562,17 @@ standing on this floor is asking. It now passes the workspace
 profit they made ON that floor. The cross-workspace board still lives at
 `/leaderboard`, where the question genuinely is platform-wide.
 
+**"Show full leaderboard" is a link to `/leaderboard`, never a board opened
+in place (owner direction 2026-08-24: "show full leaderboard should lead to
+a new page.. not open a leaderboard there").** This replaces the 2026-08-22
+in-place expander, which stacked the season standings and the global board
+under the rail. The link sits directly under the boards it extends, before
+the season strip, and is the rail's only full-width control besides the
+season's own "Enter the season". The rail's three blocks (traders,
+contractors, season) share one gap (`1.7rem`); the season strip used to have
+no gap rule at all and ran straight into the contractors' empty line (owner
+report 2026-08-24: "this looks weird").
+
 **Both leaderboards rank on what the market says right now, not on what
 has settled (owner direction 2026-08-14, Viktor).** The rail stacks two
 blocks, traders then contractors, five rows each; both update on the
@@ -573,7 +584,12 @@ reload.
   position (shares x the market's live consensus factor), minus the net
   cash paid for those positions (sells count negative). An unresolved
   position counts the moment its price moves; nothing waits for
-  resolution. The number is measured off the trades, not off the balance,
+  resolution. On `/leaderboard` each row also prints the split under the
+  total, "settled" (final: resolutions and refunds) and "open" (still a
+  mark), so a reader can tell realised money from paper (owner direction
+  2026-08-24, Viktor; `docs/seasons.md`, "The score"). The rail's five
+  compact rows print the total only.
+  The number is measured off the trades, not off the balance,
   so credits the platform handed an account never enter it. **No account
   is excluded (owner direction 2026-08-14, Viktor: "maybe the bug is that
   it doesn't count admin into traders").** This replaces the 2026-08-11

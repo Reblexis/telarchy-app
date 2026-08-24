@@ -1,7 +1,7 @@
 import type { LeaderboardEntry, PublicContractor } from '../lib/api';
 import { Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
-import { api, seasonStandingToEntry, type PrizeSeason } from '../lib/api';
+import { api, type PrizeSeason } from '../lib/api';
 import { useSeasonClock } from '../lib/useSeasonClock';
 import { pickCurrentSeason } from '../lib/season-clock';
 import { ManifoldLogo } from './ManifoldLogo';
@@ -49,8 +49,8 @@ function contractorSubline(c: PublicContractor): string {
 
 export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn = false, meId = null }: {
   /** THIS workspace's own board (owner decision 2026-08-22: the rail is local
-   *  by default; the season and global boards open behind "Show full
-   *  leaderboard"). */
+   *  by default; the season and global boards live on /leaderboard, behind
+   *  "Show full leaderboard"). */
   entries: LeaderboardEntry[];
   contractors?: PublicContractor[];
   /** The hero metric's currency prefix ('$' or ''), so a contractor's priced
@@ -90,32 +90,9 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
       .then(r => setSeason(pickCurrentSeason(r.seasons)))
       .catch(e => console.error('seasons fetch failed:', e));
   }, []);
-  const seasonRunning = season?.status === 'running';
-
-  // "Show full leaderboard" opens the field in place (owner decision
-  // 2026-08-22): the season standings, then the global board, one after
-  // another, under this workspace's own local board. Fetched once, on expand.
-  const [expanded, setExpanded] = useState(false);
-  const [fullSeason, setFullSeason] = useState<LeaderboardEntry[] | null>(null);
-  const [fullGlobal, setFullGlobal] = useState<LeaderboardEntry[] | null>(null);
-  const openFull = () => {
-    setExpanded(true);
-    if (fullGlobal !== null) return; // already loaded
-    if (season && seasonRunning) {
-      api.getSeasonStandings(season.id, 30)
-        .then(r => setFullSeason((r.participants ?? []).map(seasonStandingToEntry)))
-        .catch(e => console.error('season standings fetch failed:', e));
-    }
-    api.getLeaderboard(30)
-      .then(r => setFullGlobal((r.participants ?? []).filter(e => e.totalTrades > 0)))
-      .catch(e => console.error('global leaderboard fetch failed:', e));
-  };
-
-  // `inSeason` says this row is in the season-standings section, where every
-  // row is an entrant and the number is a season score. It changes only the
-  // "outside the paying places" chip: "—" there (as /season uses), "in" on the
-  // local/global boards where it marks an entrant among non-entrants.
-  const prizeChip = (e: LeaderboardEntry, inSeason = false) => {
+  // An entrant outside the paying places reads "in": the chip marks an
+  // entrant among non-entrants on this local board.
+  const prizeChip = (e: LeaderboardEntry) => {
     if (!e.seasonEntered) return null;
     if (e.seasonPrizeUsd === null || e.seasonPrizeUsd === undefined) {
       return <span className="pubws-lb-prize pubws-lb-prize--in" title={`Entered ${season?.name ?? 'the season'}; prizes are set once it starts`}>entered</span>;
@@ -123,14 +100,10 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
     if (e.seasonPrizeUsd > 0) {
       return <span className="pubws-lb-prize" title="What this season would pay at the current standing">${e.seasonPrizeUsd.toLocaleString()}</span>;
     }
-    return inSeason
-      ? <span className="pubws-lb-prize pubws-lb-prize--in" title="Outside the paying places at the current standing">—</span>
-      : <span className="pubws-lb-prize pubws-lb-prize--in" title="Entered the season, currently outside the prizes">in</span>;
+    return <span className="pubws-lb-prize pubws-lb-prize--in" title="Entered the season, currently outside the prizes">in</span>;
   };
 
-  // One row, reused by the local board, the season standings and the global
-  // board, so the three lists cannot drift apart.
-  const renderRow = (e: LeaderboardEntry, i: number, inSeason = false) => {
+  const renderRow = (e: LeaderboardEntry, i: number) => {
     const name = e.nickname || 'anonymous';
     const initial = name.replace(/^@/, '')[0]?.toUpperCase() ?? '?';
     // Round BEFORE signing: a loss of a hundredth of a credit printed "-0 cr",
@@ -151,7 +124,7 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
             </span>
           )}
         </Link>
-        {prizeChip(e, inSeason)}
+        {prizeChip(e)}
         <span className={`pubws-lb-score${cr > 0 ? ' is-up' : cr < 0 ? ' is-down' : ''}`}>
           {cr > 0 ? '+' : ''}{cr === 0 ? 0 : cr.toLocaleString('en-US')} cr
         </span>
@@ -168,7 +141,7 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
         <section className="pubws-lb-block">
           {/* The workspace's own board: this floor's traders, ranked on their
               profit here (owner decision 2026-08-22). The season and global
-              boards open under "Show full leaderboard" below. */}
+              boards are on /leaderboard, linked below. */}
           <h2 className="pubws-h2">Top traders</h2>
           <ol className="pubws-lb">
             {entries.map((e, i) => renderRow(e, i))}
@@ -244,40 +217,12 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
           )}
         </section>
       )}
+      {/* The way out of a workspace's own top ten is a page, not an expander
+          (owner direction 2026-08-24: "show full leaderboard should lead to
+          a new page"). It sits under the boards it extends; the season strip
+          is its own block below. */}
+      <Link className="pubws-lb-more" to="/leaderboard">Show full leaderboard</Link>
       <SeasonStrip signedIn={signedIn} season={season} />
-      {/* The way out of a workspace's own top ten: the full field, opened in
-          place (owner decision 2026-08-22). The season standings first (while
-          one is running), then the global board, one after another. */}
-      {!expanded ? (
-        <button type="button" className="pubws-lb-more" onClick={openFull}>Show full leaderboard</button>
-      ) : (
-        <>
-          {seasonRunning && season && (
-            <section className="pubws-lb-block">
-              <h2 className="pubws-h2">{season.name} standings</h2>
-              {fullSeason === null ? (
-                <p className="pubws-lb-empty">Loading…</p>
-              ) : fullSeason.length === 0 ? (
-                <p className="pubws-lb-empty">Nobody has entered yet.</p>
-              ) : (
-                <ol className="pubws-lb">{fullSeason.map((e, i) => renderRow(e, i, true))}</ol>
-              )}
-            </section>
-          )}
-          <section className="pubws-lb-block">
-            <h2 className="pubws-h2">Global standings</h2>
-            {fullGlobal === null ? (
-              <p className="pubws-lb-empty">Loading…</p>
-            ) : fullGlobal.length === 0 ? (
-              <p className="pubws-lb-empty">Nobody has traded yet.</p>
-            ) : (
-              <ol className="pubws-lb">{fullGlobal.map((e, i) => renderRow(e, i))}</ol>
-            )}
-          </section>
-          {/* The full field also has its own page. */}
-          <Link className="pubws-lb-more" to="/leaderboard">Open the leaderboard page</Link>
-        </>
-      )}
     </aside>
   );
 }

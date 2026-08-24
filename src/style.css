@@ -4134,8 +4134,12 @@ textarea.jobform-line--desc {
   padding: 0;
 }
 
-/* Two leaderboards stacked in the left rail (traders, then contractors). */
-.pubws-lb-block + .pubws-lb-block { margin-top: 1.7rem; }
+/* Two leaderboards stacked in the left rail (traders, then contractors). The
+   season strip is a third block and keeps the same gap: without it the
+   contractors' empty line ran straight into "SEASON 0" (owner report
+   2026-08-24, "this looks weird"). */
+.pubws-lb-block + .pubws-lb-block,
+.pubws-lb-section { margin-top: 1.7rem; }
 
 /* Per-job status pill in the ballot (approved / declined; pending is the
    default live state and needs no pill). */
