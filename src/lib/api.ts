@@ -1,6 +1,6 @@
 import type { TimePreference } from '../types';
 import { pickCurrentSeason } from './season-clock';
-import { withBase } from './base-path';
+import { BASE_PATH, withBase } from './base-path';
 
 export interface ActivityItem {
   id: string;
@@ -1186,10 +1186,27 @@ export const api = {
     settled: string[],
     onDelta: (text: string) => void,
   ) => {
+    /**
+     * The beta cannot stream until a build that can stream is PUBLISHED.
+     *
+     * /beta is served by proxying the published revision to the candidate, so
+     * the proxy doing the forwarding is the published one: today it buffers
+     * the whole response and gives up at twenty seconds, which turns a
+     * streamed answer into a 503 (seen 2026-08-24). The fix ships in the same
+     * build as streaming itself and only takes effect once that build is
+     * live, which is the ordinary bootstrap for anything on that path.
+     *
+     * So on the beta, ask for a whole answer. Remove this the first time a
+     * published build contains the streaming proxy; production streams now.
+     */
+    const proxied = BASE_PATH === '/beta';
     const res = await fetch(`${API_BASE}/api/setup/ask`, {
       method: 'POST',
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(proxied ? {} : { Accept: 'text/event-stream' }),
+      },
       body: JSON.stringify({ messages, settled }),
     });
     if (!res.ok) {
