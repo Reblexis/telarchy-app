@@ -1158,9 +1158,6 @@ export const api = {
     /** The prompt for the caller's own agent: written by Otto against the
      *  setup specification, with every id checked against the database before
      *  it is allowed out (functions/src/services/setup-handoff.ts). */
-    handoff: string;
-    settled: string[];
-    open: string[];
     /** The floor's real state, when a floor exists. */
     checklist: {
       blocking: string[];
@@ -1256,6 +1253,19 @@ export const api = {
     if (!final) throw new Error('Otto stopped mid-answer. Ask again.');
     return final;
   },
+
+  /**
+   * The prompt for the caller's own agent, asked for once the answer is on
+   * screen. It is a second model call, and it used to ride along with the
+   * answer, which made a turn as slow as both calls together and pushed it
+   * past the deadline the beta proxy gives up at.
+   */
+  askSetupHandoff: (
+    messages: Array<{ role: 'user' | 'assistant'; content: string }>,
+    settled: string[] = [],
+  ) => request('/api/setup/handoff', {
+    method: 'POST', body: JSON.stringify({ messages, settled }),
+  }, true) as Promise<{ handoff: string; settled: string[]; open: string[]; written: boolean }>,
 
   /** What is still open on a floor, read from the database. The endpoint the
    *  handoff prompt tells an operator's own agent to call first. */

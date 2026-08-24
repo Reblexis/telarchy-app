@@ -73,7 +73,10 @@ export function renderHandoff(turns: AskTurn[], state: HandoffState): string {
       parts.push(`- Opened during this conversation: ${w.name}${w.slug ? `, at ${ORIGIN}/${w.slug}` : ''}${w.id ? ` (workspace id ${w.id})` : ''}.`);
     }
   } else if (state.workspaces.length) {
-    parts.push(`- Nothing opened yet. I already run: ${state.workspaces.map(w => `${w.name}${w.slug ? ` (${ORIGIN}/${w.slug})` : ''}`).join(', ')}. Adding a number to one of those may be better than opening another.`);
+    // With the id, because that is the thing the agent on the other side has
+    // to send as X-Workspace-Id on every call; an address alone means it has
+    // to go looking.
+    parts.push(`- Nothing opened during this conversation. I already run: ${state.workspaces.map(w => `${w.name}${w.slug ? ` at ${ORIGIN}/${w.slug}` : ''}${w.id ? ` (workspace id ${w.id})` : ''}`).join('; ')}. Adding a number to one of those may be better than opening another.`);
   } else {
     parts.push('- Nothing opened yet, and I run no market.');
   }

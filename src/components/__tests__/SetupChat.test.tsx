@@ -25,8 +25,10 @@ const askSetup = vi.fn(async (): Promise<Reply> => ({ answer: 'Opened it.', open
  *  the server does, so the tests exercise the path that actually runs; a test
  *  can hold `streamPause` to freeze the stream mid-answer and look at it. */
 let streamPause: Promise<void> | null = null;
+const askHandoff = vi.fn(async () => ({ handoff: '', settled: [] as string[], open: [] as string[], written: true }));
 vi.mock('../../lib/api', () => ({
   api: {
+    askSetupHandoff: (m: unknown, s: unknown) => askHandoff(m as never, s as never),
     askSetupStream: async (m: unknown, s: unknown, onDelta: (t: string) => void) => {
       const reply = await askSetup(m as never, s as never);
       const words = (reply.answer ?? '').split(' ');
@@ -46,10 +48,13 @@ const renderChat = (signedIn = true) =>
 
 beforeEach(() => {
   localStorage.clear();
+  askHandoff.mockClear();
+  askHandoff.mockResolvedValue({ handoff: '', settled: [], open: [], written: true });
   // jsdom has no scrollIntoView; the log scrolls itself on every turn.
   Element.prototype.scrollIntoView = vi.fn();
   askSetup.mockClear();
-  askSetup.mockResolvedValue({ answer: 'Opened it.', opened: [], handoff: '' });
+  askSetup.mockResolvedValue({ answer: 'Opened it.', opened: [] });
+    askHandoff.mockResolvedValue({ handoff: '', settled: [], open: [], written: true });
 });
 
 describe('the setup conversation', () => {
@@ -61,7 +66,8 @@ describe('the setup conversation', () => {
     await user.click(screen.getByRole('button', { name: /send/i }));
     await waitFor(() => expect(askSetup).toHaveBeenCalled());
 
-    askSetup.mockResolvedValue({ answer: 'Then disputes it is.', opened: [], handoff: '' });
+    askSetup.mockResolvedValue({ answer: 'Then disputes it is.', opened: [] });
+    askHandoff.mockResolvedValue({ handoff: '', settled: [], open: [], written: true });
     await user.type(screen.getByLabelText(/tell otto what you run/i), 'monthly disputes then');
     await user.click(screen.getByRole('button', { name: /send/i }));
 
@@ -82,7 +88,8 @@ describe('the setup conversation', () => {
     await waitFor(() => expect(screen.getByText('Opened it.')).toBeTruthy());
     expect(screen.queryByRole('link', { name: /kleros/i })).toBeNull();
 
-    askSetup.mockResolvedValue({ answer: 'Done.', opened: [{ name: 'Kleros', slug: 'kleros' }], handoff: '' });
+    askSetup.mockResolvedValue({ answer: 'Done.', opened: [{ name: 'Kleros', slug: 'kleros' }] });
+    askHandoff.mockResolvedValue({ handoff: '', settled: [], open: [], written: true });
     await user.type(screen.getByLabelText(/tell otto what you run/i), 'go on then');
     await user.click(screen.getByRole('button', { name: /send/i }));
 
@@ -112,10 +119,10 @@ describe('the setup conversation', () => {
 
 describe('the handoff to your own agent', () => {
   test('appears once the server sends one, and carries what it said', async () => {
-    askSetup.mockResolvedValue({
-      answer: 'Which number?',
-      opened: [],
+    askSetup.mockResolvedValue({ answer: 'Which number?', opened: [] });
+    askHandoff.mockResolvedValue({
       handoff: 'You are picking up a Telarchy setup.\nworkspace id ws-42',
+      settled: [], open: [], written: true,
     });
     const user = userEvent.setup();
     renderChat();
@@ -136,12 +143,14 @@ describe('the handoff to your own agent', () => {
     const user = userEvent.setup();
     renderChat();
 
-    askSetup.mockResolvedValue({ answer: 'One.', opened: [], handoff: 'FIRST HANDOFF' });
+    askSetup.mockResolvedValue({ answer: 'One.', opened: [] });
+    askHandoff.mockResolvedValue({ handoff: 'FIRST HANDOFF', settled: [], open: [], written: true });
     await user.type(screen.getByLabelText(/tell otto what you run/i), 'a');
     await user.click(screen.getByRole('button', { name: /send/i }));
     await screen.findByText('FIRST HANDOFF');
 
-    askSetup.mockResolvedValue({ answer: 'Two.', opened: [], handoff: 'SECOND HANDOFF' });
+    askSetup.mockResolvedValue({ answer: 'Two.', opened: [] });
+    askHandoff.mockResolvedValue({ handoff: 'SECOND HANDOFF', settled: [], open: [], written: true });
     await user.type(screen.getByLabelText(/tell otto what you run/i), 'b');
     await user.click(screen.getByRole('button', { name: /send/i }));
 
@@ -151,7 +160,8 @@ describe('the handoff to your own agent', () => {
   });
 
   test('copying puts the prompt on the clipboard', async () => {
-    askSetup.mockResolvedValue({ answer: 'ok', opened: [], handoff: 'PASTE ME' });
+    askSetup.mockResolvedValue({ answer: 'ok', opened: [] });
+    askHandoff.mockResolvedValue({ handoff: 'PASTE ME', settled: [], open: [], written: true });
     const user = userEvent.setup();
     // AFTER setup(): userEvent installs its own clipboard stub, so a stub
     // defined before this line is the one that gets replaced.
@@ -174,9 +184,8 @@ describe('what the conversation carries forward', () => {
     const user = userEvent.setup();
     renderChat();
 
-    askSetup.mockResolvedValue({
-      answer: 'Good.', opened: [], handoff: 'X'.repeat(220), settled: ['floor', 'number'],
-    });
+    askSetup.mockResolvedValue({ answer: 'Good.', opened: [] });
+    askHandoff.mockResolvedValue({ handoff: 'X'.repeat(220), settled: ['subject', 'number'], open: [], written: true });
     await user.type(screen.getByLabelText(/tell otto what you run/i), 'kleros');
     await user.click(screen.getByRole('button', { name: /send/i }));
     await waitFor(() => expect(askSetup).toHaveBeenCalledTimes(1));
@@ -186,12 +195,12 @@ describe('what the conversation carries forward', () => {
     await user.type(screen.getByLabelText(/tell otto what you run/i), 'disputes');
     await user.click(screen.getByRole('button', { name: /send/i }));
     await waitFor(() => expect(askSetup).toHaveBeenCalledTimes(2));
-    expect(askSetup.mock.calls[1][1]).toEqual(['floor', 'number']);
+    expect(askSetup.mock.calls[1][1]).toEqual(['subject', 'number']);
   });
 
   test('the floor state shows what is blocking, not just what is done', async () => {
     askSetup.mockResolvedValue({
-      answer: 'Opened.', opened: [], handoff: 'X'.repeat(220),
+      answer: 'Opened.', opened: [],
       checklist: {
         blocking: ['Every market holds zero liquidity, so every trade against them is refused.'],
         items: [
@@ -237,9 +246,8 @@ describe('the vocabulary a visitor reads', () => {
 describe('leaving to make an account', () => {
   test('the conversation is there when they come back', async () => {
     const user = userEvent.setup();
-    askSetup.mockResolvedValue({
-      answer: 'Then the number is monthly disputes.', opened: [], handoff: 'X'.repeat(220), settled: ['subject'],
-    });
+    askSetup.mockResolvedValue({ answer: 'Then the number is monthly disputes.', opened: [] });
+    askHandoff.mockResolvedValue({ handoff: 'X'.repeat(220), settled: ['subject'], open: [], written: true });
     const first = renderChat(false);
     await user.type(screen.getByLabelText(/tell otto what you run/i), 'I run an arbitration protocol');
     await user.click(screen.getByRole('button', { name: /send/i }));
@@ -261,9 +269,7 @@ describe('leaving to make an account', () => {
 
   test('a finished setup is not offered back as unfinished', async () => {
     const user = userEvent.setup();
-    askSetup.mockResolvedValue({
-      answer: 'Opened.', opened: [{ name: 'Kleros', slug: 'kleros' }], handoff: 'X'.repeat(220),
-    });
+    askSetup.mockResolvedValue({ answer: 'Opened.', opened: [{ name: 'Kleros', slug: 'kleros' }] });
     const first = renderChat(true);
     await user.type(screen.getByLabelText(/tell otto what you run/i), 'go');
     await user.click(screen.getByRole('button', { name: /send/i }));
@@ -296,7 +302,8 @@ describe('watching the answer arrive', () => {
     // a minute of nothing on screen.
     let release!: () => void;
     streamPause = new Promise<void>(r => { release = r; });
-    askSetup.mockResolvedValue({ answer: 'Monthly disputes, then.', opened: [], handoff: '' });
+    askSetup.mockResolvedValue({ answer: 'Monthly disputes, then.', opened: [] });
+    askHandoff.mockResolvedValue({ handoff: '', settled: [], open: [], written: true });
 
     const user = userEvent.setup();
     renderChat();
@@ -325,5 +332,47 @@ describe('watching the answer arrive', () => {
     // A sentence that stops mid-word, left under an error, reads as something
     // Otto said.
     expect(screen.queryByText('', { selector: '.setup-otto' })).toBeNull();
+  });
+});
+
+describe('the two halves of the rail arrive separately', () => {
+  test('the floor state does not wait for the prompt to be written', async () => {
+    // The state is a database read that lands with the answer; the prompt is
+    // a second model call. Gating the surer half behind the slower one is
+    // what made a turn take longer than the beta proxy would wait.
+    let release!: (v: { handoff: string; settled: string[]; open: string[]; written: boolean }) => void;
+    askHandoff.mockImplementation((() => new Promise(r => { release = r; })) as never);
+    askSetup.mockResolvedValue({
+      answer: 'Opened.', opened: [],
+      checklist: {
+        blocking: ['Every market is thin enough that 5 credits moves it.'],
+        items: [{ id: 'liquidity', label: 'Liquidity', status: 'open', note: '0.5 credits.' }],
+      },
+    });
+
+    const user = userEvent.setup();
+    renderChat();
+    await user.type(screen.getByLabelText(/tell otto what you run/i), 'go');
+    await user.click(screen.getByRole('button', { name: /send/i }));
+
+    // State is up while the prompt is still being written.
+    expect(await screen.findByText(/5 credits moves it/i)).toBeTruthy();
+    expect(screen.getByText(/writing the prompt/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /rewriting/i })).toBeDisabled();
+
+    release({ handoff: 'PASTE ME NOW'.padEnd(220, '.'), settled: [], open: [], written: true });
+    expect(await screen.findByText(/PASTE ME NOW/)).toBeTruthy();
+  });
+
+  test('a prompt that fails to arrive does not take the answer with it', async () => {
+    askHandoff.mockRejectedValueOnce(new Error('gateway down'));
+    askSetup.mockResolvedValue({ answer: 'Monthly disputes, then.', opened: [] });
+    const user = userEvent.setup();
+    renderChat();
+    await user.type(screen.getByLabelText(/tell otto what you run/i), 'go');
+    await user.click(screen.getByRole('button', { name: /send/i }));
+
+    expect(await screen.findByText('Monthly disputes, then.')).toBeTruthy();
+    expect(screen.queryByText(/not answering/i)).toBeNull();
   });
 });

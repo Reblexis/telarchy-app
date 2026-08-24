@@ -107,7 +107,8 @@ describe('the setup conversation', () => {
       { id: 'ws-old', name: 'From March', slug: 'from-march', createdBy: OPERATOR, visibility: 'unlisted', createdAt: new Date('2026-03-01') },
       { id: 'ws-new', name: 'Kleros', slug: 'kleros', createdBy: OPERATOR, visibility: 'unlisted', createdAt: new Date('2026-08-23') },
     ]);
-    const r = await ask({ question: 'where were we' });
+    const r = await request(app).post('/api/setup/handoff')
+      .send({ messages: [{ role: 'user', content: 'where were we' }] });
     expect(r.body.handoff).toMatch(/Kleros/);
     expect(r.body.handoff.indexOf('Kleros')).toBeLessThan(
       r.body.handoff.indexOf('From March') < 0 ? Infinity : r.body.handoff.indexOf('From March'),
@@ -120,6 +121,15 @@ describe('the setup conversation', () => {
     });
     const r = await ask({ question: 'what do i have' });
     expect(r.body.opened).toEqual([]);
+  });
+
+  test('does not carry the handoff, which is a second model call', async () => {
+    // It used to ride along, which made a turn as slow as both calls
+    // together: past the twenty seconds the published beta proxy waits, so a
+    // turn that had actually succeeded came back as a 502.
+    const r = await ask({ question: 'set me up' });
+    expect(r.body.handoff).toBeUndefined();
+    expect(r.body.answer).toBe('Opened it.');
   });
 
   test('the question is logged with no workspace to key on', async () => {
@@ -144,36 +154,38 @@ describe('the setup conversation', () => {
   });
 });
 
-describe('the handoff to the caller\'s own agent', () => {
-  test('carries the real slug of a floor that was opened, not one Otto named', async () => {
-    onAsk = async () => {
-      await db.insert(workspaces).values({
-        id: 'ws-new', name: 'Kleros', slug: 'kleros', createdBy: OPERATOR, visibility: 'unlisted',
-      });
-    };
-    const r = await ask({ question: 'set me up' });
-    // Assembled from the database: the id and the address are facts, and an
-    // agent on the other side will act on them.
+describe('the handoff, on its own request', () => {
+  const handoff = (body: Record<string, unknown>) =>
+    request(app).post('/api/setup/handoff').send(body);
+
+  test('carries the real slug of a market that exists, not one Otto named', async () => {
+    await db.insert(workspaces).values({
+      id: 'ws-new', name: 'Kleros', slug: 'kleros', createdBy: OPERATOR, visibility: 'unlisted',
+    });
+    const r = await handoff({ messages: [{ role: 'user', content: 'set me up' }] });
+    expect(r.status).toBe(200);
     expect(r.body.handoff).toMatch(/telarchy\.com\/kleros/);
     expect(r.body.handoff).toMatch(/workspace id ws-new/);
   });
 
   test('carries the conversation, so the other agent has the context', async () => {
-    const r = await ask({ question: 'we arbitrate disputes on chain' });
+    const r = await handoff({ messages: [
+      { role: 'user', content: 'we arbitrate disputes on chain' },
+      { role: 'assistant', content: 'Then the number is disputes.' },
+    ] });
     expect(r.body.handoff).toMatch(/Me: we arbitrate disputes on chain/);
-    expect(r.body.handoff).toMatch(/Otto: Opened it\./);
-  });
-
-  test('says nothing was created when nothing was', async () => {
-    const r = await ask({ question: 'hello' });
-    expect(r.body.handoff).toMatch(/Nothing opened yet/);
-    expect(r.body.handoff).not.toMatch(/Opened during this conversation/);
+    expect(r.body.handoff).toMatch(/Otto: Then the number is disputes\./);
   });
 
   test('an anonymous caller is told what is missing before anything else', async () => {
     authOverride = {};
-    const r = await ask({ question: 'hello' });
+    const r = await handoff({ messages: [{ role: 'user', content: 'hello' }] });
     expect(r.body.handoff).toMatch(/not signed in yet/i);
+  });
+
+  test('no conversation, nothing to hand off', async () => {
+    const r = await handoff({ messages: [] });
+    expect(r.status).toBe(400);
   });
 });
 

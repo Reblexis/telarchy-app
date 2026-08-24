@@ -7340,40 +7340,6 @@ textarea.jobform-line--desc {
   word-break: break-word;
 }
 
-/* The human door under the conversation. One line, quiet: it is the fallback,
-   not the offer. */
-.setup-human { margin-top: 2.2rem; }
-.setup-humanform {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  font-size: 0.78rem;
-  color: var(--text-tertiary);
-}
-.setup-humanform input {
-  min-width: 12rem;
-  padding: 0.3rem 0.6rem;
-  border: 1px solid var(--border-color);
-  border-radius: 999px;
-  background: none;
-  font: inherit;
-  font-size: 0.78rem;
-  color: var(--text-primary);
-}
-.setup-humanform input:focus-visible { outline: none; border-color: var(--border-strong); }
-.setup-humanform button {
-  padding: 0.3rem 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: 999px;
-  background: none;
-  font: inherit;
-  font-size: 0.78rem;
-  color: var(--text-secondary);
-  cursor: pointer;
-}
-.setup-humanform button:hover:not(:disabled) { color: var(--text-primary); border-color: var(--border-strong); }
 
 /* What the floor actually says, under the prompt. The prompt carries intent
    and goes stale; this is read from the rows on every turn, so it is the half

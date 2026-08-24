@@ -52,6 +52,8 @@ export function SetupChat({ signedIn }: {
   const [opened, setOpened] = useState<Array<{ name: string; slug: string | null }>>([]);
   const [handoff, setHandoff] = useState(() => saved?.handoff ?? '');
   const [copied, setCopied] = useState(false);
+  /** The prompt is being rewritten for the turn that just landed. */
+  const [writing, setWriting] = useState(false);
   /** What the conversation has settled, sent back each turn so Otto does not
    *  re-ask. The server keeps only ids the specification knows. */
   const [settled, setSettled] = useState<string[]>(() => saved?.settled ?? []);
@@ -101,16 +103,25 @@ export function SetupChat({ signedIn }: {
       }) as {
         answer: string;
         opened: Array<{ name: string; slug: string | null }>;
-        handoff: string;
-        settled?: string[];
-        open?: string[];
         checklist?: typeof checklist;
       };
       // The authoritative copy, in case a frame was lost on the way.
-      setTurns([...next, { role: 'assistant', content: res.answer }]);
-      if (res.handoff) { setHandoff(res.handoff); setCopied(false); }
-      if (res.settled?.length) setSettled(res.settled);
+      const answered: Turn[] = [...next, { role: 'assistant', content: res.answer }];
+      setTurns(answered);
       if (res.checklist) setChecklist(res.checklist);
+
+      // The prompt for their own agent is a second model call, so it is asked
+      // for AFTER the words are on screen rather than in front of them. It
+      // updates the rail when it lands; a failure leaves the previous one up,
+      // which is stale by one turn rather than absent.
+      setWriting(true);
+      api.askSetupHandoff(answered, settled)
+        .then(h => {
+          if (h.handoff) { setHandoff(h.handoff); setCopied(false); }
+          if (h.settled?.length) setSettled(h.settled);
+        })
+        .catch(e => console.error('handoff failed:', e))
+        .finally(() => setWriting(false));
       // Append rather than replace: a second number added later must not take
       // the first floor's door off the page.
       if (res.opened?.length) {
@@ -240,21 +251,36 @@ export function SetupChat({ signedIn }: {
       </section>
 
       {/* Rewritten every turn, so it is never behind the conversation. */}
-      {handoff && (
+      {/* The rail shows whatever it has. The floor's state is a database read
+          and lands with the answer; the prompt is a model call and catches up,
+          so gating the state on the prompt would hide the surer half behind
+          the slower one. */}
+      {(handoff || checklist) && (
         <aside className="setup-handoff" aria-label="Continue with your own agent">
           <div className="setup-handoff-head">
             {/* Short, because the button beside it must never wrap. */}
             <h2 className="setup-handoff-title">Your own agent</h2>
-            <button type="button" className="setup-copy" onClick={() => void copyHandoff()}>
-              {copied ? 'Copied' : 'Copy prompt'}
+            <button
+              type="button"
+              className="setup-copy"
+              onClick={() => void copyHandoff()}
+              disabled={writing || !handoff}
+            >
+              {writing ? 'Rewriting' : copied ? 'Copied' : 'Copy prompt'}
             </button>
           </div>
-          <p className="setup-handoff-why">
-            Otto writes this from what you have said, with the real ids of
-            anything he opened. Paste it into the assistant that knows your
-            business and it can finish the setup.
-          </p>
-          <pre className="setup-handoff-body">{handoff}</pre>
+          {handoff ? (
+            <>
+              <p className="setup-handoff-why">
+                Otto writes this from what you have said, with the real ids of
+                anything he opened. Paste it into the assistant that knows your
+                business and it can finish the setup.
+              </p>
+              <pre className="setup-handoff-body">{handoff}</pre>
+            </>
+          ) : (
+            <p className="setup-handoff-why">Otto is writing the prompt for your own agent.</p>
+          )}
 
           {/* What the floor's own rows say, which is the thing a prompt cannot
               stay current about. */}

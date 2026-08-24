@@ -1,4 +1,4 @@
-import { useEffect, useState, FormEvent } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { SetupChat } from '../components/SetupChat';
@@ -7,16 +7,17 @@ import { Logo } from '../components/Logo';
 import { TopBarAuth } from '../components/TopBarAuth';
 
 /**
- * The owner side's entire surface while Telarchy is trader-first
- * (vision.md, owner decision 2026-08-08): a pitch and a waitlist form.
- * Workspace creation is invite-only until trader demand is proven, so
- * everything that used to funnel into create-workspace points here instead.
- * Reuses the share-link landing's design language (.pubws-*): same poster
- * discipline, one action.
+ * The operator door: Otto, and nothing else.
+ *
+ * It was a waitlist form, then a conversation with an email box under it as a
+ * fallback. The box is gone (owner, 2026-08-24: "remove this whole thing"),
+ * and the page is better for it: an offer to talk to a person instead sits
+ * under a thing that IS a person answering, and reads as an admission that
+ * the thing above it does not work. Anyone who wants a human still has
+ * /contact in the footer of every page.
  */
 export function ManagePage() {
   const { user, loading } = useAuth();
-  const [email, setEmail] = useState('');
 
   // A platform admin used to be bounced straight to /admin from here, which
   // made the operator door the one page we could not look at as ourselves
@@ -28,24 +29,6 @@ export function ManagePage() {
       .then((p: { platformAdmin?: boolean }) => setIsAdmin(p.platformAdmin === true))
       .catch(e => console.error('profile check failed:', e));
   }, [user]);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [done, setDone] = useState(false);
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSubmitting(true);
-    try {
-      // Already on the list counts as success: the client resolves a 409.
-      await api.joinWaitlist({ email });
-      setDone(true);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   return (
     <div className="pubws">
@@ -66,30 +49,6 @@ export function ManagePage() {
           <SetupChat signedIn={loading ? null : !!user} />
         </section>
 
-        {/* The human door stays: it is how the first operator arrived, and
-            some people would rather write to a person. One quiet line. */}
-        <section className="pubws-act setup-human">
-          {done ? (
-            <p className="setup-note">We have your address. We will write back.</p>
-          ) : (
-            <form className="setup-humanform" onSubmit={handleSubmit}>
-              <label htmlFor="manage-email">Would rather talk to a person?</label>
-              <input
-                id="manage-email"
-                type="email"
-                required
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="you@company.com"
-                aria-label="Your email, to be written back to"
-              />
-              <button type="submit" disabled={submitting}>
-                {submitting ? 'Sending' : 'Send it'}
-              </button>
-            </form>
-          )}
-          {error && <p className="setup-err">{error}</p>}
-        </section>
 
         <footer className="pubws-foot">
           Just want to trade? <Link to="/">The live markets are open</Link>.

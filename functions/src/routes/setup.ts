@@ -103,9 +103,9 @@ setupRouter.post('/ask', wrap(async (req, res) => {
    *
    * Server-sent events rather than a websocket, because this is one direction
    * and one turn. The trailing `done` frame carries what the prose does not:
-   * what was opened, the rewritten handoff, the checklist. That ordering is
-   * deliberate, since the handoff is a second model call and the answer must
-   * not wait behind it.
+   * what was opened, and the checklist read back from the database. The
+   * handoff is asked for separately, so its model call never delays this
+   * one.
    */
   const wantsStream = req.headers.accept?.includes('text/event-stream') === true;
   let streaming = false;
@@ -154,29 +154,18 @@ setupRouter.post('/ask', wrap(async (req, res) => {
     const before = new Set(owned.map(w => w.slug));
     const opened = after.filter(w => w.slug && !before.has(w.slug));
 
-    // The handoff to the caller's own agent, rewritten every turn (owner
-    // direction 2026-08-23). Otto writes it against the specification, so it
-    // can name their business and their source rather than a template's idea
-    // of an operator; the ids in it are given to him and guarded, and a
-    // failure falls back to the dull always-correct version.
-    //
-    // The checklist that goes with it is read from the database, so the model
-    // is told what is true rather than asked to remember it.
+    // The handoff is NOT computed here (2026-08-24). It is a second model
+    // call, and making the answer wait behind it pushed a turn past twenty
+    // seconds, which is the deadline the published beta proxy gives up at:
+    // Otto searched, answered, and the reader got a 502. The page asks for it
+    // separately once the words are on screen, so one slow thing never hides
+    // a finished one.
     const floor = opened[0] ?? after[0] ?? null;
     const checklist = floor ? await buildChecklist(floor.id) : null;
-    const handoff = await writeHandoff({
-      turns: [...turns, { role: 'assistant', content: answer }],
-      state: { signedIn: Boolean(identity), workspaces: after, opened },
-      checklist,
-      previouslySettled: settledBefore,
-    });
 
     const payload = {
       answer,
       opened,
-      handoff: handoff.prompt,
-      settled: handoff.settled,
-      open: handoff.open,
       checklist: checklist ? {
         blocking: checklist.blocking,
         market: checklist.market,
@@ -267,4 +256,56 @@ setupRouter.get('/checklist', wrap(async (req, res) => {
   const checklist = await buildChecklist(workspaceId);
   if (!checklist.workspace) { res.status(404).json({ error: 'Workspace not found' }); return; }
   res.json(checklist);
+}));
+
+
+/**
+ * The prompt for the operator's own agent, on its own request.
+ *
+ * It used to ride along with the answer, which made every turn as slow as its
+ * two model calls added together: past twenty seconds, and the published beta
+ * proxy gives up there, so a reader whose turn had actually succeeded got a
+ * 502 (2026-08-24). Split, the words arrive when Otto has written them and
+ * the prompt catches up a moment later.
+ *
+ * Same rules as the ask: Otto writes it against the specification, every id in
+ * it is checked against the database before it is returned, and a failure
+ * falls back to the deterministic template rather than to nothing.
+ */
+setupRouter.post('/handoff', wrap(async (req, res) => {
+  if (!askEnabled()) {
+    res.status(503).json({ error: 'Answers are not configured on this instance.' });
+    return;
+  }
+
+  const raw = Array.isArray(req.body?.messages) ? req.body.messages : [];
+  const turns: AskTurn[] = [];
+  for (const m of raw.slice(-12)) {
+    const role = m?.role === 'assistant' ? 'assistant' : 'user';
+    const content = typeof m?.content === 'string' ? m.content.trim() : '';
+    if (content) turns.push({ role, content: content.slice(0, 4000) });
+  }
+  if (!turns.length) { res.status(400).json({ error: 'messages is required' }); return; }
+
+  const identity = req.auth?.agentId ?? req.auth?.uid ?? null;
+  const owned = identity
+    ? await db.select({ id: workspaces.id, name: workspaces.name, slug: workspaces.slug })
+        .from(workspaces).where(eq(workspaces.createdBy, identity))
+        .orderBy(desc(workspaces.createdAt))
+    : [];
+  const checklist = owned[0] ? await buildChecklist(owned[0].id) : null;
+
+  const handoff = await writeHandoff({
+    turns,
+    state: { signedIn: Boolean(identity), workspaces: owned, opened: [] },
+    checklist,
+    previouslySettled: sanitiseDecisionIds(req.body?.settled),
+  });
+
+  res.json({
+    handoff: handoff.prompt,
+    settled: handoff.settled,
+    open: handoff.open,
+    written: handoff.written,
+  });
 }));
