@@ -18,6 +18,14 @@ opened. That record is worth having on its own: it is the receipt trail a
 visitor from any other channel checks, and it is O-1A evidence that accrues
 without anyone writing anything.
 
+The evidence behind this (revised 2026-08-24, research record in the
+telarchy umbrella, `notes/x-playbook-research-2026-08.md`): every automated
+feed in the adjacent niche that started in 2025 sits at a few thousand
+followers or fewer with near-zero engagement, the large ones (Whale Alert,
+the HN bot) are old and still get ~0.01% engagement, and the accounts that
+actually grew in the same niches are human-curated. The feed's value is the
+record, not the reach; do not spend effort optimising its copy.
+
 Corollary: no generic product copy from the brand account, ever. A Manifold
 reader already flagged Telarchy's prose as AI-written; the ledger cannot be,
 because it contains no sentences anyone composed.
@@ -25,11 +33,21 @@ because it contains no sentences anyone composed.
 ## The account
 
 Handle: to be created by Viktor (X requires the mobile app or a phone number
-for signup). Registered to `viktor@telarchy.com`, labelled **Automated** in X
-settings (X's automation policy for accounts that post by API), profile link
-`https://telarchy.com`. Developer app on the free tier (about 500 posts a
-month, write access; far above the cadence below). Keys live in the keyring
-(`laptop/secrets/x-telarchy.env`, mirrored to the box's
+for signup). Registered to `viktor@telarchy.com`, profile link
+`https://telarchy.com`. X's developer policy for accounts that post by API
+(revised 2026-08-24 after reading it): the **Automated** label switched on
+in settings, a bio that says it is a bot and names the human account that
+runs it (`@viktorci`), and that human account linked as the manager. The
+poster posts only: no replies, no follows, no likes, ever, because reply and
+follow automation is what X's 2026 purges target while labelled posting-only
+API bots survive.
+
+**The API is not free (corrected 2026-08-24).** X closed the free developer
+tier to new signups on 2026-02-06; posting is pay-per-use at $0.015 per post
+and $0.20 per post that contains a URL. At this feed's volume that is a few
+dollars a month, and it is the reason a post carries a link only when the
+link is the point (a receipt's deep link) and never decoratively. Keys live
+in the keyring (`laptop/secrets/x-telarchy.env`, mirrored to the box's
 `~/keyring/secrets/x-telarchy.env`), never in this repo.
 
 ## What gets posted
@@ -105,9 +123,11 @@ post time, never cached across posts.
 
 ## Cadence and limits
 
-Every 30 minutes the poster reads the two workspaces and posts what is new
-since its state file, at most 5 posts per run, so a burst of contracts
-spreads over a few hours instead of flooding. At today's rate that is a
+Every 30 minutes, plus a random delay of up to 20 minutes so the account
+is not a metronome (fixed-interval cadence is one of the bot-purge signals),
+the poster reads the two workspaces and posts what is new since its state
+file, at most 5 posts per run, so a burst of contracts spreads over a few
+hours instead of flooding. At today's rate that is a
 handful of posts a week; the free tier's monthly cap is not in play.
 
 The first live run marks everything already on the floor as seen and posts
@@ -122,6 +142,22 @@ enabled.
   dry-run mode, timer NOT enabled. Waiting on (a) the X account and its
   developer keys, and (b) Viktor's sign-off on the three templates above.
   Template changes go here first; the poster follows the doc.
+
+## The founder's account is the channel; this feed is its footnote
+
+The research is unambiguous that the account which can grow is `@viktorci`,
+not the brand: under 1,000 followers the work is 20 to 30 substantive
+replies a day in the prediction-market, futarchy and agent-builder threads,
+at most one or two original text posts a day (the open-sourced ranker gives
+a sub-1,000-follower author one cold-start slot per post and decays bursts),
+no link in the body, the number in the sentence, each post written to earn a
+reply rather than a like (a reply is weighted 10x a like), and Premium on
+that account (the largest measured effect: a free account's median post
+gets zero engagement). Its original posts should be the receipts in his
+voice; this feed's matching post is what he links in the reply. All of that
+is his writing, shown to him first, per AGENTS.md; nothing in this feed
+substitutes for it. Pre-committed falsifier and the cadence numbers:
+`notes/x-playbook-research-2026-08.md` in the telarchy umbrella.
 
 ## Operations
 
