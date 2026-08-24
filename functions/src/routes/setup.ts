@@ -83,7 +83,14 @@ setupRouter.post('/ask', wrap(async (req, res) => {
     signedIn: Boolean(identity),
     name: req.auth?.agentId ?? null,
     workspaces: owned,
-    settled: settledBefore,
+    // What the ROWS say is settled, not what the handoff model guessed last
+    // turn. The guess was fed back as "do not ask about this again", which
+    // produced the worst possible sentence: "the number was marked as already
+    // settled, but its actual definition is not present in this chat" (owner,
+    // 2026-08-24). A checklist item that is done carries its own note saying
+    // what it is, so Otto is never told a decision exists without being told
+    // what it was.
+    settled: checklistBefore?.items.filter(i => i.status === 'done').map(i => i.id) ?? [],
     checklist: checklistBefore?.items.map(i => ({ id: i.id, label: i.label, status: i.status, note: i.note })),
     blocking: checklistBefore?.blocking,
   });

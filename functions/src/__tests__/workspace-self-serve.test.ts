@@ -73,6 +73,15 @@ describe('an ordinary signed-in person may open a floor', () => {
     expect(row.visibility).toBe('unlisted');
   });
 
+  test('asking for nothing gets a market that is live at its address', async () => {
+    // The service defaults to private, which made every market Otto opened
+    // invisible at the address he had just handed over. This door has
+    // promised unlisted in writing since it opened.
+    const r = await create({ name: 'Kleros', template: 'blank' });
+    const [row] = await db.select().from(workspaces).where(eq(workspaces.id, r.body.id));
+    expect(row.visibility).toBe('unlisted');
+  });
+
   test('private is still honoured: the clamp only removes listing', async () => {
     const r = await create({ name: 'Quiet', template: 'blank', visibility: 'private' });
     const [row] = await db.select().from(workspaces).where(eq(workspaces.id, r.body.id));

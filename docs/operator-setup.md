@@ -292,7 +292,11 @@ share" path.
 ## What exists right now
 
 - `POST /api/workspaces`: open to any identity, 3 per account, `public` clamped
-  to `unlisted`. Tests: `functions/src/__tests__/workspace-self-serve.test.ts`.
+  to `unlisted`, and no visibility at all ALSO lands on `unlisted` (fixed
+  2026-08-24). The service default is `private`, which is right for a
+  self-hosted or API-only caller and was wrong here: Otto passes no
+  visibility, so every market he opened was invisible at the address he had
+  just handed over, including to the person who watched him open it. Tests: `functions/src/__tests__/workspace-self-serve.test.ts`.
 - `POST /api/metrics` with `timePreference.customHorizons` and
   `marketRangeMax`: the call that turns a workspace into a live floor.
 - `POST /api/onboard`: paused (403). Reopening it is a separate abuse question,

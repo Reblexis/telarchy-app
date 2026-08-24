@@ -186,7 +186,19 @@ export function SetupChat({ signedIn }: {
               {/* The one fact among all the talk: a market that exists. */}
               {opened.map(o => o.slug && (
                 <Link className="setup-made" to={`/${o.slug}`} key={o.slug}>
-                  <span className="setup-made-label">Live</span>
+                  {/* What the rows say, not what we hope. A market with no
+                      number on it is not live, and saying so under a link the
+                      reader is about to click is how they end up trusting the
+                      label instead of the page (owner, 2026-08-24: the
+                      receipt read LIVE over an address that answered "there
+                      is no market at this address"). */}
+                  <span className="setup-made-label">
+                    {!checklist?.market
+                      ? 'Opened, no number yet'
+                      : checklist.market.consensus === null
+                        ? 'Open, nothing behind it'
+                        : 'Live'}
+                  </span>
                   <span className="setup-made-name">{o.name}</span>
                   <span className="setup-made-at">telarchy.com/{o.slug}</span>
                 </Link>

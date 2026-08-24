@@ -376,3 +376,39 @@ describe('the two halves of the rail arrive separately', () => {
     expect(screen.queryByText(/not answering/i)).toBeNull();
   });
 });
+
+describe('the receipt says what the rows say', () => {
+  const market = {
+    metricName: 'Monthly disputes', rangeMin: 0, rangeMax: 5000,
+    targetDate: '2026-09', consensus: 2500, pool: 240,
+  };
+
+  const openWith = async (checklist: unknown) => {
+    askSetup.mockResolvedValue({
+      answer: 'Opened.', opened: [{ name: 'Kleros', slug: 'kleros' }], checklist,
+    } as never);
+    const user = userEvent.setup();
+    renderChat();
+    await user.type(screen.getByLabelText(/tell otto what you run/i), 'go');
+    await user.click(screen.getByRole('button', { name: /send/i }));
+    return screen.findByRole('link', { name: /kleros/i });
+  };
+
+  test('a market with no number on it does not say Live', async () => {
+    // What the owner saw: a receipt reading LIVE over an address that
+    // answered "there is no market at this address".
+    await openWith({ blocking: [], market: null, items: [] });
+    expect(screen.getByText(/opened, no number yet/i)).toBeTruthy();
+    expect(screen.queryByText(/^Live$/)).toBeNull();
+  });
+
+  test('a market nobody can trade says that instead', async () => {
+    await openWith({ blocking: [], market: { ...market, consensus: null, pool: 0 }, items: [] });
+    expect(screen.getByText(/nothing behind it/i)).toBeTruthy();
+  });
+
+  test('and a real one says Live', async () => {
+    await openWith({ blocking: [], market, items: [] });
+    expect(screen.getByText('Live')).toBeTruthy();
+  });
+});

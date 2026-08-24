@@ -121,7 +121,10 @@ export function renderSetupBrief(caller: {
     lines.push('');
   }
   if (caller.settled?.length) {
-    lines.push(`Already settled in this conversation, do not ask again: ${caller.settled.join(', ')}.`);
+    // Named alongside the notes above, which say what each one actually is.
+    // "Settled" with nothing behind it is worse than silence: he repeats it
+    // back to the operator as a fact he cannot explain.
+    lines.push(`Settled already, according to the rows above: ${caller.settled.join(', ')}. Do not ask about these again unless the operator raises them.`);
     lines.push('');
   }
 

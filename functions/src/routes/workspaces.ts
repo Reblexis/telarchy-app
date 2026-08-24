@@ -91,7 +91,19 @@ workspacesRouter.post('/', requireIdentity, wrap(async (req, res) => {
         });
         return;
       }
-      if (requestedVisibility === 'public') requestedVisibility = 'unlisted';
+      // Unlisted, both ways: asking for public is clamped down to it, and
+      // asking for nothing lands on it rather than on private.
+      //
+      // The default in createWorkspaceFromTemplate is 'private', which is the
+      // safe answer for a self-hosted or API-only caller and the wrong one
+      // here: Otto passes no visibility, so every market he opened was born
+      // invisible at its own address, including to the person who had just
+      // watched him open it (found on the beta, 2026-08-24). Unlisted is what
+      // this door has promised in writing since it opened: live, joinable and
+      // shareable by link, simply not on the front page.
+      if (requestedVisibility === undefined || requestedVisibility === 'public') {
+        requestedVisibility = 'unlisted';
+      }
     }
   }
 
