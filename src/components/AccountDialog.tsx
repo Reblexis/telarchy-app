@@ -40,6 +40,8 @@ const EMAIL_SWITCHES: Array<{ key: keyof NotificationPrefs; label: string }> = [
   { key: 'replyToMyComment', label: 'Someone replies in a thread I am in' },
   { key: 'newProposal', label: 'A new contract goes on the ballot' },
   { key: 'anyComment', label: 'Any comment, under any contract or market' },
+  { key: 'marketResolved', label: 'A market I traded settles' },
+  { key: 'contractDecided', label: 'A contract I traded or commented on is decided' },
 ];
 
 /**
@@ -68,6 +70,8 @@ const DEFAULT_PREFS: NotificationPrefs = {
   replyToMyComment: true,
   newProposal: false,
   anyComment: false,
+  marketResolved: true,
+  contractDecided: true,
 };
 
 const PROVIDERS: Array<{ id: PayoutMethod['provider']; label: string }> = [

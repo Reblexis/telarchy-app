@@ -153,6 +153,8 @@ userauthRouter.get('/me', requireIdentity, requireScope('account:read'), wrap(as
       replyToMyComment: agent?.notifyReplyToMyComment ?? true,
       newProposal: agent?.notifyNewProposal ?? false,
       anyComment: agent?.notifyAnyComment ?? false,
+      marketResolved: agent?.notifyMarketResolved ?? true,
+      contractDecided: agent?.notifyContractDecided ?? true,
     },
   });
 }));
@@ -195,7 +197,8 @@ userauthRouter.post('/consent', requireUser, wrap(async (req, res) => {
  * "other" provider). Payment info is never shown publicly. `notifications`
  * sets the email switches (docs/vision.md, "Participant email
  * notifications"): any subset of { commentOnMyProposal, replyToMyComment,
- * newProposal, anyComment }, each a boolean; an omitted key keeps its current value.
+ * newProposal, anyComment, marketResolved, contractDecided }, each a boolean;
+ * an omitted key keeps its current value.
  */
 userauthRouter.post('/profile', requireIdentity, requireScope('account:write'), wrap(async (req, res) => {
   const participantId = await resolveCallerParticipantId(req);
@@ -304,7 +307,7 @@ userauthRouter.post('/profile', requireIdentity, requireScope('account:write'), 
   // Email switches (docs/vision.md, "Participant email notifications").
   // A partial object is the normal case: the account dialog flips one
   // toggle and sends only that key, so an unnamed switch keeps its value.
-  let notificationUpdate: Partial<Record<'notifyCommentOnMyProposal' | 'notifyReplyToMyComment' | 'notifyNewProposal' | 'notifyAnyComment', boolean>> | undefined;
+  let notificationUpdate: Partial<Record<'notifyCommentOnMyProposal' | 'notifyReplyToMyComment' | 'notifyNewProposal' | 'notifyAnyComment' | 'notifyMarketResolved' | 'notifyContractDecided', boolean>> | undefined;
   if (notifications !== undefined) {
     if (notifications === null || typeof notifications !== 'object' || Array.isArray(notifications)) {
       res.status(400).json({ error: 'notifications must be an object' }); return;
@@ -314,6 +317,8 @@ userauthRouter.post('/profile', requireIdentity, requireScope('account:write'), 
       replyToMyComment: 'notifyReplyToMyComment',
       newProposal: 'notifyNewProposal',
       anyComment: 'notifyAnyComment',
+      marketResolved: 'notifyMarketResolved',
+      contractDecided: 'notifyContractDecided',
     } as const;
     notificationUpdate = {};
     for (const [input, column] of Object.entries(keys)) {

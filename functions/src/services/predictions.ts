@@ -12,6 +12,7 @@ import { ttlCache } from '../lib/ttl-cache';
 import { onPricesChanged } from '../lib/market-events';
 import { releaseLimitOrdersForMarket } from './trading';
 import { applyCredits } from './credits';
+import { notifyMarketResolved } from './notifications';
 
 type MarketRow = typeof markets.$inferSelect;
 

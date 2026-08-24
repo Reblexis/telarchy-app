@@ -11,12 +11,13 @@
 jest.mock('../db/client', () => require('./harness/test-db'));
 
 import { db, ensureMigrations, truncateAll } from './harness/test-db';
+import { eq } from 'drizzle-orm';
 import {
   agents, authUser, markets, marketMessages, permissionGroups,
-  proposals, proposalMessages, workspaces,
+  proposals, proposalMessages, trades, workspaces,
 } from '../db/schema';
 import { initialPool } from '../lib/amm';
-import { notifyCommentPosted, notifyProposalCreated, notifyProposalDecided } from '../services/notifications';
+import { notifyCommentPosted, notifyMarketResolved, notifyProposalCreated, notifyProposalDecided } from '../services/notifications';
 
 const realFetch = global.fetch;
 let sent: Array<{ to: string; subject: string; text: string }>;
@@ -41,7 +42,7 @@ const WS = 'ws-notif';
 /** A participant with a browser account, i.e. one that has an address. */
 async function human(id: string, email: string, prefs: Partial<{
   notifyCommentOnMyProposal: boolean; notifyReplyToMyComment: boolean; notifyNewProposal: boolean;
-  notifyAnyComment: boolean;
+  notifyAnyComment: boolean; notifyMarketResolved: boolean; notifyContractDecided: boolean;
 }> = {}) {
   await db.insert(authUser).values({ id: `u-${id}`, name: id, email });
   await db.insert(agents).values({ id, apiKeyHash: `h-${id}`, balance: 0, nickname: id, authUserId: `u-${id}`, ...prefs });
@@ -410,5 +411,119 @@ describe('watching every comment on a floor', () => {
     await notifyCommentPosted({ workspaceId: WS, from: 'trader', content: 'thin book', marketId: 'mkt-1' });
 
     expect(sent.map(s => s.to)).toEqual(['owner@example.com']);
+  });
+});
+
+// Owner ask 2026-08-24: "add email notifications on traded market resolving
+// as well as a contract on which user traded / commented / made being
+// approved/declined". The proposer's mail already existed; these two blocks
+// pin the new recipients.
+
+describe('a decision reaches everyone with money or words on the contract', () => {
+  async function decidedWithPair(fields: Record<string, unknown> = {}) {
+    await db.insert(proposals).values({
+      id: 'prop-1', workspaceId: WS, proposedBy: 'poster', title: 'Ship the landing page',
+      askUsd: 300, resolvedAt: new Date(), resolvedBy: 'owner', status: 'approved', ...fields,
+    });
+    await db.insert(markets).values({
+      id: 'mkt-approved', workspaceId: WS, metricId: 'metric-1', metricName: 'Weekly traders',
+      targetDate: '2026-12', rangeMin: 0, rangeMax: 100, shares: [0, 0], liquidity: 10,
+      pool: initialPool(10), active: true, resolved: false, voided: false,
+      proposalId: 'prop-1', branch: 'approved',
+    });
+  }
+  const trade = (id: string, agentId: string) => db.insert(trades).values({
+    id, workspaceId: WS, agentId, marketId: 'mkt-approved',
+    direction: 'higher', shares: 5, cost: 2, createdAt: new Date(),
+  });
+
+  test('a trader on a branch and a commenter in the thread both hear the verdict', async () => {
+    await human('poster', 'poster@example.com');
+    await human('owner', 'owner@example.com');
+    await human('trader', 'trader@example.com');
+    await human('voice', 'voice@example.com');
+    await seedWorkspace(['poster', 'owner', 'trader', 'voice']);
+    await decidedWithPair();
+    await trade('t1', 'trader');
+    await db.insert(proposalMessages).values({
+      id: 'm1', workspaceId: WS, proposalId: 'prop-1', from: 'voice', content: 'is this priced right?', createdAt: new Date(),
+    });
+
+    await notifyProposalDecided({ workspaceId: WS, proposalId: 'prop-1' });
+
+    expect(sent.map(x => x.to).sort()).toEqual(['poster@example.com', 'trader@example.com', 'voice@example.com']);
+    const traderMail = sent.find(x => x.to === 'trader@example.com')!;
+    // Not "your contract": they took a side on it, they do not own it.
+    expect(traderMail.text).toContain('this contract');
+    expect(traderMail.text).toContain('you traded or commented');
+    const posterMail = sent.find(x => x.to === 'poster@example.com')!;
+    expect(posterMail.text).toContain('your contract');
+  });
+
+  test('the switch works, and the decider is never told about their own act', async () => {
+    await human('poster', 'poster@example.com');
+    await human('owner', 'owner@example.com');
+    await human('trader', 'trader@example.com', { notifyContractDecided: false });
+    await seedWorkspace(['poster', 'owner', 'trader']);
+    await decidedWithPair();
+    await trade('t1', 'trader');
+    // The owner also traded the branch; deciding it must not mail them.
+    await trade('t2', 'owner');
+
+    await notifyProposalDecided({ workspaceId: WS, proposalId: 'prop-1' });
+
+    expect(sent.map(x => x.to)).toEqual(['poster@example.com']);
+  });
+});
+
+describe('a settled market mails its traders', () => {
+  async function settledMarket(fields: Record<string, unknown> = {}) {
+    await db.insert(markets).values({
+      id: 'mkt-1', workspaceId: WS, metricId: 'metric-1', metricName: 'Weekly traders',
+      targetDate: '2026-12', rangeMin: 0, rangeMax: 100, shares: [0, 0], liquidity: 10,
+      pool: 0, active: false, resolved: true, voided: false, actualValue: 62,
+      resolvedAt: new Date(), ...fields,
+    });
+  }
+  const trade = (id: string, agentId: string) => db.insert(trades).values({
+    id, workspaceId: WS, agentId, marketId: 'mkt-1',
+    direction: 'higher', shares: 5, cost: 2, createdAt: new Date(),
+  });
+
+  test('every trader hears the settled value, once, and bystanders nothing', async () => {
+    await human('alice', 'alice@example.com');
+    await human('bob', 'bob@example.com');
+    await human('bystander', 'bystander@example.com');
+    await seedWorkspace(['alice', 'bob', 'bystander']);
+    await settledMarket();
+    await trade('t1', 'alice');
+    await trade('t2', 'alice'); // a second trade is not a second email
+    await trade('t3', 'bob');
+
+    await notifyMarketResolved({ workspaceId: WS, marketId: 'mkt-1' });
+
+    expect(sent.map(x => x.to).sort()).toEqual(['alice@example.com', 'bob@example.com']);
+    expect(sent[0].subject).toContain('Settled at 62');
+    expect(sent[0].text).toContain('settled at 62');
+    expect(sent[0].text).toContain('you traded this market');
+  });
+
+  test('the switch turns it off, and a voided market sends nothing', async () => {
+    await human('alice', 'alice@example.com', { notifyMarketResolved: false });
+    await human('bob', 'bob@example.com');
+    await seedWorkspace(['alice', 'bob']);
+    await settledMarket();
+    await trade('t1', 'alice');
+    await notifyMarketResolved({ workspaceId: WS, marketId: 'mkt-1' });
+    expect(sent).toHaveLength(0);
+
+    // Voided is not settled: the refund is the message.
+    await db.update(markets).set({ voided: true }).where(eq(markets.id, 'mkt-1'));
+    await db.insert(trades).values({
+      id: 't2', workspaceId: WS, agentId: 'bob', marketId: 'mkt-1',
+      direction: 'higher', shares: 5, cost: 2, createdAt: new Date(),
+    });
+    await notifyMarketResolved({ workspaceId: WS, marketId: 'mkt-1' });
+    expect(sent).toHaveLength(0);
   });
 });

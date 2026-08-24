@@ -154,6 +154,11 @@ export interface NotificationPrefs {
   newProposal: boolean;
   /** Every comment anywhere on a workspace you belong to. Off until asked for. */
   anyComment: boolean;
+  /** A market you traded settled, with its value. On for a new account. */
+  marketResolved: boolean;
+  /** A contract you traded or commented on was approved or declined. On for
+   *  a new account. The proposer's own decision mail has no switch. */
+  contractDecided: boolean;
 }
 
 /** A bug report, help request, or feature idea (POST /api/feedback).
@@ -1148,7 +1153,12 @@ export const api = {
     settled: string[];
     open: string[];
     /** The floor's real state, when a floor exists. */
-    checklist: { blocking: string[]; items: Array<{ id: string; label: string; status: 'done' | 'open'; note: string }> } | null;
+    checklist: {
+      blocking: string[];
+      /** Enough of the market to draw it: the page's hero is the instrument. */
+      market: { metricName: string; rangeMin: number; rangeMax: number; targetDate: string; consensus: number | null; pool: number } | null;
+      items: Array<{ id: string; label: string; status: 'done' | 'open'; note: string }>;
+    } | null;
   }> =>
     request('/api/setup/ask', { method: 'POST', body: JSON.stringify({ messages, settled }) }, true),
 

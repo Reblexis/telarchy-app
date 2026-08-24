@@ -63,6 +63,7 @@ function sanitizeAgentForViewer(
     // GET /api/auth/me serves the same `notifications` shape, and two shapes
     // for one fact is how a client ends up reading the stale one.
     notifyCommentOnMyProposal, notifyReplyToMyComment, notifyNewProposal, notifyAnyComment,
+    notifyMarketResolved, notifyContractDecided,
     ...data
   } = row;
   const isSelfOrOwner = !!auth && (
@@ -78,6 +79,8 @@ function sanitizeAgentForViewer(
         replyToMyComment: notifyReplyToMyComment,
         newProposal: notifyNewProposal,
         anyComment: notifyAnyComment,
+        marketResolved: notifyMarketResolved,
+        contractDecided: notifyContractDecided,
       },
     };
   }
