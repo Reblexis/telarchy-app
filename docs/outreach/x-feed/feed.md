@@ -54,9 +54,11 @@ Three kinds, all derived from public reads of the public workspaces
 
 House contracts are not receipts: a contract proposed by one of the owner's
 own accounts (`Viktor36`, `telarchy-agents`, the brother's `elonmusk`; the
-list is `X_FEED_HOUSE_NICKNAMES` in the env) is never posted in any kind,
-because "paid $50 to Viktor36" is the owner paying himself and the ledger
-would be technically true and misleading.
+list is `X_FEED_HOUSE_NICKNAMES` in the env) is never posted as a receipt
+or an opening, because "paid $50 to Viktor36" is the owner paying himself
+and the ledger would be technically true and misleading. The weekly
+standings are the exception: they reproduce `telarchy.com/season` as it
+is, house entrants included, because a filtered board is a different board.
 
 Nothing else. In particular no metric readings (LookPilot's revenue is
 Viktor's to publish, not a cron's), no declines (a decline reason is prose),
