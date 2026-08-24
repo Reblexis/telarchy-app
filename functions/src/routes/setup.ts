@@ -133,6 +133,14 @@ setupRouter.post('/ask', wrap(async (req, res) => {
       // the API calls, so the log says what he went and read.
       brief, turns, [webSearchTool(actions), ...ottoApiTools(req, actions)], {
         system: SETUP_SYSTEM,
+        // Reasoning effort is available and is NOT on by default, because it
+        // was measured: at effort=high the eval scored identically (safety
+        // 7/7, judgement unchanged) and took nearly twice as long, 47s
+        // against 26s. Latency is not free here, since a turn that runs long
+        // is a turn the published beta proxy throws away. Raise it with
+        // SETUP_EFFORT when a scenario shows it earning the wait.
+        ...(process.env.SETUP_EFFORT ? { effort: process.env.SETUP_EFFORT } : {}),
+        maxTokens: 3000,
         ...(streaming ? { onDelta: (text: string) => send('delta', { text }) } : {}),
       });
     console.log(`setup ask: ${usage.input} in (${usage.cachedInput} cached), ${usage.output} out, $${usage.costUsd ?? '?'}`);

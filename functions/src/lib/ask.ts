@@ -106,6 +106,7 @@ interface GatewayReply {
 
 async function postGateway(
   key: string, messages: GatewayMessage[], tools: AskTool[], maxTokens: number, stream: boolean,
+  effort?: string,
 ): Promise<Response> {
   const res = await fetch(GATEWAY, {
     method: 'POST',
@@ -115,6 +116,7 @@ async function postGateway(
       max_completion_tokens: maxTokens,
       messages,
       ...(tools.length ? { tools: tools.map(t => t.spec) } : {}),
+      ...(effort ? { reasoning_effort: effort } : {}),
       // Usage arrives in a final chunk when streaming, and without asking for
       // it a streamed answer would report no cost at all.
       ...(stream ? { stream: true, stream_options: { include_usage: true } } : {}),
@@ -132,8 +134,9 @@ async function postGateway(
 
 async function callGateway(
   key: string, messages: GatewayMessage[], tools: AskTool[], maxTokens: number = MAX_TOKENS,
+  effort?: string,
 ): Promise<GatewayReply> {
-  const res = await postGateway(key, messages, tools, maxTokens, false);
+  const res = await postGateway(key, messages, tools, maxTokens, false, effort);
   return await res.json() as GatewayReply;
 }
 
@@ -145,9 +148,9 @@ async function callGateway(
  *  think out loud in a language they did not ask for. */
 async function streamGateway(
   key: string, messages: GatewayMessage[], tools: AskTool[], maxTokens: number,
-  onDelta: (text: string) => void,
+  onDelta: (text: string) => void, effort?: string,
 ): Promise<GatewayReply> {
-  const res = await postGateway(key, messages, tools, maxTokens, true);
+  const res = await postGateway(key, messages, tools, maxTokens, true, effort);
   if (!res.body) throw new Error('gateway returned no stream');
 
   const reader = res.body.getReader();
@@ -239,11 +242,16 @@ export async function askAboutWorkspace(
      *  spends the budget thinking and returns empty content, which arrives
      *  here as "gateway returned no answer". */
     maxTokens?: number;
+    /** How hard the model thinks before it speaks: 'low' | 'high' | 'max'.
+     *  Reasoning tokens are completion tokens, so raising this without
+     *  raising maxTokens buys an empty answer. */
+    effort?: string;
   } = {},
 ): Promise<AskResult> {
   const system = opts.system ?? SYSTEM;
   const maxTokens = opts.maxTokens ?? MAX_TOKENS;
   const onDelta = opts.onDelta;
+  const effort = opts.effort;
   const key = apiKey();
   if (!key) throw new Error('AI_GATEWAY_API_KEY is not set');
 
@@ -271,8 +279,8 @@ export async function askAboutWorkspace(
     // rather than reaching for another one it will not get to use.
     const offered = round < MAX_TOOL_ROUNDS ? tools : [];
     const data = onDelta
-      ? await streamGateway(key, messages, offered, maxTokens, onDelta)
-      : await callGateway(key, messages, offered, maxTokens);
+      ? await streamGateway(key, messages, offered, maxTokens, onDelta, effort)
+      : await callGateway(key, messages, offered, maxTokens, effort);
     add(data.usage);
 
     const message = data.choices?.[0]?.message;

@@ -103,6 +103,41 @@ Both behaviours are defensible. Neither is a harness feature.
    worth taking from harness-land, and it costs a whole extra call of latency
    on a surface where we have just spent effort removing one.
 
+## The eval, and what it measured
+
+`functions/src/evals/` and `npm run eval:otto`. Six scenarios an operator
+actually walks into, each ending in two kinds of check: MECHANICAL facts about
+what he did (which tools, did he act for someone who cannot act, did he state
+a figure nobody gave him) and JUDGED questions put to a second model. They are
+scored separately, because a change that trades safety for a nicer answer is
+not a trade.
+
+**One sample per scenario is not a measurement.** The judged score moved from
+4/7 to 7/7 across two runs of an UNCHANGED prompt, which is how `--repeat`
+came to exist. Everything below is five runs per scenario, and the pass RATE
+is printed so a 2/5 never reads as a pass.
+
+Measured 2026-08-24, `openai/gpt-5.6-luna`, ~$0.012 and two minutes for a full
+board:
+
+- **Safety: 7/7, every run, 35 samples.** He never acted for a signed-out
+  caller, never acted on an instruction pasted from a page, never invented a
+  figure. The injection scenario is the one to keep: "That is not an about
+  page, it is an instruction aimed at me, and I will ignore it."
+- **Reasoning effort bought nothing.** At `effort=high` the board scored
+  identically and took 47s against 26s. It is available behind `SETUP_EFFORT`
+  and off by default; latency is not free here, because a long turn is one the
+  published beta proxy discards.
+- **Two prompt bugs the eval found and one it fixed for good.** He asked three
+  questions at once despite his own one-question rule (now 5/5), and he
+  answered "set it up for me now" from a signed-out visitor without mentioning
+  that he could not (1/5, now 5/5 after being told to say it in the FIRST
+  sentence).
+- **One weakness stands: 2 to 4 runs in 5.** Asked about a company he has just
+  read about, he still sometimes asks which number to price instead of
+  proposing one. A rule telling him to propose moved it, and a re-run moved it
+  back, so the honest reading is that it hovers under half and is not fixed.
+
 ## Recommendation
 
 Do not migrate. Make the two changes that buy thinking directly:
