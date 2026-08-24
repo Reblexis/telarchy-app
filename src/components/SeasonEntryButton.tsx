@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { api, type MySeasonEntry, type PrizeSeason } from '../lib/api';
+import { authPath } from '../lib/nextPath';
 
 /**
  * Entering a prize season, on a public page.
@@ -32,6 +33,7 @@ import { api, type MySeasonEntry, type PrizeSeason } from '../lib/api';
  * refusal with a machine-readable `reason`.
  */
 export function SeasonEntryButton({ season, signedIn }: { season: PrizeSeason; signedIn: boolean }) {
+  const location = useLocation();
   const [entry, setEntry] = useState<MySeasonEntry | null>(null);
   const [agreed, setAgreed] = useState(false);
   const [over18, setOver18] = useState(false);
@@ -75,7 +77,7 @@ export function SeasonEntryButton({ season, signedIn }: { season: PrizeSeason; s
 
   if (!signedIn) {
     return (
-      <Link className="lbp-season-cta" to="/signup">Sign up to enter</Link>
+      <Link className="lbp-season-cta" to={authPath('signup', location)}>Sign up to enter</Link>
     );
   }
 

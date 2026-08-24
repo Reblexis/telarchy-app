@@ -29,6 +29,7 @@ const renderChat = (signedIn = true) =>
   render(<MemoryRouter><SetupChat signedIn={signedIn} /></MemoryRouter>);
 
 beforeEach(() => {
+  localStorage.clear();
   // jsdom has no scrollIntoView; the log scrolls itself on every turn.
   Element.prototype.scrollIntoView = vi.fn();
   askSetup.mockClear();
@@ -214,5 +215,46 @@ describe('the vocabulary a visitor reads', () => {
     await screen.findByText('Which number?');
     // Includes the receipt, which names what was opened.
     expect(container.textContent).not.toMatch(/floor/i);
+  });
+});
+
+describe('leaving to make an account', () => {
+  test('the conversation is there when they come back', async () => {
+    const user = userEvent.setup();
+    askSetup.mockResolvedValue({
+      answer: 'Then the number is monthly disputes.', opened: [], handoff: 'X'.repeat(220), settled: ['subject'],
+    });
+    const first = renderChat(false);
+    await user.type(screen.getByLabelText(/tell otto what you run/i), 'I run an arbitration protocol');
+    await user.click(screen.getByRole('button', { name: /send/i }));
+    await screen.findByText('Then the number is monthly disputes.');
+    first.unmount();
+
+    // Signing up leaves the page entirely and comes back to it.
+    renderChat(true);
+    expect(await screen.findByText('Then the number is monthly disputes.')).toBeTruthy();
+    expect(screen.getByText('I run an arbitration protocol')).toBeTruthy();
+    // And what was settled goes back with the next turn, so Otto does not
+    // re-ask what they answered before they had an account.
+    askSetup.mockClear();
+    await user.type(screen.getByLabelText(/tell otto what you run/i), 'disputes, then');
+    await user.click(screen.getByRole('button', { name: /send/i }));
+    await waitFor(() => expect(askSetup).toHaveBeenCalled());
+    expect(askSetup.mock.calls[0][1]).toEqual(['subject']);
+  });
+
+  test('a finished setup is not offered back as unfinished', async () => {
+    const user = userEvent.setup();
+    askSetup.mockResolvedValue({
+      answer: 'Opened.', opened: [{ name: 'Kleros', slug: 'kleros' }], handoff: 'X'.repeat(220),
+    });
+    const first = renderChat(true);
+    await user.type(screen.getByLabelText(/tell otto what you run/i), 'go');
+    await user.click(screen.getByRole('button', { name: /send/i }));
+    await screen.findByRole('link', { name: /kleros/i });
+    first.unmount();
+
+    renderChat(true);
+    expect(screen.queryByText('Opened.')).toBeNull();
   });
 });

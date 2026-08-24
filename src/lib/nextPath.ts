@@ -39,3 +39,22 @@ export function readNextFromSearch(search: string): string | null {
     return null;
   }
 }
+
+/**
+ * The auth door, carrying where the person is standing.
+ *
+ * Every call site that sent someone to sign up dropped this, so being asked
+ * for an account meant losing the market, the season entry or the
+ * half-finished setup you were asked about (owner direction 2026-08-24).
+ * Pass `window.location` (or a router location) and they come back.
+ */
+export function authPath(
+  door: 'login' | 'signup',
+  loc: { pathname: string; search?: string; hash?: string },
+): string {
+  const here = `${loc.pathname}${loc.search ?? ''}${loc.hash ?? ''}`;
+  const safe = safeNextPath(here);
+  // The doors themselves are not somewhere to come back to.
+  if (!safe || safe.startsWith('/login') || safe.startsWith('/signup')) return `/${door}`;
+  return `/${door}?next=${encodeURIComponent(safe)}`;
+}

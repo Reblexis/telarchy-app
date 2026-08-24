@@ -1,9 +1,10 @@
 import { useEffect, useState, FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import { SetupChat } from '../components/SetupChat';
 import { useAuth } from '../hooks/useAuth';
 import { Logo } from '../components/Logo';
+import { authPath } from '../lib/nextPath';
 
 /**
  * The owner side's entire surface while Telarchy is trader-first
@@ -14,6 +15,7 @@ import { Logo } from '../components/Logo';
  * discipline, one action.
  */
 export function ManagePage() {
+  const location = useLocation();
   const { user } = useAuth();
   const [email, setEmail] = useState('');
 
@@ -52,7 +54,7 @@ export function ManagePage() {
         <Link to="/" className="pubws-logolink" aria-label="Telarchy">
           <Logo variant="lockup" height="2.1rem" />
         </Link>
-        <Link to="/login" className="pubws-login">Log in</Link>
+        <Link to={authPath('login', location)} className="pubws-login">Log in</Link>
       </nav>
       <main className="pubws-main">
 

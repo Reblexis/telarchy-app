@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 /* Eager: the two first-paint routes. `/` is the list, `/:slug` is the floor;
    between them they are what nearly every visitor lands on, so their code
@@ -8,6 +8,7 @@ import { FloorsPage } from './pages/FloorsPage';
 import { BetaBanner } from './components/BetaBanner';
 import { lazyPage } from './lib/lazy-page';
 import { BASE_PATH } from './lib/base-path';
+import { popStashedNextPath } from './lib/nextPath';
 
 /* Lazy: everything else splits into per-route chunks (2026-08-20). The entry
    bundle was 615 KB with every page in it, so a phone visitor downloaded the
@@ -56,9 +57,35 @@ function LocalRedirect() {
   return null;
 }
 
+/**
+ * Put someone back where they were after an OAuth round trip.
+ *
+ * The stash has existed since signup did, and nothing ever read it: OAuth
+ * leaves for the provider and comes back to `callbackURL: '/'`, so anyone who
+ * signed in with Google from a market, a season entry or a half-finished
+ * setup landed on the home page with no way back to what they were doing
+ * (owner direction 2026-08-24: "if i sign up from there it shouldnt
+ * disappear"). Email signup never had the problem, which is why it went
+ * unnoticed.
+ *
+ * Only fires where OAuth actually lands, so a normal visit to the home page
+ * never redirects, and pops the value so a later visit does not either.
+ */
+function ResumeAfterOAuth() {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  useEffect(() => {
+    if (pathname !== '/') return;
+    const next = popStashedNextPath();
+    if (next && next !== '/') navigate(next, { replace: true });
+  }, [pathname, navigate]);
+  return null;
+}
+
 export function App() {
   return (
     <BrowserRouter basename={BASE_PATH || '/'}>
+      <ResumeAfterOAuth />
       {/* Renders nothing on telarchy.com. Anywhere else, it says so, and
           carries the Publish button. */}
       <BetaBanner />

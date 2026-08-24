@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { api, setActiveWorkspace, type PublicWorkspace } from '../lib/api';
+import { authPath } from '../lib/nextPath';
 import { useAuth } from '../hooks/useAuth';
 import { MarketChart } from '../components/MarketChart';
 import { TradeTicket, type TicketPosition } from '../components/TradeTicket';
@@ -1254,7 +1255,7 @@ export function TradePage() {
                     }
                   : hero ? { marketId: hero.marketId } : {}}
                 canPost={!!user && joined}
-                onRequireSignup={() => navigate('/signup')}
+                onRequireSignup={() => navigate(authPath('signup', location))}
               />
             )}
 
@@ -1396,7 +1397,7 @@ export function TradePage() {
               selectedId={selectedJobId}
               onSelect={id => setSelectedJobId(cur => (cur === id ? null : id))}
               signedIn={!!user}
-              onRequireSignup={() => navigate('/signup')}
+              onRequireSignup={() => navigate(authPath('signup', location))}
               workspaceName={ws.name}
               metricNames={metricNames}
               onPropose={async (title, description, askUsd) => {
@@ -1404,7 +1405,7 @@ export function TradePage() {
                 // itself is public information (Open workspace ballot).
                 // Payment details come from the account (owner decision
                 // 2026-08-10): the server reads and snapshots them.
-                if (!user) { navigate('/signup'); return; }
+                if (!user) { navigate(authPath('signup', location)); return; }
                 // No proposer stake (owner call 2026-08-14): the workspace
                 // auto-funds the branch markets instead. Charging the empty
                 // side of the marketplace half a newcomer's starting balance
@@ -1438,7 +1439,7 @@ export function TradePage() {
             orders={trading ? orders : []}
             onPlaceLimit={trading ? placeLimit : async () => {}}
             onCancelLimit={trading ? cancelLimit : undefined}
-            onRequireSignup={trading ? undefined : () => navigate('/signup')}
+            onRequireSignup={trading ? undefined : () => navigate(authPath('signup', location))}
             initialDir={betModal === 'manage' ? undefined : betModal}
             manageMode={betModal === 'manage'}
             onClose={() => setBetModal(null)}
@@ -1570,6 +1571,10 @@ export function TopBar({ user, ready, floor = null }: {
   floor?: FloorRef | null;
 }) {
   const navigate = useNavigate();
+  // The ROUTER's location, not window's: under a basename (the beta serves at
+  // /beta) window.location.pathname already carries the prefix, and navigate()
+  // adds it again, so a return path built from it lands at /beta/beta/...
+  const location = useLocation();
   return (
     <nav className="pubws-topbar">
       {/* The logo answers "what else is there to trade?": it opens the
@@ -1581,7 +1586,7 @@ export function TopBar({ user, ready, floor = null }: {
         <Logo variant="lockup" height="3rem" />
       </Link>
       <div className="pubws-topbar-right">
-        <ManifoldButton signedIn={user} onRequireSignup={() => navigate('/signup')} />
+        <ManifoldButton signedIn={user} onRequireSignup={() => navigate(authPath('signup', location))} />
         <DiscordButton />
         <ReportButton />
         {/* Rendered only after the session check settles: while it is
@@ -1590,7 +1595,7 @@ export function TopBar({ user, ready, floor = null }: {
         {ready && user && <div className="pubws-fade"><NotificationsBell /></div>}
         {ready && (user
           ? <div className="pubws-fade"><AccountMenu floor={floor} /></div>
-          : <Link to="/login" className="pubws-login pubws-fade">Log in</Link>)}
+          : <Link to={authPath('login', location)} className="pubws-login pubws-fade">Log in</Link>)}
       </div>
     </nav>
   );

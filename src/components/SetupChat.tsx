@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { SetupInstrument, SetupTicks, type InstrumentMarket } from './SetupInstrument';
+import { clearSetupDraft, loadSetupDraft, saveSetupDraft } from '../lib/setup-draft';
 
 /**
  * Otto on the operator door (owner direction 2026-08-22).
@@ -35,16 +36,20 @@ const OPENERS = [
 ];
 
 export function SetupChat({ signedIn }: { signedIn: boolean }) {
-  const [turns, setTurns] = useState<Turn[]>([]);
+  // Picked up rather than started, when they left to make an account and came
+  // back. Read once, at mount, so a draft saved in another tab cannot
+  // overwrite a live conversation here.
+  const [saved] = useState(() => loadSetupDraft());
+  const [turns, setTurns] = useState<Turn[]>(() => saved?.turns ?? []);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [opened, setOpened] = useState<Array<{ name: string; slug: string | null }>>([]);
-  const [handoff, setHandoff] = useState('');
+  const [handoff, setHandoff] = useState(() => saved?.handoff ?? '');
   const [copied, setCopied] = useState(false);
   /** What the conversation has settled, sent back each turn so Otto does not
    *  re-ask. The server keeps only ids the specification knows. */
-  const [settled, setSettled] = useState<string[]>([]);
+  const [settled, setSettled] = useState<string[]>(() => saved?.settled ?? []);
   const [checklist, setChecklist] = useState<{
     blocking: string[];
     market: InstrumentMarket | null;
@@ -57,6 +62,16 @@ export function SetupChat({ signedIn }: { signedIn: boolean }) {
     if (turns.length) endRef.current?.scrollIntoView({ block: 'end', behavior: 'smooth' });
   }, [turns, busy]);
   useEffect(() => { inputRef.current?.focus(); }, []);
+
+  // Kept on every turn, so leaving for the signup page (the one thing this
+  // door asks of a visitor) costs them nothing. One effect owns both sides:
+  // clearing imperatively when the market opened lost the race with this,
+  // which re-saved on the very next render and offered a finished setup back
+  // as if it were unfinished.
+  useEffect(() => {
+    if (opened.length) { clearSetupDraft(); return; }
+    saveSetupDraft({ turns, handoff, settled });
+  }, [turns, handoff, settled, opened]);
 
   const send = async (text: string) => {
     const content = text.trim();

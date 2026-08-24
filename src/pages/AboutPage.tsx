@@ -1,5 +1,6 @@
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Logo } from '../components/Logo';
+import { authPath } from '../lib/nextPath';
 
 /**
  * telarchy.com/about: what this site is, said once, for the cold visitor who
@@ -13,6 +14,7 @@ import { Logo } from '../components/Logo';
  * the why-it-matters layer; lead with the wedge.
  */
 export function AboutPage() {
+  const location = useLocation();
   const steps = [
     'An owner lists the numbers they are trying to move: the handful of ' +
       'metrics that decide the most for a company, a project, or a personal goal.',
@@ -28,7 +30,7 @@ export function AboutPage() {
         <Link to="/" className="pubws-logolink" aria-label="Telarchy">
           <Logo variant="lockup" height="2.1rem" />
         </Link>
-        <Link to="/login" className="pubws-login">Log in</Link>
+        <Link to={authPath('login', location)} className="pubws-login">Log in</Link>
       </nav>
       <main className="pubws-main">
         <header className="pubws-hero pubws-hero--left">
