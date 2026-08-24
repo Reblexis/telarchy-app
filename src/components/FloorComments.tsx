@@ -4,8 +4,9 @@ import { api } from '../lib/api';
 
 /**
  * The panel under the one market view (owner ask 2026-08-11): three
- * toggles side by side, Comments, Positions, and Trades, each expanding
- * in place. Comments is the conversation (post if signed in). Positions
+ * toggles side by side, Discussion (labeled Comments until the owner's
+ * 2026-08-24 rename), Positions, and Trades, each expanding in place.
+ * Discussion is the conversation (post if signed in). Positions
  * shows who holds what in the market on screen; Trades shows its history.
  * All three read publicly on Open workspaces; posting a comment needs a
  * signed-in trader.
@@ -177,7 +178,7 @@ export function FloorComments({
     <div className="pubws-comments">
       <div className="pubws-panel-tabs">
         <button className={`pubws-comments-toggle${tab === 'comments' ? ' is-active' : ''}`} aria-expanded={tab === 'comments'} onClick={() => toggle('comments')}>
-          Comments{cCount !== null ? ` (${cCount})` : ''}
+          Discussion{cCount !== null ? ` (${cCount})` : ''}
         </button>
         {marketKey && (
           <>

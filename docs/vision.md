@@ -512,14 +512,16 @@ A conversation nobody is told about is not a conversation. Comments under a cont
 
 **Added 2026-08-20 (Viktor): the conversation outlives the decision.** An approved or declined contract keeps its thread on the floor, readable and open to new comments. What a decision pauses is trading, not the talk about the outcome; hiding the thread with the bet buttons buried it exactly when there is the most to say (was the work delivered, did the number move). The API never gated this (`proposalMessages` accepts any status), so the fix is purely which panels the floor shows on a decided contract.
 
-A participant therefore carries three email switches on their own row (`agents`), all editable in account settings:
+A participant therefore carries email switches on their own row (`agents`), all editable in account settings:
 
 - `notifyCommentOnMyProposal` (default **on**): someone commented under a contract you posted.
 - `notifyReplyToMyComment` (default **on**): someone else commented in a thread you have commented in, contract or market.
 - `notifyNewProposal` (default **off**): a new contract went on the ballot in a workspace you belong to.
 - `notifyAnyComment` (default **off**, added 2026-08-21): every comment on a workspace you belong to, whoever wrote it and wherever it landed, contract thread or market thread.
+- `notifyMarketResolved` (default **on**, added 2026-08-24): a market you traded settled, with the value it settled at. A voided market is not a settlement and sends nothing; its refund is the message.
+- `notifyContractDecided` (default **on**, added 2026-08-24): a contract you traded on (either branch) or commented under, anywhere in its conversation, was approved or declined. The proposer's own copy stays switchless (below); this switch is for everyone else with money or words on the outcome. The owner who made the decision is never mailed about their own act.
 
-The split of defaults is the design, not an accident. The first two are answers addressed *to you*: someone is waiting on a reply, and not delivering that is the product failing at the one thing a comment box promises. The third is a firehose whose volume is set by strangers, so it stays off until someone asks for it. New accounts get exactly this at signup; nothing is asked at the door, because a notification question in a signup form costs more traders than it saves emails.
+The split of defaults is the design, not an accident. The on-by-default switches are answers addressed *to you*: a reply someone is waiting on, the settlement of a bet you placed, the verdict on a contract you priced or argued about. The firehoses (new contracts, every comment) have their volume set by strangers, so they stay off until someone asks for them. New accounts get exactly this at signup; nothing is asked at the door, because a notification question in a signup form costs more traders than it saves emails.
 
 **Watching a whole floor** (owner ask 2026-08-21: "make sure that i get email regarding telarchy when any comment is written ... should be off by default ofc"). `notifyAnyComment` mails a member every comment on that workspace, which is what the person running a floor wants and what nobody else does. Off by default for the same reason as new contracts: the volume is set by strangers rather than by the reader. Migration 0072 adds the column and switches it on for the owner, matched by the address on the auth account rather than by nickname, because a nickname is editable by its owner and the address is where the mail actually goes.
 

@@ -237,6 +237,14 @@ export const agents = pgTable('agents', {
    *  see the conversation on it without going looking; nobody else does, and
    *  the volume is set by strangers, so it is opt-in like the one above. */
   notifyAnyComment: boolean('notify_any_comment').notNull().default(false),
+  /** ON by default: a market this participant traded settled, with the value
+   *  it settled at. The answer to a bet they placed, so opt-out. */
+  notifyMarketResolved: boolean('notify_market_resolved').notNull().default(true),
+  /** ON by default: a contract this participant traded on or commented under
+   *  was approved or declined. The proposer's own decision mail is switchless
+   *  (services/notifications.ts); this switch covers everyone else with money
+   *  or words on the outcome. */
+  notifyContractDecided: boolean('notify_contract_decided').notNull().default(true),
   /**
    * How far this participant has read the notifications inbox
    * (GET /api/notifications). The inbox itself is derived from comments,

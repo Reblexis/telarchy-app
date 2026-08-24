@@ -2,10 +2,12 @@
  * Participant email notifications (owner ask 2026-08-19; the contract is
  * docs/vision.md, "Participant email notifications").
  *
- * Three switches, all on the participant row: a comment under a contract you
- * posted, a reply in a thread you are in (both on by default), and every new
- * contract on a workspace's ballot (off by default). This module owns who
- * gets mail and what it says; lib/notify.ts owns the transport.
+ * The switches all live on the participant row: a comment under a contract
+ * you posted, a reply in a thread you are in, a market you traded settling,
+ * a contract you traded or commented on being decided (all on by default),
+ * and the two firehoses, every new contract and every comment on a workspace
+ * (off by default). This module owns who gets mail and what it says;
+ * lib/notify.ts owns the transport.
  *
  * Two rules run through everything here:
  *
@@ -22,13 +24,13 @@ import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import { db } from '../db/client';
 import {
   agents, authUser, markets, marketMessages, notificationReads, permissionGroups,
-  proposals, proposalMessages, workspaces,
+  proposals, proposalMessages, trades, workspaces,
 } from '../db/schema';
 import { getParticipantDisplayNames } from '../lib/participants';
 import { publicOrigin, sendEmail } from '../lib/notify';
 
 /** Which switch produced a given message; also the line the email closes on. */
-type Reason = 'my-proposal' | 'reply' | 'new-proposal' | 'decision' | 'any-comment';
+type Reason = 'my-proposal' | 'reply' | 'new-proposal' | 'decision' | 'decision-involved' | 'any-comment' | 'market-resolved';
 
 const REASON_LINE: Record<Reason, string> = {
   'my-proposal': 'You are getting this because someone commented on a contract you posted.',
@@ -36,6 +38,8 @@ const REASON_LINE: Record<Reason, string> = {
   'new-proposal': 'You are getting this because you asked to hear about new contracts here.',
   'any-comment': 'You are getting this because you asked to hear about every comment on this workspace.',
   decision: 'You are getting this because you posted this contract. Decisions on your own contracts are always sent.',
+  'decision-involved': 'You are getting this because you traded or commented on this contract.',
+  'market-resolved': 'You are getting this because you traded this market.',
 };
 
 /**
@@ -44,11 +48,13 @@ const REASON_LINE: Record<Reason, string> = {
  * own contract is the answer to a question you asked, usually with money on
  * it, so the only reason anyone would turn it off is by mistake.
  */
-const REASON_COLUMN: Record<Reason, 'notifyCommentOnMyProposal' | 'notifyReplyToMyComment' | 'notifyNewProposal' | 'notifyAnyComment' | null> = {
+const REASON_COLUMN: Record<Reason, 'notifyCommentOnMyProposal' | 'notifyReplyToMyComment' | 'notifyNewProposal' | 'notifyAnyComment' | 'notifyMarketResolved' | 'notifyContractDecided' | null> = {
   'my-proposal': 'notifyCommentOnMyProposal',
   reply: 'notifyReplyToMyComment',
   'new-proposal': 'notifyNewProposal',
   'any-comment': 'notifyAnyComment',
+  'market-resolved': 'notifyMarketResolved',
+  'decision-involved': 'notifyContractDecided',
   decision: null,
 };
 
@@ -75,6 +81,8 @@ async function resolveRecipients(wanted: Map<string, Reason>): Promise<Recipient
     notifyReplyToMyComment: agents.notifyReplyToMyComment,
     notifyNewProposal: agents.notifyNewProposal,
     notifyAnyComment: agents.notifyAnyComment,
+    notifyMarketResolved: agents.notifyMarketResolved,
+    notifyContractDecided: agents.notifyContractDecided,
   }).from(agents)
     .innerJoin(authUser, eq(agents.authUserId, authUser.id))
     .where(inArray(agents.id, ids));
@@ -297,6 +305,7 @@ export async function notifyProposalDecided(opts: {
       status: proposals.status,
       declineReason: proposals.declineReason,
       askUsd: proposals.askUsd,
+      resolvedBy: proposals.resolvedBy,
     }).from(proposals)
       .where(and(eq(proposals.id, proposalId), eq(proposals.workspaceId, workspaceId)));
     if (!proposal) return;
@@ -307,7 +316,28 @@ export async function notifyProposalDecided(opts: {
     // rows that should not have been there; neither is a decision to report.
     if (!approved && !declined) return;
 
-    const recipients = await resolveRecipients(new Map([[proposal.proposedBy, 'decision' as Reason]]));
+    // The proposer first (switchless), then everyone else with money or words
+    // on the outcome (owner ask 2026-08-24): whoever traded either branch or
+    // commented anywhere in the contract's conversation. The decider is never
+    // told about their own act.
+    const wanted = new Map<string, Reason>([[proposal.proposedBy, 'decision' as Reason]]);
+    const pairMarkets = await db.select({ id: markets.id }).from(markets)
+      .where(and(eq(markets.workspaceId, workspaceId), eq(markets.proposalId, proposalId)));
+    const pairIds = pairMarkets.map(m => m.id);
+    const [pairTraders, threadVoices, branchVoices] = await Promise.all([
+      pairIds.length === 0 ? [] : db.select({ id: trades.agentId }).from(trades)
+        .where(and(eq(trades.workspaceId, workspaceId), inArray(trades.marketId, pairIds))),
+      db.select({ id: proposalMessages.from }).from(proposalMessages)
+        .where(and(eq(proposalMessages.workspaceId, workspaceId), eq(proposalMessages.proposalId, proposalId))),
+      pairIds.length === 0 ? [] : db.select({ id: marketMessages.from }).from(marketMessages)
+        .where(and(eq(marketMessages.workspaceId, workspaceId), inArray(marketMessages.marketId, pairIds))),
+    ]);
+    for (const r of [...pairTraders, ...threadVoices, ...branchVoices]) {
+      if (r.id !== proposal.resolvedBy && !wanted.has(r.id)) wanted.set(r.id, 'decision-involved');
+    }
+    if (proposal.resolvedBy) wanted.delete(proposal.resolvedBy);
+
+    const recipients = await resolveRecipients(wanted);
     if (recipients.length === 0) return;
 
     const { url, name } = await floorUrl(workspaceId, `#contract=${encodeURIComponent(proposalId)}`);
@@ -321,20 +351,84 @@ export async function notifyProposalDecided(opts: {
       recipients,
       `${approved ? 'Approved' : 'Declined'}: ${proposal.title}`,
       r => [
-        `${name} ${verb} your contract:`,
+        // "your contract" is the proposer's sentence; everyone else hears
+        // about a contract they took a side on, not one they own.
+        r.reason === 'decision' ? `${name} ${verb} your contract:` : `${name} ${verb} this contract:`,
         '',
         proposal.title,
-        ...(proposal.askUsd ? ['', `Your ask was $${proposal.askUsd}.`] : []),
+        ...(proposal.askUsd ? ['', r.reason === 'decision' ? `Your ask was $${proposal.askUsd}.` : `The ask was $${proposal.askUsd}.`] : []),
         ...(reason ? ['', `Reason: ${preview(reason)}`] : []),
         '',
         `See it: ${url}`,
         '',
         REASON_LINE[r.reason],
-        `Your other emails: ${settings.url}`,
+        r.reason === 'decision' ? `Your other emails: ${settings.url}` : `Turn it off in account settings: ${settings.url}`,
       ].join('\n'),
     );
   } catch (e) {
     console.error('decision notification failed:', e);
+  }
+}
+
+/**
+ * A market settled (owner ask 2026-08-24). Mails everyone who traded it, with
+ * the value it settled at: the settlement is the answer to a bet they placed.
+ *
+ * Called after the resolution is committed, and reads the row back so the
+ * mail can never state a value the record does not. A voided market never
+ * reaches here (it did not settle; its refund is the message), and only real
+ * trades count: an LP's stake is not a bet on a side.
+ */
+export async function notifyMarketResolved(opts: {
+  workspaceId: string;
+  marketId: string;
+}): Promise<void> {
+  const { workspaceId, marketId } = opts;
+  try {
+    const [market] = await db.select({
+      metricName: markets.metricName, targetDate: markets.targetDate,
+      actualValue: markets.actualValue, resolved: markets.resolved,
+      voided: markets.voided, proposalId: markets.proposalId,
+    }).from(markets)
+      .where(and(eq(markets.id, marketId), eq(markets.workspaceId, workspaceId)));
+    if (!market || !market.resolved || market.voided || market.actualValue === null) return;
+
+    const traders = await db.select({ id: trades.agentId }).from(trades)
+      .where(and(eq(trades.workspaceId, workspaceId), eq(trades.marketId, marketId)));
+    const wanted = new Map<string, Reason>();
+    for (const t of traders) wanted.set(t.id, 'market-resolved');
+
+    const recipients = await resolveRecipients(wanted);
+    if (recipients.length === 0) return;
+
+    // A branch market settles a contract's question, so the subject names the
+    // contract when there is one; the bare label is a metric and its period.
+    let subjectLabel = `${market.metricName} ${market.targetDate}`;
+    if (market.proposalId) {
+      const [proposal] = await db.select({ title: proposals.title }).from(proposals)
+        .where(and(eq(proposals.id, market.proposalId), eq(proposals.workspaceId, workspaceId)));
+      if (proposal) subjectLabel = proposal.title;
+    }
+
+    const { url, name } = await floorUrl(workspaceId);
+    const settings = await floorUrl(workspaceId, '#emails');
+
+    await deliver(
+      recipients,
+      `Settled at ${market.actualValue}: ${subjectLabel}`,
+      r => [
+        `${market.metricName} ${market.targetDate} on ${name} settled at ${market.actualValue}.`,
+        '',
+        `Your positions on it have been paid out at that value.`,
+        '',
+        `See the market: ${url}`,
+        '',
+        REASON_LINE[r.reason],
+        `Turn it off in account settings: ${settings.url}`,
+      ].join('\n'),
+    );
+  } catch (e) {
+    console.error('market-resolved notification failed:', e);
   }
 }
 

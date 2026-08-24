@@ -103,6 +103,10 @@ async function resolveMarketRow(
   emitEvent('market:resolved', { marketId: market.id, metricName: market.metricName, targetDate: market.targetDate, actualValue }, workspaceId)
     .catch(e => console.error('emitEvent failed:', e));
 
+  // Fire-and-forget, after the transaction: the settlement is the answer to
+  // every bet on this book, and mail must never block or fail a resolve.
+  void notifyMarketResolved({ workspaceId, marketId: market.id });
+
   return { positions: positionCount, totalPayout };
 }
 

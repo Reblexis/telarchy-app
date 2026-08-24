@@ -163,7 +163,7 @@ rows read "New value" (with the delta the bet would cause), "Wins above
 $74,300", "Each $10k beyond +3.1 cr", as a small hairline-ruled table.
 The confirm is full width, tinted by the side ("Bet 25 cr on Higher").
 Under the bet buttons sits the conversation (owner ask 2026-08-11): a
-quiet "Comments (N)" toggle expanding the thread in place, hairline
+quiet "Discussion (N)" toggle (renamed from "Comments" 2026-08-24, Viktor) expanding the thread in place, hairline
 rows, mono names, and the underline composer for signed-in traders
 ("Sign up to join the conversation" otherwise). The subject follows the
 one view: the baseline market's thread normally, the selected job's
@@ -171,7 +171,7 @@ proposal thread when one is open. Reading is public via
 GET /api/marketplace/:idOrSlug/comments (Open workspaces only); writing
 uses the same authenticated message endpoints API participants use.
 
-Beside Comments sit Positions and Trades. **For a contract they cover
+Beside Discussion sit Positions and Trades. **For a contract they cover
 BOTH branch markets, not the branch on screen (owner report 2026-08-21:
 "why dont i see any trades made on the conditional markets").** A
 contract opens on "if approved", and a contract whose trades all sat on
