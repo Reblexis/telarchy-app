@@ -142,7 +142,10 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
           {/* The workspace's own board: this floor's traders, ranked on their
               profit here (owner decision 2026-08-22). The season and global
               boards are on /leaderboard, linked below. */}
-          <h2 className="pubws-h2">Top traders</h2>
+          <div className="pubws-lb-head">
+            <h2 className="pubws-h2">Top traders</h2>
+            <span className="pubws-lb-meta">this market</span>
+          </div>
           <ol className="pubws-lb">
             {entries.map((e, i) => renderRow(e, i))}
             {minePinned && (
@@ -172,7 +175,10 @@ export function LeaderboardRail({ entries: all, contractors, unit = '', signedIn
       )}
       {showContractors && (
         <section className="pubws-lb-block">
-          <h2 className="pubws-h2">Top contractors</h2>
+          <div className="pubws-lb-head">
+            <h2 className="pubws-h2">Top contractors</h2>
+            <span className="pubws-lb-meta">impact</span>
+          </div>
           {contractors!.length > 0 ? (
             <ol className="pubws-lb">
               {contractors!.map((c, i) => {
@@ -256,8 +262,12 @@ function SeasonStrip({ signedIn, season }: { signedIn: boolean; season: PrizeSea
 
   return (
     <section className="pubws-lb-section">
-      <h2 className="pubws-h2">{season.name}</h2>
-      <p className="pubws-season-clock">{clock.headline}</p>
+      {/* The countdown is the header's meta (owner decision 2026-08-24): the
+          one meta in primary colour, because it says whether to act today. */}
+      <div className="pubws-lb-head pubws-lb-head--bare">
+        <h2 className="pubws-h2">{season.name}</h2>
+        <span className="pubws-lb-meta pubws-lb-meta--clock">{clock.headline}</span>
+      </div>
       <p className="pubws-lb-empty">
         {entered
           ? `You are in. $${season.poolUsd.toLocaleString()} in prizes.`

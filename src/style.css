@@ -1469,6 +1469,7 @@ code, pre, kbd, samp {
 .pubws-login {
   font-size: 0.8rem;
   font-weight: 500;
+  white-space: nowrap;
   color: var(--text-secondary);
   text-decoration: none;
 }
@@ -2748,17 +2749,6 @@ button.notif-row-link {
   flex: none;
 }
 
-/* text-align, not flex: `.pubws-ballot li { display: block }` outranks a
-   single-class rule, so justify-content would never apply. */
-.pubws-ballot-head {
-  text-align: right;
-  padding-bottom: 0.35rem;
-  font-size: 0.6rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.09em;
-  color: var(--text-tertiary);
-}
 
 /* The account corner: an avatar that opens what a trader needs here. */
 .acctmenu {
@@ -3899,6 +3889,7 @@ textarea.jobform-line--desc {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.68rem;
   color: var(--text-tertiary);
+  white-space: nowrap;
 }
 
 .mchart-range {
@@ -4072,8 +4063,11 @@ textarea.jobform-line--desc {
   display: flex;
   align-items: baseline;
   justify-content: center;
-  gap: 0.8rem;
+  gap: 1rem;
   flex-wrap: wrap;
+}
+@media (max-width: 480px) {
+  .pubws-headline { flex-direction: column; align-items: center; gap: 0.4rem; }
 }
 
 .pubws-delta-chip {
@@ -4119,9 +4113,11 @@ textarea.jobform-line--desc {
 }
 
 @media (max-width: 1119.98px) {
-  .pubws-main--floor .pubws-center { order: 1; }
-  .pubws-rail--left { order: 2; }
-  .pubws-rail--right { order: 3; }
+  /* The action before the proof: contracts, then standings (owner decision
+     2026-08-24). The headline used to touch the top bar here. */
+  .pubws-main--floor .pubws-center { order: 1; padding-top: clamp(1.2rem, 3vh, 2rem); }
+  .pubws-rail--right { order: 2; }
+  .pubws-rail--left { order: 3; }
   .pubws-rail {
     width: 100%;
     max-width: 660px;
@@ -4141,6 +4137,35 @@ textarea.jobform-line--desc {
    2026-08-24, "this looks weird"). */
 .pubws-lb-block + .pubws-lb-block,
 .pubws-lb-section { margin-top: 1.7rem; }
+
+/* Every rail block opens the same way (owner decision 2026-08-24): the label
+   left, a mono meta right saying what the numbers are, a hairline under
+   both, rows directly beneath. The season block is the bare variant: no
+   hairline, its meta is the countdown in primary colour. */
+.pubws-lb-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.pubws-lb-head .pubws-h2 { margin: 0; }
+.pubws-lb-head--bare { border-bottom: none; padding-bottom: 0.25rem; }
+.pubws-lb-meta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.69rem;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+.pubws-lb-meta--clock {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.pubws-lb-head + .pubws-lb,
+.pubws-lb-head + .pubws-ballot { margin-top: 0; }
+.pubws-lb-section .pubws-lb-more { margin-top: 0.75rem; }
 
 /* Per-job status pill in the ballot (approved / declined; pending is the
    default live state and needs no pill). */
@@ -4166,18 +4191,6 @@ textarea.jobform-line--desc {
   font-size: 0.8rem;
   line-height: 1.5;
   color: var(--text-tertiary);
-}
-
-/* The season countdown on the floor rail. Mono and primary-coloured because it
-   is a number that changes, and it is the one line in the strip that says
-   whether to act today. */
-.pubws-season-clock {
-  margin: 0.35rem 0 0;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.85rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
 }
 
 .pubws-lb-row {

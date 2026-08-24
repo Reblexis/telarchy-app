@@ -573,6 +573,23 @@ contractors, season) share one gap (`1.7rem`); the season strip used to have
 no gap rule at all and ran straight into the contractors' empty line (owner
 report 2026-08-24: "this looks weird").
 
+**The rail's blocks share one anatomy (owner decision 2026-08-24, Viktor:
+"redesign the workspace sites", Option A of the canvas in the umbrella's
+`notes/floor-redesign-2026-08-24.md`).** Every block on either rail opens
+with a header row (`.pubws-lb-head`): the tiny uppercase label on the left,
+a right-aligned mono meta on the right, a hairline underneath, rows
+following directly. The meta says what the numbers are: "this market" over
+the traders, "impact" over the contractors, "impact by Sep" over the
+contracts, and the season's countdown over the season block (the one meta in
+primary colour and bold, because it is the number that says whether to act
+today). The contracts board's per-list column label used to sit alone above
+the rows; it is that header's meta now. Below the poster on narrow
+viewports the contracts come BEFORE the standings: the action before the
+proof. The since-open chip sits on the price's baseline a full `1rem` off
+the number, and drops centred underneath it below 480px. The floor column
+keeps a small gap under the top bar on narrow viewports (the headline used
+to touch it) and "Log in" never wraps.
+
 **Both leaderboards rank on what the market says right now, not on what
 has settled (owner direction 2026-08-14, Viktor).** The rail stacks two
 blocks, traders then contractors, five rows each; both update on the

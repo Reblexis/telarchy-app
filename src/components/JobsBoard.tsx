@@ -167,16 +167,19 @@ export function JobsBoard({ proposals, unit, selectedId, onSelect, onPropose, si
 
   return (
     <section className="pubws-section" aria-label="Contracts">
-      <h2 className="pubws-h2">Contracts</h2>
+      <div className="pubws-lb-head">
+        <h2 className="pubws-h2">Contracts</h2>
+        {/* One column label for the whole list instead of one per row; it is
+            the header's meta, the same anatomy as the standings rail. */}
+        {proposals.length > 0 && (
+          <span className="pubws-lb-meta" aria-hidden="true">{horizonDate ? `impact by ${horizonLabel(horizonDate)}` : 'impact if done'}</span>
+        )}
+      </div>
 
       {proposals.length === 0 ? (
-        <p className="pubws-empty">Nothing on the ballot yet. Yours could be first.</p>
+        <p className="pubws-lb-empty">Nothing on the ballot yet. Yours could be first.</p>
       ) : (
         <ul className="pubws-ballot">
-          {/* One column label for the whole list instead of one per row. */}
-          <li className="pubws-ballot-head" aria-hidden="true">
-            <span>{horizonDate ? `impact by ${horizonLabel(horizonDate)}` : 'impact if done'}</span>
-          </li>
           {ranked.map(p => {
             const delta = impactOf(p);
             const selected = selectedId === p.id;

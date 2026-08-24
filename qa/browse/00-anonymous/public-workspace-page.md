@@ -410,7 +410,7 @@ for jobs approved on this page" for exactly that reason; it changes the
 next time that metric is redefined for a real reason, not before.
 
 So assert over the app's own chrome rather than the whole page:
-`$B js "[...document.querySelectorAll('.pubws-h2,.pubws-propose-cta,.pubws-do-title,.pubws-do-body,.pubws-lb-sub,.pubws-empty')].map(n=>n.textContent).join(' ')"`
+`$B js "[...document.querySelectorAll('.pubws-h2,.pubws-propose-cta,.pubws-do-title,.pubws-do-body,.pubws-lb-sub,.pubws-lb-empty')].map(n=>n.textContent).join(' ')"`
 must not match `/\\b(floor|jobs?)\\b/i`. The API keeps `proposal`.
 
 **Share unfurl:** `curl -s https://telarchy.com/<slug> | grep og:description`
