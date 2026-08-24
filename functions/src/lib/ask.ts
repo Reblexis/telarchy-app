@@ -104,9 +104,9 @@ interface GatewayReply {
   };
 }
 
-async function callGateway(
-  key: string, messages: GatewayMessage[], tools: AskTool[], maxTokens: number = MAX_TOKENS,
-): Promise<GatewayReply> {
+async function postGateway(
+  key: string, messages: GatewayMessage[], tools: AskTool[], maxTokens: number, stream: boolean,
+): Promise<Response> {
   const res = await fetch(GATEWAY, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
@@ -115,6 +115,9 @@ async function callGateway(
       max_completion_tokens: maxTokens,
       messages,
       ...(tools.length ? { tools: tools.map(t => t.spec) } : {}),
+      // Usage arrives in a final chunk when streaming, and without asking for
+      // it a streamed answer would report no cost at all.
+      ...(stream ? { stream: true, stream_options: { include_usage: true } } : {}),
     }),
   });
 
@@ -124,7 +127,97 @@ async function callGateway(
     // than a transport failure does.
     throw new Error(`gateway ${res.status}${res.status === 402 ? ' (budget spent)' : ''}: ${body.slice(0, 300)}`);
   }
+  return res;
+}
+
+async function callGateway(
+  key: string, messages: GatewayMessage[], tools: AskTool[], maxTokens: number = MAX_TOKENS,
+): Promise<GatewayReply> {
+  const res = await postGateway(key, messages, tools, maxTokens, false);
   return await res.json() as GatewayReply;
+}
+
+/** One streamed round, reassembled into the same shape a whole reply has.
+ *
+ *  `onDelta` fires for visible prose only. Tool-call arguments stream in the
+ *  same channel and must NOT be shown: they are the model deciding to look
+ *  something up, and a reader watching JSON appear would be watching Otto
+ *  think out loud in a language they did not ask for. */
+async function streamGateway(
+  key: string, messages: GatewayMessage[], tools: AskTool[], maxTokens: number,
+  onDelta: (text: string) => void,
+): Promise<GatewayReply> {
+  const res = await postGateway(key, messages, tools, maxTokens, true);
+  if (!res.body) throw new Error('gateway returned no stream');
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let content = '';
+  let finish: string | undefined;
+  let usage: GatewayReply['usage'];
+  // Tool calls arrive in fragments keyed by index, and their arguments are
+  // split across chunks at arbitrary boundaries.
+  const calls = new Map<number, { id: string; name: string; args: string }>();
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    // SSE frames are separated by a blank line; a frame can span reads.
+    let cut = buffer.indexOf('\n\n');
+    for (; cut >= 0; cut = buffer.indexOf('\n\n')) {
+      const frame = buffer.slice(0, cut);
+      buffer = buffer.slice(cut + 2);
+      for (const line of frame.split('\n')) {
+        if (!line.startsWith('data:')) continue;
+        const payload = line.slice(5).trim();
+        if (!payload || payload === '[DONE]') continue;
+        let chunk: {
+          choices?: Array<{
+            delta?: { content?: string; tool_calls?: Array<{ index?: number; id?: string; function?: { name?: string; arguments?: string } }> };
+            finish_reason?: string;
+          }>;
+          usage?: GatewayReply['usage'];
+        };
+        try {
+          chunk = JSON.parse(payload);
+        } catch {
+          // A malformed frame is not worth failing an answer over.
+          console.error('ask stream: unparsable frame');
+          continue;
+        }
+        if (chunk.usage) usage = chunk.usage;
+        const choice = chunk.choices?.[0];
+        if (!choice) continue;
+        if (choice.finish_reason) finish = choice.finish_reason;
+        const text = choice.delta?.content;
+        if (text) { content += text; onDelta(text); }
+        for (const part of choice.delta?.tool_calls ?? []) {
+          const idx = part.index ?? 0;
+          const existing = calls.get(idx) ?? { id: '', name: '', args: '' };
+          calls.set(idx, {
+            id: part.id ?? existing.id,
+            name: part.function?.name ?? existing.name,
+            args: existing.args + (part.function?.arguments ?? ''),
+          });
+        }
+      }
+    }
+  }
+
+  const tool_calls = [...calls.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([, c]) => ({ id: c.id, type: 'function' as const, function: { name: c.name, arguments: c.args } }));
+
+  return {
+    choices: [{
+      message: { role: 'assistant', content, ...(tool_calls.length ? { tool_calls } : {}) },
+      finish_reason: finish,
+    }],
+    usage,
+  };
 }
 
 export async function askAboutWorkspace(
@@ -136,6 +229,10 @@ export async function askAboutWorkspace(
      *  function, because the loop below (tool rounds, budget, usage
      *  accounting) is the part that must never fork. */
     system?: string;
+    /** Called with each fragment of visible prose as it arrives. Given one,
+     *  every round streams; tool-call arguments are still withheld, so what a
+     *  reader sees is only what Otto meant to say. */
+    onDelta?: (text: string) => void;
     /** Completion budget. The default is sized for a chat answer of a few
      *  sentences. A caller that asks for a document (the setup handoff asks
      *  for a 300-word prompt as JSON) must raise it, or a reasoning model
@@ -146,6 +243,7 @@ export async function askAboutWorkspace(
 ): Promise<AskResult> {
   const system = opts.system ?? SYSTEM;
   const maxTokens = opts.maxTokens ?? MAX_TOKENS;
+  const onDelta = opts.onDelta;
   const key = apiKey();
   if (!key) throw new Error('AI_GATEWAY_API_KEY is not set');
 
@@ -172,7 +270,9 @@ export async function askAboutWorkspace(
     // On the last round the tools are withheld, so the model has to answer
     // rather than reaching for another one it will not get to use.
     const offered = round < MAX_TOOL_ROUNDS ? tools : [];
-    const data = await callGateway(key, messages, offered, maxTokens);
+    const data = onDelta
+      ? await streamGateway(key, messages, offered, maxTokens, onDelta)
+      : await callGateway(key, messages, offered, maxTokens);
     add(data.usage);
 
     const message = data.choices?.[0]?.message;

@@ -94,10 +94,43 @@ setupRouter.post('/ask', wrap(async (req, res) => {
     model: process.env.ASK_MODEL || 'openai/gpt-5.6-luna', createdAt: new Date(),
   };
 
+  /**
+   * Token by token when the caller asks for it (owner direction 2026-08-24:
+   * "could you make the text appear token by token.. so i dont have to
+   * wait?"). The wait is real: Otto reasons, sometimes calls the API, and
+   * only then speaks, so a whole answer can be half a minute of nothing.
+   *
+   * Server-sent events rather than a websocket, because this is one direction
+   * and one turn. The trailing `done` frame carries what the prose does not:
+   * what was opened, the rewritten handoff, the checklist. That ordering is
+   * deliberate, since the handoff is a second model call and the answer must
+   * not wait behind it.
+   */
+  const wantsStream = req.headers.accept?.includes('text/event-stream') === true;
+  let streaming = false;
+  const send = (event: string, data: unknown) => {
+    if (!streaming) return;
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+
   const actions: ApiCallRecord[] = [];
   try {
+    if (wantsStream) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.setHeader('Connection', 'keep-alive');
+      // Cloud Run and any proxy in front of it will happily hold a response
+      // until it ends, which would turn this back into one long wait.
+      res.setHeader('X-Accel-Buffering', 'no');
+      res.flushHeaders?.();
+      streaming = true;
+    }
+
     const { answer, usage } = await askAboutWorkspace(
-      brief, turns, ottoApiTools(req, actions), { system: SETUP_SYSTEM });
+      brief, turns, ottoApiTools(req, actions), {
+        system: SETUP_SYSTEM,
+        ...(streaming ? { onDelta: (text: string) => send('delta', { text }) } : {}),
+      });
     console.log(`setup ask: ${usage.input} in (${usage.cachedInput} cached), ${usage.output} out, $${usage.costUsd ?? '?'}`);
     if (actions.length) {
       console.log(`setup ask: acted ${actions.map(a => `${a.method} ${a.path} -> ${a.status}`).join(', ')}`);
@@ -134,7 +167,7 @@ setupRouter.post('/ask', wrap(async (req, res) => {
       previouslySettled: settledBefore,
     });
 
-    res.json({
+    const payload = {
       answer,
       opened,
       handoff: handoff.prompt,
@@ -145,13 +178,29 @@ setupRouter.post('/ask', wrap(async (req, res) => {
         market: checklist.market,
         items: checklist.items.map(i => ({ id: i.id, label: i.label, status: i.status, note: i.note })),
       } : null,
-    });
+    };
+    if (streaming) {
+      // The whole answer rides along too: the page has it already, and a
+      // reader who lost a frame gets the authoritative copy rather than a
+      // sentence with a hole in it.
+      send('done', payload);
+      res.end();
+      return;
+    }
+    res.json(payload);
   } catch (e) {
     console.error('setup ask failed:', e);
     const message = e instanceof Error ? e.message.slice(0, 500) : String(e).slice(0, 500);
     await db.insert(floorQuestions)
       .values({ ...logRow, error: message, toolCalls: actions.length ? actions : null })
       .catch(err => console.error('setup question log failed:', err));
+    // Once the headers are out a status code is no longer available, so the
+    // failure has to arrive as a frame the page can read.
+    if (streaming) {
+      send('failed', { error: 'Could not answer that right now. Try again in a moment.' });
+      res.end();
+      return;
+    }
     res.status(502).json({ error: 'Could not answer that right now. Try again in a moment.' });
   }
 }));

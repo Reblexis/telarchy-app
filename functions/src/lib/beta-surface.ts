@@ -83,6 +83,12 @@ export async function proxyToCandidate(req: Request, res: Response): Promise<boo
     else if (Array.isArray(v)) headers[k] = v.join(', ');
   }
 
+  // A streamed answer is the one case where the proxy's defaults are both
+  // wrong: buffering hides the streaming, and a 20 second deadline kills an
+  // answer that is still arriving. Otto's setup turns can run past that while
+  // he reasons and calls the API (owner direction 2026-08-24).
+  const wantsStream = (req.headers.accept ?? '').includes('text/event-stream');
+
   const method = req.method.toUpperCase();
   const body = method === 'GET' || method === 'HEAD'
     ? undefined
@@ -93,7 +99,7 @@ export async function proxyToCandidate(req: Request, res: Response): Promise<boo
   try {
     upstream = await fetch(url, {
       method, headers, body, redirect: 'manual',
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(wantsStream ? 180_000 : 20_000),
     });
   } catch (e) {
     console.error('beta: proxy to candidate failed', (e as Error).message);
@@ -116,6 +122,22 @@ export async function proxyToCandidate(req: Request, res: Response): Promise<boo
   if (cookies.length > 0) res.setHeader('set-cookie', cookies);
   // The beta must never be what a search engine finds.
   res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+
+  // Pipe rather than buffer when the answer is arriving in pieces, or the
+  // beta would show a whole reply at once and look like nothing changed.
+  const contentType = upstream.headers.get('content-type') ?? '';
+  if (upstream.body && contentType.includes('text/event-stream')) {
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders?.();
+    const { Readable } = await import('node:stream');
+    const source = Readable.fromWeb(upstream.body as Parameters<typeof Readable.fromWeb>[0]);
+    source.on('error', e => {
+      console.error('beta: stream from candidate broke', (e as Error).message);
+      res.end();
+    });
+    source.pipe(res);
+    return true;
+  }
 
   const buf = Buffer.from(await upstream.arrayBuffer());
   res.end(buf);

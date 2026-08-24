@@ -1162,6 +1162,75 @@ export const api = {
   }> =>
     request('/api/setup/ask', { method: 'POST', body: JSON.stringify({ messages, settled }) }, true),
 
+  /**
+   * The same conversation, arriving as Otto writes it (owner direction
+   * 2026-08-24: "so i dont have to wait"). `onDelta` fires per fragment of
+   * prose; the promise resolves with the payload askSetup returns, carried by
+   * the trailing frame.
+   *
+   * Falls back to the whole-answer response when the server did not stream,
+   * so the door works either way rather than working better and sometimes
+   * not at all.
+   */
+  askSetupStream: async (
+    messages: Array<{ role: 'user' | 'assistant'; content: string }>,
+    settled: string[],
+    onDelta: (text: string) => void,
+  ) => {
+    const res = await fetch(`${API_BASE}/api/setup/ask`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+      body: JSON.stringify({ messages, settled }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({})) as { error?: string };
+      throw new Error(data.error || `Could not reach Otto (${res.status})`);
+    }
+    if (!res.body || !(res.headers.get('content-type') ?? '').includes('text/event-stream')) {
+      return await res.json();
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let final: unknown = null;
+    let failure: string | null = null;
+
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      // Frames are separated by a blank line and can span reads.
+      let cut = buffer.indexOf('\n\n');
+      for (; cut >= 0; cut = buffer.indexOf('\n\n')) {
+        const frame = buffer.slice(0, cut);
+        buffer = buffer.slice(cut + 2);
+        let event = 'message';
+        let data = '';
+        for (const line of frame.split('\n')) {
+          if (line.startsWith('event:')) event = line.slice(6).trim();
+          else if (line.startsWith('data:')) data += line.slice(5).trim();
+        }
+        if (!data) continue;
+        try {
+          if (event === 'delta') onDelta((JSON.parse(data) as { text: string }).text);
+          else if (event === 'done') final = JSON.parse(data);
+          else if (event === 'failed') failure = (JSON.parse(data) as { error: string }).error;
+        } catch (e) {
+          console.error('setup stream frame failed:', e);
+        }
+      }
+    }
+
+    if (failure) throw new Error(failure);
+    // A stream that ends without its trailing frame has given the reader
+    // prose and nothing else: no handoff, no checklist, no idea whether a
+    // market was opened. Saying so beats leaving the page confidently wrong.
+    if (!final) throw new Error('Otto stopped mid-answer. Ask again.');
+    return final;
+  },
+
   /** What is still open on a floor, read from the database. The endpoint the
    *  handoff prompt tells an operator's own agent to call first. */
   setupChecklist: (workspaceId: string) =>

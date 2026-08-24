@@ -21,7 +21,23 @@ type Reply = {
   checklist?: { blocking: string[]; items: Array<{ id: string; label: string; status: 'done' | 'open'; note: string }> } | null;
 };
 const askSetup = vi.fn(async (): Promise<Reply> => ({ answer: 'Opened it.', opened: [], handoff: '' }));
-vi.mock('../../lib/api', () => ({ api: { askSetup: (m: unknown, s: unknown) => askSetup(m as never, s as never) } }));
+/** The component streams. The mock plays a reply back through onDelta the way
+ *  the server does, so the tests exercise the path that actually runs; a test
+ *  can hold `streamPause` to freeze the stream mid-answer and look at it. */
+let streamPause: Promise<void> | null = null;
+vi.mock('../../lib/api', () => ({
+  api: {
+    askSetupStream: async (m: unknown, s: unknown, onDelta: (t: string) => void) => {
+      const reply = await askSetup(m as never, s as never);
+      const words = (reply.answer ?? '').split(' ');
+      for (let i = 0; i < words.length; i++) {
+        onDelta(words[i] + (i === words.length - 1 ? '' : ' '));
+        if (streamPause) await streamPause;
+      }
+      return reply;
+    },
+  },
+}));
 
 import { SetupChat } from '../SetupChat';
 
@@ -270,5 +286,44 @@ describe('before the session check comes back', () => {
     expect(screen.queryByText(/Otto acts with your account/i)).toBeNull();
     // The composer is there either way: nothing about it needs an account.
     expect(screen.getByLabelText(/tell otto what you run/i)).toBeTruthy();
+  });
+});
+
+describe('watching the answer arrive', () => {
+  test('the words appear as they come, not all at the end', async () => {
+    // Owner direction 2026-08-24: "so i dont have to wait". Otto reasons and
+    // sometimes calls the API before he speaks, so a whole answer can be half
+    // a minute of nothing on screen.
+    let release!: () => void;
+    streamPause = new Promise<void>(r => { release = r; });
+    askSetup.mockResolvedValue({ answer: 'Monthly disputes, then.', opened: [], handoff: '' });
+
+    const user = userEvent.setup();
+    renderChat();
+    await user.type(screen.getByLabelText(/tell otto what you run/i), 'kleros');
+    await user.click(screen.getByRole('button', { name: /send/i }));
+
+    // First word on screen while the rest is still coming.
+    // Testing Library normalises whitespace, so the trailing space is gone:
+    // this matches a turn whose whole text is the first word.
+    expect(await screen.findByText('Monthly')).toBeTruthy();
+    expect(screen.queryByText('Monthly disputes, then.')).toBeNull();
+
+    streamPause = null;
+    release();
+    expect(await screen.findByText('Monthly disputes, then.')).toBeTruthy();
+  });
+
+  test('a stream that dies takes its half-written sentence with it', async () => {
+    askSetup.mockRejectedValueOnce(new Error('Otto stopped mid-answer. Ask again.'));
+    const user = userEvent.setup();
+    renderChat();
+    await user.type(screen.getByLabelText(/tell otto what you run/i), 'kleros');
+    await user.click(screen.getByRole('button', { name: /send/i }));
+
+    expect(await screen.findByText(/stopped mid-answer/i)).toBeTruthy();
+    // A sentence that stops mid-word, left under an error, reads as something
+    // Otto said.
+    expect(screen.queryByText('', { selector: '.setup-otto' })).toBeNull();
   });
 });

@@ -87,7 +87,26 @@ export function SetupChat({ signedIn }: {
     setError('');
     setBusy(true);
     try {
-      const res = await api.askSetup(next, settled);
+      // Otto's turn appears as he writes it. The empty assistant turn goes in
+      // first so the words have somewhere to land, and the reader watches an
+      // answer form instead of a dot for half a minute.
+      setTurns([...next, { role: 'assistant', content: '' }]);
+      const res = await api.askSetupStream(next, settled, text => {
+        setTurns(prev => {
+          const copy = [...prev];
+          const last = copy[copy.length - 1];
+          if (last?.role === 'assistant') copy[copy.length - 1] = { ...last, content: last.content + text };
+          return copy;
+        });
+      }) as {
+        answer: string;
+        opened: Array<{ name: string; slug: string | null }>;
+        handoff: string;
+        settled?: string[];
+        open?: string[];
+        checklist?: typeof checklist;
+      };
+      // The authoritative copy, in case a frame was lost on the way.
       setTurns([...next, { role: 'assistant', content: res.answer }]);
       if (res.handoff) { setHandoff(res.handoff); setCopied(false); }
       if (res.settled?.length) setSettled(res.settled);
@@ -98,6 +117,9 @@ export function SetupChat({ signedIn }: {
         setOpened(prev => [...prev, ...res.opened.filter(o => !prev.some(p => p.slug === o.slug))]);
       }
     } catch (e) {
+      // Drop the half-written turn: a sentence that stops mid-word, left on
+      // screen under an error, reads as something Otto said.
+      setTurns(next);
       setError((e as Error).message || 'Otto is not answering. Try again in a moment.');
     } finally {
       setBusy(false);
