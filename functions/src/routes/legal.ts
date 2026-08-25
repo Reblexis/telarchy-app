@@ -140,6 +140,11 @@ zero; place alone decides the prize. The change only increases what is paid,
 never reduces anyone's standing or prize, and is announced on the season
 page._
 
+_Amended 2026-08-25, mid-season: accounts that own or administer a workspace
+are explicitly eligible. The rule never excluded them, but it did not say so;
+this change widens who may enter and reduces nobody's standing or prize. It is
+announced on the season page._
+
 **Season 0 is the first one, and the platform is still being launched.** Expect
 rough edges, apologies in advance. If something looks wrong, tell us through
 the feedback channel in the app; where a bug affects standings we say so
@@ -216,8 +221,12 @@ result on any recount.
   are needed; winners are asked at claim time. Leaving is one click.
 - Participants operated by us or run as part of the platform are **not
   eligible**.
+- Accounts that own or administer a workspace **are eligible**, and their
+  trades in that workspace count like any other; the score already runs over
+  every public workspace. Being a workspace owner is not being the platform.
 - We may disqualify entries that we determine, acting reasonably, are one
-  person running several accounts, or collude to distort prices.
+  person running several accounts, collude to distort prices, or use control
+  of a workspace's metrics or markets to move their own score.
 
 ## Getting paid
 

@@ -458,6 +458,21 @@ Viktor's own participant account stays eligible (owner decision 2026-08-20):
 the rule names accounts operated by the platform, and the founder trading his
 own market is participation rather than the house winning.
 
+**Amended 2026-08-25 (Viktor): workspace owners are explicitly eligible.**
+Owner ask: "edit the rules of the season tournament to allow participation of
+workspace owner accounts as well". Nothing in the rules or the code had ever
+excluded them (the only gate is `agents.platform_operated`), but the rules did
+not say so either, and a company that sets up a workspace and then reads "run
+as part of the platform" could reasonably wonder. The published rules now say
+it outright, in `docs/legal/season-0-rules.md`, the served copy in
+`routes/legal.ts`, and the season page's rule-change line. Their trades in
+their own workspace count like any other, because the score already runs over
+every public workspace. Added in the same edit, because an owner can set the
+metric their own position pays on: the disqualification clause now also names
+using control of a workspace's metrics or markets to move one's own score. No
+code change: eligibility was never enforced against owners, so there is
+nothing to relax.
+
 ## What shipped on 2026-08-19
 
 - `computeTradingProfit` in `functions/src/lib/leaderboard.ts` values every

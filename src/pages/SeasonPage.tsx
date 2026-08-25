@@ -151,6 +151,10 @@ export function SeasonPage() {
           Rule change, 2026-08-22: a prize no longer requires a positive score; place alone decides it. The change only
           increases what is paid.
         </p>
+        <p className="seasonp-experimental">
+          Rule change, 2026-08-25: accounts that own or administer a workspace are explicitly eligible, and their
+          trades in it count like any other. The change widens who may enter and reduces nobody's standing.
+        </p>
         {/* The real channel, inline, rather than a sentence pointing at an icon
             in the top bar. Anonymous reports are accepted, so a visitor who hit
             a bug before signing up can still send one. */}
