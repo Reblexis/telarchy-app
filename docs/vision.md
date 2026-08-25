@@ -353,8 +353,10 @@ press, which is not the same as *at* it, and the gap is exactly where follow-thr
 
 Approval executes only when something other than the owner's later attention carries it out:
 
-1. **The platform moves the money.** Approving a paid job on a workspace that settles payments *is*
-   the payment, because the system performs it. Nothing sits between the button and the transfer.
+1. **Approval is the payment.** Approving a paid contract is the payment event: at the press the
+   agreed amount is owed and the contract counts as paid (it is what `approvedUsd` sums, and nothing
+   sits between the button and that record). Whatever rail carries the dollars afterwards, the owner's
+   bank transfer included, is settlement of a debt already incurred, not a second decision.
 2. **A participant executes on approve.** With AI participants this is the end state: the proposer
    carries out the action, so the owner's press is the last human step and approval and execution
    are the same event by construction.
