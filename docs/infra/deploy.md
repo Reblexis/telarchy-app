@@ -387,6 +387,15 @@ gcloud iam roles create telarchyReleasePublisher --project=telarchy-e0043 \
 gcloud run services add-iam-policy-binding api --region us-central1 \
   --member="serviceAccount:429618975282-compute@developer.gserviceaccount.com" \
   --role="projects/telarchy-e0043/roles/telarchyReleasePublisher"
+# Added 2026-08-25: a traffic change re-validates the revision's image, so the
+# runtime account also needs READ on the image repository. Without it the
+# publish fails with 403 "artifactregistry.repositories.downloadArtifacts
+# denied on cloud-run-source-deploy" and the beta shows "Internal error"
+# (owner report 2026-08-25). Read only: it cannot push or delete an image.
+gcloud artifacts repositories add-iam-policy-binding cloud-run-source-deploy \
+  --location us-central1 --project telarchy-e0043 \
+  --member="serviceAccount:telarchy-api@telarchy-e0043.iam.gserviceaccount.com" \
+  --role="roles/artifactregistry.reader"
 ```
 
 Off Cloud Run there is no metadata server, so `releaseState()` reads as unknown
